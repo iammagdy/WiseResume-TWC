@@ -509,20 +509,41 @@ export async function reconcileOnboardingCompletion(
 }
 
 /**
- * Light-weight LinkedIn URL probe.
- *
- * Calls the `/api/fetch-url` server proxy and extracts whatever public meta
- * data is reachable (LinkedIn typically auth-walls, so this is best-effort).
- * Returns synthesized profile text suitable for piping through the existing
- * `parse-linkedin` edge function, plus a `name` derived from the URL slug
- * which we always have available.
+ * Server-side LinkedIn importer result. When `structured` is present, the
+ * `/api/linkedin-profile` endpoint returned a fully-parsed profile from
+ * the upstream provider (Proxycurl) and the caller should skip the AI
+ * `parse-linkedin` step. `quotaExhausted` / `notConfigured` flag the
+ * specific failure modes so the UI can show an accurate notice.
  */
-export async function probeLinkedInUrl(rawUrl: string): Promise<{
+export interface LinkedInProbeResult {
   profileText: string;
   derivedName: string | null;
   derivedHeadline: string | null;
   hadAnyData: boolean;
-}> {
+  /** Already-parsed structured data from the server importer, if available. */
+  structured?: Partial<ProfileData> & { fullName?: string; location?: string };
+  /** True if /api/linkedin-profile responded 503 (key missing). */
+  notConfigured?: boolean;
+  /** True if /api/linkedin-profile responded 402 (per-user monthly cap hit). */
+  quotaExhausted?: boolean;
+  /** Quota info returned by the server, when present. */
+  quota?: { used: number; cap: number; remaining: number };
+}
+
+/**
+ * LinkedIn URL probe.
+ *
+ * Tries the rich server-side importer first (`/api/linkedin-profile` →
+ * Proxycurl). Falls back to the existing OG-meta best-effort probe via
+ * `/api/fetch-url` whenever the server importer is unavailable (503),
+ * times out, or hits the per-user monthly quota.
+ *
+ * Returns synthesized profile text suitable for piping through the
+ * `parse-linkedin` edge function, a slug-derived display name, and (on
+ * server-importer success) a `structured` field the caller can use to
+ * skip the AI parse entirely.
+ */
+export async function probeLinkedInUrl(rawUrl: string): Promise<LinkedInProbeResult> {
   const url = /^https?:\/\//i.test(rawUrl.trim()) ? rawUrl.trim() : `https://${rawUrl.trim()}`;
   // Derive a name from the slug as a fallback (linkedin.com/in/jane-doe → "Jane Doe").
   const slugMatch = url.match(/linkedin\.com\/in\/([^/?#]+)/i);
@@ -540,10 +561,65 @@ export async function probeLinkedInUrl(rawUrl: string): Promise<{
   let derivedHeadline: string | null = null;
   let derivedSummary: string | null = null;
   let hadAnyData = !!derivedName;
+  let structured: LinkedInProbeResult['structured'] | undefined;
+  let notConfigured = false;
+  let quotaExhausted = false;
+  let quota: LinkedInProbeResult['quota'] | undefined;
 
+  const { getSupabaseToken } = await import('@/lib/supabaseAuth');
+  const token = await getSupabaseToken().catch(() => null);
+
+  // 1) Try the rich server-side importer first.
+  if (token) {
+    try {
+      const r = await fetch('/api/linkedin-profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ url }),
+      });
+      if (r.ok) {
+        const body = (await r.json()) as {
+          provider?: string;
+          profile?: Partial<ProfileData> & { fullName?: string; headline?: string; location?: string };
+          quota?: { used: number; cap: number; remaining: number };
+        };
+        if (body?.profile) {
+          structured = body.profile;
+          quota = body.quota;
+          if (body.profile.fullName) hadAnyData = true;
+          if (body.profile.headline) {
+            derivedHeadline = body.profile.headline;
+            hadAnyData = true;
+          }
+          // Build a richer profileText too — useful for the fallback caller
+          // and as a defensive payload if structured is unexpectedly empty.
+          const lines: string[] = [];
+          if (body.profile.fullName) lines.push(`Name: ${body.profile.fullName}`);
+          if (body.profile.headline) lines.push(`Headline: ${body.profile.headline}`);
+          if (body.profile.summary) lines.push('', 'About:', body.profile.summary);
+          return {
+            profileText: lines.join('\n') || `Source URL:\n${url}`,
+            derivedName: body.profile.fullName || derivedName,
+            derivedHeadline,
+            hadAnyData,
+            structured,
+            quota,
+          };
+        }
+      } else if (r.status === 503) {
+        notConfigured = true;
+      } else if (r.status === 402) {
+        quotaExhausted = true;
+        try { quota = (await r.json())?.quota; } catch { /* ignore */ }
+      }
+      // 400/404/429/502/504 → fall through to OG-meta best effort.
+    } catch {
+      // Network error → fall through to best-effort probe below.
+    }
+  }
+
+  // 2) Fall back to the OG-meta best-effort probe.
   try {
-    const { getSupabaseToken } = await import('@/lib/supabaseAuth');
-    const token = await getSupabaseToken();
     if (token) {
       const res = await fetch('/api/fetch-url', {
         method: 'POST',
@@ -602,5 +678,9 @@ export async function probeLinkedInUrl(rawUrl: string): Promise<{
     derivedName,
     derivedHeadline,
     hadAnyData,
+    structured,
+    notConfigured: notConfigured || undefined,
+    quotaExhausted: quotaExhausted || undefined,
+    quota,
   };
 }

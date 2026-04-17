@@ -245,8 +245,19 @@ export default function OnboardingPage() {
       const probe = await probeLinkedInUrl(v);
       let extracted: ExtractedProfile;
       let notice: string | null = null;
+      const linkedinUrlNormalized = /^https?:\/\//i.test(v) ? v : `https://${v}`;
 
-      if (probe.profileText.trim().length > 50) {
+      if (probe.structured) {
+        // Server-side importer (Proxycurl) returned structured data — skip
+        // the AI parse step entirely and use the rich extraction directly.
+        extracted = fromProfileData(probe.structured as Partial<ProfileData>, {
+          fullName: probe.structured.fullName || probe.derivedName || undefined,
+          linkedinUrl: linkedinUrlNormalized,
+        });
+        if (probe.structured.location && !extracted.location) {
+          extracted.location = probe.structured.location;
+        }
+      } else if (probe.profileText.trim().length > 50) {
         try {
           const { data, error: fnError } = await edgeFunctions.functions.invoke('parse-linkedin', {
             body: { profileText: probe.profileText, platform: 'linkedin' },
@@ -255,20 +266,20 @@ export default function OnboardingPage() {
           if (data?.error) throw new Error(data.message || data.error);
           extracted = fromProfileData(data as Partial<ProfileData>, {
             fullName: probe.derivedName ?? undefined,
-            linkedinUrl: /^https?:\/\//i.test(v) ? v : `https://${v}`,
+            linkedinUrl: linkedinUrlNormalized,
           });
         } catch {
           // AI failed — fall back to derived metadata only
           extracted = fromProfileData({}, {
             fullName: probe.derivedName ?? undefined,
-            linkedinUrl: /^https?:\/\//i.test(v) ? v : `https://${v}`,
+            linkedinUrl: linkedinUrlNormalized,
           });
           if (probe.derivedHeadline) extracted.summary = probe.derivedHeadline;
         }
       } else {
         extracted = fromProfileData({}, {
           fullName: probe.derivedName ?? undefined,
-          linkedinUrl: /^https?:\/\//i.test(v) ? v : `https://${v}`,
+          linkedinUrl: linkedinUrlNormalized,
         });
       }
 
@@ -277,7 +288,13 @@ export default function OnboardingPage() {
         (extracted.education.length || 0) +
         (extracted.skills.length || 0);
       if (richness === 0) {
-        notice = 'LinkedIn limits what we can fetch from a public URL. We saved the basics — for richer data, copy-paste your profile or upload a PDF on the previous screen.';
+        if (probe.quotaExhausted) {
+          notice = 'You\'ve hit this month\'s LinkedIn import limit. We saved the basics — copy-paste your profile or upload a PDF for richer data.';
+        } else if (probe.notConfigured) {
+          notice = 'Rich LinkedIn import isn\'t enabled on this server, so we only fetched public meta. For full data, copy-paste your profile or upload a PDF.';
+        } else {
+          notice = 'LinkedIn limits what we can fetch from a public URL. We saved the basics — for richer data, copy-paste your profile or upload a PDF on the previous screen.';
+        }
       }
 
       setPendingProfile(extracted);

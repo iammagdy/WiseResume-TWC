@@ -214,6 +214,15 @@ See `.env.example`. Key variables:
 - **admin-github-status**: Proxies GitHub API using `GITHUB_TOKEN`, `GITHUB_OWNER`, `GITHUB_REPO` secrets — recently fixed (token was stale)
 - **LiveActivityPanel**: 30s auto-refresh, last 50 `usage_events`, edge function health cards
 
+## Server-side LinkedIn Importer (Task #8)
+Endpoint: `POST /api/linkedin-profile` (in `server/index.ts`).
+- Provider: Proxycurl (`PROXYCURL_API_KEY` env var). Endpoint returns 503 when the key is missing — frontend then falls back to OG-meta best-effort via `/api/fetch-url`.
+- Auth: Supabase Bearer token required (reuses `requireAuthHeader`).
+- Throttle: 5 req/min per (user, IP) and per-user monthly cap of 50 (`LINKEDIN_IMPORT_MONTHLY_CAP`). Both tracked in-memory; swap for a `linkedin_imports` DB table if durability is needed.
+- Response shape: `{ provider, profile: { fullName, headline, location, summary, experience[], education[], skills[], certifications[], languages[], projects[], volunteering[] }, quota: { used, cap, remaining }, providerCreditBalance }`.
+- Error codes: 400 invalid URL, 401 auth, 402 monthly quota, 404 profile not found / private, 429 rate-limited (sets `Retry-After`), 502/504 upstream failure, 503 not configured.
+- Frontend integration: `probeLinkedInUrl` in `src/lib/onboardingProfile.ts` tries the new endpoint first and returns `structured` when successful, allowing `OnboardingPage` to skip the `parse-linkedin` AI call entirely. `notConfigured` and `quotaExhausted` flags drive specific UI notices on the review sheet.
+
 ## Edge Functions
 All registered in `supabase/config.toml` with `verify_jwt = false`. Key functions:
 - `me` — returns plan, credits, preferences for current user
