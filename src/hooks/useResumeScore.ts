@@ -107,9 +107,32 @@ async function invokeScoreResume(resume: ResumeData, isBackground = false): Prom
 }
 
 /**
- * Standalone fire-and-forget scorer for background use (no React state).
+ * Per-resume debounce of background scoring. We coalesce rapid consecutive
+ * `backgroundScore` calls (e.g. from a burst of autosaves) so the heuristic
+ * only runs after the user pauses. The autosave path is already throttled
+ * to ~60s, but this guarantees no per-keystroke storm if any new caller
+ * hooks in later.
  */
-export async function backgroundScore(resumeId: string, resume: ResumeData, updatedAt: string): Promise<void> {
+const BACKGROUND_SCORE_DEBOUNCE_MS = 350;
+const pendingDebounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+/**
+ * Standalone fire-and-forget scorer for background use (no React state).
+ *
+ * Calls are debounced per `resumeId` by ~350ms — repeated calls for the
+ * same resume within the window are dropped in favor of the latest one.
+ */
+export function backgroundScore(resumeId: string, resume: ResumeData, updatedAt: string): void {
+  const existing = pendingDebounceTimers.get(resumeId);
+  if (existing) clearTimeout(existing);
+  const timer = setTimeout(() => {
+    pendingDebounceTimers.delete(resumeId);
+    void runBackgroundScore(resumeId, resume, updatedAt);
+  }, BACKGROUND_SCORE_DEBOUNCE_MS);
+  pendingDebounceTimers.set(resumeId, timer);
+}
+
+async function runBackgroundScore(resumeId: string, resume: ResumeData, updatedAt: string): Promise<void> {
   const key = cacheKey(resumeId, updatedAt);
   if (scoreCache.has(key)) return;
   try {

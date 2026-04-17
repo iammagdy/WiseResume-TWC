@@ -6,6 +6,20 @@ import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 // correctly. Vite's ?url import resolves this to the properly bundled path.
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
+/**
+ * Yield to the browser's event loop between expensive per-page extractions
+ * so the UI thread can paint progress. pdfjs already parses on its own
+ * worker, but `getTextContent` resolves on the main thread and the
+ * subsequent line-reconstruction is pure JS.
+ */
+function yieldToMain(): Promise<void> {
+  const sched: any = (globalThis as any).scheduler;
+  if (sched && typeof sched.yield === 'function') {
+    return sched.yield();
+  }
+  return new Promise(r => setTimeout(r, 0));
+}
+
 interface TextItem {
   str: string;
   // pdfjs can return this as an Array or a TypedArray depending on build/runtime
@@ -101,6 +115,8 @@ export async function extractTextFromPDF(file: File): Promise<ExtractionResult> 
 
   // Process pages individually so a single bad page doesn't abort the whole extraction.
   for (let i = 1; i <= pageCount; i++) {
+    // Yield between pages so the upload UI stays responsive on big PDFs.
+    if (i > 1) await yieldToMain();
     try {
       const page = await pdf.getPage(i);
       // getTextContent options vary across pdfjs versions — use a plain object and cast
@@ -221,6 +237,7 @@ async function extractRawText(
   try {
     const rawPageTexts: string[] = [];
     for (let i = 1; i <= pdf.numPages; i++) {
+      if (i > 1) await yieldToMain();
       const page = await pdf.getPage(i);
       const textContent = await page.getTextContent({ includeMarkedContent: false } as any);
       const items = (textContent as any).items as any[];

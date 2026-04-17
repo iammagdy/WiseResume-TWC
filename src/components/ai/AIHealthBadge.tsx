@@ -170,12 +170,17 @@ export function AIHealthBadge() {
   }, [pingState, runPing]);
 
   // Auto-probe on mount, then every 90 seconds, and when the window regains
-  // focus. This keeps the badge in sync with reality even if the user hasn't
-  // sent a chat message recently.
+  // focus. Polling is paused while the tab is hidden — there's no point
+  // probing AI health for a user who isn't looking, and it wastes both our
+  // health-endpoint quota and the user's network/CPU. When the tab becomes
+  // visible again we ping immediately (subject to the 30s debounce) and
+  // restart the interval.
   const runPingRef = useRef(runPing);
   const lastPingAtRef = useRef(0);
   useEffect(() => { runPingRef.current = runPing; }, [runPing]);
   useEffect(() => {
+    let intervalId: number | null = null;
+
     const ping = () => {
       const now = Date.now();
       // Debounce: never ping more than once per 30s regardless of trigger
@@ -183,11 +188,37 @@ export function AIHealthBadge() {
       lastPingAtRef.current = now;
       runPingRef.current();
     };
-    ping();
-    const intervalId = window.setInterval(ping, 90_000);
+
+    const startPolling = () => {
+      if (intervalId !== null) return;
+      intervalId = window.setInterval(ping, 90_000);
+    };
+    const stopPolling = () => {
+      if (intervalId !== null) {
+        window.clearInterval(intervalId);
+        intervalId = null;
+      }
+    };
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        stopPolling();
+      } else {
+        ping();
+        startPolling();
+      }
+    };
+
+    // Initial probe + interval — only if the tab is visible right now.
+    if (document.visibilityState !== 'hidden') {
+      ping();
+      startPolling();
+    }
+    document.addEventListener('visibilitychange', handleVisibility);
     window.addEventListener('focus', ping);
     return () => {
-      window.clearInterval(intervalId);
+      stopPolling();
+      document.removeEventListener('visibilitychange', handleVisibility);
       window.removeEventListener('focus', ping);
     };
   }, []);

@@ -15,6 +15,19 @@ import { preprocessResumeText } from './textPreprocessor';
 // pdfjs-dist v4: configure worker via GlobalWorkerOptions (disableWorker was removed).
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
+/**
+ * Yield to the browser's event loop so it can paint and process input
+ * before we kick off the next heavy chunk of work. Prefers the modern
+ * Scheduler API; falls back to a 0ms timeout in older browsers.
+ */
+function yieldToMain(): Promise<void> {
+  const sched: any = (globalThis as any).scheduler;
+  if (sched && typeof sched.yield === 'function') {
+    return sched.yield();
+  }
+  return new Promise(r => setTimeout(r, 0));
+}
+
 export interface OCRProgress {
   page: number;
   total: number;
@@ -89,15 +102,22 @@ export async function extractTextWithOCR(
   }
   
   const pageTexts: string[] = [];
-  
+
   try {
     for (let pageNum = 1; pageNum <= numPages; pageNum++) {
-      onProgress?.({ 
-        page: pageNum, 
-        total: numPages, 
-        status: `Processing page ${pageNum} of ${numPages}...` 
+      onProgress?.({
+        page: pageNum,
+        total: numPages,
+        status: `Processing page ${pageNum} of ${numPages}...`
       });
-      
+
+      // Yield to the event loop between pages so the UI thread can paint
+      // progress, scroll, etc. Without this the main thread is busy looping
+      // through canvas rendering + pixel preprocessing back-to-back, which
+      // micro-stutters the upload UI even though Tesseract's recognizer
+      // itself runs in its own Web Worker.
+      if (pageNum > 1) await yieldToMain();
+
       // First attempt at standard scale (2x)
       const { text, confidence } = await extractPageWithOCR(pdf, pageNum, worker, 2);
       
