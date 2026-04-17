@@ -33,6 +33,21 @@ It exists so that:
 | 9 | [`09-decisions-log.md`](./09-decisions-log.md) | Locked decisions (your answers from the planning chat). |
 | 10 | [`10-risks-and-rollback.md`](./10-risks-and-rollback.md) | What can go wrong, mitigations, and how to undo each phase. |
 
+### Operations and Guides (second-pass docs)
+
+The companion subfolder [`Operations and Guides/`](./Operations%20and%20Guides/) translates the plan into the **operational, user-facing, and step-by-step guides** that make the project runnable by a non-technical owner and implementable by a future agent.
+
+| # | File | Audience | Purpose |
+|---|---|---|---|
+| — | [`Operations and Guides/README.md`](./Operations%20and%20Guides/README.md) | All | Index, audience map, suggested read order. |
+| 01 | [`01-provider-signup-walkthrough.md`](./Operations%20and%20Guides/01-provider-signup-walkthrough.md) | You | Click-by-click sign-up for Gemini, Groq, OpenRouter; saving each key as a Replit Secret. |
+| 02 | [`02-operational-runbooks.md`](./Operations%20and%20Guides/02-operational-runbooks.md) | Engineer / agent | Step-by-step procedures for incidents (outage, key rotation, cache purge, kill switch, rollback). |
+| 03 | [`03-edge-function-migration-checklist.md`](./Operations%20and%20Guides/03-edge-function-migration-checklist.md) | Engineer / agent | The before/after template + per-function checklist for migrating all 30 AI edge functions. |
+| 04 | [`04-test-plan.md`](./Operations%20and%20Guides/04-test-plan.md) | Engineer / agent | Smoke-test sheet for each phase, with exact inputs and expected results. |
+| 05 | [`05-cost-and-capacity-model.md`](./Operations%20and%20Guides/05-cost-and-capacity-model.md) | Mixed | At N daily users, what each provider's load looks like and which paid toggle to flip first. |
+| 06 | [`06-privacy-and-compliance.md`](./Operations%20and%20Guides/06-privacy-and-compliance.md) | You | What each provider does with user data; template language for your privacy policy. |
+| 07 | [`07-glossary-and-faq.md`](./Operations%20and%20Guides/07-glossary-and-faq.md) | You | Plain-language definitions and FAQ. **Read this first if any other doc confuses you.** |
+
 ---
 
 ## TL;DR (one-paragraph version)
