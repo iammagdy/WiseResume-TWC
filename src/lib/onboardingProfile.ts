@@ -494,6 +494,13 @@ export async function reconcileOnboardingCompletion(
       .update({ onboarding_completed: true } as never)
       .eq('user_id', userId);
     if (updateErr) return false;
+    // Fire-and-forget telemetry so we can detect systemic recovery patterns.
+    try {
+      const { logAudit } = await import('@/lib/auditLogger');
+      logAudit('onboarding', 'reconciled', {});
+    } catch {
+      /* ignore */
+    }
     return true;
   } catch (e) {
     console.warn('reconcileOnboardingCompletion failed:', e);
