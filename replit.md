@@ -145,6 +145,9 @@ See `.env.example`. Key variables:
 - **`CompanyBriefingSheet` new props**: `initialCompanyName`, `initialBriefing`, `onBriefingGenerated` — auto-generates when name provided without cached data; fires `onBriefingGenerated` for cache write
 
 ## AI System
+
+> **📁 Active planning:** A unified per-feature AI routing layer (OpenRouter + Groq + Gemini with smart fallback, streaming, caching, and an admin dashboard) is being planned. **All design docs live in `Routing AI Providers/` at the project root** — start with `Routing AI Providers/README.md`. That folder is the single source of truth and survives project re-imports. No code for that work has been written yet; existing AI behavior below is unchanged.
+
 - **Primary AI**: OpenRouter (`google/gemma-4-26b-a4b-it:free`) + Groq (`llama-3.3-70b-versatile`) — both free tiers
 - **Central AI client**: `supabase/functions/_shared/aiClient.ts`
   - `callWiseresumeAI(subProvider, ...)` — routes to OpenRouter or Groq
