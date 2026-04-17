@@ -17,29 +17,36 @@ interface RangeWindow {
 const DAY_MS = 86_400_000;
 
 function computeWindow(range: Range): RangeWindow {
+  // All windows are aligned to UTC midnight and treated as half-open
+  // [start, end) so daily/hourly buckets, AI-credit date filters, and
+  // previous-period comparisons agree on duration to the day.
   const now = new Date();
-  const end = new Date(now.getTime() + 60_000); // small upper-bound padding
+  const todayMidnightUtc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const tomorrowMidnightUtc = new Date(todayMidnightUtc.getTime() + DAY_MS);
+
   if (range === 'today') {
-    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const start = new Date(Date.UTC(
-      startOfToday.getUTCFullYear(),
-      startOfToday.getUTCMonth(),
-      startOfToday.getUTCDate(),
-    ));
     return {
-      start,
-      end,
-      prevStart: new Date(start.getTime() - DAY_MS),
-      prevEnd: start,
+      start: todayMidnightUtc,
+      end: tomorrowMidnightUtc,
+      prevStart: new Date(todayMidnightUtc.getTime() - DAY_MS),
+      prevEnd: todayMidnightUtc,
       bucket: 'hour',
       bucketCount: 24,
     };
   }
-  const days = range === '7d' ? 7 : range === '30d' ? 30 : range === '90d' ? 90 : 365 * 3;
-  const start = new Date(end.getTime() - days * DAY_MS);
   if (range === 'all') {
-    return { start: new Date('2024-01-01T00:00:00Z'), end, prevStart: null, prevEnd: null, bucket: 'day', bucketCount: 0 };
+    return {
+      start: new Date('2024-01-01T00:00:00Z'),
+      end: tomorrowMidnightUtc,
+      prevStart: null,
+      prevEnd: null,
+      bucket: 'day',
+      bucketCount: 0,
+    };
   }
+  const days = range === '7d' ? 7 : range === '30d' ? 30 : 90;
+  const end = tomorrowMidnightUtc;
+  const start = new Date(end.getTime() - days * DAY_MS);
   return {
     start,
     end,
@@ -50,28 +57,26 @@ function computeWindow(range: Range): RangeWindow {
   };
 }
 
-function dayKey(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
-function hourKey(d: Date): string {
-  return d.toISOString().slice(0, 13) + ':00';
-}
-
 function buildEmptyDailySeries(start: Date, end: Date): { date: string; value: number }[] {
+  // Half-open [start, end). For a 7-day window aligned to UTC midnights this
+  // produces exactly 7 day buckets.
   const out: { date: string; value: number }[] = [];
   const startUtc = Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate());
   const endUtc = Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), end.getUTCDate());
-  for (let t = startUtc; t <= endUtc; t += DAY_MS) {
+  for (let t = startUtc; t < endUtc; t += DAY_MS) {
     out.push({ date: new Date(t).toISOString().slice(0, 10), value: 0 });
   }
   return out;
 }
 function buildEmptyHourlySeries(start: Date, end: Date): { date: string; value: number }[] {
+  // Half-open [start, end). For "today" with end = tomorrow midnight this
+  // produces exactly 24 hour buckets, including future hours of today which
+  // simply read 0 events.
   const out: { date: string; value: number }[] = [];
   const startH = new Date(Date.UTC(
     start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate(), start.getUTCHours(),
   ));
-  for (let t = startH.getTime(); t <= end.getTime(); t += 3_600_000) {
+  for (let t = startH.getTime(); t < end.getTime(); t += 3_600_000) {
     out.push({ date: new Date(t).toISOString().slice(0, 13) + ':00', value: 0 });
   }
   return out;
@@ -182,7 +187,7 @@ serve(async (req) => {
       win.prevStart && win.prevEnd
         ? supabase.from('ai_credits').select('daily_usage, usage_date')
             .gte('usage_date', win.prevStart.toISOString().slice(0, 10))
-            .lte('usage_date', new Date(win.prevEnd.getTime() - DAY_MS).toISOString().slice(0, 10))
+            .lt('usage_date', win.prevEnd.toISOString().slice(0, 10))
         : Promise.resolve({ data: [], error: null }),
       win.prevStart && win.prevEnd
         ? supabase.from('portfolio_visits').select('id', { count: 'exact', head: true })
@@ -343,12 +348,13 @@ serve(async (req) => {
     const prevPortfolioViews = (prevTotalsPortfolioResult as { count: number | null }).count ?? 0;
 
     // Range AI credits sum + portfolio visits sum (in window).
-    // ai_credits.usage_date is a DATE column, so we compare on YYYY-MM-DD
-    // strings only (no time component) and use inclusive upper bound.
+    // ai_credits.usage_date is a DATE column; we compare YYYY-MM-DD strings
+    // and use a half-open [start, end) window to match the activity series
+    // and KPI delta math (previous period uses the same convention).
     const [rangeAiResult, rangePortfolioResult] = await Promise.all([
       supabase.from('ai_credits').select('daily_usage, usage_date')
         .gte('usage_date', win.start.toISOString().slice(0, 10))
-        .lte('usage_date', win.end.toISOString().slice(0, 10)),
+        .lt('usage_date', win.end.toISOString().slice(0, 10)),
       supabase.from('portfolio_visits').select('id', { count: 'exact', head: true })
         .gte('visited_at', win.start.toISOString()).lt('visited_at', win.end.toISOString()),
     ]);
