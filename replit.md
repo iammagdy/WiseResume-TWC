@@ -234,6 +234,8 @@ All registered in `supabase/config.toml` with `verify_jwt = false`. Key function
 - `validate-api-key` — validates all 9 BYOK providers
 - `admin-github-status` — proxies GitHub commits API for DevKit
 - `admin-env-check` — returns boolean presence of required env vars
+- `wise-ai-chat` — single-shot AI Studio assistant (7 use cases, no tool calling)
+- `agentic-chat` — multi-turn assistant; persists sessions to `chat_sessions` / `chat_messages`. Registers **12 tools** (verified against `supabase/functions/agentic-chat/index.ts` `TOOLS` array): `update_summary`, `add_experience`, `update_experience`, `update_skills`, `add_skills`, `update_contact`, `add_project`, `suggest_edits`, `delete_experience` (Phase 1), `get_company_briefing` (Phase 2), `open_job_tracker` (Phase 2), `proofread_and_fix`. Root `ARCHITECTURE.md` (`agentic-chat` section) is the human-readable mirror.
 - All AI-facing functions use `callAI` from `_shared/aiClient.ts`
 
 ## Sentry Source Map Upload (Production)

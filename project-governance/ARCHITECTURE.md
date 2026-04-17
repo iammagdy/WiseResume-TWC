@@ -246,7 +246,7 @@ All edge functions live in `supabase/functions/`. See also `supabase/functions/E
 | `career-assessment` | Career path assessment from user input |
 | `career-path-advisor` | Career move suggestions and gap analysis |
 | `wise-ai-chat` | AI Studio general career assistant (7 use cases) |
-| `agentic-chat` | Multi-turn agentic AI assistant. 10 tools: update_summary, add_experience, update_experience, delete_experience, update_skills, add_skills, update_contact, add_project, suggest_edits, proofread_and_fix. Persists sessions to `chat_sessions` / `chat_messages`. |
+| `agentic-chat` | Multi-turn agentic AI assistant. **12 tools** (verified against `supabase/functions/agentic-chat/index.ts` `TOOLS` array): `update_summary`, `add_experience`, `update_experience`, `update_skills`, `add_skills`, `update_contact`, `add_project`, `suggest_edits`, `delete_experience` (Phase 1), `get_company_briefing` (Phase 2), `open_job_tracker` (Phase 2), `proofread_and_fix`. Persists sessions to `chat_sessions` / `chat_messages`. |
 | `suggest-template` | AI-suggested resume template match |
 
 ### Resume Parsing & Import

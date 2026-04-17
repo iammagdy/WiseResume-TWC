@@ -18,8 +18,9 @@
 ### `src/hooks/useAgenticChat.ts`
 Central hook for the Wise AI chat. Manages message history (Supabase-backed), tool call parsing, streaming responses, and exports `pendingAction` / `clearPendingAction` for tool-driven side effects.
 
-**Handled tools:**
-- `add_experience`, `update_experience`, `delete_experience` — resume mutation
+**Handled tools** (subset — full registry is in `agentic-chat/index.ts`; see Edge Functions section below):
+- `update_summary`, `add_experience`, `update_experience`, `delete_experience`, `update_skills`, `add_skills`, `update_contact`, `add_project` — resume mutations
+- `suggest_edits`, `proofread_and_fix` — proposal / review flows
 - `get_company_briefing` — sets `pendingAction` with company name; `AgenticChatSheet` reads it and opens the briefing sheet (with cache check)
 - `open_job_tracker` — navigates to `/applications`
 
@@ -59,20 +60,20 @@ All tables have **Row Level Security** policies; users can only access their own
 92 Deno edge functions. Key function for Wise AI:
 
 ### `agentic-chat/index.ts`
-Streaming chat endpoint. Tool call loop with 12 registered tools:
+Streaming chat endpoint. Tool call loop with 12 registered tools (verified against `supabase/functions/agentic-chat/index.ts` `TOOLS` array):
 
-1. `get_resume` — fetch resume data
-2. `update_section` — replace a resume section
-3. `add_experience` — add a work experience entry
-4. `update_experience` — edit an experience entry
-5. `delete_experience` — remove an experience entry
-6. `add_education` — add an education entry
-7. `update_education` — edit an education entry
-8. `add_skill` — add a skill tag
-9. `remove_skill` — remove a skill tag
-10. `add_project` — add a project entry
-11. `get_company_briefing` — trigger company research briefing (Phase 2)
-12. `open_job_tracker` — navigate user to job application tracker (Phase 2)
+1. `update_summary` — replace the resume professional summary
+2. `add_experience` — add a work experience entry
+3. `update_experience` — edit an existing experience entry by company/position
+4. `update_skills` — replace the entire skills list
+5. `add_skills` — append new skills without removing existing ones
+6. `update_contact` — update one or more contact info fields
+7. `add_project` — add a project / portfolio piece
+8. `suggest_edits` — propose edits for user approval (subjective/risky changes)
+9. `delete_experience` — remove a work experience entry (Phase 1, confirmation required)
+10. `get_company_briefing` — trigger company research briefing (Phase 2)
+11. `open_job_tracker` — navigate user to `/applications` (Phase 2)
+12. `proofread_and_fix` — scan resume for grammar/spelling/clarity fixes
 
 ---
 
