@@ -216,6 +216,32 @@ as $$
 $$;
 
 -- ---------------------------------------------------------------------------
+-- 10. Country stats: top-N countries plus the *full* distinct country count.
+--     Replaces a brittle `select country from profiles limit 2000` pattern
+--     in the edge function so the Countries KPI is accurate even on large
+--     datasets.
+-- ---------------------------------------------------------------------------
+create or replace function get_country_stats(p_top_n int default 10)
+returns table(country text, count bigint, total_distinct bigint)
+language sql
+security definer
+as $$
+  with per_country as (
+    select country, count(*)::bigint as cnt
+    from profiles
+    where country is not null and trim(country) <> ''
+    group by country
+  ),
+  total as (
+    select count(*)::bigint as total_distinct from per_country
+  )
+  select pc.country::text, pc.cnt as count, t.total_distinct
+  from per_country pc, total t
+  order by pc.cnt desc
+  limit p_top_n;
+$$;
+
+-- ---------------------------------------------------------------------------
 -- Grants: lock these RPCs down to service_role only. The DevKit
 -- admin-analytics edge function uses the service role key, so it can call
 -- these. Anon/authenticated clients cannot, even if they discover the names.
@@ -229,6 +255,7 @@ revoke execute on function get_distinct_active_users(timestamptz, timestamptz) f
 revoke execute on function get_portfolio_referrers(timestamptz, timestamptz, int) from public, anon, authenticated;
 revoke execute on function get_portfolio_devices(timestamptz, timestamptz) from public, anon, authenticated;
 revoke execute on function get_top_pages(timestamptz, timestamptz, int) from public, anon, authenticated;
+revoke execute on function get_country_stats(int) from public, anon, authenticated;
 
 grant execute on function get_usage_activity_daily(timestamptz, timestamptz) to service_role;
 grant execute on function get_usage_activity_hourly(timestamptz, timestamptz) to service_role;
@@ -239,3 +266,4 @@ grant execute on function get_distinct_active_users(timestamptz, timestamptz) to
 grant execute on function get_portfolio_referrers(timestamptz, timestamptz, int) to service_role;
 grant execute on function get_portfolio_devices(timestamptz, timestamptz) to service_role;
 grant execute on function get_top_pages(timestamptz, timestamptz, int) to service_role;
+grant execute on function get_country_stats(int) to service_role;

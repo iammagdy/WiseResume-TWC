@@ -196,7 +196,7 @@ export function AnalyticsPanel() {
               icon={Users} accent="blue" hideDelta />
             <KpiCard label="Stickiness" value={`${data.rangeKpis.stickiness}%`} sub="DAU / WAU"
               icon={TrendingUp} accent="rose" hideDelta />
-            <KpiCard label="Countries" value={data.countryRanking.length.toLocaleString()}
+            <KpiCard label="Countries" value={data.totalCountries.toLocaleString()}
               sub="distinct countries" icon={MapPin} accent="primary" hideDelta />
           </div>
 
@@ -339,23 +339,6 @@ export function AnalyticsPanel() {
               )}
             </SectionCard>
 
-            <SectionCard
-              title="New signups (last 14 days)"
-              description="Account creations per day, regardless of selected range."
-              icon={BarChart2}
-            >
-              {data.signupsLast14Days.every(s => s.count === 0) ? <EmptyState /> : (
-                <ResponsiveContainer width="100%" height={180}>
-                  <LineChart data={data.signupsLast14Days.map(s => ({ ...s, date: s.date.slice(5) }))} margin={{ left: 0, right: 8, top: 4, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
-                    <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} allowDecimals={false} />
-                    <Tooltip contentStyle={TOOLTIP_STYLE} />
-                    <Line type="monotone" dataKey="count" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} />
-                  </LineChart>
-                </ResponsiveContainer>
-              )}
-            </SectionCard>
           </div>
         </>
       )}

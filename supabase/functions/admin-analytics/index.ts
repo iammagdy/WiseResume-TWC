@@ -158,7 +158,10 @@ serve(async (req) => {
         .gte('created_at', fourteenDaysAgo).order('created_at', { ascending: true }),
       supabase.from('ai_credits').select('daily_usage, usage_date').eq('usage_date', today),
       supabase.from('ai_credits').select('daily_usage, usage_date').eq('usage_date', yesterday),
-      supabase.from('profiles').select('country').not('country', 'is', null).limit(2000),
+      // Replaced naive `select country limit 2000` with a server-side
+      // aggregation RPC that returns top-N countries plus the *full* distinct
+      // country count (used by the Countries KPI). See get_country_stats().
+      supabase.rpc('get_country_stats', { p_top_n: 10 }),
       // Range-driven
       win.bucket === 'day'
         ? supabase.rpc('get_usage_activity_daily', { p_start: win.start.toISOString(), p_end: win.end.toISOString() })
@@ -224,15 +227,9 @@ serve(async (req) => {
     const aiCreditsToday = aiTodayRows.reduce((s, r) => s + (r.daily_usage ?? 0), 0);
     const aiCreditsYesterday = aiYesterdayRows.reduce((s, r) => s + (r.daily_usage ?? 0), 0);
 
-    const countryRows = (countryResult.data ?? []) as { country: string | null }[];
-    const countryCounts: Record<string, number> = {};
-    for (const row of countryRows) {
-      if (row.country) countryCounts[row.country] = (countryCounts[row.country] || 0) + 1;
-    }
-    const countryDistribution = Object.entries(countryCounts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 8)
-      .map(([country, count]) => ({ country, count }));
+    const countryStatsRows = (countryResult.data ?? []) as { country: string; count: number; total_distinct: number }[];
+    const countryDistribution = countryStatsRows.map(r => ({ country: r.country, count: Number(r.count) }));
+    const totalCountries = Number(countryStatsRows[0]?.total_distinct ?? 0);
 
     // ── Range-driven series ────────────────────────────────────────────────
     type ActivityRow = { bucket_date?: string; bucket_hour?: string; total: number; distinct_users: number };
@@ -406,7 +403,8 @@ serve(async (req) => {
           topReferrers,           // [{ name, count }]
           deviceBreakdown,        // [{ name, count }]
           topPages,               // [{ name, count }] — empty until client-side page-view tracking lands
-          countryRanking: countryDistribution, // already sorted desc
+          countryRanking: countryDistribution, // already sorted desc (top-N)
+          totalCountries,         // full distinct country count (not capped at top-N)
         },
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },

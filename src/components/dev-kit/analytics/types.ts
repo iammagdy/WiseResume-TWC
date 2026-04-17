@@ -46,5 +46,6 @@ export interface PremiumAnalyticsData {
   deviceBreakdown: NamedCount[];
   topPages: NamedCount[];
   countryRanking: { country: string; count: number }[];
+  totalCountries: number;
   lastUpdatedAt: Date;
 }
