@@ -12,8 +12,11 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
  * worker, but `getTextContent` resolves on the main thread and the
  * subsequent line-reconstruction is pure JS.
  */
+interface SchedulerLike {
+  yield?: () => Promise<void>;
+}
 function yieldToMain(): Promise<void> {
-  const sched: any = (globalThis as any).scheduler;
+  const sched = (globalThis as unknown as { scheduler?: SchedulerLike }).scheduler;
   if (sched && typeof sched.yield === 'function') {
     return sched.yield();
   }

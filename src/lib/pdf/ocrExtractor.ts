@@ -20,8 +20,11 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
  * before we kick off the next heavy chunk of work. Prefers the modern
  * Scheduler API; falls back to a 0ms timeout in older browsers.
  */
+interface SchedulerLike {
+  yield?: () => Promise<void>;
+}
 function yieldToMain(): Promise<void> {
-  const sched: any = (globalThis as any).scheduler;
+  const sched = (globalThis as unknown as { scheduler?: SchedulerLike }).scheduler;
   if (sched && typeof sched.yield === 'function') {
     return sched.yield();
   }

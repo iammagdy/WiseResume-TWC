@@ -112,24 +112,60 @@ async function invokeScoreResume(resume: ResumeData, isBackground = false): Prom
  * only runs after the user pauses. The autosave path is already throttled
  * to ~60s, but this guarantees no per-keystroke storm if any new caller
  * hooks in later.
+ *
+ * Returns a Promise so existing callers (e.g. DashboardPage) that
+ * `await` the call and then read the cache can still rely on the
+ * scoring being complete by the time the awaited promise resolves.
  */
 const BACKGROUND_SCORE_DEBOUNCE_MS = 350;
-const pendingDebounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+interface PendingBackgroundScore {
+  timer: ReturnType<typeof setTimeout>;
+  resume: ResumeData;
+  updatedAt: string;
+  waiters: Array<() => void>;
+}
+const pendingDebounceEntries = new Map<string, PendingBackgroundScore>();
 
 /**
- * Standalone fire-and-forget scorer for background use (no React state).
+ * Standalone debounced scorer for background use (no React state).
  *
  * Calls are debounced per `resumeId` by ~350ms — repeated calls for the
- * same resume within the window are dropped in favor of the latest one.
+ * same resume within the window coalesce: only the latest `resume` /
+ * `updatedAt` is scored, but every awaiting caller resolves once that
+ * single run completes.
  */
-export function backgroundScore(resumeId: string, resume: ResumeData, updatedAt: string): void {
-  const existing = pendingDebounceTimers.get(resumeId);
-  if (existing) clearTimeout(existing);
-  const timer = setTimeout(() => {
-    pendingDebounceTimers.delete(resumeId);
-    void runBackgroundScore(resumeId, resume, updatedAt);
-  }, BACKGROUND_SCORE_DEBOUNCE_MS);
-  pendingDebounceTimers.set(resumeId, timer);
+export function backgroundScore(resumeId: string, resume: ResumeData, updatedAt: string): Promise<void> {
+  return new Promise<void>((resolve) => {
+    const existing = pendingDebounceEntries.get(resumeId);
+    if (existing) {
+      clearTimeout(existing.timer);
+      existing.resume = resume;
+      existing.updatedAt = updatedAt;
+      existing.waiters.push(resolve);
+      existing.timer = setTimeout(() => fireDebouncedScore(resumeId), BACKGROUND_SCORE_DEBOUNCE_MS);
+      pendingDebounceEntries.set(resumeId, existing);
+      return;
+    }
+    const entry: PendingBackgroundScore = {
+      timer: setTimeout(() => fireDebouncedScore(resumeId), BACKGROUND_SCORE_DEBOUNCE_MS),
+      resume,
+      updatedAt,
+      waiters: [resolve],
+    };
+    pendingDebounceEntries.set(resumeId, entry);
+  });
+}
+
+function fireDebouncedScore(resumeId: string): void {
+  const entry = pendingDebounceEntries.get(resumeId);
+  if (!entry) return;
+  pendingDebounceEntries.delete(resumeId);
+  void runBackgroundScore(resumeId, entry.resume, entry.updatedAt).finally(() => {
+    for (const w of entry.waiters) {
+      try { w(); } catch { /* swallow individual waiter errors */ }
+    }
+  });
 }
 
 async function runBackgroundScore(resumeId: string, resume: ResumeData, updatedAt: string): Promise<void> {
