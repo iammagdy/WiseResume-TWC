@@ -172,7 +172,11 @@ function DashboardPageContent() {
     setShowCreateDialog(true);
   }, []);
 
-  // Check onboarding status for authenticated users
+  // Check onboarding status for authenticated users.
+  // If the flag is false but the user actually has a resume, that's a
+  // half-completed save (network drop between resume insert and the
+  // onboarding_completed flip). Reconcile it transparently so the user
+  // isn't pushed back through onboarding on next login.
   useEffect(() => {
     if (!user) return;
     const run = async () => {
@@ -184,13 +188,24 @@ function DashboardPageContent() {
           .select('onboarding_completed')
           .eq('user_id', user.id)
           .single();
-          
+
+        if (data?.onboarding_completed) {
+          localStorage.setItem('wr-onboarding-completed', 'true');
+          return;
+        }
+
         if (data && !data.onboarding_completed) {
+          // Try to reconcile: if a resume row already exists, the earlier
+          // writes succeeded — flip the flag and treat as completed.
+          const { reconcileOnboardingCompletion } = await import('@/lib/onboardingProfile');
+          const fixed = await reconcileOnboardingCompletion(user.id);
+          if (fixed) {
+            localStorage.setItem('wr-onboarding-completed', 'true');
+            return;
+          }
           if (!sessionStorage.getItem('wr-dismissed-profile-banner')) {
             setShowProfileBanner(true);
           }
-        } else if (data?.onboarding_completed) {
-          localStorage.setItem('wr-onboarding-completed', 'true');
         }
       } catch {
         // silently ignore — non-critical onboarding check

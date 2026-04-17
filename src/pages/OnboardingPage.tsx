@@ -19,7 +19,8 @@ import { parseResumePDF, parseResumePDFWithOCR, parseTextWithAI } from '@/lib/pd
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import {
   fromResumeData, fromProfileData, saveOnboardingProfile,
-  probeLinkedInUrl, emptyProfile, type ExtractedProfile,
+  probeLinkedInUrl, emptyProfile, reconcileOnboardingCompletion,
+  type ExtractedProfile,
 } from '@/lib/onboardingProfile';
 import { OnboardingProfileReviewSheet } from '@/components/onboarding/OnboardingProfileReviewSheet';
 import type { ProfileData } from '@/components/settings/ProfileImportSheet';
@@ -85,12 +86,46 @@ export default function OnboardingPage() {
   // Final celebration uses this name
   const [finalName, setFinalName] = useState('');
 
-  // Redirect if already completed
+  // Redirect if already completed.
+  // Also reconcile half-completed onboarding state: if the local flag is
+  // missing (e.g. user cleared cache, or a previous save died after the
+  // resume insert) but the user already has a resume, flip the DB flag
+  // and redirect — don't make them redo onboarding.
   useEffect(() => {
     if (localStorage.getItem(ONBOARDING_KEY) === 'true') {
       navigate('/dashboard', { replace: true });
+      return;
     }
-  }, [navigate]);
+    const userId = user?.id;
+    if (!userId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('onboarding_completed')
+          .eq('user_id', userId)
+          .maybeSingle();
+        if (cancelled) return;
+        if (profile?.onboarding_completed) {
+          localStorage.setItem(ONBOARDING_KEY, 'true');
+          navigate('/dashboard', { replace: true });
+          return;
+        }
+        const fixed = await reconcileOnboardingCompletion(userId);
+        if (cancelled) return;
+        if (fixed) {
+          localStorage.setItem(ONBOARDING_KEY, 'true');
+          navigate('/dashboard', { replace: true });
+        }
+      } catch {
+        // non-critical — fall through to normal onboarding flow
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [navigate, user]);
 
   // ─── Save flows ─────────────────────────────────────────────────────────
   const completeWith = useCallback(async (filtered: ExtractedProfile) => {

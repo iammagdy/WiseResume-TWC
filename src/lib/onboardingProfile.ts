@@ -450,6 +450,58 @@ export async function saveOnboardingProfile({
 }
 
 /**
+ * Reconcile a half-completed onboarding state.
+ *
+ * `saveOnboardingProfile()` runs three writes (profile upsert → resume insert
+ * → mark `onboarding_completed=true`). If the network drops between steps 2
+ * and 3 the user ends up with a resume row but `onboarding_completed=false`,
+ * which would force them through onboarding again on next login.
+ *
+ * This helper detects that state and flips the flag. It's safe to call
+ * repeatedly: it only writes when (a) the profile exists, (b) the flag is
+ * false, and (c) the user already has at least one resume row (i.e. the
+ * earlier writes clearly succeeded).
+ *
+ * Returns `true` if reconciliation flipped the flag, `false` otherwise.
+ * Never throws — failures are swallowed and logged so callers can use it
+ * defensively on every page load.
+ */
+export async function reconcileOnboardingCompletion(
+  userId: string,
+): Promise<boolean> {
+  if (!userId) return false;
+  try {
+    const { data: profile, error: profileErr } = await supabase
+      .from('profiles')
+      .select('onboarding_completed')
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (profileErr) return false;
+    // Already complete — nothing to do. (Profile missing is also fine; that
+    // means onboarding never ran, so don't synthesize completion for them.)
+    if (!profile || profile.onboarding_completed) return false;
+
+    const { data: resumes, error: resumesErr } = await supabase
+      .from('resumes')
+      .select('id')
+      .eq('user_id', userId)
+      .limit(1);
+    if (resumesErr) return false;
+    if (!resumes || resumes.length === 0) return false;
+
+    const { error: updateErr } = await supabase
+      .from('profiles')
+      .update({ onboarding_completed: true } as never)
+      .eq('user_id', userId);
+    if (updateErr) return false;
+    return true;
+  } catch (e) {
+    console.warn('reconcileOnboardingCompletion failed:', e);
+    return false;
+  }
+}
+
+/**
  * Light-weight LinkedIn URL probe.
  *
  * Calls the `/api/fetch-url` server proxy and extracts whatever public meta
