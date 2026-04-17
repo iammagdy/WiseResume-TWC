@@ -319,6 +319,18 @@ bash scripts/deploy-functions.sh                      # redeploy all edge functi
 - **LiveActivityPanel** (`src/components/dev-kit/LiveActivityPanel.tsx`): Real-time 30s auto-refresh feed of last 50 usage_events, edge function health cards (green/amber/red status dots), manual "Run health check" button.
 - **DeploymentPanel** (`src/components/dev-kit/DeploymentPanel.tsx`): Last 5 GitHub commits from main branch via `admin-github-status` edge function, "Last deployed" timestamp, env var checklist via `admin-env-check` edge function (boolean presence only).
 
+## Onboarding Analytics (audit_logs, category='onboarding')
+Job-Seeker onboarding emits the following actions to the `audit_logs` table via `logAudit` (`src/lib/auditLogger.ts`). All events are fire-and-forget; metadata schemas:
+- `started`: {} — page mount.
+- `path_selected`: { method } — `method` ∈ {'cv','linkedin-url','linkedin-paste','linkedin-wizard','linkedin-pdf','manual'}.
+- `review_opened`: { method, partial? } — extraction done, Review sheet opened. `partial: true` for LinkedIn URL low-data fallback.
+- `review_dismissed`: { method } — user closed Review without saving (drop-off signal).
+- `completed`: { method, hasResume, experienceKept, experienceTotal, educationKept, educationTotal, skillsKept, skillsTotal, certificationsKept, certificationsTotal, languagesKept, languagesTotal, projectsKept, projectsTotal, volunteeringKept, volunteeringTotal, fullNameKept/Total, emailKept/Total, phoneKept/Total, locationKept/Total, linkedinUrlKept/Total, jobTitleKept/Total, summaryKept/Total } — Kept counts come from the user's selection in the Review sheet; Total comes from the full extracted profile. Personal-info fields are 0/1.
+- `low_acceptance`: { method, sections: string[] } — emitted only when one or more list sections had ≥3 extracted items AND <50% kept. Easier to alert on than scanning ratios.
+- `save_failed`: { method, message } — Supabase persistence failed; sheet stays open for retry.
+- `skipped`: { step, method } — Skip clicked.
+- `reconciled`: {} — `reconcileOnboardingCompletion` fixed a half-completed save (resume existed, flag was false).
+
 ## Landing Page Visual System (Bento Collage Redesign)
 - Landing page (`src/pages/Index.tsx`) always renders with a warm parchment background (`#F5F0EB`) via `data-theme="landing"` and scoped CSS custom properties (`--lp-bg`, `--lp-brand`, `--lp-card-white`, `--lp-card-muted`, `--lp-card-dark`, etc.)
 - Dark mode has zero visual effect on the landing page — `color-scheme: light` and all colors are hardcoded via `--lp-*` variables
