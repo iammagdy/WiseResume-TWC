@@ -1,7 +1,7 @@
 import { getToken, getUserId } from '@/lib/supabaseBridge';
 import { supabase } from '@/integrations/supabase/safeClient';
 
-type AuditCategory = 'migration' | 'account' | 'api_key' | 'auth';
+type AuditCategory = 'migration' | 'account' | 'api_key' | 'auth' | 'onboarding';
 
 /**
  * Fire-and-forget audit logger. Inserts a row into `audit_logs`.

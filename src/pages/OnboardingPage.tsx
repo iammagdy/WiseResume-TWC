@@ -23,7 +23,16 @@ import {
 } from '@/lib/onboardingProfile';
 import { OnboardingProfileReviewSheet } from '@/components/onboarding/OnboardingProfileReviewSheet';
 import type { ProfileData } from '@/components/settings/ProfileImportSheet';
+import { logAudit } from '@/lib/auditLogger';
 import { cn } from '@/lib/utils';
+
+type OnboardingMethod =
+  | 'cv'
+  | 'linkedin-url'
+  | 'linkedin-paste'
+  | 'linkedin-wizard'
+  | 'linkedin-pdf'
+  | 'manual';
 
 const ProfileImportSheet = lazy(() =>
   import('@/components/settings/ProfileImportSheet').then((m) => ({ default: m.ProfileImportSheet })),
@@ -41,6 +50,14 @@ export default function OnboardingPage() {
   const { data: meData } = useMe();
 
   const [step, setStep] = useState<Step>('welcome');
+  // Track which onboarding path the user is on, so completion / save-failed
+  // events can be correlated with the chosen method.
+  const methodRef = useRef<OnboardingMethod | null>(null);
+
+  // Log entry into the onboarding flow once.
+  useEffect(() => {
+    logAudit('onboarding', 'started', {});
+  }, []);
 
   // Manual path
   const [manualName, setManualName] = useState('');
@@ -92,6 +109,10 @@ export default function OnboardingPage() {
       setFinalName(filtered.fullName || '');
       setShowReview(false);
       setStep('celebration');
+      logAudit('onboarding', 'completed', {
+        method: methodRef.current,
+        hasResume: result.hasResume,
+      });
       if (result.hasResume) {
         toast.success('Profile and resume created');
       } else {
@@ -99,6 +120,10 @@ export default function OnboardingPage() {
       }
     } catch (err) {
       console.error('Onboarding save failed:', err);
+      logAudit('onboarding', 'save_failed', {
+        method: methodRef.current,
+        message: err instanceof Error ? err.message : String(err),
+      });
       toast.error(err instanceof Error ? err.message : 'Failed to save. Please try again.');
       // Keep the review sheet open so the user can retry.
     } finally {
@@ -147,6 +172,7 @@ export default function OnboardingPage() {
       setPendingProfile(profile);
       setPartialNotice(null);
       setShowReview(true);
+      logAudit('onboarding', 'review_opened', { method: methodRef.current });
     } catch (err) {
       console.error('CV parse error:', err);
       setCvError(err instanceof Error ? err.message : 'Failed to read your CV.');
@@ -222,6 +248,10 @@ export default function OnboardingPage() {
       setPendingProfile(extracted);
       setPartialNotice(notice);
       setShowReview(true);
+      logAudit('onboarding', 'review_opened', {
+        method: methodRef.current,
+        partial: notice ? true : false,
+      });
     } catch (err) {
       console.error('LinkedIn URL probe failed:', err);
       toast.error('Couldn\'t reach that LinkedIn URL. Try copy-paste or PDF instead.');
@@ -236,6 +266,7 @@ export default function OnboardingPage() {
     setPartialNotice(null);
     setShowProfileImportSheet(false);
     setShowReview(true);
+    logAudit('onboarding', 'review_opened', { method: methodRef.current });
   }, []);
 
   // ─── Manual path ────────────────────────────────────────────────────────
@@ -251,10 +282,12 @@ export default function OnboardingPage() {
     setPartialNotice(null);
     setShowReview(true);
     setIsSavingManual(false);
+    logAudit('onboarding', 'review_opened', { method: methodRef.current });
   }, [manualName, manualJobTitle]);
 
   // ─── Skip ───────────────────────────────────────────────────────────────
   const handleSkip = useCallback(async () => {
+    logAudit('onboarding', 'skipped', { step, method: methodRef.current });
     const userId = getUserId() || user?.id;
     if (userId) {
       try {
@@ -321,9 +354,20 @@ export default function OnboardingPage() {
             {step === 'choice' && (
               <ChoiceStep
                 onPick={(p) => {
-                  if (p === 'cv') setStep('cv');
-                  else if (p === 'linkedin') setStep('linkedin');
-                  else setStep('manual');
+                  // We log the *committed* method when a sub-option is picked
+                  // (LinkedIn has 4 sub-options). For 'cv' and 'manual' the
+                  // landing card itself is the method, so log immediately.
+                  if (p === 'cv') {
+                    methodRef.current = 'cv';
+                    logAudit('onboarding', 'path_selected', { method: 'cv' });
+                    setStep('cv');
+                  } else if (p === 'linkedin') {
+                    setStep('linkedin');
+                  } else {
+                    methodRef.current = 'manual';
+                    logAudit('onboarding', 'path_selected', { method: 'manual' });
+                    setStep('manual');
+                  }
                 }}
               />
             )}
@@ -340,9 +384,10 @@ export default function OnboardingPage() {
                 option={liOption}
                 onPickOption={(o) => {
                   setLiOption(o);
-                  if (o === 'paste') { setProfileImportInitial('paste'); setShowProfileImportSheet(true); }
-                  if (o === 'wizard') { setProfileImportInitial('wizard'); setShowProfileImportSheet(true); }
-                  if (o === 'pdf') { setProfileImportInitial('pdf'); setShowProfileImportSheet(true); }
+                  if (o === 'paste') { methodRef.current = 'linkedin-paste'; logAudit('onboarding', 'path_selected', { method: 'linkedin-paste' }); setProfileImportInitial('paste'); setShowProfileImportSheet(true); }
+                  if (o === 'wizard') { methodRef.current = 'linkedin-wizard'; logAudit('onboarding', 'path_selected', { method: 'linkedin-wizard' }); setProfileImportInitial('wizard'); setShowProfileImportSheet(true); }
+                  if (o === 'pdf') { methodRef.current = 'linkedin-pdf'; logAudit('onboarding', 'path_selected', { method: 'linkedin-pdf' }); setProfileImportInitial('pdf'); setShowProfileImportSheet(true); }
+                  if (o === 'url') { methodRef.current = 'linkedin-url'; logAudit('onboarding', 'path_selected', { method: 'linkedin-url' }); }
                 }}
                 url={linkedinUrl}
                 setUrl={(v) => { setLinkedinUrl(v); if (linkedinUrlError) setLinkedinUrlError(''); }}
