@@ -163,7 +163,9 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
       clearTimeout(timer);
       obs.disconnect();
     };
-  }, [currentResume, selectedTemplate]);
+    // Key off the debounced render snapshot so page-break recalculation
+    // happens at the same cadence as the actual template re-render.
+  }, [debouncedResume, selectedTemplate]);
 
   const toggleSection = useCallback((section: string) => {
     setHiddenSections(prev => {
