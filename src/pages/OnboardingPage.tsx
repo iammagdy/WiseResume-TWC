@@ -243,7 +243,7 @@ export default function OnboardingPage() {
     } finally {
       setIsSaving(false);
     }
-  }, [queryClient, user]);
+  }, [queryClient, user, pendingProfile]);
 
   // ─── CV path ────────────────────────────────────────────────────────────
   const handleCvFile = useCallback(async (file: File) => {
