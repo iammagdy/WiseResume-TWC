@@ -41,6 +41,69 @@ const ProfileImportSheet = lazy(() =>
 
 const ONBOARDING_KEY = 'wr-onboarding-completed';
 
+interface AcceptanceCounts {
+  experienceKept: number; experienceTotal: number;
+  educationKept: number; educationTotal: number;
+  skillsKept: number; skillsTotal: number;
+  certificationsKept: number; certificationsTotal: number;
+  languagesKept: number; languagesTotal: number;
+  projectsKept: number; projectsTotal: number;
+  volunteeringKept: number; volunteeringTotal: number;
+  // personal-info keep flags (1=kept, 0=dropped); only meaningful when the
+  // corresponding *Total below is 1.
+  fullNameKept: number; fullNameTotal: number;
+  emailKept: number; emailTotal: number;
+  phoneKept: number; phoneTotal: number;
+  locationKept: number; locationTotal: number;
+  linkedinUrlKept: number; linkedinUrlTotal: number;
+  jobTitleKept: number; jobTitleTotal: number;
+  summaryKept: number; summaryTotal: number;
+}
+
+function computeAcceptanceCounts(
+  total: ExtractedProfile | null,
+  kept: ExtractedProfile,
+): AcceptanceCounts {
+  const t = total ?? kept;
+  const f = (v: unknown): number => (v ? 1 : 0);
+  return {
+    experienceKept: kept.experience.length, experienceTotal: t.experience.length,
+    educationKept: kept.education.length, educationTotal: t.education.length,
+    skillsKept: kept.skills.length, skillsTotal: t.skills.length,
+    certificationsKept: kept.certifications.length, certificationsTotal: t.certifications.length,
+    languagesKept: kept.languages.length, languagesTotal: t.languages.length,
+    projectsKept: kept.projects.length, projectsTotal: t.projects.length,
+    volunteeringKept: kept.volunteering.length, volunteeringTotal: t.volunteering.length,
+    fullNameKept: f(kept.fullName), fullNameTotal: f(t.fullName),
+    emailKept: f(kept.email), emailTotal: f(t.email),
+    phoneKept: f(kept.phone), phoneTotal: f(t.phone),
+    locationKept: f(kept.location), locationTotal: f(t.location),
+    linkedinUrlKept: f(kept.linkedinUrl), linkedinUrlTotal: f(t.linkedinUrl),
+    jobTitleKept: f(kept.jobTitle), jobTitleTotal: f(t.jobTitle),
+    summaryKept: f(kept.summary), summaryTotal: f(t.summary),
+  };
+}
+
+/**
+ * Return the names of *list* sections where the user dropped most of what we
+ * extracted. Only flags sections with at least 3 extracted items, so trivial
+ * cases (e.g. one skill that the user removed) don't generate noise.
+ */
+function findLowAcceptanceSections(c: AcceptanceCounts): string[] {
+  const sections: { name: string; kept: number; total: number }[] = [
+    { name: 'experience', kept: c.experienceKept, total: c.experienceTotal },
+    { name: 'education', kept: c.educationKept, total: c.educationTotal },
+    { name: 'skills', kept: c.skillsKept, total: c.skillsTotal },
+    { name: 'certifications', kept: c.certificationsKept, total: c.certificationsTotal },
+    { name: 'languages', kept: c.languagesKept, total: c.languagesTotal },
+    { name: 'projects', kept: c.projectsKept, total: c.projectsTotal },
+    { name: 'volunteering', kept: c.volunteeringKept, total: c.volunteeringTotal },
+  ];
+  return sections
+    .filter((s) => s.total >= 3 && s.kept / s.total < 0.5)
+    .map((s) => s.name);
+}
+
 type Step = 'welcome' | 'choice' | 'cv' | 'linkedin' | 'manual' | 'celebration' | 'whatsnext';
 type LinkedInOption = null | 'paste' | 'wizard' | 'pdf' | 'url';
 
@@ -144,10 +207,26 @@ export default function OnboardingPage() {
       setFinalName(filtered.fullName || '');
       setShowReview(false);
       setStep('celebration');
+
+      // Compare what was extracted vs what the user actually kept, so we can
+      // see which fields are most often unchecked (a signal that our
+      // extraction is producing low-quality output for that section).
+      const counts = computeAcceptanceCounts(pendingProfile, filtered);
       logAudit('onboarding', 'completed', {
         method: methodRef.current,
         hasResume: result.hasResume,
+        ...counts,
       });
+      // Surface a separate event for any section where the user dropped
+      // most of the items — easier to alert on than scanning ratios.
+      const lowAcceptance = findLowAcceptanceSections(counts);
+      if (lowAcceptance.length) {
+        logAudit('onboarding', 'low_acceptance', {
+          method: methodRef.current,
+          sections: lowAcceptance,
+        });
+      }
+
       if (result.hasResume) {
         toast.success('Profile and resume created');
       } else {
