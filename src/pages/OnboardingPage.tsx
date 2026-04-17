@@ -307,7 +307,9 @@ export default function OnboardingPage() {
   const handleBack = () => {
     if (step === 'choice') setStep('welcome');
     else if (step === 'cv' || step === 'linkedin' || step === 'manual') {
-      // Reset path-specific state
+      // Reset path-specific state — including the tracked method, so a later
+      // 'skipped' or 'completed' event isn't attributed to a stale path.
+      methodRef.current = null;
       setLiOption(null);
       setCvError(null);
       setLinkedinUrl('');
@@ -441,7 +443,14 @@ export default function OnboardingPage() {
       {/* Per-item review sheet */}
       <OnboardingProfileReviewSheet
         open={showReview}
-        onClose={() => setShowReview(false)}
+        onClose={() => {
+          setShowReview(false);
+          // Only treat as a dismissal when the user closes the sheet without
+          // a save in flight — successful saves close the sheet via completeWith.
+          if (!isSaving) {
+            logAudit('onboarding', 'review_dismissed', { method: methodRef.current });
+          }
+        }}
         profile={pendingProfile}
         onConfirm={completeWith}
         isSaving={isSaving}
