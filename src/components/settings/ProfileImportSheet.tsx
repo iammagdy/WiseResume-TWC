@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Linkedin,
@@ -92,6 +92,8 @@ interface ProfileImportSheetProps {
   onOpenChange: (open: boolean) => void;
   onImport: (data: Partial<ProfileData>) => void;
   defaultPlatform?: Platform;
+  /** Auto-jump to a specific import method when the sheet opens. */
+  initialMethod?: 'paste' | 'wizard' | 'pdf';
   existingExperience?: Array<{ company: string; startDate?: string; endDate?: string }>;
   existingSkills?: string[];
   linkedinUsername?: string;
@@ -182,6 +184,7 @@ export function ProfileImportSheet({
   onOpenChange,
   onImport,
   defaultPlatform = 'linkedin',
+  initialMethod,
   existingExperience,
   existingSkills,
   linkedinUsername: _linkedinUsername,
@@ -208,6 +211,24 @@ export function ProfileImportSheet({
   const [uploadingPdf, setUploadingPdf] = useState(false);
   const [editingExpIdx, setEditingExpIdx] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Auto-jump to a specific method when the sheet opens with `initialMethod`.
+  // Fires only on the open transition so the user can navigate freely afterwards.
+  const lastOpenRef = useRef(false);
+  useEffect(() => {
+    if (open && !lastOpenRef.current) {
+      if (initialMethod === 'paste') setParseState('quick-paste');
+      else if (initialMethod === 'wizard') {
+        setParseState('wizard');
+        setActiveGuideStep(0);
+      } else if (initialMethod === 'pdf') {
+        setParseState('method-select');
+        setTimeout(() => fileInputRef.current?.click(), 50);
+      }
+    }
+    lastOpenRef.current = open;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initialMethod]);
 
   const platformLabel = PLATFORMS.find((p) => p.id === platform)?.label ?? 'LinkedIn';
 
