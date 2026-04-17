@@ -1,0 +1,191 @@
+-- DevKit Analytics premium RPCs
+-- All functions are SECURITY DEFINER so the edge function (which uses the
+-- service role key anyway) gets fast pre-aggregated rows without pulling
+-- raw event data over the wire. Every function is restricted to the service
+-- role at the policy level by virtue of being callable only from the edge
+-- function (no anon GRANT below).
+
+-- ---------------------------------------------------------------------------
+-- 1. Daily activity buckets (page views proxy + DAU per day)
+-- ---------------------------------------------------------------------------
+create or replace function get_usage_activity_daily(p_start timestamptz, p_end timestamptz)
+returns table(bucket_date date, total bigint, distinct_users bigint)
+language sql
+security definer
+as $$
+  select
+    (created_at at time zone 'UTC')::date as bucket_date,
+    count(*)::bigint as total,
+    count(distinct user_id)::bigint as distinct_users
+  from usage_events
+  where created_at >= p_start and created_at < p_end
+    and user_id is not null
+  group by 1
+  order by 1;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- 2. Hourly activity buckets (used when range = today)
+-- ---------------------------------------------------------------------------
+create or replace function get_usage_activity_hourly(p_start timestamptz, p_end timestamptz)
+returns table(bucket_hour timestamptz, total bigint, distinct_users bigint)
+language sql
+security definer
+as $$
+  select
+    date_trunc('hour', created_at) as bucket_hour,
+    count(*)::bigint as total,
+    count(distinct user_id)::bigint as distinct_users
+  from usage_events
+  where created_at >= p_start and created_at < p_end
+    and user_id is not null
+  group by 1
+  order by 1;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- 3. Day-of-week x hour-of-day activity matrix (UTC)
+-- ---------------------------------------------------------------------------
+create or replace function get_dow_hour_activity(p_start timestamptz, p_end timestamptz)
+returns table(dow int, hod int, total bigint)
+language sql
+security definer
+as $$
+  select
+    extract(dow from created_at)::int as dow,
+    extract(hour from created_at)::int as hod,
+    count(*)::bigint as total
+  from usage_events
+  where created_at >= p_start and created_at < p_end
+    and user_id is not null
+  group by 1, 2
+  order by 1, 2;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- 4. Top features with daily trend (trend returned as JSON array of counts
+--    aligned to the daily bucket boundaries the caller computed)
+-- ---------------------------------------------------------------------------
+create or replace function get_top_features_with_trend(
+  p_start timestamptz,
+  p_end timestamptz,
+  p_top_n int default 8
+)
+returns table(event_type text, total bigint, trend jsonb)
+language sql
+security definer
+as $$
+  with windowed as (
+    select event_type, (created_at at time zone 'UTC')::date as d
+    from usage_events
+    where created_at >= p_start and created_at < p_end
+      and event_type is not null
+  ),
+  totals as (
+    select event_type, count(*)::bigint as total
+    from windowed
+    group by event_type
+    order by count(*) desc
+    limit p_top_n
+  ),
+  daily as (
+    select w.event_type, w.d, count(*)::bigint as c
+    from windowed w
+    join totals t on t.event_type = w.event_type
+    group by w.event_type, w.d
+  )
+  select
+    t.event_type::text,
+    t.total,
+    coalesce(
+      (select jsonb_agg(jsonb_build_object('d', d::text, 'c', c) order by d)
+        from daily where event_type = t.event_type),
+      '[]'::jsonb
+    ) as trend
+  from totals t
+  order by t.total desc;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- 5. New vs returning daily split.
+--    "new" = profile.created_at falls in the day; "returning" = users with
+--    activity that day whose profile predates the day.
+-- ---------------------------------------------------------------------------
+create or replace function get_new_vs_returning_daily(p_start timestamptz, p_end timestamptz)
+returns table(bucket_date date, new_users bigint, returning_users bigint)
+language sql
+security definer
+as $$
+  with day_users as (
+    select
+      (ue.created_at at time zone 'UTC')::date as d,
+      ue.user_id,
+      p.created_at as profile_created
+    from usage_events ue
+    join profiles p on p.id = ue.user_id
+    where ue.created_at >= p_start and ue.created_at < p_end
+      and ue.user_id is not null
+    group by 1, 2, 3
+  )
+  select
+    d as bucket_date,
+    count(distinct user_id) filter (where (profile_created at time zone 'UTC')::date = d)::bigint as new_users,
+    count(distinct user_id) filter (where (profile_created at time zone 'UTC')::date < d)::bigint as returning_users
+  from day_users
+  group by d
+  order by d;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- 6. Distinct user count for an arbitrary window (used for WAU / range DAU
+--    rollups so we don't have to pull all events back to the edge fn)
+-- ---------------------------------------------------------------------------
+create or replace function get_distinct_active_users(p_start timestamptz, p_end timestamptz)
+returns bigint
+language sql
+security definer
+as $$
+  select count(distinct user_id)::bigint
+  from usage_events
+  where created_at >= p_start and created_at < p_end
+    and user_id is not null;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- 7. Portfolio referrers in window (top-N) — graceful empty when no data
+-- ---------------------------------------------------------------------------
+create or replace function get_portfolio_referrers(
+  p_start timestamptz,
+  p_end timestamptz,
+  p_top_n int default 8
+)
+returns table(referrer text, count bigint)
+language sql
+security definer
+as $$
+  select
+    coalesce(nullif(trim(referrer), ''), 'direct')::text as referrer,
+    count(*)::bigint
+  from portfolio_visits
+  where visited_at >= p_start and visited_at < p_end
+  group by 1
+  order by count(*) desc
+  limit p_top_n;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- 8. Portfolio device breakdown in window
+-- ---------------------------------------------------------------------------
+create or replace function get_portfolio_devices(p_start timestamptz, p_end timestamptz)
+returns table(device text, count bigint)
+language sql
+security definer
+as $$
+  select
+    coalesce(nullif(trim(device), ''), 'unknown')::text as device,
+    count(*)::bigint
+  from portfolio_visits
+  where visited_at >= p_start and visited_at < p_end
+  group by 1
+  order by count(*) desc;
+$$;

@@ -1,83 +1,27 @@
-import { useState, useCallback, useEffect } from 'react';
-import { RefreshCw, TrendingUp, TrendingDown, Minus, BarChart2, Users, Eye, Zap, Globe, Lock } from 'lucide-react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
+import {
+  RefreshCw, BarChart2, Users, Eye, Zap, Globe, Lock, TrendingUp, Activity,
+  Smartphone, Link2, MapPin, Calendar, Layers,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
-import { getDevKitToken } from '@/contexts/DevKitSessionContext';
-import { useDevKitSession } from '@/contexts/DevKitSessionContext';
+import { getDevKitToken, useDevKitSession } from '@/contexts/DevKitSessionContext';
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
-  LineChart, Line,
+  ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
+  BarChart, Bar, LineChart, Line, Legend,
 } from 'recharts';
 
+import { RangeSwitcher } from './analytics/RangeSwitcher';
+import { KpiCard } from './analytics/KpiCard';
+import { SectionCard } from './analytics/SectionCard';
+import { Sparkline } from './analytics/Sparkline';
+import { HeatmapDowHour } from './analytics/HeatmapDowHour';
+import { Donut } from './analytics/Donut';
+import { RankedList } from './analytics/RankedList';
+import { EmptyState } from './analytics/EmptyState';
+import type { AnalyticsRange, PremiumAnalyticsData } from './analytics/types';
 
-interface AnalyticsData {
-  pageViewsAllTime: number;
-  pageViewsToday: number;
-  activeUsersToday: number;
-  activeUsersYesterday: number;
-  topFeatures: { name: string; count: number }[];
-  portfolioViewsTotal: number;
-  signupsLast14Days: { date: string; count: number }[];
-  aiCreditsToday: number;
-  aiCreditsYesterday: number;
-  countryDistribution: { country: string; count: number }[];
-  lastUpdatedAt: Date;
-}
-
-function DeltaIndicator({ current, previous }: { current: number; previous: number }) {
-  if (previous === 0 && current === 0) return null;
-  const delta = current - previous;
-  const pct = previous > 0 ? Math.round((delta / previous) * 100) : (current > 0 ? 100 : 0);
-
-  if (delta > 0) {
-    return (
-      <span className="inline-flex items-center gap-0.5 text-xs text-green-600 dark:text-green-400 font-medium">
-        <TrendingUp className="w-3 h-3" /> +{pct}%
-      </span>
-    );
-  }
-  if (delta < 0) {
-    return (
-      <span className="inline-flex items-center gap-0.5 text-xs text-destructive font-medium">
-        <TrendingDown className="w-3 h-3" /> {pct}%
-      </span>
-    );
-  }
-  return (
-    <span className="inline-flex items-center gap-0.5 text-xs text-muted-foreground font-medium">
-      <Minus className="w-3 h-3" /> 0%
-    </span>
-  );
-}
-
-function MetricCard({
-  label, value, sub, icon: Icon, color, delta,
-}: {
-  label: string;
-  value: string | number;
-  sub?: string;
-  icon: React.ElementType;
-  color: string;
-  delta?: React.ReactNode;
-}) {
-  return (
-    <div className="rounded-xl border border-border bg-card p-4 flex items-start gap-3 shadow-sm">
-      <div className={`rounded-lg p-2 ${color} shrink-0`}>
-        <Icon className="w-4 h-4" />
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-baseline gap-2">
-          <p className="text-xl font-bold text-foreground tabular-nums leading-none">{value}</p>
-          {delta}
-        </div>
-        <p className="text-xs font-medium text-muted-foreground mt-0.5">{label}</p>
-        {sub && <p className="text-[10px] text-muted-foreground/60 mt-0.5">{sub}</p>}
-      </div>
-    </div>
-  );
-}
-
-const CUSTOM_TOOLTIP_STYLE = {
+const TOOLTIP_STYLE = {
   backgroundColor: 'hsl(var(--card))',
   border: '1px solid hsl(var(--border))',
   borderRadius: '8px',
@@ -85,44 +29,38 @@ const CUSTOM_TOOLTIP_STYLE = {
   color: 'hsl(var(--foreground))',
 };
 
+function prettyFeatureName(raw: string): string {
+  return raw.replace(/^ai\./, '').replace(/_/g, ' ');
+}
+
+function formatShortDate(s: string, bucket: 'hour' | 'day'): string {
+  if (bucket === 'hour') return s.slice(11, 16);
+  return s.slice(5);
+}
+
 export function AnalyticsPanel() {
   const { isUnlocked } = useDevKitSession();
-  const [data, setData] = useState<AnalyticsData | null>(null);
+  const [data, setData] = useState<PremiumAnalyticsData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [secondsAgo, setSecondsAgo] = useState(0);
+  const [range, setRange] = useState<AnalyticsRange>('7d');
 
-  const fetchAnalytics = useCallback(async () => {
+  const fetchAnalytics = useCallback(async (r: AnalyticsRange) => {
     const token = getDevKitToken();
     if (!token) return;
-
     setLoading(true);
     setError(null);
     try {
       const { data: responseData, error: invokeError } = await edgeFunctions.functions.invoke('admin-analytics', {
-        body: { password: token },
+        body: { password: token, range: r },
       });
-
       if (invokeError) throw new Error(invokeError.message);
-
-      const result = responseData as { success?: boolean; error?: string; data?: AnalyticsData };
+      const result = responseData as { success?: boolean; error?: string; data?: PremiumAnalyticsData };
       if (result?.success === false) throw new Error(result.error ?? 'Failed to load analytics');
-
       const raw = result?.data;
       if (!raw) throw new Error('No data returned');
-
-      setData({
-        ...raw,
-        topFeatures: raw.topFeatures.map(f => ({
-          ...f,
-          name: f.name.replace('ai.', '').replace(/_/g, ' '),
-        })),
-        signupsLast14Days: raw.signupsLast14Days.map(s => ({
-          ...s,
-          date: s.date.slice(5),
-        })),
-        lastUpdatedAt: new Date(),
-      });
+      setData({ ...raw, lastUpdatedAt: new Date() });
       setSecondsAgo(0);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load analytics');
@@ -133,28 +71,34 @@ export function AnalyticsPanel() {
 
   useEffect(() => {
     if (isUnlocked) {
-      fetchAnalytics();
+      fetchAnalytics(range);
     } else {
       setData(null);
       setError(null);
     }
-  }, [isUnlocked, fetchAnalytics]);
+  }, [isUnlocked, range, fetchAnalytics]);
 
   useEffect(() => {
     if (!isUnlocked) return;
-    const interval = setInterval(() => {
-      setSecondsAgo(s => s + 1);
-    }, 1000);
+    const interval = setInterval(() => setSecondsAgo(s => s + 1), 1000);
     return () => clearInterval(interval);
   }, [isUnlocked]);
 
+  // Auto-refresh only on "Today" (other ranges are slower-moving)
   useEffect(() => {
-    if (!isUnlocked) return;
-    const interval = setInterval(() => {
-      fetchAnalytics();
-    }, 30_000);
+    if (!isUnlocked || range !== 'today') return;
+    const interval = setInterval(() => fetchAnalytics(range), 30_000);
     return () => clearInterval(interval);
-  }, [isUnlocked, fetchAnalytics]);
+  }, [isUnlocked, range, fetchAnalytics]);
+
+  const viewsSpark = useMemo(
+    () => data?.activitySeries.map(p => ({ date: p.date, value: p.views })) ?? [],
+    [data?.activitySeries],
+  );
+  const usersSpark = useMemo(
+    () => data?.activitySeries.map(p => ({ date: p.date, value: p.users })) ?? [],
+    [data?.activitySeries],
+  );
 
   if (!isUnlocked) {
     return (
@@ -168,25 +112,29 @@ export function AnalyticsPanel() {
     );
   }
 
-  const lastUpdatedLabel = secondsAgo < 60
-    ? `${secondsAgo}s ago`
-    : `${Math.floor(secondsAgo / 60)}m ago`;
+  const lastUpdatedLabel = secondsAgo < 60 ? `${secondsAgo}s ago` : `${Math.floor(secondsAgo / 60)}m ago`;
+  const showDelta = range !== 'all';
+  const rangeLabel: Record<AnalyticsRange, string> = {
+    today: 'today', '7d': 'last 7 days', '30d': 'last 30 days', '90d': 'last 90 days', all: 'all time',
+  };
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      {/* Header */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold text-foreground">App Analytics</h2>
-          {data && (
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Last updated {lastUpdatedLabel} · auto-refreshes every 30s
-            </p>
-          )}
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Showing {rangeLabel[range]}{data && <> · last updated {lastUpdatedLabel}{range === 'today' && ' · auto-refreshes every 30s'}</>}
+          </p>
         </div>
-        <Button variant="outline" size="sm" onClick={fetchAnalytics} disabled={loading} className="flex items-center gap-2">
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          <RangeSwitcher value={range} onChange={setRange} disabled={loading} />
+          <Button variant="outline" size="sm" onClick={() => fetchAnalytics(range)} disabled={loading} className="flex items-center gap-2">
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {error && (
@@ -194,116 +142,210 @@ export function AnalyticsPanel() {
       )}
 
       {loading && !data && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[...Array(8)].map((_, i) => (
-            <div key={i} className="h-20 rounded-xl bg-muted/50 animate-pulse" />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[...Array(8)].map((_, i) => <div key={i} className="h-24 rounded-xl bg-muted/50 animate-pulse" />)}
+          </div>
+          <div className="h-64 rounded-xl bg-muted/40 animate-pulse" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="h-56 rounded-xl bg-muted/40 animate-pulse" />
+            <div className="h-56 rounded-xl bg-muted/40 animate-pulse" />
+          </div>
+        </>
       )}
 
       {data && (
         <>
+          {/* KPI hero strip */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <MetricCard
-              label="Page Views (All Time)"
-              value={data.pageViewsAllTime.toLocaleString()}
-              icon={Eye}
-              color="bg-primary/10 text-primary"
+            <KpiCard
+              label="Views" value={data.rangeKpis.views.current.toLocaleString()}
+              sub={`vs previous ${rangeLabel[range]}`}
+              icon={Eye} accent="primary"
+              current={data.rangeKpis.views.current} previous={data.rangeKpis.views.previous}
+              trend={viewsSpark} hideDelta={!showDelta}
             />
-            <MetricCard
-              label="Page Views Today"
-              value={data.pageViewsToday.toLocaleString()}
-              icon={Eye}
-              color="bg-blue-500/10 text-blue-600 dark:text-blue-400"
+            <KpiCard
+              label="Active users" value={data.rangeKpis.activeUsers.current.toLocaleString()}
+              sub={`distinct in ${rangeLabel[range]}`}
+              icon={Users} accent="green"
+              current={data.rangeKpis.activeUsers.current} previous={data.rangeKpis.activeUsers.previous}
+              trend={usersSpark} hideDelta={!showDelta}
             />
-            <MetricCard
-              label="Active Users Today"
-              value={data.activeUsersToday.toLocaleString()}
-              sub={`vs ${data.activeUsersYesterday} yesterday`}
-              icon={Users}
-              color="bg-green-500/10 text-green-600 dark:text-green-400"
-              delta={<DeltaIndicator current={data.activeUsersToday} previous={data.activeUsersYesterday} />}
+            <KpiCard
+              label="AI credits" value={data.rangeKpis.aiCredits.current.toLocaleString()}
+              sub={`vs previous ${rangeLabel[range]}`}
+              icon={Zap} accent="amber"
+              current={data.rangeKpis.aiCredits.current} previous={data.rangeKpis.aiCredits.previous}
+              hideDelta={!showDelta}
             />
-            <MetricCard
-              label="Portfolio Views"
-              value={data.portfolioViewsTotal.toLocaleString()}
-              sub="all time aggregate"
-              icon={Globe}
-              color="bg-purple-500/10 text-purple-600 dark:text-purple-400"
-            />
-            <MetricCard
-              label="AI Credits Today"
-              value={data.aiCreditsToday.toLocaleString()}
-              sub={`vs ${data.aiCreditsYesterday} yesterday`}
-              icon={Zap}
-              color="bg-amber-500/10 text-amber-600 dark:text-amber-400"
-              delta={<DeltaIndicator current={data.aiCreditsToday} previous={data.aiCreditsYesterday} />}
+            <KpiCard
+              label="Portfolio views" value={data.rangeKpis.portfolioViews.current.toLocaleString()}
+              sub={`vs previous ${rangeLabel[range]}`}
+              icon={Globe} accent="purple"
+              current={data.rangeKpis.portfolioViews.current} previous={data.rangeKpis.portfolioViews.previous}
+              hideDelta={!showDelta}
             />
           </div>
 
-          {/* Top Features */}
-          <div className="rounded-xl border border-border bg-card p-5 shadow-sm space-y-4">
-            <p className="text-sm font-semibold text-foreground flex items-center gap-2">
-              <BarChart2 className="w-4 h-4 text-primary" />
-              Top 10 Features (by event count)
-            </p>
-            {data.topFeatures.length === 0 ? (
-              <p className="text-xs text-muted-foreground">No feature events recorded yet.</p>
-            ) : (
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={data.topFeatures} layout="vertical" margin={{ left: 0, right: 16, top: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--border))" />
-                  <XAxis type="number" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
-                  <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
-                  <Tooltip contentStyle={CUSTOM_TOOLTIP_STYLE} />
-                  <Bar dataKey="count" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
-                </BarChart>
+          {/* Secondary KPI strip */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <KpiCard label="DAU" value={data.rangeKpis.dau.toLocaleString()} sub="last 24h"
+              icon={Activity} accent="blue" hideDelta />
+            <KpiCard label="WAU" value={data.rangeKpis.wau.toLocaleString()} sub="last 7 days"
+              icon={Users} accent="blue" hideDelta />
+            <KpiCard label="Stickiness" value={`${data.rangeKpis.stickiness}%`} sub="DAU / WAU"
+              icon={TrendingUp} accent="rose" hideDelta />
+            <KpiCard label="Countries" value={data.countryRanking.length.toLocaleString()}
+              sub="distinct countries" icon={MapPin} accent="primary" hideDelta />
+          </div>
+
+          {/* Traffic over time */}
+          <SectionCard
+            title="Traffic & active users"
+            description={`Events and unique active users per ${data.bucket}, with 7-day rolling average where applicable.`}
+            icon={TrendingUp}
+          >
+            {data.activitySeries.length === 0 ? <EmptyState /> : (
+              <ResponsiveContainer width="100%" height={240}>
+                <AreaChart data={data.activitySeries.map((p, idx) => ({
+                  ...p,
+                  rolling: data.dauRollingSeries[idx]?.value ?? p.users,
+                  label: formatShortDate(p.date, data.bucket),
+                }))} margin={{ left: 0, right: 8, top: 4, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="g-views" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.35} />
+                      <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                  <XAxis dataKey="label" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
+                  <YAxis yAxisId="left" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} allowDecimals={false} />
+                  <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} allowDecimals={false} />
+                  <Tooltip contentStyle={TOOLTIP_STYLE} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <Area yAxisId="left" type="monotone" dataKey="views" name="Events" stroke="hsl(var(--primary))" strokeWidth={2} fill="url(#g-views)" />
+                  <Line yAxisId="right" type="monotone" dataKey="users" name="Active users" stroke="#10b981" strokeWidth={2} dot={false} />
+                  {data.bucket === 'day' && (
+                    <Line yAxisId="right" type="monotone" dataKey="rolling" name="Users (7d avg)" stroke="#f59e0b" strokeWidth={1.5} strokeDasharray="4 4" dot={false} />
+                  )}
+                </AreaChart>
               </ResponsiveContainer>
             )}
-          </div>
+          </SectionCard>
 
-          {/* Signups last 14 days */}
-          <div className="rounded-xl border border-border bg-card p-5 shadow-sm space-y-4">
-            <p className="text-sm font-semibold text-foreground flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-primary" />
-              New Signups – Last 14 Days
-            </p>
-            <ResponsiveContainer width="100%" height={140}>
-              <LineChart data={data.signupsLast14Days} margin={{ left: 0, right: 8, top: 4, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
-                <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} allowDecimals={false} />
-                <Tooltip contentStyle={CUSTOM_TOOLTIP_STYLE} />
-                <Line type="monotone" dataKey="count" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Country Distribution */}
-          {data.countryDistribution.length > 0 && (
-            <div className="rounded-xl border border-border bg-card p-5 shadow-sm space-y-4">
-              <p className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <Globe className="w-4 h-4 text-primary" />
-                Geographic Distribution
-              </p>
-              <ResponsiveContainer width="100%" height={180}>
-                <BarChart data={data.countryDistribution} margin={{ left: 0, right: 16, top: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="country" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
-                  <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} allowDecimals={false} />
-                  <Tooltip contentStyle={CUSTOM_TOOLTIP_STYLE} />
-                  <Bar dataKey="count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-              <div className="flex flex-wrap gap-2">
-                {data.countryDistribution.map(({ country, count }) => (
-                  <span key={country} className="text-xs px-2 py-0.5 rounded-full bg-muted border border-border text-muted-foreground">
-                    {country} · {count}
-                  </span>
-                ))}
-              </div>
-            </div>
+          {/* New vs returning */}
+          {data.bucket === 'day' && (
+            <SectionCard
+              title="New vs returning users"
+              description="Distinct users per day, split by whether their account was created that day."
+              icon={Users}
+            >
+              {data.newVsReturning.every(p => p.newUsers + p.returningUsers === 0) ? <EmptyState /> : (
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={data.newVsReturning.map(p => ({ ...p, label: formatShortDate(p.date, 'day') }))} margin={{ left: 0, right: 8, top: 4, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                    <XAxis dataKey="label" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
+                    <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} allowDecimals={false} />
+                    <Tooltip contentStyle={TOOLTIP_STYLE} />
+                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                    <Bar dataKey="newUsers" name="New" stackId="u" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} />
+                    <Bar dataKey="returningUsers" name="Returning" stackId="u" fill="#a855f7" radius={[3, 3, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </SectionCard>
           )}
+
+          {/* Two-column: Heatmap + Top features */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <SectionCard
+              title="Activity by hour & day"
+              description="UTC hour-of-day vs day-of-week. Darker = more events in window."
+              icon={Calendar}
+            >
+              {data.heatmap.flat().every(v => v === 0) ? <EmptyState /> : <HeatmapDowHour matrix={data.heatmap} />}
+            </SectionCard>
+
+            <SectionCard
+              title="Top features (with trend)"
+              description="Most-used events in the selected window plus a mini sparkline per feature."
+              icon={Layers}
+            >
+              {data.topFeaturesRanged.length === 0 ? <EmptyState /> : (
+                <ul className="space-y-3">
+                  {data.topFeaturesRanged.map((f, i) => (
+                    <li key={`${f.name}-${i}`} className="flex items-center gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2 text-xs">
+                          <span className="truncate font-medium text-foreground">{prettyFeatureName(f.name)}</span>
+                          <span className="text-muted-foreground tabular-nums">{f.count.toLocaleString()}</span>
+                        </div>
+                        <div className="mt-1 h-8">
+                          {f.trend.length > 0 ? <Sparkline data={f.trend} height={32} /> : <div className="h-full" />}
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </SectionCard>
+          </div>
+
+          {/* Two-column: Referrers + Devices */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <SectionCard
+              title="Top referrers"
+              description="Where portfolio visits originated from in the selected window."
+              icon={Link2}
+            >
+              {data.topReferrers.length === 0 ? <EmptyState message="No referrer data in this window" /> : (
+                <RankedList items={data.topReferrers} maxItems={8} />
+              )}
+            </SectionCard>
+
+            <SectionCard
+              title="Device breakdown"
+              description="Portfolio visits by device class (mobile / desktop / tablet)."
+              icon={Smartphone}
+            >
+              {data.deviceBreakdown.length === 0 ? <EmptyState message="No device data in this window" /> : (
+                <Donut items={data.deviceBreakdown} />
+              )}
+            </SectionCard>
+          </div>
+
+          {/* Geo ranking + Signups */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <SectionCard
+              title="Geographic distribution"
+              description="Top countries by registered profile count."
+              icon={Globe}
+            >
+              {data.countryRanking.length === 0 ? <EmptyState /> : (
+                <RankedList items={data.countryRanking.map(c => ({ name: c.country, count: c.count }))} maxItems={8} />
+              )}
+            </SectionCard>
+
+            <SectionCard
+              title="New signups (last 14 days)"
+              description="Account creations per day, regardless of selected range."
+              icon={BarChart2}
+            >
+              {data.signupsLast14Days.every(s => s.count === 0) ? <EmptyState /> : (
+                <ResponsiveContainer width="100%" height={180}>
+                  <LineChart data={data.signupsLast14Days.map(s => ({ ...s, date: s.date.slice(5) }))} margin={{ left: 0, right: 8, top: 4, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
+                    <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} allowDecimals={false} />
+                    <Tooltip contentStyle={TOOLTIP_STYLE} />
+                    <Line type="monotone" dataKey="count" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
+            </SectionCard>
+          </div>
         </>
       )}
     </div>
