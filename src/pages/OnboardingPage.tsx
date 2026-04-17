@@ -87,6 +87,7 @@ export default function OnboardingPage() {
       // Only mark complete and advance after a confirmed save.
       localStorage.setItem(ONBOARDING_KEY, 'true');
       queryClient.invalidateQueries({ queryKey: ['profile'] });
+      queryClient.invalidateQueries({ queryKey: ['me'] });
       queryClient.invalidateQueries({ queryKey: ['resumes'] });
       setFinalName(filtered.fullName || '');
       setShowReview(false);
