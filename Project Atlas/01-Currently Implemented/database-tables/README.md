@@ -1,0 +1,118 @@
+# Database Tables Index
+
+  **Last verified:** 2026-04-17
+  **Type:** index
+  **Sources:**
+  - `src/integrations/supabase/types.ts` (UTF-16 LE encoded — generated. 39 tables + 1 view + 23 RPCs as of this verification)
+  - `supabase/migrations/` (158 migration files)
+  - `project-governance/ARCHITECTURE.md` §5 + §6
+
+  **Canonical owner:** `project-governance/ARCHITECTURE.md` §5.
+
+  ---
+
+  ## All tables (61)
+
+  ### WiseResume / shared (44)
+
+  - [admin_audit_logs](./admin_audit_logs.md)
+- [ai_credits](./ai_credits.md)
+- [ai_usage_logs](./ai_usage_logs.md)
+- [app_settings](./app_settings.md)
+- [audit_logs](./audit_logs.md)
+- [bug_reports](./bug_reports.md)
+- [career_assessments](./career_assessments.md)
+- [chat_messages](./chat_messages.md)
+- [chat_sessions](./chat_sessions.md)
+- [contact_inquiries](./contact_inquiries.md)
+- [contact_requests](./contact_requests.md)
+- [cover_letters](./cover_letters.md)
+- [credit_transactions](./credit_transactions.md)
+- [feature_requests](./feature_requests.md)
+- [interview_sessions](./interview_sessions.md)
+- [job_applications](./job_applications.md)
+- [jobs](./jobs.md)
+- [messages](./messages.md)
+- [notifications](./notifications.md)
+- [portfolio_settings](./portfolio_settings.md)
+- [portfolio_visits](./portfolio_visits.md)
+- [profiles](./profiles.md)
+- [push_subscriptions](./push_subscriptions.md)
+- [resignation_letters](./resignation_letters.md)
+- [resume_certifications](./resume_certifications.md)
+- [resume_educations](./resume_educations.md)
+- [resume_experiences](./resume_experiences.md)
+- [resume_shares](./resume_shares.md)
+- [resume_skills](./resume_skills.md)
+- [resume_versions](./resume_versions.md)
+- [resumes](./resumes.md)
+- [rpc_rate_limits](./rpc_rate_limits.md)
+- [share_comments](./share_comments.md)
+- [short_links](./short_links.md)
+- [social_links](./social_links.md)
+- [store_screenshots](./store_screenshots.md)
+- [subscriptions](./subscriptions.md)
+- [tailor_history](./tailor_history.md)
+- [token_exchanges](./token_exchanges.md)
+- [tool_cache](./tool_cache.md)
+- [usage_events](./usage_events.md)
+- [user_api_keys](./user_api_keys.md)
+- [user_gamification](./user_gamification.md)
+- [user_preferences](./user_preferences.md)
+
+### WiseHire (17)
+
+- [talent_pool_profiles](./talent_pool_profiles.md)
+- [talent_pool_views](./talent_pool_views.md)
+- [wisehire_applications](./wisehire_applications.md)
+- [wisehire_bulk_screen_jobs](./wisehire_bulk_screen_jobs.md)
+- [wisehire_candidate_briefs](./wisehire_candidate_briefs.md)
+- [wisehire_candidate_notes](./wisehire_candidate_notes.md)
+- [wisehire_candidates](./wisehire_candidates.md)
+- [wisehire_clients](./wisehire_clients.md)
+- [wisehire_companies](./wisehire_companies.md)
+- [wisehire_invites](./wisehire_invites.md)
+- [wisehire_outreach_emails](./wisehire_outreach_emails.md)
+- [wisehire_pipeline_events](./wisehire_pipeline_events.md)
+- [wisehire_roles](./wisehire_roles.md)
+- [wisehire_saved_searches](./wisehire_saved_searches.md)
+- [wisehire_scorecard_templates](./wisehire_scorecard_templates.md)
+- [wisehire_scorecards](./wisehire_scorecards.md)
+- [wisehire_waitlist](./wisehire_waitlist.md)
+
+---
+
+  ## RPCs (Postgres functions, 23 in generated types)
+
+  These are exposed via PostgREST as `supabase.rpc(...)`. They are not individually carded — see `src/integrations/supabase/types.ts` for signatures and `supabase/migrations/` for definitions.
+
+  ```
+  add_share_comment, check_email_rate_limit, check_username_available, cleanup_stale_data,
+  deduct_ai_credits, get_clerk_user_id, get_portfolio_active_status, get_portfolio_analytics,
+  get_public_portfolio, get_share_comments, get_user_api_key_info, hash_share_password,
+  increment_ai_usage, increment_portfolio_views, increment_share_view_count,
+  increment_short_link_clicks, record_portfolio_visit, resolve_short_link, restore_resume,
+  safe_uid, soft_delete_resume, soft_delete_resumes, verify_share_password
+  ```
+
+  The most security-critical RPC is **`atomic_attempt_and_deduct_credit`** (per Decision #6 — fail-closed credit deduction). It lives in a migration but does **not** currently appear in the generated types snapshot above; re-verify in `supabase/migrations/`.
+
+  ## Views
+
+  - `user_api_keys_safe` — sanitised view of `user_api_keys` (no encrypted values exposed).
+
+  ---
+
+  ## Notes
+
+  - `src/integrations/supabase/types.ts` is **UTF-16 LE encoded** — read with `Buffer.toString('utf16le')`.
+  - Tables present in migrations but not in the snapshot: `chat_sessions`, `chat_messages`, `tool_cache`, `app_settings`, `admin_audit_logs`, all `wisehire_*`, `talent_pool_*`. Re-run the types generator after schema changes. (`linkedin_imports` is **planned, not built** — it lives in `Project Atlas/03-Ideas/` only.)
+  - All tables have RLS enabled. Most recent hardening: `supabase/migrations/20260417000000_security_audit_rls_and_hardening.sql`.
+
+  **Maintenance:** when you add a table:
+  1. Add a migration in `supabase/migrations/`.
+  2. Apply via `apply-rpc-migration.yml` (`db-migration.yml` is broken).
+  3. Regenerate `types.ts`.
+  4. Add a reference card here.
+  5. Update this index and `project-governance/ARCHITECTURE.md` §5.
+  
