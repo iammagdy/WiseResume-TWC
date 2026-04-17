@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { useDeepLinking } from "./hooks/useDeepLinking";
 import { Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
@@ -60,7 +60,7 @@ const DevToolsPage = lazyWithRetry(() => import("./pages/DevToolsPage"));
 const CommandPalette = lazyWithRetry(() => import("@/components/layout/CommandPalette"));
 
 const BugReportDialog = lazyWithRetry(() => import("@/components/BugReportDialog"));
-const AuroraBackground = lazy(() =>
+const AuroraBackground = lazyWithRetry(() =>
   import("@/components/landing/AuroraBackground").then((m) => ({ default: m.AuroraBackground }))
 );
 import { getSafeMatchMedia, isBrowser } from "@/lib/envUtils";

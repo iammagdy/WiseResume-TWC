@@ -105,6 +105,23 @@ interface LivePreviewPanelProps {
 export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, className, highlightSection }: LivePreviewPanelProps) {
   const currentResume = useResumeStore(s => s.currentResume);
   const selectedTemplate = useResumeStore(s => s.selectedTemplate);
+
+  // Debounce the resume passed to the template by ~100ms so bursts of
+  // keystrokes coalesce into a single re-render of the (heavy) template tree.
+  // On resume *identity* switch we flip immediately to avoid showing stale
+  // content from the previous resume during the debounce window.
+  const [debouncedResume, setDebouncedResume] = useState(currentResume);
+  const lastIdRef = useRef(currentResume?.id);
+  useEffect(() => {
+    if (currentResume?.id !== lastIdRef.current) {
+      lastIdRef.current = currentResume?.id;
+      setDebouncedResume(currentResume);
+      return;
+    }
+    const t = setTimeout(() => setDebouncedResume(currentResume), 100);
+    return () => clearTimeout(t);
+  }, [currentResume]);
+
   const [zoom, setZoom] = useState(0.75);
 
   // Orientation-aware auto-zoom
@@ -162,6 +179,10 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
     haptics.medium();
     setIsGenerating(true);
     try {
+      // Flush the preview debounce so the DOM (which html2canvas captures)
+      // reflects the same resume snapshot we pass to generatePDF.
+      setDebouncedResume(currentResume);
+      await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())));
       // Temporarily reset parent zoom transform so html2canvas captures at true size
       const zoomWrapper = resumeRef.current?.parentElement?.parentElement;
       const origTransform = zoomWrapper?.style.transform;
@@ -188,7 +209,10 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
 
   if (!currentResume || !TemplateComponent) return null;
 
-  const filteredResume = filterResume(currentResume, hiddenSections);
+  // Use the debounced snapshot for the template render (heavy tree),
+  // but keep `currentResume` for toolbar/PDF/style which read non-render fields.
+  const renderResume = debouncedResume ?? currentResume;
+  const filteredResume = filterResume(renderResume, hiddenSections);
   const customizationStyle = applyCustomizationCSS(currentResume.customization);
 
   // Determine which sections have content for toggle UI

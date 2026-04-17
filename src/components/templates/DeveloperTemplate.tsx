@@ -6,6 +6,41 @@ import { formatDisplayDate } from '@/lib/dateUtils';
 
 interface TemplateProps { resume: ResumeData; }
 
+type ExperienceItemType = ResumeData['experience'][number];
+type EducationItemType = ResumeData['education'][number];
+
+const ExperienceItem = memo(function ExperienceItem({ exp }: { exp: ExperienceItemType }) {
+  return (
+    <div data-break-avoid className="border-l-2 border-gray-200 pl-3">
+      <div className="flex justify-between items-baseline flex-wrap gap-1">
+        <h3 className="text-gray-900"><span className="text-green-500">&gt;</span> {exp.position}<span className="text-gray-500"> @ {exp.company}</span></h3>
+        <span className="text-gray-400 text-xs">{formatDisplayDate(exp.startDate)} - {exp.current ? 'Present' : formatDisplayDate(exp.endDate)}</span>
+      </div>
+      {exp.description && <p data-break-child className="text-gray-600 mt-1 ml-4">{exp.description}</p>}
+      {exp.achievements && exp.achievements.length > 0 && (
+        <ul data-break-child className="mt-1 ml-4 space-y-0.5">
+          {exp.achievements.map((a, i) => <li key={i} data-break-child className="text-gray-600"><span className="text-gray-400">-</span> {a}</li>)}
+        </ul>
+      )}
+      {exp.responsibilities && exp.responsibilities.length > 0 && (
+        <ul data-break-child className="mt-1 ml-4 space-y-0.5">
+          {exp.responsibilities.map((r, i) => <li key={i} data-break-child className="text-gray-600"><span className="text-gray-400">-</span> {r}</li>)}
+        </ul>
+      )}
+    </div>
+  );
+});
+
+const EducationItem = memo(function EducationItem({ edu }: { edu: EducationItemType }) {
+  return (
+    <div data-break-avoid className="flex justify-between items-baseline flex-wrap gap-1">
+      <span className="text-gray-900"><span className="text-green-500">&gt;</span> {edu.degree}{edu.field && ` in ${edu.field}`}<span className="text-gray-500"> @ {edu.institution}</span></span>
+      <span className="text-gray-400 text-xs">{formatDisplayDate(edu.endDate)}</span>
+      {edu.description && <p className="text-gray-600 text-xs w-full mt-0.5">{edu.description}</p>}
+    </div>
+  );
+});
+
 export const DeveloperTemplate = memo(function DeveloperTemplate({ resume }: TemplateProps) {
   const categorizeSkills = (skills: string[]) => {
     const languages = ['JavaScript', 'TypeScript', 'Python', 'Java', 'Go', 'Rust', 'C++', 'C#', 'Ruby', 'PHP', 'Swift', 'Kotlin'];
@@ -63,23 +98,7 @@ export const DeveloperTemplate = memo(function DeveloperTemplate({ resume }: Tem
             <h2 className="text-green-600 font-bold mb-2"><span className="text-gray-400">//</span> EXPERIENCE</h2>
             <div className="space-y-4">
               {resume.experience.map((exp) => (
-                <div key={exp.id} data-break-avoid className="border-l-2 border-gray-200 pl-3">
-                  <div className="flex justify-between items-baseline flex-wrap gap-1">
-                    <h3 className="text-gray-900"><span className="text-green-500">&gt;</span> {exp.position}<span className="text-gray-500"> @ {exp.company}</span></h3>
-                    <span className="text-gray-400 text-xs">{formatDisplayDate(exp.startDate)} - {exp.current ? 'Present' : formatDisplayDate(exp.endDate)}</span>
-                  </div>
-                  {exp.description && <p data-break-child className="text-gray-600 mt-1 ml-4">{exp.description}</p>}
-                  {exp.achievements && exp.achievements.length > 0 && (
-                    <ul data-break-child className="mt-1 ml-4 space-y-0.5">
-                      {exp.achievements.map((a, i) => <li key={i} data-break-child className="text-gray-600"><span className="text-gray-400">-</span> {a}</li>)}
-                    </ul>
-                  )}
-                  {exp.responsibilities && exp.responsibilities.length > 0 && (
-                    <ul data-break-child className="mt-1 ml-4 space-y-0.5">
-                      {exp.responsibilities.map((r, i) => <li key={i} data-break-child className="text-gray-600"><span className="text-gray-400">-</span> {r}</li>)}
-                    </ul>
-                  )}
-                </div>
+                <ExperienceItem key={exp.id} exp={exp} />
               ))}
             </div>
           </section>
@@ -89,11 +108,7 @@ export const DeveloperTemplate = memo(function DeveloperTemplate({ resume }: Tem
             <h2 className="text-green-600 font-bold mb-2"><span className="text-gray-400">//</span> EDUCATION</h2>
             <div className="border-l-2 border-gray-200 pl-3 space-y-2">
               {resume.education.map((edu) => (
-                <div key={edu.id} data-break-avoid className="flex justify-between items-baseline flex-wrap gap-1">
-                  <span className="text-gray-900"><span className="text-green-500">&gt;</span> {edu.degree}{edu.field && ` in ${edu.field}`}<span className="text-gray-500"> @ {edu.institution}</span></span>
-                  <span className="text-gray-400 text-xs">{formatDisplayDate(edu.endDate)}</span>
-                  {edu.description && <p className="text-gray-600 text-xs w-full mt-0.5">{edu.description}</p>}
-                </div>
+                <EducationItem key={edu.id} edu={edu} />
               ))}
             </div>
           </section>
