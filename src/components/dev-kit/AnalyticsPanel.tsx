@@ -327,11 +327,11 @@ export function AnalyticsPanel() {
             </SectionCard>
           </div>
 
-          {/* Geo ranking + Signups */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Geo ranking — all-time profile geography (intentionally not range-scoped) */}
+          <div className="grid grid-cols-1 gap-4">
             <SectionCard
               title="Geographic distribution"
-              description="Top countries by registered profile count."
+              description="Top countries by registered profile count (all-time, not affected by the time-range selector)."
               icon={Globe}
             >
               {data.countryRanking.length === 0 ? <EmptyState /> : (
