@@ -1,0 +1,14 @@
+{
+  "_comment": "Cards in 01-Currently Implemented/ that the auto-check should NOT flag as orphans, even though their source counterpart is missing. Each entry must include a reason and a tracking task. When the source is reconciled (e.g. types.ts regenerated, a page added), remove the entry. The auto-check fails if an allowlisted entry no longer needs to be allowlisted.",
+  "pages": [],
+  "edge-functions": [],
+  "database-tables": {
+    "_reason": "These tables exist in the live Supabase database but have not yet been added to src/integrations/supabase/types.ts. Tracked by the existing project tasks 'Apply the missing chat, tool cache, and admin audit log migrations to the live database' and 'Add reference cards for the newly-discovered live tables'. Remove each entry once types.ts is regenerated and contains the table.",
+    "entries": [
+      "admin_audit_logs.md",
+      "chat_messages.md",
+      "chat_sessions.md",
+      "tool_cache.md"
+    ]
+  }
+}

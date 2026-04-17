@@ -130,6 +130,26 @@ If you can't decide whether a fact needs an inline cite, add one. The cost of an
 
 ---
 
+## Automated sync check
+
+A lightweight script — `scripts/atlas-sync-check.ts` — guards the **inventory** of `01-Currently Implemented/` against the codebase. It compares:
+
+- `src/pages/**/*.tsx` against `01-Currently Implemented/pages/**/*.md`
+- Directories under `supabase/functions/` (excluding `_shared`) against `01-Currently Implemented/edge-functions/*.md`
+- Tables declared in `src/integrations/supabase/types.ts` against `01-Currently Implemented/database-tables/*.md`
+
+If any side is missing an entry, the script lists the missing/orphaned cards by name and exits non-zero. Run it locally with:
+
+```
+npx tsx scripts/atlas-sync-check.ts
+```
+
+The same script runs on every PR via `.github/workflows/atlas-sync-check.yml` (no path filters — every PR is checked).
+
+The check enforces **existence only** — it does not verify that a card's content matches its source. Per-claim accuracy is still a manual discipline (Rules 1–5 above).
+
+**Known divergences** between the live database and `src/integrations/supabase/types.ts` (e.g. tables that exist in production but haven't been pulled into the generated types yet) are tracked in `Project Atlas/.atlas-sync-allowlist.json`. Each entry must include a reason; when a divergence is resolved the entry must be removed (the script flags stale allowlist entries and fails).
+
 ## What is intentionally **not** automated
 
-There is no script, no CI check, and no tooling that enforces these rules. They are a maintenance discipline, not a tool. If they slip, the Atlas decays — re-verify the affected docs and bump the date. (An Atlas-sync CI check is on the follow-up task list — see proposed task #27.)
+The auto-check covers card existence; the rest of the maintenance discipline is still manual. There is no tooling that enforces per-claim citations, last-verified bumps, or canonical-owner correctness. If those slip, the Atlas decays — re-verify the affected docs and bump the date.
