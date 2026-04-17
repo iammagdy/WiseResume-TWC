@@ -123,34 +123,39 @@ The landing page at the root URL presents both products via a toggle: **"For Job
 
 **Focus**: An AI HR SaaS tool — not an applicant tracking system (ATS) in the traditional sense. WiseHire produces qualitative AI assessments, not just keyword matching.
 
-**Release Status**: Pre-launch as of 2026-04-15. Invite-only. No open sign-ups. Waitlist active.
+**Release Status**: Invite-only Early Access as of 2026-04-23. No open sign-ups. Waitlist active. Phase 1 is fully shipped end-to-end. Phase 2 and Phase 3 have **edge functions and frontend pages built but their backing database tables have not been migrated yet** — those features will fail at runtime until the missing migrations land. See AUDIT-2026-04.md item A5 and ARCHITECTURE.md §9 for the route/function/table inventory and the Phase 2/3 gap.
 
 ### WiseHire Features (phased delivery)
 
-**Phase 1 — MVP (in spec, not yet built)**
+**Phase 1 — MVP (shipped, end-to-end working)**
+All features below have a live edge function, frontend page or component, and an applied DB migration:
 * Landing page toggle with full WiseHire theme switch
-* Waitlist (pre-launch gate)
-* Invite-only sign-up via admin-generated signed URL
-* Dedicated WiseHire onboarding (5-step, company-focused)
-* AI Candidate Brief Generator — match score, strengths, concerns, interview questions, employment notes
-* AI Job Description Writer — full JD from 2-sentence input
-* Candidate Pipeline Board — Kanban: Shortlisted → Contacted → Interviewing → Offer Sent → Hired / Rejected
+* Waitlist (pre-launch gate) — `wisehire-waitlist-join`, `admin-wisehire-waitlist`, table `wisehire_waitlist`
+* Invite-only sign-up via admin-generated signed URL (HMAC-SHA256, 72h) — `wisehire-validate-invite`, `wisehire-validate-early-access`, `admin-wisehire-invite`, table `wisehire_invites`
+* Dedicated WiseHire onboarding (5-step, company-focused) — `wisehire-complete-signup`, tables `wisehire_companies` + `profiles.account_type`
+* AI Candidate Brief Generator — match score, strengths, concerns, interview questions, employment notes — `wisehire-generate-brief`, tables `wisehire_candidates` + `wisehire_candidate_briefs`
+* AI Job Description Writer — full JD from 2-sentence input — `wisehire-write-jd`, table `wisehire_roles`
+* Candidate Pipeline Board — Kanban: Shortlisted → Contacted → Interviewing → Offer Sent → Hired / Rejected — table `wisehire_pipeline_events`
 * 7-day Professional trial auto-granted on account creation
 * WiseHire subscription page (Early Access, no payment gateway)
 * Dev kit enhancements: account type badges, waitlist panel, WiseHire invite email
 
-**Phase 2**
-* Bulk resume screening (up to 50 simultaneous)
-* Bias Reduction Mode (hides names, photos, schools)
-* Interview Scorecard (pre-populated from brief questions)
-* Shareable read-only reports
+**Phase 2 — partially shipped (edge + frontend code present; DB migrations missing)**
+The following features have an edge function and a frontend route, but the tables they read/write are NOT in `supabase/migrations/`. These code paths will fail at runtime until the migrations land:
+* Bulk resume screening — `wisehire-bulk-screen` (route `/wisehire/bulk-screen`); references `wisehire_bulk_screen_jobs` (no migration found).
+* Bias Reduction Mode — `wisehire-mask-cvs` (route `/wisehire/mask-cvs`).
+* Interview Scorecard — frontend pages `ScorecardPage`, `ScorecardTemplatesPage`, `PublicScorecardPage`; references `wisehire_scorecards`, `wisehire_scorecard_templates`, `wisehire_candidate_notes` (no migrations found).
+* Outreach emails — `wisehire-send-outreach`; references `wisehire_outreach_emails` (no migration found).
+* Public share routes for read-only reports — `/share/brief/:shareToken`, `/share/scorecard/:shareToken`.
 
-**Phase 3**
-* Talent Pool — opted-in WiseResume job seekers discoverable by HR
-* Portfolio view notifications for job seekers
-* HR Analytics Dashboard
+**Phase 3 — partially shipped (edge + frontend code present; DB migrations missing)**
+* Talent Pool — `wisehire-talent-search`, `wisehire-talent-view`, frontend `TalentPoolPage`; references `talent_pool_profiles`, `talent_pool_views` (no migrations found).
+* HR Analytics Dashboard — frontend route `/wisehire/analytics` (`WiseHireAnalyticsPage`).
+* Job-seeker apply flow — `wisehire-apply`; references `wisehire_applications` (no migration found).
+* Public job board for published roles — **NOT shipped.** No `/jobs`, `/jobs/:companySlug`, or `/jobs/:companySlug/:roleSlug` routes exist in `src/AppInterior.tsx`. Only the legacy `/job/:id` job-application detail route (a private WiseResume page) is live, and a `RedirectJobRoute` helper that maps `/jobs/:id → /job/:id`. A first-party public job board therefore remains **planned**, not shipped.
+* Portfolio view notifications for job seekers — not yet shipped (planned).
 
-**Phase 4**
+**Phase 4 — planned**
 * Team collaboration and multi-seat accounts
 * Enterprise features (SSO, API access)
 

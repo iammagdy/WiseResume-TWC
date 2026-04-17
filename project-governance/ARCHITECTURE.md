@@ -36,7 +36,7 @@ You MUST NEVER assume outdated documentation (such as files in `legacy-docs/enha
 
 **Rule B — Deterministic Scoring is Sacred**: `score-resume` uses NO AI calls and MUST NOT deduct credits. Its scoring logic lives in `_shared/scoringFunctions.ts` and MUST remain deterministic. Any proposal to replace it with an AI model call requires a new spec and an explicit constitution amendment — it cannot be changed casually. This is an intentional cost and performance decision.
 
-**Rule C — Orphan Function Retention**: `fetch-github-projects` is an intentionally retained orphan pending UI wiring (a "Sync GitHub" button in portfolio settings). It MUST NOT be deleted without that wiring task being explicitly cancelled by the project owner. Removing it without cancelling the corresponding work item is a governance violation.
+**Rule C — Orphan Function Retention**: `fetch-github-projects` was an intentionally retained orphan pending UI wiring (a "Sync GitHub" button in portfolio settings). **Status (2026-04-23 audit):** the function directory is no longer present under `supabase/functions/`. The retention rule is **suspended pending owner sign-off** — see `AUDIT-2026-04.md` (item A1). Until the owner confirms the wiring task is cancelled (in which case this rule should be deleted) or restores the function (in which case it must be re-deployed), no new orphan function may be added under this rule.
 
 **Rule D — Voice Pipeline Change Protocol**: The interview coaching voice pipeline has three sequential dependent layers: ElevenLabs Scribe STT → Gemma LLM (`interview-chat`) → browser `speechSynthesis` TTS. Any modification to `interview-chat`, `elevenlabs-scribe-token`, or the Web Speech API fallback path in `useVoiceInterview.ts` MUST be validated end-to-end across all three layers simultaneously before merging. Layer-by-layer testing in isolation is insufficient.
 
@@ -53,7 +53,7 @@ You MUST NEVER assume outdated documentation (such as files in `legacy-docs/enha
 | State management | Zustand (global/persistent) + TanStack Query (server state) |
 | Authentication | Kinde Auth (provider) → Supabase (session) via token bridge |
 | Database | Supabase PostgreSQL with RLS |
-| Edge functions | Supabase Edge Functions (Deno runtime) — 87 functions |
+| Edge functions | Supabase Edge Functions (Deno runtime) — 93 functions (see §7) |
 | File storage | Supabase Storage buckets |
 | Email | Resend (transactional + admin notifications) |
 | AI providers | OpenRouter, Groq, Gemini, OpenAI, Anthropic, Mistral, xAI, Cohere, Ollama |
@@ -121,6 +121,8 @@ The token bridge is the core auth infrastructure. It MUST NOT be replaced or cir
 |-------|---------|
 | `chat_sessions` | Wise AI chat sessions: user_id FK→auth.users CASCADE, resume_id FK→resumes SET NULL (nullable), title, updated_at. Sessions are never auto-pruned (cap of 50 is a UI display limit only). RLS: `auth.uid() = user_id`. |
 | `chat_messages` | Messages within a session: session_id FK→chat_sessions CASCADE, role CHECK IN ('user','assistant'), content, function_call JSONB. RLS: owner via session join. |
+| `tool_cache` | 7-day TTL cache for tool outputs (e.g., company briefings) keyed on `(user_id, tool_name, cache_key)` with `output JSONB`, `expires_at`. Backs the cache-reuse UI in `AgenticChatSheet`. RLS: owner only. |
+| `company_briefings` | Persisted output of the `company-briefing` edge function: company_name, briefing JSONB. Read by `useToolCache`. RLS: owner only. |
 
 **AI & Credits**
 | Table | Purpose |
@@ -134,12 +136,22 @@ The token bridge is the core auth infrastructure. It MUST NOT be replaced or cir
 **Portfolio & Career**
 | Table | Purpose |
 |-------|---------|
-| `portfolio_settings` | Public portfolio config: theme, visibility, username |
+| `portfolio_settings` | Public portfolio config: theme, visibility, username, `seo_noindex` |
 | `portfolio_visits` | Analytics: views, device, IP (hashed), duration |
+| `portfolio_history` | Versioned snapshots of portfolio settings for rollback / audit |
+| `portfolio_interactions` | Granular interaction events on public portfolios (clicks, scroll depth, downloads) |
+| `portfolio_username_rules` | Admin-defined rules for username validation |
+| `portfolio_reserved_usernames` | Globally reserved usernames (system / brand / abuse) |
+| `portfolio_exclusive_assignments` | Exclusive premium-username assignments to specific users |
+| `portfolio_user_overrides` | Admin overrides on per-user portfolio username eligibility |
 | `job_applications` | Kanban tracker: company, role, status, JD, deadline |
 | `jobs` | Parsed job descriptions (from URL or text) |
 | `career_assessments` | AI career quiz results and milestone tracking |
 | `interview_sessions` | Mock interview transcripts and scores |
+| `interview_answers` | Per-question answer rows for an interview session (transcript + scoring) |
+| `interview_report_tokens` | Signed share tokens for read-only interview report links |
+| `resume_snapshots` | Pre-tailoring resume snapshots (for rollback after a `tailor-resume` run) |
+| `tailoring_results` | Persisted output of `tailor-resume` runs, with RLS scoped to owning user |
 
 **Support & Feedback**
 | Table | Purpose |
@@ -150,17 +162,23 @@ The token bridge is the core auth infrastructure. It MUST NOT be replaced or cir
 | `feature_requests` | User-submitted feature requests |
 | `push_subscriptions` | Web push notification subscription registrations |
 
-### Additional Tables (present in SQL migrations — verify against types.ts before use)
+**Coupons, Admin & Platform**
+| Table | Purpose |
+|-------|---------|
+| `discount_codes` | Coupon definitions: type, plan override, days, limits, expiry. Created in migration `20260410100000_ultra_admin_control_panel.sql`. |
+| `coupon_redemptions` | Which user redeemed which coupon (prevents double-use). |
+| `admin_audit_log` | Admin-specific audit trail for admin panel actions. Created in `20260410200000_admin_audit_log.sql`. |
+| `admin_user_notes` | Admin sticky notes attached to user accounts. |
+| `app_settings` | Platform-wide configuration key-value store (anon-safe SELECT for public flags). |
+| `error_log` | Server-side error capture for edge functions and RPCs. Read by dev kit. |
 
-The following tables appear in `supabase/migrations/` but may or may not be reflected in the currently generated `types.ts`. Verify before writing any code that depends on them.
+> **Type-generation status (2026-04-23):** `src/integrations/supabase/types.ts` is currently regenerated only against a subset of the public schema and does not yet enumerate every table listed above (notably `chat_sessions`, `chat_messages`, `tool_cache`, the Phase 1 `wisehire_*` tables, `portfolio_username_*`, `resume_snapshots`, `interview_answers`, `interview_report_tokens`, `tailoring_results`, `company_briefings`, `error_log`, the coupon/admin tables above). The migrations under `supabase/migrations/` are the authoritative inventory until `types.ts` is regenerated. Do not infer absence from `types.ts`. Note that some tables referenced by edge functions (`wisehire_scorecards`, `talent_pool_profiles`, etc.) are **also missing from migrations** — see §9 and AUDIT-2026-04.md item A5.
 
-| Table | Purpose | Verify |
-|-------|---------|--------|
-| `discount_codes` | Coupon definitions: type, plan override, days, limits, expiry | Check types.ts |
-| `coupon_redemptions` | Which user redeemed which coupon (prevents double-use) | Check types.ts |
-| `admin_audit_log` | Admin-specific audit trail for admin panel actions | Check types.ts |
-| `admin_user_notes` | Admin sticky notes attached to user accounts | Check types.ts |
-| `app_settings` | Platform-wide configuration key-value store | Check types.ts |
+### Deprecated tables
+
+| Table | Notes |
+|-------|-------|
+| `signup_otps` | Legacy email-OTP signup table from pre-Kinde flow. No live code path references it. Slated for archival removal; do not write new code against it. |
 
 ### WiseHire Tables (Phases 1–20 — all with RLS enabled)
 
@@ -200,9 +218,9 @@ The following tables appear in `supabase/migrations/` but may or may not be refl
 
 ---
 
-## 7. Edge Functions (92 total)
+## 7. Edge Functions (93 total)
 
-All edge functions live in `supabase/functions/`. See also `supabase/functions/EDGE_FUNCTION_AUDIT.md` for trigger types and call sites.
+All edge functions live in `supabase/functions/`. See also `supabase/functions/EDGE_FUNCTION_AUDIT.md` for trigger types and call sites. Count = 79 platform functions + 14 WiseHire functions (see §9).
 
 **Rule**: Every edge function that handles user data MUST include `requireAuth` middleware. Public endpoints (no auth) must still include `botGuard` from `_shared/`.
 
@@ -255,7 +273,7 @@ All edge functions live in `supabase/functions/`. See also `supabase/functions/E
 | `portfolio-meta` | Dynamic SEO metadata for portfolio links (crawler-invoked) |
 | `og-image` | Dynamic Open Graph image generation |
 | `resolve-short-link` | Short URL redirect handler |
-| `fetch-github-projects` | Fetches public GitHub repos for portfolio (pending wire-up) |
+| `portfolio-interest` | Captures recruiter / visitor interest submissions on a public portfolio |
 
 ### Auth & User Identity
 | Function | Purpose |
@@ -292,6 +310,8 @@ All edge functions live in `supabase/functions/`. See also `supabase/functions/E
 | `admin-github-status` | Check GitHub repo sync status |
 | `admin-get-settings` | Retrieve platform-wide settings |
 | `admin-update-settings` | Update platform-wide settings |
+| `admin-onboarding-funnel` | Onboarding funnel analytics for dev kit (drop-off per step) |
+| `admin-portfolio-usernames` | Admin management of portfolio username rules, reservations, exclusive assignments, and per-user overrides |
 | `verify-dev-kit` | Verifies dev kit password server-side |
 | `hard-purge` | Permanently purges soft-deleted data |
 
@@ -454,7 +474,7 @@ User speech
 
 ---
 
-## 9. WiseHire Routing Structure (live — Phases 1–20 complete)
+## 9. WiseHire Routing Structure (Phase 1 fully shipped; Phases 2–3 partially shipped — see audit item A5)
 
 All `/wisehire/*` routes enforce `account_type = 'hr'` via `WiseHireGuard`. Job seeker accounts are redirected to `/dashboard`. Unauthenticated users redirected to `/auth?mode=login`. Expired-trial users see `ContactUsLockout` (except `/wisehire/subscription`).
 
@@ -480,16 +500,15 @@ All `/wisehire/*` routes enforce `account_type = 'hr'` via `WiseHireGuard`. Job 
 | `/wisehire/settings` | WiseHireGuard | Company profile + BYOK AI keys |
 | `/share/brief/:shareToken` | None | Public read-only brief (no auth required) |
 | `/share/scorecard/:shareToken` | None | Public read-only scorecard (no auth required) |
-| `/jobs` | None | Public job board — all published roles |
-| `/jobs/:companySlug` | None | Public job board — single company |
-| `/jobs/:companySlug/:roleSlug` | None | Public role detail + apply |
-| `/my-applications` | ProtectedRoute + AppShell | Job seeker application tracker |
 
-**WiseHire Edge Functions** (13 functions):
+> **Note (2026-04-23 audit, item A5):** Earlier revisions of this section listed public job-board routes `/jobs`, `/jobs/:companySlug`, `/jobs/:companySlug/:roleSlug` and a `/my-applications` job-seeker tracker. Those routes are **NOT registered** in `src/AppInterior.tsx`. Only the legacy private `/job/:id` job-application detail page (a WiseResume route) and a `RedirectJobRoute` helper that maps `/jobs/:id → /job/:id` exist. The first-party public job board remains planned, not shipped.
+
+**WiseHire Edge Functions** (14 functions):
 | Function | Auth requirement | Purpose |
 |----------|-----------------|---------|
 | `wisehire-waitlist-join` | None (botGuard) | Submit waiting list entry |
 | `wisehire-validate-invite` | None (botGuard) | Validate HMAC-signed invite token |
+| `wisehire-validate-early-access` | None (botGuard) | Validate early-access redemption token (signup gate) |
 | `wisehire-complete-signup` | requireAuth | Set `account_type = 'hr'`, create company row, grant 7-day trial |
 | `admin-wisehire-invite` | Admin token | Send branded invite email, sign token, write audit log |
 | `admin-wisehire-waitlist` | Admin token | Paginated waitlist list with search |
@@ -502,7 +521,10 @@ All `/wisehire/*` routes enforce `account_type = 'hr'` via `WiseHireGuard`. Job 
 | `wisehire-send-outreach` | requireAuth + HR check | AI-drafted or custom outreach email via Resend |
 | `wisehire-apply` | requireAuth + job-seeker check | One-click apply to a published role |
 
-**WiseHire Database Tables** (17 tables, all with RLS):
+**WiseHire Database Tables** (8 with applied migrations + 9 referenced by code but missing migrations — see audit item A5):
+
+> **Migration status (2026-04-23 audit, item A5):** Only the 8 tables created in migrations `20260420000001` … `20260420000008` are actually present in the database (`wisehire_companies`, `wisehire_roles`, `wisehire_candidates`, `wisehire_candidate_briefs`, `wisehire_pipeline_events`, `wisehire_waitlist`, `wisehire_invites`, plus `profiles.account_type`). The remaining 9 tables below are referenced by edge functions and frontend pages but **have no migration file** under `supabase/migrations/`. Code paths that touch them will fail at runtime until those migrations land.
+
 | Table | Purpose |
 |-------|---------|
 | `wisehire_companies` | Company profile (owner_id, name, size, slug, onboarding_completed) |

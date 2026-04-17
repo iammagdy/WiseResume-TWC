@@ -59,7 +59,7 @@ This constitution is supported by the following specialized governance files:
 * [BRANDING.md](./BRANDING.md) — Official naming, color palettes, UI details, and branding rules for all approved brands.
 * [ARCHITECTURE.md](./ARCHITECTURE.md) — Full technology stack, authentication bridge, all database tables, all edge functions, storage buckets, AI system, WiseHire routing, and security requirements.
 * [WORKFLOW.md](./WORKFLOW.md) — Development workflows, repo sync rules, communication norms, and deployment governance.
-* [DECISIONS.md](./DECISIONS.md) — Log of all major architectural decisions (currently 8 decisions).
+* [DECISIONS.md](./DECISIONS.md) — Log of all major architectural decisions (currently 10 decisions).
 * [CHANGELOG.md](./CHANGELOG.md) — Maintained record of all accepted changes to the project.
 
 ---
