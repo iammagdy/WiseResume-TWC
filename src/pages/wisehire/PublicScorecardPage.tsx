@@ -20,10 +20,11 @@ export default function PublicScorecardPage() {
               WiseHire · Scorecard
             </span>
           </div>
-          <Button variant="outline" size="sm" asChild className="gap-2 text-xs">
+          <Button variant="outline" size="sm" asChild className="gap-2 text-xs shrink-0">
             <Link to="/?for=companies">
               <ExternalLink className="h-3 w-3" />
-              Learn about WiseHire
+              <span className="hidden sm:inline">Learn about WiseHire</span>
+              <span className="sm:hidden">Learn more</span>
             </Link>
           </Button>
         </div>
@@ -43,7 +44,7 @@ export default function PublicScorecardPage() {
         )}
 
         {!isLoading && scorecard && (
-          <div className="rounded-xl border bg-white dark:bg-[#000d2e] p-6 shadow-sm">
+          <div className="rounded-xl border bg-white dark:bg-[#000d2e] p-4 sm:p-6 shadow-sm">
             <ScorecardView scorecard={scorecard} />
           </div>
         )}

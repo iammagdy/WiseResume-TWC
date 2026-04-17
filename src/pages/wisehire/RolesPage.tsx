@@ -206,10 +206,10 @@ export default function RolesPage() {
   return (
     <WiseHireShell>
       <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
             <div className="flex items-center gap-2 mb-1">
-              <Briefcase className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              <Briefcase className="h-5 w-5 text-blue-600 dark:text-blue-400 shrink-0" />
               <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Roles</h1>
             </div>
             <p className="text-sm text-slate-500 dark:text-slate-400">
@@ -218,7 +218,7 @@ export default function RolesPage() {
           </div>
           <Button
             onClick={() => setShowCreate(true)}
-            className="bg-blue-700 hover:bg-blue-800 text-white h-9 text-sm font-semibold"
+            className="bg-blue-700 hover:bg-blue-800 text-white h-9 text-sm font-semibold self-start sm:self-auto shrink-0"
           >
             <Plus className="h-4 w-4 mr-1.5" />
             New Role

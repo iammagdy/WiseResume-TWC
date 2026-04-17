@@ -343,7 +343,7 @@ function WiseHireShell({ children }: { children: React.ReactNode }) {
           <p className="text-xs text-slate-400 mt-0.5">by thewise.cloud</p>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-lg border border-slate-200 dark:border-slate-800 p-8">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-lg border border-slate-200 dark:border-slate-800 p-6 sm:p-8">
           {children}
         </div>
       </div>

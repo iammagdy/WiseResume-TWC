@@ -219,7 +219,7 @@ export default function WiseHireOnboardingPage() {
       </div>
 
       {/* Card */}
-      <div className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-2xl shadow-lg border border-slate-200 dark:border-slate-800 p-8">
+      <div className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-2xl shadow-lg border border-slate-200 dark:border-slate-800 p-6 sm:p-8">
         {step === 1 && <StepWelcome onNext={goNext} onSkip={handleSkip} draft={draft} />}
         {step === 2 && <StepCompanyIdentity draft={draft} update={update} onNext={goNext} onBack={goBack} onSkip={handleSkip} />}
         {step === 3 && <StepHiringContext draft={draft} update={update} onNext={goNext} onBack={goBack} onSkip={handleSkip} />}

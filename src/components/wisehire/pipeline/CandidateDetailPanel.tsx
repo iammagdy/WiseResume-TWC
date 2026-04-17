@@ -46,7 +46,14 @@ export function CandidateDetailPanel({
 
   return (
     <>
-      <aside className="flex flex-col h-full bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 w-80 shrink-0">
+      {/* Mobile backdrop — closes panel when tapped outside */}
+      <button
+        type="button"
+        aria-label="Close detail panel"
+        onClick={onClose}
+        className="md:hidden fixed inset-0 z-40 bg-black/40"
+      />
+      <aside className="fixed inset-y-0 right-0 z-50 w-full max-w-sm md:relative md:max-w-none md:w-80 md:z-auto flex flex-col h-full bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 shrink-0 shadow-xl md:shadow-none">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-800">
           <div className="min-w-0">
