@@ -185,3 +185,5 @@ project_id = "jnsfmkzgxsviuthaqlyy"
     verify_jwt = false
   [functions.wisehire-write-jd]
     verify_jwt = false
+  [functions.admin-onboarding-funnel]
+    verify_jwt = false

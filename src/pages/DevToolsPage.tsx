@@ -12,6 +12,7 @@ import {
   Eye,
   EyeOff,
   BarChart2,
+  Filter,
   Rocket,
   Mail,
   Briefcase,
@@ -27,6 +28,7 @@ import { AppSettingsPanel } from '@/components/dev-kit/AppSettingsPanel';
 import { AuditLogPanel } from '@/components/dev-kit/AuditLogPanel';
 import { OverviewPanel } from '@/components/dev-kit/OverviewPanel';
 import { AnalyticsPanel } from '@/components/dev-kit/AnalyticsPanel';
+import { OnboardingFunnelPanel } from '@/components/dev-kit/OnboardingFunnelPanel';
 import { LiveActivityPanel } from '@/components/dev-kit/LiveActivityPanel';
 import { DeploymentPanel } from '@/components/dev-kit/DeploymentPanel';
 import { EmailManagementPanel } from '@/components/dev-kit/EmailManagementPanel';
@@ -38,7 +40,7 @@ import { DevKitSessionProvider, useDevKitSession } from '@/contexts/DevKitSessio
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
-type Tab = 'overview' | 'analytics' | 'live' | 'deployment' | 'users' | 'coupons' | 'settings' | 'activity' | 'email' | 'wisehire' | 'portfolio';
+type Tab = 'overview' | 'analytics' | 'onboarding' | 'live' | 'deployment' | 'users' | 'coupons' | 'settings' | 'activity' | 'email' | 'wisehire' | 'portfolio';
 
 interface NavItem {
   id: Tab;
@@ -57,6 +59,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { id: 'overview', label: 'Overview', icon: LayoutDashboard },
       { id: 'analytics', label: 'Analytics', icon: BarChart2 },
+      { id: 'onboarding', label: 'Onboarding', icon: Filter },
       { id: 'live', label: 'Live Activity', icon: Activity },
     ],
   },
@@ -83,6 +86,7 @@ const NAV_SECTIONS: NavSection[] = [
 const TAB_LABELS: Record<Tab, string> = {
   overview: 'Overview',
   analytics: 'Analytics',
+  onboarding: 'Onboarding Funnel',
   live: 'Live Activity',
   deployment: 'Deployment',
   users: 'Users',
@@ -494,6 +498,10 @@ function DevToolsInner() {
 
             {activeTab === 'analytics' && (
               <AnalyticsPanel />
+            )}
+
+            {activeTab === 'onboarding' && (
+              <OnboardingFunnelPanel />
             )}
 
             {activeTab === 'live' && (
