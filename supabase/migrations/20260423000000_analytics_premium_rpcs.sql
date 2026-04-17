@@ -6,6 +6,16 @@
 -- anon/authenticated callers cannot bypass DevKit admin auth.
 
 -- ---------------------------------------------------------------------------
+-- Defensive prerequisite: portfolio_visits.device was added in
+-- 20260412000000_add_device_to_portfolio_visits.sql, but generated Supabase
+-- types may be stale and downstream environments may have applied migrations
+-- in a different order. The IF NOT EXISTS guards make the function definition
+-- below safe to run unconditionally.
+-- ---------------------------------------------------------------------------
+alter table public.portfolio_visits
+  add column if not exists device text;
+
+-- ---------------------------------------------------------------------------
 -- 1. Daily activity buckets (page views proxy + DAU per day)
 -- ---------------------------------------------------------------------------
 create or replace function get_usage_activity_daily(p_start timestamptz, p_end timestamptz)
