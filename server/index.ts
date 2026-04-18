@@ -990,19 +990,24 @@ async function runAnalyticsSweep(): Promise<void> {
     }
 
     // Purge expired trial resumes that are past the 3-day client-side grace
-    // window. Each call deletes one batch (≤ 500 rows) in its own transaction.
+    // window. Uses the same batch size and max-batches cap as the analytics
+    // tables so a large backlog can't cause a prolonged table lock.
     let trialResumesDeleted = 0;
-    const TRIAL_PURGE_BATCH_SIZE = 500;
-    const TRIAL_PURGE_MAX_BATCHES = 200;
-    for (let i = 0; i < TRIAL_PURGE_MAX_BATCHES; i++) {
+    for (let i = 0; i < ANALYTICS_SWEEP_MAX_BATCHES_PER_TABLE; i++) {
       const rows = await sql`
         SELECT public.purge_expired_trial_resumes(
-          ${TRIAL_PURGE_BATCH_SIZE}::int
+          ${ANALYTICS_SWEEP_BATCH_SIZE}::int
         ) AS deleted
       `;
       const deleted = Number(rows[0]?.deleted ?? 0);
       trialResumesDeleted += deleted;
-      if (deleted < TRIAL_PURGE_BATCH_SIZE) break;
+      if (deleted < ANALYTICS_SWEEP_BATCH_SIZE) break;
+      if (i === ANALYTICS_SWEEP_MAX_BATCHES_PER_TABLE - 1) {
+        console.warn(
+          '[analytics-sweep] trial_resumes hit max-batches cap',
+          JSON.stringify({ batches: ANALYTICS_SWEEP_MAX_BATCHES_PER_TABLE, total: trialResumesDeleted }),
+        );
+      }
     }
 
     const durationMs = Date.now() - startedAt;
