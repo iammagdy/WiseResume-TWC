@@ -231,7 +231,7 @@ export function WiseHireHero({ onOpenWaitlist, mobileToggle }: WiseHireHeroProps
         className="relative z-10 mt-6 sm:mt-8 text-xs lp-trust-badges"
         initial={prefersReducedMotion ? false : { opacity: 0, y: 16 }}
         whileInView={prefersReducedMotion ? false : { opacity: 1, y: 0 }}
-        viewport={{ once: false, amount: 0.5 }}
+        viewport={{ once: true, amount: 0.5 }}
         transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1], delay: 0.15 }}
       >
         <span ref={waitlistCount.containerRef} className="flex items-center gap-1.5" style={{ color: 'var(--lp-trust-color)', transition: 'color 0.3s ease' }}>

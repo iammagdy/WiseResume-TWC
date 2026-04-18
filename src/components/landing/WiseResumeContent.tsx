@@ -30,8 +30,9 @@ export function WiseResumeContent({ prefersReducedMotion }: WiseResumeContentPro
     <>
       {/* ─── SECTION 1: HEADING + SCROLLSTACK FEATURE SECTIONS ─── */}
       <motion.div variants={sectionItem} custom={1}>
+        {/* Phase 5: collapsed three stacked dividers (lp-separator + 2x SoftDivider)
+            into one intentional gradient hairline. */}
         <div className="lp-separator" aria-hidden="true" />
-        <SoftDivider />
         {/* Phase 4: --lp-stack-gap = itemDistance / 2 so the inter-card
             hairline divider lands at the geometric midpoint of the gap. */}
         <div
@@ -43,14 +44,14 @@ export function WiseResumeContent({ prefersReducedMotion }: WiseResumeContentPro
               variants={lpItemVariants}
               initial={prefersReducedMotion ? 'visible' : 'hidden'}
               whileInView="visible"
-              viewport={{ once: false, amount: 0.2 }}
+              viewport={{ once: true, amount: 0.2 }}
             >
               <p style={{ fontSize: '0.75rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--lp-eyebrow)', fontWeight: 600, marginBottom: '0.75rem' }}>
                 See it in action
               </p>
               <h2
                 className="font-bold leading-tight"
-                style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', color: 'var(--lp-text)', letterSpacing: '-0.02em' }}
+                style={{ fontSize: 'clamp(1.9rem, 4vw, 2.8rem)', color: 'var(--lp-text)', letterSpacing: '-0.025em' }}
               >
                 Five tools. One platform.<br />
                 <span className="lp-gradient-text">Your unfair advantage in the job market.</span>
@@ -90,7 +91,6 @@ export function WiseResumeContent({ prefersReducedMotion }: WiseResumeContentPro
             ))}
           </ScrollStack>
         </div>
-        <SoftDivider />
       </motion.div>
 
       {/* ─── SECTION 2: TRUST SECTION ─── */}

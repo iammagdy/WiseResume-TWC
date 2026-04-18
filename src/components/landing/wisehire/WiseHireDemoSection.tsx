@@ -91,7 +91,7 @@ export function WiseHireDemoSection() {
           variants={headingVariant}
           initial="hidden"
           whileInView="visible"
-          viewport={{ once: false, amount: 0.25 }}
+          viewport={{ once: true, amount: 0.25 }}
         >
           <p
             style={{
@@ -115,7 +115,7 @@ export function WiseHireDemoSection() {
               transition: 'color 0.35s ease',
             }}
           >
-            Watch AI handle the heavy lifting
+            Watch AI handle <span className="wh-gradient-text">the heavy lifting</span>
           </h2>
         </motion.div>
         <div
@@ -147,15 +147,12 @@ export function WiseHireDemoSection() {
       >
         {DEMOS.map(({ key, label, icon: Icon, desc, Demo }) => (
           <ScrollStackItem key={key}>
+            {/* Phase 5: single canonical max-w-6xl wrapper (was nested
+                inside a redundant 100%-wide container). */}
             <div
-              style={{
-                width: '100%',
-              }}
+              className="max-w-6xl mx-auto w-full"
+              style={{ padding: 'clamp(32px, 4vw, 56px) clamp(20px, 4vw, 40px)' }}
             >
-              <div
-                className="max-w-6xl mx-auto w-full"
-                style={{ padding: 'clamp(32px, 4vw, 56px) clamp(20px, 4vw, 40px)' }}
-              >
                 <div
                   style={{
                     borderRadius: 24,
@@ -212,7 +209,6 @@ export function WiseHireDemoSection() {
                     </LazyOnVisible>
                   </div>
                 </div>
-              </div>
             </div>
           </ScrollStackItem>
         ))}

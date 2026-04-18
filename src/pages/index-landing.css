@@ -90,7 +90,36 @@
   --lp-brand-pill-glow: rgba(158,27,34,0.1);
 }
 
-.lp-root * { font-style: normal !important; }
+/* Normalize stray italics, but allow <em>/<i>/<cite> to render italic. */
+.lp-root :where(h1, h2, h3, h4, h5, h6, p, span, a, button, li, label, input, textarea, select, div) {
+  font-style: normal;
+}
+.lp-root em, .lp-root em *,
+.lp-root i, .lp-root i *,
+.lp-root cite, .lp-root cite * {
+  font-style: italic;
+}
+
+/* Body fallback background per landing theme — keeps a sane backdrop while
+   --lp-bg resolves to transparent or chunk hydration is in flight. */
+body:has(.lp-root) { background-color: #0a0a0f; }
+body:has(.lp-root[data-lp-scheme="light"]) { background-color: #fff5f5; }
+body:has(.lp-root[data-lp-product="wisehire"]) { background-color: #060912; }
+body:has(.lp-root[data-lp-product="wisehire"][data-lp-scheme="light"]) { background-color: #f0f5ff; }
+
+/* Phase 5: defensive guard — any element ScrollStack manages writes its
+   own inline transform every frame; a CSS :hover translate on the same
+   element would be clobbered (and cause jitter when hovering between
+   frames). Today's stacks render .lp-stack-pane / .scroll-stack-card
+   (no hover translate), but if a .lp-feature-card / .lp-testimonial-card
+   is ever placed inside a stack we null its hover translate so border
+   and background hover transitions still play cleanly. */
+.lp-stack-section .lp-feature-card:hover,
+.lp-stack-section .lp-testimonial-card:hover,
+.scroll-stack-card .lp-feature-card:hover,
+.scroll-stack-card .lp-testimonial-card:hover {
+  transform: none !important;
+}
 
 /* CTA pulse */
 @keyframes lp-pulse {
@@ -386,6 +415,7 @@
   --lp-brand-pill-border: rgba(29,78,216,0.28);
   --lp-brand-pill-glow: rgba(29,78,216,0.15);
   --lp-section-alt2: #0b0f1c;
+  --lp-card-glass: rgba(60,120,255,0.05);
   transition: background 0.45s ease, color 0.35s ease,
     --lp-brand 0.55s ease, --lp-hero-glow 0.55s ease,
     --lp-eyebrow 0.5s ease, --lp-trust-icon 0.5s ease;
@@ -403,6 +433,9 @@
   --lp-trust-icon: rgba(29,78,216,0.90);
   --lp-brand-pill-bg: rgba(29,78,216,0.07);
   --lp-brand-pill-border: rgba(29,78,216,0.22);
+  --lp-card-glass: rgba(29,78,216,0.04);
+  --lp-border: rgba(29,78,216,0.10);
+  --lp-border-card: rgba(29,78,216,0.12);
 }
 .lp-root[data-lp-product="wisehire"] .lp-separator {
   background: linear-gradient(90deg, transparent 0%, rgba(29,78,216,0.3) 30%, rgba(29,78,216,0.5) 50%, rgba(29,78,216,0.3) 70%, transparent 100%);

@@ -169,8 +169,6 @@ const Index = () => {
           const max = document.documentElement.scrollHeight - window.innerHeight;
           const pct = max > 0 ? lastY / max * 100 : 0;
           progressRef.current.style.width = `${pct}%`;
-          const parent = progressRef.current.parentElement;
-          if (parent) parent.style.display = pct > 0 ? '' : 'none';
         }
         rafId = null;
       });
@@ -210,9 +208,20 @@ const Index = () => {
       setWaveOrigin(btnOrigin);
       setWaveColor(m === 'wisehire' ? 'rgba(37,99,235,0.15)' : 'rgba(185,28,28,0.15)');
       setWaveKey((k) => k + 1);
+      /* Phase 5: prime the same View Transitions ripple used by the theme
+         toggle so the product swap shares its smooth crossfade with the
+         brand-color repaint. Origin is the toggle-button center. */
+      document.documentElement.style.setProperty('--lp-ripple-x', Math.round(btnOrigin.x) + 'px');
+      document.documentElement.style.setProperty('--lp-ripple-y', Math.round(btnOrigin.y) + 'px');
+      type DocWithVT = Document & { startViewTransition?: (cb: () => void) => void };
+      const startVT = (document as DocWithVT).startViewTransition?.bind(document);
       modeTimerRef.current = setTimeout(() => {
         modeTimerRef.current = null;
-        startTransition(() => setMode(m));
+        if (!startVT) {
+          startTransition(() => setMode(m));
+        } else {
+          startVT(() => { flushSync(() => setMode(m)); });
+        }
       }, 300);
     } else {
       setMode(m);
@@ -252,9 +261,11 @@ const Index = () => {
         Skip to content
       </a>
 
-      {/* Progress bar */}
-      <div className="fixed top-0 left-0 right-0 h-[2px] z-[60] pointer-events-none" style={{ display: 'none' }}>
-        <div ref={progressRef} className="h-full transition-[width] duration-75 ease-out" style={{ background: 'var(--lp-brand)' }} />
+      {/* Progress bar — always rendered; width grows from 0 as the user scrolls,
+          so it's invisible at the top of the page and visibly fills in the
+          active brand color once scrolling begins. */}
+      <div className="fixed top-0 left-0 right-0 h-[2px] z-[60] pointer-events-none">
+        <div ref={progressRef} className="h-full transition-[width] duration-75 ease-out" style={{ background: 'var(--lp-brand)', width: 0 }} />
       </div>
 
       {!prefersReducedMotion && (
