@@ -145,7 +145,7 @@ reference and to corroborate the system-default palette.
    green" and assign it to the testing owner; until that task lands,
    the original "suite passes" Done criterion for any verification
    phase will remain Partial. The full red baseline is preserved at
-   `docs/landing/phase-6-vitest-output.txt` (3260 lines) so the
+   `docs/landing/phase-6-vitest-output.txt` (6017 lines) so the
    triage can start from a known fingerprint.
 3. **`body[data-lp-*]` attributes intentionally persist after `.lp-root`
    unmount** — confirm the carried-over background does not look wrong on
