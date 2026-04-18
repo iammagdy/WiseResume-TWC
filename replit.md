@@ -438,7 +438,8 @@ All endpoints below live in `server/index.ts` and are gated by `requireAuthHeade
 - `GET  /api/admin/ai-provider/groq-usage` → today's request/token counters (uncached — changes minute-to-minute).
 - `GET  /api/admin/ai-provider/gemini-models` → Gemini models filtered to those supporting `generateContent`. Key sent via `x-goog-api-key` header (S2). Strips `models/` prefix (F3). Cached.
 - `POST /api/admin/ai-provider/gemini-test` → ping `generateContent` with `{ model? }` body. Model is validated against the cached models list (F2) and falls back to `gemini-2.0-flash`. Writes audit row.
-- `POST /api/admin/ai-provider/audit-model-switch` → records `{ provider, model, previousModel }` in `admin_audit_log`. Called by the panel when an admin confirms a model switch.
+- `POST /api/admin/ai-provider/audit-model-switch` → records `{ provider, model, previousModel }` in `admin_audit_log` with `action='model-switch'`. Called by the panel when an admin confirms a model switch.
+- `POST /api/admin/ai-provider/audit-test` → records `{ provider, model, ok, latencyMs, error }` in `admin_audit_log` with `action='provider-test'`. Called by the panel after every OpenRouter / Groq / Ollama test (Gemini tests are audited server-side inside `/gemini-test`).
 
 All endpoints log full upstream errors server-side and return generic strings to the browser ("Upstream request failed" / `Upstream HTTP <status>`) so detail never leaks (S1).
 

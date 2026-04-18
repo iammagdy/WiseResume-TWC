@@ -1516,6 +1516,45 @@ app.post(
   },
 );
 
+/**
+ * POST /api/admin/ai-provider/audit-test
+ * Records an admin provider-test event in `admin_audit_log` with a structured
+ * payload (A3). Distinct from `audit-model-switch` so the two intents do not
+ * get conflated in the audit trail. Called by the DevKit panel after every
+ * OpenRouter / Groq / Gemini / Ollama test, success or failure.
+ *
+ * Body: `{ provider: string, model?: string|null, ok: boolean,
+ *          latencyMs?: number|null, error?: string|null }`
+ */
+app.post(
+  '/api/admin/ai-provider/audit-test',
+  requireAuthHeader,
+  requireAdminEmail,
+  async (req: AuthedRequest, res) => {
+    const provider = typeof req.body?.provider === 'string' ? req.body.provider : null;
+    if (!provider) {
+      res.status(400).json({ error: 'provider is required' });
+      return;
+    }
+    const model = typeof req.body?.model === 'string' ? req.body.model : null;
+    const ok = req.body?.ok === true;
+    const latencyMs =
+      typeof req.body?.latencyMs === 'number' && Number.isFinite(req.body.latencyMs)
+        ? req.body.latencyMs
+        : null;
+    const errorMessage =
+      typeof req.body?.error === 'string' ? req.body.error.slice(0, 500) : null;
+    await writeAdminAudit(req.verifiedEmail || 'unknown', 'provider-test', {
+      provider,
+      model,
+      ok,
+      latencyMs,
+      error: errorMessage,
+    });
+    res.json({ ok: true });
+  },
+);
+
 // ── Start server ──────────────────────────────────────────────────────────────
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`[server] WiseResume API server running on port ${PORT}`);

@@ -233,9 +233,13 @@ function logAdminModelSwitch(provider: string, model: string, previousModel: str
 }
 
 /**
- * A3: Best-effort audit log for provider tests (OpenRouter / Groq / Ollama / Gemini).
- * Reuses the same `audit-model-switch` endpoint with `action='test'` semantics by
- * encoding the test outcome in `payload.note`. Fire-and-forget; failures are logged.
+ * A3: Best-effort audit log for provider tests (OpenRouter / Groq / Ollama).
+ * Posts to the dedicated `/audit-test` endpoint so test events are recorded
+ * with `action='provider-test'` and a structured payload — distinct from
+ * model-switch events. Fire-and-forget; failures are logged only.
+ *
+ * Note: Gemini tests are audited server-side inside `/gemini-test` itself, so
+ * the Gemini sub-panel does NOT call this helper (avoids duplicate rows).
  */
 function logAdminProviderTest(
   provider: string,
@@ -244,14 +248,10 @@ function logAdminProviderTest(
   latencyMs: number | null,
   errorMessage: string | null,
 ) {
-  void fetchWithToken('/api/admin/ai-provider/audit-model-switch', {
+  void fetchWithToken('/api/admin/ai-provider/audit-test', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      provider,
-      model: model ?? '(unknown)',
-      previousModel: `test:${ok ? 'ok' : 'fail'}${latencyMs != null ? `:${latencyMs}ms` : ''}${errorMessage ? `:${errorMessage.slice(0, 60)}` : ''}`,
-    }),
+    body: JSON.stringify({ provider, model, ok, latencyMs, error: errorMessage }),
   }).catch((e) => console.warn('[ai-provider-panel] test audit write failed', e));
 }
 
@@ -716,11 +716,16 @@ function OpenRouterPanel({
 
   useEffect(() => { void fetchModels(); }, [fetchModels]);
 
-  // F8: register a refresh callback so the header "Refresh all" can refresh
-  // every visible panel (managed status + models).
+  // F8 + U3: register a refresh callback so the header "Refresh all" can refresh
+  // every visible panel (managed status + models). Returns false on any failure
+  // so the header can surface a consolidated toast.
   useEffect(() => {
     registerRefresh(async () => {
-      await Promise.allSettled([fetchModels(), Promise.resolve(onManagedRefresh())]);
+      const results = await Promise.allSettled([
+        fetchModels(),
+        Promise.resolve().then(() => onManagedRefresh()),
+      ]);
+      return results.every(r => r.status === 'fulfilled');
     });
   }, [registerRefresh, fetchModels, onManagedRefresh]);
 
@@ -1042,13 +1047,14 @@ function GroqPanel({
 
   const isManagedList = !!managedStatus?.configured && managedStatus.models.length > 0;
 
-  // F8 wiring
+  // F8 + U3 wiring — surfaces sub-panel refresh failures up to header toast.
   useEffect(() => {
     registerRefresh(async () => {
-      await Promise.allSettled([
-        Promise.resolve(onManagedRefresh()),
-        Promise.resolve(onUsageRefresh()),
+      const results = await Promise.allSettled([
+        Promise.resolve().then(() => onManagedRefresh()),
+        Promise.resolve().then(() => onUsageRefresh()),
       ]);
+      return results.every(r => r.status === 'fulfilled');
     });
   }, [registerRefresh, onManagedRefresh, onUsageRefresh]);
 
@@ -1247,7 +1253,9 @@ function GeminiPanel({
 
   // F8 wiring
   useEffect(() => {
-    registerRefresh(async () => { await fetchManagedModels(); });
+    registerRefresh(async () => {
+      try { await fetchManagedModels(); return true; } catch { return false; }
+    });
   }, [registerRefresh, fetchManagedModels]);
 
   const runTest = useCallback(async () => {
@@ -1464,7 +1472,9 @@ function OllamaPanel({
   useEffect(() => { void fetchModels(); }, [fetchModels]);
 
   useEffect(() => {
-    registerRefresh(async () => { await fetchModels(); });
+    registerRefresh(async () => {
+      try { await fetchModels(); return true; } catch { return false; }
+    });
   }, [registerRefresh, fetchModels]);
 
   const runTest = useCallback(async () => {
@@ -1671,12 +1681,15 @@ export function AIProviderPanel() {
 
   // F8: each sub-panel registers its own refresh function on mount; the header
   // "Refresh all" button awaits them all (Promise.allSettled, U3).
-  const subPanelRefreshRef = useRef<(() => Promise<void>) | null>(null);
-  const registerSubPanelRefresh = useCallback((fn: () => Promise<void>) => {
+  const subPanelRefreshRef = useRef<(() => Promise<boolean>) | null>(null);
+  const registerSubPanelRefresh = useCallback((fn: () => Promise<boolean>) => {
     subPanelRefreshRef.current = fn;
   }, []);
 
-  const fetchBreakerStatus = useCallback(async () => {
+  // U3: each top-level fetcher returns a boolean indicating success so
+  // `handleRefreshAll` can surface a single consolidated toast on failure
+  // while still updating inline UI state with error details.
+  const fetchBreakerStatus = useCallback(async (): Promise<boolean> => {
     setBreakerLoading(true);
     try {
       const res = await edgeFunctions.functions.invoke('ai-breaker-status', {
@@ -1685,50 +1698,58 @@ export function AIProviderPanel() {
       if (!res.error) {
         const body = res.data as BreakerStatusResponse | null;
         setBreaker(Array.isArray(body?.providers) ? body!.providers : []);
-      } else {
-        setBreaker([]);
+        return true;
       }
+      setBreaker([]);
+      return false;
     } catch {
       setBreaker([]);
+      return false;
     } finally {
       setBreakerLoading(false);
     }
   }, []);
 
-  const fetchManagedOR = useCallback(async () => {
+  const fetchManagedOR = useCallback(async (): Promise<boolean> => {
     // P3: keep prior data on screen during refresh
     setManagedOR(prev => prev ?? null);
     try {
       const res = await fetchWithTokenDedup('/api/admin/ai-provider/openrouter-status');
-      if (!res.ok) { setManagedOR({ configured: true, error: `HTTP ${res.status}` }); return; }
+      if (!res.ok) { setManagedOR({ configured: true, error: `HTTP ${res.status}` }); return false; }
       const data = await res.json() as ManagedORStatus;
       setManagedOR(data);
+      return true;
     } catch (e: unknown) {
       setManagedOR({ configured: true, error: e instanceof Error ? e.message : 'Fetch failed' });
+      return false;
     }
   }, []);
 
-  const fetchManagedGroq = useCallback(async () => {
+  const fetchManagedGroq = useCallback(async (): Promise<boolean> => {
     setManagedGroq(prev => prev ?? null);
     try {
       const res = await fetchWithTokenDedup('/api/admin/ai-provider/groq-models');
-      if (!res.ok) { setManagedGroq({ configured: true, models: [], error: `HTTP ${res.status}` }); return; }
+      if (!res.ok) { setManagedGroq({ configured: true, models: [], error: `HTTP ${res.status}` }); return false; }
       const data = await res.json() as ManagedGroqStatus;
       setManagedGroq(data);
+      return true;
     } catch (e: unknown) {
       setManagedGroq({ configured: true, models: [], error: e instanceof Error ? e.message : 'Fetch failed' });
+      return false;
     }
   }, []);
 
-  const fetchGroqUsage = useCallback(async () => {
+  const fetchGroqUsage = useCallback(async (): Promise<boolean> => {
     setGroqUsage(prev => prev ?? null);
     try {
       const res = await fetchWithTokenDedup('/api/admin/ai-provider/groq-usage');
-      if (!res.ok) { setGroqUsage({ configured: true, error: `HTTP ${res.status}` }); return; }
+      if (!res.ok) { setGroqUsage({ configured: true, error: `HTTP ${res.status}` }); return false; }
       const data = await res.json() as GroqUsage;
       setGroqUsage(data);
+      return true;
     } catch (e: unknown) {
       setGroqUsage({ configured: true, error: e instanceof Error ? e.message : 'Fetch failed' });
+      return false;
     }
   }, []);
 
@@ -1783,7 +1804,9 @@ export function AIProviderPanel() {
   // failures in a single toast instead of swallowing them.
   const handleRefreshAll = useCallback(async () => {
     setHeaderRefreshing(true);
-    const tasks: Promise<unknown>[] = [
+    // Each task resolves to `true` on success, `false` on a handled error,
+    // or rejects on an unexpected throw — all three count toward `failures`.
+    const tasks: Promise<boolean>[] = [
       fetchBreakerStatus(),
       fetchManagedOR(),
       fetchManagedGroq(),
@@ -1792,12 +1815,17 @@ export function AIProviderPanel() {
     if (subPanelRefreshRef.current) tasks.push(subPanelRefreshRef.current());
     const results = await Promise.allSettled(tasks);
     setHeaderRefreshing(false);
-    const failures = results.filter(r => r.status === 'rejected').length;
+    let failures = 0;
+    results.forEach((r) => {
+      if (r.status === 'rejected') {
+        failures += 1;
+        console.error('[ai-provider-panel] refresh task threw:', r.reason);
+      } else if (r.value === false) {
+        failures += 1;
+      }
+    });
     if (failures > 0) {
-      toast.error(`${failures} of ${results.length} refresh tasks failed — check console for details.`);
-      results.forEach(r => {
-        if (r.status === 'rejected') console.error('[ai-provider-panel] refresh task failed:', r.reason);
-      });
+      toast.error(`${failures} of ${results.length} refresh tasks failed — check inline errors for details.`);
     }
   }, [fetchBreakerStatus, fetchManagedOR, fetchManagedGroq, fetchGroqUsage]);
 
