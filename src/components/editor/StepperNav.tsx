@@ -330,7 +330,7 @@ export const StepperNav = memo(function StepperNav({
             <FloatingPanelContent className="max-h-[80dvh] overflow-y-auto pb-safe backdrop-blur-sm bg-background/95">
               <div className="px-4 pb-4">
                 <div className="grid grid-cols-2 gap-2">
-                  {MORE_SECTIONS.map(sec => {
+                  {MORE_SECTIONS.filter(sec => !steps.some(s => s.id === sec.id)).map(sec => {
                     const SIcon = sec.icon;
                     return (
                       <button
