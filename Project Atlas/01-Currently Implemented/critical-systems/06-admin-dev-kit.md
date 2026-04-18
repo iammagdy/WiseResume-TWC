@@ -51,6 +51,19 @@ bash scripts/deploy-functions.sh                       # redeploy all 93 edge fu
 
 `SUPABASE_ACCESS_TOKEN` is configured as a Replit secret so both commands work from the workspace shell without GitHub Actions.
 
+## AI Provider admin proxy routes (Task #28)
+
+Added to `server/index.ts`, all behind `requireAuthHeader + requireAdminEmail`:
+
+| Route | Method | Purpose |
+|---|---|---|
+| `/api/admin/ai-provider/openrouter-status` | GET | OpenRouter key balance/rate-limit via managed `OPENROUTER_API_KEY` |
+| `/api/admin/ai-provider/groq-models` | GET | Live Groq model list via managed `GROQ_API_KEY` |
+| `/api/admin/ai-provider/gemini-models` | GET | Live Gemini model list via managed `GEMINI_API_KEY` (filters to `generateContent` only) |
+| `/api/admin/ai-provider/gemini-test` | POST | Gemini `generateContent` ping using managed `GEMINI_API_KEY`; returns `{ success, model, latencyMs, preview }` |
+
+All routes respond with `{ configured: false }` (or `{ configured: true, error }`) when the env var is absent — safe to call even in environments where the key is not yet set.
+
 ## Known gotchas
 
 - `db-migration.yml` GitHub Action is **broken** (duplicate-key conflict in `supabase_migrations`). Use `apply-rpc-migration.yml` instead. → `replit.md`.
