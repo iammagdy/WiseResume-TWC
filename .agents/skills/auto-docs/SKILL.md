@@ -1,59 +1,70 @@
 ---
 name: auto-docs
-description: After every completed task or fix, automatically update CHANGELOG.md with two versions: a technical section for developers and a simple Arabic section for the product owner. Always do this before marking any task complete.
+description: After every completed task or fix, automatically update documentation in two places following the Project Atlas structure: CHANGELOG.md (technical English) and Project Atlas/04-For You (Plain Language)/ (plain English for the owner). Always do this before marking any task complete.
 ---
 
 # Auto Documentation After Every Fix
 
-After finishing any task, bug fix, or feature — before calling mark_task_complete — you MUST update `CHANGELOG.md` with two clearly labeled sections for that entry.
+After finishing any task, bug fix, or feature — before calling mark_task_complete — you MUST update documentation in TWO places.
 
-## Rule
+---
 
-Every CHANGELOG entry must contain BOTH sections:
+## Place 1 — `CHANGELOG.md` (Technical, English only)
 
-### Section 1 — `### للمطورين` (Technical)
-- File names changed
-- Function/hook/component names
-- DB migrations and SQL changes
-- API endpoints added or modified
-- Exact behavior change with technical reasoning
+The root `CHANGELOG.md` is a **technical record for engineers**. Rules:
+- English only
+- Include: file names, function/hook/component names, DB migration names, API endpoints, exact behavior change
+- No Arabic, no plain-language explanations
+- Match the existing style of entries already in the file (e.g. `## YYYY-MM-DD — Title (Task #N)` header, bullet points with `**Component** (path):` format)
 
-### Section 2 — `### بالبساطة` (Simple Arabic for product owner)
-- Written fully in Arabic
-- No code, no file names, no jargon
-- Explain WHAT changed and WHY it matters to the user
-- Maximum 3–5 short sentences
-- Written as if explaining to a non-technical person
+---
 
-## CHANGELOG Entry Format
+## Place 2 — `Project Atlas/04-For You (Plain Language)/`
+
+This folder is written **for the product owner** — no code, no file paths, no jargon.
+
+### Which file to update:
+
+| Type of change | File to update |
+|---|---|
+| New user-facing feature | `current-features.md` |
+| Behind-the-scenes improvement (performance, cleanup, stability, security) | `stability-improvements.md` |
+| Planned feature now confirmed | `coming-soon.md` |
+| Idea promoted to planned | `under-discussion.md` → `coming-soon.md` |
+
+### Plain-language entry format:
 
 ```markdown
-## YYYY-MM-DD — [Task Title] (Task #N)
+## [What changed — written as a benefit, not a task title] (YYYY-MM-DD)
 
-### للمطورين
-- **ComponentName** (`path/to/file.tsx`): what changed and why technically.
-- **DB**: migration file name and what it does.
-- **API**: endpoint added/changed and its behavior.
+**What was the situation:** [The problem before the fix, in one sentence.]
 
-### بالبساطة
-اللي اتغير في الجزء ده هو ... يعني دلوقتي لما ... هيبقى ...
-النتيجة إن المستخدم هيلاقي ... بدل ما كان ...
+**What changed:** [What was done, in plain words. No file names, no code.]
+
+**What you'll notice:** [What the owner or user will see differently. If nothing visible changed, say so.]
 ```
 
-## When to Apply
+### Rules for plain-language entries:
+- No code snippets
+- No file paths
+- No technical acronyms unless explained in the same sentence
+- Write in the same tone as the existing entries in `stability-improvements.md`
+- Update `**Last verified:**` at the top of the file to today's date
 
-- After completing ANY task (feature, bug fix, security patch, cleanup)
-- After post-merge setup for task-agent work
-- After any hotfix applied directly
+---
 
-## Files to Update
+## Also update `replit.md` when:
+- A new architectural pattern is introduced (new shared hook, new cache key, new DB table)
+- Infrastructure changes (new endpoint, new migration file, new env var)
+- Key constraints or rules change
 
-1. `CHANGELOG.md` — always, with both sections
-2. `replit.md` — only when architecture, infrastructure, or key patterns change
+Do NOT update replit.md for routine bug fixes or small UI changes.
 
-## Important
+---
 
-- The simple Arabic section is NOT optional
-- Never write only the technical section
-- Keep simple Arabic free of English technical terms
-- The product owner reads the simple section to understand progress
+## Checklist before mark_task_complete
+
+- [ ] `CHANGELOG.md` entry added (technical English)
+- [ ] Correct Atlas `04-For You` file updated (plain English)
+- [ ] `replit.md` updated if architecture changed
+- [ ] `**Last verified:**` date updated in the Atlas file

@@ -1,6 +1,6 @@
 # Stability Improvements — What's Getting Better Behind the Scenes
 
-**Last verified:** 2026-04-18
+**Last verified:** 2026-04-26
 **Audience:** you (the owner). No code, no jargon, no technical paths.
 **Sources (governance — supreme):**
 - `project-governance/CHANGELOG.md` entries dated 2026-04-18 (Stability Fixes — Phases 1 to 5)
@@ -98,3 +98,23 @@ For the engineering version of any of this, the matching cards live under `Proje
 **What you'll notice:** Nothing visible changes. Portfolios you've already protected with a password still work. Visitors who set passwords before this update don't need to re-enter them.
 
 **Fully deployed as of 2026-04-18.** The database was updated to enforce password checking server-side. Existing protected portfolios had their stored password values automatically upgraded to a stronger hashing format (bcrypt with a random salt) — no action needed from portfolio owners.
+
+---
+
+## Free trial resumes are now cleaned up automatically (2026-04-26)
+
+**What was the situation:** When a user used the 24-hour free trial resume feature, their trial resume stayed in the database forever — even after it expired. Over time this would fill up the database with useless rows that nobody can open anymore.
+
+**What changed:** Every day, the platform now automatically deletes trial resumes that expired more than 3 days ago. The 3-day gap is intentional — it gives users a short window to see the expired resume on their dashboard and decide to upgrade before it disappears completely.
+
+**What you'll notice:** Nothing changes for users. Expired trials still show as read-only for 3 days, then they disappear. The admin panel now shows a count of how many trial resumes were deleted in the last cleanup run.
+
+---
+
+## The AI provider settings page now updates instantly (2026-04-18)
+
+**What was the situation:** In WiseHire settings, the list showing which AI providers you have connected was only refreshed when you closed the settings window. If you added or removed a key while the window was still open, the list wouldn't update until you closed it and reopened it.
+
+**What changed:** The list now updates the moment you save or remove a key — no need to close anything. The change happens in less than a second.
+
+**What you'll notice:** When you manage AI keys in the WiseHire settings, the connected-provider summary reflects your changes immediately.
