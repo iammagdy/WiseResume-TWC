@@ -635,10 +635,15 @@ body[data-lp-scheme="light"][data-lp-product="wisehire"] { background-color: #f0
   margin-inline: clamp(12px, 3vw, 40px);
   border-radius: 28px;
   overflow: hidden;
+  /* Solid surface so the topmost card fully obscures the smaller scaled
+     cards stacked behind it. Without this, every card in the stack bleeds
+     through (especially obvious on mobile where one card fills the
+     viewport — you would see all five cards layered as ghosts). */
+  background: var(--lp-card);
   box-shadow:
     var(--lp-stack-card-shadow),
     inset 0 0 0 1px var(--lp-stack-card-ring);
-  transition: box-shadow 0.35s ease;
+  transition: background 0.35s ease, box-shadow 0.35s ease;
 }
 @media (max-width: 640px) {
   .lp-stack-section .scroll-stack-card {
