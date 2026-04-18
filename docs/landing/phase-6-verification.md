@@ -90,10 +90,16 @@ overhaul's changes landed) — they are pre-existing auth/route fixtures
 (`ProtectedRoute.test.tsx`, etc.) that reference older auth wiring, and
 none live under `src/components/landing/**` or touch `src/pages/Index.tsx`.
 
-**Pass criterion for this phase: zero new failures introduced by Phases 1-5.**
-That criterion is met. Bringing the inherited failures to green is tracked
-as its own follow-up task (#22 in the project queue) so it is not silently
-left undone.
+**Original Done criterion** ("Vitest suite passes"): **Partial / Not met** —
+the suite is not green, owing to inherited baseline failures that pre-date
+Phase 1.
+**Operational criterion adopted for this phase** ("zero new failures
+introduced by Phases 1-5"): **Met** — every failing file was verified to
+already be red on the merge-base of Phase 1 and none touch landing code.
+
+This deviation from the original Done criterion is recorded explicitly so it
+is visible to future readers. Bringing the inherited failures to green is
+queued as its own follow-up.
 
 ---
 
@@ -153,7 +159,9 @@ reference and to corroborate the system-default palette.
 ## Result
 
 All originally-audited findings across Phases 1-5 are landed and behave as
-designed in the running preview. No code regressions detected. Two
-verification gaps (theme variant + scroll position screenshots; cold-load
-FCP measurement against a production build) are recommended as follow-ups
-rather than rework, per the Phase 6 "no new fixes" scope.
+designed in the running preview. The full 12-shot light/dark × hero/mid/post
+matrix is captured and indexed above; no visual regressions surfaced during
+the capture pass. The single open verification item is a production-build
+performance re-measurement (dev-mode FCP/LCP exceed Phase 2's warm-cache
+target), which is filed as project task #20 rather than reworked here, per
+the Phase 6 "no new fixes" scope.
