@@ -17,7 +17,7 @@ Two user-trust issues addressed:
    - `src/hooks/usePublicPortfolio.ts` — `usePortfolioGate` uses new RPC; hash never returned to browser; graceful fallback to REST (no hash) if RPC missing; `usePublicPortfolio` forwards raw password to server.
    - `src/pages/PublicPortfolioPage.tsx` — client-side `sha256hex()` removed; `PasswordGate` switched to `onSubmit` (raw password over HTTPS).
 
-**Migration status:** SQL written, GitHub Actions run failed (SUPABASE_ACCESS_TOKEN not in GitHub secrets). App ships with graceful fallbacks. Migration must be applied manually via Supabase SQL editor — see `Project Atlas/01-Currently Implemented/critical-systems/11-portfolio-password-security.md`.
+**Migration status:** Applied successfully 2026-04-18. Verified: `get_portfolio_gate_info` deployed, `get_public_portfolio(text, text)` deployed, old bypassable single-arg signature dropped. Existing password hashes backfilled to bcrypt. `SUPABASE_ACCESS_TOKEN` now set in Replit env vars and GitHub Actions secrets.
 
 - **Engineering card:** `Project Atlas/01-Currently Implemented/critical-systems/11-portfolio-password-security.md` (new).
 - **Plain-language summary:** "Security Fix — Portfolio passwords are now enforced on the server" in `Project Atlas/04-For You (Plain Language)/stability-improvements.md`.

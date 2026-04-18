@@ -97,4 +97,4 @@ For the engineering version of any of this, the matching cards live under `Proje
 
 **What you'll notice:** Nothing visible changes. Portfolios you've already protected with a password still work. Visitors who set passwords before this update don't need to re-enter them.
 
-**Pending:** The database migration that activates server-side enforcement needs to be run once in the Supabase SQL editor. Until then, the app uses a safe fallback that keeps existing behavior working. See `Project Atlas/01-Currently Implemented/critical-systems/11-portfolio-password-security.md` for the exact steps.
+**Fully deployed as of 2026-04-18.** The database was updated to enforce password checking server-side. Existing protected portfolios had their stored password values automatically upgraded to a stronger hashing format (bcrypt with a random salt) — no action needed from portfolio owners.

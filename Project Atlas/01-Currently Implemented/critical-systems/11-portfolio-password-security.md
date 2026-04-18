@@ -34,15 +34,13 @@ Previously, `get_public_portfolio` returned the portfolio data plus the stored `
    - Client-side `sha256hex()` call removed from the password submit handler.
    - `PasswordGate` component switched to `onSubmit` pattern (passes raw password over HTTPS to the hook).
 
-## Migration note
-**The SQL migration has not been applied yet.** GitHub Actions `apply-rpc-migration.yml` failed because `SUPABASE_ACCESS_TOKEN` is not set as a GitHub secret.
+## Migration status
+**Applied successfully on 2026-04-18.** Verified via Supabase management API:
+- `get_portfolio_gate_info(p_username text)` — deployed ✅
+- `get_public_portfolio(p_username text, p_password text DEFAULT NULL)` — deployed ✅
+- Old `get_public_portfolio(text)` (single-arg, bypassable) — dropped ✅
 
-To complete this feature:
-1. Go to `https://supabase.com/dashboard/project/jnsfmkzgxsviuthaqlyy/sql/new`
-2. Paste the contents of `supabase/migrations/20260426000000_portfolio_password_server_side.sql`
-3. Run it
-
-Until then, the app uses the graceful fallback: the password gate still shows, but password checking falls back to the pre-migration behavior for existing users.
+`SUPABASE_ACCESS_TOKEN` is now set in Replit (shared env var) and GitHub Actions secrets for future migrations.
 
 ## Relevant files
 - `supabase/migrations/20260426000000_portfolio_password_server_side.sql`
