@@ -1,3 +1,17 @@
+// Self-hosted Inter font (replaces blocking Google Fonts request).
+// Loading 4 weights covers 300/400/500/600/700 used across the app.
+import "@fontsource/inter/400.css";
+import "@fontsource/inter/500.css";
+import "@fontsource/inter/600.css";
+import "@fontsource/inter/700.css";
+// Display fonts used by portfolio templates and a few editor surfaces.
+// These were previously delivered by the broad Google Fonts request that
+// was removed from index.html — keep them self-hosted so portfolio
+// "Display" / "Code" themes still render correctly.
+import "@fontsource/space-grotesk/600.css";
+import "@fontsource/space-grotesk/700.css";
+import "@fontsource/fira-code/400.css";
+import "@fontsource/fira-code/700.css";
 import { createRoot } from "react-dom/client";
 import { registerSW } from 'virtual:pwa-register';
 import { Capacitor } from '@capacitor/core';

@@ -363,7 +363,7 @@ export default function SettingsPage() {
                 onTakeTour={async () => {
                   haptics.light();
                   if (user) {
-                    await (await import('@/integrations/supabase/client')).supabase.from('profiles').update({ onboarding_completed: false }).eq('user_id', user.id);
+                    await (await import('@/integrations/supabase/safeClient')).supabase.from('profiles').update({ onboarding_completed: false }).eq('user_id', user.id);
                   } else {
                     localStorage.removeItem('wr-onboarding-seen');
                   }

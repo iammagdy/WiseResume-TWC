@@ -9,18 +9,8 @@
   <meta name="author" content="Wiseresume AI" />
   <meta name="theme-color" content="#4F46E5" />
 
-  <!-- Preconnect to external origins for faster resource loading -->
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-
-  <!-- Load Inter font with display=swap for non-blocking rendering -->
-  <link rel="preload"
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
-    as="style" onload="this.onload=null;this.rel='stylesheet'" />
-  <noscript>
-    <link rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" />
-  </noscript>
+  <!-- Inter font is self-hosted via @fontsource/inter (imported in src/main.tsx).
+       Eliminates blocking Google Fonts request on FCP. -->
 
   <!-- PWA & Mobile -->
   <link rel="manifest" href="/manifest.json" />

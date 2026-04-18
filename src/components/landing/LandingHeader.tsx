@@ -210,11 +210,11 @@ export function LandingHeader({
                   toast.error('Unable to sign in. Please try again or contact support.');
                 });
               }}
-              className="text-sm font-semibold px-3 sm:px-4 h-10 sm:h-11 rounded-lg transition-all duration-200 whitespace-nowrap shrink-0"
+              className="text-sm font-semibold px-3 sm:px-4 h-10 sm:h-11 rounded-lg transition-all duration-200 whitespace-nowrap shrink-0 hover:opacity-95 active:scale-[0.98]"
               style={{
-                color: '#fff',
-                background: '#9E1B22',
-                border: '1px solid #9E1B22',
+                color: 'var(--lp-text)',
+                background: 'transparent',
+                border: '1px solid var(--lp-border-card)',
               }}
             >
               Sign In

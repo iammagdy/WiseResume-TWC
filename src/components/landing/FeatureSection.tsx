@@ -154,6 +154,10 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
       {/* Phase 4: parallax wrapper is a plain div so its CSS transform
           (driven by --card-translate-y) is not overridden by the
           framer-motion transform applied to the parent motion.div. */}
+      {/* Wrap parallax in an overflow:hidden bounded box so the inverse
+          translate (driven by --card-translate-y) cannot push pills,
+          tooltips, or floating UI past the card edge (U-1/U-2). */}
+      <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 18, width: '100%' }}>
       <div className="lp-stack-parallax w-full flex items-center justify-center">
         <Suspense fallback={<DemoFallback />}>
           {data.demo === 'editor' && <LazyEditorDemo />}
@@ -162,6 +166,7 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
           {data.demo === 'interview' && <LazyInterviewDemo />}
           {data.demo === 'tracker' && <LazyTrackerDemo />}
         </Suspense>
+      </div>
       </div>
     </motion.div>
   );
@@ -221,32 +226,37 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
         transition: 'background 0.3s ease',
       }}
     >
-      {/* Watermark big label */}
-      <span
-        aria-hidden="true"
-        style={{
-          position: 'absolute',
-          inset: 0,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: 'clamp(5rem, 14vw, 10rem)',
-          fontWeight: 900,
-          color: 'var(--lp-card-glass)',
-          pointerEvents: 'none',
-          userSelect: 'none',
-          letterSpacing: '-0.05em',
-          lineHeight: 1,
-          opacity: 0.6,
-        }}
-      >
-        {data.bigLabel}
-      </span>
-
       <div
         className="max-w-6xl mx-auto w-full relative"
         style={{ padding: 'clamp(48px, 6vw, 80px) clamp(20px, 4vw, 40px)' }}
       >
+        {/* Watermark big label — anchored INSIDE the bounded container so
+            it can never escape the rounded card edge during scroll-stack
+            scaling (U-1/U-2). Previously sat at section level with
+            inset:0 and bled past the card's rounded corners. */}
+        <span
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            inset: '0 12px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 'clamp(4rem, 11vw, 8rem)',
+            fontWeight: 900,
+            color: 'var(--lp-card-glass)',
+            pointerEvents: 'none',
+            userSelect: 'none',
+            letterSpacing: '-0.05em',
+            lineHeight: 1,
+            opacity: 0.5,
+            overflow: 'hidden',
+            whiteSpace: 'nowrap',
+            zIndex: 0,
+          }}
+        >
+          {data.bigLabel}
+        </span>
         <motion.div
           variants={containerVariants}
           initial={prefersReducedMotion ? 'visible' : 'hidden'}

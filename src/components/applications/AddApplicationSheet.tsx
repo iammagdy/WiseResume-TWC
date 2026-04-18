@@ -47,7 +47,7 @@ export function AddApplicationSheet({ open, onOpenChange, defaultValues }: AddAp
   const { data: resumes } = useQuery({
     queryKey: ['resumes-list', user?.id],
     queryFn: async () => {
-      const { data } = await (await import('@/integrations/supabase/client')).supabase
+      const { data } = await (await import('@/integrations/supabase/safeClient')).supabase
         .from('resumes')
         .select('id, title')
         .order('updated_at', { ascending: false });

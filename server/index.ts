@@ -952,7 +952,12 @@ async function runAnalyticsSweep(): Promise<void> {
     lockAcquired = lockRows[0]?.got === true;
     if (!lockAcquired) {
       sweepStatus.lastError = 'sweep already in progress (lock row held)';
-      console.warn('[analytics-sweep] skipped — lock row held by another holder');
+      // Demoted from warn to debug log: a held lock is the EXPECTED outcome
+      // when another instance is running its sweep — it's not an error,
+      // just a routine "skip this tick." Keeps prod logs clean.
+      if (process.env.DEBUG_ANALYTICS_SWEEP === '1') {
+        console.log('[analytics-sweep] skipped — lock row held by another holder');
+      }
       return;
     }
 

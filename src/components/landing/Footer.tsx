@@ -34,7 +34,7 @@ export function Footer({ lpMode, product }: FooterProps) {
 
         <div
           className="flex items-center gap-1.5 text-xs"
-          style={lpMode ? { color: 'var(--lp-text-subtle)', transition: 'color 0.3s ease' } : undefined}
+          style={lpMode ? { color: 'var(--lp-text-muted)', transition: 'color 0.3s ease' } : undefined}
         >
           <ShieldCheck
             className="w-3.5 h-3.5"
@@ -52,7 +52,7 @@ export function Footer({ lpMode, product }: FooterProps) {
             to="/privacy-policy"
             className="transition-colors"
             style={lpMode
-              ? { color: 'var(--lp-text-subtle)', padding: '10px 12px', display: 'inline-flex', alignItems: 'center', minHeight: 44 }
+              ? { color: 'var(--lp-text-muted)', padding: '10px 12px', display: 'inline-flex', alignItems: 'center', minHeight: 44, textDecoration: 'underline', textDecorationColor: 'var(--lp-border)', textUnderlineOffset: 3 }
               : { padding: '10px 12px', display: 'inline-flex', alignItems: 'center', minHeight: 44 }
             }
           >
@@ -66,7 +66,7 @@ export function Footer({ lpMode, product }: FooterProps) {
             to="/terms-of-service"
             className="transition-colors"
             style={lpMode
-              ? { color: 'var(--lp-text-subtle)', padding: '10px 12px', display: 'inline-flex', alignItems: 'center', minHeight: 44 }
+              ? { color: 'var(--lp-text-muted)', padding: '10px 12px', display: 'inline-flex', alignItems: 'center', minHeight: 44, textDecoration: 'underline', textDecorationColor: 'var(--lp-border)', textUnderlineOffset: 3 }
               : { padding: '10px 12px', display: 'inline-flex', alignItems: 'center', minHeight: 44 }
             }
           >
@@ -76,7 +76,7 @@ export function Footer({ lpMode, product }: FooterProps) {
 
         <p
           className="text-xs"
-          style={lpMode ? { color: 'var(--lp-text-subtle)', transition: 'color 0.3s ease' } : undefined}
+          style={lpMode ? { color: 'var(--lp-text-muted)', transition: 'color 0.3s ease' } : undefined}
         >
           {isWiseHire
             ? <>&copy; 2026 WiseHire &mdash; The Wise Cloud.</>

@@ -7,6 +7,7 @@
  * On 401 responses, attempts a single token refresh before failing.
  */
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from './types';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabaseConstants';
 import { getToken, refreshTokenIfNeeded } from '@/lib/supabaseBridge';
 import { dispatchSessionExpiredOnce } from './sessionExpired';
@@ -18,7 +19,7 @@ import { dispatchSessionExpiredOnce } from './sessionExpired';
  * module does not throw at initialization time (all API calls will fail
  * gracefully until real credentials are provided via Replit secrets).
  */
-export const supabase: SupabaseClient = createClient(
+export const supabase: SupabaseClient<Database> = createClient<Database>(
   SUPABASE_URL || 'https://placeholder.supabase.co',
   SUPABASE_ANON_KEY || 'placeholder',
   {
