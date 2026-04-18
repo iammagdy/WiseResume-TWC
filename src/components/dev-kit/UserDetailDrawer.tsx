@@ -113,6 +113,7 @@ function summarizeAction(action: string, meta: Record<string, unknown>): string 
 export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated, onUserDeleted }: UserDetailDrawerProps) {
   const queryClient = useQueryClient();
   const { user: authUser } = useAuth();
+  const isMounted = useIsMounted();
 
   const [user, setUser] = useState<AdminUser>(userProp);
   const [drawerTab, setDrawerTab] = useState<DrawerTab>('actions');
@@ -346,6 +347,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
         body: { password: getDevKitToken(), collision_user_id: user.user_id },
       });
       unwrapAdminResponse<{ merge_log?: string[] }>(tuple, 'admin-merge-identity');
+      if (!isMounted()) return;
       toast.success('Identity merged successfully', {
         description: 'The orphan account has been suspended and merged into this account.',
         duration: 6000,
@@ -402,6 +404,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
         },
       });
       const result = unwrapAdminResponse<{ changed_fields?: Record<string, { old: unknown; new: unknown }> }>(tuple, 'admin-update-profile');
+      if (!isMounted()) return;
 
       const changed = result.changed_fields ?? {};
       if (Object.keys(changed).length === 0) {
@@ -442,6 +445,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
         body: { password: getDevKitToken(), target_user_id: user.user_id, plan: selectedPlan },
       });
       unwrapAdminResponse(tuple, 'admin-set-plan');
+      if (!isMounted()) return;
       toast.success(`Plan set to ${selectedPlan}`, {
         description: "The user's app will reflect this within 10 seconds.",
         duration: 5000,
@@ -463,6 +467,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
         body: { password: getDevKitToken(), target_user_id: user.user_id, plan: trialPlan, days: trialDays },
       });
       unwrapAdminResponse(tuple, 'admin-grant-trial');
+      if (!isMounted()) return;
       const expiresAt = new Date(Date.now() + trialDays * 86400000).toISOString();
       toast.success(`${trialPlan} trial granted for ${trialDays} days`);
       setUser(prev => ({ ...prev, trial_plan: trialPlan, trial_expires_at: expiresAt }));
@@ -481,6 +486,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
         body: { password: getDevKitToken(), target_user_id: user.user_id },
       });
       unwrapAdminResponse(tuple, 'admin-revoke-trial');
+      if (!isMounted()) return;
       toast.success('Trial revoked');
       setUser(prev => ({ ...prev, trial_plan: null, trial_expires_at: null }));
       onUserUpdated();
@@ -499,6 +505,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
         body: { password: getDevKitToken(), target_user_id: user.user_id, suspend, reason: suspend ? suspendReason : null },
       });
       unwrapAdminResponse(tuple, 'admin-suspend-user');
+      if (!isMounted()) return;
       toast.success(suspend ? 'User suspended' : 'User unsuspended');
       setUser(prev => ({
         ...prev,
@@ -527,6 +534,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
         },
       });
       unwrapAdminResponse(tuple, 'admin-set-credits');
+      if (!isMounted()) return;
       toast.success('Credits updated');
       setUser(prev => ({
         ...prev,
@@ -552,6 +560,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
         body: { password: getDevKitToken(), target_user_id: user.user_id, note_text: noteText },
       });
       unwrapAdminResponse(tuple, 'admin-save-note');
+      if (!isMounted()) return;
       toast.success('Note saved');
       setNoteText('');
       const newNote: NoteEntry = { id: Date.now().toString(), note_text: noteText, created_at: new Date().toISOString() };
@@ -576,6 +585,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
         },
       });
       unwrapAdminResponse(tuple, 'admin-save-note (delete)');
+      if (!isMounted()) return;
       toast.success('Note deleted');
       setNotesHistory(prev => prev.filter(n => n.id !== noteId));
       setConfirmDeleteNoteId(null);
@@ -597,6 +607,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
         },
       });
       unwrapAdminResponse(tuple, 'admin-revoke-sessions');
+      if (!isMounted()) return;
       toast.success('All sessions revoked', { description: 'The user has been signed out from all devices.' });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to revoke sessions');
@@ -617,6 +628,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
         },
       });
       unwrapAdminResponse(tuple, 'admin-delete-user');
+      if (!isMounted()) return;
       toast.success('User account permanently deleted');
       setShowDeleteDialog(false);
       onUserDeleted?.(user.user_id);
@@ -635,6 +647,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
         body: { password: getDevKitToken(), target_user_id: user.user_id, resume_id: resumeId },
       });
       const result = unwrapAdminResponse<{ resume?: ResumeDetail }>(tuple, 'admin-list-user-content (detail)');
+      if (!isMounted()) return;
       setSelectedResume(result.resume ?? null);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to load resume');
