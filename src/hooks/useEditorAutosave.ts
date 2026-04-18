@@ -12,6 +12,8 @@ interface UpdateResumeMutation {
 
 interface DatabaseResumeLike {
   updated_at?: string | null;
+  is_trial?: boolean;
+  trial_expires_at?: string | null;
 }
 
 interface UseEditorAutosaveOptions {
@@ -74,6 +76,15 @@ export function useEditorAutosave({
   const saveToCloud = useCallback(async () => {
     const resume = resumeRef.current;
     if (!user || !currentResumeId || !resume) return;
+
+    // Read-only guard: block all saves on expired trial resumes.
+    // The server (RLS + trigger) is the authoritative check; this prevents
+    // wasted network calls and shows a clear message to the user.
+    const db = resumeFromDbRef.current;
+    if (db?.is_trial && db.trial_expires_at && new Date(db.trial_expires_at) <= new Date()) {
+      toast.error('Your free trial has ended. Upgrade to Pro to keep editing this resume.', { duration: 6000 });
+      return;
+    }
 
     const currentResumeJson = JSON.stringify(resume);
     if (currentResumeJson === lastSavedResumeRef.current) return;

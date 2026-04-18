@@ -238,25 +238,25 @@ export function useResumeMutations() {
       if (updates.templateId !== undefined) dbUpdates.template_id = updates.templateId;
       if (title) dbUpdates.title = title;
 
-      // If this is an active trial resume, expire it immediately on first saved edit
-      // (trial lifecycle: 24 h OR first save, whichever comes first).
-      const cachedResumes = queryClient.getQueryData<DatabaseResume[]>(['resumes', user.id]);
-      const existingResume = cachedResumes?.find(r => r.id === resumeId);
-      if (
-        existingResume?.is_trial &&
-        existingResume.trial_expires_at &&
-        new Date(existingResume.trial_expires_at) > new Date()
-      ) {
-        dbUpdates.trial_expires_at = new Date().toISOString();
-      }
+      // Authoritative server-side expiry is handled by the DB trigger
+      // expire_trial_resume_on_first_edit (migration 20260418000004).
+      // The client also expires the trial in the same UPDATE as a belt-and-
+      // suspenders measure. We check both the single-resume cache (always
+      // populated when the editor is open) and the list cache as fallback.
+      const cachedSingle = queryClient.getQueryData<DatabaseResume>(['resume', resumeId]);
+      const cachedList = queryClient.getQueryData<DatabaseResume[]>(['resumes', user.id]);
+      const existingResume = cachedSingle ?? cachedList?.find(r => r.id === resumeId);
 
-      // Backend guard: block writes to expired trial resumes
-      if (
-        existingResume?.is_trial &&
-        existingResume.trial_expires_at &&
-        new Date(existingResume.trial_expires_at) <= new Date()
-      ) {
-        throw new Error('Your free trial has ended. Upgrade to Pro to keep editing this resume.');
+      if (existingResume?.is_trial && existingResume.trial_expires_at) {
+        const expiresAt = new Date(existingResume.trial_expires_at);
+        const now = new Date();
+        if (expiresAt > now) {
+          // Active trial: expire it on this first saved edit
+          dbUpdates.trial_expires_at = now.toISOString();
+        } else {
+          // Already expired: block the write and surface a clear message
+          throw new Error('Your free trial has ended. Upgrade to Pro to keep editing this resume.');
+        }
       }
 
       const { data, error } = await supabase
