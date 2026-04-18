@@ -141,11 +141,7 @@ export const onRequest = async (context: PagesContext): Promise<Response> => {
   if (url.pathname === '/' || url.pathname === '/index.html') {
     return new Response(HOME_MARKDOWN, {
       status: 200,
-      headers: {
-        'Content-Type': 'text/markdown; charset=utf-8',
-        'Cache-Control': 'public, max-age=300',
-        'X-Markdown-Source': 'authored',
-      },
+      headers: buildMarkdownHeaders('authored'),
     });
   }
 
@@ -159,10 +155,23 @@ export const onRequest = async (context: PagesContext): Promise<Response> => {
   const md = htmlToMarkdown(html);
   return new Response(md, {
     status: upstream.status,
-    headers: {
-      'Content-Type': 'text/markdown; charset=utf-8',
-      'Cache-Control': 'public, max-age=300',
-      'X-Markdown-Source': 'extracted',
-    },
+    headers: buildMarkdownHeaders('extracted'),
   });
 };
+
+// Build response headers for markdown responses. Includes the same
+// Link relations served by `public/_headers` for the HTML version of
+// the homepage (api-catalog, service-doc, sitemap), so AI agents can
+// discover the rest of the surface regardless of which Accept variant
+// they used.
+function buildMarkdownHeaders(source: 'authored' | 'extracted'): HeadersInit {
+  const headers = new Headers({
+    'Content-Type': 'text/markdown; charset=utf-8',
+    'Cache-Control': 'public, max-age=300',
+    'X-Markdown-Source': source,
+  });
+  headers.append('Link', '</.well-known/api-catalog>; rel="api-catalog"; type="application/linkset+json"');
+  headers.append('Link', '</docs/api>; rel="service-doc"; type="text/html"');
+  headers.append('Link', '</sitemap.xml>; rel="sitemap"; type="application/xml"');
+  return headers;
+}
