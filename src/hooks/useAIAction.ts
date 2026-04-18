@@ -67,6 +67,12 @@ function classifyErrorBody(body: Record<string, unknown>): string | null {
   if (code === 'rate_limit' || msg.includes('rate limit') || status === 429) {
     return 'Too many requests — please wait a moment and try again.';
   }
+  if (
+    code === 'upstream_5xx' ||
+    (typeof status === 'number' && status >= 500 && status < 600 && status !== 503)
+  ) {
+    return 'The AI provider returned an error. Please try again — if it keeps failing, switch providers in Settings.';
+  }
   return null;
 }
 

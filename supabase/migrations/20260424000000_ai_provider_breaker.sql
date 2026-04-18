@@ -12,14 +12,25 @@
 -- "should I open?" decisions.
 
 CREATE TABLE IF NOT EXISTS public.ai_provider_breaker (
-  provider           TEXT PRIMARY KEY,
-  failure_count      INTEGER     NOT NULL DEFAULT 0,
-  window_started_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  opened_until       TIMESTAMPTZ,
-  last_success_at    TIMESTAMPTZ,
-  last_failure_at    TIMESTAMPTZ,
-  updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  provider              TEXT PRIMARY KEY,
+  failure_count         INTEGER     NOT NULL DEFAULT 0,
+  window_started_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  opened_until          TIMESTAMPTZ,
+  -- Half-open / single-probe lock. When a breaker's cooldown expires we
+  -- want EXACTLY ONE caller across all instances to test the upstream.
+  -- A second caller hitting the same RPC at the same instant must still
+  -- see the breaker as "open" until the prober reports success/failure
+  -- (or until probe_in_flight_until expires as a deadlock guard).
+  probe_in_flight_until TIMESTAMPTZ,
+  last_success_at       TIMESTAMPTZ,
+  last_failure_at       TIMESTAMPTZ,
+  updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Older deployments may already have the table without the probe column.
+-- Adding it as a no-op when the column exists keeps the migration idempotent.
+ALTER TABLE public.ai_provider_breaker
+  ADD COLUMN IF NOT EXISTS probe_in_flight_until TIMESTAMPTZ;
 
 COMMENT ON TABLE public.ai_provider_breaker IS
   'Cross-instance circuit breaker state for managed AI providers (Phase 4).';
@@ -82,13 +93,15 @@ BEGIN
      FOR UPDATE;
 
   IF p_success THEN
-    -- Success — clear failures and the breaker.
+    -- Success — clear failures, the breaker, and any in-flight probe lock
+    -- (the probe just succeeded, so future callers can resume normally).
     UPDATE public.ai_provider_breaker
-       SET failure_count     = 0,
-           window_started_at = v_now,
-           opened_until      = NULL,
-           last_success_at   = v_now,
-           updated_at        = v_now
+       SET failure_count         = 0,
+           window_started_at     = v_now,
+           opened_until          = NULL,
+           probe_in_flight_until = NULL,
+           last_success_at       = v_now,
+           updated_at            = v_now
      WHERE provider = p_provider
      RETURNING * INTO v_row;
   ELSE
@@ -136,6 +149,91 @@ $$;
 REVOKE EXECUTE ON FUNCTION public.record_ai_breaker_event(TEXT, BOOLEAN, INTEGER, INTEGER, INTEGER)
   FROM PUBLIC, authenticated, anon;
 GRANT EXECUTE ON FUNCTION public.record_ai_breaker_event(TEXT, BOOLEAN, INTEGER, INTEGER, INTEGER)
+  TO service_role;
+
+-- ── Half-open / single-probe acquisition RPC ────────────────────────────────
+-- Replaces the previous "is the breaker open?" SELECT with an atomic state
+-- machine that implements true half-open semantics:
+--
+--   closed       — opened_until is NULL (or in the past) AND no probe lock.
+--                  Caller is allowed; no state change.
+--   open         — opened_until is in the future. Caller is denied.
+--   half_open    — cooldown just expired AND no probe in flight. The FIRST
+--                  caller atomically claims a probe lock (probe_in_flight_until
+--                  = NOW + p_probe_ttl) and is allowed to proceed. Concurrent
+--                  callers see the lock and are denied (treated as "open").
+--   locked_probe — cooldown expired BUT another caller already holds the
+--                  probe lock and we are within its TTL. Denied.
+--
+-- Returns one of: 'closed' | 'open' | 'half_open' | 'locked_probe'.
+-- Callers treat 'closed' and 'half_open' as ALLOW, everything else as DENY.
+--
+-- The probe TTL is a deadlock guard — if a probing instance crashes mid-
+-- request we can't leave the breaker permanently locked, so the slot
+-- auto-releases after p_probe_ttl_seconds and the next caller can retry.
+
+CREATE OR REPLACE FUNCTION public.try_acquire_breaker_pass(
+  p_provider           TEXT,
+  p_probe_ttl_seconds  INTEGER DEFAULT 30
+)
+RETURNS TEXT
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_now      TIMESTAMPTZ := NOW();
+  v_row      public.ai_provider_breaker%ROWTYPE;
+  v_open     BOOLEAN;
+  v_probing  BOOLEAN;
+BEGIN
+  IF p_provider IS NULL OR length(p_provider) = 0 THEN
+    RAISE EXCEPTION 'p_provider is required';
+  END IF;
+
+  -- Materialise the row so the FOR UPDATE below has something to lock.
+  INSERT INTO public.ai_provider_breaker (provider, failure_count, window_started_at, updated_at)
+  VALUES (p_provider, 0, v_now, v_now)
+  ON CONFLICT (provider) DO NOTHING;
+
+  -- Row-level lock serialises concurrent callers across instances.
+  SELECT * INTO v_row
+    FROM public.ai_provider_breaker
+   WHERE provider = p_provider
+     FOR UPDATE;
+
+  v_open    := v_row.opened_until IS NOT NULL AND v_row.opened_until > v_now;
+  v_probing := v_row.probe_in_flight_until IS NOT NULL AND v_row.probe_in_flight_until > v_now;
+
+  -- 1. Breaker fully closed → allow with no state change.
+  IF v_row.opened_until IS NULL THEN
+    RETURN 'closed';
+  END IF;
+
+  -- 2. Cooldown still active → deny.
+  IF v_open THEN
+    RETURN 'open';
+  END IF;
+
+  -- 3. Cooldown elapsed but a probe is already in flight → deny so we
+  --    don't issue a thundering herd of "test" requests in parallel.
+  IF v_probing THEN
+    RETURN 'locked_probe';
+  END IF;
+
+  -- 4. Cooldown elapsed and no probe in flight → THIS caller becomes the
+  --    prober. Claim the slot atomically before releasing the row lock
+  --    so concurrent callers will see the lock on their own SELECT.
+  UPDATE public.ai_provider_breaker
+     SET probe_in_flight_until = v_now + (p_probe_ttl_seconds || ' seconds')::interval,
+         updated_at            = v_now
+   WHERE provider = p_provider;
+
+  RETURN 'half_open';
+END;
+$$;
+
+REVOKE EXECUTE ON FUNCTION public.try_acquire_breaker_pass(TEXT, INTEGER)
+  FROM PUBLIC, authenticated, anon;
+GRANT EXECUTE ON FUNCTION public.try_acquire_breaker_pass(TEXT, INTEGER)
   TO service_role;
 
 -- ── Refund-day fix ──────────────────────────────────────────────────────────

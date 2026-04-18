@@ -63,7 +63,20 @@ export interface AIResponse {
 }
 
 export interface AIError {
-  type: 'rate_limit' | 'provider_busy' | 'payment_required' | 'invalid_key' | 'quota_exceeded' | 'network' | 'unknown';
+  type:
+    | 'rate_limit'
+    | 'provider_busy'
+    | 'payment_required'
+    | 'invalid_key'
+    | 'quota_exceeded'
+    // upstream_5xx: managed/BYOK provider returned a 5xx (or transport
+    // failure). Surfaced to the client as a distinct toast so the user
+    // knows it's an upstream glitch, not their key being wrong, and so
+    // the cross-instance breaker can count these without conflating
+    // them with auth/payment errors that the user must self-fix.
+    | 'upstream_5xx'
+    | 'network'
+    | 'unknown';
   message: string;
   status: number;
 }
@@ -241,6 +254,10 @@ async function getUserPreferredProvider(userId: string): Promise<string | null> 
 const BREAKER_THRESHOLD = parseInt(Deno.env.get('AI_BREAKER_THRESHOLD') ?? '5', 10);
 const BREAKER_WINDOW_SECONDS = parseInt(Deno.env.get('AI_BREAKER_WINDOW_SECONDS') ?? '60', 10);
 const BREAKER_COOLDOWN_SECONDS = parseInt(Deno.env.get('AI_BREAKER_COOLDOWN_SECONDS') ?? '60', 10);
+// Half-open probe TTL: how long a single probing request "holds" the lock
+// before it auto-releases. Should be >= the per-attempt timeout so a slow
+// probe doesn't get its lock yanked while still in flight.
+const BREAKER_PROBE_TTL_SECONDS = parseInt(Deno.env.get('AI_BREAKER_PROBE_TTL_SECONDS') ?? '30', 10);
 
 interface BreakerState {
   provider: string;
@@ -251,20 +268,33 @@ interface BreakerState {
 }
 
 /**
- * Returns true if the breaker for `provider` is currently open. Best-effort:
- * any error reading the table fails OPEN (returns false / let traffic through)
- * so a misbehaving breaker table cannot itself cause an outage.
+ * Returns true if the breaker for `provider` is currently open AND this
+ * caller is not allowed through. Implements true half-open semantics via
+ * `try_acquire_breaker_pass`: when the cooldown elapses, exactly ONE
+ * caller per provider per probe-TTL window is granted a probe slot and
+ * sees `false` (allow); every concurrent caller sees `true` (deny) until
+ * that probe reports its outcome.
+ *
+ * Best-effort: any RPC error fails OPEN (returns false / lets traffic
+ * through) so a misbehaving breaker table cannot itself cause an outage.
  */
 export async function isBreakerOpen(provider: string): Promise<boolean> {
   try {
     const supabase = getServiceClient();
-    const { data, error } = await supabase
-      .from('ai_provider_breaker')
-      .select('opened_until')
-      .eq('provider', provider)
-      .maybeSingle();
-    if (error || !data?.opened_until) return false;
-    return new Date(data.opened_until as string).getTime() > Date.now();
+    const { data, error } = await supabase.rpc('try_acquire_breaker_pass', {
+      p_provider:          provider,
+      p_probe_ttl_seconds: BREAKER_PROBE_TTL_SECONDS,
+    });
+    if (error) {
+      console.warn(`[AI breaker] try_acquire_breaker_pass failed for ${provider} — treating as closed:`, error.message);
+      return false;
+    }
+    // 'closed' and 'half_open' both ALLOW. 'open' and 'locked_probe' DENY.
+    const status = typeof data === 'string' ? data : String(data ?? 'closed');
+    if (status === 'half_open') {
+      console.log(`[AI breaker] half-open probe acquired for ${provider}`);
+    }
+    return status === 'open' || status === 'locked_probe';
   } catch (err) {
     console.warn(`[AI breaker] read failed for ${provider} — treating as closed:`, err instanceof Error ? err.message : err);
     return false;
@@ -422,6 +452,11 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
         // BYOK strict mode: never fall back to platform keys when user has BYOK configured.
         // If the user's key fails, they must fix it — platform resources must not be consumed silently.
         console.error(`[AI] ${provider} BYOK call failed (no platform fallback):`, err instanceof Error ? err.message : err);
+        // Preserve the typed AIError emitted by the provider call so the
+        // client gets the right toast (rate_limit / payment_required /
+        // upstream_5xx / invalid_key). Only wrap unknown / non-AI errors
+        // into the generic "your key failed" invalid_key guidance.
+        if (isAIError(err)) throw err;
         throw createAIError(
           'invalid_key',
           `Your ${provider} API key failed. Please check your key in AI Settings and try again.`,
@@ -443,6 +478,7 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
       } catch (err) {
         // BYOK strict mode: never fall back to platform keys.
         console.error('[AI] OpenRouter BYOK call failed (no platform fallback):', err instanceof Error ? err.message : err);
+        if (isAIError(err)) throw err;
         throw createAIError(
           'invalid_key',
           'Your OpenRouter API key failed. Please check your key in AI Settings and try again.',
@@ -464,6 +500,7 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
       } catch (err) {
         // BYOK strict mode: never fall back to platform keys.
         console.error('[AI] Ollama BYOK call failed (no platform fallback):', err instanceof Error ? err.message : err);
+        if (isAIError(err)) throw err;
         throw createAIError(
           'invalid_key',
           'Your Ollama endpoint failed. Please check your URL and model in AI Settings and try again.',
@@ -483,6 +520,7 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
         // BYOK strict mode: never fall back to platform keys.
         const errDetail = err instanceof Error ? err.message : String(err);
         console.error('[AI] Gemini BYOK call failed (no platform fallback):', errDetail);
+        if (isAIError(err)) throw err;
         throw createAIError(
           'invalid_key',
           'Your Gemini API key failed. Please check your key in AI Settings and try again.',
@@ -909,6 +947,9 @@ async function callOllamaDirect(
     if (response.status === 429) {
       throw createAIError('rate_limit', 'Ollama rate limit reached. Please wait.', 429);
     }
+    if (response.status >= 500 && response.status < 600) {
+      throw createAIError('upstream_5xx', `Ollama upstream error (${response.status}). Please try again.`, response.status);
+    }
     throw createAIError('unknown', errorMessage, response.status);
   }
 
@@ -980,6 +1021,9 @@ async function callOpenRouterDirect(
     if (response.status === 402) {
       throw createAIError('payment_required', 'OpenRouter credits exhausted. Please add credits.', 402);
     }
+    if (response.status >= 500 && response.status < 600) {
+      throw createAIError('upstream_5xx', `OpenRouter upstream error (${response.status}). Please try again.`, response.status);
+    }
     throw createAIError('unknown', errorMessage, response.status);
   }
 
@@ -1047,6 +1091,9 @@ async function callOpenAICompatible(
     }
     if (response.status === 402) {
       throw createAIError('payment_required', `${providerName} credits exhausted.`, 402);
+    }
+    if (response.status >= 500 && response.status < 600) {
+      throw createAIError('upstream_5xx', `${providerName} upstream error (${response.status}). Please try again.`, response.status);
     }
     throw createAIError('unknown', errorMessage, response.status);
   }
@@ -1145,6 +1192,9 @@ async function callAnthropicDirect(
     }
     if (response.status === 402) {
       throw createAIError('payment_required', 'Anthropic credits exhausted.', 402);
+    }
+    if (response.status >= 500 && response.status < 600) {
+      throw createAIError('upstream_5xx', `Anthropic upstream error (${response.status}). Please try again.`, response.status);
     }
     throw createAIError('unknown', errorMessage, response.status);
   }
@@ -1341,6 +1391,7 @@ export async function callWiseresumeAI(
         if (response.status === 401 || response.status === 403) throw createAIError('invalid_key', 'WiseResume AI OpenRouter key is invalid.', response.status);
         if (response.status === 429) throw createAIError('rate_limit', `OpenRouter model ${model} rate limited.`, 429);
         if (response.status === 402) throw createAIError('payment_required', 'OpenRouter credits exhausted.', 402);
+        if (response.status >= 500 && response.status < 600) throw createAIError('upstream_5xx', `OpenRouter model ${model} upstream error (${response.status}).`, response.status);
         throw createAIError('unknown', errorMessage, response.status);
       }
       const data = await response.json();
@@ -1767,6 +1818,9 @@ function handleGeminiError(status: number, errorText: string): never {
       throw createAIError('quota_exceeded', 'Daily quota exceeded. Try again tomorrow or use a paid key.', 429);
     }
     throw createAIError('rate_limit', 'Too many requests. Please wait a moment.', 429);
+  }
+  if (status >= 500 && status < 600) {
+    throw createAIError('upstream_5xx', `Gemini upstream error (${status}). Please try again.`, status);
   }
 
   throw createAIError('unknown', errorMessage, status);

@@ -27,6 +27,7 @@ export type AIErrorCode =
   | 'quota_exceeded'
   | 'enhancement_failed'
   | 'provider_busy'
+  | 'upstream_5xx'
   | 'not_configured'
   | 'timeout'
   | 'offline'
@@ -79,6 +80,8 @@ function classify(status: number, code: string, message: string): AIErrorCode {
       return 'enhancement_failed';
     case 'provider_busy':
       return 'provider_busy';
+    case 'upstream_5xx':
+      return 'upstream_5xx';
     case 'not_configured':
       return 'not_configured';
   }
@@ -98,6 +101,10 @@ function classify(status: number, code: string, message: string): AIErrorCode {
   if (status === 402) return 'payment_required';
   if (status === 408 || status === 504) return 'timeout';
   if (status === 503) return 'provider_busy';
+  // Catch-all upstream provider failure (500/502/520/etc). Differentiated
+  // from `provider_busy` (503) so the toast can specifically tell the user
+  // the upstream is glitching rather than rate-limiting them.
+  if (status >= 500 && status < 600) return 'upstream_5xx';
 
   if (/rate.?limit|too many/.test(m)) return 'rate_limit';
   if (/timed? ?out|timeout|abort/.test(m)) return 'timeout';
@@ -158,6 +165,8 @@ export function aiErrorToastMessage(info: AIErrorInfo): string {
       return 'Failed to enhance content — please try again.';
     case 'provider_busy':
       return 'AI is temporarily busy — please try again in a moment.';
+    case 'upstream_5xx':
+      return 'The AI provider returned an error. Please try again — if it keeps failing, switch providers in Settings.';
     case 'timeout':
       return 'The AI request timed out. Please try again.';
     case 'offline':
