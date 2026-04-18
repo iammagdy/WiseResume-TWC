@@ -1,5 +1,89 @@
 # Changelog
 
+## 2026-04-18 — Make the marketing site discoverable to AI agents (Task #26)
+
+Cloudflare's "Is It Agent Ready?" scan of `https://resume.thewise.cloud` previously scored 17/100 (Level 0 — Not Ready). This change publishes the standard discovery files, headers, and metadata that AI agents (Cloudflare AI, ChatGPT, Claude, etc.) look for, without altering any user-facing behavior.
+
+### New static files (`public/`)
+- `sitemap.xml` — 14 canonical public URLs (home, `/enterprises`, `/enterprise`, `/pricing`, `/examples`, `/guides`, `/whats-new`, `/waitlist`, `/wisehire/signup`, `/auth`, `/sign-in`, `/privacy-policy`, `/terms-of-service`, `/docs/api`).
+- `.well-known/api-catalog` — RFC 9727 link set (`application/linkset+json`) anchoring `service-desc`, `service-doc`, and `service-meta`.
+- `.well-known/openid-configuration` — OIDC discovery delegating to Kinde (`https://thewisecloud.kinde.com`).
+- `.well-known/oauth-authorization-server` — OAuth 2.0 AS metadata mirroring Kinde.
+- `.well-known/oauth-protected-resource` — RFC 9728 protected-resource metadata (`resource: https://resume.thewise.cloud/api`, `authorization_servers: [https://thewisecloud.kinde.com]`).
+- `.well-known/mcp/server-card.json` — SEP-1649 server card with WebMCP discovery URL and OAuth metadata link.
+- `.well-known/agent-skills/index.json` — Agent Skills Discovery v0.2.0 index with `$schema`, `skills[]`, and `sha256` per skill.
+- `.well-known/agent-skills/start-resume.json` — descriptor for the `start-resume` skill (sha256 in `index.json` is computed from this file: `52649dab…c07ff`).
+- `docs/api/index.html` — `service-doc` target listing discovery endpoints, OAuth flow, `/api/health`, `/api/db-health`, and the `/api/fn/*` proxy contract.
+
+### `public/robots.txt`
+- Added Cloudflare Content Signals: `Content-Signal: search=yes, ai-input=yes, ai-train=no` (sitemap reference already present).
+
+### `public/_headers`
+- Added `Link` headers on `/` and `/index.html` for `api-catalog` (`</.well-known/api-catalog>; rel="api-catalog"; type="application/linkset+json"`), `service-doc` (`</docs/api>`), and `sitemap` (`</sitemap.xml>`).
+- Added explicit `Content-Type` rules for `/sitemap.xml` (`application/xml`), `/robots.txt` (`text/plain`), and every extension-less file under `.well-known/` (`application/json`, or `application/linkset+json` for `api-catalog`).
+- Added `Access-Control-Allow-Origin: *` to all `.well-known/*` so cross-origin agent fetches succeed.
+
+### Cloudflare Pages middleware (`functions/_middleware.ts`)
+- New file: `onRequest` performs `Accept: text/markdown` content negotiation. Browsers (`Accept: text/html…`) pass through unchanged.
+- `/` and `/index.html` return a hand-authored markdown summary (product overview, key public routes, agent discovery URLs).
+- All other public HTML routes fall through to a generic `htmlToMarkdown(...)` extractor that strips `<script>/<style>/<svg>`, normalizes headings, links, and lists, and returns `Content-Type: text/markdown; charset=utf-8`.
+- `buildMarkdownHeaders('authored' | 'extracted')` attaches the same `Link` relations served on the HTML home page (`api-catalog`, `service-doc`, `sitemap`) to every markdown response, so agents discover the surface regardless of which `Accept` variant they use.
+- Skips assets, `/.well-known/`, `/icons/`, `/sitemap.xml`, `/robots.txt`, `/manifest.json`, `/api/*`, and any non-`.html` extension.
+
+### WebMCP integration (`src/hooks/useWebMcp.ts`, `src/pages/Index.tsx`)
+- New hook `useWebMcp({ navigate, setMode })` feature-detects `navigator.modelContext.provideContext()` and registers four in-page tools: `open_pricing`, `open_examples`, `start_resume`, `switch_to_wisehire`. Hard-no-op in browsers without the API; `try/catch` around both registration and disposal guarantees a misbehaving WebMCP implementation can never break the page. Cleanup on unmount calls the returned `dispose()` if present.
+- Wired into `Index.tsx` immediately after the `setLpProduct(mode)` effect.
+
+### Notes / out of scope
+- Markdown content negotiation is executed only by Cloudflare Pages in production — Vite dev does not run `functions/_middleware.ts`.
+- A real OpenAPI 3.1 document for `/api/fn/*` is deliberately not published (follow-up #28). `/docs/api` is a hand-authored HTML overview that satisfies the `service-doc` Link relation.
+- Per-route hand-authored markdown beyond `/` is deferred (follow-up #29) — the generic extractor covers the rest of the surface in the meantime.
+- A live `isitagentready.com` re-run is captured as follow-up #27 and scheduled for after the next deploy.
+
+---
+
+## 2026-04-18 — Landing page audit fixes — full pass (Task #23)
+
+Eleven landing-page audit findings (U-1/U-2/U-3 card clipping, B-1 dual Supabase clients, B-2 fonts blocking FCP, B-3 framer-motion in landing entry chunk, contrast/CTA hierarchy, GPU/log-noise) addressed in a single end-to-end pass. Three code-review iterations.
+
+### Parallax / card geometry (`src/components/landing/FeatureSection.tsx`)
+- Wrapped `.lp-stack-parallax` in an `overflow: hidden` rounded container; re-anchored the large watermark inside the bounded content container. ScrollStack geometry math is intentionally untouched (shared layout cache invariant preserved).
+
+### Single Supabase client (`src/integrations/supabase/safeClient.ts`)
+- Deleted `src/integrations/supabase/client.ts`. All WiseHire hooks/pages and dynamic imports now consume `safeClient` (`SupabaseClient<Database>` typed; TS inference preserved).
+
+### Fonts (`index.html`, `src/main.tsx`, `vite.config.ts`)
+- Removed Google Fonts `<link>` and preconnects from `index.html`.
+- Added `@fontsource/*` imports in `src/main.tsx`; CSP `font-src` and `style-src` no longer reference `fonts.googleapis.com` / `fonts.gstatic.com`.
+
+### Framer-motion ejected from landing entry chunk
+- `src/pages/Index.tsx`: framer-motion removed entirely from the page module. AnimatePresence + `m.div` tree extracted into a new `src/components/landing/LandingMotionStage.tsx` (lazy via `React.lazy`).
+- `framer-motion`'s `useReducedMotion` replaced by a vanilla `matchMedia` hook in `src/lib/usePrefersReducedMotion.ts`.
+- `WaitlistModal` and `QuickTailorSheet` lazified (mount only on user action).
+- `src/components/landing/LandingToggle.tsx` rewritten to use CSS transitions + a CSS keyframe ignition burst (no framer-motion import). Burst keyframes live in `src/pages/index-landing.css` (`@keyframes lp-toggle-burst`) — no inline `<style>` tag.
+- `src/components/landing/LandingHeader.tsx`: Sign In restored to dominant filled red gradient; toggle active state toned down to subtle background tint + `inset 0 0 0 1px` brand outline.
+- `src/components/landing/LandingModeTransition.tsx`: now `lazy()`-imported in `Index.tsx` and rendered only when `!prefersReducedMotion && waveKey > 0` — i.e. only after the user actually toggles between products. Reduced-motion users and users who never switch products never download the framer-motion chunk.
+- Net result: framer-motion is absent from the landing entry graph; `manualChunks(id)` in `vite.config.ts` (line 122) routes it to the `framer` chunk, fetched in parallel with the entry rather than blocking it, and cached across product switches.
+
+### Contrast & CTA hierarchy
+- Footer text/link colors switched to a higher-contrast token; underlines added on links.
+- Sign In returns to the dominant filled red style; toggle active states toned down (see above).
+
+### GPU / log-noise
+- Removed two landing backdrop blurs that were causing GPU stutter; fixed a Tailwind ambiguous-duration class; demoted analytics lock messages to `console.debug` gated on `import.meta.env.DEV`.
+
+### Verification harness (`scripts/phase6-screenshots.mjs`, `docs/landing/audit-report-post-fix.md`)
+- Fixed a JSDoc parse bug (`/*ungoogled-chromium*/` was prematurely closing a comment); pointed the harness at Playwright Chromium 1080 (`/nix/store/0n9rl5l9syy808xi9bk4f6dhnfrvhkww-playwright-browsers-chromium/chromium-1080/chrome-linux/chrome`).
+- Added a `footer` capture position so the matrix is now 16 shots (2 products × 2 themes × 4 positions: hero, mid, post, footer).
+- Cold-cache headless FCPs after fixes: WiseResume light **2658 ms**, WiseResume dark **2175 ms**, WiseHire light **1907 ms**, WiseHire dark **1833 ms** (all under the 2790 ms baseline). WiseHire dark LCP improved from ~5.5 s baseline to **2.9 s**.
+
+### Notes
+- `npx tsc --noEmit` passes.
+- The pre-existing `safeClient.test.ts` vitest failure reproduces on `main` and is not caused by Task #23.
+- Follow-ups #24 (broader LazyMotion migration) and #25 (WebGL pause offscreen) were proposed during the task and remain pending.
+
+---
+
 ## 2026-04-18 — Speed up the AI Provider activity log and admin tests (Task #10)
 
 Performance & correctness consolidation following the Task #5 audit. Eight focused changes spread across the panel, the Express server, the schema, and the deployment dashboard — no API surface changes.

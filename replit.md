@@ -511,3 +511,43 @@ JD Writer, Brief Generator, Pipeline are now live (comingSoon flags removed).
 - **Local parser alignment**: `localParser.ts` project output now matches full Project interface (role, startDate, endDate, technologies, description).
 - **Hardcoded keys removed**: `supabaseConstants.ts` and `client.ts` no longer contain hardcoded Supabase URL or anon key fallbacks. Both now require env vars, with console errors if missing.
 - **Audit log reliability**: `token-exchange` function `logExchange` is now async/awaited, ensuring audit records are written before the edge function response completes.
+
+## Agent Readiness — AI Discovery Surface (Task #26, 2026-04-18)
+
+The marketing site at `https://resume.thewise.cloud` publishes a complete agent-discovery surface so AI agents (Cloudflare AI, ChatGPT, Claude, MCP-aware tools) can read it, navigate it, and authenticate against the API.
+
+**Static discovery files** (`public/`):
+- `sitemap.xml` — 14 canonical public URLs.
+- `robots.txt` — includes `Content-Signal: search=yes, ai-input=yes, ai-train=no` plus `Sitemap:` reference.
+- `.well-known/api-catalog` — RFC 9727 (`application/linkset+json`).
+- `.well-known/openid-configuration` — delegates to Kinde (`https://thewisecloud.kinde.com`).
+- `.well-known/oauth-authorization-server` — mirrors Kinde AS metadata.
+- `.well-known/oauth-protected-resource` — RFC 9728. `resource = https://resume.thewise.cloud/api`.
+- `.well-known/mcp/server-card.json` — SEP-1649 server card.
+- `.well-known/agent-skills/index.json` — Agent Skills v0.2.0 with `$schema`, `skills[]`, per-skill `sha256`.
+- `.well-known/agent-skills/start-resume.json` — first published skill descriptor.
+- `docs/api/index.html` — `service-doc` target (HTML overview of the public API surface).
+
+**HTTP headers** (`public/_headers`): `Link` headers on `/` and `/index.html` for `api-catalog`, `service-doc`, `sitemap`. Explicit `Content-Type` + `Access-Control-Allow-Origin: *` on every extension-less `.well-known/*`.
+
+**Markdown for Agents** (`functions/_middleware.ts`, Cloudflare Pages Function):
+- `Accept: text/markdown` returns a markdown rendering with `Content-Type: text/markdown`. Browsers (`Accept: text/html…`) pass through unchanged.
+- `/` and `/index.html` use a hand-authored markdown summary; other public routes fall through to a generic HTML→markdown extractor.
+- Markdown responses also carry the same `Link` headers as the HTML home page.
+
+**WebMCP** (`src/hooks/useWebMcp.ts`, wired into `src/pages/Index.tsx`):
+- Feature-detects `navigator.modelContext.provideContext()`. No-op when absent.
+- Registers `open_pricing`, `open_examples`, `start_resume`, `switch_to_wisehire`. All four are bound to `react-router` `navigate(...)` (or `setMode` for the WiseResume↔WiseHire swap). Cleanup on unmount calls the handle's `dispose()` if present.
+- `try/catch` around both registration and disposal ensures a misbehaving WebMCP implementation can never break the page.
+
+**Out of scope (tracked):** real OpenAPI 3.1 spec for `/api/fn/*` (follow-up #28); per-route hand-authored markdown beyond `/` (follow-up #29); live `isitagentready.com` re-run after deploy (follow-up #27 — all three were CANCELLED by the user post-task).
+
+## Landing Page Performance Pass (Task #23, 2026-04-18)
+
+Eleven landing-page audit findings closed end-to-end. Architectural notes worth keeping in this file:
+
+- **Single Supabase client.** `src/integrations/supabase/client.ts` was deleted. All callers consume `src/integrations/supabase/safeClient.ts` (`SupabaseClient<Database>` typed). Anyone introducing a new Supabase consumer must use `safeClient` — do not reintroduce a second client.
+- **Framer-motion is not in the landing entry chunk.** `src/pages/Index.tsx` imports zero framer-motion symbols. The motion tree lives in `src/components/landing/LandingMotionStage.tsx` (lazy via `React.lazy`). `LandingModeTransition` is also `lazy()`-imported and only mounted when `!prefersReducedMotion && waveKey > 0` (i.e. only after the user toggles products). `WaitlistModal` and `QuickTailorSheet` are lazy. `LandingToggle` is pure CSS — its `lp-toggle-burst` keyframes live in `src/pages/index-landing.css`. `vite.config.ts` `manualChunks(id)` line 122 routes `node_modules/framer-motion` to the `framer` chunk.
+- **Reduced-motion hook.** The page-level reduced-motion check uses `src/lib/usePrefersReducedMotion.ts` (vanilla `matchMedia`), not framer-motion's `useReducedMotion`. New landing components must follow the same pattern to keep framer out of the entry graph.
+- **Fonts.** Google Fonts `<link>` and preconnects were removed from `index.html`; fonts are loaded via `@fontsource/*` imports in `src/main.tsx`. CSP `font-src` and `style-src` no longer reference `fonts.googleapis.com` / `fonts.gstatic.com`.
+- **Cold-cache headless FCPs after fixes:** WiseResume light **2658 ms**, WiseResume dark **2175 ms**, WiseHire light **1907 ms**, WiseHire dark **1833 ms**. WiseHire dark LCP improved from ~5.5 s baseline to **2.9 s**. Verification harness: `scripts/phase6-screenshots.mjs` (16-image matrix: 2 products × 2 themes × 4 positions). Report: `docs/landing/audit-report-post-fix.md`.

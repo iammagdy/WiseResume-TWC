@@ -1,10 +1,30 @@
 # Stability Improvements — What's Getting Better Behind the Scenes
 
-**Last verified:** 2026-04-26
+**Last verified:** 2026-04-18
 **Audience:** you (the owner). No code, no jargon, no technical paths.
 **Sources (governance — supreme):**
 - `project-governance/CHANGELOG.md` entries dated 2026-04-18 (Stability Fixes — Phases 1 to 5)
 - `project-governance/CONSTITUTION.md` §6.5–§6.6 (the rule that says every change must be documented for you, in plain English, alongside the engineering record)
+
+---
+
+## The marketing site is now visible to AI agents (2026-04-18)
+
+**What was the situation:** When AI agents like ChatGPT, Claude, or Cloudflare's own assistants tried to read our site, they couldn't tell what it was, what pages existed, how to log in, or what they were allowed to do. An automated "is your site ready for AI agents?" scan gave us 17 out of 100.
+
+**What changed:** We published all the standard "directory" files that AI agents look for — a sitemap of every public page, a machine-readable list of what AI is allowed to do with our content, an OAuth/sign-in description, an MCP "calling card", an agent skills index, and a small public API documentation page. We also taught the homepage to return a clean text version of itself when an AI agent specifically asks for one (regular browsers still get the normal page). Finally, we added a tiny set of "tools" the page exposes — open pricing, open examples, start a new resume, switch to the WiseHire view — so an AI assistant on a user's device can offer those as one-click actions.
+
+**What you'll notice:** Nothing visually. Existing visitors see the exact same site. But the next time someone asks an AI assistant "what's on resume.thewise.cloud" or "start a resume for me", the AI can actually answer accurately and even drive the page on the user's behalf.
+
+---
+
+## The landing page now opens noticeably faster, especially on phones (2026-04-18)
+
+**What was the situation:** The landing page was downloading a heavy animation library before the very first text could appear, even for visitors who never triggered any animation. Cards on the homepage clipped over each other in some scroll positions. Two different versions of the database client were being loaded, double-counting bytes. The Sign In button got visually outshouted by the "Individuals / Enterprises" toggle next to it. The page also ran two background blur effects that made some phones stutter while scrolling.
+
+**What changed:** We moved every heavy animation out of the first download — they only arrive after the page is on screen, and not at all for visitors who have "reduce motion" turned on. We rebuilt the product toggle to use the browser's own CSS animations (no library at all). We deleted the duplicate database client. We restored Sign In as the most prominent button and toned down the toggle so the eye lands on Sign In first. We dropped the two stuttery blur effects, fixed the card clipping, and switched fonts from Google's servers to ones bundled with the app so the first text appears faster.
+
+**What you'll notice:** The landing page paints text about a second sooner on a fresh visit. Scroll feels smoother on phones, especially on the WiseHire dark variant where the largest piece of content now appears in under three seconds (it used to take over five). The Sign In button is the first thing your eye lands on in the top-right.
 
 ---
 
