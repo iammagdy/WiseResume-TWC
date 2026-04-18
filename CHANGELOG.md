@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-04-18 — Remove legacy DevKit password fallback from `ai-test` (Task #2)
+
+Follow-up to Task #1 / S4. Now that the AI Provider Panel has been live with the unified Supabase Bearer JWT + `ADMIN_EMAILS` admin check, the temporary DevKit HMAC password fallback in `supabase/functions/ai-test/index.ts` is removed so there is exactly one way to authenticate admin engine-diagnostic calls.
+
+### Edge function (`supabase/functions/ai-test/index.ts`)
+- Deleted the `verifyDevKitSessionToken` helper and the `DEV_KIT_PASSWORD` / `adminPassword` branch from the body parser. Admin sub-provider override (`wiseresumeSubProvider`) is now gated solely on `isJwtAdmin(req)`.
+- **Requires `bash scripts/deploy-functions.sh` to take effect.**
+
+### Panel (`src/components/dev-kit/AIProviderPanel.tsx`)
+- OpenRouter and Groq engine test calls no longer send `adminPassword` in the body — the Supabase Bearer JWT (already attached by `edgeFunctions.functions.invoke`) is the only credential.
+
+### DevKit runner (`src/components/dev-kit/DevKitRunner.tsx`)
+- The `Engine · OpenRouter` and `Engine · Groq` runner tests also stop sending `adminPassword`, and the now-unused `getDevKitToken()` helper / local `adminPassword` const are removed.
+
 ## 2026-04-18 — AI Provider Panel: polish & hardening (Task #1, 25 audit findings)
 
 Closes the post-implementation audit on the DevKit AI Provider panel. All 25 valid findings (F1–F8 functionality, S1–S4 security, P1–P6 performance, U1–U5 UX, A1–A3 architecture) are addressed.

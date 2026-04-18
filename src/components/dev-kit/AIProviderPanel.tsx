@@ -738,7 +738,7 @@ function OpenRouterPanel({
     setTestState({ status: 'running' });
     try {
       const res = await edgeFunctions.functions.invoke('ai-test', {
-        body: { wiseresumeSubProvider: 'openrouter', adminPassword: getDevKitToken() },
+        body: { wiseresumeSubProvider: 'openrouter' },
         signal: ctrl.signal,
       });
       if (ctrl.signal.aborted) return;
@@ -1066,7 +1066,7 @@ function GroqPanel({
     setTestState({ status: 'running' });
     try {
       const res = await edgeFunctions.functions.invoke('ai-test', {
-        body: { wiseresumeSubProvider: 'groq', adminPassword: getDevKitToken() },
+        body: { wiseresumeSubProvider: 'groq' },
         signal: ctrl.signal,
       });
       if (ctrl.signal.aborted) return;

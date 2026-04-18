@@ -11,7 +11,6 @@ import { type TestStatus, type TestResult, type TestDef, type SectionId } from '
 import { SECTIONS } from './config';
 import { SectionSummaryBadge } from './DevKitBadges';
 import { TestItem } from './TestItem';
-import { getDevKitToken } from '@/contexts/DevKitSessionContext';
 
 const MINIMAL_RESUME = {
   title: 'Debug Test Resume',
@@ -25,7 +24,6 @@ const MINIMAL_RESUME = {
 const SAMPLE_JD = 'We are looking for a Senior Frontend Engineer with 3+ years of React and TypeScript experience.';
 
 export function DevKitRunner() {
-  const adminPassword = getDevKitToken() ?? '';
   const auth = useAuth();
   const [results, setResults] = useState<Record<string, TestResult>>({});
   const [expandedJson, setExpandedJson] = useState<Record<string, boolean>>({});
@@ -211,7 +209,7 @@ export function DevKitRunner() {
     {
       id: 'ai-engine-openrouter', label: 'Engine · OpenRouter (Gemma 4)', description: 'Directly test WiseResume managed OpenRouter endpoint — admin only', section: 'ai',
       run: () => strictInvoke('ai-engine-openrouter', async () => {
-        const res = await edgeFunctions.functions.invoke('ai-test', { body: { wiseresumeSubProvider: 'openrouter', adminPassword } });
+        const res = await edgeFunctions.functions.invoke('ai-test', { body: { wiseresumeSubProvider: 'openrouter' } });
         if (res.error) throw new Error((res.error as any).message || 'ai-test error');
         if (!res.data?.success) throw new Error(res.data?.error || 'ai-test returned failure');
         return { engine: 'openrouter', model: res.data.model, latencyMs: res.data.latencyMs, response: res.data.response };
@@ -220,7 +218,7 @@ export function DevKitRunner() {
     {
       id: 'ai-engine-groq', label: 'Engine · Groq (Qwen 3 32B)', description: 'Directly test WiseResume managed Groq endpoint (qwen/qwen3-32b) — admin only', section: 'ai',
       run: () => strictInvoke('ai-engine-groq', async () => {
-        const res = await edgeFunctions.functions.invoke('ai-test', { body: { wiseresumeSubProvider: 'groq', adminPassword } });
+        const res = await edgeFunctions.functions.invoke('ai-test', { body: { wiseresumeSubProvider: 'groq' } });
         if (res.error) throw new Error((res.error as any).message || 'ai-test error');
         if (!res.data?.success) throw new Error(res.data?.error || 'ai-test returned failure');
         return { engine: 'groq', model: res.data.model, latencyMs: res.data.latencyMs, response: res.data.response };

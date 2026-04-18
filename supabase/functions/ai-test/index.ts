@@ -10,49 +10,13 @@ const log = logger('ai-test');
 
 
 /**
- * Verify a DevKit HMAC-SHA-256 session token.
- * Same scheme as adminAuth.ts verifySessionToken — returns true if the token
- * is valid and unexpired, false otherwise.
- *
- * Audit task #1, finding S4 (auth unification): the new preferred path is the
- * Supabase Bearer JWT + ADMIN_EMAILS allow-list check (see `isJwtAdmin` below);
- * the DevKit HMAC token is retained as a fallback so existing DevKit sessions
- * keep working during the rollout.
- */
-async function verifyDevKitSessionToken(token: string, secretKey: string): Promise<boolean> {
-  try {
-    const dotIdx = token.lastIndexOf('.');
-    if (dotIdx === -1) return false;
-    const payloadB64 = token.slice(0, dotIdx);
-    const sigHex = token.slice(dotIdx + 1);
-    const payload = atob(payloadB64);
-    const colonIdx = payload.lastIndexOf(':');
-    if (colonIdx === -1) return false;
-    const expiresAt = parseInt(payload.slice(colonIdx + 1), 10);
-    if (isNaN(expiresAt) || Date.now() > expiresAt) return false;
-    const keyData = new TextEncoder().encode(secretKey);
-    const msgData = new TextEncoder().encode(payload);
-    const cryptoKey = await crypto.subtle.importKey(
-      'raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['verify']
-    );
-    const sigBytes = new Uint8Array((sigHex.match(/.{2}/g) ?? []).map((h: string) => parseInt(h, 16)));
-    return await crypto.subtle.verify('HMAC', cryptoKey, sigBytes, msgData);
-  } catch {
-    return false;
-  }
-}
-
-/**
  * S4 — Supabase JWT–based admin check. Looks up the verified caller's email
  * via supabase.auth.getUser() (same authoritative path used by every other
  * admin gate) and matches it against the comma-separated `ADMIN_EMAILS` env.
  *
- * This unifies the panel's auth scheme: admin proxy routes on the Express
- * server already gate on `requireAuthHeader + requireAdminEmail`, and now the
- * Edge Function honours the same Bearer JWT instead of demanding a separate
- * DevKit HMAC token. The HMAC fallback above is preserved so in-flight DevKit
- * sessions don't break during the rollout — schedule its removal once
- * AIProviderPanel.tsx stops sending `adminPassword`.
+ * This is the sole admin-auth path for ai-test. The legacy DevKit HMAC
+ * password fallback was removed in Task #2 once the AIProviderPanel was
+ * updated to send only the Supabase Bearer JWT.
  */
 async function isJwtAdmin(req: Request): Promise<boolean> {
   try {
@@ -96,24 +60,17 @@ serve(async (req) => {
     let checkOnly = false;
     let bodySubProvider: 'openrouter' | 'groq' | 'auto' | undefined;
     let isAdminRequest = false;
-    const DEV_KIT_PASSWORD = Deno.env.get('DEV_KIT_PASSWORD');
     try {
       const text = await req.clone().text();
       if (text) {
         const body = JSON.parse(text);
         checkOnly = body?.checkOnly === true;
-        // Gate wiseresumeSubProvider override on the DevKit HMAC session token
-        // so only Dev Kit callers can request raw engine diagnostics (bypasses
-        // cooldown). Raw-password acceptance was removed (Task #10): the only
-        // accepted credential is the signed session token issued by
-        // verify-dev-kit.
-        // S4: prefer the unified Bearer JWT + ADMIN_EMAILS check; fall back to
-        // the legacy DevKit HMAC token for in-flight DevKit sessions.
-        const candidatePw: string = body?.adminPassword ?? '';
-        const hasValidAdminPassword =
-          (await isJwtAdmin(req)) ||
-          (!!DEV_KIT_PASSWORD && await verifyDevKitSessionToken(candidatePw, DEV_KIT_PASSWORD));
-        if (hasValidAdminPassword && (body?.wiseresumeSubProvider === 'openrouter' || body?.wiseresumeSubProvider === 'groq' || body?.wiseresumeSubProvider === 'auto')) {
+        // Gate wiseresumeSubProvider override on the unified Supabase Bearer
+        // JWT + ADMIN_EMAILS check so only admin Dev Kit callers can request
+        // raw engine diagnostics (bypasses cooldown). The legacy DevKit HMAC
+        // password fallback was removed in Task #2.
+        const isAdmin = await isJwtAdmin(req);
+        if (isAdmin && (body?.wiseresumeSubProvider === 'openrouter' || body?.wiseresumeSubProvider === 'groq' || body?.wiseresumeSubProvider === 'auto')) {
           bodySubProvider = body.wiseresumeSubProvider;
           isAdminRequest = true;
         }
