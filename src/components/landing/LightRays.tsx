@@ -115,6 +115,22 @@ const LightRays = ({
 
       if (!containerRef.current) return;
 
+      /* Phase 2: feature-detect WebGL before instantiating Renderer
+         to avoid the silent "unable to create webgl context" log on
+         devices without WebGL support. LightRays is a decorative
+         overlay — degrading to no-render is acceptable. */
+      try {
+        const probe = document.createElement('canvas');
+        const probeGl =
+          probe.getContext('webgl2') ||
+          probe.getContext('webgl') ||
+          probe.getContext('experimental-webgl');
+        if (!probeGl) return;
+        (probeGl as WebGLRenderingContext).getExtension('WEBGL_lose_context')?.loseContext();
+      } catch {
+        return;
+      }
+
       let renderer: Renderer;
       try {
         renderer = new Renderer({

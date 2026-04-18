@@ -19,6 +19,21 @@ import { LandingToggle } from '@/components/landing/LandingToggle';
 import { LandingModeTransition } from '@/components/landing/LandingModeTransition';
 import { SoftDivider } from '@/components/landing/SoftDivider';
 import { WiseResumeHero } from '@/components/landing/WiseResumeHero';
+/* Eagerly preload whichever hero chunk corresponds to the initial active
+   product mode. Both heroes use React.lazy below so the inactive product
+   subtree stays out of the entry chunk; this preload simply primes the
+   active hero chunk so it's already in cache when Suspense reads it,
+   giving FCP/LCP parity with an eager import for the active product. */
+if (typeof window !== 'undefined') {
+  const isWiseHire =
+    window.location.pathname === '/enterprises' ||
+    new URLSearchParams(window.location.search).get('for') === 'companies';
+  if (isWiseHire) {
+    void import('@/components/landing/wisehire/WiseHireHero');
+  } else {
+    void import('@/components/landing/WiseResumeContent');
+  }
+}
 import {
   SCATTER_WRAPPER_VARIANTS, SCATTER_SECTION_ITEM,
   REDUCED_MOTION_WRAPPER, REDUCED_SECTION_ITEM,
