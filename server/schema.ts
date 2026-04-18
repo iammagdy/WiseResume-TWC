@@ -461,6 +461,9 @@ export const aiProviderBreaker = pgTable('ai_provider_breaker', {
     .notNull()
     .defaultNow(),
   openedUntil: timestamp('opened_until', { withTimezone: true }),
+  // Half-open / single-probe lock — set by try_acquire_breaker_pass()
+  // when a caller is granted the sole probe slot after cooldown expiry.
+  probeInFlightUntil: timestamp('probe_in_flight_until', { withTimezone: true }),
   lastSuccessAt: timestamp('last_success_at', { withTimezone: true }),
   lastFailureAt: timestamp('last_failure_at', { withTimezone: true }),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
