@@ -6,7 +6,7 @@ import { useProfile } from '@/hooks/useProfile';
 import triggerHaptic from '@/lib/haptics';
 import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
 import { useReducedMotion, motion, AnimatePresence } from 'framer-motion';
-import { useEffect, useState, useRef, useCallback, startTransition } from 'react';
+import { useEffect, useState, useRef, useCallback, startTransition, lazy, Suspense } from 'react';
 import { flushSync } from 'react-dom';
 import { useSettingsStore } from '@/store/settingsStore';
 import { getSafeMatchMedia } from '@/lib/envUtils';
@@ -19,14 +19,43 @@ import { LandingToggle } from '@/components/landing/LandingToggle';
 import { LandingModeTransition } from '@/components/landing/LandingModeTransition';
 import { SoftDivider } from '@/components/landing/SoftDivider';
 import { WiseResumeHero } from '@/components/landing/WiseResumeHero';
-import { WiseResumeContent } from '@/components/landing/WiseResumeContent';
-import { WiseHireHero } from '@/components/landing/wisehire/WiseHireHero';
-import { WiseHireFeatures } from '@/components/landing/wisehire/WiseHireFeatures';
-import { WiseHirePricing } from '@/components/landing/wisehire/WiseHirePricing';
-import { WiseHireDemoSection } from '@/components/landing/wisehire/WiseHireDemoSection';
-import { WiseHireTrustSection } from '@/components/landing/wisehire/WiseHireTrustSection';
-import { WiseHireFeatureTicker } from '@/components/landing/wisehire/WiseHireFeatureTicker';
-import { WiseHireClosingCTA } from '@/components/landing/wisehire/WiseHireClosingCTA';
+import {
+  SCATTER_WRAPPER_VARIANTS, SCATTER_SECTION_ITEM,
+  REDUCED_MOTION_WRAPPER, REDUCED_SECTION_ITEM,
+} from '@/components/landing/landingAnimations';
+
+/* Phase 2: Code-split inactive product trees + below-the-fold content.
+   The hero of WiseResume loads eagerly (default landing); everything else
+   downloads on demand. Each lazy boundary has a fixed-height Suspense
+   fallback to prevent layout shift when chunks arrive. */
+const WiseResumeContent = lazy(() =>
+  import('@/components/landing/WiseResumeContent').then((m) => ({ default: m.WiseResumeContent }))
+);
+const WiseHireHero = lazy(() =>
+  import('@/components/landing/wisehire/WiseHireHero').then((m) => ({ default: m.WiseHireHero }))
+);
+const WiseHireFeatures = lazy(() =>
+  import('@/components/landing/wisehire/WiseHireFeatures').then((m) => ({ default: m.WiseHireFeatures }))
+);
+const WiseHirePricing = lazy(() =>
+  import('@/components/landing/wisehire/WiseHirePricing').then((m) => ({ default: m.WiseHirePricing }))
+);
+const WiseHireDemoSection = lazy(() =>
+  import('@/components/landing/wisehire/WiseHireDemoSection').then((m) => ({ default: m.WiseHireDemoSection }))
+);
+const WiseHireTrustSection = lazy(() =>
+  import('@/components/landing/wisehire/WiseHireTrustSection').then((m) => ({ default: m.WiseHireTrustSection }))
+);
+const WiseHireFeatureTicker = lazy(() =>
+  import('@/components/landing/wisehire/WiseHireFeatureTicker').then((m) => ({ default: m.WiseHireFeatureTicker }))
+);
+const WiseHireClosingCTA = lazy(() =>
+  import('@/components/landing/wisehire/WiseHireClosingCTA').then((m) => ({ default: m.WiseHireClosingCTA }))
+);
+
+const LpFallback = ({ minHeight = 320 }: { minHeight?: number }) => (
+  <div aria-hidden="true" style={{ minHeight, width: '100%' }} />
+);
 import {
   SCATTER_WRAPPER_VARIANTS, SCATTER_SECTION_ITEM,
   REDUCED_MOTION_WRAPPER, REDUCED_SECTION_ITEM,
@@ -242,23 +271,38 @@ const Index = () => {
           {mode === 'wisehire' ? (
             <motion.div key="wisehire" variants={wrapperVariants} initial="hidden" animate="visible" exit="exit">
               <motion.div variants={sectionItem} custom={0}>
-                <WiseHireHero
-                  onOpenWaitlist={() => setWaitlistOpen(true)}
-                  mobileToggle={
-                    <div className="sm:hidden relative z-10 flex justify-center mt-1 mb-6">
-                      <LandingToggle uid="mob" compact mode={mode} prefersReducedMotion={prefersReducedMotion} onModeChange={handleLandingModeChange} />
-                    </div>
-                  }
-                />
+                <Suspense fallback={<LpFallback minHeight={640} />}>
+                  <WiseHireHero
+                    onOpenWaitlist={() => setWaitlistOpen(true)}
+                    mobileToggle={
+                      <div className="sm:hidden relative z-10 flex justify-center mt-1 mb-6">
+                        <LandingToggle uid="mob" compact mode={mode} prefersReducedMotion={prefersReducedMotion} onModeChange={handleLandingModeChange} />
+                      </div>
+                    }
+                  />
+                </Suspense>
                 <SoftDivider product="wisehire" />
-                <WiseHireFeatureTicker />
+                <Suspense fallback={<LpFallback minHeight={120} />}><WiseHireFeatureTicker /></Suspense>
               </motion.div>
-              <motion.div variants={sectionItem} custom={1}><WiseHireDemoSection /></motion.div>
-              <motion.div variants={sectionItem} custom={2}><SoftDivider product="wisehire" /><WiseHireTrustSection /></motion.div>
-              <motion.div variants={sectionItem} custom={3}><SoftDivider product="wisehire" /><WiseHireFeatures onOpenWaitlist={() => setWaitlistOpen(true)} /></motion.div>
-              <motion.div variants={sectionItem} custom={4}><SoftDivider product="wisehire" /><WiseHirePricing onOpenWaitlist={() => setWaitlistOpen(true)} /></motion.div>
+              <motion.div variants={sectionItem} custom={1}>
+                <Suspense fallback={<LpFallback minHeight={600} />}><WiseHireDemoSection /></Suspense>
+              </motion.div>
+              <motion.div variants={sectionItem} custom={2}>
+                <SoftDivider product="wisehire" />
+                <Suspense fallback={<LpFallback minHeight={400} />}><WiseHireTrustSection /></Suspense>
+              </motion.div>
+              <motion.div variants={sectionItem} custom={3}>
+                <SoftDivider product="wisehire" />
+                <Suspense fallback={<LpFallback minHeight={480} />}><WiseHireFeatures onOpenWaitlist={() => setWaitlistOpen(true)} /></Suspense>
+              </motion.div>
+              <motion.div variants={sectionItem} custom={4}>
+                <SoftDivider product="wisehire" />
+                <Suspense fallback={<LpFallback minHeight={520} />}><WiseHirePricing onOpenWaitlist={() => setWaitlistOpen(true)} /></Suspense>
+              </motion.div>
               <motion.div variants={sectionItem} custom={5}>
-                <WiseHireClosingCTA prefersReducedMotion={prefersReducedMotion} onOpenWaitlist={() => setWaitlistOpen(true)} />
+                <Suspense fallback={<LpFallback minHeight={320} />}>
+                  <WiseHireClosingCTA prefersReducedMotion={prefersReducedMotion} onOpenWaitlist={() => setWaitlistOpen(true)} />
+                </Suspense>
               </motion.div>
             </motion.div>
           ) : (
@@ -274,7 +318,9 @@ const Index = () => {
                   onCTA={handleCTA}
                 />
               </motion.div>
-              <WiseResumeContent prefersReducedMotion={prefersReducedMotion} isDark={isDark} onCTA={handleCTA} />
+              <Suspense fallback={<LpFallback minHeight={800} />}>
+                <WiseResumeContent prefersReducedMotion={prefersReducedMotion} isDark={isDark} onCTA={handleCTA} />
+              </Suspense>
             </motion.div>
           )}
         </AnimatePresence>

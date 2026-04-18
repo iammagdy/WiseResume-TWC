@@ -1,6 +1,28 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Renderer, Program, Mesh, Triangle } from 'ogl';
 import './Aurora.css';
+
+/* Phase 2: feature-detect WebGL once before instantiating ogl's Renderer
+   so we can render a CSS gradient fallback instead of letting the browser
+   log "unable to create webgl context" on devices without WebGL2. */
+let _webglSupportCache: boolean | null = null;
+const detectWebGL = (): boolean => {
+  if (_webglSupportCache !== null) return _webglSupportCache;
+  if (typeof document === 'undefined') return false;
+  try {
+    const canvas = document.createElement('canvas');
+    /* Renderer is created with `webgl: 2`, so we must probe WebGL2
+       specifically — a WebGL1-only device must use the CSS fallback. */
+    const gl = canvas.getContext('webgl2');
+    _webglSupportCache = !!gl;
+    if (gl) {
+      gl.getExtension('WEBGL_lose_context')?.loseContext();
+    }
+  } catch {
+    _webglSupportCache = false;
+  }
+  return _webglSupportCache;
+};
 
 const VERT = `#version 300 es
 in vec2 position;
@@ -133,8 +155,19 @@ export default function Aurora(props: AuroraProps) {
   propsRef.current = props;
 
   const ctnDom = useRef<HTMLDivElement>(null);
+  const [hasWebGL] = useState(detectWebGL);
+
+  /* CSS gradient fallback when WebGL is unavailable. Uses the same
+     colorStops so the visual brand still reads. */
+  const fallbackBg = useMemo(() => {
+    const [a = '#5227FF', b = '#7cff67', c = '#5227FF'] = colorStops;
+    return `radial-gradient(ellipse 80% 60% at 20% 30%, ${a}26 0%, transparent 60%),
+            radial-gradient(ellipse 70% 50% at 80% 70%, ${c}26 0%, transparent 60%),
+            radial-gradient(ellipse 60% 40% at 50% 50%, ${b}1f 0%, transparent 70%)`;
+  }, [colorStops]);
 
   useEffect(() => {
+    if (!hasWebGL) return;
     const ctn = ctnDom.current;
     if (!ctn) return;
 
@@ -219,7 +252,16 @@ export default function Aurora(props: AuroraProps) {
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [amplitude]);
+  }, [amplitude, hasWebGL]);
 
+  if (!hasWebGL) {
+    return (
+      <div
+        className="aurora-container"
+        aria-hidden="true"
+        style={{ background: fallbackBg }}
+      />
+    );
+  }
   return <div ref={ctnDom} className="aurora-container" />;
 }

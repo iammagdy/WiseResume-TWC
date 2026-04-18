@@ -1,13 +1,20 @@
-import type { ComponentType } from 'react';
+import { lazy, Suspense, type ComponentType } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { Brain, Kanban, FileText, Upload, Archive, CheckCircle2, type LucideIcon } from 'lucide-react';
-import { BriefDemo } from './BriefDemo';
-import { PipelineDemo } from './PipelineDemo';
-import { JDDemo } from './JDDemo';
-import { BulkScreeningDemo } from './BulkScreeningDemo';
-import { TalentPoolDemo } from './TalentPoolDemo';
-import { OfferTrackerDemo } from './OfferTrackerDemo';
 import { ScrollStack, ScrollStackItem } from '@/components/landing/ScrollStack';
+
+/* Phase 2: lazy-load each WiseHire demo component so they don't bloat
+   the initial bundle. Mirrors the pattern in FeatureSection.tsx. */
+const BriefDemo = lazy(() => import('./BriefDemo').then((m) => ({ default: m.BriefDemo })));
+const PipelineDemo = lazy(() => import('./PipelineDemo').then((m) => ({ default: m.PipelineDemo })));
+const JDDemo = lazy(() => import('./JDDemo').then((m) => ({ default: m.JDDemo })));
+const BulkScreeningDemo = lazy(() => import('./BulkScreeningDemo').then((m) => ({ default: m.BulkScreeningDemo })));
+const TalentPoolDemo = lazy(() => import('./TalentPoolDemo').then((m) => ({ default: m.TalentPoolDemo })));
+const OfferTrackerDemo = lazy(() => import('./OfferTrackerDemo').then((m) => ({ default: m.OfferTrackerDemo })));
+
+const DemoFallback = () => (
+  <div aria-hidden="true" style={{ minHeight: 320, width: '100%' }} />
+);
 
 const DEMOS: { key: string; label: string; icon: LucideIcon; desc: string; Demo: ComponentType }[] = [
   { key: 'brief', label: 'Brief Generator', icon: Brain, desc: 'AI reads a CV and produces a structured candidate brief with match score, strengths, red flags, and interview questions — in under 10 seconds.', Demo: BriefDemo },
@@ -143,7 +150,9 @@ export function WiseHireDemoSection() {
                     </div>
                   </div>
                   <div className="flex justify-center">
-                    <Demo />
+                    <Suspense fallback={<DemoFallback />}>
+                      <Demo />
+                    </Suspense>
                   </div>
                 </div>
               </div>
