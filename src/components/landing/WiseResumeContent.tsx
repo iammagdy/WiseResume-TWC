@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { FeatureSection } from '@/components/landing/FeatureSection';
 import { TrustSection } from '@/components/landing/TrustSection';
@@ -19,33 +20,60 @@ interface WiseResumeContentProps {
 
 export function WiseResumeContent({ prefersReducedMotion }: WiseResumeContentProps) {
   const sectionItem = prefersReducedMotion ? REDUCED_SECTION_ITEM : SCATTER_SECTION_ITEM;
+  /* Phase 4: track which scroll-stack card is currently active so the
+     sticky header can show "Step N of M — <label>". -1 = none yet. */
+  const [activeIdx, setActiveIdx] = useState(-1);
+  const total = featureSections.length;
+  const activeLabel = activeIdx >= 0 ? featureSections[activeIdx]?.title : null;
 
   return (
     <>
       {/* ─── SECTION 1: HEADING + SCROLLSTACK FEATURE SECTIONS ─── */}
       <motion.div variants={sectionItem} custom={1}>
         <div className="lp-separator" aria-hidden="true" />
-        <motion.div
-          className="text-center px-4 sm:px-6 py-16 max-w-4xl mx-auto"
-          variants={lpItemVariants}
-          initial={prefersReducedMotion ? 'visible' : 'hidden'}
-          whileInView="visible"
-          viewport={{ once: false, amount: 0.2 }}
-          style={{ background: 'var(--lp-bg)' }}
-        >
-          <p style={{ fontSize: '0.75rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--lp-eyebrow)', fontWeight: 600, marginBottom: '0.75rem' }}>
-            See it in action
-          </p>
-          <h2
-            className="font-bold leading-tight"
-            style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', color: 'var(--lp-text)', letterSpacing: '-0.02em' }}
-          >
-            Five tools. One platform.<br />
-            <span className="lp-gradient-text">Your unfair advantage in the job market.</span>
-          </h2>
-        </motion.div>
         <SoftDivider />
-        <div className="lp-stack-section">
+        {/* Phase 4: --lp-stack-gap = itemDistance / 2 so the inter-card
+            hairline divider lands at the geometric midpoint of the gap. */}
+        <div
+          className="lp-stack-section"
+          style={{ ['--lp-stack-gap' as string]: '240px' }}
+        >
+          <div className="lp-stack-sticky-header">
+            <motion.div
+              variants={lpItemVariants}
+              initial={prefersReducedMotion ? 'visible' : 'hidden'}
+              whileInView="visible"
+              viewport={{ once: false, amount: 0.2 }}
+            >
+              <p style={{ fontSize: '0.72rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--lp-eyebrow)', fontWeight: 600, marginBottom: '0.5rem' }}>
+                See it in action
+              </p>
+              <h2
+                className="font-bold leading-tight"
+                style={{ fontSize: 'clamp(1.6rem, 3.2vw, 2.4rem)', color: 'var(--lp-text)', letterSpacing: '-0.02em' }}
+              >
+                Five tools. One platform.{' '}
+                <span className="lp-gradient-text">Your unfair advantage.</span>
+              </h2>
+            </motion.div>
+            <div
+              className="lp-stack-step-chip"
+              data-active={activeIdx >= 0}
+              aria-live="polite"
+            >
+              <span className="lp-stack-step-chip-num">
+                {Math.max(activeIdx + 1, 1).toString().padStart(2, '0')}
+              </span>
+              <span className="lp-stack-step-chip-sep">/</span>
+              <span>{total.toString().padStart(2, '0')}</span>
+              {activeLabel && (
+                <>
+                  <span className="lp-stack-step-chip-sep" aria-hidden="true">·</span>
+                  <span>{activeLabel}</span>
+                </>
+              )}
+            </div>
+          </div>
           <ScrollStack
             useWindowScroll
             itemDistance={480}
@@ -53,6 +81,7 @@ export function WiseResumeContent({ prefersReducedMotion }: WiseResumeContentPro
             itemStackDistance={20}
             stackPosition="20%"
             baseScale={0.88}
+            onActiveCardChange={setActiveIdx}
           >
             {featureSections.map((section) => (
               <ScrollStackItem key={section.id}>

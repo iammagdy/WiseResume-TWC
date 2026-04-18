@@ -20,9 +20,25 @@
   margin: 0;
   box-sizing: border-box;
   transform-origin: top center;
-  will-change: transform, filter;
+  will-change: transform, filter, opacity;
+  /* Phase 4: published by ScrollStack.tsx every frame; children may use
+     this to apply a small counter-translate for inner-content parallax. */
+  --card-translate-y: 0px;
 }
 
 .scroll-stack-card:last-child {
   margin-bottom: 0 !important;
+}
+
+/* Phase 4: gentle inverse parallax for inner demo content. Apply this
+   class to the screenshot/demo container inside a ScrollStackItem and
+   it drifts opposite to the card's own translate by ~15%. */
+.lp-stack-parallax {
+  transform: translate3d(0, calc(var(--card-translate-y, 0px) * -0.15), 0);
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scroll-stack-card { will-change: auto; }
+  .lp-stack-parallax { transform: none; }
 }

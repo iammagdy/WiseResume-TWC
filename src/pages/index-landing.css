@@ -627,6 +627,88 @@
   }
 }
 
+/* ── Phase 4: sticky stack header + step counter chip ──── */
+.lp-stack-sticky-header {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: clamp(20px, 3vw, 32px) 16px clamp(14px, 2vw, 22px);
+  text-align: center;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    var(--lp-stack-section-bg) 0%,
+    color-mix(in srgb, var(--lp-stack-section-bg) 85%, transparent) 70%,
+    transparent 100%
+  );
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.lp-stack-sticky-header > * { pointer-events: auto; }
+
+.lp-stack-step-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--lp-text);
+  background: var(--lp-stack-pane-bg, rgba(255,255,255,0.06));
+  border: 1px solid var(--lp-stack-pane-border, rgba(255,255,255,0.12));
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.18);
+  transition: opacity 0.25s ease, transform 0.25s ease, color 0.35s ease,
+              background 0.35s ease, border-color 0.35s ease;
+  opacity: 0;
+  transform: translateY(-4px);
+}
+.lp-stack-step-chip[data-active="true"] {
+  opacity: 1;
+  transform: translateY(0);
+}
+.lp-stack-step-chip-num {
+  font-variant-numeric: tabular-nums;
+  color: var(--lp-eyebrow);
+}
+.lp-stack-step-chip-sep {
+  opacity: 0.5;
+}
+
+/* ── Phase 4: brand-tinted hairline at the midpoint of every
+   inter-card gap so the long gaps don't read as empty. The card has
+   margin-bottom: itemDistance, so we anchor at -itemDistance/2 from
+   the card's bottom. itemDistance is 480/520, midpoint ≈ 250px. We
+   center the line in the gap with translateY(-50%) of its own line. */
+.lp-stack-section .scroll-stack-card:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  bottom: calc(-1 * var(--lp-stack-gap, 240px));
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--lp-stack-glow) 30%,
+    var(--lp-stack-bridge) 50%,
+    var(--lp-stack-glow) 70%,
+    transparent 100%
+  );
+  pointer-events: none;
+  opacity: 0.7;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lp-stack-step-chip { transition: none; }
+}
+
 /* ── WISEHIRE PRICING — mobile horizontal scroll ─────────── */
 .wh-pricing-mobile-scroll {
   display: flex !important;

@@ -62,6 +62,10 @@ const DEMOS: { key: string; label: string; icon: LucideIcon; desc: string; Demo:
 
 export function WiseHireDemoSection() {
   const prefersReducedMotion = useReducedMotion();
+  /* Phase 4: track active scroll-stack card for the sticky step chip. */
+  const [activeIdx, setActiveIdx] = useState(-1);
+  const total = DEMOS.length;
+  const activeLabel = activeIdx >= 0 ? DEMOS[activeIdx]?.label : null;
 
   const headingVariant = prefersReducedMotion
     ? { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0.25 } } }
@@ -79,11 +83,11 @@ export function WiseHireDemoSection() {
       }}
     >
       <div
-        className="max-w-6xl mx-auto w-full"
-        style={{ padding: 'clamp(52px, 6vw, 84px) clamp(20px, 4vw, 40px) clamp(20px, 3vw, 40px)' }}
+        className="lp-stack-section"
+        style={{ ['--lp-stack-gap' as string]: '260px' }}
       >
+      <div className="lp-stack-sticky-header">
         <motion.div
-          className="text-center mb-10"
           variants={headingVariant}
           initial="hidden"
           whileInView="visible"
@@ -91,12 +95,12 @@ export function WiseHireDemoSection() {
         >
           <p
             style={{
-              fontSize: '0.75rem',
-              letterSpacing: '0.12em',
+              fontSize: '0.72rem',
+              letterSpacing: '0.14em',
               textTransform: 'uppercase',
               color: 'var(--lp-eyebrow)',
               fontWeight: 600,
-              marginBottom: '0.75rem',
+              marginBottom: '0.5rem',
               transition: 'color 0.35s ease',
             }}
           >
@@ -105,7 +109,7 @@ export function WiseHireDemoSection() {
           <h2
             className="font-bold leading-tight"
             style={{
-              fontSize: 'clamp(1.9rem, 4vw, 2.8rem)',
+              fontSize: 'clamp(1.6rem, 3.4vw, 2.4rem)',
               color: 'var(--lp-text)',
               letterSpacing: '-0.025em',
               transition: 'color 0.35s ease',
@@ -114,9 +118,24 @@ export function WiseHireDemoSection() {
             Watch AI handle the heavy lifting
           </h2>
         </motion.div>
+        <div
+          className="lp-stack-step-chip"
+          data-active={activeIdx >= 0}
+          aria-live="polite"
+        >
+          <span className="lp-stack-step-chip-num">
+            {Math.max(activeIdx + 1, 1).toString().padStart(2, '0')}
+          </span>
+          <span className="lp-stack-step-chip-sep">/</span>
+          <span>{total.toString().padStart(2, '0')}</span>
+          {activeLabel && (
+            <>
+              <span className="lp-stack-step-chip-sep" aria-hidden="true">·</span>
+              <span>{activeLabel}</span>
+            </>
+          )}
+        </div>
       </div>
-
-      <div className="lp-stack-section">
       <ScrollStack
         useWindowScroll
         itemDistance={520}
@@ -124,6 +143,7 @@ export function WiseHireDemoSection() {
         itemStackDistance={20}
         stackPosition="20%"
         baseScale={0.88}
+        onActiveCardChange={setActiveIdx}
       >
         {DEMOS.map(({ key, label, icon: Icon, desc, Demo }) => (
           <ScrollStackItem key={key}>

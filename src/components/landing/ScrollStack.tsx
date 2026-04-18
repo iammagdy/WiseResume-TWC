@@ -33,6 +33,10 @@ interface ScrollStackProps {
   rotationAmount?: number;
   blurAmount?: number;
   useWindowScroll?: boolean;
+  /* Phase 4: emits the index of the topmost (currently-active) card so a
+     consumer can render an external step counter without scanning the DOM
+     or attaching a second scroll listener. -1 when no card is active. */
+  onActiveCardChange?: (index: number) => void;
 }
 
 interface CardTransform {
@@ -40,6 +44,7 @@ interface CardTransform {
   scale: number;
   rotation: number;
   blur: number;
+  opacity: number;
 }
 
 interface TransformParams {
@@ -70,6 +75,7 @@ const ScrollStack = ({
   rotationAmount = 0,
   blurAmount = 0,
   useWindowScroll = false,
+  onActiveCardChange,
 }: ScrollStackProps) => {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const animationFrameRef = useRef<number | null>(null);
@@ -81,6 +87,10 @@ const ScrollStack = ({
      effect can trigger a one-shot recompute directly (no synthetic
      scroll-event dispatch needed). */
   const updateRef = useRef<(() => void) | null>(null);
+  /* Always points at the latest onActiveCardChange callback so the loop
+     never closes over a stale prop value. */
+  const onActiveCardChangeRef = useRef<typeof onActiveCardChange>(onActiveCardChange);
+  onActiveCardChangeRef.current = onActiveCardChange;
 
   /* Live params ref — read inside the RAF/scroll loop. Updating these
      does not require tearing down Lenis. */
@@ -177,6 +187,8 @@ const ScrollStack = ({
       return el.offsetTop;
     };
 
+    let lastActiveIndex = -2;
+
     const updateCardTransforms = () => {
       const cardList = cardsRef.current;
       if (!cardList.length) return;
@@ -191,12 +203,30 @@ const ScrollStack = ({
         : (scrollerRef.current?.querySelector(".scroll-stack-end") as HTMLElement | null);
       const endElementTop = endElement ? getElementOffset(endElement) : 0;
 
-      cardList.forEach((card, i) => {
-        if (!card) return;
+      /* Phase 4: pre-pass to compute every card's geometry once. We need
+         the FINAL topmost active index before applying blur (depth-based
+         blur for older cards in the stack), so we cannot derive it
+         progressively inside the transform pass. */
+      const cardGeo = cardList.map((card, i) => {
+        if (!card) return null;
         const cardTop = getElementOffset(card);
-        const triggerStart = cardTop - stackPositionPx - p.itemStackDistance * i;
-        const triggerEnd = cardTop - scaleEndPositionPx;
-        const pinStart = cardTop - stackPositionPx - p.itemStackDistance * i;
+        return {
+          cardTop,
+          triggerStart: cardTop - stackPositionPx - p.itemStackDistance * i,
+          triggerEnd: cardTop - scaleEndPositionPx,
+          pinStart: cardTop - stackPositionPx - p.itemStackDistance * i,
+        };
+      });
+      let activeIndex = -1;
+      for (let i = 0; i < cardGeo.length; i++) {
+        const g = cardGeo[i];
+        if (g && scrollTop >= g.triggerStart) activeIndex = i;
+      }
+
+      cardList.forEach((card, i) => {
+        const g = cardGeo[i];
+        if (!card || !g) return;
+        const { cardTop, triggerStart, triggerEnd, pinStart } = g;
         const pinEnd = endElementTop - containerHeight / 2;
 
         const scaleProgress = calculateProgress(scrollTop, triggerStart, triggerEnd);
@@ -205,15 +235,16 @@ const ScrollStack = ({
         const rotation = p.rotationAmount ? i * p.rotationAmount * scaleProgress : 0;
 
         let blur = 0;
-        if (p.blurAmount) {
-          let topCardIndex = 0;
-          for (let j = 0; j < cardList.length; j++) {
-            const jCardTop = getElementOffset(cardList[j]);
-            const jTriggerStart = jCardTop - stackPositionPx - p.itemStackDistance * j;
-            if (scrollTop >= jTriggerStart) topCardIndex = j;
-          }
-          if (i < topCardIndex) blur = Math.max(0, (topCardIndex - i) * p.blurAmount);
+        if (p.blurAmount && activeIndex > i) {
+          blur = Math.max(0, (activeIndex - i) * p.blurAmount);
         }
+
+        /* Phase 4: fade-in below trigger. Card is invisible when the
+           viewport is half a screen below its trigger, ramps to full
+           opacity at triggerStart. Removes the "ghost" effect of cards
+           sitting visible-but-scaled-down from the start. */
+        const fadeStart = triggerStart - containerHeight * 0.5;
+        const opacity = calculateProgress(scrollTop, fadeStart, triggerStart);
 
         let translateY = 0;
         const isPinned = scrollTop >= pinStart && scrollTop <= pinEnd;
@@ -228,6 +259,7 @@ const ScrollStack = ({
           scale: Math.round(scale * 1000) / 1000,
           rotation: Math.round(rotation * 100) / 100,
           blur: Math.round(blur * 100) / 100,
+          opacity: Math.round(opacity * 1000) / 1000,
         };
 
         const last = transformsCache.get(i);
@@ -236,14 +268,25 @@ const ScrollStack = ({
           Math.abs(last.translateY - newTransform.translateY) > 0.1 ||
           Math.abs(last.scale - newTransform.scale) > 0.001 ||
           Math.abs(last.rotation - newTransform.rotation) > 0.1 ||
-          Math.abs(last.blur - newTransform.blur) > 0.1;
+          Math.abs(last.blur - newTransform.blur) > 0.1 ||
+          Math.abs(last.opacity - newTransform.opacity) > 0.005;
 
         if (changed) {
           card.style.transform = `translate3d(0, ${newTransform.translateY}px, 0) scale(${newTransform.scale}) rotate(${newTransform.rotation}deg)`;
           card.style.filter = newTransform.blur > 0 ? `blur(${newTransform.blur}px)` : "";
+          card.style.opacity = String(newTransform.opacity);
+          /* Phase 4: expose the card's translateY as a CSS variable so
+             children (e.g. inner demo screenshots) can apply a small
+             counter-translate for a depth-parallax cue. */
+          card.style.setProperty("--card-translate-y", `${newTransform.translateY}px`);
           transformsCache.set(i, newTransform);
         }
       });
+
+      if (activeIndex !== lastActiveIndex) {
+        lastActiveIndex = activeIndex;
+        onActiveCardChangeRef.current?.(activeIndex);
+      }
     };
 
     /* --- IntersectionObserver gate: skip the per-frame transform writes
