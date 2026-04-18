@@ -107,7 +107,7 @@ export function WiseResumeContent({ prefersReducedMotion }: WiseResumeContentPro
             variants={lpItemVariants}
             initial={prefersReducedMotion ? 'visible' : 'hidden'}
             whileInView="visible"
-            viewport={{ once: false, amount: 0.2 }}
+            viewport={{ once: true, amount: 0.2 }}
           >
             <p className="font-semibold mb-1" style={{ color: 'var(--lp-text)' }}>Install WiseResume</p>
             <p className="text-sm mb-4" style={{ color: 'var(--lp-text-muted)' }}>Add to your home screen for a native app experience</p>

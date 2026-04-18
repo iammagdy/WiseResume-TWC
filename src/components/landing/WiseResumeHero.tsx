@@ -198,7 +198,7 @@ export function WiseResumeHero({
       <motion.div
         initial={prefersReducedMotion ? 'visible' : 'hidden'}
         whileInView="visible"
-        viewport={{ once: false, amount: 0.15 }}
+        viewport={{ once: true, amount: 0.15 }}
         variants={{
           hidden: { opacity: 0, y: 60 },
           visible: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 200, damping: 22 } },

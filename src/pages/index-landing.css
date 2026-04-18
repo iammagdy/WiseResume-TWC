@@ -100,12 +100,15 @@
   font-style: italic;
 }
 
-/* Body fallback background per landing theme — keeps a sane backdrop while
-   --lp-bg resolves to transparent or chunk hydration is in flight. */
-body:has(.lp-root) { background-color: #0a0a0f; }
-body:has(.lp-root[data-lp-scheme="light"]) { background-color: #fff5f5; }
-body:has(.lp-root[data-lp-product="wisehire"]) { background-color: #060912; }
-body:has(.lp-root[data-lp-product="wisehire"][data-lp-scheme="light"]) { background-color: #f0f5ff; }
+/* Body fallback background per landing theme — driven by data attributes
+   stamped on <body> in src/pages/Index.tsx. Using body[data-…] (not
+   body:has(.lp-root …)) means the themed backdrop survives the brief
+   windows when .lp-root is unmounted (route swap, suspense fallback,
+   chunk hydration) so the page never flashes white. */
+body[data-lp-scheme="dark"] { background-color: #0a0a0f; }
+body[data-lp-scheme="light"] { background-color: #fff5f5; }
+body[data-lp-scheme="dark"][data-lp-product="wisehire"] { background-color: #060912; }
+body[data-lp-scheme="light"][data-lp-product="wisehire"] { background-color: #f0f5ff; }
 
 /* Phase 5: defensive guard — any element ScrollStack manages writes its
    own inline transform every frame; a CSS :hover translate on the same

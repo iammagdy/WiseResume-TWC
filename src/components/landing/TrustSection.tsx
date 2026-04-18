@@ -81,7 +81,7 @@ export function TrustSection() {
           variants={headingVariant}
           initial="hidden"
           whileInView="visible"
-          viewport={{ once: false, amount: 0.25 }}
+          viewport={{ once: true, amount: 0.25 }}
         >
           <p
             style={{
@@ -122,7 +122,7 @@ export function TrustSection() {
           variants={containerVariants}
           initial="hidden"
           whileInView="visible"
-          viewport={{ once: false, amount: 0.1 }}
+          viewport={{ once: true, amount: 0.1 }}
         >
           {trustItems.map((item, i) => {
             const Icon = item.icon;

@@ -123,7 +123,7 @@ export function WiseHirePricing({ onOpenWaitlist }: WiseHirePricingProps) {
           variants={headingVariant}
           initial="hidden"
           whileInView="visible"
-          viewport={{ once: false, amount: 0.25 }}
+          viewport={{ once: true, amount: 0.25 }}
         >
           <p
             style={{
@@ -175,7 +175,7 @@ export function WiseHirePricing({ onOpenWaitlist }: WiseHirePricingProps) {
           variants={containerVariants}
           initial="hidden"
           whileInView="visible"
-          viewport={{ once: false, amount: 0.1 }}
+          viewport={{ once: true, amount: 0.1 }}
         >
           {tiers.map((tier, i) => (
             <motion.div

@@ -46,7 +46,7 @@ export function WiseHireFeatureTicker() {
     <motion.div
       initial={{ opacity: 0, y: 16 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: false, amount: 0.5 }}
+      viewport={{ once: true, amount: 0.5 }}
       transition={{ type: 'spring', stiffness: 240, damping: 28, restDelta: 0.001 }}
     >
     <div

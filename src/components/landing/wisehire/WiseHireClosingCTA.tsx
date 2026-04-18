@@ -23,7 +23,7 @@ export function WiseHireClosingCTA({ prefersReducedMotion, onOpenWaitlist }: Wis
           className="max-w-2xl mx-auto"
           initial={prefersReducedMotion ? {} : { opacity: 0, y: 28 }}
           whileInView={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
-          viewport={{ once: false, amount: 0.4 }}
+          viewport={{ once: true, amount: 0.4 }}
           transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
         >
           <p

@@ -92,6 +92,20 @@ const Index = () => {
 
   useEffect(() => { setIsDark(resolveIsDark(storeTheme)); }, [storeTheme]);
 
+  /* Phase 5: stamp body with landing scheme/product data attributes so the
+     themed fallback background rules (defined in index-landing.css) remain
+     active even during the brief windows when .lp-root is unmounted —
+     route changes, lazy-chunk swaps, suspense fallbacks. We intentionally
+     do NOT clear these on unmount: leaving the most-recent landing theme
+     stamped means navigating away or rehydrating never flashes white. */
+  useEffect(() => {
+    document.body.dataset.lpScheme = isDark ? 'dark' : 'light';
+  }, [isDark]);
+  useEffect(() => {
+    if (displayProduct === 'wisehire') document.body.dataset.lpProduct = 'wisehire';
+    else delete document.body.dataset.lpProduct;
+  }, [displayProduct]);
+
   const progressRef = useRef<HTMLDivElement>(null);
   const heroRef = useRef<HTMLElement>(null);
   const [searchParams, setSearchParams] = useSearchParams();
