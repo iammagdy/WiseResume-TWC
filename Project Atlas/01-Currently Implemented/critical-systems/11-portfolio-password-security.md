@@ -18,9 +18,11 @@ Previously, `get_public_portfolio` returned the portfolio data plus the stored `
 **Action taken:**
 
 1. **New SQL migration** (`supabase/migrations/20260426000000_portfolio_password_server_side.sql`):
+   - **Drops** the old `get_public_portfolio(text)` function to prevent bypass via the old single-arg signature.
+   - **Backfills** existing plain SHA-256 password hashes to bcrypt (`extensions.crypt(sha256_hex, gen_salt('bf', 10))`). Hashes starting with `$2` (already bcrypt) are skipped.
    - Adds `get_portfolio_gate_info(p_username)` — lightweight RPC that returns gating metadata (passwordEnabled, accentColor, etc.) without ever returning the hash.
-   - Overwrites `get_public_portfolio` with a new overload: `get_public_portfolio(p_username, p_password)`. When the portfolio has a password, the server calls `encode(extensions.digest(p_password, 'sha256'), 'hex')` and compares the result to the stored hash. Returns `{error: 'invalid_password'}` on mismatch rather than the full portfolio data.
-   - Existing stored hashes keep working — they are already SHA-256 hex strings.
+   - Adds `get_public_portfolio(p_username, p_password)`. Password verification uses bcrypt for backfilled hashes (`extensions.crypt(sha256(password), stored) == stored`) and falls back to direct SHA-256 comparison for new passwords set by the editor (pending editor update). Returns `{error: 'invalid_password'}` on mismatch.
+   - Existing protected portfolios keep working after the migration — owners don't need to re-set passwords.
 
 2. **`src/hooks/usePublicPortfolio.ts`**:
    - `usePortfolioGate` now calls `get_portfolio_gate_info` RPC instead of the old REST query; hash is never returned to the client.

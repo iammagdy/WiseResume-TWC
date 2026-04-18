@@ -1,13 +1,48 @@
 -- ============================================================
 -- Security & Trust Fixes — Task #8
--- 1. Add get_portfolio_gate_info RPC (returns only passwordEnabled,
---    never the hash — prevents client-side bypass).
--- 2. Update get_public_portfolio to enforce password server-side.
+-- 1. Drop old single-arg get_public_portfolio(text) so it
+--    cannot be used to bypass the password gate.
+-- 2. Backfill existing plaintext-SHA-256 hashes to bcrypt
+--    (bcrypt of the SHA-256 string) for proper salting.
+-- 3. Add get_portfolio_gate_info RPC — returns only gate
+--    metadata, never the hash.
+-- 4. Re-create get_public_portfolio(p_username, p_password)
+--    with server-side bcrypt verification.
 -- ============================================================
 
--- ─── Gate Info RPC ────────────────────────────────────────────────────────────
--- Returns the minimum info needed for the public portfolio gate page:
--- whether a password is required and cosmetic info (name, avatar, accent).
+-- ─── Step 1: Drop old single-arg signature ───────────────────────────────────
+-- IMPORTANT: Postgres function overloading means CREATE OR REPLACE of a
+-- *different* signature leaves the old function intact. We must DROP it
+-- explicitly so callers cannot bypass the password gate via the old path.
+DROP FUNCTION IF EXISTS public.get_public_portfolio(text);
+
+-- ─── Step 2: Backfill — wrap existing SHA-256 hashes in bcrypt ───────────────
+-- Existing hashes are hex-encoded SHA-256 strings (stored by the client).
+-- We wrap each one in bcrypt so the stored value gains a random salt.
+-- Detection heuristic: bcrypt hashes start with '$2'; legacy SHA-256 hashes are
+-- 64-char lowercase hex strings.
+-- After backfill, verification uses:
+--   extensions.crypt(sha256(supplied_password), stored_bcrypt) == stored_bcrypt
+-- New passwords set by PortfolioEditorPage.tsx (which still stores SHA-256 from
+-- the client) are handled by the legacy path in the verification block below.
+UPDATE public.profiles
+SET portfolio_extras = jsonb_set(
+  portfolio_extras,
+  '{passwordHash}',
+  to_jsonb(
+    extensions.crypt(
+      portfolio_extras->>'passwordHash',   -- existing SHA-256 hex string as input
+      extensions.gen_salt('bf', 10)        -- bcrypt with cost 10, random salt
+    )
+  )
+)
+WHERE (portfolio_extras->>'passwordEnabled')::boolean = true
+  AND portfolio_extras->>'passwordHash' IS NOT NULL
+  AND portfolio_extras->>'passwordHash' <> ''
+  AND portfolio_extras->>'passwordHash' NOT LIKE '$2%';  -- skip already-bcrypt hashes
+
+-- ─── Step 3: Gate Info RPC ───────────────────────────────────────────────────
+-- Returns the minimum info needed to render the password-gate page.
 -- Intentionally does NOT return passwordHash — enforcement is server-side.
 CREATE OR REPLACE FUNCTION public.get_portfolio_gate_info(p_username text)
  RETURNS jsonb
@@ -41,13 +76,15 @@ BEGIN
 END;
 $function$;
 
--- ─── Updated get_public_portfolio (with server-side password enforcement) ─────
--- Signature change: adds optional p_password parameter.
--- If the portfolio has passwordEnabled=true in portfolio_extras AND the
--- supplied password does not match (SHA-256 hex, matching the format set
--- by PortfolioEditorPage.tsx), the function returns
--- { "error": "invalid_password" } instead of the portfolio data.
--- All existing return columns and the rate-limit logic are preserved.
+-- ─── Step 4: Re-create get_public_portfolio with password enforcement ─────────
+-- New signature: (p_username text, p_password text DEFAULT NULL)
+-- Password verification logic:
+--   a) If stored hash is bcrypt ($2... prefix): verify with extensions.crypt()
+--      (used for hashes backfilled in Step 2, i.e. existing protected portfolios)
+--   b) If stored hash is legacy SHA-256 (no $2 prefix): compare directly
+--      (used for new passwords set by PortfolioEditorPage until that is updated
+--       to send the raw password to the server)
+-- All existing return columns and rate-limit logic are preserved.
 CREATE OR REPLACE FUNCTION public.get_public_portfolio(p_username text, p_password text DEFAULT NULL)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -65,6 +102,9 @@ DECLARE
   v_empty_resume jsonb;
   v_ip text;
   v_request_count int;
+  v_stored_hash text;
+  v_supplied_hash text;
+  v_password_ok boolean;
 BEGIN
   -- Rate limiting check: 60 requests per minute per IP
   BEGIN
@@ -110,16 +150,30 @@ BEGIN
   v_extras := v_profile.portfolio_extras;
 
   -- ── Server-side password enforcement ────────────────────────────────────────
-  -- Stored hash is SHA-256 hex of the raw password (set by PortfolioEditorPage).
-  -- We compute the same hash server-side using pgcrypto and compare.
   -- The hash is never returned to the client under any code path.
   IF COALESCE((v_extras->>'passwordEnabled')::boolean, false) IS TRUE
      AND v_extras->>'passwordHash' IS NOT NULL
      AND v_extras->>'passwordHash' <> ''
   THEN
-    IF p_password IS NULL
-       OR encode(extensions.digest(p_password, 'sha256'), 'hex') <> lower(v_extras->>'passwordHash')
-    THEN
+    v_stored_hash := v_extras->>'passwordHash';
+    v_password_ok := false;
+
+    IF p_password IS NOT NULL THEN
+      IF v_stored_hash LIKE '$2%' THEN
+        -- Bcrypt path: stored value is bcrypt(sha256(original_password)).
+        -- Compute sha256 of the supplied password, then bcrypt-verify.
+        v_supplied_hash := encode(extensions.digest(p_password, 'sha256'), 'hex');
+        v_password_ok := extensions.crypt(v_supplied_hash, v_stored_hash) = v_stored_hash;
+      ELSE
+        -- Legacy SHA-256 path: stored value is sha256(original_password).
+        -- Applies to newly set passwords until PortfolioEditorPage is updated
+        -- to send raw passwords to the server for bcrypt hashing.
+        v_supplied_hash := encode(extensions.digest(p_password, 'sha256'), 'hex');
+        v_password_ok := lower(v_supplied_hash) = lower(v_stored_hash);
+      END IF;
+    END IF;
+
+    IF NOT v_password_ok THEN
       RETURN jsonb_build_object('error', 'invalid_password');
     END IF;
   END IF;
