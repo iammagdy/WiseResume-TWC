@@ -1,5 +1,43 @@
 # WiseResume — Full Project Knowledge Base
 
+## Documentation Rules — MANDATORY After Every Task
+
+These rules apply automatically after every completed task, bug fix, or feature. No reminder needed.
+
+**Rule 1 — `CHANGELOG.md` (technical, English only)**
+Add an entry using the existing format: `## YYYY-MM-DD — Title (Task #N)` with bullet points listing changed files, functions, DB migrations, and exact behavior. English only. No Arabic. No plain-language explanations.
+
+**Rule 2 — `Project Atlas/04-For You (Plain Language)/`**
+Add a plain-language entry in the correct file:
+- New user-facing feature → `current-features.md`
+- Behind-the-scenes improvement (performance, cleanup, stability, security) → `stability-improvements.md`
+- Confirmed planned feature → `coming-soon.md`
+
+Entry format:
+```
+## [Benefit-focused title] (YYYY-MM-DD)
+**What was the situation:** [one sentence — the problem before]
+**What changed:** [plain words, no file names, no jargon]
+**What you'll notice:** [what the owner/user sees differently]
+```
+Update `**Last verified:**` at the top of whichever file you edit.
+
+**Rule 3 — `Project Atlas/01-Currently Implemented/`**
+Update the relevant reference cards:
+- New DB columns → update `database-tables/<table>.md`
+- New critical system or major feature → create `critical-systems/<N>-<name>.md`
+- Changed hook pattern or shared cache key → update `frontend-layer/hooks.md`
+- Changed page behaviour → update `pages/<page>.md`
+- Stability/infrastructure change → update or extend `stability-fixes/phase-N-*.md`
+Update `**Last verified:**` on every card you touch.
+
+**Rule 4 — `replit.md`**
+Update only when architecture, infrastructure, or key patterns change (new endpoint, new DB table, new shared cache key, new env var). Skip for routine bug fixes.
+
+**Full skill reference:** `.agents/skills/auto-docs/SKILL.md`
+
+---
+
 ## What the Project Is
 WiseResume is an AI-powered career management PWA. Production URL: https://resume.thewise.cloud. Users can build resumes, tailor them to job listings with AI, publish a public portfolio, practice interview questions, track job applications, and manage their career goals.
 
