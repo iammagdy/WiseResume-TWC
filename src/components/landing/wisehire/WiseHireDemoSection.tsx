@@ -1,4 +1,4 @@
-import { lazy, Suspense, type ComponentType } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, type ComponentType } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { Brain, Kanban, FileText, Upload, Archive, CheckCircle2, type LucideIcon } from 'lucide-react';
 import { ScrollStack, ScrollStackItem } from '@/components/landing/ScrollStack';
@@ -15,6 +15,41 @@ const OfferTrackerDemo = lazy(() => import('./OfferTrackerDemo').then((m) => ({ 
 const DemoFallback = () => (
   <div aria-hidden="true" style={{ minHeight: 320, width: '100%' }} />
 );
+
+/* Visibility-gated mount: only mounts (and triggers React.lazy import)
+   when the slot is approaching the viewport. Keeps height stable via
+   DemoFallback so ScrollStack measurements stay accurate. */
+function LazyOnVisible({ children }: { children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    if (visible) return;
+    const node = ref.current;
+    if (!node) return;
+    if (typeof IntersectionObserver === 'undefined') {
+      setVisible(true);
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setVisible(true);
+          io.disconnect();
+        }
+      },
+      { rootMargin: '600px 0px' },
+    );
+    io.observe(node);
+    return () => io.disconnect();
+  }, [visible]);
+
+  return (
+    <div ref={ref} style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+      {visible ? children : <DemoFallback />}
+    </div>
+  );
+}
 
 const DEMOS: { key: string; label: string; icon: LucideIcon; desc: string; Demo: ComponentType }[] = [
   { key: 'brief', label: 'Brief Generator', icon: Brain, desc: 'AI reads a CV and produces a structured candidate brief with match score, strengths, red flags, and interview questions — in under 10 seconds.', Demo: BriefDemo },
@@ -150,9 +185,11 @@ export function WiseHireDemoSection() {
                     </div>
                   </div>
                   <div className="flex justify-center">
-                    <Suspense fallback={<DemoFallback />}>
-                      <Demo />
-                    </Suspense>
+                    <LazyOnVisible>
+                      <Suspense fallback={<DemoFallback />}>
+                        <Demo />
+                      </Suspense>
+                    </LazyOnVisible>
                   </div>
                 </div>
               </div>
