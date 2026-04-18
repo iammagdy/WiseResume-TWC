@@ -63,8 +63,8 @@ Captured by a headless Chromium 125 page-load script
 (`scripts/phase6-screenshots.mjs`) using the browser's native
 `performance.getEntriesByType('navigation')` for TTFB,
 `'first-contentful-paint'` for FCP, and a `PerformanceObserver` on
-`'largest-contentful-paint'` for LCP. Each row is a fresh page load
-(`page.goto` with a new `BrowserContext`, dev mode).
+`'largest-contentful-paint'` for LCP. Each row is a fresh page load in a
+newly-opened `browser.newPage()` against the running Vite dev server.
 
 | Route | Theme | TTFB | FCP | LCP | Verdict |
 |-------|-------|------|-----|-----|---------|

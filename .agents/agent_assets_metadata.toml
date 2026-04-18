@@ -3,6 +3,6 @@ generated = []
 
 [[outputs]]
 id = "iAhqV8P06virZXluW83AB"
-uri = "file://.local/reports/phase-6-verification.md"
+uri = "file://docs/landing/phase-6-verification.md"
 type = "text"
 title = "Phase 6 — Landing Overhaul Verification Report"
