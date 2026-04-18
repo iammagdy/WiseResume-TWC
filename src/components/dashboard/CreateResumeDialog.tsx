@@ -428,9 +428,9 @@ export function CreateResumeDialog({
 
   // Free-tier gate: trial resumes don't count toward the free-plan quota of 1 resume.
   const nonTrialResumes = existingResumes.filter(r => !r.is_trial);
-  const activeTrial = existingResumes.find(
-    r => r.is_trial && r.trial_expires_at && new Date(r.trial_expires_at) > new Date(),
-  );
+  // Block a new trial if ANY trial resume exists (active OR in grace period).
+  // This prevents users from exploiting the 3-day grace window to chain trials.
+  const existingTrial = existingResumes.find(r => r.is_trial);
   const atResumeLimit = !planLoading && !isPro && nonTrialResumes.length >= 1 && !!user;
 
   const handleCreateTrial = async () => {
@@ -516,7 +516,7 @@ export function CreateResumeDialog({
               ]}
               compact
             />
-            {!activeTrial && (
+            {!existingTrial && (
               <div className="border border-dashed border-amber-300 dark:border-amber-700 rounded-xl p-4 space-y-2 bg-amber-50/50 dark:bg-amber-900/10">
                 <div className="flex items-center gap-2">
                   <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
@@ -541,9 +541,11 @@ export function CreateResumeDialog({
                 </Button>
               </div>
             )}
-            {activeTrial && (
+            {existingTrial && (
               <p className="text-xs text-center text-muted-foreground">
-                You already have an active 24-hour trial resume on your dashboard.
+                {existingTrial.trial_expires_at && new Date(existingTrial.trial_expires_at) > new Date()
+                  ? 'You already have an active 24-hour trial resume on your dashboard.'
+                  : 'Your trial resume is still on your dashboard. Upgrade to keep editing it.'}
               </p>
             )}
           </div>
