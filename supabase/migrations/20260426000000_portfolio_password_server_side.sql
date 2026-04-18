@@ -147,10 +147,13 @@ BEGIN
     RETURN NULL;
   END IF;
 
+  -- v_extras holds the raw portfolio_extras including passwordHash and passwordEnabled.
+  -- We must do password enforcement BEFORE sanitizing, then strip sensitive fields.
   v_extras := v_profile.portfolio_extras;
 
   -- ── Server-side password enforcement ────────────────────────────────────────
-  -- The hash is never returned to the client under any code path.
+  -- The hash must be read from v_extras before sanitization.
+  -- It is NEVER returned to the client — sanitization below ensures this.
   IF COALESCE((v_extras->>'passwordEnabled')::boolean, false) IS TRUE
      AND v_extras->>'passwordHash' IS NOT NULL
      AND v_extras->>'passwordHash' <> ''
@@ -178,6 +181,13 @@ BEGIN
     END IF;
   END IF;
   -- ── End password enforcement ─────────────────────────────────────────────────
+
+  -- ── Sanitize portfolioExtras for public consumption ──────────────────────────
+  -- Strip ALL password-related fields from v_extras BEFORE it is used in any
+  -- return value. The jsonb '-' operator (Postgres 9.3+) removes keys by name.
+  -- This guarantees passwordHash never leaves the server regardless of code path.
+  v_extras := v_extras - 'passwordHash' - 'passwordEnabled';
+  -- ── End sanitization ─────────────────────────────────────────────────────────
 
   v_github_cache := v_profile.github_projects_cache;
 
