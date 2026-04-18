@@ -320,11 +320,11 @@ export default function EditorPage() {
   }, []);
 
   // Called by desktop scrollspy/sidebar. Keeps activeTab in sync for preview highlight and ATS.
-  // certifications and languages are promoted to top-level; remaining optional sections still
-  // route through 'more'.
+  // Promoted sections (certifications, languages, awards, publications, volunteering) are top-level.
+  // Projects, hobbies, references still route through 'more'.
   const handleDesktopSectionChange = useCallback((sectionId: string) => {
     setActiveSection(sectionId);
-    const moreOnlyIds = ['awards', 'projects', 'publications', 'volunteering', 'hobbies', 'references'];
+    const moreOnlyIds = ['projects', 'hobbies', 'references'];
     if (moreOnlyIds.includes(sectionId)) {
       setActiveTab('more');
     } else {
@@ -353,10 +353,10 @@ export default function EditorPage() {
   // Background ATS scoring uses standalone function (no hook state to avoid re-render loops)
 
   // Smart tab change handler with auto-scroll.
-  // certifications and languages are promoted to top-level tabs; other optional sections
-  // still map to activeTab='more' with a moreSubSection.
+  // Promoted sections (certifications, languages, awards, publications, volunteering) are
+  // top-level tabs. Projects, hobbies, references still route through activeTab='more'.
   const handleTabChange = useCallback((newTab: string) => {
-    const moreOnlyIds = ['awards', 'projects', 'publications', 'volunteering', 'hobbies', 'references'];
+    const moreOnlyIds = ['projects', 'hobbies', 'references'];
     if (moreOnlyIds.includes(newTab)) {
       setActiveTab('more');
       setMoreSubSection(newTab);
@@ -543,14 +543,16 @@ export default function EditorPage() {
           { id: 'education', label: 'Education' },
           { id: 'skills', label: 'Skills' },
         ];
-    // Certifications and Languages are universally expected on most CVs — always show them.
+    // These sections are universally expected on CVs — always visible in the stepper.
     base.push({ id: 'certifications', label: 'Certifications' });
     base.push({ id: 'languages', label: 'Languages' });
+    base.push({ id: 'awards', label: 'Awards' });
+    base.push({ id: 'publications', label: 'Publications' });
+    base.push({ id: 'volunteering', label: 'Volunteering' });
     if (currentResume) {
-      // Remaining optional sections auto-promote when they contain data.
+      // Projects, Hobbies, References auto-promote only when they contain data.
       const MORE_SECTION_META: Record<string, string> = {
-        awards: 'Awards', projects: 'Projects',
-        publications: 'Publications', volunteering: 'Volunteering',
+        projects: 'Projects',
         hobbies: 'Hobbies', references: 'References',
       };
       for (const [id, label] of Object.entries(MORE_SECTION_META)) {
@@ -564,10 +566,10 @@ export default function EditorPage() {
     return base;
   }, [currentResume, educationFirst]);
 
-  // Count optional sections not yet added (available to add via More)
-  // certifications and languages are always in the stepper so excluded here
+  // Count optional sections not yet added (available to add via More).
+  // Certifications, Languages, Awards, Publications, Volunteering are always in the stepper.
   const availableMoreCount = useMemo(() => {
-    const MORE_OPTIONAL_IDS = ['awards', 'projects', 'publications', 'volunteering', 'hobbies', 'references'];
+    const MORE_OPTIONAL_IDS = ['projects', 'hobbies', 'references'];
     const addedIds = new Set(steps.map(s => s.id));
     return MORE_OPTIONAL_IDS.filter(id => !addedIds.has(id)).length;
   }, [steps]);
@@ -616,8 +618,15 @@ export default function EditorPage() {
   const handleCustomize = useCallback(() => setShowCustomize(true), []);
 
   const handleMoreSectionSelect = useCallback((sectionId: string) => {
-    setActiveTab('more');
-    setMoreSubSection(sectionId);
+    // Promoted sections are top-level tabs; route them directly.
+    const promotedIds = ['certifications', 'languages', 'awards', 'publications', 'volunteering'];
+    if (promotedIds.includes(sectionId)) {
+      setActiveTab(sectionId);
+      setMoreSubSection(null);
+    } else {
+      setActiveTab('more');
+      setMoreSubSection(sectionId);
+    }
     scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
