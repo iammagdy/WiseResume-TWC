@@ -761,11 +761,376 @@ app.get('/api/plan/:userId', async (req, res) => {
   }
 });
 
+// ── Analytics retention sweeper (Phase 5) ─────────────────────────────────────
+//
+// Once per day, prune rows older than the per-table retention window from
+// `portfolio_visits`, `error_log`, and `audit_logs`. The actual delete loop
+// lives in the Postgres RPC `sweep_analytics_retention(...)` (see migration
+// 20260425000000_analytics_retention.sql) so the work happens in batches of
+// 10k rows server-side and we never hold a long transaction from Node.
+//
+// Retention windows are env-tunable:
+//   PORTFOLIO_VISITS_RETENTION_DAYS (default 90)
+//   ERROR_LOG_RETENTION_DAYS        (default 30)
+//   AUDIT_LOGS_RETENTION_DAYS       (default 365)
+//
+// Disable entirely by setting ANALYTICS_SWEEP_ENABLED=false (e.g. in CI).
+
+interface SweepResult {
+  ran_at: string;
+  portfolio_visits_cutoff: string;
+  error_log_cutoff: string;
+  audit_logs_cutoff: string;
+  portfolio_visits_deleted: number;
+  error_log_deleted: number;
+  audit_logs_deleted: number;
+}
+interface SweepStatus {
+  lastRanAt: string | null;
+  lastDurationMs: number | null;
+  lastResult: SweepResult | null;
+  lastError: string | null;
+  nextScheduledAt: string | null;
+  config: {
+    enabled: boolean;
+    portfolioVisitsRetentionDays: number;
+    errorLogRetentionDays: number;
+    auditLogsRetentionDays: number;
+    intervalMs: number;
+  };
+}
+
+const ANALYTICS_SWEEP_ENABLED =
+  (process.env.ANALYTICS_SWEEP_ENABLED || 'true').toLowerCase() !== 'false';
+function parseRetentionDays(envName: string, fallback: number): number {
+  const raw = process.env[envName];
+  if (!raw) return fallback;
+  const n = parseInt(raw, 10);
+  if (!Number.isFinite(n) || n < 1) {
+    console.warn(
+      `[analytics-sweep] invalid ${envName}=${raw} — falling back to ${fallback}`,
+    );
+    return fallback;
+  }
+  return n;
+}
+const PORTFOLIO_VISITS_RETENTION_DAYS =
+  parseRetentionDays('PORTFOLIO_VISITS_RETENTION_DAYS', 90);
+const ERROR_LOG_RETENTION_DAYS =
+  parseRetentionDays('ERROR_LOG_RETENTION_DAYS', 30);
+const AUDIT_LOGS_RETENTION_DAYS =
+  parseRetentionDays('AUDIT_LOGS_RETENTION_DAYS', 365);
+const ANALYTICS_SWEEP_BATCH_SIZE = 10000;
+// Per-table cap on batch iterations so a runaway loop can't dominate
+// the connection forever. 1000 batches × 10k rows = 10M rows/table/run,
+// far above any realistic backlog.
+const ANALYTICS_SWEEP_MAX_BATCHES_PER_TABLE = 1000;
+// Lock TTL for the cross-instance sweep mutex. Sized comfortably above the
+// expected sweep duration so a healthy run never times out, but short enough
+// that a crashed holder is recovered before the next daily run.
+const ANALYTICS_SWEEP_LOCK_TTL_MS = 30 * 60 * 1000; // 30 minutes
+// Stable per-process holder id used to release only locks we own.
+const ANALYTICS_SWEEP_HOLDER_ID = `${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+const ANALYTICS_SWEEP_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24h
+// Wait a few minutes after boot before the first sweep so we don't
+// pile work onto a cold start; subsequent runs are 24h apart.
+const ANALYTICS_SWEEP_INITIAL_DELAY_MS = 5 * 60 * 1000;
+
+const sweepStatus: SweepStatus = {
+  lastRanAt: null,
+  lastDurationMs: null,
+  lastResult: null,
+  lastError: null,
+  nextScheduledAt: null,
+  config: {
+    enabled: ANALYTICS_SWEEP_ENABLED,
+    portfolioVisitsRetentionDays: PORTFOLIO_VISITS_RETENTION_DAYS,
+    errorLogRetentionDays: ERROR_LOG_RETENTION_DAYS,
+    auditLogsRetentionDays: AUDIT_LOGS_RETENTION_DAYS,
+    intervalMs: ANALYTICS_SWEEP_INTERVAL_MS,
+  },
+};
+
+/**
+ * Sweep one analytics table by repeatedly invoking the single-batch RPC.
+ * Each RPC call runs in its own transaction (because PL/pgSQL's outer
+ * loop and `GET DIAGNOSTICS` would otherwise hold a single long
+ * transaction for the whole table). When the RPC returns fewer rows
+ * than the batch size, we know the backlog is drained.
+ */
+async function sweepOneTable(
+  table: 'portfolio_visits' | 'error_log' | 'audit_logs',
+  days: number,
+): Promise<number> {
+  if (!sql) return 0;
+  let total = 0;
+  for (let i = 0; i < ANALYTICS_SWEEP_MAX_BATCHES_PER_TABLE; i++) {
+    const rows = await sql`
+      SELECT public.sweep_analytics_retention_batch(
+        ${table}::text,
+        ${days}::int,
+        ${ANALYTICS_SWEEP_BATCH_SIZE}::int
+      ) AS deleted
+    `;
+    const deleted = Number(rows[0]?.deleted ?? 0);
+    total += deleted;
+    if (deleted < ANALYTICS_SWEEP_BATCH_SIZE) return total;
+  }
+  console.warn(
+    `[analytics-sweep] ${table} hit max-batches cap`,
+    JSON.stringify({ batches: ANALYTICS_SWEEP_MAX_BATCHES_PER_TABLE, total }),
+  );
+  return total;
+}
+
+/**
+ * Run the full sweep across all three analytics tables. Cross-instance
+ * overlap is prevented by acquiring the durable single-row mutex
+ * `analytics_sweep_lock` (TTL-bounded, holder-tagged) before doing any
+ * work, renewing the lease between tables, and deleting our row on
+ * exit. A manual trigger can never race with the daily timer —
+ * concurrent invocations short-circuit with
+ * `lastError = 'sweep already in progress'`.
+ */
+let sweepInFlight = false;
+async function runAnalyticsSweep(): Promise<void> {
+  if (!sql) {
+    sweepStatus.lastError = 'DATABASE_URL not configured';
+    console.warn('[analytics-sweep] skipped — DATABASE_URL not configured');
+    return;
+  }
+  // In-process guard catches the trivially-concurrent case without a
+  // DB roundtrip; the advisory lock below catches multi-instance races.
+  if (sweepInFlight) {
+    sweepStatus.lastError = 'sweep already in progress (in-process)';
+    console.warn('[analytics-sweep] skipped — already running in this process');
+    return;
+  }
+  sweepInFlight = true;
+  const startedAt = Date.now();
+  let lockAcquired = false;
+  try {
+    // Cross-instance mutex via the analytics_sweep_lock single-row table.
+    // Neon's HTTP serverless driver doesn't preserve a session across
+    // statements, so a session-scoped pg_advisory_lock would silently
+    // be released the moment its HTTP request returns. The row pattern
+    // is durable across statement boundaries and TTL-bounded so a
+    // crashed holder can't pin the lock indefinitely.
+    const newExpiry = new Date(startedAt + ANALYTICS_SWEEP_LOCK_TTL_MS).toISOString();
+    const lockRows = await sql`
+      INSERT INTO public.analytics_sweep_lock (id, holder, acquired_at, expires_at)
+      VALUES (1, ${ANALYTICS_SWEEP_HOLDER_ID}, now(), ${newExpiry}::timestamptz)
+      ON CONFLICT (id) DO UPDATE
+        SET holder = EXCLUDED.holder,
+            acquired_at = EXCLUDED.acquired_at,
+            expires_at = EXCLUDED.expires_at
+        WHERE public.analytics_sweep_lock.expires_at < now()
+      RETURNING holder = ${ANALYTICS_SWEEP_HOLDER_ID} AS got
+    `;
+    lockAcquired = lockRows[0]?.got === true;
+    if (!lockAcquired) {
+      sweepStatus.lastError = 'sweep already in progress (lock row held)';
+      console.warn('[analytics-sweep] skipped — lock row held by another holder');
+      return;
+    }
+
+    const visitsCutoff = new Date(
+      startedAt - PORTFOLIO_VISITS_RETENTION_DAYS * 86_400_000,
+    ).toISOString();
+    const errorCutoff = new Date(
+      startedAt - ERROR_LOG_RETENTION_DAYS * 86_400_000,
+    ).toISOString();
+    const auditCutoff = new Date(
+      startedAt - AUDIT_LOGS_RETENTION_DAYS * 86_400_000,
+    ).toISOString();
+
+    // Lease heartbeat — extend the TTL between tables so a sweep that
+    // runs longer than the initial 30-minute window cannot be preempted.
+    // The UPDATE is guarded by `holder = us`; if rowcount is 0 our lease
+    // already expired and was claimed by someone else, so we abort
+    // rather than continue working without the mutex.
+    async function renewLease(): Promise<boolean> {
+      const renewedExpiry = new Date(Date.now() + ANALYTICS_SWEEP_LOCK_TTL_MS).toISOString();
+      const renewed = await sql!`
+        UPDATE public.analytics_sweep_lock
+           SET expires_at = ${renewedExpiry}::timestamptz
+         WHERE id = 1 AND holder = ${ANALYTICS_SWEEP_HOLDER_ID}
+        RETURNING 1 AS ok
+      `;
+      return renewed.length > 0;
+    }
+
+    const visitsDeleted = await sweepOneTable(
+      'portfolio_visits', PORTFOLIO_VISITS_RETENTION_DAYS);
+    if (!(await renewLease())) {
+      throw new Error('lease lost between portfolio_visits and error_log');
+    }
+    const errorDeleted = await sweepOneTable(
+      'error_log', ERROR_LOG_RETENTION_DAYS);
+    if (!(await renewLease())) {
+      throw new Error('lease lost between error_log and audit_logs');
+    }
+    const auditDeleted = await sweepOneTable(
+      'audit_logs', AUDIT_LOGS_RETENTION_DAYS);
+
+    const durationMs = Date.now() - startedAt;
+    const result: SweepResult = {
+      ran_at: new Date(startedAt).toISOString(),
+      portfolio_visits_cutoff: visitsCutoff,
+      error_log_cutoff: errorCutoff,
+      audit_logs_cutoff: auditCutoff,
+      portfolio_visits_deleted: visitsDeleted,
+      error_log_deleted: errorDeleted,
+      audit_logs_deleted: auditDeleted,
+    };
+    sweepStatus.lastRanAt = new Date(startedAt).toISOString();
+    sweepStatus.lastDurationMs = durationMs;
+    sweepStatus.lastResult = result;
+    sweepStatus.lastError = null;
+    console.log(
+      '[analytics-sweep] completed',
+      JSON.stringify({
+        durationMs,
+        portfolio_visits_deleted: visitsDeleted,
+        error_log_deleted: errorDeleted,
+        audit_logs_deleted: auditDeleted,
+      }),
+    );
+  } catch (err) {
+    const durationMs = Date.now() - startedAt;
+    sweepStatus.lastRanAt = new Date(startedAt).toISOString();
+    sweepStatus.lastDurationMs = durationMs;
+    sweepStatus.lastError = err instanceof Error ? err.message : String(err);
+    console.error('[analytics-sweep] failed:', err);
+  } finally {
+    if (lockAcquired) {
+      try {
+        // Only release a lock we actually own — avoids stomping on a
+        // subsequent holder if we somehow ran past our TTL.
+        await sql`
+          DELETE FROM public.analytics_sweep_lock
+          WHERE id = 1 AND holder = ${ANALYTICS_SWEEP_HOLDER_ID}
+        `;
+      } catch (releaseErr) {
+        console.error('[analytics-sweep] failed to release lock row:', releaseErr);
+      }
+    }
+    sweepInFlight = false;
+  }
+}
+
+function scheduleAnalyticsSweep(): void {
+  if (!ANALYTICS_SWEEP_ENABLED) {
+    console.log('[analytics-sweep] disabled via ANALYTICS_SWEEP_ENABLED=false');
+    return;
+  }
+  if (!sql) {
+    console.warn('[analytics-sweep] not scheduled — DATABASE_URL missing');
+    return;
+  }
+  console.log(
+    '[analytics-sweep] scheduled',
+    JSON.stringify({
+      portfolioVisitsRetentionDays: PORTFOLIO_VISITS_RETENTION_DAYS,
+      errorLogRetentionDays: ERROR_LOG_RETENTION_DAYS,
+      auditLogsRetentionDays: AUDIT_LOGS_RETENTION_DAYS,
+      initialDelayMs: ANALYTICS_SWEEP_INITIAL_DELAY_MS,
+      intervalMs: ANALYTICS_SWEEP_INTERVAL_MS,
+    }),
+  );
+  sweepStatus.nextScheduledAt = new Date(
+    Date.now() + ANALYTICS_SWEEP_INITIAL_DELAY_MS,
+  ).toISOString();
+  const initialTimer = setTimeout(() => {
+    void runAnalyticsSweep().finally(() => {
+      sweepStatus.nextScheduledAt = new Date(
+        Date.now() + ANALYTICS_SWEEP_INTERVAL_MS,
+      ).toISOString();
+    });
+    const recurring = setInterval(() => {
+      void runAnalyticsSweep().finally(() => {
+        sweepStatus.nextScheduledAt = new Date(
+          Date.now() + ANALYTICS_SWEEP_INTERVAL_MS,
+        ).toISOString();
+      });
+    }, ANALYTICS_SWEEP_INTERVAL_MS);
+    recurring.unref?.();
+  }, ANALYTICS_SWEEP_INITIAL_DELAY_MS);
+  initialTimer.unref?.();
+}
+
+/**
+ * GET /api/admin/analytics-sweep-status
+ *
+ * Returns the latest analytics-retention sweep summary so the team can
+ * confirm the daily job is running. Admin-gated: caller must present a
+ * valid Supabase Bearer token AND the verified user's email must be in
+ * the comma-separated `ADMIN_EMAILS` env var (same allow-list every
+ * admin-* edge function uses).
+ */
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '')
+  .split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+async function requireAdminEmail(
+  req: AuthedRequest, res: Response, next: NextFunction,
+): Promise<void> {
+  if (ADMIN_EMAILS.length === 0) {
+    res.status(503).json({ error: 'ADMIN_EMAILS not configured' });
+    return;
+  }
+  if (!sql) {
+    res.status(503).json({ error: 'Database not configured' });
+    return;
+  }
+  if (!req.verifiedUserId) {
+    res.status(401).json({ error: 'Authentication required' });
+    return;
+  }
+  try {
+    const rows = await sql`
+      SELECT lower(email) AS email FROM profiles
+      WHERE user_id = ${req.verifiedUserId} LIMIT 1
+    `;
+    const email = (rows[0]?.email as string | undefined) || '';
+    if (!email || !ADMIN_EMAILS.includes(email)) {
+      res.status(403).json({ error: 'Admin access required' });
+      return;
+    }
+    next();
+  } catch (err) {
+    res.status(500).json({ error: 'Admin check failed', detail: String(err) });
+  }
+}
+
+app.get(
+  '/api/admin/analytics-sweep-status',
+  requireAuthHeader,
+  requireAdminEmail,
+  (_req, res) => {
+    res.json(sweepStatus);
+  },
+);
+
+/**
+ * POST /api/admin/analytics-sweep-run — manual trigger for the retention
+ * sweep, useful for verifying configuration without waiting 24h. Same
+ * admin gate as the status endpoint.
+ */
+app.post(
+  '/api/admin/analytics-sweep-run',
+  requireAuthHeader,
+  requireAdminEmail,
+  async (_req, res) => {
+    await runAnalyticsSweep();
+    res.json(sweepStatus);
+  },
+);
+
 // ── Start server ──────────────────────────────────────────────────────────────
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`[server] WiseResume API server running on port ${PORT}`);
   console.log(`[server] Supabase URL: ${SUPABASE_URL ? 'configured' : 'NOT SET'}`);
   console.log(`[server] Database: ${DATABASE_URL ? 'configured' : 'NOT SET'}`);
+  scheduleAnalyticsSweep();
 });
 
 export default app;

@@ -469,6 +469,17 @@ export const aiProviderBreaker = pgTable('ai_provider_breaker', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+// ── analytics_sweep_lock ──────────────────────────────────────────────────────
+// Phase 5 retention sweep — single-row durable mutex. The Neon HTTP driver
+// can't hold session advisory locks across statements, so we use a TTL row
+// instead. See migration 20260425000000_analytics_retention.sql.
+export const analyticsSweepLock = pgTable('analytics_sweep_lock', {
+  id: integer('id').primaryKey().default(1),
+  holder: text('holder').notNull(),
+  acquiredAt: timestamp('acquired_at', { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+});
+
 // ── admin_settings ────────────────────────────────────────────────────────────
 export const adminSettings = pgTable('admin_settings', {
   id: uuid('id').primaryKey().defaultRandom(),

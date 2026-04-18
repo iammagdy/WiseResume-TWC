@@ -308,6 +308,31 @@ bash scripts/deploy-functions.sh                      # redeploy all edge functi
 - **Structured observability** (`_shared/logger.ts`): JSON-formatted Edge Function logger with DEBUG/INFO/WARN/ERROR levels, correlation fields, and structured error serialization. Adopted in `creditUtils.ts` and `authMiddleware.ts`. All Edge Function logs are captured by Supabase Dashboard and exportable to external aggregators.
 - **Dead code removed**: `_shared/deductCredits.ts` deleted (no longer imported anywhere after Task #9 credit-enforcement refactor).
 
+## Analytics Data Lifecycle (Phase 5)
+The three insert-heavy analytics tables are pruned daily and indexed with BRIN on the timestamp column.
+
+| Table | Time column | Default retention | Env override |
+|---|---|---|---|
+| `portfolio_visits` | `visited_at` | 90 days | `PORTFOLIO_VISITS_RETENTION_DAYS` |
+| `error_log` | `created_at` | 30 days | `ERROR_LOG_RETENTION_DAYS` |
+| `audit_logs` | `created_at` | 365 days | `AUDIT_LOGS_RETENTION_DAYS` |
+
+**Mechanism:** The Express server (`server/index.ts`) schedules `runAnalyticsSweep()` 5 minutes after boot, then every 24h. For each table the sweeper loops, calling the SECURITY DEFINER RPC `public.sweep_analytics_retention_batch(table, days, batch_size=10000)` (in `supabase/migrations/20260425000000_analytics_retention.sql`) once per batch — each RPC call runs in its own short transaction with `FOR UPDATE SKIP LOCKED` so production inserts never block on the sweep. The loop stops when a call deletes fewer than `batch_size` rows (table is drained) or hits the 1000-batch-per-table safety cap.
+
+**Concurrency control:** Cross-instance overlap is prevented by a single-row mutex table `analytics_sweep_lock` (TTL = 30min, holder-tagged with a per-process id). Acquire is `INSERT … ON CONFLICT DO UPDATE … WHERE expires_at < now() RETURNING (holder = me)`; release is `DELETE … WHERE holder = me`. The TTL is renewed between tables so a sweep that legitimately runs longer than 30min cannot be preempted, and the run aborts immediately if the heartbeat finds the lease was taken by another holder. An in-process boolean short-circuits trivially-concurrent same-process calls. Session-level `pg_advisory_lock` is intentionally NOT used because the Neon HTTP serverless driver does not preserve a backend session across statements.
+
+**Indexes:** `idx_portfolio_visits_visited_at_brin`, `idx_error_log_created_at_brin`, `idx_audit_logs_created_at_brin` — all BRIN with `pages_per_range = 32`. ~10× smaller than B-tree on append-only timestamp data.
+
+**Observability:** Each sweep logs a single line `[analytics-sweep] completed {durationMs, *_deleted}`. The latest run summary is exposed at:
+- `GET /api/admin/analytics-sweep-status` — read latest sweep state + config
+- `POST /api/admin/analytics-sweep-run` — manually trigger a sweep
+
+Both endpoints require a valid Supabase Bearer token AND the verified user's email must be in the `ADMIN_EMAILS` env var (same allow-list as admin-* edge functions).
+
+**Disabling:** Set `ANALYTICS_SWEEP_ENABLED=false` (e.g. in CI) to skip the schedule entirely. The RPC remains callable manually.
+
+**Restore from Neon backup:** Neon retains point-in-time backups for the configured PITR window. To restore a deleted analytics row, open the Neon console → Branches → "Restore" → choose a timestamp before the sweep, branch into a new database, then `INSERT … SELECT` from the branch back into the live table. Do not promote the branch over production.
+
 ## UI Components (Design System Details)
 - **Buttons**: Clean solid fills, indigo primary, outline with border, no glow shadows
 - **Cards**: Solid `bg-card` with `border-border` + `shadow-soft` (no `glass-elevated`)
