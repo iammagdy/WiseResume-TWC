@@ -239,6 +239,50 @@ export default function PortfolioEditorPage() {
       setPasswordHash((extras.passwordHash as string) || '');
       setCustomDomain((extras.customDomain as string) || '');
       setContactFormEnabled(typeof extras.contactFormEnabled === 'boolean' ? extras.contactFormEnabled : true);
+
+      // If a persisted draft exists, overlay it on top of the live-column values.
+      // The draft uses the same key names as getCurrentSnapshot().
+      const d = profile.portfolioDraft;
+      if (d) {
+        if ('username' in d) setUsername(String(d.username ?? ''));
+        if ('bio' in d) setBio(String(d.bio ?? ''));
+        if ('portfolioEnabled' in d) setPortfolioEnabled(Boolean(d.portfolioEnabled));
+        if ('githubUrl' in d) setGithubUrl(String(d.githubUrl ?? ''));
+        if ('websiteUrl' in d) setWebsiteUrl(String(d.websiteUrl ?? ''));
+        if ('twitterUrl' in d) setTwitterUrl(String(d.twitterUrl ?? ''));
+        if ('linkedinUrl' in d) setLinkedinUrl(String(d.linkedinUrl ?? ''));
+        if ('contactEmail' in d) setContactEmail(String(d.contactEmail ?? ''));
+        if ('selectedTheme' in d) setSelectedTheme(String(d.selectedTheme ?? 'system'));
+        if ('sections' in d) setSections(d.sections as PortfolioSections);
+        if ('metaTitle' in d) setMetaTitle(String(d.metaTitle ?? ''));
+        if ('metaDescription' in d) setMetaDescription(String(d.metaDescription ?? ''));
+        if ('portfolioStyle' in d) setPortfolioStyle(d.portfolioStyle as PortfolioStyle);
+        if ('portfolioLayout' in d) setPortfolioLayout(d.portfolioLayout as PortfolioLayout);
+        if ('portfolioAccentColor' in d) setPortfolioAccentColor(String(d.portfolioAccentColor ?? '#e84545'));
+        if ('portfolioFont' in d) setPortfolioFont(d.portfolioFont as PortfolioFont);
+        if ('availabilityStatus' in d) setAvailabilityStatus(d.availabilityStatus as 'actively-looking' | 'open-to-offers' | 'not-looking');
+        if ('availabilityHeadline' in d) setAvailabilityHeadline(String(d.availabilityHeadline ?? ''));
+        if ('syncMode' in d) setSyncMode(d.syncMode as 'auto' | 'locked');
+        if ('caseStudies' in d) setCaseStudies(d.caseStudies as typeof caseStudies);
+        if ('services' in d) setServices(d.services as typeof services);
+        if ('testimonials' in d) setTestimonials(d.testimonials as typeof testimonials);
+        if ('highlights' in d) setHighlights(d.highlights as typeof highlights);
+        if ('portfolioSummary' in d) setPortfolioSummary(String(d.portfolioSummary ?? ''));
+        if ('selectedResumeId' in d) setSelectedResumeId(String(d.selectedResumeId ?? ''));
+        if ('sectionOrder' in d) setSectionOrder(d.sectionOrder as string[]);
+        if ('pinnedProject' in d) setPinnedProject(d.pinnedProject as typeof pinnedProject);
+        if ('scrollEffect' in d) setScrollEffect(d.scrollEffect as ScrollEffect);
+        if ('videoIntroUrl' in d) setVideoIntroUrl(String(d.videoIntroUrl ?? ''));
+        if ('schedulingUrl' in d) setSchedulingUrl(String(d.schedulingUrl ?? ''));
+        if ('abChallengerTheme' in d) setAbChallengerTheme(String(d.abChallengerTheme ?? ''));
+        if ('portfolioCertifications' in d) setPortfolioCertifications(d.portfolioCertifications as typeof portfolioCertifications);
+        if ('portfolioPrimaryLanguage' in d) setPortfolioPrimaryLanguage(String(d.portfolioPrimaryLanguage ?? 'English'));
+        if ('portfolioSecondaryLanguage' in d) setPortfolioSecondaryLanguage(String(d.portfolioSecondaryLanguage ?? ''));
+        if ('passwordEnabled' in d) setPasswordEnabled(Boolean(d.passwordEnabled));
+        if ('passwordHash' in d) setPasswordHash(String(d.passwordHash ?? ''));
+        if ('customDomain' in d) setCustomDomain(String(d.customDomain ?? ''));
+        if ('contactFormEnabled' in d) setContactFormEnabled(Boolean(d.contactFormEnabled));
+      }
     }
   }, [profile]);
 
@@ -510,6 +554,26 @@ export default function PortfolioEditorPage() {
     return promptText || '';
   };
 
+  const [savingDraft, setSavingDraft] = useState(false);
+
+  const handleSaveDraft = async () => {
+    haptics.light();
+    setSavingDraft(true);
+    try {
+      const snapshot = JSON.parse(getCurrentSnapshot()) as Record<string, unknown>;
+      await updateProfile({
+        portfolioDraft: snapshot,
+        portfolioDraftSavedAt: new Date().toISOString(),
+      } as Parameters<typeof updateProfile>[0]);
+      setLastSavedSnapshot(getCurrentSnapshot());
+      toast.success('Draft saved. Click "Publish" when you\'re ready to go live.');
+    } catch {
+      toast.error('Failed to save draft. Please try again.');
+    } finally {
+      setSavingDraft(false);
+    }
+  };
+
   const handleSave = async (overrides?: {portfolioEnabled?: boolean; portfolioStyleOverride?: string; abChallengerThemeOverride?: string}) => {
     const isEnabling = overrides?.portfolioEnabled === true ||
     overrides?.portfolioEnabled === undefined && portfolioEnabled;
@@ -593,6 +657,9 @@ export default function PortfolioEditorPage() {
       };
 
       await updateProfile(updates as Parameters<typeof updateProfile>[0]);
+
+      // Promote complete — clear the persisted draft now that live columns are authoritative
+      updateProfile({ portfolioDraft: null, portfolioDraftSavedAt: null } as Parameters<typeof updateProfile>[0]).catch(() => {});
       
       // Save history snapshot (fire and forget to not block UI)
       if (overrides?.portfolioEnabled === undefined) {
@@ -606,7 +673,7 @@ export default function PortfolioEditorPage() {
       if (overrides?.portfolioEnabled !== undefined) {
         setPortfolioEnabled(overrides.portfolioEnabled);
       }
-      toast.success('Portfolio saved!');
+      toast.success('Published! Your portfolio is now live.');
 
       // Auto-translate all sections on save when secondary language is configured.
       // Use the already-committed extras (updates.portfolioExtras) as the base
@@ -791,7 +858,7 @@ export default function PortfolioEditorPage() {
           strengthScore={strengthScore}
           strengthLabel={strengthLabel}
           strengthMissing={strengthMissing}
-          hasUnpublishedChanges={!!(lastSavedSnapshot && getCurrentSnapshot() !== lastSavedSnapshot)} />
+          hasUnpublishedChanges={!!(profile?.portfolioDraft || (lastSavedSnapshot && getCurrentSnapshot() !== lastSavedSnapshot))} />
         
 
         {/* Live Preview Card + mobile toggle */}
@@ -1078,7 +1145,9 @@ export default function PortfolioEditorPage() {
         portfolioEnabled={portfolioEnabled}
         onPortfolioEnabledChange={setPortfolioEnabled}
         portfolioUrl={portfolioCanonicalUrl || undefined}
-        hasUnpublishedChanges={!!(lastSavedSnapshot && getCurrentSnapshot() !== lastSavedSnapshot)} />
+        hasUnpublishedChanges={!!(profile?.portfolioDraft || (lastSavedSnapshot && getCurrentSnapshot() !== lastSavedSnapshot))}
+        onSaveDraft={handleSaveDraft}
+        savingDraft={savingDraft} />
       
 
       {/* Sheets */}

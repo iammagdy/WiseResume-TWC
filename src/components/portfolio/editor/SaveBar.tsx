@@ -11,9 +11,27 @@ export interface SaveBarProps {
   onPortfolioEnabledChange: (val: boolean) => void;
   portfolioUrl?: string;
   hasUnpublishedChanges?: boolean;
+  onSaveDraft?: () => void;
+  savingDraft?: boolean;
 }
 
-export function SaveBar({ onSave, saving, disabled, portfolioEnabled, onPortfolioEnabledChange, portfolioUrl, hasUnpublishedChanges = false }: SaveBarProps) {
+export function SaveBar({
+  onSave,
+  saving,
+  disabled,
+  portfolioEnabled,
+  onPortfolioEnabledChange,
+  portfolioUrl,
+  hasUnpublishedChanges = false,
+  onSaveDraft,
+  savingDraft = false,
+}: SaveBarProps) {
+  const publishLabel = hasUnpublishedChanges && portfolioEnabled
+    ? 'Publish changes'
+    : portfolioEnabled
+    ? 'Save & Publish'
+    : 'Save Draft';
+
   return (
     <div className="shrink-0 px-4 py-3 pb-safe border-t border-border bg-background">
       <div className="flex items-center gap-3">
@@ -22,7 +40,7 @@ export function SaveBar({ onSave, saving, disabled, portfolioEnabled, onPortfoli
           <Switch
             checked={portfolioEnabled}
             onCheckedChange={onPortfolioEnabledChange}
-            disabled={disabled || saving}
+            disabled={disabled || saving || savingDraft}
             className="scale-90" />
           
           <span className="text-[11px] font-medium text-muted-foreground">
@@ -44,7 +62,19 @@ export function SaveBar({ onSave, saving, disabled, portfolioEnabled, onPortfoli
           </a>
         )}
 
-        {/* Save button — tooltip when disabled explains why */}
+        {/* "Save draft" secondary action (only when there are changes and portfolio is live) */}
+        {portfolioEnabled && onSaveDraft && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onSaveDraft}
+            disabled={savingDraft || saving || disabled}
+            className="h-9 px-3 rounded-xl text-xs shrink-0 touch-manipulation active:scale-95">
+            {savingDraft ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Save draft'}
+          </Button>
+        )}
+
+        {/* Publish button — tooltip when disabled explains why */}
         {disabled ?
         <TooltipProvider>
             <Tooltip>
@@ -63,12 +93,12 @@ export function SaveBar({ onSave, saving, disabled, portfolioEnabled, onPortfoli
 
         <Button
           onClick={onSave}
-          disabled={saving}
+          disabled={saving || savingDraft}
           className="flex-1 h-11 min-h-[44px] rounded-xl active:scale-95 touch-manipulation">
           
             {saving
               ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Publishing…</>
-              : hasUnpublishedChanges && portfolioEnabled ? 'Publish changes' : portfolioEnabled ? 'Save & Publish' : 'Save Draft'
+              : publishLabel
             }
           </Button>
         }

@@ -73,6 +73,8 @@ export interface Profile {
   digestEnabled: boolean;
   hiredAt: string | null;
   updatedAt: string | null;
+  portfolioDraft: Record<string, unknown> | null;
+  portfolioDraftSavedAt: string | null;
 }
 
 export const INDUSTRY_OPTIONS = [
@@ -158,7 +160,7 @@ function resolveEffectiveId(userId: string | undefined): string | null {
 async function fetchProfile(effectiveId: string, user?: KindeAppUser | null): Promise<Profile> {
   const { data, error } = await supabase
     .from('profiles')
-    .select('full_name, avatar_url, job_title, industry, career_level, location, linkedin_url, profile_completed, username, portfolio_bio, portfolio_enabled, portfolio_resume_id, github_url, website_url, twitter_url, contact_email, portfolio_theme, phone_number, portfolio_sections, portfolio_meta_title, portfolio_meta_description, views, portfolio_style, portfolio_layout, portfolio_accent_color, portfolio_font, open_to_work, availability_headline, portfolio_extras, portfolio_sync_mode, login_streak, last_login_date, digest_enabled, hired_at, updated_at')
+    .select('full_name, avatar_url, job_title, industry, career_level, location, linkedin_url, profile_completed, username, portfolio_bio, portfolio_enabled, portfolio_resume_id, github_url, website_url, twitter_url, contact_email, portfolio_theme, phone_number, portfolio_sections, portfolio_meta_title, portfolio_meta_description, views, portfolio_style, portfolio_layout, portfolio_accent_color, portfolio_font, open_to_work, availability_headline, portfolio_extras, portfolio_sync_mode, login_streak, last_login_date, digest_enabled, hired_at, updated_at, portfolio_draft, portfolio_draft_saved_at')
     .eq('user_id', effectiveId)
     .maybeSingle();
 
@@ -206,6 +208,8 @@ async function fetchProfile(effectiveId: string, user?: KindeAppUser | null): Pr
       digestEnabled: (d.digest_enabled as boolean) ?? true,
       hiredAt: (d.hired_at as string) ?? null,
       updatedAt: (d.updated_at as string) ?? null,
+      portfolioDraft: (d.portfolio_draft as Record<string, unknown>) ?? null,
+      portfolioDraftSavedAt: (d.portfolio_draft_saved_at as string) ?? null,
     };
   }
 
@@ -249,6 +253,8 @@ async function fetchProfile(effectiveId: string, user?: KindeAppUser | null): Pr
     digestEnabled: true,
     hiredAt: null,
     updatedAt: null,
+    portfolioDraft: null,
+    portfolioDraftSavedAt: null,
   };
 
   // Create the row via upsert — effectiveId is guaranteed non-null here (early return above)
@@ -329,6 +335,8 @@ export function useProfile(userId: string | undefined, user?: KindeAppUser | nul
       if (updates.lastLoginDate !== undefined) dbUpdates.last_login_date = updates.lastLoginDate;
       if (updates.digestEnabled !== undefined) dbUpdates.digest_enabled = updates.digestEnabled;
       if (updates.hiredAt !== undefined) dbUpdates.hired_at = updates.hiredAt;
+      if (updates.portfolioDraft !== undefined) dbUpdates.portfolio_draft = updates.portfolioDraft;
+      if (updates.portfolioDraftSavedAt !== undefined) dbUpdates.portfolio_draft_saved_at = updates.portfolioDraftSavedAt;
 
       const { error } = await supabase
         .from('profiles')
