@@ -1,9 +1,10 @@
 import { useState, useCallback, useEffect } from 'react';
-import { RefreshCw, GitCommit, CheckCircle, XCircle, ExternalLink, Loader2, Clock, Mail, AlertTriangle } from 'lucide-react';
+import { RefreshCw, GitCommit, CheckCircle, XCircle, ExternalLink, Loader2, Clock, Mail, AlertTriangle, Trash2, Database } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { getDevKitToken } from '@/contexts/DevKitSessionContext';
+import { getSupabaseToken } from '@/lib/supabaseAuth';
 
 interface Commit {
   sha: string;
@@ -44,6 +45,32 @@ interface EnvCheckResponse {
   error?: string;
 }
 
+interface SweepResult {
+  ran_at: string;
+  portfolio_visits_cutoff: string;
+  error_log_cutoff: string;
+  audit_logs_cutoff: string;
+  portfolio_visits_deleted: number;
+  error_log_deleted: number;
+  audit_logs_deleted: number;
+  trial_resumes_deleted: number;
+}
+
+interface SweepStatus {
+  lastRanAt: string | null;
+  lastDurationMs: number | null;
+  lastResult: SweepResult | null;
+  lastError: string | null;
+  nextScheduledAt: string | null;
+  config: {
+    enabled: boolean;
+    portfolioVisitsRetentionDays: number;
+    errorLogRetentionDays: number;
+    auditLogsRetentionDays: number;
+    intervalMs: number;
+  };
+}
+
 function formatRelative(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const secs = Math.floor(diff / 1000);
@@ -68,6 +95,9 @@ export function DeploymentPanel() {
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [secondsAgo, setSecondsAgo] = useState(0);
   const [contactTableOk, setContactTableOk] = useState<boolean | null>(null);
+  const [sweepStatus, setSweepStatus] = useState<SweepStatus | null>(null);
+  const [sweepLoading, setSweepLoading] = useState(false);
+  const [sweepError, setSweepError] = useState<string | null>(null);
 
   const fetchDeploymentData = useCallback(async () => {
     setLoading(true);
@@ -135,7 +165,34 @@ export function DeploymentPanel() {
     }
   }, []);
 
+  const fetchSweepStatus = useCallback(async () => {
+    setSweepLoading(true);
+    setSweepError(null);
+    try {
+      const token = await getSupabaseToken();
+      if (!token) {
+        setSweepError('No auth token available');
+        return;
+      }
+      const res = await fetch('/api/admin/analytics-sweep-status', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as { error?: string };
+        setSweepError(body.error ?? `HTTP ${res.status}`);
+        return;
+      }
+      const status = await res.json() as SweepStatus;
+      setSweepStatus(status);
+    } catch (e) {
+      setSweepError(e instanceof Error ? e.message : 'Failed to load sweep status');
+    } finally {
+      setSweepLoading(false);
+    }
+  }, []);
+
   useEffect(() => { fetchDeploymentData(); }, [fetchDeploymentData]);
+  useEffect(() => { fetchSweepStatus(); }, [fetchSweepStatus]);
 
   useEffect(() => {
     supabase.from('contact_requests').select('id', { count: 'exact', head: true }).then(({ error }) => {
@@ -465,6 +522,120 @@ export function DeploymentPanel() {
           </div>
         </>
       )}
+
+      {/* Analytics Retention Sweep */}
+      <div className="rounded-xl border border-border bg-card p-5 shadow-sm space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Trash2 className="w-4 h-4 text-primary" />
+            <p className="text-sm font-semibold text-foreground">Analytics Retention Sweep</p>
+          </div>
+          <Button variant="outline" size="sm" onClick={fetchSweepStatus} disabled={sweepLoading} className="flex items-center gap-2 h-7 text-xs px-2.5">
+            <RefreshCw className={`w-3.5 h-3.5 ${sweepLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+        </div>
+
+        {sweepLoading && !sweepStatus && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            Loading sweep status…
+          </div>
+        )}
+
+        {sweepError && (
+          <div className="flex items-start gap-2 rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2.5">
+            <XCircle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
+            <p className="text-xs text-destructive">{sweepError}</p>
+          </div>
+        )}
+
+        {sweepStatus && (
+          <div className="space-y-3">
+            {/* Sweep metadata row */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+              <div className="rounded-lg border border-border bg-muted/20 px-3 py-2.5 space-y-0.5">
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Last ran</p>
+                <p className="font-medium text-foreground">
+                  {sweepStatus.lastRanAt ? formatRelative(sweepStatus.lastRanAt) : <span className="italic text-muted-foreground">never</span>}
+                </p>
+              </div>
+              <div className="rounded-lg border border-border bg-muted/20 px-3 py-2.5 space-y-0.5">
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Duration</p>
+                <p className="font-medium text-foreground">
+                  {sweepStatus.lastDurationMs !== null ? `${(sweepStatus.lastDurationMs / 1000).toFixed(1)}s` : <span className="italic text-muted-foreground">—</span>}
+                </p>
+              </div>
+              <div className="rounded-lg border border-border bg-muted/20 px-3 py-2.5 space-y-0.5">
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Status</p>
+                <p className={`font-medium ${sweepStatus.config.enabled ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`}>
+                  {sweepStatus.config.enabled ? '✓ enabled' : '✗ disabled'}
+                </p>
+              </div>
+            </div>
+
+            {sweepStatus.lastError && (
+              <div className="flex items-start gap-2 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2.5">
+                <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
+                <p className="text-xs text-amber-700 dark:text-amber-400">{sweepStatus.lastError}</p>
+              </div>
+            )}
+
+            {/* Row counts from last run */}
+            {sweepStatus.lastResult ? (
+              <div className="space-y-2">
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+                  <Database className="w-3 h-3" />
+                  Rows deleted in last run
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {[
+                    {
+                      label: 'Portfolio visits',
+                      key: 'portfolio_visits',
+                      count: sweepStatus.lastResult.portfolio_visits_deleted,
+                      retentionDays: sweepStatus.config.portfolioVisitsRetentionDays,
+                    },
+                    {
+                      label: 'Error logs',
+                      key: 'error_logs',
+                      count: sweepStatus.lastResult.error_log_deleted,
+                      retentionDays: sweepStatus.config.errorLogRetentionDays,
+                    },
+                    {
+                      label: 'Audit logs',
+                      key: 'audit_logs',
+                      count: sweepStatus.lastResult.audit_logs_deleted,
+                      retentionDays: sweepStatus.config.auditLogsRetentionDays,
+                    },
+                    {
+                      label: 'Trial resumes',
+                      key: 'trial_resumes',
+                      count: sweepStatus.lastResult.trial_resumes_deleted,
+                      retentionDays: null,
+                    },
+                  ].map(({ label, key, count, retentionDays }) => (
+                    <div key={key} className="flex items-center gap-3 rounded-lg border border-border bg-background px-3 py-2.5">
+                      <Trash2 className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-foreground">{label}</p>
+                        {retentionDays !== null && (
+                          <p className="text-[10px] text-muted-foreground">{retentionDays}d retention</p>
+                        )}
+                      </div>
+                      <span className={`text-sm font-bold tabular-nums ${count > 0 ? 'text-foreground' : 'text-muted-foreground'}`}>
+                        {count.toLocaleString()}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground italic">No sweep has run yet — results will appear after the first scheduled or manual run.</p>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
