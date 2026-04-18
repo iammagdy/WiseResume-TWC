@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  Sparkles, Search, Loader2, Link2, Linkedin, Github, History, AlertCircle, Twitter, ShieldCheck, Languages, CalendarDays, Lock, Globe,
+  Sparkles, Search, Loader2, Link2, Linkedin, Github, History, AlertCircle, Twitter, ShieldCheck, Languages, CalendarDays, Lock, Globe, MessageSquare,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -58,6 +58,9 @@ export interface MoreTabProps {
   customDomain: string;
   onCustomDomainChange: (val: string) => void;
   isPaidUser?: boolean;
+  // Contact form
+  contactFormEnabled: boolean;
+  onContactFormEnabledChange: (val: boolean) => void;
 }
 
 function needsHttpsWarning(url: string): boolean {
@@ -83,6 +86,7 @@ export function MoreTab(props: MoreTabProps) {
     passwordEnabled, onPasswordEnabledChange, portfolioPasswordSet, onPortfolioPasswordChange,
     customDomain, onCustomDomainChange,
     isPaidUser = false,
+    contactFormEnabled, onContactFormEnabledChange,
   } = props;
 
   const [showPasswordInput, setShowPasswordInput] = useState(false);
@@ -237,6 +241,32 @@ export function MoreTab(props: MoreTabProps) {
             <p className="text-[11px] text-muted-foreground">Calendly, Cal.com, or any URL. Shows a "Book a Call" button on your portfolio.</p>
           </div>
         </div>
+      </CollapsibleCard>
+
+      {/* Contact Form */}
+      <CollapsibleCard
+        id="contactform"
+        icon={<MessageSquare className="w-4 h-4" />}
+        title="Contact Form"
+        hint={contactFormEnabled ? <span className="text-[11px] text-green-500">On</span> : <span className="text-[11px]">Off</span>}
+        openSections={openSections}
+        toggleSection={toggleSection}
+      >
+        <p className="text-[11px] text-muted-foreground mb-3">
+          Allow visitors to send you a message directly from your portfolio — no email client required. Messages are delivered via your contact email.
+        </p>
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium text-foreground">Enable contact form</span>
+          <Switch
+            checked={contactFormEnabled}
+            onCheckedChange={(checked) => { haptics.light(); onContactFormEnabledChange(checked); }}
+          />
+        </div>
+        {contactFormEnabled && (
+          <p className="text-[11px] text-muted-foreground mt-2">
+            A "Send a message" form will appear at the bottom of your public portfolio.
+          </p>
+        )}
       </CollapsibleCard>
 
       {/* Multilingual */}

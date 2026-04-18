@@ -74,6 +74,7 @@ export interface PublicProfile {
   }> | null;
   passwordEnabled: boolean;
   customDomain: string | null;
+  contactFormEnabled: boolean;
 }
 
 export interface PublicResume {
@@ -181,6 +182,7 @@ async function fetchPublicPortfolio(username: string, password?: string | null):
       portfolioTranslations: (extras.portfolioTranslations as PublicProfile['portfolioTranslations']) || null,
       passwordEnabled: (extras.passwordEnabled as boolean) || false,
       customDomain: (extras.customDomain as string) || null,
+      contactFormEnabled: typeof extras.contactFormEnabled === 'boolean' ? extras.contactFormEnabled : true,
     },
     resume: {
       id: (resume.id as string) || '',

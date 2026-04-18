@@ -26,6 +26,9 @@ const PublicSections = lazyWithRetry(() => import('@/components/portfolio/public
 // Lazy-loaded ChatWidget
 const ChatWidget = lazyWithRetry(() => import('@/components/portfolio/public/ChatWidget').then(m => ({ default: m.ChatWidget })));
 
+// Lazy-loaded Contact Form
+const PortfolioContactForm = lazyWithRetry(() => import('@/components/portfolio/public/PortfolioContactForm').then(m => ({ default: m.PortfolioContactForm })));
+
 // ─── helpers ───────────────────────────────────────────────────────────────────
 function hexToRgb(hex: string): string {
   const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
@@ -561,6 +564,25 @@ function PublicPortfolioContent({ usernameOverride }: { usernameOverride?: strin
             activeLanguage={activeLanguage || undefined}
           />
         </Suspense>
+
+        {/* Contact Form */}
+        {profile.contactFormEnabled && (
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="px-4 pb-6 max-w-xl mx-auto w-full"
+            data-pdf-exclude
+          >
+            <Suspense fallback={null}>
+              <PortfolioContactForm
+                username={username!}
+                accentColor={accentColor}
+                ownerName={profile.fullName}
+              />
+            </Suspense>
+          </motion.div>
+        )}
 
         {/* Footer */}
         <motion.div variants={fadeUp} className="text-center py-10 border-t space-y-3" style={{ borderColor: 'var(--pf-border, rgba(255,255,255,0.08))' }}>

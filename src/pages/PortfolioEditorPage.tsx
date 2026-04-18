@@ -145,6 +145,7 @@ export default function PortfolioEditorPage() {
 
   // Custom domain
   const [customDomain, setCustomDomain] = useState('');
+  const [contactFormEnabled, setContactFormEnabled] = useState(true);
 
   // Mobile preview toggle (local UI state only — not persisted)
   const [previewMode, setPreviewMode] = useState<'desktop' | 'mobile'>('desktop');
@@ -164,7 +165,7 @@ export default function PortfolioEditorPage() {
       caseStudies, services, testimonials, highlights, portfolioSummary,
       selectedResumeId, sectionOrder, pinnedProject, scrollEffect,
       videoIntroUrl, schedulingUrl, abChallengerTheme, portfolioCertifications, portfolioPrimaryLanguage, portfolioSecondaryLanguage,
-      passwordEnabled, passwordHash, customDomain,
+      passwordEnabled, passwordHash, customDomain, contactFormEnabled,
     });
   }, [
     username, bio, portfolioEnabled, githubUrl, websiteUrl, twitterUrl,
@@ -174,7 +175,7 @@ export default function PortfolioEditorPage() {
     caseStudies, services, testimonials, highlights, portfolioSummary,
     selectedResumeId, sectionOrder, pinnedProject, scrollEffect,
     videoIntroUrl, schedulingUrl, abChallengerTheme, portfolioCertifications, portfolioPrimaryLanguage, portfolioSecondaryLanguage,
-    passwordEnabled, passwordHash, customDomain,
+    passwordEnabled, passwordHash, customDomain, contactFormEnabled,
   ]);
 
   const tabIndexMap = { setup: 0, content: 1, design: 2, more: 3, visitors: 4 } as const;
@@ -237,6 +238,7 @@ export default function PortfolioEditorPage() {
       setPasswordEnabled((extras.passwordEnabled as boolean) || false);
       setPasswordHash((extras.passwordHash as string) || '');
       setCustomDomain((extras.customDomain as string) || '');
+      setContactFormEnabled(typeof extras.contactFormEnabled === 'boolean' ? extras.contactFormEnabled : true);
     }
   }, [profile]);
 
@@ -585,6 +587,7 @@ export default function PortfolioEditorPage() {
             passwordEnabled: effectivePasswordEnabled,
             passwordHash: effectivePasswordEnabled ? finalPasswordHash : null,
             customDomain: isPaidUser ? (customDomain.trim() || null) : null,
+            contactFormEnabled,
           };
         })()
       };
@@ -1058,7 +1061,9 @@ export default function PortfolioEditorPage() {
               onPortfolioPasswordChange={setPortfolioPassword}
               customDomain={customDomain}
               onCustomDomainChange={setCustomDomain}
-              isPaidUser={isPaidUser} />
+              isPaidUser={isPaidUser}
+              contactFormEnabled={contactFormEnabled}
+              onContactFormEnabledChange={setContactFormEnabled} />
 
             }
           </motion.div>

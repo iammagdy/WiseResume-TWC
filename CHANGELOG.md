@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-04-18 — Portfolio Editor & Public Page Improvements (Task #10)
+
+### New Features
+- **Contact form on public portfolio**: Visitors can now send a message directly from any portfolio page without leaving or opening an email client. The form collects name, email, and message, posts to the existing `submit-contact-request` edge function (rate-limited + bot-guarded), and shows a success state on delivery.
+- **Contact form toggle in portfolio editor**: Portfolio owners control whether the form appears via a new "Contact Form" card in the "More" tab. Enabled by default for all portfolios. State persisted in `portfolio_extras.contactFormEnabled`.
+
+### Already Implemented (confirmed during audit)
+- **Theme thumbnails**: The ThemeStorePicker (`src/components/portfolio/editor/ThemeStorePicker.tsx`) already renders live CSS-based mini-previews for every theme — the task spec was already satisfied.
+- **Portfolio editor refactor**: The portfolio editor is already split into `SetupTab`, `ContentTab`, `DesignTab`, `MoreTab`, `VisitorsTab`, `AppearanceSection`, `ContentVisibilitySection`, and more sub-components. No further refactor was needed.
+- **Resume staleness detection**: `ContentTab` already receives `resumeUpdatedAt` / `portfolioLastSyncedAt` props from `PortfolioEditorPage` and `ProfilePage` already shows a stale-portfolio warning with a re-sync button.
+
+### Deferred
+- **Draft/publish split** (Step 1 of task plan): Requires a new `portfolio_draft` JSONB column and a DB migration to split the "working copy" from the "published copy" so mid-edit state is never visible to portfolio visitors. Deferred to a dedicated migration task (Task #10-followup) to avoid risk to live portfolios.
+
+---
+
 ## 2026-04-18 — Resume Builder UX Improvements (Task #9)
 
 ### New Features
