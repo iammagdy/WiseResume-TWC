@@ -44,16 +44,16 @@ WiseResume is an AI-powered career management PWA. Production URL: https://resum
 ## Tech Stack
 | Layer | Technology |
 |---|---|
-| Frontend | React 18 + TypeScript 5 + Vite 5 |
+| Frontend | React 18 + TypeScript 5 + Vite 6 |
 | Styling | Tailwind CSS + Radix UI + Framer Motion |
 | State | Zustand + TanStack Query (React Query) |
 | Auth | Kinde Auth (https://thewisecloud.kinde.com) |
-| Database | Supabase PostgreSQL (project ref: jnsfmkzgxsviuthaqlyy) |
-| Backend | Supabase Edge Functions (Deno runtime) |
+| Database | Replit Neon PostgreSQL + Drizzle ORM (schema: server/schema.ts) |
+| Backend | Express.js server (server/index.ts, port 5001) + Supabase Edge Functions (Deno) |
 | PWA | Capacitor 8 + vite-plugin-pwa |
 | Package Manager | npm |
-| Hosting | Hostinger (manual deploy via deploy.yml GitHub Action) |
-| Dev environment | Replit (port 5000, npm run dev) |
+| Hosting | Replit (autoscale deployment) |
+| Dev environment | Replit (Vite on port 5000, Express API on port 5001) |
 
 ## Project Structure
 - `src/` — Core frontend code (components, hooks, lib, pages, store)
@@ -84,6 +84,37 @@ The AI error chain flows: Supabase Edge Function → `callAI()` → throws `AIEr
 **Known issue**: Some deployed edge functions return `{ error: 'Something went wrong.' }` instead of using `toUserError()`. Frontend now catches this pattern and shows "AI request failed — check your AI settings or try again later." instead of the generic "AI is temporarily unavailable."
 
 **To redeploy edge functions with fixes**: Run `bash scripts/deploy-functions.sh` (requires `SUPABASE_ACCESS_TOKEN` secret).
+
+## Replit Environment Setup
+
+### Running the Project
+The project runs two processes in parallel (configured in `.replit`):
+1. **Vite dev server** — port 5000 (frontend, hot-reload)
+2. **Express API server** — port 5001 (server-side routes, DB access)
+
+Vite proxies all `/api/*` requests to the Express server, so the frontend never needs to know the server URL.
+
+### Environment Variables (set in `.replit` [userenv.shared])
+- `VITE_SUPABASE_URL` — Supabase project URL (used by client + server to proxy Edge Functions)
+- `VITE_SUPABASE_PUBLISHABLE_KEY` — Supabase anon key (safe to expose, used by client)
+- `VITE_KINDE_CLIENT_ID` — Kinde OAuth app client ID
+- `VITE_KINDE_DOMAIN` — Kinde tenant domain
+
+### Secrets (set in Replit Secrets panel)
+- `DATABASE_URL` — Replit Neon PostgreSQL connection string (managed by Replit)
+- Optional: `PROXYCURL_API_KEY`, `ADMIN_EMAILS`, `OPENROUTER_API_KEY`, `GROQ_API_KEY`, `GEMINI_API_KEY`
+
+### Database
+- Schema defined in `server/schema.ts` (Drizzle ORM)
+- Push schema changes: `npm run db:push`
+- The Replit Neon DB is available via the `DATABASE_URL` secret
+- Supabase Edge Functions have their own DB connection (separate from Replit Neon)
+
+### Auth Flow
+1. User logs in via Kinde (`VITE_KINDE_CLIENT_ID`)
+2. Client exchanges Kinde JWT → Supabase JWT via `token-exchange` Edge Function
+3. Supabase JWT is used for all Supabase API calls (DB queries via RLS, Edge Function auth)
+4. Express server validates Supabase JWTs by calling Supabase `/auth/v1/user`
 
 ## Fresh Import Setup (New Replit from GitHub)
 
