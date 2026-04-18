@@ -1,6 +1,6 @@
 # Admin Dev Kit
 
-**Last verified:** 2026-04-18
+**Last verified:** 2026-04-18 (Task #28)
 **Type:** deep dive
 **Sources:**
 - `src/components/dev-kit/`
@@ -38,7 +38,7 @@
 | App settings | Platform-wide flags, maintenance mode, feature gates | `admin-get-settings`, `admin-update-settings`, `app_settings` table |
 | Portfolio usernames | Audit / clean public portfolio handles | `admin-portfolio-usernames` |
 | WiseHire | Waitlist + invite generation + account-type badges | `admin-wisehire-waitlist`, `admin-wisehire-invite` |
-| AI Provider | Search & switch active model for OpenRouter / Groq / Gemini / Ollama. Free/paid filter. Live credits (OpenRouter balance endpoint), token usage (Groq usage endpoint). Instant persistence via Zustand `settingsStore` → `localStorage`. No demo data. | `settingsStore` (`setOpenrouterModel`, `setGroqModel`, `setGeminiModel`, `setOllamaModel`), OpenRouter `/api/v1/auth/key` + `/api/v1/generation`, Groq `/openai/v1/usage` |
+| AI Provider | **Hardened (Task #28):** Feature routing collapsible (shows sub-provider per feature). Circuit breaker chip per sub-panel (healthy/degraded/open with countdown). Confirm-before-switch inline card on every model list. Test button on OpenRouter/Groq (calls `ai-test` edge fn → latency + preview). Dynamic model lists: OpenRouter from public API, Groq from managed server proxy, Gemini from managed server proxy (static fallback when key absent). Managed OpenRouter balance from server proxy. All managed keys server-side only — zero key material in browser. | `settingsStore`, `ai-breaker-status` edge fn, `ai-test` edge fn, `/api/admin/ai-provider/openrouter-status`, `/api/admin/ai-provider/groq-models`, `/api/admin/ai-provider/gemini-models` |
 
 ## DevKit shell shortcuts
 

@@ -260,3 +260,21 @@ A full audit of all AI providers, AI Studio tools, and Supabase edge functions w
 **Files changed**: `project-governance/ARCHITECTURE.md`, `project-governance/CHANGELOG.md`
 
 ---
+
+## [Unreleased] — 2026-04-18 — Task #28: AI Provider panel hardening
+
+### Added
+- **Server-side proxy endpoints** (`GET /api/admin/ai-provider/openrouter-status`, `/groq-models`, `/gemini-models`): managed API keys never leave the server; guarded by `requireAuthHeader + requireAdminEmail`.
+- **Circuit breaker status chips** on every sub-panel (OpenRouter / Groq / Gemini / Ollama) — fetches `ai-breaker-status` edge function on panel load; shows open/degraded/healthy state with seconds-to-reset countdown when open; red dot on tab when breaker is open.
+- **Confirm-before-switch inline card**: clicking a model in any sub-panel now shows an inline Confirm / Cancel card — no accidental active-model changes.
+- **Test button** on OpenRouter and Groq panels: calls `ai-test` edge function with the DevKit admin password; shows latency, model ID, and a preview snippet on success.
+- **Dynamic Gemini model list**: fetches live list from managed `GEMINI_API_KEY` via server proxy; falls back to static list when key is unconfigured.
+- **Dynamic Groq model list**: fetches live list from managed `GROQ_API_KEY` via server proxy; falls back to static list when key is unconfigured.
+- **Managed OpenRouter credit display**: fetches balance and rate-limit info from server proxy; shows remaining credit / limit / free-tier badge.
+- **Feature routing collapsible section** at top of panel: shows which managed sub-provider handles each feature (Resume Analysis, Tailoring, Cover Letter, Interview, Agentic Chat) based on current `wiseresumeSubProvider` setting.
+
+### Changed
+- `AIProviderPanel.tsx` fully rewritten (703 → 730 lines): static model lists replaced by live proxy data, client-side direct API calls eliminated, confirm-before-switch UX added.
+
+### Security
+- OpenRouter, Groq, and Gemini managed API keys are now exclusively accessed server-side; zero key material in browser.

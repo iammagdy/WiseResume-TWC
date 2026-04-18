@@ -1158,6 +1158,123 @@ app.post(
   },
 );
 
+// ── AI Provider admin proxy endpoints ─────────────────────────────────────────
+// All three endpoints are guarded by requireAuthHeader + requireAdminEmail so
+// the managed platform keys (OPENROUTER_API_KEY, GROQ_API_KEY, GEMINI_API_KEY)
+// never leave the server. The browser never sees them — only the result data.
+
+/**
+ * GET /api/admin/ai-provider/openrouter-status
+ * Returns the managed OpenRouter key balance / rate-limit info.
+ */
+app.get(
+  '/api/admin/ai-provider/openrouter-status',
+  requireAuthHeader,
+  requireAdminEmail,
+  async (_req, res) => {
+    const key = process.env.OPENROUTER_API_KEY;
+    if (!key) {
+      res.json({ configured: false });
+      return;
+    }
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), 8000);
+    try {
+      const r = await fetch('https://openrouter.ai/api/v1/auth/key', {
+        headers: { Authorization: `Bearer ${key}` },
+        signal: controller.signal,
+      });
+      if (!r.ok) {
+        res.json({ configured: true, error: `HTTP ${r.status}` });
+        return;
+      }
+      const body = (await r.json()) as { data?: Record<string, unknown> };
+      res.json({ configured: true, data: body.data ?? null });
+    } catch (e) {
+      res.json({ configured: true, error: String(e) });
+    } finally {
+      clearTimeout(t);
+    }
+  },
+);
+
+/**
+ * GET /api/admin/ai-provider/groq-models
+ * Returns the live Groq model list using the managed GROQ_API_KEY.
+ */
+app.get(
+  '/api/admin/ai-provider/groq-models',
+  requireAuthHeader,
+  requireAdminEmail,
+  async (_req, res) => {
+    const key = process.env.GROQ_API_KEY;
+    if (!key) {
+      res.json({ configured: false, models: [] });
+      return;
+    }
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), 8000);
+    try {
+      const r = await fetch('https://api.groq.com/openai/v1/models', {
+        headers: { Authorization: `Bearer ${key}` },
+        signal: controller.signal,
+      });
+      if (!r.ok) {
+        res.json({ configured: true, models: [], error: `HTTP ${r.status}` });
+        return;
+      }
+      const body = (await r.json()) as { data?: unknown[] };
+      res.json({ configured: true, models: body.data ?? [] });
+    } catch (e) {
+      res.json({ configured: true, models: [], error: String(e) });
+    } finally {
+      clearTimeout(t);
+    }
+  },
+);
+
+/**
+ * GET /api/admin/ai-provider/gemini-models
+ * Returns Gemini models that support generateContent using the managed GEMINI_API_KEY.
+ */
+app.get(
+  '/api/admin/ai-provider/gemini-models',
+  requireAuthHeader,
+  requireAdminEmail,
+  async (_req, res) => {
+    const key = process.env.GEMINI_API_KEY;
+    if (!key) {
+      res.json({ configured: false, models: [] });
+      return;
+    }
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), 8000);
+    try {
+      const r = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models?key=${key}`,
+        { signal: controller.signal },
+      );
+      if (!r.ok) {
+        res.json({ configured: true, models: [], error: `HTTP ${r.status}` });
+        return;
+      }
+      const body = (await r.json()) as { models?: Array<Record<string, unknown>> };
+      const models = (body.models ?? [])
+        .filter((m) => Array.isArray(m.supportedGenerationMethods) && (m.supportedGenerationMethods as string[]).includes('generateContent'))
+        .map((m) => ({
+          id: typeof m.name === 'string' ? m.name.replace('models/', '') : m.name,
+          name: m.displayName ?? m.name,
+          context: typeof m.inputTokenLimit === 'number' ? m.inputTokenLimit : null,
+        }));
+      res.json({ configured: true, models });
+    } catch (e) {
+      res.json({ configured: true, models: [], error: String(e) });
+    } finally {
+      clearTimeout(t);
+    }
+  },
+);
+
 // ── Start server ──────────────────────────────────────────────────────────────
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`[server] WiseResume API server running on port ${PORT}`);
