@@ -24,7 +24,6 @@ interface SettingsState {
   aiTipFrequency: AITipFrequency;
   // Privacy
   shakeToReportEnabled: boolean;
-  localOnlyMode: boolean;
   analyticsEnabled: boolean;
   biometricLockEnabled: boolean;
   biometricLockTimeout: BiometricLockTimeout;
@@ -111,7 +110,6 @@ interface SettingsState {
   setShowAIEnhancementTips: (value: boolean) => void;
   setAITipFrequency: (freq: AITipFrequency) => void;
   setShakeToReportEnabled: (value: boolean) => void;
-  setLocalOnlyMode: (value: boolean) => void;
   setAnalyticsEnabled: (value: boolean) => void;
   setBiometricLockEnabled: (value: boolean) => void;
   setBiometricLockTimeout: (timeout: BiometricLockTimeout) => void;
@@ -181,7 +179,6 @@ const defaultSettings = {
   showAIEnhancementTips: true,
   aiTipFrequency: 'daily' as AITipFrequency,
   shakeToReportEnabled: true,
-  localOnlyMode: false,
   analyticsEnabled: true,
   biometricLockEnabled: false,
   biometricLockTimeout: 30000 as BiometricLockTimeout,
@@ -256,7 +253,6 @@ export const useSettingsStore = create<SettingsState>()(
       setShowAIEnhancementTips: (value) => set({ showAIEnhancementTips: value }),
       setAITipFrequency: (freq) => set({ aiTipFrequency: freq }),
       setShakeToReportEnabled: (value) => set({ shakeToReportEnabled: value }),
-      setLocalOnlyMode: (value) => set({ localOnlyMode: value }),
       setAnalyticsEnabled: (value) => set({ analyticsEnabled: value }),
       setBiometricLockEnabled: (value) => set({ biometricLockEnabled: value }),
       setBiometricLockTimeout: (timeout) => set({ biometricLockTimeout: timeout }),

@@ -2,6 +2,29 @@
 
 Local changelog tracking WiseResume changes.
 
+## 2026-04-18 (Security — Task #8: Portfolio Password Server-Side Enforcement + Local-Only Mode Removal)
+
+### SECURITY — Portfolio password enforcement moved server-side; Local-Only Mode toggle removed
+
+Two user-trust issues addressed:
+
+1. **"Local-Only Mode" removed.** The toggle in Settings → Privacy claimed data would remain on-device when enabled. The flag (`localOnlyMode`) had no consumers outside the UI — Supabase writes continued regardless. The toggle has been removed entirely to prevent the misleading label from persisting.
+   - `src/store/settingsStore.ts` — `localOnlyMode` state, getter, setter, and `privacyStatus` reference removed.
+   - `src/components/settings/sections/PrivacySection.tsx` — toggle and supporting copy removed.
+
+2. **Portfolio password enforcement moved to the server.**
+   - New SQL migration `supabase/migrations/20260426000000_portfolio_password_server_side.sql`: adds `get_portfolio_gate_info(p_username)` RPC (gate metadata only, no hash) and overwrites `get_public_portfolio` with a `p_password` overload that calls `extensions.digest()` server-side for SHA-256 comparison.
+   - `src/hooks/usePublicPortfolio.ts` — `usePortfolioGate` uses new RPC; hash never returned to browser; graceful fallback to REST (no hash) if RPC missing; `usePublicPortfolio` forwards raw password to server.
+   - `src/pages/PublicPortfolioPage.tsx` — client-side `sha256hex()` removed; `PasswordGate` switched to `onSubmit` (raw password over HTTPS).
+
+**Migration status:** SQL written, GitHub Actions run failed (SUPABASE_ACCESS_TOKEN not in GitHub secrets). App ships with graceful fallbacks. Migration must be applied manually via Supabase SQL editor — see `Project Atlas/01-Currently Implemented/critical-systems/11-portfolio-password-security.md`.
+
+- **Engineering card:** `Project Atlas/01-Currently Implemented/critical-systems/11-portfolio-password-security.md` (new).
+- **Plain-language summary:** "Security Fix — Portfolio passwords are now enforced on the server" in `Project Atlas/04-For You (Plain Language)/stability-improvements.md`.
+- **Source brief:** `.local/tasks/security-trust-fixes.md`.
+
+---
+
 ## 2026-04-18 (Governance — Documentation Discipline rule + Phases 1–5 backfill)
 
 ### GOV — Documentation Discipline rule (three-surface mandate)

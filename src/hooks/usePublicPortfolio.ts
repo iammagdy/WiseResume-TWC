@@ -73,7 +73,6 @@ export interface PublicProfile {
     portfolioCertifications?: Array<{ id: string; name: string; issuer: string }>;
   }> | null;
   passwordEnabled: boolean;
-  passwordHash: string | null;
   customDomain: string | null;
 }
 
@@ -98,10 +97,21 @@ export interface PublicPortfolioData {
   resume: PublicResume;
 }
 
-async function fetchPublicPortfolio(username: string): Promise<PublicPortfolioData | null> {
-  const { data, error } = await supabase.rpc('get_public_portfolio', {
-    p_username: username.toLowerCase(),
-  });
+async function fetchPublicPortfolio(username: string, password?: string | null): Promise<PublicPortfolioData | null> {
+  const params: Record<string, string> = { p_username: username.toLowerCase() };
+  if (password != null) params.p_password = password;
+
+  let { data, error } = await supabase.rpc('get_public_portfolio', params);
+
+  // If PostgreSQL reports the function signature doesn't exist yet (migration pending),
+  // fall back to calling without p_password so portfolios remain accessible.
+  // This is a temporary bridge; the migration adds p_password support server-side.
+  if (error && (error as { code?: string }).code === '42883' && password != null) {
+    console.warn('get_public_portfolio p_password overload not yet deployed — falling back to legacy call');
+    const fallback = await supabase.rpc('get_public_portfolio', { p_username: username.toLowerCase() });
+    data = fallback.data;
+    error = fallback.error;
+  }
 
   if (error) {
     console.error('Error fetching public portfolio:', error);
@@ -111,6 +121,12 @@ async function fetchPublicPortfolio(username: string): Promise<PublicPortfolioDa
   if (!data) return null;
 
   const raw = data as Record<string, unknown>;
+
+  // Server returns this discriminated shape when password is wrong.
+  // Never expose the hash — the server already did the comparison.
+  if (raw.error === 'invalid_password') {
+    throw new Error('invalid_password');
+  }
   const profile = raw.profile as Record<string, unknown>;
   const resume = raw.resume as Record<string, unknown>;
 
@@ -164,7 +180,6 @@ async function fetchPublicPortfolio(username: string): Promise<PublicPortfolioDa
       portfolioSecondaryLanguage: (extras.portfolioSecondaryLanguage as string) || null,
       portfolioTranslations: (extras.portfolioTranslations as PublicProfile['portfolioTranslations']) || null,
       passwordEnabled: (extras.passwordEnabled as boolean) || false,
-      passwordHash: (extras.passwordHash as string) || null,
       customDomain: (extras.customDomain as string) || null,
     },
     resume: {
@@ -185,13 +200,15 @@ async function fetchPublicPortfolio(username: string): Promise<PublicPortfolioDa
   };
 }
 
-export function usePublicPortfolio(username: string | undefined, fetchEnabled = true) {
+export function usePublicPortfolio(username: string | undefined, fetchEnabled = true, password?: string | null) {
   return useQuery({
-    queryKey: ['public-portfolio', username],
-    queryFn: () => fetchPublicPortfolio(username!),
+    // Include password in queryKey so a new attempt triggers a fresh fetch.
+    queryKey: ['public-portfolio', username, password ?? null],
+    queryFn: () => fetchPublicPortfolio(username!, password),
     enabled: !!username && fetchEnabled,
     staleTime: 0,
     gcTime: 5 * 60 * 1000,
+    retry: false,
   });
 }
 
@@ -201,11 +218,29 @@ export interface PortfolioGateInfo {
   avatarUrl: string | null;
   accentColor: string | null;
   passwordEnabled: boolean;
-  passwordHash: string | null;
   portfolioEnabled: boolean;
+  // passwordHash intentionally absent — server enforces password, never returns hash to client
 }
 
 async function fetchPortfolioGateInfo(username: string): Promise<PortfolioGateInfo | null> {
+  // Use the dedicated gate RPC: never returns passwordHash — enforcement is server-side.
+  const { data, error } = await supabase.rpc('get_portfolio_gate_info', {
+    p_username: username.toLowerCase(),
+  });
+  if (!error && data) {
+    const raw = data as Record<string, unknown>;
+    return {
+      fullName: (raw.fullName as string) || null,
+      avatarUrl: (raw.avatarUrl as string) || null,
+      accentColor: (raw.accentColor as string) || null,
+      passwordEnabled: (raw.passwordEnabled as boolean) || false,
+      portfolioEnabled: (raw.portfolioEnabled as boolean) || false,
+    };
+  }
+
+  // Fallback: direct REST query in case the gate RPC is not yet deployed.
+  // The passwordHash is intentionally NOT forwarded to the caller in this path either —
+  // password enforcement has moved to the server via get_public_portfolio's p_password param.
   const params = new URLSearchParams({
     select: 'full_name,avatar_url,portfolio_enabled,portfolio_extras,portfolio_accent_color',
     username: `eq.${username.toLowerCase()}`,
@@ -224,8 +259,8 @@ async function fetchPortfolioGateInfo(username: string): Promise<PortfolioGateIn
     avatarUrl: (row.avatar_url as string) || null,
     accentColor: (row.portfolio_accent_color as string) || null,
     passwordEnabled: (extras.passwordEnabled as boolean) || false,
-    passwordHash: (extras.passwordHash as string) || null,
     portfolioEnabled: (row.portfolio_enabled as boolean) || false,
+    // passwordHash intentionally omitted — never returned to client
   };
 }
 

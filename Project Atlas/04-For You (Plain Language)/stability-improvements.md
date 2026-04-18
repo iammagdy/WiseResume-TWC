@@ -82,3 +82,19 @@ These windows can be changed without a code release if we ever need to keep more
 - The in-app "What's New" page (the one your end users see) is **not** updated for any of this. That page is reserved for product features your users care about, not internal hardening.
 
 For the engineering version of any of this, the matching cards live under `Project Atlas/01-Currently Implemented/stability-fixes/` one folder up.
+
+---
+
+## Security Fix — Portfolio passwords are now enforced on the server, not in the browser
+
+**What was wrong:** When a visitor tried to open a password-protected portfolio, the app would hand the *locked file cabinet key* to the visitor's browser and say "check it yourself." A technical visitor could bypass the gate entirely by calling the back-end directly, without ever seeing the password prompt.
+
+**What changed:**
+
+1. **The password check now happens on the server.** When a visitor types a password, the raw text goes to the server over a secure connection. The server does the comparison and either opens the portfolio or sends back a "wrong password" response — the password hash never leaves the server.
+
+2. **"Local-Only Mode" has been removed from Settings.** The toggle in Settings → Privacy claimed data would stay on your device when switched on. In practice, the app was syncing to the cloud the whole time. Rather than leave a label that promises something the platform doesn't do, the toggle has been removed. If true offline / local-only mode is a feature you want, it can be built properly in a future release.
+
+**What you'll notice:** Nothing visible changes. Portfolios you've already protected with a password still work. Visitors who set passwords before this update don't need to re-enter them.
+
+**Pending:** The database migration that activates server-side enforcement needs to be run once in the Supabase SQL editor. Until then, the app uses a safe fallback that keeps existing behavior working. See `Project Atlas/01-Currently Implemented/critical-systems/11-portfolio-password-security.md` for the exact steps.

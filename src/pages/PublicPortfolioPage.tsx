@@ -118,35 +118,27 @@ function NotFound() {
   );
 }
 
-// ─── Utility: SHA-256 hex hash ────────────────────────────────────────────────
-async function sha256hex(message: string): Promise<string> {
-  const msgBuf = new TextEncoder().encode(message);
-  const hashBuf = await crypto.subtle.digest('SHA-256', msgBuf);
-  return Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
 // ─── Password Gate ────────────────────────────────────────────────────────────
-function PasswordGate({ expectedHash, accentColor, onUnlock }: { expectedHash: string; accentColor: string; onUnlock: () => void }) {
+// Password verification is fully server-side. The gate component collects the
+// raw password and passes it to the parent; no hashing occurs in the browser.
+function PasswordGate({
+  accentColor,
+  onSubmit,
+  hasError,
+  isChecking,
+}: {
+  accentColor: string;
+  onSubmit: (password: string) => void;
+  hasError: boolean;
+  isChecking: boolean;
+}) {
   const [value, setValue] = useState('');
-  const [error, setError] = useState(false);
-  const [checking, setChecking] = useState(false);
 
-  const handleSubmit = useCallback(async (e: React.FormEvent) => {
+  const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
-    if (!value.trim()) return;
-    setChecking(true);
-    setError(false);
-    try {
-      const hash = await sha256hex(value.trim());
-      if (hash === expectedHash) {
-        onUnlock();
-      } else {
-        setError(true);
-      }
-    } finally {
-      setChecking(false);
-    }
-  }, [value, expectedHash, onUnlock]);
+    if (!value.trim() || isChecking) return;
+    onSubmit(value.trim());
+  }, [value, isChecking, onSubmit]);
 
   return (
     <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center p-6">
@@ -169,20 +161,20 @@ function PasswordGate({ expectedHash, accentColor, onUnlock }: { expectedHash: s
           <input
             type="password"
             value={value}
-            onChange={(e) => { setValue(e.target.value); setError(false); }}
+            onChange={(e) => { setValue(e.target.value); }}
             placeholder="Enter password"
             className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/15 text-white placeholder-white/30 text-sm outline-none focus:border-white/30 transition-colors"
             autoFocus
             autoComplete="current-password"
           />
-          {error && <p className="text-sm text-red-400">Incorrect password. Please try again.</p>}
+          {hasError && <p className="text-sm text-red-400">Incorrect password. Please try again.</p>}
           <button
             type="submit"
-            disabled={checking || !value.trim()}
+            disabled={isChecking || !value.trim()}
             className="w-full py-3 rounded-xl text-sm font-semibold text-white transition-all active:scale-95 disabled:opacity-50"
             style={{ background: accentColor }}
           >
-            {checking ? 'Checking...' : 'Unlock Portfolio'}
+            {isChecking ? 'Checking...' : 'Unlock Portfolio'}
           </button>
         </form>
       </motion.div>
@@ -199,21 +191,32 @@ function PublicPortfolioContent({ usernameOverride }: { usernameOverride?: strin
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  // Phase 1: lightweight gate check — determines if a password is required
-  // WITHOUT fetching the full portfolio content from the server.
+  // Phase 1: lightweight gate check — determines if a password is required.
+  // The gate RPC never returns the password hash — enforcement is server-side.
   const { data: gateInfo, isLoading: gateLoading } = usePortfolioGate(username);
-  const [passwordUnlocked, setPasswordUnlocked] = useState(false);
+  const [submittedPassword, setSubmittedPassword] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState(false);
 
-  // Reset unlock state whenever the portfolio identity changes.
+  // Reset password state whenever the portfolio identity changes.
   useEffect(() => {
-    setPasswordUnlocked(false);
+    setSubmittedPassword(null);
+    setPasswordError(false);
   }, [username]);
 
-  const passwordRequired = !!(gateInfo?.passwordEnabled && gateInfo?.passwordHash);
-  const contentEnabled = !passwordRequired || passwordUnlocked;
+  const passwordRequired = !!(gateInfo?.passwordEnabled);
+  const contentEnabled = !passwordRequired || submittedPassword !== null;
 
-  // Phase 2: full portfolio fetch — only triggered after password unlock (or if no password).
-  const { data: portfolio, isLoading: contentLoading, error } = usePublicPortfolio(username, contentEnabled);
+  // Phase 2: full portfolio fetch — only triggered after password is submitted (or if no password).
+  // The raw password is sent over HTTPS; the server verifies against its stored hash.
+  const { data: portfolio, isLoading: contentLoading, error } = usePublicPortfolio(username, contentEnabled, submittedPassword);
+
+  // Handle wrong-password verdict from the server.
+  useEffect(() => {
+    if (error && (error as Error).message === 'invalid_password') {
+      setPasswordError(true);
+      setSubmittedPassword(null); // let user try again
+    }
+  }, [error]);
   const isLoading = gateLoading || (contentEnabled && contentLoading);
 
   const [scrollProgress, setScrollProgress] = useState(0);
@@ -338,22 +341,29 @@ function PublicPortfolioContent({ usernameOverride }: { usernameOverride?: strin
     toast.success('Print dialog will open — choose "Save as PDF" in your browser.');
   };
 
-  if (isLoading) return <PortfolioSkeleton />;
-
-  // Show the password gate BEFORE loading full content (server-side enforcement:
-  // the full portfolio RPC is not called until after password verification).
-  if (passwordRequired && !passwordUnlocked) {
+  // Show the password gate first (before loading skeleton) so the "Checking…"
+  // spinner appears inside the gate UI rather than flashing the full skeleton.
+  if (passwordRequired && !portfolio) {
     const accentColor = gateInfo?.accentColor || '#e84545';
     return (
       <PasswordGate
-        expectedHash={gateInfo!.passwordHash!}
         accentColor={accentColor}
-        onUnlock={() => setPasswordUnlocked(true)}
+        onSubmit={(password) => {
+          setPasswordError(false);
+          setSubmittedPassword(password);
+        }}
+        hasError={passwordError}
+        isChecking={contentLoading}
       />
     );
   }
 
-  if (error || !portfolio) return <NotFound />;
+  if (isLoading) return <PortfolioSkeleton />;
+
+  // Password errors are caught by the gate condition above. Only surface NotFound
+  // for real missing/disabled-portfolio errors (not wrong-password responses).
+  if (error && (error as Error).message !== 'invalid_password') return <NotFound />;
+  if (!portfolio) return <NotFound />;
 
   const { profile, resume } = portfolio;
   // If the owner configured a challenger theme AND this visitor is variant B,

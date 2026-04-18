@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { Clock, EyeOff, Activity } from 'lucide-react';
+import { Clock, Activity } from 'lucide-react';
 import { SettingsRow } from '@/components/settings/SettingsRow';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -17,8 +17,6 @@ export const PrivacySection = memo(function PrivacySection({
     onBiometricToggle,
 }: PrivacySectionProps) {
     const {
-        localOnlyMode,
-        setLocalOnlyMode,
         analyticsEnabled,
         setAnalyticsEnabled,
         biometricLockEnabled,
@@ -27,7 +25,7 @@ export const PrivacySection = memo(function PrivacySection({
 
     const { isAvailable: biometricAvailable, biometryType } = useBiometricLock(biometricLockEnabled);
 
-    const privacyStatus = localOnlyMode && !analyticsEnabled ? 'Strict' : 'Standard';
+    const privacyStatus = !analyticsEnabled ? 'Strict' : 'Standard';
 
     const getBiometryIcon = () => {
         if (biometryType === 'faceId') return ScanFace;
@@ -84,16 +82,7 @@ export const PrivacySection = memo(function PrivacySection({
                     </>
                 ) : null}
 
-                {/* Privacy toggles */}
-                <SettingsRow
-                    type="toggle"
-                    label="Local-Only Mode"
-                    description="Keep data on this device only"
-                    icon={<EyeOff className="w-4 h-4" />}
-                    checked={localOnlyMode}
-                    onCheckedChange={setLocalOnlyMode}
-                />
-                <Separator className="ml-[52px] bg-border/30" />
+                {/* Analytics toggle */}
                 <SettingsRow
                     type="toggle"
                     label="Usage Analytics"
