@@ -140,5 +140,9 @@ BEGIN
   IF current_type IS NOT NULL THEN
     ALTER TABLE public.wisehire_candidates
       ALTER COLUMN tags SET DEFAULT '{}'::text[];
+    -- Backfill any historical NULLs to the empty-array default before
+    -- enforcing NOT NULL so this migration cannot fail on legacy rows.
+    UPDATE public.wisehire_candidates SET tags = '{}'::text[] WHERE tags IS NULL;
+    ALTER TABLE public.wisehire_candidates ALTER COLUMN tags SET NOT NULL;
   END IF;
 END $$;

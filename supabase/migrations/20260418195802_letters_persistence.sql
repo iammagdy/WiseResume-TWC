@@ -19,15 +19,15 @@ CREATE TABLE IF NOT EXISTS public.cover_letters (
   position text,
   job_description text,
   tone text DEFAULT 'professional',
-  content text NOT NULL,
+  content jsonb NOT NULL,
   model_used text,
   metadata jsonb,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_cover_letters_user_created
-  ON public.cover_letters (user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_cover_letters_user_updated
+  ON public.cover_letters (user_id, updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_cover_letters_resume_id
   ON public.cover_letters (resume_id);
 CREATE INDEX IF NOT EXISTS idx_cover_letters_job_application_id
@@ -44,15 +44,15 @@ CREATE TABLE IF NOT EXISTS public.resignation_letters (
   reason_category text,
   tone text DEFAULT 'professional',
   effective_date date,
-  content text NOT NULL,
+  content jsonb NOT NULL,
   model_used text,
   metadata jsonb,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_resignation_letters_user_created
-  ON public.resignation_letters (user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_resignation_letters_user_updated
+  ON public.resignation_letters (user_id, updated_at DESC);
 
 -- ── RLS — owner-only access ──────────────────────────────────────────────
 ALTER TABLE public.cover_letters ENABLE ROW LEVEL SECURITY;
