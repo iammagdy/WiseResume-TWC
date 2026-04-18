@@ -18,7 +18,6 @@ import { AISheetErrorBoundary } from '@/components/ai/AISheetErrorBoundary';
 import { activityTracker } from '@/lib/activityTracker';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import type { ActionType, SectionType } from '@/hooks/useAIEnhance';
-import { EDGE_FUNCTIONS_URL as CLOUD_URL, EDGE_FUNCTIONS_ANON_KEY as CLOUD_KEY } from '@/lib/supabaseConstants';
 import { trackGeminiUsage } from '@/lib/aiProvider';
 import { useAIAction } from '@/hooks/useAIAction';
 
@@ -258,12 +257,11 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
           const token = await getSupabaseToken();
           if (!token) throw new Error('401 Unauthorized – no session');
 
-          const res = await fetch(`${CLOUD_URL}/functions/v1/enhance-section`, {
+          const res = await fetch(`/api/fn/enhance-section`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${token}`,
-              'apikey': CLOUD_KEY,
             },
             body: JSON.stringify({
               section: sectionInfo.id,

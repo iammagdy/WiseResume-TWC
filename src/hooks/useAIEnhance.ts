@@ -10,7 +10,6 @@ import { redactResumeForAI } from '@/lib/piiRedact';
 import { useSettingsStore } from '@/store/settingsStore';
 import { parseAIErrorResponse, parseAIErrorBody, aiErrorToastMessage, AIError } from '@/lib/aiErrorParser';
 
-import { EDGE_FUNCTIONS_URL as CLOUD_URL, EDGE_FUNCTIONS_ANON_KEY as CLOUD_KEY } from '@/lib/supabaseConstants';
 
 export type SectionType = 'summary' | 'experience' | 'education' | 'skills' | 'contact' | 'awards' | 'projects' | 'publications' | 'volunteering' | 'certifications' | 'languages';
 export type ActionType = 'generate' | 'improve' | 'ats_improve' | 'ats_optimize' | 'shorten' | 'expand' | 'add_metrics' | 'generate_bullets';
@@ -83,12 +82,11 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
         });
 
         const doFetch = async (authToken: string | null) =>
-          fetch(`${CLOUD_URL}/functions/v1/enhance-section`, {
+          fetch(`/api/fn/enhance-section`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}),
-              'apikey': CLOUD_KEY,
             },
             body,
           });

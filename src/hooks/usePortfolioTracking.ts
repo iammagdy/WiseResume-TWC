@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { EDGE_FUNCTIONS_URL } from '@/lib/supabaseConstants';
 
 interface UsePortfolioTrackingProps {
   username?: string | null;
@@ -65,7 +64,7 @@ export function usePortfolioTracking({ username, refParam, abVariant }: UsePortf
       abVariant: abVariantRef.current ?? undefined,
     });
 
-    const url = `${EDGE_FUNCTIONS_URL}/functions/v1/track-portfolio-view`;
+    const url = `/api/fn/track-portfolio-view`;
     if (navigator.sendBeacon) {
       navigator.sendBeacon(url, new Blob([body], { type: 'application/json' }));
     } else {

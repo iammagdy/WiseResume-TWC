@@ -50,14 +50,12 @@ export function TemplateAdvisorSheet({ open, onOpenChange, onApply }: TemplateAd
       const jobTitle = latestExp?.position || '';
       const industry = '';
 
-      const { EDGE_FUNCTIONS_URL, EDGE_FUNCTIONS_ANON_KEY } = await import('@/lib/supabaseConstants');
       const response = await fetch(
-        `${EDGE_FUNCTIONS_URL}/functions/v1/suggest-template`,
+        `/api/fn/suggest-template`,
         {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${token}`,
-            apikey: EDGE_FUNCTIONS_ANON_KEY,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ jobTitle, industry, skills: skills.slice(0, 15) }),

@@ -9,7 +9,6 @@ import { useJobApplicationMutations, ApplicationStatus } from '@/hooks/useJobApp
 import { useQuery } from '@tanstack/react-query';
 import { getSupabaseToken } from '@/lib/supabaseAuth';
 
-import { EDGE_FUNCTIONS_URL, EDGE_FUNCTIONS_ANON_KEY } from '@/lib/supabaseConstants';
 import { useAuth } from '@/hooks/useAuth';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { toast } from 'sonner';
@@ -64,12 +63,12 @@ export function AddApplicationSheet({ open, onOpenChange, defaultValues }: AddAp
     try {
       const token = await getSupabaseToken();
       const res = await fetch(
-        `${EDGE_FUNCTIONS_URL}/functions/v1/parse-job-url`,
+        `/api/fn/parse-job-url`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token || EDGE_FUNCTIONS_ANON_KEY}`,
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
           },
           body: JSON.stringify({ url: trimmed }),
         }

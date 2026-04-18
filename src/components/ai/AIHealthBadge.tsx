@@ -5,7 +5,6 @@ import { useAIHealth, AIHealthStatus } from '@/hooks/useAIHealth';
 import { useAIHealthStore } from '@/store/aiHealthStore';
 import { cn } from '@/lib/utils';
 import { AISettingsSheet } from '@/components/settings/AISettingsSheet';
-import { EDGE_FUNCTIONS_URL } from '@/lib/supabaseConstants';
 import { getSupabaseToken } from '@/lib/supabaseAuth';
 
 type PingState = 'idle' | 'pinging' | 'done';
@@ -102,7 +101,7 @@ export function AIHealthBadge() {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
-      const res = await fetch(`${EDGE_FUNCTIONS_URL}/functions/v1/ai-health`, {
+      const res = await fetch(`/api/fn/ai-health`, {
         method: 'GET',
         headers,
       });

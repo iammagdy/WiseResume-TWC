@@ -9,7 +9,6 @@ import { toast } from 'sonner';
 import { parseAIErrorResponse, parseAIErrorBody, aiErrorToastMessage, AIError } from '@/lib/aiErrorParser';
 import { ResumeData, SuperTailorResult } from '@/types/resume';
 
-import { EDGE_FUNCTIONS_URL as CLOUD_URL, EDGE_FUNCTIONS_ANON_KEY as CLOUD_KEY } from '@/lib/supabaseConstants';
 
 interface QuickActionsProps {
   resume: ResumeData;
@@ -77,12 +76,11 @@ Return JSON: { "recommendedOrder": ["section1", "section2", ...], "reasoning": "
           });
         }
 
-        const res = await fetch(`${CLOUD_URL}/functions/v1/enhance-section`, {
+        const res = await fetch(`/api/fn/enhance-section`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`,
-            'apikey': CLOUD_KEY,
           },
           body: JSON.stringify({
             section: 'custom',

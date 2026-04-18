@@ -41,7 +41,6 @@ export interface ParseResult {
  * Exported for use with Word and Image parsing.
  */
 export async function parseTextWithAI(text: string): Promise<ResumeData> {
-  const { EDGE_FUNCTIONS_URL } = await import('@/lib/supabaseConstants');
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), PARSE_TIMEOUT);
 
@@ -64,7 +63,7 @@ export async function parseTextWithAI(text: string): Promise<ResumeData> {
     // is required by the server for strict file-type enforcement.
     const requestBody = JSON.stringify({ text, fileType: 'text/plain' });
 
-    let response = await fetch(`${EDGE_FUNCTIONS_URL}/functions/v1/parse-resume`, {
+    let response = await fetch(`/api/fn/parse-resume`, {
       method: 'POST',
       headers,
       body: requestBody,
@@ -80,7 +79,7 @@ export async function parseTextWithAI(text: string): Promise<ResumeData> {
         const newToken = await getToken();
         const retryHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
         if (newToken) retryHeaders['Authorization'] = `Bearer ${newToken}`;
-        response = await fetch(`${EDGE_FUNCTIONS_URL}/functions/v1/parse-resume`, {
+        response = await fetch(`/api/fn/parse-resume`, {
           method: 'POST',
           headers: retryHeaders,
           body: requestBody,

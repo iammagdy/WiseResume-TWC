@@ -1,5 +1,4 @@
 import { useEffect } from 'react';
-import { EDGE_FUNCTIONS_URL } from '@/lib/supabaseConstants';
 import type { PublicProfile } from '@/hooks/usePublicPortfolio';
 
 export function usePortfolioSEO(profile: PublicProfile | undefined | null) {
@@ -44,7 +43,7 @@ export function usePortfolioSEO(profile: PublicProfile | undefined | null) {
       
       const ogTitle = profile.metaTitle || (profile.jobTitle ? `${name} — ${profile.jobTitle}` : `${name}'s Portfolio`);
       const ogDesc = profile.metaDescription || profile.portfolioBio || `${name}'s professional portfolio`;
-      const ogImageUrl = `${EDGE_FUNCTIONS_URL}/functions/v1/og-image?username=${encodeURIComponent(profile.username)}`;
+      const ogImageUrl = `/api/fn/og-image?username=${encodeURIComponent(profile.username)}`;
       
       setMeta('og:title', ogTitle);
       setMeta('og:description', ogDesc);

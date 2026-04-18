@@ -64,14 +64,12 @@ export function QuestionBankSheet({
       const token = await getSupabaseToken();
       if (!token) throw new Error('Not authenticated');
 
-      const { EDGE_FUNCTIONS_URL, EDGE_FUNCTIONS_ANON_KEY } = await import('@/lib/supabaseConstants');
       const response = await fetch(
-        `${EDGE_FUNCTIONS_URL}/functions/v1/generate-question-bank`,
+        `/api/fn/generate-question-bank`,
         {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${token}`,
-            apikey: EDGE_FUNCTIONS_ANON_KEY,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({

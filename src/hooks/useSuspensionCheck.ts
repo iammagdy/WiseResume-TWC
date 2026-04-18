@@ -10,11 +10,7 @@ export interface SuspensionState {
 
 async function checkSuspensionViaMe(token: string): Promise<{ suspended: boolean; reason: string | null }> {
   try {
-    const { VITE_SUPABASE_URL } = import.meta.env;
-    const baseUrl = VITE_SUPABASE_URL || (window as unknown as Record<string, string>).__SUPABASE_URL__;
-    if (!baseUrl) return { suspended: false, reason: null };
-
-    const res = await fetch(`${baseUrl}/functions/v1/me`, {
+    const res = await fetch(`/api/fn/me`, {
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',

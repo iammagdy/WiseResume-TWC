@@ -1,4 +1,3 @@
-import { EDGE_FUNCTIONS_URL, EDGE_FUNCTIONS_ANON_KEY } from '@/lib/supabaseConstants';
 import { getToken, refreshTokenIfNeeded } from '@/lib/supabaseBridge';
 import { dispatchSessionExpiredOnce } from './sessionExpired';
 import { parseAIErrorBody, aiErrorToastMessage, type AIErrorCode } from '@/lib/aiErrorParser';
@@ -36,7 +35,8 @@ function classifyEdgeError(status: number, text: string): {
 
 /**
  * Authenticated edge function client.
- * Uses the Supabase bridge token for Authorization.
+ * Routes all calls through the Express server proxy at /api/fn/:fnName
+ * so that Supabase keys never leave the server.
  * Automatically retries once on 401 after refreshing the bridge token.
  */
 export const edgeFunctions = {
@@ -48,17 +48,14 @@ export const edgeFunctions = {
       const doInvoke = async (token: string | null) => {
         const headers: Record<string, string> = {
           'Content-Type': 'application/json',
-          'apikey': EDGE_FUNCTIONS_ANON_KEY,
           ...(options?.headers || {}),
         };
 
         if (token) {
           headers['Authorization'] = `Bearer ${token}`;
-        } else {
-          headers['Authorization'] = `Bearer ${EDGE_FUNCTIONS_ANON_KEY}`;
         }
 
-        const url = `${EDGE_FUNCTIONS_URL}/functions/v1/${fnName}`;
+        const url = `/api/fn/${fnName}`;
 
         const response = await fetch(url, {
           method: options?.method || 'POST',

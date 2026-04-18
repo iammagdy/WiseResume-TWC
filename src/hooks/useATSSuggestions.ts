@@ -8,7 +8,6 @@ import { parseAIErrorResponse, aiErrorToastMessage, AIError } from '@/lib/aiErro
 import { hasPassiveVerbs, hasMetrics, hasLongBullets, findPassiveStarter } from '@/lib/contentAnalysis';
 import { useAICreditsMutations } from './useAICredits';
 
-import { EDGE_FUNCTIONS_URL as CLOUD_URL, EDGE_FUNCTIONS_ANON_KEY as CLOUD_KEY } from '@/lib/supabaseConstants';
 
 export interface ATSSuggestion {
   id: string;
@@ -270,12 +269,11 @@ export function useATSSuggestions(resume: ResumeData | null, jobDescription: str
       });
 
       const doFetch = async (authToken: string | null) =>
-        fetch(`${CLOUD_URL}/functions/v1/enhance-section`, {
+        fetch(`/api/fn/enhance-section`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}),
-            'apikey': CLOUD_KEY,
           },
           body: fetchBody,
         });

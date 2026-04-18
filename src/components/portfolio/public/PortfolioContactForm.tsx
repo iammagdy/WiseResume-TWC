@@ -2,7 +2,6 @@ import { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Send, CheckCircle2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import { EDGE_FUNCTIONS_URL } from '@/lib/supabaseConstants';
 
 interface PortfolioContactFormProps {
   username: string;
@@ -31,7 +30,7 @@ export function PortfolioContactForm({ username, accentColor, ownerName }: Portf
     setErrorMsg('');
 
     try {
-      const res = await fetch(`${EDGE_FUNCTIONS_URL}/functions/v1/submit-contact-request`, {
+      const res = await fetch(`/api/fn/submit-contact-request`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

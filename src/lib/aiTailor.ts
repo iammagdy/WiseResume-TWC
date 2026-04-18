@@ -109,15 +109,12 @@ export async function tailorResumeWithProgress(
     }
   }, 25_000);
 
-  const { EDGE_FUNCTIONS_URL, EDGE_FUNCTIONS_ANON_KEY: SUPABASE_KEY } = await import('@/lib/supabaseConstants');
-
   const doFetch = async (token: string | null) => {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      'apikey': SUPABASE_KEY,
     };
     if (token) headers['Authorization'] = `Bearer ${token}`;
-    return fetch(`${EDGE_FUNCTIONS_URL}/functions/v1/tailor-resume`, {
+    return fetch(`/api/fn/tailor-resume`, {
       method: 'POST',
       headers,
       body: JSON.stringify({ resume, jobDescription, intensity, ...(userInstructions ? { userInstructions } : {}) }),
@@ -295,16 +292,14 @@ export async function tailorSection(params: {
   userInstructions?: string;
   intensity?: string;
 }): Promise<TailorSectionResult> {
-  const { EDGE_FUNCTIONS_URL, EDGE_FUNCTIONS_ANON_KEY: SUPABASE_KEY } = await import('@/lib/supabaseConstants');
   const token = await getSupabaseToken();
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    'apikey': SUPABASE_KEY,
   };
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
-  const res = await fetch(`${EDGE_FUNCTIONS_URL}/functions/v1/tailor-section`, {
+  const res = await fetch(`/api/fn/tailor-section`, {
     method: 'POST',
     headers,
     body: JSON.stringify(params),

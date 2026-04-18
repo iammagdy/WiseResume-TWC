@@ -5,7 +5,6 @@
  * token-exchange edge function. Stores the result in memory so all
  * Supabase calls can attach it as a bearer token.
  */
-import { EDGE_FUNCTIONS_URL, EDGE_FUNCTIONS_ANON_KEY } from '@/lib/supabaseConstants';
 
 export enum BridgeErrorType {
   OFFLINE_NETWORK = 'OFFLINE_NETWORK',
@@ -97,6 +96,8 @@ export function setKindeTokenGetter(fn: () => Promise<string | null>): void {
 
 /**
  * Exchange a Kinde access token for a Supabase JWT.
+ * Routes through the Express server proxy at /api/fn/token-exchange
+ * so Supabase keys never leave the server.
  * Deduplicates concurrent calls (only one in-flight request at a time).
  */
 export async function exchangeToken(kindeToken: string): Promise<void> {
@@ -104,7 +105,7 @@ export async function exchangeToken(kindeToken: string): Promise<void> {
 
   exchangePromise = (async () => {
     try {
-      const url = `${EDGE_FUNCTIONS_URL}/functions/v1/token-exchange`;
+      const url = `/api/fn/token-exchange`;
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 8000);
       let res: Response;
@@ -114,7 +115,6 @@ export async function exchangeToken(kindeToken: string): Promise<void> {
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${kindeToken}`,
-            'apikey': EDGE_FUNCTIONS_ANON_KEY,
           },
           signal: controller.signal,
         });

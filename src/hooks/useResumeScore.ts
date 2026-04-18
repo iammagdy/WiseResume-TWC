@@ -72,14 +72,11 @@ async function invokeScoreResume(resume: ResumeData, isBackground = false): Prom
     throw Object.assign(new Error('Scoring skipped: bridge token not available'), { isSkip: true });
   }
 
-  const { EDGE_FUNCTIONS_URL: supabaseUrl, EDGE_FUNCTIONS_ANON_KEY: anonKey } = await import('@/lib/supabaseConstants');
-
-  const res = await fetch(`${supabaseUrl}/functions/v1/score-resume`, {
+  const res = await fetch(`/api/fn/score-resume`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`,
-      'apikey': anonKey,
     },
     body: JSON.stringify({ resume: normalized, templateId, ...(isBackground ? { source: 'background' } : {}) }),
   });

@@ -1,12 +1,13 @@
 /**
  * Edge Functions client — multipart/FormData-capable wrapper.
  *
- * Used by hooks that need to send file uploads to Supabase Edge Functions
- * (e.g. wisehire-bulk-screen). Unlike the JSON-only client in
- * src/integrations/supabase/edgeFunctions.ts, this one does NOT set
- * Content-Type so the browser can set the correct multipart boundary.
+ * Routes all edge function calls through the Express server proxy at
+ * /api/fn/:fnName so Supabase keys never leave the server.
+ *
+ * Used by hooks that need to send file uploads (e.g. wisehire-bulk-screen).
+ * Unlike the JSON-only client, this one does NOT force Content-Type so the
+ * browser can set the correct multipart boundary for FormData uploads.
  */
-import { EDGE_FUNCTIONS_URL, EDGE_FUNCTIONS_ANON_KEY } from '@/lib/supabaseConstants';
 import { getToken, refreshTokenIfNeeded } from '@/lib/supabaseBridge';
 import { dispatchSessionExpiredOnce } from '@/integrations/supabase/sessionExpired';
 
@@ -29,7 +30,6 @@ async function doFetch(
   const isFormData = options?.body instanceof FormData;
 
   const headers: Record<string, string> = {
-    'apikey': EDGE_FUNCTIONS_ANON_KEY,
     ...(options?.headers ?? {}),
   };
 
@@ -39,11 +39,9 @@ async function doFetch(
 
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
-  } else {
-    headers['Authorization'] = `Bearer ${EDGE_FUNCTIONS_ANON_KEY}`;
   }
 
-  const url = `${EDGE_FUNCTIONS_URL}/functions/v1/${fnName}`;
+  const url = `/api/fn/${fnName}`;
 
   return fetch(url, {
     method: options?.method ?? 'POST',

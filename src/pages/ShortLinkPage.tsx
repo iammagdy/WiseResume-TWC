@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Link2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { EDGE_FUNCTIONS_URL, EDGE_FUNCTIONS_ANON_KEY } from '@/lib/supabaseConstants';
 
 /** Maximum milliseconds to wait for the resolve-short-link edge function. */
 const RESOLVE_TIMEOUT_MS = 7000;
@@ -26,12 +25,8 @@ export default function ShortLinkPage() {
     (async () => {
       try {
         const res = await fetch(
-          `${EDGE_FUNCTIONS_URL}/functions/v1/resolve-short-link?id=${encodeURIComponent(linkId)}`,
+          `/api/fn/resolve-short-link?id=${encodeURIComponent(linkId)}`,
           {
-            headers: {
-              apikey: EDGE_FUNCTIONS_ANON_KEY,
-              Authorization: `Bearer ${EDGE_FUNCTIONS_ANON_KEY}`,
-            },
             signal: controller.signal,
           }
         );

@@ -251,8 +251,7 @@ function PublicPortfolioContent({ usernameOverride }: { usernameOverride?: strin
     }
 
     try {
-      const { EDGE_FUNCTIONS_URL } = await import('@/lib/supabaseConstants');
-      const res = await fetch(`${EDGE_FUNCTIONS_URL}/functions/v1/portfolio-interest`, {
+      const res = await fetch(`/api/fn/portfolio-interest`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, token }),
