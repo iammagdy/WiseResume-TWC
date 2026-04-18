@@ -238,11 +238,14 @@ async function fetchPortfolioGateInfo(username: string): Promise<PortfolioGateIn
     };
   }
 
-  // Fallback: direct REST query in case the gate RPC is not yet deployed.
-  // The passwordHash is intentionally NOT forwarded to the caller in this path either —
-  // password enforcement has moved to the server via get_public_portfolio's p_password param.
+  // Fallback: direct REST query if get_portfolio_gate_info RPC is not yet deployed.
+  // We fetch only non-sensitive columns. portfolio_extras is avoided because it
+  // contains the passwordHash field. passwordEnabled is inferred from the RPC
+  // failure: if the RPC is unavailable, we conservatively assume no gate is needed
+  // and return passwordEnabled=false so the caller doesn't show a gate it can't enforce.
+  // (The new RPC is now deployed; this path is only reached if Supabase is degraded.)
   const params = new URLSearchParams({
-    select: 'full_name,avatar_url,portfolio_enabled,portfolio_extras,portfolio_accent_color',
+    select: 'full_name,avatar_url,portfolio_enabled,portfolio_accent_color',
     username: `eq.${username.toLowerCase()}`,
     limit: '1',
   });
@@ -253,14 +256,15 @@ async function fetchPortfolioGateInfo(username: string): Promise<PortfolioGateIn
   const rows = await res.json() as Array<Record<string, unknown>>;
   const row = rows?.[0];
   if (!row) return null;
-  const extras = (row.portfolio_extras as Record<string, unknown>) || {};
   return {
     fullName: (row.full_name as string) || null,
     avatarUrl: (row.avatar_url as string) || null,
     accentColor: (row.portfolio_accent_color as string) || null,
-    passwordEnabled: (extras.passwordEnabled as boolean) || false,
+    // passwordEnabled conservatively false: in degraded state the gate RPC is
+    // unavailable so we cannot enforce a password — we do not expose portfolios
+    // without a gate (the get_public_portfolio call itself is the enforcement layer).
+    passwordEnabled: false,
     portfolioEnabled: (row.portfolio_enabled as boolean) || false,
-    // passwordHash intentionally omitted — never returned to client
   };
 }
 
