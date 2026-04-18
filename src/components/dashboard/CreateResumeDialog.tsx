@@ -1,7 +1,7 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
-import { FileText, Upload, Copy, ArrowRight, GitBranch, Linkedin, Type, Loader2 } from 'lucide-react';
+import { FileText, Upload, Copy, ArrowRight, GitBranch, Linkedin, Type, Loader2, Check } from 'lucide-react';
 
 const ProfileImportSheet = lazy(() =>
   import('@/components/settings/ProfileImportSheet').then((m) => ({ default: m.ProfileImportSheet })),
@@ -39,7 +39,9 @@ import {
 } from '@/components/ui/select';
 
 import type { ProfileData } from '@/components/settings/ProfileImportSheet';
-import type { Experience, Education, Certification } from '@/types/resume';
+import type { Experience, Education, Certification, TemplateId } from '@/types/resume';
+import { TemplateThumbnail } from '@/components/editor/TemplateThumbnail';
+import { templates, sampleResumeData } from '@/lib/templateData';
 
 function mapProfileDataToResumeFields(data: Partial<ProfileData>): {
   experience: Experience[];
@@ -118,9 +120,10 @@ export function CreateResumeDialog({
   const [isCreating, setIsCreating] = useState(false);
 
   // Guided intake state for "Start from Scratch"
-  const [blankStep, setBlankStep] = useState<'intake' | 'title'>('intake');
+  const [blankStep, setBlankStep] = useState<'intake' | 'template' | 'title'>('intake');
   const [experienceLevel, setExperienceLevel] = useState<ExperienceLevel | ''>('');
   const [intakeJobTitle, setIntakeJobTitle] = useState('');
+  const [selectedDialogTemplate, setSelectedDialogTemplate] = useState<TemplateId>('modern');
 
   // Build-from-text state
   const [pasteText, setPasteText] = useState('');
@@ -160,7 +163,7 @@ export function CreateResumeDialog({
         education: [],
         skills: [],
         certifications: [],
-        templateId: defaultTemplateId || 'modern',
+        templateId: selectedDialogTemplate || defaultTemplateId || 'modern',
       });
       onOpenChange(false);
       // Pass intake params so EditorPage can apply section ordering and queue summary stub
@@ -187,7 +190,7 @@ export function CreateResumeDialog({
           education: [],
           skills: [],
           certifications: [],
-          templateId: defaultTemplateId || 'modern',
+          templateId: selectedDialogTemplate || defaultTemplateId || 'modern',
         },
         title: title.trim(),
       });
@@ -340,6 +343,7 @@ export function CreateResumeDialog({
     setBlankStep('intake');
     setExperienceLevel('');
     setIntakeJobTitle('');
+    setSelectedDialogTemplate('modern');
     setTailoredJobTitle('');
     setTailoredCompany('');
     setTailoredJobDescription('');
@@ -351,6 +355,8 @@ export function CreateResumeDialog({
 
   const handleBlankBack = () => {
     if (blankStep === 'title') {
+      setBlankStep('template');
+    } else if (blankStep === 'template') {
       setBlankStep('intake');
     } else {
       setMode(null);
@@ -359,7 +365,7 @@ export function CreateResumeDialog({
 
   const handleIntakeContinue = () => {
     if (!experienceLevel) return;
-    setBlankStep('title');
+    setBlankStep('template');
   };
 
   const handlePasteCreate = async () => {
@@ -585,6 +591,59 @@ export function CreateResumeDialog({
               <Button
                 onClick={handleIntakeContinue}
                 disabled={!experienceLevel}
+                className="flex-1 gradient-primary"
+              >
+                Continue
+              </Button>
+            </div>
+          </div>
+        ) : mode === 'blank' && blankStep === 'template' ? (
+          /* Template Selection Step */
+          <div className="space-y-4 py-4">
+            <div>
+              <p className="text-sm font-medium mb-0.5">Pick a template</p>
+              <p className="text-xs text-muted-foreground">You can change this any time in the editor</p>
+            </div>
+
+            <div className="max-h-[52vh] overflow-y-auto -mx-1 px-1">
+              <div className="grid grid-cols-2 gap-2.5">
+                {templates
+                  .filter(t => ['modern', 'classic', 'minimal', 'professional', 'compact', 'developer', 'elegant', 'executive'].includes(t.id))
+                  .map((template) => {
+                    const isSelected = selectedDialogTemplate === template.id;
+                    return (
+                      <button
+                        key={template.id}
+                        onClick={() => setSelectedDialogTemplate(template.id as TemplateId)}
+                        className={`relative rounded-xl border-2 p-1.5 text-left transition-all touch-manipulation active:scale-[0.97] ${
+                          isSelected
+                            ? 'border-primary bg-primary/5'
+                            : 'border-border hover:border-primary/40'
+                        }`}
+                      >
+                        <TemplateThumbnail templateId={template.id as TemplateId} resume={sampleResumeData} />
+                        <div className="mt-1.5 flex items-center justify-between px-0.5">
+                          <span className="text-xs font-medium truncate">{template.name}</span>
+                          {isSelected && (
+                            <Check className="w-3.5 h-3.5 text-primary shrink-0" />
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-1">
+              <Button
+                variant="outline"
+                onClick={handleBlankBack}
+                className="flex-1"
+              >
+                Back
+              </Button>
+              <Button
+                onClick={() => setBlankStep('title')}
                 className="flex-1 gradient-primary"
               >
                 Continue

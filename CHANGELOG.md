@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-04-18 — Resume Builder UX Improvements (Task #9)
+
+### New Features
+- **Template-first intake**: "Start from Scratch" in the Create Resume dialog now includes a template selection step (between experience level and title), showing 8 popular templates with live thumbnails so users choose a visual style before typing a single word. The selected template is written directly to the new resume row — the editor opens already wearing it.
+- **Certifications & Languages always visible**: These two sections now appear in the editor stepper for every resume, regardless of whether they contain data. Previously they only surfaced when data was present. Awards, Projects, and other optional sections still auto-promote on data.
+
+### Already Implemented (confirmed during audit)
+- Template thumbnails in the template picker (TemplateThumbnail component) — was already live
+- Persistent autosave indicator (ProgressChip cloud icons) — was already live
+- Partial PDF parse recovery (ImportReviewSheet shows parsed fields with "Not detected" badges and lets users proceed) — was already live
+- "Add sections" label on mobile stepper — was already live
+
+---
+
 ## 2026-04-15 — WiseHire Edge Function Deployment & Bug Fixes (Task #12)
 
 ### Bug Fixes (pre-deploy)

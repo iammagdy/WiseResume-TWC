@@ -539,11 +539,15 @@ export default function EditorPage() {
           { id: 'education', label: 'Education' },
           { id: 'skills', label: 'Skills' },
         ];
+    // Certifications and Languages are universally expected on most CVs — always show them.
+    base.push({ id: 'certifications', label: 'Certifications' });
+    base.push({ id: 'languages', label: 'Languages' });
     if (currentResume) {
+      // Remaining optional sections auto-promote when they contain data.
       const MORE_SECTION_META: Record<string, string> = {
-        awards: 'Awards', projects: 'Projects', certifications: 'Certifications',
+        awards: 'Awards', projects: 'Projects',
         publications: 'Publications', volunteering: 'Volunteering',
-        languages: 'Languages', hobbies: 'Hobbies', references: 'References',
+        hobbies: 'Hobbies', references: 'References',
       };
       for (const [id, label] of Object.entries(MORE_SECTION_META)) {
         const data = currentResume[id as keyof typeof currentResume];
@@ -557,8 +561,9 @@ export default function EditorPage() {
   }, [currentResume, educationFirst]);
 
   // Count optional sections not yet added (available to add via More)
+  // certifications and languages are always in the stepper so excluded here
   const availableMoreCount = useMemo(() => {
-    const MORE_OPTIONAL_IDS = ['awards', 'projects', 'certifications', 'publications', 'volunteering', 'languages', 'hobbies', 'references'];
+    const MORE_OPTIONAL_IDS = ['awards', 'projects', 'publications', 'volunteering', 'hobbies', 'references'];
     const addedIds = new Set(steps.map(s => s.id));
     return MORE_OPTIONAL_IDS.filter(id => !addedIds.has(id)).length;
   }, [steps]);
