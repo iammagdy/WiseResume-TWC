@@ -516,3 +516,62 @@ export const adminSettings = pgTable('admin_settings', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
   updatedBy: uuid('updated_by'),
 });
+
+// ── cover_letters ─────────────────────────────────────────────────────────────
+// Persistence for AI-generated cover letters so users can revisit / edit.
+// Mirrors supabase/migrations/20260418195802_letters_persistence.sql.
+export const coverLetters = pgTable(
+  'cover_letters',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => profiles.userId, { onDelete: 'cascade' }),
+    resumeId: uuid('resume_id').references(() => resumes.id, { onDelete: 'set null' }),
+    jobApplicationId: uuid('job_application_id').references(() => jobApplications.id, {
+      onDelete: 'set null',
+    }),
+    title: text('title').notNull().default('Cover Letter'),
+    company: text('company'),
+    position: text('position'),
+    jobDescription: text('job_description'),
+    tone: text('tone').default('professional'),
+    content: text('content').notNull(),
+    modelUsed: text('model_used'),
+    metadata: jsonb('metadata'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    userCreatedIdx: index('idx_cover_letters_user_created').on(t.userId, t.createdAt.desc()),
+    resumeIdx: index('idx_cover_letters_resume_id').on(t.resumeId),
+    jobApplicationIdx: index('idx_cover_letters_job_application_id').on(t.jobApplicationId),
+  }),
+);
+
+// ── resignation_letters ───────────────────────────────────────────────────────
+export const resignationLetters = pgTable(
+  'resignation_letters',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => profiles.userId, { onDelete: 'cascade' }),
+    title: text('title').notNull().default('Resignation Letter'),
+    recipientName: text('recipient_name'),
+    currentRole: text('current_role'),
+    company: text('company'),
+    noticePeriod: text('notice_period'),
+    reasonCategory: text('reason_category'),
+    tone: text('tone').default('professional'),
+    effectiveDate: date('effective_date'),
+    content: text('content').notNull(),
+    modelUsed: text('model_used'),
+    metadata: jsonb('metadata'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    userCreatedIdx: index('idx_resignation_letters_user_created').on(t.userId, t.createdAt.desc()),
+  }),
+);

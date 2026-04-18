@@ -185,3 +185,62 @@ No missing indexes jumped out from a query-pattern review.
 4. Add the missing constraints in §4.3 in a single migration.
 5. Backfill `server/schema.ts` with Drizzle definitions for the remaining 15 tables.
 6. Decide whether cover letters and resignation letters should be persisted; if yes, add tables.
+
+---
+
+## 9. Closure notes — Task #1 (Backend Remediation), 2026-04-18
+
+What this audit said vs. what was already true once we re-checked the live DB
+and the current `server/schema.ts`:
+
+| Audit claim | Reality on re-check | Action |
+|---|---|---|
+| Drizzle covers only 10 of 25 tables | Drizzle already covers all 25 — schema.ts grew between the audit and now. | No work needed for §4.2 beyond adding the two new letter tables. |
+| `subscriptions.user_id` not UNIQUE | UNIQUE present in Neon mirror; Supabase state still needs the migration. | Migration `20260418195800_schema_hardening.sql` makes it idempotent across both. |
+| `ai_credits.user_id` not UNIQUE | Same — present in Neon, migration covers Supabase. | Same. |
+| `admin_settings` table missing | Already exists in `server/schema.ts`. | No-op. |
+
+Action taken in this session:
+
+- §1 / suggestion 1 — Canonical DB decision (**Supabase**) documented in
+  [`docs/backend.md`](./docs/backend.md). Neon is dev-mirror only.
+- §4.3 — Migration written: `supabase/migrations/20260418195800_schema_hardening.sql`
+  (subscriptions+ai_credits UNIQUE, partial unique on `resumes(is_primary)`,
+  unique on `lower(profiles.email)`, `wisehire_candidates.tags` text[] sanity).
+- §4.3 / suggestion 2 — Migration written:
+  `supabase/migrations/20260418195801_portfolio_id_columns.sql` — adds
+  `portfolio_id uuid` to the three portfolio_* tables and back-fills from
+  `username`. Username FKs are kept temporarily; a follow-up migration drops
+  them once consumer code is cut over.
+- §4.4 / suggestion 6 — Migration written:
+  `supabase/migrations/20260418195802_letters_persistence.sql` — adds
+  `cover_letters` and `resignation_letters` (with RLS owner-only). Drizzle
+  definitions added to `server/schema.ts`.
+- §2.2 / suggestion 3 — Source for the 3 confirmed-orphan functions
+  (`wisehire-apply`, `send-feature-request`, `send-contact-inquiry`) deleted
+  from `supabase/functions/`. `clerk-webhook` has no source in the repo, so
+  it must be removed from the Supabase dashboard (no repo change possible).
+- `supabase/functions/EDGE_FUNCTION_AUDIT.md` updated with the removals,
+  documented platform-hook functions, and ghost-function status.
+
+### What still needs human action
+
+The migrations above were authored against the **canonical Supabase DB**, but
+this Replit environment only has the Neon `DATABASE_URL`. To finish:
+
+1. Apply each new SQL file to Supabase, in order, via either:
+   - `supabase db push` from a workstation that has the project linked, or
+   - the Supabase Studio SQL editor (paste each file, top-to-bottom).
+2. Run `npm run db:push` against Neon to sync the new Drizzle table defs
+   (`cover_letters`, `resignation_letters`).
+3. Update `generate-cover-letter` and `generate-resignation-letter` to INSERT
+   the generated content into the new tables and return the new row id.
+4. Cut over the portfolio analytics readers (visits, interactions, short
+   links) to read `portfolio_id` instead of the username column, then write
+   the follow-up migration that drops the legacy username FK.
+5. Delete the 4 ghost functions (`clerk-webhook`, `fetch-github-projects`,
+   `proofread-resume`, `send-bug-report`) from Supabase, or pull their source
+   back into the repo — whichever is correct for the feature.
+6. (Suggestion 8) DevKit raw-password-per-call → short-lived signed token —
+   see Phase 8 of the plan; deferred because it touches all 27 admin
+   functions and needs end-to-end testing.
