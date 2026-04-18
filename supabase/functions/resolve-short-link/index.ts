@@ -58,6 +58,10 @@ serve(async (req) => {
       data.target_url = null;
     }
 
+    // The RPC also returns `portfolio_id` (Phase 3 cutover). It is safe to
+    // expose to the client — it is the stable analytics FK and is not
+    // sensitive on its own.
+
     return new Response(JSON.stringify(data), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,

@@ -192,7 +192,29 @@ serve(async (req) => {
       console.warn("Geolocation failed (non-fatal):", geoErr);
     }
 
-    // ── 3. Validate portfolio + insert visit via RPC ─────────────────────
+    // ── 3. Look up portfolio_id (stable across rename) + owner ──────────
+    // portfolio_id is the new analytics FK target — it does NOT change when
+    // an admin renames a username, so passing it to the RPC ensures the
+    // visit history follows the user across renames. We still pass the
+    // username so the RPC can populate the legacy column during the soak.
+    const { data: profileRow } = await supabaseClient
+      .from("profiles")
+      .select("user_id")
+      .eq("username", username.toLowerCase())
+      .eq("portfolio_enabled", true)
+      .single();
+
+    let portfolioId: string | null = null;
+    if (profileRow?.user_id) {
+      const { data: portfolioRow } = await supabaseClient
+        .from("portfolios")
+        .select("id")
+        .eq("user_id", profileRow.user_id)
+        .maybeSingle();
+      portfolioId = portfolioRow?.id ?? null;
+    }
+
+    // ── 4. Insert visit via RPC ─────────────────────────────────────────
     const referrer = req.headers.get("referer") || null;
 
     // Sanitise sectionsTiming: only keep string keys with positive integer values
@@ -217,19 +239,12 @@ serve(async (req) => {
       p_company_name: companyName,
       p_ab_variant: (abVariant === 'a' || abVariant === 'b') ? abVariant : null,
       p_sections_timing: Object.keys(sanitisedTiming).length > 0 ? sanitisedTiming : null,
+      p_portfolio_id: portfolioId,
     });
 
     if (visitError) {
       console.error("Error recording visit via RPC:", visitError);
     }
-
-    // ── 4. Look up profile owner for notification ──────────────────────────
-    const { data: profileRow } = await supabaseClient
-      .from("profiles")
-      .select("user_id")
-      .eq("username", username.toLowerCase())
-      .eq("portfolio_enabled", true)
-      .single();
 
     // ── 5. Create in-app notification for portfolio owner ──────────────────
     if (profileRow?.user_id) {

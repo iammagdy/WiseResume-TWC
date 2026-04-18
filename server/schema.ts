@@ -136,6 +136,10 @@ export const portfolios = pgTable('portfolios', {
 
 // ── portfolio_short_links ─────────────────────────────────────────────────────
 // Defined before portfolio_visits so its FK target exists for inline reference.
+// NOTE: this Drizzle table tracks the legacy/dev `portfolio_short_links` table.
+// The production short-link store is `public.short_links` (see Supabase
+// migration 20260219095357), which is accessed only via the Supabase client
+// from the frontend / edge functions and is not modeled in Drizzle.
 export const portfolioShortLinks = pgTable(
   'portfolio_short_links',
   {
@@ -156,9 +160,15 @@ export const portfolioVisits = pgTable(
   'portfolio_visits',
   {
     id: uuid('id').primaryKey().defaultRandom(),
+    portfolioId: uuid('portfolio_id').references(() => portfolios.id, {
+      onDelete: 'cascade',
+    }),
     username: text('username')
       .notNull()
-      .references(() => portfolios.username, { onDelete: 'cascade' }),
+      .references(() => portfolios.username, {
+        onDelete: 'cascade',
+        onUpdate: 'cascade',
+      }),
     country: text('country'),
     city: text('city'),
     referrer: text('referrer'),
@@ -178,6 +188,10 @@ export const portfolioVisits = pgTable(
       t.username,
       t.visitedAt.desc(),
     ),
+    portfolioVisitedIdx: index('idx_portfolio_visits_portfolio_visited').on(
+      t.portfolioId,
+      t.visitedAt.desc(),
+    ),
     shortLinkIdx: index('idx_portfolio_visits_short_link_id').on(t.shortLinkId),
   }),
 );
@@ -188,15 +202,22 @@ export const portfolioInteractions = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     token: text('token').notNull().unique(),
+    portfolioId: uuid('portfolio_id').references(() => portfolios.id, {
+      onDelete: 'cascade',
+    }),
     portfolioUsername: text('portfolio_username')
       .notNull()
-      .references(() => portfolios.username, { onDelete: 'cascade' }),
+      .references(() => portfolios.username, {
+        onDelete: 'cascade',
+        onUpdate: 'cascade',
+      }),
     interactionType: text('interaction_type').default('interested'),
     referrerHostname: text('referrer_hostname'),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   },
   (t) => ({
     portfolioUsernameIdx: index('idx_portfolio_interactions_username').on(t.portfolioUsername),
+    portfolioIdIdx: index('idx_portfolio_interactions_portfolio_id').on(t.portfolioId),
   }),
 );
 

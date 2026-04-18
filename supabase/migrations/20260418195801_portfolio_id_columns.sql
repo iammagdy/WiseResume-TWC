@@ -63,11 +63,16 @@ END $$;
 CREATE INDEX IF NOT EXISTS idx_portfolio_interactions_portfolio_id
   ON public.portfolio_interactions (portfolio_id);
 
--- portfolio_short_links ----------------------------------------------------
-ALTER TABLE public.portfolio_short_links
+-- short_links --------------------------------------------------------------
+-- NOTE: the production table is `public.short_links` (created by migration
+-- 20260219095357 and extended by 20260222073214 with `target_url`). It owns
+-- the `portfolio_username`, `label`, `click_count`, `target_url` columns.
+-- An unrelated `portfolio_short_links` table exists in some dev databases
+-- but is NOT the canonical short-link store — do not target it here.
+ALTER TABLE public.short_links
   ADD COLUMN IF NOT EXISTS portfolio_id uuid;
 
-UPDATE public.portfolio_short_links s
+UPDATE public.short_links s
 SET portfolio_id = p.id
 FROM public.portfolios p
 WHERE s.portfolio_id IS NULL
@@ -77,17 +82,17 @@ DO $$
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_constraint
-    WHERE conname = 'portfolio_short_links_portfolio_id_fkey'
-      AND conrelid = 'public.portfolio_short_links'::regclass
+    WHERE conname = 'short_links_portfolio_id_fkey'
+      AND conrelid = 'public.short_links'::regclass
   ) THEN
-    ALTER TABLE public.portfolio_short_links
-      ADD CONSTRAINT portfolio_short_links_portfolio_id_fkey
+    ALTER TABLE public.short_links
+      ADD CONSTRAINT short_links_portfolio_id_fkey
       FOREIGN KEY (portfolio_id) REFERENCES public.portfolios(id) ON DELETE CASCADE;
   END IF;
 END $$;
 
-CREATE INDEX IF NOT EXISTS idx_portfolio_short_links_portfolio_id
-  ON public.portfolio_short_links (portfolio_id);
+CREATE INDEX IF NOT EXISTS idx_short_links_portfolio_id
+  ON public.short_links (portfolio_id);
 
 -- =========================================================================
 -- DEFERRED to a follow-up migration after the application has been cut over

@@ -88,6 +88,21 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    // Resolve the stable portfolio_id so the interaction survives a username
+    // rename. portfolio_username is still populated for one release as a
+    // fallback (FK has ON UPDATE CASCADE during the soak).
+    const { data: portfolioRow } = await supabase
+      .from('portfolios')
+      .select('id, username')
+      .eq('user_id', profileRow.user_id)
+      .maybeSingle();
+    if (!portfolioRow?.id) {
+      return new Response(JSON.stringify({ error: 'Portfolio not found' }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // Extract referrer hostname for display
     let referrerHostname: string | null = null;
     let referrerText = '';
@@ -107,7 +122,11 @@ Deno.serve(async (req: Request) => {
       .from('portfolio_interactions')
       .insert({
         token: safeToken,
-        portfolio_username: username.toLowerCase(),
+        portfolio_id: portfolioRow.id,
+        // Legacy column kept populated for one release as a fallback. Use
+        // the canonical portfolios.username so the FK is always satisfied
+        // even if profiles.username has drifted via an in-flight rename.
+        portfolio_username: portfolioRow.username,
         interaction_type: 'interested',
         referrer_hostname: referrerHostname,
       });

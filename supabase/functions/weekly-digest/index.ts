@@ -83,12 +83,22 @@ Deno.serve(async (req) => {
         let portfolioViews = 0;
 
         if (profile.portfolio_enabled && profile.username) {
-          const { count } = await supabase
-            .from("portfolio_visits")
-            .select("id", { count: "exact", head: true })
-            .eq("username", profile.username)
-            .gte("visited_at", weekAgo.toISOString());
-          portfolioViews = count ?? 0;
+          // Phase 3 cutover: query analytics by the stable portfolio_id so a
+          // username rename does not zero out the weekly portfolio-views
+          // count. Falls back to no rows when the portfolio is missing.
+          const { data: portfolioRow } = await supabase
+            .from("portfolios")
+            .select("id")
+            .eq("user_id", profile.user_id)
+            .maybeSingle();
+          if (portfolioRow?.id) {
+            const { count } = await supabase
+              .from("portfolio_visits")
+              .select("id", { count: "exact", head: true })
+              .eq("portfolio_id", portfolioRow.id)
+              .gte("visited_at", weekAgo.toISOString());
+            portfolioViews = count ?? 0;
+          }
         }
 
         const { count: pendingCount } = await supabase
