@@ -41,6 +41,7 @@ import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { DevKitSessionProvider, useDevKitSession } from '@/contexts/DevKitSessionContext';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { DevKitPanelBoundary } from '@/components/dev-kit/DevKitPanelBoundary';
 
 type Tab = 'overview' | 'analytics' | 'onboarding' | 'live' | 'deployment' | 'users' | 'coupons' | 'settings' | 'activity' | 'email' | 'wisehire' | 'portfolio' | 'ai-provider';
 
@@ -496,132 +497,134 @@ function DevToolsInner() {
         <main className="flex-1 overflow-y-auto">
           <div className="p-6 max-w-5xl">
 
-            {activeTab === 'overview' && (
-              <OverviewPanel />
-            )}
+            <DevKitPanelBoundary key={activeTab} panelName={TAB_LABELS[activeTab]}>
+              {activeTab === 'overview' && (
+                <OverviewPanel />
+              )}
 
-            {activeTab === 'analytics' && (
-              <AnalyticsPanel />
-            )}
+              {activeTab === 'analytics' && (
+                <AnalyticsPanel />
+              )}
 
-            {activeTab === 'onboarding' && (
-              <OnboardingFunnelPanel />
-            )}
+              {activeTab === 'onboarding' && (
+                <OnboardingFunnelPanel />
+              )}
 
-            {activeTab === 'live' && (
-              <LiveActivityPanel />
-            )}
+              {activeTab === 'live' && (
+                <LiveActivityPanel />
+              )}
 
-            {activeTab === 'deployment' && (
-              <DeploymentPanel />
-            )}
+              {activeTab === 'deployment' && (
+                <DeploymentPanel />
+              )}
 
-            {activeTab === 'users' && (
-              <div className="space-y-4">
-                <div>
-                  <h2 className="text-lg font-semibold flex items-center gap-2">
-                    <Users className="w-5 h-5 text-primary" />
-                    User Management
-                    {userCount !== null && (
-                      <span className="ml-1 text-sm font-normal text-muted-foreground">({userCount} total)</span>
-                    )}
-                  </h2>
-                  <p className="text-sm text-muted-foreground mt-0.5">
-                    View all registered users. Click any row to manage — set plans, grant trials, suspend accounts, adjust credits, and add admin notes.
-                  </p>
+              {activeTab === 'users' && (
+                <div className="space-y-4">
+                  <div>
+                    <h2 className="text-lg font-semibold flex items-center gap-2">
+                      <Users className="w-5 h-5 text-primary" />
+                      User Management
+                      {userCount !== null && (
+                        <span className="ml-1 text-sm font-normal text-muted-foreground">({userCount} total)</span>
+                      )}
+                    </h2>
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                      View all registered users. Click any row to manage — set plans, grant trials, suspend accounts, adjust credits, and add admin notes.
+                    </p>
+                  </div>
+                  <AdminUsersPanel onCountChange={setUserCount} />
                 </div>
-                <AdminUsersPanel onCountChange={setUserCount} />
-              </div>
-            )}
+              )}
 
-            {activeTab === 'coupons' && (
-              <div className="space-y-4">
-                <div>
-                  <h2 className="text-lg font-semibold flex items-center gap-2">
-                    <Tag className="w-5 h-5 text-primary" />
-                    Coupon Management
-                  </h2>
-                  <p className="text-sm text-muted-foreground mt-0.5">
-                    Create and manage discount codes. Users can redeem codes on the subscription page to get free plan upgrades or discounts.
-                  </p>
+              {activeTab === 'coupons' && (
+                <div className="space-y-4">
+                  <div>
+                    <h2 className="text-lg font-semibold flex items-center gap-2">
+                      <Tag className="w-5 h-5 text-primary" />
+                      Coupon Management
+                    </h2>
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                      Create and manage discount codes. Users can redeem codes on the subscription page to get free plan upgrades or discounts.
+                    </p>
+                  </div>
+                  <CouponsPanel onCountChange={setCouponCount} />
                 </div>
-                <CouponsPanel onCountChange={setCouponCount} />
-              </div>
-            )}
+              )}
 
-            {activeTab === 'settings' && (
-              <div className="space-y-4">
-                <div>
-                  <h2 className="text-lg font-semibold flex items-center gap-2">
-                    <Settings className="w-5 h-5 text-primary" />
-                    App Settings
-                  </h2>
-                  <p className="text-sm text-muted-foreground mt-0.5">
-                    Control app-wide settings. Toggle maintenance mode, post announcements, enable or disable features, and manage AI credit limits for all users.
-                  </p>
+              {activeTab === 'settings' && (
+                <div className="space-y-4">
+                  <div>
+                    <h2 className="text-lg font-semibold flex items-center gap-2">
+                      <Settings className="w-5 h-5 text-primary" />
+                      App Settings
+                    </h2>
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                      Control app-wide settings. Toggle maintenance mode, post announcements, enable or disable features, and manage AI credit limits for all users.
+                    </p>
+                  </div>
+                  <AppSettingsPanel />
                 </div>
-                <AppSettingsPanel />
-              </div>
-            )}
+              )}
 
-            {activeTab === 'email' && (
-              <div className="space-y-4">
-                <div>
-                  <h2 className="text-lg font-semibold flex items-center gap-2">
-                    <Mail className="w-5 h-5 text-primary" />
-                    Email Management
-                  </h2>
-                  <p className="text-sm text-muted-foreground mt-0.5">
-                    View unconfirmed users, send magic links, OTPs, password resets, and custom one-off emails to any user.
-                  </p>
+              {activeTab === 'email' && (
+                <div className="space-y-4">
+                  <div>
+                    <h2 className="text-lg font-semibold flex items-center gap-2">
+                      <Mail className="w-5 h-5 text-primary" />
+                      Email Management
+                    </h2>
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                      View unconfirmed users, send magic links, OTPs, password resets, and custom one-off emails to any user.
+                    </p>
+                  </div>
+                  <EmailManagementPanel />
                 </div>
-                <EmailManagementPanel />
-              </div>
-            )}
+              )}
 
-            {activeTab === 'wisehire' && (
-              <div className="space-y-4">
-                <div>
-                  <h2 className="text-lg font-semibold flex items-center gap-2">
-                    <Briefcase className="w-5 h-5 text-primary" />
-                    WiseHire Waitlist
-                  </h2>
-                  <p className="text-sm text-muted-foreground mt-0.5">
-                    View everyone who signed up for early access. Send invite emails directly from here — each invite generates a signed 72-hour link.
-                  </p>
+              {activeTab === 'wisehire' && (
+                <div className="space-y-4">
+                  <div>
+                    <h2 className="text-lg font-semibold flex items-center gap-2">
+                      <Briefcase className="w-5 h-5 text-primary" />
+                      WiseHire Waitlist
+                    </h2>
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                      View everyone who signed up for early access. Send invite emails directly from here — each invite generates a signed 72-hour link.
+                    </p>
+                  </div>
+                  <WiseHireWaitlistPanel />
                 </div>
-                <WiseHireWaitlistPanel />
-              </div>
-            )}
+              )}
 
-            {activeTab === 'portfolio' && (
-              <div className="space-y-4">
-                <div>
-                  <h2 className="text-lg font-semibold text-foreground">Portfolio Usernames</h2>
-                  <p className="text-sm text-muted-foreground">
-                    Manage the public portfolio username namespace: directory of active usernames, global rules, reserved words, and exclusive assignments.
-                  </p>
+              {activeTab === 'portfolio' && (
+                <div className="space-y-4">
+                  <div>
+                    <h2 className="text-lg font-semibold text-foreground">Portfolio Usernames</h2>
+                    <p className="text-sm text-muted-foreground">
+                      Manage the public portfolio username namespace: directory of active usernames, global rules, reserved words, and exclusive assignments.
+                    </p>
+                  </div>
+                  <PortfolioUsernamesPanel />
                 </div>
-                <PortfolioUsernamesPanel />
-              </div>
-            )}
+              )}
 
-            {activeTab === 'activity' && (
-              <div className="space-y-4">
-                <div>
-                  <h2 className="text-lg font-semibold flex items-center gap-2">
-                    <Clock className="w-5 h-5 text-primary" />
-                    Admin Activity Log
-                  </h2>
-                  <p className="text-sm text-muted-foreground mt-0.5">
-                    A record of all admin actions — plan changes, trial grants, suspensions, credit overrides, and coupon redemptions.
-                  </p>
+              {activeTab === 'activity' && (
+                <div className="space-y-4">
+                  <div>
+                    <h2 className="text-lg font-semibold flex items-center gap-2">
+                      <Clock className="w-5 h-5 text-primary" />
+                      Admin Activity Log
+                    </h2>
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                      A record of all admin actions — plan changes, trial grants, suspensions, credit overrides, and coupon redemptions.
+                    </p>
+                  </div>
+                  <AuditLogPanel />
                 </div>
-                <AuditLogPanel />
-              </div>
-            )}
+              )}
 
-            {activeTab === 'ai-provider' && <AIProviderPanel />}
+              {activeTab === 'ai-provider' && <AIProviderPanel />}
+            </DevKitPanelBoundary>
 
           </div>
         </main>

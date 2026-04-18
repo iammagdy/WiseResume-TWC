@@ -6,6 +6,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { getDevKitToken, useDevKitSession } from '@/contexts/DevKitSessionContext';
+import { useIsMounted, useVisibleInterval } from '@/lib/devkit/hooks';
+import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
   BarChart, Bar, LineChart, Line, Legend,
@@ -46,31 +48,37 @@ export function AnalyticsPanel() {
   const [secondsAgo, setSecondsAgo] = useState(0);
   const [range, setRange] = useState<AnalyticsRange>('7d');
 
+  const isMounted = useIsMounted();
+
   const fetchAnalytics = useCallback(async (r: AnalyticsRange) => {
     const token = getDevKitToken();
     if (!token) return;
     setLoading(true);
     setError(null);
     try {
-      const { data: responseData, error: invokeError } = await edgeFunctions.functions.invoke('admin-analytics', {
+      const tuple = await edgeFunctions.functions.invoke('admin-analytics', {
         body: { password: token, range: r },
       });
-      if (invokeError) throw new Error(invokeError.message);
-      const result = responseData as { success?: boolean; error?: string; data?: PremiumAnalyticsData };
-      if (result?.success === false) throw new Error(result.error ?? 'Failed to load analytics');
-      const raw = result?.data;
+      const result = unwrapAdminResponse<{ data?: PremiumAnalyticsData }>(tuple, 'admin-analytics');
+      const raw = result.data;
       if (!raw) throw new Error('No data returned');
+      if (!isMounted()) return;
       setData({ ...raw, lastUpdatedAt: new Date() });
       setSecondsAgo(0);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load analytics');
+      if (!isMounted()) return;
+      setError(formatEdgeError(e, 'Failed to load analytics'));
     } finally {
-      setLoading(false);
+      if (isMounted()) setLoading(false);
     }
-  }, []);
+  }, [isMounted]);
 
   useEffect(() => {
     if (isUnlocked) {
+      // Clear any stale data from a previous range so we don't show
+      // numbers that look correct but belong to the wrong window.
+      setData(null);
+      setError(null);
       fetchAnalytics(range);
     } else {
       setData(null);

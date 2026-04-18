@@ -1,5 +1,32 @@
 # Changelog
 
+## 2026-04-18 — DevKit comprehensive hardening: crash-safety, unmount guards, typed errors
+
+Phase-1 hardening of the admin DevKit (15 panels, ~12k LOC) so a single misbehaving panel can no longer take the entire admin surface down, background polling no longer leaks past unmount, and the most-cast `as any` error-parsing block is replaced with a typed helper. Production behaviour is otherwise unchanged.
+
+### New shared utilities (`src/lib/devkit/`)
+- `hooks.ts` — `useIsMounted`, `useAbortOnUnmount`, and `useVisibleInterval` (pauses polling while the document is hidden, resumes on focus, cleans up on unmount).
+- `edgeResponse.ts` — `EdgeFunctionError` class plus `unwrapAdminResponse` / `tryUnwrapAdminResponse` / `formatEdgeError`. Replaces dozens of unchecked `as { success?, error? }` casts with one validator that distinguishes transport errors, `{ success: false }` payloads, and "function not deployed" 404s.
+
+### Panel-scoped crash boundary
+- New `src/components/dev-kit/DevKitPanelBoundary.tsx` wraps the panel-rendering region of `src/pages/DevToolsPage.tsx`. If any panel throws during render, the rest of the DevKit shell (sidebar, tab bar, header, lock button) stays alive and the admin sees a "Try again" card scoped to that panel. Boundary resets automatically on tab switch via `key={activeTab}`.
+
+### Panel fixes
+- **OverviewPanel** — replaced the unbounded `while (true)` pagination loop with a hard cap (`MAX_OVERVIEW_PAGES = 50`) and an `isMounted()` guard between every page; switched to `unwrapAdminResponse`; added a visibility-aware 60 s auto-refresh that pauses while the tab is hidden.
+- **AnalyticsPanel** — adopted `unwrapAdminResponse` + unmount guard; clears stale data on range change so the chart never shows numbers from the wrong window during a refresh.
+- **UserDetailDrawer** — replaced the three silent `.catch(() => {})` swallowing failures on `admin-audit-logs`, `admin-save-note (list)`, and `admin-get-identity` with logged + toasted errors so admins are never left wondering why a tab is empty.
+- **DeploymentPanel** — `fetchSweepStatus` now uses an abort-on-unmount controller and `isMounted()` guards around every `setState`; `AbortError` is suppressed.
+- **LiveActivityPanel** — converted the two 30 s polling intervals to `useVisibleInterval`, so admin-fn health pings and event/error/contact refreshes pause while the DevKit tab is in the background.
+- **DevKitRunner** — eliminated all six `as any` casts in error parsing via a new `RunnerError` interface and `toRunnerError(input)` helper that handles `Error`, plain `{ error, message, status }` objects, strings, and `null`.
+
+### Verified already-correct (no change needed)
+- LiveActivityPanel **already** gates the 4 AI-burning checks behind an explicit "Run health check" button; the 30 s auto-loop only covers the lightweight admin functions. Earlier audit note about auto-burning AI credits was a misread.
+- `PortfolioUsernamesPanel` — `UserSearchInput` is debounced at 250 ms.
+
+### Build / type-check
+- `tsc --noEmit` clean.
+- `vite build` clean (522 precache entries, no new warnings).
+
 ## 2026-04-18 — AI Provider Panel: close out audit findings (F5 + verification)
 
 Re-audited every finding in `Project Atlas/02-Planned/ai-provider-panel-audit-findings.md` (F1–F8 + S1–S3, P1–P6, A3) against the live code. Confirmed 14 of 15 in-scope items were already shipped in prior tasks. The audit document was updated with a status table pointing at the exact file:line evidence for each.

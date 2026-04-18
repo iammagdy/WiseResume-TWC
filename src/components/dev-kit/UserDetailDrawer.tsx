@@ -203,7 +203,13 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
       if (cancelled) return;
       const result = data as { success?: boolean; logs?: AuditEntry[] };
       setAuditHistory(result?.logs ?? []);
-    }).catch(() => {});
+    }).catch((err: unknown) => {
+      if (cancelled) return;
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      console.warn('[UserDetailDrawer] audit-logs failed:', msg);
+      toast.error('Could not load audit history', { description: msg });
+      setAuditHistory([]);
+    });
 
     edgeFunctions.functions.invoke('admin-save-note', {
       body: { password: pw, target_user_id: user.user_id, action: 'list' },
@@ -211,7 +217,13 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
       if (cancelled) return;
       const result = data as { success?: boolean; notes?: NoteEntry[] };
       setNotesHistory(result?.notes ?? []);
-    }).catch(() => {}).finally(() => {
+    }).catch((err: unknown) => {
+      if (cancelled) return;
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      console.warn('[UserDetailDrawer] notes list failed:', msg);
+      toast.error('Could not load admin notes', { description: msg });
+      setNotesHistory([]);
+    }).finally(() => {
       if (!cancelled) setHistoryLoading(false);
     });
 
@@ -320,7 +332,13 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
           is_collision: result.is_collision ?? false,
         });
       }
-    }).catch(() => {}).finally(() => {
+    }).catch((err: unknown) => {
+      if (cancelled) return;
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      console.warn('[UserDetailDrawer] get-identity failed:', msg);
+      // Identity is informational; surface as a soft warning rather than blocking the drawer.
+      toast.warning('Could not load identity record', { description: msg });
+    }).finally(() => {
       if (!cancelled) setIdentityLoading(false);
     });
 

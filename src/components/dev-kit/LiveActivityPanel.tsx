@@ -3,6 +3,7 @@ import { RefreshCw, Activity, CheckCircle, AlertCircle, Clock, PlayCircle, Loade
 import { Button } from '@/components/ui/button';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { getDevKitToken, useDevKitSession, onDevKitLock } from '@/contexts/DevKitSessionContext';
+import { useVisibleInterval } from '@/lib/devkit/hooks';
 import { DevKitRunner } from './DevKitRunner';
 
 interface UsageEvent {
@@ -434,23 +435,17 @@ export function LiveActivityPanel() {
     if (isUnlocked) { fetchContactRequests(); }
   }, [isUnlocked, fetchContactRequests]);
 
-  useEffect(() => {
-    if (!isUnlocked) return;
-    const interval = setInterval(() => {
-      fetchEvents();
-      fetchErrorLogs();
-      fetchContactRequests();
-    }, 30_000);
-    return () => clearInterval(interval);
-  }, [isUnlocked, fetchEvents, fetchErrorLogs, fetchContactRequests]);
+  // Visibility-aware: pauses while the tab is hidden so we don't keep hitting
+  // edge functions while the admin is away. Resumes automatically on focus.
+  useVisibleInterval(() => {
+    fetchEvents();
+    fetchErrorLogs();
+    fetchContactRequests();
+  }, 30_000, isUnlocked);
 
-  useEffect(() => {
-    if (!isUnlocked) return;
-    const interval = setInterval(() => {
-      runLightweightHealthChecks();
-    }, 30_000);
-    return () => clearInterval(interval);
-  }, [isUnlocked, runLightweightHealthChecks]);
+  useVisibleInterval(() => {
+    runLightweightHealthChecks();
+  }, 30_000, isUnlocked);
 
   useEffect(() => {
     if (!isUnlocked) return;

@@ -5,6 +5,7 @@ import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { getDevKitToken } from '@/contexts/DevKitSessionContext';
 import { getSupabaseToken } from '@/lib/supabaseAuth';
+import { useIsMounted, useAbortOnUnmount } from '@/lib/devkit/hooks';
 
 interface Commit {
   sha: string;
@@ -102,6 +103,9 @@ export function DeploymentPanel() {
   const [sweepLoading, setSweepLoading] = useState(false);
   const [sweepError, setSweepError] = useState<string | null>(null);
 
+  const isMounted = useIsMounted();
+  const sweepAbort = useAbortOnUnmount();
+
   const fetchDeploymentData = useCallback(async () => {
     setLoading(true);
     setFetchError(null);
@@ -171,6 +175,7 @@ export function DeploymentPanel() {
   const fetchSweepStatus = useCallback(async () => {
     setSweepLoading(true);
     setSweepError(null);
+    const controller = sweepAbort.next();
     try {
       const token = await getSupabaseToken();
       if (!token) {
@@ -179,20 +184,27 @@ export function DeploymentPanel() {
       }
       const res = await fetch('/api/admin/analytics-sweep-status', {
         headers: { Authorization: `Bearer ${token}` },
+        signal: controller.signal,
       });
+      if (controller.signal.aborted || !isMounted()) return;
       if (!res.ok) {
         const body = await res.json().catch(() => ({})) as { error?: string };
+        if (controller.signal.aborted || !isMounted()) return;
         setSweepError(body.error ?? `HTTP ${res.status}`);
         return;
       }
       const status = await res.json() as SweepStatus;
+      if (controller.signal.aborted || !isMounted()) return;
       setSweepStatus(status);
     } catch (e) {
+      if (controller.signal.aborted || !isMounted()) return;
+      // AbortError is benign — caller already aborted via unmount or rapid re-fetch.
+      if (e instanceof DOMException && e.name === 'AbortError') return;
       setSweepError(e instanceof Error ? e.message : 'Failed to load sweep status');
     } finally {
-      setSweepLoading(false);
+      if (isMounted() && !controller.signal.aborted) setSweepLoading(false);
     }
-  }, []);
+  }, [isMounted, sweepAbort]);
 
   useEffect(() => { fetchDeploymentData(); }, [fetchDeploymentData]);
   useEffect(() => { fetchSweepStatus(); }, [fetchSweepStatus]);

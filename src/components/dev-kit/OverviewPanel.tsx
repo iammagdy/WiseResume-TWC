@@ -4,7 +4,11 @@ import { RefreshCw, Users, Crown, AlertTriangle, Shield, Clock, FileText, Trendi
 import { Button } from '@/components/ui/button';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { getDevKitToken } from '@/contexts/DevKitSessionContext';
+import { useIsMounted, useVisibleInterval } from '@/lib/devkit/hooks';
+import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
 import type { AdminUser } from './AdminUsersPanel';
+
+const MAX_OVERVIEW_PAGES = 50; // hard cap so a runaway upstream `total` can never spin forever
 
 interface OverviewStats {
   total: number;
@@ -164,6 +168,7 @@ export function OverviewPanel() {
   const [stats, setStats] = useState<OverviewStats | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const isMounted = useIsMounted();
 
   const fetchStats = useCallback(async () => {
     setLoading(true);
@@ -176,16 +181,15 @@ export function OverviewPanel() {
       let page = 1;
       let total = 0;
 
-      while (true) {
-        const { data, error: err } = await edgeFunctions.functions.invoke('admin-list-users', {
+      while (page <= MAX_OVERVIEW_PAGES) {
+        if (!isMounted()) return;
+        const tuple = await edgeFunctions.functions.invoke('admin-list-users', {
           body: { password, page, per_page: PAGE_SIZE, sort: 'newest' },
         });
-        if (err) throw new Error(err.message);
-        const result = data as { success?: boolean; users?: AdminUser[]; total?: number; error?: string };
-        if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
+        const result = unwrapAdminResponse<{ users?: AdminUser[]; total?: number }>(tuple, 'admin-list-users');
 
-        const batch: AdminUser[] = result?.users ?? [];
-        if (page === 1) total = result?.total ?? batch.length;
+        const batch: AdminUser[] = result.users ?? [];
+        if (page === 1) total = result.total ?? batch.length;
         allUsers.push(...batch);
 
         if (allUsers.length >= total || batch.length < PAGE_SIZE) break;
@@ -215,11 +219,15 @@ export function OverviewPanel() {
       let aiCreditsToday: number | null = null;
       let aiCreditsYesterday: number | null = null;
       try {
-        const { data: analyticsData } = await edgeFunctions.functions.invoke('admin-analytics', {
+        if (!isMounted()) return;
+        const tuple = await edgeFunctions.functions.invoke('admin-analytics', {
           body: { password },
         });
-        const analyticsResult = analyticsData as { success?: boolean; data?: { aiCreditsToday?: number; aiCreditsYesterday?: number } };
-        if (analyticsResult?.data) {
+        const analyticsResult = unwrapAdminResponse<{ data?: { aiCreditsToday?: number; aiCreditsYesterday?: number } }>(
+          tuple,
+          'admin-analytics',
+        );
+        if (analyticsResult.data) {
           aiCreditsToday = analyticsResult.data.aiCreditsToday ?? null;
           aiCreditsYesterday = analyticsResult.data.aiCreditsYesterday ?? null;
         }
@@ -227,6 +235,7 @@ export function OverviewPanel() {
         // analytics is optional — don't fail the overview for it
       }
 
+      if (!isMounted()) return;
       setStats({
         total,
         loadedCount: allUsers.length,
@@ -245,13 +254,16 @@ export function OverviewPanel() {
         aiCreditsYesterday,
       });
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load overview');
+      if (!isMounted()) return;
+      setError(formatEdgeError(e, 'Failed to load overview'));
     } finally {
-      setLoading(false);
+      if (isMounted()) setLoading(false);
     }
-  }, []);
+  }, [isMounted]);
 
   useEffect(() => { fetchStats(); }, [fetchStats]);
+  // Refresh every 60s while the tab is visible; pauses when hidden, stops on unmount.
+  useVisibleInterval(fetchStats, 60_000);
 
   function formatRelative(iso: string | null): string {
     if (!iso) return '—';

@@ -23,6 +23,49 @@ const MINIMAL_RESUME = {
 
 const SAMPLE_JD = 'We are looking for a Senior Frontend Engineer with 3+ years of React and TypeScript experience.';
 
+/**
+ * Lightweight runtime shape for any error-like object the runner observes.
+ * Replaces 6 `as any` casts that were previously scattered around the file.
+ */
+interface RunnerError {
+  message: string;
+  status?: number;
+  detail?: string;
+}
+
+function hasErrorField(value: unknown): value is { error: unknown } {
+  return typeof value === 'object' && value !== null && 'error' in (value as Record<string, unknown>);
+}
+
+function toRunnerError(input: unknown): RunnerError {
+  if (input == null) return { message: 'Unknown error' };
+  if (typeof input === 'string') return { message: input };
+
+  if (input instanceof Error) {
+    const status = (input as Error & { status?: number }).status;
+    return { message: input.message || 'Unknown error', status };
+  }
+
+  if (typeof input === 'object') {
+    const obj = input as Record<string, unknown>;
+    const status = typeof obj.status === 'number' ? obj.status : undefined;
+    const errField = obj.error;
+    const messageField = obj.message;
+
+    let message = '';
+    if (typeof errField === 'string') message = errField;
+    else if (typeof messageField === 'string') message = messageField;
+    else if (errField != null) message = JSON.stringify(errField);
+    else message = JSON.stringify(obj);
+
+    const detail =
+      typeof messageField === 'string' && messageField !== message ? messageField : undefined;
+    return { message: message || 'Unknown error', status, detail };
+  }
+
+  return { message: String(input) };
+}
+
 export function DevKitRunner() {
   const auth = useAuth();
   const [results, setResults] = useState<Record<string, TestResult>>({});
@@ -100,8 +143,9 @@ export function DevKitRunner() {
 
         // Strict Error: Edge function returned an error object
         if (error) {
-          const status = (error as any).status || 500;
-          const rawMsg = (error as any).message || JSON.stringify(error);
+          const errObj = toRunnerError(error);
+          const status = errObj.status ?? 500;
+          const rawMsg = errObj.message;
           const friendly = friendlyAIKeyError(rawMsg);
           const detail = rawMsg && rawMsg !== `HTTP Error: ${status}` ? `: ${rawMsg}` : '';
           return {
@@ -114,9 +158,10 @@ export function DevKitRunner() {
         }
 
         // Strict Error: Data payload contains an 'error' field (US1-FR-DK-002)
-        if (data && typeof data === 'object' && (data as any).error) {
-          const rawErr = String((data as any).error);
-          const rawMsg = String((data as any).message || rawErr);
+        if (data && typeof data === 'object' && hasErrorField(data)) {
+          const errObj = toRunnerError(data);
+          const rawErr = errObj.message;
+          const rawMsg = errObj.detail ?? rawErr;
           const friendly = friendlyAIKeyError(rawErr) || friendlyAIKeyError(rawMsg);
           const detail = rawMsg !== rawErr ? ` — ${rawMsg}` : '';
           return {
@@ -184,7 +229,7 @@ export function DevKitRunner() {
         const res = await edgeFunctions.functions.invoke('send-contact-email', {
           body: { type: 'contact', email: 'contact@thewise.cloud', subject: '[HC] Email Service Test', message: 'Dev Kit smoke test — email pipeline verification.', metadata: { source: 'dev-kit' }, dry_run: true }
         });
-        if (res.error) throw new Error((res.error as any).message || 'Email function error');
+        if (res.error) throw new Error(toRunnerError(res.error).message || 'Email function error');
         if (!res.data?.success && res.data?.reason !== 'dry_run') {
           throw new Error(res.data?.error || res.data?.reason || 'Email configuration check failed');
         }
@@ -210,7 +255,7 @@ export function DevKitRunner() {
       id: 'ai-engine-openrouter', label: 'Engine · OpenRouter (Gemma 4)', description: 'Directly test WiseResume managed OpenRouter endpoint — admin only', section: 'ai',
       run: () => strictInvoke('ai-engine-openrouter', async () => {
         const res = await edgeFunctions.functions.invoke('ai-test', { body: { wiseresumeSubProvider: 'openrouter' } });
-        if (res.error) throw new Error((res.error as any).message || 'ai-test error');
+        if (res.error) throw new Error(toRunnerError(res.error).message || 'ai-test error');
         if (!res.data?.success) throw new Error(res.data?.error || 'ai-test returned failure');
         return { engine: 'openrouter', model: res.data.model, latencyMs: res.data.latencyMs, response: res.data.response };
       }),
@@ -219,7 +264,7 @@ export function DevKitRunner() {
       id: 'ai-engine-groq', label: 'Engine · Groq (Qwen 3 32B)', description: 'Directly test WiseResume managed Groq endpoint (qwen/qwen3-32b) — admin only', section: 'ai',
       run: () => strictInvoke('ai-engine-groq', async () => {
         const res = await edgeFunctions.functions.invoke('ai-test', { body: { wiseresumeSubProvider: 'groq' } });
-        if (res.error) throw new Error((res.error as any).message || 'ai-test error');
+        if (res.error) throw new Error(toRunnerError(res.error).message || 'ai-test error');
         if (!res.data?.success) throw new Error(res.data?.error || 'ai-test returned failure');
         return { engine: 'groq', model: res.data.model, latencyMs: res.data.latencyMs, response: res.data.response };
       }),

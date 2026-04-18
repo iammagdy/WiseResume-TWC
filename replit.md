@@ -284,7 +284,13 @@ See `.env.example`. Key variables:
 - Tabs: Analytics, Live Activity, Deployment, Audit Log, + others
 - **DeploymentPanel**: Shows last 5 GitHub commits via `admin-github-status` edge function, env var checklist via `admin-env-check`, links to Supabase + GitHub
 - **admin-github-status**: Proxies GitHub API using `GITHUB_TOKEN`, `GITHUB_OWNER`, `GITHUB_REPO` secrets — recently fixed (token was stale)
-- **LiveActivityPanel**: 30s auto-refresh, last 50 `usage_events`, edge function health cards
+- **LiveActivityPanel**: 30s auto-refresh (visibility-aware — pauses while tab hidden), last 50 `usage_events`, edge function health cards. AI-burning health checks gated behind explicit "Run health check" button.
+
+### DevKit hardening primitives (added 2026-04-18)
+Every panel should reach for these instead of hand-rolling unmount safety or response parsing:
+- `src/lib/devkit/hooks.ts` — `useIsMounted()`, `useAbortOnUnmount()`, `useVisibleInterval(fn, ms, enabled?)`. The interval pauses while the document is hidden and cleans up on unmount.
+- `src/lib/devkit/edgeResponse.ts` — `unwrapAdminResponse<T>(invokeTuple, fnName)` validates the `{ data, error }` tuple from `edgeFunctions.functions.invoke(...)` and throws `EdgeFunctionError` on transport errors, missing payloads, `{ success: false }` responses, or 404 ("not deployed"). Use `tryUnwrapAdminResponse` for optional/secondary fetches and `formatEdgeError(e, fallback)` for surfacing.
+- `src/components/dev-kit/DevKitPanelBoundary.tsx` — wraps the panel-render slot in `DevToolsPage` so a single panel crash never takes down the DevKit shell. Boundary resets per tab via `key={activeTab}`.
 
 ## Server-side LinkedIn Importer (Task #8)
 Endpoint: `POST /api/linkedin-profile` (in `server/index.ts`).
