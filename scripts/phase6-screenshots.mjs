@@ -1,3 +1,25 @@
+/**
+ * Phase 6 verification capture script.
+ *
+ * Captures the 12-shot landing matrix (WiseResume + WiseHire × light + dark
+ * × hero / mid / post) and emits TTFB, FCP, LCP for each variant.
+ *
+ * Usage:
+ *   PREVIEW_URL=http://127.0.0.1:5000 \
+ *   CHROME_PATH=/path/to/chromium \
+ *   node scripts/phase6-screenshots.mjs
+ *
+ * Env:
+ *   PREVIEW_URL  Base URL of the running app (default: http://localhost:5000).
+ *                Use 127.0.0.1 if localhost resolution is slow in your sandbox.
+ *   CHROME_PATH  Absolute path to a Chromium / Chrome binary. On Replit the
+ *                latest ungoogled-chromium in /nix/store works:
+ *                  ls /nix/store/*ungoogled-chromium*/bin/chromium | sort -V | tail -1
+ *
+ * Output:
+ *   screenshots/{wiseresume,wisehire}-{light,dark}-{hero,mid,post}.jpg
+ *   stdout: JSON metrics array (TTFB, FCP, LCP per product/theme)
+ */
 import puppeteer from 'puppeteer';
 import { mkdirSync } from 'node:fs';
 
