@@ -295,6 +295,29 @@ export default function PortfolioEditorPage() {
     }
   }, [profile, lastSavedSnapshot, getCurrentSnapshot]);
 
+  // Debounced autosave to portfolio_draft — persists working copy to DB so
+  // drafts survive page closes.  Only runs when the snapshot has diverged from
+  // what was last explicitly saved (avoids writes on initial mount).
+  useEffect(() => {
+    if (!lastSavedSnapshot) return;
+    const snapshot = getCurrentSnapshot();
+    if (snapshot === lastSavedSnapshot) return;
+    const timer = setTimeout(async () => {
+      try {
+        const parsed = JSON.parse(snapshot) as Record<string, unknown>;
+        await updateProfile({
+          portfolioDraft: parsed,
+          portfolioDraftSavedAt: new Date().toISOString(),
+        } as Parameters<typeof updateProfile>[0]);
+      } catch {
+        // Silent — draft autosave is best-effort; the user can always click
+        // "Save draft" manually or "Publish" to persist changes.
+      }
+    }, 3000);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [getCurrentSnapshot, lastSavedSnapshot]);
+
   // Browser close/refresh warning
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
@@ -656,10 +679,12 @@ export default function PortfolioEditorPage() {
         })()
       };
 
-      await updateProfile(updates as Parameters<typeof updateProfile>[0]);
+      // Clear the persisted draft in the same write as the live-column promotion
+      // so publish is atomic — no fire-and-forget second mutation that could fail silently.
+      (updates as Record<string, unknown>).portfolioDraft = null;
+      (updates as Record<string, unknown>).portfolioDraftSavedAt = null;
 
-      // Promote complete — clear the persisted draft now that live columns are authoritative
-      updateProfile({ portfolioDraft: null, portfolioDraftSavedAt: null } as Parameters<typeof updateProfile>[0]).catch(() => {});
+      await updateProfile(updates as Parameters<typeof updateProfile>[0]);
       
       // Save history snapshot (fire and forget to not block UI)
       if (overrides?.portfolioEnabled === undefined) {

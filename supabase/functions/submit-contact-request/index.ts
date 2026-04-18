@@ -139,14 +139,15 @@ Deno.serve(async (req) => {
       try {
         const portfolioUsername = String(metadata.portfolio_username);
 
-        // Resolve the owner user_id from their portfolio username
+        // Resolve the owner's auth UUID from their portfolio username
+        // profiles.user_id IS the auth UUID (not profiles.id which is a surrogate PK)
         const { data: profileRow } = await supabaseAdmin
           .from("profiles")
-          .select("id")
+          .select("user_id")
           .eq("username", portfolioUsername)
           .single();
 
-        if (profileRow?.id) {
+        if (profileRow?.user_id) {
           const senderLabel = email.trim();
           const snippet =
             message.trim().length > 120
@@ -154,7 +155,7 @@ Deno.serve(async (req) => {
               : message.trim();
 
           await supabaseAdmin.from("notifications").insert({
-            user_id: profileRow.id,
+            user_id: profileRow.user_id,
             type: "portfolio_contact",
             title: `New message from ${senderLabel}`,
             message: snippet,
