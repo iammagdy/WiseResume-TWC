@@ -1,0 +1,50 @@
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[27/28]⎯
+
+ FAIL  src/components/layout/__tests__/ProtectedRoute.test.tsx > ProtectedRoute > renders outlet when user is authenticated
+TestingLibraryElementError: Unable to find an element by: [data-testid="protected-content"]
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"min-h-[100dvh] bg-transparent p-4 space-y-4 animate-pulse"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"h-10 w-32 rounded-lg bg-muted"[39m
+      [36m/>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"h-6 w-48 rounded bg-muted"[39m
+      [36m/>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"space-y-3 mt-6"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"h-24 rounded-xl bg-muted"[39m
+        [36m/>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"h-24 rounded-xl bg-muted"[39m
+        [36m/>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ Object.getElementError node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ ❯ getByTestId node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ src/components/layout/__tests__/ProtectedRoute.test.tsx:79:19
+     77|     );
+     78| 
+     79|     expect(screen.getByTestId('protected-content')).toBeInTheDocument(…
+       |                   ^
+     80|   });
+     81| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[28/28]⎯
+
+
+ Test Files  12 failed | 38 passed | 1 skipped (51)
+      Tests  27 failed | 270 passed | 1 todo (298)
+   Start at  16:02:58
+   Duration  49.70s (transform 6.34s, setup 14.92s, collect 36.36s, tests 10.72s, environment 54.46s, prepare 10.13s)
+
