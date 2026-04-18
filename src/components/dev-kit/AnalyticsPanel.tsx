@@ -75,9 +75,9 @@ export function AnalyticsPanel() {
 
   useEffect(() => {
     if (isUnlocked) {
-      // Clear any stale data from a previous range so we don't show
-      // numbers that look correct but belong to the wrong window.
-      setData(null);
+      // Keep previously rendered numbers visible while the new range
+      // loads — only the inline refresh spinner indicates the fetch
+      // is in flight. Avoids a full skeleton flash on range switch.
       setError(null);
       fetchAnalytics(range);
     } else {
