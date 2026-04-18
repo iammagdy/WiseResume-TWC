@@ -20,7 +20,12 @@ import { getSafeMatchMedia } from '@/lib/envUtils';
 import { useSearchParams } from 'react-router-dom';
 import { useThemeLogo } from '@/hooks/useThemeLogo';
 import { LandingHeader } from '@/components/landing/LandingHeader';
-import { LandingModeTransition } from '@/components/landing/LandingModeTransition';
+// LandingModeTransition uses framer-motion. Lazy-load it so framer is
+// only fetched on the first product switch (and never for users with
+// prefers-reduced-motion).
+const LandingModeTransition = lazy(() =>
+  import('@/components/landing/LandingModeTransition').then((m) => ({ default: m.LandingModeTransition }))
+);
 /* Eagerly preload whichever hero chunk corresponds to the initial active
    product mode. Both heroes use React.lazy below so the inactive product
    subtree stays out of the entry chunk; this preload simply primes the
@@ -262,8 +267,10 @@ const Index = () => {
         <div ref={progressRef} className="h-full transition-[width] duration-75 ease-out" style={{ background: 'var(--lp-brand)', width: 0 }} />
       </div>
 
-      {!prefersReducedMotion && (
-        <LandingModeTransition waveKey={waveKey} waveColor={waveColor} origin={waveOrigin} onWaveComplete={handleWaveComplete} />
+      {!prefersReducedMotion && waveKey > 0 && (
+        <Suspense fallback={null}>
+          <LandingModeTransition waveKey={waveKey} waveColor={waveColor} origin={waveOrigin} onWaveComplete={handleWaveComplete} />
+        </Suspense>
       )}
 
       <LandingHeader

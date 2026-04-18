@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
 
 interface LandingToggleProps {
   mode: 'jobseeker' | 'wisehire';
@@ -12,18 +11,29 @@ interface LandingToggleProps {
 // Step 5 (U-5): toned-down active states so the toggle reads as a
 // secondary segmented control, not as a primary CTA. The Sign In
 // button keeps the strong filled-red treatment as the dominant action.
+//
+// Step 4 (B-3, post-review): rewritten to use CSS transitions / CSS
+// keyframes only — no framer-motion import. This component is mounted
+// inside the always-eager landing header, so any framer-motion import
+// here would force the framer runtime into the entry chunk.
+
 const RED_BG = 'rgba(158,27,34,0.14)';
 const BLUE_BG = 'rgba(29,78,216,0.14)';
 const RED_SHADOW = 'inset 0 0 0 1px rgba(158,27,34,0.55)';
 const BLUE_SHADOW = 'inset 0 0 0 1px rgba(29,78,216,0.55)';
 
-export function LandingToggle({ mode, onModeChange, prefersReducedMotion, uid = '', compact = false }: LandingToggleProps) {
+const BURST_KEYFRAMES = `
+@keyframes lp-toggle-burst {
+  0%   { transform: translate(-50%, -50%) scale(1);   opacity: 0; }
+  25%  { transform: translate(-50%, -50%) scale(1.6); opacity: 0.4; }
+  100% { transform: translate(-50%, -50%) scale(2.5); opacity: 0; }
+}
+`;
+
+export function LandingToggle({ mode, onModeChange, prefersReducedMotion, uid: _uid = '', compact = false }: LandingToggleProps) {
   const [burstKey, setBurstKey] = useState(0);
   const [burstLeft, setBurstLeft] = useState('25%');
   const [burstColor, setBurstColor] = useState('rgba(158,27,34,0.65)');
-
-  const burstLayoutId = uid ? `lp-toggle-burst-${uid}` : 'lp-toggle-burst';
-  const indicatorLayoutId = uid ? `landing-toggle-indicator-${uid}` : 'landing-toggle-indicator';
 
   const fireBurst = (targetMode: 'jobseeker' | 'wisehire') => {
     if (prefersReducedMotion) return;
@@ -68,11 +78,12 @@ export function LandingToggle({ mode, onModeChange, prefersReducedMotion, uid = 
         overflow: 'hidden',
       }}
     >
-      {/* Ignition burst */}
+      <style>{BURST_KEYFRAMES}</style>
+
+      {/* Ignition burst — CSS keyframe, re-keyed to retrigger. */}
       {!prefersReducedMotion && burstKey > 0 && (
-        <motion.div
+        <div
           key={burstKey}
-          layoutId={burstLayoutId}
           aria-hidden="true"
           style={{
             position: 'absolute',
@@ -84,12 +95,8 @@ export function LandingToggle({ mode, onModeChange, prefersReducedMotion, uid = 
             background: `radial-gradient(circle, ${burstColor} 0%, transparent 70%)`,
             pointerEvents: 'none',
             zIndex: 20,
-            translateX: '-50%',
-            translateY: '-50%',
+            animation: 'lp-toggle-burst 500ms cubic-bezier(0.16, 1, 0.3, 1) forwards',
           }}
-          initial={{ scale: 1, opacity: 0 }}
-          animate={{ scale: 2.5, opacity: [0, 0.4, 0] }}
-          transition={{ duration: 0.5, times: [0, 0.25, 1], ease: [0.16, 1, 0.3, 1] }}
         />
       )}
 
@@ -116,18 +123,18 @@ export function LandingToggle({ mode, onModeChange, prefersReducedMotion, uid = 
           gap: 5,
         }}
       >
-        {mode === 'jobseeker' && (
-          <motion.div
-            layoutId={indicatorLayoutId}
-            animate={{ background: RED_BG, boxShadow: RED_SHADOW }}
-            style={{
-              position: 'absolute',
-              inset: 0,
-              borderRadius: 99,
-            }}
-            transition={{ type: 'spring', stiffness: 420, damping: 34 }}
-          />
-        )}
+        <span
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            borderRadius: 99,
+            background: mode === 'jobseeker' ? RED_BG : 'transparent',
+            boxShadow: mode === 'jobseeker' ? RED_SHADOW : 'none',
+            transition: 'background 0.35s ease, box-shadow 0.35s ease',
+            pointerEvents: 'none',
+          }}
+        />
         <span
           aria-hidden="true"
           style={{
@@ -168,18 +175,18 @@ export function LandingToggle({ mode, onModeChange, prefersReducedMotion, uid = 
           gap: 5,
         }}
       >
-        {mode === 'wisehire' && (
-          <motion.div
-            layoutId={indicatorLayoutId}
-            animate={{ background: BLUE_BG, boxShadow: BLUE_SHADOW }}
-            style={{
-              position: 'absolute',
-              inset: 0,
-              borderRadius: 99,
-            }}
-            transition={{ type: 'spring', stiffness: 420, damping: 34 }}
-          />
-        )}
+        <span
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            borderRadius: 99,
+            background: mode === 'wisehire' ? BLUE_BG : 'transparent',
+            boxShadow: mode === 'wisehire' ? BLUE_SHADOW : 'none',
+            transition: 'background 0.35s ease, box-shadow 0.35s ease',
+            pointerEvents: 'none',
+          }}
+        />
         <span
           aria-hidden="true"
           style={{

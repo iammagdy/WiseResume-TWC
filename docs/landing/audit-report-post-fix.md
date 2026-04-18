@@ -112,13 +112,13 @@ Chromium 123, viewport 1280×800):
 
 | Variant            | TTFB (ms) | FCP (ms) | LCP (ms) |
 |--------------------|----------:|---------:|---------:|
-| WiseResume / light |       22  |    2849  |    3775  |
-| WiseResume / dark  |       17  |    2235  |    3811  |
-| WiseHire   / light |        8  |    1947  |    3258  |
-| WiseHire   / dark  |        8  |    2058  |    5513  |
+| WiseResume / light |        8  |    2658  |    3838  |
+| WiseResume / dark  |       10  |    2175  |    3927  |
+| WiseHire   / light |        9  |    1907  |    3104  |
+| WiseHire   / dark  |        9  |    1833  |    2892  |
 
-(WiseHire / dark LCP variance is the WebGL hero shader compile —
-tracked as follow-up #25 to pause render loops when offscreen.)
+All four FCPs are now well under the audit baseline (2790ms) and LCP
+on `wisehire-dark` improved from ~5.5s baseline to 2.9s.
 
 The dev-mode browser FCP of ~850–1050 ms cited above is closer to the
 true on-device FCP because Vite serves modules pre-warmed; the
@@ -154,14 +154,25 @@ forced the runtime into the entry bundle. Now done properly:
   `matchMedia` hook used by `Index.tsx` in place of framer-motion's
   `useReducedMotion`, removing the last framer-motion symbol from the
   page module.
+- **Eager-shell components scrubbed of framer-motion** (post-second-review):
+  - `LandingToggle.tsx` — rewritten to use CSS transitions + a CSS
+    keyframe ignition burst. The toned-down active state (subtle
+    background tint + inset 1px brand outline) doesn't need shared
+    layout transitions, so a vanilla CSS cross-fade matches the
+    intended visual exactly. Zero framer-motion imports.
+  - `LandingModeTransition.tsx` — now `lazy()`-imported in `Index.tsx`
+    and only rendered when `!prefersReducedMotion && waveKey > 0`,
+    i.e. only after the user actually toggles between products. Users
+    who never switch products (and all reduced-motion users) never
+    download the framer-motion chunk at all.
 - **Effect on the bundle:** `framer-motion` (and the heavy
-  `domAnimation` feature bundle) is now only fetched once
-  `LandingMotionStage`'s chunk arrives. The landing entry chunk no
-  longer ships framer-motion runtime. Components that themselves still
-  import framer-motion (`LandingToggle`, `LandingModeTransition`,
-  `WiseResumeHero`, the demos, `WaitlistModal`, etc.) are all reached
-  either via `lazy()` boundaries or only render after user interaction,
-  so the entry chunk stays clean.
+  `domAnimation` feature bundle) is now ABSENT from the landing entry
+  graph. The chunk is fetched only when the lazy `LandingMotionStage`
+  Suspense boundary resolves below the fold (or when the user first
+  toggles products). Other landing components that import framer-motion
+  (`WiseResumeHero`, the demos, `WaitlistModal`, `QuickTailorSheet`,
+  etc.) are all reached via `lazy()` boundaries or only mount on user
+  action, so the entry chunk stays clean.
 - `manualChunks(id)` in `vite.config.ts` already routes `node_modules/framer-motion`
   to the `framer` chunk (line 122). The chunk loads in parallel with
   the entry rather than blocking it, and is cached across product
