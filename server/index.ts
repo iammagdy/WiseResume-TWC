@@ -16,7 +16,6 @@ import cors from 'cors';
 import { neon } from '@neondatabase/serverless';
 import { promises as dns } from 'node:dns';
 import net from 'node:net';
-import { adminAuditLog as adminAuditLogTable } from './schema';
 
 const app = express();
 const PORT = parseInt(process.env.API_PORT || '5001', 10);
@@ -1204,12 +1203,17 @@ async function writeAdminAudit(
   action: string,
   payload: Record<string, unknown> | null,
 ): Promise<void> {
+  if (!sql) {
+    console.error('[admin-audit] DATABASE_URL not configured — write skipped', { actorEmail, action });
+    return;
+  }
   try {
-    await db.insert(adminAuditLogTable).values({
-      actorEmail,
-      action,
-      payload: payload ?? null,
-    });
+    // Using the neon HTTP tagged-template; column names match `admin_audit_log`
+    // in `server/schema.ts` (id default uuid, at default now()).
+    await sql`
+      INSERT INTO admin_audit_log (actor_email, action, payload)
+      VALUES (${actorEmail}, ${action}, ${payload ? JSON.stringify(payload) : null}::jsonb)
+    `;
   } catch (e) {
     console.error('[admin-audit] write failed', e);
   }
@@ -1473,17 +1477,25 @@ app.post(
       });
       if (!r.ok) {
         res.json({ success: false, error: `Upstream HTTP ${r.status}`, model });
-        await writeAdminAudit(req.verifiedEmail || 'unknown', 'gemini-test', { model, ok: false, status: r.status });
+        // A3: same `provider-test` taxonomy/payload as OpenRouter/Groq/Ollama.
+        await writeAdminAudit(req.verifiedEmail || 'unknown', 'provider-test', {
+          provider: 'gemini', model, ok: false, latencyMs: null, error: `Upstream HTTP ${r.status}`,
+        });
         return;
       }
       const body = await r.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
       const text = body.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
       const latencyMs = Date.now() - start;
       res.json({ success: true, model, latencyMs, preview: text.slice(0, 120) });
-      await writeAdminAudit(req.verifiedEmail || 'unknown', 'gemini-test', { model, ok: true, latencyMs });
+      await writeAdminAudit(req.verifiedEmail || 'unknown', 'provider-test', {
+        provider: 'gemini', model, ok: true, latencyMs, error: null,
+      });
     } catch (e: unknown) {
-      res.json({ success: false, error: logAndSanitiseUpstreamError('gemini-test', e), model });
-      await writeAdminAudit(req.verifiedEmail || 'unknown', 'gemini-test', { model, ok: false });
+      const sanitised = logAndSanitiseUpstreamError('gemini-test', e);
+      res.json({ success: false, error: sanitised, model });
+      await writeAdminAudit(req.verifiedEmail || 'unknown', 'provider-test', {
+        provider: 'gemini', model, ok: false, latencyMs: null, error: sanitised,
+      });
     } finally {
       clearTimeout(t);
     }

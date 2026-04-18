@@ -1283,12 +1283,14 @@ function GeminiPanel({
         model: d.model,
         preview: d.preview,
       });
-      logAdminProviderTest('gemini', d.model ?? geminiModel ?? null, true, d.latencyMs ?? null, null);
+      // NOTE: Gemini tests are audited server-side inside `/gemini-test`
+      // (writeAdminAudit with action='gemini-test'). Do NOT call
+      // logAdminProviderTest here — that would create a duplicate row.
     } catch (e: unknown) {
       if (ctrl.signal.aborted) return;
       const msg = e instanceof Error ? e.message : 'Test failed';
       setTestState({ status: 'error', error: msg });
-      logAdminProviderTest('gemini', geminiModel || null, false, null, msg);
+      // Server already audits failures inside `/gemini-test`; nothing to log here.
     }
   }, [geminiModel]);
 
