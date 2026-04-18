@@ -86,33 +86,46 @@ CREATE UNIQUE INDEX IF NOT EXISTS uniq_resumes_primary_per_user
 -- profile with each email (by updated_at), null out the older duplicates so
 -- they don't block the unique index. We do not delete them — admins may want
 -- to investigate why two profiles existed.
-WITH dup_emails AS (
-  SELECT lower(email) AS lemail
-  FROM public.profiles
-  WHERE email IS NOT NULL AND length(trim(email)) > 0
-  GROUP BY lower(email) HAVING COUNT(*) > 1
-),
-losers AS (
-  SELECT p.id
-  FROM public.profiles p
-  JOIN dup_emails d ON lower(p.email) = d.lemail
-  WHERE p.id <> (
-    SELECT p2.id
-    FROM public.profiles p2
-    WHERE lower(p2.email) = d.lemail
-    ORDER BY p2.updated_at DESC NULLS LAST, p2.created_at DESC NULLS LAST
-    LIMIT 1
-  )
-)
-UPDATE public.profiles
-SET email = NULL,
-    admin_notes = COALESCE(admin_notes, '') ||
-      E'\n[2026-04-18 schema_hardening] email cleared — duplicate of canonical row, see audit log.'
-WHERE id IN (SELECT id FROM losers);
+-- NOTE: The canonical Supabase schema does not (yet) carry an `email` column
+-- on `profiles` — only `contact_email`. We gate the dedup + unique index on
+-- the column actually existing so this migration is a no-op until the column
+-- is introduced. Once added, re-running this migration will apply the index.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'email'
+  ) THEN
+    EXECUTE $sql$
+      WITH dup_emails AS (
+        SELECT lower(email) AS lemail
+        FROM public.profiles
+        WHERE email IS NOT NULL AND length(trim(email)) > 0
+        GROUP BY lower(email) HAVING COUNT(*) > 1
+      ),
+      losers AS (
+        SELECT p.id
+        FROM public.profiles p
+        JOIN dup_emails d ON lower(p.email) = d.lemail
+        WHERE p.id <> (
+          SELECT p2.id
+          FROM public.profiles p2
+          WHERE lower(p2.email) = d.lemail
+          ORDER BY p2.updated_at DESC NULLS LAST, p2.created_at DESC NULLS LAST
+          LIMIT 1
+        )
+      )
+      UPDATE public.profiles
+      SET email = NULL,
+          admin_notes = COALESCE(admin_notes, '') ||
+            E'\n[2026-04-18 schema_hardening] email cleared — duplicate of canonical row, see audit log.'
+      WHERE id IN (SELECT id FROM losers);
+    $sql$;
 
-CREATE UNIQUE INDEX IF NOT EXISTS uniq_profiles_email_lower
-  ON public.profiles (lower(email))
-  WHERE email IS NOT NULL;
+    EXECUTE 'CREATE UNIQUE INDEX IF NOT EXISTS uniq_profiles_email_lower
+      ON public.profiles (lower(email)) WHERE email IS NOT NULL';
+  END IF;
+END $$;
 
 -- ── 5. wisehire_candidates.tags type sanity ───────────────────────────────
 -- The Drizzle schema declares text[]. If the deployed DB ever drifted to a

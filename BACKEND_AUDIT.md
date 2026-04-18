@@ -223,16 +223,60 @@ Action taken in this session:
 - `supabase/functions/EDGE_FUNCTION_AUDIT.md` updated with the removals,
   documented platform-hook functions, and ghost-function status.
 
+### Closure — Task #2 (apply migrations to Supabase), 2026-04-18
+
+The three Phase-1 migrations were applied to the canonical Supabase project
+`jnsfmkzgxsviuthaqlyy` via the Supabase Management API SQL endpoint, in
+filename order, each returning HTTP 201:
+
+- `20260418195800_schema_hardening.sql` — applied
+- `20260418195801_portfolio_id_columns.sql` — applied
+- `20260418195802_letters_persistence.sql` — applied
+
+`npm run db:push` then ran cleanly against the Neon dev mirror, picking up
+`cover_letters` and `resignation_letters` from `server/schema.ts`.
+
+Verified post-state on Supabase:
+
+- `subscriptions_user_id_key` and `ai_credits_user_id_key` UNIQUE constraints
+  now present.
+- `uniq_resumes_primary_per_user` partial unique index present.
+- `cover_letters` gained `job_application_id`, `position`, `job_description`,
+  `model_used`, `metadata` (existing columns preserved). RLS enabled and
+  owner-only policies present.
+- `resignation_letters` gained `current_role` (quoted to escape the reserved
+  word), `reason_category`, `effective_date`, `model_used`, `metadata`.
+  RLS enabled and owner-only policies present.
+
+#### Schema drift discovered while applying — must be addressed before the §4.4/§4.3 follow-ups can land
+
+The migration files as originally authored assumed the canonical Supabase
+shape matched `server/schema.ts` (Drizzle/Neon). It does not. Re-authored
+defensive guards in this commit so the migrations no-op on missing objects
+rather than fail; the underlying drift still needs a separate plan:
+
+1. `public.profiles` on Supabase has **no `email` column** — only
+   `contact_email`. The `uniq_profiles_email_lower` unique index was
+   therefore not created. A separate migration must either (a) add `email`
+   and dual-write from `contact_email`, or (b) repoint the unique constraint
+   onto `contact_email`.
+2. `public.portfolios`, `public.portfolio_interactions`, and
+   `public.portfolio_short_links` **do not exist on Supabase**. Portfolios
+   are stored on `profiles` (with `username`, `portfolio_*` columns) and
+   short-links live in `public.short_links`. The portfolio_id columns/FKs
+   from `20260418195801` therefore did not get added to any table on
+   Supabase. The portfolio FK plan needs to be re-scoped against the
+   `profiles`-as-portfolio reality (or first introduce a `portfolios` table).
+3. `cover_letters` / `resignation_letters` already existed on Supabase with
+   an older shape (`content text`, no `metadata`, etc.). The new columns
+   were added alongside; no destructive type changes were performed. The
+   Edge Functions follow-up will need to decide which content column to
+   write into and, if cutting over to `jsonb`, do that migration explicitly.
+
 ### What still needs human action
 
-The migrations above were authored against the **canonical Supabase DB**, but
-this Replit environment only has the Neon `DATABASE_URL`. To finish:
-
-1. Apply each new SQL file to Supabase, in order, via either:
-   - `supabase db push` from a workstation that has the project linked, or
-   - the Supabase Studio SQL editor (paste each file, top-to-bottom).
-2. Run `npm run db:push` against Neon to sync the new Drizzle table defs
-   (`cover_letters`, `resignation_letters`).
+1. (no longer needed — migrations applied above.)
+2. (no longer needed — `npm run db:push` against Neon completed.)
 3. Update `generate-cover-letter` and `generate-resignation-letter` to INSERT
    the generated content into the new tables and return the new row id.
 4. Cut over the portfolio analytics readers (visits, interactions, short
