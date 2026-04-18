@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Send, CheckCircle2, AlertCircle } from 'lucide-react';
+import { toast } from 'sonner';
 import { EDGE_FUNCTIONS_URL } from '@/lib/supabaseConstants';
 
 interface PortfolioContactFormProps {
@@ -47,15 +48,20 @@ export function PortfolioContactForm({ username, accentColor, ownerName }: Portf
 
       if (res.ok) {
         setStatus('success');
+        toast.success('Message sent! The portfolio owner will get back to you soon.');
       } else {
         const body = await res.json().catch(() => ({}));
         const msg = (body as { error?: string }).error || 'Something went wrong. Please try again.';
-        setErrorMsg(msg.includes('Too many') ? 'Too many messages sent. Please wait a few minutes.' : msg);
+        const friendlyMsg = msg.includes('Too many') ? 'Too many messages sent. Please wait a few minutes.' : msg;
+        setErrorMsg(friendlyMsg);
         setStatus('error');
+        toast.error(friendlyMsg);
       }
     } catch {
-      setErrorMsg('Network error — please check your connection and try again.');
+      const netMsg = 'Network error — please check your connection and try again.';
+      setErrorMsg(netMsg);
       setStatus('error');
+      toast.error(netMsg);
     }
   }, [isValid, status, email, name, message, username]);
 

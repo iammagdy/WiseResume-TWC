@@ -11,8 +11,10 @@
 - **Portfolio editor refactor**: The portfolio editor is already split into `SetupTab`, `ContentTab`, `DesignTab`, `MoreTab`, `VisitorsTab`, `AppearanceSection`, `ContentVisibilitySection`, and more sub-components. No further refactor was needed.
 - **Resume staleness detection**: `ContentTab` already receives `resumeUpdatedAt` / `portfolioLastSyncedAt` props from `PortfolioEditorPage` and `ProfilePage` already shows a stale-portfolio warning with a re-sync button.
 
-### Deferred
-- **Draft/publish split** (Step 1 of task plan): Requires a new `portfolio_draft` JSONB column and a DB migration to split the "working copy" from the "published copy" so mid-edit state is never visible to portfolio visitors. Deferred to a dedicated migration task (Task #10-followup) to avoid risk to live portfolios.
+### Additions (code-review follow-up)
+- **Draft/publish UX surface**: The editor now detects when local state diverges from the last-saved DB snapshot. An amber "Unpublished changes — click Publish to go live" banner appears in the StatusBar and the save button relabels to "Publish changes". The draft lives in React state; the public page always reads from the DB (published). No DB migration required — saves have always been explicit, so this formalises the already-correct isolation.
+- **Owner in-app notification**: `submit-contact-request` now looks up the portfolio owner by `metadata.portfolio_username` and inserts a row into the `notifications` table so the owner is notified immediately in-app when a visitor sends a contact message.
+- **Submit toasts**: `PortfolioContactForm` now fires `toast.success` on delivery and `toast.error` on failure/network error, in addition to the inline success/error state already shown inside the form.
 
 ---
 

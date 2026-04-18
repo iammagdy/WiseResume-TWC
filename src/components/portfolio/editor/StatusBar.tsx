@@ -1,4 +1,4 @@
-import { Globe, Copy, Check, QrCode, ExternalLink } from 'lucide-react';
+import { Globe, Copy, Check, QrCode, ExternalLink, PenLine } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -18,6 +18,7 @@ export interface StatusBarProps {
   strengthScore: number;
   strengthLabel: string;
   strengthMissing: StrengthTip[];
+  hasUnpublishedChanges?: boolean;
 }
 
 export function StatusBar({
@@ -30,11 +31,20 @@ export function StatusBar({
   strengthScore,
   strengthLabel,
   strengthMissing,
+  hasUnpublishedChanges = false,
 }: StatusBarProps) {
   const strengthColor =
     strengthScore < 40 ? 'text-destructive' : strengthScore < 70 ? 'text-yellow-500' : 'text-green-500';
 
   return (
+    <div className="space-y-1.5">
+      {/* Unpublished changes banner */}
+      {hasUnpublishedChanges && (
+        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-600 dark:text-amber-400">
+          <PenLine className="w-3.5 h-3.5 shrink-0" />
+          <span className="text-[11px] font-medium">Unpublished changes — click "Publish" to go live</span>
+        </div>
+      )}
     <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-card border border-border">
       {/* Live/Draft badge */}
       <Badge
@@ -96,6 +106,7 @@ export function StatusBar({
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
+    </div>
     </div>
   );
 }

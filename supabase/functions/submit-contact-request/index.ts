@@ -134,6 +134,40 @@ Deno.serve(async (req) => {
 
     await recordUsage(rateLimitKey, "submit_contact");
 
+    // --- Owner notification for portfolio contact messages ---
+    if (type === "portfolio_contact" && metadata?.portfolio_username) {
+      try {
+        const portfolioUsername = String(metadata.portfolio_username);
+
+        // Resolve the owner user_id from their portfolio username
+        const { data: profileRow } = await supabaseAdmin
+          .from("profiles")
+          .select("id")
+          .eq("username", portfolioUsername)
+          .single();
+
+        if (profileRow?.id) {
+          const senderLabel = email.trim();
+          const snippet =
+            message.trim().length > 120
+              ? message.trim().slice(0, 117) + "…"
+              : message.trim();
+
+          await supabaseAdmin.from("notifications").insert({
+            user_id: profileRow.id,
+            type: "portfolio_contact",
+            title: `New message from ${senderLabel}`,
+            message: snippet,
+            link: "/portfolio",
+            is_read: false,
+          });
+        }
+      } catch (notifyErr) {
+        // Non-critical — log and continue; contact row is already saved
+        console.warn("[submit-contact-request] Owner notification failed:", notifyErr);
+      }
+    }
+
     return new Response(
       JSON.stringify({ success: true, id: insertedRow?.id }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }

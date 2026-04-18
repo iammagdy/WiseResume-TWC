@@ -788,10 +788,10 @@ export default function PortfolioEditorPage() {
           copied={copied}
           onCopyUrl={handleCopyUrl}
           onOpenQR={() => {haptics.light();setShowQR(true);}}
-
           strengthScore={strengthScore}
           strengthLabel={strengthLabel}
-          strengthMissing={strengthMissing} />
+          strengthMissing={strengthMissing}
+          hasUnpublishedChanges={!!(lastSavedSnapshot && getCurrentSnapshot() !== lastSavedSnapshot)} />
         
 
         {/* Live Preview Card + mobile toggle */}
@@ -1077,7 +1077,8 @@ export default function PortfolioEditorPage() {
         disabled={!!usernameError || usernameAvailable === false || checkingUsername}
         portfolioEnabled={portfolioEnabled}
         onPortfolioEnabledChange={setPortfolioEnabled}
-        portfolioUrl={portfolioCanonicalUrl || undefined} />
+        portfolioUrl={portfolioCanonicalUrl || undefined}
+        hasUnpublishedChanges={!!(lastSavedSnapshot && getCurrentSnapshot() !== lastSavedSnapshot)} />
       
 
       {/* Sheets */}
