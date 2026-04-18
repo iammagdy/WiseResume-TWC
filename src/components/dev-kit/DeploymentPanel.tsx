@@ -50,10 +50,12 @@ interface SweepResult {
   portfolio_visits_cutoff: string;
   error_log_cutoff: string;
   audit_logs_cutoff: string;
+  admin_audit_log_cutoff?: string;
   portfolio_visits_deleted: number;
   error_log_deleted: number;
   audit_logs_deleted: number;
   trial_resumes_deleted: number;
+  admin_audit_log_deleted?: number;
 }
 
 interface SweepStatus {
@@ -67,6 +69,7 @@ interface SweepStatus {
     portfolioVisitsRetentionDays: number;
     errorLogRetentionDays: number;
     auditLogsRetentionDays: number;
+    adminAuditLogRetentionDays?: number;
     intervalMs: number;
   };
 }
@@ -613,6 +616,12 @@ export function DeploymentPanel() {
                       key: 'trial_resumes',
                       count: sweepStatus.lastResult.trial_resumes_deleted,
                       retentionDays: null,
+                    },
+                    {
+                      label: 'Admin audit log',
+                      key: 'admin_audit_log',
+                      count: sweepStatus.lastResult.admin_audit_log_deleted ?? 0,
+                      retentionDays: sweepStatus.config.adminAuditLogRetentionDays ?? null,
                     },
                   ].map(({ label, key, count, retentionDays }) => (
                     <div key={key} className="flex items-center gap-3 rounded-lg border border-border bg-background px-3 py-2.5">

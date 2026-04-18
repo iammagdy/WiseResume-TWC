@@ -498,6 +498,13 @@ export const adminAuditLog = pgTable(
   (t) => ({
     actorAtIdx: index('idx_admin_audit_log_actor_at').on(t.actorEmail, t.at.desc()),
     actionAtIdx: index('idx_admin_audit_log_action_at').on(t.action, t.at.desc()),
+    // Task #10 / Step 1: composite index for the unfiltered cursor scan in
+    // GET /api/admin/ai-provider/audit-recent. Without this, an unfiltered
+    // ORDER BY (at DESC, id DESC) LIMIT N falls back to the actor/action
+    // indexes (which lead with a different column) and hits a heap scan as
+    // the table grows. With the composite index, the planner can serve the
+    // unfiltered "Recent activity" page from index order alone.
+    atIdIdx: index('idx_admin_audit_log_at_id').on(t.at.desc(), t.id.desc()),
   }),
 );
 

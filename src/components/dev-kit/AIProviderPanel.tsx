@@ -214,10 +214,14 @@ async function fetchWithTokenDedup(
     // Multiple callers share the same Response — clone before reading.
     return (await existing).clone();
   }
+  // Task #10 / Step 6: release the dedup slot the moment the request settles.
+  // The previous 250ms post-settle hold was meant to coalesce double-clicks,
+  // but in practice it also forced legitimate user-driven re-fetches (filter
+  // changes, "Refresh", retries after failure) to see a stale cached Response
+  // for up to a quarter-second. Coalescing concurrent in-flight callers — the
+  // primary win — still works without the post-settle delay.
   const p = fetchWithToken(url, options).finally(() => {
-    // Keep the in-flight slot for ~250ms after settle to also coalesce
-    // double-clicks that fire just after the previous one settles.
-    setTimeout(() => inflight.delete(key), 250);
+    inflight.delete(key);
   });
   inflight.set(key, p);
   return (await p).clone();
@@ -1808,6 +1812,14 @@ function RecentActivitySection({
   // resolving after a newer one would clobber the up-to-date list.
   const fetchSeqRef = useRef(0);
 
+  // Task #10 / Step 5: cancel the prior in-flight audit request when filters
+  // change or the section unmounts. Stale-response dropping via `fetchSeqRef`
+  // keeps the UI correct, but the underlying network call still completes —
+  // wasting bandwidth and a server round-trip every time the admin types
+  // another character into the actor-email box. AbortController stops the
+  // request itself, not just the state update.
+  const abortRef = useRef<AbortController | null>(null);
+
   // Filter state
   const [providerFilter, setProviderFilter] = useState<AuditProviderFilter>('');
   const [actionFilter, setActionFilter] = useState<AuditActionFilter>('');
@@ -1842,10 +1854,18 @@ function RecentActivitySection({
   // results (e.g. user types "ali" then quickly clears the search).
   const fetchEntries = useCallback(async (): Promise<boolean> => {
     const mySeq = ++fetchSeqRef.current;
+    // Cancel any prior in-flight request before starting the new one.
+    abortRef.current?.abort();
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
     setLoading(true);
     setError(null);
     try {
-      const res = await fetchWithTokenDedup(buildUrl(null));
+      // Bypass the dedup helper here so each filter-change actually issues
+      // (and can cancel) its own request — the deduper would coalesce
+      // successive filter URLs into a single shared Response that ignores
+      // our per-call AbortController.
+      const res = await fetchWithToken(buildUrl(null), { signal: ctrl.signal });
       if (mySeq !== fetchSeqRef.current) return false;
       if (!res.ok) {
         setError(`HTTP ${res.status}`);
@@ -1863,6 +1883,8 @@ function RecentActivitySection({
       setNextCursor(body.nextCursor ?? null);
       return true;
     } catch (e) {
+      // Aborted requests are expected — don't surface them as errors.
+      if (e instanceof DOMException && e.name === 'AbortError') return false;
       if (mySeq !== fetchSeqRef.current) return false;
       setError(e instanceof Error ? e.message : 'Fetch failed');
       return false;
@@ -1906,6 +1928,10 @@ function RecentActivitySection({
   // Reload from the top whenever any filter changes.
   useEffect(() => { void fetchEntries(); }, [fetchEntries]);
   useEffect(() => { registerRefresh(fetchEntries); }, [registerRefresh, fetchEntries]);
+
+  // Task #10 / Step 5: cancel any in-flight audit request on unmount so
+  // unmounting the panel mid-fetch doesn't leak a request.
+  useEffect(() => () => { abortRef.current?.abort(); }, []);
 
   const anyFilterActive =
     providerFilter !== '' ||
@@ -2216,10 +2242,26 @@ export function AIProviderPanel() {
     { id: 'ollama', label: 'Ollama' },
   ];
 
+  // Task #10 / Step 4: throttle the header "Refresh all" button to at most
+  // one fan-out per 3 seconds. The button already disables itself while a
+  // refresh is in flight, but a long-running task (slow upstream, etc.) can
+  // resolve and re-enable mid-rage-click; this guard catches the rapid
+  // sequential case so we don't fire 6+ duplicate fan-outs in a couple
+  // seconds against managed-OR / Groq / Gemini / breaker / audit endpoints.
+  const REFRESH_ALL_THROTTLE_MS = 3000;
+  const lastRefreshAllAtRef = useRef(0);
+
   // F8 + U3: header button refreshes EVERYTHING currently visible —
   // breaker status + the active sub-panel's own data — and surfaces any
   // failures in a single toast instead of swallowing them.
   const handleRefreshAll = useCallback(async () => {
+    const now = Date.now();
+    if (now - lastRefreshAllAtRef.current < REFRESH_ALL_THROTTLE_MS) {
+      // Silently swallow — the disabled state already conveys "in progress",
+      // and a toast on every spurious click would be noisier than helpful.
+      return;
+    }
+    lastRefreshAllAtRef.current = now;
     setHeaderRefreshing(true);
     // Each task resolves to `true` on success, `false` on a handled error,
     // or rejects on an unexpected throw — all three count toward `failures`.

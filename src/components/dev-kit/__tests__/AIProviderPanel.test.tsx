@@ -168,10 +168,13 @@ describe("AIProviderPanel (DevKit)", () => {
       await screen.findByRole("heading", { name: /ai provider/i }),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /refresh all/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^openrouter$/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^groq$/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^gemini$/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^ollama$/i })).toBeInTheDocument();
+    // Note: provider names ("OpenRouter", "Groq", …) appear twice — once as
+    // the tab buttons, once as the Recent Activity filter chips. Use
+    // getAllByRole to assert presence without ambiguity.
+    expect(screen.getAllByRole("button", { name: /^openrouter$/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("button", { name: /^groq$/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("button", { name: /^gemini$/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("button", { name: /^ollama$/i }).length).toBeGreaterThan(0);
   });
 
   it("clears the previous tab's OK banner when switching tabs", async () => {
@@ -203,8 +206,10 @@ describe("AIProviderPanel (DevKit)", () => {
     await screen.findByText(/123ms · openrouter\/auto/);
 
     // Switching to a different tab must remount the sub-panel (key={tab})
-    // so the previous tab's stale "done" banner is gone.
-    fireEvent.click(screen.getByRole("button", { name: /^groq$/i }));
+    // so the previous tab's stale "done" banner is gone. The "Groq" label
+    // appears twice (tab + audit filter chip); the tab is the first match.
+    const groqButtons = screen.getAllByRole("button", { name: /^groq$/i });
+    fireEvent.click(groqButtons[0]);
 
     await waitFor(() => {
       expect(screen.queryByText(/123ms · openrouter\/auto/)).not.toBeInTheDocument();
@@ -271,11 +276,10 @@ describe("AIProviderPanel (DevKit)", () => {
       expect(refreshBtn).not.toBeDisabled();
     });
 
-    // The panel's in-flight request deduper holds settled responses for ~250ms
-    // to coalesce double-clicks. Wait past that window so our refresh-all click
-    // triggers fresh fetches that observe this test's failing mock impl rather
-    // than a cached success from an earlier test.
-    await new Promise((r) => setTimeout(r, 300));
+    // Task #10 / Step 6: the panel's deduper now releases each in-flight
+    // slot the moment the request settles (no 250ms post-settle hold), so
+    // a microtask flush is enough to ensure refresh-all sees fresh fetches.
+    await Promise.resolve();
 
     // Initial mount calls fetchManagedOR which may fail and surface inline
     // — but no toast fires until the user-initiated Refresh-all. Clear the
@@ -294,4 +298,98 @@ describe("AIProviderPanel (DevKit)", () => {
       /refresh tasks failed/i,
     );
   });
+
+  // Task #10 / Step 4: header "Refresh all" must throttle to at most one
+  // fan-out per ~3 seconds even if the button is rage-clicked while the
+  // disabled-state guard is briefly off.
+  it("throttles back-to-back Refresh-all clicks within the 3s window", async () => {
+    let openrouterStatusCalls = 0;
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes("openrouter-status")) {
+        openrouterStatusCalls += 1;
+      }
+      return jsonResponse({});
+    });
+
+    renderWithProviders(<AIProviderPanel />);
+
+    const refreshBtn = await screen.findByRole("button", { name: /refresh all/i });
+    await waitFor(() => {
+      expect(refreshBtn).not.toBeDisabled();
+    });
+
+    // First click: fans out, hits the openrouter-status endpoint once.
+    fireEvent.click(refreshBtn);
+    await waitFor(() => {
+      expect(refreshBtn).not.toBeDisabled();
+    });
+    const callsAfterFirst = openrouterStatusCalls;
+
+    // Second click within the throttle window must be a no-op.
+    fireEvent.click(refreshBtn);
+    // Give any spurious fetch a microtask + macrotask to fire.
+    await new Promise((r) => setTimeout(r, 50));
+    expect(openrouterStatusCalls).toBe(callsAfterFirst);
+  });
+
+  // Task #10 / Step 5: filter changes in the Recent Activity section must
+  // abort the prior in-flight audit request, not let it resolve and clobber
+  // the fresh result. We assert by counting AbortError-aware fetches.
+  it("aborts the prior audit-recent fetch when a filter changes", async () => {
+    const aborted: boolean[] = [];
+    let auditCallCount = 0;
+    mockFetch.mockImplementation((url: string, init?: RequestInit) => {
+      if (url.includes("audit-recent")) {
+        auditCallCount += 1;
+        return new Promise<Response>((resolve, reject) => {
+          const signal = init?.signal as AbortSignal | undefined;
+          if (signal) {
+            signal.addEventListener("abort", () => {
+              aborted.push(true);
+              const e = new DOMException("aborted", "AbortError");
+              reject(e);
+            });
+          }
+          // Never resolve on its own — only the abort path or the final
+          // (un-aborted) call lets the test progress.
+          setTimeout(() => resolve(makeJsonOk({ entries: [], nextCursor: null })), 10000);
+        });
+      }
+      return jsonResponse({});
+    });
+
+    renderWithProviders(<AIProviderPanel />);
+
+    // Wait for the section to mount and issue its first audit-recent call.
+    await waitFor(() => {
+      expect(auditCallCount).toBeGreaterThanOrEqual(1);
+    });
+
+    // Click the audit filter row's "Groq" chip (last match — first is the
+    // top-level tab button) to change the provider filter and trigger
+    // a refetch, which must abort the in-flight initial request.
+    await waitFor(() => {
+      expect(screen.getAllByRole("button", { name: /^groq$/i }).length).toBeGreaterThanOrEqual(2);
+    });
+    const groqChips = screen.getAllByRole("button", { name: /^groq$/i });
+    fireEvent.click(groqChips[groqChips.length - 1]);
+
+    await waitFor(() => {
+      expect(aborted.length).toBeGreaterThanOrEqual(1);
+    });
+  });
 });
+
+// Helper used by the abort test — produces a Response-shaped object the
+// panel can consume via res.json().
+function makeJsonOk(body: unknown): Response {
+  const make = (): Response => ({
+    ok: true,
+    status: 200,
+    json: () => Promise.resolve(body),
+    text: () => Promise.resolve(JSON.stringify(body)),
+    headers: new Headers(),
+    clone: () => make(),
+  } as unknown as Response);
+  return make();
+}

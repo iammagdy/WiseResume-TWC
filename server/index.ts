@@ -793,10 +793,12 @@ interface SweepResult {
   portfolio_visits_cutoff: string;
   error_log_cutoff: string;
   audit_logs_cutoff: string;
+  admin_audit_log_cutoff: string;
   portfolio_visits_deleted: number;
   error_log_deleted: number;
   audit_logs_deleted: number;
   trial_resumes_deleted: number;
+  admin_audit_log_deleted: number;
 }
 interface SweepStatus {
   lastRanAt: string | null;
@@ -809,6 +811,7 @@ interface SweepStatus {
     portfolioVisitsRetentionDays: number;
     errorLogRetentionDays: number;
     auditLogsRetentionDays: number;
+    adminAuditLogRetentionDays: number;
     intervalMs: number;
   };
 }
@@ -833,6 +836,11 @@ const ERROR_LOG_RETENTION_DAYS =
   parseRetentionDays('ERROR_LOG_RETENTION_DAYS', 30);
 const AUDIT_LOGS_RETENTION_DAYS =
   parseRetentionDays('AUDIT_LOGS_RETENTION_DAYS', 365);
+// Task #10 / Step 2: retention for the DevKit's `admin_audit_log` table.
+// Default 365d so admin actions are retained for at least a year, matching
+// the existing `audit_logs` retention. Tunable via env without a migration.
+const ADMIN_AUDIT_LOG_RETENTION_DAYS =
+  parseRetentionDays('ADMIN_AUDIT_LOG_RETENTION_DAYS', 365);
 const ANALYTICS_SWEEP_BATCH_SIZE = 10000;
 // Per-table cap on batch iterations so a runaway loop can't dominate
 // the connection forever. 1000 batches × 10k rows = 10M rows/table/run,
@@ -860,6 +868,7 @@ const sweepStatus: SweepStatus = {
     portfolioVisitsRetentionDays: PORTFOLIO_VISITS_RETENTION_DAYS,
     errorLogRetentionDays: ERROR_LOG_RETENTION_DAYS,
     auditLogsRetentionDays: AUDIT_LOGS_RETENTION_DAYS,
+    adminAuditLogRetentionDays: ADMIN_AUDIT_LOG_RETENTION_DAYS,
     intervalMs: ANALYTICS_SWEEP_INTERVAL_MS,
   },
 };
@@ -956,6 +965,9 @@ async function runAnalyticsSweep(): Promise<void> {
     const auditCutoff = new Date(
       startedAt - AUDIT_LOGS_RETENTION_DAYS * 86_400_000,
     ).toISOString();
+    const adminAuditCutoff = new Date(
+      startedAt - ADMIN_AUDIT_LOG_RETENTION_DAYS * 86_400_000,
+    ).toISOString();
 
     // Lease heartbeat — extend the TTL between tables so a sweep that
     // runs longer than the initial 30-minute window cannot be preempted.
@@ -989,6 +1001,45 @@ async function runAnalyticsSweep(): Promise<void> {
       throw new Error('lease lost between audit_logs and trial_resumes');
     }
 
+    // Task #10 / Step 2: sweep `admin_audit_log` rows older than
+    // ADMIN_AUDIT_LOG_RETENTION_DAYS (default 365). Performed inline via
+    // a batched `DELETE … WHERE id IN (SELECT … LIMIT batch FOR UPDATE
+    // SKIP LOCKED)` rather than through `sweep_analytics_retention_batch`
+    // because that RPC's table allow-list lives in a separate Supabase
+    // migration and the table is hosted on the Replit Neon DB, not the
+    // Supabase DB. The same batch-size + max-batches caps as the other
+    // sweep tables apply, so locks stay short and a runaway loop can't
+    // dominate the connection. Uses the new `(at DESC, id DESC)` index
+    // (Step 1) for the inner ordered scan.
+    let adminAuditDeleted = 0;
+    for (let i = 0; i < ANALYTICS_SWEEP_MAX_BATCHES_PER_TABLE; i++) {
+      const rows = await sql`
+        WITH victims AS (
+          SELECT id FROM public.admin_audit_log
+          WHERE at < ${adminAuditCutoff}::timestamptz
+          ORDER BY at, id
+          LIMIT ${ANALYTICS_SWEEP_BATCH_SIZE}::int
+          FOR UPDATE SKIP LOCKED
+        )
+        DELETE FROM public.admin_audit_log a
+         USING victims
+         WHERE a.id = victims.id
+        RETURNING 1 AS deleted
+      `;
+      const deleted = rows.length;
+      adminAuditDeleted += deleted;
+      if (deleted < ANALYTICS_SWEEP_BATCH_SIZE) break;
+      if (i === ANALYTICS_SWEEP_MAX_BATCHES_PER_TABLE - 1) {
+        console.warn(
+          '[analytics-sweep] admin_audit_log hit max-batches cap',
+          JSON.stringify({ batches: ANALYTICS_SWEEP_MAX_BATCHES_PER_TABLE, total: adminAuditDeleted }),
+        );
+      }
+    }
+    if (!(await renewLease())) {
+      throw new Error('lease lost between admin_audit_log and trial_resumes');
+    }
+
     // Purge expired trial resumes that are past the 3-day client-side grace
     // window. Uses the same batch size and max-batches cap as the analytics
     // tables so a large backlog can't cause a prolonged table lock.
@@ -1016,10 +1067,12 @@ async function runAnalyticsSweep(): Promise<void> {
       portfolio_visits_cutoff: visitsCutoff,
       error_log_cutoff: errorCutoff,
       audit_logs_cutoff: auditCutoff,
+      admin_audit_log_cutoff: adminAuditCutoff,
       portfolio_visits_deleted: visitsDeleted,
       error_log_deleted: errorDeleted,
       audit_logs_deleted: auditDeleted,
       trial_resumes_deleted: trialResumesDeleted,
+      admin_audit_log_deleted: adminAuditDeleted,
     };
     sweepStatus.lastRanAt = new Date(startedAt).toISOString();
     sweepStatus.lastDurationMs = durationMs;
@@ -1033,6 +1086,7 @@ async function runAnalyticsSweep(): Promise<void> {
         error_log_deleted: errorDeleted,
         audit_logs_deleted: auditDeleted,
         trial_resumes_deleted: trialResumesDeleted,
+        admin_audit_log_deleted: adminAuditDeleted,
       }),
     );
   } catch (err) {
@@ -1181,6 +1235,13 @@ app.post(
 //         `admin_audit_log` Drizzle table via `writeAdminAudit()` below.
 
 interface CacheEntry<T> { value: T; expiresAt: number }
+// Task #10 / Step 7: `upstreamCache` is keyed by a fixed allow-list of
+// short string literals chosen by the four endpoints below — namely
+// `'openrouter-status'`, `'openrouter-models'`, `'groq-models'`, and
+// `'gemini-models'`. No request input ever flows into the cache key, so
+// the map cardinality is bounded by that allow-list and there is zero
+// risk of unbounded growth from user-supplied keys. The 5-minute sweep
+// timer below only handles TTL eviction, not size eviction.
 const upstreamCache = new Map<string, CacheEntry<unknown>>();
 const UPSTREAM_CACHE_TTL_MS = 10 * 60 * 1000;
 function getCached<T>(key: string): T | null {
@@ -1478,24 +1539,29 @@ app.post(
       if (!r.ok) {
         res.json({ success: false, error: `Upstream HTTP ${r.status}`, model });
         // A3: same `provider-test` taxonomy/payload as OpenRouter/Groq/Ollama.
-        await writeAdminAudit(req.verifiedEmail || 'unknown', 'provider-test', {
+        // Task #10 / Step 3: fire-and-forget — don't make the response wait
+        // for a 50–200ms audit insert. `writeAdminAudit` already swallows
+        // and logs its own errors, so a rejected promise here is impossible
+        // in practice; the `.catch` is a defensive guard against future
+        // refactors that might re-throw.
+        void writeAdminAudit(req.verifiedEmail || 'unknown', 'provider-test', {
           provider: 'gemini', model, ok: false, latencyMs: null, error: `Upstream HTTP ${r.status}`,
-        });
+        }).catch((e) => console.error('[admin-audit] gemini-test (http-fail) write failed', e));
         return;
       }
       const body = await r.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
       const text = body.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
       const latencyMs = Date.now() - start;
       res.json({ success: true, model, latencyMs, preview: text.slice(0, 120) });
-      await writeAdminAudit(req.verifiedEmail || 'unknown', 'provider-test', {
+      void writeAdminAudit(req.verifiedEmail || 'unknown', 'provider-test', {
         provider: 'gemini', model, ok: true, latencyMs, error: null,
-      });
+      }).catch((e) => console.error('[admin-audit] gemini-test (ok) write failed', e));
     } catch (e: unknown) {
       const sanitised = logAndSanitiseUpstreamError('gemini-test', e);
       res.json({ success: false, error: sanitised, model });
-      await writeAdminAudit(req.verifiedEmail || 'unknown', 'provider-test', {
+      void writeAdminAudit(req.verifiedEmail || 'unknown', 'provider-test', {
         provider: 'gemini', model, ok: false, latencyMs: null, error: sanitised,
-      });
+      }).catch((e2) => console.error('[admin-audit] gemini-test (catch) write failed', e2));
     } finally {
       clearTimeout(t);
     }
@@ -1523,7 +1589,10 @@ app.post(
       res.status(400).json({ error: 'provider and model are required' });
       return;
     }
-    await writeAdminAudit(req.verifiedEmail || 'unknown', 'model-switch', { provider, model, previousModel });
+    // Task #10 / Step 3: fire-and-forget so the response doesn't block on a
+    // 50–200ms audit insert. `writeAdminAudit` swallows its own errors.
+    void writeAdminAudit(req.verifiedEmail || 'unknown', 'model-switch', { provider, model, previousModel })
+      .catch((e) => console.error('[admin-audit] model-switch write failed', e));
     res.json({ ok: true });
   },
 );
@@ -1556,13 +1625,15 @@ app.post(
         : null;
     const errorMessage =
       typeof req.body?.error === 'string' ? req.body.error.slice(0, 500) : null;
-    await writeAdminAudit(req.verifiedEmail || 'unknown', 'provider-test', {
+    // Task #10 / Step 3: fire-and-forget so the response doesn't block on a
+    // 50–200ms audit insert. `writeAdminAudit` swallows its own errors.
+    void writeAdminAudit(req.verifiedEmail || 'unknown', 'provider-test', {
       provider,
       model,
       ok,
       latencyMs,
       error: errorMessage,
-    });
+    }).catch((e) => console.error('[admin-audit] provider-test write failed', e));
     res.json({ ok: true });
   },
 );

@@ -1,5 +1,36 @@
 # Changelog
 
+## 2026-04-18 — Speed up the AI Provider activity log and admin tests (Task #10)
+
+Performance & correctness consolidation following the Task #5 audit. Eight focused changes spread across the panel, the Express server, the schema, and the deployment dashboard — no API surface changes.
+
+### Schema (`server/schema.ts`)
+- **Step 1**: Added composite index `idx_admin_audit_log_at_id` on `admin_audit_log (at DESC, id DESC)`. Without it, the unfiltered `GET /api/admin/ai-provider/audit-recent` cursor scan (`ORDER BY at DESC, id DESC`) had to fall back to a heap scan as the table grew, because the existing `actor_at` / `action_at` indexes lead with a different column. Pushed via `npm run db:push`.
+
+### Server (`server/index.ts`)
+- **Step 2**: Extended `runAnalyticsSweep` with a batched `admin_audit_log` purge (cutoff = `now() - ADMIN_AUDIT_LOG_RETENTION_DAYS`, default **365 days**). Inlined as a `WITH victims AS (… FOR UPDATE SKIP LOCKED) DELETE … USING victims` rather than wired through the Supabase `sweep_analytics_retention_batch` RPC, since `admin_audit_log` lives on Replit Neon (the RPC's table allow-list lives in a Supabase migration). Reuses the shared `ANALYTICS_SWEEP_BATCH_SIZE` (10k) and `ANALYTICS_SWEEP_MAX_BATCHES_PER_TABLE` (1000) constants and the cross-instance lease with the same `renewLease()` heartbeat. `SweepResult` and `SweepStatus.config` extended with `admin_audit_log_deleted` / `admin_audit_log_cutoff` / `adminAuditLogRetentionDays`. New env var `ADMIN_AUDIT_LOG_RETENTION_DAYS` for tuning without a migration.
+- **Step 3**: Every `writeAdminAudit(...)` call site (gemini-test 3x, audit-model-switch, audit-test) is now fire-and-forget (`void writeAdminAudit(...).catch(console.error)`). The 50–200ms audit insert no longer adds to the response latency seen by the panel. `writeAdminAudit` already swallows its own errors; the trailing `.catch` is a defensive guard against future refactors that re-throw.
+- **Step 7**: Added an inline comment on `upstreamCache` documenting that all keys are sourced from a fixed string-literal allow-list (`'openrouter-status'`, `'openrouter-models'`, `'groq-models'`, `'gemini-models'`) — never from request input — so the map cardinality is bounded and the 5-minute sweep timer only handles TTL, not size eviction.
+
+### Panel (`src/components/dev-kit/AIProviderPanel.tsx`)
+- **Step 4**: Header "Refresh all" button is throttled to one fan-out per **3 seconds** (ref-based timestamp guard). The disabled-state interlock catches the in-progress case; this catches rapid sequential clicks just after the previous fan-out completes. Silent rejection — no toast spam.
+- **Step 5**: `RecentActivitySection.fetchEntries` now creates a per-call `AbortController` (stored in `abortRef`), aborts any prior in-flight request before issuing a new one, and aborts on unmount. Switched from `fetchWithTokenDedup` to `fetchWithToken` for this section — the dedup helper coalesces successive filter URLs into a single shared `Response` that ignores per-call signals; switching back avoids that conflict. AbortError is treated as expected and not surfaced as a UI error.
+- **Step 6**: Tightened `fetchWithTokenDedup` — removed the 250ms post-settle hold so legitimate user-driven re-fetches (filter changes, "Refresh", retries after failure) no longer see a stale shared `Response` for up to a quarter-second. Concurrent in-flight callers are still coalesced.
+
+### Deployment dashboard (`src/components/dev-kit/DeploymentPanel.tsx`)
+- Extended the Analytics Retention Sweep card with an "Admin audit log" row showing rows-deleted-in-last-run and the configured retention window. `SweepResult` and `SweepStatus.config` types updated to mirror the server interface (with `?` for forward-compatibility against older sweep payloads).
+
+### Tests (`src/components/dev-kit/__tests__/AIProviderPanel.test.tsx`)
+- Added two new tests: (1) "throttles back-to-back Refresh-all clicks within the 3s window" — asserts `openrouter-status` is fetched exactly once across two rapid clicks; (2) "aborts the prior audit-recent fetch when a filter changes" — asserts an `AbortError` is observed on the original audit-recent request after a filter chip click.
+- Updated the prior "surfaces a toast" test: replaced its `setTimeout(300)` workaround (waiting for the old 250ms dedup hold) with a microtask flush, since the dedup window is gone.
+- Hardened the existing "renders the header" and "clears the previous tab's OK banner" tests — provider names now appear twice (tab + audit-filter chip), so they use `getAllByRole` and pick the tab match by index. (These two pre-dated Task #10 but were already failing on `main`; they are now green.)
+
+All 6 tests in the file pass.
+
+### Atlas / replit.md
+- `Project Atlas/01-Currently Implemented/critical-systems/06-admin-dev-kit.md` — `audit-recent` row updated to mention the new `(at DESC, id DESC)` index; "AI Provider" panel row updated to mention the 3s throttle, abort-on-filter-change, fire-and-forget audits, tightened dedup, and `admin_audit_log` retention sweep. Last verified bumped.
+- `replit.md` — analytics sweep entry updated with `admin_audit_log` and the new `ADMIN_AUDIT_LOG_RETENTION_DAYS` env var.
+
 ## 2026-04-18 — Filter, search & paginate the AI Provider activity log (Task #5)
 
 Extends the **Recent activity** section in the AI Provider DevKit tab from a static "last 50 rows" view to a server-side filterable, cursor-paginated audit surface so admins can investigate "who switched X yesterday" or "only failed Gemini tests" without scanning the table client-side.
