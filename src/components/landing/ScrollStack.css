@@ -8,7 +8,9 @@
 
 .scroll-stack-inner {
   padding-top: 20vh;
-  padding-bottom: 50rem;
+  /* Phase 3: trimmed from 50rem so the section ends close to the last
+     card and no longer dumps the user into a long empty band. */
+  padding-bottom: 30vh;
   min-height: 100vh;
 }
 
