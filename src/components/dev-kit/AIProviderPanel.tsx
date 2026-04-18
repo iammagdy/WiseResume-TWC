@@ -336,6 +336,88 @@ function TestBanner({
   );
 }
 
+// ── Sub-provider selector ─────────────────────────────────────────────────────
+
+const SUB_PROVIDER_OPTIONS: { value: WiseresumeSubProvider; label: string; desc: string }[] = [
+  { value: 'auto', label: 'Auto', desc: 'OpenRouter → Groq fallback' },
+  { value: 'openrouter', label: 'OpenRouter', desc: 'Route all calls via OpenRouter' },
+  { value: 'groq', label: 'Groq', desc: 'Route all calls via Groq' },
+];
+
+function SubProviderSelector({
+  current,
+  onChange,
+}: {
+  current: WiseresumeSubProvider;
+  onChange: (sub: WiseresumeSubProvider) => void;
+}) {
+  const [pending, setPending] = useState<WiseresumeSubProvider | null>(null);
+
+  const handleSelect = (sub: WiseresumeSubProvider) => {
+    if (sub === current) return;
+    setPending(sub);
+  };
+
+  const handleConfirm = () => {
+    if (!pending) return;
+    onChange(pending);
+    setPending(null);
+  };
+
+  const handleCancel = () => setPending(null);
+
+  const pendingOpt = pending ? SUB_PROVIDER_OPTIONS.find(o => o.value === pending) : null;
+
+  return (
+    <div className="space-y-2">
+      <p className="text-xs font-medium text-muted-foreground">Managed AI sub-provider</p>
+      <div className="flex rounded-lg border border-border overflow-hidden">
+        {SUB_PROVIDER_OPTIONS.map((opt, i) => {
+          const isActive = opt.value === current;
+          return (
+            <button
+              key={opt.value}
+              onClick={() => handleSelect(opt.value)}
+              className={cn(
+                'flex-1 py-1.5 text-xs font-medium transition-colors',
+                i !== 0 && 'border-l border-border',
+                isActive
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-background hover:bg-muted text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {opt.label}
+            </button>
+          );
+        })}
+      </div>
+      {pending && pendingOpt && (
+        <div className="p-3 rounded-lg border border-primary/20 bg-primary/5 space-y-2">
+          <p className="text-xs font-medium text-foreground">
+            Switch managed sub-provider to{' '}
+            <span className="font-semibold text-primary">{pendingOpt.label}</span>?
+          </p>
+          <p className="text-[11px] text-muted-foreground">{pendingOpt.desc}</p>
+          <div className="flex gap-2">
+            <button
+              onClick={handleConfirm}
+              className="flex-1 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
+            >
+              Confirm
+            </button>
+            <button
+              onClick={handleCancel}
+              className="flex-1 py-1.5 rounded-md border border-border text-xs font-medium hover:bg-muted transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Feature routing section ────────────────────────────────────────────────────
 
 const FEATURES = [
@@ -1232,7 +1314,7 @@ function OllamaPanel({ breakerRow }: { breakerRow?: BreakerRow | null }) {
 // ── Main AIProviderPanel ───────────────────────────────────────────────────────
 
 export function AIProviderPanel() {
-  const { aiProvider, wiseresumeSubProvider } = useSettingsStore();
+  const { aiProvider, wiseresumeSubProvider, setWiseresumeSubProvider } = useSettingsStore();
 
   const [activeTab, setActiveTab] = useState<ProviderTab>('openrouter');
 
@@ -1343,6 +1425,9 @@ export function AIProviderPanel() {
 
       {/* Feature routing */}
       <FeatureRoutingSection subProvider={wiseresumeSubProvider} />
+
+      {/* Sub-provider selector */}
+      <SubProviderSelector current={wiseresumeSubProvider} onChange={setWiseresumeSubProvider} />
 
       {/* Active provider mode */}
       <div className="flex items-center gap-2 p-3 rounded-lg border border-border bg-muted/20">
