@@ -1234,6 +1234,41 @@ app.get(
 );
 
 /**
+ * GET /api/admin/ai-provider/groq-usage
+ * Returns today's request/token usage and rate-limit ceiling from the managed GROQ_API_KEY.
+ */
+app.get(
+  '/api/admin/ai-provider/groq-usage',
+  requireAuthHeader,
+  requireAdminEmail,
+  async (_req, res) => {
+    const key = process.env.GROQ_API_KEY;
+    if (!key) {
+      res.json({ configured: false });
+      return;
+    }
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), 8000);
+    try {
+      const r = await fetch('https://api.groq.com/openai/v1/usage', {
+        headers: { Authorization: `Bearer ${key}` },
+        signal: controller.signal,
+      });
+      if (!r.ok) {
+        res.json({ configured: true, error: `HTTP ${r.status}` });
+        return;
+      }
+      const body = await r.json() as Record<string, unknown>;
+      res.json({ configured: true, ...body });
+    } catch (e) {
+      res.json({ configured: true, error: String(e) });
+    } finally {
+      clearTimeout(t);
+    }
+  },
+);
+
+/**
  * GET /api/admin/ai-provider/gemini-models
  * Returns Gemini models that support generateContent using the managed GEMINI_API_KEY.
  */

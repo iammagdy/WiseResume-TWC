@@ -83,6 +83,15 @@ interface ManagedGroqStatus {
   error?: string;
 }
 
+interface GroqUsage {
+  configured: boolean;
+  requests_today?: number;
+  requests_limit?: number;
+  tokens_today?: number;
+  tokens_limit?: number;
+  error?: string;
+}
+
 interface ManagedGeminiStatus {
   configured: boolean;
   models: GeminiModel[];
@@ -636,12 +645,88 @@ function OpenRouterPanel({
 
 // ── Groq sub-panel ─────────────────────────────────────────────────────────────
 
+function GroqUsageCard({ usage }: { usage: GroqUsage | null }) {
+  if (usage === null) {
+    return (
+      <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 border border-border">
+        <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground shrink-0" />
+        <p className="text-xs text-muted-foreground">Loading usage stats…</p>
+      </div>
+    );
+  }
+  if (!usage.configured) {
+    return (
+      <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 border border-border">
+        <Info className="w-4 h-4 text-muted-foreground shrink-0" />
+        <p className="text-xs text-muted-foreground">GROQ_API_KEY not configured — usage unavailable.</p>
+      </div>
+    );
+  }
+  if (usage.error) {
+    return (
+      <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/5 border border-destructive/20">
+        <AlertTriangle className="w-4 h-4 text-destructive shrink-0" />
+        <p className="text-xs text-destructive">Usage fetch error: {usage.error}</p>
+      </div>
+    );
+  }
+  const reqPct =
+    usage.requests_limit && usage.requests_today != null
+      ? Math.min(100, (usage.requests_today / usage.requests_limit) * 100)
+      : null;
+  const tokPct =
+    usage.tokens_limit && usage.tokens_today != null
+      ? Math.min(100, (usage.tokens_today / usage.tokens_limit) * 100)
+      : null;
+  const fmt = (n: number) =>
+    n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 1_000 ? `${(n / 1_000).toFixed(1)}K` : String(n);
+  return (
+    <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-2.5">
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Today's managed-key usage</p>
+      {reqPct !== null && usage.requests_today != null && usage.requests_limit != null ? (
+        <div className="space-y-1">
+          <div className="flex justify-between text-xs">
+            <span className="text-foreground">Requests</span>
+            <span className="text-muted-foreground font-mono">{fmt(usage.requests_today)} / {fmt(usage.requests_limit)}</span>
+          </div>
+          <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+            <div
+              className={cn('h-full rounded-full transition-all', reqPct >= 90 ? 'bg-destructive' : reqPct >= 70 ? 'bg-yellow-500' : 'bg-green-500')}
+              style={{ width: `${reqPct}%` }}
+            />
+          </div>
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">Request usage not available.</p>
+      )}
+      {tokPct !== null && usage.tokens_today != null && usage.tokens_limit != null ? (
+        <div className="space-y-1">
+          <div className="flex justify-between text-xs">
+            <span className="text-foreground">Tokens</span>
+            <span className="text-muted-foreground font-mono">{fmt(usage.tokens_today)} / {fmt(usage.tokens_limit)}</span>
+          </div>
+          <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+            <div
+              className={cn('h-full rounded-full transition-all', tokPct >= 90 ? 'bg-destructive' : tokPct >= 70 ? 'bg-yellow-500' : 'bg-green-500')}
+              style={{ width: `${tokPct}%` }}
+            />
+          </div>
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">Token usage not available.</p>
+      )}
+    </div>
+  );
+}
+
 function GroqPanel({
   breakerRow,
   managedStatus,
+  groqUsage,
 }: {
   breakerRow?: BreakerRow | null;
   managedStatus: ManagedGroqStatus | null;
+  groqUsage: GroqUsage | null;
 }) {
   const { groqModel, setGroqModel } = useSettingsStore();
   const [search, setSearch] = useState('');
@@ -687,6 +772,8 @@ function GroqPanel({
           Free · rate limited
         </span>
       </div>
+
+      <GroqUsageCard usage={groqUsage} />
 
       {managedStatus === null && (
         <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 border border-border">
@@ -1156,6 +1243,7 @@ export function AIProviderPanel() {
   // Managed provider data fetched from server proxy
   const [managedOR, setManagedOR] = useState<ManagedORStatus | null>(null);
   const [managedGroq, setManagedGroq] = useState<ManagedGroqStatus | null>(null);
+  const [groqUsage, setGroqUsage] = useState<GroqUsage | null>(null);
 
   const fetchBreakerStatus = useCallback(async () => {
     setBreakerLoading(true);
@@ -1200,11 +1288,24 @@ export function AIProviderPanel() {
     }
   }, []);
 
+  const fetchGroqUsage = useCallback(async () => {
+    setGroqUsage(null);
+    try {
+      const res = await fetchWithToken('/api/admin/ai-provider/groq-usage');
+      if (!res.ok) { setGroqUsage({ configured: true, error: `HTTP ${res.status}` }); return; }
+      const data = await res.json() as GroqUsage;
+      setGroqUsage(data);
+    } catch (e: unknown) {
+      setGroqUsage({ configured: true, error: e instanceof Error ? e.message : 'Fetch failed' });
+    }
+  }, []);
+
   useEffect(() => {
     void fetchBreakerStatus();
     void fetchManagedOR();
     void fetchManagedGroq();
-  }, [fetchBreakerStatus, fetchManagedOR, fetchManagedGroq]);
+    void fetchGroqUsage();
+  }, [fetchBreakerStatus, fetchManagedOR, fetchManagedGroq, fetchGroqUsage]);
 
   // Look up a breaker row by the canonical table key (e.g. 'wiseresume/openrouter')
   const getBreakerRow = (tab: ProviderTab): BreakerRow | null => {
@@ -1231,7 +1332,7 @@ export function AIProviderPanel() {
           </p>
         </div>
         <button
-          onClick={() => { void fetchBreakerStatus(); void fetchManagedOR(); void fetchManagedGroq(); }}
+          onClick={() => { void fetchBreakerStatus(); void fetchManagedOR(); void fetchManagedGroq(); void fetchGroqUsage(); }}
           disabled={breakerLoading}
           className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md border border-border hover:bg-muted transition-colors disabled:opacity-50"
         >
@@ -1296,6 +1397,7 @@ export function AIProviderPanel() {
             <GroqPanel
               breakerRow={getBreakerRow('groq')}
               managedStatus={managedGroq}
+              groqUsage={groqUsage}
             />
           )}
           {activeTab === 'gemini' && (
