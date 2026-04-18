@@ -104,6 +104,8 @@ export const resumes = pgTable(
     isPrimary: boolean('is_primary').default(false),
     isPublic: boolean('is_public').default(false),
     thumbnailUrl: text('thumbnail_url'),
+    isTrial: boolean('is_trial').notNull().default(false),
+    trialExpiresAt: timestamp('trial_expires_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
   },

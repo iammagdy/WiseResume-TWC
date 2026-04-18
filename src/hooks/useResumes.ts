@@ -31,7 +31,8 @@ export interface DatabaseResume {
   parent_resume_id: string | null;
   job_url: string | null;
   customization: Record<string, unknown> | null;
-  
+  is_trial: boolean;
+  trial_expires_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -63,7 +64,8 @@ function parseDbResume(dbResume: any): DatabaseResume {
     parent_resume_id: dbResume.parent_resume_id,
     job_url: dbResume.job_url || null,
     customization: (dbResume.customization as unknown as Record<string, unknown>) || null,
-    
+    is_trial: dbResume.is_trial || false,
+    trial_expires_at: dbResume.trial_expires_at || null,
     created_at: dbResume.created_at,
     updated_at: dbResume.updated_at,
   };

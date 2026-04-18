@@ -21,7 +21,9 @@ import {
   Share2,
   CloudOff,
   ArrowLeft,
-  ArrowRight
+  ArrowRight,
+  Timer,
+  AlertTriangle,
 } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
 import { useOfflineSyncStore } from '@/store/offlineSyncStore';
@@ -134,6 +136,16 @@ export const ResumeListCard = memo(function ResumeListCard({
   const duplicateOpacity = useTransform(x, [20, SWIPE_THRESHOLD], [0, 1]);
 
   const hasTargetJob = resume.target_job_title || resume.target_company;
+
+  const trialBadge = useMemo(() => {
+    if (!resume.is_trial) return null;
+    if (!resume.trial_expires_at) return { label: 'Trial', expired: false, hoursLeft: 0 };
+    const expiresAt = new Date(resume.trial_expires_at);
+    const now = new Date();
+    if (expiresAt <= now) return { label: 'Trial expired', expired: true, hoursLeft: 0 };
+    const hoursLeft = Math.max(1, Math.round((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60)));
+    return { label: `Trial · ${hoursLeft}h left`, expired: false, hoursLeft };
+  }, [resume.is_trial, resume.trial_expires_at]);
   const isPending = useOfflineSyncStore(s => s.pendingChanges.some(c => c.resumeId === resume.id));
   const matchScore = resume.job_match_score;
   const resumeForProgress = useMemo(() => dbToResumeData(resume), [resume.id, resume.updated_at]);
@@ -390,6 +402,24 @@ export const ResumeListCard = memo(function ResumeListCard({
                   <Badge variant="outline" className="text-[13px] px-1.5 py-0 h-5 gap-1 border-success/30 text-success">
                     <Sparkles className="w-3 h-3" />
                     {latestTailor.scoreBeforeAfter.after}% • {latestTailor.jobTitle}
+                  </Badge>
+                )}
+                {trialBadge && (
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      'text-[10px] px-1.5 py-0 h-5 gap-1 shrink-0',
+                      trialBadge.expired
+                        ? 'border-destructive/40 text-destructive'
+                        : 'border-amber-400/60 text-amber-700 dark:text-amber-400',
+                    )}
+                  >
+                    {trialBadge.expired ? (
+                      <AlertTriangle className="w-3 h-3" />
+                    ) : (
+                      <Timer className="w-3 h-3" />
+                    )}
+                    {trialBadge.label}
                   </Badge>
                 )}
               </div>

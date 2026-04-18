@@ -1,7 +1,8 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
-import { FileText, Upload, Copy, ArrowRight, GitBranch, Linkedin, Type, Loader2, Check } from 'lucide-react';
+import { FileText, Upload, Copy, ArrowRight, GitBranch, Linkedin, Type, Loader2, Check, Clock, Zap } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 
 const ProfileImportSheet = lazy(() =>
   import('@/components/settings/ProfileImportSheet').then((m) => ({ default: m.ProfileImportSheet })),
@@ -112,7 +113,9 @@ export function CreateResumeDialog({
   const { profile } = useProfile(user?.id);
   const { createResume, duplicateResume } = useResumeMutations();
   const { setCurrentResume, setCurrentResumeId } = useResumeStore();
-  
+  const queryClient = useQueryClient();
+
+  const [isCreatingTrial, setIsCreatingTrial] = useState(false);
   const [mode, setMode] = useState<CreateMode | null>(null);
   const [showLocalImport, setShowLocalImport] = useState(false);
   const [title, setTitle] = useState('');
@@ -423,9 +426,70 @@ export function CreateResumeDialog({
     }
   };
 
-  // Free-tier gate: only 1 resume allowed. Only activate once plan is loaded to avoid
-  // false positives for Pro users during the initial loading state.
-  const atResumeLimit = !planLoading && !isPro && existingResumes.length >= 1 && !!user;
+  // Free-tier gate: trial resumes don't count toward the free-plan quota of 1 resume.
+  const nonTrialResumes = existingResumes.filter(r => !r.is_trial);
+  const activeTrial = existingResumes.find(
+    r => r.is_trial && r.trial_expires_at && new Date(r.trial_expires_at) > new Date(),
+  );
+  const atResumeLimit = !planLoading && !isPro && nonTrialResumes.length >= 1 && !!user;
+
+  const handleCreateTrial = async () => {
+    if (!user) return;
+    const bridgedUserId = getUserId();
+    if (!bridgedUserId) {
+      toast.error('Authentication not ready. Please try again.');
+      return;
+    }
+    setIsCreatingTrial(true);
+    try {
+      const source = nonTrialResumes.find(r => r.is_primary) ?? nonTrialResumes[0];
+      const trialExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+      const insertPayload: Record<string, unknown> = {
+        user_id: bridgedUserId,
+        title: source ? `${source.title} (Trial)` : 'My Trial Resume',
+        is_trial: true,
+        trial_expires_at: trialExpiresAt,
+        template_id: source?.template_id || 'modern',
+        is_primary: false,
+      };
+      if (source) {
+        insertPayload.contact_info = source.contact_info as unknown;
+        insertPayload.summary = source.summary;
+        insertPayload.experience = source.experience as unknown;
+        insertPayload.education = source.education as unknown;
+        insertPayload.skills = source.skills as unknown;
+        insertPayload.certifications = source.certifications as unknown;
+      }
+      const { data: newResume, error } = await supabase
+        .from('resumes')
+        .insert(insertPayload)
+        .select()
+        .single();
+      if (error) throw error;
+
+      await queryClient.invalidateQueries({ queryKey: ['resumes', user.id] });
+
+      setCurrentResumeId(newResume.id);
+      setCurrentResume({
+        id: newResume.id,
+        contactInfo: (newResume.contact_info as any) || { fullName: '', email: '', phone: '', location: '' },
+        summary: newResume.summary || '',
+        experience: (newResume.experience as any) || [],
+        education: (newResume.education as any) || [],
+        skills: (newResume.skills as any) || [],
+        certifications: (newResume.certifications as any) || [],
+        templateId: newResume.template_id || 'modern',
+      });
+
+      toast.success('Trial resume created! It will expire in 24 hours.');
+      onOpenChange(false);
+      navigate('/editor');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to create trial resume.');
+    } finally {
+      setIsCreatingTrial(false);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={resetAndClose}>
@@ -436,7 +500,7 @@ export function CreateResumeDialog({
         </DialogHeader>
 
         {atResumeLimit ? (
-          <div className="py-4">
+          <div className="py-4 space-y-4">
             <UpgradeWall
               requiredPlan="pro"
               featureName="Multiple Resumes"
@@ -449,6 +513,36 @@ export function CreateResumeDialog({
               ]}
               compact
             />
+            {!activeTrial && (
+              <div className="border border-dashed border-amber-300 dark:border-amber-700 rounded-xl p-4 space-y-2 bg-amber-50/50 dark:bg-amber-900/10">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                  <p className="text-sm font-medium text-amber-800 dark:text-amber-300">Try a second resume free for 24 hours</p>
+                </div>
+                <p className="text-xs text-amber-700 dark:text-amber-400">
+                  Get a full copy of your resume to experiment with — no credit card needed. It auto-deletes after 24 h.
+                </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5 border-amber-400 text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/30"
+                  onClick={handleCreateTrial}
+                  disabled={isCreatingTrial}
+                >
+                  {isCreatingTrial ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Zap className="w-3.5 h-3.5" />
+                  )}
+                  Try for 24 h — free
+                </Button>
+              </div>
+            )}
+            {activeTrial && (
+              <p className="text-xs text-center text-muted-foreground">
+                You already have an active 24-hour trial resume on your dashboard.
+              </p>
+            )}
           </div>
         ) : !mode ? (
           /* Mode Selection */
