@@ -39,7 +39,7 @@ export interface DatabaseResume {
 
 // Type helper to convert database Json types to our types
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function parseDbResume(dbResume: any): DatabaseResume {
+export function parseDbResume(dbResume: any): DatabaseResume {
   return {
     id: dbResume.id,
     user_id: dbResume.user_id,
@@ -126,7 +126,10 @@ export function useResumes<TData = DatabaseResume[]>(options?: { select?: (data:
         .order('updated_at', { ascending: false });
 
       if (error) throw error;
-      return (data || []).map(parseDbResume);
+      const now = new Date();
+      return (data || [])
+        .map(parseDbResume)
+        .filter(r => !r.is_trial || !r.trial_expires_at || new Date(r.trial_expires_at) > now);
     },
     enabled: !!user,
     staleTime: 5 * 60 * 1000,

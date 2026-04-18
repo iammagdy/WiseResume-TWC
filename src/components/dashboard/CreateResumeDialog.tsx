@@ -20,7 +20,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useResumeMutations, DatabaseResume, dbToResumeData } from '@/hooks/useResumes';
+import { useResumeMutations, DatabaseResume, dbToResumeData, parseDbResume } from '@/hooks/useResumes';
 import haptics from '@/lib/haptics';
 import { useResumeStore } from '@/store/resumeStore';
 import { supabase } from '@/integrations/supabase/safeClient';
@@ -460,7 +460,7 @@ export function CreateResumeDialog({
         insertPayload.skills = source.skills as unknown;
         insertPayload.certifications = source.certifications as unknown;
       }
-      const { data: newResume, error } = await supabase
+      const { data: rawResume, error } = await supabase
         .from('resumes')
         .insert(insertPayload)
         .select()
@@ -469,17 +469,10 @@ export function CreateResumeDialog({
 
       await queryClient.invalidateQueries({ queryKey: ['resumes', user.id] });
 
+      const newResume = parseDbResume(rawResume);
+      const newResumeData = dbToResumeData(newResume);
       setCurrentResumeId(newResume.id);
-      setCurrentResume({
-        id: newResume.id,
-        contactInfo: (newResume.contact_info as any) || { fullName: '', email: '', phone: '', location: '' },
-        summary: newResume.summary || '',
-        experience: (newResume.experience as any) || [],
-        education: (newResume.education as any) || [],
-        skills: (newResume.skills as any) || [],
-        certifications: (newResume.certifications as any) || [],
-        templateId: newResume.template_id || 'modern',
-      });
+      setCurrentResume(newResumeData);
 
       toast.success('Trial resume created! It will expire in 24 hours.');
       onOpenChange(false);
