@@ -112,10 +112,13 @@ Chromium 123, viewport 1280×800):
 
 | Variant            | TTFB (ms) | FCP (ms) | LCP (ms) |
 |--------------------|----------:|---------:|---------:|
-| WiseResume / light |       19  |    3285  |    4144  |
-| WiseResume / dark  |       19  |    2707  |    4119  |
-| WiseHire   / light |       10  |    2767  |    3662  |
-| WiseHire   / dark  |        8  |    2259  |    2682  |
+| WiseResume / light |       22  |    2849  |    3775  |
+| WiseResume / dark  |       17  |    2235  |    3811  |
+| WiseHire   / light |        8  |    1947  |    3258  |
+| WiseHire   / dark  |        8  |    2058  |    5513  |
+
+(WiseHire / dark LCP variance is the WebGL hero shader compile —
+tracked as follow-up #25 to pause render loops when offscreen.)
 
 The dev-mode browser FCP of ~850–1050 ms cited above is closer to the
 true on-device FCP because Vite serves modules pre-warmed; the
@@ -129,20 +132,36 @@ audit baseline (2790 ms dev FCP / 5800 ms LCP for `wisehire-dark`).
   `src/main.tsx` so portfolio "Display" / "Code" themes still render
   with their intended typography.
 
-### B-3 — Framer-motion lazy-loaded with LazyMotion
-- **File:** `src/pages/Index.tsx`
-- Replaced the eager `import { motion, AnimatePresence } from 'framer-motion'`
-  with the LazyMotion API: imported only the thin wrapper surface
-  (`LazyMotion`, `m`, `AnimatePresence`, `useReducedMotion`) and added
+### B-3 — Framer-motion fully ejected from the landing entry chunk
+**Updated after code review:** the original mitigation kept
+`framer-motion` as a static import in `src/pages/Index.tsx`, which still
+forced the runtime into the entry bundle. Now done properly:
+
+- **New file:** `src/components/landing/LandingMotionStage.tsx` — owns
+  the entire `<LazyMotion features={loadDomAnimationFeatures} strict>`
+  + `<AnimatePresence>` + `m.div` tree, plus the `lazy()` boundaries for
+  every below-the-fold product subtree (WiseHireHero / Features /
+  Pricing / Demo / Trust / Ticker / ClosingCTA + WiseResumeContent).
+- **`src/pages/Index.tsx`** no longer imports anything from
+  `framer-motion`. Instead it lazy-imports the stage:
   ```ts
-  const loadDomAnimationFeatures = () =>
-    import('framer-motion').then((mod) => mod.domAnimation);
+  const LandingMotionStage = lazy(() => import('@/components/landing/LandingMotionStage'));
   ```
-  Then wrapped the landing tree in
-  `<LazyMotion features={loadDomAnimationFeatures} strict>` and renamed
-  every `motion.div` → `m.div` inside the wrapper. Vite emits the
-  `domAnimation` feature bundle (~20 KB gz) as a separate chunk that is
-  fetched in parallel with — not blocking — landing first paint.
+  and renders it inside `<Suspense>`. `WaitlistModal` and
+  `QuickTailorSheet` are also lazy and only mount when the user opens
+  them.
+- **New file:** `src/lib/usePrefersReducedMotion.ts` — vanilla
+  `matchMedia` hook used by `Index.tsx` in place of framer-motion's
+  `useReducedMotion`, removing the last framer-motion symbol from the
+  page module.
+- **Effect on the bundle:** `framer-motion` (and the heavy
+  `domAnimation` feature bundle) is now only fetched once
+  `LandingMotionStage`'s chunk arrives. The landing entry chunk no
+  longer ships framer-motion runtime. Components that themselves still
+  import framer-motion (`LandingToggle`, `LandingModeTransition`,
+  `WiseResumeHero`, the demos, `WaitlistModal`, etc.) are all reached
+  either via `lazy()` boundaries or only render after user interaction,
+  so the entry chunk stays clean.
 - `manualChunks(id)` in `vite.config.ts` already routes `node_modules/framer-motion`
   to the `framer` chunk (line 122). The chunk loads in parallel with
   the entry rather than blocking it, and is cached across product

@@ -5,29 +5,22 @@ import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import triggerHaptic from '@/lib/haptics';
 import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
-// Step 4 (B-3): use the LazyMotion + m API so the heavy `domAnimation`
-// feature bundle (~20KB gz) is loaded as a separate chunk and is fetched
-// in parallel with — not blocking — the landing first paint. The thin
-// wrapper surface (LazyMotion, m, AnimatePresence, useReducedMotion)
-// remains in the entry chunk and is small enough that vite manualChunks
-// already isolates it. `loadFeatures` returns a dynamic import so vite
-// emits domAnimation in its own chunk.
-import { LazyMotion, m, AnimatePresence, useReducedMotion } from 'framer-motion';
-const loadDomAnimationFeatures = () =>
-  import('framer-motion').then((mod) => mod.domAnimation);
+// Step 4 (B-3) — full lazy-load: framer-motion is NOT imported by this
+// page-level component anymore. The entire AnimatePresence + m.div tree
+// lives in `LandingMotionStage` which is loaded via `React.lazy`, and
+// `useReducedMotion` is replaced by a vanilla matchMedia hook in
+// `src/lib/usePrefersReducedMotion`. Result: framer-motion is excluded
+// from the landing entry chunk and only fetched once the motion stage
+// chunk arrives.
 import { useEffect, useState, useRef, useCallback, startTransition, lazy, Suspense } from 'react';
+import { usePrefersReducedMotion } from '@/lib/usePrefersReducedMotion';
 import { flushSync } from 'react-dom';
 import { useSettingsStore } from '@/store/settingsStore';
 import { getSafeMatchMedia } from '@/lib/envUtils';
 import { useSearchParams } from 'react-router-dom';
-import { QuickTailorSheet } from '@/components/landing/QuickTailorSheet';
 import { useThemeLogo } from '@/hooks/useThemeLogo';
-import { WaitlistModal } from '@/components/landing/WaitlistModal';
 import { LandingHeader } from '@/components/landing/LandingHeader';
-import { LandingToggle } from '@/components/landing/LandingToggle';
 import { LandingModeTransition } from '@/components/landing/LandingModeTransition';
-import { SoftDivider } from '@/components/landing/SoftDivider';
-import { WiseResumeHero } from '@/components/landing/WiseResumeHero';
 /* Eagerly preload whichever hero chunk corresponds to the initial active
    product mode. Both heroes use React.lazy below so the inactive product
    subtree stays out of the entry chunk; this preload simply primes the
@@ -43,38 +36,19 @@ if (typeof window !== 'undefined') {
     void import('@/components/landing/WiseResumeContent');
   }
 }
-import {
-  SCATTER_WRAPPER_VARIANTS, SCATTER_SECTION_ITEM,
-  REDUCED_MOTION_WRAPPER, REDUCED_SECTION_ITEM,
-} from '@/components/landing/landingAnimations';
 
 /* Phase 2: Code-split inactive product trees + below-the-fold content.
-   The hero of WiseResume loads eagerly (default landing); everything else
-   downloads on demand. Each lazy boundary has a fixed-height Suspense
-   fallback to prevent layout shift when chunks arrive. */
-const WiseResumeContent = lazy(() =>
-  import('@/components/landing/WiseResumeContent').then((m) => ({ default: m.WiseResumeContent }))
+   All product subtrees + the AnimatePresence motion wrapper live in
+   `LandingMotionStage`, lazy-loaded so framer-motion stays out of the
+   landing entry chunk. The dialogs (WaitlistModal, QuickTailorSheet)
+   are also lazy: they're invisible on first paint and only mount on
+   user action. */
+const LandingMotionStage = lazy(() => import('@/components/landing/LandingMotionStage'));
+const WaitlistModal = lazy(() =>
+  import('@/components/landing/WaitlistModal').then((m) => ({ default: m.WaitlistModal }))
 );
-const WiseHireHero = lazy(() =>
-  import('@/components/landing/wisehire/WiseHireHero').then((m) => ({ default: m.WiseHireHero }))
-);
-const WiseHireFeatures = lazy(() =>
-  import('@/components/landing/wisehire/WiseHireFeatures').then((m) => ({ default: m.WiseHireFeatures }))
-);
-const WiseHirePricing = lazy(() =>
-  import('@/components/landing/wisehire/WiseHirePricing').then((m) => ({ default: m.WiseHirePricing }))
-);
-const WiseHireDemoSection = lazy(() =>
-  import('@/components/landing/wisehire/WiseHireDemoSection').then((m) => ({ default: m.WiseHireDemoSection }))
-);
-const WiseHireTrustSection = lazy(() =>
-  import('@/components/landing/wisehire/WiseHireTrustSection').then((m) => ({ default: m.WiseHireTrustSection }))
-);
-const WiseHireFeatureTicker = lazy(() =>
-  import('@/components/landing/wisehire/WiseHireFeatureTicker').then((m) => ({ default: m.WiseHireFeatureTicker }))
-);
-const WiseHireClosingCTA = lazy(() =>
-  import('@/components/landing/wisehire/WiseHireClosingCTA').then((m) => ({ default: m.WiseHireClosingCTA }))
+const QuickTailorSheet = lazy(() =>
+  import('@/components/landing/QuickTailorSheet').then((m) => ({ default: m.QuickTailorSheet }))
 );
 
 const LpFallback = ({ minHeight = 320 }: { minHeight?: number }) => (
@@ -91,7 +65,7 @@ const Index = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated, loading: authLoading, signOut } = useAuth();
   const { profile } = useProfile(isAuthenticated ? user?.id : undefined, user);
-  const prefersReducedMotion = useReducedMotion();
+  const prefersReducedMotion = usePrefersReducedMotion();
   const themeLogo = useThemeLogo();
   const [scrolled, setScrolled] = useState(false);
   const storeTheme = useSettingsStore((s) => s.theme);
@@ -265,9 +239,6 @@ const Index = () => {
     startVT(() => { flushSync(() => setIsDark(applyToggle)); });
   };
 
-  const sectionItem = prefersReducedMotion ? REDUCED_SECTION_ITEM : SCATTER_SECTION_ITEM;
-  const wrapperVariants = prefersReducedMotion ? REDUCED_MOTION_WRAPPER : SCATTER_WRAPPER_VARIANTS;
-
   return (
     <div
       className="lp-root min-h-screen"
@@ -312,69 +283,31 @@ const Index = () => {
       />
 
       <main id="landing-main" className="w-full" style={{ position: 'relative' }}>
-        <LazyMotion features={loadDomAnimationFeatures} strict>
-        <AnimatePresence mode="popLayout">
-          {mode === 'wisehire' ? (
-            <m.div key="wisehire" variants={wrapperVariants} initial="hidden" animate="visible" exit="exit">
-              <m.div variants={sectionItem} custom={0}>
-                <Suspense fallback={<LpFallback minHeight={640} />}>
-                  <WiseHireHero
-                    onOpenWaitlist={() => setWaitlistOpen(true)}
-                    mobileToggle={
-                      <div className="sm:hidden relative z-10 flex justify-center mt-1 mb-6">
-                        <LandingToggle uid="mob" compact mode={mode} prefersReducedMotion={prefersReducedMotion} onModeChange={handleLandingModeChange} />
-                      </div>
-                    }
-                  />
-                </Suspense>
-                <SoftDivider product="wisehire" />
-                <Suspense fallback={<LpFallback minHeight={120} />}><WiseHireFeatureTicker /></Suspense>
-              </m.div>
-              <m.div variants={sectionItem} custom={1}>
-                <Suspense fallback={<LpFallback minHeight={600} />}><WiseHireDemoSection /></Suspense>
-              </m.div>
-              <m.div variants={sectionItem} custom={2}>
-                <SoftDivider product="wisehire" />
-                <Suspense fallback={<LpFallback minHeight={400} />}><WiseHireTrustSection /></Suspense>
-              </m.div>
-              <m.div variants={sectionItem} custom={3}>
-                <SoftDivider product="wisehire" />
-                <Suspense fallback={<LpFallback minHeight={480} />}><WiseHireFeatures onOpenWaitlist={() => setWaitlistOpen(true)} /></Suspense>
-              </m.div>
-              <m.div variants={sectionItem} custom={4}>
-                <SoftDivider product="wisehire" />
-                <Suspense fallback={<LpFallback minHeight={520} />}><WiseHirePricing onOpenWaitlist={() => setWaitlistOpen(true)} /></Suspense>
-              </m.div>
-              <m.div variants={sectionItem} custom={5}>
-                <Suspense fallback={<LpFallback minHeight={320} />}>
-                  <WiseHireClosingCTA prefersReducedMotion={prefersReducedMotion} onOpenWaitlist={() => setWaitlistOpen(true)} />
-                </Suspense>
-              </m.div>
-            </m.div>
-          ) : (
-            <m.div key="wiseresume" variants={wrapperVariants} initial="hidden" animate="visible" exit="exit">
-              <m.div variants={sectionItem} custom={0}>
-                <WiseResumeHero
-                  mode={mode}
-                  prefersReducedMotion={prefersReducedMotion}
-                  themeLogo={themeLogo}
-                  isAuthenticated={isAuthenticated}
-                  heroRef={heroRef}
-                  onModeChange={handleLandingModeChange}
-                  onCTA={handleCTA}
-                />
-              </m.div>
-              <Suspense fallback={<LpFallback minHeight={800} />}>
-                <WiseResumeContent prefersReducedMotion={prefersReducedMotion} isDark={isDark} onCTA={handleCTA} />
-              </Suspense>
-            </m.div>
-          )}
-        </AnimatePresence>
-        </LazyMotion>
+        <Suspense fallback={<LpFallback minHeight={800} />}>
+          <LandingMotionStage
+            mode={mode}
+            prefersReducedMotion={prefersReducedMotion}
+            isDark={isDark}
+            isAuthenticated={isAuthenticated}
+            themeLogo={themeLogo}
+            heroRef={heroRef}
+            onCTA={handleCTA}
+            onLandingModeChange={handleLandingModeChange}
+            onOpenWaitlist={() => setWaitlistOpen(true)}
+          />
+        </Suspense>
       </main>
 
-      <WaitlistModal open={waitlistOpen} onClose={() => setWaitlistOpen(false)} />
-      {isAuthenticated && <QuickTailorSheet open={tailorOpen} onOpenChange={setTailorOpen} />}
+      {waitlistOpen && (
+        <Suspense fallback={null}>
+          <WaitlistModal open={waitlistOpen} onClose={() => setWaitlistOpen(false)} />
+        </Suspense>
+      )}
+      {isAuthenticated && tailorOpen && (
+        <Suspense fallback={null}>
+          <QuickTailorSheet open={tailorOpen} onOpenChange={setTailorOpen} />
+        </Suspense>
+      )}
     </div>
   );
 };
