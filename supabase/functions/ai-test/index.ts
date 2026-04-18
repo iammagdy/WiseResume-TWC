@@ -5,6 +5,7 @@ import { requireAuth, authErrorResponse } from '../_shared/authMiddleware.ts';
 import { checkRateLimit } from '../_shared/rateLimiter.ts';
 import { checkAndDeductCredit } from '../_shared/creditUtils.ts';
 import { logger } from '../_shared/logger.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const log = logger('ai-test');
 
 
@@ -12,6 +13,11 @@ const log = logger('ai-test');
  * Verify a DevKit HMAC-SHA-256 session token.
  * Same scheme as adminAuth.ts verifySessionToken — returns true if the token
  * is valid and unexpired, false otherwise.
+ *
+ * Audit task #1, finding S4 (auth unification): the new preferred path is the
+ * Supabase Bearer JWT + ADMIN_EMAILS allow-list check (see `isJwtAdmin` below);
+ * the DevKit HMAC token is retained as a fallback so existing DevKit sessions
+ * keep working during the rollout.
  */
 async function verifyDevKitSessionToken(token: string, secretKey: string): Promise<boolean> {
   try {
@@ -31,6 +37,39 @@ async function verifyDevKitSessionToken(token: string, secretKey: string): Promi
     );
     const sigBytes = new Uint8Array((sigHex.match(/.{2}/g) ?? []).map((h: string) => parseInt(h, 16)));
     return await crypto.subtle.verify('HMAC', cryptoKey, sigBytes, msgData);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * S4 — Supabase JWT–based admin check. Looks up the verified caller's email
+ * via supabase.auth.getUser() (same authoritative path used by every other
+ * admin gate) and matches it against the comma-separated `ADMIN_EMAILS` env.
+ *
+ * This unifies the panel's auth scheme: admin proxy routes on the Express
+ * server already gate on `requireAuthHeader + requireAdminEmail`, and now the
+ * Edge Function honours the same Bearer JWT instead of demanding a separate
+ * DevKit HMAC token. The HMAC fallback above is preserved so in-flight DevKit
+ * sessions don't break during the rollout — schedule its removal once
+ * AIProviderPanel.tsx stops sending `adminPassword`.
+ */
+async function isJwtAdmin(req: Request): Promise<boolean> {
+  try {
+    const auth = req.headers.get('Authorization') || '';
+    const m = auth.match(/^Bearer\s+(\S+)$/);
+    if (!m) return false;
+    const supabaseUrl = Deno.env.get('EXT_SUPABASE_URL') || Deno.env.get('SUPABASE_URL');
+    const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
+    const adminEmails = (Deno.env.get('ADMIN_EMAILS') ?? '')
+      .split(',').map((e: string) => e.trim().toLowerCase()).filter(Boolean);
+    if (!supabaseUrl || !anonKey || adminEmails.length === 0) return false;
+    const anon = createClient(supabaseUrl, anonKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { data: { user } } = await anon.auth.getUser(m[1]);
+    const email = (user?.email ?? '').toLowerCase();
+    return !!email && adminEmails.includes(email);
   } catch {
     return false;
   }
@@ -68,9 +107,12 @@ serve(async (req) => {
         // cooldown). Raw-password acceptance was removed (Task #10): the only
         // accepted credential is the signed session token issued by
         // verify-dev-kit.
+        // S4: prefer the unified Bearer JWT + ADMIN_EMAILS check; fall back to
+        // the legacy DevKit HMAC token for in-flight DevKit sessions.
         const candidatePw: string = body?.adminPassword ?? '';
-        const hasValidAdminPassword = !!DEV_KIT_PASSWORD &&
-          await verifyDevKitSessionToken(candidatePw, DEV_KIT_PASSWORD);
+        const hasValidAdminPassword =
+          (await isJwtAdmin(req)) ||
+          (!!DEV_KIT_PASSWORD && await verifyDevKitSessionToken(candidatePw, DEV_KIT_PASSWORD));
         if (hasValidAdminPassword && (body?.wiseresumeSubProvider === 'openrouter' || body?.wiseresumeSubProvider === 'groq' || body?.wiseresumeSubProvider === 'auto')) {
           bodySubProvider = body.wiseresumeSubProvider;
           isAdminRequest = true;

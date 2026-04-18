@@ -482,6 +482,25 @@ export const analyticsSweepLock = pgTable('analytics_sweep_lock', {
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
 });
 
+// ── admin_audit_log ───────────────────────────────────────────────────────────
+// Audit trail for admin actions performed via the DevKit (model switches,
+// provider tests, etc). Written from `server/index.ts` admin proxy endpoints
+// after a successful Supabase JWT + ADMIN_EMAILS check.
+export const adminAuditLog = pgTable(
+  'admin_audit_log',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    actorEmail: text('actor_email').notNull(),
+    action: text('action').notNull(),
+    payload: jsonb('payload'),
+    at: timestamp('at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    actorAtIdx: index('idx_admin_audit_log_actor_at').on(t.actorEmail, t.at.desc()),
+    actionAtIdx: index('idx_admin_audit_log_action_at').on(t.action, t.at.desc()),
+  }),
+);
+
 // ── admin_settings ────────────────────────────────────────────────────────────
 export const adminSettings = pgTable('admin_settings', {
   id: uuid('id').primaryKey().defaultRandom(),

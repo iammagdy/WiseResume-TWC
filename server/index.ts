@@ -16,6 +16,7 @@ import cors from 'cors';
 import { neon } from '@neondatabase/serverless';
 import { promises as dns } from 'node:dns';
 import net from 'node:net';
+import { adminAuditLog as adminAuditLogTable } from './schema';
 
 const app = express();
 const PORT = parseInt(process.env.API_PORT || '5001', 10);
@@ -1159,9 +1160,65 @@ app.post(
 );
 
 // ── AI Provider admin proxy endpoints ─────────────────────────────────────────
-// All three endpoints are guarded by requireAuthHeader + requireAdminEmail so
+// All endpoints below are guarded by requireAuthHeader + requireAdminEmail so
 // the managed platform keys (OPENROUTER_API_KEY, GROQ_API_KEY, GEMINI_API_KEY)
 // never leave the server. The browser never sees them — only the result data.
+//
+// Hardening notes (Task #1 / audit findings S1, S2, P1, F2, F3, P6, A3):
+//   • S1: errors returned to the browser are generic strings ("upstream error")
+//         while full details (e.is Error message + stack) are logged server-side.
+//   • S2: Gemini upstream calls use the `x-goog-api-key` header instead of the
+//         `?key=` query param so the key never appears in proxy/access logs.
+//   • P1: Each upstream-list endpoint is wrapped by a 10-minute in-memory TTL
+//         cache keyed by route. The cache is small, per-process, and survives
+//         until restart. Acceptable for admin usage patterns.
+//   • F2: `gemini-test` accepts an optional `{ model }` body, validates it
+//         against the live models list, and falls back to gemini-2.0-flash.
+//   • F3: `gemini-models` only returns entries whose `name` is a string and
+//         strips the `models/` prefix from both `id` and `name`.
+//   • P6: New `openrouter-models` proxy with the same cache treatment so the
+//         browser no longer hits openrouter.ai directly (CORS + cache wins).
+//   • A3: All admin model-switch and provider-test calls write to the new
+//         `admin_audit_log` Drizzle table via `writeAdminAudit()` below.
+
+interface CacheEntry<T> { value: T; expiresAt: number }
+const upstreamCache = new Map<string, CacheEntry<unknown>>();
+const UPSTREAM_CACHE_TTL_MS = 10 * 60 * 1000;
+function getCached<T>(key: string): T | null {
+  const e = upstreamCache.get(key);
+  if (!e) return null;
+  if (e.expiresAt < Date.now()) { upstreamCache.delete(key); return null; }
+  return e.value as T;
+}
+function setCached<T>(key: string, value: T): void {
+  upstreamCache.set(key, { value, expiresAt: Date.now() + UPSTREAM_CACHE_TTL_MS });
+}
+// Periodically sweep expired entries.
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of upstreamCache) if (v.expiresAt < now) upstreamCache.delete(k);
+}, 5 * 60_000).unref?.();
+
+async function writeAdminAudit(
+  actorEmail: string,
+  action: string,
+  payload: Record<string, unknown> | null,
+): Promise<void> {
+  try {
+    await db.insert(adminAuditLogTable).values({
+      actorEmail,
+      action,
+      payload: payload ?? null,
+    });
+  } catch (e) {
+    console.error('[admin-audit] write failed', e);
+  }
+}
+
+function logAndSanitiseUpstreamError(label: string, e: unknown): string {
+  console.error(`[server] ${label} upstream error:`, e instanceof Error ? e.stack ?? e.message : e);
+  return 'Upstream request failed';
+}
 
 /**
  * GET /api/admin/ai-provider/openrouter-status
@@ -1177,6 +1234,9 @@ app.get(
       res.json({ configured: false });
       return;
     }
+    const cacheKey = 'openrouter-status';
+    const cached = getCached<unknown>(cacheKey);
+    if (cached) { res.json(cached); return; }
     const controller = new AbortController();
     const t = setTimeout(() => controller.abort(), 8000);
     try {
@@ -1185,13 +1245,48 @@ app.get(
         signal: controller.signal,
       });
       if (!r.ok) {
-        res.json({ configured: true, error: `HTTP ${r.status}` });
+        res.json({ configured: true, error: `Upstream HTTP ${r.status}` });
         return;
       }
       const body = (await r.json()) as { data?: Record<string, unknown> };
-      res.json({ configured: true, data: body.data ?? null });
+      const out = { configured: true, data: body.data ?? null };
+      setCached(cacheKey, out);
+      res.json(out);
     } catch (e) {
-      res.json({ configured: true, error: String(e) });
+      res.json({ configured: true, error: logAndSanitiseUpstreamError('openrouter-status', e) });
+    } finally {
+      clearTimeout(t);
+    }
+  },
+);
+
+/**
+ * GET /api/admin/ai-provider/openrouter-models  (P6)
+ * Proxies the OpenRouter public model catalogue so the browser doesn't have to
+ * hit openrouter.ai directly (CORS + cache benefit). 10-minute server-side cache.
+ */
+app.get(
+  '/api/admin/ai-provider/openrouter-models',
+  requireAuthHeader,
+  requireAdminEmail,
+  async (_req, res) => {
+    const cacheKey = 'openrouter-models';
+    const cached = getCached<unknown>(cacheKey);
+    if (cached) { res.json(cached); return; }
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), 10000);
+    try {
+      const r = await fetch('https://openrouter.ai/api/v1/models', { signal: controller.signal });
+      if (!r.ok) {
+        res.json({ models: [], error: `Upstream HTTP ${r.status}` });
+        return;
+      }
+      const body = (await r.json()) as { data?: unknown[] };
+      const out = { models: body.data ?? [] };
+      setCached(cacheKey, out);
+      res.json(out);
+    } catch (e) {
+      res.json({ models: [], error: logAndSanitiseUpstreamError('openrouter-models', e) });
     } finally {
       clearTimeout(t);
     }
@@ -1212,6 +1307,9 @@ app.get(
       res.json({ configured: false, models: [] });
       return;
     }
+    const cacheKey = 'groq-models';
+    const cached = getCached<unknown>(cacheKey);
+    if (cached) { res.json(cached); return; }
     const controller = new AbortController();
     const t = setTimeout(() => controller.abort(), 8000);
     try {
@@ -1220,13 +1318,15 @@ app.get(
         signal: controller.signal,
       });
       if (!r.ok) {
-        res.json({ configured: true, models: [], error: `HTTP ${r.status}` });
+        res.json({ configured: true, models: [], error: `Upstream HTTP ${r.status}` });
         return;
       }
       const body = (await r.json()) as { data?: unknown[] };
-      res.json({ configured: true, models: body.data ?? [] });
+      const out = { configured: true, models: body.data ?? [] };
+      setCached(cacheKey, out);
+      res.json(out);
     } catch (e) {
-      res.json({ configured: true, models: [], error: String(e) });
+      res.json({ configured: true, models: [], error: logAndSanitiseUpstreamError('groq-models', e) });
     } finally {
       clearTimeout(t);
     }
@@ -1255,13 +1355,13 @@ app.get(
         signal: controller.signal,
       });
       if (!r.ok) {
-        res.json({ configured: true, error: `HTTP ${r.status}` });
+        res.json({ configured: true, error: `Upstream HTTP ${r.status}` });
         return;
       }
       const body = await r.json() as Record<string, unknown>;
       res.json({ configured: true, ...body });
     } catch (e) {
-      res.json({ configured: true, error: String(e) });
+      res.json({ configured: true, error: logAndSanitiseUpstreamError('groq-usage', e) });
     } finally {
       clearTimeout(t);
     }
@@ -1271,6 +1371,7 @@ app.get(
 /**
  * GET /api/admin/ai-provider/gemini-models
  * Returns Gemini models that support generateContent using the managed GEMINI_API_KEY.
+ * Sends the key in the `x-goog-api-key` header (S2) — never in the URL.
  */
 app.get(
   '/api/admin/ai-provider/gemini-models',
@@ -1282,28 +1383,43 @@ app.get(
       res.json({ configured: false, models: [] });
       return;
     }
+    const cacheKey = 'gemini-models';
+    const cached = getCached<unknown>(cacheKey);
+    if (cached) { res.json(cached); return; }
     const controller = new AbortController();
     const t = setTimeout(() => controller.abort(), 8000);
     try {
-      const r = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models?key=${key}`,
-        { signal: controller.signal },
-      );
+      const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models', {
+        headers: { 'x-goog-api-key': key },
+        signal: controller.signal,
+      });
       if (!r.ok) {
-        res.json({ configured: true, models: [], error: `HTTP ${r.status}` });
+        res.json({ configured: true, models: [], error: `Upstream HTTP ${r.status}` });
         return;
       }
       const body = (await r.json()) as { models?: Array<Record<string, unknown>> };
+      // F3: only keep entries with a string `name`; always strip `models/` prefix.
       const models = (body.models ?? [])
-        .filter((m) => Array.isArray(m.supportedGenerationMethods) && (m.supportedGenerationMethods as string[]).includes('generateContent'))
-        .map((m) => ({
-          id: typeof m.name === 'string' ? m.name.replace('models/', '') : m.name,
-          name: m.displayName ?? m.name,
-          context: typeof m.inputTokenLimit === 'number' ? m.inputTokenLimit : null,
-        }));
-      res.json({ configured: true, models });
+        .filter((m) =>
+          typeof m.name === 'string' &&
+          Array.isArray(m.supportedGenerationMethods) &&
+          (m.supportedGenerationMethods as string[]).includes('generateContent'),
+        )
+        .map((m) => {
+          const rawName = m.name as string;
+          const id = rawName.startsWith('models/') ? rawName.slice('models/'.length) : rawName;
+          const display = typeof m.displayName === 'string' ? m.displayName : id;
+          return {
+            id,
+            name: display,
+            context: typeof m.inputTokenLimit === 'number' ? m.inputTokenLimit : null,
+          };
+        });
+      const out = { configured: true, models };
+      setCached(cacheKey, out);
+      res.json(out);
     } catch (e) {
-      res.json({ configured: true, models: [], error: String(e) });
+      res.json({ configured: true, models: [], error: logAndSanitiseUpstreamError('gemini-models', e) });
     } finally {
       clearTimeout(t);
     }
@@ -1313,42 +1429,90 @@ app.get(
 /**
  * POST /api/admin/ai-provider/gemini-test
  * Fires a lightweight generateContent ping using the managed GEMINI_API_KEY.
+ * Body: `{ model?: string }`. The model is validated against the cached
+ * upstream models list (F2); falls back to gemini-2.0-flash if missing/invalid.
  * Returns { success, model, latencyMs, preview } or { success: false, error }.
  */
 app.post(
   '/api/admin/ai-provider/gemini-test',
   requireAuthHeader,
   requireAdminEmail,
-  async (_req, res) => {
+  async (req: AuthedRequest, res) => {
     const key = process.env.GEMINI_API_KEY;
     if (!key) {
       res.json({ success: false, error: 'GEMINI_API_KEY not configured on server' });
       return;
     }
-    const model = 'gemini-2.0-flash';
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+    const FALLBACK_MODEL = 'gemini-2.0-flash';
+    const requested = typeof req.body?.model === 'string' ? req.body.model.trim() : '';
+
+    // F2: validate the requested model against the cached models list. If we
+    // don't have a cache yet, accept any plausibly-formatted slug; the upstream
+    // call will reject anything genuinely invalid.
+    let model = FALLBACK_MODEL;
+    if (requested) {
+      const cached = getCached<{ models: Array<{ id: string }> }>('gemini-models');
+      if (cached) {
+        const ok = cached.models.some(m => m.id === requested);
+        model = ok ? requested : FALLBACK_MODEL;
+      } else if (/^[A-Za-z0-9._-]{3,64}$/.test(requested)) {
+        model = requested;
+      }
+    }
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
     const controller = new AbortController();
     const t = setTimeout(() => controller.abort(), 15_000);
     const start = Date.now();
     try {
       const r = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
         body: JSON.stringify({ contents: [{ parts: [{ text: 'Reply with exactly one word: OK' }] }] }),
         signal: controller.signal,
       });
       if (!r.ok) {
-        res.json({ success: false, error: `HTTP ${r.status}`, model });
+        res.json({ success: false, error: `Upstream HTTP ${r.status}`, model });
+        await writeAdminAudit(req.verifiedEmail || 'unknown', 'gemini-test', { model, ok: false, status: r.status });
         return;
       }
       const body = await r.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
       const text = body.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
-      res.json({ success: true, model, latencyMs: Date.now() - start, preview: text.slice(0, 120) });
+      const latencyMs = Date.now() - start;
+      res.json({ success: true, model, latencyMs, preview: text.slice(0, 120) });
+      await writeAdminAudit(req.verifiedEmail || 'unknown', 'gemini-test', { model, ok: true, latencyMs });
     } catch (e: unknown) {
-      res.json({ success: false, error: e instanceof Error ? e.message : String(e), model });
+      res.json({ success: false, error: logAndSanitiseUpstreamError('gemini-test', e), model });
+      await writeAdminAudit(req.verifiedEmail || 'unknown', 'gemini-test', { model, ok: false });
     } finally {
       clearTimeout(t);
     }
+  },
+);
+
+/**
+ * POST /api/admin/ai-provider/audit-model-switch
+ * Records an admin model-switch event in `admin_audit_log` (A3). Called from
+ * the DevKit panel when an admin confirms changing the active BYOK or managed
+ * model for any provider. The endpoint is purely for audit — it does not
+ * mutate provider settings (those are stored client-side in `useSettingsStore`).
+ *
+ * Body: `{ provider: 'openrouter'|'groq'|'gemini'|'ollama'|'wiseresume-sub', model: string, previousModel?: string }`
+ */
+app.post(
+  '/api/admin/ai-provider/audit-model-switch',
+  requireAuthHeader,
+  requireAdminEmail,
+  async (req: AuthedRequest, res) => {
+    const provider = typeof req.body?.provider === 'string' ? req.body.provider : null;
+    const model = typeof req.body?.model === 'string' ? req.body.model : null;
+    const previousModel = typeof req.body?.previousModel === 'string' ? req.body.previousModel : null;
+    if (!provider || !model) {
+      res.status(400).json({ error: 'provider and model are required' });
+      return;
+    }
+    await writeAdminAudit(req.verifiedEmail || 'unknown', 'model-switch', { provider, model, previousModel });
+    res.json({ ok: true });
   },
 );
 

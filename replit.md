@@ -430,6 +430,20 @@ Both endpoints require a valid Supabase Bearer token AND the verified user's ema
 ## AI Provider Status (Task #19 + #20)
 - **Shared React Query cache key `['ai-keys']`** (staleTime 30s): `AIKeySection` in `WiseHireSettingsPage` uses `useQuery(['ai-keys'])` to display connected providers. `AISettingsSheet` calls `queryClient.invalidateQueries({ queryKey: ['ai-keys'] })` after every key save or delete. Status updates instantly without closing the sheet or reloading the page.
 
+## DevKit AI Provider proxy endpoints (Task #1, hardened 2026-04-18)
+All endpoints below live in `server/index.ts` and are gated by `requireAuthHeader + requireAdminEmail`. Managed keys (`OPENROUTER_API_KEY`, `GROQ_API_KEY`, `GEMINI_API_KEY`) never leave the server. Upstream-list endpoints share a 10-minute in-memory TTL cache (`upstreamCache`).
+- `GET  /api/admin/ai-provider/openrouter-status` → managed OpenRouter balance / rate-limit (cached).
+- `GET  /api/admin/ai-provider/openrouter-models` → public model catalogue proxy (cached, replaces direct browser → openrouter.ai call).
+- `GET  /api/admin/ai-provider/groq-models` → live Groq model list (cached).
+- `GET  /api/admin/ai-provider/groq-usage` → today's request/token counters (uncached — changes minute-to-minute).
+- `GET  /api/admin/ai-provider/gemini-models` → Gemini models filtered to those supporting `generateContent`. Key sent via `x-goog-api-key` header (S2). Strips `models/` prefix (F3). Cached.
+- `POST /api/admin/ai-provider/gemini-test` → ping `generateContent` with `{ model? }` body. Model is validated against the cached models list (F2) and falls back to `gemini-2.0-flash`. Writes audit row.
+- `POST /api/admin/ai-provider/audit-model-switch` → records `{ provider, model, previousModel }` in `admin_audit_log`. Called by the panel when an admin confirms a model switch.
+
+All endpoints log full upstream errors server-side and return generic strings to the browser ("Upstream request failed" / `Upstream HTTP <status>`) so detail never leaks (S1).
+
+The `admin_audit_log` Drizzle table (`server/schema.ts`) backs A3 audit writes — schema: `id serial`, `actor_email text`, `action text`, `payload jsonb`, `created_at timestamptz`.
+
 ## Onboarding Analytics (audit_logs, category='onboarding')
 Job-Seeker onboarding emits the following actions to the `audit_logs` table via `logAudit` (`src/lib/auditLogger.ts`). All events are fire-and-forget; metadata schemas:
 - `started`: {} — page mount.

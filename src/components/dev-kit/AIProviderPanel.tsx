@@ -1,13 +1,15 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   Search, Check, Zap, DollarSign, RefreshCw, Cpu, ChevronDown, ChevronRight,
   Info, AlertTriangle, PlayCircle, Loader2, ShieldCheck, ShieldAlert, ShieldX,
   Map,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { useSettingsStore, WiseresumeSubProvider } from '@/store/settingsStore';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { getDevKitToken } from '@/contexts/DevKitSessionContext';
 import { getSupabaseToken } from '@/lib/supabaseAuth';
+import { GROQ_DEFAULT_MODEL } from '@/lib/aiDefaults';
 import { cn } from '@/lib/utils';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -132,6 +134,10 @@ interface TestState {
 const BREAKER_ID = {
   openrouter: 'wiseresume/openrouter',
   groq: 'wiseresume/groq',
+  // A1: Gemini breaker is a single global row keyed `gemini_global` — there are
+  // no per-user Gemini breaker rows in the schema today (verified in
+  // `ai_provider_breaker` migrations). If per-user rows are added later, the
+  // panel will need to merge any `gemini_*` rows alongside this global one.
   gemini: 'gemini_global',
   ollama: null, // local — not tracked in breaker
 } as const;
@@ -174,15 +180,104 @@ function formatCtx(n?: number | null): string | null {
   return `${n} ctx`;
 }
 
+/**
+ * Authenticated fetch helper.
+ *
+ * S3: throws "Session expired — please re-login to the DevKit." synchronously
+ * when no Supabase token is available, so callers see a clear error instead of
+ * silently sending an unauthenticated request that the server will reject as
+ * an opaque 401.
+ */
 async function fetchWithToken(url: string, options?: RequestInit): Promise<Response> {
   const token = await getSupabaseToken();
+  if (!token) {
+    throw new Error('Session expired — please re-login to the DevKit.');
+  }
   return fetch(url, {
     ...options,
     headers: {
       ...(options?.headers ?? {}),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      Authorization: `Bearer ${token}`,
     },
   });
+}
+
+/** P4: simple in-flight request deduper keyed by URL+method. */
+const inflight = new Map<string, Promise<Response>>();
+async function fetchWithTokenDedup(
+  url: string,
+  options?: RequestInit & { dedupKey?: string },
+): Promise<Response> {
+  const key = options?.dedupKey ?? `${(options?.method ?? 'GET').toUpperCase()} ${url}`;
+  const existing = inflight.get(key);
+  if (existing) {
+    // Multiple callers share the same Response — clone before reading.
+    return (await existing).clone();
+  }
+  const p = fetchWithToken(url, options).finally(() => {
+    // Keep the in-flight slot for ~250ms after settle to also coalesce
+    // double-clicks that fire just after the previous one settles.
+    setTimeout(() => inflight.delete(key), 250);
+  });
+  inflight.set(key, p);
+  return (await p).clone();
+}
+
+/** Audit log helper — best-effort fire-and-forget. Failures are logged only. */
+function logAdminModelSwitch(provider: string, model: string, previousModel: string | null) {
+  void fetchWithToken('/api/admin/ai-provider/audit-model-switch', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ provider, model, previousModel }),
+  }).catch((e) => console.warn('[ai-provider-panel] audit log write failed', e));
+}
+
+/**
+ * A3: Best-effort audit log for provider tests (OpenRouter / Groq / Ollama / Gemini).
+ * Reuses the same `audit-model-switch` endpoint with `action='test'` semantics by
+ * encoding the test outcome in `payload.note`. Fire-and-forget; failures are logged.
+ */
+function logAdminProviderTest(
+  provider: string,
+  model: string | null,
+  ok: boolean,
+  latencyMs: number | null,
+  errorMessage: string | null,
+) {
+  void fetchWithToken('/api/admin/ai-provider/audit-model-switch', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      provider,
+      model: model ?? '(unknown)',
+      previousModel: `test:${ok ? 'ok' : 'fail'}${latencyMs != null ? `:${latencyMs}ms` : ''}${errorMessage ? `:${errorMessage.slice(0, 60)}` : ''}`,
+    }),
+  }).catch((e) => console.warn('[ai-provider-panel] test audit write failed', e));
+}
+
+/**
+ * F1: re-render hook that ticks once per second while `enabled` is true.
+ * Used by breaker chips/banners to count down `opened_until` in real time
+ * without polling the breaker-status endpoint at 1 Hz.
+ */
+function useTick(enabled: boolean, intervalMs = 1000): number {
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    if (!enabled) return;
+    const id = window.setInterval(() => setTick((t) => t + 1), intervalMs);
+    return () => window.clearInterval(id);
+  }, [enabled, intervalMs]);
+  return tick;
+}
+
+/** P2: debounce a string value (used for search inputs). */
+function useDebounced<T>(value: T, delay = 120): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const id = window.setTimeout(() => setDebounced(value), delay);
+    return () => window.clearTimeout(id);
+  }, [value, delay]);
+  return debounced;
 }
 
 // ── Shared UI atoms ────────────────────────────────────────────────────────────
@@ -206,6 +301,8 @@ function PaidBadge() {
 }
 
 function BreakerChip({ row }: { row?: BreakerRow | null }) {
+  // F1: tick once per second so the countdown updates without re-fetching.
+  useTick(!!row?.is_open);
   if (!row) {
     return (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-muted/50 text-muted-foreground border border-border">
@@ -240,6 +337,7 @@ function BreakerChip({ row }: { row?: BreakerRow | null }) {
 }
 
 function BreakerBanner({ row }: { row?: BreakerRow | null }) {
+  useTick(!!row?.is_open);
   if (!row?.is_open) return null;
   const secsLeft = row.opened_until
     ? Math.max(0, Math.ceil((new Date(row.opened_until).getTime() - Date.now()) / 1000))
@@ -259,6 +357,11 @@ function BreakerBanner({ row }: { row?: BreakerRow | null }) {
   );
 }
 
+/**
+ * U1: keyboard-friendly confirm card. Mounting attaches a window-level
+ * keydown listener — Enter confirms, Esc cancels. The listener is removed on
+ * unmount so only the visible confirm card listens at any time.
+ */
 function ConfirmCard({
   modelId,
   onConfirm,
@@ -268,10 +371,24 @@ function ConfirmCard({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Enter') { e.preventDefault(); onConfirm(); }
+      else if (e.key === 'Escape') { e.preventDefault(); onCancel(); }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onConfirm, onCancel]);
+
   return (
-    <div className="mx-3 mb-1 p-3 rounded-lg border border-primary/20 bg-primary/5 space-y-2">
+    <div
+      className="mx-3 mb-1 p-3 rounded-lg border border-primary/20 bg-primary/5 space-y-2"
+      role="dialog"
+      aria-label={`Confirm switching active model to ${modelId}`}
+    >
       <p className="text-xs font-medium text-foreground">Switch active model to:</p>
       <p className="text-xs font-mono text-primary truncate">{modelId}</p>
+      <p className="text-[10px] text-muted-foreground">Press Enter to confirm · Esc to cancel</p>
       <div className="flex gap-2">
         <button
           onClick={onConfirm}
@@ -405,13 +522,25 @@ function SubProviderSelector({
     setPending(sub);
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = useCallback(() => {
     if (!pending) return;
     onChange(pending);
+    logAdminModelSwitch('wiseresume-sub', pending, current);
     setPending(null);
-  };
+  }, [pending, current, onChange]);
 
-  const handleCancel = () => setPending(null);
+  const handleCancel = useCallback(() => setPending(null), []);
+
+  // U1: Enter confirms / Esc cancels at the selector level too.
+  useEffect(() => {
+    if (!pending) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Enter') { e.preventDefault(); handleConfirm(); }
+      else if (e.key === 'Escape') { e.preventDefault(); handleCancel(); }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [pending, handleConfirm, handleCancel]);
 
   const pendingOpt = pending ? SUB_PROVIDER_OPTIONS.find(o => o.value === pending) : null;
 
@@ -440,12 +569,13 @@ function SubProviderSelector({
         })}
       </div>
       {pending && pendingOpt && (
-        <div className="p-3 rounded-lg border border-primary/20 bg-primary/5 space-y-2">
+        <div className="p-3 rounded-lg border border-primary/20 bg-primary/5 space-y-2" role="dialog">
           <p className="text-xs font-medium text-foreground">
             Switch managed sub-provider to{' '}
             <span className="font-semibold text-primary">{pendingOpt.label}</span>?
           </p>
           <p className="text-[11px] text-muted-foreground">{pendingOpt.desc}</p>
+          <p className="text-[10px] text-muted-foreground">Press Enter to confirm · Esc to cancel</p>
           <div className="flex gap-2">
             <button
               onClick={handleConfirm}
@@ -481,7 +611,7 @@ function FeatureRoutingSection({ subProvider }: { subProvider: WiseresumeSubProv
 
   const routeLabel =
     subProvider === 'groq'
-      ? 'Groq (qwen/qwen3-32b)'
+      ? `Groq (${GROQ_DEFAULT_MODEL})`
       : subProvider === 'openrouter'
       ? 'OpenRouter (configured model)'
       : 'OpenRouter → Groq fallback';
@@ -534,30 +664,37 @@ function OpenRouterPanel({
   breakerRow,
   managedStatus,
   onManagedRefresh,
+  registerRefresh,
 }: {
   breakerRow?: BreakerRow | null;
   managedStatus: ManagedORStatus | null;
-  onManagedRefresh: () => void;
+  onManagedRefresh: () => Promise<void> | void;
+  registerRefresh: (fn: () => Promise<void>) => void;
 }) {
   const { openrouterModel, setOpenrouterModel } = useSettingsStore();
 
   const [models, setModels] = useState<ORModel[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounced(search, 120);
   const [filter, setFilter] = useState<'all' | 'free' | 'paid'>('all');
   const [pending, setPending] = useState<string | null>(null);
   const [testState, setTestState] = useState<TestState>({ status: 'idle' });
-  const hasFetched = useRef(false);
+  const testAbortRef = useRef<AbortController | null>(null);
 
   const fetchModels = useCallback(async () => {
-    setLoading(true);
+    // P3: keep previous data on screen during refresh; only show full loader on first load.
     setError(null);
+    if (models.length === 0) setLoading(true); else setIsRefreshing(true);
     try {
-      const res = await fetch('https://openrouter.ai/api/v1/models');
+      // P6: hit our own server proxy (cached) instead of openrouter.ai directly.
+      const res = await fetchWithTokenDedup('/api/admin/ai-provider/openrouter-models');
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json() as { data?: ORModelRaw[] };
-      const list: ORModel[] = (json.data ?? []).map((m) => ({
+      const json = await res.json() as { models?: ORModelRaw[]; error?: string };
+      if (json.error && (!json.models || json.models.length === 0)) throw new Error(json.error);
+      const list: ORModel[] = (json.models ?? []).map((m) => ({
         id: m.id,
         name: m.name ?? m.id,
         pricing: { prompt: m.pricing?.prompt ?? '1', completion: m.pricing?.completion ?? '1' },
@@ -573,22 +710,33 @@ function OpenRouterPanel({
       setError(e instanceof Error ? e.message : 'Failed to load models');
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
-  }, []);
+  }, [models.length]);
 
+  useEffect(() => { void fetchModels(); }, [fetchModels]);
+
+  // F8: register a refresh callback so the header "Refresh all" can refresh
+  // every visible panel (managed status + models).
   useEffect(() => {
-    if (!hasFetched.current) {
-      hasFetched.current = true;
-      void fetchModels();
-    }
-  }, [fetchModels]);
+    registerRefresh(async () => {
+      await Promise.allSettled([fetchModels(), Promise.resolve(onManagedRefresh())]);
+    });
+  }, [registerRefresh, fetchModels, onManagedRefresh]);
 
   const runTest = useCallback(async () => {
+    // P5: cancel any prior test (and the underlying upstream call) before starting a new one.
+    testAbortRef.current?.abort();
+    const ctrl = new AbortController();
+    testAbortRef.current = ctrl;
+
     setTestState({ status: 'running' });
     try {
       const res = await edgeFunctions.functions.invoke('ai-test', {
         body: { wiseresumeSubProvider: 'openrouter', adminPassword: getDevKitToken() },
+        signal: ctrl.signal,
       });
+      if (ctrl.signal.aborted) return;
       if (res.error) throw new Error(res.error instanceof Error ? res.error.message : String(res.error));
       const d = res.data as AITestResponse;
       if (!d?.success) throw new Error(d?.error ?? 'ai-test returned failure');
@@ -598,17 +746,27 @@ function OpenRouterPanel({
         model: d.model,
         preview: d.response?.slice(0, 100),
       });
+      logAdminProviderTest('openrouter', d.model ?? null, true, d.latencyMs ?? null, null);
     } catch (e: unknown) {
-      setTestState({ status: 'error', error: e instanceof Error ? e.message : 'Test failed' });
+      if (ctrl.signal.aborted) return;
+      const msg = e instanceof Error ? e.message : 'Test failed';
+      setTestState({ status: 'error', error: msg });
+      logAdminProviderTest('openrouter', null, false, null, msg);
     }
   }, []);
 
-  const filtered = models.filter(m => {
-    const q = search.toLowerCase();
-    const matchSearch = m.name.toLowerCase().includes(q) || m.id.toLowerCase().includes(q);
-    const matchFilter = filter === 'all' || (filter === 'free' ? m.isFree : !m.isFree);
-    return matchSearch && matchFilter;
-  });
+  // P5: abort any in-flight test on unmount (cancels underlying fetch via signal).
+  useEffect(() => () => { testAbortRef.current?.abort(); }, []);
+
+  // P2: memoise the filter result instead of recomputing on every keystroke.
+  const filtered = useMemo(() => {
+    const q = debouncedSearch.toLowerCase();
+    return models.filter(m => {
+      const matchSearch = m.name.toLowerCase().includes(q) || m.id.toLowerCase().includes(q);
+      const matchFilter = filter === 'all' || (filter === 'free' ? m.isFree : !m.isFree);
+      return matchSearch && matchFilter;
+    });
+  }, [models, debouncedSearch, filter]);
 
   const mData = managedStatus?.data;
 
@@ -623,7 +781,7 @@ function OpenRouterPanel({
       <div className="p-3 rounded-lg bg-muted/50 border border-border space-y-2">
         <div className="flex items-center justify-between">
           <p className="text-xs font-medium text-foreground">Platform key balance</p>
-          <button onClick={onManagedRefresh} className="p-1 rounded hover:bg-muted transition-colors">
+          <button onClick={() => onManagedRefresh()} className="p-1 rounded hover:bg-muted transition-colors">
             <RefreshCw className="w-3 h-3 text-muted-foreground" />
           </button>
         </div>
@@ -670,10 +828,11 @@ function OpenRouterPanel({
           </p>
         </div>
         <button
-          onClick={() => { hasFetched.current = false; void fetchModels(); }}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md border border-border hover:bg-muted transition-colors"
+          onClick={() => { void fetchModels(); }}
+          disabled={loading || isRefreshing}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md border border-border hover:bg-muted transition-colors disabled:opacity-50"
         >
-          <RefreshCw className="w-3 h-3" />
+          <RefreshCw className={cn('w-3 h-3', (loading || isRefreshing) && 'animate-spin')} />
           Refresh list
         </button>
       </div>
@@ -756,7 +915,12 @@ function OpenRouterPanel({
                   {isPending && (
                     <ConfirmCard
                       modelId={m.id}
-                      onConfirm={() => { setOpenrouterModel(m.id); setPending(null); }}
+                      onConfirm={() => {
+                        const prev = openrouterModel || null;
+                        setOpenrouterModel(m.id);
+                        logAdminModelSwitch('openrouter', m.id, prev);
+                        setPending(null);
+                      }}
                       onCancel={() => setPending(null)}
                     />
                   )}
@@ -853,15 +1017,23 @@ function GroqPanel({
   breakerRow,
   managedStatus,
   groqUsage,
+  registerRefresh,
+  onManagedRefresh,
+  onUsageRefresh,
 }: {
   breakerRow?: BreakerRow | null;
   managedStatus: ManagedGroqStatus | null;
   groqUsage: GroqUsage | null;
+  registerRefresh: (fn: () => Promise<void>) => void;
+  onManagedRefresh: () => Promise<void> | void;
+  onUsageRefresh: () => Promise<void> | void;
 }) {
   const { groqModel, setGroqModel } = useSettingsStore();
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounced(search, 120);
   const [pending, setPending] = useState<string | null>(null);
   const [testState, setTestState] = useState<TestState>({ status: 'idle' });
+  const testAbortRef = useRef<AbortController | null>(null);
 
   const models: GroqModel[] =
     managedStatus?.models && managedStatus.models.length > 0
@@ -870,12 +1042,28 @@ function GroqPanel({
 
   const isManagedList = !!managedStatus?.configured && managedStatus.models.length > 0;
 
+  // F8 wiring
+  useEffect(() => {
+    registerRefresh(async () => {
+      await Promise.allSettled([
+        Promise.resolve(onManagedRefresh()),
+        Promise.resolve(onUsageRefresh()),
+      ]);
+    });
+  }, [registerRefresh, onManagedRefresh, onUsageRefresh]);
+
   const runTest = useCallback(async () => {
+    testAbortRef.current?.abort();
+    const ctrl = new AbortController();
+    testAbortRef.current = ctrl;
+
     setTestState({ status: 'running' });
     try {
       const res = await edgeFunctions.functions.invoke('ai-test', {
         body: { wiseresumeSubProvider: 'groq', adminPassword: getDevKitToken() },
+        signal: ctrl.signal,
       });
+      if (ctrl.signal.aborted) return;
       if (res.error) throw new Error(res.error instanceof Error ? res.error.message : String(res.error));
       const d = res.data as AITestResponse;
       if (!d?.success) throw new Error(d?.error ?? 'ai-test returned failure');
@@ -885,12 +1073,22 @@ function GroqPanel({
         model: d.model,
         preview: d.response?.slice(0, 100),
       });
+      logAdminProviderTest('groq', d.model ?? null, true, d.latencyMs ?? null, null);
     } catch (e: unknown) {
-      setTestState({ status: 'error', error: e instanceof Error ? e.message : 'Test failed' });
+      if (ctrl.signal.aborted) return;
+      const msg = e instanceof Error ? e.message : 'Test failed';
+      setTestState({ status: 'error', error: msg });
+      logAdminProviderTest('groq', null, false, null, msg);
     }
   }, []);
 
-  const filtered = models.filter(m => m.id.toLowerCase().includes(search.toLowerCase()));
+  useEffect(() => () => { testAbortRef.current?.abort(); }, []);
+
+  // P2: memoise filter
+  const filtered = useMemo(
+    () => models.filter(m => m.id.toLowerCase().includes(debouncedSearch.toLowerCase())),
+    [models, debouncedSearch],
+  );
 
   return (
     <div className="space-y-4">
@@ -933,7 +1131,18 @@ function GroqPanel({
       <div>
         <p className="text-xs text-muted-foreground">Active BYOK model</p>
         <p className="text-sm font-mono font-medium text-foreground truncate">
-          {groqModel || <span className="text-muted-foreground italic">none selected</span>}
+          {groqModel
+            ? groqModel
+            : (
+              // U5: when no BYOK override, show what the routing layer actually
+              // uses (shared default from `aiClient.ts`) — never "none selected".
+              <>
+                <span className="text-foreground">{GROQ_DEFAULT_MODEL}</span>
+                <span className="ml-1 text-[10px] text-muted-foreground italic">
+                  (managed default)
+                </span>
+              </>
+            )}
         </p>
       </div>
 
@@ -981,7 +1190,12 @@ function GroqPanel({
                 {isPending && (
                   <ConfirmCard
                     modelId={m.id}
-                    onConfirm={() => { setGroqModel(m.id); setPending(null); }}
+                    onConfirm={() => {
+                      const prev = groqModel || null;
+                      setGroqModel(m.id);
+                      logAdminModelSwitch('groq', m.id, prev);
+                      setPending(null);
+                    }}
                     onCancel={() => setPending(null)}
                   />
                 )}
@@ -999,17 +1213,24 @@ function GroqPanel({
 
 // ── Gemini sub-panel ───────────────────────────────────────────────────────────
 
-function GeminiPanel({ breakerRow }: { breakerRow?: BreakerRow | null }) {
+function GeminiPanel({
+  breakerRow,
+  registerRefresh,
+}: {
+  breakerRow?: BreakerRow | null;
+  registerRefresh: (fn: () => Promise<void>) => void;
+}) {
   const { geminiModel, geminiApiKey, geminiKeyValidated, geminiDailyUsage, setGeminiModel } = useSettingsStore();
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounced(search, 120);
   const [pending, setPending] = useState<string | null>(null);
   const [testState, setTestState] = useState<TestState>({ status: 'idle' });
   const [managedStatus, setManagedStatus] = useState<ManagedGeminiStatus | null>(null);
-  const hasFetched = useRef(false);
+  const testAbortRef = useRef<AbortController | null>(null);
 
   const fetchManagedModels = useCallback(async () => {
     try {
-      const res = await fetchWithToken('/api/admin/ai-provider/gemini-models');
+      const res = await fetchWithTokenDedup('/api/admin/ai-provider/gemini-models');
       if (!res.ok) {
         setManagedStatus({ configured: false, models: [] });
         return;
@@ -1021,17 +1242,30 @@ function GeminiPanel({ breakerRow }: { breakerRow?: BreakerRow | null }) {
     }
   }, []);
 
+  // F6-equivalent for Gemini: refetch on mount via standard useEffect.
+  useEffect(() => { void fetchManagedModels(); }, [fetchManagedModels]);
+
+  // F8 wiring
   useEffect(() => {
-    if (!hasFetched.current) {
-      hasFetched.current = true;
-      void fetchManagedModels();
-    }
-  }, [fetchManagedModels]);
+    registerRefresh(async () => { await fetchManagedModels(); });
+  }, [registerRefresh, fetchManagedModels]);
 
   const runTest = useCallback(async () => {
+    testAbortRef.current?.abort();
+    const ctrl = new AbortController();
+    testAbortRef.current = ctrl;
+
     setTestState({ status: 'running' });
     try {
-      const res = await fetchWithToken('/api/admin/ai-provider/gemini-test', { method: 'POST' });
+      // F2: pass the admin's selected model so the test exercises that one.
+      // P5: pass the abort signal through so unmount/rerun cancels the request.
+      const res = await fetchWithToken('/api/admin/ai-provider/gemini-test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: geminiModel || undefined }),
+        signal: ctrl.signal,
+      });
+      if (ctrl.signal.aborted) return;
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const d = await res.json() as GeminiTestResponse;
       if (!d.success) throw new Error(d.error ?? 'Gemini test failed');
@@ -1041,10 +1275,16 @@ function GeminiPanel({ breakerRow }: { breakerRow?: BreakerRow | null }) {
         model: d.model,
         preview: d.preview,
       });
+      logAdminProviderTest('gemini', d.model ?? geminiModel ?? null, true, d.latencyMs ?? null, null);
     } catch (e: unknown) {
-      setTestState({ status: 'error', error: e instanceof Error ? e.message : 'Test failed' });
+      if (ctrl.signal.aborted) return;
+      const msg = e instanceof Error ? e.message : 'Test failed';
+      setTestState({ status: 'error', error: msg });
+      logAdminProviderTest('gemini', geminiModel || null, false, null, msg);
     }
-  }, []);
+  }, [geminiModel]);
+
+  useEffect(() => () => { testAbortRef.current?.abort(); }, []);
 
   const models: GeminiModel[] =
     managedStatus?.configured && managedStatus.models.length > 0
@@ -1053,13 +1293,18 @@ function GeminiPanel({ breakerRow }: { breakerRow?: BreakerRow | null }) {
 
   const isManagedList = !!managedStatus?.configured && managedStatus.models.length > 0;
 
-  const today = new Date().toISOString().slice(0, 10);
+  // U4: use the admin's local timezone (en-CA gives YYYY-MM-DD) so the daily
+  // counter rolls over at local midnight, not UTC midnight.
+  const today = new Date().toLocaleDateString('en-CA');
   const todayUsage = geminiDailyUsage?.date === today ? geminiDailyUsage.count : 0;
 
-  const filtered = models.filter(m =>
-    m.name.toLowerCase().includes(search.toLowerCase()) ||
-    m.id.toLowerCase().includes(search.toLowerCase()),
-  );
+  // P2: memoise filtered list
+  const filtered = useMemo(() => {
+    const q = debouncedSearch.toLowerCase();
+    return models.filter(m =>
+      m.name.toLowerCase().includes(q) || m.id.toLowerCase().includes(q),
+    );
+  }, [models, debouncedSearch]);
 
   return (
     <div className="space-y-4">
@@ -1159,7 +1404,12 @@ function GeminiPanel({ breakerRow }: { breakerRow?: BreakerRow | null }) {
                 {isPending && (
                   <ConfirmCard
                     modelId={m.id}
-                    onConfirm={() => { setGeminiModel(m.id); setPending(null); }}
+                    onConfirm={() => {
+                      const prev = geminiModel || null;
+                      setGeminiModel(m.id);
+                      logAdminModelSwitch('gemini', m.id, prev);
+                      setPending(null);
+                    }}
                     onCancel={() => setPending(null)}
                   />
                 )}
@@ -1174,21 +1424,29 @@ function GeminiPanel({ breakerRow }: { breakerRow?: BreakerRow | null }) {
 
 // ── Ollama sub-panel ───────────────────────────────────────────────────────────
 
-function OllamaPanel({ breakerRow }: { breakerRow?: BreakerRow | null }) {
+function OllamaPanel({
+  breakerRow,
+  registerRefresh,
+}: {
+  breakerRow?: BreakerRow | null;
+  registerRefresh: (fn: () => Promise<void>) => void;
+}) {
   const { ollamaModel, ollamaBaseUrl, setOllamaModel } = useSettingsStore();
   const [models, setModels] = useState<OllamaModel[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounced(search, 120);
   const [pending, setPending] = useState<string | null>(null);
   const [testState, setTestState] = useState<TestState>({ status: 'idle' });
-  const hasFetched = useRef(false);
+  const testAbortRef = useRef<AbortController | null>(null);
 
   const base = ollamaBaseUrl || 'http://localhost:11434';
 
   const fetchModels = useCallback(async () => {
-    setLoading(true);
     setError(null);
+    if (models.length === 0) setLoading(true); else setIsRefreshing(true);
     try {
       const res = await fetch(`${base}/api/tags`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -1198,21 +1456,29 @@ function OllamaPanel({ breakerRow }: { breakerRow?: BreakerRow | null }) {
       setError('Cannot reach Ollama. Is it running locally?');
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
-  }, [base]);
+  }, [base, models.length]);
+
+  // F6: refetch whenever the base URL changes (e.g. user updates settings).
+  useEffect(() => { void fetchModels(); }, [fetchModels]);
 
   useEffect(() => {
-    if (!hasFetched.current) {
-      hasFetched.current = true;
-      void fetchModels();
-    }
-  }, [fetchModels]);
+    registerRefresh(async () => { await fetchModels(); });
+  }, [registerRefresh, fetchModels]);
 
   const runTest = useCallback(async () => {
     if (!ollamaModel) {
       setTestState({ status: 'error', error: 'No model selected. Pick a model first.' });
       return;
     }
+    testAbortRef.current?.abort();
+    const ctrl = new AbortController();
+    testAbortRef.current = ctrl;
+
+    // F7: Safari/iOS pre-17.4 lacks AbortSignal.timeout — use AbortController + setTimeout.
+    const timeoutId = window.setTimeout(() => ctrl.abort(), 20_000);
+
     setTestState({ status: 'running' });
     const start = Date.now();
     try {
@@ -1220,22 +1486,43 @@ function OllamaPanel({ breakerRow }: { breakerRow?: BreakerRow | null }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ model: ollamaModel, prompt: 'Reply with one word: OK', stream: false }),
-        signal: AbortSignal.timeout(20_000),
+        signal: ctrl.signal,
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const d = await res.json() as OllamaGenerateResponse;
+      const latencyMs = Date.now() - start;
       setTestState({
         status: 'done',
-        latencyMs: Date.now() - start,
+        latencyMs,
         model: ollamaModel,
         preview: (d.response ?? '').slice(0, 100),
       });
+      logAdminProviderTest('ollama', ollamaModel, true, latencyMs, null);
     } catch (e: unknown) {
-      setTestState({ status: 'error', error: e instanceof Error ? e.message : 'Test failed' });
+      if (ctrl.signal.aborted) {
+        // Treat aborted-from-unmount as silent; aborted-from-timeout as error.
+        // Heuristic: if test was in flight long enough we report timeout.
+        if (Date.now() - start >= 20_000) {
+          const msg = 'Test timed out after 20s.';
+          setTestState({ status: 'error', error: msg });
+          logAdminProviderTest('ollama', ollamaModel, false, null, msg);
+        }
+        return;
+      }
+      const msg = e instanceof Error ? e.message : 'Test failed';
+      setTestState({ status: 'error', error: msg });
+      logAdminProviderTest('ollama', ollamaModel, false, null, msg);
+    } finally {
+      window.clearTimeout(timeoutId);
     }
   }, [base, ollamaModel]);
 
-  const filtered = models.filter(m => m.name.toLowerCase().includes(search.toLowerCase()));
+  useEffect(() => () => { testAbortRef.current?.abort(); }, []);
+
+  const filtered = useMemo(
+    () => models.filter(m => m.name.toLowerCase().includes(debouncedSearch.toLowerCase())),
+    [models, debouncedSearch],
+  );
 
   return (
     <div className="space-y-4">
@@ -1274,10 +1561,11 @@ function OllamaPanel({ breakerRow }: { breakerRow?: BreakerRow | null }) {
           </p>
         </div>
         <button
-          onClick={() => { hasFetched.current = false; void fetchModels(); }}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md border border-border hover:bg-muted transition-colors"
+          onClick={() => { void fetchModels(); }}
+          disabled={loading || isRefreshing}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md border border-border hover:bg-muted transition-colors disabled:opacity-50"
         >
-          <RefreshCw className="w-3 h-3" />
+          <RefreshCw className={cn('w-3 h-3', (loading || isRefreshing) && 'animate-spin')} />
           Refresh
         </button>
       </div>
@@ -1342,7 +1630,12 @@ function OllamaPanel({ breakerRow }: { breakerRow?: BreakerRow | null }) {
                   {isPending && (
                     <ConfirmCard
                       modelId={m.name}
-                      onConfirm={() => { setOllamaModel(m.name); setPending(null); }}
+                      onConfirm={() => {
+                        const prev = ollamaModel || null;
+                        setOllamaModel(m.name);
+                        logAdminModelSwitch('ollama', m.name, prev);
+                        setPending(null);
+                      }}
                       onCancel={() => setPending(null)}
                     />
                   )}
@@ -1374,6 +1667,14 @@ export function AIProviderPanel() {
   const [managedOR, setManagedOR] = useState<ManagedORStatus | null>(null);
   const [managedGroq, setManagedGroq] = useState<ManagedGroqStatus | null>(null);
   const [groqUsage, setGroqUsage] = useState<GroqUsage | null>(null);
+  const [headerRefreshing, setHeaderRefreshing] = useState(false);
+
+  // F8: each sub-panel registers its own refresh function on mount; the header
+  // "Refresh all" button awaits them all (Promise.allSettled, U3).
+  const subPanelRefreshRef = useRef<(() => Promise<void>) | null>(null);
+  const registerSubPanelRefresh = useCallback((fn: () => Promise<void>) => {
+    subPanelRefreshRef.current = fn;
+  }, []);
 
   const fetchBreakerStatus = useCallback(async () => {
     setBreakerLoading(true);
@@ -1395,9 +1696,10 @@ export function AIProviderPanel() {
   }, []);
 
   const fetchManagedOR = useCallback(async () => {
-    setManagedOR(null);
+    // P3: keep prior data on screen during refresh
+    setManagedOR(prev => prev ?? null);
     try {
-      const res = await fetchWithToken('/api/admin/ai-provider/openrouter-status');
+      const res = await fetchWithTokenDedup('/api/admin/ai-provider/openrouter-status');
       if (!res.ok) { setManagedOR({ configured: true, error: `HTTP ${res.status}` }); return; }
       const data = await res.json() as ManagedORStatus;
       setManagedOR(data);
@@ -1407,9 +1709,9 @@ export function AIProviderPanel() {
   }, []);
 
   const fetchManagedGroq = useCallback(async () => {
-    setManagedGroq(null);
+    setManagedGroq(prev => prev ?? null);
     try {
-      const res = await fetchWithToken('/api/admin/ai-provider/groq-models');
+      const res = await fetchWithTokenDedup('/api/admin/ai-provider/groq-models');
       if (!res.ok) { setManagedGroq({ configured: true, models: [], error: `HTTP ${res.status}` }); return; }
       const data = await res.json() as ManagedGroqStatus;
       setManagedGroq(data);
@@ -1419,9 +1721,9 @@ export function AIProviderPanel() {
   }, []);
 
   const fetchGroqUsage = useCallback(async () => {
-    setGroqUsage(null);
+    setGroqUsage(prev => prev ?? null);
     try {
-      const res = await fetchWithToken('/api/admin/ai-provider/groq-usage');
+      const res = await fetchWithTokenDedup('/api/admin/ai-provider/groq-usage');
       if (!res.ok) { setGroqUsage({ configured: true, error: `HTTP ${res.status}` }); return; }
       const data = await res.json() as GroqUsage;
       setGroqUsage(data);
@@ -1437,12 +1739,37 @@ export function AIProviderPanel() {
     void fetchGroqUsage();
   }, [fetchBreakerStatus, fetchManagedOR, fetchManagedGroq, fetchGroqUsage]);
 
-  // Look up a breaker row by the canonical table key (e.g. 'wiseresume/openrouter')
-  const getBreakerRow = (tab: ProviderTab): BreakerRow | null => {
-    const key = BREAKER_ID[tab];
-    if (!key || !breakerRows) return null;
-    return breakerRows.find(r => r.provider === key) ?? null;
-  };
+  // U2: poll breaker status every 20s while the page is visible.
+  useEffect(() => {
+    let id: number | null = null;
+    const start = () => {
+      if (id != null) return;
+      id = window.setInterval(() => { void fetchBreakerStatus(); }, 20_000);
+    };
+    const stop = () => {
+      if (id != null) { window.clearInterval(id); id = null; }
+    };
+    const onVis = () => {
+      if (document.visibilityState === 'visible') start();
+      else stop();
+    };
+    if (document.visibilityState === 'visible') start();
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      document.removeEventListener('visibilitychange', onVis);
+      stop();
+    };
+  }, [fetchBreakerStatus]);
+
+  // A2: memoise the lookup so each render doesn't allocate a fresh closure
+  // and child panels keep referential equality on `breakerRow` props.
+  const getBreakerRow = useMemo(() => {
+    return (tab: ProviderTab): BreakerRow | null => {
+      const key = BREAKER_ID[tab];
+      if (!key || !breakerRows) return null;
+      return breakerRows.find(r => r.provider === key) ?? null;
+    };
+  }, [breakerRows]);
 
   const TABS: { id: ProviderTab; label: string }[] = [
     { id: 'openrouter', label: 'OpenRouter' },
@@ -1450,6 +1777,29 @@ export function AIProviderPanel() {
     { id: 'gemini', label: 'Gemini' },
     { id: 'ollama', label: 'Ollama' },
   ];
+
+  // F8 + U3: header button refreshes EVERYTHING currently visible —
+  // breaker status + the active sub-panel's own data — and surfaces any
+  // failures in a single toast instead of swallowing them.
+  const handleRefreshAll = useCallback(async () => {
+    setHeaderRefreshing(true);
+    const tasks: Promise<unknown>[] = [
+      fetchBreakerStatus(),
+      fetchManagedOR(),
+      fetchManagedGroq(),
+      fetchGroqUsage(),
+    ];
+    if (subPanelRefreshRef.current) tasks.push(subPanelRefreshRef.current());
+    const results = await Promise.allSettled(tasks);
+    setHeaderRefreshing(false);
+    const failures = results.filter(r => r.status === 'rejected').length;
+    if (failures > 0) {
+      toast.error(`${failures} of ${results.length} refresh tasks failed — check console for details.`);
+      results.forEach(r => {
+        if (r.status === 'rejected') console.error('[ai-provider-panel] refresh task failed:', r.reason);
+      });
+    }
+  }, [fetchBreakerStatus, fetchManagedOR, fetchManagedGroq, fetchGroqUsage]);
 
   return (
     <div className="space-y-6">
@@ -1462,11 +1812,11 @@ export function AIProviderPanel() {
           </p>
         </div>
         <button
-          onClick={() => { void fetchBreakerStatus(); void fetchManagedOR(); void fetchManagedGroq(); void fetchGroqUsage(); }}
-          disabled={breakerLoading}
+          onClick={() => { void handleRefreshAll(); }}
+          disabled={breakerLoading || headerRefreshing}
           className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md border border-border hover:bg-muted transition-colors disabled:opacity-50"
         >
-          <RefreshCw className={cn('w-3.5 h-3.5', breakerLoading && 'animate-spin')} />
+          <RefreshCw className={cn('w-3.5 h-3.5', (breakerLoading || headerRefreshing) && 'animate-spin')} />
           Refresh all
         </button>
       </div>
@@ -1518,26 +1868,42 @@ export function AIProviderPanel() {
           })}
         </div>
 
+        {/* F4: keying the rendered sub-panel by `activeTab` remounts it on tab
+            switch, which discards stale `testState` from the previous panel. */}
         <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
           {activeTab === 'openrouter' && (
             <OpenRouterPanel
+              key="openrouter"
               breakerRow={getBreakerRow('openrouter')}
               managedStatus={managedOR}
-              onManagedRefresh={() => { void fetchManagedOR(); }}
+              onManagedRefresh={() => fetchManagedOR()}
+              registerRefresh={registerSubPanelRefresh}
             />
           )}
           {activeTab === 'groq' && (
             <GroqPanel
+              key="groq"
               breakerRow={getBreakerRow('groq')}
               managedStatus={managedGroq}
               groqUsage={groqUsage}
+              registerRefresh={registerSubPanelRefresh}
+              onManagedRefresh={() => fetchManagedGroq()}
+              onUsageRefresh={() => fetchGroqUsage()}
             />
           )}
           {activeTab === 'gemini' && (
-            <GeminiPanel breakerRow={getBreakerRow('gemini')} />
+            <GeminiPanel
+              key="gemini"
+              breakerRow={getBreakerRow('gemini')}
+              registerRefresh={registerSubPanelRefresh}
+            />
           )}
           {activeTab === 'ollama' && (
-            <OllamaPanel breakerRow={getBreakerRow('ollama')} />
+            <OllamaPanel
+              key="ollama"
+              breakerRow={getBreakerRow('ollama')}
+              registerRefresh={registerSubPanelRefresh}
+            />
           )}
         </div>
       </div>
