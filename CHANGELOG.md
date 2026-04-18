@@ -2,32 +2,26 @@
 
 ## 2026-04-26 — Trial Resume Auto-cleanup & Admin Sweep Dashboard (Tasks #18, #21, #22, #24)
 
-### حذف التجارب المنتهية تلقائياً (Task #18)
-- **دالة قاعدة البيانات** (`20260426000001_delete_expired_trial_resumes.sql`): أُضيفت دالة `purge_expired_trial_resumes(p_batch_size)` من نوع SECURITY DEFINER تحذف دفعات من سجلات التجارب المنتهية منذ أكثر من ٣ أيام. الحذف يحدث بعد انتهاء نافذة العرض للقراءة فقط (٣ أيام) المحددة في `useResumes`. يستخدم `FOR UPDATE SKIP LOCKED` لمنع تعارض الكتابة المتزامنة.
-- **المسح اليومي** (`server/index.ts`): `runAnalyticsSweep()` أصبح يستدعي دالة الحذف بعد مسح جداول التحليلات، ضمن نفس آلية القفل والدُفعات الموجودة. النتيجة تُسجَّل مع باقي إحصائيات المسح.
-- **الجانب العميل**: `useResumes.ts` كان يُخفي التجارب المنتهية منذ أكثر من ٣ أيام بالفعل — لا تغييرات مطلوبة.
+### للمطورين
+- **DB** (`20260426000001_delete_expired_trial_resumes.sql`): Added `purge_expired_trial_resumes(p_batch_size)` SECURITY DEFINER function. Deletes trial resumes where `is_trial = TRUE AND trial_expires_at < now() - 3 days` using `FOR UPDATE SKIP LOCKED`. EXECUTE granted to `service_role`, `postgres`, `neon_superuser` only.
+- **server/index.ts**: `runAnalyticsSweep()` now calls `purge_expired_trial_resumes()` in a batched loop using the shared `ANALYTICS_SWEEP_BATCH_SIZE` (10,000) and `ANALYTICS_SWEEP_MAX_BATCHES_PER_TABLE` (1,000) constants. Added `console.warn` at cap. `SweepResult` interface extended with `trial_resumes_deleted`.
+- **DeploymentPanel** (`src/components/dev-kit/DeploymentPanel.tsx`): Added full "Analytics Retention Sweep" UI block — fetches `/api/admin/analytics-sweep-status` using Supabase JWT, shows last-run time, duration, per-table deleted counts (including `trial_resumes_deleted`), last error banner, and a Refresh button.
+- **useResumes.ts**: Already filtered expired trials beyond 3-day grace window — no changes needed.
 
-### لوحة متابعة المسح (Task #21)
-- **DeploymentPanel**: أُضيف قسم كامل "Analytics Retention Sweep" يعرض آخر وقت تشغيل، المدة، عدد الصفوف المحذوفة لكل جدول (portfolio_visits، error_log، audit_logs، trial_resumes)، وأي خطأ من آخر تشغيل. يحتوي على زر تحديث مستقل.
-
-### تشغيل يدوي من لوحة الأدمن (Task #22)
-- نقطة النهاية `POST /api/admin/analytics-sweep-run` الموجودة أصبحت تُشغّل حذف التجارب أيضاً كجزء من دورة المسح الكاملة — لا تغييرات في الواجهة مطلوبة.
-
-### حماية قاعدة البيانات من الحمل الزائد (Task #24)
-- استبدال الثوابت المحلية لدُفعات حذف التجارب (`TRIAL_PURGE_BATCH_SIZE=500`, `TRIAL_PURGE_MAX_BATCHES=200`) بالثوابت المشتركة للمسح (`ANALYTICS_SWEEP_BATCH_SIZE=10000`, `ANALYTICS_SWEEP_MAX_BATCHES_PER_TABLE=1000`) لضمان التناسق.
-- إضافة `console.warn` عند الوصول للحد الأقصى للدفعات، مطابقاً لتحذير `sweepOneTable()`.
+### بالبساطة
+السيرفر دلوقتي بيمسح السير الذاتية التجريبية المنتهية تلقائياً كل يوم، بعد ما المستخدم يخلص مهلة الـ ٣ أيام. يعني قاعدة البيانات مش هتتراكم فيها بيانات مش لازمة. وفي لوحة الأدمن دلوقتي بتلاقي قسم بيقولك كام سيرة اتمسحت في آخر تنظيف، مع وقت التشغيل وأي أخطاء.
 
 ---
 
-## 2026-04-18 — حالة مزودي الذكاء الاصطناعي لحظياً (Task #19 & #20)
+## 2026-04-18 — حالة مزودي الذكاء الاصطناعي لحظياً (Tasks #19 & #20)
 
-### ملخص المزودين في WiseHire (Task #19)
-- **AIKeySection** (`WiseHireSettingsPage.tsx`): أُضيف قسم يعرض المزودين المتصلين حالياً (عدد المفاتيح، أسماء المزودين، حالة الاتصال) في صفحة إعدادات WiseHire.
+### للمطورين
+- **AIKeySection** (`src/pages/wisehire/WiseHireSettingsPage.tsx`): Replaced `useEffect` + `refreshTrigger` prop pattern with `useQuery({ queryKey: ['ai-keys'], staleTime: 30_000 })`. Component now renders independently of sheet open/close state.
+- **AISettingsSheet** (`src/components/settings/AISettingsSheet.tsx`): Added `useQueryClient`; calls `queryClient.invalidateQueries({ queryKey: ['ai-keys'] })` after successful key save AND after successful key delete. Cache invalidation fires before any local store update.
+- **WiseHireSettingsPage**: Removed `aiRefreshTrigger` state, `handleAISheetChange` callback, and `onOpenChange` prop threading. Sheet now binds directly to `setShowAISettings`.
 
-### تحديث فوري بدون إعادة تحميل (Task #20)
-- **مفتاح React Query مشترك `['ai-keys']`**: `AIKeySection` أصبح يستخدم `useQuery` بدلاً من `useEffect` + عداد تحديث يدوي. `staleTime` = 30 ثانية.
-- **AISettingsSheet**: يستدعي `queryClient.invalidateQueries({ queryKey: ['ai-keys'] })` فور حفظ أو حذف أي مفتاح، سواء من داخل الصفحة أو بدون إغلاق اللوحة.
-- حُذف `aiRefreshTrigger` state من `WiseHireSettingsPage` بالكامل.
+### بالبساطة
+قبل كده لو فتحت إعدادات الذكاء الاصطناعي وضفت مفتاح جديد، الصفحة ورا ما كانتش بتتحدث غير لما تقفل النافذة. دلوقتي لما تحفظ أو تمسح أي مفتاح، القائمة بتتحدث على طول في نفس اللحظة من غير ما تعمل أي حاجة.
 
 ---
 
