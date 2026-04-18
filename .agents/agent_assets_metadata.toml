@@ -6,3 +6,9 @@ id = "iAhqV8P06virZXluW83AB"
 uri = "file://docs/landing/phase-6-verification.md"
 type = "text"
 title = "Phase 6 — Landing Overhaul Verification Report"
+
+[[outputs]]
+id = "laFhIpq6c62f361yGhn_s"
+uri = "file://BACKEND_AUDIT.md"
+type = "text"
+title = "Backend Audit Report"
