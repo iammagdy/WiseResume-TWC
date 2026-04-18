@@ -796,6 +796,7 @@ interface SweepResult {
   portfolio_visits_deleted: number;
   error_log_deleted: number;
   audit_logs_deleted: number;
+  trial_resumes_deleted: number;
 }
 interface SweepStatus {
   lastRanAt: string | null;
@@ -984,6 +985,25 @@ async function runAnalyticsSweep(): Promise<void> {
     }
     const auditDeleted = await sweepOneTable(
       'audit_logs', AUDIT_LOGS_RETENTION_DAYS);
+    if (!(await renewLease())) {
+      throw new Error('lease lost between audit_logs and trial_resumes');
+    }
+
+    // Purge expired trial resumes that are past the 3-day client-side grace
+    // window. Each call deletes one batch (≤ 500 rows) in its own transaction.
+    let trialResumesDeleted = 0;
+    const TRIAL_PURGE_BATCH_SIZE = 500;
+    const TRIAL_PURGE_MAX_BATCHES = 200;
+    for (let i = 0; i < TRIAL_PURGE_MAX_BATCHES; i++) {
+      const rows = await sql`
+        SELECT public.purge_expired_trial_resumes(
+          ${TRIAL_PURGE_BATCH_SIZE}::int
+        ) AS deleted
+      `;
+      const deleted = Number(rows[0]?.deleted ?? 0);
+      trialResumesDeleted += deleted;
+      if (deleted < TRIAL_PURGE_BATCH_SIZE) break;
+    }
 
     const durationMs = Date.now() - startedAt;
     const result: SweepResult = {
@@ -994,6 +1014,7 @@ async function runAnalyticsSweep(): Promise<void> {
       portfolio_visits_deleted: visitsDeleted,
       error_log_deleted: errorDeleted,
       audit_logs_deleted: auditDeleted,
+      trial_resumes_deleted: trialResumesDeleted,
     };
     sweepStatus.lastRanAt = new Date(startedAt).toISOString();
     sweepStatus.lastDurationMs = durationMs;
@@ -1006,6 +1027,7 @@ async function runAnalyticsSweep(): Promise<void> {
         portfolio_visits_deleted: visitsDeleted,
         error_log_deleted: errorDeleted,
         audit_logs_deleted: auditDeleted,
+        trial_resumes_deleted: trialResumesDeleted,
       }),
     );
   } catch (err) {
