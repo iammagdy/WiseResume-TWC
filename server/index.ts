@@ -199,15 +199,19 @@ async function assertPublicHost(hostname: string): Promise<string[]> {
  * Returns the verified user id on success, or null on failure. Successful
  * lookups are cached briefly so we don't hammer Supabase on repeat calls.
  */
-interface AuthCacheEntry { userId: string; expiresAt: number }
+interface AuthCacheEntry { userId: string; email: string | null; expiresAt: number }
 const authCache = new Map<string, AuthCacheEntry>();
 const AUTH_CACHE_TTL_MS = 60_000; // 1 minute
 
-async function validateSupabaseToken(token: string): Promise<string | null> {
+async function validateSupabaseToken(
+  token: string,
+): Promise<{ userId: string; email: string | null } | null> {
   if (!token || !SUPABASE_URL || !SUPABASE_ANON_KEY) return null;
   const now = Date.now();
   const cached = authCache.get(token);
-  if (cached && cached.expiresAt > now) return cached.userId;
+  if (cached && cached.expiresAt > now) {
+    return { userId: cached.userId, email: cached.email };
+  }
 
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), 5000);
@@ -220,16 +224,20 @@ async function validateSupabaseToken(token: string): Promise<string | null> {
       signal: controller.signal,
     });
     if (!r.ok) return null;
-    const body = (await r.json()) as { id?: unknown };
+    const body = (await r.json()) as { id?: unknown; email?: unknown };
     const userId = typeof body.id === 'string' && body.id.length > 0 ? body.id : null;
+    const email = typeof body.email === 'string' && body.email.length > 0
+      ? body.email.toLowerCase()
+      : null;
     if (userId) {
-      authCache.set(token, { userId, expiresAt: now + AUTH_CACHE_TTL_MS });
+      authCache.set(token, { userId, email, expiresAt: now + AUTH_CACHE_TTL_MS });
       // Keep cache bounded.
       if (authCache.size > 2000) {
         for (const [k, v] of authCache) if (v.expiresAt <= now) authCache.delete(k);
       }
+      return { userId, email };
     }
-    return userId;
+    return null;
   } catch {
     return null;
   } finally {
@@ -244,7 +252,10 @@ async function validateSupabaseToken(token: string): Promise<string | null> {
  * On success we stash the verified user id on the request for downstream
  * rate-limit keying.
  */
-interface AuthedRequest extends Request { verifiedUserId?: string }
+interface AuthedRequest extends Request {
+  verifiedUserId?: string;
+  verifiedEmail?: string | null;
+}
 async function requireAuthHeader(
   req: AuthedRequest,
   res: Response,
@@ -256,12 +267,13 @@ async function requireAuthHeader(
     res.status(401).json({ error: 'Authentication required' });
     return;
   }
-  const userId = await validateSupabaseToken(match[1]);
-  if (!userId) {
+  const verified = await validateSupabaseToken(match[1]);
+  if (!verified) {
     res.status(401).json({ error: 'Invalid or expired session' });
     return;
   }
-  req.verifiedUserId = userId;
+  req.verifiedUserId = verified.userId;
+  req.verifiedEmail = verified.email;
   next();
 }
 
@@ -1068,37 +1080,31 @@ function scheduleAnalyticsSweep(): void {
  * the comma-separated `ADMIN_EMAILS` env var (same allow-list every
  * admin-* edge function uses).
  */
+// Admin email allow-list: read directly from the verified Supabase Auth
+// session payload (NOT from `profiles.email`). The `profiles` table is
+// user-mutable in places, so trusting it here would let a non-admin
+// claim admin status by editing their own profile row. The auth-server
+// email is the immutable source of truth and matches the gating used
+// by every admin-* edge function.
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '')
   .split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
-async function requireAdminEmail(
+function requireAdminEmail(
   req: AuthedRequest, res: Response, next: NextFunction,
-): Promise<void> {
+): void {
   if (ADMIN_EMAILS.length === 0) {
     res.status(503).json({ error: 'ADMIN_EMAILS not configured' });
-    return;
-  }
-  if (!sql) {
-    res.status(503).json({ error: 'Database not configured' });
     return;
   }
   if (!req.verifiedUserId) {
     res.status(401).json({ error: 'Authentication required' });
     return;
   }
-  try {
-    const rows = await sql`
-      SELECT lower(email) AS email FROM profiles
-      WHERE user_id = ${req.verifiedUserId} LIMIT 1
-    `;
-    const email = (rows[0]?.email as string | undefined) || '';
-    if (!email || !ADMIN_EMAILS.includes(email)) {
-      res.status(403).json({ error: 'Admin access required' });
-      return;
-    }
-    next();
-  } catch (err) {
-    res.status(500).json({ error: 'Admin check failed', detail: String(err) });
+  const email = (req.verifiedEmail || '').toLowerCase();
+  if (!email || !ADMIN_EMAILS.includes(email)) {
+    res.status(403).json({ error: 'Admin access required' });
+    return;
   }
+  next();
 }
 
 app.get(
