@@ -5,7 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { getUserId } from '@/lib/supabaseBridge';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -55,34 +55,19 @@ function formatProviderLabel(provider: string): string {
 
 // ── AI Key Section ────────────────────────────────────────────────────
 
-function AIKeySection({ onOpen, refreshTrigger }: { onOpen: () => void; refreshTrigger: number }) {
-  const [loading, setLoading] = useState(true);
-  const [providers, setProviders] = useState<string[]>([]);
-
-  useEffect(() => {
-    let cancelled = false;
-    async function fetchProviders() {
-      setLoading(true);
-      try {
-        const { data, error } = await edgeFunctions.functions.invoke('manage-api-keys', {
-          body: { action: 'get' },
-        });
-        if (!cancelled) {
-          if (!error && data?.keys) {
-            setProviders((data.keys as Array<{ provider: string }>).map((k) => k.provider));
-          } else {
-            setProviders([]);
-          }
-        }
-      } catch {
-        if (!cancelled) setProviders([]);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    fetchProviders();
-    return () => { cancelled = true; };
-  }, [refreshTrigger]);
+function AIKeySection({ onOpen }: { onOpen: () => void }) {
+  const { data, isLoading: loading } = useQuery({
+    queryKey: ['ai-keys'],
+    queryFn: async () => {
+      const { data, error } = await edgeFunctions.functions.invoke('manage-api-keys', {
+        body: { action: 'get' },
+      });
+      if (error || !data?.keys) return [] as string[];
+      return (data.keys as Array<{ provider: string }>).map((k) => k.provider);
+    },
+    staleTime: 30 * 1000,
+  });
+  const providers = data ?? [];
 
   function renderStatus() {
     if (loading) {
@@ -274,14 +259,6 @@ function AccountInfoSection() {
 
 export default function WiseHireSettingsPage() {
   const [showAISettings, setShowAISettings] = useState(false);
-  const [aiRefreshTrigger, setAIRefreshTrigger] = useState(0);
-
-  function handleAISheetChange(open: boolean) {
-    setShowAISettings(open);
-    if (!open) {
-      setAIRefreshTrigger((n) => n + 1);
-    }
-  }
 
   return (
     <WiseHireShell>
@@ -296,11 +273,11 @@ export default function WiseHireSettingsPage() {
         </div>
 
         <CompanyProfileSection />
-        <AIKeySection onOpen={() => setShowAISettings(true)} refreshTrigger={aiRefreshTrigger} />
+        <AIKeySection onOpen={() => setShowAISettings(true)} />
         <AccountInfoSection />
       </div>
 
-      <AISettingsSheet open={showAISettings} onOpenChange={handleAISheetChange} />
+      <AISettingsSheet open={showAISettings} onOpenChange={setShowAISettings} />
     </WiseHireShell>
   );
 }

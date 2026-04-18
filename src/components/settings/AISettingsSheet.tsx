@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { openExternal } from '@/lib/openExternal';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { LoadingButton } from '@/components/ui/LoadingButton';
@@ -244,6 +245,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
     xaiKeyValidated, setXaiKeyValidated, xaiModel, setXaiModel,
     cohereKeyValidated, setCohereKeyValidated, cohereModel, setCohereModel,
   } = useSettingsStore();
+  const queryClient = useQueryClient();
 
   // ── UI mode (decoupled from aiProvider so first-time BYOK setup is accessible) ──
   const [uiMode, setUiMode] = useState<'wiseresume' | 'byok'>(
@@ -692,6 +694,9 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
         return;
       }
 
+      // Refresh the shared ai-keys cache so any summary UI updates immediately
+      queryClient.invalidateQueries({ queryKey: ['ai-keys'] });
+
       // Update store
       const store = useSettingsStore.getState();
       switch (provider) {
@@ -760,6 +765,8 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
     try {
       await edgeFunctions.functions.invoke('manage-api-keys', { body: { action: 'delete', provider } });
       logAudit('api_key', 'key_deleted', { provider });
+      // Refresh the shared ai-keys cache so any summary UI updates immediately
+      queryClient.invalidateQueries({ queryKey: ['ai-keys'] });
     } catch {}
 
     // Update store
