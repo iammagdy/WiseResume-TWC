@@ -297,27 +297,38 @@ export default function PortfolioEditorPage() {
     }
   }, [profile, lastSavedSnapshot, getCurrentSnapshot]);
 
+  // Tracks the last snapshot that was successfully auto-persisted to draft.
+  // Separate from lastSavedSnapshot (which is advanced only on explicit Publish).
+  const lastDraftPersistedSnapshotRef = useRef<string>('');
+
   // Debounced autosave to portfolio_draft — persists working copy to DB so
   // drafts survive page closes.
   // IMPORTANT: writes directly to Supabase (bypassing the mutation that would
   // call queryClient.invalidateQueries) so the profile refetch → state sync
   // effect is NOT triggered and can never roll back the user's active edits.
   // The React Query cache is updated minimally (portfolioDraft only).
+  // lastDraftPersistedSnapshotRef deduplicates repeated autosave writes for
+  // the same snapshot content.
   useEffect(() => {
     if (!lastSavedSnapshot) return;
     const snapshot = getCurrentSnapshot();
     if (snapshot === lastSavedSnapshot) return;
+    if (snapshot === lastDraftPersistedSnapshotRef.current) return;
     const timer = setTimeout(async () => {
       try {
         const supabaseUserId = getUserId();
         if (!supabaseUserId) return;
-        const parsed = JSON.parse(snapshot) as Record<string, unknown>;
+        const currentSnapshot = getCurrentSnapshot();
+        // Re-check dedup inside the async callback (snapshot may have changed)
+        if (currentSnapshot === lastDraftPersistedSnapshotRef.current) return;
+        const parsed = JSON.parse(currentSnapshot) as Record<string, unknown>;
         const now = new Date().toISOString();
         const { error } = await supabase
           .from('profiles')
           .update({ portfolio_draft: parsed, portfolio_draft_saved_at: now })
           .eq('user_id', supabaseUserId);
         if (!error) {
+          lastDraftPersistedSnapshotRef.current = currentSnapshot;
           // Update cache in place — no invalidation, no refetch, no state clobber
           queryClient.setQueriesData<Profile | null>({ queryKey: ['profile'] }, (old) =>
             old ? { ...old, portfolioDraft: parsed, portfolioDraftSavedAt: now } : old
