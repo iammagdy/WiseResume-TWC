@@ -107,3 +107,40 @@ export function formatEdgeError(e: unknown, fallback = 'Unknown error'): string 
   if (typeof e === 'string') return e;
   return fallback;
 }
+
+/**
+ * Counterpart to `unwrapAdminResponse` for the local Express admin API
+ * (i.e. `/api/admin/...` routes — these are NOT Supabase edge functions and
+ * therefore can't go through `edgeFunctions.functions.invoke`). Performs the
+ * same error normalization so DevKit panels never call `fetch` directly:
+ *   - non-2xx response → throws EdgeFunctionError with `{ error }` body or
+ *     `HTTP <status>` fallback (sets `notDeployed` for 404).
+ *   - JSON parse failure → throws EdgeFunctionError.
+ *   - AbortError → re-thrown so callers can ignore it.
+ *
+ * Pass an `AbortSignal` to make the request cancellable.
+ */
+export async function adminApiFetch<T>(
+  path: string,
+  init: RequestInit & { signal?: AbortSignal } = {},
+): Promise<T> {
+  const res = await fetch(path, init);
+  if (!res.ok) {
+    let body: { error?: string } = {};
+    try {
+      body = (await res.json()) as { error?: string };
+    } catch {
+      // body wasn't JSON — fall through to status-only message
+    }
+    throw new EdgeFunctionError(body.error ?? `HTTP ${res.status}`, {
+      status: res.status,
+      notDeployed: res.status === 404,
+      raw: body,
+    });
+  }
+  try {
+    return (await res.json()) as T;
+  } catch (e) {
+    throw new EdgeFunctionError(`${path} returned non-JSON response`, { raw: e });
+  }
+}

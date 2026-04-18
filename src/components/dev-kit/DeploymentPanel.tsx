@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/safeClient';
 import { getDevKitToken } from '@/contexts/DevKitSessionContext';
 import { getSupabaseToken } from '@/lib/supabaseAuth';
 import { useIsMounted, useAbortOnUnmount } from '@/lib/devkit/hooks';
+import { unwrapAdminResponse, formatEdgeError, adminApiFetch } from '@/lib/devkit/edgeResponse';
 
 interface Commit {
   sha: string;
@@ -120,40 +121,38 @@ export function DeploymentPanel() {
         }),
       ]);
 
+      if (!isMounted()) return;
+
+      // Use tryUnwrapAdminResponse so a single side failing (e.g. GitHub
+      // outage) still lets the other panel section render; we surface
+      // each side's error independently in `githubError` / `envError`.
       let commits: Commit[] = [];
       let lastDeployedAt: string | null = null;
       let githubRepoUrl: string | null = null;
       let githubError: string | null = null;
-
-      const githubInvokeError = githubResult.error;
-      const githubData = githubResult.data as GithubStatusResponse | null;
-
-      if (githubInvokeError) {
-        githubError = githubInvokeError.message ?? 'GitHub API error';
-      } else if (githubData?.error) {
-        githubError = githubData.error;
-      } else if (githubData) {
+      try {
+        const githubData = unwrapAdminResponse<GithubStatusResponse>(githubResult, 'admin-github-status');
         commits = githubData.commits ?? [];
         lastDeployedAt = commits[0]?.timestamp ?? null;
         githubRepoUrl = githubData.repoUrl ?? null;
+      } catch (e) {
+        githubError = formatEdgeError(e, 'GitHub API error');
       }
 
       let envChecks: EnvCheck[] = [];
       let supabaseUrl: string | null = null;
       let envError: string | null = null;
-
-      const envInvokeError = envResult.error;
-      const envData = envResult.data as EnvCheckResponse | null;
-
-      if (envInvokeError) {
-        envError = envInvokeError.message ?? 'Env check error';
-      } else if (envData?.error) {
-        envError = envData.error;
-      } else if (envData) {
-        envChecks = envData.checks ?? [];
-        supabaseUrl = envData.supabaseUrl ?? null;
+      try {
+        const envData = tryUnwrapAdminResponse<EnvCheckResponse>(envResult, 'admin-env-check');
+        if (envData) {
+          envChecks = envData.checks ?? [];
+          supabaseUrl = envData.supabaseUrl ?? null;
+        }
+      } catch (e) {
+        envError = formatEdgeError(e, 'Env check error');
       }
 
+      if (!isMounted()) return;
       setData({
         commits,
         lastDeployedAt,
@@ -166,11 +165,12 @@ export function DeploymentPanel() {
       });
       setSecondsAgo(0);
     } catch (e) {
-      setFetchError(e instanceof Error ? e.message : 'Failed to load deployment data');
+      if (!isMounted()) return;
+      setFetchError(formatEdgeError(e, 'Failed to load deployment data'));
     } finally {
-      setLoading(false);
+      if (isMounted()) setLoading(false);
     }
-  }, []);
+  }, [isMounted]);
 
   const fetchSweepStatus = useCallback(async () => {
     setSweepLoading(true);
@@ -182,25 +182,17 @@ export function DeploymentPanel() {
         setSweepError('No auth token available');
         return;
       }
-      const res = await fetch('/api/admin/analytics-sweep-status', {
+      const status = await adminApiFetch<SweepStatus>('/api/admin/analytics-sweep-status', {
         headers: { Authorization: `Bearer ${token}` },
         signal: controller.signal,
       });
-      if (controller.signal.aborted || !isMounted()) return;
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({})) as { error?: string };
-        if (controller.signal.aborted || !isMounted()) return;
-        setSweepError(body.error ?? `HTTP ${res.status}`);
-        return;
-      }
-      const status = await res.json() as SweepStatus;
       if (controller.signal.aborted || !isMounted()) return;
       setSweepStatus(status);
     } catch (e) {
       if (controller.signal.aborted || !isMounted()) return;
       // AbortError is benign — caller already aborted via unmount or rapid re-fetch.
       if (e instanceof DOMException && e.name === 'AbortError') return;
-      setSweepError(e instanceof Error ? e.message : 'Failed to load sweep status');
+      setSweepError(formatEdgeError(e, 'Failed to load sweep status'));
     } finally {
       if (isMounted() && !controller.signal.aborted) setSweepLoading(false);
     }

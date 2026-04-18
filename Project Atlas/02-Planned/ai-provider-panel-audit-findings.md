@@ -224,3 +224,14 @@ A reasonable single task could be: **"AI Provider panel — polish & hardening (
 A second task: **"AI Provider panel — observability & testability"** containing F2, F4, F8, P5, U2, A3. Roughly 1 working day.
 
 Anything tagged `S` should be prioritised over anything else — especially S1 and S2 because they touch the managed Gemini key.
+
+---
+
+## 2026-04-18 update — DevKit-wide hardening primitives now apply here
+
+The DevKit hardening pass (see `01-Currently Implemented/stability-fixes/phase-6-devkit-hardening.md`) shipped two shared utilities that any future AI Provider panel work in this audit (notably **F1** error handling, **F3** unmount safety, and **F5** response parsing) should reach for instead of hand-rolling:
+
+- `src/lib/devkit/edgeResponse.ts` — `unwrapAdminResponse` / `tryUnwrapAdminResponse` / `formatEdgeError` for `edgeFunctions.functions.invoke` tuples, plus `adminApiFetch<T>(path, init)` for the local `/api/admin/...` Express routes (replaces raw `fetch` with the same error-normalization contract).
+- `src/lib/devkit/hooks.ts` — `useIsMounted`, `useAbortOnUnmount`, `useVisibleInterval` (visibility-aware polling).
+
+When tackling F1/F3/F5 here, switch the proxy-call paths to these helpers rather than reintroducing raw `fetch` + `as` casts.

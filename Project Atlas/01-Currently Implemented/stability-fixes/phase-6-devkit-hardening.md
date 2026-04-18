@@ -82,6 +82,17 @@ post-await `setState` calls + `finally` `setLoading(false)` behind
 `isMounted()`. Eliminates the "set state on unmounted component" warnings
 during fast tab-switching while a request is in flight.
 
+### `DeploymentPanel` — full hardening parity
+- `fetchDeploymentData` now `unwrapAdminResponse`s both `admin-github-status`
+  and `admin-env-check` independently (one side failing no longer blocks the
+  other) and `isMounted()`-guards every post-await `setState`.
+- The sweep-status path no longer calls raw `fetch('/api/admin/...')` — it
+  uses a new shared `adminApiFetch<T>(path, init)` helper in
+  `src/lib/devkit/edgeResponse.ts` that mirrors `unwrapAdminResponse`'s
+  error-normalization contract (HTTP status → `EdgeFunctionError`,
+  `notDeployed` flag for 404s, JSON-parse failure → `EdgeFunctionError`).
+  Keeps `AbortSignal` support for unmount cancellation.
+
 ### `AdminUsersPanel` bulk-action result table — shipped
 After Apply Plan / Suspend / Unsuspend / Grant Trial completes, a
 `<Dialog>` opens listing every targeted user with a green "OK" or red

@@ -138,3 +138,17 @@ For the engineering version of any of this, the matching cards live under `Proje
 **What changed:** The list now updates the moment you save or remove a key — no need to close anything. The change happens in less than a second.
 
 **What you'll notice:** When you manage AI keys in the WiseHire settings, the connected-provider summary reflects your changes immediately.
+
+---
+
+## The admin tools are now crash-proof and clearer when something goes wrong (2026-04-18)
+
+**What was the situation:** The admin's behind-the-scenes tools (15 different tabs the team uses to look up users, run bulk actions, check email delivery, see audit logs, etc.) had a few rough edges. If any single tab hit an unexpected error it could blank out the whole admin window. Some tabs would show empty lists with no explanation if a background request failed. And when an admin selected dozens of users to change at once, the result was a single line saying "27 succeeded, 3 failed" — without telling them *which* three failed or why.
+
+**What changed:**
+- Each tab now has a safety boundary so a problem in one tab can't take the whole admin window down — the admin sees a small "Try again" card scoped to just that tab and the rest stays usable.
+- Background requests on every admin tab now show a clear error message instead of leaving the admin staring at an empty screen.
+- When the admin runs a bulk action on multiple users (change plan, suspend, unsuspend, grant trial), a results window now opens afterwards listing each user with a green check or red X, plus the exact reason any failures happened.
+- Background polling on the admin tabs now pauses when the admin switches to another browser tab, so we don't burn API quota on data nobody is looking at.
+
+**What you'll notice:** Nothing changes for end users. Admins get a much more reliable, transparent control panel.
