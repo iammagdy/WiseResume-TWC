@@ -14,6 +14,15 @@
   min-height: 100vh;
 }
 
+/* Non-clipping wrapper for each card. Carries the inter-card margin so
+   the divider drawn on its `::after` (in index-landing.css) is not
+   clipped by the card's `overflow: hidden`. */
+.scroll-stack-card-wrap {
+  position: relative;
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .scroll-stack-card {
   position: relative;
   width: 100%;

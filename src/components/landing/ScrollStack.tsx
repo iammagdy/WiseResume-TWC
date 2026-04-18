@@ -14,11 +14,18 @@ export interface ScrollStackItemProps {
   children: ReactNode;
 }
 
+/* The card is wrapped in a non-clipping `.scroll-stack-card-wrap` so the
+   inter-card hairline divider (rendered as a `::after` on the wrapper)
+   can sit in the gap between cards without being clipped by the card's
+   `overflow: hidden`. The wrapper carries the inter-card margin; the
+   card itself has no margin and remains the transform target. */
 export const ScrollStackItem = ({
   children,
   itemClassName = "",
 }: ScrollStackItemProps) => (
-  <div className={`scroll-stack-card ${itemClassName}`.trim()}>{children}</div>
+  <div className="scroll-stack-card-wrap">
+    <div className={`scroll-stack-card ${itemClassName}`.trim()}>{children}</div>
+  </div>
 );
 
 interface ScrollStackProps {
@@ -120,7 +127,12 @@ const ScrollStack = ({
   useLayoutEffect(() => {
     const cards = cardsRef.current;
     cards.forEach((card, i) => {
-      card.style.marginBottom = i < cards.length - 1 ? `${itemDistance}px` : "0px";
+      /* Margin lives on the wrapper so the inter-card divider (drawn on
+         `.scroll-stack-card-wrap::after`) is not clipped by the card's
+         overflow:hidden. Fall back to the card itself for safety. */
+      const wrap = (card.parentElement as HTMLElement | null) ?? card;
+      wrap.style.marginBottom = i < cards.length - 1 ? `${itemDistance}px` : "0px";
+      card.style.marginBottom = "0px";
     });
   }, [itemDistance]);
 
@@ -144,8 +156,9 @@ const ScrollStack = ({
     const transformsCache = lastTransformsRef.current;
 
     cards.forEach((card, i) => {
+      const wrap = (card.parentElement as HTMLElement | null) ?? card;
       if (i < cards.length - 1) {
-        card.style.marginBottom = `${itemDistance}px`;
+        wrap.style.marginBottom = `${itemDistance}px`;
       }
       card.style.willChange = "transform, filter";
       card.style.transformOrigin = "top center";

@@ -687,11 +687,14 @@
    margin-bottom: itemDistance, so we anchor at -itemDistance/2 from
    the card's bottom. itemDistance is 480/520, midpoint ≈ 250px. We
    center the line in the gap with translateY(-50%) of its own line. */
-.lp-stack-section .scroll-stack-card:not(:last-child)::after {
+.lp-stack-section .scroll-stack-card-wrap:not(:last-child)::after {
   content: "";
   position: absolute;
   left: 12%;
   right: 12%;
+  /* Sit at the geometric midpoint of the inter-card gap. The wrapper's
+     bottom edge meets the next wrapper after `--lp-stack-gap` of margin,
+     so half-way down that margin is `bottom: -gap`. */
   bottom: calc(-1 * var(--lp-stack-gap, 240px));
   height: 1px;
   background: linear-gradient(
