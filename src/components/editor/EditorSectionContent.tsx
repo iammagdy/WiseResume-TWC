@@ -145,6 +145,20 @@ export function EditorSectionContent({
           </SectionCard>
         </div>
       )}
+      {activeTab === 'certifications' && (
+        <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
+          <SectionCard icon={Award} title="Certifications" action={<SectionAIAction section="certifications" />}>
+            <Suspense fallback={<ListSectionSkeleton />}><CertificationsSection /></Suspense>
+          </SectionCard>
+        </div>
+      )}
+      {activeTab === 'languages' && (
+        <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
+          <SectionCard icon={Globe} title="Languages" action={<SectionAIAction section="languages" />}>
+            <Suspense fallback={<ListSectionSkeleton />}><LanguagesSection /></Suspense>
+          </SectionCard>
+        </div>
+      )}
       {activeTab === 'more' && (
         <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
           {!moreSubSection ? (

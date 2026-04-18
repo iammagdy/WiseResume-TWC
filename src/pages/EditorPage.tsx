@@ -320,10 +320,12 @@ export default function EditorPage() {
   }, []);
 
   // Called by desktop scrollspy/sidebar. Keeps activeTab in sync for preview highlight and ATS.
+  // certifications and languages are promoted to top-level; remaining optional sections still
+  // route through 'more'.
   const handleDesktopSectionChange = useCallback((sectionId: string) => {
     setActiveSection(sectionId);
-    const optionalIds = ['awards', 'projects', 'certifications', 'publications', 'volunteering', 'languages', 'hobbies', 'references'];
-    if (optionalIds.includes(sectionId)) {
+    const moreOnlyIds = ['awards', 'projects', 'publications', 'volunteering', 'hobbies', 'references'];
+    if (moreOnlyIds.includes(sectionId)) {
       setActiveTab('more');
     } else {
       setActiveTab(sectionId);
@@ -350,10 +352,12 @@ export default function EditorPage() {
 
   // Background ATS scoring uses standalone function (no hook state to avoid re-render loops)
 
-  // Smart tab change handler with auto-scroll
+  // Smart tab change handler with auto-scroll.
+  // certifications and languages are promoted to top-level tabs; other optional sections
+  // still map to activeTab='more' with a moreSubSection.
   const handleTabChange = useCallback((newTab: string) => {
-    const optionalIds = ['awards', 'projects', 'certifications', 'publications', 'volunteering', 'languages', 'hobbies', 'references'];
-    if (optionalIds.includes(newTab)) {
+    const moreOnlyIds = ['awards', 'projects', 'publications', 'volunteering', 'hobbies', 'references'];
+    if (moreOnlyIds.includes(newTab)) {
       setActiveTab('more');
       setMoreSubSection(newTab);
     } else {

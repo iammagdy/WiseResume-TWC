@@ -123,7 +123,7 @@ export function CreateResumeDialog({
   const [blankStep, setBlankStep] = useState<'intake' | 'template' | 'title'>('intake');
   const [experienceLevel, setExperienceLevel] = useState<ExperienceLevel | ''>('');
   const [intakeJobTitle, setIntakeJobTitle] = useState('');
-  const [selectedDialogTemplate, setSelectedDialogTemplate] = useState<TemplateId>('modern');
+  const [selectedDialogTemplate, setSelectedDialogTemplate] = useState<TemplateId>((defaultTemplateId as TemplateId) || 'modern');
 
   // Build-from-text state
   const [pasteText, setPasteText] = useState('');
@@ -343,7 +343,7 @@ export function CreateResumeDialog({
     setBlankStep('intake');
     setExperienceLevel('');
     setIntakeJobTitle('');
-    setSelectedDialogTemplate('modern');
+    setSelectedDialogTemplate((defaultTemplateId as TemplateId) || 'modern');
     setTailoredJobTitle('');
     setTailoredCompany('');
     setTailoredJobDescription('');
