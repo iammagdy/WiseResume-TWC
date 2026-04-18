@@ -77,6 +77,10 @@ const ScrollStack = ({
   const cardsRef = useRef<HTMLElement[]>([]);
   const lastTransformsRef = useRef(new Map<number, CardTransform>());
   const isInViewRef = useRef(true);
+  /* Holds the current updateCardTransforms closure so the params-changed
+     effect can trigger a one-shot recompute directly (no synthetic
+     scroll-event dispatch needed). */
+  const updateRef = useRef<(() => void) | null>(null);
 
   /* Live params ref — read inside the RAF/scroll loop. Updating these
      does not require tearing down Lenis. */
@@ -242,11 +246,11 @@ const ScrollStack = ({
       });
     };
 
-    /* --- IntersectionObserver gate: only run the loop when section is
-       in or near the viewport. Section root = the scroller wrapper. --- */
-    const ioTarget: HTMLElement = useWindowScroll
-      ? scroller
-      : scroller;
+    /* --- IntersectionObserver gate: skip the per-frame transform writes
+       when the section is far from viewport. CRITICAL: in window-scroll
+       mode Lenis controls the document scroll, so lenis.raf() must keep
+       running unconditionally — only the card transform work is gated. --- */
+    const ioTarget: HTMLElement = scroller;
     const io = new IntersectionObserver(
       (entries) => {
         for (const e of entries) isInViewRef.current = e.isIntersecting;
@@ -305,15 +309,17 @@ const ScrollStack = ({
       if (isInViewRef.current) updateCardTransforms();
     });
 
-    /* RAF gated by viewport visibility — when the section is far above
-       or below the viewport we skip the per-frame transform writes
-       AND skip Lenis.raf for the duration (Lenis catches up on resume). */
+    /* lenis.raf MUST run every frame — in window-scroll mode this engine
+       drives the entire document scroll; pausing it stalls the page.
+       Transform writes are gated separately via isInViewRef inside the
+       scroll handler. */
     const raf = (time: number) => {
-      if (isInViewRef.current) lenis.raf(time);
+      lenis.raf(time);
       animationFrameRef.current = requestAnimationFrame(raf);
     };
     animationFrameRef.current = requestAnimationFrame(raf);
     lenisRef.current = lenis;
+    updateRef.current = updateCardTransforms;
 
     updateCardTransforms();
 
@@ -327,15 +333,11 @@ const ScrollStack = ({
     };
   }, [useWindowScroll, itemDistance]);
 
-  /* When transform-shaping params change, do a one-shot recompute so the
-     stack reflects the new values immediately (paramsRef is already
-     synced; the loop will pick them up on the next scroll). */
+  /* When transform-shaping params change, call the updater directly so
+     the stack reflects the new values immediately (paramsRef has already
+     been synced above the effect; updateRef points at the live closure). */
   useEffect(() => {
-    const cardList = cardsRef.current;
-    if (!cardList.length) return;
-    /* trigger by dispatching a no-op scroll: easiest cross-mode way. */
-    if (useWindowScroll) window.dispatchEvent(new Event("scroll"));
-    else scrollerRef.current?.dispatchEvent(new Event("scroll"));
+    updateRef.current?.();
   }, [
     itemScale,
     itemStackDistance,
