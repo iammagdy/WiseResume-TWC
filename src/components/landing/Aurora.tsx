@@ -155,7 +155,7 @@ export default function Aurora(props: AuroraProps) {
   propsRef.current = props;
 
   const ctnDom = useRef<HTMLDivElement>(null);
-  const [hasWebGL] = useState(detectWebGL);
+  const [hasWebGL, setHasWebGL] = useState(detectWebGL);
 
   /* CSS gradient fallback when WebGL is unavailable. Uses the same
      colorStops so the visual brand still reads. */
@@ -180,6 +180,10 @@ export default function Aurora(props: AuroraProps) {
         webgl: 2,
       } as ConstructorParameters<typeof Renderer>[0]);
     } catch {
+      /* Detection passed but construction failed (e.g. context lost,
+         driver issue). Drop to CSS fallback so something still renders. */
+      _webglSupportCache = false;
+      setHasWebGL(false);
       return;
     }
 

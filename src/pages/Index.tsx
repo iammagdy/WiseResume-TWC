@@ -19,7 +19,6 @@ import { LandingToggle } from '@/components/landing/LandingToggle';
 import { LandingModeTransition } from '@/components/landing/LandingModeTransition';
 import { SoftDivider } from '@/components/landing/SoftDivider';
 import { WiseResumeHero } from '@/components/landing/WiseResumeHero';
-import { WiseHireHero } from '@/components/landing/wisehire/WiseHireHero';
 import {
   SCATTER_WRAPPER_VARIANTS, SCATTER_SECTION_ITEM,
   REDUCED_MOTION_WRAPPER, REDUCED_SECTION_ITEM,
@@ -31,6 +30,9 @@ import {
    fallback to prevent layout shift when chunks arrive. */
 const WiseResumeContent = lazy(() =>
   import('@/components/landing/WiseResumeContent').then((m) => ({ default: m.WiseResumeContent }))
+);
+const WiseHireHero = lazy(() =>
+  import('@/components/landing/wisehire/WiseHireHero').then((m) => ({ default: m.WiseHireHero }))
 );
 const WiseHireFeatures = lazy(() =>
   import('@/components/landing/wisehire/WiseHireFeatures').then((m) => ({ default: m.WiseHireFeatures }))
@@ -54,10 +56,6 @@ const WiseHireClosingCTA = lazy(() =>
 const LpFallback = ({ minHeight = 320 }: { minHeight?: number }) => (
   <div aria-hidden="true" style={{ minHeight, width: '100%' }} />
 );
-import {
-  SCATTER_WRAPPER_VARIANTS, SCATTER_SECTION_ITEM,
-  REDUCED_MOTION_WRAPPER, REDUCED_SECTION_ITEM,
-} from '@/components/landing/landingAnimations';
 
 function resolveIsDark(theme: 'light' | 'dark' | 'system'): boolean {
   if (theme === 'dark') return true;
