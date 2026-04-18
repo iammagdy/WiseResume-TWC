@@ -1569,28 +1569,109 @@ app.post(
 
 /**
  * GET /api/admin/ai-provider/audit-recent
- * Returns the most recent admin audit-log entries for the AI Provider DevKit
- * panel ("Recent activity" section). Limited to model-switch and
- * provider-test actions (the two written by `audit-model-switch` /
- * `audit-test` above), capped at 50 rows ordered newest-first.
+ * Returns admin audit-log entries for the AI Provider DevKit panel
+ * ("Recent activity" section). Limited to model-switch and provider-test
+ * actions. Supports server-side filtering and cursor pagination so admins
+ * can scroll back through thousands of rows without bloating the payload
+ * or scanning the table client-side.
+ *
+ * Query params (all optional):
+ *   - provider:    'openrouter'|'groq'|'gemini'|'ollama'|'wiseresume-sub'
+ *                  Filters on payload.provider (jsonb).
+ *   - action:      'model-switch'|'provider-test' — narrows the action set.
+ *   - okOnly:      'failed' returns only provider-test rows where
+ *                  payload.ok = false. Other values are ignored.
+ *   - actorEmail:  free-text substring match on actor_email (case-insensitive).
+ *   - before:      cursor `${at_iso}|${id}` from a previous response's
+ *                  `nextCursor` — returns rows strictly older than that.
+ *   - limit:       1..100, default 50.
+ *
+ * Response: `{ entries, nextCursor }` where `nextCursor` is non-null only
+ * when more rows likely exist (i.e. we filled the page). Cursor uses the
+ * composite `(at, id)` so ties on identical timestamps don't get skipped
+ * or duplicated when paging.
  */
+const AUDIT_PROVIDERS = new Set([
+  'openrouter',
+  'groq',
+  'gemini',
+  'ollama',
+  'wiseresume-sub',
+]);
+const AUDIT_ACTIONS = new Set(['model-switch', 'provider-test']);
+
 app.get(
   '/api/admin/ai-provider/audit-recent',
   requireAuthHeader,
   requireAdminEmail,
-  async (_req, res) => {
+  async (req, res) => {
     if (!sql) {
-      res.json({ entries: [], error: 'Database not configured' });
+      res.json({ entries: [], nextCursor: null, error: 'Database not configured' });
       return;
     }
+
+    const q = req.query as Record<string, unknown>;
+    const providerRaw = typeof q.provider === 'string' ? q.provider : '';
+    const actionRaw = typeof q.action === 'string' ? q.action : '';
+    const okOnlyRaw = typeof q.okOnly === 'string' ? q.okOnly : '';
+    const actorEmailRaw = typeof q.actorEmail === 'string' ? q.actorEmail.trim() : '';
+    const beforeRaw = typeof q.before === 'string' ? q.before : '';
+    const limitRaw = typeof q.limit === 'string' ? Number.parseInt(q.limit, 10) : NaN;
+    const limit = Number.isFinite(limitRaw)
+      ? Math.min(Math.max(limitRaw, 1), 100)
+      : 50;
+
+    // WHERE-clause assembly. We use sql.query() with $1..$N placeholders
+    // because the neon template tag doesn't compose dynamic fragments.
+    const where: string[] = [`action IN ('model-switch','provider-test')`];
+    const params: unknown[] = [];
+    const push = (val: unknown): string => {
+      params.push(val);
+      return `$${params.length}`;
+    };
+
+    if (actionRaw && AUDIT_ACTIONS.has(actionRaw)) {
+      where.push(`action = ${push(actionRaw)}`);
+    }
+    if (providerRaw && AUDIT_PROVIDERS.has(providerRaw)) {
+      where.push(`payload->>'provider' = ${push(providerRaw)}`);
+    }
+    if (okOnlyRaw === 'failed') {
+      where.push(`action = 'provider-test'`);
+      where.push(`(payload->>'ok')::boolean IS NOT TRUE`);
+    }
+    if (actorEmailRaw) {
+      where.push(`actor_email ILIKE ${push(`%${actorEmailRaw}%`)}`);
+    }
+    if (beforeRaw) {
+      const sep = beforeRaw.lastIndexOf('|');
+      if (sep > 0) {
+        const cursorAt = beforeRaw.slice(0, sep);
+        const cursorId = beforeRaw.slice(sep + 1);
+        const tsValid = !Number.isNaN(new Date(cursorAt).getTime());
+        // Strict canonical UUID v1-v8 form so a malformed cursor short-
+        // circuits here instead of failing as a 500 inside the ::uuid cast.
+        const idValid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cursorId);
+        if (tsValid && idValid) {
+          const atP = push(cursorAt);
+          const idP = push(cursorId);
+          // Composite < to keep ordering stable across ties on `at`.
+          where.push(`(at, id) < (${atP}::timestamptz, ${idP}::uuid)`);
+        }
+      }
+    }
+
+    const limitP = push(limit);
+    const queryText = `
+      SELECT id, actor_email, action, payload, at
+      FROM admin_audit_log
+      WHERE ${where.join(' AND ')}
+      ORDER BY at DESC, id DESC
+      LIMIT ${limitP}
+    `;
+
     try {
-      const rows = (await sql`
-        SELECT id, actor_email, action, payload, at
-        FROM admin_audit_log
-        WHERE action IN ('model-switch', 'provider-test')
-        ORDER BY at DESC
-        LIMIT 50
-      `) as Array<{
+      const rows = (await sql.query(queryText, params)) as Array<{
         id: string;
         actor_email: string;
         action: string;
@@ -1604,10 +1685,15 @@ app.get(
         payload: r.payload,
         at: r.at instanceof Date ? r.at.toISOString() : r.at,
       }));
-      res.json({ entries });
+      const last = entries[entries.length - 1];
+      const nextCursor =
+        entries.length === limit && last ? `${last.at}|${last.id}` : null;
+      res.json({ entries, nextCursor });
     } catch (e) {
       console.error('[admin-audit] read failed', e);
-      res.status(500).json({ entries: [], error: 'Database read failed' });
+      res
+        .status(500)
+        .json({ entries: [], nextCursor: null, error: 'Database read failed' });
     }
   },
 );

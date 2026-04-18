@@ -1,6 +1,6 @@
 # What Wise Cloud Can Do Today
 
-**Last verified:** 2026-04-18
+**Last verified:** 2026-04-18 (Task #5)
 **Audience:** you (the owner). No code, no jargon, no technical paths.
 **Sources (governance — supreme):**
 - `project-governance/PRODUCT.md` § 2 (WiseResume) and § 3 (WiseHire)
@@ -103,6 +103,11 @@ A user picks which side they belong to when they sign up. **They cannot switch l
 - **Soft delete.** Deleted resumes and accounts can be recovered for 30 days. Hard delete is admin-only.
 - **Public portfolio privacy.** Each portfolio can opt out of search engine indexing.
 - **Live admin dashboard.** A password-protected admin panel shows analytics, user management, audit logs, and system health.
+
+## Filter and search the AI provider activity log (2026-04-18)
+**What was the situation:** The AI Provider admin tab showed a flat list of the most recent 50 model switches and provider tests. Once activity built up, it was hard to answer questions like "who switched the Groq model yesterday?" or "show me only failed Gemini tests".
+**What changed:** The recent-activity panel now has filter chips for the provider and the type of action, a toggle for failed tests only, a search box for the actor's email, and a "Load more" button so admins can scroll back through the full history instead of just the last 50 rows.
+**What you'll notice:** When you open the AI Provider tab as an admin, the activity log at the bottom has a new row of filter controls and stays snappy even with thousands of audit entries because the filtering happens on the server.
 
 ---
 

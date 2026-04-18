@@ -1,5 +1,26 @@
 # Changelog
 
+## 2026-04-18 — Filter, search & paginate the AI Provider activity log (Task #5)
+
+Extends the **Recent activity** section in the AI Provider DevKit tab from a static "last 50 rows" view to a server-side filterable, cursor-paginated audit surface so admins can investigate "who switched X yesterday" or "only failed Gemini tests" without scanning the table client-side.
+
+### Server (`server/index.ts`)
+- `GET /api/admin/ai-provider/audit-recent` now accepts query params: `provider` (validated against `{openrouter, groq, gemini, ollama, wiseresume-sub}` — filters on `payload->>'provider'`), `action` (validated against `{model-switch, provider-test}`), `okOnly=failed` (forces `action='provider-test'` and `(payload->>'ok')::boolean IS NOT TRUE`), `actorEmail` (case-insensitive `ILIKE %…%`), `before` (`${at_iso}|${id}` cursor; uses composite `(at, id) < (…)::timestamptz/uuid` so ties on identical timestamps don't get skipped or duplicated), and `limit` (1–100, default 50).
+- Switched from the neon tagged-template to `sql.query(text, params)` so the WHERE clause can be composed dynamically with `$1..$N` placeholders without losing parameterisation. All user-controlled values are pushed through `push()` and never interpolated as raw SQL.
+- ORDER changed to `at DESC, id DESC` to match the cursor predicate. Returns `{ entries, nextCursor }` where `nextCursor` is non-null only when the page filled (i.e. more rows likely exist). Indexes already covered by `idx_admin_audit_log_action_at` / `idx_admin_audit_log_actor_at` (Task #3).
+
+### Panel (`src/components/dev-kit/AIProviderPanel.tsx`)
+- `RecentActivitySection` rebuilt to drive the new endpoint. Adds: provider filter chips (All / OpenRouter / Groq / Gemini / Ollama / wiseresume-sub), action chips (All / Switch / Test), a "Failed tests only" checkbox, a debounced (300ms) actor-email search input, and a "Load more" button keyed to the server's `nextCursor`. A "Clear filters" link appears whenever any filter is active.
+- Filter changes reset the list and refetch from the top via `useEffect([fetchEntries])`; the "Refresh all" header button re-registers and re-runs `fetchEntries` so the filtered view reloads alongside the rest of the panel (preserves Task #1 F8/U3 behaviour).
+- Empty/end states updated: shows "No entries match the current filters" when filtered to zero rows, and "End of activity log" once `nextCursor` is null. Header counter shows `(N+ · filtered)` when more pages exist or filters are active.
+- Added `AuditProviderFilter` / `AuditActionFilter` types, `AUDIT_PROVIDER_OPTIONS` / `AUDIT_ACTION_OPTIONS` constants, and `AUDIT_PAGE_SIZE = 50`. Extended `AuditResponse` with `nextCursor`.
+
+### Atlas
+- `Project Atlas/01-Currently Implemented/critical-systems/06-admin-dev-kit.md` — `/api/admin/ai-provider/audit-recent` row updated to document the new query params, response shape, and ordering.
+- `Project Atlas/04-For You (Plain Language)/current-features.md` — plain-language entry added, `Last verified` bumped.
+
+No DB migration required — uses existing `admin_audit_log` columns and indexes from Task #3.
+
 ## 2026-04-18 — Remove legacy DevKit password fallback from `ai-test` (Task #2)
 
 Follow-up to Task #1 / S4. Now that the AI Provider Panel has been live with the unified Supabase Bearer JWT + `ADMIN_EMAILS` admin check, the temporary DevKit HMAC password fallback in `supabase/functions/ai-test/index.ts` is removed so there is exactly one way to authenticate admin engine-diagnostic calls.

@@ -61,7 +61,7 @@ Added to `server/index.ts`, all behind `requireAuthHeader + requireAdminEmail`:
 | `/api/admin/ai-provider/groq-models` | GET | Live Groq model list via managed `GROQ_API_KEY` |
 | `/api/admin/ai-provider/gemini-models` | GET | Live Gemini model list via managed `GEMINI_API_KEY` (filters to `generateContent` only) |
 | `/api/admin/ai-provider/gemini-test` | POST | Gemini `generateContent` ping using managed `GEMINI_API_KEY`; returns `{ success, model, latencyMs, preview }` |
-| `/api/admin/ai-provider/audit-recent` | GET | Last 50 `admin_audit_log` rows with `action IN ('model-switch','provider-test')` for the **Recent activity** section at the bottom of the AI Provider tab. Reloaded by the header "Refresh all" button alongside the rest of the panel. (Task #3) |
+| `/api/admin/ai-provider/audit-recent` | GET | Filterable, cursor-paginated `admin_audit_log` reader for the **Recent activity** section at the bottom of the AI Provider tab. Always restricted to `action IN ('model-switch','provider-test')`. Query params: `provider` (openrouter/groq/gemini/ollama/wiseresume-sub), `action` (model-switch/provider-test), `okOnly=failed` (only failed provider-tests), `actorEmail` (case-insensitive substring), `before` (cursor `${at}|${id}` from prior `nextCursor`), `limit` (1–100, default 50). Returns `{ entries, nextCursor }`. Ordered `(at DESC, id DESC)` so cursor pagination is stable across timestamp ties. Reloaded by the header "Refresh all" button alongside the rest of the panel. (Task #3, extended in Task #5) |
 
 All routes respond with `{ configured: false }` (or `{ configured: true, error }`) when the env var is absent — safe to call even in environments where the key is not yet set.
 

@@ -1681,7 +1681,31 @@ interface AuditEntry {
   at: string;
 }
 
-interface AuditResponse { entries?: AuditEntry[]; error?: string }
+interface AuditResponse {
+  entries?: AuditEntry[];
+  nextCursor?: string | null;
+  error?: string;
+}
+
+type AuditProviderFilter = '' | 'openrouter' | 'groq' | 'gemini' | 'ollama' | 'wiseresume-sub';
+type AuditActionFilter = '' | 'model-switch' | 'provider-test';
+
+const AUDIT_PROVIDER_OPTIONS: { id: AuditProviderFilter; label: string }[] = [
+  { id: '', label: 'All' },
+  { id: 'openrouter', label: 'OpenRouter' },
+  { id: 'groq', label: 'Groq' },
+  { id: 'gemini', label: 'Gemini' },
+  { id: 'ollama', label: 'Ollama' },
+  { id: 'wiseresume-sub', label: 'wiseresume-sub' },
+];
+
+const AUDIT_ACTION_OPTIONS: { id: AuditActionFilter; label: string }[] = [
+  { id: '', label: 'All' },
+  { id: 'model-switch', label: 'Switch' },
+  { id: 'provider-test', label: 'Test' },
+];
+
+const AUDIT_PAGE_SIZE = 50;
 
 function formatRelativeTime(iso: string): string {
   const ts = new Date(iso).getTime();
@@ -1774,36 +1798,127 @@ function RecentActivitySection({
   registerRefresh: (fn: () => Promise<boolean>) => void;
 }) {
   const [entries, setEntries] = useState<AuditEntry[] | null>(null);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Monotonic request id used to drop stale responses. Rapid filter/search
+  // changes can issue overlapping fetches; without this, an older request
+  // resolving after a newer one would clobber the up-to-date list.
+  const fetchSeqRef = useRef(0);
+
+  // Filter state
+  const [providerFilter, setProviderFilter] = useState<AuditProviderFilter>('');
+  const [actionFilter, setActionFilter] = useState<AuditActionFilter>('');
+  const [failedOnly, setFailedOnly] = useState(false);
+  const [actorEmail, setActorEmail] = useState('');
+  const [debouncedActorEmail, setDebouncedActorEmail] = useState('');
+
+  // Debounce the actor-email search so we don't fire a request on every
+  // keystroke. 300ms feels responsive without spamming the server.
+  useEffect(() => {
+    const t = window.setTimeout(() => setDebouncedActorEmail(actorEmail.trim()), 300);
+    return () => window.clearTimeout(t);
+  }, [actorEmail]);
+
+  const buildUrl = useCallback(
+    (cursor: string | null): string => {
+      const params = new URLSearchParams();
+      if (providerFilter) params.set('provider', providerFilter);
+      if (actionFilter) params.set('action', actionFilter);
+      if (failedOnly) params.set('okOnly', 'failed');
+      if (debouncedActorEmail) params.set('actorEmail', debouncedActorEmail);
+      if (cursor) params.set('before', cursor);
+      params.set('limit', String(AUDIT_PAGE_SIZE));
+      return `/api/admin/ai-provider/audit-recent?${params.toString()}`;
+    },
+    [providerFilter, actionFilter, failedOnly, debouncedActorEmail],
+  );
+
+  // Fetch the first page (used on mount, filter change, and "Refresh all").
+  // Each call bumps `fetchSeqRef`; older responses that resolve after a newer
+  // request was issued are dropped so we never overwrite the list with stale
+  // results (e.g. user types "ali" then quickly clears the search).
   const fetchEntries = useCallback(async (): Promise<boolean> => {
+    const mySeq = ++fetchSeqRef.current;
     setLoading(true);
     setError(null);
     try {
-      const res = await fetchWithTokenDedup('/api/admin/ai-provider/audit-recent');
+      const res = await fetchWithTokenDedup(buildUrl(null));
+      if (mySeq !== fetchSeqRef.current) return false;
       if (!res.ok) {
         setError(`HTTP ${res.status}`);
         return false;
       }
       const body = (await res.json()) as AuditResponse;
+      if (mySeq !== fetchSeqRef.current) return false;
       if (body.error) {
         setError(body.error);
         setEntries(body.entries ?? []);
+        setNextCursor(body.nextCursor ?? null);
         return false;
       }
       setEntries(body.entries ?? []);
+      setNextCursor(body.nextCursor ?? null);
       return true;
     } catch (e) {
+      if (mySeq !== fetchSeqRef.current) return false;
       setError(e instanceof Error ? e.message : 'Fetch failed');
       return false;
     } finally {
-      setLoading(false);
+      if (mySeq === fetchSeqRef.current) setLoading(false);
     }
-  }, []);
+  }, [buildUrl]);
 
+  // Append the next page using the current cursor. Also tagged with the
+  // current `fetchSeqRef` so a filter change mid-load-more discards the
+  // appended page instead of mixing it into a fresh result set.
+  const loadMore = useCallback(async () => {
+    if (!nextCursor || loadingMore) return;
+    const mySeq = fetchSeqRef.current;
+    setLoadingMore(true);
+    setError(null);
+    try {
+      const res = await fetchWithTokenDedup(buildUrl(nextCursor));
+      if (mySeq !== fetchSeqRef.current) return;
+      if (!res.ok) {
+        setError(`HTTP ${res.status}`);
+        return;
+      }
+      const body = (await res.json()) as AuditResponse;
+      if (mySeq !== fetchSeqRef.current) return;
+      if (body.error) {
+        setError(body.error);
+        return;
+      }
+      const more = body.entries ?? [];
+      setEntries((prev) => (prev ? [...prev, ...more] : more));
+      setNextCursor(body.nextCursor ?? null);
+    } catch (e) {
+      if (mySeq !== fetchSeqRef.current) return;
+      setError(e instanceof Error ? e.message : 'Fetch failed');
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [buildUrl, nextCursor, loadingMore]);
+
+  // Reload from the top whenever any filter changes.
   useEffect(() => { void fetchEntries(); }, [fetchEntries]);
   useEffect(() => { registerRefresh(fetchEntries); }, [registerRefresh, fetchEntries]);
+
+  const anyFilterActive =
+    providerFilter !== '' ||
+    actionFilter !== '' ||
+    failedOnly ||
+    debouncedActorEmail !== '';
+
+  const clearFilters = () => {
+    setProviderFilter('');
+    setActionFilter('');
+    setFailedOnly(false);
+    setActorEmail('');
+  };
 
   return (
     <div className="rounded-xl border border-border bg-card shadow-sm">
@@ -1813,7 +1928,9 @@ function RecentActivitySection({
           <h3 className="text-sm font-semibold text-foreground">Recent activity</h3>
           {entries && (
             <span className="text-[10px] text-muted-foreground">
-              ({entries.length}{entries.length === 50 ? ' · most recent 50' : ''})
+              ({entries.length}
+              {nextCursor ? '+' : ''}
+              {anyFilterActive ? ' · filtered' : ''})
             </span>
           )}
         </div>
@@ -1826,6 +1943,81 @@ function RecentActivitySection({
           Refresh
         </button>
       </div>
+
+      {/* Filter controls */}
+      <div className="px-4 py-3 border-b border-border space-y-2.5">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-[10px] uppercase tracking-wide text-muted-foreground mr-1">
+            Provider
+          </span>
+          {AUDIT_PROVIDER_OPTIONS.map((opt) => (
+            <button
+              key={opt.id || 'all-provider'}
+              type="button"
+              onClick={() => setProviderFilter(opt.id)}
+              className={cn(
+                'px-2 py-0.5 text-[11px] rounded-full border transition-colors',
+                providerFilter === opt.id
+                  ? 'border-primary bg-primary/10 text-foreground'
+                  : 'border-border text-muted-foreground hover:text-foreground hover:bg-muted',
+              )}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-[10px] uppercase tracking-wide text-muted-foreground mr-1">
+            Action
+          </span>
+          {AUDIT_ACTION_OPTIONS.map((opt) => (
+            <button
+              key={opt.id || 'all-action'}
+              type="button"
+              onClick={() => setActionFilter(opt.id)}
+              className={cn(
+                'px-2 py-0.5 text-[11px] rounded-full border transition-colors',
+                actionFilter === opt.id
+                  ? 'border-primary bg-primary/10 text-foreground'
+                  : 'border-border text-muted-foreground hover:text-foreground hover:bg-muted',
+              )}
+            >
+              {opt.label}
+            </button>
+          ))}
+          <label className="flex items-center gap-1.5 ml-2 text-[11px] text-muted-foreground cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={failedOnly}
+              onChange={(e) => setFailedOnly(e.target.checked)}
+              className="h-3 w-3 rounded border-border"
+            />
+            Failed tests only
+          </label>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1 max-w-xs">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground pointer-events-none" />
+            <input
+              type="search"
+              value={actorEmail}
+              onChange={(e) => setActorEmail(e.target.value)}
+              placeholder="Search actor email…"
+              className="w-full pl-7 pr-2 py-1 text-[11px] rounded-md border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+          </div>
+          {anyFilterActive && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
+      </div>
+
       <div className="px-1">
         {error && (
           <div className="m-3 flex items-start gap-2 p-2 rounded-md border border-amber-500/30 bg-amber-500/8 text-[11px] text-amber-700 dark:text-amber-300">
@@ -1842,12 +2034,35 @@ function RecentActivitySection({
         {entries && entries.length === 0 && !loading && (
           <div className="flex items-center gap-2 py-6 px-3 text-xs text-muted-foreground justify-center">
             <Clock className="w-3.5 h-3.5" />
-            No admin activity recorded yet.
+            {anyFilterActive
+              ? 'No entries match the current filters.'
+              : 'No admin activity recorded yet.'}
           </div>
         )}
         {entries && entries.length > 0 && (
-          <div className="max-h-80 overflow-y-auto">
+          <div className="max-h-96 overflow-y-auto">
             {entries.map((e) => <AuditEntryRow key={e.id} entry={e} />)}
+            <div className="flex items-center justify-center py-2">
+              {nextCursor ? (
+                <button
+                  type="button"
+                  onClick={() => { void loadMore(); }}
+                  disabled={loadingMore}
+                  className="flex items-center gap-1.5 px-3 py-1 text-[11px] rounded-md border border-border hover:bg-muted transition-colors disabled:opacity-50"
+                >
+                  {loadingMore ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <ChevronDown className="w-3 h-3" />
+                  )}
+                  {loadingMore ? 'Loading…' : 'Load more'}
+                </button>
+              ) : (
+                <span className="text-[10px] text-muted-foreground">
+                  End of activity log
+                </span>
+              )}
+            </div>
           </div>
         )}
       </div>
