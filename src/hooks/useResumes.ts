@@ -126,10 +126,7 @@ export function useResumes<TData = DatabaseResume[]>(options?: { select?: (data:
         .order('updated_at', { ascending: false });
 
       if (error) throw error;
-      const now = new Date();
-      return (data || [])
-        .map(parseDbResume)
-        .filter(r => !r.is_trial || !r.trial_expires_at || new Date(r.trial_expires_at) > now);
+      return (data || []).map(parseDbResume);
     },
     enabled: !!user,
     staleTime: 5 * 60 * 1000,
@@ -233,6 +230,27 @@ export function useResumeMutations() {
       if (updates.templateId !== undefined) dbUpdates.template_id = updates.templateId;
       if (title) dbUpdates.title = title;
 
+      // If this is an active trial resume, expire it immediately on first saved edit
+      // (trial lifecycle: 24 h OR first save, whichever comes first).
+      const cachedResumes = queryClient.getQueryData<DatabaseResume[]>(['resumes', user.id]);
+      const existingResume = cachedResumes?.find(r => r.id === resumeId);
+      if (
+        existingResume?.is_trial &&
+        existingResume.trial_expires_at &&
+        new Date(existingResume.trial_expires_at) > new Date()
+      ) {
+        dbUpdates.trial_expires_at = new Date().toISOString();
+      }
+
+      // Backend guard: block writes to expired trial resumes
+      if (
+        existingResume?.is_trial &&
+        existingResume.trial_expires_at &&
+        new Date(existingResume.trial_expires_at) <= new Date()
+      ) {
+        throw new Error('Your free trial has ended. Upgrade to Pro to keep editing this resume.');
+      }
+
       const { data, error } = await supabase
         .from('resumes')
         .update(dbUpdates)
@@ -264,6 +282,9 @@ export function useResumeMutations() {
         toast.error('Resume not found. It may have been deleted.');
         // Clear the stale ID to stop the error loop
         useResumeStore.getState().setCurrentResumeId(null);
+      } else if (error?.message?.includes('free trial has ended')) {
+        // Propagate trial-ended message directly so the user understands why saving is blocked
+        toast.error(error.message, { duration: 6000 });
       } else {
         toast.error('Failed to save resume');
       }

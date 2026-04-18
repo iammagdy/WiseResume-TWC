@@ -3,7 +3,7 @@ import { lazyWithRetry } from '@/lib/lazyWithRetry';
 import { preloadLazy } from '@/lib/preloadLazy';
 import { logAudit } from '@/lib/auditLogger';
 import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
-import { Sparkles, BarChart3, Scissors, ArrowLeft } from 'lucide-react';
+import { Sparkles, BarChart3, Scissors, ArrowLeft, Clock, AlertTriangle } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 // Tooltip removed – Radix Popper causes infinite setRef loop on this page
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -826,6 +826,38 @@ export default function EditorPage() {
             className="text-[11px] font-medium text-primary hover:underline shrink-0 active:scale-95 transition-transform touch-manipulation min-h-[44px] flex items-center"
           >
             View Original
+          </button>
+        </div>
+      )}
+
+      {/* Trial Resume Banner — active trial (non-blocking) */}
+      {resumeFromDb?.is_trial && resumeFromDb.trial_expires_at && new Date(resumeFromDb.trial_expires_at) > new Date() && (
+        <div className="shrink-0 flex items-center gap-2 px-4 py-1 bg-amber-50 dark:bg-amber-950/40 border-b border-amber-200 dark:border-amber-800" style={{ minHeight: 36 }}>
+          <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+          <span className="text-xs text-amber-800 dark:text-amber-300 flex-1 truncate">
+            Trial resume — expires in {Math.max(1, Math.ceil((new Date(resumeFromDb.trial_expires_at).getTime() - Date.now()) / (1000 * 60 * 60)))}h. Saving your first edit will end the trial period.
+          </span>
+          <button
+            onClick={() => navigate('/settings/plan')}
+            className="text-[11px] font-semibold text-amber-700 dark:text-amber-300 hover:underline shrink-0 active:scale-95 transition-transform touch-manipulation"
+          >
+            Upgrade to keep forever →
+          </button>
+        </div>
+      )}
+
+      {/* Trial Resume Banner — expired trial (read-only lock) */}
+      {resumeFromDb?.is_trial && resumeFromDb.trial_expires_at && new Date(resumeFromDb.trial_expires_at) <= new Date() && (
+        <div className="shrink-0 flex items-center gap-2 px-4 py-2 bg-destructive/10 border-b border-destructive/30" style={{ minHeight: 40 }}>
+          <AlertTriangle className="w-3.5 h-3.5 text-destructive shrink-0" />
+          <span className="text-xs text-destructive flex-1">
+            Your free trial has ended. This resume is <strong>read-only</strong> — upgrade to Pro to keep making changes.
+          </span>
+          <button
+            onClick={() => navigate('/settings/plan')}
+            className="text-[11px] font-semibold text-destructive hover:underline shrink-0 active:scale-95 transition-transform touch-manipulation"
+          >
+            Upgrade →
           </button>
         </div>
       )}

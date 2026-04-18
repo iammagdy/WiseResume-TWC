@@ -442,7 +442,11 @@ export function CreateResumeDialog({
     }
     setIsCreatingTrial(true);
     try {
-      const source = nonTrialResumes.find(r => r.is_primary) ?? nonTrialResumes[0];
+      // Prefer the specific resume being tailored; fall back to primary, then any.
+      const source =
+        (parentResumeId ? nonTrialResumes.find(r => r.id === parentResumeId) : undefined) ??
+        nonTrialResumes.find(r => r.is_primary) ??
+        nonTrialResumes[0];
       const trialExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
       const insertPayload: Record<string, unknown> = {
         user_id: bridgedUserId,
@@ -459,6 +463,12 @@ export function CreateResumeDialog({
         insertPayload.education = source.education as unknown;
         insertPayload.skills = source.skills as unknown;
         insertPayload.certifications = source.certifications as unknown;
+        insertPayload.awards = source.awards as unknown;
+        insertPayload.projects = source.projects as unknown;
+        insertPayload.publications = source.publications as unknown;
+        insertPayload.volunteering = source.volunteering as unknown;
+        insertPayload.hobbies = source.hobbies as unknown;
+        insertPayload.references = source.references as unknown;
       }
       const { data: rawResume, error } = await supabase
         .from('resumes')
