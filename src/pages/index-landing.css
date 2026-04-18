@@ -796,3 +796,9 @@ body[data-lp-scheme="light"][data-lp-product="wisehire"] { background-color: #f0
     grid-template-columns: repeat(4, 1fr);
   }
 }
+
+@keyframes lp-toggle-burst {
+  0%   { transform: translate(-50%, -50%) scale(1);   opacity: 0; }
+  25%  { transform: translate(-50%, -50%) scale(1.6); opacity: 0.4; }
+  100% { transform: translate(-50%, -50%) scale(2.5); opacity: 0; }
+}

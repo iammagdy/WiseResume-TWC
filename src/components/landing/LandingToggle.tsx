@@ -22,14 +22,6 @@ const BLUE_BG = 'rgba(29,78,216,0.14)';
 const RED_SHADOW = 'inset 0 0 0 1px rgba(158,27,34,0.55)';
 const BLUE_SHADOW = 'inset 0 0 0 1px rgba(29,78,216,0.55)';
 
-const BURST_KEYFRAMES = `
-@keyframes lp-toggle-burst {
-  0%   { transform: translate(-50%, -50%) scale(1);   opacity: 0; }
-  25%  { transform: translate(-50%, -50%) scale(1.6); opacity: 0.4; }
-  100% { transform: translate(-50%, -50%) scale(2.5); opacity: 0; }
-}
-`;
-
 export function LandingToggle({ mode, onModeChange, prefersReducedMotion, uid: _uid = '', compact = false }: LandingToggleProps) {
   const [burstKey, setBurstKey] = useState(0);
   const [burstLeft, setBurstLeft] = useState('25%');
@@ -78,9 +70,7 @@ export function LandingToggle({ mode, onModeChange, prefersReducedMotion, uid: _
         overflow: 'hidden',
       }}
     >
-      <style>{BURST_KEYFRAMES}</style>
-
-      {/* Ignition burst — CSS keyframe, re-keyed to retrigger. */}
+      {/* Ignition burst — CSS keyframe defined in index-landing.css, re-keyed to retrigger. */}
       {!prefersReducedMotion && burstKey > 0 && (
         <div
           key={burstKey}
