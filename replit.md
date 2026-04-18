@@ -347,7 +347,19 @@ Both endpoints require a valid Supabase Bearer token AND the verified user's ema
 ## DevKit Analytics & Monitoring Hub
 - **AnalyticsPanel** (`src/components/dev-kit/AnalyticsPanel.tsx`): Page views (all time + today), active users today vs yesterday with delta arrow, top 10 features bar chart (recharts), portfolio views aggregate, new signups last 14 days sparkline, geographic distribution bar chart, AI credits today vs yesterday.
 - **LiveActivityPanel** (`src/components/dev-kit/LiveActivityPanel.tsx`): Real-time 30s auto-refresh feed of last 50 usage_events, edge function health cards (green/amber/red status dots), manual "Run health check" button.
-- **DeploymentPanel** (`src/components/dev-kit/DeploymentPanel.tsx`): Last 5 GitHub commits from main branch via `admin-github-status` edge function, "Last deployed" timestamp, env var checklist via `admin-env-check` edge function (boolean presence only).
+- **DeploymentPanel** (`src/components/dev-kit/DeploymentPanel.tsx`): Last 5 GitHub commits from main branch via `admin-github-status` edge function, "Last deployed" timestamp, env var checklist via `admin-env-check` edge function (boolean presence only). Also shows the **Analytics Retention Sweep** section: last-run time, duration, per-table deleted-row counts (portfolio_visits, error_log, audit_logs, trial_resumes), and any last error. Has its own Refresh button.
+
+## Trial Resume Lifecycle (Task #11 + #18)
+- **DB columns**: `resumes.is_trial BOOLEAN` and `resumes.trial_expires_at TIMESTAMPTZ`
+- **DB trigger** (`expire_trial_resume_on_first_edit`): Sets `trial_expires_at = now()` on first content edit — server-authoritative.
+- **RLS policy** (`block_writes_to_expired_trials`): USING-only policy blocks UPDATE to already-expired trials.
+- **Grace window**: `useResumes.ts` hides trials expired more than 3 days ago from dashboard. Editor shows read-only banner for expired trials.
+- **Auto-cleanup**: Daily sweep (`runAnalyticsSweep` in `server/index.ts`) calls `purge_expired_trial_resumes()` to hard-delete trials expired > 3 days ago in batches of 10,000 rows (up to 1,000 batches). Uses same constants and concurrency guard as the analytics table sweeps.
+- **Sweep observability**: `GET /api/admin/analytics-sweep-status` returns `trial_resumes_deleted` in the last result. DeploymentPanel shows this count.
+- **Docs**: `docs/features/trial-resume.md`
+
+## AI Provider Status (Task #19 + #20)
+- **Shared React Query cache key `['ai-keys']`** (staleTime 30s): `AIKeySection` in `WiseHireSettingsPage` uses `useQuery(['ai-keys'])` to display connected providers. `AISettingsSheet` calls `queryClient.invalidateQueries({ queryKey: ['ai-keys'] })` after every key save or delete. Status updates instantly without closing the sheet or reloading the page.
 
 ## Onboarding Analytics (audit_logs, category='onboarding')
 Job-Seeker onboarding emits the following actions to the `audit_logs` table via `logAudit` (`src/lib/auditLogger.ts`). All events are fire-and-forget; metadata schemas:

@@ -1,5 +1,36 @@
 # Changelog
 
+## 2026-04-26 — Trial Resume Auto-cleanup & Admin Sweep Dashboard (Tasks #18, #21, #22, #24)
+
+### حذف التجارب المنتهية تلقائياً (Task #18)
+- **دالة قاعدة البيانات** (`20260426000001_delete_expired_trial_resumes.sql`): أُضيفت دالة `purge_expired_trial_resumes(p_batch_size)` من نوع SECURITY DEFINER تحذف دفعات من سجلات التجارب المنتهية منذ أكثر من ٣ أيام. الحذف يحدث بعد انتهاء نافذة العرض للقراءة فقط (٣ أيام) المحددة في `useResumes`. يستخدم `FOR UPDATE SKIP LOCKED` لمنع تعارض الكتابة المتزامنة.
+- **المسح اليومي** (`server/index.ts`): `runAnalyticsSweep()` أصبح يستدعي دالة الحذف بعد مسح جداول التحليلات، ضمن نفس آلية القفل والدُفعات الموجودة. النتيجة تُسجَّل مع باقي إحصائيات المسح.
+- **الجانب العميل**: `useResumes.ts` كان يُخفي التجارب المنتهية منذ أكثر من ٣ أيام بالفعل — لا تغييرات مطلوبة.
+
+### لوحة متابعة المسح (Task #21)
+- **DeploymentPanel**: أُضيف قسم كامل "Analytics Retention Sweep" يعرض آخر وقت تشغيل، المدة، عدد الصفوف المحذوفة لكل جدول (portfolio_visits، error_log، audit_logs، trial_resumes)، وأي خطأ من آخر تشغيل. يحتوي على زر تحديث مستقل.
+
+### تشغيل يدوي من لوحة الأدمن (Task #22)
+- نقطة النهاية `POST /api/admin/analytics-sweep-run` الموجودة أصبحت تُشغّل حذف التجارب أيضاً كجزء من دورة المسح الكاملة — لا تغييرات في الواجهة مطلوبة.
+
+### حماية قاعدة البيانات من الحمل الزائد (Task #24)
+- استبدال الثوابت المحلية لدُفعات حذف التجارب (`TRIAL_PURGE_BATCH_SIZE=500`, `TRIAL_PURGE_MAX_BATCHES=200`) بالثوابت المشتركة للمسح (`ANALYTICS_SWEEP_BATCH_SIZE=10000`, `ANALYTICS_SWEEP_MAX_BATCHES_PER_TABLE=1000`) لضمان التناسق.
+- إضافة `console.warn` عند الوصول للحد الأقصى للدفعات، مطابقاً لتحذير `sweepOneTable()`.
+
+---
+
+## 2026-04-18 — حالة مزودي الذكاء الاصطناعي لحظياً (Task #19 & #20)
+
+### ملخص المزودين في WiseHire (Task #19)
+- **AIKeySection** (`WiseHireSettingsPage.tsx`): أُضيف قسم يعرض المزودين المتصلين حالياً (عدد المفاتيح، أسماء المزودين، حالة الاتصال) في صفحة إعدادات WiseHire.
+
+### تحديث فوري بدون إعادة تحميل (Task #20)
+- **مفتاح React Query مشترك `['ai-keys']`**: `AIKeySection` أصبح يستخدم `useQuery` بدلاً من `useEffect` + عداد تحديث يدوي. `staleTime` = 30 ثانية.
+- **AISettingsSheet**: يستدعي `queryClient.invalidateQueries({ queryKey: ['ai-keys'] })` فور حفظ أو حذف أي مفتاح، سواء من داخل الصفحة أو بدون إغلاق اللوحة.
+- حُذف `aiRefreshTrigger` state من `WiseHireSettingsPage` بالكامل.
+
+---
+
 ## 2026-04-18 — Settings Consolidation & Free-tier Trial Resume (Task #11)
 
 ### BYOK Settings Unification
