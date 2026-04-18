@@ -140,10 +140,13 @@ reference and to corroborate the system-default palette.
    regression. → Project task **#20** (Confirm landing page paint speed in
    a real production build).
 2. **Pre-existing vitest failures (12 files, 27 tests)** — auth/route
-   fixtures unrelated to landing. → Project task **#22** (Stop the
-   leftover landing-page background…) is for a different concern; the
-   test-suite cleanup is queued separately as a smaller "fix inherited
-   failing fixtures" item to be opened by the testing owner.
+   fixtures unrelated to landing. **Action required:** open a tracked
+   project task titled "Bring the inherited Vitest baseline back to
+   green" and assign it to the testing owner; until that task lands,
+   the original "suite passes" Done criterion for any verification
+   phase will remain Partial. The full red baseline is preserved at
+   `docs/landing/phase-6-vitest-output.txt` (3260 lines) so the
+   triage can start from a known fingerprint.
 3. **`body[data-lp-*]` attributes intentionally persist after `.lp-root`
    unmount** — confirm the carried-over background does not look wrong on
    other routes. → Project task **#22** (Stop the leftover landing-page
