@@ -3,7 +3,8 @@ import { RefreshCw, Activity, CheckCircle, AlertCircle, Clock, PlayCircle, Loade
 import { Button } from '@/components/ui/button';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { getDevKitToken, useDevKitSession, onDevKitLock } from '@/contexts/DevKitSessionContext';
-import { useVisibleInterval } from '@/lib/devkit/hooks';
+import { useVisibleInterval, useIsMounted } from '@/lib/devkit/hooks';
+import { unwrapAdminResponse, tryUnwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
 import { DevKitRunner } from './DevKitRunner';
 
 interface UsageEvent {
@@ -290,59 +291,61 @@ export function LiveActivityPanel() {
   const setHealthRunning = (v: boolean) => { _cache.healthRunning = v; setHealthRunningRaw(v); };
   const setHealthCheckedAt = (v: Date | null) => { _cache.healthCheckedAt = v; setHealthCheckedAtRaw(v); };
 
+  const isMounted = useIsMounted();
+
   const fetchEvents = useCallback(async () => {
     const token = getDevKitToken();
     if (!token) return;
     setEventsLoading(true);
     setEventsError(null);
     try {
-      const { data: responseData, error: invokeError } = await edgeFunctions.functions.invoke('admin-live-activity', {
+      const tuple = await edgeFunctions.functions.invoke('admin-live-activity', {
         body: { password: token, resource: 'usage_events' },
       });
-      if (invokeError) throw new Error(invokeError.message);
-      const result = responseData as { success?: boolean; error?: string; data?: UsageEvent[] };
-      if (result?.success === false) throw new Error(result.error ?? 'Failed to load events');
-      setEvents(result?.data ?? []);
+      const result = unwrapAdminResponse<{ data?: UsageEvent[] }>(tuple, 'admin-live-activity (usage_events)');
+      if (!isMounted()) return;
+      setEvents(result.data ?? []);
       setFeedSecondsAgo(0);
     } catch (e) {
-      setEventsError(e instanceof Error ? e.message : 'Failed to load events');
+      if (!isMounted()) return;
+      setEventsError(formatEdgeError(e, 'Failed to load events'));
     } finally {
-      setEventsLoading(false);
+      if (isMounted()) setEventsLoading(false);
     }
-  }, []);
+  }, [isMounted]);
 
   const fetchErrorLogs = useCallback(async () => {
     const token = getDevKitToken();
     if (!token) return;
-    const { data: responseData, error: invokeError } = await edgeFunctions.functions.invoke('admin-live-activity', {
+    const tuple = await edgeFunctions.functions.invoke('admin-live-activity', {
       body: { password: token, resource: 'error_log' },
     });
-    if (invokeError) return;
-    const result = responseData as { success?: boolean; missing?: boolean; data?: ErrorLogRow[] };
-    if (result?.missing) {
+    const result = tryUnwrapAdminResponse<{ missing?: boolean; data?: ErrorLogRow[] }>(tuple, 'admin-live-activity (error_log)');
+    if (!isMounted()) return;
+    if (!result) return;
+    if (result.missing) {
       setErrorLogsMissing(true);
       return;
     }
     setErrorLogsMissing(false);
-    setErrorLogs(result?.data ?? []);
-  }, []);
+    setErrorLogs(result.data ?? []);
+  }, [isMounted]);
 
   const fetchContactRequests = useCallback(async () => {
     const token = getDevKitToken();
     if (!token) return;
     setContactRequestsLoading(true);
     try {
-      const { data: responseData, error: invokeError } = await edgeFunctions.functions.invoke('admin-live-activity', {
+      const tuple = await edgeFunctions.functions.invoke('admin-live-activity', {
         body: { password: token, resource: 'contact_requests' },
       });
-      if (!invokeError) {
-        const result = responseData as { success?: boolean; data?: ContactRequest[] };
-        setContactRequests(result?.data ?? []);
-      }
+      const result = tryUnwrapAdminResponse<{ data?: ContactRequest[] }>(tuple, 'admin-live-activity (contact_requests)');
+      if (!isMounted()) return;
+      if (result) setContactRequests(result.data ?? []);
     } finally {
-      setContactRequestsLoading(false);
+      if (isMounted()) setContactRequestsLoading(false);
     }
-  }, []);
+  }, [isMounted]);
 
   const runHealthChecksForDefs = useCallback(async (defs: EdgeFunctionDef[]) => {
     setHealthRunning(true);

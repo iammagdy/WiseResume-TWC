@@ -11,6 +11,8 @@ import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { useAuth } from '@/hooks/useAuth';
 import { getDevKitToken } from '@/contexts/DevKitSessionContext';
+import { useIsMounted } from '@/lib/devkit/hooks';
+import { unwrapAdminResponse, tryUnwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
 import type { AdminUser } from './AdminUsersPanel';
 
 // supabase client kept for RPC-only usage (username availability check)
@@ -199,30 +201,32 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     const pw = getDevKitToken();
     edgeFunctions.functions.invoke('admin-audit-logs', {
       body: { password: pw, limit: 500, target_user_id: user.user_id },
-    }).then(({ data }) => {
+    }).then((tuple) => {
       if (cancelled) return;
-      const result = data as { success?: boolean; logs?: AuditEntry[] };
-      setAuditHistory(result?.logs ?? []);
-    }).catch((err: unknown) => {
-      if (cancelled) return;
-      const msg = err instanceof Error ? err.message : 'Unknown error';
-      console.warn('[UserDetailDrawer] audit-logs failed:', msg);
-      toast.error('Could not load audit history', { description: msg });
-      setAuditHistory([]);
+      try {
+        const result = unwrapAdminResponse<{ logs?: AuditEntry[] }>(tuple, 'admin-audit-logs');
+        setAuditHistory(result.logs ?? []);
+      } catch (e) {
+        const msg = formatEdgeError(e, 'Unknown error');
+        console.warn('[UserDetailDrawer] audit-logs failed:', msg);
+        toast.error('Could not load audit history', { description: msg });
+        setAuditHistory([]);
+      }
     });
 
     edgeFunctions.functions.invoke('admin-save-note', {
       body: { password: pw, target_user_id: user.user_id, action: 'list' },
-    }).then(({ data }) => {
+    }).then((tuple) => {
       if (cancelled) return;
-      const result = data as { success?: boolean; notes?: NoteEntry[] };
-      setNotesHistory(result?.notes ?? []);
-    }).catch((err: unknown) => {
-      if (cancelled) return;
-      const msg = err instanceof Error ? err.message : 'Unknown error';
-      console.warn('[UserDetailDrawer] notes list failed:', msg);
-      toast.error('Could not load admin notes', { description: msg });
-      setNotesHistory([]);
+      try {
+        const result = unwrapAdminResponse<{ notes?: NoteEntry[] }>(tuple, 'admin-save-note (list)');
+        setNotesHistory(result.notes ?? []);
+      } catch (e) {
+        const msg = formatEdgeError(e, 'Unknown error');
+        console.warn('[UserDetailDrawer] notes list failed:', msg);
+        toast.error('Could not load admin notes', { description: msg });
+        setNotesHistory([]);
+      }
     }).finally(() => {
       if (!cancelled) setHistoryLoading(false);
     });
@@ -240,12 +244,15 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     const pw = getDevKitToken();
     edgeFunctions.functions.invoke('admin-list-user-content', {
       body: { password: pw, target_user_id: user.user_id },
-    }).then(({ data }) => {
+    }).then((tuple) => {
       if (cancelled) return;
-      const result = data as { success?: boolean; resumes?: ResumeItem[] };
-      setResumes(result?.resumes ?? []);
-    }).catch(() => {
-      if (!cancelled) setResumes([]);
+      const result = tryUnwrapAdminResponse<{ resumes?: ResumeItem[] }>(tuple, 'admin-list-user-content');
+      if (!result) {
+        setResumes([]);
+        toast.error('Could not load user content');
+        return;
+      }
+      setResumes(result.resumes ?? []);
     }).finally(() => {
       if (!cancelled) setResumesLoading(false);
     });
@@ -271,31 +278,20 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
         target_user_id: user.user_id,
         action: 'get',
       },
-    }).then(({ data, error: invokeErr }) => {
+    }).then((tuple) => {
       if (cancelled) return;
-      if (invokeErr) {
-        console.warn('[UserDetailDrawer] Profile GET failed:', invokeErr.message);
+      try {
+        const result = unwrapAdminResponse<{ profile?: { username?: string | null; portfolio_enabled?: boolean | null } | null }>(tuple, 'admin-update-profile (get)');
+        const profileData = result.profile ?? null;
+        setProfileUsername(profileData?.username ?? '');
+        setProfileEnabled(profileData?.portfolio_enabled ?? false);
+        setProfileUsernameLoaded(true);
+      } catch (e) {
+        const msg = formatEdgeError(e, 'Could not load portfolio profile fields');
+        console.warn('[UserDetailDrawer] Profile GET failed:', msg);
         setProfileUsernameLoaded(true);
         setProfileEnabled(false);
-        toast.error('Could not load portfolio profile fields. You may still edit other fields.');
-        return;
-      }
-      const result = data as { success?: boolean; profile?: { username?: string | null; portfolio_enabled?: boolean | null } | null };
-      if (result?.success === false) {
-        console.warn('[UserDetailDrawer] Profile GET returned error:', result);
-        setProfileUsernameLoaded(true);
-        setProfileEnabled(false);
-        return;
-      }
-      const profileData = result?.profile ?? null;
-      setProfileUsername(profileData?.username ?? '');
-      setProfileEnabled(profileData?.portfolio_enabled ?? false);
-      setProfileUsernameLoaded(true);
-    }).catch((err: unknown) => {
-      if (!cancelled) {
-        console.warn('[UserDetailDrawer] Profile GET threw:', err);
-        setProfileUsernameLoaded(true);
-        setProfileEnabled(false);
+        toast.error('Could not load portfolio profile fields. You may still edit other fields.', { description: msg });
       }
     });
 
@@ -313,17 +309,16 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     const pw = getDevKitToken();
     edgeFunctions.functions.invoke('admin-get-identity', {
       body: { password: pw, target_user_id: user.user_id },
-    }).then(({ data }) => {
+    }).then((tuple) => {
       if (cancelled) return;
-      const result = data as {
-        success?: boolean;
-        auth_email?: string | null;
-        contact_email?: string | null;
-        kinde_sub?: string | null;
-        last_exchange_at?: string | null;
-        is_collision?: boolean;
-      };
-      if (result?.success !== false) {
+      try {
+        const result = unwrapAdminResponse<{
+          auth_email?: string | null;
+          contact_email?: string | null;
+          kinde_sub?: string | null;
+          last_exchange_at?: string | null;
+          is_collision?: boolean;
+        }>(tuple, 'admin-get-identity');
         setIdentityData({
           auth_email: result.auth_email ?? null,
           contact_email: result.contact_email ?? null,
@@ -331,13 +326,12 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
           last_exchange_at: result.last_exchange_at ?? null,
           is_collision: result.is_collision ?? false,
         });
+      } catch (e) {
+        const msg = formatEdgeError(e, 'Unknown error');
+        console.warn('[UserDetailDrawer] get-identity failed:', msg);
+        // Identity is informational; surface as a soft warning rather than blocking the drawer.
+        toast.warning('Could not load identity record', { description: msg });
       }
-    }).catch((err: unknown) => {
-      if (cancelled) return;
-      const msg = err instanceof Error ? err.message : 'Unknown error';
-      console.warn('[UserDetailDrawer] get-identity failed:', msg);
-      // Identity is informational; surface as a soft warning rather than blocking the drawer.
-      toast.warning('Could not load identity record', { description: msg });
     }).finally(() => {
       if (!cancelled) setIdentityLoading(false);
     });
@@ -348,12 +342,10 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
   const handleMergeIdentity = async () => {
     setMergingIdentity(true);
     try {
-      const { data, error } = await edgeFunctions.functions.invoke('admin-merge-identity', {
+      const tuple = await edgeFunctions.functions.invoke('admin-merge-identity', {
         body: { password: getDevKitToken(), collision_user_id: user.user_id },
       });
-      if (error) throw new Error(error.message);
-      const result = data as { success?: boolean; error?: string; merge_log?: string[] };
-      if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
+      unwrapAdminResponse<{ merge_log?: string[] }>(tuple, 'admin-merge-identity');
       toast.success('Identity merged successfully', {
         description: 'The orphan account has been suspended and merged into this account.',
         duration: 6000,
@@ -400,7 +392,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
       const trimmedUsername = profileUsername.trim().toLowerCase();
       const trimmedName = profileFullName.trim();
 
-      const { data, error } = await edgeFunctions.functions.invoke('admin-update-profile', {
+      const tuple = await edgeFunctions.functions.invoke('admin-update-profile', {
         body: {
           password: getDevKitToken(),
           target_user_id: user.user_id,
@@ -409,11 +401,9 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
           actor_email: authUser?.email ?? 'admin (dev-kit)',
         },
       });
-      if (error) throw new Error(error.message);
-      const result = data as { success?: boolean; error?: string; changed_fields?: Record<string, { old: unknown; new: unknown }> };
-      if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
+      const result = unwrapAdminResponse<{ changed_fields?: Record<string, { old: unknown; new: unknown }> }>(tuple, 'admin-update-profile');
 
-      const changed = result?.changed_fields ?? {};
+      const changed = result.changed_fields ?? {};
       if (Object.keys(changed).length === 0) {
         toast.info('No changes to save');
         return;
@@ -448,12 +438,10 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     if (selectedPlan === user.plan_name) { toast.info('Plan unchanged'); return; }
     setSavingPlan(true);
     try {
-      const { data, error } = await edgeFunctions.functions.invoke('admin-set-plan', {
+      const tuple = await edgeFunctions.functions.invoke('admin-set-plan', {
         body: { password: getDevKitToken(), target_user_id: user.user_id, plan: selectedPlan },
       });
-      if (error) throw new Error(error.message);
-      const result = data as { success?: boolean; error?: string };
-      if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
+      unwrapAdminResponse(tuple, 'admin-set-plan');
       toast.success(`Plan set to ${selectedPlan}`, {
         description: "The user's app will reflect this within 10 seconds.",
         duration: 5000,
@@ -471,12 +459,10 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
   const handleGrantTrial = async () => {
     setSavingTrial(true);
     try {
-      const { data, error } = await edgeFunctions.functions.invoke('admin-grant-trial', {
+      const tuple = await edgeFunctions.functions.invoke('admin-grant-trial', {
         body: { password: getDevKitToken(), target_user_id: user.user_id, plan: trialPlan, days: trialDays },
       });
-      if (error) throw new Error(error.message);
-      const result = data as { success?: boolean; error?: string };
-      if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
+      unwrapAdminResponse(tuple, 'admin-grant-trial');
       const expiresAt = new Date(Date.now() + trialDays * 86400000).toISOString();
       toast.success(`${trialPlan} trial granted for ${trialDays} days`);
       setUser(prev => ({ ...prev, trial_plan: trialPlan, trial_expires_at: expiresAt }));
@@ -491,12 +477,10 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
   const handleRevokeTrial = async () => {
     setRevokingTrial(true);
     try {
-      const { data, error } = await edgeFunctions.functions.invoke('admin-revoke-trial', {
+      const tuple = await edgeFunctions.functions.invoke('admin-revoke-trial', {
         body: { password: getDevKitToken(), target_user_id: user.user_id },
       });
-      if (error) throw new Error(error.message);
-      const result = data as { success?: boolean; error?: string };
-      if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
+      unwrapAdminResponse(tuple, 'admin-revoke-trial');
       toast.success('Trial revoked');
       setUser(prev => ({ ...prev, trial_plan: null, trial_expires_at: null }));
       onUserUpdated();
@@ -511,12 +495,10 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     setSavingSuspend(true);
     try {
       const suspend = !user.is_suspended;
-      const { data, error } = await edgeFunctions.functions.invoke('admin-suspend-user', {
+      const tuple = await edgeFunctions.functions.invoke('admin-suspend-user', {
         body: { password: getDevKitToken(), target_user_id: user.user_id, suspend, reason: suspend ? suspendReason : null },
       });
-      if (error) throw new Error(error.message);
-      const result = data as { success?: boolean; error?: string };
-      if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
+      unwrapAdminResponse(tuple, 'admin-suspend-user');
       toast.success(suspend ? 'User suspended' : 'User unsuspended');
       setUser(prev => ({
         ...prev,
@@ -536,7 +518,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     try {
       const parsedLimit = newDailyLimit !== '' ? Number(newDailyLimit) : undefined;
       const parsedBonus = bonusCredits ? Number(bonusCredits) : 0;
-      const { data, error } = await edgeFunctions.functions.invoke('admin-set-credits', {
+      const tuple = await edgeFunctions.functions.invoke('admin-set-credits', {
         body: {
           password: getDevKitToken(),
           target_user_id: user.user_id,
@@ -544,9 +526,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
           bonus_credits: parsedBonus,
         },
       });
-      if (error) throw new Error(error.message);
-      const result = data as { success?: boolean; error?: string };
-      if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
+      unwrapAdminResponse(tuple, 'admin-set-credits');
       toast.success('Credits updated');
       setUser(prev => ({
         ...prev,
@@ -568,12 +548,10 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     if (!noteText.trim()) return;
     setSavingNote(true);
     try {
-      const { data, error } = await edgeFunctions.functions.invoke('admin-save-note', {
+      const tuple = await edgeFunctions.functions.invoke('admin-save-note', {
         body: { password: getDevKitToken(), target_user_id: user.user_id, note_text: noteText },
       });
-      if (error) throw new Error(error.message);
-      const result = data as { success?: boolean; error?: string };
-      if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
+      unwrapAdminResponse(tuple, 'admin-save-note');
       toast.success('Note saved');
       setNoteText('');
       const newNote: NoteEntry = { id: Date.now().toString(), note_text: noteText, created_at: new Date().toISOString() };
@@ -588,7 +566,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
   const handleDeleteNote = async (noteId: string) => {
     setDeletingNoteId(noteId);
     try {
-      const { data, error } = await edgeFunctions.functions.invoke('admin-save-note', {
+      const tuple = await edgeFunctions.functions.invoke('admin-save-note', {
         body: {
           password: getDevKitToken(),
           target_user_id: user.user_id,
@@ -597,9 +575,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
           actor_email: authUser?.email ?? 'admin (dev-kit)',
         },
       });
-      if (error) throw new Error(error.message);
-      const result = data as { success?: boolean; error?: string };
-      if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
+      unwrapAdminResponse(tuple, 'admin-save-note (delete)');
       toast.success('Note deleted');
       setNotesHistory(prev => prev.filter(n => n.id !== noteId));
       setConfirmDeleteNoteId(null);
@@ -613,16 +589,14 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
   const handleRevokeSessions = async () => {
     setRevokingSessions(true);
     try {
-      const { data, error } = await edgeFunctions.functions.invoke('admin-revoke-sessions', {
+      const tuple = await edgeFunctions.functions.invoke('admin-revoke-sessions', {
         body: {
           password: getDevKitToken(),
           target_user_id: user.user_id,
           actor_email: authUser?.email ?? 'admin (dev-kit)',
         },
       });
-      if (error) throw new Error(error.message);
-      const result = data as { success?: boolean; error?: string };
-      if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
+      unwrapAdminResponse(tuple, 'admin-revoke-sessions');
       toast.success('All sessions revoked', { description: 'The user has been signed out from all devices.' });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to revoke sessions');
@@ -635,16 +609,14 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     if (deleteEmailConfirm !== user.email) return;
     setDeletingUser(true);
     try {
-      const { data, error } = await edgeFunctions.functions.invoke('admin-delete-user', {
+      const tuple = await edgeFunctions.functions.invoke('admin-delete-user', {
         body: {
           password: getDevKitToken(),
           target_user_id: user.user_id,
           actor_email: authUser?.email ?? 'admin (dev-kit)',
         },
       });
-      if (error) throw new Error(error.message);
-      const result = data as { success?: boolean; error?: string };
-      if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
+      unwrapAdminResponse(tuple, 'admin-delete-user');
       toast.success('User account permanently deleted');
       setShowDeleteDialog(false);
       onUserDeleted?.(user.user_id);
@@ -659,13 +631,11 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
   const handleLoadResumeDetail = async (resumeId: string) => {
     setResumeDetailLoading(true);
     try {
-      const { data, error } = await edgeFunctions.functions.invoke('admin-list-user-content', {
+      const tuple = await edgeFunctions.functions.invoke('admin-list-user-content', {
         body: { password: getDevKitToken(), target_user_id: user.user_id, resume_id: resumeId },
       });
-      if (error) throw new Error(error.message);
-      const result = data as { success?: boolean; resume?: ResumeDetail };
-      if (result?.success === false) throw new Error('Failed to load resume');
-      setSelectedResume(result?.resume ?? null);
+      const result = unwrapAdminResponse<{ resume?: ResumeDetail }>(tuple, 'admin-list-user-content (detail)');
+      setSelectedResume(result.resume ?? null);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to load resume');
     } finally {
