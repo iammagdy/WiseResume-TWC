@@ -52,8 +52,8 @@ export function WiseResumeContent({ prefersReducedMotion }: WiseResumeContentPro
                 className="font-bold leading-tight"
                 style={{ fontSize: 'clamp(1.6rem, 3.2vw, 2.4rem)', color: 'var(--lp-text)', letterSpacing: '-0.02em' }}
               >
-                Five tools. One platform.{' '}
-                <span className="lp-gradient-text">Your unfair advantage.</span>
+                Five tools. One platform.<br />
+                <span className="lp-gradient-text">Your unfair advantage in the job market.</span>
               </h2>
             </motion.div>
             <div

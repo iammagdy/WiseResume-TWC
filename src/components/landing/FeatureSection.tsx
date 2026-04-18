@@ -145,7 +145,7 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
   const mediaCard = (
     <motion.div
       variants={mediaSlide}
-      className="lp-stack-pane flex items-center justify-center p-6"
+      className="lp-stack-pane lp-stack-parallax flex items-center justify-center p-6"
       style={{
         borderRadius: 24,
         minHeight: 280,

@@ -204,7 +204,7 @@ export function WiseHireDemoSection() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex justify-center">
+                  <div className="flex justify-center lp-stack-parallax">
                     <LazyOnVisible>
                       <Suspense fallback={<DemoFallback />}>
                         <Demo />
