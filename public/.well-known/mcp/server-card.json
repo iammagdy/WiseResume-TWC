@@ -1,0 +1,45 @@
+{
+  "$schema": "https://modelcontextprotocol.io/schemas/sep-1649/server-card.schema.json",
+  "name": "wiseresume",
+  "title": "WiseResume / WiseHire",
+  "description": "AI-powered resume builder, portfolio platform, and HR hiring suite. Discovery card for AI agents wanting to interact with the public marketing surface and the authenticated API.",
+  "version": "0.1.0",
+  "publisher": {
+    "name": "The Wise Cloud",
+    "url": "https://thewise.cloud"
+  },
+  "homepage": "https://resume.thewise.cloud",
+  "documentation": "https://resume.thewise.cloud/docs/api",
+  "icons": [
+    {
+      "src": "https://resume.thewise.cloud/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://resume.thewise.cloud/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "endpoints": [],
+  "transports": [],
+  "authorization": {
+    "type": "oauth2",
+    "metadata_url": "https://resume.thewise.cloud/.well-known/oauth-protected-resource",
+    "authorization_servers": ["https://thewisecloud.kinde.com"]
+  },
+  "capabilities": {
+    "tools": {
+      "discovery": "webmcp",
+      "discovery_url": "https://resume.thewise.cloud/"
+    },
+    "resources": {
+      "api_catalog": "https://resume.thewise.cloud/.well-known/api-catalog",
+      "agent_skills": "https://resume.thewise.cloud/.well-known/agent-skills/index.json"
+    }
+  },
+  "contact": {
+    "email": "support@thewise.cloud"
+  }
+}

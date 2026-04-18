@@ -20,6 +20,7 @@ import { getSafeMatchMedia } from '@/lib/envUtils';
 import { useSearchParams } from 'react-router-dom';
 import { useThemeLogo } from '@/hooks/useThemeLogo';
 import { LandingHeader } from '@/components/landing/LandingHeader';
+import { useWebMcp } from '@/hooks/useWebMcp';
 // LandingModeTransition uses framer-motion. Lazy-load it so framer is
 // only fetched on the first product switch (and never for users with
 // prefers-reduced-motion).
@@ -109,6 +110,11 @@ const Index = () => {
   }, []);
 
   useEffect(() => { setLpProduct(mode); }, [mode, setLpProduct]);
+
+  // Register WebMCP in-page tools so AI agents (Cloudflare AI, ChatGPT,
+  // Claude, etc.) can discover what they can do on this page. No-op in
+  // browsers without `navigator.modelContext`.
+  useWebMcp({ navigate, setMode });
 
   /* Phase 5: stamp <body> with landing scheme/product data attributes so
      the themed fallback background rules in index-landing.css remain

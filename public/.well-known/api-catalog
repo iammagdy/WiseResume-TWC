@@ -1,0 +1,28 @@
+{
+  "linkset": [
+    {
+      "anchor": "https://resume.thewise.cloud/",
+      "service-desc": [
+        {
+          "href": "https://resume.thewise.cloud/docs/api",
+          "type": "text/html",
+          "title": "WiseResume / WiseHire public API documentation"
+        }
+      ],
+      "service-doc": [
+        {
+          "href": "https://resume.thewise.cloud/docs/api",
+          "type": "text/html",
+          "title": "WiseResume / WiseHire public API documentation"
+        }
+      ],
+      "service-meta": [
+        {
+          "href": "https://resume.thewise.cloud/.well-known/oauth-protected-resource",
+          "type": "application/json",
+          "title": "OAuth Protected Resource Metadata (RFC 9728)"
+        }
+      ]
+    }
+  ]
+}

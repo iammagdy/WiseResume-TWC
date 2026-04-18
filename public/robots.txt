@@ -13,4 +13,8 @@ Allow: /
 User-agent: *
 Disallow: /p/
 
+# Cloudflare Content Signals (https://developers.cloudflare.com/bots/concepts/content-signals/)
+# Tells crawlers how this site's content may be used.
+Content-Signal: search=yes, ai-input=yes, ai-train=no
+
 Sitemap: https://resume.thewise.cloud/sitemap.xml

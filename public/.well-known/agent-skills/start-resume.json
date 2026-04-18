@@ -1,0 +1,26 @@
+{
+  "$schema": "https://agent-skills.dev/schemas/v0.2.0/skill.schema.json",
+  "id": "start-resume",
+  "name": "Start a new resume",
+  "version": "0.1.0",
+  "description": "Open the WiseResume builder so the user can create a new AI-tailored resume from a job description.",
+  "license": "proprietary",
+  "entrypoint": "https://resume.thewise.cloud/?tailor=1",
+  "method": "GET",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "job_description": {
+        "type": "string",
+        "description": "Optional job description text to seed the resume tailoring flow."
+      }
+    },
+    "additionalProperties": false
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "redirect_url": { "type": "string", "format": "uri" }
+    }
+  }
+}
