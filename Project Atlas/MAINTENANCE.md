@@ -1,8 +1,22 @@
 # Project Atlas — Maintenance Protocol
 
-**Last verified:** 2026-04-17
+**Last verified:** 2026-04-18
 
 This file defines how the Atlas is kept honest. Everyone editing the Atlas — human or agent — must follow it.
+
+---
+
+## Three-surface documentation rule (governance — supreme)
+
+`project-governance/CONSTITUTION.md` §6.5 + §6.6 require **every** accepted change to the platform to be documented in **all three** surfaces before the task is "done" — no exceptions:
+
+1. **`Project Atlas/01-Currently Implemented/`** — engineering reference card (this folder).
+2. **`Project Atlas/04-For You (Plain Language)/`** — plain-language paragraph for the owner. Required for every change. Write a full paragraph when the change is user-visible; a single sentence noting "no owner-visible change" is acceptable for purely internal refactors, but the file MUST still be edited.
+3. **`project-governance/CHANGELOG.md`** — internal governance changelog entry.
+
+The constitution is the source of truth for this rule. This file mirrors it for Atlas editors and extends the per-change mapping below. The in-app "What's New" page (`src/pages/WhatsNewPage.tsx`) is **not** part of this rule.
+
+If a card is added under `01-Currently Implemented/` for a topic that has no fitting subfolder, place it under `01-Currently Implemented/stability-fixes/` (or another topical subfolder) and add it to that subfolder's `README.md` index.
 
 ---
 
@@ -72,6 +86,14 @@ When source files change, the corresponding Atlas docs must be re-verified withi
 | `specs/002-wise-ai-agent-evolution/spec.md` | `02-Planned/wise-ai-phases-2-3.md` |
 | `Routing AI Providers/*` | `02-Planned/ai-routing-rollout.md` |
 | `docs/ai_features_design.md` | `02-Planned/ai-features-8-pack.md` |
+| `vite.config.ts` / build config / lazy-loading wrappers (`src/lib/lazyWithRetry.ts`) | The relevant `01-Currently Implemented/frontend-layer/` card or a `01-Currently Implemented/stability-fixes/` card. Plain-language: full paragraph in `04-For You (Plain Language)/current-features.md` or `…/stability-improvements.md` when user-visible (faster page, recovered chunk loads); otherwise a single-sentence "no owner-visible change" note in the same files. |
+| Server-side scheduled jobs / background sweeps (`server/index.ts` intervals, retention sweeps) | A `01-Currently Implemented/stability-fixes/` card and the affected `database-tables/<table>.md`. Plain-language: full paragraph in `…/stability-improvements.md` when user-visible; otherwise a single-sentence note. |
+| AI provider resilience (circuit breaker tables, BYOK error classification, fallback skips) | `01-Currently Implemented/critical-systems/02-ai-routing-chain.md` AND a `stability-fixes/` card. Plain-language: full paragraph in `…/stability-improvements.md` (faster fallback and clearer errors are user-visible by definition). |
+| Component-level background work hygiene (visibility-paused polling, debounced scoring, Web Workers) | A `01-Currently Implemented/stability-fixes/` card. Plain-language: full paragraph in `…/stability-improvements.md` when the user notices smoother typing / uploads / less wasted quota; otherwise a single-sentence note. |
+| Analytics / data-lifecycle changes (BRIN indexes, retention windows on `portfolio_visits`, `error_log`, `audit_logs`) | A `01-Currently Implemented/stability-fixes/` card and the affected `database-tables/<table>.md`. Plain-language: full paragraph in `…/stability-improvements.md` when user-visible; otherwise a single-sentence "no owner-visible change" note. |
+| Governance changes themselves (constitution amendments, new ADRs, this maintenance file) | No new card under `01-Currently Implemented/` (governance is its own canonical source), but the affected Atlas indexes (`README.md`s) MUST be re-verified and bumped if the rule changes how the Atlas is maintained. Plain-language: a one-sentence note in `…/current-features.md` or `…/stability-improvements.md` recording the policy change. |
+
+**Plain-language doc reminder.** The plain-language surface MUST be touched for **every** accepted change, not only user-visible ones. For user-visible changes (page speed, error recovery, message clarity, new admin endpoint, new automatic background task), update `Project Atlas/04-For You (Plain Language)/current-features.md` or `Project Atlas/04-For You (Plain Language)/stability-improvements.md` with a full paragraph. For purely internal refactors, a single-sentence "no owner-visible change" entry in the same files is acceptable — but skipping the surface entirely is not. The constitution (§6.5) treats any skipped surface as an incomplete task.
 
 When you re-verify a doc, bump its `**Last verified:**` line. When a source moves or is renamed, update the citation.
 

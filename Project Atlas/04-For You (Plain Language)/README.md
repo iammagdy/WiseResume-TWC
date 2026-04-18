@@ -1,6 +1,6 @@
 # 04 — For You (Plain Language)
 
-**Last verified:** 2026-04-17
+**Last verified:** 2026-04-18
 **Type:** index
 **Audience:** the owner.
 **Sources (governance — supreme):**
@@ -42,6 +42,7 @@ If you ever want to dig deeper into the "how" behind any topic, the engineering 
 ## Contents
 
 - [Current features](./current-features.md)
+- [Stability improvements](./stability-improvements.md) — what's getting faster / safer / cheaper behind the scenes (the 2026-Q2 stability initiative, Phases 1–5)
 - [Coming soon](./coming-soon.md)
 - [Under discussion](./under-discussion.md)
 - [Glossary](./glossary.md)

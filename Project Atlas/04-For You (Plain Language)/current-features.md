@@ -1,6 +1,6 @@
 # What Wise Cloud Can Do Today
 
-**Last verified:** 2026-04-17
+**Last verified:** 2026-04-18
 **Audience:** you (the owner). No code, no jargon, no technical paths.
 **Sources (governance — supreme):**
 - `project-governance/PRODUCT.md` § 2 (WiseResume) and § 3 (WiseHire)
@@ -106,4 +106,4 @@ A user picks which side they belong to when they sign up. **They cannot switch l
 
 ---
 
-For the engineering-level view of any of these features, see the "Currently Implemented" folder of this Atlas.
+For the engineering-level view of any of these features, see the "Currently Implemented" folder of this Atlas. For the **stability and performance work** that's happening behind the scenes — faster editor, smarter AI fallback, automatic cleanup of old analytics data — see the [stability improvements](./stability-improvements.md) sibling doc.

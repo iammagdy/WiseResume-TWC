@@ -114,11 +114,44 @@ For any implementation or modification task, the task is only considered "done" 
 
 1. The required code changes have been applied to the user-specified branch.
 2. The test suite has been executed and test outcomes have been reported, with failures either fixed or clearly reported to the user.
-3. `project-governance/CHANGELOG.md` has been updated with a new entry following the existing style.
+3. **Documentation Discipline (see §6.6) has been satisfied in full.** All three of the following surfaces MUST be updated for every accepted change, with no exceptions:
+   - `project-governance/CHANGELOG.md` — a new entry following the existing style.
+   - `Project Atlas/01-Currently Implemented/` — the matching engineering-facing reference card(s) added or updated, with `Last verified:` bumped.
+   - `Project Atlas/04-For You (Plain Language)/` — the matching plain-language paragraph added or updated. For purely internal refactors with no user-visible effect, the entry MAY be a single sentence noting that nothing changes for the owner — but the surface MUST still be touched.
 4. In your final summary back to the user, you MUST explicitly state:
    - What you changed in the code.
    - Which tests you ran and their result.
    - Exactly what you added or modified in `project-governance/CHANGELOG.md`.
+   - Exactly which Atlas files (under `01-Currently Implemented/` and `04-For You (Plain Language)/`) you added or modified, by path.
+
+A task that updates code but skips any of the three documentation surfaces above is **not** "done" and MUST NOT be marked complete.
+
+### 6.6 Documentation Discipline
+
+Every accepted change to this repository — code, schema, edge function, infrastructure, governance, dependency, or build configuration — MUST be documented in **three** surfaces before the task is considered complete:
+
+1. **`Project Atlas/01-Currently Implemented/`** — an engineering-facing reference card (or update to an existing card) in the most appropriate subfolder. If no existing subfolder fits, place the card under a topical subfolder such as `stability-fixes/` and update that subfolder's `README.md` index.
+2. **`Project Atlas/04-For You (Plain Language)/`** — a short, plain-language paragraph that describes what the owner will notice. This surface MUST be touched for every accepted change. For changes with a clear user-visible effect (faster page, fewer errors, recovered chunk loads, new admin endpoint visible in the dev kit, etc.), write the paragraph in full. For purely internal refactors with no observable effect, the entry MAY be a single sentence stating that nothing changes for the owner — but the file MUST still be edited so there is a visible record of the change in the owner-facing surface.
+3. **`project-governance/CHANGELOG.md`** — the internal governance changelog (already mandated by §6.4). One dated entry, in the existing style, scoped to the area of the fix.
+
+**Out of scope for this rule:** the **in-app, user-facing "What's New" page** (`src/pages/WhatsNewPage.tsx` and its data source) is the product's release-notes UI for end users — it is **not** a documentation surface for engineering changes and MUST NOT be edited as part of fulfilling §6.6. The in-app page follows its own product/release cadence and is updated separately when product releases are cut.
+
+**Mapping — which Atlas surfaces to touch for which kind of change:**
+
+| Kind of change | Engineering card under `01-Currently Implemented/` | Plain-language file under `04-For You (Plain Language)/` |
+|---|---|---|
+| Frontend page (`src/pages/<X>Page.tsx`) | `pages/<x>.md` | `current-features.md` |
+| Edge function (`supabase/functions/<X>/`) | `edge-functions/<x>.md` | `current-features.md` |
+| Database table or migration (`supabase/migrations/*.sql`, `server/schema.ts`) | `database-tables/<table>.md` and the `database-tables/README.md` index | `current-features.md` (or `stability-improvements.md` for internal-only schema work) |
+| Shared infra (`_shared/aiClient.ts`, `_shared/creditUtils.ts`, `_shared/rateLimiter.ts`, `_shared/authMiddleware.ts`) | the matching deep-dive in `critical-systems/` (`02-ai-routing-chain.md`, `03-credits-and-byok.md`, `04-rate-limiting.md`, `01-auth-bridge.md`) | `current-features.md` or `stability-improvements.md` |
+| Build / bundle / Vite config (`vite.config.ts`, lazy-loading, code-splitting) | a card under `frontend-layer/` or `stability-fixes/` | `current-features.md` or `stability-improvements.md` |
+| Background job / worker / scheduled sweep (`server/index.ts`, polling intervals) | a card under `stability-fixes/` and, where applicable, the relevant `critical-systems/` deep dive | `current-features.md` or `stability-improvements.md` |
+| AI provider resilience (circuit breaker, BYOK error classification) | `critical-systems/02-ai-routing-chain.md` AND a `stability-fixes/` card | `current-features.md` or `stability-improvements.md` |
+| Analytics / data-lifecycle (retention sweeps, BRIN indexes on insert-heavy tables) | `database-tables/<table>.md` and a `stability-fixes/` card | `current-features.md` or `stability-improvements.md` |
+| Governance change itself (this constitution, ADRs, maintenance protocols) | the affected Atlas index `README.md` files MUST be re-verified and bumped if the rule changes how the Atlas is maintained — no new card under `01-Currently Implemented/` because governance is its own canonical source | a one-sentence note in `current-features.md` or `stability-improvements.md` recording the policy change |
+| Dependency add / remove / pin | a one-line note in the appropriate `frontend-layer/` or `critical-systems/` card | `current-features.md` (full paragraph if user-visible, single sentence otherwise) |
+
+**Verification:** the existing `scripts/atlas-sync-check.ts` enforces **inventory** parity (every page / edge function / table has a card and vice versa). It does **not** enforce per-claim accuracy or the three-surface rule above. Per-task discipline remains a manual obligation — agents MUST self-verify against this section before calling a task complete.
 
 ---
 

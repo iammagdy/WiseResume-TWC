@@ -1,6 +1,6 @@
 # 01 — Currently Implemented
 
-**Last verified:** 2026-04-17
+**Last verified:** 2026-04-18
 **Type:** index
 **Canonical owner:** Project Atlas maintainer (see `../MAINTENANCE.md`)
 **Sources (governance — supreme):**
@@ -34,3 +34,4 @@ If a feature is committed to but not yet built, it lives in `../02-Planned/`. If
 - [`edge-functions/`](./edge-functions/) — one reference card per Supabase Edge Function
 - [`database-tables/`](./database-tables/) — one reference card per Postgres table
 - [`frontend-layer/`](./frontend-layer/) — Zustand stores, shared hooks, integration libraries
+- [`stability-fixes/`](./stability-fixes/) — cross-cutting hardening work (the 2026-Q2 stability initiative, Phases 1–5)

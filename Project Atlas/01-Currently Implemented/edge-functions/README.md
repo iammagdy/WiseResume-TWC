@@ -1,9 +1,9 @@
 # Edge Functions Index
 
-  **Last verified:** 2026-04-17
+  **Last verified:** 2026-04-18
   **Type:** index
   **Sources:**
-  - `supabase/functions/` (93 deployed functions, per `CHANGELOG.md` 2026-04-15)
+  - `supabase/functions/` (94 deployed functions — 93 per `CHANGELOG.md` 2026-04-15 plus `ai-breaker-status` added by Phase 4 of the 2026-Q2 stability initiative)
   - `project-governance/ARCHITECTURE.md` §7 (Edge Functions inventory)
   - `supabase/functions/EDGE_FUNCTION_AUDIT.md` (when available)
 
@@ -56,9 +56,10 @@
 - [wisehire-waitlist-join](./wisehire-waitlist-join.md)
 - [wisehire-write-jd](./wisehire-write-jd.md)
 
-## AI (26)
+## AI (27)
 
 - [agentic-chat](./agentic-chat.md)
+- [ai-breaker-status](./ai-breaker-status.md)
 - [ai-health](./ai-health.md)
 - [ai-test](./ai-test.md)
 - [analyze-resume](./analyze-resume.md)
@@ -133,7 +134,7 @@
 
 ---
 
-  **Total:** 93 functions.
+  **Total:** 94 functions.
 
   **Maintenance:** when you add an edge function:
   1. Create `supabase/functions/<name>/index.ts`.

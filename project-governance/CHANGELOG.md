@@ -2,6 +2,59 @@
 
 Local changelog tracking WiseResume changes.
 
+## 2026-04-18 (Governance — Documentation Discipline rule + Phases 1–5 backfill)
+
+### GOV — Documentation Discipline rule (three-surface mandate)
+
+The constitution now mandates that **every** accepted change be documented in three surfaces before a task can be marked done: (1) `Project Atlas/01-Currently Implemented/`, (2) `Project Atlas/04-For You (Plain Language)/`, (3) `project-governance/CHANGELOG.md`. The in-app "What's New" page (`src/pages/WhatsNewPage.tsx`) is **explicitly out of scope** for this rule — that page is the product's release-notes UI for end users, not an engineering-change documentation surface.
+
+- **`project-governance/CONSTITUTION.md`** — added §6.6 ("Documentation Discipline") with the three-surface mandate, the WhatsNew exclusion, and a per-change-type mapping table (frontend page / edge function / migration / shared infra / build / background job / AI resilience / analytics / governance / dependency). Updated §6.5 ("Task Completion Definition") so a task is not "done" until all three surfaces have been updated and the agent's final summary explicitly lists which Atlas files were touched.
+- **`Project Atlas/MAINTENANCE.md`** — added a "Three-surface documentation rule" section that mirrors §6.6 and points back to the constitution as the source of truth. Extended the "If you change… / Re-verify…" mapping table with rows for build/bundle changes, server-side scheduled jobs, AI provider resilience, component-level background-work hygiene, analytics/data-lifecycle, and governance changes themselves. Added an explicit reminder that the plain-language doc must be touched whenever a user-visible behavior changes. Bumped `Last verified:` to 2026-04-18.
+
+### STABILITY — Phase 1 documentation backfill (database integrity & indexes)
+
+Phase 1 of the 2026-Q2 stability initiative — adding `ON DELETE CASCADE` foreign keys to every relational column in the Drizzle schema and adding the 18 missing FK-style B-tree indexes — is documented after the fact to bring Atlas in line with the new three-surface rule. No code changes in this entry; documentation only.
+
+- **Engineering card**: `Project Atlas/01-Currently Implemented/stability-fixes/phase-1-db-integrity-and-indexes.md` (new).
+- **Plain-language summary**: "Phase 1 — A more careful database" section in `Project Atlas/04-For You (Plain Language)/stability-improvements.md` (new doc).
+- **Source brief**: `.local/tasks/phase-1-db-integrity.md`. **Files touched by the underlying work**: `server/schema.ts`, `server/db.ts`, `drizzle.config.ts`, `server/index.ts`.
+
+### STABILITY — Phase 2 documentation backfill (frontend re-render & bundle fixes)
+
+Phase 2 — `React.memo` on resume template sub-components, 80–120ms debounce on `LivePreviewPanel`, removal of `framer-motion` from layout-shell primitives, `lazyWithRetry` on `AuroraBackground`, and `@tanstack/react-virtual` on the dashboard resume list past ~30 rows — is documented for Atlas. No code in this entry; documentation only.
+
+- **Engineering card**: `Project Atlas/01-Currently Implemented/stability-fixes/phase-2-frontend-rerender-and-bundle.md` (new).
+- **Plain-language summary**: "Phase 2 — A snappier resume editor and a faster homepage" in `Project Atlas/04-For You (Plain Language)/stability-improvements.md`.
+- **Source brief**: `.local/tasks/phase-2-frontend-rerender.md`. **Files touched by the underlying work**: `vite.config.ts`, `src/AppInterior.tsx`, `src/components/templates/`, `src/components/editor/LivePreviewPanel.tsx`, `src/lib/lazyWithRetry.ts`, `src/pages/DashboardPage.tsx`.
+
+### STABILITY — Phase 3 documentation backfill (background work hygiene)
+
+Phase 3 — `visibilitychange`-driven pause of `AIHealthBadge` polling, OCR moved to a Web Worker, `pdfjs-dist` worker enabled with per-page yield, 250–400ms debounce on `useResumeScore`, and a sweep of all component-level `setInterval` / `setTimeout` cleanups — is documented for Atlas. Documentation only.
+
+- **Engineering card**: `Project Atlas/01-Currently Implemented/stability-fixes/phase-3-background-work-hygiene.md` (new).
+- **Plain-language summary**: "Phase 3 — The platform stops working when you're not looking" in `Project Atlas/04-For You (Plain Language)/stability-improvements.md`.
+- **Source brief**: `.local/tasks/phase-3-background-hygiene.md`. **Files touched by the underlying work**: `src/components/ai/AIHealthBadge.tsx`, `src/hooks/useActiveStatus.ts`, `src/lib/pdfParser.ts`, `src/hooks/useResumeScore.ts`.
+
+### STABILITY — Phase 4 documentation backfill (AI provider resilience)
+
+Phase 4 — new `ai_provider_breaker` table + upsert RPC, circuit-breaker logic in `_shared/aiClient.ts` (5 failures in 60s opens for 60s, then a single probe), explicit `usage_date` pass-through to `atomic_refund_credit` in `_shared/creditUtils.ts` to fix the off-by-day refund bug, structured BYOK error classification (`invalid_key` / `quota_exceeded` / `upstream_5xx`) surfaced via `useAIAction` / `useAIEnhance`, and a new admin-gated `/api/fn/ai-breaker-status` endpoint — is documented for Atlas. Documentation only.
+
+- **Engineering card**: `Project Atlas/01-Currently Implemented/stability-fixes/phase-4-ai-provider-resilience.md` (new).
+- **Plain-language summary**: "Phase 4 — When an AI provider has a bad day, we don't make you wait for it" in `Project Atlas/04-For You (Plain Language)/stability-improvements.md`.
+- **Source brief**: `.local/tasks/phase-4-ai-resilience.md`. **Files touched by the underlying work**: `supabase/functions/_shared/aiClient.ts`, `supabase/functions/_shared/creditUtils.ts`, `supabase/functions/_shared/dbClient.ts`, `supabase/functions/ai-health/index.ts`, `server/schema.ts`, `src/hooks/useAIAction.ts`, `src/hooks/useAIEnhance.ts`.
+
+### STABILITY — Phase 5 documentation backfill (analytics data lifecycle)
+
+Phase 5 — BRIN indexes on `created_at` for `portfolio_visits`, `error_log`, `audit_logs`; a once-per-day Express-process retention sweep deleting in 10k batches; env-tunable retention windows (defaults: 90 / 30 / 365 days); per-table deleted-row-count logging; an admin status endpoint; and the policy section in `replit.md` — is documented for Atlas. Documentation only.
+
+- **Engineering card**: `Project Atlas/01-Currently Implemented/stability-fixes/phase-5-analytics-data-lifecycle.md` (new).
+- **Plain-language summary**: "Phase 5 — Old analytics data is now cleaned up automatically" in `Project Atlas/04-For You (Plain Language)/stability-improvements.md`.
+- **Source brief**: `.local/tasks/phase-5-data-lifecycle.md`. **Files touched by the underlying work**: `server/schema.ts`, `server/index.ts`, `replit.md`.
+
+**Files changed in this changelog entry**: `project-governance/CONSTITUTION.md`, `project-governance/CHANGELOG.md`, `Project Atlas/MAINTENANCE.md`, `Project Atlas/01-Currently Implemented/README.md`, `Project Atlas/01-Currently Implemented/stability-fixes/` (new subfolder, 1 README + 5 cards), `Project Atlas/04-For You (Plain Language)/README.md`, `Project Atlas/04-For You (Plain Language)/current-features.md`, `Project Atlas/04-For You (Plain Language)/stability-improvements.md` (new).
+
+---
+
 ## 2026-04-23 (Governance — AUDIT-2026-04 Backfill)
 
 ### GOV — Project governance refresh against live codebase
