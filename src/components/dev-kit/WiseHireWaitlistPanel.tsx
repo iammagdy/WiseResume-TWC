@@ -24,6 +24,8 @@ import {
 import { toast } from 'sonner';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { getDevKitToken } from '@/contexts/DevKitSessionContext';
+import { useIsMounted } from '@/lib/devkit/hooks';
+import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
 
 interface WaitlistEntry {
   id: string;
@@ -79,24 +81,26 @@ export function WiseHireWaitlistPanel() {
   const [inviteResult, setInviteResult] = useState<InviteResult | null>(null);
   const [inviteFor, setInviteFor] = useState<string>('');
 
+  const isMounted = useIsMounted();
+
   const fetchEntries = useCallback(async (pageNum: number, searchVal: string) => {
     setLoading(true);
     setError(null);
     try {
-      const { data, error: err } = await edgeFunctions.functions.invoke('admin-wisehire-waitlist', {
+      const tuple = await edgeFunctions.functions.invoke('admin-wisehire-waitlist', {
         body: { password: getDevKitToken(), page: pageNum, per_page: PER_PAGE, search: searchVal },
       });
-      if (err) throw new Error(err.message);
-      const result = data as { success?: boolean; entries?: WaitlistEntry[]; total?: number; error?: string };
-      if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
-      setEntries(result?.entries ?? []);
-      setTotal(result?.total ?? 0);
+      const result = unwrapAdminResponse<{ entries?: WaitlistEntry[]; total?: number }>(tuple, 'admin-wisehire-waitlist');
+      if (!isMounted()) return;
+      setEntries(result.entries ?? []);
+      setTotal(result.total ?? 0);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load waitlist');
+      if (!isMounted()) return;
+      setError(formatEdgeError(e, 'Failed to load waitlist'));
     } finally {
-      setLoading(false);
+      if (isMounted()) setLoading(false);
     }
-  }, []);
+  }, [isMounted]);
 
   useEffect(() => { fetchEntries(page, search); }, [fetchEntries, page, search]);
 
@@ -109,24 +113,26 @@ export function WiseHireWaitlistPanel() {
   const handleInvite = async (entry: WaitlistEntry) => {
     setInviting(entry.id);
     try {
-      const { data, error: err } = await edgeFunctions.functions.invoke('admin-wisehire-invite', {
+      const tuple = await edgeFunctions.functions.invoke('admin-wisehire-invite', {
         body: {
           password: getDevKitToken(),
           recipient_email: entry.email,
           waitlist_id: entry.id,
         },
       });
-      if (err) throw new Error(err.message);
-      const result = data as { success?: boolean; invite_url?: string; expires_at?: string; error?: string };
-      if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
+      const result = unwrapAdminResponse<{ invite_url?: string; expires_at?: string }>(tuple, 'admin-wisehire-invite');
+      if (!result.invite_url || !result.expires_at) {
+        throw new Error('Invite URL or expiry missing from server response');
+      }
+      if (!isMounted()) return;
       toast.success(`Invite sent to ${entry.email}`);
       setInviteFor(entry.email);
-      setInviteResult({ invite_url: result.invite_url!, expires_at: result.expires_at! });
+      setInviteResult({ invite_url: result.invite_url, expires_at: result.expires_at });
       setEntries(prev => prev.map(e => e.id === entry.id ? { ...e, invited_at: new Date().toISOString() } : e));
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to send invite');
+      toast.error(formatEdgeError(e, 'Failed to send invite'));
     } finally {
-      setInviting(null);
+      if (isMounted()) setInviting(null);
     }
   };
 

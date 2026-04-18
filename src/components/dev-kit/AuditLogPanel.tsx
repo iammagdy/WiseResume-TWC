@@ -6,6 +6,8 @@ import { Input } from '@/components/ui/input';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { getDevKitToken } from '@/contexts/DevKitSessionContext';
 import { toast } from 'sonner';
+import { useIsMounted, useVisibleInterval } from '@/lib/devkit/hooks';
+import { unwrapAdminResponse, formatEdgeError, EdgeFunctionError } from '@/lib/devkit/edgeResponse';
 
 interface AuditLog {
   id: string;
@@ -100,11 +102,18 @@ export function AuditLogPanel() {
   const [exportingCSV, setExportingCSV] = useState(false);
 
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isMounted = useIsMounted();
+
+  // Cleanup any pending debounce on unmount so we don't setState after unmount.
+  useEffect(() => () => {
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+  }, []);
 
   const handleSearchChange = (val: string) => {
     setSearchInput(val);
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     searchDebounceRef.current = setTimeout(() => {
+      if (!isMounted()) return;
       setSearch(val);
       setPage(1);
     }, 500);
@@ -115,7 +124,7 @@ export function AuditLogPanel() {
     setError(null);
     setNotDeployed(false);
     try {
-      const { data, error: err } = await edgeFunctions.functions.invoke('admin-audit-logs', {
+      const tuple = await edgeFunctions.functions.invoke('admin-audit-logs', {
         body: {
           password: getDevKitToken(),
           limit: PER_PAGE,
@@ -126,24 +135,22 @@ export function AuditLogPanel() {
           date_to: dateTo ? new Date(dateTo + 'T23:59:59').toISOString() : null,
         },
       });
-      if (err) {
-        if (err.message?.includes('Failed to fetch') || err.status === 404) {
-          setNotDeployed(true);
-          return;
-        }
-        throw new Error(err.message);
-      }
-      const result = data as { success?: boolean; logs?: AuditLog[]; total?: number; message?: string; error?: string };
-      if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
-      setLogs(result?.logs ?? []);
-      setTotal(result?.total ?? (result?.logs ?? []).length);
-      if (result?.message) setError(result.message);
+      const result = unwrapAdminResponse<{ logs?: AuditLog[]; total?: number; message?: string }>(tuple, 'admin-audit-logs');
+      if (!isMounted()) return;
+      setLogs(result.logs ?? []);
+      setTotal(result.total ?? (result.logs ?? []).length);
+      if (result.message) setError(result.message);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load audit logs');
+      if (!isMounted()) return;
+      if (e instanceof EdgeFunctionError && e.notDeployed) {
+        setNotDeployed(true);
+        return;
+      }
+      setError(formatEdgeError(e, 'Failed to load audit logs'));
     } finally {
-      setLoading(false);
+      if (isMounted()) setLoading(false);
     }
-  }, [actionFilter, search, dateFrom, dateTo]);
+  }, [actionFilter, search, dateFrom, dateTo, isMounted]);
 
   useEffect(() => {
     setPage(1);
@@ -154,15 +161,13 @@ export function AuditLogPanel() {
     fetchLogs(page);
   }, [page]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    const interval = setInterval(() => fetchLogs(page), 30_000);
-    return () => clearInterval(interval);
-  }, [fetchLogs, page]);
+  // Visibility-aware refresh — pause polling while the DevKit tab is hidden.
+  useVisibleInterval(() => fetchLogs(page), 30_000);
 
   const handleExportCSV = async () => {
     setExportingCSV(true);
     try {
-      const { data, error: err } = await edgeFunctions.functions.invoke('admin-audit-logs', {
+      const tuple = await edgeFunctions.functions.invoke('admin-audit-logs', {
         body: {
           password: getDevKitToken(),
           limit: 0,
@@ -173,11 +178,10 @@ export function AuditLogPanel() {
           date_to: dateTo ? new Date(dateTo + 'T23:59:59').toISOString() : null,
         },
       });
-      if (err) throw new Error(err.message);
-      const result = data as { success?: boolean; logs?: AuditLog[] };
-      const allLogs = result?.logs ?? [];
+      const result = unwrapAdminResponse<{ logs?: AuditLog[] }>(tuple, 'admin-audit-logs');
+      if (!isMounted()) return;
+      const allLogs = result.logs ?? [];
       if (!allLogs.length) {
-        setExportingCSV(false);
         return;
       }
       if (allLogs.length >= 10_000) {
@@ -206,9 +210,10 @@ export function AuditLogPanel() {
       a.click();
       URL.revokeObjectURL(url);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to export CSV');
+      if (!isMounted()) return;
+      setError(formatEdgeError(e, 'Failed to export CSV'));
     } finally {
-      setExportingCSV(false);
+      if (isMounted()) setExportingCSV(false);
     }
   };
 

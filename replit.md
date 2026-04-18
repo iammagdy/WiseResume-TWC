@@ -292,6 +292,8 @@ Every panel should reach for these instead of hand-rolling unmount safety or res
 - `src/lib/devkit/edgeResponse.ts` — `unwrapAdminResponse<T>(invokeTuple, fnName)` validates the `{ data, error }` tuple from `edgeFunctions.functions.invoke(...)` and throws `EdgeFunctionError` on transport errors, missing payloads, `{ success: false }` responses, or 404 ("not deployed"). Use `tryUnwrapAdminResponse` for optional/secondary fetches and `formatEdgeError(e, fallback)` for surfacing.
 - `src/components/dev-kit/DevKitPanelBoundary.tsx` — wraps the panel-render slot in `DevToolsPage` so a single panel crash never takes down the DevKit shell. Boundary resets per tab via `key={activeTab}`.
 
+As of phase-2 (2026-04-18), every admin panel routes its `edgeFunctions.functions.invoke` calls through `unwrapAdminResponse` and gates post-await `setState` behind `useIsMounted()`. New panels MUST follow this pattern — do not hand-roll `as { success?, error? }` casts. `AdminUsersPanel`'s bulk-action confirm dialog also opens a per-row results table afterwards; reuse that pattern for any future bulk admin operation so failures cannot hide behind an aggregated toast.
+
 ## Server-side LinkedIn Importer (Task #8)
 Endpoint: `POST /api/linkedin-profile` (in `server/index.ts`).
 - Provider: Proxycurl (`PROXYCURL_API_KEY` env var). Endpoint returns 503 when the key is missing — frontend then falls back to OG-meta best-effort via `/api/fetch-url`.

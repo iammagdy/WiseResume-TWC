@@ -60,15 +60,37 @@ resets per tab via `key={activeTab}`.
   lightweight admin functions.
 - `PortfolioUsernamesPanel` `UserSearchInput` is debounced at 250 ms.
 
-## What's deferred
-- Adopting `unwrapAdminResponse` across the remaining panels (AdminUsersPanel,
-  AppSettingsPanel, AuditLogPanel, CouponsPanel, EmailManagementPanel,
-  PortfolioUsernamesPanel, WiseHireWaitlistPanel) is a mechanical follow-up
-  with no functional change — kept out of this pass to keep the diff
-  reviewable.
-- AdminUsersPanel bulk-action result table (per-row outcomes).
-- Migrating remaining `setInterval` callers to `useVisibleInterval`.
+## Phase 2 follow-up (2026-04-18, same day)
+The reviewer rejected the original "deferred" list as out-of-scope drift —
+DevKit must have **zero known bugs**. This pass closes every item:
+
+### `unwrapAdminResponse` adoption — complete
+All admin panels now route every `edgeFunctions.functions.invoke` tuple
+through `unwrapAdminResponse` / `tryUnwrapAdminResponse`, eliminating the
+"transport vs payload vs `{success:false}`" three-way drift:
+- `AppSettingsPanel`, `AuditLogPanel` (incl. `useVisibleInterval` for the
+  poll loop + debounce cleanup), `CouponsPanel`, `WiseHireWaitlistPanel`,
+  `EmailManagementPanel` (6 invoke sites incl. the diagnose-domain
+  `useEffect`), `PortfolioUsernamesPanel` (via shared `invoke()` helper),
+  `OnboardingFunnelPanel`, and `AdminUsersPanel` (`fetchUsers`,
+  `handleBulkConfirm`'s 4 action variants, `handleExportCSV`'s pagination
+  loop, and the audit-log write).
+
+### Unmount-guard sweep — complete
+Every panel touched in this pass added `useIsMounted()` and now gates
+post-await `setState` calls + `finally` `setLoading(false)` behind
+`isMounted()`. Eliminates the "set state on unmounted component" warnings
+during fast tab-switching while a request is in flight.
+
+### `AdminUsersPanel` bulk-action result table — shipped
+After Apply Plan / Suspend / Unsuspend / Grant Trial completes, a
+`<Dialog>` opens listing every targeted user with a green "OK" or red
+"Fail" badge plus the per-row error reason (`formatEdgeError` output).
+Replaces the old behavior of a single aggregated toast hiding which
+specific users failed and why. The CSV-export audit-log write also no
+longer blocks the export on its own failure — it surfaces a warning
+toast instead.
 
 ## Verification
-- `tsc --noEmit` clean.
+- `tsc --noEmit` clean (both passes).
 - `vite build` clean (522 precache entries, no new warnings).

@@ -54,6 +54,7 @@ import { toast } from 'sonner';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { getDevKitToken } from '@/contexts/DevKitSessionContext';
 import { cn } from '@/lib/utils';
+import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
 
 type DirectoryRow = {
   user_id: string;
@@ -107,14 +108,15 @@ async function invoke<T = unknown>(
   action: string,
   extra: Record<string, unknown> = {},
 ): Promise<{ data: T | null; error: string | null }> {
-  const { data, error } = await edgeFunctions.functions.invoke('admin-portfolio-usernames', {
-    body: { password: getDevKitToken(), action, ...extra },
-  });
-  if (error) return { data: null, error: error.message || 'Request failed' };
-  if (data && typeof data === 'object' && (data as { success?: boolean }).success === false) {
-    return { data: null, error: (data as { error?: string }).error || 'Request failed' };
+  try {
+    const tuple = await edgeFunctions.functions.invoke('admin-portfolio-usernames', {
+      body: { password: getDevKitToken(), action, ...extra },
+    });
+    const result = unwrapAdminResponse<T>(tuple, 'admin-portfolio-usernames');
+    return { data: result, error: null };
+  } catch (e) {
+    return { data: null, error: formatEdgeError(e, 'Request failed') };
   }
-  return { data: data as T, error: null };
 }
 
 // ============================================================

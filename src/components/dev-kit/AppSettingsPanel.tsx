@@ -16,6 +16,8 @@ import {
 import { toast } from 'sonner';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { getDevKitToken } from '@/contexts/DevKitSessionContext';
+import { useIsMounted } from '@/lib/devkit/hooks';
+import { unwrapAdminResponse, formatEdgeError, EdgeFunctionError } from '@/lib/devkit/edgeResponse';
 
 const FEATURE_FLAGS: { key: string; label: string; description: string }[] = [
   { key: 'feature_cover_letters', label: 'Cover Letters', description: 'Enable cover letter generation feature' },
@@ -38,17 +40,18 @@ export function AppSettingsPanel() {
   const [resetCreditsDialogOpen, setResetCreditsDialogOpen] = useState(false);
   const [maintenanceDialogOpen, setMaintenanceDialogOpen] = useState(false);
 
+  const isMounted = useIsMounted();
+
   const fetchSettings = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const { data, error: err } = await edgeFunctions.functions.invoke('admin-get-settings', {
+      const tuple = await edgeFunctions.functions.invoke('admin-get-settings', {
         body: { password: getDevKitToken() },
       });
-      if (err) throw new Error(err.message);
-      const result = data as { success?: boolean; settings?: Record<string, unknown>; error?: string };
-      if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
-      const raw = result?.settings ?? {};
+      const result = unwrapAdminResponse<{ settings?: Record<string, unknown> }>(tuple, 'admin-get-settings');
+      if (!isMounted()) return;
+      const raw = result.settings ?? {};
       const parsed: Record<string, boolean | string | null> = {};
       for (const [k, v] of Object.entries(raw)) {
         if (typeof v === 'boolean') parsed[k] = v;
@@ -62,29 +65,29 @@ export function AppSettingsPanel() {
       const gl = raw['global_daily_limit'];
       setGlobalLimitInput(gl != null && gl !== '' ? String(gl) : '');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load settings');
+      if (!isMounted()) return;
+      setError(formatEdgeError(e, 'Failed to load settings'));
     } finally {
-      setLoading(false);
+      if (isMounted()) setLoading(false);
     }
-  }, []);
+  }, [isMounted]);
 
   useEffect(() => { fetchSettings(); }, [fetchSettings]);
 
   const updateSetting = async (key: string, value: boolean | string | null) => {
     setSaving(key);
     try {
-      const { data, error: err } = await edgeFunctions.functions.invoke('admin-update-settings', {
+      const tuple = await edgeFunctions.functions.invoke('admin-update-settings', {
         body: { password: getDevKitToken(), key, value },
       });
-      if (err) throw new Error(err.message);
-      const result = data as { success?: boolean; error?: string };
-      if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
+      unwrapAdminResponse(tuple, 'admin-update-settings');
+      if (!isMounted()) return;
       setSettings((prev) => ({ ...prev, [key]: value }));
       toast.success('Setting updated');
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to update setting');
+      toast.error(formatEdgeError(e, 'Failed to update setting'));
     } finally {
-      setSaving(null);
+      if (isMounted()) setSaving(null);
     }
   };
 
@@ -106,27 +109,22 @@ export function AppSettingsPanel() {
   const handleResetCreditsConfirm = async () => {
     setResettingCredits(true);
     try {
-      const { data, error: err } = await edgeFunctions.functions.invoke('admin-reset-credits', {
+      const tuple = await edgeFunctions.functions.invoke('admin-reset-credits', {
         body: { password: getDevKitToken() },
       });
-      if (err) {
-        const errStatus = typeof err === 'object' && err !== null && 'status' in err ? (err as { status: unknown }).status : undefined;
-        if (err.message?.includes('Failed to fetch') || errStatus === 404) {
-          toast.info('admin-reset-credits not deployed', {
-            description: 'Deploy the admin-reset-credits edge function to use this feature.',
-            duration: 6000,
-          });
-          return;
-        }
-        throw new Error(err.message);
-      }
-      const result = data as { success?: boolean; reset_count?: number; error?: string };
-      if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
+      const result = unwrapAdminResponse<{ reset_count?: number }>(tuple, 'admin-reset-credits');
       toast.success(`Daily AI credits reset for ${result.reset_count ?? 'all'} users`);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to reset credits');
+      if (e instanceof EdgeFunctionError && e.notDeployed) {
+        toast.info('admin-reset-credits not deployed', {
+          description: 'Deploy the admin-reset-credits edge function to use this feature.',
+          duration: 6000,
+        });
+      } else {
+        toast.error(formatEdgeError(e, 'Failed to reset credits'));
+      }
     } finally {
-      setResettingCredits(false);
+      if (isMounted()) setResettingCredits(false);
     }
   };
 

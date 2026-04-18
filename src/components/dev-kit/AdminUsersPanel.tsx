@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { RefreshCw, Search, Users, Download, Filter, ChevronDown, CheckSquare, Square, X, Crown, ShieldOff, Shield, Zap, AlertTriangle } from 'lucide-react';
+import { RefreshCw, Search, Users, Download, Filter, ChevronDown, CheckSquare, Square, X, Crown, ShieldOff, Shield, Zap, AlertTriangle, CheckCircle2, XCircle } from 'lucide-react';
 import { AccountTypeBadge } from './DevKitBadges';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +9,23 @@ import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
 import { getDevKitToken } from '@/contexts/DevKitSessionContext';
 import { UserDetailDrawer } from './UserDetailDrawer';
 import { toast } from 'sonner';
+import { useIsMounted } from '@/lib/devkit/hooks';
+import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from '@/components/ui/dialog';
+
+interface BulkActionResult {
+  user_id: string;
+  email: string;
+  status: 'success' | 'error';
+  error?: string;
+}
 
 export interface AdminUser {
   user_id: string;
@@ -201,6 +218,11 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkAction, setBulkAction] = useState<BulkAction | null>(null);
   const [bulkRunning, setBulkRunning] = useState(false);
+  const [bulkResults, setBulkResults] = useState<BulkActionResult[]>([]);
+  const [bulkResultsOpen, setBulkResultsOpen] = useState(false);
+  const [bulkResultsLabel, setBulkResultsLabel] = useState<string>('');
+
+  const isMounted = useIsMounted();
 
   const PER_PAGE = 50;
 
@@ -209,7 +231,7 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
     if (!append) setError(null);
     try {
       const password = getDevKitToken();
-      const { data, error: err } = await edgeFunctions.functions.invoke('admin-list-users', {
+      const tuple = await edgeFunctions.functions.invoke('admin-list-users', {
         body: {
           password,
           page: pageNum,
@@ -220,11 +242,10 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
           search: query.trim() || undefined,
         },
       });
-      if (err) throw new Error(err.message);
-      const result = data as { success?: boolean; users?: AdminUser[]; total?: number; error?: string };
-      if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
-      const list = result?.users ?? [];
-      const tot = result?.total ?? list.length;
+      const result = unwrapAdminResponse<{ users?: AdminUser[]; total?: number }>(tuple, 'admin-list-users');
+      if (!isMounted()) return;
+      const list = result.users ?? [];
+      const tot = result.total ?? list.length;
       if (append) {
         setUsers((prev) => [...prev, ...list]);
       } else {
@@ -239,12 +260,12 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
       onCountChange?.(tot);
       setLoaded(true);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Failed to load users';
-      setError(msg);
+      if (!isMounted()) return;
+      setError(formatEdgeError(e, 'Failed to load users'));
     } finally {
-      setLoading(false);
+      if (isMounted()) setLoading(false);
     }
-  }, [planFilter, sort, query, filterTab, onCountChange]);
+  }, [planFilter, sort, query, filterTab, onCountChange, isMounted]);
 
   useEffect(() => {
     setPage(1);
@@ -302,50 +323,70 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
 
   const selectedUsers = users.filter(u => selectedIds.has(u.user_id));
 
+  const ACTION_LABELS_BULK: Record<BulkAction, string> = {
+    plan_change: 'Change Plan',
+    suspend: 'Suspend',
+    unsuspend: 'Unsuspend',
+    trial_grant: 'Grant Trial',
+  };
+
   const handleBulkConfirm = async (params: { plan?: string; days?: number; trialPlan?: string }) => {
     if (!bulkAction) return;
     setBulkRunning(true);
     const pw = getDevKitToken();
-    let successCount = 0;
-    let failCount = 0;
+    const actionLabel = ACTION_LABELS_BULK[bulkAction];
+    const results: BulkActionResult[] = [];
 
     for (const user of selectedUsers) {
       try {
+        let tuple;
         if (bulkAction === 'plan_change') {
-          const { data, error } = await edgeFunctions.functions.invoke('admin-set-plan', {
+          tuple = await edgeFunctions.functions.invoke('admin-set-plan', {
             body: { password: pw, target_user_id: user.user_id, plan: params.plan },
           });
-          if (error || (data as { success?: boolean })?.success === false) throw new Error();
         } else if (bulkAction === 'suspend') {
-          const { data, error } = await edgeFunctions.functions.invoke('admin-suspend-user', {
+          tuple = await edgeFunctions.functions.invoke('admin-suspend-user', {
             body: { password: pw, target_user_id: user.user_id, suspend: true },
           });
-          if (error || (data as { success?: boolean })?.success === false) throw new Error();
         } else if (bulkAction === 'unsuspend') {
-          const { data, error } = await edgeFunctions.functions.invoke('admin-suspend-user', {
+          tuple = await edgeFunctions.functions.invoke('admin-suspend-user', {
             body: { password: pw, target_user_id: user.user_id, suspend: false },
           });
-          if (error || (data as { success?: boolean })?.success === false) throw new Error();
-        } else if (bulkAction === 'trial_grant') {
-          const { data, error } = await edgeFunctions.functions.invoke('admin-grant-trial', {
+        } else {
+          tuple = await edgeFunctions.functions.invoke('admin-grant-trial', {
             body: { password: pw, target_user_id: user.user_id, plan: params.trialPlan, days: params.days },
           });
-          if (error || (data as { success?: boolean })?.success === false) throw new Error();
         }
-        successCount++;
-      } catch {
-        failCount++;
+        unwrapAdminResponse(tuple, bulkAction === 'plan_change' ? 'admin-set-plan'
+          : bulkAction === 'trial_grant' ? 'admin-grant-trial'
+          : 'admin-suspend-user');
+        results.push({ user_id: user.user_id, email: user.email, status: 'success' });
+      } catch (e) {
+        results.push({
+          user_id: user.user_id,
+          email: user.email,
+          status: 'error',
+          error: formatEdgeError(e, 'Request failed'),
+        });
       }
     }
+
+    if (!isMounted()) return;
+
+    const successCount = results.filter(r => r.status === 'success').length;
+    const failCount = results.length - successCount;
 
     setBulkRunning(false);
     setBulkAction(null);
     setSelectedIds(new Set());
+    setBulkResults(results);
+    setBulkResultsLabel(actionLabel);
+    setBulkResultsOpen(true);
 
     if (failCount === 0) {
-      toast.success(`Bulk action complete: ${successCount} users updated`);
+      toast.success(`${actionLabel}: ${successCount} of ${results.length} succeeded`);
     } else {
-      toast.warning(`Bulk action done: ${successCount} succeeded, ${failCount} failed`);
+      toast.warning(`${actionLabel}: ${successCount} succeeded, ${failCount} failed — see results dialog`);
     }
     handleUserUpdated();
   };
@@ -360,7 +401,7 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
       let p = 1;
       const PER_EXPORT = 500;
       while (true) {
-        const { data, error: err } = await edgeFunctions.functions.invoke('admin-list-users', {
+        const tuple = await edgeFunctions.functions.invoke('admin-list-users', {
           body: {
             password,
             page: p,
@@ -371,11 +412,16 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
             search: query.trim() || undefined,
           },
         });
-        if (err) break;
-        const result = data as { success?: boolean; users?: AdminUser[]; total?: number };
-        const list = result?.users ?? [];
+        let result: { users?: AdminUser[]; total?: number };
+        try {
+          result = unwrapAdminResponse<{ users?: AdminUser[]; total?: number }>(tuple, 'admin-list-users');
+        } catch (e) {
+          toast.error(formatEdgeError(e, 'CSV export failed'));
+          break;
+        }
+        const list = result.users ?? [];
         allUsers.push(...list);
-        if (allUsers.length >= (result?.total ?? 0) || list.length < PER_EXPORT) break;
+        if (allUsers.length >= (result.total ?? 0) || list.length < PER_EXPORT) break;
         p++;
       }
       if (!allUsers.length) return;
@@ -408,26 +454,34 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
 
       const adminEmail = adminUser?.email ?? 'unknown';
       const adminId = adminUser?.id ?? 'dev-kit-admin';
-      await edgeFunctions.functions.invoke('admin-audit-logs', {
-        body: {
-          password,
-          mode: 'write',
-          entry: {
-            user_id: adminId,
-            category: 'admin',
-            action: 'user_data_export',
-            metadata: {
-              record_count: allUsers.length,
-              exported_at: new Date().toISOString(),
-              admin_email: adminEmail,
-              filter_plan: planFilter || null,
-              search_query: query.trim() || null,
+      try {
+        const auditTuple = await edgeFunctions.functions.invoke('admin-audit-logs', {
+          body: {
+            password,
+            mode: 'write',
+            entry: {
+              user_id: adminId,
+              category: 'admin',
+              action: 'user_data_export',
+              metadata: {
+                record_count: allUsers.length,
+                exported_at: new Date().toISOString(),
+                admin_email: adminEmail,
+                filter_plan: planFilter || null,
+                search_query: query.trim() || null,
+              },
             },
           },
-        },
-      });
+        });
+        unwrapAdminResponse(auditTuple, 'admin-audit-logs');
+      } catch (e) {
+        // Audit-log failure should not block the export — surface as a warning toast only.
+        toast.warning('CSV exported, but audit log entry failed', {
+          description: formatEdgeError(e, 'Audit-log write failed'),
+        });
+      }
     } finally {
-      setExportingCSV(false);
+      if (isMounted()) setExportingCSV(false);
     }
   };
 
@@ -788,6 +842,62 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
           isRunning={bulkRunning}
         />
       )}
+
+      {/* Bulk action result table dialog */}
+      <Dialog open={bulkResultsOpen} onOpenChange={(open) => { if (!open) setBulkResultsOpen(false); }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {bulkResultsLabel} — Per-user results
+            </DialogTitle>
+            <DialogDescription>
+              {bulkResults.filter(r => r.status === 'success').length} succeeded ·{' '}
+              {bulkResults.filter(r => r.status === 'error').length} failed ·{' '}
+              {bulkResults.length} total
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[420px] overflow-y-auto rounded-lg border border-border">
+            <table className="w-full text-xs">
+              <thead className="bg-muted/40 border-b border-border sticky top-0">
+                <tr>
+                  <th className="text-left px-3 py-2 font-medium text-muted-foreground w-16">Status</th>
+                  <th className="text-left px-3 py-2 font-medium text-muted-foreground">User</th>
+                  <th className="text-left px-3 py-2 font-medium text-muted-foreground">Reason</th>
+                </tr>
+              </thead>
+              <tbody>
+                {bulkResults.map(r => (
+                  <tr key={r.user_id} className="border-b border-border last:border-0">
+                    <td className="px-3 py-2">
+                      {r.status === 'success' ? (
+                        <span className="inline-flex items-center gap-1 text-green-600 dark:text-green-400">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          OK
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-red-600 dark:text-red-400">
+                          <XCircle className="w-3.5 h-3.5" />
+                          Fail
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 font-mono text-[11px] truncate max-w-[200px]" title={r.email}>{r.email}</td>
+                    <td className="px-3 py-2 text-muted-foreground">
+                      {r.status === 'success' ? '—' : (r.error ?? 'Unknown error')}
+                    </td>
+                  </tr>
+                ))}
+                {bulkResults.length === 0 && (
+                  <tr><td colSpan={3} className="px-3 py-4 text-center text-muted-foreground">No results.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setBulkResultsOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* User Detail Drawer */}
       {selectedUser && (

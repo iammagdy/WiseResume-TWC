@@ -5,6 +5,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { getDevKitToken, useDevKitSession } from '@/contexts/DevKitSessionContext';
+import { useIsMounted } from '@/lib/devkit/hooks';
+import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
   LineChart, Line, Legend,
@@ -60,6 +62,8 @@ export function OnboardingFunnelPanel() {
   const [days, setDays] = useState<number>(14);
   const [granularity, setGranularity] = useState<Granularity>('day');
 
+  const isMounted = useIsMounted();
+
   const fetchData = useCallback(async () => {
     const token = getDevKitToken();
     if (!token) return;
@@ -67,23 +71,22 @@ export function OnboardingFunnelPanel() {
     setLoading(true);
     setError(null);
     try {
-      const { data: responseData, error: invokeError } = await edgeFunctions.functions.invoke(
+      const tuple = await edgeFunctions.functions.invoke(
         'admin-onboarding-funnel',
         { body: { password: token, days, granularity } },
       );
-      if (invokeError) throw new Error(invokeError.message);
-
-      const result = responseData as { success?: boolean; error?: string; data?: FunnelData };
-      if (result?.success === false) throw new Error(result.error ?? 'Failed to load funnel');
+      const result = unwrapAdminResponse<{ data?: FunnelData }>(tuple, 'admin-onboarding-funnel');
+      if (!isMounted()) return;
       const raw = result?.data;
       if (!raw) throw new Error('No data returned');
       setData(raw);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load funnel');
+      if (!isMounted()) return;
+      setError(formatEdgeError(e, 'Failed to load funnel'));
     } finally {
-      setLoading(false);
+      if (isMounted()) setLoading(false);
     }
-  }, [days, granularity]);
+  }, [days, granularity, isMounted]);
 
   useEffect(() => {
     if (isUnlocked) fetchData();

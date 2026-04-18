@@ -16,6 +16,8 @@ import { toast } from 'sonner';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { getDevKitToken } from '@/contexts/DevKitSessionContext';
 import type { AdminUser } from './AdminUsersPanel';
+import { useIsMounted } from '@/lib/devkit/hooks';
+import { unwrapAdminResponse, tryUnwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
 
 type EmailAction = 'resend_confirmation' | 'send_magic_link' | 'send_otp' | 'send_password_reset' | 'send_custom' | 'wisehire_invite';
 
@@ -58,12 +60,14 @@ function UnconfirmedUsersSection({ onSendToUser }: UnconfirmedUsersProps) {
   const [query, setQuery] = useState('');
   const [sendingId, setSendingId] = useState<string | null>(null);
 
+  const isMounted = useIsMounted();
+
   const fetchUnconfirmed = useCallback(async (pageNum = 1, append = false) => {
     setLoading(true);
     if (!append) setError(null);
     try {
       const password = getDevKitToken();
-      const { data, error: err } = await edgeFunctions.functions.invoke('admin-list-users', {
+      const tuple = await edgeFunctions.functions.invoke('admin-list-users', {
         body: {
           password,
           page: pageNum,
@@ -72,10 +76,10 @@ function UnconfirmedUsersSection({ onSendToUser }: UnconfirmedUsersProps) {
           sort: 'newest',
         },
       });
-      if (err) throw new Error(err.message);
-      const result = data as { users?: AdminUser[]; total?: number };
-      const list = result?.users ?? [];
-      const tot = result?.total ?? list.length;
+      const result = unwrapAdminResponse<{ users?: AdminUser[]; total?: number }>(tuple, 'admin-list-users');
+      if (!isMounted()) return;
+      const list = result.users ?? [];
+      const tot = result.total ?? list.length;
       if (append) {
         setUsers(prev => [...prev, ...list]);
       } else {
@@ -84,11 +88,12 @@ function UnconfirmedUsersSection({ onSendToUser }: UnconfirmedUsersProps) {
       setTotal(tot);
       setLoaded(true);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load unconfirmed users');
+      if (!isMounted()) return;
+      setError(formatEdgeError(e, 'Failed to load unconfirmed users'));
     } finally {
-      setLoading(false);
+      if (isMounted()) setLoading(false);
     }
-  }, []);
+  }, [isMounted]);
 
   useEffect(() => {
     setPage(1);
@@ -105,7 +110,7 @@ function UnconfirmedUsersSection({ onSendToUser }: UnconfirmedUsersProps) {
     setSendingId(user.user_id);
     try {
       const password = getDevKitToken();
-      const { data, error: err } = await edgeFunctions.functions.invoke('admin-email-actions', {
+      const tuple = await edgeFunctions.functions.invoke('admin-email-actions', {
         body: {
           password,
           action: 'resend_confirmation',
@@ -113,9 +118,7 @@ function UnconfirmedUsersSection({ onSendToUser }: UnconfirmedUsersProps) {
           target_email: user.email,
         },
       });
-      if (err) throw new Error(err.message);
-      const result = data as { success?: boolean; error?: string; message_id?: string };
-      if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
+      const result = unwrapAdminResponse<{ message_id?: string }>(tuple, 'admin-email-actions');
       if (result.message_id) {
         toast.success('Confirmation email accepted by Resend', {
           description: `ID: ${result.message_id} → ${user.email}. Delivery requires thewise.cloud to be verified in Resend.`,
@@ -126,9 +129,9 @@ function UnconfirmedUsersSection({ onSendToUser }: UnconfirmedUsersProps) {
         });
       }
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to send confirmation email');
+      toast.error(formatEdgeError(e, 'Failed to send confirmation email'));
     } finally {
-      setSendingId(null);
+      if (isMounted()) setSendingId(null);
     }
   };
 
@@ -322,7 +325,7 @@ function ComposeEmailForm({
       setSearching(true);
       try {
         const password = getDevKitToken();
-        const { data, error: err } = await edgeFunctions.functions.invoke('admin-list-users', {
+        const tuple = await edgeFunctions.functions.invoke('admin-list-users', {
           body: {
             password,
             page: 1,
@@ -331,8 +334,7 @@ function ComposeEmailForm({
             sort: 'newest',
           },
         });
-        if (err) throw new Error(err.message);
-        const result = data as { users?: AdminUser[] };
+        const result = tryUnwrapAdminResponse<{ users?: AdminUser[] }>(tuple, 'admin-list-users');
         setSearchResults(result?.users ?? []);
         setShowDropdown(true);
       } catch {
@@ -380,12 +382,10 @@ function ComposeEmailForm({
       const recipientEmail = selectedUser?.email ?? emailSearch.trim();
 
       if (isWiseHireInvite) {
-        const { data, error: err } = await edgeFunctions.functions.invoke('admin-wisehire-invite', {
+        const tuple = await edgeFunctions.functions.invoke('admin-wisehire-invite', {
           body: { password, recipient_email: recipientEmail },
         });
-        if (err) throw new Error(err.message);
-        const result = data as { success?: boolean; error?: string; invite_url?: string; expires_at?: string };
-        if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
+        const result = unwrapAdminResponse<{ invite_url?: string; expires_at?: string }>(tuple, 'admin-wisehire-invite');
         toast.success(`WiseHire invite sent to ${recipientEmail}`);
         setInviteUrl(result.invite_url ?? null);
         return;
@@ -403,10 +403,8 @@ function ComposeEmailForm({
         body.custom_body = customBody.trim();
       }
 
-      const { data, error: err } = await edgeFunctions.functions.invoke('admin-email-actions', { body });
-      if (err) throw new Error(err.message);
-      const result = data as { success?: boolean; error?: string; email?: string; message_id?: string };
-      if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
+      const tuple = await edgeFunctions.functions.invoke('admin-email-actions', { body });
+      const result = unwrapAdminResponse<{ email?: string; message_id?: string }>(tuple, 'admin-email-actions');
 
       const toEmail = result.email ?? selectedUser?.email ?? emailSearch.trim();
       if (result.message_id) {
@@ -424,7 +422,7 @@ function ComposeEmailForm({
         setCustomBody('');
       }
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to send email');
+      toast.error(formatEdgeError(e, 'Failed to send email'));
     } finally {
       setSending(false);
     }
@@ -594,25 +592,28 @@ function RecentSendsSection() {
   const [entries, setEntries] = useState<RecentSendEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const isMounted = useIsMounted();
 
   const fetchRecentSends = useCallback(async () => {
     setLoading(true);
     try {
       const password = getDevKitToken();
-      const { data, error: err } = await edgeFunctions.functions.invoke('admin-audit-logs', {
+      const tuple = await edgeFunctions.functions.invoke('admin-audit-logs', {
         body: { password, limit: 20, category_filter: 'admin_email' },
       });
-      if (err) throw new Error(err.message);
-      const result = data as { logs?: RecentSendEntry[] };
+      const result = unwrapAdminResponse<{ logs?: RecentSendEntry[] }>(tuple, 'admin-audit-logs');
+      if (!isMounted()) return;
       const all = (result?.logs ?? []) as RecentSendEntry[];
       setEntries(all.filter(l => l.action?.startsWith('send') || l.action === 'resend_confirmation' || l.action?.startsWith('resend')));
       setLoaded(true);
-    } catch {
+    } catch (e) {
+      if (!isMounted()) return;
       setLoaded(true);
+      toast.error(formatEdgeError(e, 'Failed to load recent email sends'));
     } finally {
-      setLoading(false);
+      if (isMounted()) setLoading(false);
     }
-  }, []);
+  }, [isMounted]);
 
   useEffect(() => {
     fetchRecentSends();
@@ -682,18 +683,21 @@ export function EmailManagementPanel() {
   const [domainWarningDismissed, setDomainWarningDismissed] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       try {
-        const { data } = await edgeFunctions.functions.invoke('admin-email-actions', {
+        const tuple = await edgeFunctions.functions.invoke('admin-email-actions', {
           body: { password: getDevKitToken(), action: 'diagnose' },
         });
-        setDiagnose((data as DiagnoseResult) ?? null);
+        const result = tryUnwrapAdminResponse<NonNullable<DiagnoseResult>>(tuple, 'admin-email-actions');
+        if (!cancelled) setDiagnose(result ?? null);
       } catch {
-        setDiagnose(null);
+        if (!cancelled) setDiagnose(null);
       } finally {
-        setDiagnosing(false);
+        if (!cancelled) setDiagnosing(false);
       }
     })();
+    return () => { cancelled = true; };
   }, []);
 
   const handleSendToUser = (user: AdminUser) => {

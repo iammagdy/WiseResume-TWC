@@ -24,6 +24,8 @@ import {
 import { toast } from 'sonner';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { getDevKitToken } from '@/contexts/DevKitSessionContext';
+import { useIsMounted } from '@/lib/devkit/hooks';
+import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
 
 interface Coupon {
   id: string;
@@ -67,41 +69,41 @@ export function CouponsPanel({ onCountChange }: CouponsPanelProps) {
   const [deletePending, setDeletePending] = useState<Coupon | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  const isMounted = useIsMounted();
+
   const fetchCoupons = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const password = getDevKitToken();
-      const { data, error: err } = await edgeFunctions.functions.invoke('admin-manage-coupons', {
+      const tuple = await edgeFunctions.functions.invoke('admin-manage-coupons', {
         body: { password, action: 'list' },
       });
-      if (err) throw new Error(err.message);
-      const result = data as { success?: boolean; coupons?: Coupon[]; error?: string };
-      if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
-      const list = result?.coupons ?? [];
+      const result = unwrapAdminResponse<{ coupons?: Coupon[] }>(tuple, 'admin-manage-coupons');
+      if (!isMounted()) return;
+      const list = result.coupons ?? [];
       setCoupons(list);
       onCountChange?.(list.filter(c => c.is_active).length);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load coupons');
+      if (!isMounted()) return;
+      setError(formatEdgeError(e, 'Failed to load coupons'));
     } finally {
-      setLoading(false);
+      if (isMounted()) setLoading(false);
     }
-  }, [onCountChange]);
+  }, [onCountChange, isMounted]);
 
   useEffect(() => { fetchCoupons(); }, [fetchCoupons]);
 
   const handleToggle = async (coupon: Coupon) => {
     try {
-      const { data, error: err } = await edgeFunctions.functions.invoke('admin-manage-coupons', {
+      const tuple = await edgeFunctions.functions.invoke('admin-manage-coupons', {
         body: { password: getDevKitToken(), action: 'toggle', coupon_id: coupon.id, is_active: !coupon.is_active },
       });
-      if (err) throw new Error(err.message);
-      const result = data as { success?: boolean; error?: string };
-      if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
+      unwrapAdminResponse(tuple, 'admin-manage-coupons');
       toast.success(coupon.is_active ? 'Coupon deactivated' : 'Coupon activated');
       fetchCoupons();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to toggle coupon');
+      toast.error(formatEdgeError(e, 'Failed to toggle coupon'));
     }
   };
 
@@ -109,19 +111,18 @@ export function CouponsPanel({ onCountChange }: CouponsPanelProps) {
     if (!deletePending) return;
     setDeleting(true);
     try {
-      const { data, error: err } = await edgeFunctions.functions.invoke('admin-manage-coupons', {
+      const tuple = await edgeFunctions.functions.invoke('admin-manage-coupons', {
         body: { password: getDevKitToken(), action: 'delete', coupon_id: deletePending.id },
       });
-      if (err) throw new Error(err.message);
-      const result = data as { success?: boolean; error?: string };
-      if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
+      unwrapAdminResponse(tuple, 'admin-manage-coupons');
+      if (!isMounted()) return;
       toast.success('Coupon deleted');
       setDeletePending(null);
       fetchCoupons();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to delete coupon');
+      toast.error(formatEdgeError(e, 'Failed to delete coupon'));
     } finally {
-      setDeleting(false);
+      if (isMounted()) setDeleting(false);
     }
   };
 
@@ -129,7 +130,7 @@ export function CouponsPanel({ onCountChange }: CouponsPanelProps) {
     if (!newCode.trim()) { toast.error('Code is required'); return; }
     setCreating(true);
     try {
-      const { data, error: err } = await edgeFunctions.functions.invoke('admin-manage-coupons', {
+      const tuple = await edgeFunctions.functions.invoke('admin-manage-coupons', {
         body: {
           password: getDevKitToken(),
           action: 'create',
@@ -143,17 +144,16 @@ export function CouponsPanel({ onCountChange }: CouponsPanelProps) {
           max_uses: Number(newMaxUses) || 0,
         },
       });
-      if (err) throw new Error(err.message);
-      const result = data as { success?: boolean; error?: string };
-      if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
+      unwrapAdminResponse(tuple, 'admin-manage-coupons');
+      if (!isMounted()) return;
       toast.success(`Coupon "${newCode.toUpperCase()}" created`);
       setCreateOpen(false);
       setNewCode(''); setNewValue(''); setNewExpiry(''); setNewMaxUses('0'); setNewTargetPlan('');
       fetchCoupons();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to create coupon');
+      toast.error(formatEdgeError(e, 'Failed to create coupon'));
     } finally {
-      setCreating(false);
+      if (isMounted()) setCreating(false);
     }
   };
 

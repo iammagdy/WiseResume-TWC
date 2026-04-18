@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-04-18 — DevKit comprehensive hardening, phase 2: complete unwrap adoption + per-row bulk results
+
+Closes the "deferred" list from the morning's phase-1 push so the admin DevKit has zero known bugs:
+
+### `unwrapAdminResponse` adoption — every panel
+Every `edgeFunctions.functions.invoke` call site in `AppSettingsPanel`, `AuditLogPanel`, `CouponsPanel`, `WiseHireWaitlistPanel`, `EmailManagementPanel` (6 sites incl. the diagnose-domain `useEffect`), `PortfolioUsernamesPanel` (via shared `invoke()` helper), `OnboardingFunnelPanel`, and `AdminUsersPanel` (`fetchUsers`, all 4 bulk-action variants in `handleBulkConfirm`, the `handleExportCSV` pagination loop, and the audit-log write) now flows through `unwrapAdminResponse` / `tryUnwrapAdminResponse`. Replaces the last unchecked `as { success?, error? }` casts and routes errors through `formatEdgeError` for consistent toast/error-string output.
+
+### Unmount-guard sweep — every panel touched this pass
+All of the panels above gained `useIsMounted()` and now gate every post-await `setState` (and the `finally` `setLoading(false)`) behind `isMounted()`. Eliminates "set state on unmounted component" warnings during fast tab-switching while a request is in flight. `AuditLogPanel` additionally migrated its 30 s poll to `useVisibleInterval` and cleared its search-debounce timer on unmount.
+
+### `AdminUsersPanel` — per-row bulk-action result table
+After Apply Plan / Suspend / Unsuspend / Grant Trial completes, a `<Dialog>` opens listing every targeted user with a green "OK" / red "Fail" badge plus the per-row error reason from `formatEdgeError`. Replaces the old behavior of a single aggregated toast that hid which specific users failed and why. The CSV-export audit-log write also no longer blocks the export on its own failure — it surfaces a warning toast and lets the download complete.
+
+### Build / type-check
+- `tsc --noEmit` clean.
+- `vite build` clean (522 precache entries, no new warnings).
+
+---
+
 ## 2026-04-18 — DevKit comprehensive hardening: crash-safety, unmount guards, typed errors
 
 Phase-1 hardening of the admin DevKit (15 panels, ~12k LOC) so a single misbehaving panel can no longer take the entire admin surface down, background polling no longer leaks past unmount, and the most-cast `as any` error-parsing block is replaced with a typed helper. Production behaviour is otherwise unchanged.
