@@ -145,19 +145,24 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
   const mediaCard = (
     <motion.div
       variants={mediaSlide}
-      className="lp-stack-pane lp-stack-parallax flex items-center justify-center p-6"
+      className="lp-stack-pane flex items-center justify-center p-6"
       style={{
         borderRadius: 24,
         minHeight: 280,
       }}
     >
-      <Suspense fallback={<DemoFallback />}>
-        {data.demo === 'editor' && <LazyEditorDemo />}
-        {data.demo === 'tailoring' && <LazyTailoringDemo />}
-        {data.demo === 'portfolio' && <LazyPortfolioDemo />}
-        {data.demo === 'interview' && <LazyInterviewDemo />}
-        {data.demo === 'tracker' && <LazyTrackerDemo />}
-      </Suspense>
+      {/* Phase 4: parallax wrapper is a plain div so its CSS transform
+          (driven by --card-translate-y) is not overridden by the
+          framer-motion transform applied to the parent motion.div. */}
+      <div className="lp-stack-parallax w-full flex items-center justify-center">
+        <Suspense fallback={<DemoFallback />}>
+          {data.demo === 'editor' && <LazyEditorDemo />}
+          {data.demo === 'tailoring' && <LazyTailoringDemo />}
+          {data.demo === 'portfolio' && <LazyPortfolioDemo />}
+          {data.demo === 'interview' && <LazyInterviewDemo />}
+          {data.demo === 'tracker' && <LazyTrackerDemo />}
+        </Suspense>
+      </div>
     </motion.div>
   );
 
