@@ -9,7 +9,9 @@ import { useProfile } from '@/hooks/useProfile';
 import { useResumes } from '@/hooks/useResumes';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { getUserId } from '@/lib/supabaseBridge';
 import { useQueryClient } from '@tanstack/react-query';
+import type { Profile } from '@/hooks/useProfile';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { PortfolioEditorSkeleton } from '@/components/layout/PageSkeletons';
@@ -296,22 +298,33 @@ export default function PortfolioEditorPage() {
   }, [profile, lastSavedSnapshot, getCurrentSnapshot]);
 
   // Debounced autosave to portfolio_draft — persists working copy to DB so
-  // drafts survive page closes.  Only runs when the snapshot has diverged from
-  // what was last explicitly saved (avoids writes on initial mount).
+  // drafts survive page closes.
+  // IMPORTANT: writes directly to Supabase (bypassing the mutation that would
+  // call queryClient.invalidateQueries) so the profile refetch → state sync
+  // effect is NOT triggered and can never roll back the user's active edits.
+  // The React Query cache is updated minimally (portfolioDraft only).
   useEffect(() => {
     if (!lastSavedSnapshot) return;
     const snapshot = getCurrentSnapshot();
     if (snapshot === lastSavedSnapshot) return;
     const timer = setTimeout(async () => {
       try {
+        const supabaseUserId = getUserId();
+        if (!supabaseUserId) return;
         const parsed = JSON.parse(snapshot) as Record<string, unknown>;
-        await updateProfile({
-          portfolioDraft: parsed,
-          portfolioDraftSavedAt: new Date().toISOString(),
-        } as Parameters<typeof updateProfile>[0]);
+        const now = new Date().toISOString();
+        const { error } = await supabase
+          .from('profiles')
+          .update({ portfolio_draft: parsed, portfolio_draft_saved_at: now })
+          .eq('user_id', supabaseUserId);
+        if (!error) {
+          // Update cache in place — no invalidation, no refetch, no state clobber
+          queryClient.setQueriesData<Profile | null>({ queryKey: ['profile'] }, (old) =>
+            old ? { ...old, portfolioDraft: parsed, portfolioDraftSavedAt: now } : old
+          );
+        }
       } catch {
-        // Silent — draft autosave is best-effort; the user can always click
-        // "Save draft" manually or "Publish" to persist changes.
+        // Silent — draft autosave is best-effort
       }
     }, 3000);
     return () => clearTimeout(timer);
@@ -583,11 +596,19 @@ export default function PortfolioEditorPage() {
     haptics.light();
     setSavingDraft(true);
     try {
+      const supabaseUserId = getUserId();
+      if (!supabaseUserId) throw new Error('Not authenticated');
       const snapshot = JSON.parse(getCurrentSnapshot()) as Record<string, unknown>;
-      await updateProfile({
-        portfolioDraft: snapshot,
-        portfolioDraftSavedAt: new Date().toISOString(),
-      } as Parameters<typeof updateProfile>[0]);
+      const now = new Date().toISOString();
+      // Direct write — bypass mutation invalidation to avoid clobbering active edits
+      const { error } = await supabase
+        .from('profiles')
+        .update({ portfolio_draft: snapshot, portfolio_draft_saved_at: now })
+        .eq('user_id', supabaseUserId);
+      if (error) throw error;
+      queryClient.setQueriesData<Profile | null>({ queryKey: ['profile'] }, (old) =>
+        old ? { ...old, portfolioDraft: snapshot, portfolioDraftSavedAt: now } : old
+      );
       setLastSavedSnapshot(getCurrentSnapshot());
       toast.success('Draft saved. Click "Publish" when you\'re ready to go live.');
     } catch {
