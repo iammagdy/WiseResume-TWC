@@ -3,6 +3,7 @@ import { WiseHireShell } from '@/components/wisehire/WiseHireShell';
 import { useWiseHireAccount } from '@/hooks/wisehire/useWiseHireAccount';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/safeClient';
+import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { getUserId } from '@/lib/supabaseBridge';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -36,9 +37,75 @@ const COMPANY_SIZES = [
   { value: '1000+', label: '1,000+ employees' },
 ];
 
+const PROVIDER_LABELS: Record<string, string> = {
+  openai: 'OpenAI',
+  anthropic: 'Anthropic',
+  gemini: 'Gemini',
+  groq: 'Groq',
+  mistral: 'Mistral',
+  xai: 'xAI',
+  cohere: 'Cohere',
+  openrouter: 'OpenRouter',
+  ollama: 'Ollama',
+};
+
+function formatProviderLabel(provider: string): string {
+  return PROVIDER_LABELS[provider] ?? provider;
+}
+
 // ── AI Key Section ────────────────────────────────────────────────────
 
-function AIKeySection({ onOpen }: { onOpen: () => void }) {
+function AIKeySection({ onOpen, refreshTrigger }: { onOpen: () => void; refreshTrigger: number }) {
+  const [loading, setLoading] = useState(true);
+  const [providers, setProviders] = useState<string[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchProviders() {
+      setLoading(true);
+      try {
+        const { data, error } = await edgeFunctions.functions.invoke('manage-api-keys', {
+          body: { action: 'get' },
+        });
+        if (!cancelled) {
+          if (!error && data?.keys) {
+            setProviders((data.keys as Array<{ provider: string }>).map((k) => k.provider));
+          } else {
+            setProviders([]);
+          }
+        }
+      } catch {
+        if (!cancelled) setProviders([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    fetchProviders();
+    return () => { cancelled = true; };
+  }, [refreshTrigger]);
+
+  function renderStatus() {
+    if (loading) {
+      return (
+        <span className="flex items-center gap-1.5 text-sm text-slate-400 dark:text-slate-500">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          Checking connected keys…
+        </span>
+      );
+    }
+    if (providers.length === 0) {
+      return (
+        <span className="text-sm text-slate-400 dark:text-slate-500">No keys configured</span>
+      );
+    }
+    const labels = providers.map(formatProviderLabel).join(', ');
+    return (
+      <span className="text-sm text-emerald-600 dark:text-emerald-400 font-medium">
+        {labels} connected
+      </span>
+    );
+  }
+
   return (
     <section className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 space-y-5">
       <div className="flex items-start gap-3">
@@ -50,6 +117,7 @@ function AIKeySection({ onOpen }: { onOpen: () => void }) {
           <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed mt-0.5">
             Connect your own API keys for OpenAI, Anthropic, Groq, Mistral, and more.
           </p>
+          <div className="mt-2">{renderStatus()}</div>
         </div>
       </div>
       <Button
@@ -206,6 +274,14 @@ function AccountInfoSection() {
 
 export default function WiseHireSettingsPage() {
   const [showAISettings, setShowAISettings] = useState(false);
+  const [aiRefreshTrigger, setAIRefreshTrigger] = useState(0);
+
+  function handleAISheetChange(open: boolean) {
+    setShowAISettings(open);
+    if (!open) {
+      setAIRefreshTrigger((n) => n + 1);
+    }
+  }
 
   return (
     <WiseHireShell>
@@ -220,11 +296,11 @@ export default function WiseHireSettingsPage() {
         </div>
 
         <CompanyProfileSection />
-        <AIKeySection onOpen={() => setShowAISettings(true)} />
+        <AIKeySection onOpen={() => setShowAISettings(true)} refreshTrigger={aiRefreshTrigger} />
         <AccountInfoSection />
       </div>
 
-      <AISettingsSheet open={showAISettings} onOpenChange={setShowAISettings} />
+      <AISettingsSheet open={showAISettings} onOpenChange={handleAISheetChange} />
     </WiseHireShell>
   );
 }
