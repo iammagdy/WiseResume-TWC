@@ -301,6 +301,7 @@ function ComposeEmailForm({
   const [customBody, setCustomBody] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isMounted = useIsMounted();
 
   useEffect(() => {
     if (prefillUser) {
@@ -335,12 +336,14 @@ function ComposeEmailForm({
           },
         });
         const result = tryUnwrapAdminResponse<{ users?: AdminUser[] }>(tuple, 'admin-list-users');
+        if (!isMounted()) return;
         setSearchResults(result?.users ?? []);
         setShowDropdown(true);
       } catch {
+        if (!isMounted()) return;
         setSearchResults([]);
       } finally {
-        setSearching(false);
+        if (isMounted()) setSearching(false);
       }
     }, 350);
   }, []);
@@ -386,6 +389,7 @@ function ComposeEmailForm({
           body: { password, recipient_email: recipientEmail },
         });
         const result = unwrapAdminResponse<{ invite_url?: string; expires_at?: string }>(tuple, 'admin-wisehire-invite');
+        if (!isMounted()) return;
         toast.success(`WiseHire invite sent to ${recipientEmail}`);
         setInviteUrl(result.invite_url ?? null);
         return;
@@ -405,6 +409,7 @@ function ComposeEmailForm({
 
       const tuple = await edgeFunctions.functions.invoke('admin-email-actions', { body });
       const result = unwrapAdminResponse<{ email?: string; message_id?: string }>(tuple, 'admin-email-actions');
+      if (!isMounted()) return;
 
       const toEmail = result.email ?? selectedUser?.email ?? emailSearch.trim();
       if (result.message_id) {

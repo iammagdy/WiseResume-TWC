@@ -394,6 +394,7 @@ export function LiveActivityPanel() {
       }
     }
 
+    if (!isMounted()) return;
     const checkedMap = new Map(checkedResults.map(r => [r.name, r]));
     setFnHealth(prev => prev.map(f => checkedMap.get(f.name) ?? f));
     setHealthRunning(false);
@@ -402,7 +403,7 @@ export function LiveActivityPanel() {
     if (errorLogsMissing && newErrors.length > 0) {
       setRecentErrors(newErrors);
     }
-  }, [errorLogsMissing]);
+  }, [errorLogsMissing, isMounted]);
 
   const runAllHealthChecks = useCallback(() => {
     return runHealthChecksForDefs(ALL_FN_DEFS);
