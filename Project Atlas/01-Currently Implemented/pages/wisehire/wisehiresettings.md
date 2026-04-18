@@ -1,6 +1,6 @@
 # WiseHireSettingsPage
 
-  **Last verified:** 2026-04-17
+  **Last verified:** 2026-04-26
   **Type:** reference card
   **Sources:**
   - `src/pages/wisehire/WiseHireSettingsPage.tsx`
@@ -13,7 +13,7 @@
 
   ---
 
-  **What it is:** WiseHire account, branding, AI key (BYOK) settings.
+  **What it is:** WiseHire account, branding, and AI key (BYOK) settings. Includes a live connected-provider summary card (`AIKeySection`) that reflects BYOK key state in real time using the shared `['ai-keys']` React Query cache key (staleTime 30 s). The summary updates immediately when keys are saved or removed via `AISettingsSheet` — no page reload or sheet close required. → `src/pages/wisehire/WiseHireSettingsPage.tsx`, Task #19 + #20.
 
   **Route(s):**
   - `  /wisehire/settings`

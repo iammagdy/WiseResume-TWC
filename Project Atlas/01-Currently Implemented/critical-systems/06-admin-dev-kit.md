@@ -1,6 +1,6 @@
 # Admin Dev Kit
 
-**Last verified:** 2026-04-17
+**Last verified:** 2026-04-26
 **Type:** deep dive
 **Sources:**
 - `src/components/dev-kit/`
@@ -30,7 +30,7 @@
 |---|---|---|
 | Analytics | Page views, active users, top features bar chart, portfolio views, signups sparkline, geographic distribution, AI credits today vs yesterday | `admin-analytics`, `admin-onboarding-funnel` |
 | Live Activity | 30 s auto-refresh of last 50 `usage_events`, edge function health cards, manual "Run health check" | `admin-live-activity`, `ai-health` |
-| Deployment | Last 5 GitHub commits, env var checklist, links to Supabase + GitHub | `admin-github-status`, `admin-env-check` |
+| Deployment | Last 5 GitHub commits, env var checklist, links to Supabase + GitHub. **Analytics Retention Sweep section** (added Task #21): last-run time, duration, per-table deleted-row counts (`portfolio_visits`, `error_log`, `audit_logs`, `trial_resumes`), last-error amber banner, independent Refresh button. Fetches `GET /api/admin/analytics-sweep-status` with Supabase JWT. | `admin-github-status`, `admin-env-check`, `/api/admin/analytics-sweep-status` |
 | Audit Log | Admin actions trail | `admin-audit-logs` |
 | Users | List, search, identity, content, plan, credits, suspend, delete, merge | `admin-list-users`, `admin-list-user-content`, `admin-get-identity`, `admin-update-profile`, `admin-set-plan`, `admin-grant-trial`, `admin-revoke-trial`, `admin-set-credits`, `admin-suspend-user`, `admin-delete-user`, `admin-merge-identity`, `admin-revoke-sessions`, `admin-save-note` |
 | Email actions | Send magic links, confirmations, custom emails via Resend | `admin-email-actions` |

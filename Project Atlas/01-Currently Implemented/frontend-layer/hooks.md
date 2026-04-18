@@ -1,6 +1,6 @@
 # Hooks (`src/hooks/`)
 
-**Last verified:** 2026-04-17
+**Last verified:** 2026-04-26
 **Type:** reference card
 **Sources:**
 - `src/hooks/`
@@ -19,6 +19,15 @@
 | `usePlan` | Derived plan tier + caps | Reads from `useMe`. |
 | `useAICredits` | Live credit balance | Reads from `useMe`. |
 | `useProfile` | Profile row + mutations | Profile-specific updates. |
+
+## Shared React Query cache keys
+
+| Key | Owner | Invalidated by |
+|---|---|---|
+| `['me', user?.id]` | `useMe` | `token-exchange`, plan change mutations |
+| `['ai-keys']` | `AIKeySection` in `WiseHireSettingsPage` (staleTime 30 s) | `AISettingsSheet` on key save and key delete → `queryClient.invalidateQueries({ queryKey: ['ai-keys'] })` |
+
+**Rule:** any component that reads BYOK connection state should consume the `['ai-keys']` cache rather than fetching independently.
 
 ## AI hooks
 
