@@ -14,7 +14,7 @@
  *                Use 127.0.0.1 if localhost resolution is slow in your sandbox.
  *   CHROME_PATH  Absolute path to a Chromium / Chrome binary. On Replit the
  *                latest ungoogled-chromium in /nix/store works:
- *                  ls /nix/store/*ungoogled-chromium*/bin/chromium | sort -V | tail -1
+ *                  ls /nix/store/[hash]-ungoogled-chromium-[ver]/bin/chromium | sort -V | tail -1
  *
  * Output:
  *   screenshots/{wiseresume,wisehire}-{light,dark}-{hero,mid,post}.jpg
@@ -37,6 +37,7 @@ const POSITIONS = [
   { name: 'hero',     scrollPct: 0 },
   { name: 'mid',      scrollPct: 0.45 },
   { name: 'post',     scrollPct: 0.85 },
+  { name: 'footer',   scrollPct: 1.0 },
 ];
 
 async function captureMetrics(page) {

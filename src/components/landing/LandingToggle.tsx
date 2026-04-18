@@ -9,10 +9,13 @@ interface LandingToggleProps {
   compact?: boolean;
 }
 
-const RED_BG = 'linear-gradient(135deg, #b91c1c 0%, #9E1B22 100%)';
-const BLUE_BG = 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)';
-const RED_SHADOW = '0 1px 8px rgba(158,27,34,0.55), 0 0 18px rgba(158,27,34,0.2)';
-const BLUE_SHADOW = '0 1px 8px rgba(29,78,216,0.55), 0 0 18px rgba(29,78,216,0.2)';
+// Step 5 (U-5): toned-down active states so the toggle reads as a
+// secondary segmented control, not as a primary CTA. The Sign In
+// button keeps the strong filled-red treatment as the dominant action.
+const RED_BG = 'rgba(158,27,34,0.14)';
+const BLUE_BG = 'rgba(29,78,216,0.14)';
+const RED_SHADOW = 'inset 0 0 0 1px rgba(158,27,34,0.55)';
+const BLUE_SHADOW = 'inset 0 0 0 1px rgba(29,78,216,0.55)';
 
 export function LandingToggle({ mode, onModeChange, prefersReducedMotion, uid = '', compact = false }: LandingToggleProps) {
   const [burstKey, setBurstKey] = useState(0);
@@ -105,7 +108,7 @@ export function LandingToggle({ mode, onModeChange, prefersReducedMotion, uid = 
           cursor: 'pointer',
           whiteSpace: 'nowrap',
           background: 'transparent',
-          color: mode === 'jobseeker' ? '#fff' : 'var(--lp-toggle-color)',
+          color: mode === 'jobseeker' ? 'var(--lp-text)' : 'var(--lp-toggle-color)',
           transition: 'color 0.35s ease',
           zIndex: 1,
           display: 'flex',
@@ -134,7 +137,7 @@ export function LandingToggle({ mode, onModeChange, prefersReducedMotion, uid = 
             width: 5,
             height: 5,
             borderRadius: '50%',
-            background: mode === 'jobseeker' ? 'rgba(255,255,255,0.85)' : 'rgba(158,27,34,0.7)',
+            background: mode === 'jobseeker' ? 'rgba(158,27,34,0.95)' : 'rgba(158,27,34,0.7)',
             flexShrink: 0,
             transition: 'background 0.35s ease',
           }}
@@ -157,7 +160,7 @@ export function LandingToggle({ mode, onModeChange, prefersReducedMotion, uid = 
           cursor: 'pointer',
           whiteSpace: 'nowrap',
           background: 'transparent',
-          color: mode === 'wisehire' ? '#fff' : 'var(--lp-toggle-color)',
+          color: mode === 'wisehire' ? 'var(--lp-text)' : 'var(--lp-toggle-color)',
           transition: 'color 0.35s ease',
           zIndex: 1,
           display: 'flex',
@@ -186,7 +189,7 @@ export function LandingToggle({ mode, onModeChange, prefersReducedMotion, uid = 
             width: 5,
             height: 5,
             borderRadius: '50%',
-            background: mode === 'wisehire' ? 'rgba(255,255,255,0.85)' : 'rgba(29,78,216,0.7)',
+            background: mode === 'wisehire' ? 'rgba(29,78,216,0.95)' : 'rgba(29,78,216,0.7)',
             flexShrink: 0,
             transition: 'background 0.35s ease',
           }}

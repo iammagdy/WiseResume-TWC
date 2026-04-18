@@ -210,11 +210,12 @@ export function LandingHeader({
                   toast.error('Unable to sign in. Please try again or contact support.');
                 });
               }}
-              className="text-sm font-semibold px-3 sm:px-4 h-10 sm:h-11 rounded-lg transition-all duration-200 whitespace-nowrap shrink-0 hover:opacity-95 active:scale-[0.98]"
+              className="text-sm font-semibold px-3 sm:px-4 h-10 sm:h-11 rounded-lg transition-all duration-200 whitespace-nowrap shrink-0 hover:brightness-110 active:scale-[0.98]"
               style={{
-                color: 'var(--lp-text)',
-                background: 'transparent',
-                border: '1px solid var(--lp-border-card)',
+                color: '#fff',
+                background: 'linear-gradient(135deg, #b91c1c 0%, #9E1B22 100%)',
+                border: '1px solid #9E1B22',
+                boxShadow: '0 1px 8px rgba(158,27,34,0.45), 0 6px 18px rgba(158,27,34,0.18)',
               }}
             >
               Sign In

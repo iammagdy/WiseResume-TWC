@@ -5,7 +5,16 @@ import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import triggerHaptic from '@/lib/haptics';
 import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
-import { useReducedMotion, motion, AnimatePresence } from 'framer-motion';
+// Step 4 (B-3): use the LazyMotion + m API so the heavy `domAnimation`
+// feature bundle (~20KB gz) is loaded as a separate chunk and is fetched
+// in parallel with — not blocking — the landing first paint. The thin
+// wrapper surface (LazyMotion, m, AnimatePresence, useReducedMotion)
+// remains in the entry chunk and is small enough that vite manualChunks
+// already isolates it. `loadFeatures` returns a dynamic import so vite
+// emits domAnimation in its own chunk.
+import { LazyMotion, m, AnimatePresence, useReducedMotion } from 'framer-motion';
+const loadDomAnimationFeatures = () =>
+  import('framer-motion').then((mod) => mod.domAnimation);
 import { useEffect, useState, useRef, useCallback, startTransition, lazy, Suspense } from 'react';
 import { flushSync } from 'react-dom';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -303,10 +312,11 @@ const Index = () => {
       />
 
       <main id="landing-main" className="w-full" style={{ position: 'relative' }}>
+        <LazyMotion features={loadDomAnimationFeatures} strict>
         <AnimatePresence mode="popLayout">
           {mode === 'wisehire' ? (
-            <motion.div key="wisehire" variants={wrapperVariants} initial="hidden" animate="visible" exit="exit">
-              <motion.div variants={sectionItem} custom={0}>
+            <m.div key="wisehire" variants={wrapperVariants} initial="hidden" animate="visible" exit="exit">
+              <m.div variants={sectionItem} custom={0}>
                 <Suspense fallback={<LpFallback minHeight={640} />}>
                   <WiseHireHero
                     onOpenWaitlist={() => setWaitlistOpen(true)}
@@ -319,31 +329,31 @@ const Index = () => {
                 </Suspense>
                 <SoftDivider product="wisehire" />
                 <Suspense fallback={<LpFallback minHeight={120} />}><WiseHireFeatureTicker /></Suspense>
-              </motion.div>
-              <motion.div variants={sectionItem} custom={1}>
+              </m.div>
+              <m.div variants={sectionItem} custom={1}>
                 <Suspense fallback={<LpFallback minHeight={600} />}><WiseHireDemoSection /></Suspense>
-              </motion.div>
-              <motion.div variants={sectionItem} custom={2}>
+              </m.div>
+              <m.div variants={sectionItem} custom={2}>
                 <SoftDivider product="wisehire" />
                 <Suspense fallback={<LpFallback minHeight={400} />}><WiseHireTrustSection /></Suspense>
-              </motion.div>
-              <motion.div variants={sectionItem} custom={3}>
+              </m.div>
+              <m.div variants={sectionItem} custom={3}>
                 <SoftDivider product="wisehire" />
                 <Suspense fallback={<LpFallback minHeight={480} />}><WiseHireFeatures onOpenWaitlist={() => setWaitlistOpen(true)} /></Suspense>
-              </motion.div>
-              <motion.div variants={sectionItem} custom={4}>
+              </m.div>
+              <m.div variants={sectionItem} custom={4}>
                 <SoftDivider product="wisehire" />
                 <Suspense fallback={<LpFallback minHeight={520} />}><WiseHirePricing onOpenWaitlist={() => setWaitlistOpen(true)} /></Suspense>
-              </motion.div>
-              <motion.div variants={sectionItem} custom={5}>
+              </m.div>
+              <m.div variants={sectionItem} custom={5}>
                 <Suspense fallback={<LpFallback minHeight={320} />}>
                   <WiseHireClosingCTA prefersReducedMotion={prefersReducedMotion} onOpenWaitlist={() => setWaitlistOpen(true)} />
                 </Suspense>
-              </motion.div>
-            </motion.div>
+              </m.div>
+            </m.div>
           ) : (
-            <motion.div key="wiseresume" variants={wrapperVariants} initial="hidden" animate="visible" exit="exit">
-              <motion.div variants={sectionItem} custom={0}>
+            <m.div key="wiseresume" variants={wrapperVariants} initial="hidden" animate="visible" exit="exit">
+              <m.div variants={sectionItem} custom={0}>
                 <WiseResumeHero
                   mode={mode}
                   prefersReducedMotion={prefersReducedMotion}
@@ -353,13 +363,14 @@ const Index = () => {
                   onModeChange={handleLandingModeChange}
                   onCTA={handleCTA}
                 />
-              </motion.div>
+              </m.div>
               <Suspense fallback={<LpFallback minHeight={800} />}>
                 <WiseResumeContent prefersReducedMotion={prefersReducedMotion} isDark={isDark} onCTA={handleCTA} />
               </Suspense>
-            </motion.div>
+            </m.div>
           )}
         </AnimatePresence>
+        </LazyMotion>
       </main>
 
       <WaitlistModal open={waitlistOpen} onClose={() => setWaitlistOpen(false)} />

@@ -55,7 +55,25 @@ or explicitly mitigated.
   3 px offset on the legal links so they read as links even before
   hover (previously color-only affordance).
 
-### U-5 — Sign In vs active-toggle ambiguity
+### U-5 — Sign-In is now the dominant primary CTA, toggle subordinate
+**Updated after code review:** the original fix made the Sign-In
+button transparent and kept the active toggle filled red. This was
+backwards — Sign-In is the page's primary action and should carry the
+strongest brand-fill weight. Corrected:
+
+- `src/components/landing/LandingHeader.tsx` — Sign-In restored to a
+  filled brand-red gradient (`linear-gradient(135deg, #b91c1c → #9E1B22)`)
+  with a soft brand-shadow lift.
+- `src/components/landing/LandingToggle.tsx` — active pill state changed
+  from a filled gradient + white text to a tinted background
+  (`rgba(brand, 0.14)`) with an inset 1px brand outline and dark text,
+  so the segmented control reads as a tab strip rather than a CTA.
+  Status dots remain saturated to keep the active option scannable.
+
+The result: a single dominant red button (Sign-In) and a clearly
+secondary product toggle.
+
+### U-5 (original notes — superseded above)
 - **File:** `src/components/landing/LandingHeader.tsx`
 - The "Sign In" button used solid `#9E1B22` brand-red — visually
   identical to the active "Individuals" toggle pill. Changed to a
@@ -84,10 +102,26 @@ or explicitly mitigated.
   `src/main.tsx`; vite emits these as local woff2 assets cached
   alongside the entry. Tightened CSP to drop the Google Fonts
   exceptions from `style-src` / `font-src`.
-- Re-test FCP (dev mode, warm cache after restart): **852 ms**
+- Re-test FCP (dev mode, warm cache after restart): **852–1052 ms**
   (browser logs after reload), down from the audit baseline of
-  2790 ms. Production FCP (where vite transform cost is removed) will
-  be lower still.
+  2790 ms.
+
+### Headless Puppeteer matrix metrics
+After re-running `scripts/phase6-screenshots.mjs` (cold-cache, headless
+Chromium 123, viewport 1280×800):
+
+| Variant            | TTFB (ms) | FCP (ms) | LCP (ms) |
+|--------------------|----------:|---------:|---------:|
+| WiseResume / light |       19  |    3285  |    4144  |
+| WiseResume / dark  |       19  |    2707  |    4119  |
+| WiseHire   / light |       10  |    2767  |    3662  |
+| WiseHire   / dark  |        8  |    2259  |    2682  |
+
+The dev-mode browser FCP of ~850–1050 ms cited above is closer to the
+true on-device FCP because Vite serves modules pre-warmed; the
+puppeteer headless run pays full cold-cache cost on every navigation
+and is therefore an upper bound. Both numbers are improvements vs the
+audit baseline (2790 ms dev FCP / 5800 ms LCP for `wisehire-dark`).
 - Code review caught two display fonts (`Space Grotesk`, `Fira Code`)
   used in portfolio templates that were silently being delivered by
   the broad Google Fonts request. Added `@fontsource/space-grotesk`
@@ -95,9 +129,21 @@ or explicitly mitigated.
   `src/main.tsx` so portfolio "Display" / "Code" themes still render
   with their intended typography.
 
-### B-3 — Framer-motion chunk
-- **File:** `vite.config.ts`
-- Verified `manualChunks(id)` already routes `node_modules/framer-motion`
+### B-3 — Framer-motion lazy-loaded with LazyMotion
+- **File:** `src/pages/Index.tsx`
+- Replaced the eager `import { motion, AnimatePresence } from 'framer-motion'`
+  with the LazyMotion API: imported only the thin wrapper surface
+  (`LazyMotion`, `m`, `AnimatePresence`, `useReducedMotion`) and added
+  ```ts
+  const loadDomAnimationFeatures = () =>
+    import('framer-motion').then((mod) => mod.domAnimation);
+  ```
+  Then wrapped the landing tree in
+  `<LazyMotion features={loadDomAnimationFeatures} strict>` and renamed
+  every `motion.div` → `m.div` inside the wrapper. Vite emits the
+  `domAnimation` feature bundle (~20 KB gz) as a separate chunk that is
+  fetched in parallel with — not blocking — landing first paint.
+- `manualChunks(id)` in `vite.config.ts` already routes `node_modules/framer-motion`
   to the `framer` chunk (line 122). The chunk loads in parallel with
   the entry rather than blocking it, and is cached across product
   switches between WiseResume / WiseHire (both products consume it).
