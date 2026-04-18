@@ -357,7 +357,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to merge identity');
     } finally {
-      setMergingIdentity(false);
+      if (isMounted()) setMergingIdentity(false);
     }
   };
 
@@ -426,7 +426,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to update profile');
     } finally {
-      setSavingProfile(false);
+      if (isMounted()) setSavingProfile(false);
     }
   };
 
@@ -456,7 +456,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to set plan');
     } finally {
-      setSavingPlan(false);
+      if (isMounted()) setSavingPlan(false);
     }
   };
 
@@ -475,7 +475,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to grant trial');
     } finally {
-      setSavingTrial(false);
+      if (isMounted()) setSavingTrial(false);
     }
   };
 
@@ -493,7 +493,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to revoke trial');
     } finally {
-      setRevokingTrial(false);
+      if (isMounted()) setRevokingTrial(false);
     }
   };
 
@@ -516,7 +516,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to update suspension');
     } finally {
-      setSavingSuspend(false);
+      if (isMounted()) setSavingSuspend(false);
     }
   };
 
@@ -548,7 +548,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to update credits');
     } finally {
-      setSavingCredits(false);
+      if (isMounted()) setSavingCredits(false);
     }
   };
 
@@ -568,7 +568,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to save note');
     } finally {
-      setSavingNote(false);
+      if (isMounted()) setSavingNote(false);
     }
   };
 
@@ -592,7 +592,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to delete note');
     } finally {
-      setDeletingNoteId(null);
+      if (isMounted()) setDeletingNoteId(null);
     }
   };
 
@@ -612,7 +612,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to revoke sessions');
     } finally {
-      setRevokingSessions(false);
+      if (isMounted()) setRevokingSessions(false);
     }
   };
 
@@ -636,7 +636,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to delete user');
     } finally {
-      setDeletingUser(false);
+      if (isMounted()) setDeletingUser(false);
     }
   };
 
@@ -652,7 +652,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to load resume');
     } finally {
-      setResumeDetailLoading(false);
+      if (isMounted()) setResumeDetailLoading(false);
     }
   };
 

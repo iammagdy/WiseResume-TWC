@@ -200,9 +200,12 @@ export function DeploymentPanel() {
   useEffect(() => { fetchSweepStatus(); }, [fetchSweepStatus]);
 
   useEffect(() => {
+    let cancelled = false;
     supabase.from('contact_requests').select('id', { count: 'exact', head: true }).then(({ error }) => {
+      if (cancelled) return;
       setContactTableOk(error === null);
     });
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
