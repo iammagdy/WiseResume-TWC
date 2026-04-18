@@ -1275,6 +1275,48 @@ app.get(
   },
 );
 
+/**
+ * POST /api/admin/ai-provider/gemini-test
+ * Fires a lightweight generateContent ping using the managed GEMINI_API_KEY.
+ * Returns { success, model, latencyMs, preview } or { success: false, error }.
+ */
+app.post(
+  '/api/admin/ai-provider/gemini-test',
+  requireAuthHeader,
+  requireAdminEmail,
+  async (_req, res) => {
+    const key = process.env.GEMINI_API_KEY;
+    if (!key) {
+      res.json({ success: false, error: 'GEMINI_API_KEY not configured on server' });
+      return;
+    }
+    const model = 'gemini-2.0-flash';
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), 15_000);
+    const start = Date.now();
+    try {
+      const r = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts: [{ text: 'Reply with exactly one word: OK' }] }] }),
+        signal: controller.signal,
+      });
+      if (!r.ok) {
+        res.json({ success: false, error: `HTTP ${r.status}`, model });
+        return;
+      }
+      const body = await r.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
+      const text = body.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+      res.json({ success: true, model, latencyMs: Date.now() - start, preview: text.slice(0, 120) });
+    } catch (e: unknown) {
+      res.json({ success: false, error: e instanceof Error ? e.message : String(e), model });
+    } finally {
+      clearTimeout(t);
+    }
+  },
+);
+
 // ── Start server ──────────────────────────────────────────────────────────────
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`[server] WiseResume API server running on port ${PORT}`);

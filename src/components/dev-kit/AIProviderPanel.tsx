@@ -22,9 +22,16 @@ interface ORModel {
   isFree: boolean;
 }
 
+interface ORModelRaw {
+  id: string;
+  name?: string;
+  pricing?: { prompt?: string; completion?: string };
+  context_length?: number;
+}
+
 interface GroqModel {
   id: string;
-  owned_by: string;
+  owned_by?: string;
   context_window?: number;
 }
 
@@ -39,12 +46,21 @@ interface OllamaModel {
   size?: number;
 }
 
+interface OllamaTagsResponse {
+  models?: OllamaModel[];
+}
+
 interface BreakerRow {
   provider: string;
   failure_count: number;
   opened_until: string | null;
   last_failure_at: string | null;
   is_open: boolean;
+}
+
+interface BreakerStatusResponse {
+  now: string;
+  providers: BreakerRow[];
 }
 
 interface ManagedORData {
@@ -73,6 +89,27 @@ interface ManagedGeminiStatus {
   error?: string;
 }
 
+interface AITestResponse {
+  success?: boolean;
+  model?: string;
+  latencyMs?: number;
+  response?: string;
+  preview?: string;
+  error?: string;
+}
+
+interface OllamaGenerateResponse {
+  response?: string;
+}
+
+interface GeminiTestResponse {
+  success: boolean;
+  model?: string;
+  latencyMs?: number;
+  preview?: string;
+  error?: string;
+}
+
 interface TestState {
   status: 'idle' | 'running' | 'done' | 'error';
   latencyMs?: number;
@@ -80,6 +117,15 @@ interface TestState {
   model?: string;
   error?: string;
 }
+
+// ── Provider ID constants (match ai_provider_breaker table keys) ───────────────
+
+const BREAKER_ID = {
+  openrouter: 'wiseresume/openrouter',
+  groq: 'wiseresume/groq',
+  gemini: 'gemini_global',
+  ollama: null, // local — not tracked in breaker
+} as const;
 
 // ── Static fallbacks ───────────────────────────────────────────────────────────
 
@@ -107,7 +153,6 @@ const GROQ_CONTEXT_FALLBACK: Record<string, number> = {
 
 const GROQ_MODELS_FALLBACK: GroqModel[] = Object.entries(GROQ_CONTEXT_FALLBACK).map(([id, ctx]) => ({
   id,
-  owned_by: 'groq',
   context_window: ctx,
 }));
 
@@ -120,10 +165,14 @@ function formatCtx(n?: number | null): string | null {
   return `${n} ctx`;
 }
 
-async function fetchWithToken(url: string): Promise<Response> {
+async function fetchWithToken(url: string, options?: RequestInit): Promise<Response> {
   const token = await getSupabaseToken();
   return fetch(url, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    ...options,
+    headers: {
+      ...(options?.headers ?? {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
   });
 }
 
@@ -147,22 +196,21 @@ function PaidBadge() {
   );
 }
 
-function BreakerChip({ row }: { row?: BreakerRow }) {
+function BreakerChip({ row }: { row?: BreakerRow | null }) {
   if (!row) {
     return (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-muted/50 text-muted-foreground border border-border">
         <ShieldCheck className="w-3 h-3" />
-        Status unknown
+        No breaker data
       </span>
     );
   }
   if (row.is_open && row.opened_until) {
-    const resetAt = new Date(row.opened_until);
-    const secsLeft = Math.max(0, Math.ceil((resetAt.getTime() - Date.now()) / 1000));
+    const secsLeft = Math.max(0, Math.ceil((new Date(row.opened_until).getTime() - Date.now()) / 1000));
     return (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20">
         <ShieldX className="w-3 h-3" />
-        Breaker open — resets in {secsLeft}s
+        Breaker OPEN — resets in {secsLeft}s
       </span>
     );
   }
@@ -182,6 +230,26 @@ function BreakerChip({ row }: { row?: BreakerRow }) {
   );
 }
 
+function BreakerBanner({ row }: { row?: BreakerRow | null }) {
+  if (!row?.is_open) return null;
+  const secsLeft = row.opened_until
+    ? Math.max(0, Math.ceil((new Date(row.opened_until).getTime() - Date.now()) / 1000))
+    : 0;
+  return (
+    <div className="flex items-start gap-2 p-3 rounded-lg border border-amber-500/30 bg-amber-500/8">
+      <ShieldX className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+      <div className="text-xs text-amber-700 dark:text-amber-300 space-y-0.5">
+        <p className="font-semibold">Circuit breaker is OPEN</p>
+        <p>
+          This provider is failing fast until the breaker resets.
+          {secsLeft > 0 && ` Resets in ~${secsLeft}s.`}
+          {row.failure_count > 0 && ` (${row.failure_count} failures recorded)`}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function ConfirmCard({
   modelId,
   onConfirm,
@@ -193,9 +261,7 @@ function ConfirmCard({
 }) {
   return (
     <div className="mx-3 mb-1 p-3 rounded-lg border border-primary/20 bg-primary/5 space-y-2">
-      <p className="text-xs font-medium text-foreground">
-        Switch active model to:
-      </p>
+      <p className="text-xs font-medium text-foreground">Switch active model to:</p>
       <p className="text-xs font-mono text-primary truncate">{modelId}</p>
       <div className="flex gap-2">
         <button
@@ -215,7 +281,14 @@ function ConfirmCard({
   );
 }
 
-function TestBanner({ state, onRun, loading }: { state: TestState; onRun: () => void; loading: boolean }) {
+function TestBanner({
+  state,
+  onRun,
+}: {
+  state: TestState;
+  onRun: () => void;
+}) {
+  const loading = state.status === 'running';
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
@@ -287,18 +360,14 @@ function FeatureRoutingSection({ subProvider }: { subProvider: WiseresumeSubProv
         onClick={() => setOpen(o => !o)}
         className="w-full flex items-center justify-between px-3 py-2.5 bg-muted/30 hover:bg-muted/50 transition-colors"
       >
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Map className="w-3.5 h-3.5 text-muted-foreground" />
           <span className="text-xs font-medium text-foreground">Feature routing</span>
-          <span className={cn('text-[10px] font-semibold', routeColor)}>
-            {routeLabel}
-          </span>
+          <span className={cn('text-[10px] font-semibold', routeColor)}>{routeLabel}</span>
         </div>
-        {open ? (
-          <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
-        ) : (
-          <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
-        )}
+        {open
+          ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+          : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />}
       </button>
       {open && (
         <div className="divide-y divide-border border-t border-border">
@@ -312,7 +381,7 @@ function FeatureRoutingSection({ subProvider }: { subProvider: WiseresumeSubProv
             </div>
           ))}
           <div className="px-3 py-2 bg-muted/20 text-[10px] text-muted-foreground">
-            BYOK users use their own configured provider instead of the managed route.
+            BYOK users bypass this route and use their own configured provider.
           </div>
         </div>
       )}
@@ -327,7 +396,7 @@ function OpenRouterPanel({
   managedStatus,
   onManagedRefresh,
 }: {
-  breakerRow?: BreakerRow;
+  breakerRow?: BreakerRow | null;
   managedStatus: ManagedORStatus | null;
   onManagedRefresh: () => void;
 }) {
@@ -348,11 +417,11 @@ function OpenRouterPanel({
     try {
       const res = await fetch('https://openrouter.ai/api/v1/models');
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json();
-      const list: ORModel[] = (json.data ?? []).map((m: any) => ({
+      const json = await res.json() as { data?: ORModelRaw[] };
+      const list: ORModel[] = (json.data ?? []).map((m) => ({
         id: m.id,
         name: m.name ?? m.id,
-        pricing: m.pricing ?? { prompt: '1', completion: '1' },
+        pricing: { prompt: m.pricing?.prompt ?? '1', completion: m.pricing?.completion ?? '1' },
         context_length: m.context_length ?? 0,
         isFree: m.pricing?.prompt === '0' && m.pricing?.completion === '0',
       }));
@@ -361,8 +430,8 @@ function OpenRouterPanel({
         return a.name.localeCompare(b.name);
       });
       setModels(list);
-    } catch (e: any) {
-      setError(e.message ?? 'Failed to load models');
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Failed to load models');
     } finally {
       setLoading(false);
     }
@@ -371,7 +440,7 @@ function OpenRouterPanel({
   useEffect(() => {
     if (!hasFetched.current) {
       hasFetched.current = true;
-      fetchModels();
+      void fetchModels();
     }
   }, [fetchModels]);
 
@@ -381,26 +450,24 @@ function OpenRouterPanel({
       const res = await edgeFunctions.functions.invoke('ai-test', {
         body: { wiseresumeSubProvider: 'openrouter', adminPassword: getDevKitToken() },
       });
-      if (res.error) throw new Error((res.error as any).message || 'ai-test error');
-      const d = res.data as { success?: boolean; model?: string; latencyMs?: number; response?: string; error?: string };
-      if (!d?.success) throw new Error(d?.error || 'ai-test returned failure');
+      if (res.error) throw new Error(res.error instanceof Error ? res.error.message : String(res.error));
+      const d = res.data as AITestResponse;
+      if (!d?.success) throw new Error(d?.error ?? 'ai-test returned failure');
       setTestState({
         status: 'done',
         latencyMs: d.latencyMs,
         model: d.model,
         preview: d.response?.slice(0, 100),
       });
-    } catch (e: any) {
-      setTestState({ status: 'error', error: e.message ?? 'Test failed' });
+    } catch (e: unknown) {
+      setTestState({ status: 'error', error: e instanceof Error ? e.message : 'Test failed' });
     }
   }, []);
 
   const filtered = models.filter(m => {
-    const matchSearch =
-      m.name.toLowerCase().includes(search.toLowerCase()) ||
-      m.id.toLowerCase().includes(search.toLowerCase());
-    const matchFilter =
-      filter === 'all' || (filter === 'free' ? m.isFree : !m.isFree);
+    const q = search.toLowerCase();
+    const matchSearch = m.name.toLowerCase().includes(q) || m.id.toLowerCase().includes(q);
+    const matchFilter = filter === 'all' || (filter === 'free' ? m.isFree : !m.isFree);
     return matchSearch && matchFilter;
   });
 
@@ -408,6 +475,7 @@ function OpenRouterPanel({
 
   return (
     <div className="space-y-4">
+      <BreakerBanner row={breakerRow} />
       <div className="flex items-center gap-2 flex-wrap">
         <BreakerChip row={breakerRow} />
       </div>
@@ -443,7 +511,7 @@ function OpenRouterPanel({
               <span className="ml-2 text-green-600 dark:text-green-400">· Free tier</span>
             )}
             {mData.rate_limit && (
-              <span className="ml-2 text-muted-foreground">
+              <span className="ml-2">
                 · {mData.rate_limit.requests} req/{mData.rate_limit.interval}
               </span>
             )}
@@ -452,11 +520,7 @@ function OpenRouterPanel({
       </div>
 
       {/* Test */}
-      <TestBanner
-        state={testState}
-        onRun={runTest}
-        loading={testState.status === 'running'}
-      />
+      <TestBanner state={testState} onRun={runTest} />
 
       {/* Active model + refresh */}
       <div className="flex items-center justify-between">
@@ -467,11 +531,11 @@ function OpenRouterPanel({
           </p>
         </div>
         <button
-          onClick={() => { hasFetched.current = false; fetchModels(); }}
+          onClick={() => { hasFetched.current = false; void fetchModels(); }}
           className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md border border-border hover:bg-muted transition-colors"
         >
           <RefreshCw className="w-3 h-3" />
-          Refresh
+          Refresh list
         </button>
       </div>
 
@@ -509,7 +573,7 @@ function OpenRouterPanel({
           <RefreshCw className="w-4 h-4 animate-spin mr-2" /> Loading models…
         </div>
       )}
-      {error && (
+      {error && !loading && (
         <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm border border-destructive/20">
           {error}
         </div>
@@ -576,7 +640,7 @@ function GroqPanel({
   breakerRow,
   managedStatus,
 }: {
-  breakerRow?: BreakerRow;
+  breakerRow?: BreakerRow | null;
   managedStatus: ManagedGroqStatus | null;
 }) {
   const { groqModel, setGroqModel } = useSettingsStore();
@@ -597,26 +661,25 @@ function GroqPanel({
       const res = await edgeFunctions.functions.invoke('ai-test', {
         body: { wiseresumeSubProvider: 'groq', adminPassword: getDevKitToken() },
       });
-      if (res.error) throw new Error((res.error as any).message || 'ai-test error');
-      const d = res.data as { success?: boolean; model?: string; latencyMs?: number; response?: string; error?: string };
-      if (!d?.success) throw new Error(d?.error || 'ai-test returned failure');
+      if (res.error) throw new Error(res.error instanceof Error ? res.error.message : String(res.error));
+      const d = res.data as AITestResponse;
+      if (!d?.success) throw new Error(d?.error ?? 'ai-test returned failure');
       setTestState({
         status: 'done',
         latencyMs: d.latencyMs,
         model: d.model,
         preview: d.response?.slice(0, 100),
       });
-    } catch (e: any) {
-      setTestState({ status: 'error', error: e.message ?? 'Test failed' });
+    } catch (e: unknown) {
+      setTestState({ status: 'error', error: e instanceof Error ? e.message : 'Test failed' });
     }
   }, []);
 
-  const filtered = models.filter(m =>
-    m.id.toLowerCase().includes(search.toLowerCase()),
-  );
+  const filtered = models.filter(m => m.id.toLowerCase().includes(search.toLowerCase()));
 
   return (
     <div className="space-y-4">
+      <BreakerBanner row={breakerRow} />
       <div className="flex items-center gap-2 flex-wrap">
         <BreakerChip row={breakerRow} />
         <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20">
@@ -625,7 +688,6 @@ function GroqPanel({
         </span>
       </div>
 
-      {/* Managed key status */}
       {managedStatus === null && (
         <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 border border-border">
           <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground shrink-0" />
@@ -636,7 +698,7 @@ function GroqPanel({
         <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 border border-border">
           <Info className="w-4 h-4 text-muted-foreground shrink-0" />
           <p className="text-xs text-muted-foreground">
-            GROQ_API_KEY not on server — showing known fallback list.
+            GROQ_API_KEY not on server — showing fallback list.
           </p>
         </div>
       )}
@@ -649,14 +711,8 @@ function GroqPanel({
         </div>
       )}
 
-      {/* Test */}
-      <TestBanner
-        state={testState}
-        onRun={runTest}
-        loading={testState.status === 'running'}
-      />
+      <TestBanner state={testState} onRun={runTest} />
 
-      {/* Active model */}
       <div>
         <p className="text-xs text-muted-foreground">Active BYOK model</p>
         <p className="text-sm font-mono font-medium text-foreground truncate">
@@ -726,17 +782,21 @@ function GroqPanel({
 
 // ── Gemini sub-panel ───────────────────────────────────────────────────────────
 
-function GeminiPanel({ breakerRow }: { breakerRow?: BreakerRow }) {
+function GeminiPanel({ breakerRow }: { breakerRow?: BreakerRow | null }) {
   const { geminiModel, geminiApiKey, geminiKeyValidated, geminiDailyUsage, setGeminiModel } = useSettingsStore();
   const [search, setSearch] = useState('');
   const [pending, setPending] = useState<string | null>(null);
+  const [testState, setTestState] = useState<TestState>({ status: 'idle' });
   const [managedStatus, setManagedStatus] = useState<ManagedGeminiStatus | null>(null);
   const hasFetched = useRef(false);
 
   const fetchManagedModels = useCallback(async () => {
     try {
       const res = await fetchWithToken('/api/admin/ai-provider/gemini-models');
-      if (!res.ok) return;
+      if (!res.ok) {
+        setManagedStatus({ configured: false, models: [] });
+        return;
+      }
       const data = await res.json() as ManagedGeminiStatus;
       setManagedStatus(data);
     } catch {
@@ -747,9 +807,27 @@ function GeminiPanel({ breakerRow }: { breakerRow?: BreakerRow }) {
   useEffect(() => {
     if (!hasFetched.current) {
       hasFetched.current = true;
-      fetchManagedModels();
+      void fetchManagedModels();
     }
   }, [fetchManagedModels]);
+
+  const runTest = useCallback(async () => {
+    setTestState({ status: 'running' });
+    try {
+      const res = await fetchWithToken('/api/admin/ai-provider/gemini-test', { method: 'POST' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const d = await res.json() as GeminiTestResponse;
+      if (!d.success) throw new Error(d.error ?? 'Gemini test failed');
+      setTestState({
+        status: 'done',
+        latencyMs: d.latencyMs,
+        model: d.model,
+        preview: d.preview,
+      });
+    } catch (e: unknown) {
+      setTestState({ status: 'error', error: e instanceof Error ? e.message : 'Test failed' });
+    }
+  }, []);
 
   const models: GeminiModel[] =
     managedStatus?.configured && managedStatus.models.length > 0
@@ -768,6 +846,7 @@ function GeminiPanel({ breakerRow }: { breakerRow?: BreakerRow }) {
 
   return (
     <div className="space-y-4">
+      <BreakerBanner row={breakerRow} />
       <div className="flex items-center gap-2 flex-wrap">
         <BreakerChip row={breakerRow} />
       </div>
@@ -786,7 +865,7 @@ function GeminiPanel({ breakerRow }: { breakerRow?: BreakerRow }) {
             {managedStatus === null
               ? 'Loading managed model list…'
               : managedStatus.configured === false
-              ? 'GEMINI_API_KEY not on server — showing known fallback list.'
+              ? 'GEMINI_API_KEY not on server — showing fallback list.'
               : 'Showing fallback model list.'}
           </p>
         </div>
@@ -814,6 +893,9 @@ function GeminiPanel({ breakerRow }: { breakerRow?: BreakerRow }) {
           <p className="text-xs">No BYOK Gemini key. Add one in AI Settings to use your own account.</p>
         </div>
       )}
+
+      {/* Test via managed server proxy */}
+      <TestBanner state={testState} onRun={runTest} />
 
       <div>
         <p className="text-xs text-muted-foreground">Active model</p>
@@ -875,44 +957,82 @@ function GeminiPanel({ breakerRow }: { breakerRow?: BreakerRow }) {
 
 // ── Ollama sub-panel ───────────────────────────────────────────────────────────
 
-function OllamaPanel({ breakerRow }: { breakerRow?: BreakerRow }) {
+function OllamaPanel({ breakerRow }: { breakerRow?: BreakerRow | null }) {
   const { ollamaModel, ollamaBaseUrl, setOllamaModel } = useSettingsStore();
   const [models, setModels] = useState<OllamaModel[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [pending, setPending] = useState<string | null>(null);
+  const [testState, setTestState] = useState<TestState>({ status: 'idle' });
   const hasFetched = useRef(false);
 
+  const base = ollamaBaseUrl || 'http://localhost:11434';
+
   const fetchModels = useCallback(async () => {
-    const base = ollamaBaseUrl || 'http://localhost:11434';
     setLoading(true);
     setError(null);
     try {
       const res = await fetch(`${base}/api/tags`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json();
+      const json = await res.json() as OllamaTagsResponse;
       setModels(json.models ?? []);
     } catch {
       setError('Cannot reach Ollama. Is it running locally?');
     } finally {
       setLoading(false);
     }
-  }, [ollamaBaseUrl]);
+  }, [base]);
 
   useEffect(() => {
     if (!hasFetched.current) {
       hasFetched.current = true;
-      fetchModels();
+      void fetchModels();
     }
   }, [fetchModels]);
+
+  const runTest = useCallback(async () => {
+    if (!ollamaModel) {
+      setTestState({ status: 'error', error: 'No model selected. Pick a model first.' });
+      return;
+    }
+    setTestState({ status: 'running' });
+    const start = Date.now();
+    try {
+      const res = await fetch(`${base}/api/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: ollamaModel, prompt: 'Reply with one word: OK', stream: false }),
+        signal: AbortSignal.timeout(20_000),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const d = await res.json() as OllamaGenerateResponse;
+      setTestState({
+        status: 'done',
+        latencyMs: Date.now() - start,
+        model: ollamaModel,
+        preview: (d.response ?? '').slice(0, 100),
+      });
+    } catch (e: unknown) {
+      setTestState({ status: 'error', error: e instanceof Error ? e.message : 'Test failed' });
+    }
+  }, [base, ollamaModel]);
 
   const filtered = models.filter(m => m.name.toLowerCase().includes(search.toLowerCase()));
 
   return (
     <div className="space-y-4">
+      {/* Ollama is local — no breaker tracked, but show if a row happens to exist */}
+      {breakerRow && <BreakerBanner row={breakerRow} />}
       <div className="flex items-center gap-2 flex-wrap">
-        <BreakerChip row={breakerRow} />
+        {breakerRow
+          ? <BreakerChip row={breakerRow} />
+          : (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-muted/50 text-muted-foreground border border-border">
+              <ShieldCheck className="w-3 h-3" />
+              Not tracked in breaker
+            </span>
+          )}
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
           <Cpu className="w-3 h-3" />
           Local only
@@ -923,9 +1043,11 @@ function OllamaPanel({ breakerRow }: { breakerRow?: BreakerRow }) {
         <Cpu className="w-4 h-4 text-purple-500 shrink-0 mt-0.5" />
         <div className="text-xs text-purple-700 dark:text-purple-300 space-y-0.5">
           <p className="font-medium">Local Ollama — privacy-first inference</p>
-          <p className="font-mono opacity-70">{ollamaBaseUrl || 'http://localhost:11434'}</p>
+          <p className="font-mono opacity-70">{base}</p>
         </div>
       </div>
+
+      <TestBanner state={testState} onRun={runTest} />
 
       <div className="flex items-center justify-between">
         <div>
@@ -935,7 +1057,7 @@ function OllamaPanel({ breakerRow }: { breakerRow?: BreakerRow }) {
           </p>
         </div>
         <button
-          onClick={() => { hasFetched.current = false; fetchModels(); }}
+          onClick={() => { hasFetched.current = false; void fetchModels(); }}
           className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md border border-border hover:bg-muted transition-colors"
         >
           <RefreshCw className="w-3 h-3" />
@@ -958,7 +1080,7 @@ function OllamaPanel({ breakerRow }: { breakerRow?: BreakerRow }) {
           <RefreshCw className="w-4 h-4 animate-spin mr-2" /> Connecting to Ollama…
         </div>
       )}
-      {error && (
+      {error && !loading && (
         <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm border border-destructive/20">
           {error}
         </div>
@@ -966,8 +1088,8 @@ function OllamaPanel({ breakerRow }: { breakerRow?: BreakerRow }) {
       {!loading && !error && models.length === 0 && (
         <div className="py-8 text-center text-sm text-muted-foreground">
           No models installed. Run{' '}
-          <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">ollama pull &lt;model&gt;</code>{' '}
-          to add one.
+          <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">ollama pull &lt;model&gt;</code>
+          {' '}to add one.
         </div>
       )}
       {!loading && !error && models.length > 0 && (
@@ -1027,11 +1149,11 @@ export function AIProviderPanel() {
 
   const [activeTab, setActiveTab] = useState<ProviderTab>('openrouter');
 
-  // Breaker status — fetched once, refreshed on demand
-  const [breakerRows, setBreakerRows] = useState<BreakerRow[] | null>(null);
+  // Breaker status fetched from ai-breaker-status edge function
+  const [breakerRows, setBreaker] = useState<BreakerRow[] | null>(null);
   const [breakerLoading, setBreakerLoading] = useState(false);
 
-  // Managed provider data
+  // Managed provider data fetched from server proxy
   const [managedOR, setManagedOR] = useState<ManagedORStatus | null>(null);
   const [managedGroq, setManagedGroq] = useState<ManagedGroqStatus | null>(null);
 
@@ -1041,13 +1163,14 @@ export function AIProviderPanel() {
       const res = await edgeFunctions.functions.invoke('ai-breaker-status', {
         body: { password: getDevKitToken() },
       });
-      if (!res.error && Array.isArray(res.data)) {
-        setBreakerRows(res.data as BreakerRow[]);
+      if (!res.error) {
+        const body = res.data as BreakerStatusResponse | null;
+        setBreaker(Array.isArray(body?.providers) ? body!.providers : []);
       } else {
-        setBreakerRows([]);
+        setBreaker([]);
       }
     } catch {
-      setBreakerRows([]);
+      setBreaker([]);
     } finally {
       setBreakerLoading(false);
     }
@@ -1060,8 +1183,8 @@ export function AIProviderPanel() {
       if (!res.ok) { setManagedOR({ configured: true, error: `HTTP ${res.status}` }); return; }
       const data = await res.json() as ManagedORStatus;
       setManagedOR(data);
-    } catch (e: any) {
-      setManagedOR({ configured: true, error: e.message });
+    } catch (e: unknown) {
+      setManagedOR({ configured: true, error: e instanceof Error ? e.message : 'Fetch failed' });
     }
   }, []);
 
@@ -1072,19 +1195,23 @@ export function AIProviderPanel() {
       if (!res.ok) { setManagedGroq({ configured: true, models: [], error: `HTTP ${res.status}` }); return; }
       const data = await res.json() as ManagedGroqStatus;
       setManagedGroq(data);
-    } catch (e: any) {
-      setManagedGroq({ configured: true, models: [], error: e.message });
+    } catch (e: unknown) {
+      setManagedGroq({ configured: true, models: [], error: e instanceof Error ? e.message : 'Fetch failed' });
     }
   }, []);
 
   useEffect(() => {
-    fetchBreakerStatus();
-    fetchManagedOR();
-    fetchManagedGroq();
+    void fetchBreakerStatus();
+    void fetchManagedOR();
+    void fetchManagedGroq();
   }, [fetchBreakerStatus, fetchManagedOR, fetchManagedGroq]);
 
-  const getBreakerRow = (provider: string): BreakerRow | undefined =>
-    breakerRows?.find(r => r.provider === provider);
+  // Look up a breaker row by the canonical table key (e.g. 'wiseresume/openrouter')
+  const getBreakerRow = (tab: ProviderTab): BreakerRow | null => {
+    const key = BREAKER_ID[tab];
+    if (!key || !breakerRows) return null;
+    return breakerRows.find(r => r.provider === key) ?? null;
+  };
 
   const TABS: { id: ProviderTab; label: string }[] = [
     { id: 'openrouter', label: 'OpenRouter' },
@@ -1104,7 +1231,7 @@ export function AIProviderPanel() {
           </p>
         </div>
         <button
-          onClick={() => { fetchBreakerStatus(); fetchManagedOR(); fetchManagedGroq(); }}
+          onClick={() => { void fetchBreakerStatus(); void fetchManagedOR(); void fetchManagedGroq(); }}
           disabled={breakerLoading}
           className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md border border-border hover:bg-muted transition-colors disabled:opacity-50"
         >
@@ -1116,15 +1243,16 @@ export function AIProviderPanel() {
       {/* Feature routing */}
       <FeatureRoutingSection subProvider={wiseresumeSubProvider} />
 
-      {/* Active provider indicator */}
+      {/* Active provider mode */}
       <div className="flex items-center gap-2 p-3 rounded-lg border border-border bg-muted/20">
         <Info className="w-4 h-4 text-muted-foreground shrink-0" />
         <p className="text-xs text-muted-foreground">
           Current provider mode:{' '}
           <span className="font-semibold text-foreground">{aiProvider}</span>
           {aiProvider === 'wiseresume' && (
-            <span className="ml-1 text-muted-foreground">
-              (sub-provider: <span className="font-mono">{wiseresumeSubProvider}</span>)
+            <span className="ml-1">
+              (sub-provider:{' '}
+              <span className="font-mono text-foreground">{wiseresumeSubProvider}</span>)
             </span>
           )}
         </p>
@@ -1161,7 +1289,7 @@ export function AIProviderPanel() {
             <OpenRouterPanel
               breakerRow={getBreakerRow('openrouter')}
               managedStatus={managedOR}
-              onManagedRefresh={fetchManagedOR}
+              onManagedRefresh={() => { void fetchManagedOR(); }}
             />
           )}
           {activeTab === 'groq' && (
