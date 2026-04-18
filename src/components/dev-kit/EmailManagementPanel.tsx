@@ -312,6 +312,12 @@ function ComposeEmailForm({
     }
   }, [prefillUser]);
 
+  useEffect(() => {
+    return () => {
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    };
+  }, []);
+
   const handleSearch = useCallback((q: string) => {
     setEmailSearch(q);
     setSelectedUser(null);
@@ -323,6 +329,7 @@ function ComposeEmailForm({
     }
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     searchDebounceRef.current = setTimeout(async () => {
+      if (!isMounted()) return;
       setSearching(true);
       try {
         const password = getDevKitToken();
@@ -429,7 +436,7 @@ function ComposeEmailForm({
     } catch (e) {
       toast.error(formatEdgeError(e, 'Failed to send email'));
     } finally {
-      setSending(false);
+      if (isMounted()) setSending(false);
     }
   };
 
