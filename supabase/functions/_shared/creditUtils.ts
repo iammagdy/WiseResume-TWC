@@ -32,6 +32,13 @@ export interface CreditCheckResult {
    * (BYOK or unlimited plans).
    */
   effectivePlan: string;
+  /**
+   * The exact `usage_date` row that the deduction RPC committed against.
+   * refundCredit() must pass this back so a refund crossing midnight UTC
+   * still hits the correct row (Phase 4 fix). undefined when no deduction
+   * was performed (BYOK / unlimited / failed lookup).
+   */
+  usageDate?: string;
 }
 
 /**
@@ -144,13 +151,14 @@ export async function checkAndDeductCredit(
     throw new Error(`Credit accounting failed: ${rpcError.message}`);
   }
 
-  const result = rpcResult as { allowed: boolean; remaining: number };
+  const result = rpcResult as { allowed: boolean; remaining: number; usage_date?: string };
 
   return {
     hasCredits:    result.allowed,
     remaining:     result.remaining,
     isByok:        false,
     effectivePlan,
+    usageDate:     result.usage_date,
   };
 }
 
@@ -180,9 +188,15 @@ export async function refundCredit(
 
   try {
     const supabase = getServiceClient();
+    // Pass the original deduction's usage_date so that a refund that
+    // crosses midnight UTC still subtracts from the SAME row that was
+    // debited. Without this, the refund would land on the new day's row
+    // (or on no row at all) and the user would be permanently overcharged
+    // by the deducted amount. See Phase 4 migration for RPC semantics.
     const { error } = await supabase.rpc('atomic_refund_credit', {
-      p_user_id: userId,
-      p_amount:  amount,
+      p_user_id:    userId,
+      p_amount:     amount,
+      p_usage_date: deduction.usageDate ?? null,
     });
     if (error) {
       log.warn('atomic_refund_credit RPC failed — user may be over-charged by 1 credit', {

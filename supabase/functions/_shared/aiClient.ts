@@ -224,6 +224,93 @@ async function getUserPreferredProvider(userId: string): Promise<string | null> 
   }
 }
 
+// ============= Postgres-backed Circuit Breaker (Phase 4) =============
+//
+// Each managed provider step (wiseresume/openrouter, wiseresume/groq, the
+// global GEMINI_API_KEY fallback, etc.) is gated by a shared circuit breaker
+// stored in the `ai_provider_breaker` table. When a provider records
+// BREAKER_THRESHOLD failures inside BREAKER_WINDOW_SECONDS the breaker opens
+// for BREAKER_COOLDOWN_SECONDS, and every edge function instance — even cold-
+// started ones — sees the open state via the shared row. This stops the
+// stampede of retries against an upstream that is provably down.
+//
+// BYOK provider branches deliberately do NOT participate in the breaker:
+// those use per-user keys and a global breaker would mistakenly suppress
+// one user's healthy key because of another user's broken key.
+
+const BREAKER_THRESHOLD = parseInt(Deno.env.get('AI_BREAKER_THRESHOLD') ?? '5', 10);
+const BREAKER_WINDOW_SECONDS = parseInt(Deno.env.get('AI_BREAKER_WINDOW_SECONDS') ?? '60', 10);
+const BREAKER_COOLDOWN_SECONDS = parseInt(Deno.env.get('AI_BREAKER_COOLDOWN_SECONDS') ?? '60', 10);
+
+interface BreakerState {
+  provider: string;
+  failure_count: number;
+  window_started_at: string;
+  opened_until: string | null;
+  is_open: boolean;
+}
+
+/**
+ * Returns true if the breaker for `provider` is currently open. Best-effort:
+ * any error reading the table fails OPEN (returns false / let traffic through)
+ * so a misbehaving breaker table cannot itself cause an outage.
+ */
+export async function isBreakerOpen(provider: string): Promise<boolean> {
+  try {
+    const supabase = getServiceClient();
+    const { data, error } = await supabase
+      .from('ai_provider_breaker')
+      .select('opened_until')
+      .eq('provider', provider)
+      .maybeSingle();
+    if (error || !data?.opened_until) return false;
+    return new Date(data.opened_until as string).getTime() > Date.now();
+  } catch (err) {
+    console.warn(`[AI breaker] read failed for ${provider} — treating as closed:`, err instanceof Error ? err.message : err);
+    return false;
+  }
+}
+
+/**
+ * Atomically records ONE outcome (success or failure) for a provider.
+ * Returns the post-update breaker state. Best-effort: errors are logged
+ * and swallowed so breaker accounting never fails an in-flight AI call.
+ */
+export async function recordBreakerEvent(provider: string, success: boolean): Promise<BreakerState | null> {
+  try {
+    const supabase = getServiceClient();
+    const { data, error } = await supabase.rpc('record_ai_breaker_event', {
+      p_provider:         provider,
+      p_success:          success,
+      p_threshold:        BREAKER_THRESHOLD,
+      p_window_seconds:   BREAKER_WINDOW_SECONDS,
+      p_cooldown_seconds: BREAKER_COOLDOWN_SECONDS,
+    });
+    if (error) {
+      console.warn(`[AI breaker] record_ai_breaker_event failed for ${provider}:`, error.message);
+      return null;
+    }
+    return data as BreakerState;
+  } catch (err) {
+    console.warn(`[AI breaker] recordBreakerEvent threw for ${provider}:`, err instanceof Error ? err.message : err);
+    return null;
+  }
+}
+
+/**
+ * Returns true for errors that justify counting against the breaker.
+ * Auth/payment errors are user-fixable and should NOT trip the breaker —
+ * they would never be cured by waiting through a cool-down.
+ */
+function shouldCountAsBreakerFailure(err: unknown): boolean {
+  if (isAIError(err)) {
+    if (err.type === 'invalid_key' || err.type === 'payment_required') return false;
+    return true;
+  }
+  if (err instanceof DOMException && err.name === 'AbortError') return true;
+  return true;
+}
+
 /**
  * Reads the global WiseResume AI engine setting from app_settings table.
  * Returns 'openrouter', 'groq', 'auto', or 'auto' as default.
@@ -411,11 +498,30 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
       return { ...normalizeToolCallResponse(res, toolChoice), providerUsed: res.providerUsed || 'wiseresume' };
     }
 
-    // Priority 4: Legacy GEMINI_API_KEY fallback
+    // Priority 4: Legacy GEMINI_API_KEY fallback — gated by the shared breaker.
+    // If this provider has tripped its breaker (e.g. Google API has been
+    // returning 5xx for the last minute) we skip the call entirely and fail
+    // fast so the user gets an actionable "AI temporarily unavailable" toast
+    // instead of waiting through a 30s timeout we already know will fail.
     if (globalGeminiKey) {
+      const BREAKER_KEY = 'gemini_global';
+      if (await isBreakerOpen(BREAKER_KEY)) {
+        console.warn(`[AI] breaker open for ${BREAKER_KEY} — failing fast`);
+        throw createAIError('provider_busy', 'AI is temporarily unavailable — please try again in a moment.', 503);
+      }
       console.log('[AI] Using legacy GEMINI_API_KEY for model:', model);
-      const res = await callGeminiDirect(globalGeminiKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
-      return { ...res, providerUsed: 'gemini_global' };
+      try {
+        const res = await callGeminiDirect(globalGeminiKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
+        // Fire-and-forget telemetry: don't make the user wait on the
+        // breaker bookkeeping write before the AI response is returned.
+        void recordBreakerEvent(BREAKER_KEY, true);
+        return { ...res, providerUsed: 'gemini_global' };
+      } catch (err) {
+        if (shouldCountAsBreakerFailure(err)) {
+          void recordBreakerEvent(BREAKER_KEY, false);
+        }
+        throw err;
+      }
     }
 
     // Should not reach here due to guard above
@@ -1310,6 +1416,9 @@ export async function callWiseresumeAI(
   // Per-attempt outcome trail surfaced via the final error for debugging
   // and so the client can show "Tried OpenRouter (timeout) + Groq (429)".
   const attemptLog: Array<{ provider: string; model: string; outcome: string; ms: number }> = [];
+  // One breaker read per provider per request — caches the open/closed
+  // decision so we don't add a DB round-trip before every model attempt.
+  const breakerOpenCache: Record<string, boolean> = {};
 
   for (let i = 0; i < totalAttempts; i++) {
     // If the outer signal was already aborted (e.g. user navigated away) stop now.
@@ -1340,6 +1449,31 @@ export async function callWiseresumeAI(
     const effectiveTimeoutMs = Math.min(PER_MODEL_TIMEOUT_MS, remaining);
 
     const { provider, model } = attempts[i];
+    const breakerKey = `wiseresume/${provider}`;
+
+    // Cross-instance circuit breaker: if THIS managed provider has been
+    // failing in the last window, skip every model for it and fall through
+    // to the next provider in the chain. This gives the upstream room to
+    // recover without us hammering it from every edge function instance.
+    //
+    // Cache the breaker state per provider for the duration of THIS request
+    // so we don't pay a DB round-trip before every model attempt — one read
+    // per provider per request is enough to make the routing decision.
+    if (!(provider in breakerOpenCache)) {
+      breakerOpenCache[provider] = await isBreakerOpen(breakerKey);
+    }
+    if (breakerOpenCache[provider]) {
+      console.warn(`[AI] WiseResume breaker open for ${breakerKey} — skipping ${model}`);
+      attemptLog.push({ provider, model, outcome: 'breaker_open', ms: 0 });
+      // Skip all remaining models for this provider in one step so we
+      // don't waste cycles iterating through a known-open breaker.
+      while (i + 1 < totalAttempts && attempts[i + 1].provider === provider) {
+        i++;
+        attemptLog.push({ provider, model: attempts[i].model, outcome: 'breaker_open', ms: 0 });
+      }
+      continue;
+    }
+
     const attemptStart = Date.now();
     console.log(`[AI] WiseResume attempt ${i + 1}/${totalAttempts}: ${provider} → ${model} (budget left: ${remaining}ms, attempt cap: ${effectiveTimeoutMs}ms)`);
     try {
@@ -1349,8 +1483,19 @@ export async function callWiseresumeAI(
       const successMs = Date.now() - attemptStart;
       console.log(`[AI] WiseResume success: ${provider} → ${model} in ${successMs}ms (after ${i} prior attempts)`);
       attemptLog.push({ provider, model, outcome: 'success', ms: successMs });
+      // Reset the breaker for this provider on any success — even a single
+      // healthy reply is enough evidence the upstream is back.
+      // Fire-and-forget: telemetry must not block returning the AI result.
+      // recordBreakerEvent already swallows its own errors (fail-open).
+      void recordBreakerEvent(breakerKey, true);
       return result;
     } catch (err) {
+      // Count this attempt against the breaker (auth/payment errors excluded).
+      // Fire-and-forget so the next retry can start immediately instead of
+      // waiting on a DB round-trip in the failure path.
+      if (shouldCountAsBreakerFailure(err)) {
+        void recordBreakerEvent(breakerKey, false);
+      }
       const elapsed = Date.now() - attemptStart;
       lastError = err;
       const reason = err instanceof Error ? err.message : String(err);

@@ -450,6 +450,22 @@ export const wisehireWaitlist = pgTable('wisehire_waitlist', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
 
+// ── ai_provider_breaker ───────────────────────────────────────────────────────
+// Postgres-backed circuit breaker for managed AI providers (Phase 4).
+// Shared across all edge function instances so a tripped breaker fan-outs
+// instantly instead of each cold-start re-discovering the outage.
+export const aiProviderBreaker = pgTable('ai_provider_breaker', {
+  provider: text('provider').primaryKey(),
+  failureCount: integer('failure_count').notNull().default(0),
+  windowStartedAt: timestamp('window_started_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  openedUntil: timestamp('opened_until', { withTimezone: true }),
+  lastSuccessAt: timestamp('last_success_at', { withTimezone: true }),
+  lastFailureAt: timestamp('last_failure_at', { withTimezone: true }),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 // ── admin_settings ────────────────────────────────────────────────────────────
 export const adminSettings = pgTable('admin_settings', {
   id: uuid('id').primaryKey().defaultRandom(),
