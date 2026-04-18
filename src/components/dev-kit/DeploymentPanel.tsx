@@ -143,11 +143,9 @@ export function DeploymentPanel() {
       let supabaseUrl: string | null = null;
       let envError: string | null = null;
       try {
-        const envData = tryUnwrapAdminResponse<EnvCheckResponse>(envResult, 'admin-env-check');
-        if (envData) {
-          envChecks = envData.checks ?? [];
-          supabaseUrl = envData.supabaseUrl ?? null;
-        }
+        const envData = unwrapAdminResponse<EnvCheckResponse>(envResult, 'admin-env-check');
+        envChecks = envData.checks ?? [];
+        supabaseUrl = envData.supabaseUrl ?? null;
       } catch (e) {
         envError = formatEdgeError(e, 'Env check error');
       }
