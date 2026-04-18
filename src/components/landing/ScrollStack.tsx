@@ -90,6 +90,14 @@ const ScrollStack = ({
   const cardsRef = useRef<HTMLElement[]>([]);
   const lastTransformsRef = useRef(new Map<number, CardTransform>());
   const isInViewRef = useRef(true);
+  /* Cached layout-only offsets for each card and for the .scroll-stack-end
+     sentinel. We measure once at setup and re-measure on resize / fonts-load
+     / ResizeObserver, instead of calling getBoundingClientRect every frame.
+     getBoundingClientRect returns the post-transform rect, so reading it
+     each frame creates a feedback loop with our own transform writes that
+     manifests as visible per-frame jitter ("vibration") on the cards. */
+  const cardLayoutTopsRef = useRef<number[]>([]);
+  const endLayoutTopRef = useRef<number>(0);
   /* Holds the current updateCardTransforms closure so the params-changed
      effect can trigger a one-shot recompute directly (no synthetic
      scroll-event dispatch needed). */
@@ -193,11 +201,33 @@ const ScrollStack = ({
       return { scrollTop: s.scrollTop, containerHeight: s.clientHeight };
     };
 
-    const getElementOffset = (el: HTMLElement) => {
-      if (paramsRef.current.useWindowScroll) {
-        return el.getBoundingClientRect().top + window.scrollY;
+    /* Layout-only top offset for an element. In window-scroll mode we walk
+       offsetTop up the offsetParent chain — this is immune to transforms
+       applied by this component, unlike getBoundingClientRect which returns
+       the post-transform rect and creates a per-frame feedback loop. */
+    const measureLayoutTop = (el: HTMLElement | null): number => {
+      if (!el) return 0;
+      if (!paramsRef.current.useWindowScroll) return el.offsetTop;
+      let top = 0;
+      let cur: HTMLElement | null = el;
+      while (cur) {
+        top += cur.offsetTop;
+        cur = cur.offsetParent as HTMLElement | null;
       }
-      return el.offsetTop;
+      return top;
+    };
+
+    const remeasureLayout = () => {
+      cardLayoutTopsRef.current = cardsRef.current.map((card) =>
+        measureLayoutTop(card),
+      );
+      const endEl = paramsRef.current.useWindowScroll
+        ? (document.querySelector(".scroll-stack-end") as HTMLElement | null)
+        : (scrollerRef.current?.querySelector(".scroll-stack-end") as HTMLElement | null);
+      endLayoutTopRef.current = measureLayoutTop(endEl);
+      /* Invalidate the change-detection cache so the next pass forces a
+         fresh transform write against the new layout values. */
+      transformsCache.clear();
     };
 
     let lastActiveIndex = -2;
@@ -211,18 +241,19 @@ const ScrollStack = ({
       const stackPositionPx = parsePercentage(p.stackPosition, containerHeight);
       const scaleEndPositionPx = parsePercentage(p.scaleEndPosition, containerHeight);
 
-      const endElement = p.useWindowScroll
-        ? (document.querySelector(".scroll-stack-end") as HTMLElement | null)
-        : (scrollerRef.current?.querySelector(".scroll-stack-end") as HTMLElement | null);
-      const endElementTop = endElement ? getElementOffset(endElement) : 0;
+      const endElementTop = endLayoutTopRef.current;
 
       /* Phase 4: pre-pass to compute every card's geometry once. We need
          the FINAL topmost active index before applying blur (depth-based
          blur for older cards in the stack), so we cannot derive it
-         progressively inside the transform pass. */
+         progressively inside the transform pass.
+
+         cardTop reads from the cached layout-only offset, NOT from
+         getBoundingClientRect — see the cardLayoutTopsRef comment for
+         the per-frame jitter bug this avoids. */
       const cardGeo = cardList.map((card, i) => {
         if (!card) return null;
-        const cardTop = getElementOffset(card);
+        const cardTop = cardLayoutTopsRef.current[i] ?? 0;
         return {
           cardTop,
           triggerStart: cardTop - stackPositionPx - p.itemStackDistance * i,
@@ -319,6 +350,24 @@ const ScrollStack = ({
     );
     io.observe(ioTarget);
 
+    /* --- Initial layout measurement + re-measure triggers.
+       The per-frame loop reads from cardLayoutTopsRef, so we must seed the
+       cache before the first transform pass and refresh it whenever layout
+       can shift (resize, fonts loaded, inner reflow). */
+    remeasureLayout();
+
+    const ro = new ResizeObserver(() => remeasureLayout());
+    const innerEl = scroller.querySelector(".scroll-stack-inner") as HTMLElement | null;
+    if (innerEl) ro.observe(innerEl);
+
+    const onWindowResize = () => remeasureLayout();
+    window.addEventListener("resize", onWindowResize, { passive: true });
+
+    /* Web fonts loading after first paint shift card heights → re-measure. */
+    if (typeof document !== "undefined" && document.fonts?.ready) {
+      document.fonts.ready.then(() => remeasureLayout()).catch(() => {});
+    }
+
     /* --- prefers-reduced-motion: skip Lenis entirely, attach a passive
        scroll listener. Cards still stack on scroll, no smoothing. --- */
     if (reduceMotion) {
@@ -330,8 +379,11 @@ const ScrollStack = ({
       updateCardTransforms();
       return () => {
         target.removeEventListener("scroll", onScroll);
+        window.removeEventListener("resize", onWindowResize);
         io.disconnect();
+        ro.disconnect();
         cardsRef.current = [];
+        cardLayoutTopsRef.current = [];
         transformsCache.clear();
       };
     }
@@ -387,8 +439,11 @@ const ScrollStack = ({
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
       lenis.destroy();
       io.disconnect();
+      ro.disconnect();
+      window.removeEventListener("resize", onWindowResize);
       lenisRef.current = null;
       cardsRef.current = [];
+      cardLayoutTopsRef.current = [];
       transformsCache.clear();
     };
   }, [useWindowScroll, itemDistance]);
