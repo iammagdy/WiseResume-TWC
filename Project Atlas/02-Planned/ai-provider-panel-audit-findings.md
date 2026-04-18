@@ -5,6 +5,33 @@
 **Scope:** `src/components/dev-kit/AIProviderPanel.tsx` (1312+ lines) and `server/index.ts` lines 1160–1320 (4 admin proxy endpoints, plus the `groq-usage` endpoint added in Task #29).
 **Status:** Findings documented for handoff. None are showstoppers — the panel works in production today. These are polish / hardening items.
 
+---
+
+## ✅ Resolution status (verified 2026-04-18 PM)
+
+A re-audit of the codebase confirmed that the items below were already shipped in prior tasks. F5 was the last outstanding item and was fixed in this pass.
+
+| ID | Status | Evidence |
+|---|---|---|
+| F1 | ✅ done | `useTick` hook at `AIProviderPanel.tsx:267` drives breaker countdown |
+| F2 | ✅ done | `/gemini-test` accepts `{ model }` body, validates against cached model list (`server/index.ts:1507+`) |
+| F3 | ✅ done | `/gemini-models` filters non-string `name`, strips `models/` prefix |
+| F4 | ✅ done | Sub-panels keyed by `activeTab` so they remount and reset stale `testState` (`AIProviderPanel.tsx:2359`) |
+| **F5** | **✅ done (this pass)** | All 6 occurrences of `bg-*/8` replaced with `/10` |
+| F6 | ✅ done | `OllamaPanel` refetches on `base` change (`AIProviderPanel.tsx:1477`) |
+| F7 | ✅ done | `AbortController + setTimeout` pattern replaces `AbortSignal.timeout` (`AIProviderPanel.tsx:1495`) |
+| F8 | ✅ done | Header "Refresh all" awaits all sub-panel callbacks via `Promise.allSettled` (`AIProviderPanel.tsx:2254`) |
+| S1 | ✅ done | `logAndSanitiseUpstreamError` returns generic message, logs full detail server-side (`server/index.ts:1288`) |
+| S2 | ✅ done | Both `/gemini-models` and `/gemini-test` use `x-goog-api-key` header (`server/index.ts:1463, 1540`) |
+| S3 | ✅ done | `fetchWithToken` throws "Session expired" early (`AIProviderPanel.tsx:191`) |
+| P1 | ✅ done | `upstreamCache` 10-min TTL on all upstream-list endpoints (`server/index.ts:1242`) |
+| P2 | ✅ done | `useDebounced` hook applied to search inputs (`AIProviderPanel.tsx:277`) |
+| P4 | ✅ done | `fetchWithTokenDedup` deduplicates in-flight requests (`AIProviderPanel.tsx:207`) |
+| P6 | ✅ done | New `/api/admin/ai-provider/openrouter-models` proxy with cache (`server/index.ts:1339`) |
+| A3 | ✅ done | `writeAdminAudit` + `admin_audit_log` table; called from model-switch and test endpoints |
+
+**Still open (not in this pass):** S4 (parallel admin auth schemes), P3, P5, U1, U2, U4, U5, A1, A2, A4. These are lower priority and remain in this file as a backlog.
+
 > **For the next agent:** Use this file as the backlog. Each finding has a severity, a precise file:line pointer, the root cause, and a recommended fix. Group items into one or two follow-up tasks rather than one task per finding.
 
 ---

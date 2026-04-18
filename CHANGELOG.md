@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-04-18 — AI Provider Panel: close out audit findings (F5 + verification)
+
+Re-audited every finding in `Project Atlas/02-Planned/ai-provider-panel-audit-findings.md` (F1–F8 + S1–S3, P1–P6, A3) against the live code. Confirmed 14 of 15 in-scope items were already shipped in prior tasks. The audit document was updated with a status table pointing at the exact file:line evidence for each.
+
+### Fix shipped
+- **F5: invalid Tailwind opacity classes** — replaced 6 occurrences of `bg-amber-500/8` and `bg-primary/8` with `/10` in `src/components/dev-kit/AIProviderPanel.tsx`. The non-standard `/8` step is silently dropped or rendered transparent depending on the JIT build, leaving the breaker banner and active-tab chip without their intended tint.
+
+### Verified already-done (no code changes needed)
+F1 breaker countdown ticker • F2 gemini-test model validation • F3 gemini-models prefix stripping • F4 stale test-banner reset on tab switch • F6 Ollama refetch on base URL change • F7 Safari-safe abort timeout • F8 Refresh-all `Promise.allSettled` • S1 sanitised upstream errors • S2 `x-goog-api-key` header (no key in URL) • S3 fetchWithToken throws on missing token • P1 10-min upstream cache • P2 debounced search • P4 in-flight dedup • P6 OpenRouter models proxy • A3 admin audit log table.
+
+### Still open (deferred backlog)
+S4, P3, P5, U1, U2, U4, U5, A1, A2, A4 — all lower-priority polish/observability items, tracked in the same audit doc.
+
 ## 2026-04-18 — Make the marketing site discoverable to AI agents (Task #26)
 
 Cloudflare's "Is It Agent Ready?" scan of `https://resume.thewise.cloud` previously scored 17/100 (Level 0 — Not Ready). This change publishes the standard discovery files, headers, and metadata that AI agents (Cloudflare AI, ChatGPT, Claude, etc.) look for, without altering any user-facing behavior.

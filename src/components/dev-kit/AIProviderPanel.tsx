@@ -347,7 +347,7 @@ function BreakerBanner({ row }: { row?: BreakerRow | null }) {
     ? Math.max(0, Math.ceil((new Date(row.opened_until).getTime() - Date.now()) / 1000))
     : 0;
   return (
-    <div className="flex items-start gap-2 p-3 rounded-lg border border-amber-500/30 bg-amber-500/8">
+    <div className="flex items-start gap-2 p-3 rounded-lg border border-amber-500/30 bg-amber-500/10">
       <ShieldX className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
       <div className="text-xs text-amber-700 dark:text-amber-300 space-y-0.5">
         <p className="font-semibold">Circuit breaker is OPEN</p>
@@ -902,7 +902,7 @@ function OpenRouterPanel({
                     onClick={() => setPending(isPending ? null : m.id)}
                     className={cn(
                       'w-full flex items-center justify-between px-3 py-2.5 text-left transition-colors',
-                      isActive ? 'bg-primary/8' : isPending ? 'bg-muted/70' : 'hover:bg-muted/50',
+                      isActive ? 'bg-primary/10' : isPending ? 'bg-muted/70' : 'hover:bg-muted/50',
                     )}
                   >
                     <div className="min-w-0 flex-1 mr-3">
@@ -1181,7 +1181,7 @@ function GroqPanel({
                   onClick={() => setPending(isPending ? null : m.id)}
                   className={cn(
                     'w-full flex items-center justify-between px-3 py-2.5 text-left transition-colors',
-                    isActive ? 'bg-primary/8' : isPending ? 'bg-muted/70' : 'hover:bg-muted/50',
+                    isActive ? 'bg-primary/10' : isPending ? 'bg-muted/70' : 'hover:bg-muted/50',
                   )}
                 >
                   <div className="min-w-0 flex-1 mr-3">
@@ -1401,7 +1401,7 @@ function GeminiPanel({
                   onClick={() => setPending(isPending ? null : m.id)}
                   className={cn(
                     'w-full flex items-center justify-between px-3 py-2.5 text-left transition-colors',
-                    isActive ? 'bg-primary/8' : isPending ? 'bg-muted/70' : 'hover:bg-muted/50',
+                    isActive ? 'bg-primary/10' : isPending ? 'bg-muted/70' : 'hover:bg-muted/50',
                   )}
                 >
                   <div className="min-w-0 flex-1 mr-3">
@@ -1625,7 +1625,7 @@ function OllamaPanel({
                     onClick={() => setPending(isPending ? null : m.name)}
                     className={cn(
                       'w-full flex items-center justify-between px-3 py-2.5 text-left transition-colors',
-                      isActive ? 'bg-primary/8' : isPending ? 'bg-muted/70' : 'hover:bg-muted/50',
+                      isActive ? 'bg-primary/10' : isPending ? 'bg-muted/70' : 'hover:bg-muted/50',
                     )}
                   >
                     <div className="flex items-center gap-1.5 min-w-0 flex-1 mr-3">
@@ -2046,7 +2046,7 @@ function RecentActivitySection({
 
       <div className="px-1">
         {error && (
-          <div className="m-3 flex items-start gap-2 p-2 rounded-md border border-amber-500/30 bg-amber-500/8 text-[11px] text-amber-700 dark:text-amber-300">
+          <div className="m-3 flex items-start gap-2 p-2 rounded-md border border-amber-500/30 bg-amber-500/10 text-[11px] text-amber-700 dark:text-amber-300">
             <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
             <span>Failed to load audit log: {error}</span>
           </div>
