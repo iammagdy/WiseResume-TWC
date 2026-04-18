@@ -18,6 +18,7 @@ import {
   Briefcase,
   AtSign,
   ChevronRight,
+  BrainCircuit,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -34,13 +35,14 @@ import { DeploymentPanel } from '@/components/dev-kit/DeploymentPanel';
 import { EmailManagementPanel } from '@/components/dev-kit/EmailManagementPanel';
 import { WiseHireWaitlistPanel } from '@/components/dev-kit/WiseHireWaitlistPanel';
 import { PortfolioUsernamesPanel } from '@/components/dev-kit/PortfolioUsernamesPanel';
+import { AIProviderPanel } from '@/components/dev-kit/AIProviderPanel';
 import { DEV_KIT_VERSION } from '@/components/dev-kit/config';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { DevKitSessionProvider, useDevKitSession } from '@/contexts/DevKitSessionContext';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
-type Tab = 'overview' | 'analytics' | 'onboarding' | 'live' | 'deployment' | 'users' | 'coupons' | 'settings' | 'activity' | 'email' | 'wisehire' | 'portfolio';
+type Tab = 'overview' | 'analytics' | 'onboarding' | 'live' | 'deployment' | 'users' | 'coupons' | 'settings' | 'activity' | 'email' | 'wisehire' | 'portfolio' | 'ai-provider';
 
 interface NavItem {
   id: Tab;
@@ -77,6 +79,7 @@ const NAV_SECTIONS: NavSection[] = [
     title: 'System',
     items: [
       { id: 'deployment', label: 'Deployment', icon: Rocket },
+      { id: 'ai-provider', label: 'AI Provider', icon: BrainCircuit },
       { id: 'settings', label: 'Settings', icon: Settings },
       { id: 'activity', label: 'Audit Log', icon: Clock },
     ],
@@ -96,6 +99,7 @@ const TAB_LABELS: Record<Tab, string> = {
   email: 'Email',
   wisehire: 'WiseHire',
   portfolio: 'Portfolio',
+  'ai-provider': 'AI Provider',
 };
 
 type ConnectionStatus = 'checking' | 'connected' | 'degraded' | 'disconnected';
@@ -616,6 +620,8 @@ function DevToolsInner() {
                 <AuditLogPanel />
               </div>
             )}
+
+            {activeTab === 'ai-provider' && <AIProviderPanel />}
 
           </div>
         </main>

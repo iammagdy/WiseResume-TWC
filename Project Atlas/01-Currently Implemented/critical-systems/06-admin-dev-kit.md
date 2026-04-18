@@ -1,6 +1,6 @@
 # Admin Dev Kit
 
-**Last verified:** 2026-04-26
+**Last verified:** 2026-04-18
 **Type:** deep dive
 **Sources:**
 - `src/components/dev-kit/`
@@ -38,6 +38,7 @@
 | App settings | Platform-wide flags, maintenance mode, feature gates | `admin-get-settings`, `admin-update-settings`, `app_settings` table |
 | Portfolio usernames | Audit / clean public portfolio handles | `admin-portfolio-usernames` |
 | WiseHire | Waitlist + invite generation + account-type badges | `admin-wisehire-waitlist`, `admin-wisehire-invite` |
+| AI Provider | Search & switch active model for OpenRouter / Groq / Gemini / Ollama. Free/paid filter. Live credits (OpenRouter balance endpoint), token usage (Groq usage endpoint). Instant persistence via Zustand `settingsStore` → `localStorage`. No demo data. | `settingsStore` (`setOpenrouterModel`, `setGroqModel`, `setGeminiModel`, `setOllamaModel`), OpenRouter `/api/v1/auth/key` + `/api/v1/generation`, Groq `/openai/v1/usage` |
 
 ## DevKit shell shortcuts
 
