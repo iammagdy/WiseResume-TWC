@@ -45,20 +45,22 @@ export function WiseResumeContent({ prefersReducedMotion }: WiseResumeContentPro
           </h2>
         </motion.div>
         <SoftDivider />
-        <ScrollStack
-          useWindowScroll
-          itemDistance={480}
-          itemScale={0.025}
-          itemStackDistance={20}
-          stackPosition="20%"
-          baseScale={0.88}
-        >
-          {featureSections.map((section) => (
-            <ScrollStackItem key={section.id}>
-              <FeatureSection data={section} />
-            </ScrollStackItem>
-          ))}
-        </ScrollStack>
+        <div className="lp-stack-section">
+          <ScrollStack
+            useWindowScroll
+            itemDistance={480}
+            itemScale={0.025}
+            itemStackDistance={20}
+            stackPosition="20%"
+            baseScale={0.88}
+          >
+            {featureSections.map((section) => (
+              <ScrollStackItem key={section.id}>
+                <FeatureSection data={section} />
+              </ScrollStackItem>
+            ))}
+          </ScrollStack>
+        </div>
         <SoftDivider />
       </motion.div>
 

@@ -28,12 +28,11 @@ export function WiseHireDemoSection() {
   return (
     <section
       id="wisehire-demo"
+      className="lp-stack-section"
       style={{
-        background: 'var(--lp-section-alt2)',
         borderTop: '1px solid var(--lp-border)',
         width: '100%',
         scrollMarginTop: '96px',
-        transition: 'background 0.35s ease',
       }}
     >
       <div

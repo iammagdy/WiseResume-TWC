@@ -91,13 +91,10 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
   const textCard = (
     <motion.div
       variants={textSlide}
-      className="flex flex-col justify-center gap-5 p-8"
+      className="lp-stack-pane flex flex-col justify-center gap-5 p-8"
       style={{
         borderRadius: 24,
-        background: 'var(--lp-card-glass)',
-        border: '1px solid var(--lp-border-card)',
         minHeight: 280,
-        transition: 'background 0.3s ease, border-color 0.3s ease',
       }}
     >
       {data.categoryLabel && (
@@ -148,13 +145,10 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
   const mediaCard = (
     <motion.div
       variants={mediaSlide}
-      className="flex items-center justify-center p-6"
+      className="lp-stack-pane flex items-center justify-center p-6"
       style={{
         borderRadius: 24,
-        background: 'var(--lp-card-glass)',
-        border: '1px solid var(--lp-border-card)',
         minHeight: 280,
-        transition: 'background 0.3s ease, border-color 0.3s ease',
       }}
     >
       <Suspense fallback={<DemoFallback />}>
@@ -170,12 +164,9 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
   const bulletsCard = (
     <motion.div
       variants={bulletsSlide}
-      className="flex flex-col gap-3 p-6"
+      className="lp-stack-pane flex flex-col gap-3 p-6"
       style={{
         borderRadius: 20,
-        background: 'var(--lp-card-glass)',
-        border: '1px solid var(--lp-border-card)',
-        transition: 'background 0.3s ease, border-color 0.3s ease',
       }}
     >
       <div className="flex items-center gap-2 mb-1">

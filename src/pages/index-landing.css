@@ -499,6 +499,134 @@
   opacity: 1;
 }
 
+/* ─────────────────────────────────────────────────────────
+   PHASE 1 — Scroll-stack section ambient + card elevation
+   Tokens drive everything; theme + product overrides cascade
+   automatically. No hard-coded colors in component files.
+   ───────────────────────────────────────────────────────── */
+.lp-root {
+  /* Dark · WiseResume defaults */
+  --lp-stack-section-bg: #08080f;
+  --lp-stack-glow: rgba(158,27,34,0.22);
+  --lp-stack-bridge: rgba(158,27,34,0.28);
+  --lp-stack-card-ring: rgba(255,255,255,0.10);
+  --lp-stack-card-shadow:
+    0 30px 60px -28px rgba(0,0,0,0.85),
+    0 14px 36px -18px rgba(158,27,34,0.28),
+    inset 0 1px 0 rgba(255,255,255,0.06);
+  --lp-stack-pane-bg: rgba(255,255,255,0.045);
+  --lp-stack-pane-border: rgba(255,255,255,0.10);
+}
+.lp-root[data-lp-scheme="light"] {
+  --lp-stack-section-bg: #f0e6e6;
+  --lp-stack-glow: rgba(158,27,34,0.10);
+  --lp-stack-bridge: rgba(158,27,34,0.14);
+  --lp-stack-card-ring: rgba(15,15,26,0.08);
+  --lp-stack-card-shadow:
+    0 24px 48px -22px rgba(15,15,26,0.22),
+    0 10px 24px -14px rgba(158,27,34,0.14),
+    inset 0 1px 0 rgba(255,255,255,0.6);
+  --lp-stack-pane-bg: rgba(15,15,26,0.04);
+  --lp-stack-pane-border: rgba(15,15,26,0.08);
+}
+.lp-root[data-lp-product="wisehire"] {
+  --lp-stack-section-bg: #04060f;
+  --lp-stack-glow: rgba(29,78,216,0.26);
+  --lp-stack-bridge: rgba(29,78,216,0.32);
+  --lp-stack-card-shadow:
+    0 30px 60px -28px rgba(0,0,0,0.85),
+    0 14px 36px -18px rgba(29,78,216,0.32),
+    inset 0 1px 0 rgba(255,255,255,0.06);
+}
+.lp-root[data-lp-product="wisehire"][data-lp-scheme="light"] {
+  --lp-stack-section-bg: #e6ecf7;
+  --lp-stack-glow: rgba(29,78,216,0.12);
+  --lp-stack-bridge: rgba(29,78,216,0.16);
+  --lp-stack-card-shadow:
+    0 24px 48px -22px rgba(15,15,26,0.22),
+    0 10px 24px -14px rgba(29,78,216,0.16),
+    inset 0 1px 0 rgba(255,255,255,0.7);
+}
+
+/* Stack section wrapper — provides ambient brand-tinted background,
+   hero→stack bridge glow at the top, and gradient masks so cards
+   fade into surrounding sections instead of cliffing. */
+.lp-stack-section {
+  position: relative;
+  background: var(--lp-stack-section-bg);
+  isolation: isolate;
+  transition: background 0.45s ease;
+}
+/* Ambient brand glow + hero→stack bridge */
+.lp-stack-section::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 70% 30% at 50% 0%, var(--lp-stack-bridge) 0%, transparent 65%),
+    radial-gradient(ellipse 90% 55% at 50% 35%, var(--lp-stack-glow) 0%, transparent 70%),
+    radial-gradient(ellipse 80% 50% at 50% 75%, var(--lp-stack-glow) 0%, transparent 70%);
+  opacity: 0.95;
+  z-index: 0;
+}
+/* Stack content sits above the ambient glow but below the fade masks. */
+.lp-stack-section > * { position: relative; z-index: 1; }
+/* Top + bottom fade masks — composited ABOVE the cards (z-index 3,
+   pointer-events: none) so card edges visually fade into the next
+   section instead of cliffing against a hard boundary. */
+.lp-stack-section::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    var(--lp-stack-section-bg) 0%,
+    transparent 120px,
+    transparent calc(100% - 140px),
+    var(--lp-stack-section-bg) 100%
+  );
+  z-index: 3;
+}
+
+/* Card elevation recipe — soft outer shadow + brand-tinted glow +
+   1 px hairline ring. Border-radius + overflow keep the inner section
+   bg clipped to the rounded card face. width:auto with margin-inline
+   prevents horizontal overflow (overrides ScrollStack.css width:100%). */
+.lp-stack-section .scroll-stack-card {
+  width: auto;
+  margin-inline: clamp(12px, 3vw, 40px);
+  border-radius: 28px;
+  overflow: hidden;
+  box-shadow:
+    var(--lp-stack-card-shadow),
+    inset 0 0 0 1px var(--lp-stack-card-ring);
+  transition: box-shadow 0.35s ease;
+}
+@media (max-width: 640px) {
+  .lp-stack-section .scroll-stack-card {
+    border-radius: 22px;
+    margin-inline: 12px;
+  }
+}
+
+/* Inner panes (FeatureSection text/media/bullets cards) — slightly
+   more opaque than --lp-card-glass so they read on the elevated card. */
+.lp-stack-pane {
+  background: var(--lp-stack-pane-bg) !important;
+  border: 1px solid var(--lp-stack-pane-border) !important;
+  transition: background 0.35s ease, border-color 0.35s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-stack-section,
+  .lp-stack-section .scroll-stack-card,
+  .lp-stack-pane {
+    transition: none !important;
+  }
+}
+
 /* ── WISEHIRE PRICING — mobile horizontal scroll ─────────── */
 .wh-pricing-mobile-scroll {
   display: flex !important;
