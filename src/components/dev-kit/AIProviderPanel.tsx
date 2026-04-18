@@ -344,14 +344,61 @@ const SUB_PROVIDER_OPTIONS: { value: WiseresumeSubProvider; label: string; desc:
   { value: 'groq', label: 'Groq', desc: 'Route all calls via Groq' },
 ];
 
+type SubProviderHealth = 'healthy' | 'degraded' | 'open' | 'unknown';
+
+function rowHealth(row: BreakerRow | null | undefined): SubProviderHealth {
+  if (!row) return 'unknown';
+  if (row.is_open) return 'open';
+  if ((row.failure_count ?? 0) > 0) return 'degraded';
+  return 'healthy';
+}
+
+function combinedAutoHealth(or: SubProviderHealth, groq: SubProviderHealth): SubProviderHealth {
+  const known = [or, groq].filter(h => h !== 'unknown') as Exclude<SubProviderHealth, 'unknown'>[];
+  if (known.length === 0) return 'unknown';
+  if (known.every(h => h === 'open')) return 'open';
+  if (known.every(h => h === 'healthy')) return 'healthy';
+  return 'degraded';
+}
+
+function HealthDot({ health }: { health: SubProviderHealth }) {
+  const cls =
+    health === 'healthy' ? 'bg-green-500'
+    : health === 'degraded' ? 'bg-amber-500'
+    : health === 'open' ? 'bg-red-500'
+    : 'bg-muted-foreground/40';
+  const title =
+    health === 'healthy' ? 'Healthy'
+    : health === 'degraded' ? 'Degraded — recent failures'
+    : health === 'open' ? 'Breaker open'
+    : 'No breaker data';
+  return (
+    <span
+      className={cn('inline-block w-1.5 h-1.5 rounded-full', cls)}
+      title={title}
+      aria-label={title}
+    />
+  );
+}
+
 function SubProviderSelector({
   current,
   onChange,
+  breakerRows,
 }: {
   current: WiseresumeSubProvider;
   onChange: (sub: WiseresumeSubProvider) => void;
+  breakerRows: BreakerRow[] | null;
 }) {
   const [pending, setPending] = useState<WiseresumeSubProvider | null>(null);
+
+  const orHealth = rowHealth(breakerRows?.find(r => r.provider === BREAKER_ID.openrouter));
+  const groqHealth = rowHealth(breakerRows?.find(r => r.provider === BREAKER_ID.groq));
+  const healthByOption: Record<WiseresumeSubProvider, SubProviderHealth> = {
+    auto: combinedAutoHealth(orHealth, groqHealth),
+    openrouter: orHealth,
+    groq: groqHealth,
+  };
 
   const handleSelect = (sub: WiseresumeSubProvider) => {
     if (sub === current) return;
@@ -379,13 +426,14 @@ function SubProviderSelector({
               key={opt.value}
               onClick={() => handleSelect(opt.value)}
               className={cn(
-                'flex-1 py-1.5 text-xs font-medium transition-colors',
+                'flex-1 py-1.5 text-xs font-medium transition-colors inline-flex items-center justify-center gap-1.5',
                 i !== 0 && 'border-l border-border',
                 isActive
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-background hover:bg-muted text-muted-foreground hover:text-foreground',
               )}
             >
+              <HealthDot health={healthByOption[opt.value]} />
               {opt.label}
             </button>
           );
@@ -1427,7 +1475,7 @@ export function AIProviderPanel() {
       <FeatureRoutingSection subProvider={wiseresumeSubProvider} />
 
       {/* Sub-provider selector */}
-      <SubProviderSelector current={wiseresumeSubProvider} onChange={setWiseresumeSubProvider} />
+      <SubProviderSelector current={wiseresumeSubProvider} onChange={setWiseresumeSubProvider} breakerRows={breakerRows} />
 
       {/* Active provider mode */}
       <div className="flex items-center gap-2 p-3 rounded-lg border border-border bg-muted/20">
