@@ -61,6 +61,7 @@ Added to `server/index.ts`, all behind `requireAuthHeader + requireAdminEmail`:
 | `/api/admin/ai-provider/groq-models` | GET | Live Groq model list via managed `GROQ_API_KEY` |
 | `/api/admin/ai-provider/gemini-models` | GET | Live Gemini model list via managed `GEMINI_API_KEY` (filters to `generateContent` only) |
 | `/api/admin/ai-provider/gemini-test` | POST | Gemini `generateContent` ping using managed `GEMINI_API_KEY`; returns `{ success, model, latencyMs, preview }` |
+| `/api/admin/ai-provider/audit-recent` | GET | Last 50 `admin_audit_log` rows with `action IN ('model-switch','provider-test')` for the **Recent activity** section at the bottom of the AI Provider tab. Reloaded by the header "Refresh all" button alongside the rest of the panel. (Task #3) |
 
 All routes respond with `{ configured: false }` (or `{ configured: true, error }`) when the env var is absent — safe to call even in environments where the key is not yet set.
 

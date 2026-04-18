@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import {
   Search, Check, Zap, DollarSign, RefreshCw, Cpu, ChevronDown, ChevronRight,
   Info, AlertTriangle, PlayCircle, Loader2, ShieldCheck, ShieldAlert, ShieldX,
-  Map,
+  Map, Clock, History,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useSettingsStore, WiseresumeSubProvider } from '@/store/settingsStore';
@@ -1664,6 +1664,197 @@ function OllamaPanel({
   );
 }
 
+// ── Recent activity (admin audit log) ─────────────────────────────────────────
+
+interface AuditEntry {
+  id: string;
+  actorEmail: string;
+  action: 'model-switch' | 'provider-test' | string;
+  payload: {
+    provider?: string;
+    model?: string | null;
+    previousModel?: string | null;
+    ok?: boolean;
+    latencyMs?: number | null;
+    error?: string | null;
+  } | null;
+  at: string;
+}
+
+interface AuditResponse { entries?: AuditEntry[]; error?: string }
+
+function formatRelativeTime(iso: string): string {
+  const ts = new Date(iso).getTime();
+  if (!Number.isFinite(ts)) return iso;
+  const diffSec = Math.round((Date.now() - ts) / 1000);
+  if (diffSec < 5) return 'just now';
+  if (diffSec < 60) return `${diffSec}s ago`;
+  const m = Math.floor(diffSec / 60);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  return `${d}d ago`;
+}
+
+function AuditEntryRow({ entry }: { entry: AuditEntry }) {
+  const isSwitch = entry.action === 'model-switch';
+  const isTest = entry.action === 'provider-test';
+  const provider = entry.payload?.provider ?? '—';
+  const model = entry.payload?.model ?? null;
+  const ok = entry.payload?.ok;
+  const latency = entry.payload?.latencyMs ?? null;
+  const errMsg = entry.payload?.error ?? null;
+  const previousModel = entry.payload?.previousModel ?? null;
+  const fullTime = new Date(entry.at).toLocaleString();
+
+  return (
+    <div className="flex items-start gap-3 py-2 px-3 text-xs border-b border-border last:border-b-0">
+      <div
+        className="w-20 shrink-0 text-muted-foreground tabular-nums"
+        title={fullTime}
+      >
+        {formatRelativeTime(entry.at)}
+      </div>
+      <div className="w-24 shrink-0">
+        {isSwitch ? (
+          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+            <RefreshCw className="w-2.5 h-2.5" />
+            switch
+          </span>
+        ) : isTest ? (
+          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+            <PlayCircle className="w-2.5 h-2.5" />
+            test
+          </span>
+        ) : (
+          <span className="text-muted-foreground">{entry.action}</span>
+        )}
+      </div>
+      <div className="flex-1 min-w-0 space-y-0.5">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+          <span className="font-mono text-foreground truncate">{entry.actorEmail}</span>
+          <span className="text-muted-foreground">·</span>
+          <span className="font-medium text-foreground">{provider}</span>
+          {model && (
+            <>
+              <span className="text-muted-foreground">·</span>
+              <span className="font-mono text-muted-foreground truncate">{model}</span>
+            </>
+          )}
+        </div>
+        {isSwitch && previousModel && (
+          <div className="text-[10px] text-muted-foreground truncate">
+            previous: <span className="font-mono">{previousModel}</span>
+          </div>
+        )}
+        {isTest && (
+          <div className="text-[10px] truncate">
+            {ok === true ? (
+              <span className="text-green-600 dark:text-green-400">
+                ✓ ok{latency != null ? ` · ${latency}ms` : ''}
+              </span>
+            ) : ok === false ? (
+              <span className="text-red-600 dark:text-red-400" title={errMsg ?? undefined}>
+                ✗ failed{errMsg ? ` · ${errMsg}` : ''}
+              </span>
+            ) : (
+              <span className="text-muted-foreground">unknown outcome</span>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function RecentActivitySection({
+  registerRefresh,
+}: {
+  registerRefresh: (fn: () => Promise<boolean>) => void;
+}) {
+  const [entries, setEntries] = useState<AuditEntry[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchEntries = useCallback(async (): Promise<boolean> => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetchWithTokenDedup('/api/admin/ai-provider/audit-recent');
+      if (!res.ok) {
+        setError(`HTTP ${res.status}`);
+        return false;
+      }
+      const body = (await res.json()) as AuditResponse;
+      if (body.error) {
+        setError(body.error);
+        setEntries(body.entries ?? []);
+        return false;
+      }
+      setEntries(body.entries ?? []);
+      return true;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Fetch failed');
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { void fetchEntries(); }, [fetchEntries]);
+  useEffect(() => { registerRefresh(fetchEntries); }, [registerRefresh, fetchEntries]);
+
+  return (
+    <div className="rounded-xl border border-border bg-card shadow-sm">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+        <div className="flex items-center gap-2">
+          <History className="w-4 h-4 text-muted-foreground" />
+          <h3 className="text-sm font-semibold text-foreground">Recent activity</h3>
+          {entries && (
+            <span className="text-[10px] text-muted-foreground">
+              ({entries.length}{entries.length === 50 ? ' · most recent 50' : ''})
+            </span>
+          )}
+        </div>
+        <button
+          onClick={() => { void fetchEntries(); }}
+          disabled={loading}
+          className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+        >
+          <RefreshCw className={cn('w-3 h-3', loading && 'animate-spin')} />
+          Refresh
+        </button>
+      </div>
+      <div className="px-1">
+        {error && (
+          <div className="m-3 flex items-start gap-2 p-2 rounded-md border border-amber-500/30 bg-amber-500/8 text-[11px] text-amber-700 dark:text-amber-300">
+            <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+            <span>Failed to load audit log: {error}</span>
+          </div>
+        )}
+        {entries === null && loading && (
+          <div className="flex items-center gap-2 py-6 px-3 text-xs text-muted-foreground justify-center">
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            Loading…
+          </div>
+        )}
+        {entries && entries.length === 0 && !loading && (
+          <div className="flex items-center gap-2 py-6 px-3 text-xs text-muted-foreground justify-center">
+            <Clock className="w-3.5 h-3.5" />
+            No admin activity recorded yet.
+          </div>
+        )}
+        {entries && entries.length > 0 && (
+          <div className="max-h-80 overflow-y-auto">
+            {entries.map((e) => <AuditEntryRow key={e.id} entry={e} />)}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Main AIProviderPanel ───────────────────────────────────────────────────────
 
 export function AIProviderPanel() {
@@ -1686,6 +1877,15 @@ export function AIProviderPanel() {
   const subPanelRefreshRef = useRef<(() => Promise<boolean>) | null>(null);
   const registerSubPanelRefresh = useCallback((fn: () => Promise<boolean>) => {
     subPanelRefreshRef.current = fn;
+  }, []);
+
+  // The Recent activity section also registers a refresh callback so the
+  // header "Refresh all" button reloads the audit log together with the rest
+  // of the panel (per task acceptance: "Entries refresh together with the
+  // rest of the panel").
+  const auditRefreshRef = useRef<(() => Promise<boolean>) | null>(null);
+  const registerAuditRefresh = useCallback((fn: () => Promise<boolean>) => {
+    auditRefreshRef.current = fn;
   }, []);
 
   // U3: each top-level fetcher returns a boolean indicating success so
@@ -1815,6 +2015,7 @@ export function AIProviderPanel() {
       fetchGroqUsage(),
     ];
     if (subPanelRefreshRef.current) tasks.push(subPanelRefreshRef.current());
+    if (auditRefreshRef.current) tasks.push(auditRefreshRef.current());
     const results = await Promise.allSettled(tasks);
     setHeaderRefreshing(false);
     let failures = 0;
@@ -1937,6 +2138,9 @@ export function AIProviderPanel() {
           )}
         </div>
       </div>
+
+      {/* Recent activity — admin model-switch and provider-test audit log */}
+      <RecentActivitySection registerRefresh={registerAuditRefresh} />
     </div>
   );
 }

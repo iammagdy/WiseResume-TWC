@@ -1567,6 +1567,51 @@ app.post(
   },
 );
 
+/**
+ * GET /api/admin/ai-provider/audit-recent
+ * Returns the most recent admin audit-log entries for the AI Provider DevKit
+ * panel ("Recent activity" section). Limited to model-switch and
+ * provider-test actions (the two written by `audit-model-switch` /
+ * `audit-test` above), capped at 50 rows ordered newest-first.
+ */
+app.get(
+  '/api/admin/ai-provider/audit-recent',
+  requireAuthHeader,
+  requireAdminEmail,
+  async (_req, res) => {
+    if (!sql) {
+      res.json({ entries: [], error: 'Database not configured' });
+      return;
+    }
+    try {
+      const rows = (await sql`
+        SELECT id, actor_email, action, payload, at
+        FROM admin_audit_log
+        WHERE action IN ('model-switch', 'provider-test')
+        ORDER BY at DESC
+        LIMIT 50
+      `) as Array<{
+        id: string;
+        actor_email: string;
+        action: string;
+        payload: Record<string, unknown> | null;
+        at: string | Date;
+      }>;
+      const entries = rows.map((r) => ({
+        id: r.id,
+        actorEmail: r.actor_email,
+        action: r.action,
+        payload: r.payload,
+        at: r.at instanceof Date ? r.at.toISOString() : r.at,
+      }));
+      res.json({ entries });
+    } catch (e) {
+      console.error('[admin-audit] read failed', e);
+      res.status(500).json({ entries: [], error: 'Database read failed' });
+    }
+  },
+);
+
 // ── Start server ──────────────────────────────────────────────────────────────
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`[server] WiseResume API server running on port ${PORT}`);
