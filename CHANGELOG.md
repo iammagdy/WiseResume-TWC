@@ -1,5 +1,35 @@
 # Changelog
 
+## 2026-04-18 — DevKit comprehensive hardening, phase 3: full unmount-guard sweep (Task #30)
+
+Closes every remaining unmount-race surface identified by the validator so the admin DevKit has zero React setState-on-unmount warnings.
+
+### `UserDetailDrawer` — 13 invoke-site conversions + complete unmount guards
+- Added imports: `useIsMounted`, `unwrapAdminResponse`, `tryUnwrapAdminResponse`, `formatEdgeError`.
+- All 5 data-load `useEffect` invoke sites converted (admin-audit-logs, admin-save-note list, admin-list-user-content, admin-update-profile get, admin-get-identity): `.then({ data }) →` `.then((tuple) =>` + `unwrapAdminResponse`/`tryUnwrapAdminResponse` + `cancelled` guard inside `.then`.
+- All 12 mutation handlers (handleMergeIdentity, handleSaveProfile, handleSetPlan, handleGrantTrial, handleRevokeTrial, handleToggleSuspend, handleSetCredits, handleSaveNote, handleDeleteNote, handleRevokeSessions, handleDeleteUser, handleLoadResumeDetail): `const { data, error } = await …; if (error) throw; const result = data as …; if (result?.success === false) throw` replaced with `const tuple = await …; unwrapAdminResponse(tuple, fnName)`. Each handler adds `if (!isMounted()) return` after the unwrap, and guards its `finally` setter with `if (isMounted()) setter(...)`.
+- `isMounted = useIsMounted()` declared once at component-function top (line ~119).
+
+### `DeploymentPanel` — contact_requests probe
+- `useEffect` querying `supabase.from('contact_requests')` now declares `let cancelled = false` and returns `() => { cancelled = true }` so `setContactTableOk` cannot fire after panel unmounts.
+
+### `EmailManagementPanel.ComposeEmailForm` — full unmount safety
+- `isMounted = useIsMounted()` added.
+- Debounce cleanup `useEffect`: `return () => { if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current); }` prevents stale debounce timers surviving unmount.
+- `handleSearch` debounced callback: `if (!isMounted()) return` as first statement inside `setTimeout`; `catch` and `finally` both gate with `isMounted()`.
+- `handleSend`: `if (!isMounted()) return` added after each `unwrapAdminResponse` (wisehire-invite path and email-actions path); `finally { if (isMounted()) setSending(false) }`.
+
+### `LiveActivityPanel.runHealthChecksForDefs`
+- `if (!isMounted()) return` added after the sequential await loop, before `setFnHealth`, `setHealthRunning`, `setHealthCheckedAt`, and `setRecentErrors`.
+- `isMounted` added to `useCallback` deps.
+
+### Build / type-check
+- `tsc --noEmit` clean.
+- `vite build` clean (522 precache entries, no new warnings).
+- Grep for `success === false` / `success !== false` / `as { success` in `src/components/dev-kit/`: 0 hits.
+
+---
+
 ## 2026-04-18 — DevKit comprehensive hardening, phase 2: complete unwrap adoption + per-row bulk results
 
 Closes the "deferred" list from the morning's phase-1 push so the admin DevKit has zero known bugs:

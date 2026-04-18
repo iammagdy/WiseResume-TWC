@@ -3,8 +3,24 @@
 **Last verified:** 2026-04-18
 **Audience:** you (the owner). No code, no jargon, no technical paths.
 **Sources (governance — supreme):**
-- `project-governance/CHANGELOG.md` entries dated 2026-04-18 (Stability Fixes — Phases 1 to 5)
+- `project-governance/CHANGELOG.md` entries dated 2026-04-18 (Stability Fixes — Phases 1 to 6)
 - `project-governance/CONSTITUTION.md` §6.5–§6.6 (the rule that says every change must be documented for you, in plain English, alongside the engineering record)
+
+---
+
+## Phase 6 — The admin control panel is now fully hardened against crashes and silent failures (2026-04-18)
+
+**What was the situation:** The internal admin panel (DevKit) had grown large over time. It had a handful of hidden problems: if any one section crashed, the whole panel would go blank and you'd lose your session. Background tasks kept running quietly in the background even when you weren't looking at them. Most importantly, if an admin action (changing someone's plan, saving a note, revoking a session) hit an error, the failure would often disappear silently — no message, no clue that anything went wrong.
+
+**What changed:** Three rounds of hardening were applied across all 15+ admin sections:
+
+- A crash in any one section now shows a small "Try again" card in just that section. Everything else — the sidebar, the session, the other tabs — stays completely unaffected.
+- All background polling (auto-refreshing activity feeds, health checks, analytics) now pauses automatically when you switch away from the browser tab, and resumes when you come back. This stops unnecessary work from running while you're not watching.
+- Every single action that talks to the backend (changing plans, granting trials, suspending accounts, saving notes, deleting users, etc.) now correctly reports the outcome. Errors surface as clear messages instead of disappearing. If you close a panel mid-action, no phantom state updates happen in the background.
+- The Users section's detail drawer — the one that shows an individual user's history, notes, and identity — now shows a proper warning if any of those tabs fail to load, instead of simply appearing empty.
+- When bulk-applying plan changes or suspensions to multiple users, a dialog now appears after the action listing every user with a clear OK or Failed badge, so you can see exactly who was affected and why any failures occurred.
+
+**What you'll notice:** The admin panel feels more solid. Actions either succeed visibly or fail with a clear message. No more empty tabs with no explanation. No more phantom background activity.
 
 ---
 

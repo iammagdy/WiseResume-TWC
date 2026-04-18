@@ -102,6 +102,54 @@ specific users failed and why. The CSV-export audit-log write also no
 longer blocks the export on its own failure — it surfaces a warning
 toast instead.
 
+## Phase 3 follow-up (2026-04-18, same day)
+
+Validator identified remaining unmount-race surfaces; this pass closes every one.
+
+### `UserDetailDrawer` — full invoke-site conversion + complete unmount-guard sweep
+
+All 13 `edgeFunctions.functions.invoke` call sites in `UserDetailDrawer` converted to `unwrapAdminResponse` / `tryUnwrapAdminResponse`:
+
+**Data-load `useEffect` paths (4 sites):**
+- `admin-audit-logs` → `unwrapAdminResponse` + `cancelled` guard
+- `admin-save-note (list)` → `unwrapAdminResponse` + `cancelled` guard
+- `admin-list-user-content` → `tryUnwrapAdminResponse` + `cancelled` guard
+- `admin-update-profile (get)` → `unwrapAdminResponse` + `cancelled` guard
+- `admin-get-identity` → `unwrapAdminResponse` + `cancelled` guard
+
+**Mutation handlers (12 async functions, 9 invoke sites):**
+`admin-merge-identity`, `admin-update-profile`, `admin-set-plan`, `admin-grant-trial`,
+`admin-revoke-trial`, `admin-suspend-user`, `admin-set-credits`, `admin-save-note`,
+`admin-save-note (delete)`, `admin-revoke-sessions`, `admin-delete-user`,
+`admin-list-user-content (detail)` — each handler now:
+1. Awaits the invoke tuple.
+2. Calls `unwrapAdminResponse(tuple, fnName)`.
+3. Immediately checks `if (!isMounted()) return;` before the first post-await `setState`.
+4. Guards its `finally` setter (`setSavingPlan(false)`, `setMergingIdentity(false)`, etc.) with `if (isMounted()) setter(...)`.
+
+`useIsMounted` declared once at component-function top; imports added for
+`useIsMounted`, `unwrapAdminResponse`, `tryUnwrapAdminResponse`, and `formatEdgeError`.
+
+### `DeploymentPanel` — contact_requests probe
+`useEffect` that probes `supabase.from('contact_requests')` now declares a `cancelled`
+flag and returns a cleanup that sets it, preventing `setContactTableOk` from firing
+after the panel unmounts.
+
+### `EmailManagementPanel.ComposeEmailForm` — full unmount safety
+`ComposeEmailForm` (inline sub-component) was missing `useIsMounted` entirely:
+- `isMounted = useIsMounted()` added.
+- `handleSearch` debounced callback: `if (!isMounted()) return` as first statement inside the `setTimeout`, plus a cleanup `useEffect(() => () => clearTimeout(searchDebounceRef.current), [])` to cancel any pending debounce on unmount.
+- `handleSearch` catch + finally both gate with `isMounted()`.
+- `handleSend` success paths (wisehire-invite branch and email-actions branch) each check `if (!isMounted()) return` after `unwrapAdminResponse`.
+- `handleSend` `finally { setSending(false) }` guarded with `if (isMounted())`.
+
+### `LiveActivityPanel.runHealthChecksForDefs`
+The health-check loop awaits up to N edge function calls sequentially. After
+the loop completes it now checks `if (!isMounted()) return` before writing
+`setFnHealth`, `setHealthRunning`, `setHealthCheckedAt`, and `setRecentErrors`.
+`isMounted` added to the `useCallback` dependency array.
+
 ## Verification
-- `tsc --noEmit` clean (both passes).
+- `tsc --noEmit` clean (all three passes).
 - `vite build` clean (522 precache entries, no new warnings).
+- Grep for `success === false` / `success !== false` / `as { success` across all dev-kit components: 0 hits.
