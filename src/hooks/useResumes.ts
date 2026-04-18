@@ -126,7 +126,15 @@ export function useResumes<TData = DatabaseResume[]>(options?: { select?: (data:
         .order('updated_at', { ascending: false });
 
       if (error) throw error;
-      return (data || []).map(parseDbResume);
+      const gracePeriodCutoff = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000); // 3-day grace window
+      return (data || [])
+        .map(parseDbResume)
+        // Hide expired trial resumes that are past the 3-day grace window.
+        // Trials within the grace window remain visible as read-only so users can upgrade.
+        .filter(r => {
+          if (!r.is_trial || !r.trial_expires_at) return true;
+          return new Date(r.trial_expires_at) > gracePeriodCutoff;
+        });
     },
     enabled: !!user,
     staleTime: 5 * 60 * 1000,
