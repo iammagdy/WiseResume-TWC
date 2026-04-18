@@ -255,9 +255,13 @@ const ScrollStack = ({
         /* Phase 4: fade-in below trigger. Card is invisible when the
            viewport is half a screen below its trigger, ramps to full
            opacity at triggerStart. Removes the "ghost" effect of cards
-           sitting visible-but-scaled-down from the start. */
+           sitting visible-but-scaled-down from the start. Honour
+           prefers-reduced-motion: skip the interpolation entirely so
+           cards remain fully opaque (static layout). */
         const fadeStart = triggerStart - containerHeight * 0.5;
-        const opacity = calculateProgress(scrollTop, fadeStart, triggerStart);
+        const opacity = reduceMotion
+          ? 1
+          : calculateProgress(scrollTop, fadeStart, triggerStart);
 
         let translateY = 0;
         const isPinned = scrollTop >= pinStart && scrollTop <= pinEnd;

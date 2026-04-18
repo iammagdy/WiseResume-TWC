@@ -45,12 +45,12 @@ export function WiseResumeContent({ prefersReducedMotion }: WiseResumeContentPro
               whileInView="visible"
               viewport={{ once: false, amount: 0.2 }}
             >
-              <p style={{ fontSize: '0.72rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--lp-eyebrow)', fontWeight: 600, marginBottom: '0.5rem' }}>
+              <p style={{ fontSize: '0.75rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--lp-eyebrow)', fontWeight: 600, marginBottom: '0.75rem' }}>
                 See it in action
               </p>
               <h2
                 className="font-bold leading-tight"
-                style={{ fontSize: 'clamp(1.6rem, 3.2vw, 2.4rem)', color: 'var(--lp-text)', letterSpacing: '-0.02em' }}
+                style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', color: 'var(--lp-text)', letterSpacing: '-0.02em' }}
               >
                 Five tools. One platform.<br />
                 <span className="lp-gradient-text">Your unfair advantage in the job market.</span>

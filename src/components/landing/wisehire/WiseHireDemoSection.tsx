@@ -95,12 +95,12 @@ export function WiseHireDemoSection() {
         >
           <p
             style={{
-              fontSize: '0.72rem',
-              letterSpacing: '0.14em',
+              fontSize: '0.75rem',
+              letterSpacing: '0.12em',
               textTransform: 'uppercase',
               color: 'var(--lp-eyebrow)',
               fontWeight: 600,
-              marginBottom: '0.5rem',
+              marginBottom: '0.75rem',
               transition: 'color 0.35s ease',
             }}
           >
@@ -109,7 +109,7 @@ export function WiseHireDemoSection() {
           <h2
             className="font-bold leading-tight"
             style={{
-              fontSize: 'clamp(1.6rem, 3.4vw, 2.4rem)',
+              fontSize: 'clamp(1.9rem, 4vw, 2.8rem)',
               color: 'var(--lp-text)',
               letterSpacing: '-0.025em',
               transition: 'color 0.35s ease',
