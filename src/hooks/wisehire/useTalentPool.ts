@@ -77,18 +77,18 @@ export function useAddTalentToPool() {
         .from('wisehire_candidates')
         .select('id')
         .eq('owner_id', userId)
-        .eq('full_name', profile.full_name ?? '')
+        .eq('name', profile.full_name ?? '')
         .limit(1)
         .maybeSingle();
 
-      if (existing) return existing;
+      if (existing) return { ...existing, userId };
 
       const { data, error } = await supabase
         .from('wisehire_candidates')
         .insert({
           owner_id: userId,
           role_id: roleId ?? null,
-          full_name: profile.full_name ?? 'Talent Pool Candidate',
+          name: profile.full_name ?? 'Talent Pool Candidate',
           email: null,
           pipeline_stage: stage,
           resume_text: `Headline: ${profile.headline ?? ''}\nSkills: ${(profile.skills ?? []).join(', ')}\nExperience: ${profile.experience_level ?? ''}\nAvailability: ${profile.availability ?? ''}\nLocation: ${profile.location ?? ''}`,
@@ -98,11 +98,12 @@ export function useAddTalentToPool() {
         .single();
 
       if (error) throw error;
-      return data;
+      return { ...data, userId };
     },
-    onSuccess: () => {
+    onSuccess: ({ userId }) => {
       toast.success('Candidate added to pipeline');
-      qc.invalidateQueries({ queryKey: ['pipeline'] });
+      qc.invalidateQueries({ queryKey: ['wisehire-pipeline', userId] });
+      qc.invalidateQueries({ queryKey: ['wisehire-dashboard-stats', userId] });
     },
     onError: (err: Error) => {
       toast.error(err.message ?? 'Failed to add candidate');

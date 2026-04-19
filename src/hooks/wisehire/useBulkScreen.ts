@@ -118,10 +118,11 @@ export function useAddCandidateFromScreen() {
         .single();
 
       if (error) throw error;
-      return data;
+      return { ...data, userId: user.id };
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['pipeline'] });
+    onSuccess: ({ userId }) => {
+      qc.invalidateQueries({ queryKey: ['wisehire-pipeline', userId] });
+      qc.invalidateQueries({ queryKey: ['wisehire-dashboard-stats', userId] });
       toast.success('Candidate added to pipeline as Shortlisted');
     },
     onError: () => {
