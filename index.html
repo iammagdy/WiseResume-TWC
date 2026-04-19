@@ -13,7 +13,7 @@
        Eliminates blocking Google Fonts request on FCP. -->
 
   <!-- PWA & Mobile -->
-  <link rel="manifest" href="/manifest.json" />
+  <link id="app-manifest" rel="manifest" href="/manifest.json" />
   <link id="app-favicon" rel="icon" type="image/png" href="/favicon.png">
   <link id="app-favicon-preload" rel="preload" href="/favicon.png" as="image" />
   <link id="app-apple-touch-icon" rel="apple-touch-icon" href="/icons/icon-192x192.png" />
@@ -54,6 +54,14 @@
   <link rel="apple-touch-startup-image"
     media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)"
     href="/icons/icon-512x512.png" />
+
+  <!-- Open Graph & Twitter image tags are declared up here (before the
+       pre-React brand-detection script below) so that script can swap
+       their `content` attribute on first paint when the user lands on a
+       WiseHire URL. The title/description og/twitter tags stay further
+       down where React (Index.tsx) keeps them in sync. -->
+  <meta id="app-og-image" property="og:image" content="/favicon.png">
+  <meta id="app-twitter-image" name="twitter:image" content="/favicon.png">
 
   <script>
     // SPA redirect: restore deep-link path saved by 404.html
@@ -113,6 +121,8 @@
             if (ogImg) ogImg.setAttribute('content', '/favicon-wisehire.png');
             var twImg = document.getElementById('app-twitter-image');
             if (twImg) twImg.setAttribute('content', '/favicon-wisehire.png');
+            var mani = document.getElementById('app-manifest');
+            if (mani) mani.setAttribute('href', '/manifest-wisehire.json');
           }
         }
         // Splash only appears when launched as an installed PWA (standalone /
@@ -207,14 +217,12 @@
     }
   </style>
 
-  <!-- Open Graph -->
+  <!-- Open Graph (og:image is declared higher so the pre-React script can swap it on first paint) -->
   <meta property="og:type" content="website" />
-  <meta id="app-og-image" property="og:image" content="/favicon.png">
 
-  <!-- Twitter Card -->
+  <!-- Twitter Card (twitter:image is declared higher so the pre-React script can swap it on first paint) -->
   <meta name="twitter:card" content="summary" />
   <meta name="twitter:site" content="@WiseresumeAI" />
-  <meta id="app-twitter-image" name="twitter:image" content="/favicon.png">
   <meta property="og:title" content="Wiseresume AI - AI Resume Editor">
   <meta name="twitter:title" content="Wiseresume AI - AI Resume Editor">
   <meta property="og:description"

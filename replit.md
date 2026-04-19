@@ -1,113 +1,579 @@
-# WiseResume — Compressed Project Knowledge Base
+# WiseResume — Full Project Knowledge Base
 
-## Overview
-WiseResume is an AI-powered Progressive Web App (PWA) for comprehensive career management. It enables users to build and tailor resumes with AI, publish public portfolios, practice interview questions, track job applications, and manage career goals. The project aims to provide a robust, AI-enhanced platform for job seekers, with an embedded HR SaaS platform (WiseHire) for recruiters.
+## Documentation Rules — MANDATORY After Every Task
 
-## User Preferences
-- After every completed task, bug fix, or feature, update the `CHANGELOG.md` with technical, English-only entries detailing changed files, functions, DB migrations, and exact behavior.
-- Add plain-language entries for new user-facing features (`current-features.md`), behind-the-scenes improvements (`stability-improvements.md`), or confirmed planned features (`coming-soon.md`) in `Project Atlas/04-For You (Plain Language)/`. Update the "Last verified" timestamp in the edited file.
-- Update relevant reference cards in `Project Atlas/01-Currently Implemented/` for new DB columns, critical systems, major features, changed hook patterns, shared cache keys, page behaviors, or stability/infrastructure changes. Update the "Last verified" timestamp on every card touched.
-- Update `replit.md` only when architecture, infrastructure, or key patterns (new endpoint, new DB table, new shared cache key, new env var) change, skipping routine bug fixes.
-- User wants to avoid manual SQL migrations; prefer `npm run db:push` for schema changes or `apply-rpc-migration.yml` for production.
-- User strictly enforces TypeScript strict mode; no `any` casts are allowed.
-- User forbids changing primary key column types due to destructive nature and data integrity risks.
-- User requires `user.id` to always be the bridge UUID, never the raw Kinde `kp_xxx` ID.
-- User prefers that AI credit limits be derived from the plan at runtime, not from the `ai_credits.daily_limit` column.
-- User prefers `useMe` as the canonical source for plan/credits, with `['me', user?.id]` as its queryKey.
-- All edge functions must have `verify_jwt = false` in `supabase/config.toml`.
-- Pricing call-to-actions on the landing page should navigate to `/auth?plan=free|pro|premium`, not directly to `kindeRegister` calls.
-- The `pf-*` CSS used by public portfolio pages should remain untouched.
-- Glass cleanup is complete, only `glass-pro` data values and `Badge variant="glass"` component variants are intentionally preserved.
-- Credit limits should be updated in both `src/lib/planConfig.ts` (PLAN_CREDIT_LIMITS) and `supabase/functions/_shared/planLimits.ts` concurrently.
-- BYOK (Bring Your Own Key) credit bypass requires verification of a key in `user_api_keys`, `ai_provider` preference alone is insufficient.
-- The `hard-purge` functionality must be protected by `requireAdminAuth`.
-- Never invent marketing stats; always source them from `src/pages/Index.tsx`.
+These rules apply automatically after every completed task, bug fix, or feature. No reminder needed.
 
-## System Architecture
+**Rule 1 — `CHANGELOG.md` (technical, English only)**
+Add an entry using the existing format: `## YYYY-MM-DD — Title (Task #N)` with bullet points listing changed files, functions, DB migrations, and exact behavior. English only. No Arabic. No plain-language explanations.
 
-**Project Type:** AI-powered career management PWA with an integrated HR SaaS platform.
+**Rule 2 — `Project Atlas/04-For You (Plain Language)/`**
+Add a plain-language entry in the correct file:
+- New user-facing feature → `current-features.md`
+- Behind-the-scenes improvement (performance, cleanup, stability, security) → `stability-improvements.md`
+- Confirmed planned feature → `coming-soon.md`
 
-**Tech Stack:**
-- **Frontend:** React 18, TypeScript 5, Vite 6
-- **Styling:** Tailwind CSS, Radix UI, Framer Motion
-- **State Management:** Zustand, TanStack Query (React Query)
-- **Authentication:** Kinde Auth (JWT verified server-side), custom session JWTs
-- **Database:** Neon PostgreSQL via Drizzle ORM (schema: `server/schema.ts`)
-- **Backend:** Express.js server (port 5001), Supabase Edge Functions (proxy/legacy fallback)
-- **PWA:** Capacitor 8, vite-plugin-pwa
-- **Hosting:** Replit (autoscale deployment)
-- **Dev Environment:** Replit (Vite on 5000, Express on 5001)
+Entry format:
+```
+## [Benefit-focused title] (YYYY-MM-DD)
+**What was the situation:** [one sentence — the problem before]
+**What changed:** [plain words, no file names, no jargon]
+**What you'll notice:** [what the owner/user sees differently]
+```
+Update `**Last verified:**` at the top of whichever file you edit.
 
-**Key Features:**
-- Resume building and AI-powered tailoring to job listings.
-- Public portfolio publishing.
-- AI interview practice and job application tracking.
-- Career goal management.
-- **WiseHire:** Embedded HR SaaS platform for recruiters, including AI JD Writer, AI Brief Generator, and a Candidate Pipeline Board.
+**Rule 3 — `Project Atlas/01-Currently Implemented/`**
+Update the relevant reference cards:
+- New DB columns → update `database-tables/<table>.md`
+- New critical system or major feature → create `critical-systems/<N>-<name>.md`
+- Changed hook pattern or shared cache key → update `frontend-layer/hooks.md`
+- Changed page behaviour → update `pages/<page>.md`
+- Stability/infrastructure change → update or extend `stability-fixes/phase-N-*.md`
+Update `**Last verified:**` on every card you touch.
 
-**Authentication Flow:**
-1. Kinde login provides Kinde access token.
-2. Client exchanges Kinde JWT for a short-lived WiseResume session JWT via `POST /api/fn/token-exchange`.
-3. Server verifies Kinde JWT, creates deterministic UUID, upserts user data in Neon DB, and signs session JWT.
-4. Client uses session JWT for all `/api/*` calls; server validates locally. `user.id` is always the derived bridge UUID.
+**Rule 4 — `replit.md`**
+Update only when architecture, infrastructure, or key patterns change (new endpoint, new DB table, new shared cache key, new env var). Skip for routine bug fixes.
 
-**AI System:**
-- **Primary AI Providers:** OpenRouter (gemma) and Groq (llama) free tiers.
-- **AI Client:** Centralized in `supabase/functions/_shared/aiClient.ts` for routing to various providers.
-- **BYOK Support:** OpenAI, Anthropic, Gemini, Groq, Mistral, xAI, Cohere, OpenRouter, Ollama.
-- **Sub-provider Preference:** Stored in `user_preferences.wiseresume_sub_provider` and Zustand `settingsStore` (options: `openrouter | groq | auto`). `auto` mode falls back to Groq if OpenRouter fails.
-- **AI Error Handling:** Supabase Edge Function `callAI()` throws `AIError`, which is caught, JSON-formatted, and parsed by the frontend for user-visible toasts.
-- **AI Tooling:** `agentic-chat` edge function supports 12 tools for resume manipulation, company briefing, and job tracking.
-- **AI Routing Layer:** Unified per-feature AI routing layer planned (OpenRouter + Groq + Gemini with smart fallback, streaming, caching, and admin dashboard) with design docs in `Routing AI Providers/`.
+**Full skill reference:** `.agents/skills/auto-docs/SKILL.md`
 
-**Subscription & Credits System:**
-- Plans: `free`, `pro`, `premium`.
-- Daily AI credit limits are derived dynamically from the active subscription plan via `creditUtils.ts`. `ai_credits.daily_limit` column is not used for enforcement.
-- BYOK users bypass credit limits if a valid key is provided.
+---
 
-**UI/UX Design System:**
-- **Colors:** Deep Indigo primary, Warm Amber accent.
-- **Typography:** Inter font.
-- **Surfaces:** Solid backgrounds, no glassmorphism (except specific preserved instances).
-- **Theme:** Light, Dark, and system themes with `src/hooks/use-theme.ts`.
-- **Shadows:** Custom soft shadow scale.
-- **Navigation:** DesktopNav and BottomTabBar provide intuitive access to features. Locked tabs trigger upgrade toasts and redirect to `/subscription`.
-- **Landing Page Visual System (Bento Collage Redesign):** Warm parchment background, massive clamped headlines, word-by-word/typewriter animations, scattered floating cards, alternating full-width feature sections, scroll animations, no italic text, `lpMode` prop for components. Framer-motion is lazy-loaded to optimize initial load.
+## What the Project Is
+WiseResume is an AI-powered career management PWA. Production URL: https://resume.thewise.cloud. Users can build resumes, tailor them to job listings with AI, publish a public portfolio, practice interview questions, track job applications, and manage their career goals.
 
-**Data Management:**
-- **Database Schema:** Defined in `server/schema.ts` using Drizzle ORM.
-- **Schema Changes:** `npm run db:push` for schema updates.
-- **Analytics Data Lifecycle:** Insert-heavy analytics tables (`portfolio_visits`, `error_log`, `audit_logs`, `admin_audit_log`) are pruned daily with configurable retention periods via a scheduled sweep in the Express server.
-- **Trial Resume Lifecycle:** `resumes` table includes `is_trial` and `trial_expires_at` columns. A DB trigger sets `trial_expires_at` on first edit. RLS blocks writes to expired trials. Daily sweep hard-deletes expired trials.
+## Tech Stack
+| Layer | Technology |
+|---|---|
+| Frontend | React 18 + TypeScript 5 + Vite 6 |
+| Styling | Tailwind CSS + Radix UI + Framer Motion |
+| State | Zustand + TanStack Query (React Query) |
+| Auth | Kinde Auth (https://thewisecloud.kinde.com) — JWT verified server-side via JWKS |
+| Database | Neon PostgreSQL via Drizzle ORM (schema: `server/schema.ts`) — direct DB connection, never exposed to browser |
+| Backend | Express.js server (server/index.ts, port 5001) + Supabase Edge Functions proxy (legacy fallback) |
+| PWA | Capacitor 8 + vite-plugin-pwa |
+| Package Manager | npm |
+| Hosting | Replit (autoscale deployment) |
+| Dev environment | Replit (Vite on port 5000, Express API on port 5001) |
 
-**DevKit (Admin Panel):**
-- Password-protected (`DEV_KIT_PASSWORD`).
-- Panels for Analytics, Live Activity, Deployment, Audit Log.
-- DeploymentPanel shows GitHub commits, env var checks, and Analytics Retention Sweep status.
-- Hardening primitives (`useIsMounted()`, `useAbortOnUnmount()`, `useVisibleInterval()`, `unwrapAdminResponse()`, `DevKitPanelBoundary.tsx`) ensure robustness.
+## Auth Flow (Replit Migration — April 2026)
+1. User logs in via Kinde → receives a Kinde access token
+2. Client calls `POST /api/fn/token-exchange` (Express server, not Supabase)
+3. Server verifies the Kinde JWT using Kinde's JWKS endpoint (cached 1h)
+4. Server derives a deterministic UUID from the Kinde `sub` claim (UUID v5)
+5. Server upserts `profiles` + `user_preferences` rows in Neon DB
+6. Server signs a short-lived session JWT (HS256, `iss: wiseresume`, 1h TTL) using `SESSION_SECRET`
+7. Client stores the session JWT and attaches it to all `/api/*` calls
+8. Server validates incoming session JWTs locally (no network call) — legacy Supabase tokens fall back to Supabase validation
 
-**Onboarding Analytics:**
-- `audit_logs` table (`category='onboarding'`) captures detailed user actions during onboarding, including path selection, review interactions, completion metrics, and error states.
+## Key Environment Variables (server-side)
+- `DATABASE_URL` — Neon PostgreSQL connection string
+- `SESSION_SECRET` — HMAC secret for session JWT signing/validation
+- `VITE_KINDE_DOMAIN` — Kinde domain (also used server-side for JWKS)
+- `VITE_KINDE_CLIENT_ID` — Kinde client ID
+- `VITE_SUPABASE_URL` — Supabase URL (legacy proxy + RLS for client-side Supabase calls)
+- `VITE_SUPABASE_PUBLISHABLE_KEY` — Supabase anon key (safe to expose, no RLS bypass)
 
-**Agent Readiness (AI Discovery Surface):**
-- Static discovery files (`sitemap.xml`, `robots.txt`, `.well-known/*`) and HTTP headers are provided to enable AI agents to discover, navigate, and authenticate against the API.
-- `Accept: text/markdown` returns markdown renderings of public pages for AI consumption.
-- WebMCP (`src/hooks/useWebMcp.ts`) integrates with `navigator.modelContext.provideContext()` for agent interactions like `open_pricing`, `start_resume`, etc.
+## Project Structure
+- `src/` — Core frontend code (components, hooks, lib, pages, store)
+- `src/lib/edgeFunctions.ts` — Multipart/FormData-capable Edge Function client (file uploads)
+- `src/integrations/supabase/edgeFunctions.ts` — JSON Edge Function client (standard AI calls)
+- `supabase/` — Edge functions and database migrations
+- `server/` — Server-side utilities (db.ts for Neon Postgres connection if needed)
+- `public/` — Static assets and PWA manifest
+- `specs/` — Technical specifications
+- `project-governance/` — Architecture documentation
+- `wise-templates/` — Resume templates
 
-## External Dependencies
+## AI Error Handling Architecture
+The AI error chain flows: Supabase Edge Function → `callAI()` → throws `AIError` → edge function catch → JSON response → frontend parsing → user-visible toast.
 
-- **Kinde Auth:** User authentication and identity management.
-- **Neon PostgreSQL:** Primary database for user data, resumes, and application state.
-- **Supabase:**
-    - Edge Functions: For AI processing, token exchange, API proxies, and other serverless logic.
-    - Legacy Fallback: For certain backend services and RLS for client-side Supabase calls.
-- **OpenRouter:** AI model routing and access (e.g., `google/gemma-4-26b-a4b-it:free`).
-- **Groq:** AI model access (e.g., `llama-3.3-70b-versatile`).
-- **Gemini:** AI model access.
-- **Proxycurl:** LinkedIn profile import service.
-- **Sentry:** Error tracking and performance monitoring.
-- **GitHub Actions:** CI/CD for deployments, secret management, and database migrations.
-- **dnd-kit:** For Kanban job tracker drag-and-drop functionality.
-- **Stripe:** For subscription lifecycle management (mentioned indirectly for `subscriptions` table).
-- **Resend:** Email delivery (implied by `RESEND_API_KEY`).
-- **OpenAI, Anthropic, Mistral, xAI, Cohere, Ollama:** Supported BYOK (Bring Your Own Key) AI providers.
+**Frontend error parsing layers** (each has its own classification logic):
+- `src/integrations/supabase/edgeFunctions.ts` — JSON edge function client, first to parse the response
+- `src/hooks/useAIAction.ts` (`parseErrorMessage`) — universal AI action wrapper
+- `src/hooks/useAIEnhance.ts` — enhance section hook (bypasses edgeFunctions.ts, calls fetch directly)
+- `src/hooks/useATSSuggestions.ts` — ATS deep analysis hook (also calls fetch directly)
+- `src/components/editor/tailor/QuickActions.tsx` — quick tailor actions (also calls fetch directly)
+
+**Backend error utilities** (`supabase/functions/_shared/aiClient.ts`):
+- `createAIError(type, message, status)` — creates typed AI errors
+- `isAIError(error)` — type guard for AI errors
+- `toUserError(error)` — maps AIError to `{ status, error: code, message: readable }` for HTTP responses
+
+**Known issue**: Some deployed edge functions return `{ error: 'Something went wrong.' }` instead of using `toUserError()`. Frontend now catches this pattern and shows "AI request failed — check your AI settings or try again later." instead of the generic "AI is temporarily unavailable."
+
+**To redeploy edge functions with fixes**: Run `bash scripts/deploy-functions.sh` (requires `SUPABASE_ACCESS_TOKEN` secret).
+
+## Replit Environment Setup
+
+### Running the Project
+The project runs two processes in parallel (configured in `.replit`):
+1. **Vite dev server** — port 5000 (frontend, hot-reload)
+2. **Express API server** — port 5001 (server-side routes, DB access)
+
+Vite proxies all `/api/*` requests to the Express server, so the frontend never needs to know the server URL.
+
+### Environment Variables (set in `.replit` [userenv.shared])
+- `VITE_SUPABASE_URL` — Supabase project URL (used by client + server to proxy Edge Functions)
+- `VITE_SUPABASE_PUBLISHABLE_KEY` — Supabase anon key (safe to expose, used by client)
+- `VITE_KINDE_CLIENT_ID` — Kinde OAuth app client ID
+- `VITE_KINDE_DOMAIN` — Kinde tenant domain
+
+### Secrets (set in Replit Secrets panel)
+- `DATABASE_URL` — Replit Neon PostgreSQL connection string (managed by Replit)
+- Optional: `PROXYCURL_API_KEY`, `ADMIN_EMAILS`, `OPENROUTER_API_KEY`, `GROQ_API_KEY`, `GEMINI_API_KEY`
+
+### Database
+- Schema defined in `server/schema.ts` (Drizzle ORM)
+- Push schema changes: `npm run db:push`
+- The Replit Neon DB is available via the `DATABASE_URL` secret
+- Supabase Edge Functions have their own DB connection (separate from Replit Neon)
+
+### Auth Flow
+1. User logs in via Kinde (`VITE_KINDE_CLIENT_ID`)
+2. Client exchanges Kinde JWT → Supabase JWT via `token-exchange` Edge Function
+3. Supabase JWT is used for all Supabase API calls (DB queries via RLS, Edge Function auth)
+4. Express server validates Supabase JWTs by calling Supabase `/auth/v1/user`
+
+## Fresh Import Setup (New Replit from GitHub)
+
+When you import this repo into a fresh Replit, the app will start and run correctly **with zero additional configuration** — all four frontend env vars (`VITE_KINDE_CLIENT_ID`, `VITE_KINDE_DOMAIN`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`) are already embedded in `.replit [userenv.shared]`.
+
+**Optional — only needed for admin/DevKit features:**
+1. Add `SUPABASE_ACCESS_TOKEN` as a Replit secret (your Supabase personal access token from https://supabase.com/dashboard/account/tokens). This enables `bash scripts/deploy-functions.sh` and `bash scripts/refresh-devkit-secrets.sh` to work from the Replit shell.
+
+**Quick verification after import:**
+1. Hit "Run" — the app should load at the preview URL with no console warnings about missing vars.
+2. Click "Sign In" — Kinde auth page should open.
+3. Navigate to `/devkit` — should redirect to Kinde login (not a blank page or error).
+
+All Supabase edge function secrets (`ADMIN_EMAILS`, `DEV_KIT_PASSWORD`, AI keys, etc.) are already deployed to the production Supabase project and do not need to be re-provisioned on import.
+
+## Infrastructure & Secrets
+- Supabase project ref: `jnsfmkzgxsviuthaqlyy`
+- GitHub repo: `iammagdy/wiseresume-74945019`
+- `SUPABASE_ACCESS_TOKEN` is set in Replit (shared env var) and GitHub Actions secrets — enables `apply-rpc-migration.yml` and `bash scripts/deploy-functions.sh` directly from shell or CI
+- `GITHUB_ACCESS_TOKEN` is stored as a Replit Secret (not in `.replit` plaintext) — used by `scripts/refresh-devkit-secrets.sh`
+- Edge function secrets are in Supabase (not Vault): `OPENROUTER_API_KEY`, `GROQ_API_KEY`, `GEMINI_API_KEY`, `RESEND_API_KEY`, `GITHUB_TOKEN`, `GITHUB_OWNER`, `GITHUB_REPO`, `DEV_KIT_PASSWORD`, `KINDE_DOMAIN`, + others (15 total)
+- `SUPABASE_DB_PASSWORD` is in GitHub Actions — but `db-migration.yml` is **KNOWN BROKEN** due to migration history conflicts (migrations were applied manually and aren't tracked by the Supabase CLI). Use `apply-rpc-migration.yml` instead for SQL changes.
+- Deployment trigger: POST to `https://api.github.com/repos/iammagdy/wiseresume-74945019/actions/workflows/deploy-edge-functions.yml/dispatches` with `{"ref":"main"}` using the repo PAT
+- Platform merges don't trigger GitHub Actions webhooks — always use `workflow_dispatch` via API after edge function code changes
+
+## Edge Function Status (last verified: 2026-04-13)
+All functions deployed to Supabase project `jnsfmkzgxsviuthaqlyy`. Verified via:
+```
+npx supabase functions deploy wise-ai-chat --project-ref jnsfmkzgxsviuthaqlyy --use-api
+npx supabase secrets list --project-ref jnsfmkzgxsviuthaqlyy
+```
+Secrets confirmed present: `OPENROUTER_API_KEY` ✓, `GROQ_API_KEY` ✓, `GEMINI_API_KEY` ✓
+
+Smoke test (unauthenticated → correct 401):
+```
+POST /functions/v1/wise-ai-chat    → 401 {"error":"unauthorized","message":"Authentication required."}
+POST /functions/v1/company-briefing → 401 {"error":"Missing sub claim (unauthorized)"}
+```
+Both functions are live. Auth rejection on unsigned requests confirms deployment is active.
+
+### wise-ai-chat full fix (deployed 2026-04-13, HTTP 200 verified)
+
+**Root causes of "AI is temporarily unavailable":**
+
+1. **Timeout cascade**: function tried ~10 models × 15s each → exceeded Supabase's 60s limit → unparseable gateway timeout → client showed generic error.
+
+2. **verify_jwt misconfiguration**: `wise-ai-chat` was missing from `supabase/config.toml`'s function list, so `verify_jwt` defaulted to `true`. Supabase's function gateway tried to verify user ES256 JWTs with the HS256 secret → rejected all real user tokens with "Invalid JWT" before the function code ran.
+
+3. **Auth middleware algorithm mismatch**: `authMiddleware.ts` only verified HS256 tokens. Fixed to delegate verification to `supabase.auth.getUser(token)` which handles any algorithm and is always authoritative.
+
+4. **deductCredits parameter mismatch**: `deductCredits.ts` called `increment_ai_usage` with `p_cost` and `p_skip_limit_check` parameters that don't exist in the DB function (which only takes `p_user_id`). This caused every successful AI response to fail with a generic 500.
+
+**Fixes applied:**
+- `aiClient.ts`: `PER_MODEL_TIMEOUT_MS` 15s→8s, max 3 models/provider, outer timer 90s→40s
+- `wise-ai-chat/index.ts`: DOMException/unknown AIError → 429 "AI is busy" 
+- `supabase/config.toml`: added `[functions.wise-ai-chat] verify_jwt = false`
+- Management API: `PATCH /functions/wise-ai-chat` with `{"verify_jwt":false}` (config.toml not propagated by `--use-api`)
+- `authMiddleware.ts`: replaced jose HS256/JWKS verification with `supabase.auth.getUser(token)`
+- `deductCredits.ts`: fixed RPC call to only pass `p_user_id`; BYOK users skip deduction
+
+**Smoke test result (2026-04-13):**
+```
+POST /functions/v1/wise-ai-chat  →  HTTP 200
+{"content":"{\"formal\":\"...\",...}","providerUsed":"wiseresume/groq:llama-3.3-70b-versatile","fallbackUsed":false}
+```
+
+## Dev Server
+- Host: `0.0.0.0`
+- Port: `5000`
+- Command: `npm run dev`
+- All hosts allowed for Replit proxy compatibility
+
+## Environment Variables
+See `.env.example`. Key variables:
+- `VITE_SUPABASE_URL` — Supabase project URL
+- `VITE_SUPABASE_PUBLISHABLE_KEY` — Supabase anonymous key
+- `VITE_KINDE_CLIENT_ID` — Kinde client ID
+- `VITE_KINDE_DOMAIN` — Kinde domain
+
+## Wise AI — Recent Feature History
+
+### Phase 1 (Task #8, complete)
+- DB-backed chat sessions (`chat_sessions`, `chat_messages` tables)
+- Chat history sidebar in `AgenticChatSheet`
+- `delete_experience` tool
+- Auth-transition session clearing
+
+### Phase 2 (complete)
+- **New tools in `agentic-chat`**: `get_company_briefing` (#11) + `open_job_tracker` (#12)
+- **"Add with AI" button** in `ExperienceSection`: Bot-icon triggers pre-filled AI chat via `chatTriggerStore` (Zustand) → EditorPage forwards message as `chatInitialMessage`
+- **Frontend tool handlers**: `useAgenticChat` exports `pendingAction`; `AgenticChatSheet` handles briefing (opens `CompanyBriefingSheet` with cache check) and job tracker (navigates to `/applications`)
+
+### Phase 3 (complete)
+- **`tool_cache` DB table**: `(user_id, tool_name, cache_key, output JSONB, expires_at)` — 7-day TTL; unique index for upsert
+- **`useToolCache` hook** (`src/hooks/useToolCache.ts`): `getCache<T>`, `setCache`, `deleteCache`, `getCacheAge` — RLS-safe
+- **Cache-reuse UI** in `AgenticChatSheet`: inline card shows cached briefing age → "View Saved Briefing" or "Generate Fresh"
+- **`CompanyBriefingSheet` new props**: `initialCompanyName`, `initialBriefing`, `onBriefingGenerated` — auto-generates when name provided without cached data; fires `onBriefingGenerated` for cache write
+
+## AI System
+
+> **📁 Active planning:** A unified per-feature AI routing layer (OpenRouter + Groq + Gemini with smart fallback, streaming, caching, and an admin dashboard) is being planned. **All design docs live in `Routing AI Providers/` at the project root** — start with `Routing AI Providers/README.md`. That folder is the single source of truth and survives project re-imports. The companion subfolder `Routing AI Providers/Operations and Guides/` contains the operational, user-facing, and step-by-step guides (provider sign-up, runbooks, migration checklist, test plan, cost model, privacy notes, glossary). No code for that work has been written yet; existing AI behavior below is unchanged.
+
+- **Primary AI**: OpenRouter (`google/gemma-4-26b-a4b-it:free`) + Groq (`llama-3.3-70b-versatile`) — both free tiers
+- **Central AI client**: `supabase/functions/_shared/aiClient.ts`
+  - `callWiseresumeAI(subProvider, ...)` — routes to OpenRouter or Groq
+  - `callAI(...)` — top-level dispatcher, priority order: new BYOK providers → OpenRouter BYOK → Ollama → Gemini BYOK → WiseResume managed AI → legacy Gemini key
+- **BYOK (Bring Your Own Key)**: Supports OpenAI, Anthropic, Gemini, Groq, Mistral, xAI, Cohere, OpenRouter, Ollama
+- **Sub-provider preference**: Stored in `user_preferences.wiseresume_sub_provider` and Zustand `settingsStore`. Options: `openrouter | groq | auto`
+- **Auto mode**: tries OpenRouter first, falls back to Groq on failure
+
+## Auth System
+- **Auth provider**: Kinde Auth
+- **Bridge**: After Kinde login, a `token-exchange` Supabase edge function exchanges the Kinde JWT for a bridge UUID stored in Supabase. `user.id` in the app is ALWAYS the bridge UUID — never the raw Kinde `kp_xxx` ID.
+- **useMe hook** (queryKey: `['me', user?.id]`): Canonical source of truth for plan, credits, preferences. Calls the `me` edge function.
+- **Auth guard**: All Supabase queries are gated on `enabled: !!user` — since `user` is null until the bridge settles, this naturally prevents UUID-type errors.
+
+## Subscription & Credits System
+- **Plans**: `free`, `pro`, `premium`
+- **Daily AI credit limits** (plan-authoritative, derived at runtime — never trust stored `daily_limit` column):
+  - `premium` → unlimited (stored as -1 sentinel, shown as ∞)
+  - `pro` → 30/day
+  - `free` → 5/day
+- **`creditUtils.ts`** (`supabase/functions/_shared/creditUtils.ts`): Always derives the daily limit from the user's current active subscription plan. The `ai_credits.daily_limit` column is NOT used for limit enforcement — only `daily_usage` and `usage_date` are read. This prevents downgrade/trial-expiry escalation.
+- **SQL RPC**: `upsert_ai_credits_limit` — applied to production DB via management API
+- **PlanAvatar badge**: `hasBadge = showLabel` only (not based on plan tier alone)
+
+## Design System
+- **Colors**: Deep Indigo (HSL 239 84% 67%) primary, Warm Amber (HSL 38 92% 50%) accent
+- **Typography**: Inter only
+- **Surfaces**: Solid backgrounds — NO glassmorphism, NO backdrop-filter except `backdrop-blur-sm` on nav
+- **Theme**: Light (`#FFFFFF`) + Dark (`#111111`) + system. Hook: `src/hooks/use-theme.ts`
+- **Shadows**: Custom scale — `shadow-soft-sm` through `shadow-soft-xl`
+- **Glass classes**: All removed across 50+ pages/components. `glass-pro` (portfolio data value) and `Badge variant="glass"` (component variant) are intentionally preserved.
+- **SkyWallpaper**: Removed (was THREE.js animated background)
+- **Portfolio CSS (`pf-*`)**: Untouched — used only on public portfolio pages
+
+## Navigation (Post-Task #101 UX Audit)
+**DesktopNav** (`src/components/layout/DesktopNav.tsx`):
+- Brand text is a `<Link to="/">` with `aria-label`
+- Settings icon button in the right action row
+- Locked tabs (AI Tools, Activity): show upgrade toast AND navigate to `/subscription`
+- Search: uses `open-command-palette` custom event (not synthetic KeyboardEvent)
+
+**BottomTabBar** (`src/components/layout/BottomTabBar.tsx`):
+- Tabs: Home, Editor, AI Tools, Activity, More (5 tabs)
+- "More" opens an animated bottom sheet with 10 secondary pages: Portfolio, QR Code, Notifications, Analytics, Achievements, Referral, Help, Subscription, Pricing, What's New
+- All routes reachable in ≤2 taps
+- Locked tabs show upgrade toast AND navigate to `/subscription`
+
+**CommandPalette**: Listens for `open-command-palette` custom event
+
+## Key Pages & Components
+| File | Purpose |
+|---|---|
+| `src/pages/Index.tsx` | Landing page — all marketing stats live here (never invent them) |
+| `src/pages/DashboardPage.tsx` | Main dashboard — responsive grid, trust banner always visible |
+| `src/pages/AuthPage.tsx` | Login/register — reads `?plan=` query param, saves intent to sessionStorage |
+| `src/pages/SubscriptionPage.tsx` | Plan management (authenticated only) |
+| `src/pages/PricingPage.tsx` | Public pricing page `/pricing` — works for unauthenticated visitors and authenticated users |
+| `src/pages/WhatsNewPage.tsx` | Public changelog timeline `/whats-new` — curated product milestones |
+| `src/components/dev-kit/` | Admin DevKit — Analytics, Live Activity, Deployment, Audit Log tabs |
+| `src/store/settingsStore.ts` | Zustand — theme + AI sub-provider, persisted in localStorage |
+| `src/hooks/useMe.ts` | Canonical plan/credits hook |
+
+## DevKit (Admin Panel)
+- Password-protected (`DEV_KIT_PASSWORD` in Supabase secrets)
+- Tabs: Analytics, Live Activity, Deployment, Audit Log, + others
+- **DeploymentPanel**: Shows last 5 GitHub commits via `admin-github-status` edge function, env var checklist via `admin-env-check`, links to Supabase + GitHub
+- **admin-github-status**: Proxies GitHub API using `GITHUB_TOKEN`, `GITHUB_OWNER`, `GITHUB_REPO` secrets — recently fixed (token was stale)
+- **LiveActivityPanel**: 30s auto-refresh (visibility-aware — pauses while tab hidden), last 50 `usage_events`, edge function health cards. AI-burning health checks gated behind explicit "Run health check" button.
+
+### DevKit hardening primitives (added 2026-04-18)
+Every panel should reach for these instead of hand-rolling unmount safety or response parsing:
+- `src/lib/devkit/hooks.ts` — `useIsMounted()`, `useAbortOnUnmount()`, `useVisibleInterval(fn, ms, enabled?)`. The interval pauses while the document is hidden and cleans up on unmount.
+- `src/lib/devkit/edgeResponse.ts` — `unwrapAdminResponse<T>(invokeTuple, fnName)` validates the `{ data, error }` tuple from `edgeFunctions.functions.invoke(...)` and throws `EdgeFunctionError` on transport errors, missing payloads, `{ success: false }` responses, or 404 ("not deployed"). Use `tryUnwrapAdminResponse` for optional/secondary fetches and `formatEdgeError(e, fallback)` for surfacing.
+- `src/components/dev-kit/DevKitPanelBoundary.tsx` — wraps the panel-render slot in `DevToolsPage` so a single panel crash never takes down the DevKit shell. Boundary resets per tab via `key={activeTab}`.
+
+As of phase-2 (2026-04-18), every admin panel routes its `edgeFunctions.functions.invoke` calls through `unwrapAdminResponse` and gates post-await `setState` behind `useIsMounted()`. New panels MUST follow this pattern — do not hand-roll `as { success?, error? }` casts. `AdminUsersPanel`'s bulk-action confirm dialog also opens a per-row results table afterwards; reuse that pattern for any future bulk admin operation so failures cannot hide behind an aggregated toast.
+
+## Server-side LinkedIn Importer (Task #8)
+Endpoint: `POST /api/linkedin-profile` (in `server/index.ts`).
+- Provider: Proxycurl (`PROXYCURL_API_KEY` env var). Endpoint returns 503 when the key is missing — frontend then falls back to OG-meta best-effort via `/api/fetch-url`.
+- Auth: Supabase Bearer token required (reuses `requireAuthHeader`).
+- Throttle: 5 req/min per (user, IP) and per-user monthly cap of 50 (`LINKEDIN_IMPORT_MONTHLY_CAP`). Both tracked in-memory; swap for a `linkedin_imports` DB table if durability is needed.
+- Response shape: `{ provider, profile: { fullName, headline, location, summary, experience[], education[], skills[], certifications[], languages[], projects[], volunteering[] }, quota: { used, cap, remaining }, providerCreditBalance }`.
+- Error codes: 400 invalid URL, 401 auth, 402 monthly quota, 404 profile not found / private, 429 rate-limited (sets `Retry-After`), 502/504 upstream failure, 503 not configured.
+- Frontend integration: `probeLinkedInUrl` in `src/lib/onboardingProfile.ts` tries the new endpoint first and returns `structured` when successful, allowing `OnboardingPage` to skip the `parse-linkedin` AI call entirely. `notConfigured` and `quotaExhausted` flags drive specific UI notices on the review sheet.
+
+## Edge Functions
+All registered in `supabase/config.toml` with `verify_jwt = false`. Key functions:
+- `me` — returns plan, credits, preferences for current user
+- `token-exchange` — Kinde JWT → bridge UUID, writes audit log
+- `redeem-coupon` — coupon codes, calls `upsert_ai_credits_limit` RPC after redemption
+- `validate-api-key` — validates all 9 BYOK providers
+- `admin-github-status` — proxies GitHub commits API for DevKit
+- `admin-env-check` — returns boolean presence of required env vars
+- `wise-ai-chat` — single-shot AI Studio assistant (7 use cases, no tool calling)
+- `agentic-chat` — multi-turn assistant; persists sessions to `chat_sessions` / `chat_messages`. Registers **12 tools** (verified against `supabase/functions/agentic-chat/index.ts` `TOOLS` array): `update_summary`, `add_experience`, `update_experience`, `update_skills`, `add_skills`, `update_contact`, `add_project`, `suggest_edits`, `delete_experience` (Phase 1), `get_company_briefing` (Phase 2), `open_job_tracker` (Phase 2), `proofread_and_fix`. Root `ARCHITECTURE.md` (`agentic-chat` section) is the human-readable mirror.
+- All AI-facing functions use `callAI` from `_shared/aiClient.ts`
+
+## Sentry Source Map Upload (Production)
+Production builds generate **hidden** source maps (`sourcemap: 'hidden'` in `vite.config.ts`). The `.js.map` files are NOT served publicly — they are uploaded to Sentry during the CI/CD build and then deleted from `dist/`. This enables readable stack traces in the Sentry dashboard without exposing source maps to end users.
+
+The Sentry upload step is gated on `SENTRY_AUTH_TOKEN` being present in the build environment. If the secret is absent, the build succeeds normally without uploading.
+
+**Required GitHub Actions secrets (add via repo Settings → Secrets):**
+| Secret | Description |
+|---|---|
+| `VITE_SUPABASE_URL` | Supabase project URL (must be present at build time — Vite inlines it statically) |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | Supabase anonymous/publishable key |
+| `VITE_KINDE_CLIENT_ID` | Kinde application client ID — required for KindeProvider to initialise |
+| `VITE_KINDE_DOMAIN` | Kinde domain (e.g. `https://thewisecloud.kinde.com`) — required for KindeProvider to initialise |
+| `VITE_SENTRY_DSN` | Sentry DSN for browser error tracking — get from Sentry project Settings → Client Keys (DSN) |
+| `SENTRY_AUTH_TOKEN` | Sentry auth token with `project:releases` and `org:read` scopes. Generate at https://sentry.io/settings/account/api/auth-tokens/ |
+| `SENTRY_ORG` | Your Sentry organization slug (e.g. `thewise-cloud`) |
+| `SENTRY_PROJECT` | Your Sentry project slug (e.g. `wiseresume`) |
+
+The release name is set from `VITE_SENTRY_RELEASE` env var → `GITHUB_SHA` → `'local'` (fallback).
+
+## CI/CD Workflows (`.github/workflows/`)
+| Workflow | Purpose |
+|---|---|
+| `deploy.yml` | Deploy frontend to Hostinger (passes Sentry secrets for source map upload) |
+| `deploy-edge-functions.yml` | Deploy all Supabase edge functions |
+| `set-supabase-secrets.yml` | Push secrets to Supabase — GITHUB_PAT required (hard fails if missing) |
+| `refresh-devkit-github-token.yml` | Dedicated workflow to sync GITHUB_TOKEN to Supabase — PAT required, verifies post-push |
+| `apply-rpc-migration.yml` | Apply any SQL file via management API — bypasses broken CLI migration |
+| `db-migration.yml` | ⚠️ KNOWN BROKEN — duplicate key conflict in supabase_migrations. Use `apply-rpc-migration.yml` instead |
+
+Replit shell shortcuts (`SUPABASE_ACCESS_TOKEN` already configured as Replit secret):
+```bash
+bash scripts/refresh-devkit-secrets.sh <GITHUB_PAT>  # refresh GitHub secrets in Supabase
+bash scripts/deploy-functions.sh                      # redeploy all edge functions
+```
+
+## Database
+- Supabase PostgreSQL with RLS on all tables
+- 40+ tables, 50+ RPCs, 2 edge functions (`verify-dev-kit`, `weekly-digest`)
+- Subscription system: `free`/`pro`/`premium` plans with coupon/discount codes, trial grants
+- Soft deletes: `resumes.deleted_at` and `profiles.is_deleted`
+- Auth: `safe_uid()` and `get_clerk_user_id()` both return `auth.uid()`
+- All RLS policies use: `get_clerk_user_id() = user_id OR safe_uid() = user_id`
+- **Never manually write SQL migrations** — use `npm run db:push` for schema changes or `apply-rpc-migration.yml` for production
+
+## Known Rules & Constraints
+- **Never invent marketing stats** — always source from `src/pages/Index.tsx`
+- **No `any` casts** — TypeScript strict mode enforced
+- **Never change primary key column types** — destructive and breaks existing data
+- **`user.id` = bridge UUID only** — never raw Kinde `kp_xxx` ID
+- **`creditUtils.ts`**: Derive daily limit from plan at runtime — never trust `ai_credits.daily_limit` column
+- **`useMe` is canonical** for plan/credits — queryKey: `['me', user?.id]`
+- **All edge functions** need `verify_jwt = false` in `supabase/config.toml`
+- **Pricing CTAs** on landing → `/auth?plan=free|pro|premium` (not direct `kindeRegister` calls)
+- **Portfolio `pf-*` CSS**: Never touch — used by public portfolio pages
+- **Glass cleanup**: Complete — only `glass-pro` data value and `Badge variant="glass"` are preserved intentionally
+- **Credit limits**: Canonical values in `src/lib/planConfig.ts` (PLAN_CREDIT_LIMITS) AND `supabase/functions/_shared/planLimits.ts` — update both together
+- **BYOK bypass**: `creditUtils.ts` verifies key exists in `user_api_keys` before granting unlimited credits — ai_provider pref alone is insufficient
+- **hard-purge**: Protected by `requireAdminAuth` — never callable without admin auth
+
+## Security Audit (2026-04-14 → 2026-04-17)
+- **Pricing consistency**: `planConfig.ts` exports `PLAN_CREDIT_LIMITS` (free:5, pro:100, premium:∞). UI now reads from this constant. Server uses `_shared/planLimits.ts` (matching values). Both show 100 credits for Pro.
+- **hard-purge auth**: Added `requireAdminAuth` to `hard-purge/index.ts`. Previously had no authentication — any caller could delete any user's data.
+- **BYOK key validation**: `creditUtils.ts` now verifies a key row exists in `user_api_keys` before granting unlimited credits. Previously, setting `ai_provider` preference alone was sufficient to bypass limits.
+- **Offline sync conflict**: `useOfflineSync.ts` now shows an explicit toast warning when local changes are discarded due to server conflict (server-wins strategy).
+- **DB indexes migration**: `20260416000000_add_performance_indexes.sql` adds indexes on all high-traffic columns (user_id foreign keys, ai_credits usage_date, rate limits, etc.).
+- **RLS hardening** (`20260417000000_security_audit_rls_and_hardening.sql`): Explicit block policies added to `credit_transactions` (clients: SELECT only; INSERT/UPDATE/DELETE blocked), `subscriptions` (SELECT only; lifecycle managed by Stripe via service_role), `ai_credits` (UPDATE policy idempotently removed), `rpc_rate_limits` (all client access blocked; only accessible via SECURITY DEFINER RPCs). Avatar storage bucket now enforces `image/*` MIME types server-side with 5 MB cap.
+- **Portfolio SEO privacy** (`20260417000001_portfolio_noindex_and_rpc_update.sql`): `seo_noindex BOOLEAN` column added to `portfolio_settings`. `get_public_portfolio` RPC updated to return `seoNoindex` flag. `usePortfolioSEO.ts` now injects `<meta name="robots" content="noindex, nofollow">` when true.
+- **Structured observability** (`_shared/logger.ts`): JSON-formatted Edge Function logger with DEBUG/INFO/WARN/ERROR levels, correlation fields, and structured error serialization. Adopted in `creditUtils.ts` and `authMiddleware.ts`. All Edge Function logs are captured by Supabase Dashboard and exportable to external aggregators.
+- **Dead code removed**: `_shared/deductCredits.ts` deleted (no longer imported anywhere after Task #9 credit-enforcement refactor).
+
+## Analytics Data Lifecycle (Phase 5)
+The three insert-heavy analytics tables are pruned daily and indexed with BRIN on the timestamp column.
+
+| Table | Time column | Default retention | Env override |
+|---|---|---|---|
+| `portfolio_visits` | `visited_at` | 90 days | `PORTFOLIO_VISITS_RETENTION_DAYS` |
+| `error_log` | `created_at` | 30 days | `ERROR_LOG_RETENTION_DAYS` |
+| `audit_logs` | `created_at` | 365 days | `AUDIT_LOGS_RETENTION_DAYS` |
+| `admin_audit_log` | `at` | 365 days | `ADMIN_AUDIT_LOG_RETENTION_DAYS` |
+
+**Mechanism:** The Express server (`server/index.ts`) schedules `runAnalyticsSweep()` 5 minutes after boot, then every 24h. For each Supabase-side table the sweeper loops, calling the SECURITY DEFINER RPC `public.sweep_analytics_retention_batch(table, days, batch_size=10000)` (in `supabase/migrations/20260425000000_analytics_retention.sql`) once per batch — each RPC call runs in its own short transaction with `FOR UPDATE SKIP LOCKED` so production inserts never block on the sweep. The loop stops when a call deletes fewer than `batch_size` rows (table is drained) or hits the 1000-batch-per-table safety cap. The Replit-Neon-side `admin_audit_log` table is swept inline with an equivalent `WITH victims AS (… FOR UPDATE SKIP LOCKED) DELETE` block (Task #10), reusing the same batch-size and max-batch constants.
+
+**Concurrency control:** Cross-instance overlap is prevented by a single-row mutex table `analytics_sweep_lock` (TTL = 30min, holder-tagged with a per-process id). Acquire is `INSERT … ON CONFLICT DO UPDATE … WHERE expires_at < now() RETURNING (holder = me)`; release is `DELETE … WHERE holder = me`. The TTL is renewed between tables so a sweep that legitimately runs longer than 30min cannot be preempted, and the run aborts immediately if the heartbeat finds the lease was taken by another holder. An in-process boolean short-circuits trivially-concurrent same-process calls. Session-level `pg_advisory_lock` is intentionally NOT used because the Neon HTTP serverless driver does not preserve a backend session across statements.
+
+**Indexes:** `idx_portfolio_visits_visited_at_brin`, `idx_error_log_created_at_brin`, `idx_audit_logs_created_at_brin` — all BRIN with `pages_per_range = 32`. ~10× smaller than B-tree on append-only timestamp data. `admin_audit_log` carries a B-tree composite `idx_admin_audit_log_at_id` on `(at DESC, id DESC)` (Task #10) so both the audit-recent cursor scan and the retention sweep stay index-only.
+
+**Observability:** Each sweep logs a single line `[analytics-sweep] completed {durationMs, *_deleted}`. The latest run summary is exposed at:
+- `GET /api/admin/analytics-sweep-status` — read latest sweep state + config
+- `POST /api/admin/analytics-sweep-run` — manually trigger a sweep
+
+Both endpoints require a valid Supabase Bearer token AND the verified user's email must be in the `ADMIN_EMAILS` env var (same allow-list as admin-* edge functions).
+
+**Disabling:** Set `ANALYTICS_SWEEP_ENABLED=false` (e.g. in CI) to skip the schedule entirely. The RPC remains callable manually.
+
+**Restore from Neon backup:** Neon retains point-in-time backups for the configured PITR window. To restore a deleted analytics row, open the Neon console → Branches → "Restore" → choose a timestamp before the sweep, branch into a new database, then `INSERT … SELECT` from the branch back into the live table. Do not promote the branch over production.
+
+## UI Components (Design System Details)
+- **Buttons**: Clean solid fills, indigo primary, outline with border, no glow shadows
+- **Cards**: Solid `bg-card` with `border-border` + `shadow-soft` (no `glass-elevated`)
+- **Inputs/Textarea**: `bg-input` with border, indigo focus ring (`ring-primary/20`)
+- **Overlays** (Dialog, Sheet, Drawer, AlertDialog): Solid `bg-background`, `shadow-soft-xl`, `bg-black/50` overlay
+- **Popover/Tooltip/Dropdown**: Solid `bg-popover` with border, `shadow-soft-lg`
+- **Tabs**: `bg-muted` container, active tab `bg-background` with `shadow-soft-sm`
+- **DesktopNav**: Clean `bg-background/95` + `backdrop-blur-sm`, theme toggle (Sun/Moon), `h-14`
+- **BottomTabBar**: `bg-background/95`, clean indigo active pill, no `glass-surface`
+- **AppShell**: `bg-background` (solid), no `bg-transparent`; mobile header `bg-background`
+
+## DevKit Analytics & Monitoring Hub
+- **AnalyticsPanel** (`src/components/dev-kit/AnalyticsPanel.tsx`): Page views (all time + today), active users today vs yesterday with delta arrow, top 10 features bar chart (recharts), portfolio views aggregate, new signups last 14 days sparkline, geographic distribution bar chart, AI credits today vs yesterday.
+- **LiveActivityPanel** (`src/components/dev-kit/LiveActivityPanel.tsx`): Real-time 30s auto-refresh feed of last 50 usage_events, edge function health cards (green/amber/red status dots), manual "Run health check" button.
+- **DeploymentPanel** (`src/components/dev-kit/DeploymentPanel.tsx`): Last 5 GitHub commits from main branch via `admin-github-status` edge function, "Last deployed" timestamp, env var checklist via `admin-env-check` edge function (boolean presence only). Also shows the **Analytics Retention Sweep** section: last-run time, duration, per-table deleted-row counts (portfolio_visits, error_log, audit_logs, trial_resumes, admin_audit_log), and any last error. Has its own Refresh button.
+
+## Trial Resume Lifecycle (Task #11 + #18)
+- **DB columns**: `resumes.is_trial BOOLEAN` and `resumes.trial_expires_at TIMESTAMPTZ`
+- **DB trigger** (`expire_trial_resume_on_first_edit`): Sets `trial_expires_at = now()` on first content edit — server-authoritative.
+- **RLS policy** (`block_writes_to_expired_trials`): USING-only policy blocks UPDATE to already-expired trials.
+- **Grace window**: `useResumes.ts` hides trials expired more than 3 days ago from dashboard. Editor shows read-only banner for expired trials.
+- **Auto-cleanup**: Daily sweep (`runAnalyticsSweep` in `server/index.ts`) calls `purge_expired_trial_resumes()` to hard-delete trials expired > 3 days ago in batches of 10,000 rows (up to 1,000 batches). Uses same constants and concurrency guard as the analytics table sweeps.
+- **Sweep observability**: `GET /api/admin/analytics-sweep-status` returns `trial_resumes_deleted` in the last result. DeploymentPanel shows this count.
+- **Docs**: `docs/features/trial-resume.md`
+
+## AI Provider Status (Task #19 + #20)
+- **Shared React Query cache key `['ai-keys']`** (staleTime 30s): `AIKeySection` in `WiseHireSettingsPage` uses `useQuery(['ai-keys'])` to display connected providers. `AISettingsSheet` calls `queryClient.invalidateQueries({ queryKey: ['ai-keys'] })` after every key save or delete. Status updates instantly without closing the sheet or reloading the page.
+
+## DevKit AI Provider proxy endpoints (Task #1, hardened 2026-04-18)
+All endpoints below live in `server/index.ts` and are gated by `requireAuthHeader + requireAdminEmail`. Managed keys (`OPENROUTER_API_KEY`, `GROQ_API_KEY`, `GEMINI_API_KEY`) never leave the server. Upstream-list endpoints share a 10-minute in-memory TTL cache (`upstreamCache`).
+- `GET  /api/admin/ai-provider/openrouter-status` → managed OpenRouter balance / rate-limit (cached).
+- `GET  /api/admin/ai-provider/openrouter-models` → public model catalogue proxy (cached, replaces direct browser → openrouter.ai call).
+- `GET  /api/admin/ai-provider/groq-models` → live Groq model list (cached).
+- `GET  /api/admin/ai-provider/groq-usage` → today's request/token counters (uncached — changes minute-to-minute).
+- `GET  /api/admin/ai-provider/gemini-models` → Gemini models filtered to those supporting `generateContent`. Key sent via `x-goog-api-key` header (S2). Strips `models/` prefix (F3). Cached.
+- `POST /api/admin/ai-provider/gemini-test` → ping `generateContent` with `{ model? }` body. Model is validated against the cached models list (F2) and falls back to `gemini-2.0-flash`. Writes audit row.
+- `POST /api/admin/ai-provider/audit-model-switch` → records `{ provider, model, previousModel }` in `admin_audit_log` with `action='model-switch'`. Called by the panel when an admin confirms a model switch.
+- `POST /api/admin/ai-provider/audit-test` → records `{ provider, model, ok, latencyMs, error }` in `admin_audit_log` with `action='provider-test'`. Called by the panel after every OpenRouter / Groq / Ollama test. Gemini tests use the same `action='provider-test'` row but are written server-side inside `/gemini-test` (the panel intentionally does not double-write).
+
+All endpoints log full upstream errors server-side and return generic strings to the browser ("Upstream request failed" / `Upstream HTTP <status>`) so detail never leaks (S1).
+
+The `admin_audit_log` Drizzle table (`server/schema.ts`) backs A3 audit writes — schema: `id serial`, `actor_email text`, `action text`, `payload jsonb`, `created_at timestamptz`.
+
+## Onboarding Analytics (audit_logs, category='onboarding')
+Job-Seeker onboarding emits the following actions to the `audit_logs` table via `logAudit` (`src/lib/auditLogger.ts`). All events are fire-and-forget; metadata schemas:
+- `started`: {} — page mount.
+- `path_selected`: { method } — `method` ∈ {'cv','linkedin-url','linkedin-paste','linkedin-wizard','linkedin-pdf','manual'}.
+- `review_opened`: { method, partial? } — extraction done, Review sheet opened. `partial: true` for LinkedIn URL low-data fallback.
+- `review_dismissed`: { method } — user closed Review without saving (drop-off signal).
+- `completed`: { method, hasResume, experienceKept, experienceTotal, educationKept, educationTotal, skillsKept, skillsTotal, certificationsKept, certificationsTotal, languagesKept, languagesTotal, projectsKept, projectsTotal, volunteeringKept, volunteeringTotal, fullNameKept/Total, emailKept/Total, phoneKept/Total, locationKept/Total, linkedinUrlKept/Total, jobTitleKept/Total, summaryKept/Total } — Kept counts come from the user's selection in the Review sheet; Total comes from the full extracted profile. Personal-info fields are 0/1.
+- `low_acceptance`: { method, sections: string[] } — emitted only when one or more list sections had ≥3 extracted items AND <50% kept. Easier to alert on than scanning ratios.
+- `save_failed`: { method, message } — Supabase persistence failed; sheet stays open for retry.
+- `skipped`: { step, method } — Skip clicked.
+- `reconciled`: {} — `reconcileOnboardingCompletion` fixed a half-completed save (resume existed, flag was false).
+
+## Landing Page Visual System (Bento Collage Redesign)
+- Landing page (`src/pages/Index.tsx`) always renders with a warm parchment background (`#F5F0EB`) via `data-theme="landing"` and scoped CSS custom properties (`--lp-bg`, `--lp-brand`, `--lp-card-white`, `--lp-card-muted`, `--lp-card-dark`, etc.)
+- Dark mode has zero visual effect on the landing page — `color-scheme: light` and all colors are hardcoded via `--lp-*` variables
+- Hero: massive clamped headline (`clamp(56px, 9vw, 110px)`, weight 800, -0.03em tracking) with word-by-word entrance animation (staggered 80ms, starting 150ms) and a typewriter cycling subheadline (55ms/char, 1600ms hold, then erase/cycle)
+- Bento collage: 6 scattered floating cards positioned behind the headline (hidden on mobile) with scale/opacity entrance animation (staggered 100ms, starting 400ms)
+- CTA pulse: `lp-pulse` keyframe animation triggers at 1600ms after mount
+- Feature sections: alternating full-width bands (brand indigo / warm beige / near-black / brand tint), each using `FeatureSection` with `bandColor` prop
+- Scroll animations: `.lp-animate` / `.lp-visible` CSS classes driven by IntersectionObserver; staggered children via inline `transitionDelay`
+- No italic text anywhere on the landing page (`font-style: normal !important`)
+- `FeatureTicker`, `Footer` all support `lpMode` prop to use `--lp-*` variables
+
+## Kanban Job Tracker (Task #5 — Completed)
+- Board view toggle added to `ApplicationsPage.tsx` — List (default) / Board view, persisted to `localStorage('activity-view')`
+- `src/components/applications/KanbanCard.tsx` — Draggable card: `useDraggable` on a GripVertical handle, company initial avatar (deterministic color hash), deadline countdown badge, reminder/resume/letter indicators, 3-dot dropdown (View details, Job posting, Delete). Click body navigates to `/application/:id`.
+- `src/components/applications/QuickAddInline.tsx` — Inline add form inside columns: Company + Job Title + URL, auto-focus, Escape/click-outside dismiss, calls `createApplication.mutateAsync`.
+- `src/components/applications/KanbanColumn.tsx` — Droppable column (`useDroppable`), colour-coded header + count badge, `+ Add` button opens QuickAddInline, drag-over ring highlight, Rejected column collapses to a slim droppable target by default.
+- `src/components/applications/KanbanBoard.tsx` — `DndContext` with PointerSensor (distance:8) + TouchSensor (delay:200ms), all-app `useJobApplications()`, optimistic `localCards` state with server sync + rollback on error, 6 columns, `DragOverlay` with simplified card preview.
+- Dependencies: `@dnd-kit/core`, `@dnd-kit/sortable`, `@dnd-kit/utilities` installed.
+
+## WiseHire — AI HR SaaS Platform (Phases 10–12)
+
+WiseHire is a separate HR SaaS product embedded in the same Replit workspace. HR users (`profiles.account_type = 'hr'`) access it at `/wisehire/*` routes, guarded by `WiseHireGuard`.
+
+### Phase 10 — AI JD Writer (US8) — COMPLETE
+- **Edge function**: `wisehire-write-jd` — HR guard, plan check, BYOK check (Starter needs OpenAI/Anthropic key), rate limit 10/day, AI prompt, JSON parse, optional role upsert
+- **Hook**: `useJDs.ts` — TanStack Query: list roles with jd_text, mutations: saveJD, createRole, deleteJD
+- **Components**: `JDSkeleton.tsx`, `JDWriterForm.tsx`, `JDInlineEditor.tsx`, `JDLibrary.tsx`
+- **Page**: `JDWriterPage.tsx` (at `/wisehire/jd-writer`) — tab layout: Write + Saved JDs
+
+### Phase 11 — AI Brief Generator (US7) — COMPLETE
+- **Edge function**: `wisehire-generate-brief` — candidate fetch, BYOK check, rate limit (Starter: 5/day+30/mo; Pro: 50/day), AI evaluation prompt, brief insert with share_token
+- **Hook**: `useBriefs.ts` + `useBrief.ts` — brief list + single brief fetch; `revokeShareToken` mutation
+- **Lib**: `briefPdfExport.ts` — browser print API for PDF export
+- **Components**: `BriefSkeleton.tsx`, `BriefForm.tsx`, `BriefOutput.tsx` (score ring SVG), `BriefShareModal.tsx`
+- **Pages**: `BriefGeneratorPage.tsx` (`/wisehire/briefs`), `BriefViewPage.tsx` (`/wisehire/briefs/:briefId`), `PublicBriefPage.tsx` (`/share/brief/:shareToken`) — no-auth public view
+
+### Phase 12 — Candidate Pipeline Board (US9) — COMPLETE
+- **Lib**: `pipelineDragDrop.ts` — `createDragHandlers(dragStateRef, onDrop)` → HTML5 drag event handlers
+- **Hook**: `usePipeline.ts` + `useCandidateHistory.ts` — 6 PIPELINE_STAGES constant; optimistic stage updates; `addCandidate` inserts as 'shortlisted'; pipeline events logging
+- **Components**: `PipelineSkeleton.tsx`, `PipelineColumn.tsx`, `CandidateCard.tsx`, `KeyboardPipelineMover.tsx`, `CandidateDetailPanel.tsx`, `AddCandidateSheet.tsx`, `PipelineBoard.tsx`
+- **Page**: `PipelinePage.tsx` (`/wisehire/pipeline`) — role filter + board + detail panel slide-over
+
+### WiseHireShell Nav (updated)
+JD Writer, Brief Generator, Pipeline are now live (comingSoon flags removed).
+
+## Bug Fixes (Post-Redesign Audit)
+- **AuthContext `user.id`**: Now uses only the bridge UUID (from `token-exchange`), never the raw Kinde ID (`kp_xxx`). If bridge hasn't settled, `user` is null to prevent UUID type errors.
+- **Data query gating**: All hooks with `enabled: !!user` naturally wait for the bridge since `user` is null until bridge provides a UUID.
+- **Edge function fixes**: 6 functions (recruiter-simulation, optimize-for-linkedin, one-page-optimizer, career-path-advisor, career-assessment, generate-resignation-letter) fixed `user.id` → `userId` from `requireAuth`.
+- **Parse-resume merge**: `mergeParseResults` now preserves certifications, awards, publications, volunteering, hobbies, and projects from pass 2.
+- **Local parser alignment**: `localParser.ts` project output now matches full Project interface (role, startDate, endDate, technologies, description).
+- **Hardcoded keys removed**: `supabaseConstants.ts` and `client.ts` no longer contain hardcoded Supabase URL or anon key fallbacks. Both now require env vars, with console errors if missing.
+- **Audit log reliability**: `token-exchange` function `logExchange` is now async/awaited, ensuring audit records are written before the edge function response completes.
+
+## Agent Readiness — AI Discovery Surface (Task #26, 2026-04-18)
+
+The marketing site at `https://resume.thewise.cloud` publishes a complete agent-discovery surface so AI agents (Cloudflare AI, ChatGPT, Claude, MCP-aware tools) can read it, navigate it, and authenticate against the API.
+
+**Static discovery files** (`public/`):
+- `sitemap.xml` — 14 canonical public URLs.
+- `robots.txt` — includes `Content-Signal: search=yes, ai-input=yes, ai-train=no` plus `Sitemap:` reference.
+- `.well-known/api-catalog` — RFC 9727 (`application/linkset+json`).
+- `.well-known/openid-configuration` — delegates to Kinde (`https://thewisecloud.kinde.com`).
+- `.well-known/oauth-authorization-server` — mirrors Kinde AS metadata.
+- `.well-known/oauth-protected-resource` — RFC 9728. `resource = https://resume.thewise.cloud/api`.
+- `.well-known/mcp/server-card.json` — SEP-1649 server card.
+- `.well-known/agent-skills/index.json` — Agent Skills v0.2.0 with `$schema`, `skills[]`, per-skill `sha256`.
+- `.well-known/agent-skills/start-resume.json` — first published skill descriptor.
+- `docs/api/index.html` — `service-doc` target (HTML overview of the public API surface).
+
+**HTTP headers** (`public/_headers`): `Link` headers on `/` and `/index.html` for `api-catalog`, `service-doc`, `sitemap`. Explicit `Content-Type` + `Access-Control-Allow-Origin: *` on every extension-less `.well-known/*`.
+
+**Markdown for Agents** (`functions/_middleware.ts`, Cloudflare Pages Function):
+- `Accept: text/markdown` returns a markdown rendering with `Content-Type: text/markdown`. Browsers (`Accept: text/html…`) pass through unchanged.
+- `/` and `/index.html` use a hand-authored markdown summary; other public routes fall through to a generic HTML→markdown extractor.
+- Markdown responses also carry the same `Link` headers as the HTML home page.
+
+**WebMCP** (`src/hooks/useWebMcp.ts`, wired into `src/pages/Index.tsx`):
+- Feature-detects `navigator.modelContext.provideContext()`. No-op when absent.
+- Registers `open_pricing`, `open_examples`, `start_resume`, `switch_to_wisehire`. All four are bound to `react-router` `navigate(...)` (or `setMode` for the WiseResume↔WiseHire swap). Cleanup on unmount calls the handle's `dispose()` if present.
+- `try/catch` around both registration and disposal ensures a misbehaving WebMCP implementation can never break the page.
+
+**Out of scope (tracked):** real OpenAPI 3.1 spec for `/api/fn/*` (follow-up #28); per-route hand-authored markdown beyond `/` (follow-up #29); live `isitagentready.com` re-run after deploy (follow-up #27 — all three were CANCELLED by the user post-task).
+
+## Landing Page Performance Pass (Task #23, 2026-04-18)
+
+Eleven landing-page audit findings closed end-to-end. Architectural notes worth keeping in this file:
+
+- **Single Supabase client.** `src/integrations/supabase/client.ts` was deleted. All callers consume `src/integrations/supabase/safeClient.ts` (`SupabaseClient<Database>` typed). Anyone introducing a new Supabase consumer must use `safeClient` — do not reintroduce a second client.
+- **Framer-motion is not in the landing entry chunk.** `src/pages/Index.tsx` imports zero framer-motion symbols. The motion tree lives in `src/components/landing/LandingMotionStage.tsx` (lazy via `React.lazy`). `LandingModeTransition` is also `lazy()`-imported and only mounted when `!prefersReducedMotion && waveKey > 0` (i.e. only after the user toggles products). `WaitlistModal` and `QuickTailorSheet` are lazy. `LandingToggle` is pure CSS — its `lp-toggle-burst` keyframes live in `src/pages/index-landing.css`. `vite.config.ts` `manualChunks(id)` line 122 routes `node_modules/framer-motion` to the `framer` chunk.
+- **Reduced-motion hook.** The page-level reduced-motion check uses `src/lib/usePrefersReducedMotion.ts` (vanilla `matchMedia`), not framer-motion's `useReducedMotion`. New landing components must follow the same pattern to keep framer out of the entry graph.
+- **Fonts.** Google Fonts `<link>` and preconnects were removed from `index.html`; fonts are loaded via `@fontsource/*` imports in `src/main.tsx`. CSP `font-src` and `style-src` no longer reference `fonts.googleapis.com` / `fonts.gstatic.com`.
+- **Cold-cache headless FCPs after fixes:** WiseResume light **2658 ms**, WiseResume dark **2175 ms**, WiseHire light **1907 ms**, WiseHire dark **1833 ms**. WiseHire dark LCP improved from ~5.5 s baseline to **2.9 s**. Verification harness: `scripts/phase6-screenshots.mjs` (16-image matrix: 2 products × 2 themes × 4 positions). Report: `docs/landing/audit-report-post-fix.md`.

@@ -168,6 +168,7 @@ const Index = () => {
     setLinkHref('app-apple-touch-icon', appleHref);
     setMetaContent('app-og-image', favHref);
     setMetaContent('app-twitter-image', favHref);
+    setLinkHref('app-manifest', isWH ? '/manifest-wisehire.json' : '/manifest.json');
   }, [mode]);
 
   useEffect(() => {
