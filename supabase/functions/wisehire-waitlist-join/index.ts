@@ -297,9 +297,10 @@ Deno.serve(async (req) => {
 
     // Check if this email already has a WiseResume account via Auth Admin REST API.
     // We use a raw fetch (not listUsers) to avoid paginating through all users.
+    // per_page=50 provides ample headroom for substring matches on the search term.
     const normalizedEmail = email.trim().toLowerCase();
     const authSearchRes = await fetch(
-      `${Deno.env.get("SUPABASE_URL")}/auth/v1/admin/users?search=${encodeURIComponent(normalizedEmail)}&per_page=5`,
+      `${Deno.env.get("SUPABASE_URL")}/auth/v1/admin/users?search=${encodeURIComponent(normalizedEmail)}&per_page=50`,
       {
         headers: {
           apikey: Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
@@ -307,7 +308,16 @@ Deno.serve(async (req) => {
         },
       }
     );
-    const authSearchData = authSearchRes.ok ? await authSearchRes.json() : { users: [] };
+    if (!authSearchRes.ok) {
+      // Auth service unavailable — fail closed to avoid inserting a user who may already
+      // have a WiseResume account. The client can retry.
+      console.error("[wisehire-waitlist-join] Auth user lookup failed:", authSearchRes.status, await authSearchRes.text().catch(() => ""));
+      return new Response(
+        JSON.stringify({ error: "Service temporarily unavailable. Please try again in a moment." }),
+        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    const authSearchData = await authSearchRes.json();
     const isExistingWiseResumeUser = (authSearchData?.users ?? []).some(
       (u: { email?: string }) => u.email?.toLowerCase() === normalizedEmail
     );
