@@ -152,7 +152,13 @@ serve(async (req) => {
       );
     }
 
-    const data = await fetchResponse.json();
+    let data;
+    try {
+      data = await fetchResponse.json();
+    } catch (parseErr) {
+      if (creditCheck) await refundCredit(userId, creditCheck, 1);
+      throw parseErr;
+    }
 
     return new Response(
       JSON.stringify({ token: data.token }),

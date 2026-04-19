@@ -105,6 +105,7 @@ If you can't find certain fields, use null or empty arrays. Always extract title
 
     let result = parseAIJSON<Record<string, unknown>>(aiContent);
     if (!result) {
+      await refundCredit(userId, creditCheck, 1);
       return new Response(
         JSON.stringify({ error: "Failed to parse job description" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

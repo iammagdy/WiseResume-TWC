@@ -153,6 +153,7 @@ Key Skills: ${skills?.join(', ') || 'Not specified'}`,
       result = parseAIJSON(aiResponse.content);
     }
     if (!result) {
+      await refundCredit(userId, creditCheck, 1);
       throw new Error('No structured result returned from AI');
     }
     const providerUsed = aiResponse.providerUsed || 'unknown';

@@ -842,6 +842,7 @@ serve(async (req) => {
 
     if (!enhancedContent) {
       console.error("Failed to parse enhance AI response:", content?.slice(0, 500));
+      await refundCredit(userId, creditCheck, 1);
       return new Response(JSON.stringify({
         error: 'enhancement_failed',
         message: 'AI response was malformed. Please try again.',

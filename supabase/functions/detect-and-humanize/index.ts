@@ -72,6 +72,14 @@ Deno.serve(async (req) => {
     const result: Record<string, unknown> = {};
     let lastProviderUsed: string | undefined;
 
+    const creditCheck = await checkAndDeductCredit(userId);
+    if (!creditCheck.hasCredits) {
+      return new Response(
+        JSON.stringify({ error: 'Insufficient AI credits. Add your own Gemini API key for unlimited access.' }),
+        { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Detection
     if (action === 'detect' || action === 'both') {
       const detectPrompt = `You are an expert at detecting AI-generated text. Analyze the following text for signs of AI authorship.
@@ -98,13 +106,6 @@ ${text}
 """`;
 
 
-    const creditCheck = await checkAndDeductCredit(userId);
-    if (!creditCheck.hasCredits) {
-      return new Response(
-        JSON.stringify({ error: 'Insufficient AI credits. Add your own Gemini API key for unlimited access.' }),
-        { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
       let detectResponse;
       try {
         detectResponse = await callAI({

@@ -322,6 +322,7 @@ If you can't find certain fields, make reasonable guesses based on context. The 
       let result = parseAIJSON<Record<string, unknown>>(aiContent);
       if (!result) {
         console.error("Failed to parse:", aiContent.slice(0, 500));
+        await refundCredit(userId, creditCheck, 1);
         return new Response(
           JSON.stringify({ error: "Failed to parse job posting" }),
           { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
