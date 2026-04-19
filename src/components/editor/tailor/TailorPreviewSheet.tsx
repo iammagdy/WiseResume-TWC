@@ -1,12 +1,14 @@
-import { CSSProperties, Suspense, memo, useMemo, useCallback, useRef, useState } from 'react';
+import { CSSProperties, Suspense, memo, useMemo, useCallback, useRef } from 'react';
 import { Eye, X, Download, Loader2 } from 'lucide-react';
 import { Drawer, DrawerContent } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ResumeData, TemplateId } from '@/types/resume';
 import { applyCustomizationCSS, generateCustomizationCSS } from '@/lib/templateCustomization';
 import haptics from '@/lib/haptics';
 import { toast } from 'sonner';
+import { useExportProgress } from '@/hooks/useExportProgress';
 
 import templateComponents from '@/components/templates/registry';
 
@@ -63,16 +65,16 @@ export const TailorPreviewSheet = memo(function TailorPreviewSheet({
   );
 
   const templateRef = useRef<HTMLDivElement>(null);
-  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+  const { exportProgress, onProgress, reset: resetProgress } = useExportProgress();
+  const isDownloadingPdf = exportProgress.isActive;
 
   const handleDownloadPdf = useCallback(async () => {
     if (!resume || isDownloadingPdf) return;
-    setIsDownloadingPdf(true);
     try {
       const { generatePDF } = await import('@/lib/pdfGenerator');
       const { downloadFile } = await import('@/lib/downloadUtils');
       const tid = effectiveTemplate as TemplateId;
-      const blob = await generatePDF(resume, tid, templateRef.current);
+      const blob = await generatePDF(resume, tid, templateRef.current, undefined, undefined, onProgress);
       const name = resume.contactInfo?.fullName || 'Resume';
       const jobSuffix = jobTitle ? `_${jobTitle}` : '';
       const fileName = `${name}${jobSuffix}_Tailored.pdf`.replace(/\s+/g, '_');
@@ -82,9 +84,9 @@ export const TailorPreviewSheet = memo(function TailorPreviewSheet({
     } catch {
       toast.error('Failed to download PDF. Please try again.');
     } finally {
-      setIsDownloadingPdf(false);
+      resetProgress();
     }
-  }, [resume, jobTitle, isDownloadingPdf, effectiveTemplate]);
+  }, [resume, jobTitle, isDownloadingPdf, effectiveTemplate, onProgress, resetProgress]);
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
@@ -142,6 +144,15 @@ export const TailorPreviewSheet = memo(function TailorPreviewSheet({
 
         {/* Footer CTA */}
         <div className="shrink-0 border-t border-border bg-background/95 backdrop-blur-sm px-4 py-3 pb-safe">
+          {exportProgress.isActive && (
+            <div className="mb-3 space-y-1">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">{exportProgress.message}</span>
+                <span className="font-medium">{Math.round(exportProgress.progress)}%</span>
+              </div>
+              <Progress value={exportProgress.progress} className="h-1.5" />
+            </div>
+          )}
           <div className="flex gap-3">
             <Button
               variant="outline"
