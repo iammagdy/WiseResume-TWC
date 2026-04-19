@@ -37,15 +37,25 @@ if (Capacitor.isNativePlatform()) {
   document.body.classList.add('native-app');
 }
 
-// Global error handler — captured by Sentry in production
+// Global error handler — captured by Sentry in production.
+// Log message + stack explicitly: Error instances serialize to {} in JSON-based
+// log collectors because their properties (message, stack) are non-enumerable.
 window.addEventListener('error', (event) => {
-  console.error('Global Error:', event.error);
-  captureError(event.error, { source: 'window.onerror' });
+  const err = event.error;
+  const detail = err instanceof Error
+    ? `${err.name}: ${err.message}\n${err.stack ?? ''}`
+    : String(err);
+  console.error('Global Error:', detail);
+  captureError(err, { source: 'window.onerror' });
 });
 
 window.addEventListener('unhandledrejection', (event) => {
-  console.error('Unhandled Promise Rejection:', event.reason);
-  captureError(event.reason, { source: 'unhandledrejection' });
+  const reason = event.reason;
+  const detail = reason instanceof Error
+    ? `${reason.name}: ${reason.message}\n${reason.stack ?? ''}`
+    : String(reason);
+  console.error('Unhandled Promise Rejection:', detail);
+  captureError(reason, { source: 'unhandledrejection' });
 });
 
 try {

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import {
   Search, Check, Zap, DollarSign, RefreshCw, Cpu, ChevronDown, ChevronRight,
   Info, AlertTriangle, PlayCircle, Loader2, ShieldCheck, ShieldAlert, ShieldX,
-  Map, Clock, History,
+  Map as MapIcon, Clock, History,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useSettingsStore, WiseresumeSubProvider } from '@/store/settingsStore';
@@ -634,7 +634,7 @@ function FeatureRoutingSection({ subProvider }: { subProvider: WiseresumeSubProv
         className="w-full flex items-center justify-between px-3 py-2.5 bg-muted/30 hover:bg-muted/50 transition-colors"
       >
         <div className="flex items-center gap-2 flex-wrap">
-          <Map className="w-3.5 h-3.5 text-muted-foreground" />
+          <MapIcon className="w-3.5 h-3.5 text-muted-foreground" />
           <span className="text-xs font-medium text-foreground">Feature routing</span>
           <span className={cn('text-[10px] font-semibold', routeColor)}>{routeLabel}</span>
         </div>

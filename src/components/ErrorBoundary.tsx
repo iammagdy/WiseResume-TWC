@@ -52,7 +52,12 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   private logError(error: Error, errorInfo: ErrorInfo) {
-    console.error('[ErrorBoundary] caught an error:', error, errorInfo);
+    // Log message + stack separately: Error instances serialise to {} in
+    // JSON-based log collectors because their properties are non-enumerable.
+    const detail = error instanceof Error
+      ? `${error.name}: ${error.message}\n${error.stack ?? ''}`
+      : String(error);
+    console.error('[ErrorBoundary] caught an error:', detail, errorInfo);
   }
 
   private async clearSiteData() {
