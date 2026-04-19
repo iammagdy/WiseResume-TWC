@@ -10,51 +10,101 @@ function buildConfirmationEmail(name: string): string {
   return `
 <!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-<body style="margin:0;padding:0;background:#f0f5ff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f5ff;padding:40px 16px;">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin:0;padding:0;background:#eef3ff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#eef3ff;padding:40px 16px;">
     <tr><td align="center">
-      <table width="560" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 16px rgba(29,78,216,0.08);">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 4px 24px rgba(29,78,216,0.10);">
+
+        <!-- Header -->
         <tr>
-          <td style="background:${WISEHIRE_BLUE};padding:32px 40px;text-align:center;">
-            <div style="font-size:24px;font-weight:800;color:#fff;letter-spacing:-0.5px;">WiseHire</div>
-            <div style="font-size:13px;color:rgba(255,255,255,0.75);margin-top:4px;">AI-Powered Hiring Platform</div>
+          <td style="background:linear-gradient(160deg,#e8efff 0%,#f0f6ff 100%);border-bottom:1px solid #dce8ff;padding:32px 40px 24px;text-align:center;">
+            <table cellpadding="0" cellspacing="0" style="margin:0 auto;">
+              <tr>
+                <td style="vertical-align:middle;padding-right:10px;">
+                  <img src="https://resume.thewise.cloud/email-logo.webp"
+                       alt="WiseHire"
+                       width="38" height="38"
+                       style="display:block;border-radius:9px;border:0;" />
+                </td>
+                <td style="vertical-align:middle;">
+                  <span style="font-size:21px;font-weight:900;color:${WISEHIRE_BLUE};letter-spacing:-0.5px;">WiseHire</span>
+                </td>
+              </tr>
+            </table>
+            <div style="margin-top:8px;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:1.2px;">by thewise.cloud</div>
           </td>
         </tr>
+
+        <!-- Waitlist confirmed pill -->
         <tr>
-          <td style="padding:40px 40px 32px;">
-            <h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#0f172a;">
-              You're on the list, ${escapeHtml(name)}! 🎉
+          <td style="padding:28px 40px 0;text-align:center;">
+            <span style="display:inline-block;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:100px;padding:7px 16px;font-size:12px;font-weight:600;color:#15803d;">
+              ✓ Waitlist confirmed
+            </span>
+          </td>
+        </tr>
+
+        <!-- Body -->
+        <tr>
+          <td style="padding:24px 40px 40px;">
+            <h1 style="margin:0 0 18px;font-size:24px;font-weight:800;color:#0f172a;line-height:1.25;letter-spacing:-0.5px;">
+              You're on the list, <span style="color:${WISEHIRE_BLUE};">${escapeHtml(name)}</span> 👋
             </h1>
-            <p style="margin:0 0 20px;font-size:15px;color:#475569;line-height:1.6;">
-              Thanks for joining the WiseHire early access waitlist. We're building an AI hiring platform
-              that screens candidates, writes job descriptions, and surfaces your best hires — in minutes, not hours.
+
+            <p style="margin:0 0 16px;font-size:15px;color:#4b5563;line-height:1.7;">
+              Thanks for joining the WiseHire waitlist. We're building something that genuinely changes
+              how companies hire — and you're among the first to know about it.
             </p>
-            <p style="margin:0 0 32px;font-size:15px;color:#475569;line-height:1.6;">
-              We'll reach out with your invite as soon as a spot opens up. In the meantime, keep an eye
-              on your inbox — we'll be in touch!
+
+            <!-- Platform description box -->
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin:20px 0;">
+              <tr>
+                <td style="background:#f0f6ff;border:1px solid #dbeafe;border-radius:12px;padding:18px 20px;">
+                  <p style="margin:0;font-size:14px;color:#374151;line-height:1.7;">
+                    WiseHire is an <strong style="color:${WISEHIRE_BLUE};">AI-powered hiring platform</strong> for HR teams
+                    and recruiters. It handles the heavy lifting — screening candidates, writing job descriptions,
+                    tracking pipelines, and scoring interviews — so your team can focus on the decisions that actually matter.
+                  </p>
+                </td>
+              </tr>
+            </table>
+
+            <p style="margin:0 0 28px;font-size:15px;color:#4b5563;line-height:1.7;">
+              We're rolling out access in small batches so every team gets a smooth onboarding experience.
+              <strong style="color:#0f172a;">You don't have access yet</strong> — but when your spot is ready,
+              we'll email you directly at this address. Keep an eye on this inbox.
             </p>
+
+            <!-- CTA button -->
             <table cellpadding="0" cellspacing="0">
               <tr>
-                <td style="background:${WISEHIRE_BLUE};border-radius:10px;">
+                <td style="background:${WISEHIRE_BLUE};border-radius:10px;box-shadow:0 4px 14px rgba(29,78,216,0.28);">
                   <a href="https://resume.thewise.cloud/?for=companies"
-                     style="display:inline-block;padding:12px 28px;color:#fff;font-size:14px;font-weight:600;text-decoration:none;">
-                    Learn More About WiseHire →
+                     style="display:inline-block;padding:14px 30px;color:#fff;font-size:15px;font-weight:700;text-decoration:none;letter-spacing:-0.2px;">
+                    See WiseHire in action →
                   </a>
                 </td>
               </tr>
             </table>
+            <div style="margin-top:10px;font-size:12px;color:#94a3b8;">No account needed — takes 2 minutes</div>
           </td>
         </tr>
+
+        <!-- Footer -->
         <tr>
-          <td style="padding:24px 40px;border-top:1px solid #e2e8f0;background:#f8fafc;">
+          <td style="padding:18px 40px 22px;border-top:1px solid #e9eef6;background:#f8fafc;">
             <p style="margin:0;font-size:12px;color:#94a3b8;line-height:1.6;">
-              You're receiving this because you signed up for the WiseHire waitlist at
-              <a href="https://resume.thewise.cloud/?for=companies" style="color:${WISEHIRE_BLUE};text-decoration:none;">resume.thewise.cloud</a>.
+              You're receiving this because you joined the WiseHire waitlist at
+              <a href="https://resume.thewise.cloud/?for=companies" style="color:${WISEHIRE_BLUE};text-decoration:none;font-weight:500;">resume.thewise.cloud</a>.
               No spam — ever.
             </p>
           </td>
         </tr>
+
       </table>
     </td></tr>
   </table>
