@@ -274,7 +274,7 @@ const Index = () => {
       className="lp-root min-h-screen"
       data-theme="landing"
       data-lp-scheme={isDark ? 'dark' : 'light'}
-      data-lp-product={displayProduct === 'wisehire' ? 'wisehire' : undefined}
+      data-lp-product={mode === 'wisehire' ? 'wisehire' : undefined}
       style={{ colorScheme: isDark ? 'dark' : 'light', overflowX: 'hidden' }}
     >
       <a
@@ -311,7 +311,7 @@ const Index = () => {
       <main id="landing-main" className="w-full" style={{ position: 'relative' }}>
         <Suspense fallback={<LpFallback minHeight={800} />}>
           <LandingMotionStage
-            mode={mode}
+            mode={displayProduct}
             prefersReducedMotion={prefersReducedMotion}
             isDark={isDark}
             isAuthenticated={isAuthenticated}
