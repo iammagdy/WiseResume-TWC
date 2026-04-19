@@ -566,7 +566,7 @@ body[data-lp-scheme="light"][data-lp-product="wisehire"] { background-color: #f0
   --lp-stack-pane-border: rgba(15,15,26,0.08);
 }
 .lp-root[data-lp-product="wisehire"] {
-  --lp-stack-section-bg: #04060f;
+  --lp-stack-section-bg: #0b0f1c;
   --lp-stack-glow: rgba(29,78,216,0.26);
   --lp-stack-bridge: rgba(29,78,216,0.32);
   --lp-stack-card-shadow:
@@ -575,7 +575,7 @@ body[data-lp-scheme="light"][data-lp-product="wisehire"] { background-color: #f0
     inset 0 1px 0 rgba(255,255,255,0.06);
 }
 .lp-root[data-lp-product="wisehire"][data-lp-scheme="light"] {
-  --lp-stack-section-bg: #e6ecf7;
+  --lp-stack-section-bg: #e8eef8;
   --lp-stack-glow: rgba(29,78,216,0.12);
   --lp-stack-bridge: rgba(29,78,216,0.16);
   --lp-stack-card-shadow:

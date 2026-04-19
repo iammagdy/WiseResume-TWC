@@ -84,7 +84,7 @@ export function WiseHireDemoSection() {
     >
       <div
         className="lp-stack-section"
-        style={{ ['--lp-stack-gap' as string]: '260px' }}
+        style={{ ['--lp-stack-gap' as string]: '240px' }}
       >
       <div className="lp-stack-sticky-header">
         <motion.div
@@ -138,11 +138,11 @@ export function WiseHireDemoSection() {
       </div>
       <ScrollStack
         useWindowScroll
-        itemDistance={580}
+        itemDistance={480}
         itemScale={0.025}
-        itemStackDistance={44}
+        itemStackDistance={20}
         stackPosition="20%"
-        baseScale={0.93}
+        baseScale={0.88}
         onActiveCardChange={setActiveIdx}
       >
         {DEMOS.map(({ key, label, icon: Icon, desc, Demo }) => (
