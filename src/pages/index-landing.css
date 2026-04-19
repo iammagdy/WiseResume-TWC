@@ -641,6 +641,16 @@ body[data-lp-scheme="light"][data-lp-product="wisehire"] { background-color: #f0
     var(--lp-stack-card-shadow),
     inset 0 0 0 1px var(--lp-stack-card-ring);
   transition: background 0.35s ease, box-shadow 0.35s ease;
+  /* Fix content leaking outside card boundaries when the card is
+     3D-transformed (translate3d + scale). In WebKit/Safari, a compositing
+     context must be explicitly promoted for overflow:hidden + border-radius
+     to clip children correctly on a transformed element.
+     isolation:isolate creates a new stacking context so the card's own
+     z-index plane clips correctly. The -webkit-mask-image trick forces
+     WebKit to create a new compositing layer, which in turn respects the
+     rounded overflow clip even under scale/translate3d. */
+  isolation: isolate;
+  -webkit-mask-image: -webkit-radial-gradient(white, black);
 }
 @media (max-width: 640px) {
   .lp-stack-section .scroll-stack-card {
@@ -668,7 +678,10 @@ body[data-lp-scheme="light"][data-lp-product="wisehire"] { background-color: #f0
 /* ── Phase 4: sticky stack header + step counter chip ──── */
 .lp-stack-sticky-header {
   position: sticky;
-  top: 0;
+  /* Offset by the nav bar height so the header pins below the nav and
+     is not obscured by it. --lp-header-h is set in the :root block
+     (4rem on mobile, 7.25rem on sm+, both including safe-area-inset-top). */
+  top: var(--lp-header-h, 64px);
   z-index: 4;
   display: flex;
   flex-direction: column;
