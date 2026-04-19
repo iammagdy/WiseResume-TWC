@@ -3,6 +3,8 @@ import { supabase } from '@/integrations/supabase/safeClient';
 import { getUserId } from '@/lib/supabaseBridge';
 import { useAuth } from '@/hooks/useAuth';
 
+export type AnalyticsDateRange = 'week' | 'month' | 'quarter' | 'all';
+
 export interface StageFunnelEntry {
   stage: string;
   label: string;
@@ -34,16 +36,34 @@ const FUNNEL_STAGES: { id: string; label: string }[] = [
   { id: 'hired', label: 'Hired' },
 ];
 
-export function useHRAnalytics(since?: string | null) {
+// Computed once inside queryFn — not on the call site — so the query key stays stable.
+function rangeToSince(range: AnalyticsDateRange): string | null {
+  if (range === 'all') return null;
+  const d = new Date();
+  if (range === 'week') d.setDate(d.getDate() - 7);
+  else if (range === 'month') d.setDate(d.getDate() - 30);
+  else if (range === 'quarter') d.setDate(d.getDate() - 90);
+  return d.toISOString();
+}
+
+export function useHRAnalytics(dateRange: AnalyticsDateRange = 'all') {
   const { isAuthenticated, supabaseReady } = useAuth();
 
   return useQuery({
-    queryKey: ['hr-analytics', since ?? 'all'],
+    // Keyed by the stable enum string — not by a timestamp — so switching ranges
+    // hits the cache cleanly and does not cause re-fetch churn.
+    queryKey: ['hr-analytics', dateRange],
     queryFn: async (): Promise<HRAnalytics> => {
       const userId = await getUserId();
       if (!userId) throw new Error('Not authenticated');
 
-      // Fetch the HR user's company first — needed to scope talent pool views
+      // `since` is computed inside queryFn so it is evaluated once per fetch,
+      // never on every render of the consuming component.
+      const since = rangeToSince(dateRange);
+
+      // Fetch the HR user's company — required to scope talent pool views.
+      // If the user has no company row yet, talent pool views returns 0 (no
+      // fallback to an unscoped query, which would mix in other recruiters' data).
       const { data: companyRow } = await supabase
         .from('wisehire_companies')
         .select('id')
@@ -79,17 +99,25 @@ export function useHRAnalytics(since?: string | null) {
         .eq('owner_id', userId);
       if (since) briefsQ = briefsQ.gte('created_at', since);
 
-      // talent_pool_views — scoped to this recruiter's company + optional time filter
-      let talentViewsQ = supabase.from('talent_pool_views').select('id, viewed_at');
-      if (companyId) talentViewsQ = talentViewsQ.eq('viewer_company_id', companyId);
-      if (since) talentViewsQ = talentViewsQ.gte('viewed_at', since);
-
       let allPipelineEventsQ = supabase
         .from('wisehire_pipeline_events')
         .select('candidate_id, from_stage, to_stage, created_at')
         .eq('owner_id', userId)
         .order('created_at', { ascending: true });
       if (since) allPipelineEventsQ = allPipelineEventsQ.gte('created_at', since);
+
+      // Talent pool views — only run when we have a company id.
+      // Without one, we return 0 rather than fall back to an unscoped query.
+      const talentViewsPromise = companyId
+        ? (() => {
+            let q = supabase
+              .from('talent_pool_views')
+              .select('id, viewed_at')
+              .eq('viewer_company_id', companyId);
+            if (since) q = q.gte('viewed_at', since);
+            return q;
+          })()
+        : Promise.resolve({ data: [] as { id: string; viewed_at: string | null }[], error: null });
 
       const [
         candidatesRes,
@@ -103,10 +131,10 @@ export function useHRAnalytics(since?: string | null) {
         candidatesQ,
         bulkJobsQ,
         hireEventsQ,
-        // Active roles are always current, not time-filtered
+        // Active roles are always the current live count, not time-filtered.
         supabase.from('wisehire_roles').select('id').eq('owner_id', userId),
         briefsQ,
-        talentViewsQ,
+        talentViewsPromise,
         allPipelineEventsQ,
       ]);
 

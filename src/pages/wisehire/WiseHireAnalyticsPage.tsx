@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { WiseHireShell } from '@/components/wisehire/WiseHireShell';
 import { HRAnalyticsSkeleton } from '@/components/wisehire/analytics/AnalyticsSkeleton';
-import { useHRAnalytics } from '@/hooks/wisehire/useHRAnalytics';
+import { useHRAnalytics, type AnalyticsDateRange } from '@/hooks/wisehire/useHRAnalytics';
 import { BarChart2, Users, Zap, Clock, Star, Eye, Briefcase, FileText, TrendingDown, Database, PlusCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -26,23 +26,12 @@ const STAGE_LABELS: Record<string, string> = {
   rejected: 'Rejected',
 };
 
-type DateRange = 'week' | 'month' | 'quarter' | 'all';
-
-const DATE_RANGE_OPTIONS: { id: DateRange; label: string }[] = [
+const DATE_RANGE_OPTIONS: { id: AnalyticsDateRange; label: string }[] = [
   { id: 'week', label: 'This week' },
   { id: 'month', label: 'This month' },
   { id: 'quarter', label: 'Last 3 months' },
   { id: 'all', label: 'All time' },
 ];
-
-function getSince(range: DateRange): string | null {
-  if (range === 'all') return null;
-  const now = new Date();
-  if (range === 'week') now.setDate(now.getDate() - 7);
-  else if (range === 'month') now.setDate(now.getDate() - 30);
-  else if (range === 'quarter') now.setDate(now.getDate() - 90);
-  return now.toISOString();
-}
 
 function StatCard({
   label,
@@ -185,9 +174,8 @@ function EmptyState({ rangeLabel }: { rangeLabel: string }) {
 }
 
 export default function WiseHireAnalyticsPage() {
-  const [dateRange, setDateRange] = useState<DateRange>('all');
-  const since = getSince(dateRange);
-  const { data, isLoading, error } = useHRAnalytics(since);
+  const [dateRange, setDateRange] = useState<AnalyticsDateRange>('all');
+  const { data, isLoading, error } = useHRAnalytics(dateRange);
 
   const rangeLabel = DATE_RANGE_OPTIONS.find((o) => o.id === dateRange)?.label ?? 'All time';
 
