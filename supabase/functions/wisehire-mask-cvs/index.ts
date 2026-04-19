@@ -262,6 +262,6 @@ ${rawText}`;
     if (err instanceof AuthError) return authErrorResponse(err, origin);
     console.error('wisehire-mask-cvs error:', err);
     const { status, error: code, message } = toUserError(err);
-    return json({ error: code, message }, status, { 'Content-Type': 'application/json' });
+    return json({ error: code, message }, status, cors);
   }
 });

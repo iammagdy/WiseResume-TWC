@@ -83,7 +83,7 @@ Deno.serve(async (req) => {
 
     if (search.trim()) {
       query = query.or(
-        `name.ilike.%${search}%,email.ilike.%${search}%,company_name.ilike.%${search}%`
+        `name.ilike.%${search}%,email.ilike.%${search}%,company_name.ilike.%${search}%,company_size.ilike.%${search}%`
       );
     }
 
@@ -98,7 +98,7 @@ Deno.serve(async (req) => {
     let inviteStatusMap: Map<string, InviteStatusValue> = new Map();
 
     if (entries.length > 0) {
-      const emails = entries.map((e: { email: string }) => e.email.toLowerCase());
+      const emails = entries.map((e: { email: string }) => e.email.toLowerCase().trim());
 
       const { data: allInvites, error: inviteError } = await supabase
         .from('wisehire_invites')
@@ -133,8 +133,8 @@ Deno.serve(async (req) => {
 
     const enrichedEntries = entries.map((e: { email: string }) => ({
       ...e,
-      invite_used_at: inviteUsedAtMap.get(e.email.toLowerCase()) ?? null,
-      invite_status: inviteStatusMap.get(e.email.toLowerCase()) ?? null,
+      invite_used_at: inviteUsedAtMap.get(e.email.toLowerCase().trim()) ?? null,
+      invite_status: inviteStatusMap.get(e.email.toLowerCase().trim()) ?? null,
     }));
 
     return json({ success: true, entries: enrichedEntries, total: count ?? 0, page, per_page }, 200, corsHeaders);
