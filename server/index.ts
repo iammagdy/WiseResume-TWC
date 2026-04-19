@@ -487,29 +487,51 @@ setInterval(() => {
   for (const [k, v] of linkedinImportHits) if (v.resetAt < now) linkedinImportHits.delete(k);
 }, 5 * 60_000).unref?.();
 
-// In-memory per-user monthly counter. Resets on month boundary or restart;
-// if you need durable accounting, swap this for a `linkedin_imports` DB table.
-interface MonthlyCounter { month: string; count: number }
-const linkedinMonthlyUsage = new Map<string, MonthlyCounter>();
+// DB-backed per-user monthly counter. Survives server restarts.
+// Table is created on startup if it does not already exist.
 function currentMonthKey(): string {
   const d = new Date();
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
 }
-function getMonthlyUsage(userId: string): number {
-  const month = currentMonthKey();
-  const entry = linkedinMonthlyUsage.get(userId);
-  if (!entry || entry.month !== month) return 0;
-  return entry.count;
-}
-function bumpMonthlyUsage(userId: string): number {
-  const month = currentMonthKey();
-  const entry = linkedinMonthlyUsage.get(userId);
-  if (!entry || entry.month !== month) {
-    linkedinMonthlyUsage.set(userId, { month, count: 1 });
-    return 1;
+
+async function ensureLinkedinQuotaTable(): Promise<void> {
+  if (!sql) return;
+  try {
+    await sql`
+      CREATE TABLE IF NOT EXISTS linkedin_import_quota (
+        user_id TEXT    NOT NULL,
+        month   TEXT    NOT NULL,
+        count   INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (user_id, month)
+      )
+    `;
+  } catch (err) {
+    console.warn('[linkedin-quota] Could not ensure quota table:', err);
   }
-  entry.count += 1;
-  return entry.count;
+}
+ensureLinkedinQuotaTable();
+
+async function getMonthlyUsage(userId: string): Promise<number> {
+  if (!sql) return 0;
+  const month = currentMonthKey();
+  const rows = await sql`
+    SELECT count FROM linkedin_import_quota
+    WHERE user_id = ${userId} AND month = ${month}
+  `;
+  return rows.length > 0 ? (rows[0].count as number) : 0;
+}
+
+async function bumpMonthlyUsage(userId: string): Promise<number> {
+  if (!sql) return 1; // DB unavailable — allow the import, cannot persist
+  const month = currentMonthKey();
+  const rows = await sql`
+    INSERT INTO linkedin_import_quota (user_id, month, count)
+    VALUES (${userId}, ${month}, 1)
+    ON CONFLICT (user_id, month)
+    DO UPDATE SET count = linkedin_import_quota.count + 1
+    RETURNING count
+  `;
+  return rows.length > 0 ? (rows[0].count as number) : 1;
 }
 
 /**
@@ -661,7 +683,7 @@ app.post('/api/linkedin-profile', requireAuthHeader, linkedinImportRateLimiter,
     }
 
     const userId = req.verifiedUserId!;
-    const used = getMonthlyUsage(userId);
+    const used = await getMonthlyUsage(userId);
     if (used >= LINKEDIN_IMPORT_MONTHLY_CAP) {
       return res.status(402).json({
         error: 'quota_exhausted',
@@ -717,7 +739,7 @@ app.post('/api/linkedin-profile', requireAuthHeader, linkedinImportRateLimiter,
       const profile = normalizeProxycurl(body);
 
       // Bump quota only on a successful, billable response.
-      const newUsed = bumpMonthlyUsage(userId);
+      const newUsed = await bumpMonthlyUsage(userId);
       const remaining = Math.max(0, LINKEDIN_IMPORT_MONTHLY_CAP - newUsed);
       // Surface upstream credit balance when Proxycurl returns it.
       const creditBalance = upstream.headers.get('x-credit-balance');
