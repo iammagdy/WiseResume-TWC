@@ -6,7 +6,7 @@ import { escapeHtml } from "../_shared/htmlEscape.ts";
 const ADMIN_EMAIL = "contact@thewise.cloud";
 const WISEHIRE_BLUE = "#1D4ED8";
 
-function buildConfirmationEmail(name: string): string {
+function buildConfirmationEmail(name: string, position: number): string {
   return `
 <!DOCTYPE html>
 <html lang="en">
@@ -39,11 +39,11 @@ function buildConfirmationEmail(name: string): string {
           </td>
         </tr>
 
-        <!-- Waitlist confirmed pill -->
+        <!-- Position pill -->
         <tr>
           <td style="padding:28px 40px 0;text-align:center;">
             <span style="display:inline-block;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:100px;padding:7px 16px;font-size:12px;font-weight:600;color:#15803d;">
-              ✓ Waitlist confirmed
+              ✓ Position #${position} on the waitlist
             </span>
           </td>
         </tr>
@@ -52,12 +52,12 @@ function buildConfirmationEmail(name: string): string {
         <tr>
           <td style="padding:24px 40px 40px;">
             <h1 style="margin:0 0 18px;font-size:24px;font-weight:800;color:#0f172a;line-height:1.25;letter-spacing:-0.5px;">
-              You're on the list, <span style="color:${WISEHIRE_BLUE};">${escapeHtml(name)}</span> 👋
+              You're #${position} on the list, <span style="color:${WISEHIRE_BLUE};">${escapeHtml(name)}</span> 👋
             </h1>
 
             <p style="margin:0 0 16px;font-size:15px;color:#4b5563;line-height:1.7;">
-              Thanks for joining the WiseHire waitlist. We're building something that genuinely changes
-              how companies hire — and you're among the first to know about it.
+              You've secured spot #${position} on the WiseHire waitlist. We're building something that genuinely
+              changes how companies hire — and you're among the first to know about it.
             </p>
 
             <!-- Platform description box -->
@@ -259,6 +259,18 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Determine waitlist position: count rows submitted at or before this one
+    let waitlistPosition = 1;
+    try {
+      const { count } = await supabase
+        .from("wisehire_waitlist")
+        .select("*", { count: "exact", head: true })
+        .lte("submitted_at", submittedAt);
+      if (count && count > 0) waitlistPosition = count;
+    } catch (e) {
+      console.warn("Could not query waitlist position:", e);
+    }
+
     const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
     if (RESEND_API_KEY) {
@@ -290,7 +302,7 @@ Deno.serve(async (req) => {
         sendEmail(
           email.trim(),
           "You're on the WiseHire waitlist 🎉",
-          buildConfirmationEmail(name.trim())
+          buildConfirmationEmail(name.trim(), waitlistPosition)
         ),
         sendEmail(
           ADMIN_EMAIL,
