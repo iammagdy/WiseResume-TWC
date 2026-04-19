@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Crown, Shield, ShieldOff, Zap, StickyNote, Copy, Check, Clock, UserPen, AlertTriangle, Trash2, LogOut, UserX, FileText, ChevronRight, Fingerprint, Merge } from 'lucide-react';
+import { X, Crown, Shield, ShieldOff, Zap, StickyNote, Copy, Check, Clock, UserPen, AlertTriangle, Trash2, LogOut, UserX, FileText, ChevronRight, Fingerprint, Merge, RotateCcw } from 'lucide-react';
 import { AccountTypeBadge } from './DevKitBadges';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -161,6 +161,11 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleteEmailConfirm, setDeleteEmailConfirm] = useState('');
   const [deletingUser, setDeletingUser] = useState(false);
+
+  // WiseHire test reset dialog
+  const [showResetDialog, setShowResetDialog] = useState(false);
+  const [resetConfirmText, setResetConfirmText] = useState('');
+  const [resettingUser, setResettingUser] = useState(false);
 
   // Revoke sessions
   const [revokingSessions, setRevokingSessions] = useState(false);
@@ -640,6 +645,47 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     }
   };
 
+  const handleResetUser = async () => {
+    if (resetConfirmText !== 'RESET') return;
+    setResettingUser(true);
+    try {
+      const tuple = await edgeFunctions.functions.invoke('admin-wisehire-reset-user', {
+        body: {
+          password: getDevKitToken(),
+          target_user_id: user.user_id,
+          actor_email: authUser?.email ?? 'admin (dev-kit)',
+        },
+      });
+      const result = unwrapAdminResponse<{
+        kinde_deleted: boolean;
+        invite_tokens_reset: number;
+        warnings: string[];
+      }>(tuple, 'admin-wisehire-reset-user');
+
+      if (!isMounted()) return;
+
+      const warningList = result.warnings ?? [];
+      if (warningList.length > 0) {
+        toast.warning('Reset complete with warnings', {
+          description: warningList.join(' • '),
+          duration: 10000,
+        });
+      } else {
+        toast.success('WiseHire user fully reset', {
+          description: `Deleted from Supabase${result.kinde_deleted ? ' & Kinde' : ''}, ${result.invite_tokens_reset} invite token(s) revoked.`,
+          duration: 7000,
+        });
+      }
+      setShowResetDialog(false);
+      onUserDeleted?.(user.user_id);
+      onClose();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to reset user');
+    } finally {
+      if (isMounted()) setResettingUser(false);
+    }
+  };
+
   const handleLoadResumeDetail = async (resumeId: string) => {
     setResumeDetailLoading(true);
     try {
@@ -959,6 +1005,27 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
                       Delete
                     </Button>
                   </div>
+
+                  {/* WiseHire full reset — only shown for HR accounts */}
+                  {user.account_type === 'hr' && (
+                    <div className="border-t border-blue-500/20 pt-2 flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-medium text-blue-700 dark:text-blue-400">Reset for Testing</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          Removes from Supabase + Kinde, revokes invite token. WiseHire only.
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => { setShowResetDialog(true); setResetConfirmText(''); }}
+                        className="h-7 text-xs shrink-0 border-blue-500/30 text-blue-700 hover:bg-blue-500/10 dark:text-blue-400"
+                      >
+                        <RotateCcw className="w-3 h-3 mr-1" />
+                        Reset
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -1288,6 +1355,70 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
           )}
         </div>
       </div>
+
+      {/* WiseHire full test reset confirmation dialog */}
+      {showResetDialog && (
+        <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0">
+                <RotateCcw className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-sm">Reset WiseHire user for testing</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">This action cannot be undone.</p>
+              </div>
+            </div>
+
+            <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20 text-xs text-blue-700 dark:text-blue-400 space-y-1.5">
+              <p className="font-semibold">This will:</p>
+              <ul className="list-disc list-inside space-y-0.5 pl-1 opacity-90">
+                <li>Delete <strong>{user.email}</strong> from Supabase (cascades all data)</li>
+                <li>Delete their Kinde account via the Management API</li>
+                <li>Revoke &amp; un-mark all WiseHire invite tokens for this email</li>
+                <li>Write an audit log entry (<code className="font-mono text-[10px]">wisehire_test_reset</code>)</li>
+              </ul>
+              <p className="pt-0.5 opacity-80">
+                If Kinde M2M credentials are not configured, a warning will be shown and you must delete the Kinde user manually.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">
+                Type <span className="font-mono text-foreground">RESET</span> to confirm
+              </label>
+              <Input
+                value={resetConfirmText}
+                onChange={(e) => setResetConfirmText(e.target.value)}
+                placeholder="RESET"
+                className="h-9 text-xs font-mono"
+                autoFocus
+                onKeyDown={(e) => { if (e.key === 'Enter' && resetConfirmText === 'RESET') handleResetUser(); }}
+              />
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => { setShowResetDialog(false); setResetConfirmText(''); }}
+                className="flex-1"
+                disabled={resettingUser}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleResetUser}
+                disabled={resettingUser || resetConfirmText !== 'RESET'}
+                className="flex-1 bg-blue-600 hover:bg-blue-500 text-white"
+              >
+                {resettingUser ? 'Resetting…' : 'Reset user'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Delete user confirmation dialog */}
       {showDeleteDialog && (
