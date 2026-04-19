@@ -85,7 +85,7 @@ export async function tailorResumeWithProgress(
     }
     stepIndex = Math.min(stepIndex, ENHANCED_STEPS.length - 2);
 
-    if (stepIndex !== lastStepIndex || true) {
+    if (stepIndex !== lastStepIndex) {
       const step = ENHANCED_STEPS[stepIndex];
       onProgress({
         step: step.step,
@@ -165,7 +165,7 @@ export async function tailorResumeWithProgress(
     } catch (firstError: any) {
       // Only retry transient errors (not auth/credits/rate-limit)
       const code = (firstError as TailorError).code;
-      if (code === 'rate_limit' || code === 'credits_exhausted' || !code) throw firstError;
+      if (code === 'rate_limit' || code === 'credits_exhausted') throw firstError;
       if (firstError.message?.includes('Unauthorized')) throw firstError;
 
       // Auto-retry once after 2s

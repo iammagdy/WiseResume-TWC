@@ -78,7 +78,7 @@ function buildPlainText(resume: ResumeData, tailorResult: SuperTailorResult, ena
       lines.push(`${exp.position} | ${exp.company}`);
       lines.push(`${exp.startDate} – ${exp.current ? 'Present' : exp.endDate}`);
       if (exp.description) lines.push(exp.description);
-      for (const ach of exp.achievements) {
+      for (const ach of (exp.achievements || [])) {
         lines.push(`• ${ach}`);
       }
       lines.push('');
@@ -91,8 +91,39 @@ function buildPlainText(resume: ResumeData, tailorResult: SuperTailorResult, ena
     for (const edu of educations) {
       lines.push(`${edu.degree} in ${edu.field} | ${edu.institution}`);
       lines.push(`${edu.startDate} – ${edu.endDate}`);
+      if (edu.description) lines.push(edu.description);
       lines.push('');
     }
+  }
+
+  const projects = enabledSections.includes('projects') ? (tailorResult.projects ?? resume.projects) : resume.projects;
+  if (projects && projects.length > 0) {
+    lines.push('PROJECTS');
+    for (const p of projects) {
+      lines.push(`${p.name}${p.role ? ` | ${p.role}` : ''}`);
+      if (p.technologies?.length) lines.push(`Technologies: ${p.technologies.join(', ')}`);
+      if (p.description) lines.push(p.description);
+      lines.push('');
+    }
+  }
+
+  const certifications = enabledSections.includes('certifications') ? (tailorResult.certifications ?? resume.certifications) : resume.certifications;
+  if (certifications && certifications.length > 0) {
+    lines.push('CERTIFICATIONS');
+    for (const c of certifications) {
+      lines.push(`${c.name} | ${c.issuer}${c.date ? ` | ${c.date}` : ''}`);
+    }
+    lines.push('');
+  }
+
+  const awards = enabledSections.includes('awards') ? (tailorResult.awards ?? resume.awards) : resume.awards;
+  if (awards && awards.length > 0) {
+    lines.push('AWARDS');
+    for (const a of awards) {
+      lines.push(`${a.title} | ${a.issuer}${a.date ? ` | ${a.date}` : ''}`);
+      if (a.description) lines.push(a.description);
+    }
+    lines.push('');
   }
 
   return lines.join('\n').trim();
@@ -243,7 +274,6 @@ export default function TailorPage() {
     setIsTailoring(true);
     setOriginalResume(currentResume);
     setProgress({ step: 'analyzing', progress: 5, message: 'Starting...' });
-    setEnabledSections(['summary', 'skills', 'experience', 'education', 'projects', 'certifications', 'awards']);
     setShowAppliedCTA(false);
 
     abortRef.current = new AbortController();
@@ -409,8 +439,8 @@ export default function TailorPage() {
       if (sectionId === 'summary') return tailorResult.summary;
       if (sectionId === 'skills') return tailorResult.skills;
       if (sectionId === 'experience') return tailorResult.experience.flatMap(e => e.achievements ?? []);
-      if (sectionId === 'education') return tailorResult.education.map(e => `${e.degree} ${e.field} ${e.institution}`);
-      if (sectionId === 'projects') return (tailorResult.projects ?? []).map(p => p.name);
+      if (sectionId === 'education') return tailorResult.education.map(e => e.field || `${e.degree} at ${e.institution}`);
+      if (sectionId === 'projects') return (tailorResult.projects ?? []).map(p => `${p.name}: ${p.description}${p.technologies?.length ? ` [Technologies: ${p.technologies.join(', ')}]` : ''}`);
       if (sectionId === 'certifications') return (tailorResult.certifications ?? []).map(c => c.name);
       return null;
     };
@@ -447,23 +477,26 @@ export default function TailorPage() {
           return { ...prev, experience: updatedExperience, bulletTransformations: [] };
         });
       } else if (sectionId === 'education' && Array.isArray(result.rewrittenContent)) {
-        const newDescriptions = result.rewrittenContent as string[];
+        const newFields = result.rewrittenContent as string[];
         setTailorResult(prev => {
           if (!prev) return prev;
           const updatedEducation = prev.education.map((edu, i) => ({
             ...edu,
-            description: newDescriptions[i] ?? edu.description,
+            field: newFields[i] ?? edu.field,
           }));
           return { ...prev, education: updatedEducation };
         });
       } else if (sectionId === 'projects' && Array.isArray(result.rewrittenContent)) {
-        const newNames = result.rewrittenContent as string[];
+        const newDescriptions = result.rewrittenContent as string[];
         setTailorResult(prev => {
           if (!prev) return prev;
-          const updatedProjects = (prev.projects ?? []).map((p, i) => ({
-            ...p,
-            name: newNames[i] ?? p.name,
-          }));
+          const updatedProjects = (prev.projects ?? []).map((p, i) => {
+            const raw = newDescriptions[i];
+            if (!raw) return p;
+            const colonIdx = raw.indexOf(':');
+            const description = colonIdx !== -1 ? raw.slice(colonIdx + 1).replace(/\[Technologies:[^\]]*\]/i, '').trim() : raw;
+            return { ...p, description: description || p.description };
+          });
           return { ...prev, projects: updatedProjects };
         });
       } else if (sectionId === 'certifications' && Array.isArray(result.rewrittenContent)) {

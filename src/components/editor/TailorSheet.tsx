@@ -120,7 +120,7 @@ function clearCache(resumeId: string | null) {
 
 const CUSTOM_INSTRUCTIONS_KEY = 'wr-tailor-custom-instructions';
 
-function buildPlainTextFromResume(resume: ResumeData, tailorResult: Pick<SuperTailorResult, 'summary' | 'skills' | 'experience' | 'education'>, enabledSections: TailorSectionId[]): string {
+function buildPlainTextFromResume(resume: ResumeData, tailorResult: SuperTailorResult, enabledSections: TailorSectionId[]): string {
   const lines: string[] = [];
   const ci = resume.contactInfo;
   lines.push(ci.fullName || '');
@@ -157,8 +157,36 @@ function buildPlainTextFromResume(resume: ResumeData, tailorResult: Pick<SuperTa
     for (const edu of educations) {
       lines.push(`${edu.degree} in ${edu.field} | ${edu.institution}`);
       lines.push(`${edu.startDate} – ${edu.endDate}`);
+      if (edu.description) lines.push(edu.description);
       lines.push('');
     }
+  }
+  const projects = enabledSections.includes('projects') ? (tailorResult.projects ?? resume.projects) : resume.projects;
+  if (projects && projects.length > 0) {
+    lines.push('PROJECTS');
+    for (const p of projects) {
+      lines.push(`${p.name}${p.role ? ` | ${p.role}` : ''}`);
+      if (p.technologies?.length) lines.push(`Technologies: ${p.technologies.join(', ')}`);
+      if (p.description) lines.push(p.description);
+      lines.push('');
+    }
+  }
+  const certifications = enabledSections.includes('certifications') ? (tailorResult.certifications ?? resume.certifications) : resume.certifications;
+  if (certifications && certifications.length > 0) {
+    lines.push('CERTIFICATIONS');
+    for (const c of certifications) {
+      lines.push(`${c.name} | ${c.issuer}${c.date ? ` | ${c.date}` : ''}`);
+    }
+    lines.push('');
+  }
+  const awards = enabledSections.includes('awards') ? (tailorResult.awards ?? resume.awards) : resume.awards;
+  if (awards && awards.length > 0) {
+    lines.push('AWARDS');
+    for (const a of awards) {
+      lines.push(`${a.title} | ${a.issuer}${a.date ? ` | ${a.date}` : ''}`);
+      if (a.description) lines.push(a.description);
+    }
+    lines.push('');
   }
   return lines.join('\n').trim();
 }
@@ -322,7 +350,6 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
     setIsTailoring(true);
     setOriginalResume(currentResume);
     setProgress({ step: 'analyzing', progress: 5, message: 'Starting...' });
-    setEnabledSections(['summary', 'skills', 'experience', 'education', 'projects', 'certifications', 'awards']);
     setActiveTab('changes');
 
     abortRef.current = new AbortController();
@@ -371,13 +398,6 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
         jobUrl: jobUrl || null,
       });
 
-      // Auto-navigate to full-page Tailor view so users can review results in the dedicated UI
-      const params = new URLSearchParams();
-      if (jobDescription) params.set('job', jobDescription);
-      if (jobInfo?.title) params.set('title', jobInfo.title);
-      if (jobInfo?.company) params.set('company', jobInfo.company);
-      onOpenChange(false);
-      navigate(`/tailor${currentResumeId ? `/${currentResumeId}` : ''}?${params.toString()}`);
     } catch (error) {
       console.error('Tailor error:', error);
       const err = error as TailorError;
@@ -482,8 +502,8 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
       if (sectionId === 'summary') return tailorResult.summary;
       if (sectionId === 'skills') return tailorResult.skills;
       if (sectionId === 'experience') return tailorResult.experience.flatMap(e => e.achievements ?? []);
-      if (sectionId === 'education') return tailorResult.education.map(e => `${e.degree} ${e.field} ${e.institution}`);
-      if (sectionId === 'projects') return (tailorResult.projects ?? []).map(p => p.name);
+      if (sectionId === 'education') return tailorResult.education.map(e => e.field || `${e.degree} at ${e.institution}`);
+      if (sectionId === 'projects') return (tailorResult.projects ?? []).map(p => `${p.name}: ${p.description}${p.technologies?.length ? ` [Technologies: ${p.technologies.join(', ')}]` : ''}`);
       if (sectionId === 'certifications') return (tailorResult.certifications ?? []).map(c => c.name);
       return null;
     };
@@ -517,18 +537,21 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
         });
         handleUpdateTailorResult({ experience: updatedExperience, bulletTransformations: [] });
       } else if (sectionId === 'education' && Array.isArray(result.rewrittenContent)) {
-        const newDescriptions = result.rewrittenContent as string[];
+        const newFields = result.rewrittenContent as string[];
         const updatedEducation = tailorResult.education.map((edu, i) => ({
           ...edu,
-          description: newDescriptions[i] ?? edu.description,
+          field: newFields[i] ?? edu.field,
         }));
         handleUpdateTailorResult({ education: updatedEducation });
       } else if (sectionId === 'projects' && Array.isArray(result.rewrittenContent)) {
-        const newNames = result.rewrittenContent as string[];
-        const updatedProjects = (tailorResult.projects ?? []).map((p, i) => ({
-          ...p,
-          name: newNames[i] ?? p.name,
-        }));
+        const newDescriptions = result.rewrittenContent as string[];
+        const updatedProjects = (tailorResult.projects ?? []).map((p, i) => {
+          const raw = newDescriptions[i];
+          if (!raw) return p;
+          const colonIdx = raw.indexOf(':');
+          const description = colonIdx !== -1 ? raw.slice(colonIdx + 1).replace(/\[Technologies:[^\]]*\]/i, '').trim() : raw;
+          return { ...p, description: description || p.description };
+        });
         handleUpdateTailorResult({ projects: updatedProjects });
       } else if (sectionId === 'certifications' && Array.isArray(result.rewrittenContent)) {
         const newNames = result.rewrittenContent as string[];
@@ -761,15 +784,23 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
 
   const handleAddSkill = (skill: string) => {
     if (!currentResume) return;
-    const newSkills = [...currentResume.skills, skill];
-    updateResume({ skills: newSkills });
+    if (tailorResult) {
+      handleUpdateTailorResult({ skills: [...tailorResult.skills, skill] });
+    } else {
+      updateResume({ skills: [...currentResume.skills, skill] });
+    }
     toast.success(`Added "${skill}" to your skills`);
   };
 
   const handleBoostSkill = (skill: string) => {
     if (!currentResume) return;
-    const newSkills = [skill, ...currentResume.skills.filter(s => s !== skill)];
-    updateResume({ skills: newSkills });
+    if (tailorResult) {
+      const newSkills = [skill, ...tailorResult.skills.filter(s => s !== skill)];
+      handleUpdateTailorResult({ skills: newSkills });
+    } else {
+      const newSkills = [skill, ...currentResume.skills.filter(s => s !== skill)];
+      updateResume({ skills: newSkills });
+    }
     toast.success(`Moved "${skill}" to the top`);
   };
 
@@ -777,9 +808,9 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
     if (!tailorResult || !currentResume) return;
     const newSkills = [
       ...tailorResult.missingSkills.map(s => s.skill),
-      ...currentResume.skills,
+      ...tailorResult.skills,
     ];
-    updateResume({ skills: newSkills });
+    handleUpdateTailorResult({ skills: newSkills });
     toast.success(`Added ${tailorResult.missingSkills.length} skills`);
   };
 
@@ -792,8 +823,18 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
     if (!tailorResult || !tailorResult.overallScore) return null;
     const before = tailorResult.overallScore.before;
     const maxImprovement = tailorResult.overallScore.after - before;
-    const totalSections = 7;
-    const sectionWeight = enabledSections.length / totalSections;
+    const presentSections: TailorSectionId[] = [
+      'summary',
+      'skills',
+      'experience',
+      ...(tailorResult.education?.length ? ['education' as TailorSectionId] : []),
+      ...(tailorResult.projects?.length ? ['projects' as TailorSectionId] : []),
+      ...(tailorResult.certifications?.length ? ['certifications' as TailorSectionId] : []),
+      ...(tailorResult.awards?.length ? ['awards' as TailorSectionId] : []),
+    ];
+    const totalSections = Math.max(presentSections.length, 1);
+    const appliedCount = enabledSections.filter(s => presentSections.includes(s)).length;
+    const sectionWeight = appliedCount / totalSections;
     return Math.round(before + (maxImprovement * sectionWeight));
   }, [tailorResult, enabledSections]);
 
@@ -816,10 +857,10 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
                 onClick={() => {
                   onOpenChange(false);
                   const params = new URLSearchParams();
-                  if (jobDescription) params.set('job', jobDescription);
                   if (parsedJobInfo?.title) params.set('title', parsedJobInfo.title);
                   if (parsedJobInfo?.company) params.set('company', parsedJobInfo.company);
-                  navigate(`/tailor${currentResumeId ? `/${currentResumeId}` : ''}?${params.toString()}`);
+                  const qs = params.toString();
+                  navigate(`/tailor${currentResumeId ? `/${currentResumeId}` : ''}${qs ? `?${qs}` : ''}`);
                 }}
                 className="text-muted-foreground text-xs gap-1"
               >
@@ -852,21 +893,30 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
           <AITrustBadge className="mx-0" />
 
           {/* Cache restore banner */}
-          {showCacheRestore && !tailorResult && !isTailoring && (
-            <div className="p-3 rounded-xl bg-primary/10 border border-primary/30 flex items-center justify-between gap-3 animate-fade-in">
-              <p className="text-sm text-foreground">
-                ✨ You have unsaved tailor results. Restore?
-              </p>
-              <div className="flex gap-2 shrink-0">
-                <Button size="sm" variant="ghost" onClick={() => setShowCacheRestore(false)} className="min-h-[44px] active:scale-95 transition-transform">
-                  Dismiss
-                </Button>
-                <Button size="sm" onClick={handleRestoreCache} className="min-h-[44px] active:scale-95 transition-transform">
-                  Restore
-                </Button>
+          {showCacheRestore && !tailorResult && !isTailoring && (() => {
+            const cached = cachedDataRef.current;
+            const jobTitle = cached?.parsedJobInfo?.title || cached?.tailorResult?.jobParsed?.title;
+            const company = cached?.parsedJobInfo?.company || cached?.tailorResult?.jobParsed?.company;
+            const contextLabel = jobTitle ? `${jobTitle}${company ? ` @ ${company}` : ''}` : null;
+            return (
+              <div className="p-3 rounded-xl bg-primary/10 border border-primary/30 flex items-center justify-between gap-3 animate-fade-in">
+                <div>
+                  <p className="text-sm text-foreground font-medium">✨ Resume already tailored</p>
+                  {contextLabel && (
+                    <p className="text-xs text-muted-foreground mt-0.5">For: {contextLabel}</p>
+                  )}
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  <Button size="sm" variant="ghost" onClick={() => setShowCacheRestore(false)} className="min-h-[44px] active:scale-95 transition-transform">
+                    Dismiss
+                  </Button>
+                  <Button size="sm" onClick={handleRestoreCache} className="min-h-[44px] active:scale-95 transition-transform">
+                    Restore
+                  </Button>
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Tailoring Progress */}
           {isTailoring && progress && (
@@ -959,14 +1009,17 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
                       onValueChange={(val) => { if (val) { setIntensity(val as TailorIntensity); haptics.selection(); } }}
                       className="min-h-[44px]"
                     >
-                      <ToggleGroupItem value="light" className="text-[10px] min-h-[44px] px-2.5">
+                      <ToggleGroupItem value="light" className="text-[10px] min-h-[44px] px-2.5 gap-1">
                         <Zap className="w-3 h-3" />
+                        Light
                       </ToggleGroupItem>
-                      <ToggleGroupItem value="moderate" className="text-[10px] min-h-[44px] px-2.5">
+                      <ToggleGroupItem value="moderate" className="text-[10px] min-h-[44px] px-2.5 gap-1">
                         <Gauge className="w-3 h-3" />
+                        Moderate
                       </ToggleGroupItem>
-                      <ToggleGroupItem value="aggressive" className="text-[10px] min-h-[44px] px-2.5">
+                      <ToggleGroupItem value="aggressive" className="text-[10px] min-h-[44px] px-2.5 gap-1">
                         <Flame className="w-3 h-3" />
+                        Aggressive
                       </ToggleGroupItem>
                     </ToggleGroup>
                     <Button
@@ -1035,14 +1088,14 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
                         <div>
                           <p className="text-sm font-medium text-amber-600 dark:text-amber-400">Score couldn't be calculated</p>
                           <p className="text-xs text-muted-foreground mt-1">
-                            Our servers are experiencing high demand right now. Your tailored content is 100% valid — only the score couldn't be calculated.
+                            The ATS score couldn't be calculated this time. Your tailored content is 100% valid. To get a score, click Re-Tailor — it will use credits and re-run the full pipeline.
                           </p>
                         </div>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 flex-wrap">
                         <Button size="sm" variant="outline" className="text-xs min-h-[44px] active:scale-95 transition-transform" onClick={handleTailor}>
                           <RefreshCw className="w-3 h-3 mr-1" />
-                          Retry Score
+                          Re-Tailor (includes score)
                         </Button>
                         <Button size="sm" variant="ghost" className="text-xs min-h-[44px] active:scale-95 transition-transform" onClick={() => setShowAISettings(true)}>
                           <Key className="w-3 h-3 mr-1" />
@@ -1236,7 +1289,9 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
                         {tailorResult.keyChanges.slice(0, 5).map((change, i) => (
                           <li key={i} className="flex items-start gap-2 text-sm">
                             <ChevronRight className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-                            <span className="text-muted-foreground">{change}</span>
+                            <span className="text-muted-foreground">
+                              {typeof change === 'string' ? change : (change as any).description ?? JSON.stringify(change)}
+                            </span>
                           </li>
                         ))}
                       </ul>
