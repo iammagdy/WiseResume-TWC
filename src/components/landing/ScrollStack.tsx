@@ -177,14 +177,6 @@ const ScrollStack = ({
       card.style.perspective = "1000px";
       (card.style as CSSStyleDeclaration & { webkitPerspective: string }).webkitPerspective =
         "1000px";
-      /* Earlier cards must visually sit on top of later ones while stacking.
-         Without explicit z-index browsers paint later DOM children on top,
-         so the last card would always cover the first. Setting
-         z-index = cards.length - i inverts that: card 0 gets the highest
-         z-index and card N-1 gets the lowest. position:relative is required
-         because z-index has no effect on statically-positioned elements. */
-      card.style.position = "relative";
-      card.style.zIndex = String(cards.length - i);
     });
 
     /* --- helpers (pure; close over paramsRef) --- */
@@ -490,13 +482,7 @@ const ScrollStack = ({
         transform: "translateZ(0)",
       }}
     >
-      {/* `isolation: isolate` confines the per-card z-indices we assign in
-          the setup effect to this container. Without it, the topmost card's
-          z-index (cards.length) competes at the section level against the
-          sibling `.lp-stack-sticky-header` (z-index: 4) and paints over the
-          "See it in action" title + step counter chip while the section is
-          pinned. */}
-      <div className="scroll-stack-inner" style={{ isolation: "isolate" }}>
+      <div className="scroll-stack-inner">
         {children}
         <div className="scroll-stack-end" />
       </div>
