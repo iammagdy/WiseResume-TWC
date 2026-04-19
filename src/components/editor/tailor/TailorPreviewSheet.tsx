@@ -1,4 +1,4 @@
-import { CSSProperties, Suspense, memo, useMemo, useCallback, useRef } from 'react';
+import { CSSProperties, Suspense, memo, useMemo, useCallback, useRef, useState } from 'react';
 import { Eye, X, Download, Loader2 } from 'lucide-react';
 import { Drawer, DrawerContent } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
@@ -67,14 +67,17 @@ export const TailorPreviewSheet = memo(function TailorPreviewSheet({
   const templateRef = useRef<HTMLDivElement>(null);
   const { exportProgress, onProgress, reset: resetProgress } = useExportProgress();
   const isDownloadingPdf = exportProgress.isActive;
+  const [pdfMode, setPdfMode] = useState<'standard' | 'one-page'>('standard');
 
   const handleDownloadPdf = useCallback(async () => {
     if (!resume || isDownloadingPdf) return;
     try {
-      const { generatePDF } = await import('@/lib/pdfGenerator');
+      const { generatePDF, generateOnePagePDF } = await import('@/lib/pdfGenerator');
       const { downloadFile } = await import('@/lib/downloadUtils');
       const tid = effectiveTemplate as TemplateId;
-      const blob = await generatePDF(resume, tid, templateRef.current, undefined, undefined, onProgress);
+      const blob = pdfMode === 'one-page'
+        ? await generateOnePagePDF(resume, tid, templateRef.current, undefined, onProgress)
+        : await generatePDF(resume, tid, templateRef.current, undefined, undefined, onProgress);
       const name = resume.contactInfo?.fullName || 'Resume';
       const jobSuffix = jobTitle ? `_${jobTitle}` : '';
       const fileName = `${name}${jobSuffix}_Tailored.pdf`.replace(/\s+/g, '_');
@@ -86,7 +89,7 @@ export const TailorPreviewSheet = memo(function TailorPreviewSheet({
     } finally {
       resetProgress();
     }
-  }, [resume, jobTitle, isDownloadingPdf, effectiveTemplate, onProgress, resetProgress]);
+  }, [resume, jobTitle, isDownloadingPdf, effectiveTemplate, pdfMode, onProgress, resetProgress]);
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
@@ -153,6 +156,25 @@ export const TailorPreviewSheet = memo(function TailorPreviewSheet({
               <Progress value={exportProgress.progress} className="h-1.5" />
             </div>
           )}
+          <div className="flex items-center justify-between mb-2.5">
+            <span className="text-xs text-muted-foreground">PDF format</span>
+            <div className="flex items-center rounded-md border border-border overflow-hidden text-xs font-medium">
+              <button
+                className={`px-3 py-1.5 transition-colors touch-manipulation ${pdfMode === 'standard' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-muted'}`}
+                onClick={() => { setPdfMode('standard'); haptics.light(); }}
+                disabled={isDownloadingPdf}
+              >
+                Multi-page
+              </button>
+              <button
+                className={`px-3 py-1.5 transition-colors touch-manipulation ${pdfMode === 'one-page' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-muted'}`}
+                onClick={() => { setPdfMode('one-page'); haptics.light(); }}
+                disabled={isDownloadingPdf}
+              >
+                One page
+              </button>
+            </div>
+          </div>
           <div className="flex gap-3">
             <Button
               variant="outline"
