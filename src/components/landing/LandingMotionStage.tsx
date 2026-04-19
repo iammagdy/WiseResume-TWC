@@ -1,5 +1,5 @@
 import { Suspense, lazy, type ReactNode, type RefObject } from 'react';
-import { LazyMotion, m, AnimatePresence } from 'framer-motion';
+import { LazyMotion, domAnimation, m, AnimatePresence } from 'framer-motion';
 import {
   SCATTER_WRAPPER_VARIANTS, SCATTER_SECTION_ITEM,
   REDUCED_MOTION_WRAPPER, REDUCED_SECTION_ITEM,
@@ -32,9 +32,6 @@ const WiseHireFeatureTicker = lazy(() =>
 const WiseHireClosingCTA = lazy(() =>
   import('./wisehire/WiseHireClosingCTA').then((m) => ({ default: m.WiseHireClosingCTA }))
 );
-
-const loadDomAnimationFeatures = () =>
-  import('framer-motion').then((mod) => mod.domAnimation);
 
 const LpFallback = ({ minHeight = 320 }: { minHeight?: number }): ReactNode => (
   <div
@@ -80,7 +77,7 @@ export default function LandingMotionStage({
   const wrapperVariants = prefersReducedMotion ? REDUCED_MOTION_WRAPPER : SCATTER_WRAPPER_VARIANTS;
 
   return (
-    <LazyMotion features={loadDomAnimationFeatures} strict>
+    <LazyMotion features={domAnimation} strict>
       <AnimatePresence mode="popLayout">
         {mode === 'wisehire' ? (
           <m.div key="wisehire" variants={wrapperVariants} initial="hidden" animate="visible" exit="exit">

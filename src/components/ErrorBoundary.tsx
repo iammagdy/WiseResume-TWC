@@ -1,5 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { AlertTriangle, RefreshCw, Home, ArrowLeft, MessageSquareWarning, Send, X, Loader2 } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Home, ArrowLeft, MessageSquareWarning, Send, X, Loader2, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { getUserId } from '@/lib/supabaseBridge';
@@ -21,6 +21,9 @@ interface State {
   reportContext: string;
   reportStatus: 'idle' | 'sending' | 'sent' | 'error';
   isRetrying: boolean;
+  errorTimestamp: string | null;
+  errorRoute: string | null;
+  copySuccess: boolean;
 }
 
 const MAX_RETRIES = 2;
@@ -45,6 +48,9 @@ export class ErrorBoundary extends Component<Props, State> {
     reportContext: '',
     reportStatus: 'idle',
     isRetrying: false,
+    errorTimestamp: null,
+    errorRoute: null,
+    copySuccess: false,
   };
 
   public static getDerivedStateFromError(error: Error): Partial<State> {
@@ -91,7 +97,11 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.state.isRetrying) return;
 
     this.logError(error, errorInfo);
-    this.setState({ errorInfo });
+    this.setState({
+      errorInfo,
+      errorTimestamp: new Date().toISOString(),
+      errorRoute: window.location.pathname + window.location.search,
+    });
 
     captureError(error, {
       componentStack: errorInfo.componentStack ?? undefined,
@@ -140,6 +150,25 @@ export class ErrorBoundary extends Component<Props, State> {
       }, 500);
     }
   }
+
+  private handleCopyError = () => {
+    const { error, errorInfo, errorTimestamp, errorRoute } = this.state;
+    const parts = [
+      `Error: ${error?.name ?? 'Error'}: ${error?.message ?? ''}`,
+      `Timestamp: ${errorTimestamp ?? new Date().toISOString()}`,
+      `Route: ${errorRoute ?? window.location.pathname}`,
+      '',
+      '--- Stack ---',
+      error?.stack ?? '(no stack)',
+      '',
+      '--- Component Stack ---',
+      errorInfo?.componentStack ?? '(no component stack)',
+    ];
+    navigator.clipboard.writeText(parts.join('\n')).then(() => {
+      this.setState({ copySuccess: true });
+      setTimeout(() => this.setState({ copySuccess: false }), 2000);
+    }).catch(() => undefined);
+  };
 
   private handleRetry = () => {
     const isChunkError = this.state.error?.message &&
@@ -252,34 +281,63 @@ export class ErrorBoundary extends Component<Props, State> {
 
       return (
         <div className="min-h-screen min-h-[100dvh] flex flex-col items-center justify-center p-6 bg-background">
-          <div className="w-full max-w-md text-center space-y-6">
+          <div className="w-full max-w-2xl text-center space-y-6">
             {/* Error icon */}
             <div className={`mx-auto w-20 h-20 rounded-full flex items-center justify-center ${isChunkError ? 'bg-warning/10' : 'bg-destructive/10'}`}>
               <AlertTriangle className={`w-10 h-10 ${isChunkError ? 'text-warning' : 'text-destructive'}`} />
             </div>
 
-            {/* Error message */}
+            {/* Error headline — always shows error name + message */}
             <div className="space-y-2">
-              <h1 className="text-xl font-display font-semibold text-foreground">
-                {isChunkError ? 'Connection hiccup' : 'Something went wrong'}
+              <h1 className="text-xl font-display font-semibold text-foreground break-all font-mono text-destructive">
+                {this.state.error?.name ?? 'Error'}: {this.state.error?.message ?? 'Unknown error'}
               </h1>
-              <p className="text-sm text-muted-foreground">
-                {isChunkError
-                  ? "The page couldn't load properly. This usually fixes itself — just tap Reload."
-                  : "We encountered an unexpected error. This has been logged and we're working on it."}
-              </p>
+              {isChunkError && (
+                <p className="text-sm text-muted-foreground">
+                  The page couldn&apos;t load properly. This usually fixes itself — just tap Reload.
+                </p>
+              )}
+              {(this.state.errorRoute || this.state.errorTimestamp) && (
+                <p className="text-xs text-muted-foreground font-mono">
+                  {this.state.errorRoute && <span>Route: {this.state.errorRoute}</span>}
+                  {this.state.errorRoute && this.state.errorTimestamp && <span> · </span>}
+                  {this.state.errorTimestamp && <span>{this.state.errorTimestamp}</span>}
+                </p>
+              )}
             </div>
 
-            {/* Error details (collapsed by default) — hidden for chunk errors */}
-            {!isChunkError && this.state.error && (
-              <details className="text-left bg-muted rounded-lg p-4">
-                <summary className="text-sm font-medium cursor-pointer text-muted-foreground">
-                  Technical details
-                </summary>
-                <pre className="mt-2 text-xs text-destructive overflow-auto max-h-32 font-mono">
-                  {this.state.error.message}
-                </pre>
-              </details>
+            {/* Full error details — always expanded */}
+            {this.state.error && (
+              <div className="text-left space-y-3">
+                <div className="bg-muted rounded-lg p-4 space-y-3">
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Stack Trace</p>
+                    <pre className="text-xs text-destructive overflow-auto max-h-48 font-mono whitespace-pre-wrap break-all">
+                      {this.state.error.stack ?? this.state.error.message}
+                    </pre>
+                  </div>
+                  {this.state.errorInfo?.componentStack && (
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Component Stack</p>
+                      <pre className="text-xs text-muted-foreground overflow-auto max-h-36 font-mono whitespace-pre-wrap break-all">
+                        {this.state.errorInfo.componentStack}
+                      </pre>
+                    </div>
+                  )}
+                </div>
+                <Button
+                  onClick={this.handleCopyError}
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                >
+                  {this.state.copySuccess ? (
+                    <><Check className="w-3.5 h-3.5 mr-2 text-green-500" />Copied!</>
+                  ) : (
+                    <><Copy className="w-3.5 h-3.5 mr-2" />Copy full error</>
+                  )}
+                </Button>
+              </div>
             )}
 
             {/* Auto-retry countdown for chunk errors */}

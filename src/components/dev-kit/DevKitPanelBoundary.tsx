@@ -1,5 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { captureError } from '@/lib/monitoring';
 
@@ -11,7 +11,11 @@ interface Props {
 interface State {
   hasError: boolean;
   error: Error | null;
+  errorInfo: ErrorInfo | null;
   resetKey: number;
+  errorTimestamp: string | null;
+  errorRoute: string | null;
+  copySuccess: boolean;
 }
 
 /**
@@ -27,16 +31,27 @@ interface State {
  * so each panel gets its own boundary instance per mount.
  */
 export class DevKitPanelBoundary extends Component<Props, State> {
-  state: State = { hasError: false, error: null, resetKey: 0 };
+  state: State = {
+    hasError: false,
+    error: null,
+    errorInfo: null,
+    resetKey: 0,
+    errorTimestamp: null,
+    errorRoute: null,
+    copySuccess: false,
+  };
 
   static getDerivedStateFromError(error: Error): Partial<State> {
     return { hasError: true, error };
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    // Log so production monitoring still picks it up; keep DevKit shell alive.
-    // eslint-disable-next-line no-console
     console.error(`[DevKitPanelBoundary:${this.props.panelName}]`, error, info);
+    this.setState({
+      errorInfo: info,
+      errorTimestamp: new Date().toISOString(),
+      errorRoute: window.location.pathname + window.location.search,
+    });
     try {
       captureError(error, {
         type: 'devkit-panel-crash',
@@ -49,7 +64,35 @@ export class DevKitPanelBoundary extends Component<Props, State> {
   }
 
   handleReset = () => {
-    this.setState((s) => ({ hasError: false, error: null, resetKey: s.resetKey + 1 }));
+    this.setState((s) => ({
+      hasError: false,
+      error: null,
+      errorInfo: null,
+      resetKey: s.resetKey + 1,
+      errorTimestamp: null,
+      errorRoute: null,
+      copySuccess: false,
+    }));
+  };
+
+  handleCopy = () => {
+    const { error, errorInfo, errorTimestamp, errorRoute } = this.state;
+    const parts = [
+      `Panel: ${this.props.panelName}`,
+      `Error: ${error?.name ?? 'Error'}: ${error?.message ?? ''}`,
+      `Timestamp: ${errorTimestamp ?? new Date().toISOString()}`,
+      `Route: ${errorRoute ?? window.location.pathname}`,
+      '',
+      '--- Stack ---',
+      error?.stack ?? '(no stack)',
+      '',
+      '--- Component Stack ---',
+      errorInfo?.componentStack ?? '(no component stack)',
+    ];
+    navigator.clipboard.writeText(parts.join('\n')).then(() => {
+      this.setState({ copySuccess: true });
+      setTimeout(() => this.setState({ copySuccess: false }), 2000);
+    }).catch(() => undefined);
   };
 
   render() {
@@ -57,10 +100,10 @@ export class DevKitPanelBoundary extends Component<Props, State> {
       return <React.Fragment key={this.state.resetKey}>{this.props.children}</React.Fragment>;
     }
 
-    const message = this.state.error?.message || 'Unknown error';
+    const { error, errorInfo, errorTimestamp, errorRoute } = this.state;
 
     return (
-      <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 max-w-xl mx-auto my-8 space-y-4">
+      <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 max-w-2xl mx-auto my-8 space-y-4">
         <div className="flex items-start gap-3">
           <div className="rounded-lg p-2 bg-destructive/10 text-destructive shrink-0">
             <AlertTriangle className="w-5 h-5" />
@@ -72,12 +115,54 @@ export class DevKitPanelBoundary extends Component<Props, State> {
             <p className="text-xs text-muted-foreground">
               The rest of the DevKit is still working — switch tabs or retry below.
             </p>
-            <pre className="mt-3 text-[11px] font-mono text-destructive/80 bg-background/60 rounded-md p-2 max-h-32 overflow-auto whitespace-pre-wrap break-all">
-              {message}
-            </pre>
+            {(errorRoute || errorTimestamp) && (
+              <p className="text-[11px] font-mono text-muted-foreground">
+                {errorRoute && <span>Route: {errorRoute}</span>}
+                {errorRoute && errorTimestamp && <span> · </span>}
+                {errorTimestamp && <span>{errorTimestamp}</span>}
+              </p>
+            )}
           </div>
         </div>
-        <div className="flex justify-end">
+
+        <div className="space-y-3">
+          <div className="bg-background/60 rounded-md p-3 space-y-3">
+            <div>
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Error</p>
+              <pre className="text-[11px] font-mono text-destructive whitespace-pre-wrap break-all">
+                {error?.name ?? 'Error'}: {error?.message ?? 'Unknown error'}
+              </pre>
+            </div>
+            <div>
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Stack Trace</p>
+              <pre className="text-[11px] font-mono text-destructive/80 overflow-auto max-h-48 whitespace-pre-wrap break-all">
+                {error?.stack ?? '(no stack)'}
+              </pre>
+            </div>
+            {errorInfo?.componentStack && (
+              <div>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Component Stack</p>
+                <pre className="text-[11px] font-mono text-muted-foreground overflow-auto max-h-36 whitespace-pre-wrap break-all">
+                  {errorInfo.componentStack}
+                </pre>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={this.handleCopy}
+            className="flex items-center gap-2"
+          >
+            {this.state.copySuccess ? (
+              <><Check className="w-3.5 h-3.5 text-green-500" />Copied!</>
+            ) : (
+              <><Copy className="w-3.5 h-3.5" />Copy full error</>
+            )}
+          </Button>
           <Button
             variant="outline"
             size="sm"
