@@ -14,7 +14,6 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { useAuth } from '@/hooks/useAuth';
 import { useResumeMutations, useResume } from '@/hooks/useResumes';
 import { toast } from 'sonner';
-const ApplyPromptDialog = lazyWithRetry(() => import('@/components/applications/ApplyPromptDialog').then(m => ({ default: m.ApplyPromptDialog })));
 const ATSScanSheet = lazyWithRetry(() => import('@/components/editor/ATSScanSheet').then(m => ({ default: m.ATSScanSheet })));
 const ResumeSnapshotsSheet = lazyWithRetry(() => import('@/components/editor/ResumeSnapshotsSheet').then(m => ({ default: m.ResumeSnapshotsSheet })));
 const KeywordHighlighterSheet = lazyWithRetry(() => import('@/components/editor/KeywordHighlighterSheet').then(m => ({ default: m.KeywordHighlighterSheet })));
@@ -185,8 +184,6 @@ export default function EditorPage() {
   // experience level determines section order: 'student' puts education before experience
   const [educationFirst, setEducationFirst] = useState(false);
   const [showAIIntro, setShowAIIntro] = useState(false);
-  const [showApplyPrompt, setShowApplyPrompt] = useState(false);
-  const [lastAppliedJobInfo, setLastAppliedJobInfo] = useState<{ title: string; company: string; resumeId?: string; jobUrl?: string } | null>(null);
   const [moreSubSection, setMoreSubSection] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(() => {
     if (typeof window !== 'undefined' && window.innerWidth >= 900) {
@@ -754,11 +751,6 @@ export default function EditorPage() {
     toast.success('Customization applied ✓', { duration: 1500 });
   }, [currentResume]);
 
-  const handleTailorApplied = useCallback((info: { title: string; company: string; resumeId?: string; jobUrl?: string }) => {
-    setLastAppliedJobInfo(info);
-    setShowApplyPrompt(true);
-  }, []);
-
   // === GUARDS (all inline, no effects — deterministic) ===
   if (authLoading) return <EditorSkeleton />;
   if (!storeHydrated) return <EditorSkeleton />;
@@ -1073,7 +1065,7 @@ export default function EditorPage() {
           {/* LivePreviewSheet removed — mobile now uses inline Tabs */}
           {showJobSheet && <JobAnalysisSheet open={showJobSheet} onOpenChange={setShowJobSheet} />}
           {showTemplates && <TemplateSelector open={showTemplates} onOpenChange={setShowTemplates} onTemplateApplied={() => setTimeout(() => saveToCloud(), 0)} />}
-          {showTailor && <TailorSheet open={showTailor} onOpenChange={setShowTailor} onApplied={handleTailorApplied} />}
+          {showTailor && <TailorSheet open={showTailor} onOpenChange={setShowTailor} />}
           {showRecruiterSim && <RecruiterSimSheet open={showRecruiterSim} onOpenChange={setShowRecruiterSim} />}
           {showAIDetector && <AIDetectorSheet open={showAIDetector} onOpenChange={setShowAIDetector} />}
           {showLinkedIn && <LinkedInOptimizerSheet open={showLinkedIn} onOpenChange={setShowLinkedIn} />}
@@ -1110,16 +1102,6 @@ export default function EditorPage() {
             })() : undefined;
             return <CustomizeSheet open={showCustomize} onOpenChange={setShowCustomize} customization={currentResume?.customization} onApply={handleCustomizeApply} resumeData={rd} />;
           })()}
-          {lastAppliedJobInfo && (
-            <ApplyPromptDialog
-              open={showApplyPrompt}
-              onOpenChange={setShowApplyPrompt}
-              jobTitle={lastAppliedJobInfo.title}
-              company={lastAppliedJobInfo.company}
-              resumeId={lastAppliedJobInfo.resumeId}
-              jobUrl={lastAppliedJobInfo.jobUrl}
-            />
-          )}
           {showATSScan && <ATSScanSheet open={showATSScan} onOpenChange={setShowATSScan} summary={scanSummary} onJumpToSection={handleTabChange} />}
           {showSnapshots && (
             <ResumeSnapshotsSheet

@@ -61,7 +61,6 @@ import { Json } from '@/integrations/supabase/types';
 interface TailorSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onApplied?: (info: { title: string; company: string; resumeId?: string; jobUrl?: string }) => void;
 }
 
 const SECTION_LABELS: Record<TailorSectionId, string> = {
@@ -203,7 +202,7 @@ const SECTION_ATS_WEIGHTS: Record<TailorSectionId, number> = {
   awards: 0.02,
 };
 
-export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApplied }: TailorSheetProps) {
+export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: TailorSheetProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { 
@@ -658,8 +657,6 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
       const co = parsedJobInfo?.company || tailorResult.jobParsed?.company || 'Company';
       const newResumeId = newResume?.id;
 
-      onApplied?.({ title: jt, company: co, resumeId: newResumeId, jobUrl });
-
       setAppliedResumeId(newResumeId || null);
       setAppliedJobInfo({ title: jt, company: co });
       setAppliedMergedResume(mergedResume);
@@ -675,7 +672,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
     } finally {
       setIsApplying(false);
     }
-  }, [tailorResult, currentResume, user, enabledSections, rejectedBullets, parsedJobInfo, currentResumeId, jobDescription, addTailorHistory, onOpenChange, clearPendingTailor, jobUrl, onApplied, navigate]);
+  }, [tailorResult, currentResume, user, enabledSections, rejectedBullets, parsedJobInfo, currentResumeId, jobDescription, addTailorHistory, onOpenChange, clearPendingTailor, jobUrl, navigate]);
 
   const handleCopyPlainText = useCallback(async () => {
     if (!currentResume || !tailorResult) return;
