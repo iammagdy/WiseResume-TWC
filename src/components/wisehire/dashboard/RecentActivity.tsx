@@ -72,7 +72,16 @@ export function RecentActivity() {
   if (!data || data.length === 0) {
     return (
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
-        <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">Recent Activity</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Recent Activity</h2>
+          <Link
+            to="/wisehire/pipeline"
+            className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 hover:underline"
+          >
+            Pipeline
+            <ArrowRight className="h-3 w-3" />
+          </Link>
+        </div>
         <div className="flex flex-col items-center py-6 text-center">
           <Clock className="h-6 w-6 text-slate-300 dark:text-slate-600 mb-2" />
           <p className="text-xs text-slate-400 dark:text-slate-500">
