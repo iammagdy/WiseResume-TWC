@@ -91,10 +91,10 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
   const textCard = (
     <motion.div
       variants={textSlide}
-      className="lp-stack-pane flex flex-col justify-center gap-5 p-8"
+      className="lp-stack-pane flex flex-col justify-center gap-5 p-6"
       style={{
         borderRadius: 24,
-        minHeight: 280,
+        minHeight: 200,
       }}
     >
       {data.categoryLabel && (
@@ -148,7 +148,7 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
       className="lp-stack-pane flex items-center justify-center p-6"
       style={{
         borderRadius: 24,
-        minHeight: 280,
+        minHeight: 200,
       }}
     >
       {/* Phase 4: parallax wrapper is a plain div so its CSS transform
@@ -228,7 +228,7 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
     >
       <div
         className="max-w-6xl mx-auto w-full relative"
-        style={{ padding: 'clamp(48px, 6vw, 80px) clamp(20px, 4vw, 40px)' }}
+        style={{ padding: 'clamp(24px, 3vw, 44px) clamp(20px, 4vw, 40px)' }}
       >
         {/* Watermark big label — anchored INSIDE the bounded container so
             it can never escape the rounded card edge during scroll-stack
@@ -259,9 +259,8 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
         </span>
         <motion.div
           variants={containerVariants}
-          initial={prefersReducedMotion ? 'visible' : 'hidden'}
-          whileInView="visible"
-          viewport={{ once: true, amount: 0.1 }}
+          initial="visible"
+          animate="visible"
         >
           <div
             className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4"

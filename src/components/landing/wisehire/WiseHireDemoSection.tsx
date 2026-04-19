@@ -19,7 +19,7 @@ const OfferTrackerDemo = lazy(() => import('./OfferTrackerDemo').then((m) => ({ 
    drifts while a user is reading another section. Sized to fit the
    tallest demo's tallest animation frame; smaller demos sit top-aligned
    inside the reserved frame. */
-const DEMO_SLOT_HEIGHT = 380;
+const DEMO_SLOT_HEIGHT = 300;
 
 const DemoFallback = () => (
   <div aria-hidden="true" style={{ height: DEMO_SLOT_HEIGHT, width: '100%' }} />
@@ -169,10 +169,10 @@ export function WiseHireDemoSection() {
             <div
               className="max-w-6xl mx-auto w-full"
               style={{
-                padding: 'clamp(32px, 4vw, 56px) clamp(20px, 4vw, 40px)',
+                padding: 'clamp(20px, 3vw, 36px) clamp(20px, 4vw, 40px)',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: 24,
+                gap: 16,
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
