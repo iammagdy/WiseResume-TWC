@@ -218,7 +218,6 @@ export function WiseHireDemoSection() {
                   measurements stay stable and the page no longer drifts
                   while a demo's animation cycles. */}
               <div
-                className="lp-stack-parallax"
                 style={{
                   height: DEMO_SLOT_HEIGHT,
                   display: 'flex',
