@@ -150,18 +150,28 @@ function buildNotificationEmail(
   return `
 <!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"></head>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    @media only screen and (max-width: 560px) {
+      .notif-header { padding: 16px 20px !important; }
+      .notif-body   { padding: 20px 20px !important; }
+      .notif-footer { padding: 14px 20px 20px !important; }
+    }
+  </style>
+</head>
 <body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f8fafc;">
   <table width="100%" cellpadding="0" cellspacing="0" style="padding:32px 16px;">
     <tr><td align="center">
-      <table width="520" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;">
         <tr>
-          <td style="background:${WISEHIRE_BLUE};padding:20px 32px;">
+          <td class="notif-header" style="background:${WISEHIRE_BLUE};padding:20px 32px;">
             <div style="font-size:16px;font-weight:700;color:#fff;">🎯 New WiseHire Waitlist Signup</div>
           </td>
         </tr>
         <tr>
-          <td style="padding:28px 32px;">
+          <td class="notif-body" style="padding:28px 32px;">
             <table width="100%" cellpadding="0" cellspacing="0">
               <tr><td style="padding:8px 0;border-bottom:1px solid #f1f5f9;">
                 <span style="font-size:12px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;">Name</span><br>
@@ -187,7 +197,7 @@ function buildNotificationEmail(
           </td>
         </tr>
         <tr>
-          <td style="padding:16px 32px 24px;background:#f8fafc;border-top:1px solid #e2e8f0;">
+          <td class="notif-footer" style="padding:16px 32px 24px;background:#f8fafc;border-top:1px solid #e2e8f0;">
             <a href="https://resume.thewise.cloud/dashboard" style="font-size:13px;color:${WISEHIRE_BLUE};text-decoration:none;">
               View in Dev Kit →
             </a>
