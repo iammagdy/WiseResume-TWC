@@ -1,6 +1,6 @@
 # Hooks (`src/hooks/`)
 
-**Last verified:** 2026-04-26
+**Last verified:** 2026-04-19
 **Type:** reference card
 **Sources:**
 - `src/hooks/`
@@ -26,8 +26,12 @@
 |---|---|---|
 | `['me', user?.id]` | `useMe` | `token-exchange`, plan change mutations |
 | `['ai-keys']` | `AIKeySection` in `WiseHireSettingsPage` (staleTime 30 s) | `AISettingsSheet` on key save and key delete → `queryClient.invalidateQueries({ queryKey: ['ai-keys'] })` |
+| `['chat_sessions', user?.id]` | `useChatSessions` (staleTime 30 s) | `useDeleteChatSession` → `invalidateQueries({ queryKey: ['chat_sessions', user?.id] })` |
+| `['resume-versions', resumeId]` | `useResumeVersions(resumeId)` | `saveVersion.onSuccess` → `invalidateQueries(['resume-versions', variables.resumeId])`; `deleteVersion.onSuccess` → same scoped key |
 
 **Rule:** any component that reads BYOK connection state should consume the `['ai-keys']` cache rather than fetching independently.
+
+**Rule:** chat session and resume version cache keys are always scoped to their entity ID — never use the bare prefix (`['chat_sessions']` or `['resume-versions']`) for reads or invalidations.
 
 ## AI hooks
 

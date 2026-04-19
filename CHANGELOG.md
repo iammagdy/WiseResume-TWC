@@ -1,5 +1,35 @@
 # Changelog
 
+## 2026-04-19 — Fix two React Query cache bugs in WiseResume (Task #50)
+
+- **`src/hooks/useChatHistory.ts`** — `useChatSessions`: added `user` to `useAuth()` destructure; queryKey changed from `['chat_sessions']` to `['chat_sessions', user?.id]`. `useDeleteChatSession`: added `const { user } = useAuth()`; `invalidateQueries` target updated to `['chat_sessions', user?.id]`. Prevents cross-user session cache bleed during account switching within a single browser tab.
+- **`src/hooks/useResumeVersions.ts`** — `deleteVersion` mutationFn input changed from `versionId: string` to `{ versionId: string; resumeId: string }`; `onSuccess` now invalidates `['resume-versions', variables.resumeId]` instead of the global prefix `['resume-versions']`. Prevents unnecessary refetches of all other open resumes' version lists on delete.
+- **`src/components/editor/VersionHistorySheet.tsx`** — `deleteVersion.mutate(version.id)` → `deleteVersion.mutate({ versionId: version.id, resumeId: resumeId! })`.
+
+---
+
+## 2026-04-19 — refundCredit() on all AI failure paths across 24 edge functions (Task #49)
+
+Added credit refunds to every failure path that occurs after `checkAndDeductCredit()` in all 24 WiseResume AI edge functions. No-ops for BYOK/unlimited users.
+
+**Functions patched** (all refund on AI call exceptions, empty/null content, and unparseable JSON):
+- 1-credit: `analyze-resume`, `career-assessment`, `career-path-advisor`, `one-page-optimizer`, `recruiter-simulation`, `generate-resignation-letter`, `explain-gap`, `fill-gap`, `tailor-section`, `company-briefing`, `optimize-for-linkedin`, `parse-linkedin`, `generate-question-bank`, `suggest-template`, `detect-and-humanize`, `enhance-section`, `generate-headshot`, `parse-job-url`, `parse-job-text`, `elevenlabs-scribe-token`, `parse-resume`
+- 2-credit: `generate-cover-letter`, `tailor-resume` (Stage 2 only)
+- Multi-path: `generate-portfolio-bio` (7 separate callAI paths)
+
+**Structural fixes required for correct scoping:**
+- `detect-and-humanize/index.ts`: hoisted `creditCheck` before detect/humanize if-blocks so both branches share the same reference.
+- `parse-job-text/index.ts`: hoisted `creditCheck` before inner AI try block.
+- `elevenlabs-scribe-token/index.ts`: hoisted `creditCheck` out of `!hasByokKey` block.
+- `parse-resume/index.ts`: hoisted `_refundUserId` before outer try; inner catch refunds on 429 rate-limit and on service-unavailable fallback (503/500/0/401/403/404) even when `localParseResume` succeeds; outer catch refund guarded by `if (creditCheck && _refundUserId)`.
+- `generate-headshot/index.ts`: added try/catch around `response.json()` with refund; added refund before `!imagePart?.inlineData` 500 return.
+- `parse-linkedin/index.ts`: added refund before `throw new Error("No structured data returned from AI")`.
+- `enhance-section/index.ts`: added refund before `throw new Error('No content in AI response')`.
+
+**Stale comments removed:** "Atomically deduct credits server-side…" comments deleted from 12 files via sed.
+
+---
+
 ## 2026-04-19 — Edge function redeploy + GitHub sync (maintenance)
 
 - Deployed 7 updated Supabase Edge Functions to project `jnsfmkzgxsviuthaqlyy` via Supabase CLI v2.90.0: `track-portfolio-view`, `portfolio-interest`, `resolve-short-link`, `admin-portfolio-usernames`, `generate-cover-letter`, `generate-resignation-letter`, `weekly-digest`.

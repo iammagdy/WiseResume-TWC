@@ -1,10 +1,30 @@
 # Stability Improvements — What's Getting Better Behind the Scenes
 
-**Last verified:** 2026-04-19
+**Last verified:** 2026-04-19 (Tasks #49, #50 added)
 **Audience:** you (the owner). No code, no jargon, no technical paths.
 **Sources (governance — supreme):**
 - `project-governance/CHANGELOG.md` entries dated 2026-04-18 (Stability Fixes — Phases 1 to 6)
 - `project-governance/CONSTITUTION.md` §6.5–§6.6 (the rule that says every change must be documented for you, in plain English, alongside the engineering record)
+
+---
+
+## Credits are now always returned when an AI feature fails (2026-04-19)
+
+**What was the situation:** When any of the app's 24 AI tools encountered an error — a timeout, a model failure, or an unreadable AI response — the credit was already deducted and was simply lost. The user paid for something they never received.
+
+**What changed:** Every AI tool now automatically returns the credit the moment it detects a failure, regardless of the type of failure. This includes cases where the AI responds with something unparseable, where the AI service is temporarily unavailable, and even where the resume parser falls back to a basic local algorithm because the AI was unreachable. The refund is instant and requires no action from the user.
+
+**What you'll notice:** Users will no longer complain about losing credits when AI features don't work. Their credit balance stays accurate.
+
+---
+
+## Switching accounts no longer briefly shows the previous user's AI chat sessions (2026-04-19)
+
+**What was the situation:** If two different users signed in one after the other in the same browser tab without a full page refresh, the second user could briefly see the first user's Wise AI Chat session list during the first 30 seconds of their session, before the cache refreshed.
+
+**What changed:** The chat session list is now tied directly to the signed-in user's account ID in the app's data cache. Switching accounts immediately loads only the correct user's sessions with no bleed-over period. Separately, deleting a resume version now only refreshes the version list for that specific resume, rather than all resumes the user has open at once.
+
+**What you'll notice:** No visible change in normal single-user use. Multi-user scenarios on the same browser are now safe.
 
 ---
 
