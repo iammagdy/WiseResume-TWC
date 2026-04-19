@@ -118,15 +118,13 @@ Deno.serve(async (req: Request) => {
 
     // Persist a tokenized interaction record — ON CONFLICT (token) means duplicate
     // submissions from the same client are silently deduplicated at the DB level.
+    // portfolio_id is the stable FK; the legacy portfolio_username column has been
+    // dropped by migration 20260419000000 — do NOT reference it here.
     const { error: insertError } = await supabase
       .from('portfolio_interactions')
       .insert({
         token: safeToken,
         portfolio_id: portfolioRow.id,
-        // Legacy column kept populated for one release as a fallback. Use
-        // the canonical portfolios.username so the FK is always satisfied
-        // even if profiles.username has drifted via an in-flight rename.
-        portfolio_username: portfolioRow.username,
         interaction_type: 'interested',
         referrer_hostname: referrerHostname,
       });

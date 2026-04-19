@@ -34,8 +34,8 @@ These have confirmed call sites in `src/`:
 | `parse-job-url` | `src/lib/aiTailor.ts`, `src/components/applications/AddApplicationSheet.tsx` |
 | `suggest-template` | `src/components/editor/TemplateAdvisorSheet.tsx` |
 | `ai-test` | `src/components/dev-kit/DevKitRunner.tsx`, `src/components/settings/AISettingsSheet.tsx` |
-| `generate-cover-letter` | Cover Letter sheet — letters are persisted to `cover_letters` on each successful generation |
-| `generate-resignation-letter` | Resignation Letter sheet — letters are persisted to `resignation_letters` on each successful generation |
+| `generate-cover-letter` | Cover Letter sheet — each generation is persisted to `cover_letters` via `_shared/letterPersistence.ts` |
+| `generate-resignation-letter` | Resignation Letter sheet — each generation is persisted to `resignation_letters` via `_shared/letterPersistence.ts` |
 
 ## Removed in Task #1 / Phase 7 (2026-04-18)
 
@@ -50,28 +50,33 @@ Supabase dashboard the next time someone has admin access.
 | `send-feature-request` | All UI now uses `send-contact-email`. | `send-contact-email` |
 | `send-contact-inquiry` | Same — UI consolidated on `send-contact-email`. | `send-contact-email` |
 
-## Ghost functions — PENDING HUMAN ACTION
+## ⚠️ Ghost Functions — MANUAL DASHBOARD DELETION REQUIRED
 
-> ⚠️ **Action required:** A developer with Supabase dashboard access must manually
-> delete the four functions below. They have **no source** in this repo and cannot
-> be deployed, updated, or monitored from CI. Until deleted they consume project
-> resources and represent an unaudited attack surface.
->
-> **Steps:**
-> 1. Open the Supabase dashboard → Edge Functions.
-> 2. Delete each function listed in the table below.
-> 3. Update the status column in this file from `PENDING DELETION` to
->    `CONFIRMED DELETED — <date> — <engineer>`.
+The four functions below are deployed on Supabase but have **no source in this repo**.
+They cannot be updated or monitored from CI. They should be deleted from the
+Supabase dashboard by a developer with admin access.
 
-These four were identified in the April 18 backend audit as deployed on Supabase
-but absent from this repo:
+**Until deleted, update the "Deletion Status" column below with the date and your name
+to confirm the action is complete.**
 
-| Function | Recommendation | Status |
+### How to delete them
+
+1. Open [Supabase Dashboard → Edge Functions](https://supabase.com/dashboard).
+2. Find each function in the table below.
+3. Click the function → Settings → Delete.
+4. After deleting, edit this file and change `PENDING DELETION` to
+   `DELETED <YYYY-MM-DD> by <engineer-name>`.
+
+| Function | Reason for removal | Deletion Status |
 |---|---|---|
-| `clerk-webhook` | Leftover from a prior Clerk auth integration. Kinde is the active provider. Delete. | **PENDING DELETION** |
-| `fetch-github-projects` | Writes to `profiles.github_projects_cache`. Delete if the "Sync GitHub" UI is not wired up (confirmed: no frontend caller). | **PENDING DELETION** |
-| `proofread-resume` | No source in repo — pull the deployed source back in if still needed, otherwise delete. | **PENDING DELETION** |
-| `send-bug-report` | No source in repo — pull the deployed source back in if still needed, otherwise delete. | **PENDING DELETION** |
+| `clerk-webhook` | Leftover from a prior Clerk auth integration. Kinde is the active provider — this webhook is dead code. | **PENDING DELETION** |
+| `fetch-github-projects` | No active frontend caller. Only needed if a "Sync GitHub" UI exists (confirmed: none). | **PENDING DELETION** |
+| `proofread-resume` | No source in this repo. Pull deployed source back in if still needed, otherwise delete. | **PENDING DELETION** |
+| `send-bug-report` | No source in this repo. Pull deployed source back in if still needed, otherwise delete. | **PENDING DELETION** |
+
+> **Note:** The actual dashboard deletion is a human action and cannot be automated
+> from this repository. This file serves as the tracking record. Once a developer
+> has completed the deletions, they should update the table above and commit the change.
 
 ## Orphaned / pending wire-up (kept for now)
 

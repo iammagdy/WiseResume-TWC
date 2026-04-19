@@ -38,7 +38,6 @@ export interface ShortLink {
   id: string;
   owner_user_id: string;
   portfolio_id: string | null;
-  portfolio_username: string | null;
   label: string;
   click_count: number;
   created_at: string;
@@ -107,11 +106,11 @@ export function usePortfolioAnalytics(username: string | undefined) {
 
 /**
  * Fetch short links owned by the current user.
- * Queries by stable `portfolio_id` (resolved from `portfolios.user_id`) when
- * available; falls back to the legacy `portfolio_username` column for rows that
- * pre-date the April-18 migration back-fill.
+ * Queries exclusively by stable `portfolio_id` (resolved from `portfolios.user_id`).
+ * The legacy `portfolio_username` text column has been removed from `short_links`
+ * by migration 20260419000000 — do NOT add it back here.
  */
-export function useShortLinks(userId: string | undefined, portfolioUsername: string | undefined) {
+export function useShortLinks(userId: string | undefined, _portfolioUsername?: string | undefined) {
   return useQuery<ShortLink[]>({
     queryKey: ['short-links', userId],
     queryFn: async () => {
@@ -127,9 +126,7 @@ export function useShortLinks(userId: string | undefined, portfolioUsername: str
 
       const { data, error } = portfolioId
         ? await baseQuery.eq('portfolio_id', portfolioId)
-        : portfolioUsername
-          ? await baseQuery.eq('portfolio_username', portfolioUsername.toLowerCase())
-          : await baseQuery;
+        : await baseQuery;
 
       if (error) throw error;
       return (data ?? []) as ShortLink[];
@@ -163,7 +160,6 @@ export function useCreateShortLink() {
             id: slug,
             owner_user_id: userId,
             portfolio_id: portfolioId,
-            portfolio_username: portfolioUsername?.toLowerCase() ?? null,
             label: label.trim() || 'My Link',
             target_url: targetUrl ?? (portfolioUsername ? `/p/${portfolioUsername.toLowerCase()}` : null),
           } as any)
