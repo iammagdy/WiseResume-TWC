@@ -827,6 +827,7 @@ serve(async (req) => {
 
     const content = aiResponse.content;
     if (!content) {
+      await refundCredit(userId, creditCheck, 1);
       throw new Error('No content in AI response');
     }
 

@@ -150,7 +150,13 @@ serve(async (req) => {
       );
     }
 
-    const data = await response.json();
+    let data;
+    try {
+      data = await response.json();
+    } catch (parseErr) {
+      await refundCredit(userId, creditCheck, 1);
+      throw parseErr;
+    }
     console.log("Gemini response received");
 
     // Extract the generated image from the Gemini native response
@@ -159,6 +165,7 @@ serve(async (req) => {
 
     if (!imagePart?.inlineData) {
       console.error("No image in response:", JSON.stringify(data).slice(0, 500));
+      await refundCredit(userId, creditCheck, 1);
       return new Response(
         JSON.stringify({ error: "No image generated. The AI might not have been able to process your photo. Note: image generation may require a paid Gemini API key." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

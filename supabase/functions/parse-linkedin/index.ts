@@ -221,6 +221,7 @@ Extract certifications from the "Licenses & Certifications" section, volunteerin
       extractedData = parseAIJSON(aiResponse.content);
     }
     if (!extractedData) {
+      await refundCredit(userId, creditCheck, 1);
       throw new Error("No structured data returned from AI");
     }
 
