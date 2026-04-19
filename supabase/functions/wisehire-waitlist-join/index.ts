@@ -295,33 +295,24 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Check if this email already has a WiseResume account via Auth Admin REST API.
-    // We use a raw fetch (not listUsers) to avoid paginating through all users.
-    // per_page=50 provides ample headroom for substring matches on the search term.
+    // Check if this email already has a WiseResume account via a direct SQL lookup
+    // on auth.users. Using supabase.rpc() is bulletproof: exact-match, no pagination
+    // edge cases, and no reliance on undocumented GoTrue query params.
     const normalizedEmail = email.trim().toLowerCase();
-    const authSearchRes = await fetch(
-      `${Deno.env.get("SUPABASE_URL")}/auth/v1/admin/users?search=${encodeURIComponent(normalizedEmail)}&per_page=50`,
-      {
-        headers: {
-          apikey: Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-          Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!}`,
-        },
-      }
+    const { data: emailExists, error: rpcError } = await supabase.rpc(
+      "check_email_exists",
+      { p_email: normalizedEmail }
     );
-    if (!authSearchRes.ok) {
-      // Auth service unavailable — fail closed to avoid inserting a user who may already
+    if (rpcError) {
+      // DB unavailable — fail closed to avoid inserting a user who may already
       // have a WiseResume account. The client can retry.
-      console.error("[wisehire-waitlist-join] Auth user lookup failed:", authSearchRes.status, await authSearchRes.text().catch(() => ""));
+      console.error("[wisehire-waitlist-join] check_email_exists RPC error:", rpcError.message);
       return new Response(
         JSON.stringify({ error: "Service temporarily unavailable. Please try again in a moment." }),
         { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-    const authSearchData = await authSearchRes.json();
-    const isExistingWiseResumeUser = (authSearchData?.users ?? []).some(
-      (u: { email?: string }) => u.email?.toLowerCase() === normalizedEmail
-    );
-    if (isExistingWiseResumeUser) {
+    if (emailExists === true) {
       return new Response(
         JSON.stringify({
           success: true,
