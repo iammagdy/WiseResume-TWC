@@ -237,14 +237,14 @@ export default function WiseHireAnalyticsPage() {
         ) : error ? (
           <div className="py-12 text-center text-sm text-slate-500">Failed to load analytics. Please refresh.</div>
         ) : data ? (
-          // Show empty state only when ALL key metrics are zero for the period.
-          // If talent pool views or briefs exist for the window, render the
-          // full dashboard (candidate charts will simply show zero bars).
-          data.totalCandidates === 0 && data.talentPoolViews === 0 && data.briefsGenerated === 0 ? (
-            dateRange === 'all'
-              ? <OnboardingEmptyState />
-              : <NoActivityInPeriod rangeLabel={rangeLabel} />
-          ) : (
+          // All-time + no candidates → onboarding CTA (spec-driven).
+          // Filtered range + no candidates AND no other activity → lighter "no activity" state.
+          // Filtered range with some non-candidate activity (views/briefs) → show full dashboard.
+          (dateRange === 'all' && data.totalCandidates === 0)
+            ? <OnboardingEmptyState />
+            : (dateRange !== 'all' && data.totalCandidates === 0 && data.talentPoolViews === 0 && data.briefsGenerated === 0)
+              ? <NoActivityInPeriod rangeLabel={rangeLabel} />
+              : (
             <>
               {/* Stat cards row 1 */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
