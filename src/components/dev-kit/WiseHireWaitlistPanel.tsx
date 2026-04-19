@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   RefreshCw,
   Search,
@@ -12,6 +12,7 @@ import {
   ChevronRight,
   XCircle,
   UserCheck,
+  History,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -45,6 +46,14 @@ interface WaitlistEntry {
 interface InviteResult {
   invite_url: string;
   expires_at: string;
+}
+
+interface InviteHistoryRow {
+  id: string;
+  sent_at: string;
+  expires_at: string;
+  used_at: string | null;
+  status: 'active' | 'used' | 'revoked' | 'expired';
 }
 
 const PER_PAGE = 25;
@@ -88,6 +97,11 @@ export function WiseHireWaitlistPanel() {
   const [revoking, setRevoking] = useState<string | null>(null);
   const [revokeTarget, setRevokeTarget] = useState<WaitlistEntry | null>(null);
 
+  const [historyTarget, setHistoryTarget] = useState<WaitlistEntry | null>(null);
+  const [historyRows, setHistoryRows] = useState<InviteHistoryRow[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+
   const isMounted = useIsMounted();
 
   const fetchEntries = useCallback(async (pageNum: number, searchVal: string) => {
@@ -110,6 +124,30 @@ export function WiseHireWaitlistPanel() {
   }, [isMounted]);
 
   useEffect(() => { fetchEntries(page, search); }, [fetchEntries, page, search]);
+
+  const historyRequestEmail = useRef<string>('');
+
+  const openHistory = useCallback(async (entry: WaitlistEntry) => {
+    const requestedEmail = entry.email;
+    historyRequestEmail.current = requestedEmail;
+    setHistoryTarget(entry);
+    setHistoryRows([]);
+    setHistoryError(null);
+    setHistoryLoading(true);
+    try {
+      const tuple = await edgeFunctions.functions.invoke('admin-wisehire-waitlist', {
+        body: { password: getDevKitToken(), history_email: requestedEmail },
+      });
+      if (!isMounted() || historyRequestEmail.current !== requestedEmail) return;
+      const result = unwrapAdminResponse<{ history?: InviteHistoryRow[] }>(tuple, 'admin-wisehire-waitlist');
+      setHistoryRows(result.history ?? []);
+    } catch (e) {
+      if (!isMounted() || historyRequestEmail.current !== requestedEmail) return;
+      setHistoryError(formatEdgeError(e, 'Failed to load invite history'));
+    } finally {
+      if (isMounted() && historyRequestEmail.current === requestedEmail) setHistoryLoading(false);
+    }
+  }, [isMounted]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -280,6 +318,20 @@ export function WiseHireWaitlistPanel() {
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1.5">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 text-xs gap-1.5 text-muted-foreground hover:text-foreground"
+                            onClick={() => openHistory(entry)}
+                            title="View invite history"
+                            disabled={historyLoading && historyTarget?.id === entry.id}
+                          >
+                            {historyLoading && historyTarget?.id === entry.id
+                              ? <Loader2 className="w-3 h-3 animate-spin" />
+                              : <History className="w-3 h-3" />
+                            }
+                            Activity
+                          </Button>
                           {isActive ? (
                             <span className="text-xs text-muted-foreground">Signed up</span>
                           ) : isInvited ? (
@@ -418,6 +470,78 @@ export function WiseHireWaitlistPanel() {
               {revoking !== null ? <Loader2 className="w-3 h-3 animate-spin mr-1.5" /> : null}
               Revoke invite
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={historyTarget !== null} onOpenChange={(open) => { if (!open) { setHistoryTarget(null); setHistoryRows([]); setHistoryError(null); } }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <History className="w-5 h-5 text-muted-foreground" />
+              Invite history
+            </DialogTitle>
+            <DialogDescription>
+              All invites sent to <strong className="text-foreground">{historyTarget?.email}</strong>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="pt-1">
+            {historyLoading && (
+              <div className="flex items-center justify-center py-8 text-muted-foreground gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span className="text-sm">Loading…</span>
+              </div>
+            )}
+            {historyError && !historyLoading && (
+              <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-sm text-destructive">{historyError}</div>
+            )}
+            {!historyLoading && !historyError && historyRows.length === 0 && (
+              <div className="text-center py-8 text-muted-foreground">
+                <History className="w-6 h-6 mx-auto mb-2 opacity-40" />
+                <p className="text-sm">No invites have been sent yet.</p>
+              </div>
+            )}
+            {!historyLoading && historyRows.length > 0 && (
+              <div className="rounded-lg border border-border overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-muted/40 border-b border-border">
+                      <th className="text-left px-3 py-2 font-medium text-muted-foreground text-xs">Sent</th>
+                      <th className="text-left px-3 py-2 font-medium text-muted-foreground text-xs">Expires</th>
+                      <th className="text-left px-3 py-2 font-medium text-muted-foreground text-xs">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {historyRows.map((row) => (
+                      <tr key={row.id} className="border-b border-border last:border-0">
+                        <td className="px-3 py-2 text-xs text-foreground">{formatDate(row.sent_at)}</td>
+                        <td className="px-3 py-2 text-xs text-muted-foreground">{formatDate(row.expires_at)}</td>
+                        <td className="px-3 py-2">
+                          {row.status === 'used' ? (
+                            <Badge variant="outline" className="text-blue-600 border-blue-500/20 bg-blue-500/10 gap-1 text-xs">
+                              <UserCheck className="w-3 h-3" />
+                              Used
+                            </Badge>
+                          ) : row.status === 'active' ? (
+                            <Badge variant="outline" className="text-green-600 border-green-500/20 bg-green-500/10 gap-1 text-xs">
+                              <CheckCircle2 className="w-3 h-3" />
+                              Active
+                            </Badge>
+                          ) : row.status === 'revoked' ? (
+                            <Badge variant="outline" className="text-orange-600 border-orange-500/20 bg-orange-500/10 gap-1 text-xs">
+                              <XCircle className="w-3 h-3" />
+                              Revoked
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-muted-foreground text-xs">Expired</Badge>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>

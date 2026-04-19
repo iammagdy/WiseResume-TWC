@@ -16,11 +16,12 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { password, page = 1, per_page = 25, search = '' } = body as {
+    const { password, page = 1, per_page = 25, search = '', history_email } = body as {
       password: string;
       page?: number;
       per_page?: number;
       search?: string;
+      history_email?: string;
     };
 
     try {
@@ -31,6 +32,47 @@ Deno.serve(async (req) => {
     }
 
     const supabase = getServiceClient();
+
+    if (history_email) {
+      const normalizedEmail = history_email.toLowerCase().trim();
+      const { data: invites, error: inviteError } = await supabase
+        .from('wisehire_invites')
+        .select('id, created_at, expires_at, used_at, is_revoked')
+        .eq('recipient_email', normalizedEmail)
+        .order('created_at', { ascending: false });
+
+      if (inviteError) throw inviteError;
+
+      const now = new Date();
+      const history = (invites ?? []).map((inv: {
+        id: string;
+        created_at: string;
+        expires_at: string;
+        used_at: string | null;
+        is_revoked: boolean;
+      }) => {
+        let status: 'used' | 'revoked' | 'expired' | 'active';
+        if (inv.used_at) {
+          status = 'used';
+        } else if (inv.is_revoked) {
+          status = 'revoked';
+        } else if (new Date(inv.expires_at) < now) {
+          status = 'expired';
+        } else {
+          status = 'active';
+        }
+        return {
+          id: inv.id,
+          sent_at: inv.created_at,
+          expires_at: inv.expires_at,
+          used_at: inv.used_at,
+          status,
+        };
+      });
+
+      return json({ success: true, history }, 200, corsHeaders);
+    }
+
     const offset = (page - 1) * per_page;
 
     let query = supabase
