@@ -1,5 +1,6 @@
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useState, type ReactNode } from "react";
 import { Toaster } from "@/components/ui/sonner";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useDeepLinking } from "./hooks/useDeepLinking";
 import { Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useBackButton } from "@/hooks/useBackButton";
@@ -213,6 +214,10 @@ function FeatureGate({
   return <>{children}</>;
 }
 
+function RouteEB({ children }: { children: ReactNode }) {
+  return <ErrorBoundary routeScoped>{children}</ErrorBoundary>;
+}
+
 function AppRoutes() {
   useBackButton();
   useStatusBarThemeSync();
@@ -313,125 +318,125 @@ function AppRoutes() {
         )}
         <Routes>
           {/* Public routes */}
-          <Route path="/" element={<Suspense fallback={<LandingSkeleton />}><Index /></Suspense>} />
-          <Route path="/enterprises" element={<Suspense fallback={<LandingSkeleton />}><Index /></Suspense>} />
+          <Route path="/" element={<RouteEB><Suspense fallback={<LandingSkeleton />}><Index /></Suspense></RouteEB>} />
+          <Route path="/enterprises" element={<RouteEB><Suspense fallback={<LandingSkeleton />}><Index /></Suspense></RouteEB>} />
            <Route element={<AppShell />}>
-               <Route path="/auth" element={<Suspense fallback={<AuthSkeleton />}><AuthPage /></Suspense>} />
-               <Route path="/sign-in" element={<Suspense fallback={<AuthSkeleton />}><AuthPage /></Suspense>} />
+               <Route path="/auth" element={<RouteEB><Suspense fallback={<AuthSkeleton />}><AuthPage /></Suspense></RouteEB>} />
+               <Route path="/sign-in" element={<RouteEB><Suspense fallback={<AuthSkeleton />}><AuthPage /></Suspense></RouteEB>} />
                
-              <Route path="/auth/callback" element={<Suspense fallback={<PageLoadingSpinner />}><AuthCallbackPage /></Suspense>} />
-              <Route path="/auth/verify-email" element={<Suspense fallback={<PageLoadingSpinner />}><AuthVerifyEmailPage /></Suspense>} />
-              <Route path="/auth/reset-password" element={<Suspense fallback={<PageLoadingSpinner />}><AuthResetPasswordPage /></Suspense>} />
-              <Route path="/privacy-policy" element={<Suspense fallback={<PageLoadingSpinner />}><PrivacyPage /></Suspense>} />
-               <Route path="/terms-of-service" element={<Suspense fallback={<PageLoadingSpinner />}><TermsPage /></Suspense>} />
+              <Route path="/auth/callback" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><AuthCallbackPage /></Suspense></RouteEB>} />
+              <Route path="/auth/verify-email" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><AuthVerifyEmailPage /></Suspense></RouteEB>} />
+              <Route path="/auth/reset-password" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><AuthResetPasswordPage /></Suspense></RouteEB>} />
+              <Route path="/privacy-policy" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><PrivacyPage /></Suspense></RouteEB>} />
+               <Route path="/terms-of-service" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><TermsPage /></Suspense></RouteEB>} />
                
            </Route>
 
           {/* Public marketing routes — no AppShell, no auth required */}
-          <Route path="/pricing" element={<Suspense fallback={<PageLoadingSpinner />}><PricingPage /></Suspense>} />
-          <Route path="/whats-new" element={<Suspense fallback={<PageLoadingSpinner />}><WhatsNewPage /></Suspense>} />
-          <Route path="/waitlist" element={<Suspense fallback={<PageLoadingSpinner />}><WaitlistPage /></Suspense>} />
+          <Route path="/pricing" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><PricingPage /></Suspense></RouteEB>} />
+          <Route path="/whats-new" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><WhatsNewPage /></Suspense></RouteEB>} />
+          <Route path="/waitlist" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><WaitlistPage /></Suspense></RouteEB>} />
 
           {/* WiseHire Enterprise page — public, no auth */}
-          <Route path="/enterprise" element={<Suspense fallback={<PageLoadingSpinner />}><EnterprisePage /></Suspense>} />
+          <Route path="/enterprise" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><EnterprisePage /></Suspense></RouteEB>} />
 
           {/* WiseHire public routes */}
-          <Route path="/wisehire/signup" element={<Suspense fallback={<PageLoadingSpinner />}><WiseHireSignupPage /></Suspense>} />
-          <Route path="/wisehire/signup-early-access/:code" element={<Suspense fallback={<PageLoadingSpinner />}><WiseHireEarlyAccessPage /></Suspense>} />
+          <Route path="/wisehire/signup" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><WiseHireSignupPage /></Suspense></RouteEB>} />
+          <Route path="/wisehire/signup-early-access/:code" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><WiseHireEarlyAccessPage /></Suspense></RouteEB>} />
 
           {/* WiseHire protected routes — HR accounts only */}
           <Route element={<WiseHireGuard />}>
-            <Route path="/wisehire/dashboard" element={<Suspense fallback={<PageLoadingSpinner />}><WiseHireDashboardPage /></Suspense>} />
-            <Route path="/wisehire/onboarding" element={<Suspense fallback={<PageLoadingSpinner />}><WiseHireOnboardingPage /></Suspense>} />
-            <Route path="/wisehire/subscription" element={<Suspense fallback={<PageLoadingSpinner />}><WiseHireSubscriptionPage /></Suspense>} />
-            <Route path="/wisehire/settings" element={<Suspense fallback={<PageLoadingSpinner />}><WiseHireSettingsPage /></Suspense>} />
-            <Route path="/wisehire/jd-writer" element={<Suspense fallback={<PageLoadingSpinner />}><JDWriterPage /></Suspense>} />
-            <Route path="/wisehire/briefs" element={<Suspense fallback={<PageLoadingSpinner />}><BriefGeneratorPage /></Suspense>} />
-            <Route path="/wisehire/briefs/:briefId" element={<Suspense fallback={<PageLoadingSpinner />}><BriefViewPage /></Suspense>} />
-            <Route path="/wisehire/pipeline" element={<Suspense fallback={<PageLoadingSpinner />}><PipelinePage /></Suspense>} />
-            <Route path="/wisehire/bulk-screen" element={<Suspense fallback={<PageLoadingSpinner />}><BulkScreenPage /></Suspense>} />
-            <Route path="/wisehire/scorecards/:candidateId" element={<Suspense fallback={<PageLoadingSpinner />}><ScorecardPage /></Suspense>} />
-            <Route path="/wisehire/talent-pool" element={<Suspense fallback={<PageLoadingSpinner />}><TalentPoolPage /></Suspense>} />
-            <Route path="/wisehire/analytics" element={<Suspense fallback={<PageLoadingSpinner />}><WiseHireAnalyticsPage /></Suspense>} />
-            <Route path="/wisehire/mask-cvs" element={<Suspense fallback={<PageLoadingSpinner />}><CandidateMaskingPage /></Suspense>} />
-            <Route path="/wisehire/clients" element={<Suspense fallback={<PageLoadingSpinner />}><ClientsPage /></Suspense>} />
-            <Route path="/wisehire/scorecard-templates" element={<Suspense fallback={<PageLoadingSpinner />}><ScorecardTemplatesPage /></Suspense>} />
-            <Route path="/wisehire/roles" element={<Suspense fallback={<PageLoadingSpinner />}><RolesPage /></Suspense>} />
+            <Route path="/wisehire/dashboard" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><WiseHireDashboardPage /></Suspense></RouteEB>} />
+            <Route path="/wisehire/onboarding" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><WiseHireOnboardingPage /></Suspense></RouteEB>} />
+            <Route path="/wisehire/subscription" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><WiseHireSubscriptionPage /></Suspense></RouteEB>} />
+            <Route path="/wisehire/settings" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><WiseHireSettingsPage /></Suspense></RouteEB>} />
+            <Route path="/wisehire/jd-writer" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><JDWriterPage /></Suspense></RouteEB>} />
+            <Route path="/wisehire/briefs" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><BriefGeneratorPage /></Suspense></RouteEB>} />
+            <Route path="/wisehire/briefs/:briefId" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><BriefViewPage /></Suspense></RouteEB>} />
+            <Route path="/wisehire/pipeline" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><PipelinePage /></Suspense></RouteEB>} />
+            <Route path="/wisehire/bulk-screen" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><BulkScreenPage /></Suspense></RouteEB>} />
+            <Route path="/wisehire/scorecards/:candidateId" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><ScorecardPage /></Suspense></RouteEB>} />
+            <Route path="/wisehire/talent-pool" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><TalentPoolPage /></Suspense></RouteEB>} />
+            <Route path="/wisehire/analytics" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><WiseHireAnalyticsPage /></Suspense></RouteEB>} />
+            <Route path="/wisehire/mask-cvs" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><CandidateMaskingPage /></Suspense></RouteEB>} />
+            <Route path="/wisehire/clients" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><ClientsPage /></Suspense></RouteEB>} />
+            <Route path="/wisehire/scorecard-templates" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><ScorecardTemplatesPage /></Suspense></RouteEB>} />
+            <Route path="/wisehire/roles" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><RolesPage /></Suspense></RouteEB>} />
           </Route>
 
           {/* Protected routes */}
            <Route element={<ProtectedRoute />}>
              <Route element={<JobSeekerRoute />}>
              <Route element={<AppShell />}>
-               <Route path="/dashboard" element={<Suspense fallback={<DashboardSkeleton />}><DashboardPage /></Suspense>} />
-               <Route path="/editor" element={<Suspense fallback={<EditorSkeleton />}><EditorPage /></Suspense>} />
-               <Route path="/preview" element={<Suspense fallback={<PreviewSkeleton />}><PreviewPage /></Suspense>} />
-               <Route path="/upload" element={<Suspense fallback={<UploadSkeleton />}><UploadPage /></Suspense>} />
-               <Route path="/settings" element={<Suspense fallback={<SettingsSkeleton />}><SettingsPage /></Suspense>} />
-               <Route path="/interview" element={<FeatureGate enabled={appSettings.feature_interview_coach}><Suspense fallback={<InterviewSkeleton />}><InterviewPage /></Suspense></FeatureGate>} />
-                <Route path="/applications" element={<FeatureGate enabled={appSettings.feature_applications}><Suspense fallback={<ApplicationsSkeleton />}><ApplicationsPage /></Suspense></FeatureGate>} />
-                <Route path="/onboarding" element={<Suspense fallback={<OnboardingSkeleton />}><OnboardingPage /></Suspense>} />
-                <Route path="/profile" element={<Suspense fallback={<ProfilePageSkeleton />}><ProfilePage /></Suspense>} />
-                <Route path="/templates" element={<Suspense fallback={<TemplatesPageSkeleton />}><TemplatesPage /></Suspense>} />
-                <Route path="/resume/:id" element={<Suspense fallback={<DetailSkeleton />}><ResumeDetailPage /></Suspense>} />
-                <Route path="/job/:id" element={<Suspense fallback={<DetailSkeleton />}><JobDetailPage /></Suspense>} />
-                <Route path="/application/:id" element={<FeatureGate enabled={appSettings.feature_applications}><Suspense fallback={<DetailSkeleton />}><ApplicationTrackerPage /></Suspense></FeatureGate>} />
-                 <Route path="/notifications" element={<Suspense fallback={<NotificationsSkeleton />}><NotificationsPage /></Suspense>} />
-                 <Route path="/portfolio" element={<FeatureGate enabled={appSettings.feature_portfolio}><Suspense fallback={<PortfolioEditorSkeleton />}><PortfolioEditorPage /></Suspense></FeatureGate>} />
+               <Route path="/dashboard" element={<RouteEB><Suspense fallback={<DashboardSkeleton />}><DashboardPage /></Suspense></RouteEB>} />
+               <Route path="/editor" element={<RouteEB><Suspense fallback={<EditorSkeleton />}><EditorPage /></Suspense></RouteEB>} />
+               <Route path="/preview" element={<RouteEB><Suspense fallback={<PreviewSkeleton />}><PreviewPage /></Suspense></RouteEB>} />
+               <Route path="/upload" element={<RouteEB><Suspense fallback={<UploadSkeleton />}><UploadPage /></Suspense></RouteEB>} />
+               <Route path="/settings" element={<RouteEB><Suspense fallback={<SettingsSkeleton />}><SettingsPage /></Suspense></RouteEB>} />
+               <Route path="/interview" element={<RouteEB><FeatureGate enabled={appSettings.feature_interview_coach}><Suspense fallback={<InterviewSkeleton />}><InterviewPage /></Suspense></FeatureGate></RouteEB>} />
+                <Route path="/applications" element={<RouteEB><FeatureGate enabled={appSettings.feature_applications}><Suspense fallback={<ApplicationsSkeleton />}><ApplicationsPage /></Suspense></FeatureGate></RouteEB>} />
+                <Route path="/onboarding" element={<RouteEB><Suspense fallback={<OnboardingSkeleton />}><OnboardingPage /></Suspense></RouteEB>} />
+                <Route path="/profile" element={<RouteEB><Suspense fallback={<ProfilePageSkeleton />}><ProfilePage /></Suspense></RouteEB>} />
+                <Route path="/templates" element={<RouteEB><Suspense fallback={<TemplatesPageSkeleton />}><TemplatesPage /></Suspense></RouteEB>} />
+                <Route path="/resume/:id" element={<RouteEB><Suspense fallback={<DetailSkeleton />}><ResumeDetailPage /></Suspense></RouteEB>} />
+                <Route path="/job/:id" element={<RouteEB><Suspense fallback={<DetailSkeleton />}><JobDetailPage /></Suspense></RouteEB>} />
+                <Route path="/application/:id" element={<RouteEB><FeatureGate enabled={appSettings.feature_applications}><Suspense fallback={<DetailSkeleton />}><ApplicationTrackerPage /></Suspense></FeatureGate></RouteEB>} />
+                 <Route path="/notifications" element={<RouteEB><Suspense fallback={<NotificationsSkeleton />}><NotificationsPage /></Suspense></RouteEB>} />
+                 <Route path="/portfolio" element={<RouteEB><FeatureGate enabled={appSettings.feature_portfolio}><Suspense fallback={<PortfolioEditorSkeleton />}><PortfolioEditorPage /></Suspense></FeatureGate></RouteEB>} />
                  
-                 <Route path="/cover-letters" element={<FeatureGate enabled={appSettings.feature_cover_letters}><Suspense fallback={<CoverLettersSkeleton />}><CoverLettersPage /></Suspense></FeatureGate>} />
-                <Route path="/cover-letter/new" element={<FeatureGate enabled={appSettings.feature_cover_letters}><Suspense fallback={<DetailSkeleton />}><CoverLetterNewPage /></Suspense></FeatureGate>} />
-                <Route path="/cover-letter/edit/:id" element={<FeatureGate enabled={appSettings.feature_cover_letters}><Suspense fallback={<DetailSkeleton />}><CoverLetterEditPage /></Suspense></FeatureGate>} />
-                <Route path="/examples" element={<Suspense fallback={<GuidesExamplesSkeleton />}><ExamplesPage /></Suspense>} />
-                <Route path="/career" element={<FeatureGate enabled={appSettings.feature_career_advisor}><Suspense fallback={<DetailSkeleton />}><CareerPage /></Suspense></FeatureGate>} />
-                <Route path="/resignation-letters" element={<Suspense fallback={<ResignationLettersSkeleton />}><ResignationLettersPage /></Suspense>} />
-                <Route path="/resignation-letter/new" element={<Suspense fallback={<DetailSkeleton />}><ResignationLetterNewPage /></Suspense>} />
-                <Route path="/resignation-letter/edit/:id" element={<Suspense fallback={<DetailSkeleton />}><ResignationLetterEditPage /></Suspense>} />
-                <Route path="/guides" element={<Suspense fallback={<GuidesExamplesSkeleton />}><GuidesPage /></Suspense>} />
-                <Route path="/guides/:slug" element={<Suspense fallback={<DetailSkeleton />}><GuidePage /></Suspense>} />
-                 <Route path="/ai-studio" element={<FeatureGate enabled={appSettings.feature_ai_studio}><Suspense fallback={<AIStudioSkeleton />}><AIStudioPage /></Suspense></FeatureGate>} />
-                 <Route path="/ai-studio/:tool" element={<FeatureGate enabled={appSettings.feature_ai_studio}><Suspense fallback={<AIStudioSkeleton />}><AIStudioPage /></Suspense></FeatureGate>} />
-                 <Route path="/help" element={<Suspense fallback={<DetailSkeleton />}><HelpPage /></Suspense>} />
-                 <Route path="/analytics" element={<Suspense fallback={<AnalyticsSkeleton />}><AnalyticsPage /></Suspense>} />
-                 <Route path="/subscription" element={<Suspense fallback={<DetailSkeleton />}><SubscriptionPage /></Suspense>} />
-                 <Route path="/referral" element={<Suspense fallback={<DetailSkeleton />}><ReferralPage /></Suspense>} />
-                 <Route path="/achievements" element={<Suspense fallback={<AchievementsSkeleton />}><AchievementsPage /></Suspense>} />
-                 <Route path="/qr-code" element={<Suspense fallback={<DetailSkeleton />}><QrCodePage /></Suspense>} />
-                 <Route path="/qr-batch" element={<Suspense fallback={<DetailSkeleton />}><QrBatchPage /></Suspense>} />
-                 <Route path="/qr-scan" element={<Suspense fallback={<DetailSkeleton />}><QrScanPage /></Suspense>} />
+                 <Route path="/cover-letters" element={<RouteEB><FeatureGate enabled={appSettings.feature_cover_letters}><Suspense fallback={<CoverLettersSkeleton />}><CoverLettersPage /></Suspense></FeatureGate></RouteEB>} />
+                <Route path="/cover-letter/new" element={<RouteEB><FeatureGate enabled={appSettings.feature_cover_letters}><Suspense fallback={<DetailSkeleton />}><CoverLetterNewPage /></Suspense></FeatureGate></RouteEB>} />
+                <Route path="/cover-letter/edit/:id" element={<RouteEB><FeatureGate enabled={appSettings.feature_cover_letters}><Suspense fallback={<DetailSkeleton />}><CoverLetterEditPage /></Suspense></FeatureGate></RouteEB>} />
+                <Route path="/examples" element={<RouteEB><Suspense fallback={<GuidesExamplesSkeleton />}><ExamplesPage /></Suspense></RouteEB>} />
+                <Route path="/career" element={<RouteEB><FeatureGate enabled={appSettings.feature_career_advisor}><Suspense fallback={<DetailSkeleton />}><CareerPage /></Suspense></FeatureGate></RouteEB>} />
+                <Route path="/resignation-letters" element={<RouteEB><Suspense fallback={<ResignationLettersSkeleton />}><ResignationLettersPage /></Suspense></RouteEB>} />
+                <Route path="/resignation-letter/new" element={<RouteEB><Suspense fallback={<DetailSkeleton />}><ResignationLetterNewPage /></Suspense></RouteEB>} />
+                <Route path="/resignation-letter/edit/:id" element={<RouteEB><Suspense fallback={<DetailSkeleton />}><ResignationLetterEditPage /></Suspense></RouteEB>} />
+                <Route path="/guides" element={<RouteEB><Suspense fallback={<GuidesExamplesSkeleton />}><GuidesPage /></Suspense></RouteEB>} />
+                <Route path="/guides/:slug" element={<RouteEB><Suspense fallback={<DetailSkeleton />}><GuidePage /></Suspense></RouteEB>} />
+                 <Route path="/ai-studio" element={<RouteEB><FeatureGate enabled={appSettings.feature_ai_studio}><Suspense fallback={<AIStudioSkeleton />}><AIStudioPage /></Suspense></FeatureGate></RouteEB>} />
+                 <Route path="/ai-studio/:tool" element={<RouteEB><FeatureGate enabled={appSettings.feature_ai_studio}><Suspense fallback={<AIStudioSkeleton />}><AIStudioPage /></Suspense></FeatureGate></RouteEB>} />
+                 <Route path="/help" element={<RouteEB><Suspense fallback={<DetailSkeleton />}><HelpPage /></Suspense></RouteEB>} />
+                 <Route path="/analytics" element={<RouteEB><Suspense fallback={<AnalyticsSkeleton />}><AnalyticsPage /></Suspense></RouteEB>} />
+                 <Route path="/subscription" element={<RouteEB><Suspense fallback={<DetailSkeleton />}><SubscriptionPage /></Suspense></RouteEB>} />
+                 <Route path="/referral" element={<RouteEB><Suspense fallback={<DetailSkeleton />}><ReferralPage /></Suspense></RouteEB>} />
+                 <Route path="/achievements" element={<RouteEB><Suspense fallback={<AchievementsSkeleton />}><AchievementsPage /></Suspense></RouteEB>} />
+                 <Route path="/qr-code" element={<RouteEB><Suspense fallback={<DetailSkeleton />}><QrCodePage /></Suspense></RouteEB>} />
+                 <Route path="/qr-batch" element={<RouteEB><Suspense fallback={<DetailSkeleton />}><QrBatchPage /></Suspense></RouteEB>} />
+                 <Route path="/qr-scan" element={<RouteEB><Suspense fallback={<DetailSkeleton />}><QrScanPage /></Suspense></RouteEB>} />
                  <Route path="/activity" element={<Navigate to="/applications" replace />} />
                  <Route path="/resume" element={<Navigate to="/editor" replace />} />
-                 <Route path="/search" element={<Suspense fallback={<PageLoadingSpinner />}><SearchPage /></Suspense>} />
-                 <Route path="/tailor" element={<Suspense fallback={<PageLoadingSpinner />}><TailorPage /></Suspense>} />
-                 <Route path="/tailor/:resumeId" element={<Suspense fallback={<PageLoadingSpinner />}><TailorPage /></Suspense>} />
+                 <Route path="/search" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><SearchPage /></Suspense></RouteEB>} />
+                 <Route path="/tailor" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><TailorPage /></Suspense></RouteEB>} />
+                 <Route path="/tailor/:resumeId" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><TailorPage /></Suspense></RouteEB>} />
               </Route>
              </Route>
            </Route>
 
         {/* Invite referral redirect — public so unauthenticated users can follow the link */}
-        <Route path="/invite/:code" element={<Suspense fallback={<PageLoadingSpinner />}><InviteRedirectPage /></Suspense>} />
+        <Route path="/invite/:code" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><InviteRedirectPage /></Suspense></RouteEB>} />
 
         {/* Public share page - outside AppShell */}
-        <Route path="/share/:token" element={<Suspense fallback={<ShareSkeleton />}><SharePage /></Suspense>} />
-        <Route path="/share/brief/:shareToken" element={<Suspense fallback={<PageLoadingSpinner />}><PublicBriefPage /></Suspense>} />
-        <Route path="/share/scorecard/:shareToken" element={<Suspense fallback={<PageLoadingSpinner />}><PublicScorecardPage /></Suspense>} />
-        <Route path="/interview/report/:token" element={<Suspense fallback={<PageLoadingSpinner />}><InterviewReportPage /></Suspense>} />
-        <Route path="/p/:username" element={<Suspense fallback={<DetailSkeleton />}><PublicPortfolioPage /></Suspense>} />
-        <Route path="/l/:linkId" element={<Suspense fallback={<DetailSkeleton />}><ShortLinkPage /></Suspense>} />
+        <Route path="/share/:token" element={<RouteEB><Suspense fallback={<ShareSkeleton />}><SharePage /></Suspense></RouteEB>} />
+        <Route path="/share/brief/:shareToken" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><PublicBriefPage /></Suspense></RouteEB>} />
+        <Route path="/share/scorecard/:shareToken" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><PublicScorecardPage /></Suspense></RouteEB>} />
+        <Route path="/interview/report/:token" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><InterviewReportPage /></Suspense></RouteEB>} />
+        <Route path="/p/:username" element={<RouteEB><Suspense fallback={<DetailSkeleton />}><PublicPortfolioPage /></Suspense></RouteEB>} />
+        <Route path="/l/:linkId" element={<RouteEB><Suspense fallback={<DetailSkeleton />}><ShortLinkPage /></Suspense></RouteEB>} />
 
         {/* Kinde auth test — isolated, no Supabase interaction */}
-        <Route path="/kinde-auth-test" element={<Suspense fallback={<PageLoadingSpinner />}><KindeAuthTestPage /></Suspense>} />
+        <Route path="/kinde-auth-test" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><KindeAuthTestPage /></Suspense></RouteEB>} />
 
         {/* Internal tooling */}
         <Route element={<ProtectedRoute />}>
-          <Route path="/store-screenshots" element={<Suspense fallback={<PageLoadingSpinner />}><StoreScreenshotsPage /></Suspense>} />
-          <Route path="/screenshots-gallery" element={<Suspense fallback={<PageLoadingSpinner />}><ScreenshotsGalleryPage /></Suspense>} />
+          <Route path="/store-screenshots" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><StoreScreenshotsPage /></Suspense></RouteEB>} />
+          <Route path="/screenshots-gallery" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><ScreenshotsGalleryPage /></Suspense></RouteEB>} />
         </Route>
 
         {/* DevKit — self-contained email+password auth, no Kinde/Supabase session required */}
-        <Route path="/devkit" element={<Suspense fallback={<PageLoadingSpinner />}><DevToolsPage /></Suspense>} />
+        <Route path="/devkit" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><DevToolsPage /></Suspense></RouteEB>} />
         
-        <Route path="*" element={<Suspense fallback={<DetailSkeleton />}><NotFound /></Suspense>} />
+        <Route path="*" element={<RouteEB><Suspense fallback={<DetailSkeleton />}><NotFound /></Suspense></RouteEB>} />
       </Routes>
       
       <PrefetchOnIdle />

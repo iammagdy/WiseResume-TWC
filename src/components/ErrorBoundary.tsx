@@ -9,6 +9,7 @@ interface Props {
   children: ReactNode;
   fallback?: ReactNode;
   onReset?: () => void;
+  routeScoped?: boolean;
 }
 
 interface State {
@@ -280,7 +281,7 @@ export class ErrorBoundary extends Component<Props, State> {
          this.state.error.message.includes('Loading chunk'));
 
       return (
-        <div className="min-h-screen min-h-[100dvh] flex flex-col items-center justify-center p-6 bg-background">
+        <div className={`${this.props.routeScoped ? 'min-h-[50vh]' : 'min-h-screen min-h-[100dvh]'} flex flex-col items-center justify-center p-6 bg-background`}>
           <div className="w-full max-w-2xl text-center space-y-6">
             {/* Error icon */}
             <div className={`mx-auto w-20 h-20 rounded-full flex items-center justify-center ${isChunkError ? 'bg-warning/10' : 'bg-destructive/10'}`}>
