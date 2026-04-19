@@ -2,12 +2,13 @@
  * WiseResume Express Server
  *
  * Provides server-side API routes that proxy Supabase Edge Functions,
- * keeping sensitive API keys (WISE_AI_API_KEY, RESEND_API_KEY, etc.) 
- * off the client. The frontend calls /api/* which this server forwards 
+ * keeping sensitive API keys (WISE_AI_API_KEY, RESEND_API_KEY, etc.)
+ * off the client. The frontend calls /api/* which this server forwards
  * to Supabase Edge Functions using the service-role key.
  *
- * Auth: Bearer tokens from Kinde are forwarded as-is to Supabase for
- * validation — we do not re-validate here, trusting Supabase Auth.
+ * Auth: Kinde JWTs are verified server-side via Kinde JWKS. The
+ * token-exchange endpoint issues a short-lived signed JWT that the
+ * client attaches to all subsequent API requests.
  */
 
 import express from 'express';
@@ -16,6 +17,7 @@ import cors from 'cors';
 import { neon } from '@neondatabase/serverless';
 import { promises as dns } from 'node:dns';
 import net from 'node:net';
+import * as jose from 'jose';
 
 const app = express();
 const PORT = parseInt(process.env.API_PORT || '5001', 10);
@@ -44,13 +46,61 @@ app.use(cors({
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || '';
 const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_PUBLISHABLE_KEY || '';
 const DATABASE_URL = process.env.DATABASE_URL || '';
+const KINDE_DOMAIN = process.env.VITE_KINDE_DOMAIN || process.env.KINDE_DOMAIN || '';
+const SESSION_SECRET = process.env.SESSION_SECRET || process.env.SUPABASE_JWT_SECRET || '';
 
 if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   console.warn('[server] SUPABASE_URL or SUPABASE_ANON_KEY not set — edge function proxy will not work');
 }
+if (!KINDE_DOMAIN) {
+  console.warn('[server] KINDE_DOMAIN not set — token-exchange will not work');
+}
+if (!SESSION_SECRET) {
+  console.warn('[server] SESSION_SECRET not set — token-exchange will sign with a fallback (not secure for production)');
+}
 
 // Neon DB connection (for direct server-side queries)
 const sql = DATABASE_URL ? neon(DATABASE_URL) : null;
+
+// ── Kinde JWKS cache ──────────────────────────────────────────────────────────
+let _kindeJWKS: jose.JSONWebKeySet | null = null;
+let _kindejwksCachedAt = 0;
+const JWKS_CACHE_MS = 60 * 60 * 1000; // 1 hour
+
+async function getKindeJWKS(): Promise<jose.JSONWebKeySet> {
+  if (_kindeJWKS && Date.now() - _kindejwksCachedAt < JWKS_CACHE_MS) return _kindeJWKS;
+  if (!KINDE_DOMAIN) throw new Error('KINDE_DOMAIN is not configured');
+  const r = await fetch(`${KINDE_DOMAIN}/.well-known/jwks`);
+  if (!r.ok) throw new Error(`Failed to fetch Kinde JWKS: ${r.status}`);
+  _kindeJWKS = (await r.json()) as jose.JSONWebKeySet;
+  _kindejwksCachedAt = Date.now();
+  return _kindeJWKS;
+}
+
+/**
+ * Deterministic UUID v5 (SHA-1 hash of namespace+name).
+ * Used to map a Kinde `sub` claim to a stable UUID for the database.
+ */
+async function uuidV5(name: string, namespace: string): Promise<string> {
+  const nsBytes = new Uint8Array(16);
+  const hex = namespace.replace(/-/g, '');
+  for (let i = 0; i < 16; i++) {
+    nsBytes[i] = parseInt(hex.substring(i * 2, i * 2 + 2), 16);
+  }
+  const nameBytes = new TextEncoder().encode(name);
+  const data = new Uint8Array(nsBytes.length + nameBytes.length);
+  data.set(nsBytes);
+  data.set(nameBytes, nsBytes.length);
+  const hashBuffer = await crypto.subtle.digest('SHA-1', data);
+  const hashBytes = new Uint8Array(hashBuffer);
+  hashBytes[6] = (hashBytes[6] & 0x0f) | 0x50;
+  hashBytes[8] = (hashBytes[8] & 0x3f) | 0x80;
+  const h = Array.from(hashBytes.slice(0, 16)).map(b => b.toString(16).padStart(2, '0')).join('');
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20, 32)}`;
+}
+
+// Fixed DNS namespace for UUID v5 (same as Supabase edge function)
+const UUID_NAMESPACE = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
 
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get('/api/health', (_req, res) => {
@@ -67,6 +117,111 @@ app.get('/api/db-health', async (_req, res) => {
     res.json({ status: 'ok', result });
   } catch (err) {
     res.status(503).json({ error: 'Database connection failed', detail: String(err) });
+  }
+});
+
+/**
+ * POST /api/fn/token-exchange
+ *
+ * Server-side replacement for the Supabase `token-exchange` edge function.
+ * Accepts a Kinde access token, verifies it via Kinde's JWKS endpoint,
+ * upserts the user's profile row in the Neon database, and returns a
+ * signed session JWT that the client attaches to all subsequent API calls.
+ *
+ * This route is matched BEFORE the generic /api/fn/:fnName proxy so that
+ * it short-circuits and never hits Supabase.
+ */
+app.post('/api/fn/token-exchange', async (req, res) => {
+  const authHeader = req.headers.authorization || '';
+  const match = authHeader.match(/^Bearer\s+(\S+)$/);
+  if (!match) {
+    return res.status(401).json({ code: 'MISSING_AUTH_HEADER', message: 'Missing authorization header' });
+  }
+  const kindeToken = match[1];
+
+  let kindeSub = 'unknown';
+  let userId = '00000000-0000-0000-0000-000000000000';
+
+  try {
+    // 1. Verify Kinde token via JWKS
+    const jwks = await getKindeJWKS();
+    const keySet = jose.createLocalJWKSet(jwks);
+    let payload: jose.JWTPayload;
+    try {
+      const result = await jose.jwtVerify(kindeToken, keySet, { issuer: KINDE_DOMAIN });
+      payload = result.payload;
+    } catch {
+      return res.status(401).json({ code: 'INVALID_KINDE_TOKEN', message: 'Kinde token invalid or expired' });
+    }
+
+    // 2. Extract Kinde user info
+    kindeSub = (payload.sub as string) || '';
+    if (!kindeSub) {
+      return res.status(401).json({ code: 'MISSING_SUB_CLAIM', message: 'Token missing sub claim' });
+    }
+    const email = ((payload as Record<string, unknown>).email as string) ||
+      ((payload as Record<string, unknown>).preferred_username as string) || '';
+
+    // 3. Derive deterministic UUID from Kinde sub (same algorithm as edge function)
+    userId = await uuidV5(kindeSub, UUID_NAMESPACE);
+
+    // 4. Upsert profile + preferences in Neon DB
+    if (sql) {
+      try {
+        await sql`
+          INSERT INTO profiles (user_id, email)
+          VALUES (${userId}, ${email || null})
+          ON CONFLICT (user_id) DO NOTHING
+        `;
+        await sql`
+          INSERT INTO user_preferences (user_id)
+          VALUES (${userId})
+          ON CONFLICT (user_id) DO NOTHING
+        `;
+        // Audit log
+        try {
+          await sql`
+            INSERT INTO token_exchanges (kinde_sub, user_id, status)
+            VALUES (${kindeSub}, ${userId}, 'success')
+          `;
+        } catch { /* non-fatal */ }
+      } catch (dbErr) {
+        console.error('[token-exchange] DB upsert failed:', dbErr);
+        return res.status(500).json({ code: 'PROFILE_UPSERT_FAILED', message: 'Could not create user profile' });
+      }
+    }
+
+    // 5. Sign a session JWT (compatible with existing client expectations)
+    const secret = new TextEncoder().encode(
+      SESSION_SECRET || 'dev-fallback-secret-change-in-production',
+    );
+    const now = Math.floor(Date.now() / 1000);
+    const expiresAt = now + 3600; // 1 hour
+    const supabaseToken = await new jose.SignJWT({
+      sub: userId,
+      email,
+      role: 'authenticated',
+      aud: 'authenticated',
+      iss: 'wiseresume',
+      iat: now,
+      exp: expiresAt,
+      kinde_sub: kindeSub,
+    })
+      .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
+      .sign(secret);
+
+    return res.json({ supabaseToken, userId, expiresAt });
+  } catch (err) {
+    console.error('[token-exchange] Unexpected error:', err);
+    if (sql) {
+      try {
+        await sql`
+          INSERT INTO token_exchanges (kinde_sub, user_id, status, error_code)
+          VALUES (${kindeSub}, ${userId}, 'error', 'INTERNAL_ERROR')
+        `;
+      } catch { /* ignore audit failure */ }
+    }
+    return res.status(500).json({ code: 'INTERNAL_ERROR', message: 'Internal server error' });
   }
 });
 
@@ -195,9 +350,10 @@ async function assertPublicHost(hostname: string): Promise<string[]> {
 }
 
 /**
- * Validate a Supabase JWT by calling Supabase's /auth/v1/user endpoint.
- * Returns the verified user id on success, or null on failure. Successful
- * lookups are cached briefly so we don't hammer Supabase on repeat calls.
+ * Validate a session JWT issued by this server's /api/fn/token-exchange.
+ * Verifies the signature locally using SESSION_SECRET — no network calls.
+ * Falls back to verifying against Supabase's /auth/v1/user for tokens that
+ * were issued before the migration (i.e. real Supabase JWTs still in flight).
  */
 interface AuthCacheEntry { userId: string; email: string | null; expiresAt: number }
 const authCache = new Map<string, AuthCacheEntry>();
@@ -206,13 +362,36 @@ const AUTH_CACHE_TTL_MS = 60_000; // 1 minute
 async function validateSupabaseToken(
   token: string,
 ): Promise<{ userId: string; email: string | null } | null> {
-  if (!token || !SUPABASE_URL || !SUPABASE_ANON_KEY) return null;
+  if (!token) return null;
   const now = Date.now();
   const cached = authCache.get(token);
   if (cached && cached.expiresAt > now) {
     return { userId: cached.userId, email: cached.email };
   }
 
+  // Primary path: verify as our own signed session JWT
+  const secret = new TextEncoder().encode(
+    SESSION_SECRET || 'dev-fallback-secret-change-in-production',
+  );
+  try {
+    const { payload } = await jose.jwtVerify(token, secret, { issuer: 'wiseresume' });
+    const userId = typeof payload.sub === 'string' && payload.sub.length > 0 ? payload.sub : null;
+    const email = typeof (payload as Record<string, unknown>).email === 'string'
+      ? ((payload as Record<string, unknown>).email as string).toLowerCase()
+      : null;
+    if (userId) {
+      authCache.set(token, { userId, email, expiresAt: now + AUTH_CACHE_TTL_MS });
+      if (authCache.size > 2000) {
+        for (const [k, v] of authCache) if (v.expiresAt <= now) authCache.delete(k);
+      }
+      return { userId, email };
+    }
+  } catch {
+    // Not our JWT — fall through to Supabase validation for legacy tokens
+  }
+
+  // Fallback: validate against Supabase for any legacy tokens still in circulation
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return null;
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), 5000);
   try {
@@ -231,7 +410,6 @@ async function validateSupabaseToken(
       : null;
     if (userId) {
       authCache.set(token, { userId, email, expiresAt: now + AUTH_CACHE_TTL_MS });
-      // Keep cache bounded.
       if (authCache.size > 2000) {
         for (const [k, v] of authCache) if (v.expiresAt <= now) authCache.delete(k);
       }

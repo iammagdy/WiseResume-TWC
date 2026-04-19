@@ -47,14 +47,31 @@ WiseResume is an AI-powered career management PWA. Production URL: https://resum
 | Frontend | React 18 + TypeScript 5 + Vite 6 |
 | Styling | Tailwind CSS + Radix UI + Framer Motion |
 | State | Zustand + TanStack Query (React Query) |
-| Auth | Kinde Auth (https://thewisecloud.kinde.com) |
-| Database (canonical) | Supabase Postgres — all 94 edge functions read/write here; has RLS |
-| Database (dev mirror) | Neon PostgreSQL via Drizzle ORM (schema: `server/schema.ts`) — local dev only, never exposed to browser |
-| Backend | Express.js server (server/index.ts, port 5001) + Supabase Edge Functions (Deno) |
+| Auth | Kinde Auth (https://thewisecloud.kinde.com) — JWT verified server-side via JWKS |
+| Database | Neon PostgreSQL via Drizzle ORM (schema: `server/schema.ts`) — direct DB connection, never exposed to browser |
+| Backend | Express.js server (server/index.ts, port 5001) + Supabase Edge Functions proxy (legacy fallback) |
 | PWA | Capacitor 8 + vite-plugin-pwa |
 | Package Manager | npm |
 | Hosting | Replit (autoscale deployment) |
 | Dev environment | Replit (Vite on port 5000, Express API on port 5001) |
+
+## Auth Flow (Replit Migration — April 2026)
+1. User logs in via Kinde → receives a Kinde access token
+2. Client calls `POST /api/fn/token-exchange` (Express server, not Supabase)
+3. Server verifies the Kinde JWT using Kinde's JWKS endpoint (cached 1h)
+4. Server derives a deterministic UUID from the Kinde `sub` claim (UUID v5)
+5. Server upserts `profiles` + `user_preferences` rows in Neon DB
+6. Server signs a short-lived session JWT (HS256, `iss: wiseresume`, 1h TTL) using `SESSION_SECRET`
+7. Client stores the session JWT and attaches it to all `/api/*` calls
+8. Server validates incoming session JWTs locally (no network call) — legacy Supabase tokens fall back to Supabase validation
+
+## Key Environment Variables (server-side)
+- `DATABASE_URL` — Neon PostgreSQL connection string
+- `SESSION_SECRET` — HMAC secret for session JWT signing/validation
+- `VITE_KINDE_DOMAIN` — Kinde domain (also used server-side for JWKS)
+- `VITE_KINDE_CLIENT_ID` — Kinde client ID
+- `VITE_SUPABASE_URL` — Supabase URL (legacy proxy + RLS for client-side Supabase calls)
+- `VITE_SUPABASE_PUBLISHABLE_KEY` — Supabase anon key (safe to expose, no RLS bypass)
 
 ## Project Structure
 - `src/` — Core frontend code (components, hooks, lib, pages, store)

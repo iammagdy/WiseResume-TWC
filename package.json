@@ -83,6 +83,7 @@
     "express": "^5.2.1",
     "framer-motion": "^12.29.2",
     "html2canvas": "^1.4.1",
+    "jose": "^6.2.2",
     "jsonwebtoken": "^9.0.3",
     "jsqr": "^1.4.0",
     "jszip": "^3.10.1",
