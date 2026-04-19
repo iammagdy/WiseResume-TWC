@@ -47,12 +47,13 @@ function rangeToSince(range: AnalyticsDateRange): string | null {
 }
 
 export function useHRAnalytics(dateRange: AnalyticsDateRange = 'all') {
-  const { isAuthenticated, supabaseReady } = useAuth();
+  const { isAuthenticated, supabaseReady, user } = useAuth();
 
   return useQuery({
-    // Keyed by the stable enum string — not by a timestamp — so switching ranges
-    // hits the cache cleanly and does not cause re-fetch churn.
-    queryKey: ['hr-analytics', dateRange],
+    // Keyed by userId + the stable enum string — userId isolates the cache per
+    // logged-in account so a second user logging in on the same device never
+    // sees the previous user's data during the stale window.
+    queryKey: ['hr-analytics', user?.id, dateRange],
     queryFn: async (): Promise<HRAnalytics> => {
       const userId = await getUserId();
       if (!userId) throw new Error('Not authenticated');

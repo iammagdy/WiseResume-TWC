@@ -18,9 +18,9 @@ export interface CandidateNote {
 }
 
 export function useCandidateNotes(candidateId: string | undefined) {
-  const { isAuthenticated, supabaseReady } = useAuth();
+  const { isAuthenticated, supabaseReady, user } = useAuth();
   return useQuery({
-    queryKey: ['candidate-notes', candidateId],
+    queryKey: ['candidate-notes', user?.id, candidateId],
     queryFn: async () => {
       if (!candidateId) return [];
       const { data, error } = await supabase
@@ -67,10 +67,10 @@ export function useAddNote() {
         .single();
 
       if (error) throw error;
-      return data as CandidateNote;
+      return { ...(data as CandidateNote), userId };
     },
-    onSuccess: (_, vars) => {
-      qc.invalidateQueries({ queryKey: ['candidate-notes', vars.candidateId] });
+    onSuccess: ({ userId }, vars) => {
+      qc.invalidateQueries({ queryKey: ['candidate-notes', userId, vars.candidateId] });
     },
     onError: () => toast.error('Failed to add note'),
   });
@@ -80,15 +80,16 @@ export function useDeleteNote() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ noteId, candidateId }: { noteId: string; candidateId: string }) => {
+      const userId = await getUserId();
       const { error } = await supabase
         .from('wisehire_candidate_notes')
         .delete()
         .eq('id', noteId);
       if (error) throw error;
-      return candidateId;
+      return { candidateId, userId };
     },
-    onSuccess: (candidateId) => {
-      qc.invalidateQueries({ queryKey: ['candidate-notes', candidateId] });
+    onSuccess: ({ candidateId, userId }) => {
+      qc.invalidateQueries({ queryKey: ['candidate-notes', userId, candidateId] });
     },
     onError: () => toast.error('Failed to delete note'),
   });
@@ -106,15 +107,16 @@ export function useTogglePinNote() {
       candidateId: string;
       pinned: boolean;
     }) => {
+      const userId = await getUserId();
       const { error } = await supabase
         .from('wisehire_candidate_notes')
         .update({ pinned: !pinned })
         .eq('id', noteId);
       if (error) throw error;
-      return candidateId;
+      return { candidateId, userId };
     },
-    onSuccess: (candidateId) => {
-      qc.invalidateQueries({ queryKey: ['candidate-notes', candidateId] });
+    onSuccess: ({ candidateId, userId }) => {
+      qc.invalidateQueries({ queryKey: ['candidate-notes', userId, candidateId] });
     },
   });
 }

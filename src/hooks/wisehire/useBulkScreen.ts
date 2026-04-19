@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { edgeFunctions } from '@/lib/edgeFunctions';
+import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
 export interface ScreenResult {
@@ -24,8 +25,9 @@ export interface BulkScreenJob {
 }
 
 export function useLatestBulkJobs(roleId?: string) {
+  const { user } = useAuth();
   return useQuery({
-    queryKey: ['bulk-screen-jobs', roleId],
+    queryKey: ['bulk-screen-jobs', user?.id, roleId],
     queryFn: async () => {
       let q = supabase
         .from('wisehire_bulk_screen_jobs')
