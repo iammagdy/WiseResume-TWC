@@ -494,27 +494,9 @@ function currentMonthKey(): string {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
 }
 
-async function ensureLinkedinQuotaTable(): Promise<void> {
-  if (!sql) return;
-  try {
-    await sql`
-      CREATE TABLE IF NOT EXISTS linkedin_import_quota (
-        user_id TEXT    NOT NULL,
-        month   TEXT    NOT NULL,
-        count   INTEGER NOT NULL DEFAULT 0,
-        PRIMARY KEY (user_id, month)
-      )
-    `;
-  } catch (err) {
-    console.warn('[linkedin-quota] Could not ensure quota table:', err);
-  }
-}
-ensureLinkedinQuotaTable();
-
 async function getMonthlyUsage(userId: string): Promise<number> {
-  if (!sql) return 0;
   const month = currentMonthKey();
-  const rows = await sql`
+  const rows = await sql!`
     SELECT count FROM linkedin_import_quota
     WHERE user_id = ${userId} AND month = ${month}
   `;
@@ -522,9 +504,8 @@ async function getMonthlyUsage(userId: string): Promise<number> {
 }
 
 async function bumpMonthlyUsage(userId: string): Promise<number> {
-  if (!sql) return 1; // DB unavailable — allow the import, cannot persist
   const month = currentMonthKey();
-  const rows = await sql`
+  const rows = await sql!`
     INSERT INTO linkedin_import_quota (user_id, month, count)
     VALUES (${userId}, ${month}, 1)
     ON CONFLICT (user_id, month)
@@ -656,6 +637,12 @@ app.post('/api/linkedin-profile', requireAuthHeader, linkedinImportRateLimiter,
       return res.status(503).json({
         error: 'not_configured',
         message: 'LinkedIn importer is not configured on this deployment.',
+      });
+    }
+    if (!sql) {
+      return res.status(503).json({
+        error: 'not_configured',
+        message: 'LinkedIn importer quota service is unavailable (database not configured).',
       });
     }
 
