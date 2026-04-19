@@ -86,7 +86,7 @@ export function useResumeVersionMutations() {
   });
 
   const deleteVersion = useMutation({
-    mutationFn: async (versionId: string) => {
+    mutationFn: async ({ versionId, resumeId: _resumeId }: { versionId: string; resumeId: string }) => {
       if (!user) throw new Error('Not authenticated');
       const { error } = await supabase
         .from('resume_versions')
@@ -94,8 +94,8 @@ export function useResumeVersionMutations() {
         .eq('id', versionId);
       if (error) throw error;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['resume-versions'] });
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['resume-versions', variables.resumeId] });
       toast.success('Version deleted');
     },
   });

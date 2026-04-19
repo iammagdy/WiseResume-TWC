@@ -174,7 +174,7 @@ export function VersionHistorySheet({ open, onOpenChange, resumeId, onCompare }:
                       <button
                         onClick={() => {
                           haptics.light();
-                          deleteVersion.mutate(version.id);
+                          deleteVersion.mutate({ versionId: version.id, resumeId: resumeId! });
                         }}
                         className="p-2 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors touch-manipulation"
                       >

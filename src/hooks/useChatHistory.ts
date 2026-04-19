@@ -21,9 +21,9 @@ export interface StoredChatMessage {
 }
 
 export function useChatSessions() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   return useQuery<ChatSession[]>({
-    queryKey: ['chat_sessions'],
+    queryKey: ['chat_sessions', user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('chat_sessions')
@@ -58,6 +58,7 @@ export function useSessionMessages(sessionId: string | null) {
 
 export function useDeleteChatSession() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   return useMutation({
     mutationFn: async (sessionId: string) => {
       const { error } = await supabase
@@ -67,7 +68,7 @@ export function useDeleteChatSession() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['chat_sessions'] });
+      queryClient.invalidateQueries({ queryKey: ['chat_sessions', user?.id] });
     },
   });
 }
