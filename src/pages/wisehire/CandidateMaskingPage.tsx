@@ -1,12 +1,14 @@
-import { useState, useCallback } from 'react';
-import { ShieldCheck, Upload, Download, Trash2, AlertCircle, X } from 'lucide-react';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { ShieldCheck, Upload, Download, Trash2, AlertCircle, X, Clock, ChevronDown, ChevronUp } from 'lucide-react';
 import { WiseHireShell } from '@/components/wisehire/WiseHireShell';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { MaskedCVCard } from '@/components/wisehire/MaskedCVCard';
 import { useMaskCVs, type MaskResult } from '@/hooks/wisehire/useMaskCVs';
+import { useMaskSessions, useInvalidateMaskSessions } from '@/hooks/wisehire/useMaskSessions';
 import { cn } from '@/lib/utils';
 import JSZip from 'jszip';
+import { format } from 'date-fns';
 
 const MAX_FILES = 10;
 const MAX_FILE_SIZE_MB = 5;
@@ -25,8 +27,22 @@ export default function CandidateMaskingPage() {
   });
   const [byokNeeded, setByokNeeded] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const maskCVs = useMaskCVs();
+  const { data: pastSessions = [] } = useMaskSessions();
+  const invalidateSessions = useInvalidateMaskSessions();
+
+  const autoLoadedRef = useRef(false);
+  useEffect(() => {
+    if (autoLoadedRef.current) return;
+    if (results !== null) { autoLoadedRef.current = true; return; }
+    if (pastSessions.length === 0) return;
+    autoLoadedRef.current = true;
+    const latest = pastSessions[0];
+    setResults(latest.results);
+    try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(latest.results)); } catch { /* quota */ }
+  }, [pastSessions, results]);
 
   const addFiles = useCallback((incoming: File[]) => {
     setFiles((prev) => {
@@ -62,6 +78,7 @@ export default function CandidateMaskingPage() {
       const data = await maskCVs.mutateAsync(files);
       setResults(data);
       try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(data)); } catch { /* quota */ }
+      invalidateSessions();
     } catch (err: unknown) {
       if ((err as Error & { code?: string }).code === 'requires_api_key') {
         setByokNeeded(true);
@@ -69,10 +86,11 @@ export default function CandidateMaskingPage() {
     }
   }
 
-  async function handleDownloadAll() {
-    if (!results) return;
+  async function handleDownloadAll(targetResults?: MaskResult[]) {
+    const toDownload = targetResults ?? results;
+    if (!toDownload) return;
     const zip = new JSZip();
-    results.forEach((r) => {
+    toDownload.forEach((r) => {
       const highlighted = r.maskedText.replace(/\[([^\]]+)\]/g, (_: string, label: string) =>
         `<mark style="background:#fef08a;color:#713f12;border-radius:3px;padding:0 3px;font-family:monospace;font-size:.82em;font-weight:700;border:1px solid #fde047">[${label}]</mark>`
       );
@@ -99,6 +117,13 @@ export default function CandidateMaskingPage() {
     setResults(null);
     setByokNeeded(false);
     try { sessionStorage.removeItem(SESSION_KEY); } catch { /* ignore */ }
+  }
+
+  function loadSession(sessionResults: MaskResult[]) {
+    setResults(sessionResults);
+    try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(sessionResults)); } catch { /* quota */ }
+    setFiles([]);
+    setByokNeeded(false);
   }
 
   const canProcess = files.length > 0 && !maskCVs.isPending;
@@ -246,7 +271,7 @@ export default function CandidateMaskingPage() {
                 {results.length} CV{results.length !== 1 ? 's' : ''} anonymised
               </p>
               <div className="flex items-center gap-2">
-                <Button size="sm" variant="outline" onClick={handleDownloadAll} className="gap-1.5">
+                <Button size="sm" variant="outline" onClick={() => handleDownloadAll()} className="gap-1.5">
                   <Download className="h-3.5 w-3.5" />
                   Download All as ZIP
                 </Button>
@@ -263,6 +288,59 @@ export default function CandidateMaskingPage() {
               ))}
             </div>
           </>
+        )}
+
+        {/* Previous sessions */}
+        {pastSessions.length > 0 && (
+          <div className="rounded-xl border bg-card overflow-hidden">
+            <button
+              className="w-full flex items-center justify-between px-5 py-3 text-sm font-medium hover:bg-muted/30 transition-colors"
+              onClick={() => setHistoryOpen((o) => !o)}
+              aria-expanded={historyOpen}
+            >
+              <span className="flex items-center gap-2">
+                <Clock className="h-4 w-4 text-muted-foreground" />
+                Previous Sessions ({pastSessions.length})
+              </span>
+              {historyOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </button>
+
+            {historyOpen && (
+              <ul className="divide-y border-t">
+                {pastSessions.map((session) => (
+                  <li
+                    key={session.id}
+                    className="px-5 py-3 flex items-center justify-between gap-4 cursor-pointer hover:bg-muted/20 transition-colors"
+                    onClick={() => loadSession(session.results)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => e.key === 'Enter' && loadSession(session.results)}
+                  >
+                    <div>
+                      <p className="text-sm font-medium">
+                        {session.results.length} CV{session.results.length !== 1 ? 's' : ''} anonymised
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {format(new Date(session.created_at), 'MMM d, yyyy · h:mm a')}
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="gap-1.5 text-muted-foreground shrink-0"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDownloadAll(session.results);
+                      }}
+                      aria-label="Download this session as ZIP"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         )}
       </div>
     </WiseHireShell>

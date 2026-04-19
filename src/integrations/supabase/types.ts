@@ -2171,6 +2171,27 @@ export type Database = {
           },
         ]
       }
+      wisehire_mask_sessions: {
+        Row: {
+          created_at: string
+          id: string
+          owner_id: string
+          results: Json
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          owner_id: string
+          results?: Json
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          owner_id?: string
+          results?: Json
+        }
+        Relationships: []
+      }
       wisehire_candidate_briefs: {
         Row: {
           ai_model_used: string | null

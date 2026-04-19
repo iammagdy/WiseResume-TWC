@@ -249,6 +249,13 @@ ${rawText}`;
       })
     );
 
+    // ── 7. Persist session to DB ──────────────────────────────────
+    // owner_id = userId (auth.uid()) — FK references auth.users(id)
+    const { error: sessionErr } = await db
+      .from('wisehire_mask_sessions')
+      .insert({ owner_id: userId, results });
+    if (sessionErr) console.error('Failed to persist mask session:', sessionErr);
+
     return json({ results }, 200, cors);
 
   } catch (err) {
