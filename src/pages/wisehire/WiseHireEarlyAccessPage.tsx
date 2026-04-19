@@ -59,6 +59,17 @@ export default function WiseHireEarlyAccessPage() {
   const [completionError, setCompletionError] = useState('');
   const completionTriggered = useRef(false);
 
+  // Timeout guard: surface a recoverable error if auth+supabase haven't settled
+  const [completionTimedOut, setCompletionTimedOut] = useState(false);
+
+  useEffect(() => {
+    if (!isCompleteMode) return;
+    const timer = window.setTimeout(() => {
+      setCompletionTimedOut(true);
+    }, 12_000);
+    return () => clearTimeout(timer);
+  }, [isCompleteMode]);
+
   // Mode 1 — Validate code on mount
   useEffect(() => {
     if (isCompleteMode || !code) return;
@@ -81,7 +92,8 @@ export default function WiseHireEarlyAccessPage() {
   // Mode 2 — Post-Kinde completion
   useEffect(() => {
     if (!isCompleteMode) return;
-    if (authLoading || !isAuthenticated || !supabaseReady) return;
+    if (authLoading || !isAuthenticated) return;
+    if (!supabaseReady && !completionTimedOut) return;
     if (completionTriggered.current) return;
     completionTriggered.current = true;
 
@@ -126,7 +138,7 @@ export default function WiseHireEarlyAccessPage() {
         setCompleting(false);
       }
     });
-  }, [isCompleteMode, authLoading, isAuthenticated, supabaseReady, navigate]);
+  }, [isCompleteMode, authLoading, isAuthenticated, supabaseReady, completionTimedOut, navigate]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -161,7 +173,27 @@ export default function WiseHireEarlyAccessPage() {
 
   // ── Completion mode ──
   if (isCompleteMode) {
-    if (authLoading || !supabaseReady || completing) {
+    const stillWaiting = authLoading || !isAuthenticated || (!supabaseReady && !completionTimedOut);
+    if (stillWaiting || completing) {
+      if (completionTimedOut && !isAuthenticated) {
+        return (
+          <Shell>
+            <div className="flex flex-col items-center gap-4 py-4 text-center">
+              <AlertCircle className="h-8 w-8 text-amber-500" />
+              <div>
+                <p className="font-semibold text-slate-800 dark:text-slate-100 mb-1">Taking longer than expected</p>
+                <p className="text-sm text-slate-500 mb-4">We couldn't connect your account. Try reloading the page.</p>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-500 transition-colors"
+                >
+                  Reload
+                </button>
+              </div>
+            </div>
+          </Shell>
+        );
+      }
       return (
         <Shell>
           <div className="flex flex-col items-center gap-4 py-8">

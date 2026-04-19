@@ -1,7 +1,29 @@
 /**
  * Kinde Dashboard Branding Automation
- * Logs into the Kinde dashboard and applies WiseResume brand colors + logo
- * Run: node scripts/apply-kinde-branding.mjs
+ * Logs into the Kinde dashboard and applies brand colors + logo.
+ *
+ * Usage:
+ *   node scripts/apply-kinde-branding.mjs             # WiseResume (default)
+ *   node scripts/apply-kinde-branding.mjs --wisehire  # WiseHire blue brand
+ *
+ * Required env vars:
+ *   KINDE_DASHBOARD_EMAIL    — Kinde dashboard login email
+ *   KINDE_DASHBOARD_PASSWORD — Kinde dashboard login password
+ *
+ * NOTE — Email template body text:
+ *   Kinde's email template editor uses a rich-text interface that is not
+ *   reliably automatable via Puppeteer. After running this script, update
+ *   the verification email body manually in the Kinde dashboard:
+ *
+ *   For WiseHire:
+ *     Dashboard → Emails → Templates → "Verify email"
+ *     - Change sender display name to "WiseHire"
+ *     - Replace "WiseResume" with "WiseHire" in the body text
+ *     - Update the button colour to #1D4ED8 (Kinde calls this "Button colour")
+ *
+ *   For WiseResume:
+ *     - Sender: "WiseResume"
+ *     - Button colour: #9D211B
  */
 import puppeteer from 'puppeteer';
 import path from 'path';
@@ -14,26 +36,45 @@ const KINDE_EMAIL = process.env.KINDE_DASHBOARD_EMAIL;
 const KINDE_PASSWORD = process.env.KINDE_DASHBOARD_PASSWORD;
 const KINDE_BUSINESS_DOMAIN = 'thewisecloud';
 
-// WiseResume brand values
-const BRAND = {
-  buttonColor: '#9D211B',   // Crimson Red (HSL 357 71% 36%)
+const isWiseHire = process.argv.includes('--wisehire');
+
+// ── Brand presets ──────────────────────────────────────────────────────────────
+
+const BRAND_WISEHIRE = {
+  name: 'WiseHire',
+  buttonColor: '#1D4ED8',    // WiseHire blue-700
+  linkColor: '#1D4ED8',
+  buttonTextColor: '#FFFFFF',
+  backgroundColor: '#FFFFFF',
+  buttonColorDark: '#3B82F6', // blue-500 for dark mode
+  linkColorDark: '#3B82F6',
+  logoLightPath: path.resolve(__dirname, '../public/favicon-wisehire.png'),
+  logoDarkPath:  path.resolve(__dirname, '../public/favicon-wisehire.png'),
+  faviconPath:   path.resolve(__dirname, '../public/favicon-wisehire.png'),
+};
+
+const BRAND_WISERERESUME = {
+  name: 'WiseResume',
+  buttonColor: '#9D211B',    // Crimson Red (HSL 357 71% 36%)
   linkColor: '#9D211B',
   buttonTextColor: '#FFFFFF',
   backgroundColor: '#FFFFFF',
   buttonColorDark: '#E54B51',
   linkColorDark: '#E54B51',
+  logoLightPath: path.resolve(__dirname, '../public/logo-light.png'),
+  logoDarkPath:  path.resolve(__dirname, '../public/logo-dark.png'),
+  faviconPath:   path.resolve(__dirname, '../public/favicon.png'),
 };
 
-const LOGO_LIGHT_PATH = path.resolve(__dirname, '../public/logo-light.png');
-const LOGO_DARK_PATH  = path.resolve(__dirname, '../public/logo-dark.png');
-const FAVICON_PATH    = path.resolve(__dirname, '../public/favicon.png');
+const BRAND = isWiseHire ? BRAND_WISEHIRE : BRAND_WISERERESUME;
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
 
 async function sleep(ms) {
   return new Promise(r => setTimeout(r, ms));
 }
 
 async function setColorInput(page, labelText, hexColor) {
-  // Find the input associated with a label containing labelText
   const handle = await page.evaluateHandle((label) => {
     const labels = Array.from(document.querySelectorAll('label, [class*="label"]'));
     const found = labels.find(l => l.textContent.toLowerCase().includes(label.toLowerCase()));
@@ -112,13 +153,25 @@ async function clickSave(page) {
   }
 }
 
+// ── Main ───────────────────────────────────────────────────────────────────────
+
 (async () => {
   if (!KINDE_EMAIL || !KINDE_PASSWORD) {
     console.error('❌ Missing KINDE_DASHBOARD_EMAIL or KINDE_DASHBOARD_PASSWORD env vars');
     process.exit(1);
   }
 
-  console.log('🚀 Launching browser...');
+  console.log(`🚀 Applying ${BRAND.name} branding to Kinde…`);
+  if (isWiseHire) {
+    console.log('   Mode: WiseHire (blue #1D4ED8)');
+    console.log('   ℹ️  After this script finishes, update the email template body text');
+    console.log('      manually: Dashboard → Emails → Templates → "Verify email"');
+    console.log('      Replace all mentions of "WiseResume" with "WiseHire" and set');
+    console.log('      the sender display name to "WiseHire".');
+  } else {
+    console.log('   Mode: WiseResume (crimson #9D211B)');
+  }
+
   const browser = await puppeteer.launch({
     headless: 'new',
     args: [
@@ -138,17 +191,14 @@ async function clickSave(page) {
     await page.goto('https://app.kinde.com/login', { waitUntil: 'networkidle2', timeout: 30000 });
     await sleep(1000);
 
-    // Enter email
     await page.waitForSelector('input[type="email"], input[name="email"], input[id*="email"]', { timeout: 10000 });
     await page.type('input[type="email"], input[name="email"], input[id*="email"]', KINDE_EMAIL);
     await sleep(300);
 
-    // Submit email step
     const emailBtn = await page.$('button[type="submit"]');
     if (emailBtn) await emailBtn.click();
     await sleep(1500);
 
-    // Enter password
     await page.waitForSelector('input[type="password"]', { timeout: 10000 });
     await page.type('input[type="password"]', KINDE_PASSWORD);
     await sleep(300);
@@ -159,8 +209,8 @@ async function clickSave(page) {
     await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 });
     console.log('  ✅ Logged in. Current URL:', page.url());
 
-    // ── Step 2: Navigate to the correct business ───────────────────────────────
-    console.log('\n📋 Step 2: Selecting WiseResume business...');
+    // ── Step 2: Navigate to the design/theme page ──────────────────────────────
+    console.log(`\n📋 Step 2: Opening ${BRAND.name} theme settings…`);
     const businessUrl = `https://app.kinde.com/${KINDE_BUSINESS_DOMAIN}/design/theme`;
     await page.goto(businessUrl, { waitUntil: 'networkidle2', timeout: 30000 });
     await sleep(2000);
@@ -175,21 +225,30 @@ async function clickSave(page) {
 
     // ── Step 4: Upload logo ────────────────────────────────────────────────────
     console.log('\n📋 Step 4: Uploading logo...');
-    await uploadFile(page, 'logo', LOGO_LIGHT_PATH);
+    await uploadFile(page, 'logo', BRAND.logoLightPath);
 
     // ── Step 5: Save ───────────────────────────────────────────────────────────
     console.log('\n📋 Step 5: Saving changes...');
     await clickSave(page);
 
     // Screenshot for verification
-    const screenshotPath = '/tmp/kinde-branding-result.png';
+    const screenshotPath = `/tmp/kinde-branding-${BRAND.name.toLowerCase()}-result.png`;
     await page.screenshot({ path: screenshotPath, fullPage: true });
     console.log(`\n📸 Screenshot saved to ${screenshotPath}`);
 
-    console.log('\n✅ Branding automation complete!');
+    console.log(`\n✅ ${BRAND.name} branding applied!`);
     console.log('   Button color:', BRAND.buttonColor);
     console.log('   Link color:  ', BRAND.linkColor);
     console.log('   Background:  ', BRAND.backgroundColor);
+
+    if (isWiseHire) {
+      console.log('\n⚠️  Manual follow-up required for email template:');
+      console.log('   1. Go to: Kinde Dashboard → Emails → Templates → "Verify email"');
+      console.log('   2. Change sender display name from "WiseResume" to "WiseHire"');
+      console.log('   3. Replace "WiseResume" with "WiseHire" in the body text');
+      console.log('   4. Ensure button colour is #1D4ED8 (WiseHire blue)');
+      console.log('   5. Save the template');
+    }
 
   } catch (err) {
     console.error('\n❌ Error during automation:', err.message);

@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Loader2, AlertCircle, CheckCircle2, Building2 } from 'lucide-react';
+import { Loader2, AlertCircle, CheckCircle2, Building2, RefreshCw } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 
 const COMPANY_SIZES = [
@@ -41,6 +41,9 @@ const REASON_MESSAGES: Record<InvalidReason, string> = {
   missing_token: 'No invite token was found in the URL.',
   server_error: 'Something went wrong validating your invite. Please try again.',
 };
+
+/** How long to wait for auth + supabaseReady before showing a timeout recovery UI. */
+const COMPLETION_TIMEOUT_MS = 12_000;
 
 export default function WiseHireSignupPage() {
   const [searchParams] = useSearchParams();
@@ -69,6 +72,19 @@ export default function WiseHireSignupPage() {
   const [completionError, setCompletionError] = useState('');
   const completionTriggered = useRef(false);
 
+  /* Timeout guard: if auth + supabase haven't settled within COMPLETION_TIMEOUT_MS
+     we surface a recoverable "Taking longer than expected" UI so the user is never
+     stuck in an infinite spinner. */
+  const [completionTimedOut, setCompletionTimedOut] = useState(false);
+
+  useEffect(() => {
+    if (!isCompleteMode) return;
+    const timer = window.setTimeout(() => {
+      setCompletionTimedOut(true);
+    }, COMPLETION_TIMEOUT_MS);
+    return () => clearTimeout(timer);
+  }, [isCompleteMode]);
+
   // Mode 1: Normal invite validation (not authenticated, invite token in URL)
   useEffect(() => {
     if (isCompleteMode) return;
@@ -96,7 +112,11 @@ export default function WiseHireSignupPage() {
   // Mode 2: Post-Kinde-register completion (user is now authenticated)
   useEffect(() => {
     if (!isCompleteMode) return;
-    if (authLoading || !isAuthenticated || !supabaseReady) return;
+    /* Wait for auth to settle. If supabaseReady is also required but hasn't
+       resolved yet, the completionTimedOut flag lets us proceed after the grace
+       period so the user is never stuck in an infinite spinner. */
+    if (authLoading || !isAuthenticated) return;
+    if (!supabaseReady && !completionTimedOut) return;
     if (completionTriggered.current) return;
     completionTriggered.current = true;
 
@@ -136,7 +156,7 @@ export default function WiseHireSignupPage() {
         setCompleting(false);
       }
     });
-  }, [isCompleteMode, authLoading, isAuthenticated, supabaseReady, navigate]);
+  }, [isCompleteMode, authLoading, isAuthenticated, supabaseReady, completionTimedOut, navigate]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -170,22 +190,40 @@ export default function WiseHireSignupPage() {
 
   // ── Completion mode loading ──
   if (isCompleteMode) {
-    if (authLoading || !supabaseReady || completing) {
+    /* Spinner while auth is in flight — but bail out if timeout fired and
+       neither auth nor completion has progressed (avoids indefinite wait). */
+    const stillWaiting = authLoading || !isAuthenticated || (!supabaseReady && !completionTimedOut);
+
+    if (stillWaiting || completing) {
+      /* If we've timed out but are still stuck (not even authenticated),
+         surface a recoverable error instead of spinning forever. */
+      if (completionTimedOut && !isAuthenticated) {
+        return (
+          <SignupShell>
+            <TimedOutBlock onRetry={() => window.location.reload()} />
+          </SignupShell>
+        );
+      }
       return (
-        <WiseHireShell>
+        <SignupShell>
           <div className="flex flex-col items-center gap-4 py-8">
             <MiniSpinner size={36} />
-            <p className="text-sm text-slate-500">Setting up your WiseHire account…</p>
+            <p className="text-sm text-slate-300">Setting up your WiseHire account…</p>
+            {completionTimedOut && (
+              <p className="text-xs text-slate-400 max-w-xs text-center">
+                This is taking a bit longer than usual. Hang tight…
+              </p>
+            )}
           </div>
-        </WiseHireShell>
+        </SignupShell>
       );
     }
 
     if (completionError) {
       return (
-        <WiseHireShell>
+        <SignupShell>
           <ErrorBlock message={completionError} />
-        </WiseHireShell>
+        </SignupShell>
       );
     }
 
@@ -196,21 +234,21 @@ export default function WiseHireSignupPage() {
   // ── Normal mode: validating ──
   if (validating) {
     return (
-      <WiseHireShell>
+      <SignupShell>
         <div className="flex flex-col items-center gap-4 py-8">
           <MiniSpinner size={36} />
-          <p className="text-sm text-slate-500">Validating your invite…</p>
+          <p className="text-sm text-slate-300">Validating your invite…</p>
         </div>
-      </WiseHireShell>
+      </SignupShell>
     );
   }
 
   // ── Normal mode: invalid invite ──
   if (invalidReason) {
     return (
-      <WiseHireShell>
+      <SignupShell>
         <ErrorBlock message={REASON_MESSAGES[invalidReason]} />
-      </WiseHireShell>
+      </SignupShell>
     );
   }
 
@@ -224,24 +262,24 @@ export default function WiseHireSignupPage() {
     : '';
 
   return (
-    <WiseHireShell>
+    <SignupShell>
       <div className="flex flex-col gap-1 mb-6">
-        <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 text-sm font-medium">
+        <div className="flex items-center gap-2 text-emerald-400 text-sm font-medium">
           <CheckCircle2 className="h-4 w-4" />
           Invite verified — you're on the list
         </div>
-        <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+        <h1 className="text-2xl font-extrabold tracking-tight text-white">
           Set up your WiseHire account
         </h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          Creating an account for <span className="font-medium text-slate-700 dark:text-slate-300">{recipientEmail}</span>
-          {expiryFormatted && <span className="ml-2 text-xs text-slate-400">· Invite expires {expiryFormatted}</span>}
+        <p className="text-sm text-slate-400">
+          Creating an account for <span className="font-medium text-slate-200">{recipientEmail}</span>
+          {expiryFormatted && <span className="ml-2 text-xs text-slate-500">· Invite expires {expiryFormatted}</span>}
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-1.5">
-          <Label htmlFor="fullName">Your full name</Label>
+          <Label htmlFor="fullName" className="text-slate-300">Your full name</Label>
           <Input
             id="fullName"
             placeholder="Jane Smith"
@@ -249,22 +287,23 @@ export default function WiseHireSignupPage() {
             onChange={(e) => setFullName(e.target.value)}
             disabled={submitting}
             autoFocus
+            className="bg-slate-800/60 border-slate-700 text-white placeholder:text-slate-500 focus:border-blue-500"
           />
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="email">Work email</Label>
+          <Label htmlFor="email" className="text-slate-300">Work email</Label>
           <Input
             id="email"
             value={recipientEmail}
             readOnly
-            className="bg-slate-50 dark:bg-slate-800 text-slate-400 cursor-not-allowed"
+            className="bg-slate-800/30 border-slate-700 text-slate-400 cursor-not-allowed"
           />
-          <p className="text-xs text-slate-400">This is the email your invite was sent to.</p>
+          <p className="text-xs text-slate-500">This is the email your invite was sent to.</p>
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="companyName">
+          <Label htmlFor="companyName" className="text-slate-300">
             <Building2 className="inline h-3.5 w-3.5 mr-1 mb-0.5" />
             Company name
           </Label>
@@ -274,13 +313,14 @@ export default function WiseHireSignupPage() {
             value={companyName}
             onChange={(e) => setCompanyName(e.target.value)}
             disabled={submitting}
+            className="bg-slate-800/60 border-slate-700 text-white placeholder:text-slate-500 focus:border-blue-500"
           />
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="companySize">Company size</Label>
+          <Label htmlFor="companySize" className="text-slate-300">Company size</Label>
           <Select value={companySize} onValueChange={setCompanySize} disabled={submitting}>
-            <SelectTrigger id="companySize">
+            <SelectTrigger id="companySize" className="bg-slate-800/60 border-slate-700 text-white">
               <SelectValue placeholder="Select company size" />
             </SelectTrigger>
             <SelectContent>
@@ -294,7 +334,7 @@ export default function WiseHireSignupPage() {
         </div>
 
         {formError && (
-          <div className="flex items-center gap-2 text-red-600 dark:text-red-400 text-sm">
+          <div className="flex items-center gap-2 text-red-400 text-sm">
             <AlertCircle className="h-4 w-4 shrink-0" />
             {formError}
           </div>
@@ -303,7 +343,7 @@ export default function WiseHireSignupPage() {
         <Button
           type="submit"
           disabled={submitting}
-          className="w-full bg-blue-700 hover:bg-blue-800 text-white font-semibold"
+          className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold"
         >
           {submitting ? (
             <>
@@ -315,35 +355,116 @@ export default function WiseHireSignupPage() {
           )}
         </Button>
 
-        <p className="text-xs text-center text-slate-400 pt-1">
+        <p className="text-xs text-center text-slate-500 pt-1">
           By creating an account you agree to the{' '}
-          <Link to="/terms-of-service" className="underline hover:text-slate-600">
+          <Link to="/terms-of-service" className="underline hover:text-slate-300">
             Terms of Service
           </Link>{' '}
           and{' '}
-          <Link to="/privacy-policy" className="underline hover:text-slate-600">
+          <Link to="/privacy-policy" className="underline hover:text-slate-300">
             Privacy Policy
           </Link>
           .
         </p>
       </form>
-    </WiseHireShell>
+    </SignupShell>
   );
 }
 
-function WiseHireShell({ children }: { children: React.ReactNode }) {
+/** Full-screen WiseHire-branded shell for the signup/invite flow.
+ *  Uses an animated deep-blue gradient background to match the WiseHire
+ *  product identity on the landing page. */
+function SignupShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-[100dvh] bg-[#f0f5ff] dark:bg-[#00061a] flex items-start justify-center pt-16 px-4 pb-12">
-      <div className="w-full max-w-md">
-        {/* WiseHire brand header */}
-        <div className="mb-8 text-center">
-          <span className="text-2xl font-extrabold tracking-tight text-blue-700 dark:text-blue-400">
+    <div
+      style={{
+        minHeight: '100dvh',
+        background: 'linear-gradient(135deg, #020b1a 0%, #0a1628 40%, #0d1f3c 100%)',
+        display: 'flex',
+        alignItems: 'flex-start',
+        justifyContent: 'center',
+        padding: 'clamp(48px,8vh,80px) 16px 48px',
+        position: 'relative',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Keyframe for the animated glow orbs */}
+      <style>{`
+        @keyframes wh-signup-pulse {
+          0%, 100% { opacity: 0.6; transform: translate(-50%, -50%) scale(1); }
+          50% { opacity: 0.9; transform: translate(-50%, -50%) scale(1.12); }
+        }
+        @keyframes wh-signup-pulse2 {
+          0%, 100% { opacity: 0.3; transform: translate(-50%, -50%) scale(1); }
+          50% { opacity: 0.55; transform: translate(-50%, -50%) scale(1.1); }
+        }
+      `}</style>
+
+      {/* Ambient glow — primary blue orb at top */}
+      <div
+        aria-hidden="true"
+        style={{
+          position: 'absolute',
+          width: '700px',
+          height: '700px',
+          borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(59,130,246,0.22) 0%, transparent 70%)',
+          top: '-100px',
+          left: '50%',
+          animation: 'wh-signup-pulse 5s ease-in-out infinite',
+          pointerEvents: 'none',
+        }}
+      />
+      {/* Ambient glow — secondary indigo orb bottom-right */}
+      <div
+        aria-hidden="true"
+        style={{
+          position: 'absolute',
+          width: '500px',
+          height: '500px',
+          borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(99,102,241,0.16) 0%, transparent 70%)',
+          bottom: '-100px',
+          right: '-100px',
+          animation: 'wh-signup-pulse2 6s ease-in-out infinite 1.5s',
+          pointerEvents: 'none',
+        }}
+      />
+
+      <div style={{ width: '100%', maxWidth: '448px', position: 'relative', zIndex: 1 }}>
+        {/* WiseHire logo mark */}
+        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+          <img
+            src="/favicon-wisehire.png"
+            alt="WiseHire"
+            style={{
+              width: '56px',
+              height: '56px',
+              borderRadius: '16px',
+              margin: '0 auto 12px',
+              display: 'block',
+              boxShadow: '0 0 24px rgba(59,130,246,0.4)',
+            }}
+          />
+          <div style={{ fontSize: '26px', fontWeight: 800, color: '#ffffff', letterSpacing: '-0.03em' }}>
             WiseHire
-          </span>
-          <p className="text-xs text-slate-400 mt-0.5">by thewise.cloud</p>
+          </div>
+          <div style={{ fontSize: '12px', color: 'rgba(148,163,184,0.7)', marginTop: '2px' }}>
+            by thewise.cloud
+          </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-lg border border-slate-200 dark:border-slate-800 p-6 sm:p-8">
+        {/* Card */}
+        <div
+          style={{
+            background: 'rgba(15, 23, 42, 0.85)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            borderRadius: '20px',
+            padding: 'clamp(24px, 4vw, 36px)',
+            boxShadow: '0 25px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(59,130,246,0.15)',
+          }}
+        >
           {children}
         </div>
       </div>
@@ -354,19 +475,45 @@ function WiseHireShell({ children }: { children: React.ReactNode }) {
 function ErrorBlock({ message }: { message: string }) {
   return (
     <div className="flex flex-col items-center gap-4 py-4 text-center">
-      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
-        <AlertCircle className="h-8 w-8 text-red-600 dark:text-red-400" />
+      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-red-500/10">
+        <AlertCircle className="h-8 w-8 text-red-400" />
       </div>
       <div>
-        <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-1">
+        <h2 className="text-lg font-bold text-white mb-1">
           Invite not valid
         </h2>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">{message}</p>
+        <p className="text-sm text-slate-400 mb-4">{message}</p>
         <Link to="/waitlist">
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" className="border-slate-600 text-slate-300 hover:bg-slate-800">
             Join the WiseHire waitlist
           </Button>
         </Link>
+      </div>
+    </div>
+  );
+}
+
+function TimedOutBlock({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div className="flex flex-col items-center gap-4 py-4 text-center">
+      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-amber-500/10">
+        <AlertCircle className="h-8 w-8 text-amber-400" />
+      </div>
+      <div>
+        <h2 className="text-lg font-bold text-white mb-1">
+          Taking longer than expected
+        </h2>
+        <p className="text-sm text-slate-400 mb-4">
+          We couldn't finish connecting your account. This usually resolves with a quick reload.
+        </p>
+        <Button
+          onClick={onRetry}
+          className="bg-blue-600 hover:bg-blue-500 text-white"
+          size="sm"
+        >
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Try again
+        </Button>
       </div>
     </div>
   );
