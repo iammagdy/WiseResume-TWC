@@ -12,8 +12,17 @@ const BulkScreeningDemo = lazy(() => import('./BulkScreeningDemo').then((m) => (
 const TalentPoolDemo = lazy(() => import('./TalentPoolDemo').then((m) => ({ default: m.TalentPoolDemo })));
 const OfferTrackerDemo = lazy(() => import('./OfferTrackerDemo').then((m) => ({ default: m.OfferTrackerDemo })));
 
+/* Phase 6: every demo slot is pinned to this exact height so the inner
+   demo's animations (typing text, score counter, ranked-results reveal,
+   bulk-screening upload→results switch, etc.) cannot resize the card.
+   ScrollStack measurements stay rock-stable, so the page never silently
+   drifts while a user is reading another section. Sized to fit the
+   tallest demo's tallest animation frame; smaller demos sit top-aligned
+   inside the reserved frame. */
+const DEMO_SLOT_HEIGHT = 380;
+
 const DemoFallback = () => (
-  <div aria-hidden="true" style={{ minHeight: 320, width: '100%' }} />
+  <div aria-hidden="true" style={{ height: DEMO_SLOT_HEIGHT, width: '100%' }} />
 );
 
 /* Visibility-gated mount: only mounts (and triggers React.lazy import)
@@ -71,21 +80,24 @@ export function WiseHireDemoSection() {
     ? { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0.25 } } }
     : { hidden: { opacity: 0, y: 80 }, visible: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 200, damping: 22 } } };
 
+  /* Phase 6 (Task #10 step 1): the previous extra <section id="wisehire-demo">
+     wrapper added a second containing block between the parent <m.div> in
+     LandingMotionStage and the .lp-stack-section. That broke the sticky
+     header positioning context — the "See it in action" headline and the
+     step-counter chip never rendered. WiseResume's structure is
+     <motion.div> → <div .lp-stack-section> with no extra wrapper, so we
+     match it exactly: id, scroll-margin-top, border-top, and the section
+     background all move directly onto the .lp-stack-section div. */
   return (
-    <section
+    <div
       id="wisehire-demo"
+      className="lp-stack-section"
       style={{
-        background: 'var(--lp-section-alt2)',
+        ['--lp-stack-gap' as string]: '240px',
         borderTop: '1px solid var(--lp-border)',
-        width: '100%',
         scrollMarginTop: '96px',
-        transition: 'background 0.35s ease',
       }}
     >
-      <div
-        className="lp-stack-section"
-        style={{ ['--lp-stack-gap' as string]: '240px' }}
-      >
       <div className="lp-stack-sticky-header">
         <motion.div
           variants={headingVariant}
@@ -147,73 +159,84 @@ export function WiseHireDemoSection() {
       >
         {DEMOS.map(({ key, label, icon: Icon, desc, Demo }) => (
           <ScrollStackItem key={key}>
-            {/* Phase 5: single canonical max-w-6xl wrapper (was nested
-                inside a redundant 100%-wide container). */}
+            {/* Phase 6 (Task #10 step 2): single padded wrapper. The outer
+                .scroll-stack-card already provides --lp-card background,
+                28px radius, hairline ring, and shadow — the previous extra
+                inner card div re-applied background+border+24px radius and
+                created visible "card-in-card" seams that leaked partial
+                demo content (RANKED RESULTS row, Tom avatar, JD Writer
+                Requirements list) at the stack peeks. */}
             <div
               className="max-w-6xl mx-auto w-full"
-              style={{ padding: 'clamp(32px, 4vw, 56px) clamp(20px, 4vw, 40px)' }}
+              style={{
+                padding: 'clamp(32px, 4vw, 56px) clamp(20px, 4vw, 40px)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 24,
+              }}
             >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div
                   style={{
-                    borderRadius: 24,
-                    background: 'var(--lp-card)',
-                    border: '1px solid var(--lp-border-card)',
-                    padding: 'clamp(20px, 3vw, 36px)',
+                    width: 40,
+                    height: 40,
+                    borderRadius: 12,
+                    background: 'rgba(29,78,216,0.10)',
                     display: 'flex',
-                    flexDirection: 'column',
-                    gap: 24,
-                    transition: 'background 0.35s ease, border-color 0.35s ease',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <div
-                      style={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: 12,
-                        background: 'rgba(29,78,216,0.10)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0,
-                      }}
-                    >
-                      <Icon className="w-5 h-5" style={{ color: '#3B82F6' }} />
-                    </div>
-                    <div>
-                      <h3
-                        className="font-bold"
-                        style={{ fontSize: 'clamp(1.1rem, 2vw, 1.4rem)', color: 'var(--lp-text)', letterSpacing: '-0.015em' }}
-                      >
-                        {label}
-                      </h3>
-                      <p
-                        style={{
-                          fontSize: '0.82rem',
-                          color: 'var(--lp-text-muted)',
-                          lineHeight: 1.6,
-                          maxWidth: 560,
-                          marginTop: 2,
-                          transition: 'color 0.35s ease',
-                        }}
-                      >
-                        {desc}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex justify-center lp-stack-parallax">
-                    <LazyOnVisible>
-                      <Suspense fallback={<DemoFallback />}>
-                        <Demo />
-                      </Suspense>
-                    </LazyOnVisible>
-                  </div>
+                  <Icon className="w-5 h-5" style={{ color: '#3B82F6' }} />
                 </div>
+                <div>
+                  <h3
+                    className="font-bold"
+                    style={{ fontSize: 'clamp(1.1rem, 2vw, 1.4rem)', color: 'var(--lp-text)', letterSpacing: '-0.015em' }}
+                  >
+                    {label}
+                  </h3>
+                  <p
+                    style={{
+                      fontSize: '0.82rem',
+                      color: 'var(--lp-text-muted)',
+                      lineHeight: 1.6,
+                      maxWidth: 560,
+                      marginTop: 2,
+                      transition: 'color 0.35s ease',
+                    }}
+                  >
+                    {desc}
+                  </p>
+                </div>
+              </div>
+              {/* Phase 6 (Task #10 step 3): every demo slot is pinned to a
+                  fixed height so the inner demo's animations (typing,
+                  score counter, upload→results swap, kanban move, etc.)
+                  cannot change the card's measured height. ScrollStack
+                  measurements stay stable and the page no longer drifts
+                  while a demo's animation cycles. */}
+              <div
+                className="lp-stack-parallax"
+                style={{
+                  height: DEMO_SLOT_HEIGHT,
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  justifyContent: 'center',
+                  overflow: 'hidden',
+                }}
+              >
+                <LazyOnVisible>
+                  <Suspense fallback={<DemoFallback />}>
+                    <Demo />
+                  </Suspense>
+                </LazyOnVisible>
+              </div>
             </div>
           </ScrollStackItem>
         ))}
       </ScrollStack>
-      </div>
-    </section>
+    </div>
   );
 }
