@@ -1,5 +1,62 @@
 # Changelog
 
+## 2026-04-19 — Edge function redeploy + GitHub sync (maintenance)
+
+- Deployed 7 updated Supabase Edge Functions to project `jnsfmkzgxsviuthaqlyy` via Supabase CLI v2.90.0: `track-portfolio-view`, `portfolio-interest`, `resolve-short-link`, `admin-portfolio-usernames`, `generate-cover-letter`, `generate-resignation-letter`, `weekly-digest`.
+- Pushed all commits (Tasks #1–#4) to `origin/main` on GitHub (`iammagdy/wiseresume-74945019`).
+- Documentation updated: CHANGELOG, stability-improvements.md, database-table cards, replit.md.
+
+---
+
+## 2026-04-18 — Portfolio analytics: cut over to portfolio_id FK (Task #4)
+
+Portfolio visit/interaction/short-link rows now track `portfolio_id` (stable uuid) alongside the legacy `username` text column so analytics survive admin username renames.
+
+- **Migration** (`supabase/migrations/20260418195803_portfolio_id_consumers.sql`): adds `ON UPDATE CASCADE` to legacy username FKs on `portfolio_visits`, `portfolio_interactions`, `short_links`; adds `portfolio_username` FK to `short_links` if missing.
+- **`supabase/functions/track-portfolio-view/index.ts`**: resolves `portfolio_id` from username before calling `record_portfolio_visit` RPC; passes both columns.
+- **`supabase/functions/portfolio-interest/index.ts`**: resolves `portfolio_id`; includes it in insert, keeps legacy `portfolio_username` for FK.
+- **`supabase/functions/resolve-short-link/index.ts`**: returns `portfolio_id` from the RPC response.
+- **`supabase/functions/weekly-digest/index.ts`**: counts portfolio views by `portfolio_id` instead of `username`.
+- **`supabase/functions/admin-portfolio-usernames/index.ts`**: rename now updates `portfolios.username` so `ON UPDATE CASCADE` keeps analytics columns in sync.
+- **`server/schema.ts`**: added nullable `portfolio_id` + new BTREE indexes + `ON UPDATE CASCADE` on legacy text FKs for `portfolio_visits`, `portfolio_interactions`.
+- Legacy username columns retained for this release as fallback. Follow-up migration drops them once soak completes.
+
+---
+
+## 2026-04-18 — Persist AI-generated cover letters and resignation letters (Task #3)
+
+- **`supabase/functions/_shared/letterPersistence.ts`** (new): schema-tolerant INSERT helper for `cover_letters` / `resignation_letters`; handles old and new column shapes with automatic fallback.
+- **`supabase/functions/generate-cover-letter/index.ts`**: calls `persistLetter` after generation; returns `{ id, content, ... }`. Persistence failure returns 500 `persist_failed` instead of silent drop.
+- **`supabase/functions/generate-resignation-letter/index.ts`**: same pattern.
+- **Frontend `CoverLetterNewPage`**: captures returned `id`, invalidates history query, routes Save to edit page; removed legacy client-side insert fallback.
+- **Frontend `ResignationLetterNewPage`**: same.
+
+---
+
+## 2026-04-18 — Apply backend remediation migrations to Supabase (Task #2)
+
+Applied three Phase-1 schema migrations to canonical Supabase project `jnsfmkzgxsviuthaqlyy`:
+
+- `20260418195800_schema_hardening.sql`: `subscriptions_user_id_key` UNIQUE, `ai_credits_user_id_key` UNIQUE, `uniq_resumes_primary_per_user` partial index; `wisehire_candidates.tags` typed to `text[] NOT NULL DEFAULT '{}'`; `profiles.email` uniqueness dedup wrapped in column-existence guard (column is `contact_email` on Supabase, not `email` — guard no-ops cleanly).
+- `20260418195801_portfolio_id_columns.sql`: adds `portfolio_id uuid` to `portfolio_visits`, `portfolio_interactions`, `short_links`; all blocks wrapped in `to_regclass` guards.
+- `20260418195802_letters_persistence.sql`: `cover_letters` and `resignation_letters` tables; `ALTER TABLE ADD COLUMN IF NOT EXISTS` for each new column added since the earlier schema version; owner-only RLS policies. `current_role` quoted to avoid Postgres reserved-word clash.
+- Ran `npm run db:push` to sync Neon dev mirror with new `coverLetters` / `resignationLetters` Drizzle defs.
+
+---
+
+## 2026-04-18 — Backend remediation: canonical DB, schema hardening, edge function cleanup (Task #1)
+
+- **`docs/backend.md`** (new): Supabase is canonical DB; Neon is dev-mirror only. Documents reconciliation workflow, proxy boundary rules, and what each data type lives where.
+- **`supabase/migrations/20260418195800_schema_hardening.sql`**: UNIQUE constraints on `subscriptions(user_id)`, `ai_credits(user_id)`; partial unique on `resumes(user_id) WHERE is_primary`; `lower(profiles.email)` unique with backfill; `wisehire_candidates.tags → text[] NOT NULL`.
+- **`supabase/migrations/20260418195801_portfolio_id_columns.sql`**: additive `portfolio_id uuid` columns on three `portfolio_*` tables; back-filled from username join.
+- **`supabase/migrations/20260418195802_letters_persistence.sql`**: `cover_letters` + `resignation_letters` tables with owner-only RLS.
+- **`server/schema.ts`**: added `coverLetters`, `resignationLetters` Drizzle table definitions (`content jsonb`, indexes on `(user_id, updated_at DESC)`).
+- **Deleted** source dirs for 3 confirmed-orphan edge functions: `wisehire-apply`, `send-feature-request`, `send-contact-inquiry`.
+- **`supabase/functions/EDGE_FUNCTION_AUDIT.md`**: updated with removed functions, platform-hook documentation, ghost-function status table.
+- **`BACKEND_AUDIT.md`**: §9 Closure Notes added (drift vs. reality, what was applied, what needs human action).
+
+---
+
 ## 2026-04-18 — DevKit comprehensive hardening, phase 3: full unmount-guard sweep (Task #30)
 
 Closes every remaining unmount-race surface identified by the validator so the admin DevKit has zero React setState-on-unmount warnings.

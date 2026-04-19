@@ -48,7 +48,8 @@ WiseResume is an AI-powered career management PWA. Production URL: https://resum
 | Styling | Tailwind CSS + Radix UI + Framer Motion |
 | State | Zustand + TanStack Query (React Query) |
 | Auth | Kinde Auth (https://thewisecloud.kinde.com) |
-| Database | Replit Neon PostgreSQL + Drizzle ORM (schema: server/schema.ts) |
+| Database (canonical) | Supabase Postgres — all 94 edge functions read/write here; has RLS |
+| Database (dev mirror) | Neon PostgreSQL via Drizzle ORM (schema: `server/schema.ts`) — local dev only, never exposed to browser |
 | Backend | Express.js server (server/index.ts, port 5001) + Supabase Edge Functions (Deno) |
 | PWA | Capacitor 8 + vite-plugin-pwa |
 | Package Manager | npm |

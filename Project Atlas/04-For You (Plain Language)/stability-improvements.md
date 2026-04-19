@@ -1,10 +1,50 @@
 # Stability Improvements — What's Getting Better Behind the Scenes
 
-**Last verified:** 2026-04-18
+**Last verified:** 2026-04-19
 **Audience:** you (the owner). No code, no jargon, no technical paths.
 **Sources (governance — supreme):**
 - `project-governance/CHANGELOG.md` entries dated 2026-04-18 (Stability Fixes — Phases 1 to 6)
 - `project-governance/CONSTITUTION.md` §6.5–§6.6 (the rule that says every change must be documented for you, in plain English, alongside the engineering record)
+
+---
+
+## Generated letters are now saved automatically so users can revisit them (2026-04-18)
+
+**What was the situation:** When a user generated an AI cover letter or resignation letter, the result was shown on screen but never saved. Closing the tab, navigating away, or refreshing the page meant the letter was gone forever.
+
+**What changed:** Both the cover-letter generator and the resignation-letter generator now save every generation to the user's account the moment it is produced. The saved letter is immediately retrievable from the user's letter history. The backend schema was updated with owner-only access controls so only the user who generated a letter can read, edit, or delete it.
+
+**What you'll notice:** Users can now return to previously generated letters at any time without having to regenerate them. Each generation lands in the user's letter history and can be re-opened from there.
+
+---
+
+## Portfolio analytics now survive a username rename (2026-04-18)
+
+**What was the situation:** If an admin changed a user's portfolio username (the public URL slug), all of that user's analytics history — visit counts, countries, referrers, interest clicks — was silently orphaned. The new username would start from zero, as if the portfolio was brand new.
+
+**What changed:** The three analytics tables now record the portfolio's internal ID (a permanent identifier) alongside the username. When an admin renames a portfolio, the analytics stay attached to the same portfolio ID and are not lost. The old username column is still kept as a safety fallback during the current release.
+
+**What you'll notice:** Renaming a user's portfolio slug in the admin panel no longer wipes their analytics history.
+
+---
+
+## Database safety: race conditions eliminated, data integrity enforced (2026-04-18)
+
+**What was the situation:** Several database tables had no protection against a rare but possible scenario where two actions happened at exactly the same time — for example, two simultaneous sign-ups could have theoretically created duplicate subscription rows for the same user, which would cause billing confusion later. There was also no guarantee that a user couldn't end up with two "primary" resumes at once.
+
+**What changed:** Database-level constraints were added to make these race conditions impossible, not just unlikely. Each user is now guaranteed to have at most one subscription row, one AI-credit row, and one primary resume — enforced by the database itself, independently of application logic. Cover-letter and resignation-letter generation results are now also stored in dedicated tables with the correct access controls.
+
+**What you'll notice:** Nothing visible changes in normal use. These are guardrails that prevent edge-case data corruption from ever occurring.
+
+---
+
+## All backend changes have been applied and redeployed (2026-04-19)
+
+**What was the situation:** Several months of backend improvements existed as code in the repository but had not yet been pushed to GitHub or applied to the live Supabase backend.
+
+**What changed:** All changes were pushed to the GitHub repository, all three database migrations were applied to the live database, and seven updated backend services were redeployed. The codebase and production environment are now fully in sync.
+
+**What you'll notice:** The live site now reflects all the stability, analytics, and letter-persistence improvements described above.
 
 ---
 

@@ -1,6 +1,6 @@
 # cover_letters
 
-**Last verified:** 2026-04-17
+**Last verified:** 2026-04-19
 **Type:** reference card
 **Sources:**
 - `src/integrations/supabase/types.ts` — `Tables.cover_letters.Row` (11 columns)
@@ -14,7 +14,11 @@
 
 **What it is:** Generated and saved cover letters.
 
-**Schema:** 11 columns per `Tables.cover_letters.Row` in `src/integrations/supabase/types.ts`. Columns: `company`, `content`, `created_at`, `id`, `job_title`, `resume_id`, `template_style`, `title`, `tone`, `updated_at`, `user_id`.
+**Schema:** 11 original columns + 6 added in Task #2/3 (2026-04-18). Full column set: `company`, `content` (jsonb — generation output), `created_at`, `id`, `job_title`, `resume_id`, `template_style`, `title`, `tone`, `updated_at`, `user_id`, `job_application_id` (nullable FK → `job_applications.id`), `position`, `job_description`, `model_used`, `metadata` (jsonb), `effective_date` (date).
+
+**Persistence added (2026-04-18):** `generate-cover-letter` edge function now inserts a row on every generation and returns `{ id, content }`. The frontend captures the `id` and navigates to the saved letter. `content` is stored as `jsonb`.
+
+**Index:** `(user_id, updated_at DESC)` — `idx_cover_letters_user_updated`.
 
 **Owner FK pattern:** `user_id` → `auth.users.id` (per `Tables.cover_letters.Row` in `types.ts`).
 
