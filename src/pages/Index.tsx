@@ -22,12 +22,6 @@ import { useSearchParams } from 'react-router-dom';
 import { useThemeLogo } from '@/hooks/useThemeLogo';
 import { LandingHeader } from '@/components/landing/LandingHeader';
 import { useWebMcp } from '@/hooks/useWebMcp';
-// LandingModeTransition uses framer-motion. Lazy-load it so framer is
-// only fetched on the first product switch (and never for users with
-// prefers-reduced-motion).
-const LandingModeTransition = lazy(() =>
-  import('@/components/landing/LandingModeTransition').then((m) => ({ default: m.LandingModeTransition }))
-);
 /* Eagerly preload whichever hero chunk corresponds to the initial active
    product mode. Both heroes use React.lazy below so the inactive product
    subtree stays out of the entry chunk; this preload simply primes the
@@ -99,17 +93,8 @@ const Index = () => {
     if (new URLSearchParams(window.location.search).get('for') === 'companies') return 'wisehire';
     return 'jobseeker';
   });
-  const pendingModeRef = useRef<'jobseeker' | 'wisehire' | null>(null);
   const [waitlistOpen, setWaitlistOpen] = useState(false);
-  const [waveKey, setWaveKey] = useState(0);
-  const [waveColor, setWaveColor] = useState('rgba(29,78,216,0.15)');
-  const [waveOrigin, setWaveOrigin] = useState({ x: 640, y: 21 });
-  const modeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { register: kindeRegister } = useKindeAuth();
-
-  useEffect(() => () => {
-    if (modeTimerRef.current !== null) clearTimeout(modeTimerRef.current);
-  }, []);
 
   useEffect(() => { setLpProduct(mode); }, [mode, setLpProduct]);
 
@@ -230,43 +215,41 @@ const Index = () => {
     }
   }, [navigate, kindeRegister]);
 
-  const handleWaveComplete = useCallback(() => {
-    const next = pendingModeRef.current;
-    if (next !== null) {
-      pendingModeRef.current = null;
-      startTransition(() => setDisplayProduct(next));
-    }
-  }, []);
+  /* Shorthand for the window transition-in-flight flag. When true,
+     ScrollStack's per-frame card-transform loop skips its write pass
+     so the brand/theme ripple doesn't contend for main-thread time. */
+  type WinWithFlag = Window & { __lpTransition?: boolean };
+  const setTransitionFlag = (on: boolean) => { (window as WinWithFlag).__lpTransition = on; };
+
+  type DocWithVT = Document & {
+    startViewTransition?: (cb: () => void) => { ready: Promise<void>; finished: Promise<void> };
+  };
 
   const handleLandingModeChange = (m: 'jobseeker' | 'wisehire', btnOrigin: { x: number; y: number }) => {
     if (m === mode) return;
     triggerHaptic.light();
-    if (!prefersReducedMotion) {
-      if (modeTimerRef.current !== null) { clearTimeout(modeTimerRef.current); modeTimerRef.current = null; }
-      pendingModeRef.current = m;
-      setWaveOrigin(btnOrigin);
-      setWaveColor(m === 'wisehire' ? 'rgba(37,99,235,0.15)' : 'rgba(185,28,28,0.15)');
-      setWaveKey((k) => k + 1);
-      /* Phase 5: prime the same View Transitions ripple used by the theme
-         toggle so the product swap shares its smooth crossfade with the
-         brand-color repaint. Origin is the toggle-button center. */
-      document.documentElement.style.setProperty('--lp-ripple-x', Math.round(btnOrigin.x) + 'px');
-      document.documentElement.style.setProperty('--lp-ripple-y', Math.round(btnOrigin.y) + 'px');
-      type DocWithVT = Document & { startViewTransition?: (cb: () => void) => void };
-      const startVT = (document as DocWithVT).startViewTransition?.bind(document);
-      modeTimerRef.current = setTimeout(() => {
-        modeTimerRef.current = null;
-        if (!startVT) {
-          startTransition(() => setMode(m));
-        } else {
-          startVT(() => { flushSync(() => setMode(m)); });
-        }
-      }, 300);
-    } else {
+    if (prefersReducedMotion) {
       setMode(m);
       setDisplayProduct(m);
-      pendingModeRef.current = null;
+      return;
     }
+    document.documentElement.style.setProperty('--lp-ripple-x', Math.round(btnOrigin.x) + 'px');
+    document.documentElement.style.setProperty('--lp-ripple-y', Math.round(btnOrigin.y) + 'px');
+    const startVT = (document as DocWithVT).startViewTransition?.bind(document);
+    setTransitionFlag(true);
+    if (!startVT) {
+      startTransition(() => { setMode(m); setDisplayProduct(m); });
+      setTimeout(() => setTransitionFlag(false), 600);
+      return;
+    }
+    /* Only update `mode` (brand colors, header, favicon) inside the
+       snapshot callback so the first frames of the ripple paint against
+       the already-updated lightweight state. The heavy LandingMotionStage
+       re-render (displayProduct) is deferred until after the ripple's
+       first frame resolves — this prevents it from blocking the ripple. */
+    const vt = startVT(() => { flushSync(() => setMode(m)); });
+    vt.ready.then(() => { startTransition(() => setDisplayProduct(m)); }).catch(() => {});
+    vt.finished.then(() => setTransitionFlag(false)).catch(() => setTransitionFlag(false));
   };
 
   const handleThemeToggle = (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -274,11 +257,16 @@ const Index = () => {
     const rect = e.currentTarget.getBoundingClientRect();
     document.documentElement.style.setProperty('--lp-ripple-x', Math.round(rect.left + rect.width / 2) + 'px');
     document.documentElement.style.setProperty('--lp-ripple-y', Math.round(rect.top + rect.height / 2) + 'px');
-    type DocWithVT = Document & { startViewTransition?: (cb: () => void) => void };
     const startVT = (document as DocWithVT).startViewTransition?.bind(document);
     const applyToggle = (prev: boolean) => { const next = !prev; setThemeStore(next ? 'dark' : 'light'); return next; };
-    if (!startVT || prefersReducedMotion) { setIsDark(applyToggle); return; }
-    startVT(() => { flushSync(() => setIsDark(applyToggle)); });
+    setTransitionFlag(true);
+    if (!startVT || prefersReducedMotion) {
+      setIsDark(applyToggle);
+      setTimeout(() => setTransitionFlag(false), 600);
+      return;
+    }
+    const vt = startVT(() => { flushSync(() => setIsDark(applyToggle)); });
+    vt.finished.then(() => setTransitionFlag(false)).catch(() => setTransitionFlag(false));
   };
 
   return (
@@ -303,12 +291,6 @@ const Index = () => {
       <div className="fixed top-0 left-0 right-0 h-[2px] z-[60] pointer-events-none">
         <div ref={progressRef} className="h-full transition-[width] duration-75 ease-out" style={{ background: 'var(--lp-brand)', width: 0 }} />
       </div>
-
-      {!prefersReducedMotion && waveKey > 0 && (
-        <Suspense fallback={null}>
-          <LandingModeTransition waveKey={waveKey} waveColor={waveColor} origin={waveOrigin} onWaveComplete={handleWaveComplete} />
-        </Suspense>
-      )}
 
       <LandingHeader
         mode={mode}

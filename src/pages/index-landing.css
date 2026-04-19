@@ -45,17 +45,15 @@
   --lp-signin-border: rgba(255,255,255,0.1);
   --lp-trust-color: rgba(240,240,245,0.65);
   --lp-trust-icon: rgba(158,27,34,0.85);
-  --lp-toggle-bg: rgba(255,255,255,0.07);
-  --lp-toggle-border: rgba(255,255,255,0.1);
+  --lp-toggle-bg: rgba(255,255,255,0.13);
+  --lp-toggle-border: rgba(255,255,255,0.14);
   --lp-toggle-color: rgba(255,255,255,0.55);
   --lp-brand-pill-bg: rgba(158,27,34,0.1);
   --lp-brand-pill-border: rgba(158,27,34,0.28);
   --lp-brand-pill-glow: rgba(158,27,34,0.13);
   background: var(--lp-bg);
   color: var(--lp-text);
-  transition: background 0.45s ease, color 0.35s ease,
-    --lp-brand 0.55s ease, --lp-hero-glow 0.55s ease,
-    --lp-eyebrow 0.5s ease, --lp-trust-icon 0.5s ease;
+  transition: background 0.45s ease, color 0.35s ease;
 }
 
 /* ── LIGHT THEME ─────────────────────────────────────────── */
@@ -82,8 +80,8 @@
   --lp-signin-border: rgba(0,0,0,0.1);
   --lp-trust-color: rgba(15,15,26,0.6);
   --lp-trust-icon: rgba(158,27,34,0.85);
-  --lp-toggle-bg: rgba(0,0,0,0.05);
-  --lp-toggle-border: rgba(0,0,0,0.1);
+  --lp-toggle-bg: rgba(0,0,0,0.09);
+  --lp-toggle-border: rgba(0,0,0,0.13);
   --lp-toggle-color: rgba(15,15,26,0.55);
   --lp-brand-pill-bg: rgba(158,27,34,0.07);
   --lp-brand-pill-border: rgba(158,27,34,0.2);
@@ -392,19 +390,20 @@ body[data-lp-scheme="light"][data-lp-product="wisehire"] { background-color: #f0
   position: absolute;
   top: 10%;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translateX(-50%) translateZ(0);
   width: 60vw;
   height: 30vh;
   border-radius: 50%;
   background: radial-gradient(ellipse at center, var(--lp-hero-glow) 0%, transparent 70%);
   filter: blur(24px);
   opacity: 0.7;
+  will-change: opacity;
 }
 @media (min-width: 640px) {
   .lp-hero-parallax-glow {
     width: 70vw;
     height: 40vh;
-    filter: blur(40px);
+    filter: blur(32px);
   }
 }
 
@@ -419,9 +418,7 @@ body[data-lp-scheme="light"][data-lp-product="wisehire"] { background-color: #f0
   --lp-brand-pill-glow: rgba(29,78,216,0.15);
   --lp-section-alt2: #0b0f1c;
   --lp-card-glass: rgba(60,120,255,0.05);
-  transition: background 0.45s ease, color 0.35s ease,
-    --lp-brand 0.55s ease, --lp-hero-glow 0.55s ease,
-    --lp-eyebrow 0.5s ease, --lp-trust-icon 0.5s ease;
+  transition: background 0.45s ease, color 0.35s ease;
 }
 .lp-root[data-lp-product="wisehire"][data-lp-scheme="light"] {
   --lp-bg: rgba(240,245,255,0.62);

@@ -59,8 +59,6 @@ export function LandingToggle({ mode, onModeChange, prefersReducedMotion, uid: _
         alignItems: 'center',
         position: 'relative',
         background: 'var(--lp-toggle-bg)',
-        backdropFilter: 'blur(14px)',
-        WebkitBackdropFilter: 'blur(14px)',
         border: '1px solid var(--lp-toggle-border)',
         borderRadius: 99,
         padding: 3,

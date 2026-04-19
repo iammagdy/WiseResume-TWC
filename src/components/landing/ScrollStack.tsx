@@ -233,6 +233,12 @@ const ScrollStack = ({
     let lastActiveIndex = -2;
 
     const updateCardTransforms = () => {
+      /* Skip per-frame style writes while a brand/theme view-transition is
+         in flight. The flag is set in Index.tsx for ~600 ms around every
+         startViewTransition call so our rAF loop doesn't contend with the
+         ripple animation on the main thread. Lenis still ticks (its rAF
+         loop is separate and must keep running for window-scroll mode). */
+      if ((window as Window & { __lpTransition?: boolean }).__lpTransition) return;
       const cardList = cardsRef.current;
       if (!cardList.length) return;
 
