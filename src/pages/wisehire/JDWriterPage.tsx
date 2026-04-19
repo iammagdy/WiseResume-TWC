@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { WiseHireShell } from '@/components/wisehire/WiseHireShell';
 import { JDWriterForm } from '@/components/wisehire/jd-writer/JDWriterForm';
@@ -15,6 +15,11 @@ export default function JDWriterPage() {
   const roleIdParam = searchParams.get('roleId');
 
   const [tab, setTab] = useState<string>(roleIdParam ? 'library' : 'write');
+
+  useEffect(() => {
+    if (roleIdParam) setTab('library');
+  }, [roleIdParam]);
+
   const [generatedJD, setGeneratedJD] = useState<JDData | null>(null);
   const [savedRoleId, setSavedRoleId] = useState<string | null>(null);
   const { data: roles = [], isLoading: rolesLoading, saveJD, deleteJD } = useJDs();
