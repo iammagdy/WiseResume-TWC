@@ -69,8 +69,6 @@ project_id = "jnsfmkzgxsviuthaqlyy"
     verify_jwt = false
   [functions.generate-resignation-letter]
     verify_jwt = false
-  [functions.generate-store-screenshots]
-    verify_jwt = false
   [functions.hard-purge]
     verify_jwt = false
   [functions.interview-chat]
