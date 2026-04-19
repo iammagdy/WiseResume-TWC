@@ -146,6 +146,28 @@ const Index = () => {
       ? 'AI-powered hiring platform. Brief Generator, JD Writer, Pipeline Board and more. Now in early access.'
       : 'AI that builds, tailors, and lands your next job. ATS scoring, interview coaching, and more.');
     setMeta('og:url', isWH ? `${window.location.origin}/enterprises` : window.location.origin);
+
+    /* Task #13: swap the favicon (and matching apple-touch / og:image /
+       twitter:image) so the browser tab icon mirrors the active brand.
+       The pre-React script in index.html already sets the correct icon
+       for first paint based on the URL; this effect handles in-app
+       toggling between Individuals/Enterprises (and direct navigation
+       between `/` and `/enterprises`) without a page reload. */
+    const favHref = isWH ? '/favicon-wisehire.png' : '/favicon.png';
+    const appleHref = isWH ? '/icons/icon-wisehire-192x192.png' : '/icons/icon-192x192.png';
+    const setLinkHref = (id: string, href: string) => {
+      const el = document.getElementById(id) as HTMLLinkElement | null;
+      if (el && el.getAttribute('href') !== href) el.setAttribute('href', href);
+    };
+    const setMetaContent = (id: string, content: string) => {
+      const el = document.getElementById(id) as HTMLMetaElement | null;
+      if (el && el.getAttribute('content') !== content) el.setAttribute('content', content);
+    };
+    setLinkHref('app-favicon', favHref);
+    setLinkHref('app-favicon-preload', favHref);
+    setLinkHref('app-apple-touch-icon', appleHref);
+    setMetaContent('app-og-image', favHref);
+    setMetaContent('app-twitter-image', favHref);
   }, [mode]);
 
   useEffect(() => {
