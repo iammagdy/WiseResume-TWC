@@ -18,27 +18,6 @@ const COMPANY_SIZES = [
   '1,000+',
 ];
 
-const CONSUMER_DOMAINS = new Set([
-  'gmail.com','googlemail.com',
-  'yahoo.com','yahoo.co.uk','yahoo.co.in','yahoo.fr','yahoo.de','yahoo.es',
-  'yahoo.it','yahoo.com.au','yahoo.com.br','yahoo.ca','yahoo.com.mx','yahoo.com.ar',
-  'ymail.com',
-  'hotmail.com','hotmail.co.uk','hotmail.fr','hotmail.de','hotmail.es',
-  'hotmail.it','hotmail.com.br','hotmail.com.ar','hotmail.com.mx',
-  'outlook.com','outlook.co.uk','outlook.fr','outlook.de','outlook.es','outlook.it',
-  'live.com','live.co.uk','live.fr','live.de',
-  'icloud.com','me.com','mac.com',
-  'aol.com','aim.com',
-  'mail.com','email.com',
-  'protonmail.com','proton.me',
-  'gmx.com','gmx.de','gmx.net',
-  'web.de','t-online.de',
-  'comcast.net','verizon.net','att.net','sbcglobal.net','cox.net','charter.net',
-  'earthlink.net','optonline.net',
-  'qq.com','163.com','126.com','sina.com',
-  'naver.com','hanmail.net','daum.net',
-]);
-
 type ModalView = 'waitlist' | 'early_access';
 
 export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
@@ -86,11 +65,6 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
       e.email = 'Email is required';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
       e.email = 'Enter a valid email';
-    } else {
-      const domain = form.email.trim().toLowerCase().split('@')[1] ?? '';
-      if (CONSUMER_DOMAINS.has(domain)) {
-        e.email = 'Please use a work email address.';
-      }
     }
     if (!form.size) e.size = 'Please select your company size';
     return e;
