@@ -821,7 +821,8 @@ serve(async (req) => {
       const httpStatus = err?.status ?? err?.statusCode ?? 0;
 
       if (httpStatus === 429) {
-        // Rate limited — tell client to retry
+        // Rate limited — refund credit and tell client to retry
+        await refundCredit(userId, creditCheck, 1);
         return new Response(
           JSON.stringify({
             error: 'RATE_LIMITED',
@@ -834,7 +835,8 @@ serve(async (req) => {
 
       if (httpStatus === 503 || httpStatus === 500 || httpStatus === 0 ||
           httpStatus === 401 || httpStatus === 403 || httpStatus === 404) {
-        // Service unavailable, auth/model error, or network error — fall back to local parser
+        // AI failed — refund credit and fall back to local parser
+        await refundCredit(userId, creditCheck, 1);
         console.warn('[parse-resume] Gemini unavailable (status:', httpStatus, '), falling back to local regex parser');
         const fallbackResume = localParseResume(processedText);
         parseStatus = 'partial';
