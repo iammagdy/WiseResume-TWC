@@ -298,10 +298,13 @@ export function WiseHireWaitlistPanel() {
                       </td>
                       <td className="px-4 py-3">
                         {isActive ? (
-                          <Badge variant="outline" className="text-blue-600 border-blue-500/20 bg-blue-500/10 gap-1">
-                            <UserCheck className="w-3 h-3" />
-                            Active
-                          </Badge>
+                          <div className="flex flex-col gap-0.5">
+                            <Badge variant="outline" className="text-blue-600 border-blue-500/20 bg-blue-500/10 gap-1 w-fit">
+                              <UserCheck className="w-3 h-3" />
+                              Active
+                            </Badge>
+                            <span className="text-xs text-muted-foreground">{formatDate(entry.invite_used_at)}</span>
+                          </div>
                         ) : isInvited ? (
                           <Badge variant="outline" className="text-green-600 border-green-500/20 bg-green-500/10 gap-1">
                             <CheckCircle2 className="w-3 h-3" />
