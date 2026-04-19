@@ -39,14 +39,29 @@
       padding: 36px 40px 28px;
       text-align: center;
     }
+    .logo-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 0;
+    }
+    .logo-img {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      object-fit: contain;
+      /* Same filter the app uses to turn the logo blue in WiseHire mode */
+      filter: hue-rotate(220deg) saturate(2) brightness(0.85);
+    }
     .logo-wordmark {
-      font-size: 26px;
+      font-size: 22px;
       font-weight: 900;
       color: #1D4ED8;
-      letter-spacing: -0.8px;
+      letter-spacing: -0.6px;
     }
     .header-sub {
-      margin-top: 6px;
+      margin-top: 8px;
       font-size: 11px;
       font-weight: 600;
       color: #64748B;
@@ -164,9 +179,12 @@
   <div class="email-outer">
     <div class="email-card">
 
-      <!-- Header — blue text wordmark, no image -->
+      <!-- Header — blue-filtered logo icon + wordmark -->
       <div class="header">
-        <div class="logo-wordmark">WiseHire</div>
+        <div class="logo-row">
+          <img src="/email-logo.webp" alt="WiseHire" class="logo-img" />
+          <span class="logo-wordmark">WiseHire</span>
+        </div>
         <p class="header-sub">by thewise.cloud</p>
       </div>
 
