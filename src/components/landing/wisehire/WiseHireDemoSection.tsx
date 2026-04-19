@@ -138,11 +138,11 @@ export function WiseHireDemoSection() {
       </div>
       <ScrollStack
         useWindowScroll
-        itemDistance={520}
+        itemDistance={580}
         itemScale={0.025}
-        itemStackDistance={20}
+        itemStackDistance={44}
         stackPosition="20%"
-        baseScale={0.88}
+        baseScale={0.93}
         onActiveCardChange={setActiveIdx}
       >
         {DEMOS.map(({ key, label, icon: Icon, desc, Demo }) => (

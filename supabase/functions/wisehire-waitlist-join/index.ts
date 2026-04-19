@@ -6,6 +6,32 @@ import { escapeHtml } from "../_shared/htmlEscape.ts";
 const ADMIN_EMAIL = "contact@thewise.cloud";
 const WISEHIRE_BLUE = "#1D4ED8";
 
+// Stable Supabase CDN URL — not tied to web-app deployment.
+// SETUP: create a public `emails` bucket in the Supabase dashboard and upload
+// public/email-logo.png there once. The URL below never changes.
+const EMAIL_LOGO_URL = "https://jnsfmkzgxsviuthaqlyy.supabase.co/storage/v1/object/public/emails/email-logo.png";
+
+const CONSUMER_DOMAINS = new Set([
+  "gmail.com","googlemail.com",
+  "yahoo.com","yahoo.co.uk","yahoo.co.in","yahoo.fr","yahoo.de","yahoo.es",
+  "yahoo.it","yahoo.com.au","yahoo.com.br","yahoo.ca","yahoo.com.mx","yahoo.com.ar",
+  "ymail.com",
+  "hotmail.com","hotmail.co.uk","hotmail.fr","hotmail.de","hotmail.es",
+  "hotmail.it","hotmail.com.br","hotmail.com.ar","hotmail.com.mx",
+  "outlook.com","outlook.co.uk","outlook.fr","outlook.de","outlook.es","outlook.it",
+  "live.com","live.co.uk","live.fr","live.de",
+  "icloud.com","me.com","mac.com",
+  "aol.com","aim.com",
+  "mail.com","email.com",
+  "protonmail.com","proton.me",
+  "gmx.com","gmx.de","gmx.net",
+  "web.de","t-online.de",
+  "comcast.net","verizon.net","att.net","sbcglobal.net","cox.net","charter.net",
+  "earthlink.net","optonline.net",
+  "qq.com","163.com","126.com","sina.com",
+  "naver.com","hanmail.net","daum.net",
+]);
+
 function buildConfirmationEmail(name: string, position: number): string {
   return `
 <!DOCTYPE html>
@@ -38,7 +64,7 @@ function buildConfirmationEmail(name: string, position: number): string {
               <tr>
                 <td style="vertical-align:middle;padding-right:10px;">
                   <!-- border-radius removed: Outlook ignores it on img; modern clients render it via CSS if added to a wrapper -->
-                  <img src="https://resume.thewise.cloud/email-logo.png"
+                  <img src="${EMAIL_LOGO_URL}"
                        alt="WiseHire"
                        width="38" height="38"
                        style="display:block;border:0;" />
@@ -56,7 +82,8 @@ function buildConfirmationEmail(name: string, position: number): string {
         <tr>
           <td class="px-wide" style="padding:28px 24px 0;text-align:center;">
             <span style="display:inline-block;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:100px;padding:7px 16px;font-size:12px;font-weight:600;color:#15803d;">
-              &#10003; Position #${position} on the waitlist
+              <svg width="13" height="13" viewBox="0 0 13 13" xmlns="http://www.w3.org/2000/svg" style="vertical-align:-2px;display:inline-block;"><path fill="none" stroke="#15803d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M1.5 6.5l3 3 6.5-6"/></svg>
+              Position #${position} on the waitlist
             </span>
           </td>
         </tr>
@@ -167,7 +194,7 @@ function buildNotificationEmail(
       <table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;">
         <tr>
           <td class="notif-header" style="background:${WISEHIRE_BLUE};padding:20px 32px;">
-            <div style="font-size:16px;font-weight:700;color:#fff;">🎯 New WiseHire Waitlist Signup</div>
+            <div style="font-size:16px;font-weight:700;color:#fff;">New WiseHire Waitlist Signup</div>
           </td>
         </tr>
         <tr>
@@ -255,10 +282,45 @@ Deno.serve(async (req) => {
       );
     }
 
+    const emailDomain = email.trim().toLowerCase().split("@")[1] ?? "";
+    if (CONSUMER_DOMAINS.has(emailDomain)) {
+      return new Response(
+        JSON.stringify({ error: "Please use a work email address." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
+
+    // Check if this email already has a WiseResume account via Auth Admin REST API.
+    // We use a raw fetch (not listUsers) to avoid paginating through all users.
+    const normalizedEmail = email.trim().toLowerCase();
+    const authSearchRes = await fetch(
+      `${Deno.env.get("SUPABASE_URL")}/auth/v1/admin/users?search=${encodeURIComponent(normalizedEmail)}&per_page=5`,
+      {
+        headers: {
+          apikey: Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+          Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!}`,
+        },
+      }
+    );
+    const authSearchData = authSearchRes.ok ? await authSearchRes.json() : { users: [] };
+    const isExistingWiseResumeUser = (authSearchData?.users ?? []).some(
+      (u: { email?: string }) => u.email?.toLowerCase() === normalizedEmail
+    );
+    if (isExistingWiseResumeUser) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          existing_wiseresume_user: true,
+          message: "This email is already registered on WiseResume. Sign in instead.",
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     const { data: existing } = await supabase
       .from("wisehire_waitlist")

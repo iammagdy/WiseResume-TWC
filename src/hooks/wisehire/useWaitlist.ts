@@ -11,6 +11,7 @@ export interface WaitlistFormData {
 export interface WaitlistResult {
   success: boolean;
   already_registered?: boolean;
+  existing_wiseresume_user?: boolean;
   message?: string;
 }
 

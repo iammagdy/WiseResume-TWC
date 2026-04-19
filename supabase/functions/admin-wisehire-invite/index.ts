@@ -28,6 +28,10 @@ async function hmacSign(message: string, secret: string): Promise<string> {
 }
 
 const WISEHIRE_BLUE = '#1D4ED8';
+// Stable Supabase CDN URL — not tied to web-app deployment.
+// SETUP: create a public `emails` bucket in the Supabase dashboard and upload
+// public/email-logo.png there once. The URL below never changes.
+const EMAIL_LOGO_URL = 'https://jnsfmkzgxsviuthaqlyy.supabase.co/storage/v1/object/public/emails/email-logo.png';
 
 function buildInviteEmail(recipientEmail: string, inviteUrl: string, expiresAt: string): string {
   const expiryFormatted = new Date(expiresAt).toLocaleString('en-US', {
@@ -59,7 +63,7 @@ function buildInviteEmail(recipientEmail: string, inviteUrl: string, expiresAt: 
             <table cellpadding="0" cellspacing="0" style="margin:0 auto;">
               <tr>
                 <td style="vertical-align:middle;padding-right:10px;">
-                  <img src="https://resume.thewise.cloud/email-logo.png"
+                  <img src="${EMAIL_LOGO_URL}"
                        alt="WiseHire"
                        width="38" height="38"
                        style="display:block;border-radius:9px;border:0;" />

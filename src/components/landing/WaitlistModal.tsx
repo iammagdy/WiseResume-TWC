@@ -17,6 +17,27 @@ const COMPANY_SIZES = [
   '1,000+',
 ];
 
+const CONSUMER_DOMAINS = new Set([
+  'gmail.com','googlemail.com',
+  'yahoo.com','yahoo.co.uk','yahoo.co.in','yahoo.fr','yahoo.de','yahoo.es',
+  'yahoo.it','yahoo.com.au','yahoo.com.br','yahoo.ca','yahoo.com.mx','yahoo.com.ar',
+  'ymail.com',
+  'hotmail.com','hotmail.co.uk','hotmail.fr','hotmail.de','hotmail.es',
+  'hotmail.it','hotmail.com.br','hotmail.com.ar','hotmail.com.mx',
+  'outlook.com','outlook.co.uk','outlook.fr','outlook.de','outlook.es','outlook.it',
+  'live.com','live.co.uk','live.fr','live.de',
+  'icloud.com','me.com','mac.com',
+  'aol.com','aim.com',
+  'mail.com','email.com',
+  'protonmail.com','proton.me',
+  'gmx.com','gmx.de','gmx.net',
+  'web.de','t-online.de',
+  'comcast.net','verizon.net','att.net','sbcglobal.net','cox.net','charter.net',
+  'earthlink.net','optonline.net',
+  'qq.com','163.com','126.com','sina.com',
+  'naver.com','hanmail.net','daum.net',
+]);
+
 type ModalView = 'waitlist' | 'early_access';
 
 export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
@@ -25,6 +46,7 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
   const [form, setForm] = useState({ name: '', company: '', email: '', size: '' });
   const [errors, setErrors] = useState<Partial<typeof form>>({});
   const [alreadyRegistered, setAlreadyRegistered] = useState(false);
+  const [existingWiseResumeUser, setExistingWiseResumeUser] = useState(false);
   const [submitError, setSubmitError] = useState('');
 
   const [view, setView] = useState<ModalView>('waitlist');
@@ -57,8 +79,16 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
     const e: Partial<typeof form> = {};
     if (!form.name.trim()) e.name = 'Name is required';
     if (!form.company.trim()) e.company = 'Company is required';
-    if (!form.email.trim()) e.email = 'Email is required';
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = 'Enter a valid email';
+    if (!form.email.trim()) {
+      e.email = 'Email is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+      e.email = 'Enter a valid email';
+    } else {
+      const domain = form.email.trim().toLowerCase().split('@')[1] ?? '';
+      if (CONSUMER_DOMAINS.has(domain)) {
+        e.email = 'Please use a work email address.';
+      }
+    }
     if (!form.size) e.size = 'Please select your company size';
     return e;
   };
@@ -78,7 +108,8 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
       },
       {
         onSuccess: (data) => {
-          if (data.already_registered) setAlreadyRegistered(true);
+          if (data.existing_wiseresume_user) setExistingWiseResumeUser(true);
+          else if (data.already_registered) setAlreadyRegistered(true);
         },
         onError: (err) => {
           setSubmitError(err.message || 'Something went wrong. Please try again.');
@@ -119,6 +150,7 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
       setForm({ name: '', company: '', email: '', size: '' });
       setErrors({});
       setAlreadyRegistered(false);
+      setExistingWiseResumeUser(false);
       setSubmitError('');
       resetMutation();
       setView('waitlist');
@@ -221,10 +253,16 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
                 letterSpacing: '-0.02em',
               }}
             >
-              {alreadyRegistered ? "You're already on the list!" : "You're on the list!"}
+              {existingWiseResumeUser
+                ? 'Already registered on WiseResume'
+                : alreadyRegistered
+                ? "You're already on the list!"
+                : "You're on the list!"}
             </h2>
             <p style={{ fontSize: '0.875rem', color: 'var(--lp-text-muted)', lineHeight: 1.6, marginBottom: 24 }}>
-              {alreadyRegistered
+              {existingWiseResumeUser
+                ? 'This email is already registered on WiseResume. Sign in instead — WiseHire access is managed from your account.'
+                : alreadyRegistered
                 ? "We already have your details. We'll reach out when your invite is ready."
                 : "We'll be in touch when your invite is ready. Check your inbox for a confirmation."}
             </p>
