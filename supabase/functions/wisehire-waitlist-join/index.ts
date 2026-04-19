@@ -15,6 +15,14 @@ function buildConfirmationEmail(name: string, position: number): string {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap">
+  <style>
+    @media only screen and (max-width: 560px) {
+      .px-wide { padding-left: 20px !important; padding-right: 20px !important; }
+      .cta-table { width: 100% !important; }
+      .cta-td { width: 100% !important; text-align: center !important; border-radius: 10px !important; }
+      .cta-link { display: block !important; text-align: center !important; }
+    }
+  </style>
 </head>
 <body style="margin:0;padding:0;background:#eef3ff;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#eef3ff;padding:40px 16px;">
@@ -23,7 +31,7 @@ function buildConfirmationEmail(name: string, position: number): string {
 
         <!-- Header -->
         <tr>
-          <td style="background:linear-gradient(160deg,#e8efff 0%,#f0f6ff 100%);border-bottom:1px solid #dce8ff;padding:32px 40px 24px;text-align:center;">
+          <td class="px-wide" style="background:linear-gradient(160deg,#e8efff 0%,#f0f6ff 100%);border-bottom:1px solid #dce8ff;padding:32px 24px 24px;text-align:center;">
             <table cellpadding="0" cellspacing="0" style="margin:0 auto;">
               <tr>
                 <td style="vertical-align:middle;padding-right:10px;">
@@ -43,7 +51,7 @@ function buildConfirmationEmail(name: string, position: number): string {
 
         <!-- Position pill -->
         <tr>
-          <td style="padding:28px 40px 0;text-align:center;">
+          <td class="px-wide" style="padding:28px 24px 0;text-align:center;">
             <span style="display:inline-block;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:100px;padding:7px 16px;font-size:12px;font-weight:600;color:#15803d;">
               ✓ Position #${position} on the waitlist
             </span>
@@ -52,7 +60,7 @@ function buildConfirmationEmail(name: string, position: number): string {
 
         <!-- Body -->
         <tr>
-          <td style="padding:24px 40px 40px;">
+          <td class="px-wide" style="padding:24px 24px 40px;">
             <h1 style="margin:0 0 18px;font-size:24px;font-weight:800;color:#0f172a;line-height:1.25;letter-spacing:-0.5px;">
               You're #${position} on the list, <span style="color:${WISEHIRE_BLUE};">${escapeHtml(name)}</span> 👋
             </h1>
@@ -82,10 +90,10 @@ function buildConfirmationEmail(name: string, position: number): string {
             </p>
 
             <!-- CTA button -->
-            <table cellpadding="0" cellspacing="0">
+            <table class="cta-table" cellpadding="0" cellspacing="0">
               <tr>
-                <td style="background:${WISEHIRE_BLUE};border-radius:10px;box-shadow:0 4px 14px rgba(29,78,216,0.28);">
-                  <a href="https://resume.thewise.cloud/?for=companies"
+                <td class="cta-td" style="background:${WISEHIRE_BLUE};border-radius:10px;box-shadow:0 4px 14px rgba(29,78,216,0.28);">
+                  <a class="cta-link" href="https://resume.thewise.cloud/?for=companies"
                      style="display:inline-block;padding:14px 30px;color:#fff;font-size:15px;font-weight:700;text-decoration:none;letter-spacing:-0.2px;">
                     See WiseHire in action →
                   </a>
@@ -98,7 +106,7 @@ function buildConfirmationEmail(name: string, position: number): string {
 
         <!-- Footer -->
         <tr>
-          <td style="padding:18px 40px 22px;border-top:1px solid #e9eef6;background:#f8fafc;">
+          <td class="px-wide" style="padding:18px 24px 22px;border-top:1px solid #e9eef6;background:#f8fafc;">
             <p style="margin:0;font-size:12px;color:#94a3b8;line-height:1.6;">
               You're receiving this because you joined the WiseHire waitlist at
               <a href="https://resume.thewise.cloud/?for=companies" style="color:${WISEHIRE_BLUE};text-decoration:none;font-weight:500;">resume.thewise.cloud</a>.
