@@ -11,6 +11,7 @@ import {
   ChevronLeft,
   ChevronRight,
   XCircle,
+  UserCheck,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -36,6 +37,7 @@ interface WaitlistEntry {
   company_size: string;
   submitted_at: string;
   invited_at: string | null;
+  invite_used_at: string | null;
   notes: string | null;
 }
 
@@ -236,7 +238,8 @@ export function WiseHireWaitlistPanel() {
               <tbody>
                 {entries.map((entry) => {
                   const isRevoked = revokedIds.has(entry.id);
-                  const isInvited = !!entry.invited_at && !isRevoked;
+                  const isActive = !!entry.invite_used_at;
+                  const isInvited = !!entry.invited_at && !isRevoked && !isActive;
                   const isBusy = inviting === entry.id || revoking === entry.id;
 
                   return (
@@ -255,7 +258,12 @@ export function WiseHireWaitlistPanel() {
                         {formatDate(entry.submitted_at)}
                       </td>
                       <td className="px-4 py-3">
-                        {isInvited ? (
+                        {isActive ? (
+                          <Badge variant="outline" className="text-blue-600 border-blue-500/20 bg-blue-500/10 gap-1">
+                            <UserCheck className="w-3 h-3" />
+                            Active
+                          </Badge>
+                        ) : isInvited ? (
                           <Badge variant="outline" className="text-green-600 border-green-500/20 bg-green-500/10 gap-1">
                             <CheckCircle2 className="w-3 h-3" />
                             Invited
@@ -271,7 +279,9 @@ export function WiseHireWaitlistPanel() {
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1.5">
-                          {isInvited ? (
+                          {isActive ? (
+                            <span className="text-xs text-muted-foreground">Signed up</span>
+                          ) : isInvited ? (
                             <>
                               <Button
                                 size="sm"

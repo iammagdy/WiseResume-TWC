@@ -48,7 +48,34 @@ Deno.serve(async (req) => {
     const { data, error, count } = await query;
     if (error) throw error;
 
-    return json({ success: true, entries: data ?? [], total: count ?? 0, page, per_page }, 200, corsHeaders);
+    const entries = data ?? [];
+
+    // Determine which entries have completed signup (used_at IS NOT NULL)
+    let activeEmailMap: Map<string, string> = new Map();
+    if (entries.length > 0) {
+      const emails = entries.map((e: { email: string }) => e.email.toLowerCase());
+      const { data: usedInvites, error: inviteError } = await supabase
+        .from('wisehire_invites')
+        .select('recipient_email, used_at')
+        .in('recipient_email', emails)
+        .not('used_at', 'is', null);
+
+      if (inviteError) throw inviteError;
+
+      for (const inv of (usedInvites ?? [])) {
+        const normalizedEmail = inv.recipient_email.toLowerCase();
+        if (!activeEmailMap.has(normalizedEmail)) {
+          activeEmailMap.set(normalizedEmail, inv.used_at);
+        }
+      }
+    }
+
+    const enrichedEntries = entries.map((e: { email: string }) => ({
+      ...e,
+      invite_used_at: activeEmailMap.get(e.email.toLowerCase()) ?? null,
+    }));
+
+    return json({ success: true, entries: enrichedEntries, total: count ?? 0, page, per_page }, 200, corsHeaders);
   } catch (err) {
     console.error('[admin-wisehire-waitlist]', err);
     return json(
