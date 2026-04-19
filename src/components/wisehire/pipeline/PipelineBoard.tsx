@@ -365,17 +365,19 @@ export function PipelineBoard({ roleId, clientId, roles, biasMode = false }: Pip
             />
           ))}
         </div>
-
-        {!selectionMode && selectedCandidate && (
-          <CandidateDetailPanel
-            candidate={selectedCandidate}
-            onClose={() => setSelectedCandidate(null)}
-            onMoveStage={handleMoveStage}
-            onSaveNotes={(id, notes) => updateNotes.mutate({ candidateId: id, notes })}
-            isMutating={updatePipelineStage.isPending || updateNotes.isPending}
-          />
-        )}
       </div>
+
+      {/* CandidateDetailPanel renders at all breakpoints — it has built-in mobile
+          positioning (fixed full-height right panel + backdrop on < md). */}
+      {!selectionMode && selectedCandidate && (
+        <CandidateDetailPanel
+          candidate={selectedCandidate}
+          onClose={() => setSelectedCandidate(null)}
+          onMoveStage={handleMoveStage}
+          onSaveNotes={(id, notes) => updateNotes.mutate({ candidateId: id, notes })}
+          isMutating={updatePipelineStage.isPending || updateNotes.isPending}
+        />
+      )}
 
       <AddCandidateSheet
         open={showAddSheet}
