@@ -1,0 +1,37 @@
+import { lazy } from 'react';
+import { TemplateId } from '@/types/resume';
+
+const templateComponents = {
+  modern: lazy(() => import('@/components/templates/ModernTemplate').then(m => ({ default: m.ModernTemplate }))),
+  classic: lazy(() => import('@/components/templates/ClassicTemplate').then(m => ({ default: m.ClassicTemplate }))),
+  minimal: lazy(() => import('@/components/templates/MinimalTemplate').then(m => ({ default: m.MinimalTemplate }))),
+  professional: lazy(() => import('@/components/templates/ProfessionalTemplate').then(m => ({ default: m.ProfessionalTemplate }))),
+  developer: lazy(() => import('@/components/templates/DeveloperTemplate').then(m => ({ default: m.DeveloperTemplate }))),
+  creative: lazy(() => import('@/components/templates/CreativeTemplate').then(m => ({ default: m.CreativeTemplate }))),
+  executive: lazy(() => import('@/components/templates/ExecutiveTemplate').then(m => ({ default: m.ExecutiveTemplate }))),
+  compact: lazy(() => import('@/components/templates/CompactTemplate').then(m => ({ default: m.CompactTemplate }))),
+  academic: lazy(() => import('@/components/templates/AcademicTemplate').then(m => ({ default: m.AcademicTemplate }))),
+  healthcare: lazy(() => import('@/components/templates/HealthcareTemplate').then(m => ({ default: m.HealthcareTemplate }))),
+  sales: lazy(() => import('@/components/templates/SalesTemplate').then(m => ({ default: m.SalesTemplate }))),
+  elegant: lazy(() => import('@/components/templates/ElegantTemplate').then(m => ({ default: m.ElegantTemplate }))),
+  corporate: lazy(() => import('@/components/templates/CorporateTemplate').then(m => ({ default: m.CorporateTemplate }))),
+  banking: lazy(() => import('@/components/templates/BankingTemplate').then(m => ({ default: m.BankingTemplate }))),
+  consulting: lazy(() => import('@/components/templates/ConsultingTemplate').then(m => ({ default: m.ConsultingTemplate }))),
+  federal: lazy(() => import('@/components/templates/FederalTemplate').then(m => ({ default: m.FederalTemplate }))),
+  legal: lazy(() => import('@/components/templates/LegalTemplate').then(m => ({ default: m.LegalTemplate }))),
+  marketing: lazy(() => import('@/components/templates/MarketingTemplate').then(m => ({ default: m.MarketingTemplate }))),
+  designer: lazy(() => import('@/components/templates/DesignerTemplate').then(m => ({ default: m.DesignerTemplate }))),
+  portfolio: lazy(() => import('@/components/templates/PortfolioTemplate').then(m => ({ default: m.PortfolioTemplate }))),
+  startup: lazy(() => import('@/components/templates/StartupTemplate').then(m => ({ default: m.StartupTemplate }))),
+  infographic: lazy(() => import('@/components/templates/InfographicTemplate').then(m => ({ default: m.InfographicTemplate }))),
+  'data-science': lazy(() => import('@/components/templates/DataScienceTemplate').then(m => ({ default: m.DataScienceTemplate }))),
+  devops: lazy(() => import('@/components/templates/DevOpsTemplate').then(m => ({ default: m.DevOpsTemplate }))),
+  cyber: lazy(() => import('@/components/templates/CyberTemplate').then(m => ({ default: m.CyberTemplate }))),
+  product: lazy(() => import('@/components/templates/ProductTemplate').then(m => ({ default: m.ProductTemplate }))),
+  clean: lazy(() => import('@/components/templates/CleanTemplate').then(m => ({ default: m.CleanTemplate }))),
+  swiss: lazy(() => import('@/components/templates/SwissTemplate').then(m => ({ default: m.SwissTemplate }))),
+  mono: lazy(() => import('@/components/templates/MonoTemplate').then(m => ({ default: m.MonoTemplate }))),
+  zen: lazy(() => import('@/components/templates/ZenTemplate').then(m => ({ default: m.ZenTemplate }))),
+} satisfies Record<TemplateId, ReturnType<typeof lazy>>;
+
+export default templateComponents;
