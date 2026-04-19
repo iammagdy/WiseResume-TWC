@@ -775,6 +775,7 @@ export default function TailorPage() {
         }}
         isApplying={isApplying}
         applyLabel={`Apply (${enabledSections.length})`}
+        jobTitle={parsedJobInfo?.title || tailorResult?.jobParsed?.title}
       />
     </div>
   );

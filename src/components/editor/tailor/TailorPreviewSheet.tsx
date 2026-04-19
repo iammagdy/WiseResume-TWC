@@ -1,11 +1,12 @@
-import { CSSProperties, Suspense, lazy, memo, useMemo } from 'react';
-import { Eye, X } from 'lucide-react';
+import { CSSProperties, Suspense, lazy, memo, useMemo, useCallback, useRef, useState } from 'react';
+import { Eye, X, Download, Loader2 } from 'lucide-react';
 import { Drawer, DrawerContent } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ResumeData, TemplateId } from '@/types/resume';
 import { applyCustomizationCSS, generateCustomizationCSS } from '@/lib/templateCustomization';
 import haptics from '@/lib/haptics';
+import { toast } from 'sonner';
 
 // Lazy-loaded templates — keyed by templateId. Mirrors LivePreviewPanel.
 const templateComponents: Record<string, ReturnType<typeof lazy>> = {
@@ -67,6 +68,8 @@ interface TailorPreviewSheetProps {
   onApply?: () => void;
   isApplying?: boolean;
   applyLabel?: string;
+  /** Target job title used for the downloaded PDF filename. */
+  jobTitle?: string;
 }
 
 /**
@@ -82,6 +85,7 @@ export const TailorPreviewSheet = memo(function TailorPreviewSheet({
   onApply,
   isApplying = false,
   applyLabel = 'Apply Changes',
+  jobTitle,
 }: TailorPreviewSheetProps) {
   const effectiveTemplate = (templateId || resume?.templateId || 'modern') as string;
   const TemplateComponent = templateComponents[effectiveTemplate] || templateComponents.modern;
@@ -89,6 +93,30 @@ export const TailorPreviewSheet = memo(function TailorPreviewSheet({
     () => (resume ? applyCustomizationCSS(resume.customization) : {}),
     [resume],
   );
+
+  const templateRef = useRef<HTMLDivElement>(null);
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+
+  const handleDownloadPdf = useCallback(async () => {
+    if (!resume || isDownloadingPdf) return;
+    setIsDownloadingPdf(true);
+    try {
+      const { generatePDF } = await import('@/lib/pdfGenerator');
+      const { downloadFile } = await import('@/lib/downloadUtils');
+      const tid = effectiveTemplate as TemplateId;
+      const blob = await generatePDF(resume, tid, templateRef.current);
+      const name = resume.contactInfo?.fullName || 'Resume';
+      const jobSuffix = jobTitle ? `_${jobTitle}` : '';
+      const fileName = `${name}${jobSuffix}_Tailored.pdf`.replace(/\s+/g, '_');
+      await downloadFile({ blob, fileName });
+      toast.success('PDF downloaded!');
+      haptics.success();
+    } catch {
+      toast.error('Failed to download PDF. Please try again.');
+    } finally {
+      setIsDownloadingPdf(false);
+    }
+  }, [resume, jobTitle, isDownloadingPdf, effectiveTemplate]);
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
@@ -119,6 +147,8 @@ export const TailorPreviewSheet = memo(function TailorPreviewSheet({
         <div className="flex-1 overflow-auto bg-muted p-3 flex justify-center">
           {resume ? (
             <div
+              ref={templateRef}
+              data-resume-template
               className="bg-white text-black mx-auto shadow-2xl relative"
               style={{
                 width: '100%',
@@ -151,6 +181,17 @@ export const TailorPreviewSheet = memo(function TailorPreviewSheet({
               onClick={() => { onOpenChange(false); haptics.light(); }}
             >
               Close preview
+            </Button>
+            <Button
+              variant="outline"
+              className="min-h-[44px] active:scale-95 transition-transform px-3"
+              onClick={handleDownloadPdf}
+              disabled={isDownloadingPdf || !resume}
+              aria-label="Download PDF"
+            >
+              {isDownloadingPdf
+                ? <Loader2 className="w-4 h-4 animate-spin" />
+                : <Download className="w-4 h-4" />}
             </Button>
             {onApply && (
               <Button

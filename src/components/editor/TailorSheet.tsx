@@ -1737,6 +1737,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
         }}
         isApplying={isApplying}
         applyLabel={`Apply (${enabledSections.length})`}
+        jobTitle={parsedJobInfo?.title || tailorResult?.jobParsed?.title}
       />
 
       {/* History Sheet */}
