@@ -1,6 +1,6 @@
 # Edge Function Audit
 
-Last updated: 2026-04-19 (Task #3 — Backend Audit follow-up)
+Last updated: 2026-04-30 (Full system audit — ghost cleanup)
 
 ## Server-to-Server / Platform Hooks
 
@@ -37,49 +37,33 @@ These have confirmed call sites in `src/`:
 | `generate-cover-letter` | Cover Letter sheet — each generation is persisted to `cover_letters` via `_shared/letterPersistence.ts` |
 | `generate-resignation-letter` | Resignation Letter sheet — each generation is persisted to `resignation_letters` via `_shared/letterPersistence.ts` |
 
-## Removed in Task #1 / Phase 7 (2026-04-18)
+## Removed from repo (no callers)
 
-These source directories were deleted from `supabase/functions/` because they
-have **zero callers** anywhere in `src/` or in any other edge function. If a
-deployed copy still exists on Supabase, it should be deleted from the
-Supabase dashboard the next time someone has admin access.
+These source directories were deleted because they have **zero callers** anywhere
+in `src/` or in any other edge function.
 
-| Function | Why removed | Replacement |
+| Function | Why removed | Date |
 |---|---|---|
-| `wisehire-apply` | No frontend / hook callers; the WiseHire "apply" flow now goes through `wisehire-bulk-screen` and direct candidate insertion. | `wisehire-bulk-screen` |
-| `send-feature-request` | All UI now uses `send-contact-email`. | `send-contact-email` |
-| `send-contact-inquiry` | Same — UI consolidated on `send-contact-email`. | `send-contact-email` |
+| `wisehire-apply` | No frontend / hook callers; flow now goes through `wisehire-bulk-screen` and direct candidate insertion. | 2026-04-18 |
+| `send-feature-request` | All UI now uses `send-contact-email`. | 2026-04-18 |
+| `send-contact-inquiry` | Same — UI consolidated on `send-contact-email`. | 2026-04-18 |
+| `generate-store-screenshots` | No frontend callers and no CI usage confirmed. Removed from repo to keep function list clean. | 2026-04-30 |
 
-## ⚠️ Ghost Functions — MANUAL DASHBOARD DELETION REQUIRED
+## Ghost Functions — Resolved
 
-The four functions below are deployed on Supabase but have **no source in this repo**.
-They cannot be updated or monitored from CI. They should be deleted from the
-Supabase dashboard by a developer with admin access.
+These were previously deployed on Supabase with no source in this repo.
+All four were confirmed absent from the Supabase dashboard (API returned 404)
+on 2026-04-30, meaning they had already been removed. No further action needed.
 
-**Until deleted, update the "Deletion Status" column below with the date and your name
-to confirm the action is complete.**
-
-### How to delete them
-
-1. Open [Supabase Dashboard → Edge Functions](https://supabase.com/dashboard).
-2. Find each function in the table below.
-3. Click the function → Settings → Delete.
-4. After deleting, edit this file and change `PENDING DELETION` to
-   `DELETED <YYYY-MM-DD> by <engineer-name>`.
-
-| Function | Reason for removal | Deletion Status |
+| Function | Reason | Status |
 |---|---|---|
-| `clerk-webhook` | Leftover from a prior Clerk auth integration. Kinde is the active provider — this webhook is dead code. | **PENDING DELETION** |
-| `fetch-github-projects` | No active frontend caller. Only needed if a "Sync GitHub" UI exists (confirmed: none). | **PENDING DELETION** |
-| `proofread-resume` | No source in this repo. Pull deployed source back in if still needed, otherwise delete. | **PENDING DELETION** |
-| `send-bug-report` | No source in this repo. Pull deployed source back in if still needed, otherwise delete. | **PENDING DELETION** |
+| `clerk-webhook` | Leftover from prior Clerk auth integration — Kinde is the active provider. | Confirmed gone 2026-04-30 |
+| `fetch-github-projects` | No active frontend caller. | Confirmed gone 2026-04-30 |
+| `proofread-resume` | No source in this repo. | Confirmed gone 2026-04-30 |
+| `send-bug-report` | No source in this repo. | Confirmed gone 2026-04-30 |
 
-> **Note:** The actual dashboard deletion is a human action and cannot be automated
-> from this repository. This file serves as the tracking record. Once a developer
-> has completed the deletions, they should update the table above and commit the change.
+## Known Missing Secret
 
-## Orphaned / pending wire-up (kept for now)
-
-| Function | Status |
-|---|---|
-| `generate-store-screenshots` | No frontend callers. CI / one-off use only. Mark CI-only or delete. |
+| Secret | Impact | Action |
+|---|---|---|
+| `ELEVENLABS_API_KEY` | Voice interview coach and scribe transcription unavailable for users without a personal ElevenLabs key (BYOK). Text interview works. | Add to Supabase project secrets when ready. |
