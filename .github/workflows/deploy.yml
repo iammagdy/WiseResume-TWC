@@ -53,14 +53,14 @@ jobs:
           }" > dist/version.json
           echo "✅ version.json written: commit ${GITHUB_SHA:0:7} at $(date -u)"
 
-      - name: Deploy to Hostinger via FTP
+      - name: Deploy to Hostinger via SFTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: 82.29.154.120
           username: u966279061.thewise.cloud
           password: ${{ secrets.FTP_PASSWORD }}
-          protocol: ftps
-          port: 21
+          protocol: sftp
+          port: 22
           local-dir: ./dist/
           server-dir: /public_html/resume/
           dangerous-clean-slate: true
