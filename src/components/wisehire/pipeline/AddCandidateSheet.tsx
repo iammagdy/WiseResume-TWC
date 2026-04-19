@@ -11,6 +11,7 @@ import {
 import { Loader2, UserPlus, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { getUserId } from '@/lib/supabaseBridge';
+import type { PipelineStage } from '@/hooks/wisehire/usePipeline';
 
 interface Role {
   id: string;
@@ -28,8 +29,8 @@ interface AddCandidateSheetProps {
   onClose: () => void;
   roles: Role[];
   defaultRoleId?: string;
-  defaultStage?: string;
-  onAdd: (data: { name: string; email?: string; roleId?: string; stage?: string }) => Promise<void>;
+  defaultStage?: PipelineStage;
+  onAdd: (data: { name: string; email?: string; roleId?: string; stage?: PipelineStage }) => Promise<void>;
 }
 
 async function checkForDuplicates(name: string, email: string): Promise<DuplicateMatch[]> {

@@ -178,7 +178,7 @@ export function usePipeline(roleId?: string, clientId?: string) {
       roleId?: string;
       resumePdfPath?: string;
       resumeText?: string;
-      stage?: string;
+      stage?: PipelineStage;
     }) => {
       if (!userId) throw new Error('Not authenticated');
       const { data, error } = await supabase
@@ -190,7 +190,7 @@ export function usePipeline(roleId?: string, clientId?: string) {
           role_id: rId ?? null,
           resume_pdf_path: resumePdfPath ?? null,
           resume_text: resumeText ?? null,
-          pipeline_stage: (stage ?? 'shortlisted') as PipelineStage,
+          pipeline_stage: stage ?? 'shortlisted',
           is_deleted: false,
         })
         .select('id')

@@ -52,7 +52,7 @@ export function PipelineBoard({ roleId, clientId, roles, biasMode = false }: Pip
   const { data: candidates = [], isLoading, updatePipelineStage, bulkUpdatePipelineStage, updateNotes, addCandidate } = usePipeline(roleId, clientId);
   const [selectedCandidate, setSelectedCandidate] = useState<PipelineCandidate | null>(null);
   const [showAddSheet, setShowAddSheet] = useState(false);
-  const [defaultStage, setDefaultStage] = useState<string | undefined>(undefined);
+  const [defaultStage, setDefaultStage] = useState<PipelineStage | undefined>(undefined);
   const dragState = useRef<DragState>({ candidateId: null, fromStage: null });
 
   const [selectionMode, setSelectionMode] = useState(false);
@@ -71,7 +71,7 @@ export function PipelineBoard({ roleId, clientId, roles, biasMode = false }: Pip
     });
   }
 
-  function openAddSheet(stageId?: string) {
+  function openAddSheet(stageId?: PipelineStage) {
     setDefaultStage(stageId);
     setShowAddSheet(true);
   }
@@ -293,6 +293,7 @@ export function PipelineBoard({ roleId, clientId, roles, biasMode = false }: Pip
                   {/* Collapsible header */}
                   <button
                     type="button"
+                    aria-expanded={isExpanded}
                     onClick={() => toggleCollapsedStage(stage.id)}
                     className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 dark:bg-slate-800/40 text-left"
                   >
