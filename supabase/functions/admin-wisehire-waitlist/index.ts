@@ -111,7 +111,7 @@ Deno.serve(async (req) => {
       const now = new Date();
 
       for (const inv of (allInvites ?? [])) {
-        const normalizedEmail = inv.recipient_email.toLowerCase();
+        const normalizedEmail = inv.recipient_email.toLowerCase().trim();
 
         if (inv.used_at && !inviteUsedAtMap.has(normalizedEmail)) {
           inviteUsedAtMap.set(normalizedEmail, inv.used_at);
