@@ -53,14 +53,22 @@ jobs:
           }" > dist/version.json
           echo "✅ version.json written: commit ${GITHUB_SHA:0:7} at $(date -u)"
 
+      - name: Install lftp
+        run: sudo apt-get install -y lftp
+
       - name: Deploy to Hostinger via SFTP
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: 82.29.154.120
-          username: u966279061.thewise.cloud
-          password: ${{ secrets.FTP_PASSWORD }}
-          protocol: sftp
-          port: 22
-          local-dir: ./dist/
-          server-dir: /public_html/resume/
-          dangerous-clean-slate: true
+        env:
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+        run: |
+          mkdir -p ~/.lftp
+          cat > ~/.lftp/rc << 'LFTP_RC'
+          set sftp:auto-confirm yes
+          set net:timeout 60
+          set net:max-retries 3
+          set net:reconnect-interval-base 5
+          LFTP_RC
+
+          lftp -u "u966279061.thewise.cloud,$FTP_PASSWORD" sftp://82.29.154.120 << 'LFTP_CMDS'
+          mirror --reverse --delete --parallel=4 --verbose dist/ /public_html/resume/
+          bye
+          LFTP_CMDS
