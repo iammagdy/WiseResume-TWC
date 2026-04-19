@@ -488,7 +488,7 @@ setInterval(() => {
 }, 5 * 60_000).unref?.();
 
 // DB-backed per-user monthly counter. Survives server restarts.
-// Table is created on startup if it does not already exist.
+// Schema is managed via supabase/migrations/20260429000000_linkedin_import_quota.sql.
 function currentMonthKey(): string {
   const d = new Date();
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
