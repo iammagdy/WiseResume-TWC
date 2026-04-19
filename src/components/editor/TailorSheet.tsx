@@ -3,7 +3,7 @@ import {
   Wand2, Loader2, CheckCircle, ArrowRight, Undo2, GitCompare, 
   History, FileText, Sparkles, ChevronRight, Brain, Target, BarChart3,
   Zap, Gauge, Flame, AlertTriangle, HeartHandshake, Key, RefreshCw, Bug, X, Settings,
-  ExternalLink, Copy, Check, ChevronDown, ChevronUp, Briefcase
+  ExternalLink, Copy, Check, ChevronDown, ChevronUp, Briefcase, Download
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -279,6 +279,8 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
   const [showAppliedCTA, setShowAppliedCTA] = useState(false);
   const [isRetryingScore, setIsRetryingScore] = useState(false);
   const [appliedJobInfo, setAppliedJobInfo] = useState<{ title: string; company: string } | null>(null);
+  const [appliedMergedResume, setAppliedMergedResume] = useState<ResumeData | null>(null);
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -286,6 +288,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
       setShowAppliedCTA(false);
       setAppliedJobInfo(null);
       setAppliedResumeId(null);
+      setAppliedMergedResume(null);
     }
     return () => { activityTracker.setActiveFeature(null); };
   }, [open]);
@@ -528,10 +531,11 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
     const currentContent = getCurrentContent();
     if (currentContent === null) return;
 
-    const projectContext = sectionId === 'projects' && tailorResult.projects?.length
-      ? `Project names and technologies for context (do NOT rename these): ${tailorResult.projects.map(p => `"${p.name}"${p.technologies?.length ? ` [${p.technologies.join(', ')}]` : ''}`).join('; ')}. `
-      : '';
-    const combinedInstructions = [projectContext + (customInstructions || ''), sectionInstruction].filter(s => s?.trim()).join(' | ') || undefined;
+    const combinedInstructions = [customInstructions, sectionInstruction].filter(s => s?.trim()).join(' | ') || undefined;
+
+    const projectItems = sectionId === 'projects' && tailorResult.projects?.length
+      ? tailorResult.projects.map(p => ({ name: p.name, description: p.description || '', technologies: p.technologies, role: p.role }))
+      : undefined;
 
     try {
       const result = await tailorSection({
@@ -541,6 +545,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
         jobKeywords: tailorResult.atsAnalysis?.criticalKeywords,
         userInstructions: combinedInstructions,
         intensity,
+        projectItems,
       });
       if (sectionId === 'summary' && typeof result.rewrittenContent === 'string') {
         handleUpdateTailorResult({ summary: result.rewrittenContent });
@@ -690,6 +695,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
 
       setAppliedResumeId(newResumeId || null);
       setAppliedJobInfo({ title: jt, company: co });
+      setAppliedMergedResume(mergedResume);
 
       setTailorResult(null);
       clearPendingTailor();
@@ -727,6 +733,26 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
     onOpenChange(false);
     navigate(`/applications?${params.toString()}`);
   }, [navigate, parsedJobInfo, tailorResult, appliedResumeId, onOpenChange]);
+
+  const handleDownloadPdf = useCallback(async () => {
+    if (!appliedMergedResume || isDownloadingPdf) return;
+    setIsDownloadingPdf(true);
+    try {
+      const { generatePDF } = await import('@/lib/pdfGenerator');
+      const { downloadFile } = await import('@/lib/downloadUtils');
+      const templateId = (appliedMergedResume.templateId || 'modern') as import('@/types/resume').TemplateId;
+      const blob = await generatePDF(appliedMergedResume, templateId);
+      const name = appliedMergedResume.contactInfo?.fullName || 'Resume';
+      const jobSuffix = appliedJobInfo?.title ? `_${appliedJobInfo.title}` : '';
+      const fileName = `${name}${jobSuffix}_Tailored.pdf`.replace(/\s+/g, '_');
+      await downloadFile({ blob, fileName });
+      toast.success('PDF downloaded!');
+    } catch {
+      toast.error('Failed to download PDF');
+    } finally {
+      setIsDownloadingPdf(false);
+    }
+  }, [appliedMergedResume, appliedJobInfo, isDownloadingPdf]);
 
   const handleStartComparison = () => {
     if (!tailorResult || !currentResume?.id) return;
@@ -1054,16 +1080,22 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
                 </p>
               </div>
               <div className="flex flex-col gap-3 w-full max-w-xs">
-                <Button className="gradient-primary min-h-[44px]" onClick={handleTrackApplication}>
+                {appliedResumeId && (
+                  <Button className="gradient-primary min-h-[44px]" onClick={() => { navigate(`/editor/${appliedResumeId}`); onOpenChange(false); }}>
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                    Open in Editor
+                  </Button>
+                )}
+                {appliedMergedResume && (
+                  <Button variant="outline" className="min-h-[44px]" onClick={handleDownloadPdf} disabled={isDownloadingPdf}>
+                    {isDownloadingPdf ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
+                    {isDownloadingPdf ? 'Generating PDF…' : 'Download PDF'}
+                  </Button>
+                )}
+                <Button variant="outline" className="min-h-[44px]" onClick={handleTrackApplication}>
                   <Briefcase className="w-4 h-4 mr-2" />
                   Track Application
                 </Button>
-                {appliedResumeId && (
-                  <Button variant="outline" className="min-h-[44px]" onClick={() => { navigate(`/editor/${appliedResumeId}`); onOpenChange(false); }}>
-                    <ExternalLink className="w-4 h-4 mr-2" />
-                    View Tailored Resume
-                  </Button>
-                )}
                 <Button variant="ghost" className="min-h-[44px]" onClick={() => onOpenChange(false)}>
                   Done
                 </Button>

@@ -291,6 +291,7 @@ export async function tailorSection(params: {
   jobKeywords?: string[];
   userInstructions?: string;
   intensity?: string;
+  projectItems?: Array<{ name: string; description: string; technologies?: string[]; role?: string }>;
 }): Promise<TailorSectionResult> {
   const token = await getSupabaseToken();
 

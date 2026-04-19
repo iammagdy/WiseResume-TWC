@@ -150,6 +150,7 @@ export default function TailorPage() {
     pendingTailorJobInfo,
     pendingTailorIntensity,
     pendingTailorJobUrl,
+    pendingTailorSections,
   } = useResumeStore(useShallow(state => ({
     currentResume: state.currentResume,
     currentResumeId: state.currentResumeId,
@@ -165,6 +166,7 @@ export default function TailorPage() {
     pendingTailorJobInfo: state.pendingTailorJobInfo,
     pendingTailorIntensity: state.pendingTailorIntensity,
     pendingTailorJobUrl: state.pendingTailorJobUrl,
+    pendingTailorSections: state.pendingTailorSections,
   })));
 
   const { data: allResumes } = useResumes();
@@ -232,7 +234,11 @@ export default function TailorPage() {
       if (pendingTailorJobInfo) setParsedJobInfo(pendingTailorJobInfo);
       if (pendingTailorIntensity) setIntensity(pendingTailorIntensity);
       if (pendingTailorJobUrl) setJobUrl(pendingTailorJobUrl);
-      setEnabledSections(['summary', 'skills', 'experience', 'education', 'projects', 'certifications', 'awards']);
+      if (pendingTailorSections?.length) {
+        setEnabledSections(pendingTailorSections);
+      } else {
+        setEnabledSections(['summary', 'skills', 'experience', 'education', 'projects', 'certifications', 'awards']);
+      }
       setShowAppliedCTA(!!pendingTailorJobUrl);
       setRevealedSections(new Set(['summary', 'skills', 'experience', 'education', 'projects', 'certifications'] as TailorSectionId[]));
     }
@@ -448,10 +454,11 @@ export default function TailorPage() {
     const currentContent = getCurrentContent();
     if (currentContent === null) return;
 
-    const projectContext = sectionId === 'projects' && tailorResult.projects?.length
-      ? `Project names and technologies for context (do NOT rename these): ${tailorResult.projects.map(p => `"${p.name}"${p.technologies?.length ? ` [${p.technologies.join(', ')}]` : ''}`).join('; ')}. `
-      : '';
-    const combinedInstructions = [projectContext + (customInstructions || ''), sectionInstruction].filter(s => s?.trim()).join(' | ') || undefined;
+    const combinedInstructions = [customInstructions, sectionInstruction].filter(s => s?.trim()).join(' | ') || undefined;
+
+    const projectItems = sectionId === 'projects' && tailorResult.projects?.length
+      ? tailorResult.projects.map(p => ({ name: p.name, description: p.description || '', technologies: p.technologies, role: p.role }))
+      : undefined;
 
     try {
       const result = await tailorSection({
@@ -461,6 +468,7 @@ export default function TailorPage() {
         jobKeywords: tailorResult.atsAnalysis?.criticalKeywords,
         userInstructions: combinedInstructions,
         intensity,
+        projectItems,
       });
       if (sectionId === 'summary' && typeof result.rewrittenContent === 'string') {
         setTailorResult(prev => prev ? { ...prev, summary: result.rewrittenContent as string } : prev);

@@ -62,7 +62,7 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { section, currentContent, jobDescription: rawJobDescription, jobKeywords, userInstructions, intensity } = body;
+    const { section, currentContent, jobDescription: rawJobDescription, jobKeywords, userInstructions, intensity, projectItems } = body;
 
     // Validate required fields
     if (!section || typeof section !== 'string' || !VALID_SECTIONS.has(section)) {
@@ -110,10 +110,22 @@ serve(async (req) => {
 
     const systemPrompt = `You are an expert resume writer specializing in ATS optimization and targeted tailoring. You rewrite individual resume sections to better match specific job descriptions. Return ONLY valid JSON with no markdown or code blocks.`;
 
+    const hasStructuredProjects = section === 'projects' && Array.isArray(projectItems) && projectItems.length > 0;
+
+    const currentContentDisplay = hasStructuredProjects
+      ? projectItems.map((p: { name: string; description: string; technologies?: string[]; role?: string }, i: number) =>
+          `Project ${i + 1}: ${JSON.stringify(p)}`
+        ).join('\n')
+      : JSON.stringify(currentContent);
+
+    const projectsNote = hasStructuredProjects
+      ? '\n- For projects: enhance ONLY the "description" field for each project. Return a string array of enhanced descriptions (one per project in input order). Do NOT change name, role, or technologies.\n'
+      : '';
+
     const userPrompt = `Rewrite this resume section to better match the target job description.
 
 SECTION: ${section}
-CURRENT CONTENT: ${JSON.stringify(currentContent)}
+CURRENT CONTENT: ${currentContentDisplay}
 
 TARGET JOB DESCRIPTION:
 ${jobDescription}
@@ -125,8 +137,7 @@ RULES:
 - Reframe and enhance existing content only
 - Use strong action verbs and quantifiable achievements where possible
 - Match terminology from the job description
-- Keep the same structural format as the input (if array, return array; if string, return string)
-
+- Keep the same structural format as the input (if array, return array; if string, return string)${projectsNote}
 Return this exact JSON:
 {
   "rewrittenContent": <same type as input — string or array>,
