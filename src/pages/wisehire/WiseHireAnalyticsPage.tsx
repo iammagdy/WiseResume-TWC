@@ -258,7 +258,7 @@ export default function WiseHireAnalyticsPage() {
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <StatCard label="Active roles" value={data.activeRoles} icon={Briefcase} color="blue" />
                 <StatCard label="Briefs generated" value={data.briefsGenerated} icon={FileText} color="purple" />
-                <StatCard label="Talent pool views" value={data.talentPoolViews} icon={Eye} color="amber" />
+                <StatCard label="Talent pool views (company)" value={data.talentPoolViews} icon={Eye} color="amber" />
                 <StatCard
                   label="Hired"
                   value={data.candidatesByStage.find((s) => s.stage === 'hired')?.count ?? 0}
