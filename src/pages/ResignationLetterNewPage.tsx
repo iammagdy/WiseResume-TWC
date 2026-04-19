@@ -12,8 +12,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { useAuth } from '@/hooks/useAuth';
 import { useResumes, dbToResumeData } from '@/hooks/useResumes';
-import { useResignationLetterMutations } from '@/hooks/useResignationLetters';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { useQueryClient } from '@tanstack/react-query';
 import { haptics } from '@/lib/haptics';
 import { useBackNavigation } from '@/hooks/useBackNavigation';
 
@@ -63,12 +63,13 @@ export default function ResignationLetterNewPage() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const { data: resumes } = useResumes();
-  const { saveLetter } = useResignationLetterMutations();
+  const queryClient = useQueryClient();
   const goBack = useBackNavigation();
 
   const [step, setStep] = useState(0);
   const [generating, setGenerating] = useState(false);
   const [result, setResult] = useState('');
+  const [savedId, setSavedId] = useState<string | null>(null);
 
   // Step 1: Basic Info
   const [userName, setUserName] = useState('');
@@ -117,18 +118,23 @@ export default function ResignationLetterNewPage() {
           company,
           position,
           lastWorkingDay: lastWorkingDay ? format(lastWorkingDay, 'MMMM d, yyyy') : undefined,
+          effectiveDate: lastWorkingDay ? format(lastWorkingDay, 'yyyy-MM-dd') : undefined,
           noticePeriod,
           reason,
           tone: TONE_VALUES[toneIndex],
           templateStyle,
           additions: selectedAdditions.map(id => ADDITIONS.find(a => a.id === id)?.label || id),
+          additionIds: selectedAdditions,
+          title: `${company} Resignation`,
           userName,
         },
       });
 
       if (error) throw new Error(error.message || 'Failed to generate letter');
       if (data?.error) throw new Error(data.error || 'AI service error');
-      setResult(data.letter);
+      setResult(data.letter || data.content);
+      setSavedId(data.id || null);
+      if (data.id) queryClient.invalidateQueries({ queryKey: ['resignation-letters'] });
       setStep(3);
       haptics.success();
     } catch (err: unknown) {
@@ -139,28 +145,11 @@ export default function ResignationLetterNewPage() {
   };
 
   const handleSave = () => {
-    if (!result.trim()) return;
+    if (!result.trim() || !savedId) return;
     haptics.light();
-    saveLetter.mutate(
-      {
-        title: `${company} Resignation`,
-        recipient_name: recipientName || undefined,
-        company: company || undefined,
-        position: position || undefined,
-        last_working_day: lastWorkingDay ? format(lastWorkingDay, 'yyyy-MM-dd') : undefined,
-        notice_period: noticePeriod,
-        reason,
-        tone: TONE_VALUES[toneIndex],
-        template_style: templateStyle,
-        additions: selectedAdditions,
-        content: result,
-      },
-      {
-        onSuccess: (data) => {
-          navigate(`/resignation-letter/edit/${data.id}`, { replace: true });
-        },
-      }
-    );
+    // Edge function persisted as part of generation; jump straight to edit.
+    navigate(`/resignation-letter/edit/${savedId}`, { replace: true });
+    toast.success('Resignation letter saved!');
   };
 
   const handleCopy = async () => {
@@ -393,7 +382,7 @@ export default function ResignationLetterNewPage() {
               <Button variant="outline" className="flex-1 h-12" onClick={handleCopy}>
                 Copy
               </Button>
-              <Button className="flex-1 h-12 gap-2" onClick={handleSave} disabled={saveLetter.isPending}>
+              <Button className="flex-1 h-12 gap-2" onClick={handleSave} disabled={!savedId}>
                 Save
               </Button>
             </>

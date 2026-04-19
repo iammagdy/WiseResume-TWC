@@ -7,6 +7,7 @@ import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 import { checkAndDeductCredit } from "../_shared/creditUtils.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
+import { insertCoverLetter } from "../_shared/letterPersistence.ts";
 import { logger } from "../_shared/logger.ts";
 const log = logger('generate-cover-letter');
 
@@ -51,6 +52,11 @@ serve(async (req) => {
     const resume = reqBody.resume;
     const rawJobDescription = reqBody.jobDescription;
     const tone = reqBody.tone || 'professional';
+    const jobTitle: string | undefined = reqBody.jobTitle;
+    const companyName: string | undefined = reqBody.company;
+    const templateStyle: string | undefined = reqBody.templateStyle;
+    const resumeId: string | undefined = reqBody.resumeId;
+    const titleOverride: string | undefined = reqBody.title;
 
     if (!resume || typeof resume !== 'object') {
       return new Response(
@@ -161,10 +167,42 @@ ${jobDescription}
 
     await recordUsage(userId, 'cover_letter', { provider: aiResponse.providerUsed || 'unknown' });
 
-    // Atomically deduct credits server-side before returning results (cost=2 for cover letter)
+    // Persist generated letter so users can revisit it from history.
+    // Persistence is a hard requirement for the task — if the row can't be
+    // saved, surface a clear error rather than silently returning text the
+    // user will lose on refresh.
+    let savedId: string;
+    try {
+      savedId = await insertCoverLetter(getServiceClient(), {
+        userId,
+        content: coverLetter,
+        jobTitle,
+        company: companyName,
+        tone,
+        templateStyle,
+        resumeId,
+        jobDescription,
+        title: titleOverride,
+        modelUsed: aiResponse.providerUsed,
+      });
+    } catch (persistErr) {
+      log.error('Failed to persist cover letter', persistErr);
+      return new Response(
+        JSON.stringify({
+          error: 'persist_failed',
+          message: 'Generated the letter but failed to save it. Please try again.',
+        }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     return new Response(
-      JSON.stringify({ coverLetter, _providerUsed: aiResponse.providerUsed || 'unknown' }),
+      JSON.stringify({
+        id: savedId,
+        coverLetter,
+        content: coverLetter,
+        _providerUsed: aiResponse.providerUsed || 'unknown',
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {

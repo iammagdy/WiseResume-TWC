@@ -6,6 +6,7 @@ import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import { checkAndDeductCredit } from "../_shared/creditUtils.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
+import { insertResignationLetter } from "../_shared/letterPersistence.ts";
 import { logger } from "../_shared/logger.ts";
 const log = logger('generate-resignation-letter');
 
@@ -45,6 +46,9 @@ serve(async (req) => {
 
     const body = await req.json();
     const { recipientName, company, position, lastWorkingDay, noticePeriod, reason, tone, templateStyle, additions, userName } = body;
+    const effectiveDate: string | undefined = body.effectiveDate;
+    const additionIds: string[] | undefined = Array.isArray(body.additionIds) ? body.additionIds : undefined;
+    const titleOverride: string | undefined = body.title;
 
     if (!company || typeof company !== 'string' || company.length > MAX_TEXT_SIZE) {
       return new Response(
@@ -132,8 +136,40 @@ Write the complete letter with proper business letter formatting.`;
 
     await recordUsage(userId, 'resignation', { provider: aiResponse.providerUsed || 'unknown' });
 
+    // Persist generated letter so users can revisit it from history. Hard
+    // requirement — surface an error rather than silently dropping the row.
+    let savedId: string;
+    try {
+      savedId = await insertResignationLetter(getServiceClient(), {
+        userId,
+        content: letter,
+        company,
+        title: titleOverride,
+        recipientName,
+        position,
+        noticePeriod: validNoticePeriod,
+        reason: validReason,
+        tone: validTone,
+        templateStyle: validTemplate,
+        effectiveDate,
+        additions: additionIds && additionIds.length > 0
+          ? additionIds
+          : (Array.isArray(additions) ? additions : []),
+        modelUsed: aiResponse.providerUsed,
+      });
+    } catch (persistErr) {
+      log.error('Failed to persist resignation letter', persistErr);
+      return new Response(
+        JSON.stringify({
+          error: 'persist_failed',
+          message: 'Generated the letter but failed to save it. Please try again.',
+        }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     return new Response(
-      JSON.stringify({ letter }),
+      JSON.stringify({ id: savedId, letter, content: letter }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {

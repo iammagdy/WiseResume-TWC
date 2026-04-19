@@ -11,10 +11,10 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/hooks/useAuth';
 import { useResumes, dbToResumeData } from '@/hooks/useResumes';
-import { useCoverLetterMutations } from '@/hooks/useCoverLetters';
 import { usePlan } from '@/hooks/usePlan';
 import { UpgradeWall } from '@/components/plan/UpgradeWall';
-import { generateCoverLetter } from '@/lib/aiTailor';
+import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { useQueryClient } from '@tanstack/react-query';
 import type { TemplateStyle } from '@/lib/coverLetterPdfGenerator';
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
@@ -28,7 +28,8 @@ export default function CoverLetterNewPage() {
   const { user, loading: authLoading } = useAuth();
   const { isPro, isLoading: planLoading } = usePlan();
   const { data: resumes } = useResumes();
-  const { saveCoverLetter } = useCoverLetterMutations();
+  const queryClient = useQueryClient();
+  const [savedId, setSavedId] = useState<string | null>(null);
 
   const [selectedResumeId, setSelectedResumeId] = useState('');
   const [jobDescription, setJobDescription] = useState('');
@@ -94,8 +95,24 @@ export default function CoverLetterNewPage() {
     haptics.light();
     try {
       const resumeData = dbToResumeData(selectedResume);
-      const letter = await generateCoverLetter(resumeData, jobDescription, tone);
+      const { data, error } = await edgeFunctions.functions.invoke('generate-cover-letter', {
+        body: {
+          resume: resumeData,
+          jobDescription,
+          tone,
+          jobTitle: jobTitle || undefined,
+          company: company || undefined,
+          templateStyle,
+          resumeId: selectedResumeId || undefined,
+          title: jobTitle ? `${jobTitle}${company ? ` - ${company}` : ''}` : undefined,
+        },
+      });
+      if (error) throw new Error(error.message || 'Failed to generate cover letter');
+      if (data?.error) throw new Error(data.message || data.error);
+      const letter: string = data.coverLetter || data.content;
       setResult(letter);
+      setSavedId(data.id || null);
+      if (data.id) queryClient.invalidateQueries({ queryKey: ['cover-letters'] });
       setIsEditing(false);
       haptics.success();
     } catch (err: unknown) {
@@ -106,24 +123,12 @@ export default function CoverLetterNewPage() {
   };
 
   const handleSave = () => {
-    if (!result.trim()) return;
+    if (!result.trim() || !savedId) return;
     haptics.light();
-    saveCoverLetter.mutate(
-      {
-        job_title: jobTitle || 'Untitled',
-        company: company || undefined,
-        content: result,
-        tone,
-        template_style: templateStyle,
-        resume_id: selectedResumeId || undefined,
-        title: jobTitle ? `${jobTitle}${company ? ` - ${company}` : ''}` : undefined,
-      },
-      {
-        onSuccess: (data) => {
-          navigate(`/cover-letter/edit/${data.id}`, { replace: true });
-        },
-      }
-    );
+    // The edge function persisted the letter as part of generation, so we
+    // can jump straight to the edit page using the returned id.
+    navigate(`/cover-letter/edit/${savedId}`, { replace: true });
+    toast.success('Cover letter saved!');
   };
 
   const handleCopy = async () => {
@@ -329,7 +334,7 @@ export default function CoverLetterNewPage() {
             <Button variant="outline" size="sm" className="gap-1.5" onClick={() => handleGenerate()} disabled={generating}>
               {generating ? <MiniSpinner size={16} /> : <RotateCcw className="w-4 h-4" />}
             </Button>
-            <Button size="sm" className="gap-1.5 flex-1" onClick={handleSave} disabled={saveCoverLetter.isPending}>
+            <Button size="sm" className="gap-1.5 flex-1" onClick={handleSave} disabled={!savedId}>
               <Save className="w-4 h-4" /> Save
             </Button>
           </div>
