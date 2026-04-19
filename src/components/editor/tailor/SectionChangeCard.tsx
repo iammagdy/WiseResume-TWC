@@ -418,16 +418,25 @@ export function SectionChangeCard({
         </CollapsibleTrigger>
         <CollapsibleContent>
           <div className="px-4 py-3 border-t border-border bg-muted/20 text-sm relative">
-            {onEdit && !isEditing && !hasBullets && (
-              <button
-                onClick={handleStartEdit}
-                className="absolute top-2 right-2 p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center active:scale-95"
-                title="Edit before applying"
-              >
-                <Pencil className="w-3.5 h-3.5" />
-              </button>
+            {isRegenerating ? (
+              <div className="flex items-center justify-center gap-2 py-6 text-muted-foreground">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span className="text-xs">Regenerating with AI…</span>
+              </div>
+            ) : (
+              <>
+                {onEdit && !isEditing && !hasBullets && (
+                  <button
+                    onClick={handleStartEdit}
+                    className="absolute top-2 right-2 p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center active:scale-95"
+                    title="Edit before applying"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                {renderDiffPreview()}
+              </>
             )}
-            {renderDiffPreview()}
           </div>
         </CollapsibleContent>
       </Collapsible>

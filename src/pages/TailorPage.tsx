@@ -440,7 +440,7 @@ export default function TailorPage() {
       if (sectionId === 'skills') return tailorResult.skills;
       if (sectionId === 'experience') return tailorResult.experience.flatMap(e => e.achievements ?? []);
       if (sectionId === 'education') return tailorResult.education.map(e => e.field || `${e.degree} at ${e.institution}`);
-      if (sectionId === 'projects') return (tailorResult.projects ?? []).map(p => `${p.name}${p.role ? ` (${p.role})` : ''}: ${p.description}${p.technologies?.length ? ` [Technologies: ${p.technologies.join(', ')}]` : ''}`);
+      if (sectionId === 'projects') return (tailorResult.projects ?? []).map(p => p.description || '');
       if (sectionId === 'certifications') return (tailorResult.certifications ?? []).map(c => c.name);
       return null;
     };
@@ -448,7 +448,10 @@ export default function TailorPage() {
     const currentContent = getCurrentContent();
     if (currentContent === null) return;
 
-    const combinedInstructions = [customInstructions, sectionInstruction].filter(Boolean).join(' | ') || undefined;
+    const projectContext = sectionId === 'projects' && tailorResult.projects?.length
+      ? `Project names and technologies for context (do NOT rename these): ${tailorResult.projects.map(p => `"${p.name}"${p.technologies?.length ? ` [${p.technologies.join(', ')}]` : ''}`).join('; ')}. `
+      : '';
+    const combinedInstructions = [projectContext + (customInstructions || ''), sectionInstruction].filter(s => s?.trim()).join(' | ') || undefined;
 
     try {
       const result = await tailorSection({
@@ -490,13 +493,10 @@ export default function TailorPage() {
         const newDescriptions = result.rewrittenContent as string[];
         setTailorResult(prev => {
           if (!prev) return prev;
-          const updatedProjects = (prev.projects ?? []).map((p, i) => {
-            const raw = newDescriptions[i];
-            if (!raw) return p;
-            const colonIdx = raw.indexOf(':');
-            const description = colonIdx !== -1 ? raw.slice(colonIdx + 1).replace(/\[Technologies:[^\]]*\]/i, '').trim() : raw;
-            return { ...p, description: description || p.description };
-          });
+          const updatedProjects = (prev.projects ?? []).map((p, i) => ({
+            ...p,
+            description: (newDescriptions[i] ?? '').trim() || p.description,
+          }));
           return { ...prev, projects: updatedProjects };
         });
       } else if (sectionId === 'certifications' && Array.isArray(result.rewrittenContent)) {

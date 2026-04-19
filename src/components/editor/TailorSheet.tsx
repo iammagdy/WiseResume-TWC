@@ -277,9 +277,16 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
   const [copiedText, setCopiedText] = useState(false);
   const [appliedResumeId, setAppliedResumeId] = useState<string | null>(null);
   const [showAppliedCTA, setShowAppliedCTA] = useState(false);
+  const [isRetryingScore, setIsRetryingScore] = useState(false);
+  const [appliedJobInfo, setAppliedJobInfo] = useState<{ title: string; company: string } | null>(null);
 
   useEffect(() => {
-    if (open) { activityTracker.setActiveFeature('Smart Tailor'); }
+    if (open) {
+      activityTracker.setActiveFeature('Smart Tailor');
+      setShowAppliedCTA(false);
+      setAppliedJobInfo(null);
+      setAppliedResumeId(null);
+    }
     return () => { activityTracker.setActiveFeature(null); };
   }, [open]);
 
@@ -513,7 +520,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
       if (sectionId === 'skills') return tailorResult.skills;
       if (sectionId === 'experience') return tailorResult.experience.flatMap(e => e.achievements ?? []);
       if (sectionId === 'education') return tailorResult.education.map(e => e.field || `${e.degree} at ${e.institution}`);
-      if (sectionId === 'projects') return (tailorResult.projects ?? []).map(p => `${p.name}${p.role ? ` (${p.role})` : ''}: ${p.description}${p.technologies?.length ? ` [Technologies: ${p.technologies.join(', ')}]` : ''}`);
+      if (sectionId === 'projects') return (tailorResult.projects ?? []).map(p => p.description || '');
       if (sectionId === 'certifications') return (tailorResult.certifications ?? []).map(c => c.name);
       return null;
     };
@@ -521,7 +528,10 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
     const currentContent = getCurrentContent();
     if (currentContent === null) return;
 
-    const combinedInstructions = [customInstructions, sectionInstruction].filter(Boolean).join(' | ') || undefined;
+    const projectContext = sectionId === 'projects' && tailorResult.projects?.length
+      ? `Project names and technologies for context (do NOT rename these): ${tailorResult.projects.map(p => `"${p.name}"${p.technologies?.length ? ` [${p.technologies.join(', ')}]` : ''}`).join('; ')}. `
+      : '';
+    const combinedInstructions = [projectContext + (customInstructions || ''), sectionInstruction].filter(s => s?.trim()).join(' | ') || undefined;
 
     try {
       const result = await tailorSection({
@@ -555,13 +565,10 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
         handleUpdateTailorResult({ education: updatedEducation });
       } else if (sectionId === 'projects' && Array.isArray(result.rewrittenContent)) {
         const newDescriptions = result.rewrittenContent as string[];
-        const updatedProjects = (tailorResult.projects ?? []).map((p, i) => {
-          const raw = newDescriptions[i];
-          if (!raw) return p;
-          const colonIdx = raw.indexOf(':');
-          const description = colonIdx !== -1 ? raw.slice(colonIdx + 1).replace(/\[Technologies:[^\]]*\]/i, '').trim() : raw;
-          return { ...p, description: description || p.description };
-        });
+        const updatedProjects = (tailorResult.projects ?? []).map((p, i) => ({
+          ...p,
+          description: (newDescriptions[i] ?? '').trim() || p.description,
+        }));
         handleUpdateTailorResult({ projects: updatedProjects });
       } else if (sectionId === 'certifications' && Array.isArray(result.rewrittenContent)) {
         const newNames = result.rewrittenContent as string[];
@@ -682,26 +689,12 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
       onApplied?.({ title: jt, company: co, resumeId: newResumeId, jobUrl });
 
       setAppliedResumeId(newResumeId || null);
+      setAppliedJobInfo({ title: jt, company: co });
 
       setTailorResult(null);
       clearPendingTailor();
       clearCache(currentResumeId);
-      onOpenChange(false);
-
-      toast.success('🎉 Tailored resume created!', {
-        duration: 6000,
-        action: {
-          label: 'Track application',
-          onClick: () => {
-            const params = new URLSearchParams();
-            params.set('new', '1');
-            if (jt) params.set('title', jt);
-            if (co) params.set('company', co);
-            if (newResumeId) params.set('resumeId', newResumeId);
-            navigate(`/applications?${params.toString()}`);
-          },
-        },
-      });
+      setShowAppliedCTA(true);
     } catch (error) {
       console.error('Apply error:', error);
       toast.error('Failed to create tailored resume');
@@ -792,54 +785,46 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
     clearCache(currentResumeId);
   };
 
-  const handleRetryScore = useCallback(() => {
-    if (!tailorResult || !originalResume) return;
+  const handleRetryScore = useCallback(async () => {
+    if (!tailorResult || !originalResume || isRetryingScore) return;
 
-    const ats = tailorResult.atsAnalysis;
-    const allKeywords = [
-      ...(ats?.criticalKeywords ?? []),
-      ...(ats?.matchedKeywords?.map(m => m.keyword) ?? []),
-      ...(ats?.unmatchedKeywords ?? []),
-    ].filter((kw, i, arr) => arr.indexOf(kw) === i && kw.trim().length > 0);
+    setIsRetryingScore(true);
+    try {
+      const tailoredResume: ResumeData = {
+        ...originalResume,
+        summary: tailorResult.summary,
+        skills: tailorResult.skills,
+        experience: tailorResult.experience,
+        education: tailorResult.education,
+        ...(tailorResult.projects ? { projects: tailorResult.projects } : {}),
+        ...(tailorResult.certifications ? { certifications: tailorResult.certifications } : {}),
+        ...(tailorResult.awards ? { awards: tailorResult.awards } : {}),
+      };
 
-    if (allKeywords.length === 0) {
-      toast.info('Not enough keyword data — try re-tailoring to compute a full score.');
-      return;
+      const [beforeResult, afterResult] = await Promise.all([
+        supabase.functions.invoke('score-resume', {
+          body: { resume: originalResume, source: 'background' },
+        }),
+        supabase.functions.invoke('score-resume', {
+          body: { resume: tailoredResume, source: 'background' },
+        }),
+      ]);
+
+      const beforeScore = beforeResult.data?.overallScore;
+      const afterScore = afterResult.data?.overallScore;
+
+      if (typeof beforeScore === 'number' && typeof afterScore === 'number') {
+        handleUpdateTailorResult({ overallScore: { before: beforeScore, after: afterScore } });
+        toast.success('ATS score calculated.');
+      } else {
+        toast.error('Could not retrieve score — try re-tailoring.');
+      }
+    } catch {
+      toast.error('Score calculation failed — try re-tailoring.');
+    } finally {
+      setIsRetryingScore(false);
     }
-
-    const buildText = (resume: ResumeData): string =>
-      [
-        resume.summary ?? '',
-        (resume.skills ?? []).join(' '),
-        ...(resume.experience ?? []).flatMap(e => [e.description ?? '', ...(e.achievements ?? [])]),
-        ...(resume.education ?? []).map(e => `${e.degree} ${e.field}`),
-        ...(resume.projects ?? []).map(p => `${p.name} ${p.description} ${(p.technologies ?? []).join(' ')}`),
-      ].join(' ').toLowerCase();
-
-    const buildTailoredText = (): string =>
-      [
-        tailorResult.summary ?? '',
-        (tailorResult.skills ?? []).join(' '),
-        ...(tailorResult.experience ?? []).flatMap(e => [e.description ?? '', ...(e.achievements ?? [])]),
-        ...(tailorResult.education ?? []).map(e => `${e.degree} ${e.field}`),
-        ...(tailorResult.projects ?? []).map(p => `${p.name} ${p.description} ${(p.technologies ?? []).join(' ')}`),
-      ].join(' ').toLowerCase();
-
-    const countHits = (text: string): number =>
-      allKeywords.filter(kw => text.includes(kw.toLowerCase())).length;
-
-    const originalText = buildText(originalResume);
-    const tailoredText = buildTailoredText();
-
-    const beforeRatio = countHits(originalText) / allKeywords.length;
-    const afterRatio = countHits(tailoredText) / allKeywords.length;
-
-    const beforeScore = Math.round(Math.max(25, Math.min(92, beforeRatio * 100)));
-    const afterScore = Math.round(Math.max(beforeScore, Math.min(99, afterRatio * 100)));
-
-    handleUpdateTailorResult({ overallScore: { before: beforeScore, after: afterScore } });
-    toast.success('ATS score estimated from keyword analysis (no credits used).');
-  }, [tailorResult, originalResume, handleUpdateTailorResult]);
+  }, [tailorResult, originalResume, isRetryingScore, handleUpdateTailorResult]);
 
   const handleAddSkill = (skill: string) => {
     if (!currentResume) return;
@@ -1054,6 +1039,38 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
             </div>
           )}
 
+          {/* Applied Success Card */}
+          {showAppliedCTA && !isTailoring && !tailorResult && (
+            <div className="flex flex-col items-center justify-center gap-6 py-12 px-6 text-center animate-fade-in">
+              <div className="w-16 h-16 rounded-full bg-success/10 flex items-center justify-center">
+                <CheckCircle className="w-8 h-8 text-success" />
+              </div>
+              <div>
+                <h3 className="font-bold text-xl mb-1">Tailored Resume Created!</h3>
+                <p className="text-muted-foreground text-sm">
+                  {appliedJobInfo
+                    ? `Your resume has been tailored for ${appliedJobInfo.title} at ${appliedJobInfo.company}.`
+                    : 'Your tailored resume has been saved.'}
+                </p>
+              </div>
+              <div className="flex flex-col gap-3 w-full max-w-xs">
+                <Button className="gradient-primary min-h-[44px]" onClick={handleTrackApplication}>
+                  <Briefcase className="w-4 h-4 mr-2" />
+                  Track Application
+                </Button>
+                {appliedResumeId && (
+                  <Button variant="outline" className="min-h-[44px]" onClick={() => { navigate(`/editor/${appliedResumeId}`); onOpenChange(false); }}>
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                    View Tailored Resume
+                  </Button>
+                )}
+                <Button variant="ghost" className="min-h-[44px]" onClick={() => onOpenChange(false)}>
+                  Done
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* Results */}
           {tailorResult && !isTailoring && (
             <div className="space-y-4 animate-fade-in">
@@ -1157,9 +1174,9 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
                         </div>
                       </div>
                       <div className="flex gap-2 flex-wrap">
-                        <Button size="sm" variant="outline" className="text-xs min-h-[44px] active:scale-95 transition-transform" onClick={handleRetryScore}>
-                          <RefreshCw className="w-3 h-3 mr-1" />
-                          Estimate Score (free)
+                        <Button size="sm" variant="outline" className="text-xs min-h-[44px] active:scale-95 transition-transform" onClick={handleRetryScore} disabled={isRetryingScore}>
+                          {isRetryingScore ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <RefreshCw className="w-3 h-3 mr-1" />}
+                          {isRetryingScore ? 'Calculating...' : 'Calculate Score (free)'}
                         </Button>
                         <Button size="sm" variant="ghost" className="text-xs min-h-[44px] active:scale-95 transition-transform" onClick={handleTailor}>
                           <RefreshCw className="w-3 h-3 mr-1" />
@@ -1659,15 +1676,11 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
               </Button>
               <Button
                 className="flex-1 gradient-primary min-h-[44px] [@media(max-height:700px)]:min-h-[36px] active:scale-95 transition-transform"
-                onClick={() => { haptics.success(); handleApplyChanges(); }}
-                disabled={enabledSections.length === 0 || isApplying}
+                onClick={() => { haptics.success(); setShowCompare(true); }}
+                disabled={enabledSections.length === 0}
               >
-                {isApplying ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <CheckCircle className="w-4 h-4 mr-2" />
-                )}
-                {isApplying ? 'Creating...' : `Apply (${enabledSections.length})`}
+                <GitCompare className="w-4 h-4 mr-2" />
+                Preview & Apply ({enabledSections.length})
               </Button>
             </div>
             {enabledSections.length === 0 ? (
