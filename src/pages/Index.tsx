@@ -221,6 +221,22 @@ const Index = () => {
   type WinWithFlag = Window & { __lpTransition?: boolean };
   const setTransitionFlag = (on: boolean) => { (window as WinWithFlag).__lpTransition = on; };
 
+  /* Clearable timer so rapid repeated toggles don't leave the flag
+     set indefinitely when the no-VT fallback path is used. */
+  const transitionFlagTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (transitionFlagTimerRef.current !== null) clearTimeout(transitionFlagTimerRef.current);
+    setTransitionFlag(false);
+  }, []);
+
+  const clearFlagAfter = (ms = 600) => {
+    if (transitionFlagTimerRef.current !== null) clearTimeout(transitionFlagTimerRef.current);
+    transitionFlagTimerRef.current = setTimeout(() => {
+      transitionFlagTimerRef.current = null;
+      setTransitionFlag(false);
+    }, ms);
+  };
+
   type DocWithVT = Document & {
     startViewTransition?: (cb: () => void) => { ready: Promise<void>; finished: Promise<void> };
   };
@@ -239,17 +255,21 @@ const Index = () => {
     setTransitionFlag(true);
     if (!startVT) {
       startTransition(() => { setMode(m); setDisplayProduct(m); });
-      setTimeout(() => setTransitionFlag(false), 600);
+      clearFlagAfter();
       return;
     }
     /* Only update `mode` (brand colors, header, favicon) inside the
        snapshot callback so the first frames of the ripple paint against
        the already-updated lightweight state. The heavy LandingMotionStage
        re-render (displayProduct) is deferred until after the ripple's
-       first frame resolves — this prevents it from blocking the ripple. */
+       first frame resolves — this prevents it from blocking the ripple.
+       The catch fallback ensures displayProduct is never left stale if
+       vt.ready rejects in edge cases (e.g., nested transitions). */
     const vt = startVT(() => { flushSync(() => setMode(m)); });
-    vt.ready.then(() => { startTransition(() => setDisplayProduct(m)); }).catch(() => {});
-    vt.finished.then(() => setTransitionFlag(false)).catch(() => setTransitionFlag(false));
+    vt.ready
+      .then(() => { startTransition(() => setDisplayProduct(m)); })
+      .catch(() => { startTransition(() => setDisplayProduct(m)); });
+    vt.finished.then(() => setTransitionFlag(false)).catch(() => clearFlagAfter(0));
   };
 
   const handleThemeToggle = (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -262,11 +282,11 @@ const Index = () => {
     setTransitionFlag(true);
     if (!startVT || prefersReducedMotion) {
       setIsDark(applyToggle);
-      setTimeout(() => setTransitionFlag(false), 600);
+      clearFlagAfter();
       return;
     }
     const vt = startVT(() => { flushSync(() => setIsDark(applyToggle)); });
-    vt.finished.then(() => setTransitionFlag(false)).catch(() => setTransitionFlag(false));
+    vt.finished.then(() => setTransitionFlag(false)).catch(() => clearFlagAfter(0));
   };
 
   return (
