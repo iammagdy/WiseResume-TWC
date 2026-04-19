@@ -29,10 +29,40 @@ export interface AuthContextType {
   kindeUser: ReturnType<typeof useKindeAuth>['user'];
   /** Get the current Kinde access token */
   getKindeToken: () => Promise<string | null>;
+  /**
+   * False when Kinde env vars are missing/invalid and auth is running in
+   * degraded mode. Auth actions (sign-in, register, etc.) will not work.
+   */
+  authAvailable: boolean;
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+const DEGRADED_AUTH_VALUE: AuthContextType = {
+  user: null,
+  loading: false,
+  signOut: async () => {},
+  isAuthenticated: false,
+  supabaseReady: false,
+  supabaseSettled: true,
+  kindeUser: null,
+  getKindeToken: async () => null,
+  authAvailable: false,
+};
+
+/**
+ * Fallback auth provider used when Kinde configuration is missing or invalid.
+ * Supplies a safe no-op auth state so the rest of the app tree can render
+ * without crashing, but no authenticated features will work.
+ */
+export function DegradedAuthProvider({ children }: { children: React.ReactNode }) {
+  return (
+    <AuthContext.Provider value={DEGRADED_AUTH_VALUE}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
 
 async function hideSplashScreen() {
   if (!Capacitor.isNativePlatform()) return;
@@ -221,6 +251,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     supabaseSettled: bridgeReady || bridgeFailed,
     kindeUser: kindeUser ?? null,
     getKindeToken,
+    authAvailable: true,
   }), [user, loading, signOut, isAuthenticated, bridgeReady, bridgeFailed, kindeUser, getKindeToken]);
 
   return (
