@@ -490,7 +490,13 @@ const ScrollStack = ({
         transform: "translateZ(0)",
       }}
     >
-      <div className="scroll-stack-inner">
+      {/* `isolation: isolate` confines the per-card z-indices we assign in
+          the setup effect to this container. Without it, the topmost card's
+          z-index (cards.length) competes at the section level against the
+          sibling `.lp-stack-sticky-header` (z-index: 4) and paints over the
+          "See it in action" title + step counter chip while the section is
+          pinned. */}
+      <div className="scroll-stack-inner" style={{ isolation: "isolate" }}>
         {children}
         <div className="scroll-stack-end" />
       </div>
