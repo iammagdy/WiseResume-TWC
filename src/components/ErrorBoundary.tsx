@@ -3,7 +3,7 @@ import { AlertTriangle, RefreshCw, Home, ArrowLeft, MessageSquareWarning, Send, 
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { getUserId } from '@/lib/supabaseBridge';
-import { captureError } from '@/lib/monitoring';
+import { captureError } from '@/lib/captureErrorShim';
 
 interface Props {
   children: ReactNode;

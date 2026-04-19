@@ -1,7 +1,7 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { captureError } from '@/lib/monitoring';
+import { captureError } from '@/lib/captureErrorShim';
 
 interface Props {
   panelName: string;

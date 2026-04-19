@@ -18,11 +18,13 @@ import { Capacitor } from '@capacitor/core';
 import App from "./App.tsx";
 import "./index.css";
 import { reportWebVitals } from "./lib/reportWebVitals";
-import { initMonitoring, captureError } from "./lib/monitoring";
-
-// Initialize error tracking as early as possible, before any React code runs.
-// Requires VITE_SENTRY_DSN to be set in environment secrets.
-initMonitoring();
+/* Sentry (and its browserTracing + replay integrations) is heavy. Loading
+   it synchronously here adds it to the entry chunk's modulepreload graph
+   AND blocks first paint while Sentry.init() runs. We defer it to after
+   createRoot — errors in that ~1-frame window are caught by the global
+   handlers below via the dependency-free shim, buffered, and flushed once
+   monitoring.ts loads and wires the real Sentry-backed capturer. */
+import { captureError } from "./lib/captureErrorShim";
 
 console.log('🚀 WiseResume App Starting...', Date.now());
 console.log('Environment:', {
@@ -69,6 +71,33 @@ try {
   console.log('✅ App rendered successfully');
   
   reportWebVitals();
+
+  /* Defer Sentry to idle so it doesn't compete with hero paint. The shim's
+     buffer catches any errors that fire before this resolves; the real
+     capturer is wired in via setRealCaptureError, then the buffer is
+     drained through it. */
+  const loadMonitoring = () => {
+    void Promise.all([
+      import("./lib/monitoring"),
+      import("./lib/captureErrorShim"),
+    ]).then(([mon, shim]) => {
+      mon.initMonitoring();
+      shim.setRealCaptureError(mon.captureError);
+      while (shim.earlyCaptureBuffer.length > 0) {
+        const entry = shim.earlyCaptureBuffer.shift();
+        if (entry) mon.captureError(entry.err, entry.context);
+      }
+    }).catch(() => undefined);
+  };
+  type IdleWindow = Window & {
+    requestIdleCallback?: (cb: () => void, opts?: { timeout?: number }) => number;
+  };
+  const w = window as IdleWindow;
+  if (typeof w.requestIdleCallback === "function") {
+    w.requestIdleCallback(loadMonitoring, { timeout: 2000 });
+  } else {
+    setTimeout(loadMonitoring, 1500);
+  }
 } catch (error) {
   console.error('❌ Failed to render app:', error);
   const wrap = document.createElement('div');

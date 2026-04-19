@@ -31,6 +31,12 @@ if (typeof window !== 'undefined') {
   const isWiseHire =
     window.location.pathname === '/enterprises' ||
     new URLSearchParams(window.location.search).get('for') === 'companies';
+  /* Kick off the LandingMotionStage chunk (which carries framer-motion)
+     immediately, in parallel with the active hero chunk. Without this
+     warm-up, the motion stage only starts downloading once <Suspense>
+     reads the lazy import, which adds an extra waterfall step between
+     the LpFallback wallpaper and the hero painting. */
+  void import('@/components/landing/LandingMotionStage');
   if (isWiseHire) {
     void import('@/components/landing/wisehire/WiseHireHero');
   } else {

@@ -25,7 +25,15 @@ export const SCATTER_WRAPPER_VARIANTS = {
 export const SECTION_ENTRY_ROTATIONS = [3, -3, 4, -4, 3, -3];
 
 export const SCATTER_SECTION_ITEM = {
+  /* The hero (i === 0) starts fully visible so it paints the instant the
+     LandingMotionStage chunk mounts — no opacity/blur fade-in gap between
+     the wallpaper and the hero text. Sections below the fold (i >= 1)
+     keep the playful scatter entrance, which the user only ever sees
+     once they scroll into them. */
   hidden: (i: number) => {
+    if (i === 0) {
+      return { opacity: 1, x: 0, y: 0, scale: 1, rotate: 0, filter: 'blur(0px)' };
+    }
     const e = SECTION_ENTRY_VECTORS[i] ?? { x: 0, y: 100 };
     return { opacity: 0, x: e.x, y: e.y, scale: 0.88, rotate: SECTION_ENTRY_ROTATIONS[i] ?? 3, filter: 'blur(10px)' };
   },
