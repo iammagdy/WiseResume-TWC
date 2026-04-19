@@ -8,9 +8,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 const STAGES = [
   { id: 'shortlisted', label: 'Shortlisted', color: 'bg-blue-500' },
-  { id: 'screening', label: 'Screening', color: 'bg-cyan-500' },
-  { id: 'interview', label: 'Interview', color: 'bg-violet-500' },
-  { id: 'offer', label: 'Offer', color: 'bg-amber-500' },
+  { id: 'contacted', label: 'Contacted', color: 'bg-violet-500' },
+  { id: 'interviewing', label: 'Interviewing', color: 'bg-amber-500' },
+  { id: 'offer_sent', label: 'Offer Sent', color: 'bg-orange-500' },
   { id: 'hired', label: 'Hired', color: 'bg-emerald-500' },
   { id: 'rejected', label: 'Rejected', color: 'bg-slate-400' },
 ];

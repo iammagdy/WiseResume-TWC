@@ -9,11 +9,20 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 const STAGE_COLOURS: Record<string, string> = {
   shortlisted: 'text-blue-600 dark:text-blue-400',
-  screening: 'text-cyan-600 dark:text-cyan-400',
-  interview: 'text-violet-600 dark:text-violet-400',
-  offer: 'text-amber-600 dark:text-amber-400',
+  contacted: 'text-violet-600 dark:text-violet-400',
+  interviewing: 'text-amber-600 dark:text-amber-400',
+  offer_sent: 'text-orange-600 dark:text-orange-400',
   hired: 'text-emerald-600 dark:text-emerald-400',
   rejected: 'text-slate-500 dark:text-slate-400',
+};
+
+const STAGE_LABELS: Record<string, string> = {
+  shortlisted: 'Shortlisted',
+  contacted: 'Contacted',
+  interviewing: 'Interviewing',
+  offer_sent: 'Offer Sent',
+  hired: 'Hired',
+  rejected: 'Rejected',
 };
 
 interface ActivityRow {
@@ -76,9 +85,9 @@ export function RecentActivity() {
       </div>
       <ul className="space-y-2.5">
         {data.map((ev) => {
-          const stageLabel = ev.to_stage
+          const stageLabel = STAGE_LABELS[ev.to_stage] ?? (ev.to_stage
             ? ev.to_stage.charAt(0).toUpperCase() + ev.to_stage.slice(1)
-            : 'Unknown';
+            : 'Unknown');
           const stageColor = STAGE_COLOURS[ev.to_stage] ?? 'text-slate-500';
           const candidateName = ev.candidate?.name ?? 'Unknown candidate';
           return (

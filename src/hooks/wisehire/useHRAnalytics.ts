@@ -60,7 +60,7 @@ export function useHRAnalytics() {
           .from('wisehire_bulk_screen_jobs')
           .select('results, created_at')
           .eq('owner_id', userId)
-          .eq('status', 'completed'),
+          .eq('status', 'done'),
         supabase
           .from('wisehire_pipeline_events')
           .select('candidate_id, to_stage, created_at')
