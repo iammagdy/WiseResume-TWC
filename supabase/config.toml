@@ -105,10 +105,6 @@ project_id = "jnsfmkzgxsviuthaqlyy"
     verify_jwt = false
   [functions.send-contact-email]
     verify_jwt = false
-  [functions.send-contact-inquiry]
-    verify_jwt = false
-  [functions.send-feature-request]
-    verify_jwt = false
   [functions.send-push-notification]
     verify_jwt = false
   [functions.send-resume-reminder]
@@ -160,8 +156,6 @@ project_id = "jnsfmkzgxsviuthaqlyy"
   [functions.submit-contact-request]
     verify_jwt = false
   [functions.tailor-section]
-    verify_jwt = false
-  [functions.wisehire-apply]
     verify_jwt = false
   [functions.wisehire-bulk-screen]
     verify_jwt = false
