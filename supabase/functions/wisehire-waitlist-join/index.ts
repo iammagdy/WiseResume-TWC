@@ -13,8 +13,10 @@ function buildConfirmationEmail(name: string, position: number): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!--[if !mso]><!-->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap">
+  <!--<![endif]-->
   <style>
     @media only screen and (max-width: 560px) {
       .px-wide { padding-left: 20px !important; padding-right: 20px !important; }
@@ -29,16 +31,17 @@ function buildConfirmationEmail(name: string, position: number): string {
     <tr><td align="center">
       <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 4px 24px rgba(29,78,216,0.10);">
 
-        <!-- Header -->
+        <!-- Header — bgcolor="#e8efff" is the Outlook solid fallback for the gradient -->
         <tr>
-          <td class="px-wide" style="background:linear-gradient(160deg,#e8efff 0%,#f0f6ff 100%);border-bottom:1px solid #dce8ff;padding:32px 24px 24px;text-align:center;">
+          <td class="px-wide" bgcolor="#e8efff" style="background:linear-gradient(160deg,#e8efff 0%,#f0f6ff 100%);border-bottom:1px solid #dce8ff;padding:32px 24px 24px;text-align:center;">
             <table cellpadding="0" cellspacing="0" style="margin:0 auto;">
               <tr>
                 <td style="vertical-align:middle;padding-right:10px;">
+                  <!-- border-radius removed: Outlook ignores it on img; modern clients render it via CSS if added to a wrapper -->
                   <img src="https://resume.thewise.cloud/email-logo.png"
                        alt="WiseHire"
                        width="38" height="38"
-                       style="display:block;border-radius:9px;border:0;" />
+                       style="display:block;border:0;" />
                 </td>
                 <td style="vertical-align:middle;">
                   <span style="font-size:21px;font-weight:900;color:${WISEHIRE_BLUE};letter-spacing:-0.5px;">WiseHire</span>
@@ -53,7 +56,7 @@ function buildConfirmationEmail(name: string, position: number): string {
         <tr>
           <td class="px-wide" style="padding:28px 24px 0;text-align:center;">
             <span style="display:inline-block;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:100px;padding:7px 16px;font-size:12px;font-weight:600;color:#15803d;">
-              ✓ Position #${position} on the waitlist
+              &#10003; Position #${position} on the waitlist
             </span>
           </td>
         </tr>
@@ -62,7 +65,7 @@ function buildConfirmationEmail(name: string, position: number): string {
         <tr>
           <td class="px-wide" style="padding:24px 24px 40px;">
             <h1 style="margin:0 0 18px;font-size:24px;font-weight:800;color:#0f172a;line-height:1.25;letter-spacing:-0.5px;">
-              You're #${position} on the list, <span style="color:${WISEHIRE_BLUE};">${escapeHtml(name)}</span> 👋
+              You're #${position} on the list, <span style="color:${WISEHIRE_BLUE};">${escapeHtml(name)}</span>
             </h1>
 
             <p style="margin:0 0 16px;font-size:15px;color:#4b5563;line-height:1.7;">
@@ -73,7 +76,7 @@ function buildConfirmationEmail(name: string, position: number): string {
             <!-- Platform description box -->
             <table width="100%" cellpadding="0" cellspacing="0" style="margin:20px 0;">
               <tr>
-                <td style="background:#f0f6ff;border:1px solid #dbeafe;border-radius:12px;padding:18px 20px;">
+                <td bgcolor="#f0f6ff" style="background:#f0f6ff;border:1px solid #dbeafe;border-radius:12px;padding:18px 20px;">
                   <p style="margin:0;font-size:14px;color:#374151;line-height:1.7;">
                     WiseHire is an <strong style="color:${WISEHIRE_BLUE};">AI-powered hiring platform</strong> for HR teams
                     and recruiters. It handles the heavy lifting — screening candidates, writing job descriptions,
@@ -89,24 +92,39 @@ function buildConfirmationEmail(name: string, position: number): string {
               we'll email you directly at this address. Keep an eye on this inbox.
             </p>
 
-            <!-- CTA button -->
+            <!-- CTA button — VML for Outlook, table-based for everyone else -->
+            <!--[if mso]>
+            <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word"
+              href="https://resume.thewise.cloud/?for=companies"
+              style="height:48px;v-text-anchor:middle;width:230px;"
+              arcsize="13%"
+              stroke="f"
+              fillcolor="${WISEHIRE_BLUE}">
+              <w:anchorlock/>
+              <center style="color:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:15px;font-weight:700;">
+                See WiseHire in action &#x2192;
+              </center>
+            </v:roundrect>
+            <![endif]-->
+            <!--[if !mso]><!-->
             <table class="cta-table" cellpadding="0" cellspacing="0">
               <tr>
                 <td class="cta-td" style="background:${WISEHIRE_BLUE};border-radius:10px;box-shadow:0 4px 14px rgba(29,78,216,0.28);">
                   <a class="cta-link" href="https://resume.thewise.cloud/?for=companies"
                      style="display:inline-block;padding:14px 30px;color:#fff;font-size:15px;font-weight:700;text-decoration:none;letter-spacing:-0.2px;">
-                    See WiseHire in action →
+                    See WiseHire in action &#x2192;
                   </a>
                 </td>
               </tr>
             </table>
+            <!--<![endif]-->
             <div style="margin-top:10px;font-size:12px;color:#94a3b8;">No account needed — takes 2 minutes</div>
           </td>
         </tr>
 
         <!-- Footer -->
         <tr>
-          <td class="px-wide" style="padding:18px 24px 22px;border-top:1px solid #e9eef6;background:#f8fafc;">
+          <td class="px-wide" bgcolor="#f8fafc" style="padding:18px 24px 22px;border-top:1px solid #e9eef6;background:#f8fafc;">
             <p style="margin:0;font-size:12px;color:#94a3b8;line-height:1.6;">
               You're receiving this because you joined the WiseHire waitlist at
               <a href="https://resume.thewise.cloud/?for=companies" style="color:${WISEHIRE_BLUE};text-decoration:none;font-weight:500;">resume.thewise.cloud</a>.
