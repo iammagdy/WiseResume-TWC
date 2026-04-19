@@ -4,7 +4,7 @@ import { callAIWithRetry, isAIError, parseAIJSONWithRetry, sanitizeInputText } f
 import { checkRateLimit, recordUsage, getUserPlan } from "../_shared/rateLimiter.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { checkAndDeductCredit } from "../_shared/creditUtils.ts";
+import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
 import { logger } from "../_shared/logger.ts";
@@ -792,6 +792,7 @@ serve(async (req) => {
       // All 3 variants must succeed — partial results are not acceptable for the pick-one UX
       if (variants.length < 3) {
         console.error(`Variants mode: only ${variants.length}/3 variants succeeded`);
+        await refundCredit(userId, creditCheck, 1);
         return new Response(JSON.stringify({ error: 'enhancement_failed', message: 'Could not generate all 3 variants. Please try again.' }), {
           status: 502,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -812,12 +813,18 @@ serve(async (req) => {
 
     // Call AI using the shared client
     const temperature = action === 'ats_improve' ? 0.3 : 0.7;
-    const aiResponse = await callAIWithRetry({
-      model: 'meta-llama/llama-3.3-70b-instruct:free',
-      messages: [{ role: 'user', content: prompt }],
-      temperature,
-      userId,
-    });
+    let aiResponse;
+    try {
+      aiResponse = await callAIWithRetry({
+        model: 'meta-llama/llama-3.3-70b-instruct:free',
+        messages: [{ role: 'user', content: prompt }],
+        temperature,
+        userId,
+      });
+    } catch (aiErr) {
+      await refundCredit(userId, creditCheck, 1);
+      throw aiErr;
+    }
 
     const content = aiResponse.content;
     if (!content) {

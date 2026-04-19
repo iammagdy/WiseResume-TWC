@@ -5,7 +5,7 @@ import { callAIWithRetry, parseAIJSONWithRetry, sanitizeInputText, toUserError }
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
-import { checkAndDeductCredit } from "../_shared/creditUtils.ts";
+import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
 import { logger } from "../_shared/logger.ts";
 const log = logger('tailor-section');
@@ -149,16 +149,22 @@ Return this exact JSON:
         { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-    const aiResponse = await callAIWithRetry({
-      model: selectedModel,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      temperature: 0.4,
-      maxTokens: 4000,
-      userId,
-    });
+    let aiResponse;
+    try {
+      aiResponse = await callAIWithRetry({
+        model: selectedModel,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        temperature: 0.4,
+        maxTokens: 4000,
+        userId,
+      });
+    } catch (aiErr) {
+      await refundCredit(userId, creditCheck, 1);
+      throw aiErr;
+    }
 
     if (!aiResponse.content) {
       throw new Error('No content in AI response');

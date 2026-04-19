@@ -3,7 +3,7 @@ import { callAI, getUserKeyAndUrlFromDB } from "../_shared/aiClient.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
-import { checkAndDeductCredit } from "../_shared/creditUtils.ts";
+import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
 import { logger } from "../_shared/logger.ts";
@@ -105,7 +105,9 @@ serve(async (req) => {
     const fetchController = new AbortController();
     const fetchTimeout = setTimeout(() => fetchController.abort(), 30_000);
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${geminiKey}`, {
+    let response;
+    try {
+      response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${geminiKey}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -121,6 +123,11 @@ serve(async (req) => {
       }),
       signal: fetchController.signal,
     });
+    } catch (fetchErr) {
+      clearTimeout(fetchTimeout);
+      await refundCredit(userId, creditCheck, 1);
+      throw fetchErr;
+    }
 
     clearTimeout(fetchTimeout);
 
@@ -129,12 +136,14 @@ serve(async (req) => {
       console.error("Gemini API error:", response.status, errorText);
 
       if (response.status === 429) {
+        await refundCredit(userId, creditCheck, 1);
         return new Response(
           JSON.stringify({ error: "Rate limit exceeded. Please try again later." }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
+      await refundCredit(userId, creditCheck, 1);
       return new Response(
         JSON.stringify({ error: "Failed to generate headshot. This feature requires a Gemini API key with image generation support." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

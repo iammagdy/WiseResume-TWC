@@ -4,7 +4,7 @@ import { callAIWithRetry, isAIError, parseAIJSON, toUserError } from "../_shared
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
-import { checkAndDeductCredit } from "../_shared/creditUtils.ts";
+import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
 import { logger } from "../_shared/logger.ts";
@@ -142,16 +142,22 @@ ${resume.certifications?.map((c: any) => `- ${c.name} from ${c.issuer}`).join("\
         { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-    const aiResponse = await callAIWithRetry({
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      temperature: 0.5,
-      maxTokens: 8000,
-      userId,
-      timeout: 45_000,
-    });
+    let aiResponse;
+    try {
+      aiResponse = await callAIWithRetry({
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        temperature: 0.5,
+        maxTokens: 8000,
+        userId,
+        timeout: 45_000,
+      });
+    } catch (aiErr) {
+      await refundCredit(userId, creditCheck, 1);
+      throw aiErr;
+    }
 
     const rawContent = aiResponse.content || '{}';
     const result = parseAIJSON(rawContent);

@@ -3,7 +3,7 @@ import { getCorsHeaders } from '../_shared/cors.ts';
 import { requireAuth, authErrorResponse } from '../_shared/authMiddleware.ts';
 import { checkRateLimit, recordUsage } from '../_shared/rateLimiter.ts';
 import { checkUserRateLimit } from '../_shared/userRateLimiter.ts';
-import { checkAndDeductCredit } from '../_shared/creditUtils.ts';
+import { checkAndDeductCredit, refundCredit } from '../_shared/creditUtils.ts';
 import { getServiceClient } from '../_shared/dbClient.ts';
 import { checkPayloadSize } from '../_shared/requestUtils.ts';
 import { logger } from '../_shared/logger.ts';
@@ -91,13 +91,19 @@ Rules:
 Example:
 {"challenge":"The team needed a way to reduce onboarding time for new enterprise customers, who were spending up to 3 days getting set up before they could use the product.","outcome":"A streamlined onboarding wizard reduced setup time by 70%, cutting the average from 3 days to under 8 hours, and improved first-week activation rates by 45%."}`;
 
-      const response = await callAI({
-        model: 'meta-llama/llama-3.3-70b-instruct:free',
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.7,
-        maxTokens: 400,
-        userId,
-      });
+      let response;
+      try {
+        response = await callAI({
+          model: 'meta-llama/llama-3.3-70b-instruct:free',
+          messages: [{ role: 'user', content: prompt }],
+          temperature: 0.7,
+          maxTokens: 400,
+          userId,
+        });
+      } catch (aiErr) {
+        await refundCredit(userId, creditCheck, 1);
+        throw aiErr;
+      }
 
       let challenge = '';
       let outcome = '';
@@ -223,13 +229,19 @@ ${JSON.stringify(inputObj, null, 2)}
 
 Return ONLY the translated JSON object:`;
 
-      const response = await callAI({
-        model: 'meta-llama/llama-3.3-70b-instruct:free',
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.3,
-        maxTokens: 4000,
-        userId,
-      });
+      let response;
+      try {
+        response = await callAI({
+          model: 'meta-llama/llama-3.3-70b-instruct:free',
+          messages: [{ role: 'user', content: prompt }],
+          temperature: 0.3,
+          maxTokens: 4000,
+          userId,
+        });
+      } catch (aiErr) {
+        await refundCredit(userId, creditCheck, 1);
+        throw aiErr;
+      }
 
       let translations: Record<string, unknown> = {};
       try {
@@ -317,13 +329,19 @@ Rules:
 Example:
 [{"category":"About","priority":"high","finding":"Bio is not set, leaving recruiters with no first impression.","suggestion":"Add a 2-3 sentence first-person bio that highlights your specialty and what makes you stand out."}]`;
 
-      const response = await callAI({
-        model: 'meta-llama/llama-3.3-70b-instruct:free',
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.4,
-        maxTokens: 1500,
-        userId,
-      });
+      let response;
+      try {
+        response = await callAI({
+          model: 'meta-llama/llama-3.3-70b-instruct:free',
+          messages: [{ role: 'user', content: prompt }],
+          temperature: 0.4,
+          maxTokens: 1500,
+          userId,
+        });
+      } catch (aiErr) {
+        await refundCredit(userId, creditCheck, 1);
+        throw aiErr;
+      }
 
       let suggestions: Array<{ category: string; priority: string; finding: string; suggestion: string }> = [];
       try {
@@ -377,13 +395,19 @@ Requirements:
 - Write in first person as ${fullName || 'the sender'}
 - Return ONLY the message text, no labels, quotes, or explanation`;
 
-      const response = await callAI({
-        model: 'meta-llama/llama-3.3-70b-instruct:free',
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.75,
-        maxTokens: 350,
-        userId,
-      });
+      let response;
+      try {
+        response = await callAI({
+          model: 'meta-llama/llama-3.3-70b-instruct:free',
+          messages: [{ role: 'user', content: prompt }],
+          temperature: 0.75,
+          maxTokens: 350,
+          userId,
+        });
+      } catch (aiErr) {
+        await refundCredit(userId, creditCheck, 1);
+        throw aiErr;
+      }
 
       const promptText = response.content?.trim() || '';
       await recordUsage(userId, 'portfolio_testimonial_prompt');
@@ -435,13 +459,19 @@ Requirements:
 - Do NOT use clichés like "results-oriented" or "passionate professional"
 - Return ONLY the bio text, no quotes or labels`;
 
-      const response = await callAI({
-        model: 'meta-llama/llama-3.3-70b-instruct:free',
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.8,
-        maxTokens: 1200,
-        userId,
-      });
+      let response;
+      try {
+        response = await callAI({
+          model: 'meta-llama/llama-3.3-70b-instruct:free',
+          messages: [{ role: 'user', content: prompt }],
+          temperature: 0.8,
+          maxTokens: 1200,
+          userId,
+        });
+      } catch (aiErr) {
+        await refundCredit(userId, creditCheck, 1);
+        throw aiErr;
+      }
 
       const bio = response.content?.trim() || '';
       await recordUsage(userId, 'portfolio_bio');
@@ -468,13 +498,19 @@ Requirements:
 Example output:
 {"metaTitle":"Jane Smith — Full-Stack Developer & UX Designer","metaDescription":"Full-stack developer with 5+ years building React and Node.js apps. Open to remote roles. View my portfolio and latest projects."}`;
 
-      const response = await callAI({
-        model: 'meta-llama/llama-3.3-70b-instruct:free',
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.5,
-        maxTokens: 400,
-        userId,
-      });
+      let response;
+      try {
+        response = await callAI({
+          model: 'meta-llama/llama-3.3-70b-instruct:free',
+          messages: [{ role: 'user', content: prompt }],
+          temperature: 0.5,
+          maxTokens: 400,
+          userId,
+        });
+      } catch (aiErr) {
+        await refundCredit(userId, creditCheck, 1);
+        throw aiErr;
+      }
 
       let metaTitle = '';
       let metaDescription = '';
@@ -514,13 +550,19 @@ Requirements:
 - Do NOT include quotes, labels, or explanation
 - Return ONLY the headline text`;
 
-      const response = await callAI({
-        model: 'meta-llama/llama-3.3-70b-instruct:free',
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.7,
-        maxTokens: 120,
-        userId,
-      });
+      let response;
+      try {
+        response = await callAI({
+          model: 'meta-llama/llama-3.3-70b-instruct:free',
+          messages: [{ role: 'user', content: prompt }],
+          temperature: 0.7,
+          maxTokens: 120,
+          userId,
+        });
+      } catch (aiErr) {
+        await refundCredit(userId, creditCheck, 1);
+        throw aiErr;
+      }
 
       const headline = response.content?.trim().replace(/^["']|["']$/g, '') || '';
       await recordUsage(userId, 'portfolio_bio_availability');

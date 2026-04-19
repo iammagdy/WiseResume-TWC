@@ -3,7 +3,7 @@ import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAI, isAIError, parseAIJSON, toUserError, sanitizeInputText } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
-import { checkAndDeductCredit } from "../_shared/creditUtils.ts";
+import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { logger } from "../_shared/logger.ts";
 const log = logger('parse-job-url');
@@ -304,11 +304,13 @@ If you can't find certain fields, make reasonable guesses based on context. The 
         aiProviderUsed = aiResponse.providerUsed;
       } catch (aiErr: unknown) {
         if (isAIError(aiErr)) {
+          await refundCredit(userId, creditCheck, 1);
           return new Response(
             JSON.stringify({ error: aiErr.message }),
             { status: aiErr.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
+        await refundCredit(userId, creditCheck, 1);
         throw aiErr;
       }
 
@@ -355,11 +357,13 @@ If you can't find certain fields, make reasonable guesses based on context. The 
     } catch (fetchError) {
       clearTimeout(timeoutId);
       if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+        await refundCredit(userId, creditCheck, 1);
         return new Response(
           JSON.stringify({ error: 'Request timed out. The job posting site took too long to respond.' }),
           { status: 408, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
+      await refundCredit(userId, creditCheck, 1);
       throw fetchError;
     }
 

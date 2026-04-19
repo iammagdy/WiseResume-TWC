@@ -3,7 +3,7 @@ import { callAI, isAIError, parseAIJSON, toUserError, sanitizeInputText } from "
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
-import { checkAndDeductCredit } from "../_shared/creditUtils.ts";
+import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
 import { logger } from "../_shared/logger.ts";
@@ -144,11 +144,17 @@ Return ONLY a JSON object with this EXACT structure (no markdown, no code fences
         { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-    const aiResponse = await callAI({
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.5,
-      userId,
-    });
+    let aiResponse;
+    try {
+      aiResponse = await callAI({
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.5,
+        userId,
+      });
+    } catch (aiErr) {
+      await refundCredit(userId, creditCheck, 1);
+      throw aiErr;
+    }
 
     const result = parseAIJSON(aiResponse.content || '{}');
 

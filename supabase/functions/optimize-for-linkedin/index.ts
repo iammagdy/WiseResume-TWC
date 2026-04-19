@@ -3,7 +3,7 @@ import { callAI, isAIError, parseAIJSON, toUserError, sanitizeInputText } from "
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
-import { checkAndDeductCredit } from "../_shared/creditUtils.ts";
+import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
 import { logger } from "../_shared/logger.ts";
@@ -137,11 +137,13 @@ Generate a comprehensive LinkedIn optimization package.`;
         { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-    const aiResponse = await callAI({
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.7,
-      userId,
-      tools: [{
+    let aiResponse;
+    try {
+      aiResponse = await callAI({
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.7,
+        userId,
+        tools: [{
         type: 'function',
         function: {
           name: 'generate_linkedin_package',
@@ -183,8 +185,12 @@ Generate a comprehensive LinkedIn optimization package.`;
           },
         },
       }],
-      toolChoice: { type: 'function', function: { name: 'generate_linkedin_package' } },
-    });
+        toolChoice: { type: 'function', function: { name: 'generate_linkedin_package' } },
+      });
+    } catch (aiErr) {
+      await refundCredit(userId, creditCheck, 1);
+      throw aiErr;
+    }
 
     let result: any = null;
     if (aiResponse.toolCalls?.length) {

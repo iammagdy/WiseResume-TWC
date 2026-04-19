@@ -4,7 +4,7 @@ import { callAI, isAIError, toUserError, parseAIJSON } from "../_shared/aiClient
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
-import { checkAndDeductCredit } from "../_shared/creditUtils.ts";
+import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
 import { logger } from "../_shared/logger.ts";
@@ -104,32 +104,38 @@ serve(async (req) => {
         { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-    const aiResponse = await callAI({
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      tools: [
-        {
-          type: "function",
-          function: {
-            name: "provide_gap_explanation",
-            description: "Provide a professional explanation for an employment gap",
-            parameters: {
-              type: "object",
-              properties: {
-                explanation: { type: "string", description: "A professional 2-3 sentence explanation in first person" },
-                tips: { type: "array", items: { type: "string" }, description: "2-3 tips for discussing this gap" },
+    let aiResponse;
+    try {
+      aiResponse = await callAI({
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "provide_gap_explanation",
+              description: "Provide a professional explanation for an employment gap",
+              parameters: {
+                type: "object",
+                properties: {
+                  explanation: { type: "string", description: "A professional 2-3 sentence explanation in first person" },
+                  tips: { type: "array", items: { type: "string" }, description: "2-3 tips for discussing this gap" },
+                },
+                required: ["explanation", "tips"],
+                additionalProperties: false,
               },
-              required: ["explanation", "tips"],
-              additionalProperties: false,
             },
           },
-        },
-      ],
-      toolChoice: { type: "function", function: { name: "provide_gap_explanation" } },
-      userId: userId,
-    });
+        ],
+        toolChoice: { type: "function", function: { name: "provide_gap_explanation" } },
+        userId: userId,
+      });
+    } catch (aiErr) {
+      await refundCredit(userId, creditCheck, 1);
+      throw aiErr;
+    }
 
     const toolCall = aiResponse.toolCalls?.[0];
     let result: any = null;

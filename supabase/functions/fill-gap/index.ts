@@ -5,7 +5,7 @@ import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
-import { checkAndDeductCredit } from "../_shared/creditUtils.ts";
+import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { logger } from "../_shared/logger.ts";
 const log = logger('fill-gap');
@@ -99,44 +99,50 @@ FACTUAL CONSTRAINTS:
         { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-    const aiResponse = await callAI({
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      tools: [
-        {
-          type: "function",
-          function: {
-            name: "suggest_gap_fill",
-            description: "Return 3 professional experience suggestions to fill an employment gap",
-            parameters: {
-              type: "object",
-              properties: {
-                suggestions: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      title: { type: "string" },
-                      company: { type: "string" },
-                      description: { type: "string" },
-                      achievements: { type: "array", items: { type: "string" } },
+    let aiResponse;
+    try {
+      aiResponse = await callAI({
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "suggest_gap_fill",
+              description: "Return 3 professional experience suggestions to fill an employment gap",
+              parameters: {
+                type: "object",
+                properties: {
+                  suggestions: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        title: { type: "string" },
+                        company: { type: "string" },
+                        description: { type: "string" },
+                        achievements: { type: "array", items: { type: "string" } },
+                      },
+                      required: ["title", "company", "description", "achievements"],
+                      additionalProperties: false,
                     },
-                    required: ["title", "company", "description", "achievements"],
-                    additionalProperties: false,
                   },
                 },
+                required: ["suggestions"],
+                additionalProperties: false,
               },
-              required: ["suggestions"],
-              additionalProperties: false,
             },
           },
-        },
-      ],
-      toolChoice: { type: "function", function: { name: "suggest_gap_fill" } },
-      userId,
-    });
+        ],
+        toolChoice: { type: "function", function: { name: "suggest_gap_fill" } },
+        userId,
+      });
+    } catch (aiErr) {
+      await refundCredit(userId, creditCheck, 1);
+      throw aiErr;
+    }
 
     const toolCall = aiResponse.toolCalls?.[0];
     let result: any = null;

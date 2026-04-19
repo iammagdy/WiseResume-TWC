@@ -4,7 +4,7 @@ import { callAIWithRetry, isAIError, sanitizeInputText, toUserError } from "../_
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
-import { checkAndDeductCredit } from "../_shared/creditUtils.ts";
+import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
 import { insertCoverLetter } from "../_shared/letterPersistence.ts";
@@ -152,15 +152,21 @@ ${jobDescription}
         { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-    const aiResponse = await callAIWithRetry({
-      model: 'meta-llama/llama-3.3-70b-instruct:free',
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      temperature: 0.7,
-      userId,
-    });
+    let aiResponse;
+    try {
+      aiResponse = await callAIWithRetry({
+        model: 'meta-llama/llama-3.3-70b-instruct:free',
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        temperature: 0.7,
+        userId,
+      });
+    } catch (aiErr) {
+      await refundCredit(userId, creditCheck, 2);
+      throw aiErr;
+    }
 
     const coverLetter = aiResponse.content;
     if (!coverLetter) throw new Error("No content in AI response");

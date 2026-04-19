@@ -3,7 +3,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAI, isAIError, parseAIJSON, toUserError, sanitizeInputText } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
-import { checkAndDeductCredit } from "../_shared/creditUtils.ts";
+import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { logger } from "../_shared/logger.ts";
 const log = logger('parse-job-text');
@@ -70,8 +70,6 @@ If you can't find certain fields, use null or empty arrays. Always extract title
 
     let aiContent: string;
     let aiProviderUsed: string | undefined;
-    try {
-
 
     const creditCheck = await checkAndDeductCredit(userId);
     if (!creditCheck.hasCredits) {
@@ -80,6 +78,8 @@ If you can't find certain fields, use null or empty arrays. Always extract title
         { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    try {
       const aiResponse = await callAI({
         model: 'meta-llama/llama-3.3-70b-instruct:free',
         messages: [
@@ -93,11 +93,13 @@ If you can't find certain fields, use null or empty arrays. Always extract title
       aiProviderUsed = aiResponse.providerUsed;
     } catch (aiErr: unknown) {
       if (isAIError(aiErr)) {
+        await refundCredit(userId, creditCheck, 1);
         return new Response(
           JSON.stringify({ error: aiErr.message }),
           { status: aiErr.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
+      await refundCredit(userId, creditCheck, 1);
       throw aiErr;
     }
 

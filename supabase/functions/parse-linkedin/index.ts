@@ -3,7 +3,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAI, isAIError, toUserError, sanitizeInputText, parseAIJSON } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
-import { checkAndDeductCredit } from "../_shared/creditUtils.ts";
+import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
 import { logger } from "../_shared/logger.ts";
 const log = logger('parse-linkedin');
 
@@ -95,13 +95,15 @@ Extract certifications from the "Licenses & Certifications" section, volunteerin
         { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-    const aiResponse = await callAI({
-      model: 'google/gemini-2.5-flash',
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: `Extract structured data from this ${platform} profile:\n\n${sanitizeInputText(profileText, 30000)}` },
-      ],
-      tools: [
+    let aiResponse;
+    try {
+      aiResponse = await callAI({
+        model: 'google/gemini-2.5-flash',
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: `Extract structured data from this ${platform} profile:\n\n${sanitizeInputText(profileText, 30000)}` },
+        ],
+        tools: [
         {
           type: "function",
           function: {
@@ -202,9 +204,13 @@ Extract certifications from the "Licenses & Certifications" section, volunteerin
           },
         },
       ],
-      toolChoice: { type: "function", function: { name: "extract_linkedin_data" } },
-      userId,
-    });
+        toolChoice: { type: "function", function: { name: "extract_linkedin_data" } },
+        userId,
+      });
+    } catch (aiErr) {
+      await refundCredit(userId, creditCheck, 1);
+      throw aiErr;
+    }
 
     const toolCall = aiResponse.toolCalls?.[0];
     let extractedData: any = null;

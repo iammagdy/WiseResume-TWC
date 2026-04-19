@@ -5,7 +5,7 @@ import { callAIWithRetry, parseAIJSONWithRetry, sanitizeInputText, toUserError }
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
-import { checkAndDeductCredit } from "../_shared/creditUtils.ts";
+import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
 import { getProfileContext } from "../_shared/profileContext.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
 import { logger } from "../_shared/logger.ts";
@@ -728,16 +728,22 @@ Analyze deeply, then return this exact JSON structure:
 
     console.log("[tailor] Stage 2: Calling AI for resume tailoring...");
 
-    const aiResponse = await callAIWithRetry({
-      model: selectedModel,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      temperature: 0.5,
-      maxTokens: 16000,
-      userId,
-    });
+    let aiResponse;
+    try {
+      aiResponse = await callAIWithRetry({
+        model: selectedModel,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        temperature: 0.5,
+        maxTokens: 16000,
+        userId,
+      });
+    } catch (aiErr) {
+      await refundCredit(userId, creditCheck, 2);
+      throw aiErr;
+    }
 
     const content = aiResponse.content;
 

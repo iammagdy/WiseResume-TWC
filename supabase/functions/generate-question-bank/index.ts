@@ -4,7 +4,7 @@ import { requireAuth, authErrorResponse } from '../_shared/authMiddleware.ts';
 import { callAI, toUserError, parseAIJSON } from '../_shared/aiClient.ts';
 import { checkRateLimit, recordUsage } from '../_shared/rateLimiter.ts';
 import { checkUserRateLimit } from '../_shared/userRateLimiter.ts';
-import { checkAndDeductCredit } from '../_shared/creditUtils.ts';
+import { checkAndDeductCredit, refundCredit } from '../_shared/creditUtils.ts';
 import { getServiceClient } from '../_shared/dbClient.ts';
 import { checkPayloadSize } from '../_shared/requestUtils.ts';
 import { logger } from '../_shared/logger.ts';
@@ -76,13 +76,15 @@ ${resumeSummary ? `Candidate Summary: ${resumeSummary.slice(0, 1000)}` : ''}`;
         { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-    const aiResponse = await callAI({
-      model: 'meta-llama/llama-3.3-70b-instruct:free',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      tools: [
+    let aiResponse;
+    try {
+      aiResponse = await callAI({
+        model: 'meta-llama/llama-3.3-70b-instruct:free',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        tools: [
         {
           type: 'function',
           function: {
@@ -123,9 +125,13 @@ ${resumeSummary ? `Candidate Summary: ${resumeSummary.slice(0, 1000)}` : ''}`;
           },
         },
       ],
-      toolChoice: { type: 'function', function: { name: 'generate_questions' } },
-      userId,
-    });
+        toolChoice: { type: 'function', function: { name: 'generate_questions' } },
+        userId,
+      });
+    } catch (aiErr) {
+      await refundCredit(userId, creditCheck, 1);
+      throw aiErr;
+    }
 
     const toolCall = aiResponse.toolCalls?.[0];
     let result: any = null;

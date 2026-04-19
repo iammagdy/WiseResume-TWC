@@ -4,7 +4,7 @@ import { callAI, isAIError, parseAIJSON, toUserError } from "../_shared/aiClient
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
-import { checkAndDeductCredit } from "../_shared/creditUtils.ts";
+import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
 import { logger } from "../_shared/logger.ts";
@@ -111,15 +111,21 @@ ${resume.education?.map((e: any) => `- ${e.degree} in ${e.field} from ${e.instit
         { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-    const aiResponse = await callAI({
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      temperature: 0.6,
-      maxTokens: 4000,
-      userId,
-    });
+    let aiResponse;
+    try {
+      aiResponse = await callAI({
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        temperature: 0.6,
+        maxTokens: 4000,
+        userId,
+      });
+    } catch (aiErr) {
+      await refundCredit(userId, creditCheck, 1);
+      throw aiErr;
+    }
 
     const result = parseAIJSON(aiResponse.content || '{}');
     if (!result) throw new Error("Failed to parse career path analysis");

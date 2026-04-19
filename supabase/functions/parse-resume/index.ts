@@ -3,7 +3,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAI, isAIError, toUserError, sanitizeInputText, parseAIJSON } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
-import { checkAndDeductCredit } from "../_shared/creditUtils.ts";
+import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
 import { localParseResume } from "./localParser.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
@@ -385,9 +385,13 @@ serve(async (req) => {
   const sizeError = checkPayloadSize(req, 2 * 1024 * 1024);
   if (sizeError) return sizeError;
 
+  let creditCheck: Awaited<ReturnType<typeof checkAndDeductCredit>> | undefined;
+  let _refundUserId: string | undefined;
+
   try {
     // Require verified authentication — rejects unauthenticated and foreign-project JWTs.
     const { userId } = await requireAuth(req);
+    _refundUserId = userId;
 
     // Rate limiting
     const rateCheck = await checkRateLimit(userId, { maxRequests: 10, windowSeconds: 60, actionType: 'parse_resume' });
@@ -514,7 +518,7 @@ serve(async (req) => {
 
     // Credit deduction: after all input validation, right before AI call.
     // requireAuth ensures userId is always a verified, authenticated user.
-    const creditCheck = await checkAndDeductCredit(userId);
+    creditCheck = await checkAndDeductCredit(userId);
     if (!creditCheck.hasCredits) {
       return new Response(
         JSON.stringify({ error: 'Daily AI credit limit reached. Upgrade your plan or use your own API key.' }),
@@ -922,6 +926,7 @@ serve(async (req) => {
       }
     }
   } catch (error) {
+    if (creditCheck && _refundUserId) await refundCredit(_refundUserId, creditCheck, 1);
     log.error('Unhandled error', error);
     const userError = toUserError(error);
     return new Response(

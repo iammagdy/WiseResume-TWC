@@ -5,7 +5,7 @@ import { callAI, toUserError, parseAIJSON } from '../_shared/aiClient.ts';
 import { checkRateLimit, recordUsage } from '../_shared/rateLimiter.ts';
 import { checkUserRateLimit } from '../_shared/userRateLimiter.ts';
 import { checkPayloadSize } from '../_shared/requestUtils.ts';
-import { checkAndDeductCredit } from '../_shared/creditUtils.ts';
+import { checkAndDeductCredit, refundCredit } from '../_shared/creditUtils.ts';
 import { logger } from '../_shared/logger.ts';
 const log = logger('suggest-template');
 
@@ -88,9 +88,11 @@ For fonts: serif pairs for traditional industries; sans-serif for modern/tech; d
         { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-    const aiResponse = await callAI({
-      model: 'meta-llama/llama-3.3-70b-instruct:free',
-      messages: [
+    let aiResponse;
+    try {
+      aiResponse = await callAI({
+        model: 'meta-llama/llama-3.3-70b-instruct:free',
+        messages: [
         { role: 'system', content: systemPrompt },
         {
           role: 'user',
@@ -134,9 +136,13 @@ Key Skills: ${skills?.join(', ') || 'Not specified'}`,
           },
         },
       ],
-      toolChoice: { type: 'function', function: { name: 'suggest_template' } },
-      userId,
-    });
+        toolChoice: { type: 'function', function: { name: 'suggest_template' } },
+        userId,
+      });
+    } catch (aiErr) {
+      await refundCredit(userId, creditCheck, 1);
+      throw aiErr;
+    }
 
     const toolCall = aiResponse.toolCalls?.[0];
     let result: any = null;

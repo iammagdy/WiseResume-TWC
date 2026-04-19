@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
-import { checkAndDeductCredit } from "../_shared/creditUtils.ts";
+import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
 import { logger } from "../_shared/logger.ts";
 const log = logger('elevenlabs-scribe-token');
 
@@ -106,9 +106,10 @@ serve(async (req) => {
       }
     }
 
+    let creditCheck: Awaited<ReturnType<typeof checkAndDeductCredit>> | undefined;
     if (!hasByokKey) {
       // No BYOK key stored — use platform key and enforce credits
-      const creditCheck = await checkAndDeductCredit(userId);
+      creditCheck = await checkAndDeductCredit(userId);
       if (!creditCheck.hasCredits) {
         return new Response(
           JSON.stringify({ error: 'Daily AI credit limit reached. Upgrade your plan or add your own ElevenLabs API key.' }),
@@ -125,26 +126,33 @@ serve(async (req) => {
       );
     }
 
-    const response = await fetch(
-      'https://api.elevenlabs.io/v1/single-use-token/realtime_scribe',
-      {
-        method: 'POST',
-        headers: {
-          'xi-api-key': apiKey,
-        },
-      }
-    );
+    let fetchResponse;
+    try {
+      fetchResponse = await fetch(
+        'https://api.elevenlabs.io/v1/single-use-token/realtime_scribe',
+        {
+          method: 'POST',
+          headers: {
+            'xi-api-key': apiKey,
+          },
+        }
+      );
+    } catch (fetchErr) {
+      if (creditCheck) await refundCredit(userId, creditCheck, 1);
+      throw fetchErr;
+    }
 
-    if (!response.ok) {
-      const errorBody = await response.text();
-      console.error(`ElevenLabs token request failed [${response.status}]: ${errorBody}`);
+    if (!fetchResponse.ok) {
+      const errorBody = await fetchResponse.text();
+      console.error(`ElevenLabs token request failed [${fetchResponse.status}]: ${errorBody}`);
+      if (creditCheck) await refundCredit(userId, creditCheck, 1);
       return new Response(
-        JSON.stringify({ error: `Failed to get scribe token: ${response.status}` }),
-        { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: `Failed to get scribe token: ${fetchResponse.status}` }),
+        { status: fetchResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const data = await response.json();
+    const data = await fetchResponse.json();
 
     return new Response(
       JSON.stringify({ token: data.token }),

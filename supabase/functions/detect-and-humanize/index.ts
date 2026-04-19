@@ -3,7 +3,7 @@ import { callAI, isAIError, parseAIJSON, toUserError } from "../_shared/aiClient
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
-import { checkAndDeductCredit } from "../_shared/creditUtils.ts";
+import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
 import { logger } from "../_shared/logger.ts";
@@ -105,11 +105,17 @@ ${text}
         { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-      const detectResponse = await callAI({
-        messages: [{ role: 'user', content: detectPrompt }],
-        temperature: 0.3,
-        userId: userId,
-      });
+      let detectResponse;
+      try {
+        detectResponse = await callAI({
+          messages: [{ role: 'user', content: detectPrompt }],
+          temperature: 0.3,
+          userId: userId,
+        });
+      } catch (aiErr) {
+        await refundCredit(userId, creditCheck, 1);
+        throw aiErr;
+      }
 
       result.detection = parseAIJSON(detectResponse.content || '{}');
       lastProviderUsed = detectResponse.providerUsed;
@@ -143,11 +149,17 @@ Return a JSON object:
   "changes": ["<key changes made>"]
 }`;
 
-      const humanizeResponse = await callAI({
-        messages: [{ role: 'user', content: humanizePrompt }],
-        temperature: 0.7,
-        userId: userId,
-      });
+      let humanizeResponse;
+      try {
+        humanizeResponse = await callAI({
+          messages: [{ role: 'user', content: humanizePrompt }],
+          temperature: 0.7,
+          userId: userId,
+        });
+      } catch (aiErr) {
+        await refundCredit(userId, creditCheck, 1);
+        throw aiErr;
+      }
 
       result.humanized = parseAIJSON(humanizeResponse.content || '{}');
       lastProviderUsed = humanizeResponse.providerUsed;

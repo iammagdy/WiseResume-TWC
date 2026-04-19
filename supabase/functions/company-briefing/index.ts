@@ -3,7 +3,7 @@ import { callAIWithRetry, sanitizeInputText, toUserError, parseAIJSON } from '..
 import { checkRateLimit, recordUsage } from '../_shared/rateLimiter.ts';
 import { checkUserRateLimit } from '../_shared/userRateLimiter.ts';
 import { requireAuth, authErrorResponse } from '../_shared/authMiddleware.ts';
-import { checkAndDeductCredit } from '../_shared/creditUtils.ts';
+import { checkAndDeductCredit, refundCredit } from '../_shared/creditUtils.ts';
 import { getServiceClient } from '../_shared/dbClient.ts';
 import { logger } from '../_shared/logger.ts';
 const log = logger('company-briefing');
@@ -253,18 +253,24 @@ Deno.serve(async (req) => {
         { status: 402, headers: { ...cors, 'Content-Type': 'application/json' } }
       );
     }
-    const aiResponse = await callAIWithRetry({
-      model,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      temperature: 0.6,
-      maxTokens: 4096,
-      userId,
-      tools: [TOOL_SCHEMA],
-      toolChoice: { type: 'function', function: { name: 'generate_company_briefing' } },
-    });
+    let aiResponse;
+    try {
+      aiResponse = await callAIWithRetry({
+        model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        temperature: 0.6,
+        maxTokens: 4096,
+        userId,
+        tools: [TOOL_SCHEMA],
+        toolChoice: { type: 'function', function: { name: 'generate_company_briefing' } },
+      });
+    } catch (aiErr) {
+      await refundCredit(userId, creditCheck, 1);
+      throw aiErr;
+    }
 
     let briefing: any = null;
 
