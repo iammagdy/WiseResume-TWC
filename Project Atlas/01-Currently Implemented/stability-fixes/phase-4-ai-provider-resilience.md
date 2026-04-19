@@ -1,6 +1,6 @@
 # Phase 4 — AI Provider Resilience (Circuit Breaker + Refund Fix + BYOK Errors)
 
-**Last verified:** 2026-04-18
+**Last verified:** 2026-04-19
 **Type:** reference card
 **Sources:**
 - `.local/tasks/phase-4-ai-resilience.md`
@@ -30,3 +30,25 @@
 **Out of scope on this card:** adding new AI providers, changing per-feature credit costs, or any frontend AI component beyond the two hooks above.
 
 **Related cards:** `../critical-systems/02-ai-routing-chain.md` (full 8-step chain), `../critical-systems/03-credits-and-byok.md` (atomic deduction + BYOK), `./phase-1-db-integrity-and-indexes.md` (schema baseline this layers onto).
+
+---
+
+## Addendum — Task #49 (2026-04-19): refundCredit() coverage across all 24 AI edge functions
+
+**What it adds:** Every failure path that occurs after `checkAndDeductCredit()` in all 24 WiseResume AI edge functions now calls `refundCredit()`. Phase 4 introduced the `atomic_refund_credit` RPC and the `creditUtils.ts` helper; this addendum ensures every edge function actually calls it on every failure type — not just AI call exceptions, but also empty/null response content, unparseable AI JSON, tool-call argument parse failures, fetch network errors, non-OK HTTP status codes, and missing response payloads.
+
+**Functions patched:**
+- 1 credit: `analyze-resume`, `career-assessment`, `career-path-advisor`, `one-page-optimizer`, `recruiter-simulation`, `generate-resignation-letter`, `explain-gap`, `fill-gap`, `tailor-section`, `company-briefing`, `optimize-for-linkedin`, `parse-linkedin`, `generate-question-bank`, `suggest-template`, `detect-and-humanize`, `enhance-section`, `generate-headshot`, `parse-job-url`, `parse-job-text`, `elevenlabs-scribe-token`, `parse-resume`
+- 2 credits: `generate-cover-letter`, `tailor-resume` (Stage 2 only)
+- Multi-path: `generate-portfolio-bio` (7 separate `callAI` paths across 5 `creditCheck` scopes)
+
+**Structural hoisting required for correct `creditCheck` scoping:**
+- `detect-and-humanize`: `creditCheck` hoisted above detect/humanize `if`-blocks so both branches share one reference.
+- `parse-job-text`: `creditCheck` hoisted above the inner AI `try` block.
+- `elevenlabs-scribe-token`: `creditCheck` hoisted out of the `!hasByokKey` block so optional-BYOK path can also refund.
+- `parse-resume`: `_refundUserId` hoisted before the outer `try`; inner catch refunds on 429 rate-limit and on service-unavailable fallback (503/500/0/401/403/404) even when `localParseResume` returns a partial result; outer catch refund guarded by `if (creditCheck && _refundUserId)`.
+- `generate-headshot`: `response.json()` wrapped in `try/catch` with refund; refund added before `!imagePart?.inlineData` 500 return.
+- `parse-linkedin`: refund added before `throw new Error("No structured data returned from AI")`.
+- `enhance-section`: refund added before `throw new Error('No content in AI response')`.
+
+**Invariant:** `refundCredit()` is a no-op for BYOK users and unlimited (premium) users — they are never charged, so the call is always safe to add unconditionally.
