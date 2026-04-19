@@ -313,7 +313,7 @@ export default function TailorPage() {
         result: superResult,
         original: currentResume,
         jobInfo,
-        sections: ['summary', 'skills', 'experience', 'education', 'projects', 'certifications', 'awards'],
+        sections: enabledSections,
         intensity,
         jobUrl: jobUrl || null,
       });
@@ -440,7 +440,7 @@ export default function TailorPage() {
       if (sectionId === 'skills') return tailorResult.skills;
       if (sectionId === 'experience') return tailorResult.experience.flatMap(e => e.achievements ?? []);
       if (sectionId === 'education') return tailorResult.education.map(e => e.field || `${e.degree} at ${e.institution}`);
-      if (sectionId === 'projects') return (tailorResult.projects ?? []).map(p => `${p.name}: ${p.description}${p.technologies?.length ? ` [Technologies: ${p.technologies.join(', ')}]` : ''}`);
+      if (sectionId === 'projects') return (tailorResult.projects ?? []).map(p => `${p.name}${p.role ? ` (${p.role})` : ''}: ${p.description}${p.technologies?.length ? ` [Technologies: ${p.technologies.join(', ')}]` : ''}`);
       if (sectionId === 'certifications') return (tailorResult.certifications ?? []).map(c => c.name);
       return null;
     };

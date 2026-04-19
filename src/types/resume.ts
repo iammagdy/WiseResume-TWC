@@ -234,12 +234,19 @@ export interface JobParsed {
   niceToHaves: string[];
 }
 
+export interface KeyChange {
+  section?: string;
+  description: string;
+  type?: string;
+  impact?: string;
+}
+
 export interface EnhancedTailorResult {
   summary: string;
   skills: string[];
   experience: Experience[];
   education: Education[];
-  keyChanges: string[];
+  keyChanges: (string | KeyChange)[];
   sectionScores: SectionScores | null;
   overallScore: { before: number; after: number } | null;
   missingSkills: SkillSuggestion[];

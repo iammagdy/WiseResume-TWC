@@ -191,6 +191,16 @@ function buildPlainTextFromResume(resume: ResumeData, tailorResult: SuperTailorR
   return lines.join('\n').trim();
 }
 
+const SECTION_ATS_WEIGHTS: Record<TailorSectionId, number> = {
+  experience: 0.35,
+  skills: 0.25,
+  summary: 0.20,
+  education: 0.10,
+  projects: 0.05,
+  certifications: 0.03,
+  awards: 0.02,
+};
+
 export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApplied }: TailorSheetProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -383,7 +393,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
         result: superResult,
         original: currentResume,
         jobInfo,
-        sections: ['summary', 'skills', 'experience', 'education', 'projects', 'certifications', 'awards'],
+        sections: enabledSections,
         intensity,
         jobUrl: jobUrl || null,
       });
@@ -503,7 +513,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
       if (sectionId === 'skills') return tailorResult.skills;
       if (sectionId === 'experience') return tailorResult.experience.flatMap(e => e.achievements ?? []);
       if (sectionId === 'education') return tailorResult.education.map(e => e.field || `${e.degree} at ${e.institution}`);
-      if (sectionId === 'projects') return (tailorResult.projects ?? []).map(p => `${p.name}: ${p.description}${p.technologies?.length ? ` [Technologies: ${p.technologies.join(', ')}]` : ''}`);
+      if (sectionId === 'projects') return (tailorResult.projects ?? []).map(p => `${p.name}${p.role ? ` (${p.role})` : ''}: ${p.description}${p.technologies?.length ? ` [Technologies: ${p.technologies.join(', ')}]` : ''}`);
       if (sectionId === 'certifications') return (tailorResult.certifications ?? []).map(c => c.name);
       return null;
     };
@@ -782,6 +792,55 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
     clearCache(currentResumeId);
   };
 
+  const handleRetryScore = useCallback(() => {
+    if (!tailorResult || !originalResume) return;
+
+    const ats = tailorResult.atsAnalysis;
+    const allKeywords = [
+      ...(ats?.criticalKeywords ?? []),
+      ...(ats?.matchedKeywords?.map(m => m.keyword) ?? []),
+      ...(ats?.unmatchedKeywords ?? []),
+    ].filter((kw, i, arr) => arr.indexOf(kw) === i && kw.trim().length > 0);
+
+    if (allKeywords.length === 0) {
+      toast.info('Not enough keyword data — try re-tailoring to compute a full score.');
+      return;
+    }
+
+    const buildText = (resume: ResumeData): string =>
+      [
+        resume.summary ?? '',
+        (resume.skills ?? []).join(' '),
+        ...(resume.experience ?? []).flatMap(e => [e.description ?? '', ...(e.achievements ?? [])]),
+        ...(resume.education ?? []).map(e => `${e.degree} ${e.field}`),
+        ...(resume.projects ?? []).map(p => `${p.name} ${p.description} ${(p.technologies ?? []).join(' ')}`),
+      ].join(' ').toLowerCase();
+
+    const buildTailoredText = (): string =>
+      [
+        tailorResult.summary ?? '',
+        (tailorResult.skills ?? []).join(' '),
+        ...(tailorResult.experience ?? []).flatMap(e => [e.description ?? '', ...(e.achievements ?? [])]),
+        ...(tailorResult.education ?? []).map(e => `${e.degree} ${e.field}`),
+        ...(tailorResult.projects ?? []).map(p => `${p.name} ${p.description} ${(p.technologies ?? []).join(' ')}`),
+      ].join(' ').toLowerCase();
+
+    const countHits = (text: string): number =>
+      allKeywords.filter(kw => text.includes(kw.toLowerCase())).length;
+
+    const originalText = buildText(originalResume);
+    const tailoredText = buildTailoredText();
+
+    const beforeRatio = countHits(originalText) / allKeywords.length;
+    const afterRatio = countHits(tailoredText) / allKeywords.length;
+
+    const beforeScore = Math.round(Math.max(25, Math.min(92, beforeRatio * 100)));
+    const afterScore = Math.round(Math.max(beforeScore, Math.min(99, afterRatio * 100)));
+
+    handleUpdateTailorResult({ overallScore: { before: beforeScore, after: afterScore } });
+    toast.success('ATS score estimated from keyword analysis (no credits used).');
+  }, [tailorResult, originalResume, handleUpdateTailorResult]);
+
   const handleAddSkill = (skill: string) => {
     if (!currentResume) return;
     if (tailorResult) {
@@ -823,6 +882,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
     if (!tailorResult || !tailorResult.overallScore) return null;
     const before = tailorResult.overallScore.before;
     const maxImprovement = tailorResult.overallScore.after - before;
+
     const presentSections: TailorSectionId[] = [
       'summary',
       'skills',
@@ -832,9 +892,13 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
       ...(tailorResult.certifications?.length ? ['certifications' as TailorSectionId] : []),
       ...(tailorResult.awards?.length ? ['awards' as TailorSectionId] : []),
     ];
-    const totalSections = Math.max(presentSections.length, 1);
-    const appliedCount = enabledSections.filter(s => presentSections.includes(s)).length;
-    const sectionWeight = appliedCount / totalSections;
+
+    const maxWeight = presentSections.reduce((sum, s) => sum + SECTION_ATS_WEIGHTS[s], 0);
+    const appliedWeight = enabledSections
+      .filter(s => presentSections.includes(s))
+      .reduce((sum, s) => sum + SECTION_ATS_WEIGHTS[s], 0);
+    const sectionWeight = maxWeight > 0 ? appliedWeight / maxWeight : 1;
+
     return Math.round(before + (maxImprovement * sectionWeight));
   }, [tailorResult, enabledSections]);
 
@@ -1088,14 +1152,18 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
                         <div>
                           <p className="text-sm font-medium text-amber-600 dark:text-amber-400">Score couldn't be calculated</p>
                           <p className="text-xs text-muted-foreground mt-1">
-                            The ATS score couldn't be calculated this time. Your tailored content is 100% valid. To get a score, click Re-Tailor — it will use credits and re-run the full pipeline.
+                            The ATS score couldn't be calculated this time. Your tailored content is 100% valid — estimate the score from keyword analysis (free), or re-tailor fully for an AI-computed score.
                           </p>
                         </div>
                       </div>
                       <div className="flex gap-2 flex-wrap">
-                        <Button size="sm" variant="outline" className="text-xs min-h-[44px] active:scale-95 transition-transform" onClick={handleTailor}>
+                        <Button size="sm" variant="outline" className="text-xs min-h-[44px] active:scale-95 transition-transform" onClick={handleRetryScore}>
                           <RefreshCw className="w-3 h-3 mr-1" />
-                          Re-Tailor (includes score)
+                          Estimate Score (free)
+                        </Button>
+                        <Button size="sm" variant="ghost" className="text-xs min-h-[44px] active:scale-95 transition-transform" onClick={handleTailor}>
+                          <RefreshCw className="w-3 h-3 mr-1" />
+                          Re-Tailor
                         </Button>
                         <Button size="sm" variant="ghost" className="text-xs min-h-[44px] active:scale-95 transition-transform" onClick={() => setShowAISettings(true)}>
                           <Key className="w-3 h-3 mr-1" />
@@ -1290,7 +1358,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
                           <li key={i} className="flex items-start gap-2 text-sm">
                             <ChevronRight className="w-4 h-4 text-primary mt-0.5 shrink-0" />
                             <span className="text-muted-foreground">
-                              {typeof change === 'string' ? change : (change as any).description ?? JSON.stringify(change)}
+                              {typeof change === 'string' ? change : change.description}
                             </span>
                           </li>
                         ))}
