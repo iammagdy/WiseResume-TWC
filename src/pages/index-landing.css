@@ -241,10 +241,16 @@ body[data-lp-scheme="light"][data-lp-product="wisehire"] { background-color: #f0
      desktop uses pt-3 (0.75rem) + h-14 = 4.25rem, and includes its larger
      visual breathing room via a bigger base. */
   --lp-header-h: calc(var(--lp-safe-top) + 4rem);
+  /* --lp-nav-h is the *true* outer height of the fixed nav bar only — used
+     to position sticky elements flush below the nav without the extra
+     hero-padding that --lp-header-h adds on desktop. */
+  --lp-nav-h: calc(var(--lp-safe-top) + 4rem);
 }
 @media (min-width: 640px) {
   .lp-root {
     --lp-header-h: calc(var(--lp-safe-top) + 7.25rem);
+    /* pt-3 (0.75rem) + h-14 (3.5rem) = 4.25rem actual nav outer height */
+    --lp-nav-h: calc(var(--lp-safe-top) + 4.25rem);
   }
 }
 /* Fixed landing-page header — consumes --lp-safe-top as its top padding
@@ -678,10 +684,12 @@ body[data-lp-scheme="light"][data-lp-product="wisehire"] { background-color: #f0
 /* ── Phase 4: sticky stack header + step counter chip ──── */
 .lp-stack-sticky-header {
   position: sticky;
-  /* Offset by the nav bar height so the header pins below the nav and
-     is not obscured by it. --lp-header-h is set in the :root block
-     (4rem on mobile, 7.25rem on sm+, both including safe-area-inset-top). */
-  top: var(--lp-header-h, 64px);
+  /* Offset by the true nav-bar height so the sticky header pins just
+     below the nav and is not obscured by it. --lp-nav-h is the actual
+     outer height of the fixed nav bar (4rem mobile / 4.25rem sm+, both
+     including safe-area-inset-top) — distinct from --lp-header-h which
+     adds extra hero-breathing-room on desktop (7.25rem). */
+  top: var(--lp-nav-h, 64px);
   z-index: 4;
   display: flex;
   flex-direction: column;
