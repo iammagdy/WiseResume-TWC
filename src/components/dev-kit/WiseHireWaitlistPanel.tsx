@@ -10,6 +10,7 @@ import {
   Users,
   ChevronLeft,
   ChevronRight,
+  XCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -81,6 +82,10 @@ export function WiseHireWaitlistPanel() {
   const [inviteResult, setInviteResult] = useState<InviteResult | null>(null);
   const [inviteFor, setInviteFor] = useState<string>('');
 
+  const [revoking, setRevoking] = useState<string | null>(null);
+  const [revokedIds, setRevokedIds] = useState<Set<string>>(new Set());
+  const [revokeTarget, setRevokeTarget] = useState<WaitlistEntry | null>(null);
+
   const isMounted = useIsMounted();
 
   const fetchEntries = useCallback(async (pageNum: number, searchVal: string) => {
@@ -129,10 +134,37 @@ export function WiseHireWaitlistPanel() {
       setInviteFor(entry.email);
       setInviteResult({ invite_url: result.invite_url, expires_at: result.expires_at });
       setEntries(prev => prev.map(e => e.id === entry.id ? { ...e, invited_at: new Date().toISOString() } : e));
+      setRevokedIds(prev => {
+        const next = new Set(prev);
+        next.delete(entry.id);
+        return next;
+      });
     } catch (e) {
       toast.error(formatEdgeError(e, 'Failed to send invite'));
     } finally {
       if (isMounted()) setInviting(null);
+    }
+  };
+
+  const handleRevoke = async (entry: WaitlistEntry) => {
+    setRevokeTarget(null);
+    setRevoking(entry.id);
+    try {
+      const tuple = await edgeFunctions.functions.invoke('admin-wisehire-revoke-invite', {
+        body: {
+          password: getDevKitToken(),
+          recipient_email: entry.email,
+          waitlist_id: entry.id,
+        },
+      });
+      unwrapAdminResponse<{ revoked_count?: number }>(tuple, 'admin-wisehire-revoke-invite');
+      if (!isMounted()) return;
+      toast.success(`Invite revoked for ${entry.email}`);
+      setRevokedIds(prev => new Set([...prev, entry.id]));
+    } catch (e) {
+      toast.error(formatEdgeError(e, 'Failed to revoke invite'));
+    } finally {
+      if (isMounted()) setRevoking(null);
     }
   };
 
@@ -198,52 +230,96 @@ export function WiseHireWaitlistPanel() {
                   <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden md:table-cell">Size</th>
                   <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden lg:table-cell">Submitted</th>
                   <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
-                  <th className="text-right px-4 py-3 font-medium text-muted-foreground">Action</th>
+                  <th className="text-right px-4 py-3 font-medium text-muted-foreground">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {entries.map((entry) => (
-                  <tr key={entry.id} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-foreground">{entry.name}</div>
-                      <div className="text-xs text-muted-foreground mt-0.5">{entry.email}</div>
-                    </td>
-                    <td className="px-4 py-3 hidden sm:table-cell text-sm text-foreground">
-                      {entry.company_name || '—'}
-                    </td>
-                    <td className="px-4 py-3 hidden md:table-cell text-xs text-muted-foreground">
-                      {entry.company_size || '—'}
-                    </td>
-                    <td className="px-4 py-3 hidden lg:table-cell text-xs text-muted-foreground">
-                      {formatDate(entry.submitted_at)}
-                    </td>
-                    <td className="px-4 py-3">
-                      {entry.invited_at ? (
-                        <Badge variant="outline" className="text-green-600 border-green-500/20 bg-green-500/10 gap-1">
-                          <CheckCircle2 className="w-3 h-3" />
-                          Invited
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="text-muted-foreground">Pending</Badge>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <Button
-                        size="sm"
-                        variant={entry.invited_at ? 'outline' : 'default'}
-                        className="h-7 text-xs gap-1.5"
-                        onClick={() => handleInvite(entry)}
-                        disabled={inviting === entry.id}
-                      >
-                        {inviting === entry.id
-                          ? <Loader2 className="w-3 h-3 animate-spin" />
-                          : <Send className="w-3 h-3" />
-                        }
-                        {entry.invited_at ? 'Re-invite' : 'Invite'}
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
+                {entries.map((entry) => {
+                  const isRevoked = revokedIds.has(entry.id);
+                  const isInvited = !!entry.invited_at && !isRevoked;
+                  const isBusy = inviting === entry.id || revoking === entry.id;
+
+                  return (
+                    <tr key={entry.id} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
+                      <td className="px-4 py-3">
+                        <div className="font-medium text-foreground">{entry.name}</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">{entry.email}</div>
+                      </td>
+                      <td className="px-4 py-3 hidden sm:table-cell text-sm text-foreground">
+                        {entry.company_name || '—'}
+                      </td>
+                      <td className="px-4 py-3 hidden md:table-cell text-xs text-muted-foreground">
+                        {entry.company_size || '—'}
+                      </td>
+                      <td className="px-4 py-3 hidden lg:table-cell text-xs text-muted-foreground">
+                        {formatDate(entry.submitted_at)}
+                      </td>
+                      <td className="px-4 py-3">
+                        {isInvited ? (
+                          <Badge variant="outline" className="text-green-600 border-green-500/20 bg-green-500/10 gap-1">
+                            <CheckCircle2 className="w-3 h-3" />
+                            Invited
+                          </Badge>
+                        ) : isRevoked ? (
+                          <Badge variant="outline" className="text-orange-600 border-orange-500/20 bg-orange-500/10 gap-1">
+                            <XCircle className="w-3 h-3" />
+                            Revoked
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-muted-foreground">Pending</Badge>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          {isInvited ? (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-xs gap-1.5"
+                                onClick={() => handleInvite(entry)}
+                                disabled={isBusy}
+                              >
+                                {inviting === entry.id
+                                  ? <Loader2 className="w-3 h-3 animate-spin" />
+                                  : <Send className="w-3 h-3" />
+                                }
+                                Resend
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-xs gap-1.5 text-destructive hover:text-destructive border-destructive/30 hover:bg-destructive/10"
+                                onClick={() => setRevokeTarget(entry)}
+                                disabled={isBusy}
+                              >
+                                {revoking === entry.id
+                                  ? <Loader2 className="w-3 h-3 animate-spin" />
+                                  : <XCircle className="w-3 h-3" />
+                                }
+                                Revoke
+                              </Button>
+                            </>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="default"
+                              className="h-7 text-xs gap-1.5"
+                              onClick={() => handleInvite(entry)}
+                              disabled={isBusy}
+                            >
+                              {inviting === entry.id
+                                ? <Loader2 className="w-3 h-3 animate-spin" />
+                                : <Send className="w-3 h-3" />
+                              }
+                              Invite
+                            </Button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -302,6 +378,36 @@ export function WiseHireWaitlistPanel() {
               </p>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={revokeTarget !== null} onOpenChange={(open) => { if (!open) setRevokeTarget(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <XCircle className="w-5 h-5 text-destructive" />
+              Revoke invite?
+            </DialogTitle>
+            <DialogDescription>
+              This will invalidate the active invite link for{' '}
+              <strong className="text-foreground">{revokeTarget?.email}</strong>. They won't be
+              able to use it to sign up. You can re-invite them at any time.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" size="sm" onClick={() => setRevokeTarget(null)} disabled={revoking !== null}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              disabled={revoking !== null}
+              onClick={() => revokeTarget && handleRevoke(revokeTarget)}
+            >
+              {revoking !== null ? <Loader2 className="w-3 h-3 animate-spin mr-1.5" /> : null}
+              Revoke invite
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

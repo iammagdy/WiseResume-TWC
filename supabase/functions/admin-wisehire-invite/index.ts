@@ -220,6 +220,17 @@ Deno.serve(async (req) => {
     const supabase = getServiceClient();
     const email = recipient_email.trim().toLowerCase();
 
+    const { error: revokeErr } = await supabase
+      .from('wisehire_invites')
+      .update({ is_revoked: true })
+      .eq('recipient_email', email)
+      .eq('is_revoked', false)
+      .is('used_at', null);
+    if (revokeErr) {
+      console.error('[admin-wisehire-invite] Failed to revoke previous invites:', revokeErr.message);
+      return json({ success: false, error: `Failed to revoke previous invites: ${revokeErr.message}` }, 500, corsHeaders);
+    }
+
     const token = generateUUID();
     const signature = await hmacSign(token, WISEHIRE_INVITE_SECRET);
     const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString();
