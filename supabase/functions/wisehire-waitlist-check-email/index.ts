@@ -84,19 +84,6 @@ Deno.serve(async (req) => {
     const domain = normalizedEmail.split("@")[1] ?? "";
     const is_consumer_domain = CONSUMER_DOMAINS.has(domain);
 
-    if (is_consumer_domain) {
-      return json(
-        {
-          valid_format: true,
-          is_consumer_domain: true,
-          existing_wiseresume_user: false,
-          already_on_waitlist: false,
-        },
-        200,
-        corsHeaders,
-      );
-    }
-
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
@@ -116,6 +103,22 @@ Deno.serve(async (req) => {
     }
 
     const existing_wiseresume_user = emailExists === true;
+
+    // For consumer-domain emails, we don't need to check the waitlist —
+    // they can't join anyway. Return both signals so the frontend can
+    // surface the appropriate combination of messages.
+    if (is_consumer_domain) {
+      return json(
+        {
+          valid_format: true,
+          is_consumer_domain: true,
+          existing_wiseresume_user,
+          already_on_waitlist: false,
+        },
+        200,
+        corsHeaders,
+      );
+    }
 
     let already_on_waitlist = false;
     if (!existing_wiseresume_user) {

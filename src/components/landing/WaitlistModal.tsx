@@ -220,6 +220,10 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
         return null;
     }
   })();
+  const showAlsoExistingUserNote =
+    emailMatchesChecked &&
+    emailCheck.reason === 'consumer_domain' &&
+    emailCheck.alsoExistingUser;
   const isCheckingEmail = emailCheck.status === 'checking';
   const joinDisabled = isPending || isCheckingEmail || hasKnownBadEmail;
 
@@ -554,6 +558,23 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
                         .
                       </>
                     )}
+                  </p>
+                )}
+                {!errors.email && showAlsoExistingUserNote && (
+                  <p style={{ fontSize: '0.7rem', color: '#3B82F6', marginTop: 2 }}>
+                    This email is already signed up on WiseResume.{' '}
+                    <a
+                      href="/sign-in?mode=login"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handleClose();
+                        navigate('/sign-in?mode=login');
+                      }}
+                      style={{ color: '#1D4ED8', fontWeight: 600, textDecoration: 'underline', cursor: 'pointer' }}
+                    >
+                      Sign in instead
+                    </a>
+                    .
                   </p>
                 )}
               </div>
