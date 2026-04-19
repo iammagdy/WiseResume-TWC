@@ -11,7 +11,6 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      /* Match the landing-page aurora/periwinkle gradient */
       background: linear-gradient(160deg, #dde8ff 0%, #eef3ff 40%, #f5f8ff 100%);
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       padding: 48px 16px 64px;
@@ -23,7 +22,6 @@
       margin: 0 auto;
     }
 
-    /* ── Card ── */
     .email-card {
       background: #ffffff;
       border-radius: 24px;
@@ -36,43 +34,29 @@
 
     /* ── Header ── */
     .header {
-      /* Subtle periwinkle gradient matching app landing */
       background: linear-gradient(160deg, #e8efff 0%, #f0f6ff 100%);
       border-bottom: 1px solid #dce8ff;
       padding: 36px 40px 28px;
       text-align: center;
     }
-    .logo-row {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
-      margin-bottom: 0;
-    }
-    .logo-img {
-      width: 48px;
-      height: 48px;
-      border-radius: 12px;
-      object-fit: contain;
-    }
-    .logo-name {
-      font-size: 22px;
-      font-weight: 800;
-      color: #0f172a;
-      letter-spacing: -0.6px;
+    .logo-wordmark {
+      font-size: 26px;
+      font-weight: 900;
+      color: #1D4ED8;
+      letter-spacing: -0.8px;
     }
     .header-sub {
-      margin-top: 10px;
+      margin-top: 6px;
       font-size: 11px;
       font-weight: 600;
-      color: #1D4ED8;
+      color: #64748B;
       text-transform: uppercase;
       letter-spacing: 1.2px;
     }
 
-    /* ── Early access pill ── */
+    /* ── Pill ── */
     .pill-row {
-      padding: 24px 40px 0;
+      padding: 28px 40px 0;
       display: flex;
       justify-content: center;
     }
@@ -80,25 +64,16 @@
       display: inline-flex;
       align-items: center;
       gap: 7px;
-      background: #EFF6FF;
-      border: 1px solid #BFDBFE;
+      background: #F0FDF4;
+      border: 1px solid #BBF7D0;
       border-radius: 100px;
       padding: 7px 16px;
       font-size: 12.5px;
       font-weight: 600;
-      color: #1D4ED8;
+      color: #15803D;
     }
-    .pill-dot {
-      width: 6px;
-      height: 6px;
-      background: #3B82F6;
-      border-radius: 50%;
-      flex-shrink: 0;
-      animation: pulse 2s ease-in-out infinite;
-    }
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.4; }
+    .pill-check {
+      font-size: 13px;
     }
 
     /* ── Body ── */
@@ -112,7 +87,7 @@
       color: #0f172a;
       line-height: 1.2;
       letter-spacing: -0.6px;
-      margin-bottom: 16px;
+      margin-bottom: 20px;
     }
     h1 .name {
       color: #1D4ED8;
@@ -125,54 +100,23 @@
       margin-bottom: 16px;
     }
 
-    /* ── Feature card ── */
-    .feature-card {
+    /* ── Platform description box ── */
+    .platform-box {
       background: linear-gradient(135deg, #F0F6FF 0%, #F8FAFF 100%);
       border: 1px solid #DBEAFE;
       border-radius: 14px;
-      padding: 6px 4px;
+      padding: 20px 22px;
       margin: 24px 0;
     }
-    .feature-item {
-      display: flex;
-      align-items: flex-start;
-      gap: 12px;
-      padding: 13px 16px;
+    .platform-box p {
+      font-size: 14px;
+      color: #374151;
+      line-height: 1.7;
+      margin-bottom: 0;
     }
-    .feature-item:not(:last-child) {
-      border-bottom: 1px solid #E1EFFE;
-    }
-    .feature-icon {
-      flex-shrink: 0;
-      width: 30px;
-      height: 30px;
-      border-radius: 8px;
-      background: #1D4ED8;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-top: 1px;
-    }
-    .feature-icon svg {
-      width: 15px;
-      height: 15px;
-      color: #fff;
-      stroke: #fff;
-    }
-    .feature-text {
-      flex: 1;
-    }
-    .feature-text strong {
-      display: block;
-      font-size: 13.5px;
-      font-weight: 700;
-      color: #0f172a;
-      margin-bottom: 2px;
-    }
-    .feature-text span {
-      font-size: 13px;
-      color: #64748B;
-      line-height: 1.5;
+    .platform-box .highlight {
+      color: #1D4ED8;
+      font-weight: 600;
     }
 
     /* ── CTA ── */
@@ -220,87 +164,45 @@
   <div class="email-outer">
     <div class="email-card">
 
-      <!-- Header with real logo -->
+      <!-- Header — blue text wordmark, no image -->
       <div class="header">
-        <div class="logo-row">
-          <img
-            src="/email-logo.webp"
-            alt="WiseHire"
-            class="logo-img"
-          />
-          <span class="logo-name">WiseHire</span>
-        </div>
-        <p class="header-sub">AI-Powered HR Platform</p>
+        <div class="logo-wordmark">WiseHire</div>
+        <p class="header-sub">by thewise.cloud</p>
       </div>
 
-      <!-- Early-access pill -->
+      <!-- Waitlist confirmed pill -->
       <div class="pill-row">
         <div class="pill">
-          <span class="pill-dot"></span>
-          You're in — early access member
+          <span class="pill-check">✓</span>
+          Waitlist confirmed
         </div>
       </div>
 
       <!-- Body -->
       <div class="body">
-        <h1>Welcome, <span class="name">Magdy</span> — you're ahead of the curve 🎯</h1>
+        <h1>You're on the list, <span class="name">Magdy</span> 👋</h1>
 
         <p>
-          You just joined the WiseHire early access list. The companies that get in now
-          will be first to screen smarter, move faster, and hire the people everyone
-          else is missing.
+          Thanks for joining the WiseHire waitlist. We're building something that
+          genuinely changes how companies hire — and you're among the first to
+          know about it.
         </p>
 
-        <!-- Feature card -->
-        <div class="feature-card">
-          <div class="feature-item">
-            <div class="feature-icon">
-              <!-- Brain/AI icon -->
-              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M9.5 2a2.5 2.5 0 0 1 5 0v.5a2 2 0 0 0 2 2H17a2.5 2.5 0 0 1 0 5h-.5a2 2 0 0 0-2 2v.5a2.5 2.5 0 0 1-5 0V12a2 2 0 0 0-2-2H7a2.5 2.5 0 0 1 0-5h.5a2 2 0 0 0 2-2V2z"/>
-              </svg>
-            </div>
-            <div class="feature-text">
-              <strong>AI Brief Generator</strong>
-              <span>Reads every CV and surfaces your best candidates — match score, red flags, and top questions included.</span>
-            </div>
-          </div>
-          <div class="feature-item">
-            <div class="feature-icon">
-              <!-- Document/JD icon -->
-              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                <polyline points="14 2 14 8 20 8"/>
-                <line x1="16" y1="13" x2="8" y2="13"/>
-                <line x1="16" y1="17" x2="8" y2="17"/>
-                <polyline points="10 9 9 9 8 9"/>
-              </svg>
-            </div>
-            <div class="feature-text">
-              <strong>JD Writer</strong>
-              <span>Write compelling, bias-free job descriptions in seconds. The right candidates find you.</span>
-            </div>
-          </div>
-          <div class="feature-item">
-            <div class="feature-icon">
-              <!-- Pipeline/Kanban icon -->
-              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="3" width="5" height="18" rx="1"/>
-                <rect x="10" y="3" width="5" height="12" rx="1"/>
-                <rect x="17" y="3" width="5" height="7" rx="1"/>
-              </svg>
-            </div>
-            <div class="feature-text">
-              <strong>Bulk Screening + Pipeline</strong>
-              <span>Upload 50 CVs, get ranked results in minutes. Track every candidate from applied to offer.</span>
-            </div>
-          </div>
+        <!-- Platform description box -->
+        <div class="platform-box">
+          <p>
+            WiseHire is an <span class="highlight">AI-powered hiring platform</span> for
+            HR teams and recruiters. It handles the heavy lifting — screening candidates,
+            writing job descriptions, tracking pipelines, and scoring interviews — so
+            your team can focus on the decisions that actually matter.
+          </p>
         </div>
 
         <p>
-          We're opening access in small batches to make sure every team gets a great
-          experience. We'll reach out <strong>directly to this inbox</strong> the moment
-          your invite is ready.
+          We're rolling out access in small batches so every team gets a smooth
+          onboarding experience. <strong>You don't have access yet</strong> — but
+          when your spot is ready, we'll email you directly at this address.
+          Keep an eye on this inbox.
         </p>
 
         <div class="cta-wrap">
