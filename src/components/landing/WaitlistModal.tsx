@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, CheckCircle2, Loader2, Briefcase, Mail, Building2, Users, KeyRound, ArrowLeft, ChevronDown } from 'lucide-react';
 import { useWaitlist } from '@/hooks/wisehire/useWaitlist';
+import { useWaitlistEmailCheck } from '@/hooks/wisehire/useWaitlistEmailCheck';
 import { validateEarlyAccessCode } from '@/lib/wisehire/inviteTokenClient';
 
 interface WaitlistModalProps {
@@ -56,6 +57,8 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
   const [eaLoading, setEaLoading] = useState(false);
 
   const { mutate, isPending, isSuccess, reset: resetMutation } = useWaitlist();
+  const { state: emailCheck, checkNow: checkEmailNow, checkDebounced: checkEmailDebounced, reset: resetEmailCheck } = useWaitlistEmailCheck();
+  const emailHasBlurredRef = useRef(false);
 
   const [sizeOpen, setSizeOpen] = useState(false);
   const sizeRef = useRef<HTMLDivElement>(null);
@@ -93,12 +96,27 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
     return e;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const errs = validate();
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
     setErrors({});
     setSubmitError('');
+
+    // Defense in depth: ensure the live email check has completed before
+    // submit, even if the user clicked during the debounce window. This
+    // forces a synchronous check and bails out if the result is known-bad.
+    const finalCheck = await checkEmailNow(form.email);
+    if (
+      finalCheck.status === 'error' &&
+      finalCheck.reason !== null &&
+      finalCheck.reason !== 'service_error'
+    ) {
+      // Known-bad result: surface it inline; the server will still reject
+      // anyway, but no point sending a doomed request.
+      return;
+    }
+
     mutate(
       {
         name: form.name.trim(),
@@ -153,6 +171,8 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
       setExistingWiseResumeUser(false);
       setSubmitError('');
       resetMutation();
+      resetEmailCheck();
+      emailHasBlurredRef.current = false;
       setView('waitlist');
       setEaCode('');
       setEaEmail('');
@@ -174,6 +194,34 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
   });
 
   const submitted = isSuccess;
+
+  const emailMatchesChecked =
+    emailCheck.checkedEmail !== null &&
+    emailCheck.checkedEmail.trim().toLowerCase() === form.email.trim().toLowerCase();
+  const hasEmailCheckError = emailMatchesChecked && emailCheck.status === 'error';
+  const hasKnownBadEmail =
+    hasEmailCheckError &&
+    emailCheck.reason !== null &&
+    emailCheck.reason !== 'service_error';
+  const emailCheckMessage: { text: string; tone: 'error' | 'info' } | null = (() => {
+    if (!emailMatchesChecked || emailCheck.status !== 'error') return null;
+    switch (emailCheck.reason) {
+      case 'invalid_format':
+        return { text: 'Enter a valid email', tone: 'error' };
+      case 'consumer_domain':
+        return { text: 'Please use a work email address.', tone: 'error' };
+      case 'existing_wiseresume_user':
+        return { text: 'This email is already used in WiseResume.', tone: 'info' };
+      case 'already_on_waitlist':
+        return { text: "You're already on the waitlist — we'll be in touch when your invite is ready.", tone: 'info' };
+      case 'service_error':
+        return { text: 'Could not check this email. Please try again.', tone: 'error' };
+      default:
+        return null;
+    }
+  })();
+  const isCheckingEmail = emailCheck.status === 'checking';
+  const joinDisabled = isPending || isCheckingEmail || hasKnownBadEmail;
 
   return (
     <div
@@ -443,16 +491,71 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
                 <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', fontWeight: 600, color: 'var(--lp-text-muted)', marginBottom: 5 }}>
                   <Mail className="w-3.5 h-3.5" /> Work Email
                 </label>
-                <input
-                  type="email"
-                  placeholder="you@company.com"
-                  value={form.email}
-                  onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                  style={fieldStyle(errors.email)}
-                  onFocus={(e) => { (e.target as HTMLInputElement).style.borderColor = '#1D4ED8'; }}
-                  onBlur={(e) => { (e.target as HTMLInputElement).style.borderColor = errors.email ? '#ef4444' : 'var(--lp-border-card)'; }}
-                />
-                {errors.email && <p style={{ fontSize: '0.7rem', color: '#ef4444', marginTop: 3 }}>{errors.email}</p>}
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type="email"
+                    placeholder="you@company.com"
+                    value={form.email}
+                    onChange={(e) => {
+                      const next = e.target.value;
+                      setForm((f) => ({ ...f, email: next }));
+                      if (errors.email) setErrors((er) => ({ ...er, email: undefined }));
+                      resetEmailCheck();
+                      if (emailHasBlurredRef.current) {
+                        checkEmailDebounced(next);
+                      }
+                    }}
+                    style={{
+                      ...fieldStyle(errors.email || hasKnownBadEmail),
+                      ...(isCheckingEmail ? { paddingRight: 36 } : null),
+                    }}
+                    onFocus={(e) => { (e.target as HTMLInputElement).style.borderColor = '#1D4ED8'; }}
+                    onBlur={(e) => {
+                      (e.target as HTMLInputElement).style.borderColor = (errors.email || hasKnownBadEmail) ? '#ef4444' : 'var(--lp-border-card)';
+                      emailHasBlurredRef.current = true;
+                      void checkEmailNow(form.email);
+                    }}
+                  />
+                  {emailCheck.status === 'checking' && (
+                    <Loader2
+                      className="w-4 h-4 animate-spin"
+                      style={{
+                        position: 'absolute',
+                        right: 10,
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        color: '#1D4ED8',
+                        pointerEvents: 'none',
+                      }}
+                      aria-label="Checking email"
+                    />
+                  )}
+                </div>
+                {errors.email && (
+                  <p style={{ fontSize: '0.7rem', color: '#ef4444', marginTop: 3 }}>{errors.email}</p>
+                )}
+                {!errors.email && emailCheckMessage && (
+                  <p style={{ fontSize: '0.7rem', color: emailCheckMessage.tone === 'error' ? '#ef4444' : 'var(--lp-text-muted)', marginTop: 3 }}>
+                    {emailCheckMessage.text}
+                    {emailCheck.reason === 'existing_wiseresume_user' && (
+                      <>
+                        {' '}
+                        <a
+                          href="/sign-in?mode=login"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            handleClose();
+                            navigate('/sign-in?mode=login');
+                          }}
+                          style={{ color: '#1D4ED8', fontWeight: 600, textDecoration: 'underline', cursor: 'pointer' }}
+                        >
+                          Sign in instead
+                        </a>
+                        .
+                      </>
+                    )}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -571,7 +674,7 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
 
               <button
                 type="submit"
-                disabled={isPending}
+                disabled={joinDisabled}
                 style={{
                   marginTop: 4,
                   background: isPending ? '#fff' : '#1D4ED8',
@@ -581,16 +684,19 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
                   padding: isPending ? '9px 0' : '11px 0',
                   fontSize: '0.9rem',
                   fontWeight: 700,
-                  cursor: isPending ? 'not-allowed' : 'pointer',
+                  cursor: joinDisabled ? 'not-allowed' : 'pointer',
+                  opacity: !isPending && joinDisabled ? 0.6 : 1,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: 8,
-                  transition: 'background 0.2s, color 0.2s, border 0.2s',
+                  transition: 'background 0.2s, color 0.2s, border 0.2s, opacity 0.2s',
                 }}
               >
                 {isPending
                   ? <><Loader2 className="w-4 h-4 animate-spin" style={{ color: '#1D4ED8' }} /> Joining…</>
+                  : isCheckingEmail
+                  ? 'Checking email…'
                   : 'Join the Waitlist'
                 }
               </button>

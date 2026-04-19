@@ -175,6 +175,8 @@ project_id = "jnsfmkzgxsviuthaqlyy"
     verify_jwt = false
   [functions.wisehire-validate-invite]
     verify_jwt = false
+  [functions.wisehire-waitlist-check-email]
+    verify_jwt = false
   [functions.wisehire-waitlist-join]
     verify_jwt = false
   [functions.wisehire-write-jd]
