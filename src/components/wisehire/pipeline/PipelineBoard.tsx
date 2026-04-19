@@ -269,115 +269,129 @@ export function PipelineBoard({ roleId, clientId, roles, biasMode = false }: Pip
         )}
       </div>
 
-      {/* ── Mobile layout (< md): vertically stacked collapsible sections ── */}
-      <div className="flex flex-col gap-3 md:hidden">
-        {PIPELINE_STAGES.map((stage) => {
-          const stageCandidates = stageMap[stage.id] ?? [];
-          const isExpanded = !collapsedStages.has(stage.id);
-          return (
-            <div
-              key={stage.id}
-              className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden"
-            >
-              {/* Collapsible header */}
-              <button
-                type="button"
-                onClick={() => toggleCollapsedStage(stage.id)}
-                className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 dark:bg-slate-800/40 text-left"
-              >
-                <span className={cn('text-sm font-semibold', stage.color.split(' ').slice(-2).join(' '))}>
-                  {stage.label}
-                </span>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-slate-400 dark:text-slate-500 bg-slate-200 dark:bg-slate-700 rounded-full px-2 py-0.5">
-                    {stageCandidates.length}
-                  </span>
-                  <ChevronDown
-                    className={cn(
-                      'h-4 w-4 text-slate-400 transition-transform duration-200',
-                      !isExpanded && '-rotate-90',
-                    )}
-                  />
-                </div>
-              </button>
+      {/*
+       * Content area: flex-col on mobile, flex-row on desktop.
+       * This allows CandidateDetailPanel to sit as a flex-row sibling on desktop
+       * (md:relative md:w-80 participates in the row) while using position:fixed
+       * on mobile where it's a full-height right-side overlay.
+       */}
+      <div className="flex flex-col md:flex-row flex-1 min-h-0 gap-0">
 
-              {/* Expanded body */}
-              {isExpanded && (
-                <div className="p-3 space-y-2">
-                  {stageCandidates.length === 0 ? (
-                    <p className="text-xs text-slate-400 dark:text-slate-500 text-center py-4">
-                      No candidates in this stage
-                    </p>
-                  ) : (
-                    stageCandidates.map((c) => (
-                      <CandidateCard
-                        key={c.id}
-                        candidate={c}
-                        onClick={() => {
-                          if (selectionMode) return;
-                          setSelectedCandidate(c.id === selectedCandidate?.id ? null : c);
-                        }}
-                        onDragStart={dragHandlers.onDragStart(c.id, stage.id)}
-                        onDragEnd={dragHandlers.onDragEnd()}
-                        biasMode={biasMode}
-                        selectionMode={selectionMode}
-                        selected={selectedIds.has(c.id)}
-                        onToggleSelect={toggleSelect}
+        {/* Board — takes remaining width */}
+        <div className="flex-1 min-w-0 flex flex-col gap-3">
+
+          {/* ── Mobile layout (< md): vertically stacked collapsible sections ── */}
+          <div className="flex flex-col gap-3 md:hidden">
+            {PIPELINE_STAGES.map((stage) => {
+              const stageCandidates = stageMap[stage.id] ?? [];
+              const isExpanded = !collapsedStages.has(stage.id);
+              return (
+                <div
+                  key={stage.id}
+                  className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden"
+                >
+                  {/* Collapsible header */}
+                  <button
+                    type="button"
+                    onClick={() => toggleCollapsedStage(stage.id)}
+                    className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 dark:bg-slate-800/40 text-left"
+                  >
+                    <span className={cn('text-sm font-semibold', stage.color.split(' ').slice(-2).join(' '))}>
+                      {stage.label}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-slate-400 dark:text-slate-500 bg-slate-200 dark:bg-slate-700 rounded-full px-2 py-0.5">
+                        {stageCandidates.length}
+                      </span>
+                      <ChevronDown
+                        className={cn(
+                          'h-4 w-4 text-slate-400 transition-transform duration-200',
+                          !isExpanded && '-rotate-90',
+                        )}
                       />
-                    ))
-                  )}
-                  {/* Per-section add button on mobile */}
-                  {!selectionMode && (
-                    <button
-                      type="button"
-                      onClick={() => openAddSheet(stage.id)}
-                      className="w-full flex items-center justify-center gap-1.5 text-xs text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 py-2.5 rounded-lg border border-dashed border-blue-200 dark:border-blue-800 transition-colors"
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                      Add to {stage.label}
-                    </button>
+                    </div>
+                  </button>
+
+                  {/* Expanded body */}
+                  {isExpanded && (
+                    <div className="p-3 space-y-2">
+                      {stageCandidates.length === 0 ? (
+                        <p className="text-xs text-slate-400 dark:text-slate-500 text-center py-4">
+                          No candidates in this stage
+                        </p>
+                      ) : (
+                        stageCandidates.map((c) => (
+                          <CandidateCard
+                            key={c.id}
+                            candidate={c}
+                            onClick={() => {
+                              if (selectionMode) return;
+                              setSelectedCandidate(c.id === selectedCandidate?.id ? null : c);
+                            }}
+                            onDragStart={dragHandlers.onDragStart(c.id, stage.id)}
+                            onDragEnd={dragHandlers.onDragEnd()}
+                            biasMode={biasMode}
+                            selectionMode={selectionMode}
+                            selected={selectedIds.has(c.id)}
+                            onToggleSelect={toggleSelect}
+                          />
+                        ))
+                      )}
+                      {/* Per-section add button on mobile */}
+                      {!selectionMode && (
+                        <button
+                          type="button"
+                          onClick={() => openAddSheet(stage.id)}
+                          className="w-full flex items-center justify-center gap-1.5 text-xs text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 py-2.5 rounded-lg border border-dashed border-blue-200 dark:border-blue-800 transition-colors"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                          Add to {stage.label}
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+              );
+            })}
+          </div>
 
-      {/* ── Desktop layout (md+): horizontal Kanban board ── */}
-      <div className="hidden md:flex gap-0 flex-1 min-h-0 relative">
-        <div className="flex gap-3 overflow-x-auto pb-2 flex-1">
-          {PIPELINE_STAGES.map((stage) => (
-            <PipelineColumn
-              key={stage.id}
-              stage={stage}
-              candidates={stageMap[stage.id] ?? []}
-              onCandidateClick={(c) => {
-                if (selectionMode) return;
-                setSelectedCandidate(c.id === selectedCandidate?.id ? null : c);
-              }}
-              dragHandlers={dragHandlers}
-              biasMode={biasMode}
-              selectionMode={selectionMode}
-              selectedIds={selectedIds}
-              onToggleSelect={toggleSelect}
-              onAddClick={() => openAddSheet(stage.id)}
-            />
-          ))}
+          {/* ── Desktop layout (md+): horizontal Kanban columns ── */}
+          <div className="hidden md:flex gap-3 overflow-x-auto pb-2 flex-1 min-h-0">
+            {PIPELINE_STAGES.map((stage) => (
+              <PipelineColumn
+                key={stage.id}
+                stage={stage}
+                candidates={stageMap[stage.id] ?? []}
+                onCandidateClick={(c) => {
+                  if (selectionMode) return;
+                  setSelectedCandidate(c.id === selectedCandidate?.id ? null : c);
+                }}
+                dragHandlers={dragHandlers}
+                biasMode={biasMode}
+                selectionMode={selectionMode}
+                selectedIds={selectedIds}
+                onToggleSelect={toggleSelect}
+                onAddClick={() => openAddSheet(stage.id)}
+              />
+            ))}
+          </div>
+
         </div>
-      </div>
 
-      {/* CandidateDetailPanel renders at all breakpoints — it has built-in mobile
-          positioning (fixed full-height right panel + backdrop on < md). */}
-      {!selectionMode && selectedCandidate && (
-        <CandidateDetailPanel
-          candidate={selectedCandidate}
-          onClose={() => setSelectedCandidate(null)}
-          onMoveStage={handleMoveStage}
-          onSaveNotes={(id, notes) => updateNotes.mutate({ candidateId: id, notes })}
-          isMutating={updatePipelineStage.isPending || updateNotes.isPending}
-        />
-      )}
+        {/* CandidateDetailPanel — sibling to the board div in the flex row.
+            On desktop (md:relative md:w-80): participates in the flex row as right rail.
+            On mobile (fixed inset-y-0 right-0 z-50): full-height overlay with backdrop. */}
+        {!selectionMode && selectedCandidate && (
+          <CandidateDetailPanel
+            candidate={selectedCandidate}
+            onClose={() => setSelectedCandidate(null)}
+            onMoveStage={handleMoveStage}
+            onSaveNotes={(id, notes) => updateNotes.mutate({ candidateId: id, notes })}
+            isMutating={updatePipelineStage.isPending || updateNotes.isPending}
+          />
+        )}
+
+      </div>
 
       <AddCandidateSheet
         open={showAddSheet}
