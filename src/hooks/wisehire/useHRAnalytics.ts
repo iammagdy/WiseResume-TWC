@@ -34,14 +34,62 @@ const FUNNEL_STAGES: { id: string; label: string }[] = [
   { id: 'hired', label: 'Hired' },
 ];
 
-export function useHRAnalytics() {
+export function useHRAnalytics(since?: string | null) {
   const { isAuthenticated, supabaseReady } = useAuth();
 
   return useQuery({
-    queryKey: ['hr-analytics'],
+    queryKey: ['hr-analytics', since ?? 'all'],
     queryFn: async (): Promise<HRAnalytics> => {
       const userId = await getUserId();
       if (!userId) throw new Error('Not authenticated');
+
+      // Fetch the HR user's company first — needed to scope talent pool views
+      const { data: companyRow } = await supabase
+        .from('wisehire_companies')
+        .select('id')
+        .eq('owner_id', userId)
+        .maybeSingle();
+      const companyId = companyRow?.id ?? null;
+
+      // Build time-filtered queries
+      let candidatesQ = supabase
+        .from('wisehire_candidates')
+        .select('id, pipeline_stage, resume_text, created_at, source')
+        .eq('owner_id', userId)
+        .eq('is_deleted', false);
+      if (since) candidatesQ = candidatesQ.gte('created_at', since);
+
+      let bulkJobsQ = supabase
+        .from('wisehire_bulk_screen_jobs')
+        .select('results, created_at')
+        .eq('owner_id', userId)
+        .eq('status', 'done');
+      if (since) bulkJobsQ = bulkJobsQ.gte('created_at', since);
+
+      let hireEventsQ = supabase
+        .from('wisehire_pipeline_events')
+        .select('candidate_id, to_stage, created_at')
+        .eq('owner_id', userId)
+        .eq('to_stage', 'hired');
+      if (since) hireEventsQ = hireEventsQ.gte('created_at', since);
+
+      let briefsQ = supabase
+        .from('wisehire_candidate_briefs')
+        .select('id')
+        .eq('owner_id', userId);
+      if (since) briefsQ = briefsQ.gte('created_at', since);
+
+      // talent_pool_views — scoped to this recruiter's company + optional time filter
+      let talentViewsQ = supabase.from('talent_pool_views').select('id, viewed_at');
+      if (companyId) talentViewsQ = talentViewsQ.eq('viewer_company_id', companyId);
+      if (since) talentViewsQ = talentViewsQ.gte('viewed_at', since);
+
+      let allPipelineEventsQ = supabase
+        .from('wisehire_pipeline_events')
+        .select('candidate_id, from_stage, to_stage, created_at')
+        .eq('owner_id', userId)
+        .order('created_at', { ascending: true });
+      if (since) allPipelineEventsQ = allPipelineEventsQ.gte('created_at', since);
 
       const [
         candidatesRes,
@@ -52,36 +100,14 @@ export function useHRAnalytics() {
         talentViewsRes,
         allPipelineEventsRes,
       ] = await Promise.all([
-        supabase
-          .from('wisehire_candidates')
-          .select('id, pipeline_stage, resume_text, created_at, source')
-          .eq('owner_id', userId),
-        supabase
-          .from('wisehire_bulk_screen_jobs')
-          .select('results, created_at')
-          .eq('owner_id', userId)
-          .eq('status', 'done'),
-        supabase
-          .from('wisehire_pipeline_events')
-          .select('candidate_id, to_stage, created_at')
-          .eq('owner_id', userId)
-          .eq('to_stage', 'hired'),
-        supabase
-          .from('wisehire_roles')
-          .select('id')
-          .eq('owner_id', userId),
-        supabase
-          .from('wisehire_candidate_briefs')
-          .select('id')
-          .eq('owner_id', userId),
-        supabase
-          .from('talent_pool_views')
-          .select('id, viewed_at'),
-        supabase
-          .from('wisehire_pipeline_events')
-          .select('candidate_id, from_stage, to_stage, created_at')
-          .eq('owner_id', userId)
-          .order('created_at', { ascending: true }),
+        candidatesQ,
+        bulkJobsQ,
+        hireEventsQ,
+        // Active roles are always current, not time-filtered
+        supabase.from('wisehire_roles').select('id').eq('owner_id', userId),
+        briefsQ,
+        talentViewsQ,
+        allPipelineEventsQ,
       ]);
 
       const candidates = candidatesRes.data ?? [];
