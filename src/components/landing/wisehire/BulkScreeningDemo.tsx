@@ -4,8 +4,8 @@ import { Upload, Loader2, CheckCircle2 } from 'lucide-react';
 const CANDIDATES = [
   { initials: 'AK', name: 'Alex Kim', score: 91, status: 'done' as const },
   { initials: 'PM', name: 'Priya M.', score: 87, status: 'done' as const },
-  { initials: 'TB', name: 'Tom B.', score: 74, status: 'done' as const },
   { initials: 'SC', name: 'Sarah C.', score: 83, status: 'done' as const },
+  { initials: 'TB', name: 'Tom B.', score: 74, status: 'done' as const },
   { initials: 'JW', name: 'James W.', score: 66, status: 'done' as const },
 ];
 

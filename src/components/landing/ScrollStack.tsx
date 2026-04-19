@@ -177,6 +177,14 @@ const ScrollStack = ({
       card.style.perspective = "1000px";
       (card.style as CSSStyleDeclaration & { webkitPerspective: string }).webkitPerspective =
         "1000px";
+      /* Earlier cards must visually sit on top of later ones while stacking.
+         Without explicit z-index browsers paint later DOM children on top,
+         so the last card would always cover the first. Setting
+         z-index = cards.length - i inverts that: card 0 gets the highest
+         z-index and card N-1 gets the lowest. position:relative is required
+         because z-index has no effect on statically-positioned elements. */
+      card.style.position = "relative";
+      card.style.zIndex = String(cards.length - i);
     });
 
     /* --- helpers (pure; close over paramsRef) --- */
