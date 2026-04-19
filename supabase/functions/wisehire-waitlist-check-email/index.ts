@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { isMaliciousBot, botBlockedResponse } from "../_shared/botGuard.ts";
+import { checkIpRateLimit } from "../_shared/rateLimiter.ts";
 
 const CONSUMER_DOMAINS = new Set([
   "gmail.com","googlemail.com",
@@ -41,6 +42,25 @@ Deno.serve(async (req) => {
 
   const ua = req.headers.get("user-agent");
   if (isMaliciousBot(ua)) return botBlockedResponse(corsHeaders);
+
+  const clientIp =
+    (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() ||
+    req.headers.get("x-real-ip") ||
+    null;
+
+  if (clientIp) {
+    const ipLimit = await checkIpRateLimit(clientIp, "wisehire-waitlist-check-email", 30, 60);
+    if (!ipLimit.allowed) {
+      return new Response(JSON.stringify({ error: "Too Many Requests" }), {
+        status: 429,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json",
+          "Retry-After": String(ipLimit.retryAfterSeconds),
+        },
+      });
+    }
+  }
 
   try {
     const body = await req.json() as { email?: string };
