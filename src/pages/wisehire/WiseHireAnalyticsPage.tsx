@@ -237,7 +237,10 @@ export default function WiseHireAnalyticsPage() {
         ) : error ? (
           <div className="py-12 text-center text-sm text-slate-500">Failed to load analytics. Please refresh.</div>
         ) : data ? (
-          data.totalCandidates === 0 ? (
+          // Show empty state only when ALL key metrics are zero for the period.
+          // If talent pool views or briefs exist for the window, render the
+          // full dashboard (candidate charts will simply show zero bars).
+          data.totalCandidates === 0 && data.talentPoolViews === 0 && data.briefsGenerated === 0 ? (
             dateRange === 'all'
               ? <OnboardingEmptyState />
               : <NoActivityInPeriod rangeLabel={rangeLabel} />
