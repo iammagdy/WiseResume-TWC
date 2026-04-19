@@ -356,7 +356,7 @@ export default function RolesPage() {
                   <div className="flex items-center">
                     {role.jd_text ? (
                       <Link
-                        to="/wisehire/jd-writer"
+                        to={`/wisehire/jd-writer?roleId=${role.id}`}
                         className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 hover:underline"
                       >
                         <FileText className="h-3.5 w-3.5" />

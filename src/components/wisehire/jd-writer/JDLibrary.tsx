@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { FileText, Copy, Trash2, CheckCheck, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatDistanceToNow } from 'date-fns';
@@ -10,9 +10,18 @@ interface JDLibraryProps {
   isLoading: boolean;
   onDelete: (id: string) => void;
   isDeleting: boolean;
+  highlightedRoleId?: string;
 }
 
-export function JDLibrary({ roles, isLoading, onDelete, isDeleting }: JDLibraryProps) {
+export function JDLibrary({ roles, isLoading, onDelete, isDeleting, highlightedRoleId }: JDLibraryProps) {
+  const highlightedRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (highlightedRoleId && highlightedRef.current) {
+      highlightedRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [highlightedRoleId, roles]);
+
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
@@ -57,8 +66,14 @@ export function JDLibrary({ roles, isLoading, onDelete, isDeleting }: JDLibraryP
 
   return (
     <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 divide-y divide-slate-100 dark:divide-slate-800 overflow-hidden">
-      {roles.map((role) => (
-        <div key={role.id} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
+      {roles.map((role) => {
+        const isHighlighted = role.id === highlightedRoleId;
+        return (
+        <div
+          key={role.id}
+          ref={isHighlighted ? highlightedRef : null}
+          className={`flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group${isHighlighted ? ' ring-2 ring-inset ring-blue-400 dark:ring-blue-600 bg-blue-50/60 dark:bg-blue-900/20' : ''}`}
+        >
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/30">
             <FileText className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
           </div>
@@ -96,7 +111,8 @@ export function JDLibrary({ roles, isLoading, onDelete, isDeleting }: JDLibraryP
             </Button>
           </div>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

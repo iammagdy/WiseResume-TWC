@@ -150,6 +150,7 @@ function CompanyProfileSection() {
         );
       if (error) throw new Error(error.message);
       queryClient.invalidateQueries({ queryKey: ['wisehire-account', userId] });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       toast.success('Company profile saved.');
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : 'Failed to save. Please try again.');

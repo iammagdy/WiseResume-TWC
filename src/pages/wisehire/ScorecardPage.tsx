@@ -11,6 +11,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { supabase } from '@/integrations/supabase/safeClient';
 import {
   useScorecards,
@@ -39,6 +40,8 @@ export default function ScorecardPage() {
   const [briefQuestions, setBriefQuestions] = useState<string[]>([]);
   const [resolving, setResolving] = useState(true);
   const [applyingTemplate, setApplyingTemplate] = useState(false);
+  const [usedFallback, setUsedFallback] = useState(false);
+  const [fallbackDismissed, setFallbackDismissed] = useState(false);
 
   const { data: scorecards = [], isLoading } = useScorecards(candidateId ?? '');
   const { data: templates = [] } = useScorecardTemplates();
@@ -84,9 +87,9 @@ export default function ScorecardPage() {
     if (scorecard) return;
     if (!candidateId) return;
 
-    const questions = briefQuestions.length
-      ? briefQuestions
-      : [
+    const isFallback = briefQuestions.length === 0;
+    const questions = isFallback
+      ? [
           'Tell me about your most relevant experience for this role.',
           'How do you approach problem-solving under pressure?',
           'Describe a situation where you had to collaborate cross-functionally.',
@@ -95,8 +98,10 @@ export default function ScorecardPage() {
           'Describe a time you had to manage competing priorities.',
           'What questions do you have about this role or team?',
           'Where do you see yourself in 3 years?',
-        ];
+        ]
+      : briefQuestions;
 
+    if (isFallback) setUsedFallback(true);
     createScorecard.mutate({ candidateId, briefId, questions });
   }, [resolving, isLoading, scorecard, candidateId, briefId, briefQuestions]);
 
@@ -211,6 +216,23 @@ export default function ScorecardPage() {
             )}
           </div>
         </div>
+
+        {/* Fallback questions notice */}
+        {usedFallback && !fallbackDismissed && !isSubmitted && (
+          <Alert className="border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-800">
+            <AlertDescription className="flex items-start justify-between gap-3 text-sm text-amber-800 dark:text-amber-300">
+              <span>
+                No candidate brief found — using default questions. You can edit these before submitting.
+              </span>
+              <button
+                onClick={() => setFallbackDismissed(true)}
+                className="shrink-0 text-amber-600 dark:text-amber-400 hover:text-amber-900 dark:hover:text-amber-200 font-medium text-xs underline"
+              >
+                Dismiss
+              </button>
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* Form or view */}
         <div className="rounded-xl border bg-card p-5">

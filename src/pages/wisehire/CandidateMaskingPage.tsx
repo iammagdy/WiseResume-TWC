@@ -11,9 +11,18 @@ import JSZip from 'jszip';
 const MAX_FILES = 10;
 const MAX_FILE_SIZE_MB = 5;
 
+const SESSION_KEY = 'wisehire_mask_results';
+
 export default function CandidateMaskingPage() {
   const [files, setFiles] = useState<File[]>([]);
-  const [results, setResults] = useState<MaskResult[] | null>(null);
+  const [results, setResults] = useState<MaskResult[] | null>(() => {
+    try {
+      const stored = sessionStorage.getItem(SESSION_KEY);
+      return stored ? (JSON.parse(stored) as MaskResult[]) : null;
+    } catch {
+      return null;
+    }
+  });
   const [byokNeeded, setByokNeeded] = useState(false);
   const [dragOver, setDragOver] = useState(false);
 
@@ -52,6 +61,7 @@ export default function CandidateMaskingPage() {
     try {
       const data = await maskCVs.mutateAsync(files);
       setResults(data);
+      try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(data)); } catch { /* quota */ }
     } catch (err: unknown) {
       if ((err as Error & { code?: string }).code === 'requires_api_key') {
         setByokNeeded(true);
@@ -88,6 +98,7 @@ export default function CandidateMaskingPage() {
     setFiles([]);
     setResults(null);
     setByokNeeded(false);
+    try { sessionStorage.removeItem(SESSION_KEY); } catch { /* ignore */ }
   }
 
   const canProcess = files.length > 0 && !maskCVs.isPending;

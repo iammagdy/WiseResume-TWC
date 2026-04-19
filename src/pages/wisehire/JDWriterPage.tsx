@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { WiseHireShell } from '@/components/wisehire/WiseHireShell';
 import { JDWriterForm } from '@/components/wisehire/jd-writer/JDWriterForm';
 import { JDInlineEditor, JDData } from '@/components/wisehire/jd-writer/JDInlineEditor';
@@ -10,6 +11,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FileText, Library } from 'lucide-react';
 
 export default function JDWriterPage() {
+  const [searchParams] = useSearchParams();
+  const roleIdParam = searchParams.get('roleId');
+
+  const [tab, setTab] = useState<string>(roleIdParam ? 'library' : 'write');
   const [generatedJD, setGeneratedJD] = useState<JDData | null>(null);
   const [savedRoleId, setSavedRoleId] = useState<string | null>(null);
   const { data: roles = [], isLoading: rolesLoading, saveJD, deleteJD } = useJDs();
@@ -39,7 +44,7 @@ export default function JDWriterPage() {
           </p>
         </div>
 
-        <Tabs defaultValue="write">
+        <Tabs value={tab} onValueChange={setTab}>
           <TabsList className="mb-4">
             <TabsTrigger value="write" className="flex items-center gap-1.5">
               <FileText className="h-3.5 w-3.5" />
@@ -88,6 +93,7 @@ export default function JDWriterPage() {
               isLoading={rolesLoading}
               onDelete={(id) => deleteJD.mutate(id)}
               isDeleting={deleteJD.isPending}
+              highlightedRoleId={roleIdParam ?? undefined}
             />
           </TabsContent>
         </Tabs>
