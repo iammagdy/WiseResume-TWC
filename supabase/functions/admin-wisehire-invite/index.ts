@@ -27,43 +27,159 @@ async function hmacSign(message: string, secret: string): Promise<string> {
   return [...new Uint8Array(sig)].map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+const WISEHIRE_BLUE = '#1D4ED8';
+
 function buildInviteEmail(recipientEmail: string, inviteUrl: string, expiresAt: string): string {
-  const expiryDate = new Date(expiresAt).toLocaleString('en-US', {
-    month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short',
+  const expiryFormatted = new Date(expiresAt).toLocaleString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZoneName: 'short',
   });
+
   return `<!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
-<body style="margin:0;padding:0;background:#f0f5ff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-  <div style="max-width:520px;margin:0 auto;padding:32px 16px;">
-    <div style="background:#1D4ED8;padding:28px 32px;text-align:center;border-radius:16px 16px 0 0;">
-      <span style="color:#fff;font-size:20px;font-weight:800;letter-spacing:-0.03em;">WiseHire</span>
-      <p style="color:rgba(255,255,255,0.75);font-size:12px;margin:6px 0 0;">by thewise.cloud</p>
-    </div>
-    <div style="background:#fff;padding:40px 32px 36px;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;">
-      <h1 style="font-size:24px;font-weight:800;color:#0f172a;margin:0 0 12px;letter-spacing:-0.03em;text-align:center;">
-        You're invited to WiseHire
-      </h1>
-      <p style="font-size:15px;color:#475569;line-height:1.65;text-align:center;margin:0 0 28px;">
-        You've been selected for early access to WiseHire — AI-powered hiring tools that help you hire smarter, faster. Click below to set up your account.
-      </p>
-      <div style="text-align:center;margin-bottom:28px;">
-        <a href="${inviteUrl}" style="display:inline-block;background:#1D4ED8;color:#fff;text-decoration:none;padding:14px 32px;border-radius:10px;font-weight:700;font-size:15px;letter-spacing:-0.01em;">
-          Accept Invite &amp; Set Up Your Account
-        </a>
-      </div>
-      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px 16px;text-align:center;">
-        <p style="font-size:12px;color:#64748b;margin:0;">
-          This invite expires on <strong>${expiryDate}</strong>.<br/>
-          Only <strong>${escapeHtml(recipientEmail)}</strong> can use this link.
-        </p>
-      </div>
-    </div>
-    <div style="background:#1e293b;padding:20px 32px;text-align:center;border-radius:0 0 16px 16px;">
-      <p style="font-size:11px;color:#64748b;margin:0;">If you didn't expect this invite, you can safely ignore it.</p>
-      <p style="font-size:11px;color:#475569;margin:4px 0 0;">thewise.cloud</p>
-    </div>
-  </div>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap">
+</head>
+<body style="margin:0;padding:0;background:#eef3ff;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#eef3ff;padding:40px 16px;">
+    <tr><td align="center">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 4px 24px rgba(29,78,216,0.10);">
+
+        <!-- Header -->
+        <tr>
+          <td style="background:linear-gradient(160deg,#e8efff 0%,#f0f6ff 100%);border-bottom:1px solid #dce8ff;padding:32px 40px 24px;text-align:center;">
+            <table cellpadding="0" cellspacing="0" style="margin:0 auto;">
+              <tr>
+                <td style="vertical-align:middle;padding-right:10px;">
+                  <img src="https://resume.thewise.cloud/email-logo.png"
+                       alt="WiseHire"
+                       width="38" height="38"
+                       style="display:block;border-radius:9px;border:0;" />
+                </td>
+                <td style="vertical-align:middle;">
+                  <span style="font-size:21px;font-weight:900;color:${WISEHIRE_BLUE};letter-spacing:-0.5px;">WiseHire</span>
+                </td>
+              </tr>
+            </table>
+            <div style="margin-top:8px;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:1.2px;">by thewise.cloud</div>
+          </td>
+        </tr>
+
+        <!-- Invite badge -->
+        <tr>
+          <td style="padding:28px 40px 0;text-align:center;">
+            <span style="display:inline-block;background:#eff6ff;border:1px solid #bfdbfe;border-radius:100px;padding:7px 16px;font-size:12px;font-weight:600;color:${WISEHIRE_BLUE};">
+              🎉 Your early access is ready
+            </span>
+          </td>
+        </tr>
+
+        <!-- Body -->
+        <tr>
+          <td style="padding:24px 40px 40px;">
+            <h1 style="margin:0 0 18px;font-size:24px;font-weight:800;color:#0f172a;line-height:1.25;letter-spacing:-0.5px;">
+              You're invited to <span style="color:${WISEHIRE_BLUE};">WiseHire</span> ✨
+            </h1>
+
+            <p style="margin:0 0 16px;font-size:15px;color:#4b5563;line-height:1.7;">
+              Your spot on the waitlist is now open. WiseHire is an AI-powered hiring platform
+              built for HR teams and recruiters — and you're among the first to get in.
+            </p>
+
+            <!-- Feature highlights box -->
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin:20px 0;">
+              <tr>
+                <td style="background:#f0f6ff;border:1px solid #dbeafe;border-radius:12px;padding:18px 20px;">
+                  <p style="margin:0 0 12px;font-size:13px;font-weight:700;color:#0f172a;text-transform:uppercase;letter-spacing:0.6px;">What's waiting for you</p>
+                  <table width="100%" cellpadding="0" cellspacing="0">
+                    <tr>
+                      <td style="padding:5px 0;">
+                        <table cellpadding="0" cellspacing="0">
+                          <tr>
+                            <td style="padding-right:10px;vertical-align:top;font-size:14px;">✦</td>
+                            <td style="font-size:14px;color:#374151;line-height:1.6;"><strong style="color:#0f172a;">AI candidate screening</strong> — shortlist the right people in minutes</td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding:5px 0;">
+                        <table cellpadding="0" cellspacing="0">
+                          <tr>
+                            <td style="padding-right:10px;vertical-align:top;font-size:14px;">✦</td>
+                            <td style="font-size:14px;color:#374151;line-height:1.6;"><strong style="color:#0f172a;">Smart job descriptions</strong> — written, structured, and optimised for you</td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding:5px 0;">
+                        <table cellpadding="0" cellspacing="0">
+                          <tr>
+                            <td style="padding-right:10px;vertical-align:top;font-size:14px;">✦</td>
+                            <td style="font-size:14px;color:#374151;line-height:1.6;"><strong style="color:#0f172a;">Pipeline &amp; interview tracking</strong> — one place for everything</td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+
+            <p style="margin:0 0 28px;font-size:15px;color:#4b5563;line-height:1.7;">
+              Click the button below to accept your invite and set up your account.
+              This link is personal to <strong style="color:#0f172a;">${escapeHtml(recipientEmail)}</strong>
+              and expires on <strong style="color:#0f172a;">${expiryFormatted}</strong>.
+            </p>
+
+            <!-- CTA button -->
+            <table cellpadding="0" cellspacing="0">
+              <tr>
+                <td style="background:${WISEHIRE_BLUE};border-radius:10px;box-shadow:0 4px 14px rgba(29,78,216,0.28);">
+                  <a href="${escapeHtml(inviteUrl)}"
+                     style="display:inline-block;padding:14px 30px;color:#fff;font-size:15px;font-weight:700;text-decoration:none;letter-spacing:-0.2px;">
+                    Accept Invite &amp; Set Up Your Account →
+                  </a>
+                </td>
+              </tr>
+            </table>
+            <div style="margin-top:10px;font-size:12px;color:#94a3b8;">Takes 2 minutes — no credit card needed</div>
+
+            <!-- Link fallback -->
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:28px;">
+              <tr>
+                <td style="background:#f8fafc;border:1px solid #e9eef6;border-radius:8px;padding:14px 16px;">
+                  <p style="margin:0 0 6px;font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.8px;">Or copy this link</p>
+                  <p style="margin:0;font-size:12px;color:#64748b;word-break:break-all;line-height:1.6;">${escapeHtml(inviteUrl)}</p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td style="padding:18px 40px 22px;border-top:1px solid #e9eef6;background:#f8fafc;">
+            <p style="margin:0;font-size:12px;color:#94a3b8;line-height:1.6;">
+              You're receiving this because you joined the WiseHire waitlist at
+              <a href="https://resume.thewise.cloud/?for=companies" style="color:${WISEHIRE_BLUE};text-decoration:none;font-weight:500;">resume.thewise.cloud</a>.
+              This invite is personal to ${escapeHtml(recipientEmail)} — please don't share it.
+            </p>
+          </td>
+        </tr>
+
+      </table>
+    </td></tr>
+  </table>
 </body>
 </html>`;
 }
