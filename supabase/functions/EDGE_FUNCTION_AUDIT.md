@@ -1,6 +1,6 @@
 # Edge Function Audit
 
-Last updated: 2026-04-18 (Task #1 / Phase 7)
+Last updated: 2026-04-19 (Task #3 — Backend Audit follow-up)
 
 ## Server-to-Server / Platform Hooks
 
@@ -34,8 +34,8 @@ These have confirmed call sites in `src/`:
 | `parse-job-url` | `src/lib/aiTailor.ts`, `src/components/applications/AddApplicationSheet.tsx` |
 | `suggest-template` | `src/components/editor/TemplateAdvisorSheet.tsx` |
 | `ai-test` | `src/components/dev-kit/DevKitRunner.tsx`, `src/components/settings/AISettingsSheet.tsx` |
-| `generate-cover-letter` | Cover Letter sheet (writes will be persisted to `cover_letters` once that table is deployed — see Task #1 Phase 5) |
-| `generate-resignation-letter` | Resignation Letter sheet (same as above for `resignation_letters`) |
+| `generate-cover-letter` | Cover Letter sheet — letters are persisted to `cover_letters` on each successful generation |
+| `generate-resignation-letter` | Resignation Letter sheet — letters are persisted to `resignation_letters` on each successful generation |
 
 ## Removed in Task #1 / Phase 7 (2026-04-18)
 
@@ -50,19 +50,28 @@ Supabase dashboard the next time someone has admin access.
 | `send-feature-request` | All UI now uses `send-contact-email`. | `send-contact-email` |
 | `send-contact-inquiry` | Same — UI consolidated on `send-contact-email`. | `send-contact-email` |
 
-## Ghost functions (deployed on Supabase but not in this repo)
+## Ghost functions — PENDING HUMAN ACTION
 
-These four show up in the Supabase project but have **no source** in
-`supabase/functions/`. They cannot be re-deployed from this repo; they should
-either be (a) pulled back into the repo if still needed, or (b) deleted from
-the Supabase dashboard.
+> ⚠️ **Action required:** A developer with Supabase dashboard access must manually
+> delete the four functions below. They have **no source** in this repo and cannot
+> be deployed, updated, or monitored from CI. Until deleted they consume project
+> resources and represent an unaudited attack surface.
+>
+> **Steps:**
+> 1. Open the Supabase dashboard → Edge Functions.
+> 2. Delete each function listed in the table below.
+> 3. Update the status column in this file from `PENDING DELETION` to
+>    `CONFIRMED DELETED — <date> — <engineer>`.
 
-| Function | Status / recommendation |
-|---|---|
-| `clerk-webhook` | Leftover from a prior Clerk auth integration. Kinde is the active provider. **Delete from Supabase dashboard.** |
-| `fetch-github-projects` | Writes to `profiles.github_projects_cache`. Retain only if a "Sync GitHub" UI is wired up; otherwise delete. |
-| `proofread-resume` | Pull deployed source into the repo, or delete. |
-| `send-bug-report` | Pull deployed source into the repo, or delete. |
+These four were identified in the April 18 backend audit as deployed on Supabase
+but absent from this repo:
+
+| Function | Recommendation | Status |
+|---|---|---|
+| `clerk-webhook` | Leftover from a prior Clerk auth integration. Kinde is the active provider. Delete. | **PENDING DELETION** |
+| `fetch-github-projects` | Writes to `profiles.github_projects_cache`. Delete if the "Sync GitHub" UI is not wired up (confirmed: no frontend caller). | **PENDING DELETION** |
+| `proofread-resume` | No source in repo — pull the deployed source back in if still needed, otherwise delete. | **PENDING DELETION** |
+| `send-bug-report` | No source in repo — pull the deployed source back in if still needed, otherwise delete. | **PENDING DELETION** |
 
 ## Orphaned / pending wire-up (kept for now)
 

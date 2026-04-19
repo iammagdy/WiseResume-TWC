@@ -37,7 +37,8 @@ export interface PortfolioAnalytics {
 export interface ShortLink {
   id: string;
   owner_user_id: string;
-  portfolio_username: string;
+  portfolio_id: string | null;
+  portfolio_username: string | null;
   label: string;
   click_count: number;
   created_at: string;
@@ -53,6 +54,19 @@ function generateSlug(length = 5): string {
     result += chars[Math.floor(Math.random() * chars.length)];
   }
   return result;
+}
+
+/**
+ * Resolves the stable `portfolio_id` UUID from the `portfolios` table using the
+ * owner's `user_id`. Returns null if the portfolio row does not exist yet.
+ */
+async function resolvePortfolioId(userId: string): Promise<string | null> {
+  const { data } = await supabase
+    .from('portfolios')
+    .select('id')
+    .eq('user_id', userId)
+    .maybeSingle();
+  return data?.id ?? null;
 }
 
 // ── Hooks ─────────────────────────────────────────────────────────────────────
@@ -87,26 +101,40 @@ export function usePortfolioAnalytics(username: string | undefined) {
     },
     enabled: !!username,
     staleTime: 30_000,
-    refetchInterval: 60_000, // poll every minute for live feel
+    refetchInterval: 60_000,
   });
 }
 
-/** Fetch short links owned by the current user */
+/**
+ * Fetch short links owned by the current user.
+ * Queries by stable `portfolio_id` (resolved from `portfolios.user_id`) when
+ * available; falls back to the legacy `portfolio_username` column for rows that
+ * pre-date the April-18 migration back-fill.
+ */
 export function useShortLinks(userId: string | undefined, portfolioUsername: string | undefined) {
   return useQuery<ShortLink[]>({
     queryKey: ['short-links', userId],
     queryFn: async () => {
-      if (!userId || !portfolioUsername) return [];
-      const { data, error } = await supabase
+      if (!userId) return [];
+
+      const portfolioId = await resolvePortfolioId(userId);
+
+      const baseQuery = supabase
         .from('short_links')
         .select('*')
         .eq('owner_user_id', userId)
-        .eq('portfolio_username', portfolioUsername.toLowerCase())
         .order('created_at', { ascending: false });
+
+      const { data, error } = portfolioId
+        ? await baseQuery.eq('portfolio_id', portfolioId)
+        : portfolioUsername
+          ? await baseQuery.eq('portfolio_username', portfolioUsername.toLowerCase())
+          : await baseQuery;
+
       if (error) throw error;
       return (data ?? []) as ShortLink[];
     },
-    enabled: !!userId && !!portfolioUsername,
+    enabled: !!userId,
   });
 }
 
@@ -125,7 +153,8 @@ export function useCreateShortLink() {
       label: string;
       targetUrl?: string;
     }) => {
-      // Generate a slug and retry on conflict (astronomically rare)
+      const portfolioId = await resolvePortfolioId(userId);
+
       for (let attempt = 0; attempt < 3; attempt++) {
         const slug = generateSlug(5);
         const { data, error } = await supabase
@@ -133,6 +162,7 @@ export function useCreateShortLink() {
           .insert({
             id: slug,
             owner_user_id: userId,
+            portfolio_id: portfolioId,
             portfolio_username: portfolioUsername?.toLowerCase() ?? null,
             label: label.trim() || 'My Link',
             target_url: targetUrl ?? (portfolioUsername ? `/p/${portfolioUsername.toLowerCase()}` : null),
@@ -141,7 +171,7 @@ export function useCreateShortLink() {
           .single();
 
         if (error) {
-          if (error.code === '23505') continue; // duplicate slug — retry
+          if (error.code === '23505') continue;
           throw error;
         }
         return data as ShortLink;
