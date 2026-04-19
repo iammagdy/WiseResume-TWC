@@ -1,6 +1,6 @@
 # Index
 
-  **Last verified:** 2026-04-17
+  **Last verified:** 2026-04-19
   **Type:** reference card
   **Sources:**
   - `src/pages/Index.tsx`
@@ -20,6 +20,13 @@
 
   **Where it lives:** `src/pages/Index.tsx`
 
+  **Key facts (updated 2026-04-19):**
+  - FCP is measured at ~820ms ("good") after Sentry deferral + hero animation fix. See stability-fixes addendum.
+  - Scroll-stack section: `ScrollStack` with `useWindowScroll`. Cards pin at `stackPosition="20%"`. `FeatureSection` content starts visible (`initial="visible"`) — no whileInView slide animations inside stack cards.
+  - `src/lib/captureErrorShim.ts` must be the import source for `captureError` in any eagerly-mounted component. Never import from `@/lib/monitoring` in the entry path.
+  - `src/components/landing/landingAnimations.ts`: `SCATTER_SECTION_ITEM.hidden(0)` returns identity transform (hero always visible on first paint).
+
   **Related:**
   - Pages index: `Project Atlas/01-Currently Implemented/pages/README.md`
+  - Stability fixes: `../stability-fixes/phase-2-frontend-rerender-and-bundle.md` (FCP + scroll-stack addenda)
   

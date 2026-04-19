@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-04-19 — Scroll-stack cards: fix zoom, internal animation, and iOS touch zoom (maintenance)
+
+- **`src/components/landing/ScrollStack.css`** — `.lp-stack-parallax` counter-translate removed (was `translate3d(0, calc(var(--card-translate-y,0px)*-0.15),0)`; now `transform:none`). This caused the demo screenshot inside the card to visibly drift as the user scrolled — the "content animates inside the card" complaint. Added `touch-action: manipulation` to `.scroll-stack-scroller`, `.scroll-stack-card-wrap`, and `.scroll-stack-card` to prevent iOS Safari double-tap zoom on scroll-stack touch events.
+- **`src/components/landing/FeatureSection.tsx`** — `containerVariants` motion.div changed from `initial={prefersReducedMotion ? 'visible' : 'hidden'} whileInView="visible"` to `initial="visible" animate="visible"`. The whileInView slide animations (x:±100, y:70) were firing while the card was already in view inside the scroll stack, making text/media/bullets slide in unexpectedly. Outer padding reduced from `clamp(48px, 6vw, 80px)` to `clamp(24px, 3vw, 44px)`; pane `minHeight` reduced from 280 to 200. Total card height drops from ~530px to ~390px — fits within a 720px viewport with the 20% stack pin.
+- **`src/components/landing/wisehire/WiseHireDemoSection.tsx`** — `DEMO_SLOT_HEIGHT` reduced from 380 to 300 (BriefDemo at ~350px still shows through Considerations with minor bottom clip). Top padding reduced from `clamp(32px, 4vw, 56px)` to `clamp(20px, 3vw, 36px)`; inner gap reduced from 24 to 16px. Total card height drops from ~550px to ~440px — fits within a 720px viewport.
+
+---
+
+## 2026-04-19 — Landing page FCP: 5–16s → 820ms; eliminate staggered hero paint (maintenance)
+
+- **`src/lib/captureErrorShim.ts`** (new) — Dependency-free `captureError()` + `setRealCaptureError()` + `earlyCaptureBuffer` (capped at 100 entries). Allows eager-loaded code to call `captureError` without importing `@sentry/react` into the entry chunk.
+- **`src/components/ErrorBoundary.tsx`** — Changed `import { captureError }` from `@/lib/monitoring` → `@/lib/captureErrorShim`. ErrorBoundary mounts at the top of `App.tsx`, so the old import dragged Sentry into the entry graph and ran `Sentry.init()` before first paint.
+- **`src/components/dev-kit/DevKitPanelBoundary.tsx`** — Same import swap: `@/lib/monitoring` → `@/lib/captureErrorShim`.
+- **`src/main.tsx`** — Replaced hand-rolled `earlyErrorBuffer` array + inline `captureError` closure with `import { captureError } from "./lib/captureErrorShim"`. Deferred Sentry load: after `createRoot`, on `requestIdleCallback` (1.5s `setTimeout` fallback), dynamically imports `./lib/monitoring`, calls `initMonitoring()`, wires `setRealCaptureError(mon.captureError)`, and drains `earlyCaptureBuffer`. Added `void import('@/components/landing/LandingMotionStage')` warmup so the framer-motion chunk starts downloading in parallel with the hero instead of being a waterfall hop.
+- **`src/components/landing/landingAnimations.ts`** — `SCATTER_SECTION_ITEM.hidden(i)` now returns the identity transform (`opacity:1, filter:'', x:0, y:0`) for `i === 0`. The hero painted at opacity 0 (scatter start state) and spring-animated to visible — producing the "wallpaper then text 1 second later" gap. Sections below the fold (i ≥ 1) keep the scatter entrance.
+- **Measured result:** FCP 5,920–16,288ms → 820ms ("good"). Hero, CTA, badges, and feature ticker all visible together on first paint.
+
+---
+
 ## 2026-04-19 — Preview tailored resume before committing (Task #5)
 
 - **`src/lib/tailorMerge.ts`** (new) — `buildMergedResume(currentResume, tailorResult, enabledSections, rejectedBullets)` shared helper. Centralises the section-by-section merge of `SuperTailorResult` onto `ResumeData`, including ID-based merge for `experience`/`education` and per-bullet rejection re-application.

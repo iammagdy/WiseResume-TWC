@@ -1,10 +1,30 @@
 # Stability Improvements — What's Getting Better Behind the Scenes
 
-**Last verified:** 2026-04-19 (Tasks #49, #50 added)
+**Last verified:** 2026-04-19 (landing perf + scroll-stack fixes added)
 **Audience:** you (the owner). No code, no jargon, no technical paths.
 **Sources (governance — supreme):**
 - `project-governance/CHANGELOG.md` entries dated 2026-04-18 (Stability Fixes — Phases 1 to 6)
 - `project-governance/CONSTITUTION.md` §6.5–§6.6 (the rule that says every change must be documented for you, in plain English, alongside the engineering record)
+
+---
+
+## The landing page now loads in under a second instead of 5–16 seconds (2026-04-19)
+
+**What was the situation:** Visitors to the main site (both WiseResume and WiseHire) were waiting 5 to 16 seconds before they could see the headline, the call-to-action button, or any text at all. The background colour appeared first, then the text appeared about one second later in a jarring sequence. This was silently happening because a crash-reporting library was being loaded at the very start of the page, before anything could be shown.
+
+**What changed:** The crash-reporting library is now loaded quietly in the background after the page has already painted and the user has read the hero. The hero text, CTA button, and trust badges now all appear at the same time on first paint, with no staggered sequence. Any errors that happen before the library is ready are captured and replayed automatically so nothing is missed.
+
+**What you'll notice:** The landing page now feels instant. First paint is measured at around 820 milliseconds (rated "good" by Google's standards), down from a previous worst-case of over 16 seconds.
+
+---
+
+## Scroll-stack cards on the landing page: fixed zoom, clipping, and internal animation (2026-04-19)
+
+**What was the situation:** The stacked-card scroll section on both the WiseResume and WiseHire landing pages had three issues: (1) on mobile, tapping a card could accidentally trigger the browser's zoom-in gesture, making the whole page zoom out of control; (2) the cards were taller than the screen on common laptop screen sizes, so the bottom of each card was cut off and users couldn't see the full demo; (3) as a user scrolled, content inside each card would slide or drift — text, images, and demo screenshots would animate inside the card in a distracting way.
+
+**What changed:** The touch-zoom behaviour was disabled on the scroll-stack area so tapping a card never triggers an accidental zoom. The card height was reduced on both the WiseResume feature cards and the WiseHire demo cards so the full card fits on screen at typical laptop sizes. The internal drift animation was removed — card content is now static inside each card; only the card itself moves when stacking.
+
+**What you'll notice:** Scroll-stack cards behave as expected on both desktop and mobile — no accidental zoom on tap, full card visible without scrolling down inside it, and no distracting motion happening inside the card as you scroll.
 
 ---
 
