@@ -184,6 +184,8 @@ export default function TailorPage() {
   const [copiedText, setCopiedText] = useState(false);
   const [showAppliedCTA, setShowAppliedCTA] = useState(false);
   const [appliedResumeId, setAppliedResumeId] = useState<string | null>(null);
+  const [appliedResumeTitle, setAppliedResumeTitle] = useState<string | null>(null);
+  const [appliedJobInfo, setAppliedJobInfo] = useState<{ title: string; company: string } | null>(null);
 
   const [customInstructions, setCustomInstructions] = useState(
     () => localStorage.getItem(CUSTOM_INSTRUCTIONS_KEY) || ''
@@ -239,7 +241,6 @@ export default function TailorPage() {
       } else {
         setEnabledSections(['summary', 'skills', 'experience', 'education', 'projects', 'certifications', 'awards']);
       }
-      setShowAppliedCTA(!!pendingTailorJobUrl);
       setRevealedSections(new Set(['summary', 'skills', 'experience', 'education', 'projects', 'certifications'] as TailorSectionId[]));
     }
   // Only run once on mount — tailorResult starting null triggers hydration
@@ -281,6 +282,9 @@ export default function TailorPage() {
     setOriginalResume(currentResume);
     setProgress({ step: 'analyzing', progress: 5, message: 'Starting...' });
     setShowAppliedCTA(false);
+    setAppliedResumeId(null);
+    setAppliedResumeTitle(null);
+    setAppliedJobInfo(null);
 
     abortRef.current = new AbortController();
 
@@ -414,9 +418,11 @@ export default function TailorPage() {
       }, currentResumeId || undefined);
 
       setAppliedResumeId(newResume?.id || null);
+      setAppliedResumeTitle(newTitle);
+      setAppliedJobInfo({ title: jobTitle, company });
       setShowAppliedCTA(true);
+      setTailorResult(null);
 
-      toast.success('Tailored resume created! Original preserved.', { duration: 4000 });
       clearPendingTailor();
     } catch {
       toast.error('Failed to create tailored resume');
@@ -526,15 +532,27 @@ export default function TailorPage() {
   }, [tailorResult, jobDescription, customInstructions, intensity]);
 
   const handleTrackApplication = useCallback(() => {
-    const jobTitle = parsedJobInfo?.title || tailorResult?.jobParsed?.title || '';
-    const company = parsedJobInfo?.company || tailorResult?.jobParsed?.company || '';
+    const jobTitle = appliedJobInfo?.title || parsedJobInfo?.title || tailorResult?.jobParsed?.title || '';
+    const company = appliedJobInfo?.company || parsedJobInfo?.company || tailorResult?.jobParsed?.company || '';
     const params = new URLSearchParams();
     params.set('new', '1');
     if (jobTitle) params.set('title', jobTitle);
     if (company) params.set('company', company);
     if (appliedResumeId) params.set('resumeId', appliedResumeId);
     navigate(`/applications?${params.toString()}`);
-  }, [navigate, parsedJobInfo, tailorResult, appliedResumeId]);
+  }, [navigate, parsedJobInfo, tailorResult, appliedResumeId, appliedJobInfo]);
+
+  const handleViewResume = useCallback(() => {
+    if (appliedResumeId) navigate(`/editor/${appliedResumeId}`);
+  }, [navigate, appliedResumeId]);
+
+  const handleCloseSuccess = useCallback(() => {
+    setShowAppliedCTA(false);
+    setAppliedResumeId(null);
+    setAppliedResumeTitle(null);
+    setAppliedJobInfo(null);
+    navigate(-1);
+  }, [navigate]);
 
   return (
     <div className="flex-1 flex flex-col min-h-0 h-full">
@@ -680,7 +698,7 @@ export default function TailorPage() {
 
           {/* On mobile, show results inline below the input */}
           <div className="lg:hidden">
-            {(isTailoring || tailorResult || tailorError) && (
+            {(isTailoring || tailorResult || tailorError || showAppliedCTA) && (
               <ResultsPanel
                 isTailoring={isTailoring}
                 progress={progress}
@@ -698,7 +716,12 @@ export default function TailorPage() {
                 setIsTailoring={setIsTailoring}
                 setProgress={setProgress}
                 showAppliedCTA={showAppliedCTA}
+                appliedResumeId={appliedResumeId}
+                appliedResumeTitle={appliedResumeTitle}
+                appliedJobInfo={appliedJobInfo}
+                onViewResume={handleViewResume}
                 onTrackApplication={handleTrackApplication}
+                onCloseSuccess={handleCloseSuccess}
                 copiedText={copiedText}
                 onCopyText={handleCopyPlainText}
                 onReTailor={handleTailor}
@@ -713,7 +736,7 @@ export default function TailorPage() {
 
         {/* Right panel: Results (desktop only) */}
         <div className="hidden lg:flex flex-1 flex-col min-w-0 overflow-y-auto p-4 space-y-4">
-          {(isTailoring || tailorResult || tailorError) ? (
+          {(isTailoring || tailorResult || tailorError || showAppliedCTA) ? (
             <ResultsPanel
               isTailoring={isTailoring}
               progress={progress}
@@ -731,7 +754,12 @@ export default function TailorPage() {
               setIsTailoring={setIsTailoring}
               setProgress={setProgress}
               showAppliedCTA={showAppliedCTA}
+              appliedResumeId={appliedResumeId}
+              appliedResumeTitle={appliedResumeTitle}
+              appliedJobInfo={appliedJobInfo}
+              onViewResume={handleViewResume}
               onTrackApplication={handleTrackApplication}
+              onCloseSuccess={handleCloseSuccess}
               copiedText={copiedText}
               onCopyText={handleCopyPlainText}
               onReTailor={handleTailor}
@@ -795,7 +823,12 @@ interface ResultsPanelProps {
   setIsTailoring: (v: boolean) => void;
   setProgress: (v: TailorProgress | EnhancedTailorProgress | null) => void;
   showAppliedCTA: boolean;
+  appliedResumeId: string | null;
+  appliedResumeTitle: string | null;
+  appliedJobInfo: { title: string; company: string } | null;
+  onViewResume: () => void;
   onTrackApplication: () => void;
+  onCloseSuccess: () => void;
   copiedText: boolean;
   onCopyText: () => void;
   onReTailor: () => void;
@@ -807,9 +840,48 @@ function ResultsPanel({
   isTailoring, progress, tailorResult, tailorError, originalResume,
   enabledSections, toggleSection, onApplyChanges, isApplying,
   onRetry, onSettings, onRevert, abortRef, setIsTailoring, setProgress,
-  showAppliedCTA, onTrackApplication, copiedText, onCopyText, onReTailor,
+  showAppliedCTA, appliedResumeId, appliedResumeTitle, appliedJobInfo,
+  onViewResume, onTrackApplication, onCloseSuccess,
+  copiedText, onCopyText, onReTailor,
   rejectedBullets, onBulletReject, onRegenerate, revealedSections,
 }: ResultsPanelProps) {
+  if (showAppliedCTA && !isTailoring && !tailorResult) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-6 py-12 px-6 text-center animate-fade-in">
+        <div className="w-16 h-16 rounded-full bg-success/10 flex items-center justify-center">
+          <CheckCircle className="w-8 h-8 text-success" />
+        </div>
+        <div className="space-y-2">
+          <h3 className="font-bold text-xl">✅ New tailored resume created!</h3>
+          {appliedResumeTitle && (
+            <p className="text-sm font-medium text-foreground break-words px-2">
+              {appliedResumeTitle}
+            </p>
+          )}
+          {appliedJobInfo && (
+            <p className="text-muted-foreground text-xs">
+              Tailored for {appliedJobInfo.title} at {appliedJobInfo.company}
+            </p>
+          )}
+        </div>
+        <div className="flex flex-col gap-3 w-full max-w-xs">
+          {appliedResumeId && (
+            <Button className="gradient-primary min-h-[44px]" onClick={onViewResume}>
+              <ExternalLink className="w-4 h-4 mr-2" />
+              View Resume
+            </Button>
+          )}
+          <Button variant="outline" className="min-h-[44px]" onClick={onTrackApplication}>
+            <Briefcase className="w-4 h-4 mr-2" />
+            Track Application
+          </Button>
+          <Button variant="ghost" className="min-h-[44px]" onClick={onCloseSuccess}>
+            Close
+          </Button>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="space-y-4">
       {isTailoring && progress && (
@@ -909,20 +981,6 @@ function ResultsPanel({
               Review changes below. A new tailored copy will be created — your original stays safe.
             </p>
           </div>
-
-          {/* Track Application CTA */}
-          {showAppliedCTA && (
-            <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <Briefcase className="w-4 h-4 text-blue-500" />
-                <p className="text-sm font-medium">Track this application?</p>
-              </div>
-              <Button size="sm" onClick={onTrackApplication} className="gap-1.5 shrink-0">
-                <ExternalLink className="w-3.5 h-3.5" />
-                Track
-              </Button>
-            </div>
-          )}
 
           {/* Score */}
           {tailorResult.overallScore && tailorResult.sectionScores && (

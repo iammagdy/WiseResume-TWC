@@ -280,6 +280,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
   const [isRetryingScore, setIsRetryingScore] = useState(false);
   const [appliedJobInfo, setAppliedJobInfo] = useState<{ title: string; company: string } | null>(null);
   const [appliedMergedResume, setAppliedMergedResume] = useState<ResumeData | null>(null);
+  const [appliedResumeTitle, setAppliedResumeTitle] = useState<string | null>(null);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
 
   useEffect(() => {
@@ -289,6 +290,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
       setAppliedJobInfo(null);
       setAppliedResumeId(null);
       setAppliedMergedResume(null);
+      setAppliedResumeTitle(null);
     }
     return () => { activityTracker.setActiveFeature(null); };
   }, [open]);
@@ -371,6 +373,11 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
     setOriginalResume(currentResume);
     setProgress({ step: 'analyzing', progress: 5, message: 'Starting...' });
     setActiveTab('changes');
+    setShowAppliedCTA(false);
+    setAppliedResumeId(null);
+    setAppliedJobInfo(null);
+    setAppliedMergedResume(null);
+    setAppliedResumeTitle(null);
 
     abortRef.current = new AbortController();
 
@@ -696,6 +703,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
       setAppliedResumeId(newResumeId || null);
       setAppliedJobInfo({ title: jt, company: co });
       setAppliedMergedResume(mergedResume);
+      setAppliedResumeTitle(newTitle);
 
       setTailorResult(null);
       clearPendingTailor();
@@ -723,8 +731,8 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
   }, [currentResume, tailorResult, enabledSections]);
 
   const handleTrackApplication = useCallback(() => {
-    const jobTitle = parsedJobInfo?.title || tailorResult?.jobParsed?.title || '';
-    const company = parsedJobInfo?.company || tailorResult?.jobParsed?.company || '';
+    const jobTitle = appliedJobInfo?.title || parsedJobInfo?.title || tailorResult?.jobParsed?.title || '';
+    const company = appliedJobInfo?.company || parsedJobInfo?.company || tailorResult?.jobParsed?.company || '';
     const params = new URLSearchParams();
     params.set('new', '1');
     if (jobTitle) params.set('title', jobTitle);
@@ -1071,33 +1079,38 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
               <div className="w-16 h-16 rounded-full bg-success/10 flex items-center justify-center">
                 <CheckCircle className="w-8 h-8 text-success" />
               </div>
-              <div>
-                <h3 className="font-bold text-xl mb-1">Tailored Resume Created!</h3>
-                <p className="text-muted-foreground text-sm">
-                  {appliedJobInfo
-                    ? `Your resume has been tailored for ${appliedJobInfo.title} at ${appliedJobInfo.company}.`
-                    : 'Your tailored resume has been saved.'}
-                </p>
+              <div className="space-y-2">
+                <h3 className="font-bold text-xl">✅ New tailored resume created!</h3>
+                {appliedResumeTitle && (
+                  <p className="text-sm font-medium text-foreground break-words px-2">
+                    {appliedResumeTitle}
+                  </p>
+                )}
+                {appliedJobInfo && (
+                  <p className="text-muted-foreground text-xs">
+                    Tailored for {appliedJobInfo.title} at {appliedJobInfo.company}
+                  </p>
+                )}
               </div>
               <div className="flex flex-col gap-3 w-full max-w-xs">
                 {appliedResumeId && (
                   <Button className="gradient-primary min-h-[44px]" onClick={() => { navigate(`/editor/${appliedResumeId}`); onOpenChange(false); }}>
                     <ExternalLink className="w-4 h-4 mr-2" />
-                    Open in Editor
-                  </Button>
-                )}
-                {appliedMergedResume && (
-                  <Button variant="outline" className="min-h-[44px]" onClick={handleDownloadPdf} disabled={isDownloadingPdf}>
-                    {isDownloadingPdf ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
-                    {isDownloadingPdf ? 'Generating PDF…' : 'Download PDF'}
+                    View Resume
                   </Button>
                 )}
                 <Button variant="outline" className="min-h-[44px]" onClick={handleTrackApplication}>
                   <Briefcase className="w-4 h-4 mr-2" />
                   Track Application
                 </Button>
+                {appliedMergedResume && (
+                  <Button variant="outline" className="min-h-[44px]" onClick={handleDownloadPdf} disabled={isDownloadingPdf}>
+                    {isDownloadingPdf ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
+                    {isDownloadingPdf ? 'Generating PDF…' : 'Download PDF'}
+                  </Button>
+                )}
                 <Button variant="ghost" className="min-h-[44px]" onClick={() => onOpenChange(false)}>
-                  Done
+                  Close
                 </Button>
               </div>
             </div>
