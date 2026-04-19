@@ -8,7 +8,7 @@ import { captureError } from '@/lib/monitoring';
 interface Props {
   children: ReactNode;
   fallback?: ReactNode;
-  onReset?: () => void;
+  onReset?: () => void | Promise<void>;
   routeScoped?: boolean;
 }
 
@@ -171,7 +171,7 @@ export class ErrorBoundary extends Component<Props, State> {
     }).catch(() => undefined);
   };
 
-  private handleRetry = () => {
+  private handleRetry = async () => {
     const isChunkError = this.state.error?.message &&
       (this.state.error.message.includes('dynamically imported module') ||
        this.state.error.message.includes('Failed to fetch') ||
@@ -182,7 +182,7 @@ export class ErrorBoundary extends Component<Props, State> {
       return;
     }
 
-    this.props.onReset?.();
+    await this.props.onReset?.();
     this.setState({ hasError: false, error: null, errorInfo: null });
   };
 

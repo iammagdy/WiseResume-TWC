@@ -10,6 +10,7 @@ import { useAppLifecycle } from "@/hooks/useAppLifecycle";
 import { BiometricLockScreen } from "@/components/BiometricLockScreen";
 import { useBiometricLock } from "@/hooks/useBiometricLock";
 import { useSettingsStore } from "@/store/settingsStore";
+import { useResumeStore } from "@/store/resumeStore";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
@@ -320,7 +321,10 @@ function FeatureGate({
 }
 
 function RouteEB({ children }: { children: ReactNode }) {
-  return <ErrorBoundary routeScoped>{children}</ErrorBoundary>;
+  function handleReset() {
+    useResumeStore.persist.rehydrate();
+  }
+  return <ErrorBoundary routeScoped onReset={handleReset}>{children}</ErrorBoundary>;
 }
 
 function AppRoutes() {
