@@ -19,7 +19,7 @@ function buildConfirmationEmail(name: string, position: number): string {
 <body style="margin:0;padding:0;background:#eef3ff;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#eef3ff;padding:40px 16px;">
     <tr><td align="center">
-      <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 4px 24px rgba(29,78,216,0.10);">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 4px 24px rgba(29,78,216,0.10);">
 
         <!-- Header -->
         <tr>
@@ -27,7 +27,7 @@ function buildConfirmationEmail(name: string, position: number): string {
             <table cellpadding="0" cellspacing="0" style="margin:0 auto;">
               <tr>
                 <td style="vertical-align:middle;padding-right:10px;">
-                  <img src="https://resume.thewise.cloud/email-logo.webp"
+                  <img src="https://resume.thewise.cloud/email-logo.png"
                        alt="WiseHire"
                        width="38" height="38"
                        style="display:block;border-radius:9px;border:0;" />
