@@ -214,6 +214,7 @@ Analyze this resume from your unique perspective as ${personaConfig.name}. Be sp
     const analysis = parseAIJSON(aiResponse.content || '{}');
 
     if (!analysis) {
+      await refundCredit(userId, creditCheck, 1);
       return new Response(
         JSON.stringify({ error: 'Failed to parse AI response' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -222,7 +223,6 @@ Analyze this resume from your unique perspective as ${personaConfig.name}. Be sp
 
     await recordUsage(userId, 'recruiter_sim', { provider: aiResponse.providerUsed || 'unknown' });
 
-    // Atomically deduct credits server-side before returning results (cost=1 for recruiter-simulation)
 
     return new Response(
       JSON.stringify({

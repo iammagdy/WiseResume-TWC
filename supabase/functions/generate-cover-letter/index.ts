@@ -169,7 +169,10 @@ ${jobDescription}
     }
 
     const coverLetter = aiResponse.content;
-    if (!coverLetter) throw new Error("No content in AI response");
+    if (!coverLetter) {
+      await refundCredit(userId, creditCheck, 2);
+      throw new Error("No content in AI response");
+    }
 
     await recordUsage(userId, 'cover_letter', { provider: aiResponse.providerUsed || 'unknown' });
 

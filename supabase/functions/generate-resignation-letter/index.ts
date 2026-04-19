@@ -138,7 +138,10 @@ Write the complete letter with proper business letter formatting.`;
     }
 
     const letter = aiResponse.content;
-    if (!letter) throw new Error("No content in AI response");
+    if (!letter) {
+      await refundCredit(userId, creditCheck, 1);
+      throw new Error("No content in AI response");
+    }
 
     await recordUsage(userId, 'resignation', { provider: aiResponse.providerUsed || 'unknown' });
 

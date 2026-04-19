@@ -159,6 +159,7 @@ Return ONLY a JSON object with this EXACT structure (no markdown, no code fences
     const result = parseAIJSON(aiResponse.content || '{}');
 
     if (!result) {
+      await refundCredit(userId, creditCheck, 1);
       return new Response(
         JSON.stringify({ error: 'Failed to parse AI response' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -167,7 +168,6 @@ Return ONLY a JSON object with this EXACT structure (no markdown, no code fences
 
     await recordUsage(userId, 'one_page', { provider: aiResponse.providerUsed || 'unknown' });
 
-    // Atomically deduct credits server-side before returning results (cost=1 for one-page-optimizer)
 
     return new Response(
       JSON.stringify({ success: true, ...result }),

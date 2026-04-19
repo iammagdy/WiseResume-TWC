@@ -153,6 +153,7 @@ FACTUAL CONSTRAINTS:
       result = parseAIJSON(aiResponse.content);
     }
     if (!result) {
+      await refundCredit(userId, creditCheck, 1);
       return new Response(
         JSON.stringify({ error: "Invalid AI response format" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -161,7 +162,6 @@ FACTUAL CONSTRAINTS:
 
     await recordUsage(userId, 'fill_gap', { provider: aiResponse.providerUsed || 'unknown' });
 
-    // Atomically deduct credits server-side before returning results (cost=1 for fill-gap)
 
     return new Response(JSON.stringify({ ...result, _providerUsed: aiResponse.providerUsed || 'unknown' }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

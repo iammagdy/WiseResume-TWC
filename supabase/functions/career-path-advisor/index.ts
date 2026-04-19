@@ -128,7 +128,10 @@ ${resume.education?.map((e: any) => `- ${e.degree} in ${e.field} from ${e.instit
     }
 
     const result = parseAIJSON(aiResponse.content || '{}');
-    if (!result) throw new Error("Failed to parse career path analysis");
+    if (!result) {
+      await refundCredit(userId, creditCheck, 1);
+      throw new Error("Failed to parse career path analysis");
+    }
 
     const sanitized = {
       currentLevel: (result as any).currentLevel || "mid",
@@ -142,7 +145,6 @@ ${resume.education?.map((e: any) => `- ${e.degree} in ${e.field} from ${e.instit
 
     await recordUsage(userId, 'career_path', { provider: aiResponse.providerUsed || 'unknown' });
 
-    // Atomically deduct credits server-side before returning results (cost=1 for career-path-advisor)
 
     return new Response(JSON.stringify({ ...sanitized, _providerUsed: aiResponse.providerUsed || 'unknown' }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

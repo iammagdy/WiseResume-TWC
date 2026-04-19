@@ -801,7 +801,6 @@ serve(async (req) => {
 
       await recordUsage(userId, 'enhance', { section, action, provider: providerUsed, variantsCount: variants.length });
 
-      // Atomically deduct credits server-side before returning results (cost=1 for enhance)
 
       return new Response(JSON.stringify({
         variants,
@@ -857,7 +856,6 @@ serve(async (req) => {
     // Record usage for rate limiting — include which provider handled the request
     await recordUsage(userId, 'enhance', { section, action, provider: aiResponse.providerUsed || 'unknown' });
 
-    // Atomically deduct credits server-side before returning results (cost=1 for enhance)
 
     const responseBody: Record<string, unknown> = { ...(enhancedContent as Record<string, unknown>) };
     responseBody._providerUsed = aiResponse.providerUsed || 'unknown';

@@ -168,7 +168,6 @@ Return a JSON object:
 
     await recordUsage(userId, 'detect_humanize', { provider: lastProviderUsed || 'unknown' });
 
-    // Atomically deduct credits server-side before returning results (cost=1 for detect-and-humanize)
 
     return new Response(
       JSON.stringify({ success: true, ...result, _providerUsed: lastProviderUsed || 'unknown' }),

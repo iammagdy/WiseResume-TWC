@@ -748,6 +748,7 @@ Analyze deeply, then return this exact JSON structure:
     const content = aiResponse.content;
 
     if (!content) {
+      await refundCredit(userId, creditCheck, 2);
       throw new Error("No content in AI response");
     }
 
@@ -760,6 +761,7 @@ Analyze deeply, then return this exact JSON structure:
 
     if (!parsedResult) {
       console.error("Failed to parse AI response:", content.slice(0, 500));
+      await refundCredit(userId, creditCheck, 2);
       return new Response(
         JSON.stringify({ error: "Failed to parse AI response. Please try again." }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -908,7 +910,6 @@ Generate 3-5 talking points and 3 strengths. Be specific to this candidate and r
 
     await recordUsage(userId, 'tailor', { provider: aiResponse.providerUsed || 'unknown' });
 
-    // Atomically deduct credits server-side before returning results (cost=2 for tailor)
     const svcClient = getServiceClient();
 
     // Fire-and-forget usage event insert

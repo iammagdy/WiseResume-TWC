@@ -163,6 +163,7 @@ ${resume.certifications?.map((c: any) => `- ${c.name} from ${c.issuer}`).join("\
     const result = parseAIJSON(rawContent);
     if (!result) {
       console.error("Failed to parse AI response. Raw content:", rawContent.substring(0, 500));
+      await refundCredit(userId, creditCheck, 1);
       throw new Error("Career assessment returned invalid data. Please try again.");
     }
 
@@ -181,7 +182,6 @@ ${resume.certifications?.map((c: any) => `- ${c.name} from ${c.issuer}`).join("\
 
     await recordUsage(userId, 'career_assess', { provider: aiResponse.providerUsed || 'unknown' });
 
-    // Atomically deduct credits server-side before returning results (cost=1 for career-assessment)
 
     return new Response(JSON.stringify(sanitized), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

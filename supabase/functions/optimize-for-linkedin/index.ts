@@ -200,6 +200,7 @@ Generate a comprehensive LinkedIn optimization package.`;
       result = parseAIJSON(aiResponse.content);
     }
     if (!result) {
+      await refundCredit(userId, creditCheck, 1);
       return new Response(
         JSON.stringify({ error: 'Failed to parse AI response' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -208,7 +209,6 @@ Generate a comprehensive LinkedIn optimization package.`;
 
     await recordUsage(userId, 'linkedin_opt', { provider: aiResponse.providerUsed || 'unknown' });
 
-    // Atomically deduct credits server-side before returning results (cost=1 for optimize-for-linkedin)
 
     return new Response(
       JSON.stringify({ success: true, ...result }),

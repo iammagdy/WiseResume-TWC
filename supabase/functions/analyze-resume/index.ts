@@ -183,6 +183,7 @@ Provide analysis in this exact JSON format:
     }
 
     if (!aiResponse.content) {
+      await refundCredit(userId, creditCheck, 1);
       throw new Error("No content in AI response");
     }
 
@@ -194,6 +195,7 @@ Provide analysis in this exact JSON format:
 
     if (!analysisResult) {
       console.error("Failed to parse AI analysis response:", aiResponse.content?.slice(0, 500));
+      await refundCredit(userId, creditCheck, 1);
       return new Response(
         JSON.stringify({ error: "Failed to parse AI response. Please try again." }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -202,7 +204,6 @@ Provide analysis in this exact JSON format:
 
     await recordUsage(userId, 'analyze', { provider: aiResponse.providerUsed || 'unknown' });
 
-    // Atomically deduct credits server-side before returning results (cost=1 for analyze)
 
     return new Response(
       JSON.stringify({ ...analysisResult as Record<string, unknown>, _providerUsed: aiResponse.providerUsed || 'unknown' }),

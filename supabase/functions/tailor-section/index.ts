@@ -167,6 +167,7 @@ Return this exact JSON:
     }
 
     if (!aiResponse.content) {
+      await refundCredit(userId, creditCheck, 1);
       throw new Error('No content in AI response');
     }
 
@@ -177,6 +178,7 @@ Return this exact JSON:
 
     if (!parsed) {
       console.error('[tailor-section] Failed to parse AI response:', aiResponse.content?.slice(0, 300));
+      await refundCredit(userId, creditCheck, 1);
       return new Response(
         JSON.stringify({ error: 'Failed to parse AI response. Please try again.' }),
         { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

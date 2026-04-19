@@ -288,6 +288,7 @@ Deno.serve(async (req) => {
     }
 
     if (!briefing) {
+      await refundCredit(userId, creditCheck, 1);
       return new Response(JSON.stringify({ error: 'Failed to generate briefing' }), {
         status: 500, headers: { ...cors, 'Content-Type': 'application/json' },
       });
@@ -295,7 +296,6 @@ Deno.serve(async (req) => {
 
     await recordUsage(userId, 'company_briefing', { provider: aiResponse.providerUsed || 'unknown', mode: isCompanyNameMode ? 'company_name' : 'job_description' });
 
-    // Atomically deduct credits server-side before returning results (cost=1 for company-briefing)
 
     return new Response(JSON.stringify({ briefing }), {
       headers: { ...cors, 'Content-Type': 'application/json' },
