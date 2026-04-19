@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
 import { PipelineColumn } from './PipelineColumn';
+import { CandidateCard } from './CandidateCard';
 import { CandidateDetailPanel } from './CandidateDetailPanel';
 import { AddCandidateSheet } from './AddCandidateSheet';
 import { PipelineSkeleton } from './PipelineSkeleton';
@@ -10,8 +11,9 @@ import { Button } from '@/components/ui/button';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { Download, UserPlus, CheckSquare, X, ChevronDown } from 'lucide-react';
+import { Download, UserPlus, CheckSquare, X, ChevronDown, Plus } from 'lucide-react';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
 interface PipelineBoardProps {
   roleId?: string;
@@ -50,11 +52,29 @@ export function PipelineBoard({ roleId, clientId, roles, biasMode = false }: Pip
   const { data: candidates = [], isLoading, updatePipelineStage, bulkUpdatePipelineStage, updateNotes, addCandidate } = usePipeline(roleId, clientId);
   const [selectedCandidate, setSelectedCandidate] = useState<PipelineCandidate | null>(null);
   const [showAddSheet, setShowAddSheet] = useState(false);
+  const [defaultStage, setDefaultStage] = useState<string | undefined>(undefined);
   const dragState = useRef<DragState>({ candidateId: null, fromStage: null });
 
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkTargetStage, setBulkTargetStage] = useState<string>('');
+
+  // Mobile: track which stage sections are collapsed (default: all expanded)
+  const [collapsedStages, setCollapsedStages] = useState<Set<string>>(new Set());
+
+  function toggleCollapsedStage(stageId: string) {
+    setCollapsedStages((prev) => {
+      const next = new Set(prev);
+      if (next.has(stageId)) next.delete(stageId);
+      else next.add(stageId);
+      return next;
+    });
+  }
+
+  function openAddSheet(stageId?: string) {
+    setDefaultStage(stageId);
+    setShowAddSheet(true);
+  }
 
   // Memoize the stage->candidates bucketing so it doesn't rebuild on every
   // unrelated re-render (card click, hover, selection toggle). Only recompute
@@ -238,7 +258,7 @@ export function PipelineBoard({ roleId, clientId, roles, biasMode = false }: Pip
                 </Button>
               )}
               <Button
-                onClick={() => setShowAddSheet(true)}
+                onClick={() => openAddSheet()}
                 className="bg-blue-700 hover:bg-blue-800 text-white h-8 text-xs font-semibold"
               >
                 <UserPlus className="h-3.5 w-3.5 mr-1.5" />
@@ -249,8 +269,83 @@ export function PipelineBoard({ roleId, clientId, roles, biasMode = false }: Pip
         )}
       </div>
 
-      {/* Board + detail panel */}
-      <div className="flex gap-0 flex-1 min-h-0 relative">
+      {/* ── Mobile layout (< md): vertically stacked collapsible sections ── */}
+      <div className="flex flex-col gap-3 md:hidden">
+        {PIPELINE_STAGES.map((stage) => {
+          const stageCandidates = stageMap[stage.id] ?? [];
+          const isExpanded = !collapsedStages.has(stage.id);
+          return (
+            <div
+              key={stage.id}
+              className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden"
+            >
+              {/* Collapsible header */}
+              <button
+                type="button"
+                onClick={() => toggleCollapsedStage(stage.id)}
+                className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 dark:bg-slate-800/40 text-left"
+              >
+                <span className={cn('text-sm font-semibold', stage.color.split(' ').slice(-2).join(' '))}>
+                  {stage.label}
+                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-slate-400 dark:text-slate-500 bg-slate-200 dark:bg-slate-700 rounded-full px-2 py-0.5">
+                    {stageCandidates.length}
+                  </span>
+                  <ChevronDown
+                    className={cn(
+                      'h-4 w-4 text-slate-400 transition-transform duration-200',
+                      !isExpanded && '-rotate-90',
+                    )}
+                  />
+                </div>
+              </button>
+
+              {/* Expanded body */}
+              {isExpanded && (
+                <div className="p-3 space-y-2">
+                  {stageCandidates.length === 0 ? (
+                    <p className="text-xs text-slate-400 dark:text-slate-500 text-center py-4">
+                      No candidates in this stage
+                    </p>
+                  ) : (
+                    stageCandidates.map((c) => (
+                      <CandidateCard
+                        key={c.id}
+                        candidate={c}
+                        onClick={() => {
+                          if (selectionMode) return;
+                          setSelectedCandidate(c.id === selectedCandidate?.id ? null : c);
+                        }}
+                        onDragStart={dragHandlers.onDragStart(c.id, stage.id)}
+                        onDragEnd={dragHandlers.onDragEnd()}
+                        biasMode={biasMode}
+                        selectionMode={selectionMode}
+                        selected={selectedIds.has(c.id)}
+                        onToggleSelect={toggleSelect}
+                      />
+                    ))
+                  )}
+                  {/* Per-section add button on mobile */}
+                  {!selectionMode && (
+                    <button
+                      type="button"
+                      onClick={() => openAddSheet(stage.id)}
+                      className="w-full flex items-center justify-center gap-1.5 text-xs text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 py-2.5 rounded-lg border border-dashed border-blue-200 dark:border-blue-800 transition-colors"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      Add to {stage.label}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* ── Desktop layout (md+): horizontal Kanban board ── */}
+      <div className="hidden md:flex gap-0 flex-1 min-h-0 relative">
         <div className="flex gap-3 overflow-x-auto pb-2 flex-1">
           {PIPELINE_STAGES.map((stage) => (
             <PipelineColumn
@@ -266,6 +361,7 @@ export function PipelineBoard({ roleId, clientId, roles, biasMode = false }: Pip
               selectionMode={selectionMode}
               selectedIds={selectedIds}
               onToggleSelect={toggleSelect}
+              onAddClick={() => openAddSheet(stage.id)}
             />
           ))}
         </div>
@@ -283,11 +379,12 @@ export function PipelineBoard({ roleId, clientId, roles, biasMode = false }: Pip
 
       <AddCandidateSheet
         open={showAddSheet}
-        onClose={() => setShowAddSheet(false)}
+        onClose={() => { setShowAddSheet(false); setDefaultStage(undefined); }}
         roles={roles}
         defaultRoleId={roleId}
-        onAdd={async ({ name, email, roleId: rId }) => {
-          await addCandidate.mutateAsync({ name, email, roleId: rId });
+        defaultStage={defaultStage}
+        onAdd={async ({ name, email, roleId: rId, stage }) => {
+          await addCandidate.mutateAsync({ name, email, roleId: rId, stage });
         }}
       />
     </div>

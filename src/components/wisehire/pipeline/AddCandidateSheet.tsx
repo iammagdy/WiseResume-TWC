@@ -28,7 +28,8 @@ interface AddCandidateSheetProps {
   onClose: () => void;
   roles: Role[];
   defaultRoleId?: string;
-  onAdd: (data: { name: string; email?: string; roleId?: string }) => Promise<void>;
+  defaultStage?: string;
+  onAdd: (data: { name: string; email?: string; roleId?: string; stage?: string }) => Promise<void>;
 }
 
 async function checkForDuplicates(name: string, email: string): Promise<DuplicateMatch[]> {
@@ -55,7 +56,7 @@ async function checkForDuplicates(name: string, email: string): Promise<Duplicat
   return (data ?? []) as DuplicateMatch[];
 }
 
-export function AddCandidateSheet({ open, onClose, roles, defaultRoleId, onAdd }: AddCandidateSheetProps) {
+export function AddCandidateSheet({ open, onClose, roles, defaultRoleId, defaultStage, onAdd }: AddCandidateSheetProps) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [roleId, setRoleId] = useState(defaultRoleId ?? 'none');
@@ -106,6 +107,7 @@ export function AddCandidateSheet({ open, onClose, roles, defaultRoleId, onAdd }
         name: name.trim(),
         email: email.trim() || undefined,
         roleId: roleId !== 'none' ? roleId : undefined,
+        stage: defaultStage,
       });
       setName('');
       setEmail('');
@@ -137,7 +139,8 @@ export function AddCandidateSheet({ open, onClose, roles, defaultRoleId, onAdd }
             Add Candidate
           </SheetTitle>
           <SheetDescription>
-            Candidate will be placed in the Shortlisted stage.
+            Candidate will be placed in the{' '}
+            {STAGE_LABELS[defaultStage ?? 'shortlisted'] ?? 'Shortlisted'} stage.
           </SheetDescription>
         </SheetHeader>
 

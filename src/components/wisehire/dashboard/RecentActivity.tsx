@@ -69,7 +69,19 @@ export function RecentActivity() {
     );
   }
 
-  if (!data || data.length === 0) return null;
+  if (!data || data.length === 0) {
+    return (
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
+        <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">Recent Activity</h2>
+        <div className="flex flex-col items-center py-6 text-center">
+          <Clock className="h-6 w-6 text-slate-300 dark:text-slate-600 mb-2" />
+          <p className="text-xs text-slate-400 dark:text-slate-500">
+            No activity yet — move a candidate through the pipeline to see it here.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5">

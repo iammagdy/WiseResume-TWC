@@ -172,12 +172,13 @@ export function usePipeline(roleId?: string, clientId?: string) {
   });
 
   const addCandidate = useMutation({
-    mutationFn: async ({ name, email, roleId: rId, resumePdfPath, resumeText }: {
+    mutationFn: async ({ name, email, roleId: rId, resumePdfPath, resumeText, stage }: {
       name: string;
       email?: string;
       roleId?: string;
       resumePdfPath?: string;
       resumeText?: string;
+      stage?: string;
     }) => {
       if (!userId) throw new Error('Not authenticated');
       const { data, error } = await supabase
@@ -189,7 +190,7 @@ export function usePipeline(roleId?: string, clientId?: string) {
           role_id: rId ?? null,
           resume_pdf_path: resumePdfPath ?? null,
           resume_text: resumeText ?? null,
-          pipeline_stage: 'shortlisted',
+          pipeline_stage: (stage ?? 'shortlisted') as PipelineStage,
           is_deleted: false,
         })
         .select('id')
@@ -197,10 +198,11 @@ export function usePipeline(roleId?: string, clientId?: string) {
       if (error) throw new Error(error.message);
       return data.id as string;
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['wisehire-pipeline', userId] });
       queryClient.invalidateQueries({ queryKey: ['wisehire-dashboard-stats', userId] });
-      toast.success('Candidate added to Shortlisted.');
+      const stageLabel = PIPELINE_STAGES.find((s) => s.id === (variables.stage ?? 'shortlisted'))?.label ?? 'Shortlisted';
+      toast.success(`Candidate added to ${stageLabel}.`);
     },
     onError: (err) => {
       toast.error(err instanceof Error ? err.message : 'Failed to add candidate');

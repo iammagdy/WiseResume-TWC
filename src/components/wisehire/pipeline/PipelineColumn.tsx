@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import type { PipelineCandidate, PipelineStage } from '@/hooks/wisehire/usePipeline';
 import { CandidateCard } from './CandidateCard';
+import { Plus } from 'lucide-react';
 
 interface PipelineColumnProps {
   stage: { id: PipelineStage; label: string; color: string };
@@ -18,6 +19,7 @@ interface PipelineColumnProps {
   selectionMode?: boolean;
   selectedIds?: Set<string>;
   onToggleSelect?: (id: string) => void;
+  onAddClick?: () => void;
 }
 
 // Below this threshold the cost of measuring + virtualizing exceeds the
@@ -33,6 +35,7 @@ export function PipelineColumn({
   selectionMode = false,
   selectedIds,
   onToggleSelect,
+  onAddClick,
 }: PipelineColumnProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const shouldVirtualize = candidates.length > VIRTUALIZE_THRESHOLD;
@@ -117,6 +120,17 @@ export function PipelineColumn({
         </div>
       ) : (
         candidates.map(renderCard)
+      )}
+
+      {/* Per-column add button — only shown when not in selection mode */}
+      {!selectionMode && onAddClick && (
+        <button
+          onClick={onAddClick}
+          className="mt-1 w-full flex items-center justify-center gap-1 text-xs text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 py-1.5 rounded-lg border border-dashed border-blue-200 dark:border-blue-800 transition-colors"
+        >
+          <Plus className="h-3 w-3" />
+          Add
+        </button>
       )}
     </div>
   );
