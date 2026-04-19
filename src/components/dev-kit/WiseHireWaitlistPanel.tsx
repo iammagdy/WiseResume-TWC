@@ -38,6 +38,7 @@ interface WaitlistEntry {
   submitted_at: string;
   invited_at: string | null;
   invite_used_at: string | null;
+  invite_status: 'active' | 'revoked' | 'expired' | null;
   notes: string | null;
 }
 
@@ -85,7 +86,6 @@ export function WiseHireWaitlistPanel() {
   const [inviteFor, setInviteFor] = useState<string>('');
 
   const [revoking, setRevoking] = useState<string | null>(null);
-  const [revokedIds, setRevokedIds] = useState<Set<string>>(new Set());
   const [revokeTarget, setRevokeTarget] = useState<WaitlistEntry | null>(null);
 
   const isMounted = useIsMounted();
@@ -135,12 +135,10 @@ export function WiseHireWaitlistPanel() {
       toast.success(`Invite sent to ${entry.email}`);
       setInviteFor(entry.email);
       setInviteResult({ invite_url: result.invite_url, expires_at: result.expires_at });
-      setEntries(prev => prev.map(e => e.id === entry.id ? { ...e, invited_at: new Date().toISOString() } : e));
-      setRevokedIds(prev => {
-        const next = new Set(prev);
-        next.delete(entry.id);
-        return next;
-      });
+      setEntries(prev => prev.map(e => e.id === entry.id
+        ? { ...e, invited_at: new Date().toISOString(), invite_status: 'active' }
+        : e
+      ));
     } catch (e) {
       toast.error(formatEdgeError(e, 'Failed to send invite'));
     } finally {
@@ -162,7 +160,10 @@ export function WiseHireWaitlistPanel() {
       unwrapAdminResponse<{ revoked_count?: number }>(tuple, 'admin-wisehire-revoke-invite');
       if (!isMounted()) return;
       toast.success(`Invite revoked for ${entry.email}`);
-      setRevokedIds(prev => new Set([...prev, entry.id]));
+      setEntries(prev => prev.map(e => e.id === entry.id
+        ? { ...e, invite_status: 'revoked' }
+        : e
+      ));
     } catch (e) {
       toast.error(formatEdgeError(e, 'Failed to revoke invite'));
     } finally {
@@ -237,9 +238,9 @@ export function WiseHireWaitlistPanel() {
               </thead>
               <tbody>
                 {entries.map((entry) => {
-                  const isRevoked = revokedIds.has(entry.id);
+                  const isRevoked = entry.invite_status === 'revoked';
                   const isActive = !!entry.invite_used_at;
-                  const isInvited = !!entry.invited_at && !isRevoked && !isActive;
+                  const isInvited = !!entry.invited_at && entry.invite_status === 'active' && !isActive;
                   const isBusy = inviting === entry.id || revoking === entry.id;
 
                   return (

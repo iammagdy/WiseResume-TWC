@@ -50,29 +50,49 @@ Deno.serve(async (req) => {
 
     const entries = data ?? [];
 
-    // Determine which entries have completed signup (used_at IS NOT NULL)
-    let activeEmailMap: Map<string, string> = new Map();
+    type InviteStatusValue = 'active' | 'revoked' | 'expired' | null;
+
+    let inviteUsedAtMap: Map<string, string> = new Map();
+    let inviteStatusMap: Map<string, InviteStatusValue> = new Map();
+
     if (entries.length > 0) {
       const emails = entries.map((e: { email: string }) => e.email.toLowerCase());
-      const { data: usedInvites, error: inviteError } = await supabase
+
+      const { data: allInvites, error: inviteError } = await supabase
         .from('wisehire_invites')
-        .select('recipient_email, used_at')
+        .select('recipient_email, used_at, is_revoked, expires_at, created_at')
         .in('recipient_email', emails)
-        .not('used_at', 'is', null);
+        .order('created_at', { ascending: false });
 
       if (inviteError) throw inviteError;
 
-      for (const inv of (usedInvites ?? [])) {
+      const now = new Date();
+
+      for (const inv of (allInvites ?? [])) {
         const normalizedEmail = inv.recipient_email.toLowerCase();
-        if (!activeEmailMap.has(normalizedEmail)) {
-          activeEmailMap.set(normalizedEmail, inv.used_at);
+
+        if (inv.used_at && !inviteUsedAtMap.has(normalizedEmail)) {
+          inviteUsedAtMap.set(normalizedEmail, inv.used_at);
+        }
+
+        if (!inviteStatusMap.has(normalizedEmail)) {
+          let status: InviteStatusValue;
+          if (inv.is_revoked) {
+            status = 'revoked';
+          } else if (new Date(inv.expires_at) < now) {
+            status = 'expired';
+          } else {
+            status = 'active';
+          }
+          inviteStatusMap.set(normalizedEmail, status);
         }
       }
     }
 
     const enrichedEntries = entries.map((e: { email: string }) => ({
       ...e,
-      invite_used_at: activeEmailMap.get(e.email.toLowerCase()) ?? null,
+      invite_used_at: inviteUsedAtMap.get(e.email.toLowerCase()) ?? null,
+      invite_status: inviteStatusMap.get(e.email.toLowerCase()) ?? null,
     }));
 
     return json({ success: true, entries: enrichedEntries, total: count ?? 0, page, per_page }, 200, corsHeaders);
