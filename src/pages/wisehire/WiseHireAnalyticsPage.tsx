@@ -150,14 +150,15 @@ function FunnelChart({ data }: { data: { stage: string; label: string; count: nu
   );
 }
 
-function EmptyState({ rangeLabel }: { rangeLabel: string }) {
+// Shown when there are truly no candidates at all (all-time view)
+function OnboardingEmptyState() {
   return (
     <div className="flex flex-col items-center justify-center py-20 px-6 text-center rounded-2xl border border-dashed border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
       <div className="inline-flex p-4 rounded-full bg-blue-50 dark:bg-blue-900/20 mb-4">
         <BarChart2 className="h-8 w-8 text-blue-500 dark:text-blue-400" />
       </div>
       <h2 className="text-base font-semibold text-slate-800 dark:text-slate-200 mb-2">
-        No data for {rangeLabel.toLowerCase()}
+        No hiring data yet
       </h2>
       <p className="text-sm text-slate-500 dark:text-slate-400 max-w-xs mb-6">
         Add candidates to your pipeline and run bulk screenings to see your hiring metrics populate here.
@@ -169,6 +170,23 @@ function EmptyState({ rangeLabel }: { rangeLabel: string }) {
         <PlusCircle className="h-4 w-4" />
         Go to Pipeline
       </Link>
+    </div>
+  );
+}
+
+// Shown when a date-range filter is active but that period has no activity
+function NoActivityInPeriod({ rangeLabel }: { rangeLabel: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-16 px-6 text-center rounded-2xl border border-dashed border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
+      <div className="inline-flex p-3 rounded-full bg-slate-100 dark:bg-slate-800 mb-3">
+        <BarChart2 className="h-6 w-6 text-slate-400 dark:text-slate-500" />
+      </div>
+      <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">
+        No activity {rangeLabel.toLowerCase()}
+      </h2>
+      <p className="text-xs text-slate-400 dark:text-slate-500 max-w-xs">
+        There were no new candidates or pipeline movements in this period. Try a wider date range to see your metrics.
+      </p>
     </div>
   );
 }
@@ -220,7 +238,9 @@ export default function WiseHireAnalyticsPage() {
           <div className="py-12 text-center text-sm text-slate-500">Failed to load analytics. Please refresh.</div>
         ) : data ? (
           data.totalCandidates === 0 ? (
-            <EmptyState rangeLabel={rangeLabel} />
+            dateRange === 'all'
+              ? <OnboardingEmptyState />
+              : <NoActivityInPeriod rangeLabel={rangeLabel} />
           ) : (
             <>
               {/* Stat cards row 1 */}
