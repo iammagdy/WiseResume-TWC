@@ -3,7 +3,7 @@ import {
   Wand2, Loader2, CheckCircle, ArrowRight, Undo2, GitCompare, 
   History, FileText, Sparkles, ChevronRight, Brain, Target, BarChart3,
   Zap, Gauge, Flame, AlertTriangle, HeartHandshake, Key, RefreshCw, Bug, X, Settings,
-  ExternalLink, Copy, Check, ChevronDown, ChevronUp, Briefcase, Download
+  ExternalLink, Copy, Check, ChevronDown, ChevronUp, Briefcase, Download, Eye
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,8 @@ import { useResumeStore } from '@/store/resumeStore';
 import { tailorResumeWithProgress, tailorSection, TailorIntensity, TailorError } from '@/lib/aiTailor';
 import { toast } from 'sonner';
 import { CompareSheet } from './CompareSheet';
+import { TailorPreviewSheet } from './tailor/TailorPreviewSheet';
+import { buildMergedResume } from '@/lib/tailorMerge';
 import { TailorProgressComponent } from './tailor/TailorProgress';
 import { SectionChangeCard } from './tailor/SectionChangeCard';
 import { SkillSuggestionList } from './tailor/SkillSuggestionList';
@@ -260,6 +262,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
   const [originalResume, setOriginalResume] = useState<ResumeData | null>(null);
   const [progress, setProgress] = useState<TailorProgress | EnhancedTailorProgress | null>(null);
   const [showCompare, setShowCompare] = useState(false);
+  const [showTailorPreview, setShowTailorPreview] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showCoverLetter, setShowCoverLetter] = useState(false);
   const [parsedJobInfo, setParsedJobInfo] = useState<{ title: string; company: string } | null>(null);
@@ -610,50 +613,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
     setIsApplying(true);
 
     try {
-      const mergedResume: ResumeData = { ...currentResume };
-
-      if (enabledSections.includes('summary')) {
-        mergedResume.summary = tailorResult.summary;
-      }
-      if (enabledSections.includes('skills')) {
-        mergedResume.skills = tailorResult.skills;
-      }
-      if (enabledSections.includes('experience')) {
-        // ID-based merge — iterate originals as source of truth, look up AI version by id
-        // Apply per-bullet rejections from the accept/reject UI
-        mergedResume.experience = currentResume.experience.map(orig => {
-          const tailored = tailorResult.experience.find(e => e.id === orig.id);
-          if (!tailored) return orig;
-          const merged = { ...orig, ...tailored };
-          // Re-apply original bullets for any rejected ones
-          if (tailorResult.bulletTransformations && orig.achievements) {
-            const mergedAchievements = [...(tailored.achievements ?? orig.achievements)];
-            tailorResult.bulletTransformations
-              .filter(bt => bt.experienceId === orig.id && rejectedBullets.has(`${bt.experienceId}-${bt.bulletIndex}`))
-              .forEach(bt => {
-                mergedAchievements[bt.bulletIndex] = bt.originalBullet;
-              });
-            merged.achievements = mergedAchievements;
-          }
-          return merged;
-        });
-      }
-      if (enabledSections.includes('education')) {
-        // T006: ID-based merge for education — same pattern as experience
-        mergedResume.education = currentResume.education.map(orig => {
-          const tailored = tailorResult.education.find(e => e.id === orig.id);
-          return tailored ? { ...orig, ...tailored } : orig;
-        });
-      }
-      if (enabledSections.includes('projects') && tailorResult.projects) {
-        mergedResume.projects = tailorResult.projects;
-      }
-      if (enabledSections.includes('certifications') && tailorResult.certifications) {
-        mergedResume.certifications = tailorResult.certifications;
-      }
-      if (enabledSections.includes('awards') && tailorResult.awards) {
-        mergedResume.awards = tailorResult.awards;
-      }
+      const mergedResume = buildMergedResume(currentResume, tailorResult, enabledSections, rejectedBullets);
 
       const jobTitle = parsedJobInfo?.title || tailorResult.jobParsed?.title || 'Position';
       const company = parsedJobInfo?.company || tailorResult.jobParsed?.company || 'Company';
@@ -1710,7 +1670,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
         {/* Sticky CTA Footer */}
         {tailorResult && !isTailoring && (
           <div className="shrink-0 border-t border-border bg-background/95 backdrop-blur-sm px-4 py-2 pb-safe [@media(max-height:700px)]:py-1.5">
-            <div className="flex gap-3">
+            <div className="flex gap-2">
               <Button
                 variant="outline"
                 className="flex-1 min-h-[44px] [@media(max-height:700px)]:min-h-[36px] active:scale-95 transition-transform"
@@ -1720,12 +1680,23 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
                 Discard
               </Button>
               <Button
+                variant="outline"
+                className="min-h-[44px] [@media(max-height:700px)]:min-h-[36px] px-3 active:scale-95 transition-transform"
+                onClick={() => { haptics.light(); setShowTailorPreview(true); }}
+                disabled={enabledSections.length === 0}
+                aria-label="Preview tailored resume"
+                title="Preview tailored resume"
+              >
+                <Eye className="w-4 h-4 mr-1.5" />
+                Preview
+              </Button>
+              <Button
                 className="flex-1 gradient-primary min-h-[44px] [@media(max-height:700px)]:min-h-[36px] active:scale-95 transition-transform"
                 onClick={() => { haptics.success(); setShowCompare(true); }}
                 disabled={enabledSections.length === 0}
               >
                 <GitCompare className="w-4 h-4 mr-2" />
-                Preview & Apply ({enabledSections.length})
+                Compare & Apply ({enabledSections.length})
               </Button>
             </div>
             {enabledSections.length === 0 ? (
@@ -1752,6 +1723,23 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
         originalResume={originalResume}
         tailorResult={tailorResult}
         onApplyChanges={handleApplyChanges}
+      />
+
+      {/* Tailored Resume Preview Sheet — ephemeral render of merged result */}
+      <TailorPreviewSheet
+        open={showTailorPreview}
+        onOpenChange={setShowTailorPreview}
+        resume={
+          tailorResult && currentResume
+            ? buildMergedResume(currentResume, tailorResult, enabledSections, rejectedBullets)
+            : null
+        }
+        onApply={() => {
+          setShowTailorPreview(false);
+          handleApplyChanges();
+        }}
+        isApplying={isApplying}
+        applyLabel={`Apply (${enabledSections.length})`}
       />
 
       {/* History Sheet */}

@@ -3,7 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Wand2, Loader2, CheckCircle, ArrowLeft, Sparkles, Zap, Gauge, Flame,
   Settings, RefreshCw, Copy, Check, ExternalLink, ChevronDown, ChevronUp,
-  Key, HeartHandshake, Bug, X, Briefcase
+  Key, HeartHandshake, Bug, X, Briefcase, Eye
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +18,8 @@ import { ScoreComparison } from '@/components/editor/tailor/ScoreComparison';
 import { KeywordMatchBar } from '@/components/editor/tailor/KeywordMatchBar';
 import { KeywordMatchList } from '@/components/editor/tailor/KeywordMatchList';
 import { JobUrlParser } from '@/components/editor/tailor/JobUrlParser';
+import { TailorPreviewSheet } from '@/components/editor/tailor/TailorPreviewSheet';
+import { buildMergedResume } from '@/lib/tailorMerge';
 import { AICostBadge } from '@/components/ai/AICostBadge';
 import { AISettingsSheet } from '@/components/settings/AISettingsSheet';
 import { reportBug } from '@/lib/bugReport';
@@ -183,6 +185,7 @@ export default function TailorPage() {
   const [showAISettings, setShowAISettings] = useState(false);
   const [copiedText, setCopiedText] = useState(false);
   const [showAppliedCTA, setShowAppliedCTA] = useState(false);
+  const [showTailorPreview, setShowTailorPreview] = useState(false);
   const [appliedResumeId, setAppliedResumeId] = useState<string | null>(null);
   const [appliedResumeTitle, setAppliedResumeTitle] = useState<string | null>(null);
   const [appliedJobInfo, setAppliedJobInfo] = useState<{ title: string; company: string } | null>(null);
@@ -349,34 +352,7 @@ export default function TailorPage() {
 
     setIsApplying(true);
     try {
-      const mergedResume: ResumeData = { ...currentResume };
-
-      if (enabledSections.includes('summary')) mergedResume.summary = tailorResult.summary;
-      if (enabledSections.includes('skills')) mergedResume.skills = tailorResult.skills;
-      if (enabledSections.includes('experience')) {
-        mergedResume.experience = currentResume.experience.map(orig => {
-          const tailored = tailorResult.experience.find(e => e.id === orig.id);
-          if (!tailored) return orig;
-          const merged = { ...orig, ...tailored };
-          if (tailorResult.bulletTransformations && orig.achievements) {
-            const mergedAchievements = [...(tailored.achievements ?? orig.achievements)];
-            tailorResult.bulletTransformations
-              .filter(bt => bt.experienceId === orig.id && rejectedBullets.has(`${bt.experienceId}-${bt.bulletIndex}`))
-              .forEach(bt => { mergedAchievements[bt.bulletIndex] = bt.originalBullet; });
-            merged.achievements = mergedAchievements;
-          }
-          return merged;
-        });
-      }
-      if (enabledSections.includes('education')) {
-        mergedResume.education = currentResume.education.map(orig => {
-          const tailored = tailorResult.education.find(e => e.id === orig.id);
-          return tailored ? { ...orig, ...tailored } : orig;
-        });
-      }
-      if (enabledSections.includes('projects') && tailorResult.projects) mergedResume.projects = tailorResult.projects;
-      if (enabledSections.includes('certifications') && tailorResult.certifications) mergedResume.certifications = tailorResult.certifications;
-      if (enabledSections.includes('awards') && tailorResult.awards) mergedResume.awards = tailorResult.awards;
+      const mergedResume = buildMergedResume(currentResume, tailorResult, enabledSections, rejectedBullets);
 
       const jobTitle = parsedJobInfo?.title || tailorResult.jobParsed?.title || 'Position';
       const company = parsedJobInfo?.company || tailorResult.jobParsed?.company || 'Company';
@@ -708,6 +684,7 @@ export default function TailorPage() {
                 enabledSections={enabledSections}
                 toggleSection={toggleSection}
                 onApplyChanges={handleApplyChanges}
+                onPreview={() => setShowTailorPreview(true)}
                 isApplying={isApplying}
                 onRetry={() => { setTailorError(null); handleTailor(); }}
                 onSettings={() => setShowAISettings(true)}
@@ -746,6 +723,7 @@ export default function TailorPage() {
               enabledSections={enabledSections}
               toggleSection={toggleSection}
               onApplyChanges={handleApplyChanges}
+              onPreview={() => setShowTailorPreview(true)}
               isApplying={isApplying}
               onRetry={() => { setTailorError(null); handleTailor(); }}
               onSettings={() => setShowAISettings(true)}
@@ -781,6 +759,23 @@ export default function TailorPage() {
       </div>
 
       <AISettingsSheet open={showAISettings} onOpenChange={setShowAISettings} />
+
+      {/* Tailored Resume Preview Sheet — ephemeral render of merged result */}
+      <TailorPreviewSheet
+        open={showTailorPreview}
+        onOpenChange={setShowTailorPreview}
+        resume={
+          tailorResult && currentResume
+            ? buildMergedResume(currentResume, tailorResult, enabledSections, rejectedBullets)
+            : null
+        }
+        onApply={() => {
+          setShowTailorPreview(false);
+          handleApplyChanges();
+        }}
+        isApplying={isApplying}
+        applyLabel={`Apply (${enabledSections.length})`}
+      />
     </div>
   );
 }
@@ -815,6 +810,7 @@ interface ResultsPanelProps {
   enabledSections: TailorSectionId[];
   toggleSection: (s: TailorSectionId) => void;
   onApplyChanges: () => void;
+  onPreview: () => void;
   isApplying: boolean;
   onRetry: () => void;
   onSettings: () => void;
@@ -838,7 +834,7 @@ interface ResultsPanelProps {
 
 function ResultsPanel({
   isTailoring, progress, tailorResult, tailorError, originalResume,
-  enabledSections, toggleSection, onApplyChanges, isApplying,
+  enabledSections, toggleSection, onApplyChanges, onPreview, isApplying,
   onRetry, onSettings, onRevert, abortRef, setIsTailoring, setProgress,
   showAppliedCTA, appliedResumeId, appliedResumeTitle, appliedJobInfo,
   onViewResume, onTrackApplication, onCloseSuccess,
@@ -1139,12 +1135,20 @@ function ResultsPanel({
           )}
 
           {/* Apply */}
-          <div className="flex gap-3 pt-2">
-            <Button variant="outline" className="flex-1" onClick={onRevert}>
+          <div className="flex flex-wrap gap-2 pt-2">
+            <Button variant="outline" className="flex-1 min-w-[110px]" onClick={onRevert}>
               <X className="w-4 h-4 mr-2" /> Discard
             </Button>
             <Button
-              className="flex-1 gradient-primary"
+              variant="outline"
+              className="flex-1 min-w-[110px]"
+              onClick={onPreview}
+              disabled={enabledSections.length === 0}
+            >
+              <Eye className="w-4 h-4 mr-2" /> Preview
+            </Button>
+            <Button
+              className="flex-1 min-w-[140px] gradient-primary"
               onClick={onApplyChanges}
               disabled={enabledSections.length === 0 || isApplying}
             >

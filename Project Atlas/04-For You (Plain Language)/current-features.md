@@ -1,6 +1,12 @@
 # What Wise Cloud Can Do Today
 
-**Last verified:** 2026-04-18 (Task #5)
+**Last verified:** 2026-04-19 (Task #5)
+
+## Preview tailored resume before applying (2026-04-19)
+**What was the situation:** After tailoring a resume to a job, the only way to see the polished result rendered with your template was to click "Apply Changes", which spent a slot to create a new resume copy.
+**What changed:** A new "Preview" button now sits next to "Apply" on the tailor results screen. Tap it to open a full preview of the tailored resume — same template, same colours — without saving anything yet.
+**What you'll notice:** You can flip section toggles on and off, open the preview to check how it actually looks, and only commit to a new tailored copy once you're happy.
+
 **Audience:** you (the owner). No code, no jargon, no technical paths.
 **Sources (governance — supreme):**
 - `project-governance/PRODUCT.md` § 2 (WiseResume) and § 3 (WiseHire)

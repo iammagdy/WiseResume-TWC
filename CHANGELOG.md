@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-04-19 — Preview tailored resume before committing (Task #5)
+
+- **`src/lib/tailorMerge.ts`** (new) — `buildMergedResume(currentResume, tailorResult, enabledSections, rejectedBullets)` shared helper. Centralises the section-by-section merge of `SuperTailorResult` onto `ResumeData`, including ID-based merge for `experience`/`education` and per-bullet rejection re-application.
+- **`src/components/editor/tailor/TailorPreviewSheet.tsx`** (new) — Bottom drawer that renders an ephemeral merged resume snapshot via the same lazy-loaded template components as `LivePreviewPanel` (no DB write, no zoom/PDF chrome). Props: `open`, `onOpenChange`, `resume`, `templateId?`, `onApply?`, `isApplying?`, `applyLabel?`. Falls back to `modern` template if `resume.templateId` not in the registry.
+- **`src/components/editor/TailorSheet.tsx`** — Replaced inline merge logic in `handleApplyChanges` with `buildMergedResume()` call. Added `showTailorPreview` state. Added Eye-icon "Preview" button to sticky CTA footer between "Discard" and the primary CTA (renamed from "Preview & Apply" to "Compare & Apply" to disambiguate from the new template-rendered preview). Mounted `<TailorPreviewSheet>` that computes merged resume on demand and forwards Apply CTA to existing `handleApplyChanges`.
+- **`src/pages/TailorPage.tsx`** — Same refactor: `handleApplyChanges` now uses `buildMergedResume()`. Added `showTailorPreview` state and `<TailorPreviewSheet>` mount. `ResultsPanel` gained `onPreview: () => void` prop and a third "Preview" button next to Discard/Apply (responsive flex-wrap).
+- **Behaviour** — Preview honours current `enabledSections` toggles and `rejectedBullets`. No new resume row is created until the user clicks Apply (either from the results panel or from inside the preview drawer).
+
+---
+
 ## 2026-04-19 — Fix two React Query cache bugs in WiseResume (Task #50)
 
 - **`src/hooks/useChatHistory.ts`** — `useChatSessions`: added `user` to `useAuth()` destructure; queryKey changed from `['chat_sessions']` to `['chat_sessions', user?.id]`. `useDeleteChatSession`: added `const { user } = useAuth()`; `invalidateQueries` target updated to `['chat_sessions', user?.id]`. Prevents cross-user session cache bleed during account switching within a single browser tab.
