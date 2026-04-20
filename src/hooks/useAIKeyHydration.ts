@@ -116,7 +116,7 @@ export function useAIKeyHydration() {
 
         if (prefs?.wiseresume_sub_provider) {
           const sub = prefs.wiseresume_sub_provider as string;
-          if (sub === 'openrouter' || sub === 'groq' || sub === 'auto') {
+          if (sub === 'openrouter' || sub === 'openrouter2' || sub === 'groq' || sub === 'auto') {
             store.setWiseresumeSubProvider(sub);
           }
         }
