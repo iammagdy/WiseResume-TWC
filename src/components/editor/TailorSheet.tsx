@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef, useEffect, memo } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect, memo, Suspense } from 'react';
 import { 
   Wand2, Loader2, CheckCircle, ArrowRight, Undo2, GitCompare, 
   History, FileText, Sparkles, ChevronRight, Brain, Target, BarChart3,
@@ -15,6 +15,8 @@ import { tailorResumeWithProgress, tailorSection, TailorIntensity, TailorError }
 import { toast } from 'sonner';
 import { CompareSheet } from './CompareSheet';
 import { TailorPreviewSheet } from './tailor/TailorPreviewSheet';
+import templateComponents from '@/components/templates/registry';
+import { generateCustomizationCSS } from '@/lib/templateCustomization';
 import { buildMergedResume } from '@/lib/tailorMerge';
 import { TailorProgressComponent } from './tailor/TailorProgress';
 import { SectionChangeCard } from './tailor/SectionChangeCard';
@@ -699,6 +701,13 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
     navigate(`/applications?${params.toString()}`);
   }, [navigate, parsedJobInfo, tailorResult, appliedResumeId, onOpenChange]);
 
+  // Hidden offscreen render of the tailored resume so the PDF generator can
+  // find a real DOM node to capture. Without this, generatePDF would query
+  // for `[data-resume-template]` and find nothing (the success card view
+  // does NOT show the resume preview), throwing "No template element found"
+  // and surfacing a generic "Failed to download PDF" toast.
+  const tailoredTemplateRef = useRef<HTMLDivElement>(null);
+
   const handleDownloadPdf = useCallback(async () => {
     if (!appliedMergedResume || isDownloadingPdf) return;
     setIsDownloadingPdf(true);
@@ -706,13 +715,14 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
       const { generatePDF } = await import('@/lib/pdfGenerator');
       const { downloadFile } = await import('@/lib/downloadUtils');
       const templateId = (appliedMergedResume.templateId || 'modern') as import('@/types/resume').TemplateId;
-      const blob = await generatePDF(appliedMergedResume, templateId);
+      const blob = await generatePDF(appliedMergedResume, templateId, tailoredTemplateRef.current);
       const name = appliedMergedResume.contactInfo?.fullName || 'Resume';
       const jobSuffix = appliedJobInfo?.title ? `_${appliedJobInfo.title}` : '';
       const fileName = `${name}${jobSuffix}_Tailored.pdf`.replace(/\s+/g, '_');
       await downloadFile({ blob, fileName });
       toast.success('PDF downloaded!');
-    } catch {
+    } catch (err) {
+      console.error('[TailorSheet] PDF download failed:', err);
       toast.error('Failed to download PDF');
     } finally {
       setIsDownloadingPdf(false);
@@ -1029,6 +1039,45 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
               </p>
             </div>
           )}
+
+          {/* Hidden offscreen render of the tailored resume — needed so
+              handleDownloadPdf has a real DOM node to capture. Positioned
+              far off-screen (not display:none) because html2canvas requires
+              a laid-out element with measurable width/height. */}
+          {showAppliedCTA && !isTailoring && !tailorResult && appliedMergedResume && (() => {
+            const tid = (appliedMergedResume.templateId || 'modern') as string;
+            const TemplateComponent = templateComponents[tid] || templateComponents.modern;
+            return (
+              <div
+                aria-hidden
+                style={{
+                  position: 'fixed',
+                  left: '-99999px',
+                  top: 0,
+                  width: '612px',
+                  pointerEvents: 'none',
+                  opacity: 0,
+                }}
+              >
+                <div
+                  ref={tailoredTemplateRef}
+                  data-resume-template
+                  className="bg-white text-black mx-auto shadow-2xl relative"
+                  style={{ width: '612px', minHeight: '792px' }}
+                >
+                  {appliedMergedResume.customization && (
+                    <style>{generateCustomizationCSS(appliedMergedResume.customization)}</style>
+                  )}
+                  <Suspense fallback={null}>
+                    <TemplateComponent
+                      resume={appliedMergedResume}
+                      accentColor={appliedMergedResume.customization?.accentColor}
+                    />
+                  </Suspense>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Applied Success Card */}
           {showAppliedCTA && !isTailoring && !tailorResult && (
