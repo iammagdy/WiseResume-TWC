@@ -195,22 +195,6 @@ Deno.serve(async (req) => {
   try {
     const { userId } = await requireAuth(req);
 
-    const rateCheck = await checkRateLimit(userId, { maxRequests: 10, windowSeconds: 60, actionType: 'one_page' });
-    if (!rateCheck.allowed) {
-      return new Response(
-        JSON.stringify({ error: `Rate limit exceeded. Try again in ${rateCheck.retryAfterSeconds}s.` }),
-        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const serverRateCheck = await checkUserRateLimit(userId, 'one_page', 10, 60);
-    if (!serverRateCheck.allowed) {
-      return new Response(
-        JSON.stringify({ error: `Rate limit exceeded. Try again in ${serverRateCheck.retryAfterSeconds}s.` }),
-        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
     const bodyText = await req.text();
     if (bodyText.length > MAX_PAYLOAD_SIZE) {
       return new Response(
@@ -222,7 +206,20 @@ Deno.serve(async (req) => {
     const parsedBody: OnePageRequest = JSON.parse(bodyText);
 
     // ── Telemetry mode: skip credit + AI, just emit a structured outcome event ──
+    // IMPORTANT: telemetry runs *before* the analyze rate-limit checks and uses
+    // its own (much higher) bucket so apply/download/undo telemetry beacons
+    // never burn the user's analyze rate budget. Telemetry is a tiny
+    // log-only call — no AI invocation, no credit charge.
     if (parsedBody.mode === 'telemetry' && parsedBody.telemetry) {
+      const telemetryRate = await checkRateLimit(userId, {
+        maxRequests: 60,
+        windowSeconds: 60,
+        actionType: 'one_page_telemetry',
+      });
+      if (!telemetryRate.allowed) {
+        // Drop silently with 204 — telemetry must never surface a user error.
+        return new Response(null, { status: 204, headers: corsHeaders });
+      }
       const t = parsedBody.telemetry;
       log.info('one_page outcome', {
         userId,
@@ -239,6 +236,25 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ success: true, recorded: true }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Analyze path — apply the real (one_page) rate-limit budget.
+    const rateCheck = await checkRateLimit(userId, {
+      maxRequests: 10, windowSeconds: 60, actionType: 'one_page',
+    });
+    if (!rateCheck.allowed) {
+      return new Response(
+        JSON.stringify({ error: `Rate limit exceeded. Try again in ${rateCheck.retryAfterSeconds}s.` }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const serverRateCheck = await checkUserRateLimit(userId, 'one_page', 10, 60);
+    if (!serverRateCheck.allowed) {
+      return new Response(
+        JSON.stringify({ error: `Rate limit exceeded. Try again in ${serverRateCheck.retryAfterSeconds}s.` }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 

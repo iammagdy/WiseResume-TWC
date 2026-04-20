@@ -133,6 +133,45 @@ async function addPageFooter(
  * Forces exact 612px width, removes CSS transforms, ensures all content visible.
  * Returns a cleanup function to restore original styles.
  */
+/**
+ * Live-measurement variant of prepareForCapture. Performs the layout-sizing
+ * work (force PDF width, strip transforms, expand parent overflow) so we can
+ * read accurate dimensions, but does NOT call scrollIntoView() or
+ * window.scrollTo(). Use for frequent live page-count measurements where
+ * touching the user's scroll position would be visible/jarring.
+ */
+export function prepareForMeasure(
+  sourceElement: HTMLElement,
+  pageWidth: number = DEFAULT_PAGE_WIDTH,
+): () => void {
+  const originalStyles = {
+    width: sourceElement.style.width,
+    maxWidth: sourceElement.style.maxWidth,
+    transform: sourceElement.style.transform,
+  };
+  const parentOverflows: { el: HTMLElement; overflow: string }[] = [];
+  let parent = sourceElement.parentElement;
+  while (parent) {
+    parentOverflows.push({ el: parent, overflow: parent.style.overflow });
+    parent.style.overflow = 'visible';
+    parent = parent.parentElement;
+  }
+  sourceElement.style.width = `${pageWidth}px`;
+  sourceElement.style.maxWidth = `${pageWidth}px`;
+  sourceElement.style.transform = 'none';
+  // Force layout recalc without scrolling.
+  // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+  sourceElement.offsetHeight;
+  return () => {
+    sourceElement.style.width = originalStyles.width;
+    sourceElement.style.maxWidth = originalStyles.maxWidth;
+    sourceElement.style.transform = originalStyles.transform;
+    parentOverflows.forEach(({ el, overflow }) => {
+      el.style.overflow = overflow;
+    });
+  };
+}
+
 function prepareForCapture(sourceElement: HTMLElement, pageWidth: number = DEFAULT_PAGE_WIDTH): () => void {
   const originalStyles = {
     width: sourceElement.style.width,
@@ -230,7 +269,9 @@ export function estimateOnePageScale(templateElement: HTMLElement, pageFormat?: 
   const ph = dims?.height || DEFAULT_PAGE_HEIGHT;
   const printable = ph - FOOTER_RESERVED_PT;
 
-  const cleanup = prepareForCapture(templateElement, pw);
+  // Use the no-scroll measurement helper so live page-count probes never
+  // perturb the user's scroll position.
+  const cleanup = prepareForMeasure(templateElement, pw);
   try {
     const { totalHeight, globalScaleFactor } = calculatePDFDimensions(templateElement, pw, ph);
     const pdfContentHeight = totalHeight * globalScaleFactor;
