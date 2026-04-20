@@ -67,11 +67,17 @@ WiseResume is an AI-powered career management PWA. Production URL: https://resum
 
 ## Key Environment Variables (server-side)
 - `DATABASE_URL` — Neon PostgreSQL connection string
-- `SESSION_SECRET` — HMAC secret for session JWT signing/validation
+- `SESSION_SECRET` — HMAC secret for session JWT signing/validation. **Must equal the Supabase project's JWT secret** so PostgREST (and therefore every legacy `supabase.from()` query) accepts our bridge tokens. A mismatch surfaces as `PGRST301 "JWSError JWSInvalidSignature"` on every authenticated read and shows the user "Something went wrong — couldn't load your resumes" after login. Get the value from Supabase dashboard → Project Settings → API → JWT Settings → JWT Secret. Until the remaining 36 direct-Supabase hooks are migrated to `/api/*` Drizzle endpoints, this alignment is mandatory.
 - `VITE_KINDE_DOMAIN` — Kinde domain (also used server-side for JWKS)
 - `VITE_KINDE_CLIENT_ID` — Kinde client ID
 - `VITE_SUPABASE_URL` — Supabase URL (legacy proxy + RLS for client-side Supabase calls)
 - `VITE_SUPABASE_PUBLISHABLE_KEY` — Supabase anon key (safe to expose, no RLS bypass)
+
+## Recent Stabilization (Task #1, post-migration)
+- **JWT alignment**: see `SESSION_SECRET` above — must equal Supabase JWT secret while we still proxy reads through PostgREST.
+- **Force-refresh on JWT rejection**: `safeClient.ts` now detects 401 / `PGRST30{1,2,3}` responses, force-clears the cached bridge token, re-exchanges via the Kinde token getter, and retries the original request once. Prevents the silent "stale token after secret rotation" failure mode.
+- **Account-switch cache isolation**: `AuthContext` now (a) calls `queryClient.clear()` whenever the bridged Supabase user id transitions and (b) clears the cache up-front in `signOut` before the Kinde redirect, so signing in as a different account never briefly shows the previous account's resumes / applications.
+- **Dialog a11y**: `<DialogContent>` now always forwards `aria-describedby` (defaulting to `undefined`) which is Radix's documented opt-out for title-only dialogs and silences the runtime warning without touching every call site.
 
 ## Project Structure
 - `src/` — Core frontend code (components, hooks, lib, pages, store)

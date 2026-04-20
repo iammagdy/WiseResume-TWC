@@ -54,11 +54,18 @@ const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   DialogContentProps
 >(function DialogContentInner({ className, children, fullScreenOnMobile = false, hideCloseButton = false, ...props }, ref) {
+  // Radix logs an a11y warning when neither a `<DialogDescription>` child nor
+  // an explicit `aria-describedby` prop is provided. Forwarding the prop —
+  // even when undefined — is the documented opt-out for content that has no
+  // body description (most of our confirmation dialogs are title-only).
+  const ariaDescribedBy =
+    'aria-describedby' in props ? props['aria-describedby'] : undefined;
   return (
     <DialogPortal>
       <DialogOverlay />
       <DialogPrimitive.Content
         ref={ref}
+        aria-describedby={ariaDescribedBy}
         className={cn(
           "fixed z-50 grid w-full gap-4 border border-border bg-background shadow-soft-xl duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
           fullScreenOnMobile

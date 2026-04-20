@@ -1,6 +1,7 @@
-import React, { createContext, useEffect, useState, useMemo, useCallback } from 'react';
+import React, { createContext, useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useSettingsStore } from '@/store/settingsStore';
 import { logAudit } from '@/lib/auditLogger';
 import { exchangeToken, clearBridge, isReady, getUserId, setKindeTokenGetter } from '@/lib/supabaseBridge';
@@ -82,6 +83,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     logout: kindeLogout,
     getToken,
   } = useKindeAuth();
+
+  const queryClient = useQueryClient();
+  const lastSeenUserIdRef = useRef<string | null>(null);
 
   const [splashHidden, setSplashHidden] = useState(false);
   const [bridgeReady, setBridgeReady] = useState(false);
@@ -225,11 +229,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [loading, splashHidden]);
 
+  // When the bridged Supabase user id changes (initial sign-in, account switch,
+  // or sign-out), dump every cached query so the next account never sees the
+  // previous account's resumes/applications/etc. without waiting for the
+  // post-logout hard redirect to land.
+  useEffect(() => {
+    const currentId = user?.id ?? null;
+    if (lastSeenUserIdRef.current !== currentId) {
+      const previousId = lastSeenUserIdRef.current;
+      lastSeenUserIdRef.current = currentId;
+      // Skip the very first transition from null → null on cold boot.
+      if (previousId !== null || currentId !== null) {
+        queryClient.clear();
+      }
+    }
+  }, [user?.id, queryClient]);
+
   const signOut = useCallback(async () => {
     logAudit('auth', 'signed_out');
+    // Drop every cached query first so any in-flight components rendering
+    // during the logout transition can't briefly show the previous user's data.
+    queryClient.clear();
     clearBridge();
     setBridgeReady(false);
     setBridgeFailed(false);
+    lastSeenUserIdRef.current = null;
     useSettingsStore.getState().resetUserSettings();
     try {
       await kindeLogout();
@@ -240,7 +264,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Kinde's post-logout redirect succeeds (it fails in dev/Replit because
     // the dev domain is not in Kinde's allowed logout redirect URIs).
     window.location.replace('/');
-  }, [kindeLogout]);
+  }, [kindeLogout, queryClient]);
 
   const value = useMemo<AuthContextType>(() => ({
     user,

@@ -13,11 +13,34 @@ import { getToken, refreshTokenIfNeeded } from '@/lib/supabaseBridge';
 import { dispatchSessionExpiredOnce } from './sessionExpired';
 
 /**
+ * PostgREST returns these codes when the JWT signing key doesn't match,
+ * the token is expired, or claims are invalid. The HTTP status varies
+ * (often 401 but sometimes 400 with the code in the body), so we have to
+ * peek at the body when the status alone isn't conclusive.
+ */
+const POSTGREST_AUTH_CODES = new Set(['PGRST301', 'PGRST302', 'PGRST303']);
+
+async function shouldForceRefresh(response: Response): Promise<boolean> {
+  if (response.status === 401) return true;
+  if (response.status !== 400 && response.status !== 403) return false;
+  try {
+    // Clone so the original response is still consumable by supabase-js.
+    const clone = response.clone();
+    const ct = clone.headers.get('content-type') || '';
+    if (!ct.includes('application/json')) return false;
+    const body = await clone.json().catch(() => null) as { code?: string } | null;
+    return !!body?.code && POSTGREST_AUTH_CODES.has(body.code);
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Create a Supabase client that injects the bridge token on every request.
- * Automatically retries once on 401 after refreshing the bridge token.
- * Falls back to a placeholder URL when env vars are not configured so the
- * module does not throw at initialization time (all API calls will fail
- * gracefully until real credentials are provided via Replit secrets).
+ * Automatically retries once on 401 / PGRST301 after force-refreshing the
+ * bridge token. Falls back to a placeholder URL when env vars are not
+ * configured so the module does not throw at initialization time (all API
+ * calls will fail gracefully until real credentials are provided via secrets).
  */
 export const supabase: SupabaseClient<Database> = createClient<Database>(
   SUPABASE_URL || 'https://placeholder.supabase.co',
@@ -41,9 +64,12 @@ export const supabase: SupabaseClient<Database> = createClient<Database>(
 
       const response = await doFetch(getToken());
 
-      // On 401, try refreshing the bridge token once and retry
-      if (response.status === 401) {
-        const refreshed = await refreshTokenIfNeeded();
+      // On 401 OR a PostgREST JWT-rejection error (PGRST301/PGRST302/PGRST303),
+      // the bridge token is unusable even if its local expiry hasn't fired.
+      // Force-refresh the bridge and retry once before surfacing the failure.
+      const needsRetry = await shouldForceRefresh(response);
+      if (needsRetry) {
+        const refreshed = await refreshTokenIfNeeded(true /* force */);
         if (refreshed) {
           return doFetch(getToken());
         }

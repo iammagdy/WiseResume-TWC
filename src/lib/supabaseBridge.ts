@@ -169,10 +169,15 @@ export async function exchangeToken(kindeToken: string): Promise<void> {
 /**
  * Refresh the bridge token if expired or about to expire.
  * Uses the registered Kinde token getter. Returns true if token is valid after attempt.
+ *
+ * Pass `force: true` to bypass the "token still valid" short-circuit. This is
+ * required when the server has rejected an apparently-valid token (e.g. 401 /
+ * PGRST301) because the local expiry hasn't fired yet but the token is
+ * actually unusable (signing-key mismatch, rotated secret, revoked session).
  */
-export async function refreshTokenIfNeeded(): Promise<boolean> {
-  // If token is still valid, no-op
-  if (getToken()) return true;
+export async function refreshTokenIfNeeded(force = false): Promise<boolean> {
+  // If token is still valid and we're not forcing, no-op
+  if (!force && getToken()) return true;
 
   if (!_getKindeTokenFn) {
     console.warn('[SupabaseBridge] No Kinde token getter registered — cannot refresh');
@@ -180,6 +185,13 @@ export async function refreshTokenIfNeeded(): Promise<boolean> {
   }
 
   try {
+    if (force) {
+      // Wipe the cached token so getToken() returns null and exchangeToken
+      // is guaranteed to perform a fresh round-trip.
+      state.supabaseToken = null;
+      state.expiresAt = 0;
+      try { sessionStorage.removeItem(STORAGE_KEY); } catch {}
+    }
     const kindeToken = await _getKindeTokenFn();
     if (!kindeToken) {
       console.warn('[SupabaseBridge] Kinde token getter returned null');
