@@ -9,7 +9,7 @@ import {
   SCATTER_SECTION_ITEM, REDUCED_SECTION_ITEM,
   lpItemVariants,
 } from '@/components/landing/landingAnimations';
-import { features, featureSections } from '@/components/landing/wiseResumeFeatureData';
+import { featureSections } from '@/components/landing/wiseResumeFeatureData';
 import { ScrollStack, ScrollStackItem } from '@/components/landing/ScrollStack';
 
 interface WiseResumeContentProps {
@@ -22,7 +22,6 @@ export function WiseResumeContent({ prefersReducedMotion }: WiseResumeContentPro
   const sectionItem = prefersReducedMotion ? REDUCED_SECTION_ITEM : SCATTER_SECTION_ITEM;
   const [activeIdx, setActiveIdx] = useState(-1);
   const total = featureSections.length;
-  const totalTools = features.length;
   const activeLabel = activeIdx >= 0 ? featureSections[activeIdx]?.title : null;
 
   return (
@@ -55,13 +54,13 @@ export function WiseResumeContent({ prefersReducedMotion }: WiseResumeContentPro
           <div className="lp-stack-sticky-header">
             <div>
               <p style={{ fontSize: '0.75rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--lp-eyebrow)', fontWeight: 600, marginBottom: '0.75rem' }}>
-                {totalTools} AI-powered tools — {total} highlighted below
+                15+ AI-powered tools — {total} highlighted below
               </p>
               <h2
                 className="font-bold leading-tight"
                 style={{ fontSize: 'clamp(1.9rem, 4vw, 2.8rem)', color: 'var(--lp-text)', letterSpacing: '-0.025em' }}
               >
-                {totalTools} AI tools. One platform.<br />
+                15+ AI tools. One platform.<br />
                 <span className="lp-gradient-text">Your unfair advantage in the job market.</span>
               </h2>
             </div>
