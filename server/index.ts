@@ -388,36 +388,40 @@ app.post('/api/fn/token-exchange', async (req, res) => {
       }
     }
 
-    // 5. Fail-fast if we cannot sign a Supabase-acceptable token. Issuing a
-    //    token here when SUPABASE_JWT_SECRET is missing would just produce
-    //    downstream 401s ("Session expired") with no useful client recovery.
-    if (!SUPABASE_JWT_SECRET) {
-      console.error('[token-exchange] SUPABASE_JWT_SECRET unavailable — refusing to issue an unverifiable bridge token');
+    // 5. Select signing secret: prefer SUPABASE_JWT_SECRET (accepted by both
+    //    Supabase PostgREST and this server's validateSupabaseToken). Fall back
+    //    to SESSION_SECRET so the app works fully when only Neon + Kinde are
+    //    configured (no Supabase project required). Both secrets are verified
+    //    by validateSupabaseToken in this same file.
+    const signingSecret = SUPABASE_JWT_SECRET || SESSION_SECRET;
+    if (!signingSecret) {
+      console.error('[token-exchange] No signing secret available — set SUPABASE_JWT_SECRET or SESSION_SECRET');
       return res.status(503).json({
-        code: 'SUPABASE_NOT_CONFIGURED',
-        message: 'Supabase bridge is not configured. Set SUPABASE_JWT_SECRET (or SUPABASE_ACCESS_TOKEN to auto-fetch it).',
+        code: 'SIGNING_SECRET_MISSING',
+        message: 'Server is not configured with a signing secret. Set SESSION_SECRET or SUPABASE_JWT_SECRET.',
       });
     }
 
-    // 6. Ensure the user also exists in Supabase auth.users so that
-    //    edge-function `requireAuth` (which calls auth.getUser) and PostgREST
-    //    RLS (which checks auth.uid()) both recognize this UUID. If we can't
-    //    confirm the row exists, we MUST not issue a token — GoTrue would
-    //    reject it and the client would loop on 401 → re-exchange → 401.
-    const shadowOk = await ensureSupabaseShadowUser(userId, email || null);
-    if (!shadowOk) {
-      return res.status(503).json({
-        code: 'SHADOW_USER_UNAVAILABLE',
-        message: 'Could not provision the Supabase auth user. Check SUPABASE_SERVICE_ROLE_KEY / Management API access.',
-      });
+    // 6. When using SUPABASE_JWT_SECRET, also provision a shadow user in
+    //    Supabase auth.users so PostgREST RLS and edge functions recognise the
+    //    UUID. When using SESSION_SECRET only (no Supabase), skip this step —
+    //    all data queries go through the Neon /api/data/* routes which use
+    //    validateSupabaseToken (SESSION_SECRET path), not PostgREST.
+    if (SUPABASE_JWT_SECRET) {
+      const shadowOk = await ensureSupabaseShadowUser(userId, email || null);
+      if (!shadowOk) {
+        return res.status(503).json({
+          code: 'SHADOW_USER_UNAVAILABLE',
+          message: 'Could not provision the Supabase auth user. Check SUPABASE_SERVICE_ROLE_KEY / Management API access.',
+        });
+      }
     }
 
-    // 7. Sign a JWT that Supabase will accept. We MUST sign with the project's
-    //    JWT secret — otherwise PostgREST returns "No suitable key or wrong
-    //    key type" / 401 and GoTrue rejects the token in `auth.getUser()`.
-    //    Issuer must be `supabase` to match what the official Supabase
-    //    token-exchange edge function emits.
-    const secret = new TextEncoder().encode(SUPABASE_JWT_SECRET);
+    // 7. Sign the bridge JWT. Issuer is 'supabase' when using the Supabase
+    //    secret (PostgREST requires it); 'wiseresume' otherwise so
+    //    validateSupabaseToken picks the right candidate secret.
+    const secret = new TextEncoder().encode(signingSecret);
+    const issuer = SUPABASE_JWT_SECRET ? 'supabase' : 'wiseresume';
     const now = Math.floor(Date.now() / 1000);
     const expiresAt = now + 3600; // 1 hour
     const supabaseToken = await new jose.SignJWT({
@@ -425,7 +429,7 @@ app.post('/api/fn/token-exchange', async (req, res) => {
       email,
       role: 'authenticated',
       aud: 'authenticated',
-      iss: 'supabase',
+      iss: issuer,
       iat: now,
       exp: expiresAt,
       kinde_sub: kindeSub,
