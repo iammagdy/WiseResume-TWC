@@ -14,3 +14,11 @@ export const GROQ_DEFAULT_MODEL = 'qwen/qwen3-32b';
 
 /** Default OpenRouter model used by WiseResume managed AI. */
 export const OPENROUTER_DEFAULT_MODEL = 'meta-llama/llama-3.3-70b-instruct:free';
+
+/**
+ * Default OpenRouter 2 (secondary managed account) model. Pinned — never
+ * discovered dynamically: the slug is the whole point of having a second
+ * managed key. If the slug ever needs to change, update it here AND in the
+ * mirror in `aiClient.ts`.
+ */
+export const OPENROUTER2_DEFAULT_MODEL = 'openrouter/elephant-alpha';

@@ -36,8 +36,14 @@ export interface AICallOptions {
   timeout?: number;
   /** Preferred AI provider — if omitted, read from user_preferences table */
   preferredProvider?: string;
-  /** WiseResume AI sub-provider: 'openrouter' (Gemma 4), 'groq' (Llama 3.3), or 'auto' (try both) */
-  wiseresumeSubProvider?: 'openrouter' | 'groq' | 'auto';
+  /**
+   * WiseResume AI sub-provider:
+   *   - 'openrouter'  → primary OpenRouter managed key (free models, ranked)
+   *   - 'openrouter2' → secondary OpenRouter managed key, pinned to OPENROUTER2_DEFAULT_MODEL
+   *   - 'groq'        → Groq managed key (ranked models)
+   *   - 'auto'        → openrouter → openrouter2 → groq (whichever is configured/healthy)
+   */
+  wiseresumeSubProvider?: 'openrouter' | 'groq' | 'auto' | 'openrouter2';
 }
 
 export interface AIResponse {
@@ -346,7 +352,7 @@ function shouldCountAsBreakerFailure(err: unknown): boolean {
  * Returns 'openrouter', 'groq', 'auto', or 'auto' as default.
  * Admin-controlled; users cannot override this.
  */
-async function getGlobalAIEngine(): Promise<'openrouter' | 'groq' | 'auto'> {
+async function getGlobalAIEngine(): Promise<'openrouter' | 'groq' | 'auto' | 'openrouter2'> {
   try {
     const supabase = getServiceClient();
     const { data, error } = await supabase
@@ -356,7 +362,7 @@ async function getGlobalAIEngine(): Promise<'openrouter' | 'groq' | 'auto'> {
       .maybeSingle();
     if (error || !data?.value) return 'auto';
     const val = data.value as string;
-    if (val === 'openrouter' || val === 'groq' || val === 'auto') return val;
+    if (val === 'openrouter' || val === 'groq' || val === 'auto' || val === 'openrouter2') return val;
     return 'auto';
   } catch (err) {
     console.warn('[aiClient] Failed to fetch global AI engine setting:', err);
@@ -1323,8 +1329,15 @@ function isSkippableError(err: unknown): boolean {
  * the next model. Hard errors (auth, payment) abort immediately.
  * Results are logged per-attempt for observability.
  */
+/**
+ * Mirror of `OPENROUTER2_DEFAULT_MODEL` in `src/lib/aiDefaults.ts`. The slug
+ * is intentionally pinned — never discovered via /models — because OpenRouter 2
+ * exists specifically to route to this model.
+ */
+const OPENROUTER2_PINNED_MODEL = 'openrouter/elephant-alpha';
+
 export async function callWiseresumeAI(
-  subProvider: 'openrouter' | 'groq' | 'auto',
+  subProvider: 'openrouter' | 'groq' | 'auto' | 'openrouter2',
   messages: AIMessage[],
   temperature: number,
   maxTokens?: number,
@@ -1333,6 +1346,7 @@ export async function callWiseresumeAI(
   outerSignal?: AbortSignal
 ): Promise<AIResponse> {
   const openrouterKey = Deno.env.get('OPENROUTER_API_KEY');
+  const openrouter2Key = Deno.env.get('OPENROUTER2_API_KEY');
   const groqKey = Deno.env.get('GROQ_API_KEY');
 
   /**
@@ -1359,16 +1373,28 @@ export async function callWiseresumeAI(
    * The per-model controller is also linked to outerSignal: if the caller cancels
    * the whole operation we propagate the abort immediately.
    */
-  const tryOpenRouterModel = async (model: string, effectiveTimeoutMs: number = PER_MODEL_TIMEOUT_MS): Promise<AIResponse> => {
+  /**
+   * Generic OpenRouter caller used by both the primary `openrouter` provider
+   * and the secondary `openrouter2` provider. The two share an upstream
+   * (openrouter.ai) and a wire format; only the API key, the providerUsed tag,
+   * and the human label in error messages differ. Keeping the body identical
+   * means breaker classification (401 → invalid_key, 429 → rate_limit, etc.)
+   * stays in lockstep across both managed accounts.
+   */
+  const callOpenRouterUpstream = async (
+    apiKey: string,
+    model: string,
+    providerLabel: 'openrouter' | 'openrouter2',
+    effectiveTimeoutMs: number,
+  ): Promise<AIResponse> => {
     const ctrl = new AbortController();
     const timerId = setTimeout(() => ctrl.abort(), effectiveTimeoutMs);
-    // Propagate outer cancellation
     const onOuterAbort = () => ctrl.abort();
     outerSignal?.addEventListener('abort', onOuterAbort);
     try {
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${openrouterKey!}`,
+        'Authorization': `Bearer ${apiKey}`,
         'HTTP-Referer': 'https://resume.thewise.cloud',
         'X-Title': 'WiseResume',
       };
@@ -1386,21 +1412,27 @@ export async function callWiseresumeAI(
       });
       if (!response.ok) {
         const errorText = await response.text();
-        let errorMessage = 'OpenRouter request failed';
+        let errorMessage = `${providerLabel} request failed`;
         try { const p = JSON.parse(errorText); errorMessage = p.error?.message || p.error || errorMessage; } catch {}
-        if (response.status === 401 || response.status === 403) throw createAIError('invalid_key', 'WiseResume AI OpenRouter key is invalid.', response.status);
-        if (response.status === 429) throw createAIError('rate_limit', `OpenRouter model ${model} rate limited.`, 429);
-        if (response.status === 402) throw createAIError('payment_required', 'OpenRouter credits exhausted.', 402);
-        if (response.status >= 500 && response.status < 600) throw createAIError('upstream_5xx', `OpenRouter model ${model} upstream error (${response.status}).`, response.status);
+        if (response.status === 401 || response.status === 403) throw createAIError('invalid_key', `WiseResume AI ${providerLabel} key is invalid.`, response.status);
+        if (response.status === 429) throw createAIError('rate_limit', `${providerLabel} model ${model} rate limited.`, 429);
+        if (response.status === 402) throw createAIError('payment_required', `${providerLabel} credits exhausted.`, 402);
+        if (response.status >= 500 && response.status < 600) throw createAIError('upstream_5xx', `${providerLabel} model ${model} upstream error (${response.status}).`, response.status);
         throw createAIError('unknown', errorMessage, response.status);
       }
       const data = await response.json();
-      return { ...parseOpenAIResponse(data), providerUsed: `wiseresume/openrouter:${model}` };
+      return { ...parseOpenAIResponse(data), providerUsed: `wiseresume/${providerLabel}:${model}` };
     } finally {
       clearTimeout(timerId);
       outerSignal?.removeEventListener('abort', onOuterAbort);
     }
   };
+
+  const tryOpenRouterModel = (model: string, effectiveTimeoutMs: number = PER_MODEL_TIMEOUT_MS): Promise<AIResponse> =>
+    callOpenRouterUpstream(openrouterKey!, model, 'openrouter', effectiveTimeoutMs);
+
+  const tryOpenRouter2Model = (model: string, effectiveTimeoutMs: number = PER_MODEL_TIMEOUT_MS): Promise<AIResponse> =>
+    callOpenRouterUpstream(openrouter2Key!, model, 'openrouter2', effectiveTimeoutMs);
 
   /**
    * Try a single Groq model by slug.
@@ -1432,21 +1464,36 @@ export async function callWiseresumeAI(
   const groqModels = (subProvider === 'groq' || subProvider === 'auto') && groqKey
     ? (await getGroqModels(groqKey)).slice(0, MAX_MODELS_PER_PROVIDER)
     : [];
+  // OpenRouter 2 always uses a single pinned model — no live discovery — so
+  // the "list" is just the constant slug when the key is configured and the
+  // sub-provider permits it.
+  const openrouter2Models =
+    (subProvider === 'openrouter2' || subProvider === 'auto') && openrouter2Key
+      ? [OPENROUTER2_PINNED_MODEL]
+      : [];
 
-  // Priority order (per spec): OpenRouter ranked free models → Groq ranked models.
-  // This applies in all auto-mode scenarios. Explicit sub-provider selections only
-  // use the requested chain.
-  type AttemptEntry = { provider: 'openrouter' | 'groq'; model: string };
+  // Priority order:
+  //   - explicit sub-provider → only that provider's chain
+  //   - 'auto' → OpenRouter (ranked free) → OpenRouter 2 (pinned elephant-alpha)
+  //              → Groq (ranked). OpenRouter 2 sits between the two
+  //              accounts so a quota/rate-limit hit on OpenRouter 1 first
+  //              fails over to a sibling OpenRouter account before crossing
+  //              to a different upstream (Groq), which is the more disruptive
+  //              switch (different ranked-model list, different quirks).
+  type AttemptEntry = { provider: 'openrouter' | 'groq' | 'openrouter2'; model: string };
   let attempts: AttemptEntry[];
 
   if (subProvider === 'openrouter') {
     attempts = openrouterModels.map(m => ({ provider: 'openrouter' as const, model: m }));
   } else if (subProvider === 'groq') {
     attempts = groqModels.map(m => ({ provider: 'groq' as const, model: m }));
+  } else if (subProvider === 'openrouter2') {
+    attempts = openrouter2Models.map(m => ({ provider: 'openrouter2' as const, model: m }));
   } else {
-    // Auto mode: always OpenRouter first, then Groq as fallback (per spec)
+    // Auto mode: OpenRouter → OpenRouter 2 → Groq (see note above)
     attempts = [
       ...openrouterModels.map(m => ({ provider: 'openrouter' as const, model: m })),
+      ...openrouter2Models.map(m => ({ provider: 'openrouter2' as const, model: m })),
       ...groqModels.map(m => ({ provider: 'groq' as const, model: m })),
     ];
   }
@@ -1528,9 +1575,10 @@ export async function callWiseresumeAI(
     const attemptStart = Date.now();
     console.log(`[AI] WiseResume attempt ${i + 1}/${totalAttempts}: ${provider} → ${model} (budget left: ${remaining}ms, attempt cap: ${effectiveTimeoutMs}ms)`);
     try {
-      const result = provider === 'openrouter'
-        ? await tryOpenRouterModel(model, effectiveTimeoutMs)
-        : await tryGroqModel(model, effectiveTimeoutMs);
+      const result =
+        provider === 'openrouter' ? await tryOpenRouterModel(model, effectiveTimeoutMs) :
+        provider === 'openrouter2' ? await tryOpenRouter2Model(model, effectiveTimeoutMs) :
+        await tryGroqModel(model, effectiveTimeoutMs);
       const successMs = Date.now() - attemptStart;
       console.log(`[AI] WiseResume success: ${provider} → ${model} in ${successMs}ms (after ${i} prior attempts)`);
       attemptLog.push({ provider, model, outcome: 'success', ms: successMs });

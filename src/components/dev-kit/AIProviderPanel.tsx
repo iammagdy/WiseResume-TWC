@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
-type ProviderTab = 'openrouter' | 'groq' | 'gemini' | 'ollama';
+type ProviderTab = 'openrouter' | 'openrouter2' | 'groq' | 'gemini' | 'ollama';
 
 interface ORModel {
   id: string;
@@ -133,6 +133,7 @@ interface TestState {
 
 const BREAKER_ID = {
   openrouter: 'wiseresume/openrouter',
+  openrouter2: 'wiseresume/openrouter2',
   groq: 'wiseresume/groq',
   // A1: Gemini breaker is a single global row keyed `gemini_global` — there are
   // no per-user Gemini breaker rows in the schema today (verified in
@@ -460,8 +461,9 @@ function TestBanner({
 // ── Sub-provider selector ─────────────────────────────────────────────────────
 
 const SUB_PROVIDER_OPTIONS: { value: WiseresumeSubProvider; label: string; desc: string }[] = [
-  { value: 'auto', label: 'Auto', desc: 'OpenRouter → Groq fallback' },
+  { value: 'auto', label: 'Auto', desc: 'OpenRouter → OpenRouter 2 → Groq fallback' },
   { value: 'openrouter', label: 'OpenRouter', desc: 'Route all calls via OpenRouter' },
+  { value: 'openrouter2', label: 'OpenRouter 2', desc: 'Route all calls via OpenRouter 2 (openrouter/elephant-alpha)' },
   { value: 'groq', label: 'Groq', desc: 'Route all calls via Groq' },
 ];
 
@@ -474,8 +476,8 @@ function rowHealth(row: BreakerRow | null | undefined): SubProviderHealth {
   return 'healthy';
 }
 
-function combinedAutoHealth(or: SubProviderHealth, groq: SubProviderHealth): SubProviderHealth {
-  const known = [or, groq].filter(h => h !== 'unknown') as Exclude<SubProviderHealth, 'unknown'>[];
+function combinedAutoHealth(...inputs: SubProviderHealth[]): SubProviderHealth {
+  const known = inputs.filter(h => h !== 'unknown') as Exclude<SubProviderHealth, 'unknown'>[];
   if (known.length === 0) return 'unknown';
   if (known.every(h => h === 'open')) return 'open';
   if (known.every(h => h === 'healthy')) return 'healthy';
@@ -514,10 +516,12 @@ function SubProviderSelector({
   const [pending, setPending] = useState<WiseresumeSubProvider | null>(null);
 
   const orHealth = rowHealth(breakerRows?.find(r => r.provider === BREAKER_ID.openrouter));
+  const or2Health = rowHealth(breakerRows?.find(r => r.provider === BREAKER_ID.openrouter2));
   const groqHealth = rowHealth(breakerRows?.find(r => r.provider === BREAKER_ID.groq));
   const healthByOption: Record<WiseresumeSubProvider, SubProviderHealth> = {
-    auto: combinedAutoHealth(orHealth, groqHealth),
+    auto: combinedAutoHealth(orHealth, or2Health, groqHealth),
     openrouter: orHealth,
+    openrouter2: or2Health,
     groq: groqHealth,
   };
 
@@ -618,13 +622,17 @@ function FeatureRoutingSection({ subProvider }: { subProvider: WiseresumeSubProv
       ? `Groq (${GROQ_DEFAULT_MODEL})`
       : subProvider === 'openrouter'
       ? 'OpenRouter (configured model)'
-      : 'OpenRouter → Groq fallback';
+      : subProvider === 'openrouter2'
+      ? 'OpenRouter 2 (openrouter/elephant-alpha)'
+      : 'OpenRouter → OpenRouter 2 → Groq fallback';
 
   const routeColor =
     subProvider === 'groq'
       ? 'text-green-600 dark:text-green-400'
       : subProvider === 'openrouter'
       ? 'text-violet-600 dark:text-violet-400'
+      : subProvider === 'openrouter2'
+      ? 'text-fuchsia-600 dark:text-fuchsia-400'
       : 'text-blue-600 dark:text-blue-400';
 
   return (
@@ -942,6 +950,154 @@ function OpenRouterPanel({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── OpenRouter 2 sub-panel ────────────────────────────────────────────────────
+
+/**
+ * OpenRouter 2 is a secondary OpenRouter managed account pinned to one model
+ * (`openrouter/elephant-alpha`). The slug is fixed in `aiClient.ts` — there is
+ * no model picker, no live `/models` discovery, and no "active model" state to
+ * persist. The panel shows balance + breaker + a Test connection button.
+ */
+type OR2Status = {
+  configured: boolean;
+  data?: {
+    label?: string;
+    usage?: number;
+    limit?: number | null;
+    is_free_tier?: boolean;
+    rate_limit?: { requests?: number; interval?: string } | null;
+  } | null;
+  pinnedModel?: string;
+  error?: string;
+};
+
+function OpenRouter2Panel({
+  breakerRow,
+  registerRefresh,
+}: {
+  breakerRow?: BreakerRow | null;
+  registerRefresh: (fn: () => Promise<boolean>) => void;
+}) {
+  const [status, setStatus] = useState<OR2Status | null>(null);
+  const [testState, setTestState] = useState<TestState>({ status: 'idle' });
+  const testAbortRef = useRef<AbortController | null>(null);
+
+  const fetchStatus = useCallback(async (): Promise<boolean> => {
+    try {
+      const res = await fetchWithTokenDedup('/api/admin/ai-provider/openrouter2-status');
+      if (!res.ok) {
+        setStatus({ configured: true, error: `HTTP ${res.status}` });
+        return false;
+      }
+      const data = await res.json() as OR2Status;
+      setStatus(data);
+      return true;
+    } catch (e: unknown) {
+      setStatus({ configured: true, error: e instanceof Error ? e.message : 'Fetch failed' });
+      return false;
+    }
+  }, []);
+
+  useEffect(() => { void fetchStatus(); }, [fetchStatus]);
+  useEffect(() => {
+    registerRefresh(async () => {
+      const r = await fetchStatus();
+      return r;
+    });
+  }, [registerRefresh, fetchStatus]);
+
+  const runTest = useCallback(async () => {
+    testAbortRef.current?.abort();
+    const ctrl = new AbortController();
+    testAbortRef.current = ctrl;
+    setTestState({ status: 'running' });
+    try {
+      const res = await edgeFunctions.functions.invoke('ai-test', {
+        body: { wiseresumeSubProvider: 'openrouter2' },
+        signal: ctrl.signal,
+      });
+      if (ctrl.signal.aborted) return;
+      if (res.error) throw new Error(res.error instanceof Error ? res.error.message : String(res.error));
+      const d = res.data as AITestResponse;
+      if (!d?.success) throw new Error(d?.error ?? 'ai-test returned failure');
+      setTestState({
+        status: 'done',
+        latencyMs: d.latencyMs,
+        model: d.model,
+        preview: d.response?.slice(0, 100),
+      });
+      logAdminProviderTest('openrouter2', d.model ?? null, true, d.latencyMs ?? null, null);
+    } catch (e: unknown) {
+      if (ctrl.signal.aborted) return;
+      const msg = e instanceof Error ? e.message : 'Test failed';
+      setTestState({ status: 'error', error: msg });
+      logAdminProviderTest('openrouter2', null, false, null, msg);
+    }
+  }, []);
+
+  useEffect(() => () => { testAbortRef.current?.abort(); }, []);
+
+  const sData = status?.data;
+  return (
+    <div className="space-y-4">
+      <BreakerBanner row={breakerRow} />
+      <div className="flex items-center gap-2 flex-wrap">
+        <BreakerChip row={breakerRow} />
+      </div>
+
+      {/* Pinned model card */}
+      <div className="p-3 rounded-lg bg-muted/50 border border-border space-y-1.5">
+        <p className="text-xs font-medium text-foreground">Pinned model</p>
+        <code className="text-xs font-mono text-fuchsia-600 dark:text-fuchsia-400">
+          {status?.pinnedModel ?? 'openrouter/elephant-alpha'}
+        </code>
+        <p className="text-[11px] text-muted-foreground">
+          OpenRouter 2 always routes to this model; live model discovery is intentionally disabled.
+        </p>
+      </div>
+
+      {/* Managed key status */}
+      <div className="p-3 rounded-lg bg-muted/50 border border-border space-y-2">
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-medium text-foreground">Platform key balance</p>
+          <button onClick={() => { void fetchStatus(); }} className="p-1 rounded hover:bg-muted transition-colors">
+            <RefreshCw className="w-3 h-3 text-muted-foreground" />
+          </button>
+        </div>
+        {status === null && (
+          <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+            <Loader2 className="w-3 h-3 animate-spin" /> Loading…
+          </p>
+        )}
+        {status?.configured === false && (
+          <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+            <AlertTriangle className="w-3.5 h-3.5" />
+            OPENROUTER2_API_KEY not configured on server
+          </p>
+        )}
+        {status?.error && <p className="text-xs text-destructive">{status.error}</p>}
+        {sData && (
+          <p className="text-xs text-muted-foreground">
+            {sData.limit != null
+              ? `$${((sData.limit - (sData.usage ?? 0))).toFixed(4)} remaining / $${sData.limit.toFixed(4)} limit`
+              : `$${(sData.usage ?? 0).toFixed(4)} used`}
+            {sData.is_free_tier && (
+              <span className="ml-2 text-green-600 dark:text-green-400">· Free tier</span>
+            )}
+            {sData.rate_limit && (
+              <span className="ml-2">
+                · {sData.rate_limit.requests} req/{sData.rate_limit.interval}
+              </span>
+            )}
+          </p>
+        )}
+      </div>
+
+      <TestBanner state={testState} onRun={runTest} />
     </div>
   );
 }
@@ -2237,6 +2393,7 @@ export function AIProviderPanel() {
 
   const TABS: { id: ProviderTab; label: string }[] = [
     { id: 'openrouter', label: 'OpenRouter' },
+    { id: 'openrouter2', label: 'OpenRouter 2' },
     { id: 'groq', label: 'Groq' },
     { id: 'gemini', label: 'Gemini' },
     { id: 'ollama', label: 'Ollama' },
@@ -2365,6 +2522,13 @@ export function AIProviderPanel() {
               breakerRow={getBreakerRow('openrouter')}
               managedStatus={managedOR}
               onManagedRefresh={() => fetchManagedOR()}
+              registerRefresh={registerSubPanelRefresh}
+            />
+          )}
+          {activeTab === 'openrouter2' && (
+            <OpenRouter2Panel
+              key="openrouter2"
+              breakerRow={getBreakerRow('openrouter2')}
               registerRefresh={registerSubPanelRefresh}
             />
           )}

@@ -129,6 +129,35 @@ async function bootstrapSupabaseSecrets(): Promise<void> {
   } catch (err) {
     console.warn('[server] Supabase secret bootstrap failed (non-fatal):', err);
   }
+
+  // Push managed AI provider keys (set in Replit env) into Supabase Edge
+  // Function secrets so `Deno.env.get(...)` inside `_shared/aiClient.ts` sees
+  // them. Idempotent — Supabase upserts by name, so re-running is a no-op
+  // when the value hasn't changed. The keys checked here are exactly the
+  // env names referenced by callWiseresumeAI().
+  const managedAiKeys = ['OPENROUTER_API_KEY', 'OPENROUTER2_API_KEY', 'GROQ_API_KEY'] as const;
+  const secretsToPush = managedAiKeys
+    .map((name) => ({ name, value: process.env[name] }))
+    .filter((s): s is { name: string; value: string } => typeof s.value === 'string' && s.value.length > 0);
+  if (secretsToPush.length > 0) {
+    try {
+      const r = await fetch(`https://api.supabase.com/v1/projects/${ref}/secrets`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(secretsToPush),
+      });
+      if (r.ok) {
+        console.log(`[server] Pushed managed AI secrets to Supabase Edge Functions: ${secretsToPush.map(s => s.name).join(', ')}`);
+      } else {
+        console.warn(`[server] Failed to push managed AI secrets to Supabase (${r.status}): ${await r.text().catch(() => '')}`);
+      }
+    } catch (err) {
+      console.warn('[server] Managed AI secret push failed (non-fatal):', err);
+    }
+  }
 }
 
 /**
@@ -2092,6 +2121,48 @@ app.get(
       res.json(out);
     } catch (e) {
       res.json({ configured: true, error: logAndSanitiseUpstreamError('openrouter-status', e) });
+    } finally {
+      clearTimeout(t);
+    }
+  },
+);
+
+/**
+ * GET /api/admin/ai-provider/openrouter2-status
+ * Returns the managed OpenRouter 2 (secondary account) key balance / rate-limit
+ * info. Pinned to OPENROUTER2_API_KEY; the model used by the routing layer is
+ * always `openrouter/elephant-alpha` regardless of the live model list.
+ */
+app.get(
+  '/api/admin/ai-provider/openrouter2-status',
+  requireAuthHeader,
+  requireAdminEmail,
+  async (_req, res) => {
+    const key = process.env.OPENROUTER2_API_KEY;
+    if (!key) {
+      res.json({ configured: false });
+      return;
+    }
+    const cacheKey = 'openrouter2-status';
+    const cached = getCached<unknown>(cacheKey);
+    if (cached) { res.json(cached); return; }
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), 8000);
+    try {
+      const r = await fetch('https://openrouter.ai/api/v1/auth/key', {
+        headers: { Authorization: `Bearer ${key}` },
+        signal: controller.signal,
+      });
+      if (!r.ok) {
+        res.json({ configured: true, error: `Upstream HTTP ${r.status}` });
+        return;
+      }
+      const body = (await r.json()) as { data?: Record<string, unknown> };
+      const out = { configured: true, data: body.data ?? null, pinnedModel: 'openrouter/elephant-alpha' };
+      setCached(cacheKey, out);
+      res.json(out);
+    } catch (e) {
+      res.json({ configured: true, error: logAndSanitiseUpstreamError('openrouter2-status', e) });
     } finally {
       clearTimeout(t);
     }

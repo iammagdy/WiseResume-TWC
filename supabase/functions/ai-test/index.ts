@@ -58,7 +58,7 @@ serve(async (req) => {
 
     // Parse request body for potential 'checkOnly' flag and admin-gated sub-provider override
     let checkOnly = false;
-    let bodySubProvider: 'openrouter' | 'groq' | 'auto' | undefined;
+    let bodySubProvider: 'openrouter' | 'groq' | 'auto' | 'openrouter2' | undefined;
     let isAdminRequest = false;
     try {
       const text = await req.clone().text();
@@ -70,7 +70,7 @@ serve(async (req) => {
         // raw engine diagnostics (bypasses cooldown). The legacy DevKit HMAC
         // password fallback was removed in Task #2.
         const isAdmin = await isJwtAdmin(req);
-        if (isAdmin && (body?.wiseresumeSubProvider === 'openrouter' || body?.wiseresumeSubProvider === 'groq' || body?.wiseresumeSubProvider === 'auto')) {
+        if (isAdmin && (body?.wiseresumeSubProvider === 'openrouter' || body?.wiseresumeSubProvider === 'groq' || body?.wiseresumeSubProvider === 'auto' || body?.wiseresumeSubProvider === 'openrouter2')) {
           bodySubProvider = body.wiseresumeSubProvider;
           isAdminRequest = true;
         }
@@ -95,7 +95,7 @@ serve(async (req) => {
     // Determine WiseResume sub-provider:
     // body-provided value (admin Dev Kit override) takes priority;
     // otherwise fall back to the global wiseresume_ai_engine app setting.
-    let wiseresumeSubProvider: 'openrouter' | 'groq' | 'auto' = bodySubProvider ?? 'auto';
+    let wiseresumeSubProvider: 'openrouter' | 'groq' | 'auto' | 'openrouter2' = bodySubProvider ?? 'auto';
     if (!bodySubProvider) {
       const { data: engineRow } = await supabaseAdmin
         .from('app_settings')
@@ -103,7 +103,7 @@ serve(async (req) => {
         .eq('key', 'wiseresume_ai_engine')
         .maybeSingle();
       const engineVal = engineRow?.value as string | undefined;
-      if (engineVal === 'openrouter' || engineVal === 'groq' || engineVal === 'auto') {
+      if (engineVal === 'openrouter' || engineVal === 'groq' || engineVal === 'auto' || engineVal === 'openrouter2') {
         wiseresumeSubProvider = engineVal;
       }
     }
@@ -199,6 +199,8 @@ serve(async (req) => {
     } else if (preferredProvider === 'wiseresume') {
       if (wiseresumeSubProvider === 'groq') {
         testModel = 'qwen/qwen3-32b';
+      } else if (wiseresumeSubProvider === 'openrouter2') {
+        testModel = 'openrouter/elephant-alpha';
       } else {
         testModel = 'meta-llama/llama-3.3-70b-instruct:free';
       }
@@ -251,6 +253,7 @@ serve(async (req) => {
     // so admin diagnostics always reflect the real model (e.g. Groq fallback shows Llama, not Gemma).
     if (preferredProvider === 'wiseresume' && wiseresumeSubProvider === 'auto') {
       if (providerUsed.includes('groq')) testModel = 'qwen/qwen3-32b';
+      else if (providerUsed.includes('openrouter2')) testModel = 'openrouter/elephant-alpha';
       else testModel = 'meta-llama/llama-3.3-70b-instruct:free';
     }
 

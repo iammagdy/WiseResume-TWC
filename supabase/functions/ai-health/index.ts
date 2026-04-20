@@ -166,7 +166,7 @@ serve(async (req) => {
     // so the badge probe targets the SAME managed engine that callAI() would
     // route a real chat through, instead of guessing from env-key presence
     // order. This mirrors getGlobalAIEngine() in _shared/aiClient.ts.
-    let managedEngine: 'openrouter' | 'groq' | 'auto' = 'auto';
+    let managedEngine: 'openrouter' | 'groq' | 'auto' | 'openrouter2' = 'auto';
     try {
       const { data: engineRow } = await getServiceClient()
         .from('app_settings')
@@ -174,19 +174,22 @@ serve(async (req) => {
         .eq('key', 'wiseresume_ai_engine')
         .maybeSingle();
       const v = engineRow?.value as string | undefined;
-      if (v === 'openrouter' || v === 'groq' || v === 'auto') managedEngine = v;
+      if (v === 'openrouter' || v === 'groq' || v === 'auto' || v === 'openrouter2') managedEngine = v;
     } catch {
       // fall through to 'auto'
     }
     // Resolve which managed key the probe should actually use:
-    //  - explicit 'openrouter' → only OpenRouter (do not silently fall to Groq)
-    //  - explicit 'groq'       → only Groq
-    //  - 'auto'                → OpenRouter if present, else Groq
+    //  - explicit 'openrouter'  → only OpenRouter   (do not silently fall to Groq)
+    //  - explicit 'openrouter2' → only OpenRouter 2 (probe uses primary OPENROUTER_API_KEY
+    //                              for the simple "/auth/key + Hi" check; the
+    //                              callWiseresumeAI router still routes to OPENROUTER2_API_KEY)
+    //  - explicit 'groq'        → only Groq
+    //  - 'auto'                 → OpenRouter if present, else Groq
     const effectiveOpenrouterKey =
       managedEngine === 'groq' ? undefined :
       openrouterKey;
     const effectiveGroqKey =
-      managedEngine === 'openrouter' ? undefined :
+      managedEngine === 'openrouter' || managedEngine === 'openrouter2' ? undefined :
       groqKey;
 
     if (geminiKey) {

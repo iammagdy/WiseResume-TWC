@@ -9,7 +9,7 @@ export type AITipFrequency = 'daily' | 'weekly' | 'on-demand';
 // AI Provider types
 export type AIProvider = 'wiseresume' | 'openai' | 'anthropic' | 'gemini' | 'groq' | 'mistral' | 'xai' | 'cohere' | 'openrouter' | 'ollama';
 export type GeminiKeyTier = 'free' | 'paid' | 'unknown';
-export type WiseresumeSubProvider = 'openrouter' | 'groq' | 'auto';
+export type WiseresumeSubProvider = 'openrouter' | 'groq' | 'auto' | 'openrouter2';
 
 interface GeminiDailyUsage {
   date: string;
