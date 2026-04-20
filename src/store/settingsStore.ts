@@ -315,26 +315,17 @@ export const useSettingsStore = create<SettingsState>()(
       setOllamaKeyValidated: (validated) => set({ ollamaKeyValidated: validated }),
       
       // OpenRouter Actions
+      // openrouterModel ALWAYS holds a real curated slug (the "primary").
+      // openrouterAuto is an independent flag toggling fallback iteration.
+      // The two are persisted separately so toggling Auto on/off never loses
+      // the admin's primary selection.
       setOpenrouterApiKey: (key) => set({ openrouterApiKey: key, openrouterKeyValidated: false }),
       setOpenrouterModel: (model) =>
         set({
           openrouterModel: isAllowedOpenRouterModel(model) ? model : OPENROUTER_DEFAULT_MODEL,
-          // Selecting an explicit slug clears Auto; the picker is the
-          // source of truth for the active mode.
-          openrouterAuto: model === OPENROUTER_AUTO_SENTINEL,
         }),
       setOpenrouterKeyValidated: (validated) => set({ openrouterKeyValidated: validated }),
-      setOpenrouterAuto: (auto) =>
-        set((state) => ({
-          openrouterAuto: auto,
-          // Mirror to model so callers reading openrouterModel see the
-          // sentinel and routing layers behave consistently.
-          openrouterModel: auto
-            ? OPENROUTER_AUTO_SENTINEL
-            : isAllowedOpenRouterModel(state.openrouterModel) && state.openrouterModel !== OPENROUTER_AUTO_SENTINEL
-              ? state.openrouterModel
-              : OPENROUTER_DEFAULT_MODEL,
-        })),
+      setOpenrouterAuto: (auto) => set({ openrouterAuto: auto }),
 
       // WiseResume sub-provider
       setWiseresumeSubProvider: (sub) => set({ wiseresumeSubProvider: sub }),
@@ -397,15 +388,16 @@ export const useSettingsStore = create<SettingsState>()(
       onRehydrateStorage: () => (state) => {
         if (state) {
           state.hasSeenSplash = false;
-          // Migrate any persisted off-list openrouterModel back to the
-          // current curated default so old localStorage values don't
-          // smuggle decommissioned slugs into the routing layer.
-          if (!isAllowedOpenRouterModel(state.openrouterModel)) {
+          // Migrate persisted state to the curated allow-list. The auto
+          // sentinel previously stored in openrouterModel is now a
+          // separate boolean — promote it and reset the model to default.
+          if (state.openrouterModel === OPENROUTER_AUTO_SENTINEL) {
             state.openrouterModel = OPENROUTER_DEFAULT_MODEL;
-            state.openrouterAuto = false;
-          } else {
-            state.openrouterAuto = state.openrouterModel === OPENROUTER_AUTO_SENTINEL;
+            state.openrouterAuto = true;
+          } else if (!isAllowedOpenRouterModel(state.openrouterModel)) {
+            state.openrouterModel = OPENROUTER_DEFAULT_MODEL;
           }
+          if (typeof state.openrouterAuto !== 'boolean') state.openrouterAuto = false;
         }
       },
     }

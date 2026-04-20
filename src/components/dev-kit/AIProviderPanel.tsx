@@ -886,10 +886,19 @@ function OpenRouterPanel({
       {pendingAuto && (
         <ConfirmCard
           modelId={openrouterAuto ? 'Disable Auto fallback' : 'Enable Auto fallback'}
-          onConfirm={() => {
+          onConfirm={async () => {
             const next = !openrouterAuto;
             const prev = openrouterAuto ? OPENROUTER_AUTO_SENTINEL : (openrouterModel || null);
             setOpenrouterAuto(next);
+            // Persist to app_settings so the managed openrouter sub-engine
+            // picks up the new flag for ALL users, not just this admin.
+            try {
+              await edgeFunctions.functions.invoke('admin-update-settings', {
+                body: { key: 'openrouter_auto_fallback', value: next },
+              });
+            } catch (err) {
+              console.error('[OpenRouterPanel] failed to persist auto flag:', err);
+            }
             logAdminModelSwitch('openrouter', next ? OPENROUTER_AUTO_SENTINEL : (openrouterModel || OPENROUTER_DEFAULT_MODEL), prev);
             setPendingAuto(false);
           }}
@@ -899,11 +908,14 @@ function OpenRouterPanel({
 
       {/* Active model */}
       <div>
-        <p className="text-xs text-muted-foreground">Active model</p>
+        <p className="text-xs text-muted-foreground">Primary model</p>
         <p className="text-sm font-mono font-medium text-foreground truncate max-w-full">
-          {openrouterAuto
-            ? <span className="text-primary">Auto (curated chain, {curatedModels.length} models)</span>
-            : (openrouterModel || <span className="text-muted-foreground italic">none selected</span>)}
+          {openrouterModel || <span className="text-muted-foreground italic">none selected</span>}
+          {openrouterAuto && (
+            <span className="ml-2 text-[11px] text-primary font-sans font-normal">
+              · Auto fallback active (will iterate {curatedModels.length} curated models on failure)
+            </span>
+          )}
         </p>
       </div>
 
@@ -917,18 +929,16 @@ function OpenRouterPanel({
         </div>
         <div className="divide-y divide-border">
           {curatedModels.map((id, idx) => {
-            const isActive = !openrouterAuto && openrouterModel === id;
+            const isActive = openrouterModel === id;
             const isDefault = idx === 0;
             const isPending = pending === id;
             return (
               <React.Fragment key={id}>
                 <button
                   onClick={() => setPending(isPending ? null : id)}
-                  disabled={openrouterAuto}
                   className={cn(
                     'w-full flex items-center justify-between px-3 py-2.5 text-left transition-colors',
-                    openrouterAuto && 'opacity-50 cursor-not-allowed',
-                    isActive ? 'bg-primary/10' : isPending ? 'bg-muted/70' : !openrouterAuto && 'hover:bg-muted/50',
+                    isActive ? 'bg-primary/10' : isPending ? 'bg-muted/70' : 'hover:bg-muted/50',
                   )}
                 >
                   <div className="min-w-0 flex-1 mr-3">
@@ -942,6 +952,11 @@ function OpenRouterPanel({
                           default
                         </span>
                       )}
+                      {isActive && openrouterAuto && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-primary/15 text-primary uppercase tracking-wide">
+                          primary · auto
+                        </span>
+                      )}
                     </div>
                   </div>
                   {isActive && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
@@ -949,9 +964,18 @@ function OpenRouterPanel({
                 {isPending && (
                   <ConfirmCard
                     modelId={id}
-                    onConfirm={() => {
+                    onConfirm={async () => {
                       const prev = openrouterAuto ? OPENROUTER_AUTO_SENTINEL : (openrouterModel || null);
                       setOpenrouterModel(id);
+                      // Persist to app_settings so the managed openrouter
+                      // sub-engine routes ALL users to the new primary slug.
+                      try {
+                        await edgeFunctions.functions.invoke('admin-update-settings', {
+                          body: { key: 'openrouter_curated_model', value: id },
+                        });
+                      } catch (err) {
+                        console.error('[OpenRouterPanel] failed to persist primary model:', err);
+                      }
                       logAdminModelSwitch('openrouter', id, prev);
                       setPending(null);
                     }}

@@ -386,6 +386,43 @@ async function getGlobalAIEngine(): Promise<'openrouter' | 'groq' | 'auto' | 'op
 }
 
 /**
+ * Task #24: read the admin-controlled curated OpenRouter model + Auto
+ * fallback flag from app_settings. Mirrors getGlobalAIEngine() — same
+ * service-role client, same swallow-errors-and-fall-back pattern. Cached
+ * per-process for the cold-start lifetime so it doesn't add a DB round-trip
+ * to every AI call.
+ */
+let _curatedModelCache: { model: string; auto: boolean; ts: number } | null = null;
+const _CURATED_CACHE_TTL_MS = 30_000;
+async function getOpenRouterAdminSettings(): Promise<{ model: string; auto: boolean }> {
+  const now = Date.now();
+  if (_curatedModelCache && now - _curatedModelCache.ts < _CURATED_CACHE_TTL_MS) {
+    return { model: _curatedModelCache.model, auto: _curatedModelCache.auto };
+  }
+  try {
+    const supabase = getServiceClient();
+    const { data } = await supabase
+      .from('app_settings')
+      .select('key, value')
+      .in('key', ['openrouter_curated_model', 'openrouter_auto_fallback']);
+    let model = OPENROUTER_CURATED_MODELS[0];
+    let auto = false;
+    for (const row of data ?? []) {
+      if (row.key === 'openrouter_curated_model' && typeof row.value === 'string' && isAllowedOpenRouterModel(row.value)) {
+        model = row.value;
+      } else if (row.key === 'openrouter_auto_fallback') {
+        auto = row.value === true || row.value === 'true';
+      }
+    }
+    _curatedModelCache = { model, auto, ts: now };
+    return { model, auto };
+  } catch (err) {
+    console.warn('[aiClient] Failed to fetch OpenRouter admin settings:', err);
+    return { model: OPENROUTER_CURATED_MODELS[0], auto: false };
+  }
+}
+
+/**
  * Calls AI API routing through WiseResume AI (OpenRouter/Groq) or user BYOK keys.
  * Priority: BYOK OpenRouter → BYOK Ollama → BYOK Gemini → WiseResume AI (managed) → legacy GEMINI_API_KEY
  */
@@ -1527,24 +1564,35 @@ export async function callWiseresumeAI(
   // - openrouterCuratedModel=<slug> → pin to that single curated slug
   //   (rejected here if off-list — the same allow-list manage-api-keys
   //   enforces on writes is enforced at execution time, no silent coercion).
-  const overrideAuto = openrouterAutoFallback === true;
-  const overrideSingle = !overrideAuto && openrouterCuratedModel
-    ? openrouterCuratedModel
-    : null;
-  if (overrideSingle && !isAllowedOpenRouterModel(overrideSingle)) {
+  // Resolve effective curated model + auto from (in priority order):
+  //   1. per-request overrides forwarded from the DevKit Test button
+  //   2. app_settings (admin-controlled, propagates to ALL managed traffic)
+  //   3. curated default
+  // Ordering matters: the panel writes app_settings on every change so live
+  // production traffic picks up the new selection within the cache TTL,
+  // while the Test button can still target a different slug for verification.
+  const adminSettings = await getOpenRouterAdminSettings();
+  const effectiveAuto = openrouterAutoFallback ?? adminSettings.auto;
+  const requestedSingle = openrouterCuratedModel ?? adminSettings.model;
+  const effectiveSingle = effectiveAuto ? null : requestedSingle;
+  if (effectiveSingle && !isAllowedOpenRouterModel(effectiveSingle)) {
     throw createAIError(
       'invalid_key',
-      `OpenRouter model "${overrideSingle}" is not in the curated allow-list. Pick one of: ${OPENROUTER_CURATED_MODELS.join(', ')}.`,
+      `OpenRouter model "${effectiveSingle}" is not in the curated allow-list. Pick one of: ${OPENROUTER_CURATED_MODELS.join(', ')}.`,
       400,
     );
   }
 
   let openrouterModels: string[] = [];
   if ((subProvider === 'openrouter' || subProvider === 'auto') && openrouterKey) {
-    if (overrideAuto) {
-      openrouterModels = [...OPENROUTER_CURATED_MODELS];
-    } else if (overrideSingle) {
-      openrouterModels = [overrideSingle];
+    if (effectiveAuto) {
+      // Auto: start from the admin-configured primary, then iterate the
+      // rest of the curated chain so the primary is always tried first.
+      const primary = adminSettings.model;
+      const rest = OPENROUTER_CURATED_MODELS.filter((m) => m !== primary);
+      openrouterModels = [primary, ...rest];
+    } else if (effectiveSingle) {
+      openrouterModels = [effectiveSingle];
     } else {
       openrouterModels = (await getOpenRouterFreeModels(openrouterKey)).slice(0, MAX_MODELS_PER_PROVIDER);
     }

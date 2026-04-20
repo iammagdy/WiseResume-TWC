@@ -213,7 +213,9 @@ serve(async (req) => {
       openrouter: '',
       ollama: '',
     };
-    let testModel = 'meta-llama/llama-3.3-70b-instruct:free';
+    // Task #24: default to the curated default so any non-overridden test
+    // path uses the same baseline as production routing.
+    let testModel = 'google/gemma-4-31b-it:free';
     let storedByokModel: string | null = null;
 
     if (BYOK_PROVIDERS_LIST.includes(preferredProvider)) {
