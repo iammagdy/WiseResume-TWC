@@ -15,6 +15,7 @@ import {
   ChevronDown,
   Wand2,
   Check,
+  Settings2,
 } from 'lucide-react';
 import {
   Sheet,
@@ -482,7 +483,9 @@ export function OnePageWizardSheet({ open, onOpenChange }: OnePageWizardSheetPro
                 </div>
 
                 {/* Layout levers panel */}
-                <LeversPanel customization={customization} onChange={updateCustomization} />
+                <div data-onepage-levers>
+                  <LeversPanel customization={customization} onChange={updateCustomization} />
+                </div>
 
                 {measurement && (
                   <FitMeter measurement={measurement} />
@@ -691,6 +694,26 @@ export function OnePageWizardSheet({ open, onOpenChange }: OnePageWizardSheetPro
                 <Button variant="outline" className="w-full" onClick={() => applySelected(false)} disabled={isApplying}>
                   {isApplying ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Check className="w-4 h-4 mr-2" />}
                   Apply Only
+                </Button>
+              )}
+              {/* Explicit in-flow CTA back to layout levers when post-apply is
+                  still over a page. Lets the user fix overflow without closing
+                  and re-opening the sheet. */}
+              {postApplyMeasurement && postApplyMeasurement.pages > 1 && (
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => {
+                    setView('levers');
+                    requestAnimationFrame(() => {
+                      const el = document.querySelector<HTMLElement>('[data-onepage-levers]');
+                      el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    });
+                  }}
+                  disabled={isApplying}
+                >
+                  <Settings2 className="w-4 h-4 mr-2" />
+                  Try layout levers
                 </Button>
               )}
               {!tightenRequested && (
