@@ -3,6 +3,9 @@ import { PDFDocument, StandardFonts, rgb, PDFFont } from 'pdf-lib';
 import { ResumeData, TemplateId, ContactInfo, PDFOptions } from '@/types/resume';
 import { getTemplateConfig } from '@/lib/templateConfig';
 import { PAGE_FORMAT_PX, generateCustomizationCSS } from '@/lib/templateCustomization';
+// Re-export so consumers (e.g. useOnePageExport) can read page dims through
+// the same module they use for measure/export — single source of truth.
+export { PAGE_FORMAT_PX };
 import type { OnProgressCallback } from '@/hooks/useExportProgress';
 import { extractResumeText, renderTextLayerForPage } from '@/lib/pdfTextLayer';
 
