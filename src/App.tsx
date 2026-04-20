@@ -1,6 +1,6 @@
 import { Suspense, useEffect, useLayoutEffect, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useSettingsStore } from "@/store/settingsStore";
@@ -11,14 +11,26 @@ import { isAppHostname } from "@/hooks/usePublicPortfolio";
 const AnimatedSplash = lazyWithRetry(() =>
   import("@/components/AnimatedSplash").then((m) => ({ default: m.AnimatedSplash }))
 );
+// AppLanding is a tiny bundle for the public landing routes ("/" and
+// "/enterprises"). It avoids pulling in AppShell, route guards, the
+// PageSkeletons module, app lifecycle hooks, and every page's lazy
+// declaration — keeping the landing first-paint critical path small.
+const AppLanding = lazyWithRetry(() => import("./AppLanding"));
+// Full app shell with auth providers, route guards, and every route. Only
+// loaded when the user actually navigates into the app (or hits a
+// non-landing URL directly).
 const AppInterior = lazyWithRetry(() => import("./AppInterior"));
 
-// Kick off the Index (home/landing) chunk import as soon as App's module
-// evaluates — in parallel with AppInterior — so the home page chunk is
-// already downloading by the time the splash dismisses. We don't gate
-// the splash on it because <LandingSkeleton /> is the Suspense fallback
-// for "/", which bridges any remaining gap visually.
-if (typeof window !== "undefined") {
+const LANDING_PATHS = new Set(["/", "/enterprises"]);
+function isLandingPath(pathname: string) {
+  return LANDING_PATHS.has(pathname);
+}
+
+// On initial pageview to the landing route, kick off the Index chunk
+// import in parallel with AppLanding so the home page chunk is already
+// downloading by the time AppLanding mounts. For non-landing URLs we
+// skip this and let AppInterior's prefetch handle warming.
+if (typeof window !== "undefined" && isLandingPath(window.location.pathname)) {
   void import("./pages/Index").catch(() => undefined);
 }
 
@@ -42,14 +54,24 @@ function isPublicStandalonePath(pathname: string) {
   );
 }
 
-// Tiny wrapper that signals when AppInterior has actually mounted (i.e.
-// the lazy chunk has loaded AND the React tree has committed). Used to
-// gate HTML-splash removal so we never expose a blank frame.
+// Tiny wrapper that signals when the active app shell has actually
+// mounted (i.e. the lazy chunk has loaded AND the React tree has
+// committed). Used to gate HTML-splash removal so we never expose a
+// blank frame. Routes-level dispatch picks the lightweight AppLanding
+// chunk for public landing URLs and the full AppInterior for everything
+// else, so visitors hitting `/` never download AppInterior on first
+// paint.
 function InteriorMount({ onReady }: { onReady: () => void }) {
   useLayoutEffect(() => {
     onReady();
   }, [onReady]);
-  return <AppInterior />;
+  return (
+    <Routes>
+      <Route path="/" element={<AppLanding />} />
+      <Route path="/enterprises" element={<AppLanding />} />
+      <Route path="*" element={<AppInterior />} />
+    </Routes>
+  );
 }
 
 function SplashGate() {
