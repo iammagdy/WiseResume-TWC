@@ -27,6 +27,7 @@
 **[🌐 Live App →](https://resume.thewise.cloud)**&nbsp;&nbsp;•&nbsp;&nbsp;
 [WiseResume](#-wiseresume--ai-career-platform) &nbsp;•&nbsp;
 [WiseHire](#-wisehire--ai-hr-saas) &nbsp;•&nbsp;
+[Screenshots](#-screenshots) &nbsp;•&nbsp;
 [Admin Dev Kit](#-admin-dev-kit) &nbsp;•&nbsp;
 [Tech Stack](#-tech-stack) &nbsp;•&nbsp;
 [Architecture](#-architecture) &nbsp;•&nbsp;
@@ -296,6 +297,43 @@ Available at [`/enterprise`](https://resume.thewise.cloud/enterprise):
 - Unlimited seats, roles, and custom contract pricing
 
 </details>
+
+---
+
+## 📸 Screenshots
+
+> Visual previews of both products. Public pages are captured directly; routes marked *sign-in required* are auth-gated and not yet available as screenshots — authenticated captures are planned as follow-up work.
+
+### WiseResume
+
+| Landing Page (`/`) | Pricing (`/pricing`) |
+|:---:|:---:|
+| [![Landing](docs/screenshots/landing.jpg)](https://resume.thewise.cloud) | [![Pricing](docs/screenshots/pricing.png)](https://resume.thewise.cloud/pricing) |
+| *Hero — "AI that builds, tailors, and lands your next job"* | *Transparent tiers: Free · Pro $9/mo · Premium $19/mo* |
+
+| Resume Editor (`/editor`) | AI Studio (`/ai-studio`) |
+|:---:|:---:|
+| *Sign-in required — authenticated screenshot pending* | *Sign-in required — authenticated screenshot pending* |
+| *Multi-section resume builder with live preview and 30+ templates* | *20 career tools + Wise AI Chat — rewrites, tailoring, interview prep, and more* |
+
+| Public Portfolio (`/p/:username`) |
+|:---:|
+| [![Portfolio](docs/screenshots/portfolio.png)](https://resume.thewise.cloud) |
+| *Portfolio feature showcase — resume converted to a public site with selectable themes* |
+
+### WiseHire
+
+| Pipeline Board (`/wisehire/pipeline`) | Candidate Brief (`/wisehire/briefs`) |
+|:---:|:---:|
+| [![Pipeline](docs/screenshots/pipeline.png)](https://resume.thewise.cloud/wisehire/pipeline) | [![Candidate Brief](docs/screenshots/candidate-brief.png)](https://resume.thewise.cloud/wisehire/briefs) |
+| *Kanban pipeline: Shortlisted → Contacted → Interviewing → Offer Sent → Hired* | *AI brief: match score, strengths, concerns, and top interview question* |
+
+| WiseHire Feature Showcase | Dev Kit (`/devkit`) |
+|:---:|:---:|
+| [![WiseHire](docs/screenshots/wisehire-landing.png)](https://resume.thewise.cloud) | *Admin-only — authenticated screenshot pending* |
+| *Offer Tracker — salary, status, and next steps for every candidate in one view* | *Operations console: user management, AI health, audit logs, credit management* |
+
+---
 
 ### WiseHire Pricing
 
