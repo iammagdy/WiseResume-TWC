@@ -1,8 +1,11 @@
 import { useState, useCallback, useEffect } from 'react';
-import { RefreshCw, Settings, Save, Zap, RotateCcw } from 'lucide-react';
+import { RefreshCw, Settings, Save, Zap, RotateCcw, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { useResumeMutations, useResumes } from '@/hooks/useResumes';
+import { useAuth } from '@/hooks/useAuth';
+import { buildSampleResume } from '@/lib/devkit/sampleResume';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,6 +41,32 @@ export function AppSettingsPanel() {
   const [resettingCredits, setResettingCredits] = useState(false);
 
   const [resetCreditsDialogOpen, setResetCreditsDialogOpen] = useState(false);
+  const [creatingSampleResume, setCreatingSampleResume] = useState(false);
+
+  const { user } = useAuth();
+  const { createResume } = useResumeMutations();
+  const { data: resumes } = useResumes();
+  const sampleResumeTitle = 'Demo Resume';
+  const hasSampleResume = (resumes ?? []).some(r => r.title?.startsWith(sampleResumeTitle));
+
+  const handleCreateSampleResume = useCallback(async () => {
+    if (!user) {
+      toast.error('You must be signed in to create a sample resume.');
+      return;
+    }
+    setCreatingSampleResume(true);
+    try {
+      const displayName = user.name?.trim() || (user.email ? user.email.split('@')[0] : null);
+      const { resume, title } = buildSampleResume(displayName);
+      await createResume.mutateAsync({ resume, title });
+      toast.success('Sample resume created. Open AI Studio to start chatting with Wise AI.');
+    } catch (err) {
+      console.error('[devkit] Failed to create sample resume', err);
+      toast.error('Failed to create sample resume');
+    } finally {
+      setCreatingSampleResume(false);
+    }
+  }, [user, createResume]);
   const [maintenanceDialogOpen, setMaintenanceDialogOpen] = useState(false);
 
   const isMounted = useIsMounted();
@@ -324,6 +353,36 @@ export function AppSettingsPanel() {
               : <><RotateCcw className="w-3.5 h-3.5" />Reset all daily credits</>
             }
           </Button>
+        </div>
+      </div>
+
+      {/* Demo Data */}
+      <div className="rounded-xl border border-border p-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <FileText className="w-4 h-4 text-primary" />
+          <h3 className="text-sm font-semibold">Demo Data</h3>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Seed your own account with a realistic sample resume so you can test AI Studio chat, tailoring, cover letters, and interview prep end-to-end without filling in resume data manually.
+        </p>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleCreateSampleResume}
+            disabled={creatingSampleResume || !user}
+            className="flex items-center gap-2"
+          >
+            {creatingSampleResume
+              ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" />Creating…</>
+              : <><FileText className="w-3.5 h-3.5" />Create sample resume</>
+            }
+          </Button>
+          {hasSampleResume && (
+            <span className="text-xs text-muted-foreground">
+              You already have a demo resume — clicking again creates another copy.
+            </span>
+          )}
         </div>
       </div>
 

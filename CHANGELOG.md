@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-04-20 — DevKit: one-click sample resume seeding for AI Studio testing (Task #17)
+
+- **`src/lib/devkit/sampleResume.ts`** (new) — `buildSampleResume(displayName)` factory returning a realistic `ResumeData` payload + a `Demo Resume — <First>` title. Includes 3 work experiences (Northwind Labs / Brightline Health / Pixelforge Studio), 1 education entry (UC Davis BS CS), 12 skills, an AWS certification, an open-source project, and a volunteering entry. `templateId` defaults to `'modern'`. The summary, achievements, and responsibilities are written with enough specificity that `update_summary`, `tailor`, `cover_letter`, and interview-prep tools have meaningful content to operate on (vs. the cosmic placeholder in `src/lib/templateData.ts`'s `sampleResumeData`).
+- **`src/components/dev-kit/AppSettingsPanel.tsx`** — Imports `useResumeMutations`, `useResumes`, `useAuth`, and `buildSampleResume`. New `handleCreateSampleResume` callback derives a display name from `user.name` (falling back to email local-part) and calls `createResume.mutateAsync({ resume, title })`, which goes through the standard `supabase.from('resumes').insert(...)` path used by `CreateResumeDialog`. New "Demo Data" section rendered just before the Reset Credits dialog with a "Create sample resume" button (loading + disabled states wired). When at least one existing resume already starts with the title `Demo Resume`, an inline hint warns that clicking again will create another copy. No new edge function or admin endpoint — the seed is per-caller, invoked under the admin's own JWT, so it lands in the same `resumes` table and is immediately selectable from `/ai-studio`.
+- **Why** — Task #16 verification surfaced that the admin test account (`Magdy.saber@outlook.com`) had no resumes, which makes the AI Studio chat composer inactive (it requires a selected resume). This unblocks live verification of any future work touching chat / tailoring / cover letters / interview prep when only an admin account is available.
+
+---
+
 ## 2026-04-19 — Scroll-stack cards: fix zoom, internal animation, and iOS touch zoom (maintenance)
 
 - **`src/components/landing/ScrollStack.css`** — `.lp-stack-parallax` counter-translate removed (was `translate3d(0, calc(var(--card-translate-y,0px)*-0.15),0)`; now `transform:none`). This caused the demo screenshot inside the card to visibly drift as the user scrolled — the "content animates inside the card" complaint. Added `touch-action: manipulation` to `.scroll-stack-scroller`, `.scroll-stack-card-wrap`, and `.scroll-stack-card` to prevent iOS Safari double-tap zoom on scroll-stack touch events.

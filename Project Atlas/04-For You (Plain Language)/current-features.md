@@ -1,6 +1,11 @@
 # What Wise Cloud Can Do Today
 
-**Last verified:** 2026-04-19 (Task #5)
+**Last verified:** 2026-04-20 (Task #17)
+
+## One-click demo resume for admins (2026-04-20)
+**What was the situation:** When testing AI Studio with a brand-new admin account, there were no resumes attached, and the AI chat tool stays inactive until you pick one. That made it hard to verify chat, tailoring, cover letters, or interview prep without first manually filling in a resume.
+**What changed:** The admin Settings area now has a "Create sample resume" button that instantly seeds a realistic demo resume — three jobs, an education entry, a dozen skills, a certification, a project, and a volunteering line — into the admin account.
+**What you'll notice:** After clicking, the demo resume appears in the resume picker on the AI Studio page right away, so chat, tailoring, and the other AI tools are immediately usable. A small note appears next to the button if you already have one, reminding you that another click adds another copy.
 
 ## Preview tailored resume before applying (2026-04-19)
 **What was the situation:** After tailoring a resume to a job, the only way to see the polished result rendered with your template was to click "Apply Changes", which spent a slot to create a new resume copy.
