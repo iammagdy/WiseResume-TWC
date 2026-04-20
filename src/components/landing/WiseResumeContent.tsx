@@ -29,7 +29,16 @@ export function WiseResumeContent({ prefersReducedMotion }: WiseResumeContentPro
   return (
     <>
       {/* ─── SECTION 1: HEADING + SCROLLSTACK FEATURE SECTIONS ─── */}
-      <motion.div variants={sectionItem} custom={1}>
+      {/* Use whileInView so the animation triggers reliably in production
+          builds where variant propagation through a lazy Suspense boundary
+          can silently fail, leaving the section at opacity:0 indefinitely. */}
+      <motion.div
+        variants={sectionItem}
+        custom={1}
+        initial={prefersReducedMotion ? 'visible' : 'hidden'}
+        whileInView="visible"
+        viewport={{ once: true, amount: 0.05 }}
+      >
         {/* Phase 5: collapsed three stacked dividers (lp-separator + 2x SoftDivider)
             into one intentional gradient hairline. */}
         <div className="lp-separator" aria-hidden="true" />
@@ -94,13 +103,25 @@ export function WiseResumeContent({ prefersReducedMotion }: WiseResumeContentPro
       </motion.div>
 
       {/* ─── SECTION 2: TRUST SECTION ─── */}
-      <motion.div variants={sectionItem} custom={2}>
+      <motion.div
+        variants={sectionItem}
+        custom={2}
+        initial={prefersReducedMotion ? 'visible' : 'hidden'}
+        whileInView="visible"
+        viewport={{ once: true, amount: 0.05 }}
+      >
         <SoftDivider />
         <TrustSection />
       </motion.div>
 
       {/* ─── SECTION 3: PWA STRIP ─── */}
-      <motion.div variants={sectionItem} custom={3}>
+      <motion.div
+        variants={sectionItem}
+        custom={3}
+        initial={prefersReducedMotion ? 'visible' : 'hidden'}
+        whileInView="visible"
+        viewport={{ once: true, amount: 0.05 }}
+      >
         <section className="px-4 sm:px-6 py-10" style={{ background: 'var(--lp-section-alt)', borderTop: '1px solid var(--lp-border)' }}>
           <motion.div
             className="max-w-xl mx-auto text-center"
@@ -117,7 +138,13 @@ export function WiseResumeContent({ prefersReducedMotion }: WiseResumeContentPro
       </motion.div>
 
       {/* ─── SECTION 4: FOOTER ─── */}
-      <motion.div variants={sectionItem} custom={4}>
+      <motion.div
+        variants={sectionItem}
+        custom={4}
+        initial={prefersReducedMotion ? 'visible' : 'hidden'}
+        whileInView="visible"
+        viewport={{ once: true, amount: 0.05 }}
+      >
         <Footer lpMode />
       </motion.div>
     </>
