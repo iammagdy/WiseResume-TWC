@@ -531,9 +531,13 @@ export function OnePageWizardSheet({ open, onOpenChange }: OnePageWizardSheetPro
                 exit={{ opacity: 0 }}
                 className="p-4 space-y-5"
               >
-                {/* Honest reduction visualization */}
+                {/* Honest reduction visualization. Until the user actually
+                    applies and we re-measure, we show the AI's *predicted*
+                    optimized page count (clearly labelled as an estimate).
+                    After apply, we replace it with the real measured value. */}
                 <ReductionViz
                   current={measurement?.pages ?? result.currentEstimatedPages}
+                  predicted={result.optimizedEstimatedPages}
                   postApply={postApplyMeasurement?.pages}
                   wordsRemoved={totalWordsRemoved}
                   removedItems={result.removedItems?.length || 0}
@@ -858,27 +862,39 @@ function FitMeter({ measurement }: { measurement: OnePageMeasurement }) {
 }
 
 function ReductionViz({
-  current, postApply, wordsRemoved, removedItems,
+  current, predicted, postApply, wordsRemoved, removedItems,
 }: {
   current: number;
+  predicted: number;
   postApply?: number;
   wordsRemoved: number;
   removedItems: number;
 }) {
+  const measured = postApply != null;
+  // After-apply: use the real measured value. Before apply: show the AI's
+  // predicted page count (clearly tagged as an estimate, not a guarantee).
+  const after = measured ? postApply! : predicted;
   return (
     <div className="p-4 rounded-2xl bg-success/5 border border-success/20 space-y-3">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold">Projected reduction</span>
+        <span className="text-sm font-semibold">
+          {measured ? 'Result after apply' : 'Projected reduction'}
+        </span>
         <Badge variant="outline" className="font-mono text-xs">
-          {current} → {postApply ?? 1} {(postApply ?? 1) === 1 ? 'page' : 'pages'}
+          {current} → {after} {after === 1 ? 'page' : 'pages'}
+          {!measured && <span className="ml-1 opacity-60">(est.)</span>}
         </Badge>
       </div>
       <div className="grid grid-cols-3 gap-2 text-center">
         <Stat label="Words trimmed" value={wordsRemoved.toString()} />
         <Stat label="Items flagged" value={removedItems.toString()} />
-        <Stat label="Pages now" value={String(postApply ?? current)} accent={postApply != null} />
+        <Stat
+          label={measured ? 'Pages now' : 'Pages (est.)'}
+          value={String(after)}
+          accent={measured}
+        />
       </div>
-      {postApply != null && postApply > 1 && (
+      {measured && postApply! > 1 && (
         <p className="text-xs text-warning-foreground flex items-start gap-1.5">
           <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
           Still {postApply} pages after apply. Try Tighten further or adjust the layout levers.

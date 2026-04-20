@@ -67,6 +67,10 @@ function classifyErrorBody(body: Record<string, unknown>): string | null {
   if (code === 'rate_limit' || msg.includes('rate limit') || status === 429) {
     return 'Too many requests — please wait a moment and try again.';
   }
+  if (code === 'invalid_ai_response') {
+    // Server already refunded the credit; surface the explicit copy.
+    return 'AI returned an incomplete plan and your credit was refunded. Please retry.';
+  }
   if (
     code === 'upstream_5xx' ||
     (typeof status === 'number' && status >= 500 && status < 600 && status !== 503)
