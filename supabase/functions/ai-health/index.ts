@@ -235,66 +235,93 @@ serve(async (req) => {
         errorCode = response.status;
         status = (response.status === 429 || response.status === 402) ? 'degraded' : 'down';
       }
-    } else if (effectiveOpenrouterKey) {
-      // Managed OpenRouter: quick health check
+    } else if (effectiveOpenrouterKey || (managedEngine === 'auto' && openrouter2Key)) {
+      // Managed OpenRouter probe. The badge has to mirror what a real chat
+      // call would experience, so when the engine is 'auto' we walk the same
+      // chain callWiseresumeAI does: openrouter → openrouter2 → groq.
+      // Previously the probe only looked at the primary OpenRouter key, so a
+      // 429/402 there made the badge yell "AI Slow / Rate limited" even
+      // though every actual chat call was being served happily by
+      // OpenRouter 2 or Groq. The chain stops at the first probe that
+      // returns 200 and reports the latency from that probe.
       provider = 'wiseresume';
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10_000);
-      try {
-        const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${effectiveOpenrouterKey}`,
-            'HTTP-Referer': 'https://resume.thewise.cloud',
-            'X-Title': 'WiseResume',
-          },
-          body: JSON.stringify({
-            model: effectiveOpenrouterProbeModel,
-            messages: [{ role: 'user', content: 'Hi' }],
-            max_tokens: 1,
-          }),
-          signal: controller.signal,
+      type Probe = { label: 'openrouter' | 'openrouter2' | 'groq'; key: string; url: string; model: string; extraHeaders?: Record<string, string> };
+      const probes: Probe[] = [];
+      if (effectiveOpenrouterKey) {
+        probes.push({
+          label: usingOpenrouter2 ? 'openrouter2' : 'openrouter',
+          key: effectiveOpenrouterKey,
+          url: 'https://openrouter.ai/api/v1/chat/completions',
+          model: effectiveOpenrouterProbeModel,
+          extraHeaders: { 'HTTP-Referer': 'https://resume.thewise.cloud', 'X-Title': 'WiseResume' },
         });
-        clearTimeout(timeoutId);
-        latencyMs = Date.now() - startTime;
-        if (response.ok) {
-          status = latencyMs < 15000 ? 'healthy' : 'degraded';
-        } else {
-          errorCode = response.status;
-          status = (response.status === 429) ? 'degraded' : 'down';
+      }
+      // In 'auto' mode also chain through OpenRouter 2 and Groq so a 429 on
+      // the primary key doesn't poison the badge when the fallback chain is
+      // healthy. When the admin has explicitly pinned to 'openrouter' or
+      // 'openrouter2' we do NOT cross over — they want to see that single
+      // engine's true state.
+      if (managedEngine === 'auto') {
+        if (openrouter2Key && !usingOpenrouter2) {
+          probes.push({
+            label: 'openrouter2',
+            key: openrouter2Key,
+            url: 'https://openrouter.ai/api/v1/chat/completions',
+            model: 'openrouter/elephant-alpha',
+            extraHeaders: { 'HTTP-Referer': 'https://resume.thewise.cloud', 'X-Title': 'WiseResume' },
+          });
         }
-      } catch {
-        clearTimeout(timeoutId);
-        // OpenRouter unreachable — only try Groq fallback if the global engine
-        // setting allows it (i.e. 'auto'). Don't fall back when the admin has
-        // pinned to OpenRouter.
-        if (effectiveGroqKey && managedEngine !== 'openrouter') {
-          const groqStart = Date.now();
-          const groqController = new AbortController();
-          const groqTimeout = setTimeout(() => groqController.abort(), 8_000);
-          try {
-            const groqResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${effectiveGroqKey}` },
-              body: JSON.stringify({ model: 'qwen/qwen3-32b', messages: [{ role: 'user', content: 'Hi' }], max_tokens: 1 }),
-              signal: groqController.signal,
-            });
-            clearTimeout(groqTimeout);
-            latencyMs = Date.now() - groqStart;
-            if (groqResp.ok) {
-              status = latencyMs < 15000 ? 'healthy' : 'degraded';
-            } else {
-              errorCode = groqResp.status;
-              status = (groqResp.status === 429) ? 'degraded' : 'down';
-            }
-          } catch {
-            clearTimeout(groqTimeout);
-            latencyMs = Date.now() - startTime;
-            status = 'down';
+        if (effectiveGroqKey) {
+          probes.push({
+            label: 'groq',
+            key: effectiveGroqKey,
+            url: 'https://api.groq.com/openai/v1/chat/completions',
+            model: 'qwen/qwen3-32b',
+          });
+        }
+      }
+
+      let lastErrorCode: number | null = null;
+      let success = false;
+      for (const probe of probes) {
+        const probeStart = Date.now();
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10_000);
+        try {
+          const response = await fetch(probe.url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${probe.key}`,
+              ...(probe.extraHeaders ?? {}),
+            },
+            body: JSON.stringify({
+              model: probe.model,
+              messages: [{ role: 'user', content: 'Hi' }],
+              max_tokens: 1,
+            }),
+            signal: controller.signal,
+          });
+          clearTimeout(timeoutId);
+          if (response.ok) {
+            latencyMs = Date.now() - probeStart;
+            status = latencyMs < 15000 ? 'healthy' : 'degraded';
+            errorCode = null;
+            success = true;
+            break;
           }
+          lastErrorCode = response.status;
+        } catch {
+          clearTimeout(timeoutId);
+          // network/timeout — try the next probe in the chain
+        }
+      }
+      if (!success) {
+        latencyMs = Date.now() - startTime;
+        if (lastErrorCode !== null) {
+          errorCode = lastErrorCode;
+          status = (lastErrorCode === 429) ? 'degraded' : 'down';
         } else {
-          latencyMs = Date.now() - startTime;
           status = 'down';
         }
       }
