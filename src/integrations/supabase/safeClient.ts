@@ -22,14 +22,20 @@ const POSTGREST_AUTH_CODES = new Set(['PGRST301', 'PGRST302', 'PGRST303']);
 
 async function shouldForceRefresh(response: Response): Promise<boolean> {
   if (response.status === 401) return true;
-  if (response.status !== 400 && response.status !== 403) return false;
+  // PostgREST normally returns 401 for JWT failures, but some configurations /
+  // proxies surface the same error on 400, 403, or even 200 with the code in
+  // the body (e.g. when a function wraps the call). Be defensive across all
+  // of those — we only spend the body-clone cost on non-2xx success paths or
+  // on JSON 200 responses that can cheaply be inspected.
+  if (![200, 400, 403].includes(response.status)) return false;
   try {
     // Clone so the original response is still consumable by supabase-js.
     const clone = response.clone();
     const ct = clone.headers.get('content-type') || '';
     if (!ct.includes('application/json')) return false;
-    const body = await clone.json().catch(() => null) as { code?: string } | null;
-    return !!body?.code && POSTGREST_AUTH_CODES.has(body.code);
+    const body = await clone.json().catch(() => null) as { code?: string; error?: { code?: string } } | null;
+    const code = body?.code ?? body?.error?.code;
+    return !!code && POSTGREST_AUTH_CODES.has(code);
   } catch {
     return false;
   }
