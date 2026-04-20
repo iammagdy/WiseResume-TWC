@@ -304,13 +304,26 @@ serve(async (req) => {
       return authErrorResponse(err, req.headers.get('origin'));
     }
     const latencyMs = Date.now() - startTime;
+    // Surface typed AIError details so the client can render an actionable
+    // message ("OpenRouter rate limited", "Managed credits exhausted", etc.)
+    // instead of a generic "internal". The .type / .status / .attempts fields
+    // are produced by createAIError() inside callWiseresumeAI / callAI and are
+    // the only way the front-end can distinguish a 503 fallback exhaustion
+    // from a 401 bad key from a 408 timeout — all of which surfaced as
+    // "internal" before this change.
+    const e = err as Partial<{ type: string; status: number; message: string; attempts: unknown[] }> & { message?: string };
+    const errType = typeof e?.type === 'string' ? e.type : 'internal';
+    const errStatus = typeof e?.status === 'number' ? e.status : 500;
+    const errMessage = err instanceof Error ? err.message : 'Unknown error';
     return new Response(JSON.stringify({
       success: false,
-      error: 'internal',
-      message: err instanceof Error ? err.message : 'Unknown error',
+      error: errMessage,
+      reason: errType,
+      message: errMessage,
+      attempts: Array.isArray(e?.attempts) ? e.attempts : undefined,
       latencyMs,
     }), {
-      status: 500,
+      status: errStatus >= 400 && errStatus < 600 ? errStatus : 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }

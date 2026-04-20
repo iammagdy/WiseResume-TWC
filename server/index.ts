@@ -157,6 +157,19 @@ async function bootstrapSupabaseSecrets(): Promise<void> {
     } catch (err) {
       console.warn('[server] Managed AI secret push failed (non-fatal):', err);
     }
+  } else {
+    // Loud warning: zero managed AI keys means every "Test AI" / managed-mode
+    // request to the WiseResume edge function will throw "WiseResume AI is not
+    // configured" with no other context. Surface this at boot so the operator
+    // notices before users do.
+    const missing = managedAiKeys.filter((k) => !process.env[k]);
+    console.warn(
+      `[server] No managed AI keys present in Replit env (${missing.join(', ')}). ` +
+      `Test AI in WiseResume managed mode will fail with "AI is not configured" ` +
+      `until at least one of these is set as a Replit Secret AND pushed to ` +
+      `Supabase Edge Function secrets (this bootstrap only pushes keys that ` +
+      `exist in the Replit env).`
+    );
   }
 }
 

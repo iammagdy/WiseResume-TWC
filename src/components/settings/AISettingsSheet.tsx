@@ -877,7 +877,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
           return;
         }
         haptics.error();
-        setTestResult({ status: 'error', providerUsed: aiProvider, latencyMs: data?.latencyMs || 0, error: data?.error || 'Test failed' });
+        setTestResult({ status: 'error', providerUsed: aiProvider, latencyMs: data?.latencyMs || 0, error: data?.message || data?.error || 'Test failed' });
       }
     } catch (err) {
       haptics.error();

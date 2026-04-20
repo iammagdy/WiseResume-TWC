@@ -386,7 +386,7 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
   let userOllamaData: { key: string; baseUrl: string | null; model: string | null } | undefined;
   let userOpenRouterData: { key: string; baseUrl: string | null; model: string | null } | undefined;
   let userByokData: { key: string; model: string | null; provider: string } | undefined;
-  let wiseresumeSubProvider: 'openrouter' | 'groq' | 'auto' = options.wiseresumeSubProvider || 'auto';
+  let wiseresumeSubProvider: 'openrouter' | 'groq' | 'auto' | 'openrouter2' = options.wiseresumeSubProvider || 'auto';
 
   if (userId) {
     const preferredProvider = options.preferredProvider || await getUserPreferredProvider(userId);
