@@ -22,7 +22,8 @@ export function WiseResumeContent({ prefersReducedMotion }: WiseResumeContentPro
   const sectionItem = prefersReducedMotion ? REDUCED_SECTION_ITEM : SCATTER_SECTION_ITEM;
   const [activeIdx, setActiveIdx] = useState(-1);
   const total = featureSections.length;
-  const activeLabel = activeIdx >= 0 ? featureSections[activeIdx]?.title : null;
+  const clampedActiveIdx = Math.min(activeIdx, total - 1);
+  const activeLabel = clampedActiveIdx >= 0 ? featureSections[clampedActiveIdx]?.title : null;
 
   return (
     <>
@@ -64,7 +65,7 @@ export function WiseResumeContent({ prefersReducedMotion }: WiseResumeContentPro
               aria-live="polite"
             >
               <span className="lp-stack-step-chip-num">
-                {Math.max(activeIdx + 1, 1).toString().padStart(2, '0')}
+                {Math.max(clampedActiveIdx + 1, 1).toString().padStart(2, '0')}
               </span>
               <span className="lp-stack-step-chip-sep">/</span>
               <span>{total.toString().padStart(2, '0')}</span>
