@@ -184,8 +184,7 @@ async function ensureSupabaseShadowUser(userId: string, email: string | null): P
   /**
    * Returns true iff an `auth.users` row with id === userId is known to exist
    * after this call. Returns false on any unrecoverable failure so the caller
-   * can fail token-exchange closed (the bridge JWT would otherwise be rejected
-   * by GoTrue with 401s downstream).
+   * can decide whether to issue a degraded JWT or fail the exchange entirely.
    */
   const headers = {
     apikey: SUPABASE_SERVICE_ROLE_KEY,
@@ -195,8 +194,13 @@ async function ensureSupabaseShadowUser(userId: string, email: string | null): P
   const verifyExists = async (): Promise<boolean> => {
     try {
       const v = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${userId}`, { headers });
+      if (!v.ok) {
+        const verifyBody = await v.text().catch(() => '(unreadable)');
+        console.warn(`[server] shadow-user verify-exists returned ${v.status} for userId=${userId}: ${verifyBody}`);
+      }
       return v.ok;
-    } catch {
+    } catch (err) {
+      console.warn(`[server] shadow-user verify-exists exception for userId=${userId}:`, err);
       return false;
     }
   };
@@ -245,13 +249,13 @@ async function ensureSupabaseShadowUser(userId: string, email: string | null): P
       if (isAlreadyExistsResponse(retry.status, retryBody)) {
         return await verifyExists();
       }
-      console.warn(`[server] shadow-user retry failed: ${retry.status} ${retryBody.slice(0, 200)}`);
+      console.warn(`[server] shadow-user retry failed for userId=${userId}: HTTP ${retry.status} — ${retryBody}`);
       return false;
     }
-    console.warn(`[server] shadow-user create failed: ${r.status} ${body.slice(0, 200)}`);
+    console.warn(`[server] shadow-user create failed for userId=${userId}: HTTP ${r.status} — ${body}`);
     return false;
   } catch (err) {
-    console.warn('[server] shadow-user create exception:', err);
+    console.warn(`[server] shadow-user create exception for userId=${userId}:`, err);
     return false;
   }
 }
@@ -407,13 +411,27 @@ app.post('/api/fn/token-exchange', async (req, res) => {
     //    UUID. When using SESSION_SECRET only (no Supabase), skip this step —
     //    all data queries go through the Neon /api/data/* routes which use
     //    validateSupabaseToken (SESSION_SECRET path), not PostgREST.
+    //
+    //    If SUPABASE_SERVICE_ROLE_KEY is present the admin endpoint is reachable
+    //    and we attempted shadow-user creation. A transient failure (network
+    //    blip, rate-limit, etc.) is non-blocking: we issue the JWT anyway with
+    //    shadow_user_ok=false so the client can degrade gracefully. Server-side
+    //    Neon queries still work; only direct PostgREST/RLS calls may reject.
+    //
+    //    If SUPABASE_SERVICE_ROLE_KEY is absent we cannot attempt the call at
+    //    all, so we return 503 — the JWT would be useless for Supabase queries
+    //    and issuing it would give a false sense of success.
+    let shadowUserOk = true;
     if (SUPABASE_JWT_SECRET) {
-      const shadowOk = await ensureSupabaseShadowUser(userId, email || null);
-      if (!shadowOk) {
+      if (!SUPABASE_SERVICE_ROLE_KEY) {
         return res.status(503).json({
           code: 'SHADOW_USER_UNAVAILABLE',
-          message: 'Could not provision the Supabase auth user. Check SUPABASE_SERVICE_ROLE_KEY / Management API access.',
+          message: 'SUPABASE_SERVICE_ROLE_KEY is not configured — cannot provision Supabase auth user.',
         });
+      }
+      shadowUserOk = await ensureSupabaseShadowUser(userId, email || null);
+      if (!shadowUserOk) {
+        console.warn(`[token-exchange] Shadow-user creation failed for userId=${userId}; issuing degraded JWT (shadow_user_ok=false). PostgREST/RLS queries may be rejected until the shadow user is provisioned.`);
       }
     }
 
@@ -433,11 +451,12 @@ app.post('/api/fn/token-exchange', async (req, res) => {
       iat: now,
       exp: expiresAt,
       kinde_sub: kindeSub,
+      shadow_user_ok: shadowUserOk,
     })
       .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
       .sign(secret);
 
-    return res.json({ supabaseToken, userId, expiresAt, kindeSub });
+    return res.json({ supabaseToken, userId, expiresAt, kindeSub, shadowUserOk });
   } catch (err) {
     console.error('[token-exchange] Unexpected error:', err);
     if (sql) {

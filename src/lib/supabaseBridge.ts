@@ -32,6 +32,13 @@ interface BridgeState {
   kindeSub: string | null;
   expiresAt: number; // unix seconds
   lastError: BridgeError | null;
+  /**
+   * Whether the Supabase shadow-user was successfully provisioned during the
+   * last token exchange. `true` by default; set to `false` when the server
+   * issued a degraded JWT (shadow_user_ok=false in the response). PostgREST
+   * RLS queries may fail in this state, but server-proxied Neon queries work.
+   */
+  shadowUserOk: boolean;
 }
 
 // v2: bumped after the server cutover from SESSION_SECRET-signed bridge JWTs
@@ -51,6 +58,7 @@ function emptyState(): BridgeState {
     kindeSub: null,
     expiresAt: 0,
     lastError: null,
+    shadowUserOk: true,
   };
 }
 
@@ -74,6 +82,9 @@ function loadState(): BridgeState {
           kindeSub: parsed.kindeSub,
           expiresAt: parsed.expiresAt,
           lastError: null,
+          // shadowUserOk was added after v2 — default true for legacy entries
+          // so they don't trigger degraded-state UI on hydration.
+          shadowUserOk: parsed.shadowUserOk !== false,
         };
       }
       // Stale or unbound entry — drop it.
@@ -90,6 +101,7 @@ function persistState(s: BridgeState) {
       userId: s.userId,
       kindeSub: s.kindeSub,
       expiresAt: s.expiresAt,
+      shadowUserOk: s.shadowUserOk,
     }));
     updateLastActive();
   } catch {}
@@ -252,6 +264,10 @@ export async function exchangeToken(kindeToken: string): Promise<void> {
       state.userId = data.userId;
       state.kindeSub = data.kindeSub;
       state.expiresAt = data.expiresAt;
+      state.shadowUserOk = data.shadowUserOk !== false;
+      if (!state.shadowUserOk) {
+        console.warn('[SupabaseBridge] Shadow user was not provisioned (shadow_user_ok=false). PostgREST/RLS queries may be rejected.');
+      }
       persistState(state);
     } catch (err) {
       console.error('[SupabaseBridge] Token exchange error:', err);
@@ -355,11 +371,21 @@ export function clearBridge(): void {
   state.kindeSub = null;
   state.expiresAt = 0;
   state.lastError = null;
+  state.shadowUserOk = true;
   exchangePromise = null;
   _getKindeTokenFn = null;
   _currentKindeSub = null;
   try { sessionStorage.removeItem(STORAGE_KEY); } catch {}
   try { sessionStorage.removeItem(LAST_ACTIVE_KEY); } catch {}
+}
+
+/**
+ * Whether the Supabase shadow-user was successfully provisioned during the
+ * last token exchange. Returns false when the server issued a degraded JWT
+ * (shadow_user_ok=false). PostgREST/RLS queries may fail in this state.
+ */
+export function getShadowUserOk(): boolean {
+  return state.shadowUserOk;
 }
 
 /**

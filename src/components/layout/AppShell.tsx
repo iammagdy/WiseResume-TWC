@@ -31,7 +31,7 @@ export function AppShell() {
   const location = useLocation();
   const currentOutlet = useOutlet();
   const { isDark, toggleTheme } = useTheme();
-  const { isAuthenticated, supabaseSettled, supabaseReady } = useAuth();
+  const { isAuthenticated, supabaseSettled, supabaseReady, signOut } = useAuth();
   const showBottomNav = TAB_ROUTES.some(r => location.pathname.startsWith(r));
   const isEditorRoute = location.pathname.startsWith('/editor') || location.pathname.startsWith('/preview');
   const isPortfolioEditorRoute = location.pathname === '/portfolio';
@@ -62,7 +62,7 @@ export function AppShell() {
     if (err) {
       setBridgeError(err);
     }
-  }, [location.pathname]);
+  }, [location.pathname, supabaseSettled]);
 
   useKeyboardAwareScroll();
 
@@ -84,17 +84,37 @@ export function AppShell() {
         <div className="flex items-center justify-between gap-2 px-4 py-2 bg-amber-500/10 text-amber-700 dark:text-amber-400 text-sm border-b border-amber-500/20">
           <div className="flex items-center gap-2 min-w-0">
             <AlertTriangle className="w-4 h-4 shrink-0" />
-            <span className="truncate">AI features require server configuration — contact support.</span>
+            {bridgeError?.code === 'SHADOW_USER_UNAVAILABLE' ? (
+              <span className="truncate">Some features are limited — please try signing out and back in.</span>
+            ) : bridgeError?.code === 'SIGNING_SECRET_MISSING' ? (
+              <span className="truncate">Server is missing required configuration. Contact support.</span>
+            ) : bridgeError?.code === 'INVALID_KINDE_TOKEN' ? (
+              <span className="truncate">Your session could not be verified. Please sign out and sign back in.</span>
+            ) : (
+              <span className="truncate">AI features require server configuration — contact support.</span>
+            )}
           </div>
-          <button
-            onClick={handleBridgeRetry}
-            disabled={retrying}
-            className="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium hover:bg-amber-500/10 transition-colors disabled:opacity-50"
-            aria-label="Retry connection"
-          >
-            <RefreshCw className={`w-3 h-3 ${retrying ? 'animate-spin' : ''}`} />
-            Retry
-          </button>
+          <div className="shrink-0 flex items-center gap-1">
+            {bridgeError?.code === 'SHADOW_USER_UNAVAILABLE' ? (
+              <button
+                onClick={signOut}
+                className="flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium hover:bg-amber-500/10 transition-colors"
+                aria-label="Sign out"
+              >
+                Sign Out
+              </button>
+            ) : (
+              <button
+                onClick={handleBridgeRetry}
+                disabled={retrying}
+                className="flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium hover:bg-amber-500/10 transition-colors disabled:opacity-50"
+                aria-label="Retry connection"
+              >
+                <RefreshCw className={`w-3 h-3 ${retrying ? 'animate-spin' : ''}`} />
+                Retry
+              </button>
+            )}
+          </div>
         </div>
       )}
       {bridgeError && bridgeError.type === 'AUTH_REJECTION' && (
