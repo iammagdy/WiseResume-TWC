@@ -1635,17 +1635,45 @@ export async function callWiseresumeAI(
       // the next model gets its own fresh PER_MODEL_TIMEOUT_MS window.
       const isPerModelTimeout = err instanceof DOMException && err.name === 'AbortError';
 
-      // Determine whether a next attempt exists on a *different* provider
-      const nextProvider = i + 1 < totalAttempts ? attempts[i + 1].provider : null;
-      const canCrossProvider = isAutoMode && nextProvider !== null && nextProvider !== provider;
+      // Determine whether a next attempt exists on a *different* provider.
+      // Look ahead across ALL remaining attempts, not just i+1, so that a hard
+      // error on the FIRST openrouter model (e.g. 402 credits exhausted) can
+      // still cross over to openrouter2 / groq later in the chain. Without
+      // this look-ahead, auto mode bailed out on the very first attempt and
+      // never reached the secondary OpenRouter account or Groq fallback.
+      let nextDifferentProviderIdx = -1;
+      for (let j = i + 1; j < totalAttempts; j++) {
+        if (attempts[j].provider !== provider) {
+          nextDifferentProviderIdx = j;
+          break;
+        }
+      }
+      const canCrossProvider = isAutoMode && nextDifferentProviderIdx !== -1;
+      // For hard errors (auth/payment), retrying the SAME provider's other
+      // models is hopeless — the same key/account will fail the same way.
+      // Jump straight to the next provider in the auto chain instead of
+      // wasting attempts on identical failures.
+      const isHardProviderError =
+        isAIError(err) && (err.type === 'invalid_key' || err.type === 'payment_required');
+      if (isHardProviderError && canCrossProvider) {
+        console.warn(`[AI] WiseResume attempt ${i + 1}/${totalAttempts} (${provider}/${model}) hard ${err.type}: ${reason}. Skipping remaining ${provider} models, jumping to ${attempts[nextDifferentProviderIdx].provider}.`);
+        // Mark all skipped same-provider entries in the telemetry trail.
+        for (let j = i + 1; j < nextDifferentProviderIdx; j++) {
+          attemptLog.push({ provider: attempts[j].provider, model: attempts[j].model, outcome: `skipped_${err.type}`, ms: 0 });
+        }
+        i = nextDifferentProviderIdx - 1; // loop will ++ to nextDifferentProviderIdx
+        continue;
+      }
 
       if (isPerModelTimeout || isSkippableError(err) || canCrossProvider) {
         console.warn(`[AI] WiseResume attempt ${i + 1}/${totalAttempts} (${provider}/${model}) skippable: ${reason}. Trying next.`);
         continue;
       }
 
-      // Hard error within the same provider chain — abort
-      console.error(`[AI] WiseResume attempt ${i + 1}/${totalAttempts} (${provider}/${model}) hard error: ${reason}`);
+      // Hard error AND no other provider available — abort (the user must
+      // fix the key/credits; retrying the same provider's other models is
+      // pointless).
+      console.error(`[AI] WiseResume attempt ${i + 1}/${totalAttempts} (${provider}/${model}) hard error with no cross-provider option: ${reason}`);
       throw err;
     }
   }
