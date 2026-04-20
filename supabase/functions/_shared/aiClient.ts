@@ -600,7 +600,20 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
     // Priority 3: WiseResume AI managed (OpenRouter + Groq)
     if (hasManagedAI) {
       console.log('[AI] Using WiseResume AI (sub-provider:', wiseresumeSubProvider, ')');
-      const res = await callWiseresumeAI(wiseresumeSubProvider, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
+      const res = await callWiseresumeAI(
+        wiseresumeSubProvider,
+        messages,
+        temperature,
+        maxTokens,
+        tools,
+        toolChoice,
+        controller.signal,
+        // Task #24: forward DevKit OpenRouter sub-panel overrides into the
+        // managed sub-engine. Both undefined for normal app traffic, so
+        // the chain behaves exactly as before unless the admin's test sets them.
+        options.openrouterCuratedModel,
+        options.openrouterAutoFallback,
+      );
       return { ...normalizeToolCallResponse(res, toolChoice), providerUsed: res.providerUsed || 'wiseresume' };
     }
 
@@ -1385,7 +1398,12 @@ export async function callWiseresumeAI(
   maxTokens?: number,
   tools?: AITool[],
   toolChoice?: { type: 'function'; function: { name: string } } | 'auto',
-  outerSignal?: AbortSignal
+  outerSignal?: AbortSignal,
+  // Task #24: optional per-request OpenRouter overrides forwarded from the
+  // DevKit OpenRouter sub-panel. Both default to "no override" so every
+  // existing call site (tailoring, assist, etc.) keeps the same behavior.
+  openrouterCuratedModel?: string,
+  openrouterAutoFallback?: boolean,
 ): Promise<AIResponse> {
   const openrouterKey = Deno.env.get('OPENROUTER_API_KEY');
   const openrouter2Key = Deno.env.get('OPENROUTER2_API_KEY');
@@ -1509,9 +1527,9 @@ export async function callWiseresumeAI(
   // - openrouterCuratedModel=<slug> → pin to that single curated slug
   //   (rejected here if off-list — the same allow-list manage-api-keys
   //   enforces on writes is enforced at execution time, no silent coercion).
-  const overrideAuto = options.openrouterAutoFallback === true;
-  const overrideSingle = !overrideAuto && options.openrouterCuratedModel
-    ? options.openrouterCuratedModel
+  const overrideAuto = openrouterAutoFallback === true;
+  const overrideSingle = !overrideAuto && openrouterCuratedModel
+    ? openrouterCuratedModel
     : null;
   if (overrideSingle && !isAllowedOpenRouterModel(overrideSingle)) {
     throw createAIError(
