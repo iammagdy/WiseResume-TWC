@@ -4,6 +4,13 @@
  * Exchanges a Kinde access token for a Supabase-signed JWT via the
  * token-exchange edge function. Stores the result in memory so all
  * Supabase calls can attach it as a bearer token.
+ *
+ * IMPORTANT: The cached identity (supabaseToken / userId) is bound to the
+ * Kinde `sub` it was issued for. When the active Kinde session changes (e.g.
+ * sign out + sign in as a different account in the same tab), all getters
+ * refuse to return the previous account's values — preventing dashboards
+ * from briefly rendering with the wrong tenant's data while the background
+ * token exchange catches up.
  */
 
 export enum BridgeErrorType {
@@ -21,6 +28,8 @@ interface BridgeError {
 interface BridgeState {
   supabaseToken: string | null;
   userId: string | null;
+  /** The Kinde `sub` the cached token / userId was issued for. */
+  kindeSub: string | null;
   expiresAt: number; // unix seconds
   lastError: BridgeError | null;
 }
@@ -31,22 +40,43 @@ const IDLE_CLEAR_MS = 4 * 60 * 60 * 1000; // 4 hours
 
 try { localStorage.removeItem(STORAGE_KEY); localStorage.removeItem(LAST_ACTIVE_KEY); } catch {}
 
+function emptyState(): BridgeState {
+  return {
+    supabaseToken: null,
+    userId: null,
+    kindeSub: null,
+    expiresAt: 0,
+    lastError: null,
+  };
+}
+
 function loadState(): BridgeState {
   try {
     const raw = sessionStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (parsed.supabaseToken && parsed.expiresAt && parsed.expiresAt > Date.now() / 1000 + 60) {
-        return { ...parsed, lastError: null };
+      // Require kindeSub on persisted entries — entries without it predate
+      // the cross-account leak fix and cannot be safely trusted as belonging
+      // to the currently signed-in Kinde user.
+      if (
+        parsed.supabaseToken &&
+        parsed.expiresAt &&
+        parsed.expiresAt > Date.now() / 1000 + 60 &&
+        parsed.kindeSub
+      ) {
+        return {
+          supabaseToken: parsed.supabaseToken,
+          userId: parsed.userId,
+          kindeSub: parsed.kindeSub,
+          expiresAt: parsed.expiresAt,
+          lastError: null,
+        };
       }
+      // Stale or unbound entry — drop it.
+      try { sessionStorage.removeItem(STORAGE_KEY); } catch {}
     }
   } catch {}
-  return {
-    supabaseToken: null,
-    userId: null,
-    expiresAt: 0,
-    lastError: null,
-  };
+  return emptyState();
 }
 
 function persistState(s: BridgeState) {
@@ -54,6 +84,7 @@ function persistState(s: BridgeState) {
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
       supabaseToken: s.supabaseToken,
       userId: s.userId,
+      kindeSub: s.kindeSub,
       expiresAt: s.expiresAt,
     }));
     updateLastActive();
@@ -69,6 +100,14 @@ function updateLastActive(): void {
 const state: BridgeState = loadState();
 
 let exchangePromise: Promise<void> | null = null;
+
+/**
+ * The Kinde `sub` of the currently authenticated user, registered by the
+ * AuthContext on every render. When this differs from `state.kindeSub`, the
+ * bridge refuses to hand out the cached token / userId — they belong to a
+ * different account and would leak data across tenants.
+ */
+let _currentKindeSub: string | null = null;
 
 if (typeof document !== 'undefined') {
   document.addEventListener('visibilitychange', () => {
@@ -92,6 +131,43 @@ let _getKindeTokenFn: (() => Promise<string | null>) | null = null;
  */
 export function setKindeTokenGetter(fn: () => Promise<string | null>): void {
   _getKindeTokenFn = fn;
+}
+
+/**
+ * Tell the bridge which Kinde user is currently authenticated. Called by the
+ * AuthContext on every render so the bridge can detect account swaps within
+ * the same tab. If the cached identity belongs to a different Kinde user,
+ * the cache is dropped immediately — `getUserId()`, `getToken()`, and
+ * `isReady()` will return null until a fresh exchange completes.
+ *
+ * Pass `null` when no Kinde user is signed in (e.g. after sign-out).
+ */
+export function setCurrentKindeSub(sub: string | null): void {
+  _currentKindeSub = sub;
+  if (sub && state.kindeSub && sub !== state.kindeSub) {
+    // Account swap detected — drop the previous account's cached identity.
+    state.supabaseToken = null;
+    state.userId = null;
+    state.kindeSub = null;
+    state.expiresAt = 0;
+    try { sessionStorage.removeItem(STORAGE_KEY); } catch {}
+  }
+}
+
+/**
+ * The Kinde `sub` recorded against the cached bridge state, or null if none.
+ */
+export function getCachedKindeSub(): string | null {
+  return state.kindeSub;
+}
+
+function isIdentityMismatch(): boolean {
+  // If no current Kinde user is registered, fall back to the cached value
+  // (covers signed-out reads and unit tests that don't set a current sub).
+  if (!_currentKindeSub) return false;
+  // If the cache is empty there's nothing to mismatch against.
+  if (!state.kindeSub) return false;
+  return _currentKindeSub !== state.kindeSub;
 }
 
 /**
@@ -138,8 +214,21 @@ export async function exchangeToken(kindeToken: string): Promise<void> {
       state.lastError = null;
 
       const data = await res.json();
+      // Refuse to accept an exchange response that does not bind the issued
+      // identity to a Kinde sub — without it we cannot detect account swaps
+      // and would silently downgrade to the pre-fix leak behavior.
+      if (!data.kindeSub) {
+        console.error('[SupabaseBridge] Exchange response missing kindeSub — refusing to cache');
+        state.lastError = {
+          type: BridgeErrorType.AUTH_REJECTION,
+          code: 'MISSING_KINDE_SUB',
+          message: 'Token exchange response did not include kindeSub binding',
+        };
+        return;
+      }
       state.supabaseToken = data.supabaseToken;
       state.userId = data.userId;
+      state.kindeSub = data.kindeSub;
       state.expiresAt = data.expiresAt;
       persistState(state);
     } catch (err) {
@@ -206,24 +295,30 @@ export async function refreshTokenIfNeeded(force = false): Promise<boolean> {
 }
 
 /**
- * Get the current Supabase JWT, or null if not available / expired.
+ * Get the current Supabase JWT, or null if not available / expired / bound
+ * to a different Kinde user than the one currently authenticated.
  */
 export function getToken(): string | null {
   if (!state.supabaseToken) return null;
+  if (isIdentityMismatch()) return null;
   // Allow 60s buffer before expiry
   if (Date.now() / 1000 > state.expiresAt - 60) return null;
   return state.supabaseToken;
 }
 
 /**
- * Get the deterministic UUID for the current user.
+ * Get the deterministic UUID for the current user, or null if the cached
+ * identity belongs to a different Kinde user than the one currently
+ * authenticated.
  */
 export function getUserId(): string | null {
+  if (isIdentityMismatch()) return null;
   return state.userId;
 }
 
 /**
- * Check if the bridge has a valid, non-expired token.
+ * Check if the bridge has a valid, non-expired token belonging to the
+ * currently authenticated Kinde user.
  */
 export function isReady(): boolean {
   return getToken() !== null;
@@ -235,10 +330,12 @@ export function isReady(): boolean {
 export function clearBridge(): void {
   state.supabaseToken = null;
   state.userId = null;
+  state.kindeSub = null;
   state.expiresAt = 0;
   state.lastError = null;
   exchangePromise = null;
   _getKindeTokenFn = null;
+  _currentKindeSub = null;
   try { sessionStorage.removeItem(STORAGE_KEY); } catch {}
   try { sessionStorage.removeItem(LAST_ACTIVE_KEY); } catch {}
 }

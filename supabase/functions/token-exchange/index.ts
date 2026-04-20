@@ -240,7 +240,7 @@ serve(async (req) => {
 
     // 8. Return the signed JWT
     return new Response(
-      JSON.stringify({ supabaseToken, userId: supabaseUserId, expiresAt }),
+      JSON.stringify({ supabaseToken, userId: supabaseUserId, expiresAt, kindeSub }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   } catch (err) {

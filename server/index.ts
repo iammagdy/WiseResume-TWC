@@ -210,7 +210,7 @@ app.post('/api/fn/token-exchange', async (req, res) => {
       .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
       .sign(secret);
 
-    return res.json({ supabaseToken, userId, expiresAt });
+    return res.json({ supabaseToken, userId, expiresAt, kindeSub });
   } catch (err) {
     console.error('[token-exchange] Unexpected error:', err);
     if (sql) {

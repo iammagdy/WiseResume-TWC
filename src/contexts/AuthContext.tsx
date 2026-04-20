@@ -4,7 +4,7 @@ import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useSettingsStore } from '@/store/settingsStore';
 import { logAudit } from '@/lib/auditLogger';
-import { exchangeToken, clearBridge, isReady, getUserId, setKindeTokenGetter } from '@/lib/supabaseBridge';
+import { exchangeToken, clearBridge, isReady, getUserId, setKindeTokenGetter, setCurrentKindeSub, getCachedKindeSub } from '@/lib/supabaseBridge';
 
 export interface KindeAppUser {
   id: string;
@@ -94,6 +94,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loading = kindeLoading;
   const isAuthenticated = kindeAuthenticated;
 
+  // Bind the bridge to the currently-signed-in Kinde user on every render.
+  // This MUST run before any consumer reads from the bridge so that a stale
+  // cached identity (from a previous account in the same tab) is dropped
+  // before `getUserId()` / `getToken()` can hand it back. The call is a
+  // simple module-level assignment and is safe to invoke during render.
+  setCurrentKindeSub(kindeUser?.id ?? null);
+
   // Get Kinde access token safely
   const getKindeToken = useCallback(async (): Promise<string | null> => {
     try {
@@ -112,6 +119,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!kindeUser) return null;
     const bridgeUserId = getUserId();
     if (!bridgeUserId) return null;
+    // Defence-in-depth: never expose a userId whose cached Kinde sub does
+    // not match the currently authenticated Kinde user. `getUserId()`
+    // already gates on this via `setCurrentKindeSub` above, but we re-check
+    // here so a future refactor of the bridge can't reintroduce the leak.
+    const cachedSub = getCachedKindeSub();
+    if (cachedSub && cachedSub !== kindeUser.id) return null;
     return {
       id: bridgeUserId,
       email: kindeUser.email ?? '',
