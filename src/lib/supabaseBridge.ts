@@ -150,6 +150,13 @@ export function setCurrentKindeSub(sub: string | null): void {
     state.userId = null;
     state.kindeSub = null;
     state.expiresAt = 0;
+    // Also drop the in-flight exchange handle. Without this, a subsequent
+    // `exchangeToken(kindeTokenB)` call would await the previous account's
+    // in-flight promise instead of starting a fresh exchange for B. The
+    // existing fetch keeps running in the background, but the response is
+    // discarded by the race guard inside `exchangeToken` since
+    // `_currentKindeSub` no longer matches.
+    exchangePromise = null;
     try { sessionStorage.removeItem(STORAGE_KEY); } catch {}
   }
 }
@@ -224,6 +231,17 @@ export async function exchangeToken(kindeToken: string): Promise<void> {
           code: 'MISSING_KINDE_SUB',
           message: 'Token exchange response did not include kindeSub binding',
         };
+        return;
+      }
+      // Race guard: the user may have swapped Kinde accounts while this
+      // exchange was in flight. If the registered current sub no longer
+      // matches the identity this token was issued for, discard the
+      // response — committing it would re-leak the previous account's
+      // userId until the next exchange completes.
+      if (_currentKindeSub && _currentKindeSub !== data.kindeSub) {
+        console.warn(
+          '[SupabaseBridge] Discarding exchange response — Kinde user changed mid-flight',
+        );
         return;
       }
       state.supabaseToken = data.supabaseToken;

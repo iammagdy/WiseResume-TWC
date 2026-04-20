@@ -86,6 +86,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const queryClient = useQueryClient();
   const lastSeenUserIdRef = useRef<string | null>(null);
+  const prevKindeSubRef = useRef<string | null>(null);
 
   const [splashHidden, setSplashHidden] = useState(false);
   const [bridgeReady, setBridgeReady] = useState(false);
@@ -142,6 +143,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Always register the getter so refreshTokenIfNeeded() can call it at any time.
     setKindeTokenGetter(getKindeToken);
 
+    const currentSub = kindeUser?.id ?? null;
+    const prevSub = prevKindeSubRef.current;
+    const isAccountSwap =
+      prevSub !== null && currentSub !== null && prevSub !== currentSub;
+    prevKindeSubRef.current = currentSub;
+
     if (!kindeAuthenticated || !kindeUser) {
       // Not authenticated yet — use any cached bridge token to stay unblocked.
       if (isReady()) setBridgeReady(true);
@@ -150,9 +157,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     let cancelled = false;
 
-    // Immediately unblock the UI if a valid cached token already exists.
-    // The async IIFE below still runs to refresh the token in the background.
-    if (isReady()) setBridgeReady(true);
+    if (isAccountSwap) {
+      // The Kinde user changed in this tab. `setCurrentKindeSub` (called in
+      // render) already dropped the bridge cache; flip readiness off so
+      // dashboard hooks render their loading state instead of firing queries
+      // with a half-set identity while the new exchange is in flight.
+      setBridgeReady(false);
+      setBridgeFailed(false);
+    } else if (isReady()) {
+      // Immediately unblock the UI if a valid cached token already exists
+      // for the current identity. The async IIFE below still runs to refresh
+      // the token in the background.
+      setBridgeReady(true);
+    }
 
     (async () => {
       try {
