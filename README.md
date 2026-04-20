@@ -18,7 +18,7 @@
 [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=white&style=flat-square)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white&style=flat-square)](https://www.typescriptlang.org/)
 [![Vite](https://img.shields.io/badge/Vite-6-646CFF?logo=vite&logoColor=white&style=flat-square)](https://vitejs.dev/)
-[![Supabase](https://img.shields.io/badge/Supabase-94_Edge_Functions-3ECF8E?logo=supabase&logoColor=white&style=flat-square)](https://supabase.com/)
+[![Supabase](https://img.shields.io/badge/Supabase-93_Edge_Functions-3ECF8E?logo=supabase&logoColor=white&style=flat-square)](https://supabase.com/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3-38B2AC?logo=tailwind-css&logoColor=white&style=flat-square)](https://tailwindcss.com/)
 [![Framer Motion](https://img.shields.io/badge/Framer_Motion-12-black?logo=framer&logoColor=white&style=flat-square)](https://www.framer.com/motion/)
 [![Capacitor](https://img.shields.io/badge/Capacitor-8_PWA-119EFF?logo=capacitor&logoColor=white&style=flat-square)](https://capacitorjs.com/)
@@ -232,19 +232,21 @@ A conversational career assistant that can **directly edit your resume** through
 
 > *Invite-only AI hiring platform for recruiters, HR managers, and talent acquisition teams.*
 
-**Current status**: Phase 1, invite-only. All features listed below are shipped and live for invited users. New HR accounts receive a **7-day Professional trial** automatically on sign-up. Open sign-up, self-serve billing, and additional enterprise integrations are planned for later phases. Waitlist: [`/waitlist`](https://resume.thewise.cloud/waitlist). Enterprise: [`/enterprise`](https://resume.thewise.cloud/enterprise).
+**Current status**: Phase 1, invite-only. New HR accounts receive a **7-day Professional trial** automatically on sign-up. Waitlist: [`/waitlist`](https://resume.thewise.cloud/waitlist). Enterprise: [`/enterprise`](https://resume.thewise.cloud/enterprise).
+
+The core WiseHire database schema (companies, roles, candidates, briefs, pipeline events, invites) is live in production. A second set of features — scorecards, candidate notes, bulk screening, clients, talent pool — are built and deployed but depend on database migrations that are not yet applied to production. They will activate once those migrations land. Features below are labelled accordingly.
 
 <details open>
 <summary><b>Core AI Tools</b></summary>
 <br>
 
-| Tool | What it does |
-|------|-------------|
-| **AI Job Description Writer** | Generates a full, structured, bias-conscious JD from a 2-sentence brief |
-| **AI Candidate Brief Generator** | Match score, strengths, concerns, suggested interview questions, and employment history notes for any uploaded CV |
-| **Bulk Resume Screener** | Screens and ranks up to 50 CVs simultaneously with AI summaries |
-| **Bias Reduction Mode (CV Masking)** | Automatically redacts names, photos, and school names before you read a CV |
-| **AI Outreach Email Writer** | Generates personalized candidate outreach and follow-up emails |
+| Tool | Status | What it does |
+|------|:------:|-------------|
+| **AI Job Description Writer** | ✅ Live | Generates a full, structured, bias-conscious JD from a 2-sentence brief |
+| **AI Candidate Brief Generator** | ✅ Live | Match score, strengths, concerns, suggested interview questions, and employment history notes for any uploaded CV |
+| **Bulk Resume Screener** | 🔜 Pending migration | Screens and ranks up to 50 CVs simultaneously with AI summaries |
+| **Bias Reduction Mode (CV Masking)** | ✅ Live | Automatically redacts names, photos, and school names before you read a CV |
+| **AI Outreach Email Writer** | 🔜 Pending migration | Generates personalized candidate outreach and follow-up emails |
 
 </details>
 
@@ -252,14 +254,16 @@ A conversational career assistant that can **directly edit your resume** through
 <summary><b>Hiring Workflow</b></summary>
 <br>
 
-- **Candidate Pipeline Board** — Kanban: Shortlisted → Contacted → Interviewing → Offer Sent → Hired / Rejected
-- **Interview Scorecard** — pre-populated from AI brief questions; shareable via a public read-only link
-- **Scorecard Templates** — reusable question banks organized by role category for consistent interviews
-- **Candidate Notes** — threaded team notes with types (general, highlight, concern) and pinned note support
-- **Pipeline Event History** — full audit trail of every stage change, with actor and timestamp
-- **Roles Manager** — create, archive, and track active job roles with status and visibility control
-- **Clients Manager** — for agency recruiters and multi-client workflows; associate roles with specific clients
-- **Onboarding Flow** — 5-step guided setup: company name, size, role types, hiring volume, and first role
+| Feature | Status | Description |
+|---------|:------:|------------|
+| **Candidate Pipeline Board** | ✅ Live | Kanban: Shortlisted → Contacted → Interviewing → Offer Sent → Hired / Rejected |
+| **Pipeline Event History** | ✅ Live | Full audit trail of every stage change, with actor and timestamp |
+| **Roles Manager** | ✅ Live | Create, archive, and track active job roles with status and visibility control |
+| **Onboarding Flow** | ✅ Live | 5-step guided setup: company name, size, role types, hiring volume, and first role |
+| **Interview Scorecard** | 🔜 Pending migration | Pre-populated from AI brief questions; shareable via a public read-only link |
+| **Scorecard Templates** | 🔜 Pending migration | Reusable question banks organized by role category for consistent interviews |
+| **Candidate Notes** | 🔜 Pending migration | Threaded team notes with types (general, highlight, concern) and pinned note support |
+| **Clients Manager** | 🔜 Pending migration | For agency recruiters and multi-client workflows; associate roles with specific clients |
 
 </details>
 
@@ -267,10 +271,12 @@ A conversational career assistant that can **directly edit your resume** through
 <summary><b>Talent & Analytics</b></summary>
 <br>
 
-- **Talent Pool** — searchable database of WiseResume job seekers who have opted in to be discoverable
-- **Talent Search** — filter by skills, experience level, and availability to find passive candidates
-- **HR Analytics Dashboard** — hiring funnel metrics, time-to-offer tracking, and source attribution
-- **Shareable Reports** — read-only public links for candidate briefs and interview scorecards
+| Feature | Status | Description |
+|---------|:------:|------------|
+| **HR Analytics Dashboard** | ✅ Live | Hiring funnel metrics, time-to-offer tracking, and source attribution |
+| **Shareable Reports** | ✅ Live | Read-only public links for candidate briefs |
+| **Talent Pool** | 🔜 Pending migration | Searchable database of WiseResume job seekers who opted in to be discoverable |
+| **Talent Search** | 🔜 Pending migration | Filter by skills, experience level, and availability to find passive candidates |
 
 </details>
 
@@ -335,7 +341,7 @@ The Dev Kit is a comprehensive operations console built into the app:
 | **State** | Zustand (global/persistent) + TanStack Query v5 (server state) |
 | **Auth** | Kinde Auth → Supabase via JWT token bridge (deterministic UUID v5) |
 | **Database** | Supabase PostgreSQL — ~60 tables, Row Level Security on every table, 50+ RPCs |
-| **Backend** | 94 Supabase Edge Functions (Deno runtime) |
+| **Backend** | 93 Supabase Edge Functions (Deno runtime) |
 | **File Storage** | Supabase Storage — 5 buckets: `avatars`, `resumes`, `portfolios`, `temp`, `candidate-resumes` |
 | **Email** | Resend (transactional emails + admin notifications) |
 | **AI Providers** | OpenRouter, Groq, Gemini, OpenAI, Anthropic, Mistral, xAI, Cohere, Ollama (9 total) |
@@ -379,7 +385,7 @@ The Wise Cloud
 ├── Backend (Supabase)
 │   ├── PostgreSQL — ~60 tables, RLS on every table, 50+ RPCs
 │   ├── Storage — 5 buckets (avatars, resumes, portfolios, temp, candidate-resumes)
-│   └── Edge Functions (Deno) — 94 functions across 6 categories:
+│   └── Edge Functions (Deno) — 93 functions across 6 categories:
 │       ├── AI & Content Generation (WiseResume)  — 21 functions
 │       ├── WiseHire AI                            — 12 functions
 │       ├── Resume Parsing & Import                — 4 functions
@@ -492,7 +498,7 @@ Trigger the **Deploy to Hostinger** GitHub Actions workflow. The workflow builds
 │   ├── lib/                    # Utilities, edge function clients, auth bridge
 │   └── integrations/supabase/  # Auto-generated Supabase types (do not edit)
 ├── supabase/
-│   ├── functions/              # 95 edge functions (Deno runtime)
+│   ├── functions/              # 93 edge functions (Deno runtime)
 │   │   ├── _shared/            # Shared middleware, AI routing client, rate limiter
 │   │   └── EDGE_FUNCTION_AUDIT.md  # Full function inventory and status
 │   └── migrations/             # SQL migration files (chronological)
