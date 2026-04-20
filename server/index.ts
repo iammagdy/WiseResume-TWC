@@ -44,19 +44,174 @@ app.use(cors({
 
 // ── Config ────────────────────────────────────────────────────────────────────
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || '';
-const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_PUBLISHABLE_KEY || '';
+// These three are populated from explicit env vars at module load and then
+// (if still empty) auto-fetched from the Supabase Management API at startup
+// using SUPABASE_ACCESS_TOKEN. They are `let` so the bootstrap can fill them in.
+let SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY || '';
+let SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+let SUPABASE_JWT_SECRET = process.env.SUPABASE_JWT_SECRET || process.env.EXT_SUPABASE_JWT_SECRET || '';
 const DATABASE_URL = process.env.DATABASE_URL || '';
 const KINDE_DOMAIN = process.env.VITE_KINDE_DOMAIN || process.env.KINDE_DOMAIN || '';
-const SESSION_SECRET = process.env.SESSION_SECRET || process.env.SUPABASE_JWT_SECRET || '';
+// Fallback secret used ONLY if SUPABASE_JWT_SECRET cannot be obtained. Tokens
+// signed with this will not be accepted by Supabase PostgREST / Auth, so they
+// are effectively dev-only.
+const SESSION_SECRET = process.env.SESSION_SECRET || '';
 
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-  console.warn('[server] SUPABASE_URL or SUPABASE_ANON_KEY not set — edge function proxy will not work');
+if (!SUPABASE_URL) {
+  console.warn('[server] SUPABASE_URL not set — edge function proxy will not work');
 }
 if (!KINDE_DOMAIN) {
   console.warn('[server] KINDE_DOMAIN not set — token-exchange will not work');
 }
-if (!SESSION_SECRET) {
-  console.warn('[server] SESSION_SECRET not set — token-exchange will sign with a fallback (not secure for production)');
+
+/**
+ * Bootstrap missing Supabase secrets from the Supabase Management API using
+ * SUPABASE_ACCESS_TOKEN. Without these the bridge JWT cannot be verified by
+ * Supabase PostgREST or GoTrue, and every signed-in user sees 401s on
+ * `from('resumes')`, the `me` edge function, etc. Idempotent: a secret that
+ * is already set via env vars is left untouched.
+ */
+async function bootstrapSupabaseSecrets(): Promise<void> {
+  const accessToken = process.env.SUPABASE_ACCESS_TOKEN;
+  if (!accessToken) {
+    if (!SUPABASE_JWT_SECRET || !SUPABASE_ANON_KEY || !SUPABASE_SERVICE_ROLE_KEY) {
+      console.warn(
+        '[server] SUPABASE_ACCESS_TOKEN not set and one or more of ' +
+        'SUPABASE_JWT_SECRET / SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY ' +
+        'is missing — Supabase-direct calls will fail for signed-in users.',
+      );
+    }
+    return;
+  }
+  const refMatch = SUPABASE_URL.match(/^https?:\/\/([^.]+)\.supabase\.co/);
+  const ref = refMatch?.[1];
+  if (!ref) {
+    console.warn('[server] Could not derive Supabase project ref from VITE_SUPABASE_URL — skipping secret bootstrap');
+    return;
+  }
+
+  try {
+    if (!SUPABASE_JWT_SECRET) {
+      const r = await fetch(`https://api.supabase.com/v1/projects/${ref}/postgrest`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (r.ok) {
+        const j = (await r.json()) as { jwt_secret?: string };
+        if (j.jwt_secret) {
+          SUPABASE_JWT_SECRET = j.jwt_secret;
+          console.log('[server] Loaded SUPABASE_JWT_SECRET from Management API');
+        }
+      } else {
+        console.warn(`[server] Failed to fetch postgrest config for ${ref}: ${r.status}`);
+      }
+    }
+    if (!SUPABASE_ANON_KEY || !SUPABASE_SERVICE_ROLE_KEY) {
+      const r = await fetch(`https://api.supabase.com/v1/projects/${ref}/api-keys`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (r.ok) {
+        const arr = (await r.json()) as Array<{ name?: string; api_key?: string; type?: string }>;
+        for (const k of arr) {
+          if (!k.api_key) continue;
+          if (!SUPABASE_ANON_KEY && k.name === 'anon' && k.type === 'legacy') {
+            SUPABASE_ANON_KEY = k.api_key;
+            console.log('[server] Loaded SUPABASE_ANON_KEY from Management API');
+          }
+          if (!SUPABASE_SERVICE_ROLE_KEY && k.name === 'service_role' && k.type === 'legacy') {
+            SUPABASE_SERVICE_ROLE_KEY = k.api_key;
+            console.log('[server] Loaded SUPABASE_SERVICE_ROLE_KEY from Management API');
+          }
+        }
+      } else {
+        console.warn(`[server] Failed to fetch api-keys for ${ref}: ${r.status}`);
+      }
+    }
+  } catch (err) {
+    console.warn('[server] Supabase secret bootstrap failed (non-fatal):', err);
+  }
+}
+
+/**
+ * Idempotently create a shadow user in Supabase `auth.users` so that GoTrue's
+ * `auth.getUser(token)` (used by edge function `requireAuth`) can find the
+ * Kinde-derived UUID. Safe to call on every token-exchange — the underlying
+ * admin endpoint returns a 422 / "already registered" error which we ignore.
+ */
+async function ensureSupabaseShadowUser(userId: string, email: string | null): Promise<boolean> {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) return false;
+  /**
+   * Returns true iff an `auth.users` row with id === userId is known to exist
+   * after this call. Returns false on any unrecoverable failure so the caller
+   * can fail token-exchange closed (the bridge JWT would otherwise be rejected
+   * by GoTrue with 401s downstream).
+   */
+  const headers = {
+    apikey: SUPABASE_SERVICE_ROLE_KEY,
+    Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+    'Content-Type': 'application/json',
+  };
+  const verifyExists = async (): Promise<boolean> => {
+    try {
+      const v = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${userId}`, { headers });
+      return v.ok;
+    } catch {
+      return false;
+    }
+  };
+  // Classify GoTrue admin errors precisely. We treat any of these as
+  // "row already exists with this id or email" and verify-by-id afterwards:
+  //   - 422 / 409 with "already" / "duplicate" / "email_exists" body
+  //   - 500 with Postgres 23505 (unique constraint), which GoTrue emits when
+  //     the underlying users.id PK collides with a pre-existing row
+  // Generic 400s (bad input) and other errors are NOT swallowed.
+  const isAlreadyExistsResponse = (status: number, body: string): boolean => {
+    const lower = body.toLowerCase();
+    if (status === 422 || status === 409) {
+      return lower.includes('already') || lower.includes('duplicate') ||
+        lower.includes('user_already') || lower.includes('email_exists');
+    }
+    if (status === 500) {
+      // Postgres unique-violation surfaced by GoTrue
+      return lower.includes('23505') || lower.includes('users_pkey') ||
+        lower.includes('duplicate key value') || lower.includes('users_email_partial_key');
+    }
+    return false;
+  };
+
+  const targetEmail = email && email.length > 0 ? email : `${userId}@kinde.placeholder`;
+  try {
+    const r = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ id: userId, email: targetEmail, email_confirm: true }),
+    });
+    if (r.ok) return true;
+    const body = await r.text();
+    if (isAlreadyExistsResponse(r.status, body)) {
+      // User-id row may already exist from a prior exchange — verify.
+      if (await verifyExists()) return true;
+      // Otherwise email belongs to a different uid; retry with a placeholder
+      // email scoped to this uid so we never collide.
+      const retryEmail = `${userId}@collision.kinde.placeholder`;
+      const retry = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ id: userId, email: retryEmail, email_confirm: true }),
+      });
+      if (retry.ok) return true;
+      const retryBody = await retry.text();
+      if (isAlreadyExistsResponse(retry.status, retryBody)) {
+        return await verifyExists();
+      }
+      console.warn(`[server] shadow-user retry failed: ${retry.status} ${retryBody.slice(0, 200)}`);
+      return false;
+    }
+    console.warn(`[server] shadow-user create failed: ${r.status} ${body.slice(0, 200)}`);
+    return false;
+  } catch (err) {
+    console.warn('[server] shadow-user create exception:', err);
+    return false;
+  }
 }
 
 // Neon DB connection (for direct server-side queries)
@@ -191,10 +346,36 @@ app.post('/api/fn/token-exchange', async (req, res) => {
       }
     }
 
-    // 5. Sign a session JWT (compatible with existing client expectations)
-    const secret = new TextEncoder().encode(
-      SESSION_SECRET || 'dev-fallback-secret-change-in-production',
-    );
+    // 5. Fail-fast if we cannot sign a Supabase-acceptable token. Issuing a
+    //    token here when SUPABASE_JWT_SECRET is missing would just produce
+    //    downstream 401s ("Session expired") with no useful client recovery.
+    if (!SUPABASE_JWT_SECRET) {
+      console.error('[token-exchange] SUPABASE_JWT_SECRET unavailable — refusing to issue an unverifiable bridge token');
+      return res.status(503).json({
+        code: 'SUPABASE_NOT_CONFIGURED',
+        message: 'Supabase bridge is not configured. Set SUPABASE_JWT_SECRET (or SUPABASE_ACCESS_TOKEN to auto-fetch it).',
+      });
+    }
+
+    // 6. Ensure the user also exists in Supabase auth.users so that
+    //    edge-function `requireAuth` (which calls auth.getUser) and PostgREST
+    //    RLS (which checks auth.uid()) both recognize this UUID. If we can't
+    //    confirm the row exists, we MUST not issue a token — GoTrue would
+    //    reject it and the client would loop on 401 → re-exchange → 401.
+    const shadowOk = await ensureSupabaseShadowUser(userId, email || null);
+    if (!shadowOk) {
+      return res.status(503).json({
+        code: 'SHADOW_USER_UNAVAILABLE',
+        message: 'Could not provision the Supabase auth user. Check SUPABASE_SERVICE_ROLE_KEY / Management API access.',
+      });
+    }
+
+    // 7. Sign a JWT that Supabase will accept. We MUST sign with the project's
+    //    JWT secret — otherwise PostgREST returns "No suitable key or wrong
+    //    key type" / 401 and GoTrue rejects the token in `auth.getUser()`.
+    //    Issuer must be `supabase` to match what the official Supabase
+    //    token-exchange edge function emits.
+    const secret = new TextEncoder().encode(SUPABASE_JWT_SECRET);
     const now = Math.floor(Date.now() / 1000);
     const expiresAt = now + 3600; // 1 hour
     const supabaseToken = await new jose.SignJWT({
@@ -202,7 +383,7 @@ app.post('/api/fn/token-exchange', async (req, res) => {
       email,
       role: 'authenticated',
       aud: 'authenticated',
-      iss: 'wiseresume',
+      iss: 'supabase',
       iat: now,
       exp: expiresAt,
       kinde_sub: kindeSub,
@@ -369,25 +550,39 @@ async function validateSupabaseToken(
     return { userId: cached.userId, email: cached.email };
   }
 
-  // Primary path: verify as our own signed session JWT
-  const secret = new TextEncoder().encode(
-    SESSION_SECRET || 'dev-fallback-secret-change-in-production',
-  );
-  try {
-    const { payload } = await jose.jwtVerify(token, secret, { issuer: 'wiseresume' });
-    const userId = typeof payload.sub === 'string' && payload.sub.length > 0 ? payload.sub : null;
-    const email = typeof (payload as Record<string, unknown>).email === 'string'
-      ? ((payload as Record<string, unknown>).email as string).toLowerCase()
-      : null;
-    if (userId) {
-      authCache.set(token, { userId, email, expiresAt: now + AUTH_CACHE_TTL_MS });
-      if (authCache.size > 2000) {
-        for (const [k, v] of authCache) if (v.expiresAt <= now) authCache.delete(k);
+  // Primary path: verify as a session JWT signed by /api/fn/token-exchange.
+  // We try both signing secrets so that tokens from BEFORE the
+  // SUPABASE_JWT_SECRET cutover (still in browser sessionStorage with TTL up
+  // to 1h) keep working until they expire, and new tokens (signed with the
+  // Supabase project secret) are accepted by both PostgREST and this server.
+  const candidateSecrets: { secret: string; issuer?: string }[] = [];
+  if (SUPABASE_JWT_SECRET) candidateSecrets.push({ secret: SUPABASE_JWT_SECRET });
+  if (SESSION_SECRET) {
+    candidateSecrets.push({ secret: SESSION_SECRET, issuer: 'wiseresume' });
+    candidateSecrets.push({ secret: SESSION_SECRET });
+  }
+  // No hardcoded fallback: if no signing secret is configured, validation
+  // skips the local-JWT path entirely and falls through to the Supabase
+  // validator below. This prevents accepting tokens forged with a known
+  // public string under misconfiguration.
+  for (const { secret: rawSecret, issuer } of candidateSecrets) {
+    const secret = new TextEncoder().encode(rawSecret);
+    try {
+      const { payload } = await jose.jwtVerify(token, secret, issuer ? { issuer } : undefined);
+      const userId = typeof payload.sub === 'string' && payload.sub.length > 0 ? payload.sub : null;
+      const email = typeof (payload as Record<string, unknown>).email === 'string'
+        ? ((payload as Record<string, unknown>).email as string).toLowerCase()
+        : null;
+      if (userId) {
+        authCache.set(token, { userId, email, expiresAt: now + AUTH_CACHE_TTL_MS });
+        if (authCache.size > 2000) {
+          for (const [k, v] of authCache) if (v.expiresAt <= now) authCache.delete(k);
+        }
+        return { userId, email };
       }
-      return { userId, email };
+    } catch {
+      // Try next candidate
     }
-  } catch {
-    // Not our JWT — fall through to Supabase validation for legacy tokens
   }
 
   // Fallback: validate against Supabase for any legacy tokens still in circulation
@@ -2348,11 +2543,19 @@ app.get(
 );
 
 // ── Start server ──────────────────────────────────────────────────────────────
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`[server] WiseResume API server running on port ${PORT}`);
-  console.log(`[server] Supabase URL: ${SUPABASE_URL ? 'configured' : 'NOT SET'}`);
-  console.log(`[server] Database: ${DATABASE_URL ? 'configured' : 'NOT SET'}`);
-  scheduleAnalyticsSweep();
-});
+(async () => {
+  // Pull missing Supabase secrets (jwt_secret / anon / service_role) from the
+  // Management API before opening the port — otherwise the very first
+  // /api/fn/token-exchange call would race with the bootstrap and sign a
+  // token with the wrong secret.
+  await bootstrapSupabaseSecrets();
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`[server] WiseResume API server running on port ${PORT}`);
+    console.log(`[server] Supabase URL: ${SUPABASE_URL ? 'configured' : 'NOT SET'}`);
+    console.log(`[server] Supabase JWT secret: ${SUPABASE_JWT_SECRET ? 'configured' : 'MISSING (Supabase calls will 401)'}`);
+    console.log(`[server] Database: ${DATABASE_URL ? 'configured' : 'NOT SET'}`);
+    scheduleAnalyticsSweep();
+  });
+})();
 
 export default app;

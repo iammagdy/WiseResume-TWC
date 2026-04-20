@@ -34,7 +34,11 @@ interface BridgeState {
   lastError: BridgeError | null;
 }
 
-const STORAGE_KEY = 'wise_supabase_bridge_state';
+// v2: bumped after the server cutover from SESSION_SECRET-signed bridge JWTs
+// to JWTs signed with the actual Supabase project JWT secret. Any cached v1
+// tokens in browser storage are useless against Supabase REST/Auth — drop
+// them on next load so the next request triggers a fresh exchange.
+const STORAGE_KEY = 'wise_supabase_bridge_state_v2';
 const LAST_ACTIVE_KEY = 'wr-bridge-last-active';
 const IDLE_CLEAR_MS = 4 * 60 * 60 * 1000; // 4 hours
 
