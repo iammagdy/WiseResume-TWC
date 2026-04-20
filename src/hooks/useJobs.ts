@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { apiFetch } from '@/lib/apiFetch';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
 
@@ -27,12 +27,8 @@ export function useJobs() {
   return useQuery({
     queryKey: ['jobs', user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('jobs')
-        .select('*')
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      return (data || []) as unknown as Job[];
+      const { jobs } = await apiFetch<{ jobs: Job[] }>('/api/data/jobs');
+      return jobs;
     },
     enabled: !!user,
   });
@@ -44,13 +40,8 @@ export function useJob(id: string | null) {
   return useQuery({
     queryKey: ['jobs', id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('jobs')
-        .select('*')
-        .eq('id', id!)
-        .maybeSingle();
-      if (error) throw error;
-      return data as unknown as Job | null;
+      const { job } = await apiFetch<{ job: Job | null }>(`/api/data/jobs/${id}`);
+      return job;
     },
     enabled: !!user && !!id,
   });
@@ -74,9 +65,9 @@ export function useJobMutations() {
       is_saved?: boolean;
     }) => {
       if (!user) throw new Error('Not authenticated');
-      const { data, error } = await supabase
-        .from('jobs')
-        .insert({
+      const { job } = await apiFetch<{ job: Job }>('/api/data/jobs', {
+        method: 'POST',
+        body: {
           user_id: user.id,
           title: input.title,
           company: input.company,
@@ -88,11 +79,9 @@ export function useJobMutations() {
           job_type: input.job_type || 'full-time',
           source_url: input.source_url || null,
           is_saved: input.is_saved ?? true,
-        })
-        .select()
-        .single();
-      if (error) throw error;
-      return data as unknown as Job;
+        },
+      });
+      return job;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['jobs'] });
@@ -104,14 +93,11 @@ export function useJobMutations() {
   const updateJob = useMutation({
     mutationFn: async ({ id, ...updates }: Partial<Job> & { id: string }) => {
       if (!user) throw new Error('Not authenticated');
-      const { data, error } = await supabase
-        .from('jobs')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single();
-      if (error) throw error;
-      return data as unknown as Job;
+      const { job } = await apiFetch<{ job: Job }>(`/api/data/jobs/${id}`, {
+        method: 'PATCH',
+        body: updates,
+      });
+      return job;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['jobs'] });
@@ -122,8 +108,7 @@ export function useJobMutations() {
   const deleteJob = useMutation({
     mutationFn: async (id: string) => {
       if (!user) throw new Error('Not authenticated');
-      const { error } = await supabase.from('jobs').delete().eq('id', id);
-      if (error) throw error;
+      await apiFetch(`/api/data/jobs/${id}`, { method: 'DELETE' });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['jobs'] });

@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/safeClient';
-import { getUserId } from '@/lib/supabaseBridge';
+import { apiFetch } from '@/lib/apiFetch';
 import { useAuth } from '@/hooks/useAuth';
 
 export type AnalyticsDateRange = 'week' | 'month' | 'quarter' | 'all';
@@ -36,116 +35,46 @@ const FUNNEL_STAGES: { id: string; label: string }[] = [
   { id: 'hired', label: 'Hired' },
 ];
 
-// Computed once inside queryFn — not on the call site — so the query key stays stable.
-function rangeToSince(range: AnalyticsDateRange): string | null {
-  if (range === 'all') return null;
-  const d = new Date();
-  if (range === 'week') d.setDate(d.getDate() - 7);
-  else if (range === 'month') d.setDate(d.getDate() - 30);
-  else if (range === 'quarter') d.setDate(d.getDate() - 90);
-  return d.toISOString();
+interface ServerCandidate {
+  id: string;
+  pipeline_stage: string;
+  resume_text: string | null;
+  created_at: string;
+  source?: string | null;
+}
+interface ServerEvent {
+  candidate_id: string;
+  from_stage: string | null;
+  to_stage: string | null;
+  created_at: string;
+}
+interface ServerAnalyticsResponse {
+  candidates: ServerCandidate[];
+  pipelineEvents: ServerEvent[];
+  companyId: string | null;
+  bulkJobs: { results?: Array<{ match_score?: number }> }[];
+  briefs: { id: string }[];
+  roles: { id: string }[];
+  talentViews: { id: string }[];
 }
 
 export function useHRAnalytics(dateRange: AnalyticsDateRange = 'all') {
   const { isAuthenticated, supabaseReady, user } = useAuth();
 
   return useQuery({
-    // Keyed by userId + the stable enum string — userId isolates the cache per
-    // logged-in account so a second user logging in on the same device never
-    // sees the previous user's data during the stale window.
     queryKey: ['hr-analytics', user?.id, dateRange],
     queryFn: async (): Promise<HRAnalytics> => {
-      const userId = await getUserId();
-      if (!userId) throw new Error('Not authenticated');
+      const data = await apiFetch<ServerAnalyticsResponse>('/api/data/hr-analytics', {
+        query: { range: dateRange },
+      });
 
-      // `since` is computed inside queryFn so it is evaluated once per fetch,
-      // never on every render of the consuming component.
-      const since = rangeToSince(dateRange);
-
-      // Fetch the HR user's company — required to scope talent pool views.
-      // If the user has no company row yet, talent pool views returns 0 (no
-      // fallback to an unscoped query, which would mix in other recruiters' data).
-      const { data: companyRow } = await supabase
-        .from('wisehire_companies')
-        .select('id')
-        .eq('owner_id', userId)
-        .maybeSingle();
-      const companyId = companyRow?.id ?? null;
-
-      // Build time-filtered queries
-      let candidatesQ = supabase
-        .from('wisehire_candidates')
-        .select('id, pipeline_stage, resume_text, created_at, source')
-        .eq('owner_id', userId)
-        .eq('is_deleted', false);
-      if (since) candidatesQ = candidatesQ.gte('created_at', since);
-
-      let bulkJobsQ = supabase
-        .from('wisehire_bulk_screen_jobs')
-        .select('results, created_at')
-        .eq('owner_id', userId)
-        .eq('status', 'done');
-      if (since) bulkJobsQ = bulkJobsQ.gte('created_at', since);
-
-      let hireEventsQ = supabase
-        .from('wisehire_pipeline_events')
-        .select('candidate_id, to_stage, created_at')
-        .eq('owner_id', userId)
-        .eq('to_stage', 'hired');
-      if (since) hireEventsQ = hireEventsQ.gte('created_at', since);
-
-      let briefsQ = supabase
-        .from('wisehire_candidate_briefs')
-        .select('id')
-        .eq('owner_id', userId);
-      if (since) briefsQ = briefsQ.gte('created_at', since);
-
-      let allPipelineEventsQ = supabase
-        .from('wisehire_pipeline_events')
-        .select('candidate_id, from_stage, to_stage, created_at')
-        .eq('owner_id', userId)
-        .order('created_at', { ascending: true });
-      if (since) allPipelineEventsQ = allPipelineEventsQ.gte('created_at', since);
-
-      // Talent pool views — only run when we have a company id.
-      // Without one, we return 0 rather than fall back to an unscoped query.
-      const talentViewsPromise = companyId
-        ? (() => {
-            let q = supabase
-              .from('talent_pool_views')
-              .select('id, viewed_at')
-              .eq('viewer_company_id', companyId);
-            if (since) q = q.gte('viewed_at', since);
-            return q;
-          })()
-        : Promise.resolve({ data: [] as { id: string; viewed_at: string | null }[], error: null });
-
-      const [
-        candidatesRes,
-        bulkJobsRes,
-        pipelineEventsRes,
-        rolesRes,
-        briefsRes,
-        talentViewsRes,
-        allPipelineEventsRes,
-      ] = await Promise.all([
-        candidatesQ,
-        bulkJobsQ,
-        hireEventsQ,
-        // Active roles are always the current live count, not time-filtered.
-        supabase.from('wisehire_roles').select('id').eq('owner_id', userId),
-        briefsQ,
-        talentViewsPromise,
-        allPipelineEventsQ,
-      ]);
-
-      const candidates = candidatesRes.data ?? [];
-      const bulkJobs = bulkJobsRes.data ?? [];
-      const hireEvents = pipelineEventsRes.data ?? [];
-      const roles = rolesRes.data ?? [];
-      const briefs = briefsRes.data ?? [];
-      const talentViews = talentViewsRes.data ?? [];
-      const allEvents = allPipelineEventsRes.data ?? [];
+      const candidates = data.candidates ?? [];
+      const allEvents = data.pipelineEvents ?? [];
+      const bulkJobs = data.bulkJobs ?? [];
+      const roles = data.roles ?? [];
+      const briefs = data.briefs ?? [];
+      const talentViews = data.talentViews ?? [];
+      const hireEvents = allEvents.filter(e => e.to_stage === 'hired');
 
       // Candidates by stage
       const stageMap: Record<string, number> = {};
@@ -221,7 +150,7 @@ export function useHRAnalytics(dateRange: AnalyticsDateRange = 'all') {
         }
       }
 
-      // ── Stage conversion funnel ──────────────────────────────────────────
+      // Stage conversion funnel
       const reachedStage: Record<string, Set<string>> = {};
       for (const s of FUNNEL_STAGES) reachedStage[s.id] = new Set();
 
@@ -246,7 +175,7 @@ export function useHRAnalytics(dateRange: AnalyticsDateRange = 'all') {
         pct: Math.round((reachedStage[s.id].size / topCount) * 100),
       }));
 
-      // ── Source breakdown ─────────────────────────────────────────────────
+      // Source breakdown
       const srcMap: Record<string, number> = {};
       for (const c of candidates) {
         const src = c.source ?? 'manual';
@@ -257,8 +186,8 @@ export function useHRAnalytics(dateRange: AnalyticsDateRange = 'all') {
         .sort(([, a], [, b]) => b - a)
         .map(([source, count]) => ({ source, count }));
 
-      // ── Avg days per stage ───────────────────────────────────────────────
-      const candidateEventMap: Record<string, typeof allEvents> = {};
+      // Avg days per stage
+      const candidateEventMap: Record<string, ServerEvent[]> = {};
       for (const evt of allEvents) {
         if (!candidateEventMap[evt.candidate_id]) candidateEventMap[evt.candidate_id] = [];
         candidateEventMap[evt.candidate_id].push(evt);

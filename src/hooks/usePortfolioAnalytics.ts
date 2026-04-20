@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { apiFetch } from '@/lib/apiFetch';
 import { toast } from 'sonner';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -55,19 +55,6 @@ function generateSlug(length = 5): string {
   return result;
 }
 
-/**
- * Resolves the stable `portfolio_id` UUID from the `portfolios` table using the
- * owner's `user_id`. Returns null if the portfolio row does not exist yet.
- */
-async function resolvePortfolioId(userId: string): Promise<string | null> {
-  const { data } = await supabase
-    .from('portfolios')
-    .select('id')
-    .eq('user_id', userId)
-    .maybeSingle();
-  return data?.id ?? null;
-}
-
 // ── Hooks ─────────────────────────────────────────────────────────────────────
 
 /** Fetch visitor analytics for a portfolio (owner only) */
@@ -76,27 +63,25 @@ export function usePortfolioAnalytics(username: string | undefined) {
     queryKey: ['portfolio-analytics', username],
     queryFn: async () => {
       if (!username) return null;
-      const { data, error } = await supabase.rpc('get_portfolio_analytics', {
-        p_username: username.toLowerCase(),
-      });
-      if (error) {
-        console.error('Analytics fetch error:', error);
+      try {
+        const data = await apiFetch<PortfolioAnalytics>('/api/data/portfolio-analytics', {
+          query: { username: username.toLowerCase() },
+        });
+        return {
+          visits: (data.visits ?? []).map(v => ({
+            ...v,
+            sections_timing: (v.sections_timing as unknown) ?? {},
+          })),
+          summary: data.summary ?? {
+            total_visits: 0, unique_countries: 0, avg_time_seconds: null,
+            avg_time_variant_a: null, avg_time_variant_b: null,
+            visits_variant_a: 0, visits_variant_b: 0,
+          },
+        };
+      } catch (err) {
+        console.error('Analytics fetch error:', err);
         return null;
       }
-      if (!data) return null;
-      const d = data as unknown as { visits: PortfolioVisit[]; summary: VisitSummary };
-      const visits = (d.visits ?? []).map(v => ({
-        ...v,
-        sections_timing: (v.sections_timing as unknown) ?? {},
-      }));
-      return {
-        visits,
-        summary: d.summary ?? {
-          total_visits: 0, unique_countries: 0, avg_time_seconds: null,
-          avg_time_variant_a: null, avg_time_variant_b: null,
-          visits_variant_a: 0, visits_variant_b: 0,
-        },
-      };
     },
     enabled: !!username,
     staleTime: 30_000,
@@ -106,30 +91,14 @@ export function usePortfolioAnalytics(username: string | undefined) {
 
 /**
  * Fetch short links owned by the current user.
- * Queries exclusively by stable `portfolio_id` (resolved from `portfolios.user_id`).
- * The legacy `portfolio_username` text column has been removed from `short_links`
- * by migration 20260419000000 — do NOT add it back here.
  */
 export function useShortLinks(userId: string | undefined, _portfolioUsername?: string | undefined) {
   return useQuery<ShortLink[]>({
     queryKey: ['short-links', userId],
     queryFn: async () => {
       if (!userId) return [];
-
-      const portfolioId = await resolvePortfolioId(userId);
-
-      const baseQuery = supabase
-        .from('short_links')
-        .select('*')
-        .eq('owner_user_id', userId)
-        .order('created_at', { ascending: false });
-
-      const { data, error } = portfolioId
-        ? await baseQuery.eq('portfolio_id', portfolioId)
-        : await baseQuery;
-
-      if (error) throw error;
-      return (data ?? []) as ShortLink[];
+      const { links } = await apiFetch<{ links: ShortLink[] }>('/api/data/short-links');
+      return links;
     },
     enabled: !!userId,
   });
@@ -150,29 +119,17 @@ export function useCreateShortLink() {
       label: string;
       targetUrl?: string;
     }) => {
-      const portfolioId = await resolvePortfolioId(userId);
-
-      for (let attempt = 0; attempt < 3; attempt++) {
-        const slug = generateSlug(5);
-        const { data, error } = await supabase
-          .from('short_links')
-          .insert({
-            id: slug,
-            owner_user_id: userId,
-            portfolio_id: portfolioId,
-            label: label.trim() || 'My Link',
-            target_url: targetUrl ?? (portfolioUsername ? `/p/${portfolioUsername.toLowerCase()}` : null),
-          } as any)
-          .select()
-          .single();
-
-        if (error) {
-          if (error.code === '23505') continue;
-          throw error;
-        }
-        return data as ShortLink;
-      }
-      throw new Error('Failed to generate unique slug after 3 attempts');
+      const slug = generateSlug(5);
+      const { link } = await apiFetch<{ link: ShortLink }>('/api/data/short-links', {
+        method: 'POST',
+        body: {
+          id: slug,
+          owner_user_id: userId,
+          label: label.trim() || 'My Link',
+          target_url: targetUrl ?? (portfolioUsername ? `/p/${portfolioUsername.toLowerCase()}` : null),
+        },
+      });
+      return link;
     },
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ['short-links', vars.userId] });
@@ -190,8 +147,7 @@ export function useDeleteShortLink() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, userId }: { id: string; userId: string }) => {
-      const { error } = await supabase.from('short_links').delete().eq('id', id);
-      if (error) throw error;
+      await apiFetch(`/api/data/short-links/${encodeURIComponent(id)}`, { method: 'DELETE' });
       return { id, userId };
     },
     onSuccess: (vars) => {

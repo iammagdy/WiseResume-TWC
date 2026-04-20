@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { apiFetch } from '@/lib/apiFetch';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -96,17 +96,14 @@ export function usePushNotifications() {
       const p256dh = arrayBufferToBase64(p256dhKey);
       const auth = arrayBufferToBase64(authKey);
 
-      const { error } = await supabase.from('push_subscriptions').upsert(
-        {
-          user_id: user.id,
+      await apiFetch('/api/data/push-subscriptions', {
+        method: 'POST',
+        body: {
           endpoint: subscription.endpoint,
           p256dh,
           auth,
         },
-        { onConflict: 'user_id,endpoint' }
-      );
-
-      if (error) throw error;
+      });
       setIsSubscribed(true);
     } finally {
       setIsLoading(false);
@@ -121,11 +118,10 @@ export function usePushNotifications() {
       if (subscription) {
         await subscription.unsubscribe();
         if (user) {
-          await supabase
-            .from('push_subscriptions')
-            .delete()
-            .eq('user_id', user.id)
-            .eq('endpoint', subscription.endpoint);
+          await apiFetch('/api/data/push-subscriptions', {
+            method: 'DELETE',
+            body: { endpoint: subscription.endpoint },
+          });
         }
       }
       setIsSubscribed(false);

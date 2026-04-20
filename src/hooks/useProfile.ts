@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import type { KindeAppUser } from '@/contexts/AuthContext';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { apiFetch } from '@/lib/apiFetch';
 import { getUserId } from '@/lib/supabaseBridge';
 
 export type CareerLevel = 'entry' | 'mid' | 'senior' | 'executive';
@@ -100,25 +100,14 @@ export const CAREER_LEVEL_OPTIONS: { value: CareerLevel; label: string; descript
 
 export function calculateProfileCompletion(profile: Profile | null): number {
   if (!profile) return 0;
-  // Core fields worth 70% total (10% each)
   const coreFields = [
-    profile.fullName,
-    profile.avatarUrl,
-    profile.jobTitle,
-    profile.industry,
-    profile.careerLevel,
-    profile.location,
-    profile.linkedinUrl,
+    profile.fullName, profile.avatarUrl, profile.jobTitle, profile.industry,
+    profile.careerLevel, profile.location, profile.linkedinUrl,
   ];
   const coreFilled = coreFields.filter(Boolean).length;
   const coreScore = (coreFilled / coreFields.length) * 70;
 
-  // Extended fields worth 30% total (10% each)
-  const extendedFields = [
-    profile.phoneNumber,
-    profile.portfolioBio,
-    profile.contactEmail,
-  ];
+  const extendedFields = [profile.phoneNumber, profile.portfolioBio, profile.contactEmail];
   const extendedFilled = extendedFields.filter(Boolean).length;
   const extendedScore = (extendedFilled / extendedFields.length) * 30;
 
@@ -157,134 +146,90 @@ function resolveEffectiveId(userId: string | undefined): string | null {
   return null;
 }
 
-async function fetchProfile(effectiveId: string, user?: KindeAppUser | null): Promise<Profile> {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('full_name, avatar_url, job_title, industry, career_level, location, linkedin_url, profile_completed, username, portfolio_bio, portfolio_enabled, portfolio_resume_id, github_url, website_url, twitter_url, contact_email, portfolio_theme, phone_number, portfolio_sections, portfolio_meta_title, portfolio_meta_description, views, portfolio_style, portfolio_layout, portfolio_accent_color, portfolio_font, open_to_work, availability_headline, portfolio_extras, portfolio_sync_mode, login_streak, last_login_date, digest_enabled, hired_at, updated_at, portfolio_draft, portfolio_draft_saved_at')
-    .eq('user_id', effectiveId)
-    .maybeSingle();
+type ProfileRow = Record<string, unknown> | null;
 
-  if (error) {
-    console.error('Error fetching profile:', error);
-    throw error;
-  }
-
-  if (data) {
-    const d = data as Record<string, unknown>;
+function rowToProfile(d: Record<string, unknown> | null, user?: KindeAppUser | null): Profile {
+  if (!d) {
     return {
-      fullName: data.full_name,
-      avatarUrl: data.avatar_url,
-      jobTitle: data.job_title,
-      industry: data.industry,
-      careerLevel: data.career_level as CareerLevel | null,
-      location: data.location,
-      linkedinUrl: data.linkedin_url,
-      profileCompleted: data.profile_completed ?? false,
-      username: d.username as string | null,
-      portfolioBio: d.portfolio_bio as string | null,
-      portfolioEnabled: (d.portfolio_enabled as boolean) ?? false,
-      portfolioResumeId: d.portfolio_resume_id as string | null,
-      githubUrl: d.github_url as string | null,
-      websiteUrl: d.website_url as string | null,
-      twitterUrl: d.twitter_url as string | null,
-      contactEmail: d.contact_email as string | null,
-      theme: d.portfolio_theme as string | null,
-      phoneNumber: d.phone_number as string | null,
-      portfolioSections: d.portfolio_sections as PortfolioSections | null,
-      portfolioMetaTitle: d.portfolio_meta_title as string | null,
-      portfolioMetaDescription: d.portfolio_meta_description as string | null,
-      // New fields
-      views: (d.views as number) ?? 0,
-      portfolioStyle: (d.portfolio_style as string) ?? null,
-      portfolioLayout: (d.portfolio_layout as string) ?? null,
-      portfolioAccentColor: (d.portfolio_accent_color as string) ?? null,
-      portfolioFont: (d.portfolio_font as string) ?? null,
-      openToWork: (d.open_to_work as boolean) ?? false,
-      availabilityHeadline: (d.availability_headline as string) ?? null,
-      portfolioExtras: (d.portfolio_extras as PortfolioExtras) ?? {},
-      portfolioSyncMode: ((d.portfolio_sync_mode as string) ?? 'auto') as 'auto' | 'locked',
-      loginStreak: (d.login_streak as number) ?? 1,
-      lastLoginDate: (d.last_login_date as string) ?? null,
-      digestEnabled: (d.digest_enabled as boolean) ?? true,
-      hiredAt: (d.hired_at as string) ?? null,
-      updatedAt: (d.updated_at as string) ?? null,
-      portfolioDraft: (d.portfolio_draft as Record<string, unknown>) ?? null,
-      portfolioDraftSavedAt: (d.portfolio_draft_saved_at as string) ?? null,
+      fullName: user?.name || null,
+      avatarUrl: null,
+      jobTitle: null, industry: null, careerLevel: null, location: null,
+      linkedinUrl: null, profileCompleted: false, username: null,
+      portfolioBio: null, portfolioEnabled: false, portfolioResumeId: null,
+      githubUrl: null, websiteUrl: null, twitterUrl: null, contactEmail: null,
+      theme: null, phoneNumber: null, portfolioSections: null,
+      portfolioMetaTitle: null, portfolioMetaDescription: null,
+      views: 0, portfolioStyle: null, portfolioLayout: null,
+      portfolioAccentColor: null, portfolioFont: null, openToWork: false,
+      availabilityHeadline: null, portfolioExtras: {}, portfolioSyncMode: 'auto',
+      loginStreak: 1, lastLoginDate: null, digestEnabled: true, hiredAt: null,
+      updatedAt: null, portfolioDraft: null, portfolioDraftSavedAt: null,
     };
   }
-
-  // No profile exists - create one with Kinde user info
-  const defaultFullName = user?.name || null;
-  const defaultAvatarUrl = null;
-
-  const defaultProfile: Profile = {
-    fullName: defaultFullName,
-    avatarUrl: defaultAvatarUrl,
-    jobTitle: null,
-    industry: null,
-    careerLevel: null,
-    location: null,
-    linkedinUrl: null,
-    profileCompleted: false,
-    username: null,
-    portfolioBio: null,
-    portfolioEnabled: false,
-    portfolioResumeId: null,
-    githubUrl: null,
-    websiteUrl: null,
-    twitterUrl: null,
-    contactEmail: null,
-    theme: null,
-    phoneNumber: null,
-    portfolioSections: null,
-    portfolioMetaTitle: null,
-    portfolioMetaDescription: null,
-    views: 0,
-    portfolioStyle: null,
-    portfolioLayout: null,
-    portfolioAccentColor: null,
-    portfolioFont: null,
-    openToWork: false,
-    availabilityHeadline: null,
-    portfolioExtras: {},
-    portfolioSyncMode: 'auto',
-    loginStreak: 1,
-    lastLoginDate: null,
-    digestEnabled: true,
-    hiredAt: null,
-    updatedAt: null,
-    portfolioDraft: null,
-    portfolioDraftSavedAt: null,
+  return {
+    fullName: (d.full_name as string | null) ?? null,
+    avatarUrl: (d.avatar_url as string | null) ?? null,
+    jobTitle: (d.job_title as string | null) ?? null,
+    industry: (d.industry as string | null) ?? null,
+    careerLevel: (d.career_level as CareerLevel | null) ?? null,
+    location: (d.location as string | null) ?? null,
+    linkedinUrl: (d.linkedin_url as string | null) ?? null,
+    profileCompleted: (d.profile_completed as boolean) ?? false,
+    username: (d.username as string | null) ?? null,
+    portfolioBio: (d.portfolio_bio as string | null) ?? null,
+    portfolioEnabled: (d.portfolio_enabled as boolean) ?? false,
+    portfolioResumeId: (d.portfolio_resume_id as string | null) ?? null,
+    githubUrl: (d.github_url as string | null) ?? null,
+    websiteUrl: (d.website_url as string | null) ?? null,
+    twitterUrl: (d.twitter_url as string | null) ?? null,
+    contactEmail: (d.contact_email as string | null) ?? null,
+    theme: (d.portfolio_theme as string | null) ?? null,
+    phoneNumber: (d.phone_number as string | null) ?? null,
+    portfolioSections: (d.portfolio_sections as PortfolioSections | null) ?? null,
+    portfolioMetaTitle: (d.portfolio_meta_title as string | null) ?? null,
+    portfolioMetaDescription: (d.portfolio_meta_description as string | null) ?? null,
+    views: (d.views as number) ?? 0,
+    portfolioStyle: (d.portfolio_style as string) ?? null,
+    portfolioLayout: (d.portfolio_layout as string) ?? null,
+    portfolioAccentColor: (d.portfolio_accent_color as string) ?? null,
+    portfolioFont: (d.portfolio_font as string) ?? null,
+    openToWork: (d.open_to_work as boolean) ?? false,
+    availabilityHeadline: (d.availability_headline as string) ?? null,
+    portfolioExtras: (d.portfolio_extras as PortfolioExtras) ?? {},
+    portfolioSyncMode: ((d.portfolio_sync_mode as string) ?? 'auto') as 'auto' | 'locked',
+    loginStreak: (d.login_streak as number) ?? 1,
+    lastLoginDate: (d.last_login_date as string) ?? null,
+    digestEnabled: (d.digest_enabled as boolean) ?? true,
+    hiredAt: (d.hired_at as string) ?? null,
+    updatedAt: (d.updated_at as string) ?? null,
+    portfolioDraft: (d.portfolio_draft as Record<string, unknown>) ?? null,
+    portfolioDraftSavedAt: (d.portfolio_draft_saved_at as string) ?? null,
   };
+}
 
-  // Create the row via upsert — effectiveId is guaranteed non-null here (early return above)
-  await supabase.from('profiles').upsert(
-    {
-      user_id: effectiveId,
-      full_name: defaultFullName,
-      avatar_url: defaultAvatarUrl,
-    },
-    { onConflict: 'user_id' }
-  );
+async function fetchProfile(_effectiveId: string, user?: KindeAppUser | null): Promise<Profile> {
+  const { profile } = await apiFetch<{ profile: ProfileRow }>('/api/data/profile');
+  if (profile) return rowToProfile(profile, user);
 
-  return defaultProfile;
+  // Create a default row server-side so subsequent reads return data.
+  const defaultFullName = user?.name || null;
+  await apiFetch('/api/data/profile', {
+    method: 'PATCH',
+    body: { full_name: defaultFullName },
+  });
+
+  return rowToProfile(null, user);
 }
 
 export function useProfile(userId: string | undefined, user?: KindeAppUser | null) {
   const queryClient = useQueryClient();
 
-  // Stable cache key: always derived from the bridged Supabase UUID so every
-  // consumer of useProfile (DesktopNav, SettingsPage, DashboardPage, …) reads
-  // and writes the SAME cache entry, regardless of whether `user.id` happens
-  // to be the Kinde id or the UUID at any given render.
   const effectiveId = resolveEffectiveId(userId);
 
   const { data: profile = null, isLoading: loading } = useQuery({
     queryKey: ['profile', effectiveId],
     queryFn: () => fetchProfile(effectiveId!, user),
     enabled: !!effectiveId,
-    // Short staleTime so other tabs/sheets pick up edits quickly. The mutation
-    // also broad-invalidates on success, so this is mostly a safety net.
     staleTime: 30 * 1000,
     gcTime: 10 * 60 * 1000,
     refetchOnWindowFocus: true,
@@ -294,63 +239,40 @@ export function useProfile(userId: string | undefined, user?: KindeAppUser | nul
 
   const updateMutation = useMutation({
     mutationFn: async (updates: Partial<Profile>) => {
-      // Re-resolve at mutation time in case the bridge settled after the hook ran.
       const id = resolveEffectiveId(userId);
       if (!id) throw new Error('Profile save unavailable — app is still initializing');
 
-      // Only send the fields that are explicitly in `updates` — prevents data races
-      // on concurrent saves and avoids overwriting stale fallback values.
-      const dbUpdates: Record<string, unknown> = { user_id: id };
+      // Translate camelCase Profile fields into snake_case columns, sending
+      // ONLY what the caller explicitly set. The server filters anything it
+      // can't persist (column doesn't exist, not in the writable allow-list).
+      const dbUpdates: Record<string, unknown> = {};
+      const map: Record<string, string> = {
+        fullName: 'full_name', avatarUrl: 'avatar_url', jobTitle: 'job_title',
+        industry: 'industry', careerLevel: 'career_level', location: 'location',
+        linkedinUrl: 'linkedin_url', profileCompleted: 'profile_completed',
+        username: 'username', portfolioBio: 'portfolio_bio',
+        portfolioEnabled: 'portfolio_enabled', portfolioResumeId: 'portfolio_resume_id',
+        githubUrl: 'github_url', websiteUrl: 'website_url', twitterUrl: 'twitter_url',
+        contactEmail: 'contact_email', theme: 'portfolio_theme', phoneNumber: 'phone_number',
+        portfolioSections: 'portfolio_sections', portfolioMetaTitle: 'portfolio_meta_title',
+        portfolioMetaDescription: 'portfolio_meta_description',
+        portfolioStyle: 'portfolio_style', portfolioLayout: 'portfolio_layout',
+        portfolioAccentColor: 'portfolio_accent_color', portfolioFont: 'portfolio_font',
+        openToWork: 'open_to_work', availabilityHeadline: 'availability_headline',
+        portfolioExtras: 'portfolio_extras', portfolioSyncMode: 'portfolio_sync_mode',
+        loginStreak: 'login_streak', lastLoginDate: 'last_login_date',
+        digestEnabled: 'digest_enabled', hiredAt: 'hired_at',
+        portfolioDraft: 'portfolio_draft', portfolioDraftSavedAt: 'portfolio_draft_saved_at',
+      };
+      for (const [camel, snake] of Object.entries(map)) {
+        const v = (updates as Record<string, unknown>)[camel];
+        if (v !== undefined) dbUpdates[snake] = v;
+      }
 
-      if (updates.fullName !== undefined) dbUpdates.full_name = updates.fullName;
-      if (updates.avatarUrl !== undefined) dbUpdates.avatar_url = updates.avatarUrl;
-      if (updates.jobTitle !== undefined) dbUpdates.job_title = updates.jobTitle;
-      if (updates.industry !== undefined) dbUpdates.industry = updates.industry;
-      if (updates.careerLevel !== undefined) dbUpdates.career_level = updates.careerLevel;
-      if (updates.location !== undefined) dbUpdates.location = updates.location;
-      if (updates.linkedinUrl !== undefined) dbUpdates.linkedin_url = updates.linkedinUrl;
-      if (updates.profileCompleted !== undefined) dbUpdates.profile_completed = updates.profileCompleted;
-      if (updates.username !== undefined) dbUpdates.username = updates.username;
-      if (updates.portfolioBio !== undefined) dbUpdates.portfolio_bio = updates.portfolioBio;
-      if (updates.portfolioEnabled !== undefined) dbUpdates.portfolio_enabled = updates.portfolioEnabled;
-      if (updates.portfolioResumeId !== undefined) dbUpdates.portfolio_resume_id = updates.portfolioResumeId;
-      if (updates.githubUrl !== undefined) dbUpdates.github_url = updates.githubUrl;
-      if (updates.websiteUrl !== undefined) dbUpdates.website_url = updates.websiteUrl;
-      if (updates.twitterUrl !== undefined) dbUpdates.twitter_url = updates.twitterUrl;
-      if (updates.contactEmail !== undefined) dbUpdates.contact_email = updates.contactEmail;
-      if (updates.theme !== undefined) dbUpdates.portfolio_theme = updates.theme;
-      if (updates.phoneNumber !== undefined) dbUpdates.phone_number = updates.phoneNumber;
-      if (updates.portfolioSections !== undefined) dbUpdates.portfolio_sections = updates.portfolioSections;
-      if (updates.portfolioMetaTitle !== undefined) dbUpdates.portfolio_meta_title = updates.portfolioMetaTitle;
-      if (updates.portfolioMetaDescription !== undefined) dbUpdates.portfolio_meta_description = updates.portfolioMetaDescription;
-      if (updates.portfolioStyle !== undefined) dbUpdates.portfolio_style = updates.portfolioStyle;
-      if (updates.portfolioLayout !== undefined) dbUpdates.portfolio_layout = updates.portfolioLayout;
-      if (updates.portfolioAccentColor !== undefined) dbUpdates.portfolio_accent_color = updates.portfolioAccentColor;
-      if (updates.portfolioFont !== undefined) dbUpdates.portfolio_font = updates.portfolioFont;
-      if (updates.openToWork !== undefined) dbUpdates.open_to_work = updates.openToWork;
-      if (updates.availabilityHeadline !== undefined) dbUpdates.availability_headline = updates.availabilityHeadline;
-      if (updates.portfolioExtras !== undefined) dbUpdates.portfolio_extras = updates.portfolioExtras;
-      if (updates.portfolioSyncMode !== undefined) dbUpdates.portfolio_sync_mode = updates.portfolioSyncMode;
-      if (updates.loginStreak !== undefined) dbUpdates.login_streak = updates.loginStreak;
-      if (updates.lastLoginDate !== undefined) dbUpdates.last_login_date = updates.lastLoginDate;
-      if (updates.digestEnabled !== undefined) dbUpdates.digest_enabled = updates.digestEnabled;
-      if (updates.hiredAt !== undefined) dbUpdates.hired_at = updates.hiredAt;
-      if (updates.portfolioDraft !== undefined) dbUpdates.portfolio_draft = updates.portfolioDraft;
-      if (updates.portfolioDraftSavedAt !== undefined) dbUpdates.portfolio_draft_saved_at = updates.portfolioDraftSavedAt;
-
-      const { error } = await supabase
-        .from('profiles')
-        .upsert(dbUpdates as never, { onConflict: 'user_id' });
-
-      if (error) throw error;
+      await apiFetch('/api/data/profile', { method: 'PATCH', body: dbUpdates });
       return updates;
     },
     onSuccess: (updates) => {
-      // Merge updates into every cached ['profile', *] entry that already
-      // holds a complete Profile — covers any orphan keys created with a
-      // Kinde id before the bridge settled. Skip empty cache slots so we
-      // never seed a partial Profile (invalidation below will refetch them
-      // authoritatively from the DB).
       queryClient.setQueriesData<Profile | null>({ queryKey: ['profile'] }, (old) =>
         old ? { ...old, ...updates } : old
       );

@@ -13,7 +13,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { useQueryClient } from '@tanstack/react-query';
 import { useMe } from '@/hooks/useMe';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/safeClient';
 import { getUserId } from '@/lib/supabaseBridge';
 import { parseResumePDF, parseResumePDFWithOCR, parseTextWithAI } from '@/lib/pdfParser';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
@@ -164,11 +163,10 @@ export default function OnboardingPage() {
     let cancelled = false;
     (async () => {
       try {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('onboarding_completed')
-          .eq('user_id', userId)
-          .maybeSingle();
+        const { apiFetch } = await import('@/lib/apiFetch');
+        const { profile } = await apiFetch<{ profile: { onboarding_completed?: boolean } | null }>(
+          '/api/data/profile',
+        );
         if (cancelled) return;
         if (profile?.onboarding_completed) {
           localStorage.setItem(ONBOARDING_KEY, 'true');
@@ -422,10 +420,11 @@ export default function OnboardingPage() {
     const userId = getUserId() || user?.id;
     if (userId) {
       try {
-        await supabase.from('profiles').upsert({
-          user_id: userId,
-          onboarding_completed: true,
-        } as never, { onConflict: 'user_id' });
+        const { apiFetch } = await import('@/lib/apiFetch');
+        await apiFetch('/api/data/profile', {
+          method: 'PATCH',
+          body: { onboarding_completed: true },
+        });
         queryClient.invalidateQueries({ queryKey: ['profile'] });
       } catch {
         // non-critical

@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { apiFetch } from '@/lib/apiFetch';
 import { useAuth } from './useAuth';
 import { format, subDays, startOfDay, startOfWeek } from 'date-fns';
 
@@ -31,6 +31,13 @@ export function weeklyGoalKey(userId: string) {
   return `activity-weekly-goal-${userId}`;
 }
 
+interface ActivityRowsResponse {
+  resumes: { created_at: string }[];
+  jobApplications: { applied_at: string | null; status?: string }[];
+  coverLetters: { created_at: string }[];
+  tailorHistory: { created_at: string }[];
+}
+
 export function useActivityStreak() {
   const { user } = useAuth();
 
@@ -38,29 +45,24 @@ export function useActivityStreak() {
     queryKey: ['activity-streak', user?.id],
     queryFn: async () => {
       const since = subDays(new Date(), 365).toISOString();
-      const [resumes, tailors, apps, covers] = await Promise.all([
-        supabase.from('resumes').select('created_at').gte('created_at', since),
-        supabase.from('tailor_history').select('created_at').gte('created_at', since),
-        supabase.from('job_applications').select('applied_at').gte('applied_at', since),
-        supabase.from('cover_letters').select('created_at').gte('created_at', since),
-      ]);
+      const data = await apiFetch<ActivityRowsResponse>('/api/data/activity-rows', {
+        query: { since },
+      });
 
       const activeDays = new Set<string>();
       const addDates = (
-        rows: { created_at?: string | null; applied_at?: string | null }[] | null,
-        field: 'created_at' | 'applied_at',
+        rows: { created_at?: string | null }[] | null | undefined,
       ) => {
         (rows || []).forEach(r => {
-          const d = r[field];
-          if (d) activeDays.add(format(startOfDay(new Date(d)), 'yyyy-MM-dd'));
+          if (r.created_at) activeDays.add(format(startOfDay(new Date(r.created_at)), 'yyyy-MM-dd'));
         });
       };
-      addDates(resumes.data, 'created_at');
-      addDates(tailors.data, 'created_at');
-      (apps.data || []).forEach(r => {
+      addDates(data.resumes);
+      addDates(data.tailorHistory);
+      addDates(data.coverLetters);
+      (data.jobApplications || []).forEach(r => {
         if (r.applied_at) activeDays.add(format(startOfDay(new Date(r.applied_at)), 'yyyy-MM-dd'));
       });
-      addDates(covers.data, 'created_at');
 
       const today = startOfDay(new Date());
       let streak = 0;
@@ -83,7 +85,7 @@ export function useActivityStreak() {
       });
 
       const thisWeekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
-      const thisWeekApplications = (apps.data || []).filter(
+      const thisWeekApplications = (data.jobApplications || []).filter(
         a => a.applied_at && new Date(a.applied_at) >= thisWeekStart,
       ).length;
 

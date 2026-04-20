@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { apiFetch } from '@/lib/apiFetch';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import type { ResumeData } from '@/types/resume';
@@ -65,7 +65,6 @@ export function useGuestMigration(session: Session | null) {
     setIsMigrating(true);
 
     const { resume, resumeId } = guest;
-    const userId = session.user.id;
 
     const toJson = (v: unknown) => JSON.parse(JSON.stringify(v ?? {}));
     const toJsonArr = (v: unknown) => JSON.parse(JSON.stringify(v ?? []));
@@ -74,52 +73,43 @@ export function useGuestMigration(session: Session | null) {
       {
         name: 'check-existing',
         action: async () => {
-          const { data: existing } = await supabase
-            .from('resumes')
-            .select('id')
-            .eq('id', resumeId)
-            .maybeSingle();
-
-          if (existing) {
-            // Already migrated or ID collision — mark done
-            return 'skip-remaining';
-          }
+          const { exists } = await apiFetch<{ exists: boolean }>(
+            `/api/data/resumes/exists/${encodeURIComponent(resumeId)}`,
+          );
+          if (exists) return 'skip-remaining';
         },
       },
       {
         name: 'insert-resume',
         action: async () => {
           // Re-check existence for idempotency (in case checkpoint write failed)
-          const { data: existing } = await supabase
-            .from('resumes')
-            .select('id')
-            .eq('id', resumeId)
-            .maybeSingle();
+          const { exists } = await apiFetch<{ exists: boolean }>(
+            `/api/data/resumes/exists/${encodeURIComponent(resumeId)}`,
+          );
+          if (exists) return;
 
-          if (existing) return;
-
-          const { error } = await supabase.from('resumes').insert([{
-            user_id: userId,
-            title: resume.contactInfo?.fullName
-              ? `${resume.contactInfo.fullName}'s Resume`
-              : 'My Resume',
-            contact_info: toJson(resume.contactInfo),
-            summary: resume.summary || '',
-            experience: toJsonArr(resume.experience),
-            education: toJsonArr(resume.education),
-            skills: toJsonArr(resume.skills),
-            certifications: toJsonArr(resume.certifications),
-            awards: toJsonArr(resume.awards),
-            projects: toJsonArr(resume.projects),
-            publications: toJsonArr(resume.publications),
-            volunteering: toJsonArr(resume.volunteering),
-            hobbies: toJsonArr(resume.hobbies),
-            references: toJsonArr(resume.references),
-            template_id: resume.templateId || 'modern',
-            customization: toJson(resume.customization),
-          }]);
-
-          if (error) throw error;
+          await apiFetch('/api/data/resumes', {
+            method: 'POST',
+            body: {
+              title: resume.contactInfo?.fullName
+                ? `${resume.contactInfo.fullName}'s Resume`
+                : 'My Resume',
+              contact_info: toJson(resume.contactInfo),
+              summary: resume.summary || '',
+              experience: toJsonArr(resume.experience),
+              education: toJsonArr(resume.education),
+              skills: toJsonArr(resume.skills),
+              certifications: toJsonArr(resume.certifications),
+              awards: toJsonArr(resume.awards),
+              projects: toJsonArr(resume.projects),
+              publications: toJsonArr(resume.publications),
+              volunteering: toJsonArr(resume.volunteering),
+              hobbies: toJsonArr(resume.hobbies),
+              references: toJsonArr(resume.references),
+              template_id: resume.templateId || 'modern',
+              customization: toJson(resume.customization),
+            },
+          });
         },
       },
       {

@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { apiFetch } from '@/lib/apiFetch';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
 
@@ -20,13 +20,8 @@ export function useNotifications() {
   return useQuery({
     queryKey: ['notifications', user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', user!.id)
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      return (data || []) as unknown as Notification[];
+      const { notifications } = await apiFetch<{ notifications: Notification[] }>('/api/data/notifications');
+      return notifications;
     },
     enabled: !!user,
   });
@@ -38,12 +33,7 @@ export function useUnreadNotificationCount() {
   return useQuery({
     queryKey: ['notifications', 'unread-count', user?.id],
     queryFn: async () => {
-      const { count, error } = await supabase
-        .from('notifications')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user!.id)
-        .eq('is_read', false);
-      if (error) throw error;
+      const { count } = await apiFetch<{ count: number }>('/api/data/notifications/unread-count');
       return count ?? 0;
     },
     enabled: !!user,
@@ -59,11 +49,10 @@ export function useNotificationMutations() {
   const markAsRead = useMutation({
     mutationFn: async (id: string) => {
       if (!user) throw new Error('Not authenticated');
-      const { error } = await supabase
-        .from('notifications')
-        .update({ is_read: true })
-        .eq('id', id);
-      if (error) throw error;
+      await apiFetch('/api/data/notifications/mark-read', {
+        method: 'POST',
+        body: { id },
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
@@ -73,12 +62,7 @@ export function useNotificationMutations() {
   const markAllAsRead = useMutation({
     mutationFn: async () => {
       if (!user) throw new Error('Not authenticated');
-      const { error } = await supabase
-        .from('notifications')
-        .update({ is_read: true })
-        .eq('user_id', user!.id)
-        .eq('is_read', false);
-      if (error) throw error;
+      await apiFetch('/api/data/notifications/mark-all-read', { method: 'POST' });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
@@ -90,8 +74,7 @@ export function useNotificationMutations() {
   const deleteNotification = useMutation({
     mutationFn: async (id: string) => {
       if (!user) throw new Error('Not authenticated');
-      const { error } = await supabase.from('notifications').delete().eq('id', id);
-      if (error) throw error;
+      await apiFetch(`/api/data/notifications/${id}`, { method: 'DELETE' });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
@@ -102,11 +85,7 @@ export function useNotificationMutations() {
   const clearAll = useMutation({
     mutationFn: async () => {
       if (!user) throw new Error('Not authenticated');
-      const { error } = await supabase
-        .from('notifications')
-        .delete()
-        .eq('user_id', user!.id);
-      if (error) throw error;
+      await apiFetch('/api/data/notifications', { method: 'DELETE' });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] });

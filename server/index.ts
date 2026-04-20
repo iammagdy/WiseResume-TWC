@@ -960,6 +960,392 @@ app.get('/api/plan/:userId', async (req, res) => {
   }
 });
 
+// ── Data API (replaces direct supabase.from() calls in src/hooks + src/pages) ─
+//
+// Every endpoint below is gated by `requireAuthHeader`, which validates the
+// caller's session JWT against `SESSION_SECRET` — Supabase is never contacted.
+// Together these endpoints cover the read/write surface area that used to be
+// served by Supabase PostgREST through `src/integrations/supabase/safeClient`,
+// so the browser no longer depends on `SUPABASE_JWT_SECRET` for normal data
+// reads.
+//
+// Several tables referenced by the legacy hooks are not yet present in the
+// Neon schema (`notifications`, `jobs`, `resume_shares`, `push_subscriptions`,
+// `short_links`, `tailor_history`, `talent_pool_views`,
+// `wisehire_bulk_screen_jobs`, `wisehire_candidate_briefs`,
+// `wisehire_roles`). Those endpoints intentionally return empty results /
+// no-op success responses so the UI continues to work. They're stubbed in
+// one place, easy to wire to real tables later.
+
+interface NeonRow { [k: string]: unknown }
+async function tableExists(name: string): Promise<boolean> {
+  if (!sql) return false;
+  try {
+    const rows = await sql`
+      SELECT 1 FROM information_schema.tables
+      WHERE table_schema = 'public' AND table_name = ${name}
+      LIMIT 1
+    ` as NeonRow[];
+    return rows.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+const tableExistsCache = new Map<string, { value: boolean; expiresAt: number }>();
+async function tableExistsCached(name: string): Promise<boolean> {
+  const now = Date.now();
+  const hit = tableExistsCache.get(name);
+  if (hit && hit.expiresAt > now) return hit.value;
+  const value = await tableExists(name);
+  tableExistsCache.set(name, { value, expiresAt: now + 5 * 60_000 });
+  return value;
+}
+
+function dataErr(res: Response, err: unknown): Response {
+  console.error('[data-api] error:', err);
+  return res.status(500).json({ error: 'Internal server error' });
+}
+
+// ── /api/data/profile ──────────────────────────────────────────────────────────
+app.get('/api/data/profile', requireAuthHeader, async (req: AuthedRequest, res) => {
+  if (!sql) return res.status(503).json({ error: 'Database not configured' });
+  try {
+    const userId = req.verifiedUserId!;
+    const rows = await sql`
+      SELECT * FROM profiles WHERE user_id = ${userId} LIMIT 1
+    ` as NeonRow[];
+    res.json({ profile: rows[0] ?? null });
+  } catch (err) {
+    return dataErr(res, err);
+  }
+});
+
+// Allow-list of profile columns we'll let the client write through. Limits
+// blast radius if request shape ever drifts; unknown columns are dropped.
+const PROFILE_WRITABLE_COLUMNS = new Set([
+  'full_name', 'avatar_url', 'username', 'account_type', 'portfolio_enabled',
+  'portfolio_slug',
+  // Extended columns the client expects; written only when the column exists.
+  'job_title', 'industry', 'career_level', 'location', 'linkedin_url',
+  'profile_completed', 'portfolio_bio', 'portfolio_resume_id', 'github_url',
+  'website_url', 'twitter_url', 'contact_email', 'portfolio_theme',
+  'phone_number', 'portfolio_sections', 'portfolio_meta_title',
+  'portfolio_meta_description', 'portfolio_style', 'portfolio_layout',
+  'portfolio_accent_color', 'portfolio_font', 'open_to_work',
+  'availability_headline', 'portfolio_extras', 'portfolio_sync_mode',
+  'login_streak', 'last_login_date', 'digest_enabled', 'hired_at',
+  'portfolio_draft', 'portfolio_draft_saved_at', 'onboarding_completed',
+]);
+
+let _profileColumnsCache: Set<string> | null = null;
+async function getProfileColumns(): Promise<Set<string>> {
+  if (_profileColumnsCache) return _profileColumnsCache;
+  if (!sql) return new Set();
+  const rows = await sql`
+    SELECT column_name FROM information_schema.columns
+    WHERE table_schema='public' AND table_name='profiles'
+  ` as NeonRow[];
+  _profileColumnsCache = new Set(rows.map(r => String(r.column_name)));
+  return _profileColumnsCache;
+}
+
+app.patch('/api/data/profile', requireAuthHeader, async (req: AuthedRequest, res) => {
+  if (!sql) return res.status(503).json({ error: 'Database not configured' });
+  try {
+    const userId = req.verifiedUserId!;
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const cols = await getProfileColumns();
+
+    // Filter to writable + actually-present columns. Unknown / missing
+    // columns are silently dropped so a client referencing a not-yet-
+    // migrated column doesn't break the whole request.
+    const updates: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(body)) {
+      if (PROFILE_WRITABLE_COLUMNS.has(k) && cols.has(k)) updates[k] = v;
+    }
+
+    // Always upsert by user_id. Build the column/value lists dynamically.
+    const colNames = Object.keys(updates);
+    const params: unknown[] = [userId];
+    const insertCols = ['user_id', ...colNames];
+    const insertVals = ['$1', ...colNames.map((_, i) => `$${i + 2}`)];
+    for (const c of colNames) params.push(updates[c]);
+
+    const setClause = colNames.length
+      ? colNames.map((c, i) => `${c} = $${i + 2}`).join(', ')
+      : 'user_id = $1';
+    const queryText = `
+      INSERT INTO profiles (${insertCols.join(', ')})
+      VALUES (${insertVals.join(', ')})
+      ON CONFLICT (user_id) DO UPDATE SET ${setClause}
+      RETURNING *
+    `;
+    const rows = (await sql.query(queryText, params)) as NeonRow[];
+    res.json({ profile: rows[0] ?? null });
+  } catch (err) {
+    return dataErr(res, err);
+  }
+});
+
+// ── /api/data/portfolios/me ────────────────────────────────────────────────────
+app.get('/api/data/portfolios/me', requireAuthHeader, async (req: AuthedRequest, res) => {
+  if (!sql) return res.status(503).json({ error: 'Database not configured' });
+  try {
+    const rows = await sql`
+      SELECT id, username FROM portfolios WHERE user_id = ${req.verifiedUserId!} LIMIT 1
+    ` as NeonRow[];
+    res.json({ portfolio: rows[0] ?? null });
+  } catch (err) {
+    return dataErr(res, err);
+  }
+});
+
+// ── /api/data/activity-rows ────────────────────────────────────────────────────
+// Returns the date-stamp arrays needed by useActivityStreak in a single round
+// trip. `since` is an ISO timestamp; rows older than that are excluded.
+app.get('/api/data/activity-rows', requireAuthHeader, async (req: AuthedRequest, res) => {
+  if (!sql) return res.status(503).json({ error: 'Database not configured' });
+  try {
+    const userId = req.verifiedUserId!;
+    const sinceRaw = typeof req.query.since === 'string' ? req.query.since : '';
+    const since = sinceRaw && !Number.isNaN(new Date(sinceRaw).getTime())
+      ? new Date(sinceRaw).toISOString()
+      : new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString();
+    const [resumes, apps, covers] = await Promise.all([
+      sql`SELECT created_at FROM resumes WHERE user_id = ${userId} AND created_at >= ${since}` as Promise<NeonRow[]>,
+      sql`SELECT applied_at, status FROM job_applications WHERE user_id = ${userId} AND applied_at >= ${since}` as Promise<NeonRow[]>,
+      sql`SELECT created_at FROM cover_letters WHERE user_id = ${userId} AND created_at >= ${since}` as Promise<NeonRow[]>,
+    ]);
+    res.json({
+      resumes,
+      jobApplications: apps,
+      coverLetters: covers,
+      tailorHistory: [], // table not present in current schema
+    });
+  } catch (err) {
+    return dataErr(res, err);
+  }
+});
+
+// ── /api/data/job-activity-rows ────────────────────────────────────────────────
+// Backs useJobActivityStats. Returns minimal columns so the client can
+// aggregate. `parent_resume_id` doesn't exist on the current schema, so we
+// always report it as null; tailor_history is an empty array.
+app.get('/api/data/job-activity-rows', requireAuthHeader, async (req: AuthedRequest, res) => {
+  if (!sql) return res.status(503).json({ error: 'Database not configured' });
+  try {
+    const userId = req.verifiedUserId!;
+    const [resumes, covers, apps] = await Promise.all([
+      sql`SELECT id FROM resumes WHERE user_id = ${userId}` as Promise<NeonRow[]>,
+      sql`SELECT id FROM cover_letters WHERE user_id = ${userId}` as Promise<NeonRow[]>,
+      sql`SELECT status, applied_at FROM job_applications WHERE user_id = ${userId}` as Promise<NeonRow[]>,
+    ]);
+    res.json({
+      resumes: resumes.map((r) => ({ parent_resume_id: null, ...r })),
+      coverLetters: covers,
+      jobApplications: apps,
+      tailorHistory: [],
+    });
+  } catch (err) {
+    return dataErr(res, err);
+  }
+});
+
+// ── /api/data/resumes ──────────────────────────────────────────────────────────
+// Limited-purpose insert used by useGuestMigration and DashboardPage's
+// "create resume from LinkedIn" path. The client passes the rich resume
+// payload; we only persist columns that exist on the current Neon schema.
+app.post('/api/data/resumes', requireAuthHeader, async (req: AuthedRequest, res) => {
+  if (!sql) return res.status(503).json({ error: 'Database not configured' });
+  try {
+    const userId = req.verifiedUserId!;
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const title = typeof body.title === 'string' && body.title ? body.title : 'My Resume';
+    const templateId = typeof body.template_id === 'string' ? body.template_id : 'modern';
+    // Pack everything else into `content` since the schema is jsonb-centric.
+    const { title: _t, template_id: _tid, user_id: _uid, ...rest } = body;
+    void _t; void _tid; void _uid;
+    const content = rest;
+    const rows = await sql`
+      INSERT INTO resumes (user_id, title, content, template_id)
+      VALUES (${userId}, ${title}, ${JSON.stringify(content)}::jsonb, ${templateId})
+      RETURNING *
+    ` as NeonRow[];
+    res.json({ resume: rows[0] ?? null });
+  } catch (err) {
+    return dataErr(res, err);
+  }
+});
+
+app.get('/api/data/resumes/exists/:id', requireAuthHeader, async (req: AuthedRequest, res) => {
+  if (!sql) return res.status(503).json({ error: 'Database not configured' });
+  try {
+    const id = req.params.id;
+    if (!/^[0-9a-f-]{36}$/i.test(id)) return res.json({ exists: false });
+    const rows = await sql`
+      SELECT id FROM resumes WHERE id = ${id} AND user_id = ${req.verifiedUserId!} LIMIT 1
+    ` as NeonRow[];
+    res.json({ exists: rows.length > 0 });
+  } catch (err) {
+    return dataErr(res, err);
+  }
+});
+
+// ── /api/data/hr-analytics ─────────────────────────────────────────────────────
+// Aggregator for useHRAnalytics. Only consults tables that currently exist;
+// returns 0/empty for the rest so the UI degrades gracefully.
+app.get('/api/data/hr-analytics', requireAuthHeader, async (req: AuthedRequest, res) => {
+  if (!sql) return res.status(503).json({ error: 'Database not configured' });
+  try {
+    const userId = req.verifiedUserId!;
+    const rangeRaw = typeof req.query.range === 'string' ? req.query.range : 'all';
+    let since: string | null = null;
+    if (rangeRaw !== 'all') {
+      const d = new Date();
+      if (rangeRaw === 'week') d.setDate(d.getDate() - 7);
+      else if (rangeRaw === 'month') d.setDate(d.getDate() - 30);
+      else if (rangeRaw === 'quarter') d.setDate(d.getDate() - 90);
+      since = d.toISOString();
+    }
+
+    const candidatesRows = since
+      ? await sql`SELECT id, pipeline_stage, resume_text, created_at FROM wisehire_candidates WHERE owner_id = ${userId} AND created_at >= ${since}`
+      : await sql`SELECT id, pipeline_stage, resume_text, created_at FROM wisehire_candidates WHERE owner_id = ${userId}`;
+    const eventsRows = since
+      ? await sql`SELECT candidate_id, from_stage, to_stage, moved_at as created_at FROM wisehire_pipeline_events WHERE owner_id = ${userId} AND moved_at >= ${since} ORDER BY moved_at ASC`
+      : await sql`SELECT candidate_id, from_stage, to_stage, moved_at as created_at FROM wisehire_pipeline_events WHERE owner_id = ${userId} ORDER BY moved_at ASC`;
+    const companyRows = await sql`SELECT id FROM wisehire_companies WHERE owner_id = ${userId} LIMIT 1`;
+
+    res.json({
+      candidates: candidatesRows,
+      pipelineEvents: eventsRows,
+      companyId: (companyRows[0] as NeonRow | undefined)?.id ?? null,
+      // Tables not yet in the Neon schema:
+      bulkJobs: [],
+      briefs: [],
+      roles: [],
+      talentViews: [],
+    });
+  } catch (err) {
+    return dataErr(res, err);
+  }
+});
+
+// ── /api/data/notifications ────────────────────────────────────────────────────
+// `notifications` table doesn't exist in the current Neon schema — return
+// empty/no-op so the UI keeps working until it's added.
+app.get('/api/data/notifications', requireAuthHeader, async (_req, res) => {
+  if (await tableExistsCached('notifications')) {
+    try {
+      const rows = await sql!`
+        SELECT * FROM notifications WHERE user_id = ${(_req as AuthedRequest).verifiedUserId!}
+        ORDER BY created_at DESC
+      ` as NeonRow[];
+      return res.json({ notifications: rows });
+    } catch (err) { return dataErr(res, err); }
+  }
+  res.json({ notifications: [] });
+});
+app.get('/api/data/notifications/unread-count', requireAuthHeader, async (_req, res) => {
+  res.json({ count: 0 });
+});
+app.post('/api/data/notifications/mark-read', requireAuthHeader, async (_req, res) => {
+  res.json({ ok: true });
+});
+app.post('/api/data/notifications/mark-all-read', requireAuthHeader, async (_req, res) => {
+  res.json({ ok: true });
+});
+app.delete('/api/data/notifications/:id', requireAuthHeader, async (_req, res) => {
+  res.json({ ok: true });
+});
+app.delete('/api/data/notifications', requireAuthHeader, async (_req, res) => {
+  res.json({ ok: true });
+});
+
+// ── /api/data/jobs ─────────────────────────────────────────────────────────────
+// `jobs` table absent — saved-jobs feature degrades to client-only state.
+app.get('/api/data/jobs', requireAuthHeader, async (_req, res) => {
+  res.json({ jobs: [] });
+});
+app.get('/api/data/jobs/:id', requireAuthHeader, async (_req, res) => {
+  res.json({ job: null });
+});
+app.post('/api/data/jobs', requireAuthHeader, async (req, res) => {
+  // Echo back the input with a synthesised id so the client can stitch it
+  // into its cache. Persisted state will return when the table is added.
+  const id = (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
+    ? (crypto as { randomUUID: () => string }).randomUUID()
+    : `${Date.now()}-${Math.random()}`;
+  res.json({ job: { id, ...(req.body ?? {}) } });
+});
+app.patch('/api/data/jobs/:id', requireAuthHeader, async (req, res) => {
+  res.json({ job: { id: req.params.id, ...(req.body ?? {}) } });
+});
+app.delete('/api/data/jobs/:id', requireAuthHeader, async (_req, res) => {
+  res.json({ ok: true });
+});
+
+// ── /api/data/resume-shares ────────────────────────────────────────────────────
+app.get('/api/data/resume-shares', requireAuthHeader, async (_req, res) => {
+  res.json({ shares: [] });
+});
+app.post('/api/data/resume-shares', requireAuthHeader, async (req, res) => {
+  const id = (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
+    ? (crypto as { randomUUID: () => string }).randomUUID()
+    : `${Date.now()}-${Math.random()}`;
+  res.json({ share: { id, ...(req.body ?? {}) } });
+});
+app.patch('/api/data/resume-shares/:id', requireAuthHeader, async (req, res) => {
+  res.json({ share: { id: req.params.id, ...(req.body ?? {}) } });
+});
+app.delete('/api/data/resume-shares/:id', requireAuthHeader, async (_req, res) => {
+  res.json({ ok: true });
+});
+
+// ── /api/data/push-subscriptions ───────────────────────────────────────────────
+app.post('/api/data/push-subscriptions', requireAuthHeader, async (_req, res) => {
+  res.json({ ok: true });
+});
+app.delete('/api/data/push-subscriptions', requireAuthHeader, async (_req, res) => {
+  res.json({ ok: true });
+});
+
+// ── /api/data/short-links ──────────────────────────────────────────────────────
+// `short_links` doesn't exist; `portfolio_short_links` is unrelated. Stub for
+// now so the portfolio analytics page renders the empty state.
+app.get('/api/data/short-links', requireAuthHeader, async (_req, res) => {
+  res.json({ links: [] });
+});
+app.post('/api/data/short-links', requireAuthHeader, async (req, res) => {
+  const body = (req.body ?? {}) as Record<string, unknown>;
+  const id = typeof body.id === 'string'
+    ? body.id
+    : Math.random().toString(36).slice(2, 7);
+  res.json({ link: { id, click_count: 0, created_at: new Date().toISOString(), ...body } });
+});
+app.delete('/api/data/short-links/:id', requireAuthHeader, async (_req, res) => {
+  res.json({ ok: true });
+});
+
+// ── /api/data/portfolio-analytics ──────────────────────────────────────────────
+// Was `supabase.rpc('get_portfolio_analytics', …)`. Until the RPC is ported,
+// return an empty summary so the page renders.
+app.get('/api/data/portfolio-analytics', requireAuthHeader, async (_req, res) => {
+  res.json({
+    visits: [],
+    summary: {
+      total_visits: 0,
+      unique_countries: 0,
+      avg_time_seconds: null,
+      avg_time_variant_a: null,
+      avg_time_variant_b: null,
+      visits_variant_a: 0,
+      visits_variant_b: 0,
+    },
+  });
+});
+
 // ── Analytics retention sweeper (Phase 5) ─────────────────────────────────────
 //
 // Once per day, prune rows older than the per-table retention window from

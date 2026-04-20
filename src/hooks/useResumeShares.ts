@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/safeClient';
+import { apiFetch } from '@/lib/apiFetch';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
 
@@ -25,13 +26,11 @@ export function useResumeShares(resumeId: string | null) {
   return useQuery({
     queryKey: ['resume-shares', resumeId, user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('resume_shares')
-        .select('*')
-        .eq('resume_id', resumeId!)
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      return (data || []) as unknown as ResumeShare[];
+      const { shares } = await apiFetch<{ shares: ResumeShare[] }>(
+        '/api/data/resume-shares',
+        { query: { resume_id: resumeId ?? undefined } },
+      );
+      return shares;
     },
     enabled: !!user && !!resumeId,
   });
@@ -54,6 +53,11 @@ export interface PasswordRequiredResult {
 
 export type PublicResumeResult = PublicShareResult | PasswordRequiredResult;
 
+/**
+ * Public-resume RPC has no equivalent /api/data/* endpoint yet, so this
+ * query continues to call the legacy Supabase RPC. Once a server-side
+ * `/api/share/:token` endpoint exists we can swap this over too.
+ */
 export function usePublicResume(token: string | null, passwordAttempt?: string) {
   return useQuery({
     queryKey: ['public-resume', token, passwordAttempt],
@@ -83,30 +87,16 @@ export function useResumeShareMutations() {
     }) => {
       if (!user) throw new Error('Not authenticated');
       const token = generateToken();
-
-      // Hash password server-side before storing
-      let hashedPassword: string | null = null;
-      if (input.password) {
-        const { data: hashed, error: hashError } = await supabase.rpc('hash_share_password', {
-          raw_password: input.password,
-        });
-        if (hashError) throw hashError;
-        hashedPassword = hashed as string;
-      }
-
-      const { data, error } = await supabase
-        .from('resume_shares')
-        .insert({
+      const { share } = await apiFetch<{ share: ResumeShare }>('/api/data/resume-shares', {
+        method: 'POST',
+        body: {
           resume_id: input.resumeId,
-          user_id: user.id,
           token,
-          password: hashedPassword,
+          password: input.password ?? null,
           expires_at: input.expires_at || null,
-        })
-        .select()
-        .single();
-      if (error) throw error;
-      return data as unknown as ResumeShare;
+        },
+      });
+      return share;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['resume-shares', data.resume_id] });
@@ -118,25 +108,11 @@ export function useResumeShareMutations() {
   const updateShare = useMutation({
     mutationFn: async ({ id, ...updates }: Partial<ResumeShare> & { id: string }) => {
       if (!user) throw new Error('Not authenticated');
-
-      // Hash password if being updated
-      const dbUpdates = { ...updates } as Record<string, unknown>;
-      if (typeof updates.password === 'string' && updates.password) {
-        const { data: hashed, error: hashError } = await supabase.rpc('hash_share_password', {
-          raw_password: updates.password,
-        });
-        if (hashError) throw hashError;
-        dbUpdates.password = hashed;
-      }
-
-      const { data, error } = await supabase
-        .from('resume_shares')
-        .update(dbUpdates)
-        .eq('id', id)
-        .select()
-        .single();
-      if (error) throw error;
-      return data as unknown as ResumeShare;
+      const { share } = await apiFetch<{ share: ResumeShare }>(`/api/data/resume-shares/${id}`, {
+        method: 'PATCH',
+        body: updates,
+      });
+      return share;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['resume-shares', data.resume_id] });
@@ -147,8 +123,7 @@ export function useResumeShareMutations() {
   const deleteShare = useMutation({
     mutationFn: async ({ id, resumeId }: { id: string; resumeId: string }) => {
       if (!user) throw new Error('Not authenticated');
-      const { error } = await supabase.from('resume_shares').delete().eq('id', id);
-      if (error) throw error;
+      await apiFetch(`/api/data/resume-shares/${id}`, { method: 'DELETE' });
       return { resumeId };
     },
     onSuccess: (data) => {
@@ -158,6 +133,12 @@ export function useResumeShareMutations() {
     onError: () => toast.error('Failed to delete share'),
   });
 
+  /**
+   * Public view-count increment still uses the legacy RPC because the public
+   * share viewer is unauthenticated and so cannot use /api/data endpoints
+   * (which require a session header). Migrate when a public-share endpoint is
+   * added.
+   */
   const incrementViewCount = useMutation({
     mutationFn: async (token: string) => {
       const { error } = await supabase.rpc('increment_share_view_count', {

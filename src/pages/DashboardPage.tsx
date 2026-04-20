@@ -52,7 +52,6 @@ import { NextStepBanner } from '@/components/editor/NextStepBanner';
 import { useProfile } from '@/hooks/useProfile';
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/safeClient';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -1226,18 +1225,32 @@ function DashboardPageContent() {
                 skills: data.skills || [],
                 template_id: 'modern',
               };
-              const { data: created, error } = await supabase.from('resumes').insert(newResume).select().single();
-              if (created && !error) {
+              const { apiFetch } = await import('@/lib/apiFetch');
+              // The server stores rich resume fields inside `content` (jsonb)
+              // and only echoes back `id` + `template_id`, so hydrate the
+              // editor from the payload we just submitted rather than from
+              // the returned row.
+              type CreatedResume = { id: string; template_id?: string };
+              let created: CreatedResume | null = null;
+              try {
+                const res = await apiFetch<{ resume: CreatedResume }>('/api/data/resumes', {
+                  method: 'POST', body: newResume,
+                });
+                created = res.resume;
+              } catch (e) {
+                console.error('Failed to create resume from LinkedIn import', e);
+              }
+              if (created) {
                 setCurrentResumeId(created.id);
                 setCurrentResume({
                   id: created.id,
                   contactInfo: contactInfo,
-                  summary: created.summary || '',
-                  experience: created.experience || [],
-                  education: created.education || [],
-                  skills: created.skills || [],
+                  summary: newResume.summary || '',
+                  experience: (newResume.experience || []) as never,
+                  education: (newResume.education || []) as never,
+                  skills: (newResume.skills || []) as never,
                   certifications: [],
-                  templateId: created.template_id || 'modern',
+                  templateId: created.template_id || newResume.template_id || 'modern',
                 });
                 haptics.success();
                 toast.success('Resume created from LinkedIn!');

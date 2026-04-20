@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { apiFetch } from '@/lib/apiFetch';
 import { useAuth } from './useAuth';
 import { startOfWeek, endOfWeek, subWeeks, format } from 'date-fns';
 
@@ -26,29 +26,31 @@ export interface JobActivityStats {
   isLoading: boolean;
 }
 
+interface JobActivityRowsResponse {
+  resumes: { parent_resume_id: string | null }[];
+  coverLetters: { id: string }[];
+  jobApplications: { status: string | null; applied_at: string | null }[];
+  tailorHistory: { job_title?: string | null; company?: string | null }[];
+}
+
 export function useJobActivityStats(): JobActivityStats {
   const { user } = useAuth();
 
   const { data, isLoading } = useQuery({
     queryKey: ['job-activity-stats', user?.id],
     queryFn: async () => {
-      const [resumesRes, tailorRes, coverRes, appsRes] = await Promise.all([
-        supabase.from('resumes').select('parent_resume_id'),
-        supabase.from('tailor_history').select('job_title, company'),
-        supabase.from('cover_letters').select('id'),
-        supabase.from('job_applications').select('status, applied_at'),
-      ]);
+      const res = await apiFetch<JobActivityRowsResponse>('/api/data/job-activity-rows');
 
-      const resumes = resumesRes.data || [];
+      const resumes = res.resumes || [];
       const originals = resumes.filter(r => !r.parent_resume_id).length;
       const tailored = resumes.filter(r => r.parent_resume_id).length;
 
-      const tailorEntries = tailorRes.data || [];
+      const tailorEntries = res.tailorHistory || [];
       const uniqueJobs = new Set(
-        tailorEntries.map(t => `${t.job_title}||${t.company || ''}`)
+        tailorEntries.map(t => `${t.job_title ?? ''}||${t.company || ''}`)
       );
 
-      const appsData = appsRes.data || [];
+      const appsData = res.jobApplications || [];
 
       const appliedCount = appsData.filter(a => a.status === 'applied').length;
       const screeningCount = appsData.filter(a => a.status === 'screening').length;
@@ -83,7 +85,7 @@ export function useJobActivityStats(): JobActivityStats {
         originals,
         tailored,
         jobsAnalyzed: uniqueJobs.size,
-        coverLetters: (coverRes.data || []).length,
+        coverLetters: (res.coverLetters || []).length,
         applicationsSubmitted,
         interviewsScheduled,
         offersReceived,
