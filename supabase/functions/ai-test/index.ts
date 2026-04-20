@@ -242,7 +242,7 @@ serve(async (req) => {
       } else if (wiseresumeSubProvider === 'openrouter2') {
         testModel = 'openrouter/elephant-alpha';
       } else {
-        testModel = 'meta-llama/llama-3.3-70b-instruct:free';
+        testModel = 'google/gemma-4-31b-it:free';
       }
     }
 
