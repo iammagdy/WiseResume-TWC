@@ -60,23 +60,52 @@ serve(async (req) => {
     let checkOnly = false;
     let bodySubProvider: 'openrouter' | 'groq' | 'auto' | 'openrouter2' | undefined;
     let isAdminRequest = false;
+    let rawBodySubProvider: unknown;
     try {
       const text = await req.clone().text();
       if (text) {
         const body = JSON.parse(text);
         checkOnly = body?.checkOnly === true;
-        // Gate wiseresumeSubProvider override on the unified Supabase Bearer
-        // JWT + ADMIN_EMAILS check so only admin Dev Kit callers can request
-        // raw engine diagnostics (bypasses cooldown). The legacy DevKit HMAC
-        // password fallback was removed in Task #2.
-        const isAdmin = await isJwtAdmin(req);
-        if (isAdmin && (body?.wiseresumeSubProvider === 'openrouter' || body?.wiseresumeSubProvider === 'groq' || body?.wiseresumeSubProvider === 'auto' || body?.wiseresumeSubProvider === 'openrouter2')) {
-          bodySubProvider = body.wiseresumeSubProvider;
-          isAdminRequest = true;
-        }
+        rawBodySubProvider = body?.wiseresumeSubProvider;
       }
     } catch {
       // Ignore parse errors for empty/invalid bodies
+    }
+
+    // Task #18: if the caller explicitly sent a `wiseresumeSubProvider`, honor
+    // it or reject with an explicit error. The previous implementation silently
+    // ignored the override when the admin-auth check flaked (env missing, a
+    // transient network error on supabase.auth.getUser, etc.), causing the
+    // server to fall back to the global `wiseresume_ai_engine` app setting.
+    // That meant clicking the Groq tab's "Test" could silently return the
+    // currently-global sub-provider's result (e.g. elephant-alpha for
+    // OpenRouter 2), which is exactly the cross-tab bleed the admin observed.
+    // Fail loudly instead so the admin sees a real error rather than a
+    // misleading "success" card from the wrong provider.
+    if (rawBodySubProvider !== undefined) {
+      const VALID_SUB_PROVIDERS = ['openrouter', 'groq', 'auto', 'openrouter2'] as const;
+      type ValidSubProvider = typeof VALID_SUB_PROVIDERS[number];
+      if (!VALID_SUB_PROVIDERS.includes(rawBodySubProvider as ValidSubProvider)) {
+        return new Response(JSON.stringify({
+          success: false,
+          error: `Invalid wiseresumeSubProvider: ${JSON.stringify(rawBodySubProvider)}. Expected one of ${VALID_SUB_PROVIDERS.join(', ')}.`,
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const isAdmin = await isJwtAdmin(req);
+      if (!isAdmin) {
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'wiseresumeSubProvider override requires admin privileges.',
+        }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      bodySubProvider = rawBodySubProvider as ValidSubProvider;
+      isAdminRequest = true;
     }
 
     // Get user's preferred provider (use service-role client for cross-project DB)
@@ -294,6 +323,11 @@ serve(async (req) => {
       model: testModel,
       fallbackUsed: aiResponse.fallbackUsed || false,
       fallbackReason: aiResponse.fallbackReason || null,
+      // Task #18: echo back the sub-provider that was actually used so the
+      // client can verify the response matches the tab the admin clicked.
+      // `requestedSubProvider` is non-null only for admin Dev Kit overrides.
+      wiseresumeSubProvider,
+      requestedSubProvider: bodySubProvider ?? null,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

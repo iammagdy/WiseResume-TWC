@@ -107,6 +107,12 @@ interface AITestResponse {
   response?: string;
   preview?: string;
   error?: string;
+  // Task #18: server echoes back the sub-provider actually used (and the one
+  // the admin requested via body). Clients assert these match the tab they
+  // fired from, so a misrouted response never shows up as a success card on
+  // the wrong tab.
+  wiseresumeSubProvider?: 'openrouter' | 'openrouter2' | 'groq' | 'auto';
+  requestedSubProvider?: 'openrouter' | 'openrouter2' | 'groq' | 'auto' | null;
 }
 
 interface OllamaGenerateResponse {
@@ -127,6 +133,33 @@ interface TestState {
   preview?: string;
   model?: string;
   error?: string;
+}
+
+/**
+ * Task #18: Defence-in-depth — even with per-panel keyed remounts and
+ * AbortController cancellation, a slow in-flight `ai-test` request could
+ * previously resolve with a result for a DIFFERENT sub-provider than the tab
+ * the admin is currently viewing (e.g. server silently fell back to the
+ * global engine when the admin-auth check flaked). This helper throws if the
+ * server's response doesn't match what the tab requested, turning any
+ * silent cross-tab bleed into an explicit error instead of a misleading
+ * green card.
+ */
+function assertSubProviderMatches(
+  d: AITestResponse,
+  expected: 'openrouter' | 'openrouter2' | 'groq',
+): void {
+  if (d.requestedSubProvider != null && d.requestedSubProvider !== expected) {
+    throw new Error(
+      `Server handled request as '${d.requestedSubProvider}' but tab requested '${expected}'. ` +
+      `Admin override may have been rejected — verify ADMIN_EMAILS and re-auth.`,
+    );
+  }
+  if (d.wiseresumeSubProvider != null && d.wiseresumeSubProvider !== expected) {
+    throw new Error(
+      `Server routed test through '${d.wiseresumeSubProvider}' instead of '${expected}'.`,
+    );
+  }
 }
 
 // ── Provider ID constants (match ai_provider_breaker table keys) ───────────────
@@ -757,6 +790,7 @@ function OpenRouterPanel({
       if (res.error) throw new Error(res.error instanceof Error ? res.error.message : String(res.error));
       const d = res.data as AITestResponse;
       if (!d?.success) throw new Error(d?.error ?? 'ai-test returned failure');
+      assertSubProviderMatches(d, 'openrouter');
       setTestState({
         status: 'done',
         latencyMs: d.latencyMs,
@@ -1024,6 +1058,7 @@ function OpenRouter2Panel({
       if (res.error) throw new Error(res.error instanceof Error ? res.error.message : String(res.error));
       const d = res.data as AITestResponse;
       if (!d?.success) throw new Error(d?.error ?? 'ai-test returned failure');
+      assertSubProviderMatches(d, 'openrouter2');
       setTestState({
         status: 'done',
         latencyMs: d.latencyMs,
@@ -1233,6 +1268,7 @@ function GroqPanel({
       if (res.error) throw new Error(res.error instanceof Error ? res.error.message : String(res.error));
       const d = res.data as AITestResponse;
       if (!d?.success) throw new Error(d?.error ?? 'ai-test returned failure');
+      assertSubProviderMatches(d, 'groq');
       setTestState({
         status: 'done',
         latencyMs: d.latencyMs,
