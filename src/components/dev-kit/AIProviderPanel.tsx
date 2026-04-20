@@ -9,7 +9,12 @@ import { useSettingsStore, WiseresumeSubProvider } from '@/store/settingsStore';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { getDevKitToken } from '@/contexts/DevKitSessionContext';
 import { getSupabaseToken } from '@/lib/supabaseAuth';
-import { GROQ_DEFAULT_MODEL } from '@/lib/aiDefaults';
+import {
+  GROQ_DEFAULT_MODEL,
+  OPENROUTER_CURATED_MODELS,
+  OPENROUTER_DEFAULT_MODEL,
+  OPENROUTER_AUTO_SENTINEL,
+} from '@/lib/aiDefaults';
 import { cn } from '@/lib/utils';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -470,15 +475,23 @@ function TestBanner({
         </button>
       </div>
       {state.status === 'done' && (
-        <div className="p-2.5 rounded-lg border border-green-500/20 bg-green-500/5 space-y-1">
-          <div className="flex items-center gap-2">
-            <Check className="w-3.5 h-3.5 text-green-600 dark:text-green-400" />
+        <div className="p-2.5 rounded-lg border border-green-500/20 bg-green-500/5 space-y-1.5">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Check className="w-3.5 h-3.5 text-green-600 dark:text-green-400 shrink-0" />
             <span className="text-xs font-medium text-green-700 dark:text-green-300">
-              {state.latencyMs}ms · {state.model ?? 'ok'}
+              {state.latencyMs}ms
             </span>
+            {state.model && (
+              <span className="text-[11px] font-mono text-muted-foreground">
+                · answered by <span className="text-foreground">{state.model}</span>
+              </span>
+            )}
           </div>
           {state.preview && (
-            <p className="text-[11px] text-muted-foreground italic line-clamp-2">{state.preview}</p>
+            // Task #24: render the full upstream response (no 100-char slice,
+            // no line-clamp). Long responses scroll inside a bounded box so
+            // the panel layout stays stable.
+            <pre className="text-[11px] text-foreground whitespace-pre-wrap break-words max-h-40 overflow-y-auto bg-background/40 rounded p-2 border border-border/40 font-mono">{state.preview}</pre>
           )}
         </div>
       )}
@@ -716,63 +729,38 @@ function OpenRouterPanel({
   onManagedRefresh: () => Promise<void> | void;
   registerRefresh: (fn: () => Promise<void>) => void;
 }) {
-  const { openrouterModel, setOpenrouterModel } = useSettingsStore();
+  // Task #24: subscribe to openrouterModel + openrouterAuto so changes
+  // anywhere in the app (AI Settings sheet, other DevKit instances, store
+  // hydration) propagate live without a reload. Zustand selectors handle
+  // the re-render.
+  const openrouterModel = useSettingsStore((s) => s.openrouterModel);
+  const openrouterAuto = useSettingsStore((s) => s.openrouterAuto);
+  const setOpenrouterModel = useSettingsStore((s) => s.setOpenrouterModel);
+  const setOpenrouterAuto = useSettingsStore((s) => s.setOpenrouterAuto);
 
-  const [models, setModels] = useState<ORModel[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
-  const debouncedSearch = useDebounced(search, 120);
-  const [filter, setFilter] = useState<'all' | 'free' | 'paid'>('all');
-  const [pending, setPending] = useState<string | null>(null);
+  const [pending, setPending] = useState<string | null>(null); // candidate slug awaiting confirm
+  const [pendingAuto, setPendingAuto] = useState<boolean>(false);
   const [testState, setTestState] = useState<TestState>({ status: 'idle' });
   const testAbortRef = useRef<AbortController | null>(null);
 
-  const fetchModels = useCallback(async () => {
-    // P3: keep previous data on screen during refresh; only show full loader on first load.
-    setError(null);
-    if (models.length === 0) setLoading(true); else setIsRefreshing(true);
-    try {
-      // P6: hit our own server proxy (cached) instead of openrouter.ai directly.
-      const res = await fetchWithTokenDedup('/api/admin/ai-provider/openrouter-models');
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json() as { models?: ORModelRaw[]; error?: string };
-      if (json.error && (!json.models || json.models.length === 0)) throw new Error(json.error);
-      const list: ORModel[] = (json.models ?? []).map((m) => ({
-        id: m.id,
-        name: m.name ?? m.id,
-        pricing: { prompt: m.pricing?.prompt ?? '1', completion: m.pricing?.completion ?? '1' },
-        context_length: m.context_length ?? 0,
-        isFree: m.pricing?.prompt === '0' && m.pricing?.completion === '0',
-      }));
-      list.sort((a, b) => {
-        if (a.isFree !== b.isFree) return a.isFree ? -1 : 1;
-        return a.name.localeCompare(b.name);
-      });
-      setModels(list);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to load models');
-    } finally {
-      setLoading(false);
-      setIsRefreshing(false);
-    }
-  }, [models.length]);
+  // Task #24: discovery has been replaced with a curated 8-model allow-list.
+  // The list is a hard-coded constant mirrored across aiDefaults.ts (browser),
+  // aiClient.ts (edge), and manage-api-keys/index.ts (server enforcement).
+  const curatedModels = OPENROUTER_CURATED_MODELS;
 
-  useEffect(() => { void fetchModels(); }, [fetchModels]);
-
-  // F8 + U3: register a refresh callback so the header "Refresh all" can refresh
-  // every visible panel (managed status + models). Returns false on any failure
-  // so the header can surface a consolidated toast.
+  // Header "Refresh all" still has a hook here for managed-key balance only.
+  // The model list itself is static so there is nothing else to fetch.
   useEffect(() => {
     registerRefresh(async () => {
-      const results = await Promise.allSettled([
-        fetchModels(),
-        Promise.resolve().then(() => onManagedRefresh()),
-      ]);
-      return results.every(r => r.status === 'fulfilled');
+      try {
+        await Promise.resolve().then(() => onManagedRefresh());
+        return true;
+      } catch (e) {
+        console.error('[ai-provider-panel] OR managed refresh failed:', e);
+        return false;
+      }
     });
-  }, [registerRefresh, fetchModels, onManagedRefresh]);
+  }, [registerRefresh, onManagedRefresh]);
 
   const runTest = useCallback(async () => {
     // P5: cancel any prior test (and the underlying upstream call) before starting a new one.
@@ -794,8 +782,8 @@ function OpenRouterPanel({
       setTestState({
         status: 'done',
         latencyMs: d.latencyMs,
-        model: d.model,
-        preview: d.response?.slice(0, 100),
+        model: d.model, // answering-model surfaced verbatim from the upstream response
+        preview: d.response, // Task #24: full response, no 100-char slice
       });
       logAdminProviderTest('openrouter', d.model ?? null, true, d.latencyMs ?? null, null);
     } catch (e: unknown) {
@@ -808,16 +796,6 @@ function OpenRouterPanel({
 
   // P5: abort any in-flight test on unmount (cancels underlying fetch via signal).
   useEffect(() => () => { testAbortRef.current?.abort(); }, []);
-
-  // P2: memoise the filter result instead of recomputing on every keystroke.
-  const filtered = useMemo(() => {
-    const q = debouncedSearch.toLowerCase();
-    return models.filter(m => {
-      const matchSearch = m.name.toLowerCase().includes(q) || m.id.toLowerCase().includes(q);
-      const matchFilter = filter === 'all' || (filter === 'free' ? m.isFree : !m.isFree);
-      return matchSearch && matchFilter;
-    });
-  }, [models, debouncedSearch, filter]);
 
   const mData = managedStatus?.data;
 
@@ -870,120 +848,113 @@ function OpenRouterPanel({
       {/* Test */}
       <TestBanner state={testState} onRun={runTest} />
 
-      {/* Active model + refresh */}
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-xs text-muted-foreground">Active BYOK model</p>
-          <p className="text-sm font-mono font-medium text-foreground truncate max-w-[260px]">
-            {openrouterModel || <span className="text-muted-foreground italic">none selected</span>}
+      {/* Auto fallback toggle */}
+      <div className="flex items-start gap-3 p-3 rounded-lg border border-border bg-muted/20">
+        <button
+          onClick={() => setPendingAuto(true)}
+          aria-pressed={openrouterAuto}
+          className={cn(
+            'mt-0.5 relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors',
+            openrouterAuto ? 'bg-primary' : 'bg-muted',
+          )}
+        >
+          <span
+            className={cn(
+              'inline-block h-4 w-4 transform rounded-full bg-background shadow-sm transition-transform',
+              openrouterAuto ? 'translate-x-4' : 'translate-x-0',
+            )}
+          />
+        </button>
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-medium text-foreground">Auto fallback</p>
+          <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
+            On failure, walk the curated list in order until a model succeeds. Off pins requests to the single selected slug.
           </p>
         </div>
-        <button
-          onClick={() => { void fetchModels(); }}
-          disabled={loading || isRefreshing}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md border border-border hover:bg-muted transition-colors disabled:opacity-50"
-        >
-          <RefreshCw className={cn('w-3 h-3', (loading || isRefreshing) && 'animate-spin')} />
-          Refresh list
-        </button>
+      </div>
+      {pendingAuto && (
+        <ConfirmCard
+          modelId={openrouterAuto ? 'Disable Auto fallback' : 'Enable Auto fallback'}
+          onConfirm={() => {
+            const next = !openrouterAuto;
+            const prev = openrouterAuto ? OPENROUTER_AUTO_SENTINEL : (openrouterModel || null);
+            setOpenrouterAuto(next);
+            logAdminModelSwitch('openrouter', next ? OPENROUTER_AUTO_SENTINEL : (openrouterModel || OPENROUTER_DEFAULT_MODEL), prev);
+            setPendingAuto(false);
+          }}
+          onCancel={() => setPendingAuto(false)}
+        />
+      )}
+
+      {/* Active model */}
+      <div>
+        <p className="text-xs text-muted-foreground">Active model</p>
+        <p className="text-sm font-mono font-medium text-foreground truncate max-w-full">
+          {openrouterAuto
+            ? <span className="text-primary">Auto (curated chain, {curatedModels.length} models)</span>
+            : (openrouterModel || <span className="text-muted-foreground italic">none selected</span>)}
+        </p>
       </div>
 
-      {/* Search + filter */}
-      <div className="flex gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search models…"
-            className="w-full pl-8 pr-3 py-1.5 text-sm rounded-md border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/20"
-          />
+      {/* Curated model list */}
+      <div className="border border-border rounded-lg overflow-hidden">
+        <div className="px-3 py-2 bg-muted/40 border-b border-border">
+          <p className="text-[11px] font-medium text-foreground">Curated allow-list</p>
+          <p className="text-[10px] text-muted-foreground mt-0.5">
+            Server-enforced. Off-list slugs are rejected by manage-api-keys.
+          </p>
         </div>
-        <div className="flex rounded-md border border-border overflow-hidden text-xs">
-          {(['all', 'free', 'paid'] as const).map(f => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={cn(
-                'px-2.5 py-1.5 capitalize transition-colors',
-                filter === f
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-background hover:bg-muted text-muted-foreground',
-              )}
-            >
-              {f}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {loading && (
-        <div className="flex items-center justify-center h-24 text-sm text-muted-foreground">
-          <RefreshCw className="w-4 h-4 animate-spin mr-2" /> Loading models…
-        </div>
-      )}
-      {error && !loading && (
-        <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm border border-destructive/20">
-          {error}
-        </div>
-      )}
-      {!loading && !error && (
-        <div className="border border-border rounded-lg overflow-hidden">
-          <div className="max-h-72 overflow-y-auto divide-y divide-border">
-            {filtered.length === 0 && (
-              <div className="py-8 text-center text-sm text-muted-foreground">
-                No models match your search.
-              </div>
-            )}
-            {filtered.map(m => {
-              const isActive = openrouterModel === m.id;
-              const isPending = pending === m.id;
-              return (
-                <React.Fragment key={m.id}>
-                  <button
-                    onClick={() => setPending(isPending ? null : m.id)}
-                    className={cn(
-                      'w-full flex items-center justify-between px-3 py-2.5 text-left transition-colors',
-                      isActive ? 'bg-primary/10' : isPending ? 'bg-muted/70' : 'hover:bg-muted/50',
-                    )}
-                  >
-                    <div className="min-w-0 flex-1 mr-3">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className={cn('text-sm font-medium truncate', isActive && 'text-primary')}>
-                          {m.name}
-                        </span>
-                        {m.isFree ? <FreeBadge /> : <PaidBadge />}
-                      </div>
-                      <p className="text-[11px] text-muted-foreground font-mono mt-0.5 truncate">{m.id}</p>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      {formatCtx(m.context_length) && (
-                        <span className="text-[10px] text-muted-foreground">{formatCtx(m.context_length)}</span>
-                      )}
-                      {isActive && <Check className="w-3.5 h-3.5 text-primary" />}
-                    </div>
-                  </button>
-                  {isPending && (
-                    <ConfirmCard
-                      modelId={m.id}
-                      onConfirm={() => {
-                        const prev = openrouterModel || null;
-                        setOpenrouterModel(m.id);
-                        logAdminModelSwitch('openrouter', m.id, prev);
-                        setPending(null);
-                      }}
-                      onCancel={() => setPending(null)}
-                    />
+        <div className="divide-y divide-border">
+          {curatedModels.map((id, idx) => {
+            const isActive = !openrouterAuto && openrouterModel === id;
+            const isDefault = idx === 0;
+            const isPending = pending === id;
+            return (
+              <React.Fragment key={id}>
+                <button
+                  onClick={() => setPending(isPending ? null : id)}
+                  disabled={openrouterAuto}
+                  className={cn(
+                    'w-full flex items-center justify-between px-3 py-2.5 text-left transition-colors',
+                    openrouterAuto && 'opacity-50 cursor-not-allowed',
+                    isActive ? 'bg-primary/10' : isPending ? 'bg-muted/70' : !openrouterAuto && 'hover:bg-muted/50',
                   )}
-                </React.Fragment>
-              );
-            })}
-          </div>
-          <div className="px-3 py-2 bg-muted/30 border-t border-border text-[11px] text-muted-foreground">
-            {filtered.length} of {models.length} models
-          </div>
+                >
+                  <div className="min-w-0 flex-1 mr-3">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className={cn('text-sm font-mono truncate', isActive && 'text-primary font-medium')}>
+                        {id}
+                      </span>
+                      <FreeBadge />
+                      {isDefault && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground uppercase tracking-wide">
+                          default
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {isActive && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
+                </button>
+                {isPending && (
+                  <ConfirmCard
+                    modelId={id}
+                    onConfirm={() => {
+                      const prev = openrouterAuto ? OPENROUTER_AUTO_SENTINEL : (openrouterModel || null);
+                      setOpenrouterModel(id);
+                      logAdminModelSwitch('openrouter', id, prev);
+                      setPending(null);
+                    }}
+                    onCancel={() => setPending(null)}
+                  />
+                )}
+              </React.Fragment>
+            );
+          })}
         </div>
-      )}
+        <div className="px-3 py-2 bg-muted/30 border-t border-border text-[11px] text-muted-foreground">
+          {curatedModels.length} curated models · default: <span className="font-mono">{OPENROUTER_DEFAULT_MODEL}</span>
+        </div>
+      </div>
     </div>
   );
 }
@@ -2345,17 +2316,32 @@ export function AIProviderPanel() {
     }
   }, []);
 
+  // Task #24: refresh tasks now report a structured outcome via a shared
+  // ref so handleRefreshAll can dedupe identical failure classes (the most
+  // common one being a stale session triggering a 401 across every admin
+  // endpoint at once — previously surfaced as "5 of 6 failed").
+  const refreshOutcomesRef = useRef<{ task: string; status: number | 'network' | 'ok' }[]>([]);
+  const recordOutcome = (task: string, status: number | 'network' | 'ok') => {
+    refreshOutcomesRef.current.push({ task, status });
+  };
+
   const fetchManagedOR = useCallback(async (): Promise<boolean> => {
     // P3: keep prior data on screen during refresh
     setManagedOR(prev => prev ?? null);
     try {
       const res = await fetchWithTokenDedup('/api/admin/ai-provider/openrouter-status');
-      if (!res.ok) { setManagedOR({ configured: true, error: `HTTP ${res.status}` }); return false; }
+      if (!res.ok) {
+        setManagedOR({ configured: true, error: `HTTP ${res.status}` });
+        recordOutcome('openrouter-status', res.status);
+        return false;
+      }
       const data = await res.json() as ManagedORStatus;
       setManagedOR(data);
+      recordOutcome('openrouter-status', 'ok');
       return true;
     } catch (e: unknown) {
       setManagedOR({ configured: true, error: e instanceof Error ? e.message : 'Fetch failed' });
+      recordOutcome('openrouter-status', 'network');
       return false;
     }
   }, []);
@@ -2364,12 +2350,18 @@ export function AIProviderPanel() {
     setManagedGroq(prev => prev ?? null);
     try {
       const res = await fetchWithTokenDedup('/api/admin/ai-provider/groq-models');
-      if (!res.ok) { setManagedGroq({ configured: true, models: [], error: `HTTP ${res.status}` }); return false; }
+      if (!res.ok) {
+        setManagedGroq({ configured: true, models: [], error: `HTTP ${res.status}` });
+        recordOutcome('groq-models', res.status);
+        return false;
+      }
       const data = await res.json() as ManagedGroqStatus;
       setManagedGroq(data);
+      recordOutcome('groq-models', 'ok');
       return true;
     } catch (e: unknown) {
       setManagedGroq({ configured: true, models: [], error: e instanceof Error ? e.message : 'Fetch failed' });
+      recordOutcome('groq-models', 'network');
       return false;
     }
   }, []);
@@ -2378,12 +2370,20 @@ export function AIProviderPanel() {
     setGroqUsage(prev => prev ?? null);
     try {
       const res = await fetchWithTokenDedup('/api/admin/ai-provider/groq-usage');
-      if (!res.ok) { setGroqUsage({ configured: true, error: `HTTP ${res.status}` }); return false; }
+      if (!res.ok) {
+        setGroqUsage({ configured: true, error: `HTTP ${res.status}` });
+        recordOutcome('groq-usage', res.status);
+        return false;
+      }
       const data = await res.json() as GroqUsage;
       setGroqUsage(data);
+      // groq-usage upstream is a known-stub (returns `error` even when HTTP 200);
+      // do not penalise refresh-all when the wrapper itself succeeded.
+      recordOutcome('groq-usage', 'ok');
       return true;
     } catch (e: unknown) {
       setGroqUsage({ configured: true, error: e instanceof Error ? e.message : 'Fetch failed' });
+      recordOutcome('groq-usage', 'network');
       return false;
     }
   }, []);
@@ -2456,6 +2456,9 @@ export function AIProviderPanel() {
     }
     lastRefreshAllAtRef.current = now;
     setHeaderRefreshing(true);
+    // Reset the per-task outcome buffer so we only see THIS run's results
+    // when classifying failures into a single, accurate toast below.
+    refreshOutcomesRef.current = [];
     // Each task resolves to `true` on success, `false` on a handled error,
     // or rejects on an unexpected throw — all three count toward `failures`.
     const tasks: Promise<boolean>[] = [
@@ -2468,6 +2471,12 @@ export function AIProviderPanel() {
     if (auditRefreshRef.current) tasks.push(auditRefreshRef.current());
     const results = await Promise.allSettled(tasks);
     setHeaderRefreshing(false);
+
+    // Task #24: classify failures so the toast tells the user something
+    // actionable instead of "5 of 6 failed". The most common cause is a
+    // stale session: every admin-gated endpoint returns 401/403 at once,
+    // which used to surface as N-of-N failures even though there was
+    // really only ONE problem (re-login).
     let failures = 0;
     results.forEach((r) => {
       if (r.status === 'rejected') {
@@ -2477,9 +2486,20 @@ export function AIProviderPanel() {
         failures += 1;
       }
     });
-    if (failures > 0) {
-      toast.error(`${failures} of ${results.length} refresh tasks failed — check inline errors for details.`);
+    if (failures === 0) return;
+
+    const outcomes = refreshOutcomesRef.current;
+    const authFailures = outcomes.filter(o => o.status === 401 || o.status === 403);
+    if (authFailures.length > 0 && authFailures.length === outcomes.filter(o => o.status !== 'ok').length) {
+      // EVERY non-ok task is auth-class — single, clear message.
+      toast.error('Session expired — please re-authenticate to refresh DevKit data.');
+      return;
     }
+    if (authFailures.length > 0) {
+      toast.error(`Session expired for ${authFailures.length} task${authFailures.length === 1 ? '' : 's'}; ${failures - authFailures.length} other failure${failures - authFailures.length === 1 ? '' : 's'} — check inline errors.`);
+      return;
+    }
+    toast.error(`${failures} of ${results.length} refresh task${results.length === 1 ? '' : 's'} failed — check inline errors for details.`);
   }, [fetchBreakerStatus, fetchManagedOR, fetchManagedGroq, fetchGroqUsage]);
 
   return (

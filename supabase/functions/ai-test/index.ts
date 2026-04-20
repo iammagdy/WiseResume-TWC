@@ -278,16 +278,25 @@ serve(async (req) => {
     const providerUsed = aiResponse.providerUsed || preferredProvider;
     console.log(`[ai-test] AI responded in ${latencyMs}ms using ${providerUsed}`);
 
-    // For WiseResume managed AI on 'auto', update testModel based on the backend that actually responded,
-    // so admin diagnostics always reflect the real model (e.g. Groq fallback shows Llama, not Gemma).
-    if (preferredProvider === 'wiseresume' && wiseresumeSubProvider === 'auto') {
+    // Task #24: when the routing layer reports the answering model in the
+    // providerUsed suffix (formats: "openrouter:<slug>", "wiseresume/openrouter:<slug>",
+    // "wiseresume/groq:<slug>", "wiseresume/openrouter2:<slug>"), surface
+    // that as the source-of-truth model so the DevKit Test card shows the
+    // ACTUAL slug that answered — not a request-time heuristic. This is
+    // important for the curated/Auto chain where the answering model can
+    // differ from the one the request was started with.
+    const colonIdx = providerUsed.indexOf(':');
+    if (colonIdx > -1 && colonIdx < providerUsed.length - 1) {
+      const realModel = providerUsed.slice(colonIdx + 1).trim();
+      if (realModel) testModel = realModel;
+    } else if (preferredProvider === 'wiseresume' && wiseresumeSubProvider === 'auto') {
+      // No suffix available — fall back to the legacy heuristic for the
+      // auto path so older edge function deployments don't regress.
       if (providerUsed.includes('groq')) testModel = 'qwen/qwen3-32b';
       else if (providerUsed.includes('openrouter2')) testModel = 'openrouter/elephant-alpha';
-      else testModel = 'meta-llama/llama-3.3-70b-instruct:free';
-    }
-
-    // For BYOK providers, show the stored model name or a sensible default
-    if (BYOK_PROVIDERS_LIST.includes(preferredProvider) && storedByokModel) {
+      else testModel = 'google/gemma-4-31b-it:free';
+    } else if (BYOK_PROVIDERS_LIST.includes(preferredProvider) && storedByokModel) {
+      // BYOK path without suffix — fall back to the stored slug.
       testModel = storedByokModel;
     }
 

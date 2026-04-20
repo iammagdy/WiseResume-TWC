@@ -30,6 +30,8 @@ const settingsState = {
   setWiseresumeSubProvider: vi.fn(),
   openrouterModel: "",
   setOpenrouterModel: vi.fn(),
+  openrouterAuto: false,
+  setOpenrouterAuto: vi.fn(),
   groqModel: "",
   setGroqModel: vi.fn(),
   geminiModel: "",

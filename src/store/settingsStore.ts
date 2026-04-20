@@ -1,6 +1,11 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { TemplateId, PDFOptions } from '@/types/resume';
+import {
+  OPENROUTER_DEFAULT_MODEL,
+  OPENROUTER_AUTO_SENTINEL,
+  isAllowedOpenRouterModel,
+} from '@/lib/aiDefaults';
 
 export type BiometricLockTimeout = 0 | 30000 | 60000 | 300000;
 export type AutoSaveToastMode = 'always' | 'errors-only';
@@ -73,6 +78,12 @@ interface SettingsState {
   openrouterApiKey: string;
   openrouterModel: string;
   openrouterKeyValidated: boolean;
+  /**
+   * When true, OpenRouter requests iterate the curated chain on failure
+   * instead of pinning to a single slug. Persisted to localStorage; the
+   * server reflects this by storing the auto-sentinel in user_api_keys.model.
+   */
+  openrouterAuto: boolean;
 
   // WiseResume AI sub-provider selection
   wiseresumeSubProvider: WiseresumeSubProvider;
@@ -145,6 +156,7 @@ interface SettingsState {
   setOpenrouterApiKey: (key: string) => void;
   setOpenrouterModel: (model: string) => void;
   setOpenrouterKeyValidated: (validated: boolean) => void;
+  setOpenrouterAuto: (auto: boolean) => void;
 
   // WiseResume sub-provider
   setWiseresumeSubProvider: (sub: WiseresumeSubProvider) => void;
@@ -213,8 +225,9 @@ const defaultSettings = {
   ollamaKeyValidated: false,
   // OpenRouter defaults
   openrouterApiKey: '',
-  openrouterModel: '',
+  openrouterModel: OPENROUTER_DEFAULT_MODEL as string,
   openrouterKeyValidated: false,
+  openrouterAuto: false,
   // WiseResume sub-provider default
   wiseresumeSubProvider: 'auto' as WiseresumeSubProvider,
   // New BYOK provider defaults
@@ -303,8 +316,25 @@ export const useSettingsStore = create<SettingsState>()(
       
       // OpenRouter Actions
       setOpenrouterApiKey: (key) => set({ openrouterApiKey: key, openrouterKeyValidated: false }),
-      setOpenrouterModel: (model) => set({ openrouterModel: model }),
+      setOpenrouterModel: (model) =>
+        set({
+          openrouterModel: isAllowedOpenRouterModel(model) ? model : OPENROUTER_DEFAULT_MODEL,
+          // Selecting an explicit slug clears Auto; the picker is the
+          // source of truth for the active mode.
+          openrouterAuto: model === OPENROUTER_AUTO_SENTINEL,
+        }),
       setOpenrouterKeyValidated: (validated) => set({ openrouterKeyValidated: validated }),
+      setOpenrouterAuto: (auto) =>
+        set((state) => ({
+          openrouterAuto: auto,
+          // Mirror to model so callers reading openrouterModel see the
+          // sentinel and routing layers behave consistently.
+          openrouterModel: auto
+            ? OPENROUTER_AUTO_SENTINEL
+            : isAllowedOpenRouterModel(state.openrouterModel) && state.openrouterModel !== OPENROUTER_AUTO_SENTINEL
+              ? state.openrouterModel
+              : OPENROUTER_DEFAULT_MODEL,
+        })),
 
       // WiseResume sub-provider
       setWiseresumeSubProvider: (sub) => set({ wiseresumeSubProvider: sub }),
@@ -367,6 +397,15 @@ export const useSettingsStore = create<SettingsState>()(
       onRehydrateStorage: () => (state) => {
         if (state) {
           state.hasSeenSplash = false;
+          // Migrate any persisted off-list openrouterModel back to the
+          // current curated default so old localStorage values don't
+          // smuggle decommissioned slugs into the routing layer.
+          if (!isAllowedOpenRouterModel(state.openrouterModel)) {
+            state.openrouterModel = OPENROUTER_DEFAULT_MODEL;
+            state.openrouterAuto = false;
+          } else {
+            state.openrouterAuto = state.openrouterModel === OPENROUTER_AUTO_SENTINEL;
+          }
         }
       },
     }

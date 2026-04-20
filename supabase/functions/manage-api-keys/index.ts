@@ -55,6 +55,33 @@ function normalizeOptionalString(value: unknown): string | null {
   return trimmed || null;
 }
 
+/**
+ * Curated allow-list of OpenRouter slugs the WiseResume managed account is
+ * permitted to use, plus the Auto sentinel. **Mirror of OPENROUTER_CURATED_MODELS
+ * in src/lib/aiDefaults.ts and supabase/functions/_shared/aiClient.ts** —
+ * keep these three lists in lockstep. Server-side enforcement (Task #24): we
+ * reject any save / update_model write for provider==='openrouter' whose model
+ * is not in this list. Defense-in-depth against a stale or tampered client
+ * sending a decommissioned slug.
+ */
+const OPENROUTER_CURATED_MODELS: readonly string[] = [
+  'google/gemma-4-31b-it:free',
+  'nvidia/nemotron-3-super-120b-a12b:free',
+  'minimax/minimax-m2.5:free',
+  'liquid/lfm-2.5-1.2b-thinking:free',
+  'google/gemma-4-26b-a4b-it:free',
+  'openrouter/elephant-alpha',
+  'liquid/lfm-2.5-1.2b-instruct:free',
+  'openai/gpt-oss-120b:free',
+];
+const OPENROUTER_AUTO_SENTINEL = '__auto__';
+
+function isAllowedOpenRouterModel(model: string | null): boolean {
+  if (!model) return false;
+  if (model === OPENROUTER_AUTO_SENTINEL) return true;
+  return OPENROUTER_CURATED_MODELS.includes(model);
+}
+
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
   if (req.method === 'OPTIONS') {
@@ -113,6 +140,13 @@ Deno.serve(async (req) => {
           return new Response(JSON.stringify({ error: 'provider is required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
         const normalizedModel = normalizeOptionalString(model);
+        // Task #24: server-side OpenRouter allow-list enforcement.
+        if (provider === 'openrouter' && normalizedModel && !isAllowedOpenRouterModel(normalizedModel)) {
+          return new Response(
+            JSON.stringify({ error: 'Model is not in the OpenRouter curated allow-list' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+          );
+        }
         const { error } = await supabase
           .from('user_api_keys')
           .update({ model: normalizedModel })
@@ -131,6 +165,13 @@ Deno.serve(async (req) => {
       const normalizedModel = normalizeOptionalString(model);
       if (!provider || !apiKey) {
         return new Response(JSON.stringify({ error: 'provider and apiKey are required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      // Task #24: server-side OpenRouter allow-list enforcement.
+      if (provider === 'openrouter' && normalizedModel && !isAllowedOpenRouterModel(normalizedModel)) {
+        return new Response(
+          JSON.stringify({ error: 'Model is not in the OpenRouter curated allow-list' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
       }
 
       // Encrypt with per-user salt (key_version=2)

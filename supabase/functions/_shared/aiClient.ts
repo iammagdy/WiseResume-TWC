@@ -478,24 +478,57 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
 
     // Priority 0: User BYOK OpenRouter key
     if (userOpenRouterData) {
-      const orModel = userOpenRouterData.model || model;
-      if (!orModel) {
+      const rawStoredOrModel = userOpenRouterData.model || model;
+      if (!rawStoredOrModel) {
         throw createAIError('invalid_key', 'No OpenRouter model selected. Please choose a model in AI Settings.', 400);
       }
-      console.log('[AI] Using user BYOK OpenRouter key, model:', orModel);
-      try {
-        const res = await callOpenRouterDirect(userOpenRouterData.key, orModel, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
-        return { ...res, providerUsed: 'openrouter' };
-      } catch (err) {
-        // BYOK strict mode: never fall back to platform keys.
-        console.error('[AI] OpenRouter BYOK call failed (no platform fallback):', err instanceof Error ? err.message : err);
-        if (isAIError(err)) throw err;
-        throw createAIError(
-          'invalid_key',
-          'Your OpenRouter API key failed. Please check your key in AI Settings and try again.',
-          502,
-        );
+
+      // Task #24: execution-time allow-list guard. The manage-api-keys edge
+      // function rejects off-list writes, but pre-existing rows or
+      // out-of-band writes could still smuggle a decommissioned slug into
+      // user_api_keys.model. Coerce anything off-list to the curated default
+      // here so the routing layer never invokes a slug the admin curated
+      // away. Logged so the admin can see WHY a stale model was upgraded.
+      let storedOrModel = rawStoredOrModel;
+      if (!isAllowedOpenRouterModel(storedOrModel)) {
+        console.warn(`[AI] OpenRouter BYOK stored model "${storedOrModel}" is off curated allow-list; coercing to default "${FALLBACK_MODEL}"`);
+        storedOrModel = FALLBACK_MODEL;
       }
+
+      // Task #24: Auto-fallback. When the user opted in (model stored as the
+      // auto sentinel), iterate the curated chain in order until one model
+      // returns successfully. Skippable errors (rate-limit/5xx/404) advance
+      // to the next slug; auth/payment errors abort immediately because no
+      // amount of model rotation will fix a bad key or exhausted credits.
+      const isAuto = storedOrModel === OPENROUTER_AUTO_SENTINEL;
+      const orChain: string[] = isAuto
+        ? [...OPENROUTER_CURATED_MODELS]
+        : [storedOrModel];
+
+      console.log(`[AI] Using user BYOK OpenRouter key${isAuto ? ' (auto chain, ' + orChain.length + ' models)' : ', model: ' + storedOrModel}`);
+
+      let lastOrErr: unknown = null;
+      for (let i = 0; i < orChain.length; i++) {
+        const orModel = orChain[i];
+        try {
+          const res = await callOpenRouterDirect(userOpenRouterData.key, orModel, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
+          return { ...res, providerUsed: `openrouter:${orModel}` };
+        } catch (err) {
+          lastOrErr = err;
+          const skippable = isAuto && isSkippableError(err);
+          console.error(`[AI] OpenRouter BYOK ${orModel} failed${skippable ? ' (advancing in auto chain)' : ''}:`, err instanceof Error ? err.message : err);
+          if (!skippable) break;
+        }
+      }
+      // BYOK strict mode: never fall back to platform keys.
+      if (isAIError(lastOrErr)) throw lastOrErr;
+      throw createAIError(
+        'invalid_key',
+        isAuto
+          ? 'All OpenRouter curated models failed. Please check your key/credits in AI Settings and try again.'
+          : 'Your OpenRouter API key failed. Please check your key in AI Settings and try again.',
+        502,
+      );
     }
 
     // Priority 1: User BYOK Ollama key — use stored model name
@@ -597,7 +630,39 @@ const RETRY_TIMEOUTS = [30_000, 45_000, 55_000];
  * a hallucinated slug was pinned here and silently broke every managed AI
  * request; keep this as a known-good, currently-free model only.
  */
-const FALLBACK_MODEL = 'meta-llama/llama-3.3-70b-instruct:free';
+const FALLBACK_MODEL = 'google/gemma-4-31b-it:free';
+
+/**
+ * Curated allow-list of OpenRouter slugs the WiseResume managed account is
+ * permitted to use, ordered by preference. **Mirror of `OPENROUTER_CURATED_MODELS`
+ * in `src/lib/aiDefaults.ts`** — both files MUST stay in lockstep. See that
+ * file for the rationale (admin-curated free-tier list, server-side enforcement).
+ *
+ * Position 0 is the default selection.
+ */
+export const OPENROUTER_CURATED_MODELS: readonly string[] = [
+  'google/gemma-4-31b-it:free',
+  'nvidia/nemotron-3-super-120b-a12b:free',
+  'minimax/minimax-m2.5:free',
+  'liquid/lfm-2.5-1.2b-thinking:free',
+  'google/gemma-4-26b-a4b-it:free',
+  'openrouter/elephant-alpha',
+  'liquid/lfm-2.5-1.2b-instruct:free',
+  'openai/gpt-oss-120b:free',
+];
+
+/**
+ * Sentinel slug meaning "iterate the curated chain on failure". Mirror of
+ * `OPENROUTER_AUTO_SENTINEL` in `src/lib/aiDefaults.ts`.
+ */
+export const OPENROUTER_AUTO_SENTINEL = '__auto__';
+
+/** True when `model` is a curated OpenRouter slug or the auto sentinel. */
+export function isAllowedOpenRouterModel(model: string): boolean {
+  if (!model) return false;
+  if (model === OPENROUTER_AUTO_SENTINEL) return true;
+  return OPENROUTER_CURATED_MODELS.includes(model);
+}
 
 // ============= Dynamic Model Discovery (cached per cold-start) =============
 
@@ -625,70 +690,18 @@ export function invalidateOpenRouterModelCache(): void {
  * Results are cached for the lifetime of the edge function cold-start.
  */
 async function getOpenRouterFreeModels(apiKey: string): Promise<string[]> {
+  // Task #24: dynamic discovery has been replaced by a curated allow-list.
+  // The list lives in OPENROUTER_CURATED_MODELS (mirrored in aiDefaults.ts)
+  // and the same array is returned for every key — the cache is preserved
+  // only so the existing call sites and `invalidateOpenRouterModelCache`
+  // hook keep working without changes.
   if (_openrouterModelCache !== null && _openrouterCacheKey === apiKey) {
     return _openrouterModelCache;
   }
-
-  try {
-    const discoveryCtrl = new AbortController();
-    const discoveryTimeout = setTimeout(() => discoveryCtrl.abort(), 5_000);
-    let response: Response;
-    try {
-      response = await fetch('https://openrouter.ai/api/v1/models', {
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        signal: discoveryCtrl.signal,
-      });
-    } finally {
-      clearTimeout(discoveryTimeout);
-    }
-
-    if (!response.ok) {
-      console.warn('[AI] OpenRouter model list fetch failed:', response.status);
-      _openrouterModelCache = [FALLBACK_MODEL];
-      _openrouterCacheKey = apiKey;
-      return _openrouterModelCache;
-    }
-
-    const json = await response.json() as { data?: Array<{ id: string; context_length?: number; pricing?: { prompt?: string | number; completion?: string | number } }> };
-    const models = (json.data || [])
-      .filter(m => {
-        const promptCost = parseFloat(String(m.pricing?.prompt ?? ''));
-        const completionCost = parseFloat(String(m.pricing?.completion ?? ''));
-        return promptCost === 0 && completionCost === 0;
-      })
-      .map(m => ({
-        id: m.id,
-        contextLength: m.context_length || 0,
-        paramCount: extractParamCount(m.id),
-      }))
-      .sort((a, b) => {
-        if (b.contextLength !== a.contextLength) return b.contextLength - a.contextLength;
-        return b.paramCount - a.paramCount;
-      })
-      .map(m => m.id);
-
-    if (models.length === 0) {
-      // Discovery returned nothing — only then fall back to the hardcoded slug.
-      // Never prepend FALLBACK_MODEL when real models are available: the live
-      // list is already sorted by context length/param count, so the highest-
-      // quality free model is at position 0.
-      console.warn('[AI] OpenRouter returned no free models; using fallback constant');
-      models.push(FALLBACK_MODEL);
-    }
-
-    console.log(`[AI] OpenRouter free models discovered (${models.length}):`, models.slice(0, 5).join(', '));
-    _openrouterModelCache = models;
-    _openrouterCacheKey = apiKey;
-    return models;
-  } catch (err) {
-    console.warn('[AI] Failed to fetch OpenRouter model list:', err instanceof Error ? err.message : err);
-    _openrouterModelCache = [FALLBACK_MODEL];
-    _openrouterCacheKey = apiKey;
-    return _openrouterModelCache;
-  }
+  _openrouterModelCache = [...OPENROUTER_CURATED_MODELS];
+  _openrouterCacheKey = apiKey;
+  console.log(`[AI] OpenRouter curated chain (${_openrouterModelCache.length}):`, _openrouterModelCache.slice(0, 3).join(', '), '…');
+  return _openrouterModelCache;
 }
 
 /**
