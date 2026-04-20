@@ -44,6 +44,21 @@ export interface AICallOptions {
    *   - 'auto'        → openrouter → openrouter2 → groq (whichever is configured/healthy)
    */
   wiseresumeSubProvider?: 'openrouter' | 'groq' | 'auto' | 'openrouter2';
+  /**
+   * Task #24: per-request override of the curated OpenRouter slug to use in
+   * the WiseResume managed openrouter sub-engine. When provided, the managed
+   * loop pins to this single slug instead of the default ranked chain.
+   * Must be a member of OPENROUTER_CURATED_MODELS (validated below).
+   */
+  openrouterCuratedModel?: string;
+  /**
+   * Task #24: per-request override that, when true, forces the managed
+   * openrouter sub-engine to iterate the FULL curated chain (8 slugs)
+   * instead of the default 2-model cap, advancing on any skippable error
+   * (rate-limit/5xx/404/timeout). Mutually exclusive with
+   * openrouterCuratedModel — Auto wins if both are set.
+   */
+  openrouterAutoFallback?: boolean;
 }
 
 export interface AIResponse {
@@ -483,16 +498,19 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
         throw createAIError('invalid_key', 'No OpenRouter model selected. Please choose a model in AI Settings.', 400);
       }
 
-      // Task #24: execution-time allow-list guard. The manage-api-keys edge
-      // function rejects off-list writes, but pre-existing rows or
+      // Task #24: execution-time allow-list enforcement. The manage-api-keys
+      // edge function rejects off-list writes, but pre-existing rows or
       // out-of-band writes could still smuggle a decommissioned slug into
-      // user_api_keys.model. Coerce anything off-list to the curated default
-      // here so the routing layer never invokes a slug the admin curated
-      // away. Logged so the admin can see WHY a stale model was upgraded.
-      let storedOrModel = rawStoredOrModel;
+      // user_api_keys.model. Reject the request explicitly so the user is
+      // forced to update their selection in AI Settings — no silent coercion,
+      // because doing so masks a stale row that should be repaired.
+      const storedOrModel = rawStoredOrModel;
       if (!isAllowedOpenRouterModel(storedOrModel)) {
-        console.warn(`[AI] OpenRouter BYOK stored model "${storedOrModel}" is off curated allow-list; coercing to default "${FALLBACK_MODEL}"`);
-        storedOrModel = FALLBACK_MODEL;
+        throw createAIError(
+          'invalid_key',
+          `OpenRouter model "${storedOrModel}" is no longer in the curated allow-list. Open AI Settings → OpenRouter and pick one of: ${OPENROUTER_CURATED_MODELS.join(', ')}.`,
+          400,
+        );
       }
 
       // Task #24: Auto-fallback. When the user opted in (model stored as the
@@ -515,7 +533,13 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
           return { ...res, providerUsed: `openrouter:${orModel}` };
         } catch (err) {
           lastOrErr = err;
-          const skippable = isAuto && isSkippableError(err);
+          // Task #24: in Auto mode, treat per-attempt timeout/network aborts
+          // as skippable too — the next slug gets a fresh upstream request,
+          // and a stuck model should never be allowed to short-circuit the
+          // whole curated chain. A user-initiated outer abort is propagated
+          // separately via outerSignal so this does not swallow cancellation.
+          const isAbort = err instanceof DOMException && err.name === 'AbortError';
+          const skippable = isAuto && (isSkippableError(err) || isAbort);
           console.error(`[AI] OpenRouter BYOK ${orModel} failed${skippable ? ' (advancing in auto chain)' : ''}:`, err instanceof Error ? err.message : err);
           if (!skippable) break;
         }
@@ -1476,9 +1500,37 @@ export async function callWiseresumeAI(
   // OVERALL_DEADLINE (50s) in the loop below, but a smaller chain means
   // that on common failures we exit cleanly with at least one Groq attempt.
   const MAX_MODELS_PER_PROVIDER = 2;
-  const openrouterModels = (subProvider === 'openrouter' || subProvider === 'auto') && openrouterKey
-    ? (await getOpenRouterFreeModels(openrouterKey)).slice(0, MAX_MODELS_PER_PROVIDER)
-    : [];
+
+  // Task #24: per-request overrides from the DevKit OpenRouter sub-panel.
+  // - openrouterAutoFallback=true → iterate the FULL curated chain (8 slugs)
+  //   so the admin can verify auto-fallback end-to-end. Overall deadline
+  //   below still bounds total wall time, so the loop exits cleanly even
+  //   if every slug times out.
+  // - openrouterCuratedModel=<slug> → pin to that single curated slug
+  //   (rejected here if off-list — the same allow-list manage-api-keys
+  //   enforces on writes is enforced at execution time, no silent coercion).
+  const overrideAuto = options.openrouterAutoFallback === true;
+  const overrideSingle = !overrideAuto && options.openrouterCuratedModel
+    ? options.openrouterCuratedModel
+    : null;
+  if (overrideSingle && !isAllowedOpenRouterModel(overrideSingle)) {
+    throw createAIError(
+      'invalid_key',
+      `OpenRouter model "${overrideSingle}" is not in the curated allow-list. Pick one of: ${OPENROUTER_CURATED_MODELS.join(', ')}.`,
+      400,
+    );
+  }
+
+  let openrouterModels: string[] = [];
+  if ((subProvider === 'openrouter' || subProvider === 'auto') && openrouterKey) {
+    if (overrideAuto) {
+      openrouterModels = [...OPENROUTER_CURATED_MODELS];
+    } else if (overrideSingle) {
+      openrouterModels = [overrideSingle];
+    } else {
+      openrouterModels = (await getOpenRouterFreeModels(openrouterKey)).slice(0, MAX_MODELS_PER_PROVIDER);
+    }
+  }
   const groqModels = (subProvider === 'groq' || subProvider === 'auto') && groqKey
     ? (await getGroqModels(groqKey)).slice(0, MAX_MODELS_PER_PROVIDER)
     : [];

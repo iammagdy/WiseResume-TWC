@@ -770,8 +770,19 @@ function OpenRouterPanel({
 
     setTestState({ status: 'running' });
     try {
+      // Task #24: forward the live curated-model + Auto-fallback selection
+      // so the test exercises exactly what the admin currently has wired,
+      // not the server-side default chain. Read directly from the store at
+      // call time (the surrounding selectors update the UI; this read is the
+      // source of truth at the moment the admin clicked Test).
+      const liveOpenrouterModel = useSettingsStore.getState().openrouterModel;
+      const liveOpenrouterAuto = useSettingsStore.getState().openrouterAuto;
       const res = await edgeFunctions.functions.invoke('ai-test', {
-        body: { wiseresumeSubProvider: 'openrouter' },
+        body: {
+          wiseresumeSubProvider: 'openrouter',
+          openrouterModel: liveOpenrouterAuto ? undefined : (liveOpenrouterModel || OPENROUTER_DEFAULT_MODEL),
+          openrouterAuto: liveOpenrouterAuto,
+        },
         signal: ctrl.signal,
       });
       if (ctrl.signal.aborted) return;

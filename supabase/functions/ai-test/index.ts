@@ -61,12 +61,21 @@ serve(async (req) => {
     let bodySubProvider: 'openrouter' | 'groq' | 'auto' | 'openrouter2' | undefined;
     let isAdminRequest = false;
     let rawBodySubProvider: unknown;
+    // Task #24: per-request OpenRouter overrides forwarded from the DevKit
+    // OpenRouter sub-panel so the admin's curated-model / Auto-fallback
+    // selection drives the test call instead of the server-side defaults.
+    let bodyOpenrouterModel: string | undefined;
+    let bodyOpenrouterAuto = false;
     try {
       const text = await req.clone().text();
       if (text) {
         const body = JSON.parse(text);
         checkOnly = body?.checkOnly === true;
         rawBodySubProvider = body?.wiseresumeSubProvider;
+        if (typeof body?.openrouterModel === 'string') {
+          bodyOpenrouterModel = body.openrouterModel;
+        }
+        bodyOpenrouterAuto = body?.openrouterAuto === true;
       }
     } catch {
       // Ignore parse errors for empty/invalid bodies
@@ -271,6 +280,11 @@ serve(async (req) => {
       timeout: 20000,
       preferredProvider,
       wiseresumeSubProvider,
+      // Task #24: forward DevKit OpenRouter sub-panel selection so the
+      // managed openrouter sub-engine pins to the chosen curated slug,
+      // or iterates the full curated chain when Auto is on.
+      openrouterCuratedModel: bodyOpenrouterModel,
+      openrouterAutoFallback: bodyOpenrouterAuto,
       userId,
     });
 
