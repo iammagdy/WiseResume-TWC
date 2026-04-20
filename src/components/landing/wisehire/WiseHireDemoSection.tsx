@@ -132,7 +132,6 @@ export function WiseHireDemoSection() {
         </motion.div>
         <div
           className="lp-stack-step-chip"
-          data-active={activeIdx >= 0}
           aria-live="polite"
         >
           <span className="lp-stack-step-chip-num">
