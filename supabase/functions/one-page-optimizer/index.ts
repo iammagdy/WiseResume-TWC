@@ -86,36 +86,85 @@ function estimatePageCount(resume: ResumeData): number {
 }
 
 /**
- * Strict schema check. Returns a typed validation result so the caller can
- * refund the user's credit and emit a typed error code instead of merging
- * garbage from a flaky AI provider into the resume.
+ * Strict schema check. Validates every field the client/apply path will read,
+ * including nested item types, and returns a freshly-built typed object (no
+ * unchecked cast). On failure, the caller refunds the credit and emits a typed
+ * `invalid_ai_response` so a flaky AI provider can never corrupt the resume.
  */
 function validateOnePageSchema(raw: unknown): { ok: true; value: OnePageResult } | { ok: false; reason: string } {
   if (!raw || typeof raw !== 'object') return { ok: false, reason: 'response is not an object' };
   const r = raw as Record<string, unknown>;
 
-  const num = (v: unknown) => typeof v === 'number' && Number.isFinite(v);
-  const str = (v: unknown) => typeof v === 'string';
+  const isNum = (v: unknown) => typeof v === 'number' && Number.isFinite(v);
+  const isStr = (v: unknown) => typeof v === 'string';
+  const isStrArr = (v: unknown): v is string[] => Array.isArray(v) && v.every(isStr);
 
-  if (!num(r.currentEstimatedPages)) return { ok: false, reason: 'currentEstimatedPages missing or non-numeric' };
-  if (!num(r.optimizedEstimatedPages)) return { ok: false, reason: 'optimizedEstimatedPages missing or non-numeric' };
-  if (!str(r.overallStrategy)) return { ok: false, reason: 'overallStrategy missing' };
+  if (!isNum(r.currentEstimatedPages)) return { ok: false, reason: 'currentEstimatedPages missing or non-numeric' };
+  if (!isNum(r.optimizedEstimatedPages)) return { ok: false, reason: 'optimizedEstimatedPages missing or non-numeric' };
+  if (!isStr(r.overallStrategy)) return { ok: false, reason: 'overallStrategy missing or not a string' };
 
-  const arrays: Array<keyof OnePageResult> = ['reductions', 'removedItems', 'condensedExperience', 'layoutSuggestions'];
-  for (const key of arrays) {
-    if (!Array.isArray(r[key])) return { ok: false, reason: `${key} must be an array` };
+  if (!Array.isArray(r.reductions)) return { ok: false, reason: 'reductions must be an array' };
+  if (!Array.isArray(r.removedItems)) return { ok: false, reason: 'removedItems must be an array' };
+  if (!Array.isArray(r.condensedExperience)) return { ok: false, reason: 'condensedExperience must be an array' };
+  if (!Array.isArray(r.layoutSuggestions)) return { ok: false, reason: 'layoutSuggestions must be an array' };
+
+  if (r.condensedSummary != null && !isStr(r.condensedSummary)) {
+    return { ok: false, reason: 'condensedSummary, when present, must be a string' };
+  }
+  if (!isStrArr(r.layoutSuggestions)) {
+    return { ok: false, reason: 'layoutSuggestions[] entries must all be strings' };
   }
 
-  // condensedExperience must each have id + description + achievements[]
-  for (const ce of r.condensedExperience as unknown[]) {
-    if (!ce || typeof ce !== 'object') return { ok: false, reason: 'condensedExperience entry not an object' };
-    const c = ce as Record<string, unknown>;
-    if (!str(c.id)) return { ok: false, reason: 'condensedExperience entry missing id' };
-    if (!str(c.description)) return { ok: false, reason: 'condensedExperience entry missing description' };
-    if (!Array.isArray(c.achievements)) return { ok: false, reason: 'condensedExperience entry missing achievements[]' };
+  const reductions: ContentReduction[] = [];
+  for (const [i, raw] of (r.reductions as unknown[]).entries()) {
+    if (!raw || typeof raw !== 'object') return { ok: false, reason: `reductions[${i}] not an object` };
+    const x = raw as Record<string, unknown>;
+    if (!isStr(x.section) || !isStr(x.original) || !isStr(x.condensed) || !isStr(x.strategy)) {
+      return { ok: false, reason: `reductions[${i}] missing required string field(s)` };
+    }
+    if (!isNum(x.wordsRemoved)) return { ok: false, reason: `reductions[${i}].wordsRemoved must be a number` };
+    reductions.push({
+      section: x.section as string, original: x.original as string,
+      condensed: x.condensed as string, wordsRemoved: x.wordsRemoved as number,
+      strategy: x.strategy as string,
+    });
   }
 
-  return { ok: true, value: r as unknown as OnePageResult };
+  const removedItems: OnePageRemovedItem[] = [];
+  for (const [i, raw] of (r.removedItems as unknown[]).entries()) {
+    if (!raw || typeof raw !== 'object') return { ok: false, reason: `removedItems[${i}] not an object` };
+    const x = raw as Record<string, unknown>;
+    if (!isStr(x.section) || !isStr(x.item) || !isStr(x.reason)) {
+      return { ok: false, reason: `removedItems[${i}] missing required string field(s)` };
+    }
+    removedItems.push({ section: x.section as string, item: x.item as string, reason: x.reason as string });
+  }
+
+  const condensedExperience: OnePageCondensedExperience[] = [];
+  for (const [i, raw] of (r.condensedExperience as unknown[]).entries()) {
+    if (!raw || typeof raw !== 'object') return { ok: false, reason: `condensedExperience[${i}] not an object` };
+    const x = raw as Record<string, unknown>;
+    if (!isStr(x.id)) return { ok: false, reason: `condensedExperience[${i}].id missing or not string` };
+    if (!isStr(x.description)) return { ok: false, reason: `condensedExperience[${i}].description missing or not string` };
+    if (!isStrArr(x.achievements)) {
+      return { ok: false, reason: `condensedExperience[${i}].achievements must be an array of strings` };
+    }
+    condensedExperience.push({
+      id: x.id as string, description: x.description as string, achievements: x.achievements,
+    });
+  }
+
+  const value: OnePageResult = {
+    currentEstimatedPages: r.currentEstimatedPages as number,
+    optimizedEstimatedPages: r.optimizedEstimatedPages as number,
+    reductions,
+    removedItems,
+    condensedSummary: r.condensedSummary as string | undefined,
+    condensedExperience,
+    layoutSuggestions: r.layoutSuggestions,
+    overallStrategy: r.overallStrategy as string,
+  };
+  return { ok: true, value };
 }
 
 Deno.serve(async (req) => {

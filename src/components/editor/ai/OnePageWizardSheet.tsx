@@ -181,7 +181,10 @@ export function OnePageWizardSheet({ open, onOpenChange }: OnePageWizardSheetPro
     if (m) setMeasurement(m);
   }, [open, exportApi.isReady, exportApi, currentResume]);
 
-  // Reset on close
+  // Reset on close. Note: we intentionally DO NOT clear `previousResumeRef.current`
+  // here — the post-apply Undo toast needs the snapshot to survive after the sheet
+  // closes. The snapshot is replaced on the next analyze run, or cleared when
+  // the user actually invokes Undo.
   useEffect(() => {
     if (open) return;
     setView('levers');
@@ -190,7 +193,6 @@ export function OnePageWizardSheet({ open, onOpenChange }: OnePageWizardSheetPro
     setPostApplyMeasurement(null);
     setSelection({ summary: true, experiences: new Set() });
     setTightenRequested(false);
-    previousResumeRef.current = null;
   }, [open]);
 
   const customization = currentResume?.customization || getDefaultCustomization();
@@ -298,32 +300,15 @@ export function OnePageWizardSheet({ open, onOpenChange }: OnePageWizardSheetPro
       updateResume(merged);
       haptics.success?.();
 
-      // 3) Re-measure after the offscreen template repaints
-      requestAnimationFrame(() => requestAnimationFrame(() => {
-        const m = exportApi.measure();
-        if (m) {
-          setPostApplyMeasurement(m);
-          if (m.pages > 1) {
-            toast.warning(`Still ~${m.pages} pages — try Tighten or adjust layout levers.`);
-          } else {
-            toast.success('Resume condensed to one page!', {
-              action: { label: 'Undo', onClick: handleUndo },
-              duration: 8000,
-            });
-          }
-        } else {
-          toast.success('Changes applied', {
-            action: { label: 'Undo', onClick: handleUndo },
-            duration: 8000,
-          });
-        }
-      }));
+      // 3) Wait for the offscreen template to repaint, then re-measure
+      await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+      const m = exportApi.measure();
+      if (m) setPostApplyMeasurement(m);
 
-      // 4) Optional immediate download
+      // 4) Optional immediate download — even if we end up still > 1 page, the user
+      // explicitly asked for a download; the one-page PDF generator scales-to-fit.
       if (download) {
         try {
-          // small delay so the offscreen template paints the merged content
-          await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => r(null))));
           const blob = await exportApi.exportOnePagePdf();
           const baseName = (merged.contactInfo.fullName || 'Resume').replace(/\s+/g, '_');
           await downloadFile({ blob, fileName: `${baseName}_OnePage.pdf` });
@@ -333,7 +318,23 @@ export function OnePageWizardSheet({ open, onOpenChange }: OnePageWizardSheetPro
         }
       }
 
-      onOpenChange(false);
+      // 5) Outcome-driven UX:
+      //    - If the resume now fits on one page → success toast w/ Undo, close sheet.
+      //    - If it still overflows → keep the sheet open in the results view so the
+      //      user can immediately Tighten further, change layout levers, or Undo.
+      if (m && m.pages > 1) {
+        toast.warning(`Still ~${m.pages} pages after apply — try Tighten or adjust the layout levers.`, {
+          action: { label: 'Undo', onClick: handleUndo },
+          duration: 12000,
+        });
+        // sheet stays open; ReductionViz + footer Tighten button will be shown
+      } else {
+        toast.success(m ? 'Resume condensed to one page!' : 'Changes applied', {
+          action: { label: 'Undo', onClick: handleUndo },
+          duration: 10000,
+        });
+        onOpenChange(false);
+      }
     } finally {
       setIsApplying(false);
     }
