@@ -539,9 +539,14 @@ export function OnePageWizardSheet({ open, onOpenChange }: OnePageWizardSheetPro
                   removedItems={result.removedItems?.length || 0}
                 />
 
-                {/* Mini live preview */}
+                {/* Mini live preview — reflects the *projected* result with the
+                    user's current selection toggles applied, so the user sees
+                    exactly what Apply will commit. Updates on every checkbox toggle. */}
                 {currentResume && (
-                  <MiniPreview resume={currentResume} TemplateComponent={TemplateComponent} />
+                  <MiniPreview
+                    resume={applySelectiveChanges(currentResume, result, selection)}
+                    TemplateComponent={TemplateComponent}
+                  />
                 )}
 
                 {/* Strategy */}
@@ -720,6 +725,19 @@ export function OnePageWizardSheet({ open, onOpenChange }: OnePageWizardSheetPro
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
+/**
+ * Rough per-step savings estimates for the layout levers, calibrated against
+ * the resume templates' actual CSS scales. These are guidance only — the
+ * authoritative page-count badge above the panel re-measures the real DOM
+ * after every change.
+ */
+const LEVER_SAVINGS = {
+  margins: { narrow: '~6% smaller', normal: 'baseline', wide: '~6% larger' },
+  spacing: { compact: '~10% smaller', normal: 'baseline', spacious: '~10% larger' },
+  fontSize: { small: '~14% smaller', medium: 'baseline', large: '~12% larger' },
+  lineHeight: { single: '~8% smaller', '1.15': '~3% smaller', '1.5': 'baseline', double: '~15% larger' },
+} as const;
+
 function LeversPanel({
   customization,
   onChange,
@@ -734,10 +752,13 @@ function LeversPanel({
         <p className="text-sm font-semibold">Quick layout levers</p>
       </div>
       <p className="text-xs text-muted-foreground -mt-2">
-        These apply instantly to your resume — no AI required. The page count badge above updates as you change them.
+        These apply instantly — no AI required. The page-count badge above re-measures after every change.
       </p>
 
-      <Lever label="Margins">
+      <Lever
+        label="Margins"
+        hint={LEVER_SAVINGS.margins[customization.margins as keyof typeof LEVER_SAVINGS.margins]}
+      >
         <ToggleGroup
           type="single"
           value={customization.margins}
@@ -750,7 +771,10 @@ function LeversPanel({
         </ToggleGroup>
       </Lever>
 
-      <Lever label="Spacing">
+      <Lever
+        label="Spacing"
+        hint={LEVER_SAVINGS.spacing[customization.spacing as keyof typeof LEVER_SAVINGS.spacing]}
+      >
         <ToggleGroup
           type="single"
           value={customization.spacing}
@@ -763,7 +787,10 @@ function LeversPanel({
         </ToggleGroup>
       </Lever>
 
-      <Lever label="Font size">
+      <Lever
+        label="Font size"
+        hint={LEVER_SAVINGS.fontSize[customization.fontSize as keyof typeof LEVER_SAVINGS.fontSize]}
+      >
         <ToggleGroup
           type="single"
           value={customization.fontSize}
@@ -776,7 +803,10 @@ function LeversPanel({
         </ToggleGroup>
       </Lever>
 
-      <Lever label="Line height">
+      <Lever
+        label="Line height"
+        hint={LEVER_SAVINGS.lineHeight[customization.lineHeight as keyof typeof LEVER_SAVINGS.lineHeight]}
+      >
         <ToggleGroup
           type="single"
           value={customization.lineHeight}
@@ -792,10 +822,15 @@ function LeversPanel({
   );
 }
 
-function Lever({ label, children }: { label: string; children: React.ReactNode }) {
+function Lever({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <span className="text-xs font-medium text-muted-foreground w-20 shrink-0">{label}</span>
+      <div className="w-20 shrink-0">
+        <div className="text-xs font-medium text-muted-foreground">{label}</div>
+        {hint && hint !== 'baseline' && (
+          <div className="text-[10px] text-success font-mono leading-tight">{hint}</div>
+        )}
+      </div>
       <div className="flex-1 overflow-x-auto">{children}</div>
     </div>
   );
