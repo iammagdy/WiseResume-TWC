@@ -275,11 +275,49 @@ export function OnePageWizardSheet({ open, onOpenChange }: OnePageWizardSheetPro
     previousResumeRef.current = null;
     setPostApplyMeasurement(null);
     toast.success('Reverted to previous version');
-  }, [setCurrentResume]);
+    // Best-effort telemetry: record that the user undid an apply
+    void edgeFunctions.functions.invoke('one-page-optimizer', {
+      body: {
+        mode: 'telemetry',
+        telemetry: {
+          outcome: 'undone',
+          templateId: prev.templateId || selectedTemplate,
+          providerUsed: result?.provider ?? null,
+        },
+      },
+    }).catch(() => { /* swallow */ });
+  }, [setCurrentResume, selectedTemplate, result?.provider]);
+
+  const sendTelemetry = useCallback(async (payload: {
+    outcome: 'applied' | 'applied_and_downloaded' | 'undone' | 'still_overflowing' | 'invalid_response_seen';
+    pagesBefore?: number;
+    pagesAfterPredicted?: number;
+    pagesAfterMeasured?: number;
+    applied?: boolean;
+    downloaded?: boolean;
+    elapsedMs?: number;
+  }) => {
+    try {
+      await edgeFunctions.functions.invoke('one-page-optimizer', {
+        body: {
+          mode: 'telemetry',
+          telemetry: {
+            ...payload,
+            templateId: currentResume?.templateId || selectedTemplate,
+            providerUsed: result?.provider ?? null,
+          },
+        },
+      });
+    } catch (e) {
+      // telemetry is best-effort; never let it block UX
+      console.warn('[OnePageWizard] telemetry post failed', e);
+    }
+  }, [currentResume?.templateId, selectedTemplate, result?.provider]);
 
   const applySelected = useCallback(async (download: boolean) => {
     if (!currentResume || !result) return;
     setIsApplying(true);
+    const t0 = performance.now();
     try {
       // 1) snapshot for undo (in-memory) and persisted (DB), best-effort
       previousResumeRef.current = currentResume;
@@ -322,8 +360,24 @@ export function OnePageWizardSheet({ open, onOpenChange }: OnePageWizardSheetPro
       //    - If the resume now fits on one page → success toast w/ Undo, close sheet.
       //    - If it still overflows → keep the sheet open in the results view so the
       //      user can immediately Tighten further, change layout levers, or Undo.
-      if (m && m.pages > 1) {
-        toast.warning(`Still ~${m.pages} pages after apply — try Tighten or adjust the layout levers.`, {
+      const elapsedMs = Math.round(performance.now() - t0);
+      const overflowing = !!(m && m.pages > 1);
+
+      // Best-effort outcome telemetry (server log)
+      void sendTelemetry({
+        outcome: overflowing
+          ? 'still_overflowing'
+          : (download ? 'applied_and_downloaded' : 'applied'),
+        pagesBefore: measurement?.pages ?? result.currentEstimatedPages,
+        pagesAfterPredicted: result.optimizedEstimatedPages,
+        pagesAfterMeasured: m?.pages,
+        applied: true,
+        downloaded: download,
+        elapsedMs,
+      });
+
+      if (overflowing) {
+        toast.warning(`Still ~${m!.pages} pages after apply — try Tighten or adjust the layout levers.`, {
           action: { label: 'Undo', onClick: handleUndo },
           duration: 12000,
         });
@@ -338,7 +392,7 @@ export function OnePageWizardSheet({ open, onOpenChange }: OnePageWizardSheetPro
     } finally {
       setIsApplying(false);
     }
-  }, [currentResume, currentResumeId, exportApi, handleUndo, onOpenChange, result, saveVersion, selection, updateResume]);
+  }, [currentResume, currentResumeId, exportApi, handleUndo, measurement, onOpenChange, result, saveVersion, selection, sendTelemetry, updateResume]);
 
   const handleSelectAll = () => {
     if (!result) return;

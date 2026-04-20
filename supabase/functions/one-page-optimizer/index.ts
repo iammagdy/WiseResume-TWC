@@ -19,7 +19,9 @@ interface ResumeData {
 }
 
 interface OnePageRequest {
-  resume: ResumeData;
+  /** When 'telemetry', the function emits a structured outcome event and skips AI/credit. */
+  mode?: 'analyze' | 'telemetry';
+  resume?: ResumeData;
   targetRole?: string;
   yearsOfExperience?: number;
   preserveRecent?: number;
@@ -29,6 +31,18 @@ interface OnePageRequest {
   templateId?: string;
   /** When true, instructs the AI to be more aggressive (caller already tried levers). */
   tighten?: boolean;
+  /** Telemetry-mode payload: outcome of an apply/download/undo from the client. */
+  telemetry?: {
+    outcome: 'applied' | 'applied_and_downloaded' | 'undone' | 'still_overflowing' | 'invalid_response_seen';
+    pagesBefore?: number;
+    pagesAfterPredicted?: number;
+    pagesAfterMeasured?: number;
+    applied?: boolean;
+    downloaded?: boolean;
+    templateId?: string;
+    providerUsed?: string | null;
+    elapsedMs?: number;
+  };
 }
 
 interface OnePageReduction {
@@ -115,7 +129,7 @@ function validateOnePageSchema(raw: unknown): { ok: true; value: OnePageResult }
     return { ok: false, reason: 'layoutSuggestions[] entries must all be strings' };
   }
 
-  const reductions: ContentReduction[] = [];
+  const reductions: OnePageReduction[] = [];
   for (const [i, raw] of (r.reductions as unknown[]).entries()) {
     if (!raw || typeof raw !== 'object') return { ok: false, reason: `reductions[${i}] not an object` };
     const x = raw as Record<string, unknown>;
@@ -205,6 +219,29 @@ Deno.serve(async (req) => {
       );
     }
 
+    const parsedBody: OnePageRequest = JSON.parse(bodyText);
+
+    // ── Telemetry mode: skip credit + AI, just emit a structured outcome event ──
+    if (parsedBody.mode === 'telemetry' && parsedBody.telemetry) {
+      const t = parsedBody.telemetry;
+      log.info('one_page outcome', {
+        userId,
+        outcome: t.outcome,
+        pagesBefore: t.pagesBefore ?? null,
+        pagesAfterPredicted: t.pagesAfterPredicted ?? null,
+        pagesAfterMeasured: t.pagesAfterMeasured ?? null,
+        applied: t.applied ?? null,
+        downloaded: t.downloaded ?? null,
+        templateId: t.templateId ?? null,
+        providerUsed: t.providerUsed ?? null,
+        elapsedMs: t.elapsedMs ?? null,
+      });
+      return new Response(
+        JSON.stringify({ success: true, recorded: true }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const {
       resume,
       targetRole,
@@ -213,7 +250,7 @@ Deno.serve(async (req) => {
       currentPagesMeasured,
       templateId,
       tighten = false,
-    }: OnePageRequest = JSON.parse(bodyText);
+    } = parsedBody;
 
     if (!resume) {
       return new Response(
@@ -329,12 +366,15 @@ Return ONLY a JSON object with this EXACT structure (no markdown, no code fences
     log.info('one_page success', {
       userId,
       provider: aiResponse.providerUsed,
-      currentPages,
+      pagesBefore: currentPages,
+      pagesAfterPredicted: validation.value.optimizedEstimatedPages,
       heuristicPages,
       currentPagesMeasured: currentPagesMeasured ?? null,
       tighten,
       elapsedMs,
       templateId: templateId ?? null,
+      condensedExperienceCount: validation.value.condensedExperience.length,
+      reductionsCount: validation.value.reductions.length,
     });
 
     return new Response(
