@@ -780,7 +780,7 @@ function OpenRouterPanel({
       const res = await edgeFunctions.functions.invoke('ai-test', {
         body: {
           wiseresumeSubProvider: 'openrouter',
-          openrouterModel: liveOpenrouterAuto ? undefined : (liveOpenrouterModel || OPENROUTER_DEFAULT_MODEL),
+          openrouterModel: liveOpenrouterModel || OPENROUTER_DEFAULT_MODEL,
           openrouterAuto: liveOpenrouterAuto,
         },
         signal: ctrl.signal,

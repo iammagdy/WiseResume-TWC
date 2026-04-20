@@ -204,8 +204,10 @@ describe("AIProviderPanel (DevKit)", () => {
     const testButtons = await screen.findAllByRole("button", { name: /^test$/i });
     fireEvent.click(testButtons[0]);
 
-    // Done banner shows "<latencyMs>ms · <model>".
-    await screen.findByText(/123ms · openrouter\/auto/);
+    // Done banner shows "<latencyMs>ms" and "answered by <model>" in
+    // separate spans (Task #24 layout). Assert both are present.
+    await screen.findByText(/123ms/);
+    await screen.findByText("openrouter/auto");
 
     // Switching to a different tab must remount the sub-panel (key={tab})
     // so the previous tab's stale "done" banner is gone. The "Groq" label
@@ -214,39 +216,29 @@ describe("AIProviderPanel (DevKit)", () => {
     fireEvent.click(groqButtons[0]);
 
     await waitFor(() => {
-      expect(screen.queryByText(/123ms · openrouter\/auto/)).not.toBeInTheDocument();
+      expect(screen.queryByText("openrouter/auto")).not.toBeInTheDocument();
     });
   });
 
   it("commits a model switch when the user picks one and presses Enter", async () => {
-    // Provide a single OpenRouter model so the list isn't empty.
-    mockFetch.mockImplementation((url: string) => {
-      if (url.includes("openrouter-models")) {
-        return jsonResponse({
-          models: [
-            {
-              id: "test-org/test-model",
-              name: "Test Model",
-              pricing: { prompt: "0", completion: "0" },
-              context_length: 4096,
-            },
-          ],
-        });
-      }
-      return jsonResponse({});
-    });
+    // Task #24: model list is now the hard-coded curated allow-list — no
+    // live /openrouter-models fetch. Pick one of the curated slugs and
+    // assert the picker still wires through to setOpenrouterModel.
+    const CURATED_SLUG = "nvidia/nemotron-3-super-120b-a12b:free";
 
     renderWithProviders(<AIProviderPanel />);
 
-    // Wait for the model row to appear, then click it to open the confirm card.
     const modelRow = await screen.findByRole("button", {
-      name: /test-org\/test-model/i,
+      name: new RegExp(CURATED_SLUG.replace(/[/.+]/g, "\\$&"), "i"),
     });
     fireEvent.click(modelRow);
 
     expect(
       await screen.findByRole("dialog", {
-        name: /confirm switching active model to test-org\/test-model/i,
+        name: new RegExp(
+          `confirm switching active model to ${CURATED_SLUG.replace(/[/.+]/g, "\\$&")}`,
+          "i",
+        ),
       }),
     ).toBeInTheDocument();
 
@@ -254,9 +246,7 @@ describe("AIProviderPanel (DevKit)", () => {
     fireEvent.keyDown(window, { key: "Enter" });
 
     await waitFor(() => {
-      expect(settingsState.setOpenrouterModel).toHaveBeenCalledWith(
-        "test-org/test-model",
-      );
+      expect(settingsState.setOpenrouterModel).toHaveBeenCalledWith(CURATED_SLUG);
     });
   });
 

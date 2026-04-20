@@ -1,6 +1,7 @@
 import { getServiceClient } from '../_shared/dbClient.ts';
 import { requireAdminAuth } from '../_shared/adminAuth.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
+import { invalidateOpenRouterAdminCache } from '../_shared/aiClient.ts';
 
 Deno.serve(async (req) => {
   const origin = req.headers.get('origin');
@@ -37,6 +38,13 @@ Deno.serve(async (req) => {
       );
 
     if (error) throw error;
+
+    // Task #24: drop the in-process OpenRouter admin-settings cache so the
+    // newly written model/Auto choice is visible to subsequent AI calls
+    // without waiting for the (short) TTL to expire.
+    if (key === 'openrouter_curated_model' || key === 'openrouter_auto_fallback') {
+      invalidateOpenRouterAdminCache();
+    }
 
     return new Response(
       JSON.stringify({ success: true }),

@@ -393,10 +393,19 @@ async function getGlobalAIEngine(): Promise<'openrouter' | 'groq' | 'auto' | 'op
  * to every AI call.
  */
 let _curatedModelCache: { model: string; auto: boolean; ts: number } | null = null;
-const _CURATED_CACHE_TTL_MS = 30_000;
-async function getOpenRouterAdminSettings(): Promise<{ model: string; auto: boolean }> {
+// Short TTL: admin model/Auto changes need to propagate to managed traffic
+// "live" (no reload). 3s keeps the round-trip cost ~negligible while making
+// the eventual-consistency window small enough to feel immediate.
+const _CURATED_CACHE_TTL_MS = 3_000;
+/** Drop the in-process cache so the next call hits the DB. Called from the
+ *  admin write path (admin-update-settings) so a fresh model/Auto choice is
+ *  visible to subsequent AI calls without waiting for the TTL. */
+export function invalidateOpenRouterAdminCache(): void {
+  _curatedModelCache = null;
+}
+async function getOpenRouterAdminSettings(opts?: { bypassCache?: boolean }): Promise<{ model: string; auto: boolean }> {
   const now = Date.now();
-  if (_curatedModelCache && now - _curatedModelCache.ts < _CURATED_CACHE_TTL_MS) {
+  if (!opts?.bypassCache && _curatedModelCache && now - _curatedModelCache.ts < _CURATED_CACHE_TTL_MS) {
     return { model: _curatedModelCache.model, auto: _curatedModelCache.auto };
   }
   try {
@@ -1571,7 +1580,12 @@ export async function callWiseresumeAI(
   // Ordering matters: the panel writes app_settings on every change so live
   // production traffic picks up the new selection within the cache TTL,
   // while the Test button can still target a different slug for verification.
-  const adminSettings = await getOpenRouterAdminSettings();
+  // Bypass the in-process cache when the caller supplied an explicit override
+  // (e.g. the DevKit Test button): it represents a deliberate, just-typed
+  // admin choice and must be honored without waiting for cache TTL.
+  const adminSettings = await getOpenRouterAdminSettings({
+    bypassCache: openrouterCuratedModel !== undefined || openrouterAutoFallback !== undefined,
+  });
   const effectiveAuto = openrouterAutoFallback ?? adminSettings.auto;
   const requestedSingle = openrouterCuratedModel ?? adminSettings.model;
   const effectiveSingle = effectiveAuto ? null : requestedSingle;
