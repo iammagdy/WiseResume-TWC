@@ -211,16 +211,22 @@ export function DevKitRunner() {
     },
     {
       id: 'token-exchange', label: 'Test Token Exchange', description: 'Call getKindeToken() → exchangeToken()', section: 'auth',
-      run: () => strictInvoke('token-exchange', async () => {
-        const kindeToken = await auth.getKindeToken();
-        if (!kindeToken) throw new Error('No Kinde token available');
-        await exchangeToken(kindeToken);
-        return { bridgeReady: isReady(), userId: getUserId(), tokenPresent: !!getToken() };
-      }),
+      run: async (): Promise<TestResult> => {
+        if (!auth.isAuthenticated) return { status: 'warn' as const, summary: 'Skipped — sign in to the main app first, then re-run (requires an active Kinde session)', durationMs: 0 };
+        return strictInvoke('token-exchange', async () => {
+          const kindeToken = await auth.getKindeToken();
+          if (!kindeToken) throw new Error('No Kinde token available');
+          await exchangeToken(kindeToken);
+          return { bridgeReady: isReady(), userId: getUserId(), tokenPresent: !!getToken() };
+        });
+      },
     },
     {
       id: 'who-am-i', label: 'Who am I?', description: 'Call /me edge function', section: 'auth',
-      run: () => strictInvoke('who-am-i', () => edgeFunctions.functions.invoke('me')),
+      run: async (): Promise<TestResult> => {
+        if (!auth.isAuthenticated) return { status: 'warn' as const, summary: 'Skipped — sign in to the main app first, then re-run (requires an active Supabase session)', durationMs: 0 };
+        return strictInvoke('who-am-i', () => edgeFunctions.functions.invoke('me'));
+      },
     },
     // === EMAIL === — Single consolidated test to conserve the 3,000/month email quota
     {
@@ -253,21 +259,27 @@ export function DevKitRunner() {
     },
     {
       id: 'ai-engine-openrouter', label: 'Engine · OpenRouter (Gemma 4)', description: 'Directly test WiseResume managed OpenRouter endpoint — admin only', section: 'ai',
-      run: () => strictInvoke('ai-engine-openrouter', async () => {
-        const res = await edgeFunctions.functions.invoke('ai-test', { body: { wiseresumeSubProvider: 'openrouter' } });
-        if (res.error) throw new Error(toRunnerError(res.error).message || 'ai-test error');
-        if (!res.data?.success) throw new Error(res.data?.error || 'ai-test returned failure');
-        return { engine: 'openrouter', model: res.data.model, latencyMs: res.data.latencyMs, response: res.data.response };
-      }),
+      run: async (): Promise<TestResult> => {
+        if (!auth.isAuthenticated) return { status: 'warn' as const, summary: 'Skipped — sign in to the main app first, then re-run (requires an active Supabase session)', durationMs: 0 };
+        return strictInvoke('ai-engine-openrouter', async () => {
+          const res = await edgeFunctions.functions.invoke('ai-test', { body: { wiseresumeSubProvider: 'openrouter' } });
+          if (res.error) throw new Error(toRunnerError(res.error).message || 'ai-test error');
+          if (!res.data?.success) throw new Error(res.data?.error || 'ai-test returned failure');
+          return { engine: 'openrouter', model: res.data.model, latencyMs: res.data.latencyMs, response: res.data.response };
+        });
+      },
     },
     {
       id: 'ai-engine-groq', label: 'Engine · Groq (Qwen 3 32B)', description: 'Directly test WiseResume managed Groq endpoint (qwen/qwen3-32b) — admin only', section: 'ai',
-      run: () => strictInvoke('ai-engine-groq', async () => {
-        const res = await edgeFunctions.functions.invoke('ai-test', { body: { wiseresumeSubProvider: 'groq' } });
-        if (res.error) throw new Error(toRunnerError(res.error).message || 'ai-test error');
-        if (!res.data?.success) throw new Error(res.data?.error || 'ai-test returned failure');
-        return { engine: 'groq', model: res.data.model, latencyMs: res.data.latencyMs, response: res.data.response };
-      }),
+      run: async (): Promise<TestResult> => {
+        if (!auth.isAuthenticated) return { status: 'warn' as const, summary: 'Skipped — sign in to the main app first, then re-run (requires an active Supabase session)', durationMs: 0 };
+        return strictInvoke('ai-engine-groq', async () => {
+          const res = await edgeFunctions.functions.invoke('ai-test', { body: { wiseresumeSubProvider: 'groq' } });
+          if (res.error) throw new Error(toRunnerError(res.error).message || 'ai-test error');
+          if (!res.data?.success) throw new Error(res.data?.error || 'ai-test returned failure');
+          return { engine: 'groq', model: res.data.model, latencyMs: res.data.latencyMs, response: res.data.response };
+        });
+      },
     },
     // === ROUTING ===
     {
@@ -297,13 +309,16 @@ export function DevKitRunner() {
     // === CREDITS ===
     {
       id: 'ai-credits-read', label: 'AI Credits Read', description: 'Query ai_credits table', section: 'credits',
-      run: () => strictInvoke('ai-credits-read', async () => {
-        const userId = getUserId();
-        if (!userId) throw new Error('No userId');
-        const { data, error } = await supabase.from('ai_credits').select('*').eq('user_id', userId).maybeSingle();
-        if (error) throw error;
-        return data;
-      }),
+      run: async (): Promise<TestResult> => {
+        if (!auth.isAuthenticated) return { status: 'warn' as const, summary: 'Skipped — sign in to the main app first, then re-run (requires an active Supabase session)', durationMs: 0 };
+        return strictInvoke('ai-credits-read', async () => {
+          const userId = getUserId();
+          if (!userId) throw new Error('No userId');
+          const { data, error } = await supabase.from('ai_credits').select('*').eq('user_id', userId).maybeSingle();
+          if (error) throw error;
+          return data;
+        });
+      },
     },
     // === AI (continued) ===
     {
@@ -335,17 +350,20 @@ export function DevKitRunner() {
     // === ERRORS ===
     {
       id: 'audit-log-write', label: 'Audit Log Write', description: 'Write and verify a test audit log entry', section: 'errors',
-      run: () => strictInvoke('audit-log-write', async () => {
-        const userId = getUserId();
-        if (!userId) throw new Error('No userId');
-        const testAction = `dev-kit-test-${Date.now()}`;
-        logAudit('account', testAction, { source: 'dev-kit' });
-        await new Promise(r => setTimeout(r, 1500));
-        const { data, error } = await supabase.from('audit_logs').select('id').eq('action', testAction).limit(1);
-        if (error) throw error;
-        if (!data || data.length === 0) throw new Error('Audit log entry not found');
-        return data[0];
-      }),
+      run: async (): Promise<TestResult> => {
+        if (!auth.isAuthenticated) return { status: 'warn' as const, summary: 'Skipped — sign in to the main app first, then re-run (requires an active Supabase session)', durationMs: 0 };
+        return strictInvoke('audit-log-write', async () => {
+          const userId = getUserId();
+          if (!userId) throw new Error('No userId');
+          const testAction = `dev-kit-test-${Date.now()}`;
+          logAudit('account', testAction, { source: 'dev-kit' });
+          await new Promise(r => setTimeout(r, 1500));
+          const { data, error } = await supabase.from('audit_logs').select('id').eq('action', testAction).limit(1);
+          if (error) throw error;
+          if (!data || data.length === 0) throw new Error('Audit log entry not found');
+          return data[0];
+        });
+      },
     },
     // === USAGE ===
     // U3: Production UI queries usage_events directly via Supabase client (no edge function wraps it).

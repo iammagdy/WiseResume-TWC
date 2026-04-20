@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { RefreshCw, Activity, CheckCircle, AlertCircle, Clock, PlayCircle, Loader2, XCircle, AlertTriangle, Mail, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { useAuth } from '@/hooks/useAuth';
 import { getDevKitToken, useDevKitSession, onDevKitLock } from '@/contexts/DevKitSessionContext';
 import { useVisibleInterval, useIsMounted } from '@/lib/devkit/hooks';
 import { unwrapAdminResponse, tryUnwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
@@ -260,6 +261,7 @@ onDevKitLock(clearCache);
 
 export function LiveActivityPanel() {
   const { isUnlocked } = useDevKitSession();
+  const { isAuthenticated } = useAuth();
   const [events, setEventsRaw] = useState<UsageEvent[]>(_cache.events);
   const [eventsLoading, setEventsLoading] = useState(false);
   const [eventsError, setEventsErrorRaw] = useState<string | null>(_cache.eventsError);
@@ -356,6 +358,21 @@ export function LiveActivityPanel() {
     const newErrors: RecentError[] = [];
 
     for (const def of defs) {
+      // The `me` probe is user-scoped: it requires an active Kinde/Supabase
+      // session. When the admin opens the Dev Kit without signing in to the
+      // main app, calling it would always come back as "Session expired" and
+      // pollute the health card with a fake amber warn. Skip it cleanly.
+      if (def.name === 'me' && !isAuthenticated) {
+        checkedResults.push({
+          name: def.name,
+          label: def.label,
+          status: 'unknown',
+          lastChecked: new Date(),
+          errorMsg: 'Skipped — sign in to the main app first',
+          durationMs: 0,
+        });
+        continue;
+      }
       const start = Date.now();
       try {
         const body = def.buildBody(getDevKitToken() ?? '');
@@ -403,7 +420,7 @@ export function LiveActivityPanel() {
     if (errorLogsMissing && newErrors.length > 0) {
       setRecentErrors(newErrors);
     }
-  }, [errorLogsMissing, isMounted]);
+  }, [errorLogsMissing, isMounted, isAuthenticated]);
 
   const runAllHealthChecks = useCallback(() => {
     return runHealthChecksForDefs(ALL_FN_DEFS);
@@ -551,7 +568,10 @@ export function LiveActivityPanel() {
               <StatusDot status={fn.status} />
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-medium text-foreground font-mono">{fn.label}</p>
-                {isAi && fn.status === 'unknown' && (
+                {fn.status === 'unknown' && fn.errorMsg && (
+                  <p className="text-[10px] text-muted-foreground truncate">{fn.errorMsg}</p>
+                )}
+                {isAi && fn.status === 'unknown' && !fn.errorMsg && (
                   <p className="text-[10px] text-muted-foreground">Tap "Run health check" to test</p>
                 )}
                 {fn.status === 'error' && fn.errorMsg && (
