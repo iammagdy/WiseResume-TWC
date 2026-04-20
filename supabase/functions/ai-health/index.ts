@@ -159,6 +159,7 @@ serve(async (req) => {
 
     // Check managed AI keys (WiseResume AI backend)
     const openrouterKey = Deno.env.get('OPENROUTER_API_KEY');
+    const openrouter2Key = Deno.env.get('OPENROUTER2_API_KEY');
     const groqKey = Deno.env.get('GROQ_API_KEY');
     const legacyGeminiKey = Deno.env.get('VERTEX_API_KEY') || Deno.env.get('WISE_AI_API_KEY') || Deno.env.get('GEMINI_API_KEY');
 
@@ -178,16 +179,32 @@ serve(async (req) => {
     } catch {
       // fall through to 'auto'
     }
-    // Resolve which managed key the probe should actually use:
-    //  - explicit 'openrouter'  → only OpenRouter   (do not silently fall to Groq)
-    //  - explicit 'openrouter2' → only OpenRouter 2 (probe uses primary OPENROUTER_API_KEY
-    //                              for the simple "/auth/key + Hi" check; the
-    //                              callWiseresumeAI router still routes to OPENROUTER2_API_KEY)
+    // Resolve which managed key the probe should actually use. The probe
+    // talks to openrouter.ai for both OpenRouter accounts (same upstream),
+    // so the only thing that changes between 'openrouter' and 'openrouter2'
+    // is which API key + which model slug the probe sends:
+    //  - explicit 'openrouter'  → primary OPENROUTER_API_KEY + free-model probe
+    //  - explicit 'openrouter2' → secondary OPENROUTER2_API_KEY + pinned
+    //                              `openrouter/elephant-alpha`. Previously the
+    //                              probe wrongly used OPENROUTER_API_KEY here,
+    //                              so the badge could go green while the
+    //                              actual second account was broken (or red
+    //                              when the second was healthy and only the
+    //                              primary was missing).
     //  - explicit 'groq'        → only Groq
-    //  - 'auto'                 → OpenRouter if present, else Groq
+    //  - 'auto'                 → OpenRouter (1) if present, else Groq.
+    //                              OpenRouter 2 is not probed in 'auto' mode
+    //                              because callAI's auto chain falls through
+    //                              from OpenRouter 1 to OpenRouter 2 anyway —
+    //                              probing #1 is sufficient for the badge.
+    const usingOpenrouter2 = managedEngine === 'openrouter2';
     const effectiveOpenrouterKey =
       managedEngine === 'groq' ? undefined :
+      usingOpenrouter2 ? openrouter2Key :
       openrouterKey;
+    const effectiveOpenrouterProbeModel = usingOpenrouter2
+      ? 'openrouter/elephant-alpha'
+      : 'meta-llama/llama-3.3-70b-instruct:free';
     const effectiveGroqKey =
       managedEngine === 'openrouter' || managedEngine === 'openrouter2' ? undefined :
       groqKey;
@@ -233,7 +250,7 @@ serve(async (req) => {
             'X-Title': 'WiseResume',
           },
           body: JSON.stringify({
-            model: 'meta-llama/llama-3.3-70b-instruct:free',
+            model: effectiveOpenrouterProbeModel,
             messages: [{ role: 'user', content: 'Hi' }],
             max_tokens: 1,
           }),

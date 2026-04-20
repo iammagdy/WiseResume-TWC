@@ -378,9 +378,14 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
   const { model, messages, temperature = 0.7, maxTokens, tools, toolChoice, userId, timeout = 30_000 } = options;
 
   const openrouterManagedKey = Deno.env.get('OPENROUTER_API_KEY');
+  const openrouter2ManagedKey = Deno.env.get('OPENROUTER2_API_KEY');
   const groqManagedKey = Deno.env.get('GROQ_API_KEY');
   const globalGeminiKey = Deno.env.get('GEMINI_API_KEY');
-  const hasManagedAI = !!(openrouterManagedKey || groqManagedKey);
+  // Any managed key counts — including OPENROUTER2_API_KEY (Task #13). Without
+  // this, an environment configured with only the secondary OpenRouter
+  // account would fail the early guard with "WiseResume AI is not configured"
+  // before callWiseresumeAI('openrouter2', ...) ever ran.
+  const hasManagedAI = !!(openrouterManagedKey || openrouter2ManagedKey || groqManagedKey);
 
   let userGeminiData: { key: string; model: string | null } | undefined;
   let userOllamaData: { key: string; baseUrl: string | null; model: string | null } | undefined;
