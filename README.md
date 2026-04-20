@@ -83,7 +83,7 @@ Both products share the same authentication (Kinde), database (Supabase PostgreS
 <summary><b>AI Studio — 20 Career Tools + Wise AI Chat</b></summary>
 <br>
 
-A dedicated workspace at `/ai-studio` with 20 tools across 3 categories, plus the Wise AI Chat agentic assistant:
+A dedicated workspace at `/ai-studio` with **20 career tools across 3 categories** plus the Wise AI Chat agentic assistant. QR Utilities are a separate free section on the same page and are not counted in the 20:
 
 **Wise AI Chat** (pinned at the top)
 
@@ -136,7 +136,7 @@ A conversational career assistant that can **directly edit your resume** through
 <summary><b>AI Interview Coach</b></summary>
 <br>
 
-- **Voice + text mock interviews** — browser Web Speech API with ElevenLabs voice synthesis
+- **Voice + text mock interviews** — ElevenLabs Scribe for speech-to-text transcription; browser Web Speech API for reading questions aloud
 - **Job-description-specific question banks** — questions tailored to the actual role you are applying for
 - **AI recruiter simulation mode** — mimics real recruiter follow-up patterns
 - **Real-time answer feedback** with scoring on clarity, relevance, and confidence
@@ -260,6 +260,7 @@ The core WiseHire database schema (companies, roles, candidates, briefs, pipelin
 | **Pipeline Event History** | ✅ Live | Full audit trail of every stage change, with actor and timestamp |
 | **Roles Manager** | ✅ Live | Create, archive, and track active job roles with status and visibility control |
 | **Onboarding Flow** | ✅ Live | 5-step guided setup: company name, size, role types, hiring volume, and first role |
+| **Settings** | ✅ Live | Company profile, seat management, notification preferences, and subscription controls |
 | **Interview Scorecard** | 🔜 Pending migration | Pre-populated from AI brief questions; shareable via a public read-only link |
 | **Scorecard Templates** | 🔜 Pending migration | Reusable question banks organized by role category for consistent interviews |
 | **Candidate Notes** | 🔜 Pending migration | Threaded team notes with types (general, highlight, concern) and pinned note support |
