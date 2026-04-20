@@ -18,7 +18,7 @@
 [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=white&style=flat-square)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white&style=flat-square)](https://www.typescriptlang.org/)
 [![Vite](https://img.shields.io/badge/Vite-6-646CFF?logo=vite&logoColor=white&style=flat-square)](https://vitejs.dev/)
-[![Supabase](https://img.shields.io/badge/Supabase-95_Edge_Functions-3ECF8E?logo=supabase&logoColor=white&style=flat-square)](https://supabase.com/)
+[![Supabase](https://img.shields.io/badge/Supabase-94_Edge_Functions-3ECF8E?logo=supabase&logoColor=white&style=flat-square)](https://supabase.com/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3-38B2AC?logo=tailwind-css&logoColor=white&style=flat-square)](https://tailwindcss.com/)
 [![Framer Motion](https://img.shields.io/badge/Framer_Motion-12-black?logo=framer&logoColor=white&style=flat-square)](https://www.framer.com/motion/)
 [![Capacitor](https://img.shields.io/badge/Capacitor-8_PWA-119EFF?logo=capacitor&logoColor=white&style=flat-square)](https://capacitorjs.com/)
@@ -80,41 +80,55 @@ Both products share the same authentication (Kinde), database (Supabase PostgreS
 </details>
 
 <details open>
-<summary><b>AI Studio — 16 Career Tools</b></summary>
+<summary><b>AI Studio — 20 Career Tools + Wise AI Chat</b></summary>
 <br>
 
-A dedicated workspace at `/ai-studio` with tools across four categories:
+A dedicated workspace at `/ai-studio` with 20 tools across 3 categories, plus the Wise AI Chat agentic assistant:
 
-**Documents**
-| Tool | Description |
-|------|-------------|
-| Cover Letter Generator | AI-written cover letters tailored to a specific role and company |
-| Resignation Letter Generator | Professional resignation letters for any circumstance |
-| LinkedIn Profile Optimizer | Rewrites your LinkedIn summary and headline for search visibility |
-| Reference Letter Generator | Drafts reference request emails and reference letters |
+**Wise AI Chat** (pinned at the top)
 
-**Research & Coaching**
-| Tool | Description |
-|------|-------------|
-| Company Briefing | Deep-dive research into a company before an interview — cached 7 days |
-| Career Path Advisor | Skill gap analysis and concrete next-step suggestions |
-| Career Assessment | AI quiz-driven career exploration across industries and roles |
-| Skills Gap Analysis | Maps your current skills against a target role's requirements |
-
-**Writing & Outreach**
-| Tool | Description |
-|------|-------------|
-| Cold Email Generator | Outreach emails to recruiters and hiring managers |
-| Salary Negotiation Assistant | Scripts, talking points, and counter-offer strategies |
-| AI Humanizer | Makes AI-generated text sound natural and pass AI detection |
-| Personal Branding Builder | Defines and articulates your unique professional identity |
-| Job Rejection Recovery | Turns rejection into a learning moment with actionable follow-up scripts |
-
-**Wise AI Chat** (agentic)
-
-A conversational career assistant with 7 specialized use cases that can **directly edit your resume** through 10 agentic tool calls:
+A conversational career assistant that can **directly edit your resume** through agentic tool calls:
 
 > Update summary · Add/update/delete experience · Update skills · Add skills · Update contact info · Add projects · Suggest edits · Proofread & fix
+
+**Resume & Application** (8 tools)
+| Tool | Description |
+|------|-------------|
+| Smart Tailor | Adapts your entire resume to match a specific job description with ATS keyword injection |
+| Enhance | Rewrites individual bullets and sections for impact and clarity |
+| 1-Page Wizard | Trims and condenses your resume to fit on a single page |
+| Humanize | Detects AI-written text and rewrites it to sound natural |
+| Job Match | ATS compatibility score against a specific job description |
+| A/B Compare | Side-by-side score of two resume versions against the same job |
+| Recruiter Sim | Simulates a recruiter reading your resume with commentary |
+| Skills Gap | Maps your current skills against a target role's requirements |
+
+**Career & Outreach** (6 tools)
+| Tool | Description |
+|------|-------------|
+| Career Plan | AI career path advisor with skill gap suggestions and next steps |
+| Interview Prep | Launches AI Interview Coach with job-description-specific questions |
+| Company Briefing | Deep-dive company research before an interview — cached for 7 days |
+| Salary Coach | Negotiation scripts, talking points, and counter-offer strategies |
+| Cold Email | Outreach emails to recruiters and hiring managers |
+| Rejection Analyzer | Turns rejections into learning moments with follow-up scripts |
+
+**Personal Brand** (6 tools)
+| Tool | Description |
+|------|-------------|
+| LinkedIn Optimizer | Rewrites your LinkedIn summary and headline for search visibility |
+| Brand Statement | Generates 3 style variants of your professional brand statement |
+| Portfolio Bio | AI-written bio tailored for your public portfolio page |
+| Cover Letters | AI cover letter generator — persisted to your account |
+| Resignation Letter | Professional resignation letters for any circumstance — persisted to your account |
+| Reference Letter | Drafts a reference letter for a referee to send on your behalf |
+
+**QR Utilities** (separate section)
+| Tool | Description |
+|------|-------------|
+| QR Generator | Generate custom QR codes for your resume or portfolio URL |
+| Batch QR | Bulk CSV → QR codes exported as a ZIP |
+| QR Scanner | Decode a QR code from an uploaded image |
 
 </details>
 
@@ -218,7 +232,7 @@ A conversational career assistant with 7 specialized use cases that can **direct
 
 > *Invite-only AI hiring platform for recruiters, HR managers, and talent acquisition teams.*
 
-**Current status**: Phase 1 live. Invite-only sign-up. Waitlist active at [`/waitlist`](https://resume.thewise.cloud/waitlist). Enterprise inquiries at [`/enterprise`](https://resume.thewise.cloud/enterprise). New HR accounts receive a **7-day Professional trial** automatically.
+**Current status**: Phase 1, invite-only. All features listed below are shipped and live for invited users. New HR accounts receive a **7-day Professional trial** automatically on sign-up. Open sign-up, self-serve billing, and additional enterprise integrations are planned for later phases. Waitlist: [`/waitlist`](https://resume.thewise.cloud/waitlist). Enterprise: [`/enterprise`](https://resume.thewise.cloud/enterprise).
 
 <details open>
 <summary><b>Core AI Tools</b></summary>
@@ -321,7 +335,7 @@ The Dev Kit is a comprehensive operations console built into the app:
 | **State** | Zustand (global/persistent) + TanStack Query v5 (server state) |
 | **Auth** | Kinde Auth → Supabase via JWT token bridge (deterministic UUID v5) |
 | **Database** | Supabase PostgreSQL — ~60 tables, Row Level Security on every table, 50+ RPCs |
-| **Backend** | 95 Supabase Edge Functions (Deno runtime) |
+| **Backend** | 94 Supabase Edge Functions (Deno runtime) |
 | **File Storage** | Supabase Storage — 5 buckets: `avatars`, `resumes`, `portfolios`, `temp`, `candidate-resumes` |
 | **Email** | Resend (transactional emails + admin notifications) |
 | **AI Providers** | OpenRouter, Groq, Gemini, OpenAI, Anthropic, Mistral, xAI, Cohere, Ollama (9 total) |
@@ -365,7 +379,7 @@ The Wise Cloud
 ├── Backend (Supabase)
 │   ├── PostgreSQL — ~60 tables, RLS on every table, 50+ RPCs
 │   ├── Storage — 5 buckets (avatars, resumes, portfolios, temp, candidate-resumes)
-│   └── Edge Functions (Deno) — 95 functions across 6 categories:
+│   └── Edge Functions (Deno) — 94 functions across 6 categories:
 │       ├── AI & Content Generation (WiseResume)  — 21 functions
 │       ├── WiseHire AI                            — 12 functions
 │       ├── Resume Parsing & Import                — 4 functions
