@@ -37,16 +37,11 @@ export function WiseResumeContent({ prefersReducedMotion }: WiseResumeContentPro
         <div className="lp-separator" aria-hidden="true" />
       </motion.div>
 
-      {/* ─── SECTION 1B: SCROLL STACK (opacity-only fade — no transforms)  ─── */}
-      {/* position:sticky on the header breaks when any ancestor has a CSS
-          transform applied. Using opacity-only here keeps the stacking context
-          clean so the sticky header pins correctly while the user scrolls. */}
-      <motion.div
-        initial={{ opacity: prefersReducedMotion ? 1 : 0 }}
-        whileInView={{ opacity: 1 }}
-        transition={{ duration: 0.5, ease: 'easeOut' }}
-        viewport={{ once: true, amount: 0.02 }}
-      >
+      {/* ─── SECTION 1B: SCROLL STACK ─── */}
+      {/* NO motion.div wrapper here — any animated ancestor (even opacity-only)
+          causes Framer Motion to add will-change which promotes a compositing
+          layer, silently breaking position:sticky on lp-stack-sticky-header.
+          Matches the WiseHireDemoSection structure exactly (bare top-level div). */}
         <div
           className="lp-stack-section"
           style={{ ['--lp-stack-gap' as string]: '240px' }}
@@ -97,7 +92,6 @@ export function WiseResumeContent({ prefersReducedMotion }: WiseResumeContentPro
             ))}
           </ScrollStack>
         </div>
-      </motion.div>
 
       {/* ─── SECTION 2: TRUST SECTION ─── */}
       <motion.div
