@@ -87,9 +87,9 @@ A dedicated workspace at `/ai-studio` with **20 career tools across 3 categories
 
 **Wise AI Chat** (pinned at the top)
 
-A conversational career assistant that can **directly edit your resume** through agentic tool calls:
+A conversational career assistant that can **directly edit your resume** through 12 agentic tool calls:
 
-> Update summary · Add/update/delete experience · Update skills · Add skills · Update contact info · Add projects · Suggest edits · Proofread & fix
+> `update_summary` · `add_experience` · `update_experience` · `delete_experience` · `update_skills` · `add_skills` · `update_contact` · `add_project` · `suggest_edits` · `proofread_and_fix` · `get_company_briefing` *(Phase 2)* · `open_job_tracker` *(Phase 2)*
 
 **Resume & Application** (8 tools)
 | Tool | Description |
@@ -386,14 +386,14 @@ The Wise Cloud
 ├── Backend (Supabase)
 │   ├── PostgreSQL — ~60 tables, RLS on every table, 50+ RPCs
 │   ├── Storage — 5 buckets (avatars, resumes, portfolios, temp, candidate-resumes)
-│   └── Edge Functions (Deno) — 93 functions across 6 categories:
-│       ├── AI & Content Generation (WiseResume)  — 21 functions
-│       ├── WiseHire AI                            — 12 functions
-│       ├── Resume Parsing & Import                — 4 functions
-│       ├── Interview & Voice                      — 3 functions
-│       ├── Portfolio & Public                     — 7 functions
-│       ├── Admin & Dev Kit                        — 27 functions
-│       └── Utility (auth, billing, notifications) — 21 functions
+│   └── Edge Functions (Deno) — 93 functions (see EDGE_FUNCTION_AUDIT.md)
+│       ├── AI & Content Generation (WiseResume)
+│       ├── WiseHire AI
+│       ├── Resume Parsing & Import
+│       ├── Interview & Voice
+│       ├── Portfolio & Public
+│       ├── Admin & Dev Kit
+│       └── Utility (auth, billing, notifications)
 │
 └── CI/CD (GitHub Actions)
     ├── deploy.yml              — Frontend build → Hostinger via lftp SFTP
