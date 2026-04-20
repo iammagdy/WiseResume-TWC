@@ -727,12 +727,7 @@ body[data-lp-scheme="light"][data-lp-product="wisehire"] { background-color: #f0
   /* Step 7 (B-6): backdrop-filter removed — chip is small and the bg
      token is opaque enough on its own; the blur was a free GPU tax. */
   box-shadow: 0 2px 12px rgba(0,0,0,0.18);
-  transition: opacity 0.25s ease, transform 0.25s ease, color 0.35s ease,
-              background 0.35s ease, border-color 0.35s ease;
-  opacity: 0;
-  transform: translateY(-4px);
-}
-.lp-stack-step-chip[data-active="true"] {
+  transition: color 0.35s ease, background 0.35s ease, border-color 0.35s ease;
   opacity: 1;
   transform: translateY(0);
 }
