@@ -49,12 +49,7 @@ export function WiseResumeContent({ prefersReducedMotion }: WiseResumeContentPro
           style={{ ['--lp-stack-gap' as string]: '240px' }}
         >
           <div className="lp-stack-sticky-header">
-            <motion.div
-              variants={lpItemVariants}
-              initial={prefersReducedMotion ? 'visible' : 'hidden'}
-              whileInView="visible"
-              viewport={{ once: true, amount: 0.2 }}
-            >
+            <div>
               <p style={{ fontSize: '0.75rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--lp-eyebrow)', fontWeight: 600, marginBottom: '0.75rem' }}>
                 See it in action
               </p>
@@ -65,7 +60,7 @@ export function WiseResumeContent({ prefersReducedMotion }: WiseResumeContentPro
                 Five tools. One platform.<br />
                 <span className="lp-gradient-text">Your unfair advantage in the job market.</span>
               </h2>
-            </motion.div>
+            </div>
             <div
               className="lp-stack-step-chip"
               data-active={activeIdx >= 0}
