@@ -102,7 +102,8 @@ export function ExportOptionsSheet({
   const isDownloadable = ['resume', 'ats-pdf', 'one-page', 'cover-letter', 'combined', 'docx', 'plain-text', 'json', 'image'].includes(selectedType);
   const allOptions = [...primaryOptions, ...secondaryOptions];
   const selectedOption = allOptions.find(o => o.id === selectedType);
-  const isButtonDisabled = isExporting || (selectedOption ? !selectedOption.available : false);
+  const isOfflineBlocked = !isOnline && (selectedType === 'combined' || selectedType === 'cover-letter');
+  const isButtonDisabled = isExporting || (selectedOption ? !selectedOption.available : false) || isOfflineBlocked;
 
   const getFileSuffix = () => {
     switch (selectedType) {

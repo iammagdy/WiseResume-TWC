@@ -119,8 +119,11 @@ export const StepperNav = memo(function StepperNav({
     haptics.light();
   };
 
+  // Freeze total step count at first render so "Step X of Y" never jumps.
+  const frozenStepCount = useRef(steps.length);
+  const coreStepCount = frozenStepCount.current;
+
   if (isMobile) {
-    const coreStepCount = steps.length;
     const currentStepNumber = activeIndex >= 0 ? activeIndex + 1 : 1;
 
     return (
@@ -317,7 +320,7 @@ export const StepperNav = memo(function StepperNav({
           );
         })}
 
-        {onMoreSectionSelect && (
+        {onMoreSectionSelect && MORE_SECTIONS.some(sec => !steps.some(s => s.id === sec.id)) && (
           <FloatingPanelRoot className="flex-shrink-0">
             <FloatingPanelTrigger title="Additional Sections" className="h-10 w-10 !px-0 justify-center rounded-full relative">
               <Plus className="w-5 h-5" />

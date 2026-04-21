@@ -358,9 +358,7 @@ export default function EditorPage() {
       setActiveTab('more');
       setMoreSubSection(newTab);
     } else {
-      if (newTab !== 'more') {
-        setMoreSubSection(null);
-      }
+      setMoreSubSection(null);
       setActiveTab(newTab);
     }
     haptics.light();
@@ -546,22 +544,13 @@ export default function EditorPage() {
     base.push({ id: 'awards', label: 'Awards' });
     base.push({ id: 'publications', label: 'Publications' });
     base.push({ id: 'volunteering', label: 'Volunteering' });
-    if (currentResume) {
-      // Projects, Hobbies, References auto-promote only when they contain data.
-      const MORE_SECTION_META: Record<string, string> = {
-        projects: 'Projects',
-        hobbies: 'Hobbies', references: 'References',
-      };
-      for (const [id, label] of Object.entries(MORE_SECTION_META)) {
-        const data = currentResume[id as keyof typeof currentResume];
-        if (Array.isArray(data) && data.length > 0) {
-          base.push({ id, label });
-        }
-      }
-    }
+    // Projects, Hobbies, References always appear so the step count stays stable.
+    base.push({ id: 'projects', label: 'Projects' });
+    base.push({ id: 'hobbies', label: 'Hobbies' });
+    base.push({ id: 'references', label: 'References' });
     base.push({ id: 'more', label: 'More' });
     return base;
-  }, [currentResume, educationFirst]);
+  }, [educationFirst]);
 
   // Count optional sections not yet added (available to add via More).
   // Certifications, Languages, Awards, Publications, Volunteering are always in the stepper.

@@ -203,6 +203,7 @@ body[data-lp-scheme="light"][data-lp-product="wisehire"] { background-color: #f0
   -webkit-text-fill-color: transparent;
   background-clip: text;
   animation: lp-shimmer 4s ease infinite;
+  padding-bottom: 0.1em;
 }
 
 /* Gradient text — light (deeper crimson so it reads on light bg) */
@@ -213,6 +214,7 @@ body[data-lp-scheme="light"][data-lp-product="wisehire"] { background-color: #f0
   -webkit-text-fill-color: transparent;
   background-clip: text;
   animation: lp-shimmer 4s ease infinite;
+  padding-bottom: 0.1em;
 }
 
 /* Soft section divider gradient */
