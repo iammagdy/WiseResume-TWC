@@ -46,6 +46,10 @@ const baseVoiceInterviewState = {
   resetInterview: mockResetInterview,
   retryAI: vi.fn(),
   skipAITurn: vi.fn(),
+  retryCurrentQuestion: vi.fn(),
+  voiceFallbackReason: null as string | null,
+  retryVoice: vi.fn(),
+  submitAnswerNow: vi.fn(),
 };
 
 vi.mock("@/hooks/useVoiceInterview", () => ({
@@ -55,8 +59,11 @@ vi.mock("@/hooks/useVoiceInterview", () => ({
 
 vi.mock("@/hooks/useInterviewHistory", () => ({
   useInterviewHistory: vi.fn(() => ({ data: [], isLoading: false })),
-  useSaveInterviewSession: vi.fn(() => vi.fn().mockResolvedValue({})),
-  useDeleteInterviewSession: vi.fn(() => vi.fn().mockResolvedValue({})),
+  useSaveInterviewSession: vi.fn(() => ({ mutate: vi.fn(), mutateAsync: vi.fn().mockResolvedValue({}) })),
+  useDeleteInterviewSession: vi.fn(() => ({ mutate: vi.fn(), mutateAsync: vi.fn().mockResolvedValue({}) })),
+  useUpsertInterviewDraft: vi.fn(() => ({ mutate: vi.fn(), mutateAsync: vi.fn().mockResolvedValue({}) })),
+  useDeleteInterviewDraft: vi.fn(() => ({ mutate: vi.fn(), mutateAsync: vi.fn().mockResolvedValue({}) })),
+  useLatestInterviewDraft: vi.fn(() => ({ data: null, isLoading: false })),
 }));
 
 vi.mock("@/hooks/useAIKeyHydration", () => ({

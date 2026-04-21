@@ -252,6 +252,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
   const [countdown, setCountdown] = useState<number | null>(null);
   const [audioLevel, setAudioLevel] = useState(0);
   const [sttEngine, setSttEngine] = useState<SttEngine>('none');
+  const [voiceFallbackReason, setVoiceFallbackReason] = useState<string | null>(null);
 
   const audioCtxRef = useRef<AudioContextRef>(makeAudioContextRef());
 
@@ -358,7 +359,9 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
         console.log('[VoiceInterview] ElevenLabs failed, switching to Web Speech API fallback');
         usingFallbackRef.current = true;
         setSttEngine('webspeech');
-        toast.info('Switched to browser speech recognition');
+        setVoiceFallbackReason(
+          'High-quality voice transcription is unavailable. We switched to your browser\'s built-in speech recognition.'
+        );
         if (isListeningRef.current) {
           webSpeech.connect();
         }
@@ -369,10 +372,9 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
         setSttEngine('none');
         setStatus('idle');
         isListeningRef.current = false;
-        toast.error('Voice input unavailable', {
-          description: 'Speech recognition is not available in this browser. Please use the Type button to answer.',
-          duration: 8000,
-        });
+        setVoiceFallbackReason(
+          'Voice input is unavailable in this browser. Type your answer below — we\'ll keep listening for any future questions.'
+        );
       }
     },
     onAudioLevel: handleAudioLevel,
@@ -854,6 +856,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
     const hasCredits = await checkCredits();
     if (!hasCredits) return;
     setIsAnalyzingRole(true);
+    setRoleAnalysis(null);
     try {
       const { data, error: fnError } = await edgeFunctions.functions.invoke('interview-chat', {
         body: {
@@ -891,6 +894,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
       setLatestScore(null);
       setAudioLevel(0);
       setSttEngine('none');
+      setVoiceFallbackReason(null);
       usingFallbackRef.current = false;
       noSpeechCountRef.current = 0;
       answerCountRef.current = 0;
@@ -961,6 +965,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
     setCountdown(null);
     setAudioLevel(0);
     setSttEngine('none');
+    setVoiceFallbackReason(null);
     usingFallbackRef.current = false;
     quickPracticeRef.current = false;
     answerCountRef.current = 0;
@@ -973,6 +978,95 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
   const dismissScore = useCallback(() => {
     setLatestScore(null);
   }, []);
+
+  // Reset the voice-engine fallback state and try the high-quality engine again.
+  // Used by the visible voice→text fallback banner so users aren't permanently
+  // stuck on a degraded path after a transient ElevenLabs blip.
+  const retryVoice = useCallback(() => {
+    usingFallbackRef.current = false;
+    setVoiceFallbackReason(null);
+    setSttEngine('none');
+    setError(null);
+    if (isStarted) {
+      // Don't auto-start listening — the user will press the mic when ready.
+      // We just clear the failure state so the next startListening() call
+      // attempts ElevenLabs again.
+      scribe.prefetchToken();
+    }
+  }, [isStarted, scribe]);
+
+  // Rehydrate an in-progress interview from a saved draft row. Restores the
+  // transcript bubbles, the AI conversation context (messagesRef), the
+  // elapsed timer, the active job description, and the quick-practice flag —
+  // then re-enters the active phase WITHOUT calling the AI (so we don't burn
+  // credits regenerating the question that's already on screen). The user's
+  // next interaction (mic press / type / "I'm done") drives the next AI call.
+  const resumeFromDraft = useCallback(
+    (draft: {
+      messages: Array<{ id?: string; role: 'user' | 'interviewer'; text: string; timestamp?: string | Date }>;
+      jobDescription?: string | null;
+      interviewType?: string | null;
+      durationSeconds?: number | null;
+    }) => {
+      setError(null);
+      setSummary(null);
+      setLatestScore(null);
+      setScores([]);
+      setAudioLevel(0);
+      setSttEngine('none');
+      setVoiceFallbackReason(null);
+      usingFallbackRef.current = false;
+      noSpeechCountRef.current = 0;
+      finalTextRef.current = '';
+      setInterimText('');
+
+      // Hydrate transcript bubbles
+      const restored: TranscriptEntry[] = (draft.messages || []).map((m) => ({
+        id: m.id || crypto.randomUUID(),
+        role: m.role,
+        text: m.text,
+        timestamp: m.timestamp ? new Date(m.timestamp) : new Date(),
+      }));
+      setTranscript(restored);
+
+      // Reconstruct AI conversation context. We only know user/interviewer
+      // turns from the saved transcript — that's sufficient for the model to
+      // continue coherently.
+      messagesRef.current = restored.map((e) => ({
+        role: e.role === 'user' ? 'user' : 'assistant',
+        content: e.text,
+      }));
+      // Count of AI questions so quick-practice 5-question cap stays accurate
+      answerCountRef.current = restored.filter((e) => e.role === 'interviewer').length;
+
+      jobDescriptionRef.current = draft.jobDescription || '';
+      quickPracticeRef.current = (draft.interviewType || '').toLowerCase() === 'quick-practice';
+
+      const startElapsed = Math.max(0, draft.durationSeconds ?? 0);
+      setElapsedSeconds(startElapsed);
+      setIsStarted(true);
+      setStatus('idle');
+
+      // Pre-fetch ElevenLabs token so the next mic press has the high-quality
+      // engine available immediately.
+      scribe.prefetchToken();
+
+      if (timerRef.current) clearInterval(timerRef.current);
+      timerRef.current = setInterval(() => {
+        setElapsedSeconds((s) => s + 1);
+      }, 1000);
+    },
+    [scribe]
+  );
+
+  // Explicit "I'm done answering" action. Always callable during the active
+  // phase; commits whatever the user has spoken so far without waiting for
+  // the silence detector to fire.
+  const submitAnswerNow = useCallback(() => {
+    if (status === 'listening' || isListeningRef.current) {
+      stopListeningRef.current?.();
+    }
+  }, [status]);
 
   return {
     status,
@@ -1005,5 +1099,9 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
     retryAI,
     skipAITurn,
     retryCurrentQuestion,
+    voiceFallbackReason,
+    retryVoice,
+    submitAnswerNow,
+    resumeFromDraft,
   };
 }

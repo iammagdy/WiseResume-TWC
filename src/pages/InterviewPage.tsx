@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Square, Keyboard, KeyboardOff, Sparkles, History, Lightbulb, RotateCcw, SkipForward, BookOpen } from 'lucide-react';
+import { Square, Keyboard, KeyboardOff, Sparkles, History, Lightbulb, RotateCcw, SkipForward, BookOpen, Check, AlertTriangle } from 'lucide-react';
 import { BackButton } from '@/components/ui/BackButton';
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { InterviewSetup } from '@/components/interview/InterviewSetup';
@@ -14,8 +14,17 @@ import { InterviewHistorySheet } from '@/components/interview/InterviewHistorySh
 import { InterviewTipsSheet } from '@/components/interview/InterviewTipsSheet';
 import { InterviewStatsCard } from '@/components/interview/InterviewStatsCard';
 import { AnswerLibrarySheet } from '@/components/interview/AnswerLibrarySheet';
+import { ResumePicker } from '@/components/interview/ResumePicker';
 import { useVoiceInterview } from '@/hooks/useVoiceInterview';
-import { useSaveInterviewSession } from '@/hooks/useInterviewHistory';
+import {
+  useSaveInterviewSession,
+  useUpsertInterviewDraft,
+  useDeleteInterviewDraft,
+  useLatestInterviewDraft,
+} from '@/hooks/useInterviewHistory';
+import { useResumes, dbToResumeData } from '@/hooks/useResumes';
+import { useResumeMutations } from '@/hooks/useResumes';
+import { buildSampleResume } from '@/lib/devkit/sampleResume';
 import { useResumeStore, useResumeStoreHydration } from '@/store/resumeStore';
 import { useAuth } from '@/hooks/useAuth';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -38,9 +47,11 @@ function InterviewPageContent() {
   }, []);
   const navigate = useNavigate();
   const { user, loading, supabaseReady, supabaseSettled } = useAuth();
-  const { currentResume } = useResumeStore();
+  const { currentResume, currentResumeId, setCurrentResume, setCurrentResumeId } = useResumeStore();
   const hydrated = useResumeStoreHydration();
   const { isPro, isLoading: planLoading } = usePlan();
+  const { data: resumes, isLoading: resumesLoading, isFetched: resumesFetched } = useResumes();
+  const { createResume } = useResumeMutations();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [textInput, setTextInput] = useState('');
   const [showTextInput, setShowTextInput] = useState(false);
@@ -51,9 +62,16 @@ function InterviewPageContent() {
   const [sessionSaved, setSessionSaved] = useState(false);
   const [showAnswerLibrary, setShowAnswerLibrary] = useState(false);
   const [savedSessionId, setSavedSessionId] = useState<string | undefined>();
+  const [creatingSampleResume, setCreatingSampleResume] = useState(false);
+  const [showResumeDraft, setShowResumeDraft] = useState(false);
+  const [draftDismissed, setDraftDismissed] = useState(false);
   const activeJobDescriptionRef = useRef<string | undefined>();
   const activeInterviewTypeRef = useRef<string>('general');
+  const draftIdRef = useRef<string | null>(null);
   const saveSession = useSaveInterviewSession();
+  const upsertDraft = useUpsertInterviewDraft();
+  const deleteDraft = useDeleteInterviewDraft();
+  const { data: latestDraft } = useLatestInterviewDraft();
 
   // Resume guard - require a resume for interview practice (only after hydration)
   // Any non-null resume object is valid — fullName is optional
@@ -90,7 +108,41 @@ function InterviewPageContent() {
     retryAI,
     skipAITurn,
     retryCurrentQuestion,
+    voiceFallbackReason,
+    retryVoice,
+    submitAnswerNow,
+    resumeFromDraft,
   } = useVoiceInterview(currentResume);
+
+  // Auto-select Master CV (or most recent resume) if the store is empty.
+  // Without this, /interview lands on the empty state even when the user
+  // already has resumes — the persisted store can be wiped after sign-out
+  // or when arriving from a deep link.
+  useEffect(() => {
+    if (!hydrated) return;
+    if (currentResume) return;
+    if (!resumes || resumes.length === 0) return;
+    const sorted = [...resumes].sort((a, b) => {
+      if (a.is_primary && !b.is_primary) return -1;
+      if (!a.is_primary && b.is_primary) return 1;
+      const aT = a.updated_at ? new Date(a.updated_at).getTime() : 0;
+      const bT = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+      return bT - aT;
+    });
+    const pick = sorted[0];
+    if (!pick) return;
+    setCurrentResumeId(pick.id);
+    setCurrentResume(dbToResumeData(pick));
+  }, [hydrated, currentResume, resumes, setCurrentResume, setCurrentResumeId]);
+
+  // Surface the resume-previous-session prompt when a fresh draft exists
+  // (less than 24h old, not yet promoted to a completed session).
+  useEffect(() => {
+    if (draftDismissed) return;
+    if (isStarted) return;
+    if (!latestDraft) return;
+    setShowResumeDraft(true);
+  }, [latestDraft, isStarted, draftDismissed]);
 
   // No navigation redirect — show an in-page empty state instead
 
@@ -194,7 +246,115 @@ function InterviewPageContent() {
   const handleReset = useCallback(() => {
     resetInterview();
     setPendingJobDescription(undefined);
+    draftIdRef.current = null;
   }, [resetInterview]);
+
+  // Per-turn draft persistence: every time the transcript grows (or duration
+  // ticks past noticeable boundaries), upsert the in-progress session so we
+  // can offer "Resume previous interview?" within the next 24h.
+  useEffect(() => {
+    if (!isStarted) return;
+    if (!user) return;
+    if (transcript.length === 0) return;
+    const messages = transcript.map((t) => ({
+      id: t.id,
+      role: t.role,
+      text: t.text,
+      timestamp: t.timestamp instanceof Date ? t.timestamp.toISOString() : String(t.timestamp),
+    }));
+    upsertDraft.mutate(
+      {
+        draft_id: draftIdRef.current ?? undefined,
+        resume_id: currentResumeId ?? undefined,
+        interview_type: activeInterviewTypeRef.current,
+        job_description: activeJobDescriptionRef.current ?? null,
+        messages: messages as unknown as import('@/integrations/supabase/types').Json,
+        duration_seconds: elapsedSeconds,
+      },
+      {
+        onSuccess: (row) => {
+          if (row?.id) draftIdRef.current = row.id;
+        },
+      }
+    );
+    // Only re-run when the count of transcript entries changes — we don't
+    // need to re-save on every interim text tick.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isStarted, user, transcript.length]);
+
+  // Resume a prior in-progress interview (within 24h). Restores resume,
+  // transcript, AI context, mode (job-targeted / quick / general), JD, and
+  // the elapsed timer — without spending AI credits regenerating the
+  // last question that's already on screen.
+  const handleResumeDraft = useCallback(() => {
+    if (!latestDraft) return;
+    setShowResumeDraft(false);
+    setDraftDismissed(true);
+    draftIdRef.current = latestDraft.id;
+    activeInterviewTypeRef.current = latestDraft.interview_type || 'general';
+    activeJobDescriptionRef.current = latestDraft.job_description || undefined;
+    setPendingJobDescription(undefined);
+
+    // Restore the resume the original session was practicing against, so
+    // the AI has matching context and the picker shows the right entry.
+    if (latestDraft.resume_id && resumes) {
+      const restored = resumes.find((r) => r.id === latestDraft.resume_id);
+      if (restored) {
+        setCurrentResumeId(restored.id);
+        setCurrentResume(dbToResumeData(restored));
+      }
+    }
+
+    // Parse stored messages (Json column) into transcript entries.
+    const rawMessages = Array.isArray(latestDraft.messages) ? latestDraft.messages : [];
+    const messages = (rawMessages as Array<{ id?: string; role?: string; text?: string; timestamp?: string }>)
+      .filter((m) => m && (m.role === 'user' || m.role === 'interviewer') && typeof m.text === 'string')
+      .map((m) => ({
+        id: m.id,
+        role: m.role as 'user' | 'interviewer',
+        text: m.text as string,
+        timestamp: m.timestamp,
+      }));
+
+    resumeFromDraft({
+      messages,
+      jobDescription: latestDraft.job_description,
+      interviewType: latestDraft.interview_type,
+      durationSeconds: latestDraft.duration_seconds,
+    });
+
+    toast.info('Picking up where you left off', {
+      description: 'Your previous answers are restored. Tap the mic to continue.',
+    });
+  }, [latestDraft, resumes, resumeFromDraft, setCurrentResume, setCurrentResumeId]);
+
+  const handleDiscardDraft = useCallback(() => {
+    setShowResumeDraft(false);
+    setDraftDismissed(true);
+    if (latestDraft?.id) {
+      deleteDraft.mutate(latestDraft.id);
+    }
+    draftIdRef.current = null;
+  }, [latestDraft, deleteDraft]);
+
+  const handleCreateSampleResume = useCallback(async () => {
+    if (!user) {
+      toast.error('Please sign in to create a sample resume');
+      return;
+    }
+    setCreatingSampleResume(true);
+    try {
+      const displayName = user.name?.trim() || (user.email ? user.email.split('@')[0] : null);
+      const { resume, title } = buildSampleResume(displayName);
+      await createResume.mutateAsync({ resume, title });
+      toast.success('Sample resume ready — start your interview now.');
+    } catch (err) {
+      console.error('[InterviewPage] sample resume creation failed', err);
+      toast.error('Could not create sample resume');
+    } finally {
+      setCreatingSampleResume(false);
+    }
+  }, [user, createResume]);
 
   const mins = Math.floor(elapsedSeconds / 60);
   const secs = elapsedSeconds % 60;
@@ -248,6 +408,8 @@ function InterviewPageContent() {
       hasUnsavedSession.current = true;
       setSessionSaved(true);
       saveSession.mutate({
+        draft_id: draftIdRef.current ?? undefined,
+        resume_id: currentResumeId ?? undefined,
         interview_type: activeInterviewTypeRef.current,
         job_description: activeJobDescriptionRef.current,
         messages: transcript as any,
@@ -258,6 +420,7 @@ function InterviewPageContent() {
       }, {
         onSuccess: (data) => {
           hasUnsavedSession.current = false;
+          draftIdRef.current = null;
           if (data?.id) setSavedSessionId(data.id);
         },
         onError: (err) => {
@@ -301,7 +464,14 @@ function InterviewPageContent() {
     );
   }
 
-  // Empty state — no resume loaded
+  // While the resume list is still loading, hold off on a verdict — we
+  // don't want to flash the empty state for users who actually have
+  // resumes (the auto-select effect will populate `currentResume`).
+  if (!hasValidResume && (resumesLoading || !resumesFetched)) {
+    return <InterviewSkeleton />;
+  }
+
+  // Empty state — only when the user genuinely has zero resumes.
   if (!hasValidResume) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-16 gap-4 text-center">
@@ -309,14 +479,24 @@ function InterviewPageContent() {
           <Sparkles className="w-8 h-8 text-muted-foreground opacity-50" />
         </div>
         <div>
-          <h2 className="font-semibold text-lg mb-1 text-foreground">No Resume Found</h2>
-          <p className="text-sm text-muted-foreground max-w-xs">Create or open a resume in the editor first, then come back to start your interview practice.</p>
+          <h2 className="font-semibold text-lg mb-1 text-foreground">No Resume Yet</h2>
+          <p className="text-sm text-muted-foreground max-w-sm">
+            Wise AI tailors interview questions to your background. Create a resume — or load a sample one — to get started in seconds.
+          </p>
         </div>
-        <div className="flex gap-3">
-          <Button variant="outline" onClick={() => navigate('/dashboard')} className="min-h-[48px] px-5">
-            Go to Dashboard
+        <div className="flex flex-col sm:flex-row gap-3 w-full max-w-sm">
+          <Button
+            variant="outline"
+            onClick={handleCreateSampleResume}
+            disabled={creatingSampleResume}
+            className="min-h-[48px] px-5 flex-1"
+          >
+            {creatingSampleResume ? 'Creating…' : 'Use Sample Resume'}
           </Button>
-          <Button onClick={() => navigate('/dashboard?action=create')} className="min-h-[48px] px-5">
+          <Button
+            onClick={() => navigate('/dashboard?action=create')}
+            className="min-h-[48px] px-5 flex-1"
+          >
             Create Resume
           </Button>
         </div>
@@ -372,6 +552,19 @@ function InterviewPageContent() {
           </div>
         </header>
         <div className="flex-1 overflow-y-auto">
+          <div className="px-4 pt-3">
+            <ResumePicker
+              onChange={() => {
+                // Switching resume invalidates the role analysis we generated
+                // for the previous resume + JD pair. Drop back to setup so the
+                // user can re-confirm the JD against the new resume.
+                setPendingJobDescription(undefined);
+                toast.info('Resume switched', {
+                  description: 'Re-enter the job description to refresh the preview.',
+                });
+              }}
+            />
+          </div>
           <InterviewPreview
             roleAnalysis={roleAnalysis}
             isLoading={isAnalyzingRole}
@@ -403,6 +596,9 @@ function InterviewPageContent() {
           </div>
         </header>
         <div className="flex-1 overflow-y-auto">
+          <div className="px-4 pt-3">
+            <ResumePicker />
+          </div>
           <InterviewStatsCard onViewHistory={() => setShowHistory(true)} />
           <InterviewSetup
             hasResume={!!currentResume}
@@ -421,6 +617,35 @@ function InterviewPageContent() {
         <InterviewHistorySheet open={showHistory} onOpenChange={setShowHistory} />
         <InterviewTipsSheet open={showTips} onOpenChange={setShowTips} />
         <AnswerLibrarySheet open={showAnswerLibrary} onOpenChange={setShowAnswerLibrary} />
+
+        {/* Resume previous in-progress interview prompt (within 24h). */}
+        <Sheet open={showResumeDraft} onOpenChange={(open) => { if (!open) setDraftDismissed(true); setShowResumeDraft(open); }}>
+          <SheetContent side="bottom" hideCloseButton className="px-6 pb-8">
+            <SheetTitle className="text-lg font-bold text-foreground text-center">
+              Resume previous interview?
+            </SheetTitle>
+            <SheetDescription className="text-sm text-muted-foreground text-center mt-1">
+              We found an unfinished session
+              {latestDraft?.job_title ? ` for ${latestDraft.job_title}` : ''}{' '}
+              from earlier today. Pick it up where you left off, or start fresh.
+            </SheetDescription>
+            <div className="flex flex-col gap-3 mt-6">
+              <Button
+                className="w-full py-3 rounded-xl font-semibold min-h-[48px]"
+                onClick={handleResumeDraft}
+              >
+                Resume Previous
+              </Button>
+              <Button
+                variant="ghost"
+                className="w-full py-3 rounded-xl font-medium bg-muted/50 min-h-[48px]"
+                onClick={handleDiscardDraft}
+              >
+                Discard &amp; Start Fresh
+              </Button>
+            </div>
+          </SheetContent>
+        </Sheet>
       </div>
     );
   }
@@ -479,6 +704,42 @@ function InterviewPageContent() {
           </motion.div>
         );
       })()}
+
+      {/* Voice → text fallback banner. Visible whenever the high-quality voice
+          path failed; gives the user a one-tap way to retry. */}
+      <AnimatePresence>
+        {voiceFallbackReason && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="shrink-0 px-4 pt-2"
+          >
+            <div className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5">
+              <AlertTriangle className="w-4 h-4 mt-0.5 text-amber-500 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium text-foreground">
+                  Voice transcription degraded
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {voiceFallbackReason}
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  retryVoice();
+                  toast.info('Trying voice again on your next answer.');
+                }}
+                className="shrink-0 h-8 text-xs"
+              >
+                Try voice again
+              </Button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Transcript area */}
       <div
@@ -564,6 +825,31 @@ function InterviewPageContent() {
             audioLevel={audioLevel}
             sttEngine={sttEngine}
           />
+
+          {/* Always-visible explicit "I'm done answering" affordance.
+              Active when listening so users don't have to wait for the
+              silence detector. Disabled in other states with a clear hint. */}
+          {(() => {
+            const enabled = status === 'listening';
+            return (
+              <motion.button
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                whileTap={{ scale: enabled ? 0.95 : 1 }}
+                onClick={() => {
+                  if (!enabled) return;
+                  haptics.light();
+                  submitAnswerNow();
+                }}
+                disabled={!enabled}
+                aria-label="I'm done answering"
+                className="flex flex-col items-center gap-1 min-w-[44px] min-h-[44px] rounded-full text-foreground/80 disabled:opacity-30 active:bg-foreground/10 touch-manipulation transition-opacity"
+              >
+                <Check className="w-5 h-5" />
+                <span className="text-muted-foreground text-[10px]">I'm done</span>
+              </motion.button>
+            );
+          })()}
 
           {/* Skip button */}
           <motion.button
@@ -672,6 +958,35 @@ function InterviewPageContent() {
 
       {/* Per-answer score sheet */}
       <AnswerScoreSheet score={latestScore} onDismiss={dismissScore} />
+
+      {/* Resume previous in-progress interview prompt (within 24h). */}
+      <Sheet open={showResumeDraft} onOpenChange={(open) => { if (!open) setDraftDismissed(true); setShowResumeDraft(open); }}>
+        <SheetContent side="bottom" hideCloseButton className="px-6 pb-8">
+          <SheetTitle className="text-lg font-bold text-foreground text-center">
+            Resume previous interview?
+          </SheetTitle>
+          <SheetDescription className="text-sm text-muted-foreground text-center mt-1">
+            We found an unfinished session
+            {latestDraft?.job_title ? ` for ${latestDraft.job_title}` : ''}{' '}
+            from earlier today. Pick it up where you left off, or start fresh.
+          </SheetDescription>
+          <div className="flex flex-col gap-3 mt-6">
+            <Button
+              className="w-full py-3 rounded-xl font-semibold min-h-[48px]"
+              onClick={handleResumeDraft}
+            >
+              Resume Previous
+            </Button>
+            <Button
+              variant="ghost"
+              className="w-full py-3 rounded-xl font-medium bg-muted/50 min-h-[48px]"
+              onClick={handleDiscardDraft}
+            >
+              Discard &amp; Start Fresh
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
 
       {/* End interview confirmation sheet */}
       <Sheet open={showEndConfirm} onOpenChange={(open) => { if (!open) backTriggeredRef.current = false; setShowEndConfirm(open); }}>

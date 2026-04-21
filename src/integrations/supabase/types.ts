@@ -540,7 +540,9 @@ export type Database = {
           messages: Json | null
           overall_score: number | null
           resume_id: string | null
+          status: string | null
           strengths: Json | null
+          updated_at: string | null
           user_id: string
         }
         Insert: {
@@ -554,7 +556,9 @@ export type Database = {
           messages?: Json | null
           overall_score?: number | null
           resume_id?: string | null
+          status?: string | null
           strengths?: Json | null
+          updated_at?: string | null
           user_id: string
         }
         Update: {
@@ -568,7 +572,9 @@ export type Database = {
           messages?: Json | null
           overall_score?: number | null
           resume_id?: string | null
+          status?: string | null
           strengths?: Json | null
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: [
