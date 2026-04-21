@@ -39,11 +39,15 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
 const PUSH_DISABLED_REASON = 'Push notifications are disabled in this build (no service worker).';
 
 export function usePushNotifications() {
-  // Always-disabled stub. Returns the same shape the real hook returns,
-  // so callers compile and render correctly. All actions throw the same
-  // descriptive error so misuse is loud.
+  // Always-disabled stub. Returns the same shape the real hook returns
+  // so callers compile and render correctly. Actions are true no-ops:
+  // they resolve without doing anything (and without throwing) so any
+  // remaining caller cannot crash. UI should be hidden via
+  // `isSupported: false` rather than relying on these methods rejecting.
   const noop = useCallback(async () => {
-    throw new Error(PUSH_DISABLED_REASON);
+    if (import.meta.env.DEV) {
+      console.info(`[usePushNotifications] no-op: ${PUSH_DISABLED_REASON}`);
+    }
   }, []);
   return {
     isSupported: false,
