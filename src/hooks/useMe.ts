@@ -38,6 +38,14 @@ export interface MeData {
  */
 const realtimeFailureCount = new Map<string, number>();
 
+/**
+ * Per-session set of Supabase userIds for which we've already emitted the
+ * "polling fallback active" warning. Prevents log spam when the dev/proxy
+ * environment can't reach Supabase Realtime — the polling fallback works
+ * correctly and the user does not need to see the warning on every mount.
+ */
+const realtimeWarnedUserIds = new Set<string>();
+
 const REALTIME_MAX_ATTEMPTS = 2;
 const REALTIME_BACKOFF_MS = [500, 1500];
 
@@ -97,7 +105,13 @@ export function useMe() {
 
       const token = getToken();
       if (token) {
-        supabase.realtime.setAuth(token);
+        try {
+          supabase.realtime.setAuth(token);
+        } catch {
+          // Realtime client may not be initialized in this environment
+          // (e.g., when WebSockets are blocked). The polling fallback below
+          // continues to work — swallow silently.
+        }
       }
 
       // Use a per-attempt flag so both channels failing together only counts
@@ -118,10 +132,10 @@ export function useMe() {
           const nextAttempt = attempt + 1;
           if (nextAttempt < REALTIME_MAX_ATTEMPTS && !cancelled) {
             const backoff = REALTIME_BACKOFF_MS[attempt] ?? 1500;
-            console.warn(`[useMe] Realtime failed (attempt ${attempt + 1}), retrying in ${backoff}ms`);
             retryTimer = setTimeout(() => doSubscribe(nextAttempt), backoff);
-          } else {
-            console.warn(`[useMe] Realtime cap reached (${failures} failure${failures > 1 ? 's' : ''}) — polling fallback active`);
+          } else if (!realtimeWarnedUserIds.has(supabaseUserId)) {
+            realtimeWarnedUserIds.add(supabaseUserId);
+            console.info(`[useMe] Realtime unavailable (${failures} failure${failures > 1 ? 's' : ''}) — using polling fallback for this session`);
           }
         }
       };
@@ -166,10 +180,13 @@ export function useMe() {
           const nextAttempt = attempt + 1;
           if (nextAttempt < REALTIME_MAX_ATTEMPTS && !cancelled) {
             const backoff = REALTIME_BACKOFF_MS[attempt] ?? 1500;
-            console.warn(`[useMe] Realtime setup threw (attempt ${attempt + 1}), retrying in ${backoff}ms:`, err);
             retryTimer = setTimeout(() => doSubscribe(nextAttempt), backoff);
-          } else {
-            console.warn(`[useMe] Realtime cap reached after exception — polling fallback active:`, err);
+          } else if (!realtimeWarnedUserIds.has(supabaseUserId)) {
+            realtimeWarnedUserIds.add(supabaseUserId);
+            console.info(`[useMe] Realtime unavailable — using polling fallback for this session`);
+            // Keep err captured by the once-per-session info above (no value
+            // in repeating it on every mount).
+            void err;
           }
         }
       }

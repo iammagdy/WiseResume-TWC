@@ -269,9 +269,18 @@ export default function SettingsPage() {
 
           {/* Profile Card */}
           <div className="px-4">
-            <button
+            <div
+              role="button"
+              tabIndex={0}
               onClick={() => navigate('/profile')}
-              className="w-full flex items-center gap-4 p-4 rounded-2xl bg-card border border-border shadow-soft text-left active:scale-[0.98] transition-all touch-manipulation"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  navigate('/profile');
+                }
+              }}
+              aria-label="Open profile"
+              className="w-full flex items-center gap-4 p-4 rounded-2xl bg-card border border-border shadow-soft text-left active:scale-[0.98] transition-all touch-manipulation cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
               <PlanAvatar
                 plan={plan}
@@ -294,7 +303,7 @@ export default function SettingsPage() {
                 </button>
               </div>
               <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0" />
-            </button>
+            </div>
           </div>
 
           {/* Account */}
