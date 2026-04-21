@@ -86,6 +86,28 @@ Users log in via Kinde, receiving a Kinde access token. The client exchanges thi
 - **TanStack Query (React Query)**: Data fetching and caching library.
 - **Capacitor**: Native shell for mobile builds.
 
+### DevTools Exposure Hardening (Operator Note — added 2026-04-21, Task #26)
+A security audit of what is visible to anyone who opens browser DevTools (F12) on the live site found one critical issue plus several defense-in-depth gaps. All are now closed at the build/server-config layer:
+
+1. **Sourcemaps no longer ship to production.** `vite.config.ts` only emits `*.js.map` when `SENTRY_AUTH_TOKEN` is set (and the Sentry plugin then deletes them post-upload). A postbuild guard `scripts/check-no-sourcemaps.mjs` runs as part of `npm run build` and fails the build if any `dist/**/*.map` slips through without the Sentry token. **Apache also returns 403 for any `*.map` request** (`public/.htaccess`) as a belt-and-braces second line of defence.
+2. **`console.log` / `console.info` / `console.debug` / `console.trace` / `debugger` are stripped from production bundles** via `esbuild.drop` in `vite.config.ts`. `console.error` and `console.warn` are **kept** so Sentry breadcrumbs and the ErrorBoundary chunk-load recovery still work. Existing `if (DEV) console.log(...)` patterns in `src/hooks/useElevenLabsScribe.ts` and elsewhere continue to work in dev mode (the drop only fires when `NODE_ENV === 'production'` or `MODE === 'production'`).
+3. **Three new response headers added to `public/.htaccess`:** `Strict-Transport-Security: max-age=31536000; includeSubDomains; preload`, `X-Content-Type-Options: nosniff`, and `Cross-Origin-Opener-Policy: same-origin-allow-popups`. COOP is set to the popup-friendly variant (not strict `same-origin`) so future popup-based flows — Stripe Checkout, social-share dialogs, popup OAuth — keep working. The existing CSP, X-Frame-Options, Referrer-Policy, and Permissions-Policy lines are unchanged.
+
+The `.map`-deny rule is implemented as `RewriteRule \.map$ - [F,L,NC]` placed BEFORE the SPA fallback rewrite, not as a `<FilesMatch>` inside the headers block. This makes it independent of `mod_headers` being loaded and guarantees it fires before the catch-all index.html rewrite.
+
+**One-shot purge required after deploying these changes:** Hostinger's manual upload does NOT delete files that don't exist locally. The previous deploy left ~467 `.map` files (~29 MB) under `https://resume.thewise.cloud/assets/`. After the next upload of the fresh `dist/`, verify the cleanup:
+
+```bash
+# Sourcemap cleanup — should return 404 (file gone) or 403 (deny rule firing).
+# Pick any *.map filename you saw in the previous DevTools network tab.
+curl -I "https://resume.thewise.cloud/assets/<old-name>.js.map"
+
+# Confirm the new headers are live.
+curl -sI "https://resume.thewise.cloud/" | grep -iE "strict-transport|x-content-type|cross-origin-opener"
+```
+
+If any `.map` URL still returns 200, the upload didn't replace the `assets/` directory — re-upload the **entire** fresh `dist/` (overwriting `public_html/`) and re-test. The `.htaccess` map-deny rule will start blocking them server-side as soon as the new `.htaccess` is in place, even if old `.map` files are still on disk.
+
 ### PWA Removal (Operator Note — added 2026-04-21, Task #22)
 The web build is no longer a Progressive Web App. `vite-plugin-pwa` and Workbox are gone, `src/main.tsx` no longer calls `registerSW`, and `src/vite-env.d.ts` no longer declares `virtual:pwa-register`. Every visit fetches the latest deploy directly from Hostinger — no precache, no offline mode, no second-refresh delay.
 

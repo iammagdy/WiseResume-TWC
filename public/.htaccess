@@ -1,5 +1,15 @@
 Options -MultiViews
 RewriteEngine On
+
+# ── Block sourcemap requests (Task #26) ──
+# Placed BEFORE the SPA fallback so it fires regardless of whether
+# the file exists on disk, and outside <IfModule mod_headers.c> so
+# it never depends on mod_headers being loaded. Belt-and-braces:
+# the build is configured not to emit *.map files unless
+# SENTRY_AUTH_TOKEN is set, but if a future build slips one through
+# this rule prevents anyone from downloading the original source.
+RewriteRule \.map$ - [F,L,NC]
+
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteRule ^ index.html [QSA,L]
 
@@ -8,6 +18,22 @@ RewriteRule ^ index.html [QSA,L]
   Header always set X-Frame-Options "DENY"
   Header always set Referrer-Policy "strict-origin-when-cross-origin"
   Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+
+  # ── Defense-in-depth security headers (Task #26) ──
+  # HSTS: force HTTPS for 1 year, cover subdomains, preload-list ready.
+  # Safe because the site is already served over HTTPS only.
+  Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+  # Prevent MIME-type sniffing attacks on user-uploaded or static assets.
+  Header always set X-Content-Type-Options "nosniff"
+  # Isolate the browsing context so cross-origin pages can't share
+  # globals with this origin (mitigates XS-Leaks / Spectre-class
+  # side-channel attacks). `same-origin-allow-popups` is the
+  # popup-friendly variant: it gives full COOP isolation against
+  # cross-origin pages that DIDN'T open this origin, while preserving
+  # the `window.opener` / postMessage channel for popups this origin
+  # opens itself (Stripe Checkout, social-share dialogs, future
+  # popup-based OAuth flows). Strict `same-origin` would break those.
+  Header always set Cross-Origin-Opener-Policy "same-origin-allow-popups"
 
   # ── Cache-busting for files that MUST be re-fetched on every deploy ──
   # The service worker, app shell, manifests, and changelog control what

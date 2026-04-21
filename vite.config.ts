@@ -113,6 +113,26 @@ export default defineConfig(() => ({
       },
     },
   },
+  // Strip developer-only console calls and `debugger` statements from
+  // production bundles so DevTools (F12) on the deployed site stays
+  // quiet. `console.error` and `console.warn` are intentionally kept
+  // so Sentry breadcrumbs and the ErrorBoundary still capture useful
+  // diagnostics.
+  //
+  // Note: esbuild's `drop: ['console']` would remove EVERY console.*
+  // call (including .error/.warn), so we cannot use that. Instead we
+  // (a) drop `debugger` outright and (b) mark the noisy methods as
+  // `pure` so the minifier strips calls whose return value is unused
+  // — which is true for every direct console.log/info/debug/trace in
+  // this codebase. console.error and console.warn are NOT in the pure
+  // list, so they survive minification untouched.
+  //
+  // In dev mode this is harmless: the dev server doesn't minify, so
+  // `pure` annotations have no effect and all console output flows.
+  esbuild: {
+    drop: ['debugger'],
+    pure: ['console.log', 'console.info', 'console.debug', 'console.trace'],
+  },
   build: {
     // Sourcemaps are only emitted when uploading to Sentry. Without the
     // Sentry token, sourcemaps are disabled entirely so the production
