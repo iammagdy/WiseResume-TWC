@@ -23,3 +23,7 @@ Cards in this folder describe shipped or in-flight stability fixes from the 2026
 - [Phase 3 — Background work hygiene](./phase-3-background-work-hygiene.md)
 - [Phase 4 — AI provider resilience (circuit breaker)](./phase-4-ai-provider-resilience.md)
 - [Phase 5 — Analytics data lifecycle](./phase-5-analytics-data-lifecycle.md)
+- [Phase 6 — DevKit hardening](./phase-6-devkit-hardening.md)
+- [Phase 7 — Deploy & DevTools hardening](./phase-7-deploy-and-devtools-hardening.md)
+- [Phase 8 — Production edge-function routing](./phase-8-prod-edge-function-routing.md)
+- [Phase 9 — Stale-chunk silent recovery](./phase-9-stale-chunk-silent-recovery.md)

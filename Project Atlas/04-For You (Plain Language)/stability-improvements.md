@@ -2,6 +2,16 @@
 
 **Last verified:** 2026-04-21 (deploy switched to FTPS, retries + guards + DevTools hardening shipped)
 
+## The "Retrying in 5 seconds" red screen on first visit after a deploy is gone (2026-04-21)
+
+**What was the situation:** Visitors who had previously used the site (specifically: anyone who had it open back when it was offered as an installable app) had a small piece of the old version invisibly cached in their browser. On their first visit after a new release went live, that cached piece would try to load a small file from the old release that no longer existed on the server, and the page would crash into a red "Retrying in 5 seconds…" screen before refreshing itself. The most painful version of this happened right after sign-in: users saw a red error countdown the very moment they reached the dashboard. A separate self-healing piece was already in place to clean things up after the refresh — it's why the second visit always worked — but the user had to *see* the red screen and the countdown to get there. There was no useful information on that screen; the entire "fix" was just the refresh.
+
+**What changed:** The app now detects this exact category of failure earlier and quietly refreshes the page itself, with no red screen and no countdown. From the user's perspective the page just blinks once and loads correctly. A safety guard prevents this from ever turning into an endless refresh loop: only one silent refresh is allowed per browsing session, and if anything is genuinely broken after that, the original red recovery screen still kicks in as a safety net so the user always has a clear "Reload" button to fall back on. The guard automatically resets after a few seconds of stable use, so a future visit that runs into the same kind of problem (for example, after another release) gets its own fresh chance to self-heal silently.
+
+**What you'll notice:** First visits after a release no longer show a red error countdown. The dashboard, the editor, and every other page load straight to their content — even on browsers that still have a leftover piece of the old release cached. Returning users get the new version with no visible interruption, no questions, and no "what just happened" moment.
+
+---
+
 ## Sign-in works on the live site again (2026-04-21, late afternoon)
 
 **What was the situation:** Earlier today's deploy fix finally let your latest version reach the live site for the first time in days — and that immediately surfaced a separate, latent issue: signing in showed a "Sign-in incomplete" card and never finished. The reason is a mismatch between how the app was built to talk to its backend in development vs in production. In development, every backend call goes through a small helper server we run locally, which verifies your sign-in and forwards the request. On the live site, that helper server doesn't exist — the live site is just static files served by Hostinger. So when the app tried to call the helper, Hostinger returned the home page instead, the app couldn't make sense of the home-page HTML, and concluded the sign-in had failed. This pattern was actually already present in the previous version too, but nobody ever saw it because that version never genuinely reached the live site (the deploy looked successful but kept the older code in place — that's the bug we fixed earlier today).

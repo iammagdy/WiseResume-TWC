@@ -1,8 +1,46 @@
 import { lazy, ComponentType } from 'react';
 
+const RELOAD_GUARD_KEY = 'wr.chunk-reload-attempted';
+
+const CHUNK_ERROR_PATTERNS = [
+  'Failed to fetch dynamically imported module',
+  'error loading dynamically imported module',
+  'Importing a module script failed',
+  'Loading chunk',
+  'Loading CSS chunk',
+];
+
+function isChunkLoadError(err: unknown): boolean {
+  if (!err) return false;
+  if (typeof err !== 'object') return false;
+  const e = err as { name?: string; message?: string };
+  if (e.name === 'ChunkLoadError') return true;
+  const msg = e.message ?? '';
+  return CHUNK_ERROR_PATTERNS.some((p) => msg.includes(p));
+}
+
+function attemptSilentReload(err: unknown): boolean {
+  if (import.meta.env.DEV) return false;
+  if (typeof window === 'undefined') return false;
+  if (!isChunkLoadError(err)) return false;
+  try {
+    if (sessionStorage.getItem(RELOAD_GUARD_KEY)) return false;
+    sessionStorage.setItem(RELOAD_GUARD_KEY, String(Date.now()));
+  } catch {
+    return false;
+  }
+  window.location.reload();
+  return true;
+}
+
 function retryImport<T>(factory: () => Promise<T>, retries = 3, delay = 1000): Promise<T> {
   return factory().catch((err) => {
-    if (retries <= 0) throw err;
+    if (retries <= 0) {
+      if (attemptSilentReload(err)) {
+        return new Promise<T>(() => {});
+      }
+      throw err;
+    }
     return new Promise<T>((resolve, reject) => {
       if (typeof navigator !== 'undefined' && !navigator.onLine) {
         const handler = () => {

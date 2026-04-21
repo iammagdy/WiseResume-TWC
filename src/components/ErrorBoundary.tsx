@@ -118,11 +118,22 @@ export class ErrorBoundary extends Component<Props, State> {
     if (isChunkError) {
       console.error('[ErrorBoundary] Chunk loading failed. This is likely a stale PWA/deployment issue.');
       
-      // Prevent infinite reload loops using sessionStorage
+      // Prevent infinite reload loops using sessionStorage. Wrapped in
+      // try/catch because some privacy modes (Safari Private, storage-disabled
+      // enterprise policies) throw on every storage access — without this,
+      // the error handler itself would throw and the user would be left with
+      // a blank tab. On storage failure we proceed without retry bookkeeping
+      // (the visible fallback UI + manual Reload button still renders below).
       const now = Date.now();
-      const lastRetry = Number(sessionStorage.getItem('wiseresume-chunk-retry-time') || 0);
-      const retryCount = Number(sessionStorage.getItem('wiseresume-chunk-retry-count') || 0);
-      
+      let lastRetry = 0;
+      let retryCount = 0;
+      try {
+        lastRetry = Number(sessionStorage.getItem('wiseresume-chunk-retry-time') || 0);
+        retryCount = Number(sessionStorage.getItem('wiseresume-chunk-retry-count') || 0);
+      } catch {
+        /* storage unavailable — skip loop guard, render fallback UI */
+      }
+
       // If we retried more than 3 times in the last 30 seconds, don't auto-reload again
       if (retryCount >= 3 && (now - lastRetry) < 30000) {
         console.warn('[ErrorBoundary] Too many chunk retries. Stopping auto-reload.');
@@ -131,8 +142,12 @@ export class ErrorBoundary extends Component<Props, State> {
       }
 
       // Track retry
-      sessionStorage.setItem('wiseresume-chunk-retry-time', String(now));
-      sessionStorage.setItem('wiseresume-chunk-retry-count', String(retryCount + 1));
+      try {
+        sessionStorage.setItem('wiseresume-chunk-retry-time', String(now));
+        sessionStorage.setItem('wiseresume-chunk-retry-count', String(retryCount + 1));
+      } catch {
+        /* storage unavailable — proceed without bookkeeping */
+      }
 
       this.setState({ isRetrying: true });
       

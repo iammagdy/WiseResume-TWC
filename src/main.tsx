@@ -71,6 +71,14 @@ try {
   
   reportWebVitals();
 
+  /* Clear the lazyWithRetry one-shot reload guard once we've survived
+     long enough to be confident the post-reload boot is stable. If a
+     later chunk fetch fails (e.g. the user kept the tab open across
+     another deploy) we want it to be allowed to silent-reload again. */
+  setTimeout(() => {
+    try { sessionStorage.removeItem('wr.chunk-reload-attempted'); } catch { /* private mode */ }
+  }, 8000);
+
   /* Defer Sentry to idle so it doesn't compete with hero paint. The shim's
      buffer catches any errors that fire before this resolves; the real
      capturer is wired in via setRealCaptureError, then the buffer is
