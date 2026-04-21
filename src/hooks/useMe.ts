@@ -32,6 +32,16 @@ export interface MeData {
 }
 
 /**
+ * Module-level map — durable across hook remounts and page navigation within
+ * the same browser session. Tracks accumulated Realtime connection failures per
+ * Supabase userId so the retry cap survives React unmount/remount cycles.
+ */
+const realtimeFailureCount = new Map<string, number>();
+
+const REALTIME_MAX_ATTEMPTS = 2;
+const REALTIME_BACKOFF_MS = [500, 1500];
+
+/**
  * Shared hook for fetching the current user's profile, plan, and credits data.
  *
  * Uses the `me` edge function which validates the bridge token server-side via
@@ -48,8 +58,6 @@ export function useMe() {
   // tear-down and re-subscribe when a genuinely different user signs in — not on
   // every re-render or bridgeReady flip that changes user?.id mid-session.
   const subscribedUserIdRef = useRef<string | null>(null);
-  // Track consecutive realtime failures per user to cap retries at 2 attempts.
-  const realtimeFailureCountRef = useRef<Record<string, number>>({});
 
   // Realtime subscriptions for immediate invalidation when data changes.
   // Channel names are stable session-lifetime constants ('me-subscriptions' /
@@ -63,69 +71,123 @@ export function useMe() {
     const supabaseUserId = getUserId();
     if (!supabaseUserId) return;
 
+    // Check durable failure cap — if exhausted for this user this session,
+    // leave subscribedUserIdRef set (so we don't attempt again) and bail out.
+    const accumulated = realtimeFailureCount.get(supabaseUserId) ?? 0;
+    if (accumulated >= REALTIME_MAX_ATTEMPTS) return;
+
     // Only re-subscribe when the underlying user actually changes.
     if (subscribedUserIdRef.current === supabaseUserId) return;
     subscribedUserIdRef.current = supabaseUserId;
 
+    let cancelled = false;
     let subChannel: ReturnType<typeof supabase.channel> | null = null;
     let credChannel: ReturnType<typeof supabase.channel> | null = null;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
 
-    try {
+    const cleanupChannels = () => {
+      try { if (subChannel) supabase.removeChannel(subChannel); } catch { /* ignore */ }
+      try { if (credChannel) supabase.removeChannel(credChannel); } catch { /* ignore */ }
+      subChannel = null;
+      credChannel = null;
+    };
+
+    const doSubscribe = (attempt: number) => {
+      if (cancelled) return;
+
       const token = getToken();
       if (token) {
         supabase.realtime.setAuth(token);
       }
 
-      subChannel = supabase
-        .channel('me-subscriptions')
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'subscriptions',
-            filter: `user_id=eq.${supabaseUserId}`,
-          },
-          () => {
-            queryClient.invalidateQueries({ queryKey: ['me'], refetchType: 'all' });
-          }
-        )
-        .subscribe();
+      // Use a per-attempt flag so both channels failing together only counts
+      // as a single failure increment (not two).
+      let failedThisAttempt = false;
 
-      credChannel = supabase
-        .channel('me-ai-credits')
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'ai_credits',
-            filter: `user_id=eq.${supabaseUserId}`,
-          },
-          () => {
-            queryClient.invalidateQueries({ queryKey: ['me'], refetchType: 'all' });
+      const onStatus = (status: string) => {
+        if (cancelled) return;
+        if (status === 'SUBSCRIBED') {
+          realtimeFailureCount.delete(supabaseUserId);
+          return;
+        }
+        if ((status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') && !failedThisAttempt) {
+          failedThisAttempt = true;
+          const failures = (realtimeFailureCount.get(supabaseUserId) ?? 0) + 1;
+          realtimeFailureCount.set(supabaseUserId, failures);
+          cleanupChannels();
+          const nextAttempt = attempt + 1;
+          if (nextAttempt < REALTIME_MAX_ATTEMPTS && !cancelled) {
+            const backoff = REALTIME_BACKOFF_MS[attempt] ?? 1500;
+            console.warn(`[useMe] Realtime failed (attempt ${attempt + 1}), retrying in ${backoff}ms`);
+            retryTimer = setTimeout(() => doSubscribe(nextAttempt), backoff);
+          } else {
+            console.warn(`[useMe] Realtime cap reached (${failures} failure${failures > 1 ? 's' : ''}) — polling fallback active`);
           }
-        )
-        .subscribe();
-    } catch (err) {
-      const failures = (realtimeFailureCountRef.current[supabaseUserId] ?? 0) + 1;
-      realtimeFailureCountRef.current[supabaseUserId] = failures;
-      if (failures < 2) {
-        // Allow one retry by resetting the subscription guard
-        subscribedUserIdRef.current = null;
+        }
+      };
+
+      try {
+        subChannel = supabase
+          .channel('me-subscriptions')
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'subscriptions',
+              filter: `user_id=eq.${supabaseUserId}`,
+            },
+            () => {
+              queryClient.invalidateQueries({ queryKey: ['me'], refetchType: 'all' });
+            }
+          )
+          .subscribe(onStatus);
+
+        credChannel = supabase
+          .channel('me-ai-credits')
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'ai_credits',
+              filter: `user_id=eq.${supabaseUserId}`,
+            },
+            () => {
+              queryClient.invalidateQueries({ queryKey: ['me'], refetchType: 'all' });
+            }
+          )
+          .subscribe(onStatus);
+      } catch (err) {
+        if (!failedThisAttempt) {
+          failedThisAttempt = true;
+          const failures = (realtimeFailureCount.get(supabaseUserId) ?? 0) + 1;
+          realtimeFailureCount.set(supabaseUserId, failures);
+          const nextAttempt = attempt + 1;
+          if (nextAttempt < REALTIME_MAX_ATTEMPTS && !cancelled) {
+            const backoff = REALTIME_BACKOFF_MS[attempt] ?? 1500;
+            console.warn(`[useMe] Realtime setup threw (attempt ${attempt + 1}), retrying in ${backoff}ms:`, err);
+            retryTimer = setTimeout(() => doSubscribe(nextAttempt), backoff);
+          } else {
+            console.warn(`[useMe] Realtime cap reached after exception — polling fallback active:`, err);
+          }
+        }
       }
-      // On 2nd+ failure, leave subscribedUserIdRef set — no more retries this session
-      console.warn(`[useMe] Realtime subscription setup failed (attempt ${failures}, non-fatal):`, err);
-    }
+    };
+
+    doSubscribe(accumulated);
 
     return () => {
-      try {
-        if (subChannel) supabase.removeChannel(subChannel);
-        if (credChannel) supabase.removeChannel(credChannel);
-      } catch (err) {
-        console.warn('[useMe] Realtime channel teardown failed (non-fatal):', err);
+      cancelled = true;
+      if (retryTimer) clearTimeout(retryTimer);
+      cleanupChannels();
+      // Only reset the subscription guard if retry budget remains.
+      // Leaving it set when the cap is reached prevents re-subscriptions on
+      // every subsequent remount once the user has been marked as failed.
+      const failures = realtimeFailureCount.get(supabaseUserId) ?? 0;
+      if (failures < REALTIME_MAX_ATTEMPTS) {
+        subscribedUserIdRef.current = null;
       }
-      subscribedUserIdRef.current = null;
     };
   }, [user?.id, isAuthenticated, queryClient]);
 
