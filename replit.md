@@ -94,7 +94,7 @@ The production Supabase project (`jnsfmkzgxsviuthaqlyy`) is **fully in sync** wi
 3. `20260418195803_portfolio_id_consumers.sql` — entire body gated on `to_regclass('public.portfolios')`; clean no-op when absent.
 4. `20260419000000_drop_legacy_portfolio_username_columns.sql` — gated on `portfolios` existence AND a fully back-filled `portfolio_id` column on each target table; will not drop the legacy username FKs while they are still the only link.
 5. `20260423000000_analytics_premium_rpcs.sql` — `get_country_stats` rewritten to source from `public.portfolio_visits.country` (the canonical visitor-country signal) instead of the non-existent `profiles.country`.
-6. `20260507000011_user_api_keys_check_v2.sql` — `CHECK (key_version = 2)` is now added with `NOT VALID`, so it protects new rows immediately while leaving the 1 legacy v1 row in place. Run `ALTER TABLE public.user_api_keys VALIDATE CONSTRAINT user_api_keys_key_version_v2_only` after re-encrypting that row (follow-up Task #8).
+6. `20260507000011_user_api_keys_check_v2.sql` — `CHECK (key_version = 2)` is now added with `NOT VALID`, so it protects new rows immediately while leaving the 1 legacy v1 row in place. **VALIDATED 2026-04-21 (Task #13)** — the single legacy v1 row was migrated to v2 via `admin-migrate-api-key-encryption` and `ALTER TABLE public.user_api_keys VALIDATE CONSTRAINT user_api_keys_key_version_v2_only` succeeded (`pg_constraint.convalidated = true`).
 
 Operator workflow:
 - `npm run db:check-drift` → exit 0 = in sync, exit 1 = pending migrations on disk. Always also surfaces a WARNING for any reused version prefixes (`supabase_migrations.schema_migrations.version` is unique, so once one sibling is recorded the other siblings are silently treated as applied — you must verify each sibling individually). Requires `SUPABASE_ACCESS_TOKEN`.
@@ -121,3 +121,21 @@ To rotate: update the value in **Replit Secrets**, restart the `Start applicatio
 - Deployed Supabase Edge Function smoke tests (called with a JWT minted from `SUPABASE_JWT_SECRET` for an existing auth user):
   - `POST /functions/v1/ai-health` → HTTP 200, `{"status":"healthy","latencyMs":580,"provider":"wiseresume","errorCode":null}`.
   - `POST /functions/v1/ai-test` → HTTP 200, `{"success":true,"providerUsed":"wiseresume/openrouter2:openrouter/elephant-alpha","response":"Hello! I'm Wise Resume AI","model":"openrouter/elephant-alpha","fallbackUsed":false}` — confirms a real managed-mode chat completion is now flowing for non-BYOK users via the failover chain.
+
+### Edge Function ↔ Disk Reconciliation (Operator Note — added 2026-04-21, Task #13)
+After Task #13, the deployed edge-function set on project `jnsfmkzgxsviuthaqlyy` is fully in sync with `supabase/functions/` (97 deployed = 97 on disk; `Disk-only: []`, `Deployed-only: []`).
+
+Reconciled functions and their disposition:
+- **Disk-only → DEPLOYED (3):**
+  - `admin-migrate-api-key-encryption` — kept; deployed and used to migrate the single legacy v1 BYOK row (gemini provider, user `58b8cbc6-…`) to v2. Audit row `action=migrated, from_version=1, to_version=2` recorded in `ai_key_migration_audit`.
+  - `admin-backfill-ollama-urls` — kept; deployed. Smoke-tested with valid DevKit token (`scanned=0, dry_run=true`). Useful future admin tool if Ollama URL safety rules change.
+  - `admin-revoke-devkit-sessions` — kept; deployed. Smoke-tested with valid DevKit token (`{all:true}` → `revoked_count=1`). No frontend button currently calls it (despite Task #13 description suggesting one); kept anyway because it's the canonical panic-revoke for `admin_sessions` and intentional per the AUTH-5 thread.
+- **Deployed-only → DELETED (4):** all four are confirmed orphans per `BACKEND_AUDIT.md` / `EDGE_FUNCTION_AUDIT.md` / Task #13 brief and have zero client/CI references.
+  - `generate-store-screenshots` — deleted from Supabase deployment.
+  - `send-contact-inquiry` — deleted (UI uses `send-contact-email`).
+  - `send-feature-request` — deleted (UI uses `send-contact-email`).
+  - `wisehire-apply` — deleted (superseded by `wisehire-bulk-screen` + direct candidate insertion).
+
+`user_api_keys` constraint state: `user_api_keys_key_version_v2_only` is **VALIDATED** (`pg_constraint.convalidated = true`); 0 rows with `key_version <> 2`.
+
+One-shot helper: a temporary `task13-bridge` edge function was deployed solely to mint a DevKit session token from inside the Edge runtime (since `DEV_KIT_PASSWORD` is only available to deployed Deno code). It was gated by a one-time `TASK13_BRIDGE_SECRET` Supabase secret, used for two token mints (one for the production migration, one for smoke tests against the two newly-deployed admin helpers), and then deleted along with the secret and the issued `admin_sessions` rows (revoked_at set). The bridge is NOT in the repo and NOT in `supabase/config.toml`.
