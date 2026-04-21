@@ -68,16 +68,14 @@ jobs:
           # caused Task #29.
           # `mirror --reverse --delete` already includes dotfiles like
           # .htaccess by default — verified empirically against lftp 4.9.x.
+          # The authoritative pass/fail gate for "did .htaccess actually
+          # land" is the next step (verify-live-deploy.mjs), which checks
+          # the headers .htaccess produces directly against the live URL.
+          # We do NOT assert .htaccess in the lftp log because lftp may
+          # legitimately skip it as unchanged, which would create false
+          # red deploys.
           lftp -d -u "u966279061.thewise.cloud,$FTP_PASSWORD" sftp://82.29.154.120:22 \
-            -e "set cmd:fail-exit yes; set sftp:auto-confirm yes; set net:timeout 20; set net:max-retries 2; mirror --reverse --delete --verbose ./dist/ /public_html/resume/; bye" 2>&1 | tee /tmp/lftp.log | tail -200
-          # Hard assertion: .htaccess MUST appear in the transfer log.
-          # If it doesn't, the upload didn't include it (would silently
-          # leave the live site on the old security headers + cache rules)
-          # and we fail the workflow now instead of letting the site rot.
-          if ! grep -qE '(^| )\.htaccess($| )' /tmp/lftp.log && ! grep -qE 'Transferring file `.*\.htaccess' /tmp/lftp.log; then
-            echo "::error::lftp output does not show .htaccess being transferred. Aborting before the live site silently keeps stale headers."
-            exit 1
-          fi
+            -e "set cmd:fail-exit yes; set sftp:auto-confirm yes; set net:timeout 20; set net:max-retries 2; mirror --reverse --delete --verbose ./dist/ /public_html/resume/; bye" 2>&1 | tail -200
 
       - name: Verify live site reflects the new build
         # Polls https://resume.thewise.cloud and asserts changelog.json

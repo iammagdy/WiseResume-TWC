@@ -92,14 +92,15 @@ Two changes in this repo (Task #29):
    - `lftp` now runs with `set cmd:fail-exit yes`, so any single file
      upload error aborts the workflow instead of being silently
      swallowed.
-   - The lftp output is captured to `/tmp/lftp.log` and the workflow
-     greps for `.htaccess` in the transfer list. If `.htaccess` is
-     not transferred, the workflow fails with a clear error before
-     reporting success.
    - A new **post-upload verification step** runs
      `node scripts/verify-live-deploy.mjs` against the live URL,
      retrying for ~60 s. The workflow only reports success if every
-     check passes.
+     check passes. This step is the authoritative gate for "did
+     `.htaccess` actually land": rather than greping the lftp log
+     (which legitimately may skip unchanged files and produce false
+     reds), it checks the headers `.htaccess` produces directly
+     against the live URL — the user-visible outcome is what we
+     assert.
 
 2. **`scripts/verify-live-deploy.mjs` (new).** Standalone verifier
    that any operator can run locally after a manual upload:
