@@ -29,6 +29,7 @@
  */
 import * as React from 'npm:react@18.3.1'
 import { renderAsync } from 'npm:@react-email/components@0.0.22'
+import { requireStandardWebhookSignature } from '../_shared/webhookAuth.ts'
 import { SignupEmail } from '../_shared/email-templates/signup.tsx'
 import { InviteEmail } from '../_shared/email-templates/invite.tsx'
 import { MagicLinkEmail } from '../_shared/email-templates/magic-link.tsx'
@@ -214,9 +215,24 @@ async function handleWebhook(req: Request): Promise<Response> {
     )
   }
 
+  // Verify the Standard Webhooks signature against SUPABASE_AUTH_HOOK_SECRET
+  // BEFORE doing any application work. Reads the raw body once for HMAC, then
+  // we JSON.parse it below — the request body must not be re-read.
+  let rawBody: string
+  try {
+    rawBody = await requireStandardWebhookSignature(
+      req,
+      Deno.env.get('SUPABASE_AUTH_HOOK_SECRET'),
+      hookCors,
+    )
+  } catch (resp) {
+    if (resp instanceof Response) return resp
+    throw resp
+  }
+
   let payload: any
   try {
-    payload = await req.json()
+    payload = JSON.parse(rawBody)
   } catch (error) {
     console.error('Invalid JSON in webhook payload')
     return new Response(

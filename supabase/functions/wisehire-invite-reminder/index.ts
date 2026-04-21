@@ -2,9 +2,8 @@
 // that haven't been used or reminded yet, and sends a reminder email via Resend.
 //
 // Auth posture: CRON-SECRET-GATED (service-to-service only).
-//   Callers must supply the CRON_SECRET value in the Authorization header as
-//   "Bearer <CRON_SECRET>". Intended to be triggered hourly by pg_cron or an
-//   external scheduler.
+//   Callers must supply the CRON_SECRET value in the `x-cron-secret` header.
+//   Intended to be triggered hourly by pg_cron or an external scheduler.
 //
 // Idempotency: reminder_sent_at is set after a successful send, so the same
 //   invite will never receive more than one reminder email.
@@ -12,6 +11,7 @@
 import { getServiceClient } from '../_shared/dbClient.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { escapeHtml } from '../_shared/htmlEscape.ts';
+import { requireCronSecret } from '../_shared/webhookAuth.ts';
 
 const WISEHIRE_BLUE = '#1D4ED8';
 
@@ -143,14 +143,12 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
   // ── Cron-secret gate ──
-  const CRON_SECRET = Deno.env.get('CRON_SECRET');
-  if (!CRON_SECRET) {
-    console.error('[wisehire-invite-reminder] CRON_SECRET is not configured.');
-    return json({ error: 'Function not configured' }, 503, corsHeaders);
-  }
-  const provided = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '').trim();
-  if (provided !== CRON_SECRET) {
-    return json({ error: 'Unauthorized' }, 401, corsHeaders);
+  // Callers must supply CRON_SECRET in the `x-cron-secret` header.
+  try {
+    requireCronSecret(req, corsHeaders);
+  } catch (resp) {
+    if (resp instanceof Response) return resp;
+    throw resp;
   }
 
   const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
