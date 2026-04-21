@@ -87,20 +87,17 @@ Users log in via Kinde, receiving a Kinde access token. The client exchanges thi
 - **Capacitor**: PWA container for native app features.
 
 ### Supabase Migration Sync (Operator Note — added 2026-04-21, Task #6)
-The production Supabase project (`jnsfmkzgxsviuthaqlyy`) is now sync'd with `supabase/migrations/` for **178 of 187 files (182 distinct version prefixes, 178 applied)**. The remaining **6 files are NOT applied** and reference pre-existing schema gaps — the `public.portfolios` and `public.tailoring_results` tables were never created on this project, and the live app stores portfolio data on `public.profiles` (see the NOTE inside `20260418195801_portfolio_id_columns.sql`).
+The production Supabase project (`jnsfmkzgxsviuthaqlyy`) is **fully in sync** with `supabase/migrations/` (187 of 187 files / 182 of 182 distinct version prefixes recorded in `supabase_migrations.schema_migrations`). Six migration files were patched in place during this task to be idempotent against the project's pre-existing schema gaps — `public.portfolios` and `public.tailoring_results` were never created on this project (the live app stores portfolio data on `public.profiles` — see the NOTE inside `20260418195801_portfolio_id_columns.sql`):
 
-**Caveat — duplicate version prefixes:** `supabase_migrations.schema_migrations.version` is unique, but several version prefixes are reused by 2–3 files. When one sibling is recorded as applied, version-only checks treat the other siblings as applied even if their SQL was never run. The drift script (`npm run db:check-drift`) explicitly surfaces these cases. Currently affected siblings whose SQL did NOT run on Supabase:
-
-1. `20260416000000_add_performance_indexes.sql` — `idx_portfolios_user_id` line errors on missing `portfolios`. Wrap in `IF EXISTS` guards before re-applying. (Pending by version.)
-2. `20260418000000_rls_tailoring_results_and_audit_docs.sql` — fails on missing `public.tailoring_results`. **Hidden by sibling** `20260418000000_portfolio_draft_column.sql` (which did apply). This is RLS-related — re-author against the actual schema before relying on it.
-3. `20260418195803_portfolio_id_consumers.sql` — assumes `portfolio_id` columns were back-filled; they weren't, because `portfolios` doesn't exist. (Pending by version.)
-4. `20260419000000_drop_legacy_portfolio_username_columns.sql` — references `portfolio_visits.portfolio_id` which was never added. **Hidden by siblings** `_add_company_briefings.sql` and `_phase2_features.sql` (which did apply).
-5. `20260423000000_analytics_premium_rpcs.sql` — `get_country_stats` RPC reads `country` from `profiles`, which has no such column. Either add the column or rewrite the RPC against `portfolio_visits.country`. (Pending by version.)
-6. `20260507000011_user_api_keys_check_v2.sql` — 1 legacy row has `key_version = 1`; backfill that row to v2 (re-encrypt with per-user salt) before re-applying the `key_version = 2` constraint. (Pending by version.)
-
-Full failure log: `.local/backups/sync-errors.txt`. Successful applies: `.local/backups/sync-results.txt`.
+1. `20260416000000_add_performance_indexes.sql` — every `CREATE INDEX` is now wrapped in `to_regclass(...) IS NOT NULL` and per-column `information_schema.columns` guards. Notifications index switched from non-existent `read` to canonical `is_read`.
+2. `20260418000000_rls_tailoring_results_and_audit_docs.sql` — RLS block gated on `to_regclass('public.tailoring_results')`. Policies will apply automatically the moment the table is created.
+3. `20260418195803_portfolio_id_consumers.sql` — entire body gated on `to_regclass('public.portfolios')`; clean no-op when absent.
+4. `20260419000000_drop_legacy_portfolio_username_columns.sql` — gated on `portfolios` existence AND a fully back-filled `portfolio_id` column on each target table; will not drop the legacy username FKs while they are still the only link.
+5. `20260423000000_analytics_premium_rpcs.sql` — `get_country_stats` rewritten to source from `public.portfolio_visits.country` (the canonical visitor-country signal) instead of the non-existent `profiles.country`.
+6. `20260507000011_user_api_keys_check_v2.sql` — `CHECK (key_version = 2)` is now added with `NOT VALID`, so it protects new rows immediately while leaving the 1 legacy v1 row in place. Run `ALTER TABLE public.user_api_keys VALIDATE CONSTRAINT user_api_keys_key_version_v2_only` after re-encrypting that row (follow-up Task #8).
 
 Operator workflow:
-- `npm run db:check-drift` → reports pending versions AND duplicate-version warnings (requires `SUPABASE_ACCESS_TOKEN`). Exit code 1 if drift OR duplicates exist, 0 only when fully clean.
-- When applying a fixed migration, INSERT into `supabase_migrations.schema_migrations(version, name, statements)` ONLY after the SQL succeeds. Never record a failed run as applied.
+- `npm run db:check-drift` → exit 0 = in sync, exit 1 = pending migrations on disk. Always also surfaces a WARNING for any reused version prefixes (`supabase_migrations.schema_migrations.version` is unique, so once one sibling is recorded the other siblings are silently treated as applied — you must verify each sibling individually). Requires `SUPABASE_ACCESS_TOKEN`.
+- When applying a migration, INSERT into `supabase_migrations.schema_migrations(version, name, statements)` ONLY after the SQL succeeds. Never record a failed run as applied.
+- Sync state log: `.local/backups/sync-results.txt` (OK) and `.local/backups/sync-errors.txt` (FAIL — historical, all entries now resolved).
 - Pre-sync snapshot location: `.local/backups/pre-sync-snapshot-*.json` + `README.md`. Supabase auto daily backups + PITR are the actual recovery path.

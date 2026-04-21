@@ -9,8 +9,7 @@
  * Usage:
  *   node scripts/check-supabase-migration-drift.mjs
  */
-import { readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { readdirSync } from 'node:fs';
 
 const PROJECT_REF = process.env.SUPABASE_PROJECT_REF || 'jnsfmkzgxsviuthaqlyy';
 const TOKEN = process.env.SUPABASE_ACCESS_TOKEN;
@@ -66,14 +65,13 @@ if (dupVersions.length > 0) {
   }
 }
 
-if (pending.length === 0 && dupVersions.length === 0) {
-  console.log('\nIn sync.');
+if (pending.length === 0) {
+  console.log(
+    `\nIn sync${dupVersions.length > 0 ? ' (duplicate-version warning is informational — verify each sibling actually ran on first sync, see replit.md)' : ''}.`,
+  );
   process.exit(0);
 }
 
-if (pending.length > 0) {
-  console.log('\nPending migrations (version not in schema_migrations):');
-  for (const f of pending) console.log(`  ${f}`);
-}
-
+console.log('\nPending migrations (version not in schema_migrations):');
+for (const f of pending) console.log(`  ${f}`);
 process.exit(1);

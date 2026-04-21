@@ -227,18 +227,20 @@ $$;
 
 -- ---------------------------------------------------------------------------
 -- 10. Country stats: top-N countries plus the *full* distinct country count.
---     Replaces a brittle `select country from profiles limit 2000` pattern
---     in the edge function so the Countries KPI is accurate even on large
---     datasets.
+--     Sourced from `portfolio_visits.country` (the canonical visitor-country
+--     signal on this project). The original migration read from
+--     `profiles.country`, which does not exist on the canonical Supabase
+--     project — see the operator note in replit.md (Supabase Migration Sync).
 -- ---------------------------------------------------------------------------
 create or replace function get_country_stats(p_top_n int default 10)
 returns table(country text, count bigint, total_distinct bigint)
 language sql
 security definer
+set search_path = public
 as $$
   with per_country as (
     select country, count(*)::bigint as cnt
-    from profiles
+    from public.portfolio_visits
     where country is not null and trim(country) <> ''
     group by country
   ),
