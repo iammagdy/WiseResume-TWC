@@ -317,16 +317,10 @@ export default function EditorPage() {
   }, []);
 
   // Called by desktop scrollspy/sidebar. Keeps activeTab in sync for preview highlight and ATS.
-  // Promoted sections (certifications, languages, awards, publications, volunteering) are top-level.
-  // Projects, hobbies, references still route through 'more'.
+  // All sections are now direct top-level tabs (projects/hobbies/references included).
   const handleDesktopSectionChange = useCallback((sectionId: string) => {
     setActiveSection(sectionId);
-    const moreOnlyIds = ['projects', 'hobbies', 'references'];
-    if (moreOnlyIds.includes(sectionId)) {
-      setActiveTab('more');
-    } else {
-      setActiveTab(sectionId);
-    }
+    setActiveTab(sectionId);
   }, []);
 
   // Hook 2: debounced cloud save, conflict guard, offline queue, ATS re-score, lifecycle flush
