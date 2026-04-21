@@ -15,8 +15,8 @@ function isChunkLoadError(err: unknown): boolean {
   if (typeof err !== 'object') return false;
   const e = err as { name?: string; message?: string };
   if (e.name === 'ChunkLoadError') return true;
-  const msg = e.message ?? '';
-  return CHUNK_ERROR_PATTERNS.some((p) => msg.includes(p));
+  const msg = (e.message ?? '').toLowerCase();
+  return CHUNK_ERROR_PATTERNS.some((p) => msg.includes(p.toLowerCase()));
 }
 
 function attemptSilentReload(err: unknown): boolean {
@@ -33,8 +33,21 @@ function attemptSilentReload(err: unknown): boolean {
   return true;
 }
 
+function clearReloadGuardOnSuccess() {
+  /* A successful chunk fetch is a real "post-reload boot is healthy"
+     signal — stronger than the timer-based clear in main.tsx. We clear
+     here too so a same-session future failure (e.g. the user keeps the
+     tab open across yet another deploy) gets its own one-shot recovery
+     budget. The main.tsx 8s timer remains as a belt-and-braces fallback
+     for the (rare) case where no lazy chunk has loaded yet. */
+  if (typeof window === 'undefined') return;
+  try { sessionStorage.removeItem('wr.chunk-reload-attempted'); } catch { /* ignore */ }
+}
+
 function retryImport<T>(factory: () => Promise<T>, retries = 3, delay = 1000): Promise<T> {
-  return factory().catch((err) => {
+  return factory().then(
+    (mod) => { clearReloadGuardOnSuccess(); return mod; },
+  ).catch((err) => {
     if (retries <= 0) {
       if (attemptSilentReload(err)) {
         return new Promise<T>(() => {});
