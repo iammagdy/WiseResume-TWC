@@ -13,7 +13,6 @@ serve(async (req) => {
   try {
     const body = await req.json();
     const {
-      password,
       mode,
       limit = 50,
       offset = 0,
@@ -25,7 +24,6 @@ serve(async (req) => {
       date_to,
       entry,
     } = body as {
-      password: string;
       mode?: 'read' | 'write';
       limit?: number;
       offset?: number;
@@ -44,7 +42,7 @@ serve(async (req) => {
     };
 
     try {
-      await requireAdminAuth(req, password);
+      await requireAdminAuth(req);
     } catch (authErr) {
       if (authErr instanceof Response) return authErr;
       throw authErr;

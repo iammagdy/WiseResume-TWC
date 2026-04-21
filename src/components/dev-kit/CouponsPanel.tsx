@@ -26,6 +26,7 @@ import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { getDevKitToken } from '@/contexts/DevKitSessionContext';
 import { useIsMounted } from '@/lib/devkit/hooks';
 import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
+import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
 
 interface Coupon {
   id: string;
@@ -75,9 +76,9 @@ export function CouponsPanel({ onCountChange }: CouponsPanelProps) {
     setLoading(true);
     setError(null);
     try {
-      const password = getDevKitToken();
       const tuple = await edgeFunctions.functions.invoke('admin-manage-coupons', {
-        body: { password, action: 'list' },
+        headers: devKitAuthHeaders(),
+        body: { action: 'list' },
       });
       const result = unwrapAdminResponse<{ coupons?: Coupon[] }>(tuple, 'admin-manage-coupons');
       if (!isMounted()) return;
@@ -97,7 +98,8 @@ export function CouponsPanel({ onCountChange }: CouponsPanelProps) {
   const handleToggle = async (coupon: Coupon) => {
     try {
       const tuple = await edgeFunctions.functions.invoke('admin-manage-coupons', {
-        body: { password: getDevKitToken(), action: 'toggle', coupon_id: coupon.id, is_active: !coupon.is_active },
+        headers: devKitAuthHeaders(),
+        body: { action: 'toggle', coupon_id: coupon.id, is_active: !coupon.is_active },
       });
       unwrapAdminResponse(tuple, 'admin-manage-coupons');
       toast.success(coupon.is_active ? 'Coupon deactivated' : 'Coupon activated');
@@ -112,7 +114,8 @@ export function CouponsPanel({ onCountChange }: CouponsPanelProps) {
     setDeleting(true);
     try {
       const tuple = await edgeFunctions.functions.invoke('admin-manage-coupons', {
-        body: { password: getDevKitToken(), action: 'delete', coupon_id: deletePending.id },
+        headers: devKitAuthHeaders(),
+        body: { action: 'delete', coupon_id: deletePending.id },
       });
       unwrapAdminResponse(tuple, 'admin-manage-coupons');
       if (!isMounted()) return;
@@ -131,8 +134,8 @@ export function CouponsPanel({ onCountChange }: CouponsPanelProps) {
     setCreating(true);
     try {
       const tuple = await edgeFunctions.functions.invoke('admin-manage-coupons', {
+        headers: devKitAuthHeaders(),
         body: {
-          password: getDevKitToken(),
           action: 'create',
           code: newCode.trim().toUpperCase(),
           discount_type: newType,

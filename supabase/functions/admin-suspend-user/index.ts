@@ -11,10 +11,10 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { password, target_user_id, suspend, reason } = body;
+    const { target_user_id, suspend, reason } = body;
 
     try {
-      await requireAdminAuth(req, password);
+      await requireAdminAuth(req);
     } catch (authErr) {
       if (authErr instanceof Response) return authErr;
       throw authErr;

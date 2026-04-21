@@ -26,10 +26,8 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { password } = body as { password: string };
-
     try {
-      await requireAdminAuth(req, password);
+      await requireAdminAuth(req);
     } catch (authErr) {
       if (authErr instanceof Response) return authErr;
       throw authErr;

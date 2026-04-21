@@ -38,6 +38,7 @@ import { PortfolioUsernamesPanel } from '@/components/dev-kit/PortfolioUsernames
 import { AIProviderPanel } from '@/components/dev-kit/AIProviderPanel';
 import { DEV_KIT_VERSION } from '@/components/dev-kit/config';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { supabase } from '@/integrations/supabase/safeClient';
 import { DevKitSessionProvider, useDevKitSession } from '@/contexts/DevKitSessionContext';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -144,6 +145,7 @@ function DevToolsInner() {
 
   const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
+  const [totp, setTotp] = useState('');
   const [showPw, setShowPw] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
@@ -221,16 +223,55 @@ function DevToolsInner() {
 
   const handleUnlock = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim() || !pw.trim() || isLockedOut) return;
+    if (!email.trim() || !pw.trim() || totp.trim().length !== 6 || isLockedOut) return;
 
     setIsVerifying(true);
     setLoginError(null);
 
     const submittedEmail = email.trim();
     const submittedPw = pw;
+    const submittedTotp = totp.trim();
     setPw('');
+    setTotp('');
 
     try {
+      // AUTH-5: Step the Supabase session up to AAL2 by completing an MFA
+      // challenge against the user's enrolled TOTP factor. verify-dev-kit
+      // refuses to mint a DevKit token unless the access token presents
+      // `aal: aal2`.
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData?.session) {
+        setLoginError('Sign in to the main app first, then retry.');
+        return;
+      }
+
+      const aalRes = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (aalRes.error) {
+        setLoginError('Could not read MFA state — try again.');
+        return;
+      }
+
+      if (aalRes.data?.currentLevel !== 'aal2') {
+        const factorsRes = await supabase.auth.mfa.listFactors();
+        if (factorsRes.error) {
+          setLoginError('Could not list MFA factors — try again.');
+          return;
+        }
+        const totpFactor = factorsRes.data?.totp?.find((f) => f.status === 'verified');
+        if (!totpFactor) {
+          setLoginError('Enroll a TOTP authenticator on your account before opening the DevKit.');
+          return;
+        }
+        const verifyRes = await supabase.auth.mfa.challengeAndVerify({
+          factorId: totpFactor.id,
+          code: submittedTotp,
+        });
+        if (verifyRes.error) {
+          setLoginError('Invalid authenticator code — try again.');
+          return;
+        }
+      }
+
       const { data, error } = await edgeFunctions.functions.invoke('verify-dev-kit', {
         body: { email: submittedEmail, password: submittedPw },
       });
@@ -256,8 +297,14 @@ function DevToolsInner() {
         setLoginError(null);
       } else if (data?.authorized === false) {
         setLoginError('This email is not authorised for admin access.');
+      } else if (data?.reason === 'mfa_required') {
+        setLoginError('MFA challenge required — re-enter your authenticator code.');
+      } else if (data?.reason === 'email_mismatch') {
+        setLoginError('DevKit email must match your signed-in Supabase account.');
+      } else if (data?.reason === 'invalid_session') {
+        setLoginError('Your Supabase session expired — sign in again.');
       } else {
-        setLoginError('Incorrect email or password — try again.');
+        setLoginError('Incorrect email, password, or code — try again.');
       }
     } catch {
       toast.error('System error during verification');
@@ -270,6 +317,7 @@ function DevToolsInner() {
     lock();
     setEmail('');
     setPw('');
+    setTotp('');
     setLoginError(null);
     setActiveTab('overview');
     setUserCount(null);
@@ -351,9 +399,32 @@ function DevToolsInner() {
                   </p>
                 )}
               </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-white/40">Authenticator code</label>
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]{6}"
+                  maxLength={6}
+                  placeholder="123456"
+                  value={totp}
+                  onChange={(e) => {
+                    const v = e.target.value.replace(/\D/g, '').slice(0, 6);
+                    setTotp(v);
+                    setLoginError(null);
+                  }}
+                  disabled={isVerifying || isLockedOut}
+                  autoComplete="one-time-code"
+                  className={cn(
+                    'h-11 bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-white/30 focus:ring-white/10 font-mono tracking-widest text-center',
+                    loginError && 'border-red-500/50 ring-1 ring-red-500/20'
+                  )}
+                />
+                <p className="text-[10px] text-white/30 pl-0.5">6-digit code from your authenticator app</p>
+              </div>
               <Button
                 type="submit"
-                disabled={isVerifying || isLockedOut || !email.trim() || !pw.trim()}
+                disabled={isVerifying || isLockedOut || !email.trim() || !pw.trim() || totp.trim().length !== 6}
                 className="w-full h-11 font-semibold bg-white text-zinc-950 hover:bg-white/90"
               >
                 {isVerifying ? (

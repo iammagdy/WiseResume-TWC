@@ -195,15 +195,14 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { password, recipient_email, waitlist_id } = body as {
-      password: string;
+    const { recipient_email, waitlist_id } = body as {
       recipient_email: string;
       waitlist_id?: string;
     };
 
     let callerEmail: string;
     try {
-      callerEmail = await requireAdminAuth(req, password);
+      callerEmail = await requireAdminAuth(req);
     } catch (authErr) {
       if (authErr instanceof Response) return authErr;
       throw authErr;

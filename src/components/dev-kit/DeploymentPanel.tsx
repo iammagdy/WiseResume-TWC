@@ -7,6 +7,7 @@ import { getDevKitToken } from '@/contexts/DevKitSessionContext';
 import { getSupabaseToken } from '@/lib/supabaseAuth';
 import { useIsMounted, useAbortOnUnmount } from '@/lib/devkit/hooks';
 import { unwrapAdminResponse, formatEdgeError, adminApiFetch } from '@/lib/devkit/edgeResponse';
+import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
 
 interface Commit {
   sha: string;
@@ -111,13 +112,14 @@ export function DeploymentPanel() {
     setLoading(true);
     setFetchError(null);
     try {
-      const pw = getDevKitToken();
       const [githubResult, envResult] = await Promise.all([
         edgeFunctions.functions.invoke('admin-github-status', {
-          body: { password: pw },
+          headers: devKitAuthHeaders(),
+          body: {},
         }),
         edgeFunctions.functions.invoke('admin-env-check', {
-          body: { password: pw },
+          headers: devKitAuthHeaders(),
+          body: {},
         }),
       ]);
 

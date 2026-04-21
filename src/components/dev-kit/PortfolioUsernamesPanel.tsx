@@ -55,6 +55,7 @@ import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { getDevKitToken } from '@/contexts/DevKitSessionContext';
 import { cn } from '@/lib/utils';
 import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
+import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
 
 type DirectoryRow = {
   user_id: string;
@@ -110,7 +111,8 @@ async function invoke<T = unknown>(
 ): Promise<{ data: T | null; error: string | null }> {
   try {
     const tuple = await edgeFunctions.functions.invoke('admin-portfolio-usernames', {
-      body: { password: getDevKitToken(), action, ...extra },
+      headers: devKitAuthHeaders(),
+      body: { action, ...extra },
     });
     const result = unwrapAdminResponse<T>(tuple, 'admin-portfolio-usernames');
     return { data: result, error: null };

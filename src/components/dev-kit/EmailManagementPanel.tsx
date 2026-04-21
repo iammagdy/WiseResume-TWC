@@ -18,6 +18,7 @@ import { getDevKitToken } from '@/contexts/DevKitSessionContext';
 import type { AdminUser } from './AdminUsersPanel';
 import { useIsMounted } from '@/lib/devkit/hooks';
 import { unwrapAdminResponse, tryUnwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
+import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
 
 type EmailAction = 'resend_confirmation' | 'send_magic_link' | 'send_otp' | 'send_password_reset' | 'send_custom' | 'wisehire_invite';
 
@@ -66,11 +67,9 @@ function UnconfirmedUsersSection({ onSendToUser }: UnconfirmedUsersProps) {
     setLoading(true);
     if (!append) setError(null);
     try {
-      const password = getDevKitToken();
       const tuple = await edgeFunctions.functions.invoke('admin-list-users', {
-        body: {
-          password,
-          page: pageNum,
+        headers: devKitAuthHeaders(),
+        body: { page: pageNum,
           per_page: UNCONFIRMED_PER_PAGE,
           filter_unconfirmed: true,
           sort: 'newest',
@@ -109,11 +108,9 @@ function UnconfirmedUsersSection({ onSendToUser }: UnconfirmedUsersProps) {
   const handleResendConfirmation = async (user: AdminUser) => {
     setSendingId(user.user_id);
     try {
-      const password = getDevKitToken();
       const tuple = await edgeFunctions.functions.invoke('admin-email-actions', {
-        body: {
-          password,
-          action: 'resend_confirmation',
+        headers: devKitAuthHeaders(),
+        body: { action: 'resend_confirmation',
           target_user_id: user.user_id,
           target_email: user.email,
         },
@@ -332,11 +329,9 @@ function ComposeEmailForm({
       if (!isMounted()) return;
       setSearching(true);
       try {
-        const password = getDevKitToken();
         const tuple = await edgeFunctions.functions.invoke('admin-list-users', {
-          body: {
-            password,
-            page: 1,
+          headers: devKitAuthHeaders(),
+          body: { page: 1,
             per_page: 10,
             search: q.trim(),
             sort: 'newest',
@@ -388,12 +383,12 @@ function ComposeEmailForm({
     setSending(true);
     setInviteUrl(null);
     try {
-      const password = getDevKitToken();
       const recipientEmail = selectedUser?.email ?? emailSearch.trim();
 
       if (isWiseHireInvite) {
         const tuple = await edgeFunctions.functions.invoke('admin-wisehire-invite', {
-          body: { password, recipient_email: recipientEmail },
+          headers: devKitAuthHeaders(),
+          body: { recipient_email: recipientEmail },
         });
         const result = unwrapAdminResponse<{ invite_url?: string; expires_at?: string }>(tuple, 'admin-wisehire-invite');
         if (!isMounted()) return;
@@ -403,7 +398,6 @@ function ComposeEmailForm({
       }
 
       const body: Record<string, unknown> = {
-        password,
         action,
         ...(selectedUser
           ? { target_user_id: selectedUser.user_id, target_email: selectedUser.email }
@@ -414,7 +408,7 @@ function ComposeEmailForm({
         body.custom_body = customBody.trim();
       }
 
-      const tuple = await edgeFunctions.functions.invoke('admin-email-actions', { body });
+      const tuple = await edgeFunctions.functions.invoke('admin-email-actions', { headers: devKitAuthHeaders(), body });
       const result = unwrapAdminResponse<{ email?: string; message_id?: string }>(tuple, 'admin-email-actions');
       if (!isMounted()) return;
 
@@ -609,9 +603,9 @@ function RecentSendsSection() {
   const fetchRecentSends = useCallback(async () => {
     setLoading(true);
     try {
-      const password = getDevKitToken();
       const tuple = await edgeFunctions.functions.invoke('admin-audit-logs', {
-        body: { password, limit: 20, category_filter: 'admin_email' },
+        headers: devKitAuthHeaders(),
+        body: { limit: 20, category_filter: 'admin_email' },
       });
       const result = unwrapAdminResponse<{ logs?: RecentSendEntry[] }>(tuple, 'admin-audit-logs');
       if (!isMounted()) return;
@@ -699,7 +693,8 @@ export function EmailManagementPanel() {
     (async () => {
       try {
         const tuple = await edgeFunctions.functions.invoke('admin-email-actions', {
-          body: { password: getDevKitToken(), action: 'diagnose' },
+          headers: devKitAuthHeaders(),
+          body: { action: 'diagnose' },
         });
         const result = tryUnwrapAdminResponse<NonNullable<DiagnoseResult>>(tuple, 'admin-email-actions');
         if (!cancelled) setDiagnose(result ?? null);

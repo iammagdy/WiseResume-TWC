@@ -22,14 +22,13 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { password, days = 14, granularity = 'day' } = body as {
-      password: string;
+    const { days = 14, granularity = 'day' } = body as {
       days?: number;
       granularity?: 'day' | 'week';
     };
 
     try {
-      await requireAdminAuth(req, password);
+      await requireAdminAuth(req);
     } catch (authErr) {
       if (authErr instanceof Response) return authErr;
       throw authErr;

@@ -22,6 +22,7 @@ import { Donut } from './analytics/Donut';
 import { RankedList } from './analytics/RankedList';
 import { EmptyState } from './analytics/EmptyState';
 import type { AnalyticsRange, PremiumAnalyticsData } from './analytics/types';
+import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
 
 const TOOLTIP_STYLE = {
   backgroundColor: 'hsl(var(--card))',
@@ -57,7 +58,8 @@ export function AnalyticsPanel() {
     setError(null);
     try {
       const tuple = await edgeFunctions.functions.invoke('admin-analytics', {
-        body: { password: token, range: r },
+        headers: devKitAuthHeaders(),
+        body: { range: r },
       });
       const result = unwrapAdminResponse<{ data?: PremiumAnalyticsData }>(tuple, 'admin-analytics');
       const raw = result.data;

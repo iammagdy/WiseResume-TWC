@@ -21,6 +21,7 @@ import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { getDevKitToken } from '@/contexts/DevKitSessionContext';
 import { useIsMounted } from '@/lib/devkit/hooks';
 import { unwrapAdminResponse, formatEdgeError, EdgeFunctionError } from '@/lib/devkit/edgeResponse';
+import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
 
 const FEATURE_FLAGS: { key: string; label: string; description: string }[] = [
   { key: 'feature_cover_letters', label: 'Cover Letters', description: 'Enable cover letter generation feature' },
@@ -76,7 +77,8 @@ export function AppSettingsPanel() {
     setError(null);
     try {
       const tuple = await edgeFunctions.functions.invoke('admin-get-settings', {
-        body: { password: getDevKitToken() },
+        headers: devKitAuthHeaders(),
+        body: {},
       });
       const result = unwrapAdminResponse<{ settings?: Record<string, unknown> }>(tuple, 'admin-get-settings');
       if (!isMounted()) return;
@@ -107,7 +109,8 @@ export function AppSettingsPanel() {
     setSaving(key);
     try {
       const tuple = await edgeFunctions.functions.invoke('admin-update-settings', {
-        body: { password: getDevKitToken(), key, value },
+        headers: devKitAuthHeaders(),
+        body: { key, value },
       });
       unwrapAdminResponse(tuple, 'admin-update-settings');
       if (!isMounted()) return;
@@ -139,7 +142,8 @@ export function AppSettingsPanel() {
     setResettingCredits(true);
     try {
       const tuple = await edgeFunctions.functions.invoke('admin-reset-credits', {
-        body: { password: getDevKitToken() },
+        headers: devKitAuthHeaders(),
+        body: {},
       });
       const result = unwrapAdminResponse<{ reset_count?: number }>(tuple, 'admin-reset-credits');
       toast.success(`Daily AI credits reset for ${result.reset_count ?? 'all'} users`);

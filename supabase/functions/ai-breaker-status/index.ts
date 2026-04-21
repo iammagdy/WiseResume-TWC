@@ -21,8 +21,8 @@
  *     ]
  *   }
  *
- * Caller passes the DevKit session token in the JSON body as `password` to
- * stay consistent with the other admin endpoints.
+ * Caller passes the DevKit session token in the `Authorization: Bearer`
+ * header (AUTH-5 / audit M6 — body transport removed).
  */
 
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
@@ -54,20 +54,9 @@ serve(async (req) => {
   }
 
   try {
-    // DevKit session token lives in the JSON body as `password`, matching
-    // every other admin-* endpoint. GET is intentionally not supported —
-    // requireAdminAuth has no header-based intake path so a GET would
-    // always 401 without a way for legitimate callers to authenticate.
-    let password = '';
+    // DevKit session token comes via Authorization: Bearer <token>.
     try {
-      const body = await req.json();
-      password = (body?.password ?? '').toString();
-    } catch {
-      // empty body is fine — requireAdminAuth will reject with 401
-    }
-
-    try {
-      await requireAdminAuth(req, password, corsHeaders);
+      await requireAdminAuth(req, corsHeaders);
     } catch (resp) {
       if (resp instanceof Response) return resp;
       throw resp;

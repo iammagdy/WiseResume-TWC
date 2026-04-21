@@ -11,6 +11,7 @@ import { UserDetailDrawer } from './UserDetailDrawer';
 import { toast } from 'sonner';
 import { useIsMounted } from '@/lib/devkit/hooks';
 import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
+import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
 import {
   Dialog,
   DialogContent,
@@ -230,11 +231,9 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
     setLoading(true);
     if (!append) setError(null);
     try {
-      const password = getDevKitToken();
       const tuple = await edgeFunctions.functions.invoke('admin-list-users', {
-        body: {
-          password,
-          page: pageNum,
+        headers: devKitAuthHeaders(),
+        body: { page: pageNum,
           per_page: PER_PAGE,
           filter_plan: planFilter || undefined,
           filter_identity_conflict: filterTab === 'id_conflicts' ? true : undefined,
@@ -333,7 +332,6 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
   const handleBulkConfirm = async (params: { plan?: string; days?: number; trialPlan?: string }) => {
     if (!bulkAction) return;
     setBulkRunning(true);
-    const pw = getDevKitToken();
     const actionLabel = ACTION_LABELS_BULK[bulkAction];
     const results: BulkActionResult[] = [];
 
@@ -342,19 +340,23 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
         let tuple;
         if (bulkAction === 'plan_change') {
           tuple = await edgeFunctions.functions.invoke('admin-set-plan', {
-            body: { password: pw, target_user_id: user.user_id, plan: params.plan },
+            headers: devKitAuthHeaders(),
+            body: { target_user_id: user.user_id, plan: params.plan },
           });
         } else if (bulkAction === 'suspend') {
           tuple = await edgeFunctions.functions.invoke('admin-suspend-user', {
-            body: { password: pw, target_user_id: user.user_id, suspend: true },
+            headers: devKitAuthHeaders(),
+            body: { target_user_id: user.user_id, suspend: true },
           });
         } else if (bulkAction === 'unsuspend') {
           tuple = await edgeFunctions.functions.invoke('admin-suspend-user', {
-            body: { password: pw, target_user_id: user.user_id, suspend: false },
+            headers: devKitAuthHeaders(),
+            body: { target_user_id: user.user_id, suspend: false },
           });
         } else {
           tuple = await edgeFunctions.functions.invoke('admin-grant-trial', {
-            body: { password: pw, target_user_id: user.user_id, plan: params.trialPlan, days: params.days },
+            headers: devKitAuthHeaders(),
+            body: { target_user_id: user.user_id, plan: params.trialPlan, days: params.days },
           });
         }
         unwrapAdminResponse(tuple, bulkAction === 'plan_change' ? 'admin-set-plan'
@@ -396,15 +398,13 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
   const handleExportCSV = async () => {
     setExportingCSV(true);
     try {
-      const password = getDevKitToken();
       const allUsers: AdminUser[] = [];
       let p = 1;
       const PER_EXPORT = 500;
       while (true) {
         const tuple = await edgeFunctions.functions.invoke('admin-list-users', {
-          body: {
-            password,
-            page: p,
+          headers: devKitAuthHeaders(),
+          body: { page: p,
             per_page: PER_EXPORT,
             filter_plan: planFilter || undefined,
             filter_identity_conflict: filterTab === 'id_conflicts' ? true : undefined,
@@ -456,9 +456,8 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
       const adminId = adminUser?.id ?? 'dev-kit-admin';
       try {
         const auditTuple = await edgeFunctions.functions.invoke('admin-audit-logs', {
-          body: {
-            password,
-            mode: 'write',
+          headers: devKitAuthHeaders(),
+          body: { mode: 'write',
             entry: {
               user_id: adminId,
               category: 'admin',

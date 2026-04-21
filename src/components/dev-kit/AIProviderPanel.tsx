@@ -16,6 +16,7 @@ import {
   OPENROUTER_AUTO_SENTINEL,
 } from '@/lib/aiDefaults';
 import { cn } from '@/lib/utils';
+import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -894,6 +895,7 @@ function OpenRouterPanel({
             // picks up the new flag for ALL users, not just this admin.
             try {
               await edgeFunctions.functions.invoke('admin-update-settings', {
+                headers: devKitAuthHeaders(),
                 body: { key: 'openrouter_auto_fallback', value: next },
               });
             } catch (err) {
@@ -971,6 +973,7 @@ function OpenRouterPanel({
                       // sub-engine routes ALL users to the new primary slug.
                       try {
                         await edgeFunctions.functions.invoke('admin-update-settings', {
+                          headers: devKitAuthHeaders(),
                           body: { key: 'openrouter_curated_model', value: id },
                         });
                       } catch (err) {
@@ -2334,7 +2337,8 @@ export function AIProviderPanel() {
     setBreakerLoading(true);
     try {
       const res = await edgeFunctions.functions.invoke('ai-breaker-status', {
-        body: { password: getDevKitToken() },
+        headers: devKitAuthHeaders(),
+        body: {},
       });
       if (!res.error) {
         const body = res.data as BreakerStatusResponse | null;

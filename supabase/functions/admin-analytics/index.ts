@@ -91,13 +91,13 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { password, range: rawRange } = body as { password: string; range?: Range };
+    const { range: rawRange } = body as { range?: Range };
     const range: Range = (['today', '7d', '30d', '90d', 'all'] as const).includes(rawRange as Range)
       ? (rawRange as Range)
       : '7d';
 
     try {
-      await requireAdminAuth(req, password);
+      await requireAdminAuth(req);
     } catch (authErr) {
       if (authErr instanceof Response) return authErr;
       throw authErr;

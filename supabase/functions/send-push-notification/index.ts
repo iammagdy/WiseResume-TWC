@@ -164,8 +164,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { password, user_id, title, body: notifBody, url, icon, badge } = body as {
-      password?: string;
+    const { user_id, title, body: notifBody, url, icon, badge } = body as {
       user_id?: string;
       title?: string;
       body?: string;
@@ -175,7 +174,7 @@ Deno.serve(async (req) => {
     };
 
     try {
-      await requireAdminAuth(req, password ?? '');
+      await requireAdminAuth(req);
     } catch (authErr) {
       if (authErr instanceof Response) return authErr;
       throw authErr;

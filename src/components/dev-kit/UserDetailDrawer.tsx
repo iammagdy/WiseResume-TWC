@@ -14,6 +14,7 @@ import { getDevKitToken } from '@/contexts/DevKitSessionContext';
 import { useIsMounted } from '@/lib/devkit/hooks';
 import { unwrapAdminResponse, tryUnwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
 import type { AdminUser } from './AdminUsersPanel';
+import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
 
 // supabase client kept for RPC-only usage (username availability check)
 // Profile data fetch is routed through admin-update-profile edge function to bypass RLS
@@ -203,10 +204,9 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     if (!open) return;
     let cancelled = false;
     setHistoryLoading(true);
-
-    const pw = getDevKitToken();
     edgeFunctions.functions.invoke('admin-audit-logs', {
-      body: { password: pw, limit: 500, target_user_id: user.user_id },
+      headers: devKitAuthHeaders(),
+      body: { limit: 500, target_user_id: user.user_id },
     }).then((tuple) => {
       if (cancelled) return;
       try {
@@ -221,7 +221,8 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     });
 
     edgeFunctions.functions.invoke('admin-save-note', {
-      body: { password: pw, target_user_id: user.user_id, action: 'list' },
+      headers: devKitAuthHeaders(),
+      body: { target_user_id: user.user_id, action: 'list' },
     }).then((tuple) => {
       if (cancelled) return;
       try {
@@ -246,10 +247,9 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     let cancelled = false;
     setResumesLoading(true);
     setSelectedResume(null);
-
-    const pw = getDevKitToken();
     edgeFunctions.functions.invoke('admin-list-user-content', {
-      body: { password: pw, target_user_id: user.user_id },
+      headers: devKitAuthHeaders(),
+      body: { target_user_id: user.user_id },
     }).then((tuple) => {
       if (cancelled) return;
       const result = tryUnwrapAdminResponse<{ resumes?: ResumeItem[] }>(tuple, 'admin-list-user-content');
@@ -279,8 +279,8 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     setUsernameChangedOldValue(null);
 
     edgeFunctions.functions.invoke('admin-update-profile', {
+      headers: devKitAuthHeaders(),
       body: {
-        password: getDevKitToken(),
         target_user_id: user.user_id,
         action: 'get',
       },
@@ -311,10 +311,9 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     setIdentityData(null);
     setIdentityLoading(true);
     setShowMergeConfirm(false);
-
-    const pw = getDevKitToken();
     edgeFunctions.functions.invoke('admin-get-identity', {
-      body: { password: pw, target_user_id: user.user_id },
+      headers: devKitAuthHeaders(),
+      body: { target_user_id: user.user_id },
     }).then((tuple) => {
       if (cancelled) return;
       try {
@@ -349,7 +348,8 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     setMergingIdentity(true);
     try {
       const tuple = await edgeFunctions.functions.invoke('admin-merge-identity', {
-        body: { password: getDevKitToken(), collision_user_id: user.user_id },
+        headers: devKitAuthHeaders(),
+        body: { collision_user_id: user.user_id },
       });
       unwrapAdminResponse<{ merge_log?: string[] }>(tuple, 'admin-merge-identity');
       if (!isMounted()) return;
@@ -400,8 +400,8 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
       const trimmedName = profileFullName.trim();
 
       const tuple = await edgeFunctions.functions.invoke('admin-update-profile', {
+        headers: devKitAuthHeaders(),
         body: {
-          password: getDevKitToken(),
           target_user_id: user.user_id,
           full_name: trimmedName || null,
           username: trimmedUsername || undefined,
@@ -447,7 +447,8 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     setSavingPlan(true);
     try {
       const tuple = await edgeFunctions.functions.invoke('admin-set-plan', {
-        body: { password: getDevKitToken(), target_user_id: user.user_id, plan: selectedPlan },
+        headers: devKitAuthHeaders(),
+        body: { target_user_id: user.user_id, plan: selectedPlan },
       });
       unwrapAdminResponse(tuple, 'admin-set-plan');
       if (!isMounted()) return;
@@ -469,7 +470,8 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     setSavingTrial(true);
     try {
       const tuple = await edgeFunctions.functions.invoke('admin-grant-trial', {
-        body: { password: getDevKitToken(), target_user_id: user.user_id, plan: trialPlan, days: trialDays },
+        headers: devKitAuthHeaders(),
+        body: { target_user_id: user.user_id, plan: trialPlan, days: trialDays },
       });
       unwrapAdminResponse(tuple, 'admin-grant-trial');
       if (!isMounted()) return;
@@ -488,7 +490,8 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     setRevokingTrial(true);
     try {
       const tuple = await edgeFunctions.functions.invoke('admin-revoke-trial', {
-        body: { password: getDevKitToken(), target_user_id: user.user_id },
+        headers: devKitAuthHeaders(),
+        body: { target_user_id: user.user_id },
       });
       unwrapAdminResponse(tuple, 'admin-revoke-trial');
       if (!isMounted()) return;
@@ -507,7 +510,8 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     try {
       const suspend = !user.is_suspended;
       const tuple = await edgeFunctions.functions.invoke('admin-suspend-user', {
-        body: { password: getDevKitToken(), target_user_id: user.user_id, suspend, reason: suspend ? suspendReason : null },
+        headers: devKitAuthHeaders(),
+        body: { target_user_id: user.user_id, suspend, reason: suspend ? suspendReason : null },
       });
       unwrapAdminResponse(tuple, 'admin-suspend-user');
       if (!isMounted()) return;
@@ -531,8 +535,8 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
       const parsedLimit = newDailyLimit !== '' ? Number(newDailyLimit) : undefined;
       const parsedBonus = bonusCredits ? Number(bonusCredits) : 0;
       const tuple = await edgeFunctions.functions.invoke('admin-set-credits', {
+        headers: devKitAuthHeaders(),
         body: {
-          password: getDevKitToken(),
           target_user_id: user.user_id,
           daily_limit: parsedLimit,
           bonus_credits: parsedBonus,
@@ -562,7 +566,8 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     setSavingNote(true);
     try {
       const tuple = await edgeFunctions.functions.invoke('admin-save-note', {
-        body: { password: getDevKitToken(), target_user_id: user.user_id, note_text: noteText },
+        headers: devKitAuthHeaders(),
+        body: { target_user_id: user.user_id, note_text: noteText },
       });
       unwrapAdminResponse(tuple, 'admin-save-note');
       if (!isMounted()) return;
@@ -581,8 +586,8 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     setDeletingNoteId(noteId);
     try {
       const tuple = await edgeFunctions.functions.invoke('admin-save-note', {
+        headers: devKitAuthHeaders(),
         body: {
-          password: getDevKitToken(),
           target_user_id: user.user_id,
           action: 'delete',
           note_id: noteId,
@@ -605,8 +610,8 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     setRevokingSessions(true);
     try {
       const tuple = await edgeFunctions.functions.invoke('admin-revoke-sessions', {
+        headers: devKitAuthHeaders(),
         body: {
-          password: getDevKitToken(),
           target_user_id: user.user_id,
           actor_email: authUser?.email ?? 'admin (dev-kit)',
         },
@@ -626,8 +631,8 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     setDeletingUser(true);
     try {
       const tuple = await edgeFunctions.functions.invoke('admin-delete-user', {
+        headers: devKitAuthHeaders(),
         body: {
-          password: getDevKitToken(),
           target_user_id: user.user_id,
           actor_email: authUser?.email ?? 'admin (dev-kit)',
         },
@@ -650,8 +655,8 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     setResettingUser(true);
     try {
       const tuple = await edgeFunctions.functions.invoke('admin-wisehire-reset-user', {
+        headers: devKitAuthHeaders(),
         body: {
-          password: getDevKitToken(),
           target_user_id: user.user_id,
           actor_email: authUser?.email ?? 'admin (dev-kit)',
         },
@@ -690,7 +695,8 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     setResumeDetailLoading(true);
     try {
       const tuple = await edgeFunctions.functions.invoke('admin-list-user-content', {
-        body: { password: getDevKitToken(), target_user_id: user.user_id, resume_id: resumeId },
+        headers: devKitAuthHeaders(),
+        body: { target_user_id: user.user_id, resume_id: resumeId },
       });
       const result = unwrapAdminResponse<{ resume?: ResumeDetail }>(tuple, 'admin-list-user-content (detail)');
       if (!isMounted()) return;

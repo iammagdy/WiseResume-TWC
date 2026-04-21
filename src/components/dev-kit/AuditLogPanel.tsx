@@ -8,6 +8,7 @@ import { getDevKitToken } from '@/contexts/DevKitSessionContext';
 import { toast } from 'sonner';
 import { useIsMounted, useVisibleInterval } from '@/lib/devkit/hooks';
 import { unwrapAdminResponse, formatEdgeError, EdgeFunctionError } from '@/lib/devkit/edgeResponse';
+import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
 
 interface AuditLog {
   id: string;
@@ -125,8 +126,8 @@ export function AuditLogPanel() {
     setNotDeployed(false);
     try {
       const tuple = await edgeFunctions.functions.invoke('admin-audit-logs', {
+        headers: devKitAuthHeaders(),
         body: {
-          password: getDevKitToken(),
           limit: PER_PAGE,
           offset: (pageNum - 1) * PER_PAGE,
           action_filter: actionFilter || null,
@@ -168,8 +169,8 @@ export function AuditLogPanel() {
     setExportingCSV(true);
     try {
       const tuple = await edgeFunctions.functions.invoke('admin-audit-logs', {
+        headers: devKitAuthHeaders(),
         body: {
-          password: getDevKitToken(),
           limit: 0,
           offset: 0,
           action_filter: actionFilter || null,

@@ -29,15 +29,20 @@ async function doFetch(
 ): Promise<Response> {
   const isFormData = options?.body instanceof FormData;
 
+  const userHeaders = options?.headers ?? {};
   const headers: Record<string, string> = {
-    ...(options?.headers ?? {}),
+    ...userHeaders,
   };
 
   if (!isFormData) {
     headers['Content-Type'] = 'application/json';
   }
 
-  if (token) {
+  // Caller-supplied Authorization wins over the bridge token (admin/DevKit
+  // calls send the HMAC-signed session token in the Authorization header).
+  const hasUserAuth =
+    'Authorization' in userHeaders || 'authorization' in userHeaders;
+  if (token && !hasUserAuth) {
     headers['Authorization'] = `Bearer ${token}`;
   }
 

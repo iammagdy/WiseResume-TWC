@@ -7,6 +7,7 @@ import { getDevKitToken, useDevKitSession, onDevKitLock } from '@/contexts/DevKi
 import { useVisibleInterval, useIsMounted } from '@/lib/devkit/hooks';
 import { unwrapAdminResponse, tryUnwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
 import { DevKitRunner } from './DevKitRunner';
+import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
 
 interface UsageEvent {
   id: string;
@@ -106,21 +107,21 @@ const LIGHTWEIGHT_FN_DEFS: EdgeFunctionDef[] = [
   {
     name: 'admin-list-users',
     label: 'admin-list-users',
-    buildBody: (pw: string) => ({ password: pw, page: 1, per_page: 1 }),
+    buildBody: (pw: string) => ({ page: 1, per_page: 1 }),
     classify: classifyEdgeFunctionResponse,
     errMsg: extractErrMsg,
   },
   {
     name: 'admin-get-settings',
     label: 'admin-get-settings',
-    buildBody: (pw: string) => ({ password: pw }),
+    buildBody: (pw: string) => ({}),
     classify: classifyEdgeFunctionResponse,
     errMsg: extractErrMsg,
   },
   {
     name: 'admin-audit-logs',
     label: 'admin-audit-logs',
-    buildBody: (pw: string) => ({ password: pw, limit: 1 }),
+    buildBody: (pw: string) => ({ limit: 1 }),
     classify: classifyEdgeFunctionResponse,
     errMsg: extractErrMsg,
   },
@@ -302,7 +303,8 @@ export function LiveActivityPanel() {
     setEventsError(null);
     try {
       const tuple = await edgeFunctions.functions.invoke('admin-live-activity', {
-        body: { password: token, resource: 'usage_events' },
+        headers: devKitAuthHeaders(),
+        body: { resource: 'usage_events' },
       });
       const result = unwrapAdminResponse<{ data?: UsageEvent[] }>(tuple, 'admin-live-activity (usage_events)');
       if (!isMounted()) return;
@@ -320,7 +322,8 @@ export function LiveActivityPanel() {
     const token = getDevKitToken();
     if (!token) return;
     const tuple = await edgeFunctions.functions.invoke('admin-live-activity', {
-      body: { password: token, resource: 'error_log' },
+      headers: devKitAuthHeaders(),
+      body: { resource: 'error_log' },
     });
     const result = tryUnwrapAdminResponse<{ missing?: boolean; data?: ErrorLogRow[] }>(tuple, 'admin-live-activity (error_log)');
     if (!isMounted()) return;
@@ -339,7 +342,8 @@ export function LiveActivityPanel() {
     setContactRequestsLoading(true);
     try {
       const tuple = await edgeFunctions.functions.invoke('admin-live-activity', {
-        body: { password: token, resource: 'contact_requests' },
+        headers: devKitAuthHeaders(),
+        body: { resource: 'contact_requests' },
       });
       const result = tryUnwrapAdminResponse<{ data?: ContactRequest[] }>(tuple, 'admin-live-activity (contact_requests)');
       if (!isMounted()) return;
@@ -376,7 +380,11 @@ export function LiveActivityPanel() {
       const start = Date.now();
       try {
         const body = def.buildBody(getDevKitToken() ?? '');
-        const { data, error } = await edgeFunctions.functions.invoke(def.name, { body });
+        const isAdminFn = def.name.startsWith('admin-');
+        const { data, error } = await edgeFunctions.functions.invoke(def.name, {
+          ...(isAdminFn ? { headers: devKitAuthHeaders() } : {}),
+          body,
+        });
         const durationMs = Date.now() - start;
         const status = def.classify(data, error);
         const errorMsg = def.errMsg(data, error);

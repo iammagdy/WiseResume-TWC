@@ -7,6 +7,7 @@ import { getDevKitToken } from '@/contexts/DevKitSessionContext';
 import { useIsMounted, useVisibleInterval } from '@/lib/devkit/hooks';
 import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
 import type { AdminUser } from './AdminUsersPanel';
+import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
 
 const MAX_OVERVIEW_PAGES = 50; // hard cap so a runaway upstream `total` can never spin forever
 
@@ -174,8 +175,6 @@ export function OverviewPanel() {
     setLoading(true);
     setError(null);
     try {
-      const password = getDevKitToken();
-
       const PAGE_SIZE = 200;
       const allUsers: AdminUser[] = [];
       let page = 1;
@@ -184,7 +183,8 @@ export function OverviewPanel() {
       while (page <= MAX_OVERVIEW_PAGES) {
         if (!isMounted()) return;
         const tuple = await edgeFunctions.functions.invoke('admin-list-users', {
-          body: { password, page, per_page: PAGE_SIZE, sort: 'newest' },
+          headers: devKitAuthHeaders(),
+          body: { page, per_page: PAGE_SIZE, sort: 'newest' },
         });
         const result = unwrapAdminResponse<{ users?: AdminUser[]; total?: number }>(tuple, 'admin-list-users');
 
@@ -221,7 +221,8 @@ export function OverviewPanel() {
       try {
         if (!isMounted()) return;
         const tuple = await edgeFunctions.functions.invoke('admin-analytics', {
-          body: { password },
+          headers: devKitAuthHeaders(),
+          
         });
         const analyticsResult = unwrapAdminResponse<{ data?: { aiCreditsToday?: number; aiCreditsYesterday?: number } }>(
           tuple,

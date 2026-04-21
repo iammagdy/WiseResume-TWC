@@ -18,7 +18,6 @@ Deno.serve(async (req) => {
       // No JSON body — caller may be using query params only
     }
     const {
-      password,
       page: bodyPage = 1,
       per_page: bodyPerPage = 50,
       filter_plan,
@@ -28,7 +27,6 @@ Deno.serve(async (req) => {
       sort = 'newest',
       search,
     } = rawBody as {
-      password?: string;
       page?: number;
       per_page?: number;
       filter_plan?: string;
@@ -54,7 +52,7 @@ Deno.serve(async (req) => {
       bodyFilterIdentityConflict === 'true';
 
     try {
-      await requireAdminAuth(req, password);
+      await requireAdminAuth(req);
     } catch (authErr) {
       if (authErr instanceof Response) return authErr;
       throw authErr;

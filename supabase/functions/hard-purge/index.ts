@@ -6,9 +6,10 @@ import { getCorsHeaders } from "../_shared/cors.ts"
 /**
  * hard-purge — permanently deletes ALL data for a user across all user-owned tables.
  *
- * SECURITY: Requires admin authentication via the DevKit session token or raw admin
- * password. Unauthenticated calls are rejected with 401. The `action` field must be
- * the literal string 'HARD_PURGE' to prevent accidental invocation.
+ * SECURITY: Requires admin authentication via the DevKit session token in the
+ * Authorization: Bearer header. Unauthenticated calls are rejected with 401.
+ * The `action` field must be the literal string 'HARD_PURGE' to prevent
+ * accidental invocation.
  *
  * Tables explicitly purged (in dependency order, child tables first):
  *   tailoring_results, rpc_rate_limits, notifications,
@@ -25,7 +26,7 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders })
   }
 
-  let body: { user_id?: string; action?: string; password?: string }
+  let body: { user_id?: string; action?: string }
   try {
     body = await req.json()
   } catch {
@@ -35,11 +36,11 @@ serve(async (req) => {
     })
   }
 
-  const { user_id, action, password = '' } = body
+  const { user_id, action } = body
 
   // Require admin authentication before doing anything
   try {
-    await requireAdminAuth(req, password, corsHeaders)
+    await requireAdminAuth(req, corsHeaders)
   } catch (authResponse) {
     if (authResponse instanceof Response) return authResponse
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {

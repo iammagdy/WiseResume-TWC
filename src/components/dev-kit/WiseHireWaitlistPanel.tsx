@@ -29,6 +29,7 @@ import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { getDevKitToken } from '@/contexts/DevKitSessionContext';
 import { useIsMounted } from '@/lib/devkit/hooks';
 import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
+import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
 
 interface WaitlistEntry {
   id: string;
@@ -109,7 +110,8 @@ export function WiseHireWaitlistPanel() {
     setError(null);
     try {
       const tuple = await edgeFunctions.functions.invoke('admin-wisehire-waitlist', {
-        body: { password: getDevKitToken(), page: pageNum, per_page: PER_PAGE, search: searchVal },
+        headers: devKitAuthHeaders(),
+        body: { page: pageNum, per_page: PER_PAGE, search: searchVal },
       });
       const result = unwrapAdminResponse<{ entries?: WaitlistEntry[]; total?: number }>(tuple, 'admin-wisehire-waitlist');
       if (!isMounted()) return;
@@ -136,7 +138,8 @@ export function WiseHireWaitlistPanel() {
     setHistoryLoading(true);
     try {
       const tuple = await edgeFunctions.functions.invoke('admin-wisehire-waitlist', {
-        body: { password: getDevKitToken(), history_email: requestedEmail },
+        headers: devKitAuthHeaders(),
+        body: { history_email: requestedEmail },
       });
       if (!isMounted() || historyRequestEmail.current !== requestedEmail) return;
       const result = unwrapAdminResponse<{ history?: InviteHistoryRow[] }>(tuple, 'admin-wisehire-waitlist');
@@ -159,8 +162,8 @@ export function WiseHireWaitlistPanel() {
     setInviting(entry.id);
     try {
       const tuple = await edgeFunctions.functions.invoke('admin-wisehire-invite', {
+        headers: devKitAuthHeaders(),
         body: {
-          password: getDevKitToken(),
           recipient_email: entry.email,
           waitlist_id: entry.id,
         },
@@ -189,8 +192,8 @@ export function WiseHireWaitlistPanel() {
     setRevoking(entry.id);
     try {
       const tuple = await edgeFunctions.functions.invoke('admin-wisehire-revoke-invite', {
+        headers: devKitAuthHeaders(),
         body: {
-          password: getDevKitToken(),
           recipient_email: entry.email,
           waitlist_id: entry.id,
         },

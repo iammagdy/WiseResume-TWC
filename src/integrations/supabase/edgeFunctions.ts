@@ -46,12 +46,18 @@ export const edgeFunctions = {
       options?: { body?: unknown; headers?: Record<string, string>; method?: string }
     ) => {
       const doInvoke = async (token: string | null) => {
+        const userHeaders = options?.headers || {};
         const headers: Record<string, string> = {
           'Content-Type': 'application/json',
-          ...(options?.headers || {}),
+          ...userHeaders,
         };
 
-        if (token) {
+        // Caller-supplied Authorization wins over the bridge token. Admin
+        // (DevKit) calls use this to send the HMAC-signed session token in
+        // the Authorization header instead of the user's Supabase JWT.
+        const hasUserAuth =
+          'Authorization' in userHeaders || 'authorization' in userHeaders;
+        if (token && !hasUserAuth) {
           headers['Authorization'] = `Bearer ${token}`;
         }
 

@@ -7,6 +7,7 @@ import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { getDevKitToken, useDevKitSession } from '@/contexts/DevKitSessionContext';
 import { useIsMounted } from '@/lib/devkit/hooks';
 import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
+import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
   LineChart, Line, Legend,
@@ -73,7 +74,7 @@ export function OnboardingFunnelPanel() {
     try {
       const tuple = await edgeFunctions.functions.invoke(
         'admin-onboarding-funnel',
-        { body: { password: token, days, granularity } },
+        { headers: devKitAuthHeaders(), body: { days, granularity } },
       );
       const result = unwrapAdminResponse<{ data?: FunnelData }>(tuple, 'admin-onboarding-funnel');
       if (!isMounted()) return;

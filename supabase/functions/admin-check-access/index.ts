@@ -1,5 +1,5 @@
-// admin-check-access: Verifies that the caller holds a valid admin credential
-// (session token or raw password via requireAdminAuth). Returns { allowed: true }
+// admin-check-access: Verifies that the caller holds a valid DevKit admin
+// session token (Authorization: Bearer <token>). Returns { allowed: true }
 // on success and a 401/403 response on failure. The admin panel calls this to
 // validate its DevKit session before surfacing sensitive UI.
 import { requireAdminAuth } from '../_shared/adminAuth.ts';
@@ -14,16 +14,8 @@ Deno.serve(async (req) => {
   }
 
   try {
-    let password = '';
     try {
-      const body = await req.json();
-      password = (body as { password?: string }).password ?? '';
-    } catch {
-      // No JSON body — session token path doesn't require a body password field
-    }
-
-    try {
-      await requireAdminAuth(req, password);
+      await requireAdminAuth(req, corsHeaders);
     } catch (authErr) {
       if (authErr instanceof Response) return authErr;
       throw authErr;

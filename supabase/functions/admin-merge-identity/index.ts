@@ -14,13 +14,12 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { password, collision_user_id } = body as {
-      password?: string;
+    const { collision_user_id } = body as {
       collision_user_id?: string;
     };
 
     try {
-      await requireAdminAuth(req, password);
+      await requireAdminAuth(req);
     } catch (authErr) {
       if (authErr instanceof Response) return authErr;
       throw authErr;
