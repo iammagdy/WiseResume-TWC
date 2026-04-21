@@ -1,6 +1,26 @@
 # Stability Improvements — What's Getting Better Behind the Scenes
 
-**Last verified:** 2026-04-21 (photo-template PDF export hardened)
+**Last verified:** 2026-04-21 (deploy guards + DevTools hardening shipped)
+
+---
+
+## "I deployed but the live site still looks old" can no longer happen quietly (2026-04-21)
+
+**What was the situation:** A recent upload of the new v3.5 release to the live website appeared to succeed, but visitors kept seeing v3.4 — the old version. Probing the site directly showed every file was still timestamped two days earlier, meaning the upload simply never overwrote anything. The most likely cause is the file-upload tool used either targeted the wrong folder or quietly skipped some files (in particular the small invisible config file that controls security headers and cache rules — many upload tools hide it by default). The deploy process had no way to notice this: it reported "done" the moment the upload command finished, regardless of whether anything actually changed on the live site.
+
+**What changed:** The deploy process now runs a verification check against the real live website immediately after every upload. The check reads the version number off the live site, compares it to the version we just tried to publish, and confirms that the new security and cache rules are actually being served. If any of those checks fail, the deploy is marked as failed instead of green — so a future silent stale-deploy is impossible to miss. A standalone version of the same check can also be run by hand from a laptop after any manual upload. A full written record of the diagnosis (with the exact evidence we used to confirm the root cause) is filed under the operations notes so the next person hitting a similar symptom has a head start.
+
+**What you'll notice:** When the new release is genuinely live, you'll see v3.5 in Settings within a few minutes of the deploy, and the "AI features require server configuration" banner some users were seeing should disappear (it was a side-effect of the old version of the app talking to the new version of the back end). When a deploy fails, it will fail visibly — no more "we shipped it" claims that turn out to be untrue.
+
+---
+
+## DevTools is now boring to anyone trying to peek at the code (2026-04-21)
+
+**What was the situation:** Anyone could open browser developer tools (F12) on the live site and find a few things that should not have been visible. The biggest issue: maps that let an attacker reconstruct the original, un-minified source code of the app were being shipped alongside the production build — meaning private logic, comments, and variable names were one URL guess away from being readable. The console also printed a steady stream of internal status messages that, while harmless individually, made it easier to understand how the app's pieces fit together. And a handful of standard browser security headers that defend against well-known attack patterns (man-in-the-middle downgrades, MIME-type tricks, cross-window data leaks) were missing.
+
+**What changed:** Source maps are no longer emitted by the build at all unless an explicit error-tracking key is set, and even if a mistake re-introduced them, the web server now refuses to serve any map file. The build itself fails loudly if a map file ever sneaks into the release folder, so this can't quietly regress. Routine debug messages no longer print in production — but the genuine error and warning messages that error-tracking depends on still do. Three industry-standard security headers (HTTP Strict Transport Security, content-type sniffing block, and cross-origin opener policy) are now sent on every response. The existing security headers were left untouched.
+
+**What you'll notice:** Nothing day-to-day — login, AI features, exports, sharing all behave exactly as before. The change is invisible by design: a hostile visitor with developer tools open now sees only what's meant to be public (network calls, the public anonymous keys that have to be there for the app to work, and minified code that can't be reversed back to source).
 
 ---
 
