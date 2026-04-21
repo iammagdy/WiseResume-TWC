@@ -134,12 +134,11 @@ function parseErrorMessage(err: unknown): string {
   if (raw === 'enhancement_failed' || /enhancement.?failed|failed to enhance/i.test(raw)) {
     return 'Failed to enhance content — please try again.';
   }
-  // Pass through the server diagnostic string produced by toUserError
-  // ("Something went wrong: <ErrorClass>: <msg>") so we can debug real issues
-  // from the browser console instead of seeing a generic toast.
-  if (/^something went wrong:/i.test(raw)) {
-    return raw;
-  }
+  // AI-5: never surface the server diagnostic string to the user. The diag
+  // ("Something went wrong: <ErrorClass>: <msg>") is already scrubbed for
+  // secrets server-side, but UX-wise it is still a stack-trace-shaped
+  // string in a toast. Map it to a friendly message; the original raw diag
+  // is preserved by the caller in console for debugging from the browser.
   if (/something went wrong/i.test(raw)) {
     return 'AI request failed — check your AI settings or try again later.';
   }

@@ -23,6 +23,8 @@
  */
 
 import { getServiceClient } from './dbClient.ts';
+import { recordFailOpen } from './opsHealth.ts';
+import { scrubAndCap } from './scrubSecrets.ts';
 
 export interface UserRateLimitResult {
   allowed: boolean;
@@ -65,6 +67,12 @@ export async function checkUserRateLimit(
         'Fix the underlying DB/schema issue to restore rate limiting. Error:',
       error,
     );
+    // AI-5: structured fail-open signal so on-call can alert when the
+    // server-side rate limiter has silently degraded to permissive mode.
+    recordFailOpen('rate_limiter_fail_open', {
+      feature: featureKey,
+      reason: scrubAndCap(error.message),
+    });
     return { allowed: true, retryAfterSeconds: 0 };
   }
 
@@ -82,6 +90,10 @@ export async function checkUserRateLimit(
 
   if (insertError) {
     console.error('[userRateLimiter] insert failed (allowing current request; next may be blocked):', insertError);
+    recordFailOpen('rate_limiter_insert_fail_open', {
+      feature: featureKey,
+      reason: scrubAndCap(insertError.message),
+    });
   }
 
   return { allowed: true, retryAfterSeconds: 0 };

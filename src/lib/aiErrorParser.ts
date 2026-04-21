@@ -173,11 +173,12 @@ export function aiErrorToastMessage(info: AIErrorInfo): string {
       return "You're offline — AI features need an internet connection. Your resume content is safe.";
     case 'internal':
     default:
-      // If the server gave us a descriptive message (e.g. the diagnostic
-      // "Something went wrong: TypeError: ..." emitted by toUserError), show
-      // it so we can actually debug. Fall back to the generic copy only when
-      // the server response truly has no message.
-      if (info.message && info.message.trim().length > 0) return info.message;
+      // AI-5: never surface the server diagnostic string ("Something went
+      // wrong: <ErrorClass>: <msg>") in the toast. The diag is scrubbed
+      // for secrets server-side but UX-wise still looks like a stack
+      // trace. Callers that want the diag for debugging should read
+      // `info.message` directly and log to console; the toast string
+      // returned here is always the friendly mapped copy.
       return 'AI is temporarily unavailable — please try again in a moment.';
   }
 }

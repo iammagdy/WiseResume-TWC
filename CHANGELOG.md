@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-04-21 — AI-5: stop secret/prompt leakage in AI errors (Task #25)
+
+- **`supabase/functions/_shared/scrubSecrets.ts`** (new) — `scrubSecrets(s)` and `scrubAndCap(s, max=100)` redact common API key shapes (URL `key=…`, `Bearer …`, OpenAI `sk-…`, Anthropic `sk-ant-…`, Groq `gsk_…`, xAI `xai-…`, Google `AIza…`, Slack `xoxb-…`) to the marker `[REDACTED]`. Pure, idempotent, null-safe.
+- **`supabase/functions/_shared/aiClient.ts`** —
+  - Gemini `callVertexAI` switched from `?key=${apiKey}` to the `x-goog-api-key` request header so the key cannot leak via Deno-constructed `TypeError`/`AbortError` `.message` strings.
+  - Every provider error path (`callOllamaDirect`, `callOpenRouterDirect`, `callOpenAICompatible`, `callAnthropicDirect`, `callGroqDirect`, the WiseResume managed `callOpenRouterUpstream`, and `handleGeminiError`) now scrubs `errorText` before `console.error` and runs the upstream `errorMessage` through `scrubAndCap` (~100 chars) before forwarding into `createAIError`.
+  - `toUserError` scrubs both the stderr line and the `diag` returned in the JSON envelope; non-Error / non-string branches stringify-then-scrub.
+  - `isBreakerOpen` and `getOpenRouterAdminSettings` emit a `recordFailOpen(...)` signal on every fail-open branch. `getOpenRouterAdminSettings` now prefers the last successfully-cached value over the hardcoded `OPENROUTER_CURATED_MODELS[0]` on DB error — only cold-start with no cache falls back to the default.
+- **`supabase/functions/_shared/userRateLimiter.ts`** — fail-open count-query path and best-effort insert path both call `recordFailOpen('rate_limiter_fail_open' | 'rate_limiter_insert_fail_open', { feature, reason })`.
+- **`supabase/functions/_shared/opsHealth.ts`** (new) — `recordFailOpen(event, { feature, reason })` is a fire-and-forget `queueMicrotask` insert into `public.ops_health_events`. Errors are swallowed so a broken health table cannot itself cause an outage.
+- **`supabase/migrations/20260507000020_ops_health_events.sql`** (new) — `public.ops_health_events(id, ts, event, feature, reason)` with length-cap CHECKs, `(ts desc)` and `(event, ts desc)` indexes, RLS enabled with `revoke all from anon, authenticated` (only the service role and the SECURITY DEFINER RPC reach it). `public.ops_health_recent_counts(p_window_minutes default 60)` returns per-(event, feature) counts in the window for an on-call dashboard; EXECUTE granted to `service_role` only.
+- **`src/lib/aiErrorParser.ts`** — `aiErrorToastMessage` no longer echoes the server diagnostic message for the `internal` code; it always returns the friendly mapped copy. The diag remains on `info.message` for console-only logging.
+- **`src/hooks/useAIAction.ts`** — `mapErrorMessageToUserCopy` no longer passes through "Something went wrong: …" verbatim; it maps to the generic friendly copy.
+- **Tests** — `supabase/functions/_shared/__tests__/scrubSecrets.test.ts` (Deno) covers each documented pattern, idempotency, non-string inputs, the `scrubAndCap` length bound, and an integration assertion that a Deno-style fetch error containing a fake Gemini key in the URL is redacted in BOTH the JSON envelope returned by `toUserError` AND the captured stderr (`[REDACTED]` marker present, key absent). `src/lib/__tests__/aiErrorParser.test.ts` (Vitest) asserts the toast no longer surfaces the server diag for the `internal` code while `parseAIErrorBody` still preserves it on the parsed info object for console logging.
+
+---
+
 ## 2026-04-21 — DB perf: audit unused indexes, no drops shipped (Task #14)
 
 - **`.local/db-analysis/pg_stat_user_indexes.json`** (new) — snapshot of `pg_stat_user_indexes` for the 32 advisor-flagged indexes plus owning-table size and `n_live_tup`, captured against project `jnsfmkzgxsviuthaqlyy` via the Supabase Management `/database/query` endpoint. Includes `pg_stat_get_db_stat_reset_time(...)` (= `2025-12-08 11:03:29 UTC`) and `pg_get_indexdef(...)` per row.

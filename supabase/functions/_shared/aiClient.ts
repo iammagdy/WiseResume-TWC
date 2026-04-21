@@ -7,6 +7,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getServiceClient } from './dbClient.ts';
 import { validateBaseUrl, assertSameSafeIps, pinnedFetch } from './urlSafety.ts';
+import { scrubSecrets, scrubAndCap } from './scrubSecrets.ts';
+import { recordFailOpen } from './opsHealth.ts';
 
 export interface AIMessage {
   role: 'system' | 'user' | 'assistant';
@@ -348,7 +350,10 @@ export async function isBreakerOpen(provider: string): Promise<boolean> {
       p_probe_ttl_seconds: BREAKER_PROBE_TTL_SECONDS,
     });
     if (error) {
+      // AI-5: emit a structured fail-open signal so on-call can alert when
+      // the breaker silently degrades to permissive mode.
       console.warn(`[AI breaker] try_acquire_breaker_pass failed for ${provider} — treating as closed:`, error.message);
+      recordFailOpen('breaker_read_fail_open', { feature: provider, reason: scrubAndCap(error.message) });
       return false;
     }
     // 'closed' and 'half_open' both ALLOW. 'open' and 'locked_probe' DENY.
@@ -359,6 +364,7 @@ export async function isBreakerOpen(provider: string): Promise<boolean> {
     return status === 'open' || status === 'locked_probe';
   } catch (err) {
     console.warn(`[AI breaker] read failed for ${provider} — treating as closed:`, err instanceof Error ? err.message : err);
+    recordFailOpen('breaker_read_fail_open', { feature: provider, reason: scrubAndCap(err instanceof Error ? err.message : String(err)) });
     return false;
   }
 }
@@ -451,10 +457,11 @@ async function getOpenRouterAdminSettings(opts?: { bypassCache?: boolean }): Pro
   }
   try {
     const supabase = getServiceClient();
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('app_settings')
       .select('key, value')
       .in('key', ['openrouter_curated_model', 'openrouter_auto_fallback']);
+    if (error) throw error;
     let model = OPENROUTER_CURATED_MODELS[0];
     let auto = false;
     for (const row of data ?? []) {
@@ -467,7 +474,21 @@ async function getOpenRouterAdminSettings(opts?: { bypassCache?: boolean }): Pro
     _curatedModelCache = { model, auto, ts: now };
     return { model, auto };
   } catch (err) {
+    // AI-5: stale-cache prefer. If we ever read this admin setting
+    // successfully since cold-start, the cached value reflects the
+    // operator's deliberate choice — silently downgrading to the
+    // hardcoded default on a transient DB hiccup would override that
+    // choice for every managed AI request until the DB recovered.
+    // Only fall back to the curated default when there is genuinely
+    // nothing cached (cold start).
     console.warn('[aiClient] Failed to fetch OpenRouter admin settings:', err);
+    recordFailOpen('admin_settings_db_error', {
+      feature: 'openrouter_curated_model',
+      reason: scrubAndCap(err instanceof Error ? err.message : String(err)),
+    });
+    if (_curatedModelCache) {
+      return { model: _curatedModelCache.model, auto: _curatedModelCache.auto };
+    }
     return { model: OPENROUTER_CURATED_MODELS[0], auto: false };
   }
 }
@@ -1140,13 +1161,15 @@ async function callOllamaDirect(
 
   if (response.status < 200 || response.status >= 300) {
     const errorText = response.bodyText;
-    console.error('Ollama API error:', response.status, errorText);
+    // AI-5: scrub before logging; cap+scrub before forwarding to client.
+    console.error('Ollama API error:', response.status, scrubSecrets(errorText));
 
     let errorMessage = 'Ollama request failed';
     try {
       const parsed = JSON.parse(errorText);
       errorMessage = parsed.error?.message || parsed.error || errorMessage;
     } catch {}
+    errorMessage = scrubAndCap(errorMessage);
 
     if (response.status === 401 || response.status === 403) {
       throw createAIError('invalid_key', 'Invalid Ollama API key. Please check your settings.', 422);
@@ -1211,13 +1234,14 @@ async function callOpenRouterDirect(
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error('OpenRouter API error:', response.status, errorText);
+    console.error('OpenRouter API error:', response.status, scrubSecrets(errorText));
 
     let errorMessage = 'OpenRouter request failed';
     try {
       const parsed = JSON.parse(errorText);
       errorMessage = parsed.error?.message || parsed.error || errorMessage;
     } catch {}
+    errorMessage = scrubAndCap(errorMessage);
 
     if (response.status === 401 || response.status === 403) {
       throw createAIError('invalid_key', 'Invalid OpenRouter API key. Please check your settings.', 422);
@@ -1279,12 +1303,13 @@ async function callOpenAICompatible(
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error(`${providerName} API error:`, response.status, errorText);
+    console.error(`${providerName} API error:`, response.status, scrubSecrets(errorText));
     let errorMessage = `${providerName} request failed`;
     try {
       const parsed = JSON.parse(errorText);
       errorMessage = parsed.error?.message || parsed.error || errorMessage;
     } catch {}
+    errorMessage = scrubAndCap(errorMessage);
     if (response.status === 401 || response.status === 403) {
       throw createAIError('invalid_key', `Invalid ${providerName} API key. Please check your settings.`, 422);
     }
@@ -1378,7 +1403,7 @@ async function callAnthropicDirect(
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error('Anthropic API error:', response.status, errorText);
+    console.error('Anthropic API error:', response.status, scrubSecrets(errorText));
     let errorMessage = 'Anthropic request failed';
     try {
       const parsed = JSON.parse(errorText) as { error?: { message?: string } };
@@ -1386,6 +1411,7 @@ async function callAnthropicDirect(
     } catch {
       // Use raw error text as message
     }
+    errorMessage = scrubAndCap(errorMessage);
     if (response.status === 401 || response.status === 403) {
       throw createAIError('invalid_key', 'Invalid Anthropic API key. Please check your settings.', 422);
     }
@@ -1466,13 +1492,14 @@ async function callGroqDirect(
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error('Groq API error:', response.status, errorText);
+    console.error('Groq API error:', response.status, scrubSecrets(errorText));
 
     let errorMessage = 'Groq request failed';
     try {
       const parsed = JSON.parse(errorText);
       errorMessage = parsed.error?.message || parsed.error || errorMessage;
     } catch {}
+    errorMessage = scrubAndCap(errorMessage);
 
     if (response.status === 401 || response.status === 403) {
       throw createAIError('invalid_key', 'Invalid Groq API key.', 422);
@@ -1620,6 +1647,9 @@ export async function callWiseresumeAI(
         const errorText = await response.text();
         let errorMessage = `${providerLabel} request failed`;
         try { const p = JSON.parse(errorText); errorMessage = p.error?.message || p.error || errorMessage; } catch {}
+        // AI-5: scrub before logging and cap+scrub before forwarding.
+        console.error(`${providerLabel} upstream API error:`, response.status, scrubSecrets(errorText));
+        errorMessage = scrubAndCap(errorMessage);
         if (response.status === 401 || response.status === 403) throw createAIError('invalid_key', `WiseResume AI ${providerLabel} key is invalid.`, response.status);
         if (response.status === 429) throw createAIError('rate_limit', `${providerLabel} model ${model} rate limited.`, 429);
         if (response.status === 402) throw createAIError('payment_required', `${providerLabel} credits exhausted.`, 402);
@@ -2045,12 +2075,21 @@ async function callGeminiDirect(
   // Google Generative Language API (Gemini API) — the standard endpoint for simple API keys.
   // API keys from both Google AI Studio and Cloud Console (with Generative Language API enabled)
   // work here. Note: aiplatform.googleapis.com requires OAuth2/service accounts, not API keys.
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${apiKey}`;
-  console.log(`[AI] Calling Gemini API: ${url.split('?')[0]} (model: ${geminiModel})`);
+  //
+  // AI-5: authenticate via the documented `x-goog-api-key` request header
+  // instead of the `?key=…` URL query parameter. The query-string form
+  // would have leaked into Deno-constructed `TypeError`/`AbortError`
+  // `.message` strings on network errors and propagated all the way into
+  // the JSON envelope returned to the browser.
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent`;
+  console.log(`[AI] Calling Gemini API: ${url} (model: ${geminiModel})`);
 
   const response = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'x-goog-api-key': apiKey,
+    },
     body: JSON.stringify(body),
     signal,
   });
@@ -2129,7 +2168,11 @@ function parseOpenAIResponse(data: any): AIResponse {
  * Handles errors from Vertex AI / Gemini API calls
  */
 function handleGeminiError(status: number, errorText: string): never {
-  console.error('Vertex AI error:', status, errorText);
+  // AI-5: scrub upstream error text before logging (provider envelopes
+  // sometimes echo the request body or the API key) and cap the
+  // user-visible message at 100 chars so a leaked secret cannot fit even
+  // if a future redactor pattern misses a novel shape.
+  console.error('Vertex AI error:', status, scrubSecrets(errorText));
 
   let errorMessage = 'AI request failed';
   try {
@@ -2138,6 +2181,7 @@ function handleGeminiError(status: number, errorText: string): never {
   } catch {
     // Use raw error text
   }
+  errorMessage = scrubAndCap(errorMessage);
 
   const lower = errorText.toLowerCase();
   if (status === 401 || status === 403 || (status === 400 && (lower.includes('api_key_invalid') || lower.includes('permission_denied') || lower.includes('api key not valid')))) {
@@ -2212,22 +2256,26 @@ export function toUserError(error: unknown): { status: number; error: string; me
     };
   }
 
-  // For non-AI errors, log full detail and surface a short diagnostic string
-  // to the client so we can debug from the browser console without needing
-  // Supabase function logs. This is safe because no secrets are ever placed
-  // in error messages — only error class + truncated message.
-  console.error('[toUserError] Internal error:', error);
+  // For non-AI errors, log full detail (still scrubbed — Deno-constructed
+  // TypeError/AbortError messages quote the request URL verbatim, which
+  // for Gemini used to embed the API key as ?key=…) and surface a short,
+  // already-redacted diagnostic to the client.
+  //
+  // AI-5: every diag string is run through scrubSecrets() before reaching
+  // either stderr or the JSON envelope. The cap (100 chars) is the same
+  // bound used for upstream provider error text so a leaked secret cannot
+  // fit even if a future redactor pattern misses a novel shape.
+  console.error('[toUserError] Internal error:', error instanceof Error ? `${error.name}: ${scrubSecrets(error.message)}` : scrubSecrets(JSON.stringify(error)));
   let diag = 'unknown';
   if (error instanceof Error) {
     const cls = error.name || 'Error';
-    const msg = (error.message || '').slice(0, 200);
+    const msg = scrubAndCap(error.message);
     diag = msg ? `${cls}: ${msg}` : cls;
   } else if (typeof error === 'string') {
-    diag = error.slice(0, 200);
+    diag = scrubAndCap(error);
   } else if (error && typeof error === 'object') {
     try {
-      const s = JSON.stringify(error);
-      diag = s.slice(0, 200);
+      diag = scrubAndCap(JSON.stringify(error));
     } catch {
       diag = Object.prototype.toString.call(error);
     }
