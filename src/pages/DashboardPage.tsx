@@ -183,15 +183,19 @@ function DashboardPageContent() {
         if (localStorage.getItem('wr-onboarding-completed') === 'true') return;
         // Gate the DB query to once per browser session — avoids a fresh
         // Supabase SELECT on every dashboard mount for returning users.
+        // The session flag is set AFTER a successful read so a transient
+        // failure preserves one retry opportunity without causing mount spam.
         const sessionKey = `wr-onboarding-checked-${user.id}`;
         if (sessionStorage.getItem(sessionKey)) return;
-        sessionStorage.setItem(sessionKey, '1');
 
         const { data } = await supabase
           .from('profiles')
           .select('onboarding_completed')
           .eq('user_id', user.id)
           .single();
+
+        // Mark checked only after we have a successful response.
+        sessionStorage.setItem(sessionKey, '1');
 
         if (data?.onboarding_completed) {
           localStorage.setItem('wr-onboarding-completed', 'true');
