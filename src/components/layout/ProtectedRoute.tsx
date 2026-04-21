@@ -3,7 +3,8 @@ import { Navigate, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { AlertTriangle } from 'lucide-react';
 
-const LOADING_TIMEOUT_MS = 12_000;
+const LOADING_TIMEOUT_MS = 6_000;
+const SLOW_HINT_MS = 3_000;
 
 export function ProtectedRoute() {
   const { isAuthenticated, loading, supabaseSettled, supabaseReady, signOut } = useAuth();
@@ -11,6 +12,7 @@ export function ProtectedRoute() {
   const location = useLocation();
   const isAuthenticatedRef = useRef(isAuthenticated);
   const [loadingTimedOut, setLoadingTimedOut] = useState(false);
+  const [showSlowHint, setShowSlowHint] = useState(false);
 
   useEffect(() => {
     isAuthenticatedRef.current = isAuthenticated;
@@ -18,10 +20,13 @@ export function ProtectedRoute() {
 
   // Safety net: if loading/supabaseSettled haven't resolved within LOADING_TIMEOUT_MS,
   // stop blocking the UI. Resets on every navigation so each page gets a fresh timer.
+  // Also show a "still loading" hint after SLOW_HINT_MS so users know the app is working.
   useEffect(() => {
     setLoadingTimedOut(false);
-    const timer = setTimeout(() => setLoadingTimedOut(true), LOADING_TIMEOUT_MS);
-    return () => clearTimeout(timer);
+    setShowSlowHint(false);
+    const hintTimer = setTimeout(() => setShowSlowHint(true), SLOW_HINT_MS);
+    const timeoutTimer = setTimeout(() => setLoadingTimedOut(true), LOADING_TIMEOUT_MS);
+    return () => { clearTimeout(hintTimer); clearTimeout(timeoutTimer); };
   }, [location.key]);
 
   // Listen for unexpected session expiry and redirect with reason param
@@ -45,6 +50,11 @@ export function ProtectedRoute() {
         <div className="h-24 rounded-xl bg-muted" />
         <div className="h-24 rounded-xl bg-muted" />
       </div>
+      {showSlowHint && (
+        <p className="text-xs text-muted-foreground text-center pt-2 animate-in fade-in duration-500">
+          Still setting up your session…
+        </p>
+      )}
     </div>
   );
   if (!isAuthenticated) {

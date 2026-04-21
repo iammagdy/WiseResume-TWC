@@ -48,6 +48,8 @@ export function useMe() {
   // tear-down and re-subscribe when a genuinely different user signs in — not on
   // every re-render or bridgeReady flip that changes user?.id mid-session.
   const subscribedUserIdRef = useRef<string | null>(null);
+  // Track consecutive realtime failures per user to cap retries at 2 attempts.
+  const realtimeFailureCountRef = useRef<Record<string, number>>({});
 
   // Realtime subscriptions for immediate invalidation when data changes.
   // Channel names are stable session-lifetime constants ('me-subscriptions' /
@@ -106,8 +108,14 @@ export function useMe() {
         )
         .subscribe();
     } catch (err) {
-      console.warn('[useMe] Realtime subscription setup failed (non-fatal):', err);
-      subscribedUserIdRef.current = null;
+      const failures = (realtimeFailureCountRef.current[supabaseUserId] ?? 0) + 1;
+      realtimeFailureCountRef.current[supabaseUserId] = failures;
+      if (failures < 2) {
+        // Allow one retry by resetting the subscription guard
+        subscribedUserIdRef.current = null;
+      }
+      // On 2nd+ failure, leave subscribedUserIdRef set — no more retries this session
+      console.warn(`[useMe] Realtime subscription setup failed (attempt ${failures}, non-fatal):`, err);
     }
 
     return () => {
@@ -135,7 +143,7 @@ export function useMe() {
     staleTime: 30 * 1000,
     gcTime: 5 * 60 * 1000,
     refetchOnWindowFocus: true,
-    refetchOnMount: 'always',
+    refetchOnMount: true,
     refetchInterval: 30 * 1000,
     refetchIntervalInBackground: false,
     retry: 2,

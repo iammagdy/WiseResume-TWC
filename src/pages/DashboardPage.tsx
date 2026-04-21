@@ -181,6 +181,11 @@ function DashboardPageContent() {
     const run = async () => {
       try {
         if (localStorage.getItem('wr-onboarding-completed') === 'true') return;
+        // Gate the DB query to once per browser session — avoids a fresh
+        // Supabase SELECT on every dashboard mount for returning users.
+        const sessionKey = `wr-onboarding-checked-${user.id}`;
+        if (sessionStorage.getItem(sessionKey)) return;
+        sessionStorage.setItem(sessionKey, '1');
 
         const { data } = await supabase
           .from('profiles')
@@ -234,37 +239,47 @@ function DashboardPageContent() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [resumes, handleCreateNew, navigate]);
 
-  // Auto-score resumes in background (one at a time, debounced)
+  // Auto-score resumes in background (up to 3 concurrent, debounced)
   useEffect(() => {
     if (!resumes || resumes.length === 0) return;
 
     let cancelled = false;
 
-    const scoreNext = async () => {
-      for (const resume of resumes) {
-        if (cancelled) break;
-        // Yield to main thread between scores to avoid jank on low-end devices
-        await new Promise<void>(r =>
-          'requestIdleCallback' in window
-            ? (window as unknown as { requestIdleCallback: (cb: () => void) => void }).requestIdleCallback(r)
-            : setTimeout(r, 50)
-        );
-        if (cancelled) break;
-        const cached = getCachedScore(resume.id, resume.updated_at);
-        if (cached) {
-          setHealthScores(prev => ({ ...prev, [resume.id]: cached }));
-          continue;
-        }
-        const resumeData = dbToResumeData(resume);
-        await backgroundScore(resume.id, resumeData, resume.updated_at);
-        const newCached = getCachedScore(resume.id, resume.updated_at);
-        if (newCached && !cancelled) {
-          setHealthScores(prev => ({ ...prev, [resume.id]: newCached }));
+    const scoreOne = async (resume: typeof resumes[0]) => {
+      if (cancelled) return;
+      const cached = getCachedScore(resume.id, resume.updated_at);
+      if (cached) {
+        setHealthScores(prev => ({ ...prev, [resume.id]: cached }));
+        return;
+      }
+      const resumeData = dbToResumeData(resume);
+      await backgroundScore(resume.id, resumeData, resume.updated_at);
+      const newCached = getCachedScore(resume.id, resume.updated_at);
+      if (newCached && !cancelled) {
+        setHealthScores(prev => ({ ...prev, [resume.id]: newCached }));
+      }
+    };
+
+    const scoreAll = async () => {
+      if (cancelled) return;
+      // Concurrency limit of 3: process resumes in batches to avoid
+      // overwhelming the main thread while still parallelising scoring.
+      const CONCURRENCY = 3;
+      for (let i = 0; i < resumes.length && !cancelled; i += CONCURRENCY) {
+        const batch = resumes.slice(i, i + CONCURRENCY);
+        await Promise.allSettled(batch.map(scoreOne));
+        // Yield to the main thread between batches
+        if (!cancelled) {
+          await new Promise<void>(r =>
+            'requestIdleCallback' in window
+              ? (window as unknown as { requestIdleCallback: (cb: () => void) => void }).requestIdleCallback(r)
+              : setTimeout(r, 50)
+          );
         }
       }
     };
 
-    const timer = setTimeout(scoreNext, 1000);
+    const timer = setTimeout(scoreAll, 1000);
     return () => { cancelled = true; clearTimeout(timer); };
   }, [resumes, getCachedScore]);
 
