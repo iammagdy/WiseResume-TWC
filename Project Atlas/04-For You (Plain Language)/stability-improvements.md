@@ -1,6 +1,16 @@
 # Stability Improvements — What's Getting Better Behind the Scenes
 
-**Last verified:** 2026-04-21 (deploy guards + DevTools hardening shipped)
+**Last verified:** 2026-04-21 (deploy retries + guards + DevTools hardening shipped)
+
+---
+
+## A flaky upload to the live site no longer fails the whole deploy (2026-04-21)
+
+**What was the situation:** A deploy you ran failed roughly an hour after a successful one — same project, same settings, same destination. Looking at the logs, the connection to the live-hosting service did open, but the next handshake step never got a reply, so after a few short retries the upload gave up. The hosting service does this sometimes: when too many connections come from the same network in a short window (and the network the deploy runs on is shared with other projects), it temporarily blocks the source for a minute or two as a safety measure. There is nothing wrong with your account, your password, or your code — the block clears itself in about 30–120 seconds. But because the deploy only retried for about 20 seconds before giving up, every brief hiccup turned into a red failure that you had to re-trigger by hand.
+
+**What changed:** The deploy now waits much longer for each connection attempt and, if a whole attempt fails, automatically tries again up to four times in total — pausing 45, then 90, then 135 seconds between attempts to give the temporary block plenty of time to clear. Almost every deploy will succeed on the first attempt; the rare ones that hit a block will silently recover on the second or third try without you having to do anything. If all four attempts genuinely fail (very unlikely), the deploy will tell you exactly what happened, who to contact, and which network address to mention so the issue can be resolved in one short message.
+
+**What you'll notice:** Many fewer red failures on deploys you trigger. The deploy may occasionally take a minute or two longer than usual when it's recovering from a brief block, but it will succeed on its own. The "I have to keep clicking Run again" loop you were stuck in goes away.
 
 ---
 
