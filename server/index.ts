@@ -224,6 +224,11 @@ async function ensureSupabaseShadowUser(userId: string, email: string | null): P
     return false;
   };
 
+  // Fast-path: most logins are returning users. Check existence before attempting
+  // a POST, saving a full round-trip (and a noisy 422/409 log) on every login
+  // for users who already have a shadow row.
+  if (await verifyExists()) return true;
+
   const targetEmail = email && email.length > 0 ? email : `${userId}@kinde.placeholder`;
   try {
     const r = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
@@ -234,7 +239,7 @@ async function ensureSupabaseShadowUser(userId: string, email: string | null): P
     if (r.ok) return true;
     const body = await r.text();
     if (isAlreadyExistsResponse(r.status, body)) {
-      // User-id row may already exist from a prior exchange — verify.
+      // A concurrent request created the row between our GET and POST — re-verify.
       if (await verifyExists()) return true;
       // Otherwise email belongs to a different uid; retry with a placeholder
       // email scoped to this uid so we never collide.
@@ -2650,19 +2655,23 @@ app.get(
 );
 
 // ── Start server ──────────────────────────────────────────────────────────────
-(async () => {
-  // Pull missing Supabase secrets (jwt_secret / anon / service_role) from the
-  // Management API before opening the port — otherwise the very first
-  // /api/fn/token-exchange call would race with the bootstrap and sign a
-  // token with the wrong secret.
-  await bootstrapSupabaseSecrets();
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`[server] WiseResume API server running on port ${PORT}`);
-    console.log(`[server] Supabase URL: ${SUPABASE_URL ? 'configured' : 'NOT SET'}`);
-    console.log(`[server] Supabase JWT secret: ${SUPABASE_JWT_SECRET ? 'configured' : 'MISSING (Supabase calls will 401)'}`);
-    console.log(`[server] Database: ${DATABASE_URL ? 'configured' : 'NOT SET'}`);
-    scheduleAnalyticsSweep();
-  });
-})();
+// Start listening immediately so the very first token-exchange request from the
+// browser never races against a closed port. Secret bootstrap runs in the
+// background; route handlers that need the secrets read module-level vars which
+// will be populated within a few seconds of startup.
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`[server] WiseResume API server running on port ${PORT}`);
+  console.log(`[server] Supabase URL: ${SUPABASE_URL ? 'configured' : 'NOT SET'}`);
+  console.log(`[server] Database: ${DATABASE_URL ? 'configured' : 'NOT SET'}`);
+  scheduleAnalyticsSweep();
+
+  bootstrapSupabaseSecrets()
+    .then(() => {
+      console.log(`[server] Supabase JWT secret: ${SUPABASE_JWT_SECRET ? 'configured' : 'MISSING (Supabase calls will 401)'}`);
+    })
+    .catch((err: unknown) => {
+      console.error('[server] Supabase bootstrap failed (non-fatal — will retry on first request):', err);
+    });
+});
 
 export default app;

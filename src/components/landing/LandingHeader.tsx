@@ -206,7 +206,7 @@ export function LandingHeader({
             <button
               onClick={() => {
                 triggerHaptic.light();
-                void Promise.resolve(kindeLogin()).catch(() => {
+                void Promise.resolve(kindeLogin({ prompt: 'login' })).catch(() => {
                   toast.error('Unable to sign in. Please try again or contact support.');
                 });
               }}

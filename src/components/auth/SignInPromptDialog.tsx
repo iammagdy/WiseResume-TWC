@@ -37,7 +37,7 @@ export function SignInPromptDialog({
 
   const handleGoogle = () => {
     onOpenChange(false);
-    kindeLogin();
+    kindeLogin({ prompt: 'login' });
   };
 
   const handleContinueAsGuest = () => {

@@ -75,7 +75,7 @@ export default function AuthPage() {
     void (async () => {
       try {
         if (mode === 'login') {
-          await kindeLogin();
+          await kindeLogin({ prompt: 'login' });
         } else {
           await kindeRegister();
         }
@@ -100,7 +100,7 @@ export default function AuthPage() {
               className="w-full"
               onClick={() => {
                 triggered.current = false;
-                void Promise.resolve(kindeLogin()).catch(() => {
+                void Promise.resolve(kindeLogin({ prompt: 'login' })).catch(() => {
                   toast.error('Unable to sign in. Please try again or contact support.');
                 });
               }}
