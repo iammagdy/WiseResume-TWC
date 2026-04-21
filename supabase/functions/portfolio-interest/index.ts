@@ -104,6 +104,11 @@ Deno.serve(async (req: Request) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     );
 
+    // The canonical portfolio identity lives on `public.profiles` —
+    // `public.portfolios` does not exist on this Supabase project (see
+    // migrations 20260418195801 / 20260418195803 / 20260419000000 header
+    // notes). `portfolio_interactions` is keyed by `portfolio_username`
+    // (text), so the username from the request body is the stable FK.
     const { data: profileRow } = await supabase
       .from('profiles')
       .select('user_id')
@@ -112,21 +117,6 @@ Deno.serve(async (req: Request) => {
       .single();
 
     if (!profileRow?.user_id) {
-      return new Response(JSON.stringify({ error: 'Portfolio not found' }), {
-        status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    // Resolve the stable portfolio_id so the interaction survives a username
-    // rename. portfolio_username is still populated for one release as a
-    // fallback (FK has ON UPDATE CASCADE during the soak).
-    const { data: portfolioRow } = await supabase
-      .from('portfolios')
-      .select('id, username')
-      .eq('user_id', profileRow.user_id)
-      .maybeSingle();
-    if (!portfolioRow?.id) {
       return new Response(JSON.stringify({ error: 'Portfolio not found' }), {
         status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -146,15 +136,16 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // Persist a tokenized interaction record — ON CONFLICT (token) means duplicate
-    // submissions from the same client are silently deduplicated at the DB level.
-    // portfolio_id is the stable FK; the legacy portfolio_username column has been
-    // dropped by migration 20260419000000 — do NOT reference it here.
+    // Persist a tokenized interaction record — duplicate submissions from
+    // the same client are silently deduplicated by the unique constraint on
+    // `token`. `portfolio_username` is the canonical FK on this project
+    // (the portfolio_id column was never back-filled because
+    // `public.portfolios` does not exist here).
     const { error: insertError } = await supabase
       .from('portfolio_interactions')
       .insert({
         token: safeToken,
-        portfolio_id: portfolioRow.id,
+        portfolio_username: username.toLowerCase(),
         interaction_type: 'interested',
         referrer_hostname: referrerHostname,
       });

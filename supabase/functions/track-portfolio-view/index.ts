@@ -209,27 +209,18 @@ serve(async (req) => {
       console.warn("Geolocation failed (non-fatal):", geoErr);
     }
 
-    // ── 3. Look up portfolio_id (stable across rename) + owner ──────────
-    // portfolio_id is the new analytics FK target — it does NOT change when
-    // an admin renames a username, so passing it to the RPC ensures the
-    // visit history follows the user across renames. We still pass the
-    // username so the RPC can populate the legacy column during the soak.
+    // ── 3. Look up portfolio owner for the notification step ───────────
+    // The canonical portfolio identity lives on `public.profiles` — the
+    // `public.portfolios` table does not exist on this Supabase project
+    // (see migrations 20260418195801 / 20260418195803 / 20260419000000
+    // header notes). `portfolio_visits` is keyed by `username` (text), so
+    // the RPC below resolves the row by username on its own.
     const { data: profileRow } = await supabaseClient
       .from("profiles")
       .select("user_id")
       .eq("username", username.toLowerCase())
       .eq("portfolio_enabled", true)
       .single();
-
-    let portfolioId: string | null = null;
-    if (profileRow?.user_id) {
-      const { data: portfolioRow } = await supabaseClient
-        .from("portfolios")
-        .select("id")
-        .eq("user_id", profileRow.user_id)
-        .maybeSingle();
-      portfolioId = portfolioRow?.id ?? null;
-    }
 
     // ── 4. Insert visit via RPC ─────────────────────────────────────────
     const referrer = req.headers.get("referer") || null;
@@ -256,7 +247,6 @@ serve(async (req) => {
       p_company_name: companyName,
       p_ab_variant: (abVariant === 'a' || abVariant === 'b') ? abVariant : null,
       p_sections_timing: Object.keys(sanitisedTiming).length > 0 ? sanitisedTiming : null,
-      p_portfolio_id: portfolioId,
     });
 
     if (visitError) {

@@ -128,22 +128,12 @@ Deno.serve(async (req) => {
         .eq('user_id', userId);
       if (upErr) return json({ success: false, error: upErr.message }, 500, corsHeaders);
 
-      // Phase 3 FK cutover: also update portfolios.username so the legacy
-      // analytics columns (still being populated for one release) cascade
-      // via ON UPDATE CASCADE on the portfolio_visits / portfolio_interactions
-      // / short_links FKs. The stable portfolio_id (= portfolios.id) is
-      // unchanged, so all analytics history follows the user automatically.
-      const { error: portUpErr } = await supabase
-        .from('portfolios')
-        .update({ username: newUsername })
-        .eq('user_id', userId);
-      if (portUpErr) {
-        // Best-effort: log but do not fail the admin action — the canonical
-        // identity (profiles.username) was already updated. The legacy
-        // username column on the analytics tables will be dropped soon
-        // anyway, so a transient mismatch is acceptable.
-        console.warn('[admin-portfolio-usernames] portfolios.username update failed (non-fatal):', portUpErr.message);
-      }
+      // The canonical username lives on `public.profiles` — the
+      // `public.portfolios` table does not exist on this Supabase project,
+      // so the Phase 3 FK cutover that this block would have driven was
+      // never landed (see migrations 20260418195801 / 20260418195803 /
+      // 20260419000000 header notes). The `profiles.username` update above
+      // is the only write path needed here.
 
       await writeAudit(supabase, adminEmail, 'rename_username', userId, {
         old_username: oldRow?.username ?? null,
