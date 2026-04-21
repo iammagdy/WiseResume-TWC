@@ -27,13 +27,15 @@ RewriteRule ^ index.html [QSA,L]
   Header always set X-Content-Type-Options "nosniff"
   # Isolate the browsing context so cross-origin pages can't share
   # globals with this origin (mitigates XS-Leaks / Spectre-class
-  # side-channel attacks). `same-origin-allow-popups` is the
-  # popup-friendly variant: it gives full COOP isolation against
-  # cross-origin pages that DIDN'T open this origin, while preserving
-  # the `window.opener` / postMessage channel for popups this origin
-  # opens itself (Stripe Checkout, social-share dialogs, future
-  # popup-based OAuth flows). Strict `same-origin` would break those.
-  Header always set Cross-Origin-Opener-Policy "same-origin-allow-popups"
+  # side-channel attacks). Strict `same-origin` is safe today because
+  # Kinde auth uses a top-level redirect flow (no popup, no
+  # window.opener dependency) and no current feature opens a popup
+  # that needs to postMessage back to this window. If a future
+  # feature introduces popup-based OAuth, Stripe Checkout in popup
+  # mode, or a popup share dialog, downgrade to
+  # `same-origin-allow-popups` (still strong; only loses isolation
+  # for popups this origin opens itself).
+  Header always set Cross-Origin-Opener-Policy "same-origin"
 
   # ── Cache-busting for files that MUST be re-fetched on every deploy ──
   # The service worker, app shell, manifests, and changelog control what
