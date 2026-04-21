@@ -1,3 +1,13 @@
+// Required env vars:
+//   KINDE_DOMAIN              — Kinde tenant base URL (issuer + JWKS source)
+//   KINDE_CLIENT_ID           — Expected `aud` claim on incoming Kinde access
+//                               tokens. Verified in addition to `iss` so that
+//                               tokens issued for unrelated apps in the same
+//                               Kinde org are rejected (AUTH_AUDIT M5).
+//   SUPABASE_JWT_SECRET       — HS256 secret used to sign the bridged Supabase
+//     (or EXT_SUPABASE_JWT_SECRET) JWT returned to the client.
+//   SUPABASE_URL / EXT_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY — used by the
+//                               service-role client for shadow-user upserts.
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { getServiceClient } from '../_shared/dbClient.ts';
@@ -101,10 +111,13 @@ serve(async (req) => {
 
     const kindeDomain = Deno.env.get('KINDE_DOMAIN');
     if (!kindeDomain) throw new Error('KINDE_DOMAIN env var is required');
+    const kindeClientId = Deno.env.get('KINDE_CLIENT_ID');
+    if (!kindeClientId) throw new Error('KINDE_CLIENT_ID env var is required');
     let payload: jose.JWTPayload;
     try {
       const result = await jose.jwtVerify(kindeToken, keySet, {
         issuer: kindeDomain,
+        audience: kindeClientId,
       });
       payload = result.payload;
     } catch (verifyErr) {

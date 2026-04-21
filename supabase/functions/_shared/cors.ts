@@ -18,8 +18,13 @@ export const getCorsHeaders = (origin?: string | null) => {
     origins.push(allowedOrigin);
   }
 
-  // Allow any Replit dev domain for development testing
-  const isReplitDev = !!(origin && /\.replit\.dev$/.test(origin));
+  // Allow any Replit dev domain for development testing — non-production only.
+  // In production we never trust *.replit.dev (anyone can host JS on a free
+  // subdomain); production must use the explicit ALLOWED_ORIGINS list or the
+  // ALLOWED_ORIGIN env override.
+  const env = Deno.env.get('ENVIRONMENT') || Deno.env.get('SUPABASE_ENV') || '';
+  const isProduction = env.toLowerCase() === 'production';
+  const isReplitDev = !isProduction && !!(origin && /\.replit\.dev$/.test(origin));
   const isLocalhost = origin?.startsWith('http://localhost') || origin?.startsWith('https://localhost');
   const isNativeApp = !origin || origin === 'null';
   const isAllowed = isNativeApp || isLocalhost || isReplitDev || (origin && origins.includes(origin));
