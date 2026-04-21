@@ -54,6 +54,14 @@ export function ExportProgressBar({
         </div>
       )}
 
+      {exportProgress?.warning && (
+        <Alert>
+          <AlertDescription className="text-sm">
+            {exportProgress.warning}
+          </AlertDescription>
+        </Alert>
+      )}
+
       {!isOnline && (selectedType === 'combined' || selectedType === 'cover-letter') && (
         <Alert>
           <WifiOff className="h-4 w-4" />

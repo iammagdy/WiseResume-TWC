@@ -17,7 +17,7 @@ import {
 
 /** Typed error class for programmatic handling of PDF generation failures. */
 export class PdfGenerationError extends Error {
-  code: 'EMPTY_CANVAS' | 'MISSING_ELEMENT' | 'CAPTURE_FAILED' | 'TRUNCATED_CANVAS' | 'TEXT_LAYER_FAILED' | 'UNKNOWN';
+  code: 'EMPTY_CANVAS' | 'MISSING_ELEMENT' | 'CAPTURE_FAILED' | 'TRUNCATED_CANVAS' | 'TEXT_LAYER_FAILED' | 'ENTRY_TOO_TALL' | 'UNKNOWN';
   constructor(message: string, code: PdfGenerationError['code'] = 'UNKNOWN') {
     super(message);
     this.name = 'PdfGenerationError';
@@ -324,39 +324,74 @@ export function calculatePDFDimensions(
 /**
  * Captures the template element as a canvas.
  */
+export interface CaptureResult {
+  canvas: HTMLCanvasElement;
+  /** The scale that actually produced the returned canvas (may be 1 after a
+   *  truncation retry, even when `scale` was higher). Downstream slicing
+   *  and pixel-coordinate math MUST use this value, not the requested scale. */
+  actualScale: number;
+}
+
 export async function captureTemplateAsCanvas(
   sourceElement: HTMLElement,
   width: number,
   height: number,
   scale: number = SCALE
-): Promise<HTMLCanvasElement> {
-  // Pre-tag SVG dimensions from the live DOM before html2canvas clones it
-  const cleanupTags = tagSvgDimensions(sourceElement);
+): Promise<CaptureResult> {
+  // Strict 0.98 guard: anything below 98% of expected height is treated as a
+  // truncated capture and retried once at scale=1 before raising. The legacy
+  // 0.8 ratio quietly shipped 2-page PDFs that should have been 3 pages on
+  // iOS/Safari (see TEMPLATE_AUDIT.md finding #2).
+  const TRUNCATION_RATIO = 0.98;
 
-  const canvas = await captureWithRetry(sourceElement, {
-    scale,
-    backgroundColor: '#ffffff',
-    width,
-    height,
-    scrollX: 0,
-    scrollY: 0,
-    windowWidth: width,
-    windowHeight: height,
-    onclone: (doc: Document) => convertSvgsToImages(doc),
-  });
+  const captureAt = async (s: number): Promise<HTMLCanvasElement> => {
+    const cleanupTags = tagSvgDimensions(sourceElement);
+    try {
+      return await captureWithRetry(sourceElement, {
+        scale: s,
+        backgroundColor: '#ffffff',
+        width,
+        height,
+        scrollX: 0,
+        scrollY: 0,
+        windowWidth: width,
+        windowHeight: height,
+        onclone: (doc: Document) => convertSvgsToImages(doc),
+      });
+    } finally {
+      cleanupTags();
+    }
+  };
 
-  cleanupTags();
+  const firstCanvas = await captureAt(scale);
+  const firstExpected = sourceElement.scrollHeight * scale;
+  if (firstCanvas.height >= firstExpected * TRUNCATION_RATIO) {
+    return { canvas: firstCanvas, actualScale: scale };
+  }
 
-  const expectedHeight = sourceElement.scrollHeight * scale;
-  if (canvas.height < expectedHeight * 0.8) {
+  // Retry once at scale=1 — usually rescues iOS/Safari memory-cap truncation.
+  if (scale === 1) {
     throw new PdfGenerationError(
-      `Canvas capture is truncated (got ${canvas.height}px, expected ~${expectedHeight}px). ` +
-      `The resume preview may be off-screen or clipped.`,
+      `Canvas capture is truncated (got ${firstCanvas.height}px, expected ~${firstExpected}px) ` +
+      `even at scale=1. The resume preview may be off-screen or exceed the browser's canvas limits.`,
       'TRUNCATED_CANVAS'
     );
   }
 
-  return canvas;
+  console.warn(
+    `[PDF] First capture truncated (${firstCanvas.height}/${firstExpected}px at scale=${scale}); retrying at scale=1.`
+  );
+  const retryCanvas = await captureAt(1);
+  const retryExpected = sourceElement.scrollHeight * 1;
+  if (retryCanvas.height < retryExpected * TRUNCATION_RATIO) {
+    throw new PdfGenerationError(
+      `Canvas capture is truncated (got ${retryCanvas.height}px, expected ~${retryExpected}px) ` +
+      `after retry at scale=1. The resume preview may be off-screen or clipped.`,
+      'TRUNCATED_CANVAS'
+    );
+  }
+
+  return { canvas: retryCanvas, actualScale: 1 };
 }
 
 /**
@@ -372,6 +407,7 @@ export async function generatePDFPages(
   pageHeight: number = DEFAULT_PAGE_HEIGHT,
   resume?: ResumeData,
   sourceElement?: HTMLElement,
+  captureScale: number = SCALE,
 ): Promise<void> {
   const numPages = smartBreaks.length + 1;
 
@@ -393,9 +429,11 @@ export async function generatePDFPages(
     const pageEnd = pageNum === numPages - 1 ? totalHeight : smartBreaks[pageNum];
     const pageContentHeight = pageEnd - pageStart;
 
-    const sourceY = Math.round(pageStart * SCALE);
+    // Use the actual capture scale (may be 1 after a truncation retry) so the
+    // crop math stays aligned with the canvas pixels html2canvas produced.
+    const sourceY = Math.round(pageStart * captureScale);
     const sourceH = Math.min(
-      Math.round(pageContentHeight * SCALE),
+      Math.round(pageContentHeight * captureScale),
       canvas.height - sourceY
     );
 
@@ -494,10 +532,65 @@ export function estimatePageCount(
  * Tier 2: oversized elements → snap to nearest [data-break-child] (shift ≤ 50%)
  * Tier 3: oversized elements → snap to nearest direct child (shift ≤ 50%)
  */
-function snapBreaksToContent(
+/**
+ * Scans the captured canvas at its horizontal midline for the first row, when
+ * walking *upward* from `forcedBreakSourceY`, where the sampled column is
+ * white-or-near-white (no rendered ink). Returns the snap position in source-y
+ * coordinates, or `null` if no whitespace row exists in the clamp window.
+ *
+ * Per the architectural constraint in TPL-2, this samples only one column at
+ * the midline so memory remains bounded regardless of canvas size.
+ */
+export function findWhitespaceBandSnap(
+  canvas: HTMLCanvasElement,
+  scale: number,
+  prevBreakSourceY: number,
+  forcedBreakSourceY: number,
+  minGapPx: number = 60
+): number | null {
+  if (!canvas || canvas.width <= 0 || canvas.height <= 0) return null;
+
+  const lowerSourceY = prevBreakSourceY + minGapPx;
+  if (forcedBreakSourceY <= lowerSourceY) return null;
+
+  const startRow = Math.min(canvas.height - 1, Math.max(0, Math.round(forcedBreakSourceY * scale)));
+  const endRow = Math.max(0, Math.round(lowerSourceY * scale));
+  if (startRow <= endRow) return null;
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+
+  const midX = Math.floor(canvas.width / 2);
+  const stripHeight = startRow - endRow + 1;
+
+  let pixels: Uint8ClampedArray;
+  try {
+    pixels = ctx.getImageData(midX, endRow, 1, stripHeight).data;
+  } catch {
+    // Canvas may be tainted (cross-origin photo). Treat as no whitespace.
+    return null;
+  }
+
+  // Walk upward (from highest row toward lowest row in the strip).
+  // pixels[i*4 + 0..3] is row (endRow + i). White-or-near-white = R,G,B >= 250.
+  for (let i = stripHeight - 1; i >= 0; i--) {
+    const r = pixels[i * 4];
+    const g = pixels[i * 4 + 1];
+    const b = pixels[i * 4 + 2];
+    if (r >= 250 && g >= 250 && b >= 250) {
+      const row = endRow + i;
+      return row / scale;
+    }
+  }
+  return null;
+}
+
+export function snapBreaksToContent(
   fixedBreaks: number[],
   sourceElement: HTMLElement,
-  sourceHeightPerPage: number
+  sourceHeightPerPage: number,
+  captureCanvas?: HTMLCanvasElement | null,
+  captureScale: number = SCALE
 ): number[] {
   const sourceRect = sourceElement.getBoundingClientRect();
 
@@ -541,7 +634,8 @@ function snapBreaksToContent(
   const HEADING_GUARD = 60; // px — protect section headings from orphaning
 
   // --- Sequential break processing: each break is relative to the previous ---
-  const snapOne = (breakY: number): number => {
+  interface SnapResult { snap: number; forcedInOversizedEntry: boolean }
+  const snapOne = (breakY: number): SnapResult => {
     // === Pass 1: Section-level snapping ===
     const sectionHit = sectionBounds.find(b => breakY > b.top && breakY < b.bottom);
     if (sectionHit) {
@@ -549,26 +643,26 @@ function snapBreaksToContent(
 
       // If the whole section fits on one page, push it entirely to the next page
       if (sectionHeight < sourceHeightPerPage) {
-        return sectionHit.top;
+        return { snap: sectionHit.top, forcedInOversizedEntry: false };
       }
 
       // Section is too tall for one page — prevent orphaned heading
       if (breakY - sectionHit.top < HEADING_GUARD) {
-        return sectionHit.top;
+        return { snap: sectionHit.top, forcedInOversizedEntry: false };
       }
       // Section is oversized and break is well past the heading — fall through to entry-level
     }
 
     // === Pass 2: Entry-level snapping ([data-break-avoid]) ===
     const hit = entryBounds.find(b => breakY > b.top && breakY < b.bottom);
-    if (!hit) return breakY;
+    if (!hit) return { snap: breakY, forcedInOversizedEntry: false };
 
     const hitHeight = hit.bottom - hit.top;
     const snappedTop = hit.top;
 
     // Tier 1: if the entry fits on a single page, ALWAYS push it to the next page
     if (hitHeight < sourceHeightPerPage) {
-      return snappedTop;
+      return { snap: snappedTop, forcedInOversizedEntry: false };
     }
 
     // --- Entry is taller than one page — find best internal break point ---
@@ -589,7 +683,7 @@ function snapBreaksToContent(
           bestSnap = childTop;
         }
       });
-      if (bestSnap !== breakY) return bestSnap;
+      if (bestSnap !== breakY) return { snap: bestSnap, forcedInOversizedEntry: false };
     }
 
     // Tier 3: fallback to any direct child element boundary
@@ -606,10 +700,13 @@ function snapBreaksToContent(
           bestSnap = childTop;
         }
       });
-      if (bestSnap !== breakY) return bestSnap;
+      if (bestSnap !== breakY) return { snap: bestSnap, forcedInOversizedEntry: false };
     }
 
-    return breakY;
+    // All three tiers fell back inside an oversized [data-break-avoid] entry.
+    // The caller will apply the whitespace-band fallback to avoid slicing
+    // through a line of text in the captured image.
+    return { snap: breakY, forcedInOversizedEntry: true };
   };
 
   // Process breaks sequentially — each break is recalculated from the previous snapped position
@@ -623,12 +720,44 @@ function snapBreaksToContent(
     // Don't exceed total content height
     if (nextBreak >= totalHeight) break;
 
-    const snapped = snapOne(nextBreak);
+    const { snap, forcedInOversizedEntry } = snapOne(nextBreak);
+    let snappedY = snap;
+
+    // Whitespace-band fallback (TPL-2 finding #3): when the three layout-aware
+    // tiers can't find a usable break inside an oversized entry, scan the
+    // captured canvas for the first row of pixels with no rendered ink so we
+    // don't slice through a line of letters in the image.
+    if (forcedInOversizedEntry) {
+      const forcedBreakY = prevBreak + sourceHeightPerPage;
+      if (captureCanvas) {
+        const wsSnap = findWhitespaceBandSnap(
+          captureCanvas,
+          captureScale,
+          prevBreak,
+          forcedBreakY,
+          HEADING_GUARD
+        );
+        if (wsSnap !== null) {
+          snappedY = wsSnap;
+        } else {
+          throw new PdfGenerationError(
+            `An entry is too tall to paginate cleanly: no whitespace band exists ` +
+              `between source-y ${Math.round(prevBreak + HEADING_GUARD)}px and ` +
+              `${Math.round(forcedBreakY)}px. Mark internal break points with ` +
+              `data-break-child or shorten the entry.`,
+            'ENTRY_TOO_TALL',
+          );
+        }
+      }
+      // If we don't have a canvas (e.g. preview-side estimation), preserve
+      // the legacy behaviour of clamping at the forced interval below.
+    }
+
     // Clamp to [prevBreak + HEADING_GUARD, prevBreak + sourceHeightPerPage] so that
     // downward snaps never create a segment larger than one printable page, preventing
     // content clipping when rendering to fixed-height PDF pages.
     nextBreak = Math.min(
-      Math.max(snapped, prevBreak + HEADING_GUARD),
+      Math.max(snappedY, prevBreak + HEADING_GUARD),
       prevBreak + sourceHeightPerPage
     );
     if (nextBreak >= totalHeight) break;
@@ -673,22 +802,35 @@ export async function generatePDF(
        sourceHeightPerPage
      } = calculatePDFDimensions(sourceElement, pageWidth, printableHeight);
 
-      // Fixed-interval breaks, then snap to avoid splitting content blocks
+      // Fixed-interval breaks, computed before capture (layout-only).
       const fixedBreaks: number[] = [];
       for (let y = sourceHeightPerPage; y < totalHeight; y += sourceHeightPerPage) {
         fixedBreaks.push(y);
       }
-      const smartBreaks = snapBreaksToContent(fixedBreaks, sourceElement, sourceHeightPerPage);
 
     const pdfDoc = await PDFDocument.create();
 
     onProgress?.('capturing', 20);
 
-    const canvas = await captureTemplateAsCanvas(sourceElement, sourceWidth, totalHeight);
+    // Capture first so the whitespace-band fallback in snapBreaksToContent
+    // (TPL-2 finding #3) can sample real pixel data when the layout-aware
+    // tiers can't find a snap inside an oversized [data-break-avoid] block.
+    const { canvas, actualScale } = await captureTemplateAsCanvas(sourceElement, sourceWidth, totalHeight);
 
     onProgress?.('paginating', 40);
 
-    await generatePDFPages(pdfDoc, canvas, smartBreaks, totalHeight, globalScaleFactor, pageWidth, pageHeight, resume, sourceElement);
+    const smartBreaks = snapBreaksToContent(
+      fixedBreaks,
+      sourceElement,
+      sourceHeightPerPage,
+      canvas,
+      actualScale,
+    );
+
+    await generatePDFPages(
+      pdfDoc, canvas, smartBreaks, totalHeight, globalScaleFactor,
+      pageWidth, pageHeight, resume, sourceElement, actualScale,
+    );
 
     onProgress?.('finalizing', 80);
 
@@ -737,12 +879,27 @@ export async function generateOnePagePDF(
       ? printableHeight / pdfContentHeight
       : 1;
 
-    const dynamicScale = fitScale < 1
-      ? Math.min(5, SCALE / fitScale)
-      : SCALE;
+    // Dynamic-scale ceiling (TPL-2 finding #4): cap the requested raster area
+    // at MAX_RASTER_AREA so we never ask html2canvas for a canvas that
+    // exceeds iOS Safari's per-canvas memory limit. Below scale=2 the user
+    // gets a visible "may look soft" warning via the progress channel.
+    const MAX_RASTER_AREA = 14_000_000;
+    const idealScale = fitScale < 1 ? SCALE / fitScale : SCALE;
+    const sourceArea = Math.max(1, sourceWidth * totalHeight);
+    const maxScaleByArea = Math.sqrt(MAX_RASTER_AREA / sourceArea);
+    const dynamicScale = Math.max(1, Math.min(idealScale, maxScaleByArea));
+
+    if (dynamicScale < 2) {
+      onProgress?.(
+        'capturing',
+        15,
+        `One-page output may look soft at this length (render scale ${dynamicScale.toFixed(2)}). ` +
+          `Consider two-page mode for crisper text.`,
+      );
+    }
 
     onProgress?.('capturing', 20);
-    const canvas = await captureTemplateAsCanvas(sourceElement, sourceWidth, totalHeight, dynamicScale);
+    const { canvas } = await captureTemplateAsCanvas(sourceElement, sourceWidth, totalHeight, dynamicScale);
 
     const pdfDoc = await PDFDocument.create();
 
