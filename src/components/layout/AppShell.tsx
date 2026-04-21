@@ -46,7 +46,14 @@ export function AppShell() {
   // Show config error banner when Kinde login succeeded but the bridge exchange failed.
   // This typically means the token-exchange Supabase edge function is not configured
   // (e.g. missing KINDE_DOMAIN secret on Supabase) — a common state in new environments.
-  const showBridgeConfigError = isAuthenticated && supabaseSettled && !supabaseReady;
+  // ACCOUNT_COLLISION (AUTH_AUDIT C2) is handled by its own dedicated banner below
+  // and must NOT also render the generic config banner — doing so would re-introduce
+  // the useless retry CTA the collision path is designed to avoid.
+  const showBridgeConfigError =
+    isAuthenticated &&
+    supabaseSettled &&
+    !supabaseReady &&
+    bridgeError?.type !== 'ACCOUNT_COLLISION';
 
   async function handleBridgeRetry() {
     setRetrying(true);
@@ -114,6 +121,31 @@ export function AppShell() {
                 Retry
               </button>
             )}
+          </div>
+        </div>
+      )}
+      {bridgeError && bridgeError.type === 'ACCOUNT_COLLISION' && (
+        <div className="flex items-center justify-between gap-2 px-4 py-2 bg-destructive/10 text-destructive text-sm border-b border-destructive/20">
+          <div className="flex items-center gap-2 min-w-0">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            <span className="truncate">
+              An existing account already uses this email. Please contact support to merge your accounts.
+            </span>
+          </div>
+          <div className="shrink-0 flex items-center gap-2">
+            <a
+              href="mailto:support@thewise.cloud?subject=Account%20merge%20request"
+              className="px-2 py-0.5 rounded text-xs font-medium underline underline-offset-2 hover:bg-destructive/10 transition-colors"
+            >
+              Contact support
+            </a>
+            <button
+              onClick={signOut}
+              className="px-2 py-0.5 rounded text-xs font-medium hover:bg-destructive/10 transition-colors"
+              aria-label="Sign out"
+            >
+              Sign Out
+            </button>
           </div>
         </div>
       )}

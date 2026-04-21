@@ -11,7 +11,10 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { getServiceClient } from '../_shared/dbClient.ts';
+import { logger } from '../_shared/logger.ts';
 import * as jose from 'https://deno.land/x/jose@v5.2.2/index.ts';
+
+const log = logger('token-exchange');
 
 // Fixed namespace UUID for deterministic v5 generation
 const NAMESPACE = '6ba7b810-9dad-11d1-80b4-00c04fd430c8'; // DNS namespace
@@ -78,9 +81,26 @@ async function logExchange(
     const { error } = await serviceClient
       .from('token_exchanges')
       .insert({ kinde_sub: kindeSub, user_id: userId, status, error_code: errorCode || null });
-    if (error) console.warn('[token-exchange] audit log insert failed:', error.message);
+    if (error) {
+      // AUTH_AUDIT H5: do not silently drop audit-trail writes. Emit a
+      // structured ERROR log so dashboards / log drains pick it up. If
+      // SENTRY_DSN is wired (see logger.ts) this also pages on-call.
+      // TODO: once a durable secondary sink (S3 / append-only log) is wired,
+      // mirror the failed insert there so the audit trace is not lost.
+      log.error('audit_log_failed', new Error(error.message), {
+        kindeSub,
+        userId,
+        exchangeStatus: status,
+        errorCode: errorCode ?? null,
+      });
+    }
   } catch (e) {
-    console.warn('[token-exchange] audit log exception:', e);
+    log.error('audit_log_exception', e, {
+      kindeSub,
+      userId,
+      exchangeStatus: status,
+      errorCode: errorCode ?? null,
+    });
   }
 }
 
@@ -148,13 +168,22 @@ serve(async (req) => {
     const extUrl = Deno.env.get('EXT_SUPABASE_URL') || Deno.env.get('SUPABASE_URL') || '(none)';
     console.log(`[token-exchange] Creating shadow user — id=${supabaseUserId}, target=${extUrl}`);
 
-    // Create shadow user in auth.users so FK constraints are satisfied
-    let targetEmail = email || `${kindeSub}@kinde.placeholder`;
-    const { data: createUserData, error: createUserError } = await serviceClient.auth.admin.createUser({
+    // Create shadow user in auth.users so FK constraints are satisfied.
+    // AUTH_AUDIT H6: only mark the shadow user's email as confirmed when
+    // Kinde's token explicitly asserts `email_verified: true`. For
+    // unverified emails (some social providers, magic-link first-touch,
+    // etc.) we leave the flag unset so Supabase enforces verification
+    // before any email-bound action.
+    const targetEmail = email || `${kindeSub}@kinde.placeholder`;
+    const emailVerified = (payload as Record<string, unknown>).email_verified === true;
+    const createUserPayload: { id: string; email: string; email_confirm?: boolean } = {
       id: supabaseUserId,
       email: targetEmail,
-      email_confirm: true,
-    });
+    };
+    if (emailVerified) {
+      createUserPayload.email_confirm = true;
+    }
+    const { data: createUserData, error: createUserError } = await serviceClient.auth.admin.createUser(createUserPayload);
 
     if (createUserError) {
       const msg = createUserError.message?.toLowerCase() || '';
@@ -168,21 +197,29 @@ serve(async (req) => {
         const { data: existingUser, error: getUserErr } = await serviceClient.auth.admin.getUserById(supabaseUserId);
         
         if (getUserErr || !existingUser?.user) {
-          console.warn(`[token-exchange] User ID collision check failed: User does NOT exist with ID ${supabaseUserId}. Likely email collision. Retrying with placeholder.`);
-          targetEmail = `${supabaseUserId}@collision.kinde.placeholder`;
-          
-          const { error: retryError } = await serviceClient.auth.admin.createUser({
-            id: supabaseUserId,
+          // AUTH_AUDIT C2: deterministic-id collision detected — the
+          // duplicate report from createUser is for a *different* row
+          // (almost always a legacy account that already owns the email).
+          // We must NOT silently rewrite the user's email to a placeholder:
+          // that hides the conflict, leaves the legacy row orphaned with
+          // FK references intact, and breaks all future password-reset /
+          // email-change mailings. Fail closed — return 409 and require an
+          // explicit support-driven account-merge flow.
+          log.error('email_collision', new Error('Deterministic shadow-user id missing while createUser reported duplicate'), {
+            kindeSub,
+            supabaseUserId,
             email: targetEmail,
-            email_confirm: true,
           });
-          
-          if (retryError) {
-            console.error(`[token-exchange] Retry createUser FAILED: status=${retryError.status}, message=${retryError.message}`);
-            await logExchange(serviceClient, kindeSub, supabaseUserId, 'error', 'SHADOW_USER_FAILED');
-            return errorResponse('SHADOW_USER_FAILED', 'Could not create or verify shadow user account', 500, corsHeaders);
-          }
-          console.log(`[token-exchange] Shadow user created successfully on retry: id=${supabaseUserId}`);
+          await logExchange(serviceClient, kindeSub, supabaseUserId, 'error', 'EMAIL_COLLISION');
+          return new Response(
+            JSON.stringify({
+              code: 'EMAIL_COLLISION',
+              message: 'An existing account uses this email. Please contact support.',
+              kindeSub,
+              email: targetEmail,
+            }),
+            { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+          );
         } else {
           console.log(`[token-exchange] getUserById confirmed user exists despite createUser error`);
         }
@@ -201,10 +238,19 @@ serve(async (req) => {
       console.log(`[token-exchange] Shadow user created successfully: id=${createUserData?.user?.id}`);
     }
 
-    // Upsert profile
+    // Upsert profile.
+    // AUTH_AUDIT H4: do NOT pass `ignoreDuplicates: true` here. With it set,
+    // a returning Kinde user whose email changed (e.g. they updated their
+    // address in Kinde) would forever keep the old `profiles.contact_email`
+    // value and downstream notifications/invoices would mail the wrong
+    // address. Only upsert the email column when we actually have a
+    // non-null incoming value so a temporarily missing claim cannot wipe
+    // a previously-known address.
+    const profileRow: Record<string, unknown> = { user_id: supabaseUserId };
+    if (email) profileRow.contact_email = email;
     const { error: profileError } = await serviceClient.from('profiles').upsert(
-      { user_id: supabaseUserId, contact_email: email || null },
-      { onConflict: 'user_id', ignoreDuplicates: true },
+      profileRow,
+      { onConflict: 'user_id' },
     );
     if (profileError) {
       console.error(`[token-exchange] Profile upsert failed: ${profileError.message}`);
@@ -212,10 +258,14 @@ serve(async (req) => {
       return errorResponse('PROFILE_UPSERT_FAILED', 'Could not create user profile', 500, corsHeaders);
     }
 
-    // Upsert user_preferences
+    // Upsert user_preferences.
+    // AUTH_AUDIT H4 (continued): on conflict we want a no-op so a returning
+    // user's stored preferences are not reset to defaults. The row contains
+    // only `user_id` here, so on conflict every column would be set to its
+    // existing value and the row is effectively untouched.
     const { error: prefsError } = await serviceClient.from('user_preferences').upsert(
       { user_id: supabaseUserId },
-      { onConflict: 'user_id', ignoreDuplicates: true },
+      { onConflict: 'user_id' },
     );
     if (prefsError) {
       console.error(`[token-exchange] Preferences upsert failed: ${prefsError.message}`);

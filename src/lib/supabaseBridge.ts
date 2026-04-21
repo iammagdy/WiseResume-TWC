@@ -11,11 +11,30 @@
  * refuse to return the previous account's values — preventing dashboards
  * from briefly rendering with the wrong tenant's data while the background
  * token exchange catches up.
+ *
+ * XSS / token-theft posture (AUTH_AUDIT M3, M4):
+ *   The bridged Supabase JWT is held in memory and mirrored to
+ *   `sessionStorage` so it survives in-tab reloads but not other tabs or
+ *   process restarts. This is the standard SPA trade-off — any successful
+ *   XSS in the app can read the token. Defenses live elsewhere (CSP,
+ *   trusted-types, careful sanitisation in editor surfaces). The
+ *   module-level `localStorage` purge below removes a legacy v1 cache key
+ *   that was previously stored in `localStorage`; it is gated by a
+ *   one-time migration flag so we do not pay the localStorage hit on
+ *   every module load (and so we can drop the migration once v1 has aged
+ *   out — TODO: remove the migration block after one full release cycle).
  */
 
 export enum BridgeErrorType {
   OFFLINE_NETWORK = 'OFFLINE_NETWORK',
   AUTH_REJECTION = 'AUTH_REJECTION',
+  /**
+   * The deterministic shadow-user id collides with an existing legacy
+   * `auth.users` row that owns the same email. The exchange refuses to
+   * proceed (would otherwise corrupt identity); the user must contact
+   * support to merge the accounts. AUTH_AUDIT C2.
+   */
+  ACCOUNT_COLLISION = 'ACCOUNT_COLLISION',
   UNKNOWN = 'UNKNOWN',
 }
 
@@ -49,7 +68,19 @@ const STORAGE_KEY = 'wise_supabase_bridge_state_v2';
 const LAST_ACTIVE_KEY = 'wr-bridge-last-active';
 const IDLE_CLEAR_MS = 4 * 60 * 60 * 1000; // 4 hours
 
-try { localStorage.removeItem(STORAGE_KEY); localStorage.removeItem(LAST_ACTIVE_KEY); } catch {}
+// AUTH_AUDIT M4: one-time legacy-cache purge. Earlier builds wrote bridge
+// state into `localStorage`; the v2 cutover moved it to `sessionStorage`.
+// We need to clear those stale `localStorage` entries exactly once per
+// browser, not on every module load. The flag itself stays in
+// `localStorage` so the migration is idempotent across tabs.
+const V1_PURGE_FLAG = 'wr-bridge-v1-purged';
+try {
+  if (typeof localStorage !== 'undefined' && !localStorage.getItem(V1_PURGE_FLAG)) {
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(LAST_ACTIVE_KEY);
+    localStorage.setItem(V1_PURGE_FLAG, '1');
+  }
+} catch {}
 
 function emptyState(): BridgeState {
   return {
@@ -115,7 +146,31 @@ function updateLastActive(): void {
 
 const state: BridgeState = loadState();
 
-let exchangePromise: Promise<void> | null = null;
+/**
+ * AUTH_AUDIT M1: dedupe in-flight exchanges by Kinde-token hash, not by a
+ * single global "any exchange in flight" promise. The previous design
+ * caused a second caller (with a *different* Kinde token, e.g. after a
+ * silent rotation) to await the first caller's response — silently
+ * inheriting a Supabase JWT minted from the older Kinde token. With the
+ * map, two callers presenting different tokens trigger two real exchanges;
+ * two callers presenting the same token still share the same fetch.
+ *
+ * The map key is a hex-encoded SHA-256 of the Kinde token so the raw
+ * token never sits in a long-lived data structure / heap dump.
+ */
+const exchangePromises = new Map<string, Promise<void>>();
+
+async function hashKindeToken(kindeToken: string): Promise<string> {
+  if (typeof crypto === 'undefined' || !crypto.subtle) {
+    // Test / SSR fallback — keyed dedupe still works, just without hashing.
+    return `plain:${kindeToken.length}:${kindeToken.slice(-12)}`;
+  }
+  const buf = new TextEncoder().encode(kindeToken);
+  const digest = await crypto.subtle.digest('SHA-256', buf);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+}
 
 /**
  * The Kinde `sub` of the currently authenticated user, registered by the
@@ -166,13 +221,13 @@ export function setCurrentKindeSub(sub: string | null): void {
     state.userId = null;
     state.kindeSub = null;
     state.expiresAt = 0;
-    // Also drop the in-flight exchange handle. Without this, a subsequent
+    // Also drop every in-flight exchange handle. Without this, a subsequent
     // `exchangeToken(kindeTokenB)` call would await the previous account's
     // in-flight promise instead of starting a fresh exchange for B. The
-    // existing fetch keeps running in the background, but the response is
-    // discarded by the race guard inside `exchangeToken` since
+    // existing fetches keep running in the background, but their responses
+    // are discarded by the race guard inside `exchangeToken` since
     // `_currentKindeSub` no longer matches.
-    exchangePromise = null;
+    exchangePromises.clear();
     try { sessionStorage.removeItem(STORAGE_KEY); } catch {}
   }
 }
@@ -200,9 +255,15 @@ function isIdentityMismatch(): boolean {
  * Deduplicates concurrent calls (only one in-flight request at a time).
  */
 export async function exchangeToken(kindeToken: string): Promise<void> {
-  if (exchangePromise) return exchangePromise;
+  // AUTH_AUDIT M1: dedupe per Kinde-token hash. Two callers presenting
+  // *different* tokens must trigger two real exchanges so the second one
+  // does not silently inherit a Supabase JWT minted from a stale Kinde
+  // token (e.g. during a force-refresh racing a foreground refresh).
+  const tokenKey = await hashKindeToken(kindeToken);
+  const existing = exchangePromises.get(tokenKey);
+  if (existing) return existing;
 
-  exchangePromise = (async () => {
+  const promise = (async () => {
     try {
       const url = `/api/fn/token-exchange`;
       const controller = new AbortController();
@@ -226,7 +287,20 @@ export async function exchangeToken(kindeToken: string): Promise<void> {
         console.error('[SupabaseBridge] Token exchange failed:', res.status, text);
         try {
           const errBody = JSON.parse(text);
-          state.lastError = { type: BridgeErrorType.AUTH_REJECTION, code: errBody.code || 'UNKNOWN', message: errBody.message || text };
+          // AUTH_AUDIT C2: surface the deterministic-id email collision
+          // (HTTP 409 + code=EMAIL_COLLISION from token-exchange) as a
+          // distinct ACCOUNT_COLLISION type so the UI can route the user
+          // to support instead of looping on a generic "auth rejected"
+          // banner with a useless retry button.
+          const errCode = errBody.code || 'UNKNOWN';
+          const errType = errCode === 'EMAIL_COLLISION'
+            ? BridgeErrorType.ACCOUNT_COLLISION
+            : BridgeErrorType.AUTH_REJECTION;
+          state.lastError = {
+            type: errType,
+            code: errCode,
+            message: errBody.message || text,
+          };
         } catch {
           state.lastError = { type: BridgeErrorType.AUTH_REJECTION, code: 'UNKNOWN', message: text };
         }
@@ -279,17 +353,19 @@ export async function exchangeToken(kindeToken: string): Promise<void> {
       console.log(`[SupabaseBridge] Error categorized as: ${state.lastError.type}`);
       throw err;
     } finally {
-      // Always clear the in-flight promise so the next call starts a fresh exchange.
-      // Previously this was only cleared on success (supabaseToken truthy) which
-      // caused a stale resolved-promise leak on AUTH_REJECTION paths.
-      exchangePromise = null;
+      // Always clear the in-flight entry for this token so the next call
+      // for the same token starts a fresh exchange. Previously this was
+      // only cleared on success (supabaseToken truthy) which caused a
+      // stale resolved-promise leak on AUTH_REJECTION paths.
+      exchangePromises.delete(tokenKey);
     }
   })();
 
+  exchangePromises.set(tokenKey, promise);
   try {
-    await exchangePromise;
+    await promise;
   } catch {
-    exchangePromise = null;
+    exchangePromises.delete(tokenKey);
   }
 }
 
@@ -372,7 +448,7 @@ export function clearBridge(): void {
   state.expiresAt = 0;
   state.lastError = null;
   state.shadowUserOk = true;
-  exchangePromise = null;
+  exchangePromises.clear();
   _getKindeTokenFn = null;
   _currentKindeSub = null;
   try { sessionStorage.removeItem(STORAGE_KEY); } catch {}
