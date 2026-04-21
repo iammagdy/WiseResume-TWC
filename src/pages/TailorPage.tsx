@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useRef, useEffect, type ReactNode } from 'react';
+import { formatDegreeAndField } from '@/lib/educationFormat';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Wand2, Loader2, CheckCircle, ArrowLeft, Sparkles, Zap, Gauge, Flame,
@@ -91,7 +92,7 @@ function buildPlainText(resume: ResumeData, tailorResult: SuperTailorResult, ena
   if (educations.length > 0) {
     lines.push('EDUCATION');
     for (const edu of educations) {
-      lines.push(`${edu.degree} in ${edu.field} | ${edu.institution}`);
+      lines.push(`${formatDegreeAndField(edu.degree, edu.field)} | ${edu.institution}`);
       lines.push(`${edu.startDate} – ${edu.endDate}`);
       if (edu.description) lines.push(edu.description);
       lines.push('');
@@ -1072,7 +1073,7 @@ function ResultsPanel({
                   <ul className="space-y-1">
                     {tailorResult.education.map((edu, i) => (
                       <li key={i} className="text-muted-foreground text-sm">
-                        {edu.degree} in {edu.field} - {edu.institution}
+                        {formatDegreeAndField(edu.degree, edu.field)}{edu.institution ? ` - ${edu.institution}` : ''}
                       </li>
                     ))}
                   </ul>

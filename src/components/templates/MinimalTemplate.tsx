@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import { formatDegreeAndField } from '@/lib/educationFormat';
 import { ResumeData } from '@/types/resume';
 import { ExtraSections } from './shared/ExtraSections';
 import { ContactLinks } from './shared/ContactLinks';
@@ -44,7 +45,7 @@ const EducationItem = memo(function EducationItem({ edu }: { edu: EducationItemT
   return (
     <div data-break-avoid>
       <h3 className="font-medium text-gray-900">
-        {edu.degree} {edu.field && `in ${edu.field}`}
+        {formatDegreeAndField(edu.degree, edu.field)}
       </h3>
       {(() => {
         const eduRange = formatDateRangeDisplay(edu.startDate, edu.endDate, false);

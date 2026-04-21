@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import { formatDegreeAndField } from '@/lib/educationFormat';
 import { ResumeData } from '@/types/resume';
 import { ExtraSections } from './shared/ExtraSections';
 import { ContactLinks } from './shared/ContactLinks';
@@ -58,7 +59,7 @@ export const DevOpsTemplate = memo(function DevOpsTemplate({ resume }: TemplateP
           <h2 className="text-xs font-bold text-orange-600 uppercase tracking-widest mb-3">Education</h2>
           {resume.education.map(edu => {
             const eduRange = formatDateRangeDisplay(edu.startDate, edu.endDate, false);
-            return (<div key={edu.id} data-break-avoid className="mb-2"><h3 className="font-bold text-gray-900 text-xs">{edu.degree} {edu.field && `in ${edu.field}`}</h3><p className="text-gray-600 text-xs">{edu.institution}{eduRange && ` — ${eduRange}`}</p>{edu.description && <p className="text-gray-600 text-xs mt-0.5">{edu.description}</p>}</div>);
+            return (<div key={edu.id} data-break-avoid className="mb-2"><h3 className="font-bold text-gray-900 text-xs">{formatDegreeAndField(edu.degree, edu.field)}</h3><p className="text-gray-600 text-xs">{edu.institution}{eduRange && ` — ${eduRange}`}</p>{edu.description && <p className="text-gray-600 text-xs mt-0.5">{edu.description}</p>}</div>);
           })}
         </section>
       )}

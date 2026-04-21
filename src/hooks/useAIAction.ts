@@ -164,7 +164,10 @@ export function useAIAction({ operation }: UseAIActionOptions) {
   const navigate = useNavigate();
 
   const execute = useCallback(
-    async <T>(action: () => Promise<T>): Promise<T | null> => {
+    async <T>(
+      action: () => Promise<T>,
+      opts?: { silent?: boolean },
+    ): Promise<T | null> => {
       // 0. Privacy disclosure gate (one-time per device, stored in localStorage)
       if (!hasAcceptedAIPrivacy()) {
         const accepted = await requestDisclosure();
@@ -175,6 +178,14 @@ export function useAIAction({ operation }: UseAIActionOptions) {
       try {
         result = await action();
       } catch (err: unknown) {
+        // In silent mode, the caller wants to handle the error itself
+        // (e.g. per-section retry / inline error in batch flows). Re-throw
+        // without showing a global toast so transient section failures don't
+        // surface as repeated "AI temporarily unavailable" banners.
+        if (opts?.silent) {
+          throw err;
+        }
+
         // Prefer the structured AIError path (Task #10): when callers throw
         // a typed AIError, drive the toast off the structured `code` rather
         // than re-running the legacy regex sniffer. This guarantees a single,

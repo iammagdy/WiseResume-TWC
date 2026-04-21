@@ -1,4 +1,5 @@
 import { downloadFile } from '@/lib/downloadUtils';
+import { formatDegreeAndField } from '@/lib/educationFormat';
 import { toast } from 'sonner';
 import type { ResumeData } from '@/types/resume';
 import { supabase } from '@/integrations/supabase/safeClient';
@@ -130,7 +131,7 @@ export function generatePlainText(resume: ResumeData): string {
     lines.push('EDUCATION');
     lines.push('-'.repeat(40));
     for (const edu of resume.education) {
-      lines.push(`${edu.degree} in ${edu.field} | ${edu.institution}`);
+      lines.push(`${formatDegreeAndField(edu.degree, edu.field)} | ${edu.institution}`);
       lines.push(`${edu.startDate} - ${edu.endDate}${edu.gpa ? ` | GPA: ${edu.gpa}` : ''}`);
       lines.push('');
     }
@@ -261,7 +262,7 @@ export function generateLinkedInFormat(resume: ResumeData): {
   // Education
   const eduLines: string[] = [];
   for (const edu of resume.education || []) {
-    eduLines.push(`${edu.degree} in ${edu.field}`);
+    eduLines.push(formatDegreeAndField(edu.degree, edu.field));
     eduLines.push(edu.institution);
     eduLines.push(`${edu.startDate} - ${edu.endDate}`);
     eduLines.push('');

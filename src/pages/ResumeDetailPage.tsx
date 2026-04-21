@@ -58,12 +58,20 @@ export default function ResumeDetailPage() {
   const [isDownloading, setIsDownloading] = useState(false);
   const [showEnhance, setShowEnhance] = useState(false);
   const [improvedSections, setImprovedSections] = useState<Set<string>>(new Set());
+  const [latestScore, setLatestScore] = useState<ReturnType<typeof getCachedScore>>(null);
   const enhancedRef = useRef(false);
   const enhancedSectionsRef = useRef<string[]>([]);
   const prevScoreRef = useRef<ReturnType<typeof getCachedScore>>(null);
   const hiddenTemplateRef = useRef<HTMLDivElement>(null);
 
   // Redirect download action to Preview page for proper page break handling
+  // Reset locally-tracked score when navigating between resumes so the
+  // previous resume's score never bleeds into a new one before its cache
+  // entry lands.
+  useEffect(() => {
+    setLatestScore(null);
+  }, [dbResume?.id]);
+
   useEffect(() => {
     if (searchParams.get('action') !== 'download' || !dbResume || isLoading) return;
     searchParams.delete('action');
@@ -96,7 +104,7 @@ export default function ResumeDetailPage() {
 
   const resumeData = dbToResumeData(dbResume);
   const templateInfo = templates.find(t => t.id === dbResume.template_id);
-  const healthScore = getCachedScore(dbResume.id, dbResume.updated_at) ?? getLatestCachedScore(dbResume.id);
+  const healthScore = getCachedScore(dbResume.id, dbResume.updated_at) ?? latestScore ?? getLatestCachedScore(dbResume.id);
   
   const isTailored = !!dbResume.parent_resume_id;
   const isMaster = !!dbResume.is_primary;
@@ -168,7 +176,7 @@ export default function ResumeDetailPage() {
   return (
     <div className="flex-1 flex flex-col min-h-0">
       {/* Header with overflow menu */}
-      <div className="shrink-0 flex items-center gap-3 px-4 h-14 border-b border-border bg-background/95 backdrop-blur-sm">
+      <div className="shrink-0 sticky top-0 z-30 flex items-center gap-3 px-4 h-14 pt-safe border-b border-border bg-background/95 backdrop-blur-sm">
         <BackButton />
         <h1 className="text-lg font-bold text-foreground truncate flex-1 min-w-0">{dbResume.title}</h1>
         {isMaster && (
@@ -268,7 +276,9 @@ export default function ResumeDetailPage() {
                     </>
                   ) : (
                     <button
-                      onClick={() => scoreResume(dbResume.id, resumeData, dbResume.updated_at)}
+                      onClick={() => {
+                      scoreResume(dbResume.id, resumeData, dbResume.updated_at).then(s => { if (s) setLatestScore(s); });
+                    }}
                       disabled={scoringId === dbResume.id}
                       className="flex flex-col items-center gap-1"
                       aria-label="Score resume"
@@ -301,7 +311,8 @@ export default function ResumeDetailPage() {
                     disabled={scoringId === dbResume.id}
                     onClick={() => {
                       clearCachedScore(dbResume.id, dbResume.updated_at);
-                      scoreResume(dbResume.id, resumeData, dbResume.updated_at);
+                      setLatestScore(null);
+                      scoreResume(dbResume.id, resumeData, dbResume.updated_at, true).then(s => { if (s) setLatestScore(s); });
                     }}
                   >
                     {scoringId === dbResume.id ? <MiniSpinner size={14} /> : <RefreshCw className="w-3.5 h-3.5" />}
@@ -461,8 +472,12 @@ export default function ResumeDetailPage() {
                       {
                         onSuccess: () => {
                           queryClient.invalidateQueries({ queryKey: ['resume', id] });
-                          // Re-score with force flag — old score stays visible until new one arrives
-                          scoreResume(dbResume.id, updatedResume, dbResume.updated_at, true);
+                          // Re-score with force flag — old score stays visible until new one arrives.
+                          // Capture the result into local state so the UI re-renders even after the
+                          // resume query refetches (which changes updated_at and invalidates the
+                          // cache key the new score was stored under).
+                          scoreResume(dbResume.id, updatedResume, dbResume.updated_at, true)
+                            .then(s => { if (s) setLatestScore(s); });
                         },
                       }
                     );

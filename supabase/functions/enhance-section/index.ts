@@ -241,7 +241,10 @@ SECTION-SPECIFIC SCORING RULES FOR EDUCATION:
 The scorer penalizes inconsistent date formats (deducts 15 points for mixed formats).
 - Preserve ALL date strings EXACTLY as written — do NOT reformat (e.g. keep "2020" as "2020", keep "May 2020" as "May 2020")
 - Preserve institution names, degree names, and field names EXACTLY
-- Only enhance: add GPA if missing, add relevant coursework, or improve field description
+- "degree" and "field" must NEVER duplicate each other. If the original "field" is empty, RETURN IT AS AN EMPTY STRING — do NOT copy the degree value into "field" (this produces garbage output like "HR in HR" or "Computer Science in Computer Science").
+- "field" must be a distinct field of study, not a paraphrase, abbreviation, expansion, or synonym of "degree". If you cannot supply a meaningfully different field, return "" (empty string) for "field".
+- "degree" must be a credential (e.g. "Bachelor of Science", "MBA", "Diploma"), not the field of study itself.
+- Only enhance: add GPA if missing, add relevant coursework, or improve description
 - Do NOT add new education entries the user didn't have`;
     case 'summary': {
       const skills = Array.isArray((resume as Record<string, unknown>)?.skills)

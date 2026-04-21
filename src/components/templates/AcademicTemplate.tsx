@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import { formatDegreeAndField } from '@/lib/educationFormat';
 import { ResumeData } from '@/types/resume';
 import { ExtraSections } from './shared/ExtraSections';
 import { ContactLinks } from './shared/ContactLinks';
@@ -31,7 +32,7 @@ export const AcademicTemplate = memo(function AcademicTemplate({ resume }: Acade
             {education.map((edu) => (
               <div key={edu.id} data-break-avoid>
                 <div className="flex justify-between items-baseline">
-                  <h3 className="font-bold text-gray-900">{edu.degree} in {edu.field}</h3>
+                  <h3 className="font-bold text-gray-900">{formatDegreeAndField(edu.degree, edu.field)}</h3>
                   <span className="text-gray-600 text-sm">{formatDateRangeDisplay(edu.startDate, edu.endDate, false)}</span>
                 </div>
                 <p className="text-gray-700 italic">{edu.institution}</p>

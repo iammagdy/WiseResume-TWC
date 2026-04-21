@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import { formatDegreeAndField } from '@/lib/educationFormat';
 import { ResumeData } from '@/types/resume';
 import { ExtraSections } from './shared/ExtraSections';
 import { ContactLinks } from './shared/ContactLinks';
@@ -88,7 +89,7 @@ export const ExecutiveTemplate = memo(function ExecutiveTemplate({ resume }: Tem
               {resume.education.map((edu) => (
                 <div key={edu.id} data-break-avoid>
                   <p className="font-medium text-gray-900">
-                    {edu.degree} {edu.field && `in ${edu.field}`}
+                    {formatDegreeAndField(edu.degree, edu.field)}
                   </p>
                   <p className="text-gray-500 text-xs">{edu.institution}{formatDateRangeDisplay('', edu.endDate, false) && `, ${formatDateRangeDisplay('', edu.endDate, false)}`}</p>
                   {edu.description && <p className="text-gray-500 text-xs mt-0.5">{edu.description}</p>}

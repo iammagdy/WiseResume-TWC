@@ -21,6 +21,8 @@ import type { ActionType, SectionType } from '@/hooks/useAIEnhance';
 import { trackGeminiUsage } from '@/lib/aiProvider';
 import { useAIAction } from '@/hooks/useAIAction';
 import { apiFnUrl } from '@/lib/apiFnUrl';
+import { formatDegreeAndField } from '@/lib/educationFormat';
+import { AIError, parseAIErrorResponse, parseAIErrorBody, type AIErrorCode } from '@/lib/aiErrorParser';
 
 interface AIEnhanceSheetProps {
   open: boolean;
@@ -63,6 +65,8 @@ interface SectionResult {
   warning?: string;
   variants?: Array<{ improved: unknown; label: string }>;
   selectedVariantIndex?: number;
+  error?: string;
+  retrying?: boolean;
 }
 
 // --- Section-aware formatting helpers ---
@@ -87,8 +91,8 @@ function formatEducationPreview(entries: unknown[]): string {
     const degree = e.degree || '';
     const field = e.field || '';
     const inst = e.institution || '';
-    const parts = [degree, field].filter(Boolean).join(' in ');
-    return inst ? `${parts} at ${inst}` : parts || 'Education entry';
+    const parts = formatDegreeAndField(degree, field);
+    return inst ? `${parts || 'Education entry'} at ${inst}` : parts || 'Education entry';
   }).join('\n\n');
 }
 
@@ -158,7 +162,7 @@ function EducationCard({ entry, variant }: { entry: any; variant: 'original' | '
       "p-2.5 rounded-lg text-xs space-y-0.5",
       variant === 'original' ? "bg-muted opacity-70" : "bg-primary/5 border border-primary/20"
     )}>
-      <p className="font-semibold">{degree}{field ? ` in ${field}` : ''}</p>
+      <p className="font-semibold">{formatDegreeAndField(degree, field)}</p>
       {inst && <p className="text-muted-foreground">{inst}</p>}
     </div>
   );
@@ -231,6 +235,180 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
 
   const effectiveAction = atsMode ? 'ats_improve' : mode;
 
+  const callEnhanceForSection = useCallback(async (sectionInfo: { id: SectionType; label: string }, content: unknown) => {
+    // Use silent mode so per-section errors are re-thrown for the batch
+    // classifier (no global "AI temporarily unavailable" toast for transient
+    // section failures). Privacy gate + credit cache invalidation still run.
+    return executeAI(async () => {
+      const token = await getSupabaseToken();
+      if (!token) {
+        throw new AIError({ code: 'unauthorized', status: 401, message: 'No session' });
+      }
+
+      const res = await fetch(apiFnUrl(`enhance-section`), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          section: sectionInfo.id,
+          action: effectiveAction,
+          currentContent: content,
+          context: { resume: currentResume },
+          ...(variantsMode && !atsMode ? { variants: true } : {}),
+        }),
+      });
+
+      if (!res.ok) {
+        const info = await parseAIErrorResponse(res);
+        throw new AIError(info);
+      }
+
+      const respData = await res.json();
+      if (respData?.error) {
+        const info = parseAIErrorBody(respData, 500);
+        throw new AIError(info);
+      }
+
+      trackGeminiUsage();
+      incrementUsage.mutate();
+      return respData;
+    }, { silent: true });
+  }, [executeAI, effectiveAction, currentResume, variantsMode, atsMode, incrementUsage]);
+
+  const buildResultFromData = useCallback((sectionInfo: { id: SectionType; label: string }, content: unknown, data: any): SectionResult => {
+    if (data.variants && Array.isArray(data.variants) && data.variants.length > 0) {
+      const firstVariant = data.variants[0];
+      return {
+        section: sectionInfo.id,
+        label: sectionInfo.label,
+        original: content,
+        improved: firstVariant.improved,
+        rawImproved: firstVariant.improved,
+        changes: data.changes || [],
+        suggestions: data.suggestions,
+        applied: false,
+        variants: data.variants,
+        selectedVariantIndex: 0,
+      };
+    }
+    let warning: string | undefined;
+    if (['experience', 'education', 'certifications', 'awards', 'projects', 'publications', 'volunteering', 'languages'].includes(sectionInfo.id) && Array.isArray(content) && Array.isArray(data.improved)) {
+      if (data.improved.length < (content as unknown[]).length) {
+        warning = `AI returned ${data.improved.length} entries but original has ${(content as unknown[]).length}. Some entries may be missing.`;
+      }
+    }
+    return {
+      section: sectionInfo.id,
+      label: sectionInfo.label,
+      original: content,
+      improved: sanitizeAIContent(data.improved),
+      rawImproved: data.improved,
+      changes: data.changes || [],
+      suggestions: data.suggestions,
+      applied: false,
+      warning,
+    };
+  }, []);
+
+  /** Classify a structured error as fatal (abort batch) or transient (retry / inline error). */
+  const classifyError = useCallback((err: unknown): { fatal: boolean; retryable: boolean; userMsg: string; errMsg: string } => {
+    if (!navigator.onLine) {
+      return { fatal: true, retryable: false, userMsg: "You're offline — AI features need an internet connection.", errMsg: 'offline' };
+    }
+
+    // Pull a structured code off the error when possible. Fallback to a coarse
+    // string match only when the error is not an AIError (e.g. a thrown
+    // network error / TypeError).
+    let code: AIErrorCode | 'unknown' = 'unknown';
+    let errMsg = '';
+    if (err instanceof AIError) {
+      code = err.code;
+      errMsg = err.message || err.code;
+    } else if (err instanceof Error) {
+      errMsg = err.message;
+      const m = errMsg.toLowerCase();
+      if (/timeout|abort/.test(m)) code = 'timeout';
+      else if (/network|fetch failed|failed to fetch/.test(m)) code = 'upstream_5xx';
+    } else {
+      errMsg = String(err ?? '');
+    }
+
+    switch (code) {
+      case 'unauthorized':
+        return { fatal: true, retryable: false, userMsg: 'Session expired — please sign in again to use AI features.', errMsg };
+      case 'payment_required':
+        return { fatal: true, retryable: false, userMsg: 'AI credits exhausted. Please check your account.', errMsg };
+      case 'invalid_key':
+        return { fatal: true, retryable: false, userMsg: 'Invalid API key — please check your AI settings.', errMsg };
+      case 'not_configured':
+        return { fatal: true, retryable: false, userMsg: 'AI is not configured — go to Settings → AI Provider.', errMsg };
+      case 'quota_exceeded':
+        return { fatal: true, retryable: false, userMsg: 'Daily AI quota exceeded. Try again tomorrow or add your own API key in Settings.', errMsg };
+      case 'rate_limit':
+        return { fatal: false, retryable: true, userMsg: 'Rate limited — tap Retry in a moment.', errMsg };
+      case 'timeout':
+      case 'provider_busy':
+      case 'upstream_5xx':
+      case 'enhancement_failed':
+        return { fatal: false, retryable: true, userMsg: 'AI service is temporarily unavailable. Tap Retry.', errMsg };
+      default:
+        return { fatal: false, retryable: true, userMsg: 'Failed to enhance this section. Tap Retry.', errMsg };
+    }
+  }, []);
+
+  const tryEnhanceWithRetry = useCallback(async (
+    sectionInfo: { id: SectionType; label: string },
+    content: unknown,
+    maxAttempts = 2
+  ): Promise<{ ok: true; data: any } | { ok: false; errMsg: string; classification: ReturnType<typeof classifyError> }> => {
+    let lastErr: unknown;
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        const data = await callEnhanceForSection(sectionInfo, content);
+        // null only happens when the privacy disclosure was rejected; treat as
+        // a fatal cancellation so the batch stops cleanly without a toast.
+        if (!data) {
+          const cancellation = { fatal: true, retryable: false, userMsg: 'AI request cancelled.', errMsg: 'cancelled' as string };
+          return { ok: false, errMsg: 'cancelled', classification: cancellation };
+        }
+        return { ok: true, data };
+      } catch (err) {
+        lastErr = err;
+        const classification = classifyError(err);
+        // Stop early on fatal or non-retryable errors
+        if (classification.fatal || !classification.retryable) {
+          return { ok: false, errMsg: classification.errMsg, classification };
+        }
+        // Backoff before retry (200ms, 800ms)
+        if (attempt < maxAttempts - 1) {
+          await new Promise(r => setTimeout(r, 200 * Math.pow(4, attempt)));
+        }
+      }
+    }
+    const classification = classifyError(lastErr);
+    return { ok: false, errMsg: classification.errMsg, classification };
+  }, [callEnhanceForSection, classifyError]);
+
+  const retryFailedSection = useCallback(async (index: number) => {
+    const target = results[index];
+    if (!target || !currentResume) return;
+    haptics.light();
+    setResults(prev => prev.map((r, i) => i === index ? { ...r, retrying: true, error: undefined } : r));
+    const sectionInfo = ALL_SECTIONS.find(s => s.id === target.section)!;
+    const content = getSectionContent(currentResume as unknown as Record<string, unknown>, target.section);
+    const outcome = await tryEnhanceWithRetry(sectionInfo, content, 2);
+    if (outcome.ok) {
+      const built = buildResultFromData(sectionInfo, content, outcome.data);
+      setResults(prev => prev.map((r, i) => i === index ? built : r));
+      toast.success(`${sectionInfo.label} re-enhanced.`);
+    } else {
+      setResults(prev => prev.map((r, i) => i === index ? { ...r, retrying: false, error: outcome.classification.userMsg } : r));
+      if (outcome.classification.fatal) toast.error(outcome.classification.userMsg);
+    }
+  }, [results, currentResume, tryEnhanceWithRetry, buildResultFromData]);
+
   const handleEnhance = useCallback(async () => {
     if (!currentResume || selectedSections.size === 0) return;
     setIsEnhancing(true);
@@ -246,121 +424,64 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
     }
 
     const newResults: SectionResult[] = [];
+    let successCount = 0;
+    let failCount = 0;
 
     for (const sectionInfo of ALL_SECTIONS) {
       if (!selectedSections.has(sectionInfo.id)) continue;
       if (abortRef.current) break;
 
       const content = getSectionContent(currentResume as unknown as Record<string, unknown>, sectionInfo.id);
+      const outcome = await tryEnhanceWithRetry(sectionInfo, content, 2);
 
-      try {
-        const data = await executeAI(async () => {
-          const token = await getSupabaseToken();
-          if (!token) throw new Error('401 Unauthorized – no session');
-
-          const res = await fetch(apiFnUrl(`enhance-section`), {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-              section: sectionInfo.id,
-              action: effectiveAction,
-              currentContent: content,
-              context: { resume: currentResume },
-              ...(variantsMode && !atsMode ? { variants: true } : {}),
-            }),
-          });
-
-          if (!res.ok) {
-            const status = res.status;
-            if (status === 401 || status === 403) throw new Error('401 Unauthorized – no session');
-            if (status === 429) throw new Error('rate_limit');
-            if (status === 402) throw new Error('payment_required');
-            throw new Error('server_error');
-          }
-
-          const respData = await res.json();
-          if (respData?.error) {
-            if (respData.error === 'rate_limit') throw new Error('rate_limit');
-            if (respData.error === 'payment_required') throw new Error('payment_required');
-            if (respData.error === 'invalid_key') throw new Error('invalid_key');
-            throw new Error('server_error');
-          }
-
-          trackGeminiUsage();
-          incrementUsage.mutate();
-          return respData;
-        });
-
-        if (!data) continue;
-
-        if (data.variants && Array.isArray(data.variants) && data.variants.length > 0) {
-          const firstVariant = data.variants[0];
+      if (outcome.ok) {
+        newResults.push(buildResultFromData(sectionInfo, content, outcome.data));
+        successCount++;
+      } else {
+        console.error(`Enhancement error for ${sectionInfo.id}:`, outcome.errMsg);
+        if (outcome.classification.fatal) {
+          // Show a single fatal toast and stop the batch
+          toast.error(outcome.classification.userMsg);
+          abortRef.current = true;
+          // Still record the failed section as an inline error result so the user can retry later.
           newResults.push({
             section: sectionInfo.id,
             label: sectionInfo.label,
             original: content,
-            improved: firstVariant.improved,
-            rawImproved: firstVariant.improved,
-            changes: data.changes || [],
-            suggestions: data.suggestions,
+            improved: content,
+            rawImproved: content,
+            changes: [],
             applied: false,
-            variants: data.variants,
-            selectedVariantIndex: 0,
+            error: outcome.classification.userMsg,
           });
+          failCount++;
         } else {
-          let warning: string | undefined;
-          if (['experience', 'education', 'certifications', 'awards', 'projects', 'publications', 'volunteering', 'languages'].includes(sectionInfo.id) && Array.isArray(content) && Array.isArray(data.improved)) {
-            if (data.improved.length < (content as unknown[]).length) {
-              warning = `AI returned ${data.improved.length} entries but original has ${(content as unknown[]).length}. Some entries may be missing.`;
-            }
-          }
-
+          // Transient — keep going, surface inline retry button (no toast spam).
           newResults.push({
             section: sectionInfo.id,
             label: sectionInfo.label,
             original: content,
-            improved: sanitizeAIContent(data.improved),
-            rawImproved: data.improved,
-            changes: data.changes || [],
-            suggestions: data.suggestions,
+            improved: content,
+            rawImproved: content,
+            changes: [],
             applied: false,
-            warning,
+            error: outcome.classification.userMsg,
           });
-        }
-
-        setResults([...newResults]);
-      } catch (err) {
-        console.error(`Enhancement error for ${sectionInfo.id}:`, err);
-        const errMsg = err instanceof Error ? err.message : '';
-        const is401 = errMsg.includes('401') || errMsg.toLowerCase().includes('unauthorized');
-        if (!navigator.onLine) {
-          toast.warning("You're offline — AI features need an internet connection.");
-          abortRef.current = true;
-        } else if (is401) {
-          toast.error('Session expired — please sign in again to use AI features.');
-          abortRef.current = true;
-        } else if (errMsg === 'rate_limit') {
-          toast.error('Too many requests — please wait a moment and try again.');
-        } else if (errMsg === 'payment_required') {
-          toast.error('AI credits exhausted. Please check your account.');
-          abortRef.current = true;
-        } else if (errMsg === 'invalid_key') {
-          toast.error('Invalid API key — please check your AI settings.');
-          abortRef.current = true;
-        } else {
-          toast.error(`Failed to enhance ${sectionInfo.label} — please try again.`);
+          failCount++;
         }
       }
+
+      setResults([...newResults]);
     }
 
     setIsEnhancing(false);
-    if (newResults.length > 0) {
-      toast.success(`Enhanced ${newResults.length} section${newResults.length > 1 ? 's' : ''}`);
+
+    if (successCount > 0 && failCount === 0) {
+      toast.success(`Enhanced ${successCount} section${successCount > 1 ? 's' : ''}`);
+    } else if (successCount > 0 && failCount > 0) {
+      toast.message(`Enhanced ${successCount} of ${successCount + failCount} sections — ${failCount} failed. Tap Retry on the failed ones.`);
     }
-  }, [currentResume, selectedSections, effectiveAction, variantsMode, atsMode, checkCredits, incrementUsage, executeAI]);
+  }, [currentResume, selectedSections, checkCredits, tryEnhanceWithRetry, buildResultFromData]);
 
   const selectVariant = useCallback((resultIndex: number, variantIndex: number) => {
     haptics.light();
@@ -520,12 +641,13 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
     return (
       <div className={cn(
         "p-2.5 rounded-lg text-xs whitespace-pre-wrap break-words",
-        variant === 'original' ? "bg-muted line-through opacity-60" : "bg-primary/5 border border-primary/20"
+        variant === 'original' ? "bg-muted opacity-60" : "bg-primary/5 border border-primary/20"
       )}>
-        {displayText}
+        <span className={cn(variant === 'original' && 'line-through')}>{displayText}</span>
         {isLong && (
           <button
-            className="block mt-1 text-primary/80 hover:text-primary underline font-medium"
+            className="block mt-1 text-primary/80 hover:text-primary underline font-medium no-underline-on-strike"
+            style={{ textDecoration: 'underline' }}
             onClick={(e) => {
               e.stopPropagation();
               setExpandedDiffText(prev => {
@@ -688,7 +810,7 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
             <div className="space-y-3">
               <div className="flex items-center justify-between px-1">
                 <p className="text-xs font-medium text-muted-foreground">Results</p>
-                {results.some(r => !r.applied) && (
+                {results.some(r => !r.applied && !r.error) && (
                   <Button
                     size="sm"
                     variant="outline"
@@ -697,7 +819,7 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
                       haptics.medium();
                       let applied = 0;
                       results.forEach((r, i) => {
-                        if (!r.applied) { applyResult(i, true); applied++; }
+                        if (!r.applied && !r.error) { applyResult(i, true); applied++; }
                       });
                       if (applied > 0) {
                         toast.success(`${applied} section${applied !== 1 ? 's' : ''} applied to your resume.`);
@@ -717,7 +839,11 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
                         <button className="w-full flex items-center justify-between px-4 py-3 touch-manipulation min-h-[44px] active:scale-[0.98] transition-transform">
                           <div className="flex items-center gap-2">
                             <h4 className="font-semibold text-sm">{r.label}</h4>
-                            {r.applied ? (
+                            {r.error ? (
+                              <Badge variant="outline" className="text-[10px] border-destructive/40 text-destructive">
+                                <AlertTriangle className="w-3 h-3 mr-0.5" /> Failed
+                              </Badge>
+                            ) : r.applied ? (
                               <Badge variant="secondary" className="text-[10px] bg-accent/20 text-accent-foreground">
                                 <Check className="w-3 h-3 mr-0.5" /> Applied
                               </Badge>
@@ -740,6 +866,31 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
 
                       <CollapsibleContent>
                         <div className="px-4 pb-4 space-y-3 border-t border-border pt-3">
+                          {r.error && (
+                            <div className="flex items-start gap-2 p-2 rounded-lg bg-destructive/10 border border-destructive/20 text-xs text-destructive">
+                              <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                              <span>{r.error}</span>
+                            </div>
+                          )}
+                          {r.error && (
+                            <div className="flex gap-2 pt-1">
+                              <Button variant="outline" size="sm" className="flex-1 min-h-[44px]" onClick={() => discardResult(i)}>
+                                <X className="w-4 h-4 mr-1" /> Skip
+                              </Button>
+                              <Button
+                                size="sm"
+                                className="flex-1 min-h-[44px] gradient-primary"
+                                disabled={r.retrying}
+                                onClick={() => retryFailedSection(i)}
+                              >
+                                {r.retrying ? (
+                                  <><Loader2 className="w-4 h-4 mr-1 animate-spin" /> Retrying…</>
+                                ) : (
+                                  <><Sparkles className="w-4 h-4 mr-1" /> Retry</>
+                                )}
+                              </Button>
+                            </div>
+                          )}
                           {r.warning && (
                             <div className="flex items-start gap-2 p-2 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-xs text-yellow-700 dark:text-yellow-400">
                               <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
@@ -811,7 +962,7 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
                             </div>
                           )}
 
-                          {!r.applied && (
+                          {!r.applied && !r.error && (
                             <div className="flex gap-2 pt-1">
                               <Button variant="outline" size="sm" className="flex-1 min-h-[44px]" onClick={() => discardResult(i)}>
                                 <X className="w-4 h-4 mr-1" /> Discard

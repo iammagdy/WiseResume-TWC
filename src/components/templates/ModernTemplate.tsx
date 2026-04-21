@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import { formatDegreeAndField } from '@/lib/educationFormat';
 import { ResumeData } from '@/types/resume';
 import { ContactLinks } from './shared/ContactLinks';
 import { ExtraSections } from './shared/ExtraSections';
@@ -42,7 +43,7 @@ const EducationItem = memo(function EducationItem({ edu }: { edu: EducationItemT
   return (
     <div data-break-avoid className="flex justify-between">
       <div>
-        <h3 className="font-bold text-gray-900">{edu.degree} {edu.field && `in ${edu.field}`}</h3>
+        <h3 className="font-bold text-gray-900">{formatDegreeAndField(edu.degree, edu.field)}</h3>
         <p className="text-gray-600">{edu.institution}</p>
         {edu.description && <p className="text-gray-600 text-xs mt-0.5">{edu.description}</p>}
       </div>

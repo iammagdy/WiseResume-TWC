@@ -1,5 +1,6 @@
 import { PDFPage, PDFFont, rgb } from 'pdf-lib';
 import type { ResumeData } from '@/types/resume';
+import { formatDegreeAndField } from '@/lib/educationFormat';
 
 /**
  * Builds the hidden ATS / Ctrl-F text layer for a rasterised resume PDF.
@@ -387,7 +388,7 @@ export function extractResumeText(resume: ResumeData): string[] {
   if (resume.education?.length) {
     lines.push('Education');
     for (const edu of resume.education) {
-      lines.push(`${edu.degree} in ${edu.field}`);
+      lines.push(formatDegreeAndField(edu.degree, edu.field));
       lines.push(edu.institution);
       const dates = [edu.startDate, edu.endDate].filter(Boolean).join(' – ');
       if (dates) lines.push(dates);

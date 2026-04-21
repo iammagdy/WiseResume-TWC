@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { formatDegreeAndField } from '@/lib/educationFormat';
 import { useParams } from 'react-router-dom';
 import { Sparkles, Lock, MessageSquare, ChevronDown, ChevronUp, Send } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
@@ -177,7 +178,7 @@ export default function SharePage() {
             {education.map(edu => (
               <div key={edu.id} className="flex justify-between items-start mb-2">
                 <div>
-                  <h3 className="font-semibold text-sm">{edu.degree} in {edu.field}</h3>
+                  <h3 className="font-semibold text-sm">{formatDegreeAndField(edu.degree, edu.field)}</h3>
                   <p className="text-xs text-muted-foreground">{edu.institution}</p>
                 </div>
                 <span className="text-xs text-muted-foreground shrink-0">{edu.startDate} – {edu.endDate}</span>

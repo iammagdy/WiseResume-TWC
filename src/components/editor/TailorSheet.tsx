@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useRef, useEffect, memo, Suspense } from 'react';
+import { formatDegreeAndField } from '@/lib/educationFormat';
 import { 
   Wand2, Loader2, CheckCircle, ArrowRight, Undo2, GitCompare, 
   History, FileText, Sparkles, ChevronRight, Brain, Target, BarChart3,
@@ -158,7 +159,7 @@ function buildPlainTextFromResume(resume: ResumeData, tailorResult: SuperTailorR
   if (educations.length > 0) {
     lines.push('EDUCATION');
     for (const edu of educations) {
-      lines.push(`${edu.degree} in ${edu.field} | ${edu.institution}`);
+      lines.push(`${formatDegreeAndField(edu.degree, edu.field)} | ${edu.institution}`);
       lines.push(`${edu.startDate} – ${edu.endDate}`);
       if (edu.description) lines.push(edu.description);
       lines.push('');
@@ -1327,7 +1328,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
                         <ul className="space-y-1">
                           {tailorResult.education.map((edu, i) => (
                             <li key={i} className="text-muted-foreground text-sm">
-                              {edu.degree} in {edu.field} - {edu.institution}
+                              {formatDegreeAndField(edu.degree, edu.field)}{edu.institution ? ` - ${edu.institution}` : ''}
                             </li>
                           ))}
                         </ul>

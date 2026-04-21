@@ -1,5 +1,6 @@
 import { ResumeData } from '@/types/resume';
 import { downloadFile } from '@/lib/downloadUtils';
+import { formatDegreeAndField } from '@/lib/educationFormat';
 
 /**
  * Generates an ATS-friendly DOCX from resume data and triggers download.
@@ -57,7 +58,7 @@ export async function generateAndDownloadDOCX(resume: ResumeData): Promise<boole
     for (const edu of resume.education) {
       sections.push(new Paragraph({
         children: [
-          new TextRun({ text: `${edu.degree} in ${edu.field}`, bold: true, size: 22 }),
+          new TextRun({ text: formatDegreeAndField(edu.degree, edu.field), bold: true, size: 22 }),
           new TextRun({ text: ` — ${edu.institution}`, size: 22 }),
         ],
         spacing: { before: 120 },

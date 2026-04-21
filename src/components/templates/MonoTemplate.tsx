@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import { formatDegreeAndField } from '@/lib/educationFormat';
 import { ResumeData } from '@/types/resume';
 import { ExtraSections } from './shared/ExtraSections';
 import { ContactLinks } from './shared/ContactLinks';
@@ -50,7 +51,7 @@ export const MonoTemplate = memo(function MonoTemplate({ resume }: TemplateProps
       {resume.education.length > 0 && (
         <section data-section="education" className="mb-5">
           <h2 className="text-xs font-medium text-gray-500 uppercase tracking-widest mb-3">Education</h2>
-          {resume.education.map(edu => (<div key={edu.id} data-break-avoid className="mb-2"><h3 className="font-medium text-gray-900 text-xs">{edu.degree} {edu.field && `in ${edu.field}`} <span className="font-normal text-gray-500">— {edu.institution}</span></h3><p className="text-xs text-gray-400">{formatDisplayDate(edu.endDate)}</p>{edu.description && <p className="text-gray-600 text-xs mt-0.5">{edu.description}</p>}</div>))}
+          {resume.education.map(edu => (<div key={edu.id} data-break-avoid className="mb-2"><h3 className="font-medium text-gray-900 text-xs">{formatDegreeAndField(edu.degree, edu.field)} <span className="font-normal text-gray-500">— {edu.institution}</span></h3><p className="text-xs text-gray-400">{formatDisplayDate(edu.endDate)}</p>{edu.description && <p className="text-gray-600 text-xs mt-0.5">{edu.description}</p>}</div>))}
         </section>
       )}
       {resume.skills.length > 0 && (

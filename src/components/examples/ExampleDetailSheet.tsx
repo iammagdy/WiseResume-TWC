@@ -4,6 +4,7 @@ import { ProgressRing } from '@/components/home/ProgressRing';
 import { Sparkles, Lightbulb } from 'lucide-react';
 import { haptics } from '@/lib/haptics';
 import type { ResumeExample } from '@/types/resumeExamples';
+import { formatDegreeAndField } from '@/lib/educationFormat';
 
 interface Props {
   example: ResumeExample | null;
@@ -79,7 +80,7 @@ export function ExampleDetailSheet({ example, open, onOpenChange, onUseTemplate,
               <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Education</h4>
               {resumeData.education.map(edu => (
                 <div key={edu.id} className="mb-2">
-                  <p className="text-sm font-medium text-foreground">{edu.degree} in {edu.field}</p>
+                  <p className="text-sm font-medium text-foreground">{formatDegreeAndField(edu.degree, edu.field)}</p>
                   <p className="text-xs text-muted-foreground">{edu.institution} · {edu.startDate} – {edu.endDate}</p>
                 </div>
               ))}
