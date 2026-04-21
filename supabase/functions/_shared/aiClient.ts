@@ -473,10 +473,42 @@ async function getOpenRouterAdminSettings(opts?: { bypassCache?: boolean }): Pro
 }
 
 /**
+ * Internal context shared between callAI and the underlying provider paths.
+ *
+ * Currently used by `parseAIJSONWithRetry` so that the parse-corrective
+ * second AI call (issued when the model returns malformed JSON) does NOT
+ * pay a separate breaker decision and does NOT record a separate failure
+ * event. The owning user-visible action must spend at most ONE breaker
+ * acquire and produce at most ONE combined breaker outcome event for the
+ * pair of attempts. See AI-3 task and `parseAIJSONWithRetry` below.
+ *
+ * REFACTOR SHAPE PICKED (AI-3 step 1): option (b) — a non-exported
+ * internal entry point (`callAIInternal`) that takes a retry context.
+ * Option (a) would have required moving JSON-parse-aware retry into
+ * `callAI`, but `callAI` is provider-agnostic and knows nothing about
+ * downstream JSON shape. Option (b) keeps the parse-retry logic in
+ * `parseAIJSONWithRetry` while letting the second underlying AI call
+ * piggy-back on the parent's breaker bookkeeping.
+ */
+interface InternalCallContext {
+  /**
+   * When true, every provider path inside callAIInternal skips both
+   * `isBreakerOpen()` and `recordBreakerEvent()`. The parent call (the
+   * first AI attempt of the user-visible action) already paid those
+   * costs; the parse-retry must not double-count.
+   */
+  suppressBreakerAccounting?: boolean;
+}
+
+/**
  * Calls AI API routing through WiseResume AI (OpenRouter/Groq) or user BYOK keys.
  * Priority: BYOK OpenRouter → BYOK Ollama → BYOK Gemini → WiseResume AI (managed) → legacy GEMINI_API_KEY
  */
 export async function callAI(options: AICallOptions): Promise<AIResponse> {
+  return callAIInternal(options, {});
+}
+
+async function callAIInternal(options: AICallOptions, ctx: InternalCallContext): Promise<AIResponse> {
   const { model, messages, temperature = 0.7, maxTokens, tools, toolChoice, userId, timeout = 30_000 } = options;
 
   const openrouterManagedKey = Deno.env.get('OPENROUTER_API_KEY');
@@ -700,6 +732,9 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
         // the chain behaves exactly as before unless the admin's test sets them.
         options.openrouterCuratedModel,
         options.openrouterAutoFallback,
+        // AI-3: forward the breaker-suppression flag so the parse-retry
+        // does not double-count against the per-provider breaker.
+        ctx.suppressBreakerAccounting,
       );
       return { ...normalizeToolCallResponse(res, toolChoice), providerUsed: res.providerUsed || 'wiseresume' };
     }
@@ -711,7 +746,10 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
     // instead of waiting through a 30s timeout we already know will fail.
     if (globalGeminiKey) {
       const BREAKER_KEY = 'gemini_global';
-      if (await isBreakerOpen(BREAKER_KEY)) {
+      // AI-3: when this is the parse-retry of parseAIJSONWithRetry, the parent
+      // call already paid the breaker decision and recorded the outcome —
+      // skip both here so the pair counts as exactly one breaker event.
+      if (!ctx.suppressBreakerAccounting && await isBreakerOpen(BREAKER_KEY)) {
         console.warn(`[AI] breaker open for ${BREAKER_KEY} — failing fast`);
         throw createAIError('provider_busy', 'AI is temporarily unavailable — please try again in a moment.', 503);
       }
@@ -720,10 +758,12 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
         const res = await callGeminiDirect(globalGeminiKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
         // Fire-and-forget telemetry: don't make the user wait on the
         // breaker bookkeeping write before the AI response is returned.
-        void recordBreakerEvent(BREAKER_KEY, true);
+        if (!ctx.suppressBreakerAccounting) {
+          void recordBreakerEvent(BREAKER_KEY, true);
+        }
         return { ...res, providerUsed: 'gemini_global' };
       } catch (err) {
-        if (shouldCountAsBreakerFailure(err)) {
+        if (!ctx.suppressBreakerAccounting && shouldCountAsBreakerFailure(err)) {
           void recordBreakerEvent(BREAKER_KEY, false);
         }
         throw err;
@@ -1525,6 +1565,11 @@ export async function callWiseresumeAI(
   // existing call site (tailoring, assist, etc.) keeps the same behavior.
   openrouterCuratedModel?: string,
   openrouterAutoFallback?: boolean,
+  // AI-3: when true, skip every isBreakerOpen() and recordBreakerEvent() call
+  // in this loop. Set by parseAIJSONWithRetry's corrective second attempt so
+  // the parent and the retry together pay one breaker decision and produce
+  // one combined breaker outcome event — never two.
+  suppressBreakerAccounting?: boolean,
 ): Promise<AIResponse> {
   const openrouterKey = Deno.env.get('OPENROUTER_API_KEY');
   const openrouter2Key = Deno.env.get('OPENROUTER2_API_KEY');
@@ -1783,7 +1828,10 @@ export async function callWiseresumeAI(
     // so we don't pay a DB round-trip before every model attempt — one read
     // per provider per request is enough to make the routing decision.
     if (!(provider in breakerOpenCache)) {
-      breakerOpenCache[provider] = await isBreakerOpen(breakerKey);
+      // AI-3: parse-retry must NOT pay a second breaker decision — treat
+      // the breaker as closed for this attempt; the parent's decision
+      // already governed whether the call should proceed at all.
+      breakerOpenCache[provider] = suppressBreakerAccounting ? false : await isBreakerOpen(breakerKey);
     }
     if (breakerOpenCache[provider]) {
       console.warn(`[AI] WiseResume breaker open for ${breakerKey} — skipping ${model}`);
@@ -1811,13 +1859,17 @@ export async function callWiseresumeAI(
       // healthy reply is enough evidence the upstream is back.
       // Fire-and-forget: telemetry must not block returning the AI result.
       // recordBreakerEvent already swallows its own errors (fail-open).
-      void recordBreakerEvent(breakerKey, true);
+      // AI-3: skip on parse-retry so the pair counts as one combined event.
+      if (!suppressBreakerAccounting) {
+        void recordBreakerEvent(breakerKey, true);
+      }
       return result;
     } catch (err) {
       // Count this attempt against the breaker (auth/payment errors excluded).
       // Fire-and-forget so the next retry can start immediately instead of
       // waiting on a DB round-trip in the failure path.
-      if (shouldCountAsBreakerFailure(err)) {
+      // AI-3: skip on parse-retry so the pair counts as one combined event.
+      if (!suppressBreakerAccounting && shouldCountAsBreakerFailure(err)) {
         void recordBreakerEvent(breakerKey, false);
       }
       const elapsed = Date.now() - attemptStart;
@@ -2298,7 +2350,13 @@ export async function parseAIJSONWithRetry<T = unknown>(
   console.warn('[parseAIJSONWithRetry] Initial JSON parse failed — attempting corrective retry');
 
   try {
-    const retryResponse = await callAI({
+    // AI-3: route through callAIInternal with suppressBreakerAccounting=true.
+    // The parent AI call (made by the endpoint that produced `text`) already
+    // paid one breaker decision and recorded one outcome event; the parse-
+    // corrective retry must NOT add a second of either. The user-visible
+    // action is one logical AI request, so it must spend exactly one breaker
+    // acquire and produce exactly one combined outcome event for the pair.
+    const retryResponse = await callAIInternal({
       ...retryOptions,
       messages: [
         {
@@ -2307,7 +2365,7 @@ export async function parseAIJSONWithRetry<T = unknown>(
         },
       ],
       temperature: 0,
-    });
+    }, { suppressBreakerAccounting: true });
 
     if (!retryResponse.content) {
       console.error('[parseAIJSONWithRetry] Retry returned no content');

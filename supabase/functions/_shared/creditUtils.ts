@@ -181,10 +181,20 @@ export async function refundCredit(
   deduction: CreditCheckResult,
   amount = 1,
 ): Promise<void> {
-  // No debit occurred in these paths
+  // No debit occurred in these paths.
   if (deduction.isByok) return;
   if (!deduction.hasCredits) return;
-  if (deduction.effectivePlan === 'premium') return; // unlimited plan — no counter to reverse
+  // AI-3: gate on the captured `usageDate` rather than re-deriving the plan
+  // (or, worse, looking the plan up live). `usageDate` is the authoritative
+  // signal that the deduct RPC actually wrote a counter row: present →
+  // refund the same row; absent → no row was created (e.g. unlimited
+  // premium where the RPC short-circuits). This is race-safe: even if the
+  // user's effective plan flips between deduct and refund (pro trial expires
+  // → free, or trial activates mid-request), the refund still hits the
+  // SAME (user, usage_date) row that was debited. Re-resolving the plan
+  // here would either no-op a real debit (over-charge by 1) or hit the
+  // wrong daily bucket.
+  if (!deduction.usageDate) return;
 
   try {
     const supabase = getServiceClient();
@@ -196,7 +206,7 @@ export async function refundCredit(
     const { error } = await supabase.rpc('atomic_refund_credit', {
       p_user_id:    userId,
       p_amount:     amount,
-      p_usage_date: deduction.usageDate ?? null,
+      p_usage_date: deduction.usageDate,
     });
     if (error) {
       log.warn('atomic_refund_credit RPC failed — user may be over-charged by 1 credit', {
