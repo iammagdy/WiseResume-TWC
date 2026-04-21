@@ -25,6 +25,16 @@ export const NotificationsSection = memo(function NotificationsSection() {
 
     return (
         <div className="rounded-2xl bg-card border border-border shadow-soft overflow-hidden">
+            <div className="flex items-center gap-3 px-4 py-3.5">
+                <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                    <BellOff className="w-4 h-4 text-muted-foreground" />
+                </div>
+                <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-muted-foreground">Push Notifications</p>
+                    <p className="text-xs text-muted-foreground">Browser push notifications are temporarily unavailable.</p>
+                </div>
+            </div>
+            <Separator className="bg-border/30" />
             <SettingsRow
                 type="toggle"
                 label="Auto-save Toasts"

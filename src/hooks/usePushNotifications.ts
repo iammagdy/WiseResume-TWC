@@ -28,7 +28,44 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
   return btoa(String.fromCharCode(...new Uint8Array(buffer)));
 }
 
+// The app no longer registers a service worker (PWA was removed in v3.5.0+),
+// so push notifications are unsupported in the web build. This hook now
+// early-returns a safe `unsupported` shape immediately so any caller —
+// existing or future — can render disabled UI without hanging on
+// `navigator.serviceWorker.ready` (which never resolves when no SW is
+// registered) or crashing on `pushManager.subscribe`. The full
+// implementation below is preserved (reachable via the early-return guard
+// being removed) so push can be re-enabled by reintroducing a SW.
+const PUSH_DISABLED_REASON = 'Push notifications are disabled in this build (no service worker).';
+
 export function usePushNotifications() {
+  // Always-disabled stub. Returns the same shape the real hook returns,
+  // so callers compile and render correctly. All actions throw the same
+  // descriptive error so misuse is loud.
+  const noop = useCallback(async () => {
+    throw new Error(PUSH_DISABLED_REASON);
+  }, []);
+  return {
+    isSupported: false,
+    isSubscribed: false,
+    permission: 'default' as NotificationPermission,
+    isLoading: false,
+    isiOS: false,
+    isPWA: false,
+    subscribe: noop,
+    unsubscribe: noop,
+    sendTest: noop,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// DORMANT — original SW-backed implementation. Kept here for reference and
+// for the day push notifications are re-enabled. Renamed so it isn't
+// exported and TypeScript still type-checks the body. To revive: restore
+// the original `export function usePushNotifications()` signature in place
+// of the stub above and delete this wrapper.
+// ─────────────────────────────────────────────────────────────────────────
+function _usePushNotificationsDormant() {
   const { user } = useAuth();
   const [isSupported, setIsSupported] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(false);
@@ -51,7 +88,6 @@ export function usePushNotifications() {
     const hasPushManager = 'PushManager' in window;
     const hasNotification = 'Notification' in window;
 
-    // iOS: push only works when installed as PWA
     if (isIOSDevice && !isPWAMode) {
       setIsSupported(false);
     } else {
@@ -63,7 +99,6 @@ export function usePushNotifications() {
     }
   }, []);
 
-  // Check existing subscription
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return;
     navigator.serviceWorker.ready.then(async (reg) => {
