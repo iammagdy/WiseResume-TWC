@@ -1,4 +1,4 @@
-import { memo, useState, useCallback } from 'react';
+import { memo, useState, useCallback, useEffect, useRef } from 'react';
 import { Plus, Trash2, ChevronDown, ChevronUp, Rocket, Calendar, Link, Github, X, ArrowUp, ArrowDown } from 'lucide-react';
 import { DragHandle } from './DragHandle';
 import { Button } from '@/components/ui/button';
@@ -31,23 +31,53 @@ export const ProjectsSection = memo(function ProjectsSection() {
   const [questionsProjectId, setQuestionsProjectId] = useState<string | null>(null);
   const [questionsLoading, setQuestionsLoading] = useState(false);
 
+  // Latest AI improved payload, kept in a ref so the apply callback can
+  // merge the user's edited description (a string from the dialog) with
+  // any structured fields the AI returned (technologies, etc.).
+  const lastImprovedRef = useRef<unknown>(null);
+
   const onApply = useCallback((content: unknown) => {
     if (!enhancingProjectId) return;
+    const proj = projects.find(p => p.id === enhancingProjectId);
+    if (!proj) return;
+
+    // The new editable AIEnhanceDialog forwards the user's edited text as a
+    // string. Merge that string as the description and pull non-text fields
+    // (technologies, etc.) from the AI response we stashed before opening
+    // the dialog.
+    if (typeof content === 'string') {
+      const improved = lastImprovedRef.current;
+      const improvedObj = (improved && typeof improved === 'object' && !Array.isArray(improved))
+        ? improved as Record<string, unknown>
+        : null;
+      updateResume({
+        projects: projects.map(p =>
+          p.id === enhancingProjectId
+            ? {
+                ...p,
+                description: content,
+                technologies: improvedObj && Array.isArray(improvedObj.technologies)
+                  ? improvedObj.technologies as string[]
+                  : p.technologies,
+              }
+            : p
+        ),
+      });
+      return;
+    }
+
     // Handle suggest_technologies — content is an array of strings
     if (Array.isArray(content) && content.every(i => typeof i === 'string')) {
-      const proj = projects.find(p => p.id === enhancingProjectId);
-      if (proj) {
-        const existingTechs = new Set(proj.technologies);
-        const newTechs = (content as string[]).filter(t => !existingTechs.has(t));
-        updateResume({
-          projects: projects.map(p =>
-            p.id === enhancingProjectId
-              ? { ...p, technologies: [...p.technologies, ...newTechs] }
-              : p
-          ),
-        });
-        toast.success(`Added ${newTechs.length} technologies`);
-      }
+      const existingTechs = new Set(proj.technologies);
+      const newTechs = (content as string[]).filter(t => !existingTechs.has(t));
+      updateResume({
+        projects: projects.map(p =>
+          p.id === enhancingProjectId
+            ? { ...p, technologies: [...p.technologies, ...newTechs] }
+            : p
+        ),
+      });
+      toast.success(`Added ${newTechs.length} technologies`);
       return;
     }
     // Handle single project object improvement
@@ -76,6 +106,38 @@ export const ProjectsSection = memo(function ProjectsSection() {
     section: 'projects',
     onApply,
   });
+
+  // Stash the latest AI payload so the apply path can merge it with the
+  // user's edited description (the dialog only forwards a string).
+  useEffect(() => {
+    if (result?.improved !== undefined) {
+      lastImprovedRef.current = result.improved;
+    }
+  }, [result]);
+
+  const handleRerun = useCallback(async (
+    action: 'shorten' | 'improve' | 'generate',
+    currentText: string,
+  ) => {
+    if (!enhancingProjectId) return;
+    const proj = projects.find(p => p.id === enhancingProjectId);
+    if (!proj) return;
+    await enhance(
+      action as ActionType,
+      {
+        id: proj.id,
+        name: proj.name,
+        role: proj.role,
+        startDate: proj.startDate,
+        endDate: proj.endDate,
+        description: currentText,
+        technologies: proj.technologies,
+        url: proj.url,
+        githubUrl: proj.githubUrl,
+      },
+      currentResume,
+    );
+  }, [enhance, enhancingProjectId, projects, currentResume]);
 
   const handleAIAction = useCallback(async (actionId: string, proj: Project) => {
     setEnhancingProjectId(proj.id);
@@ -331,7 +393,9 @@ export const ProjectsSection = memo(function ProjectsSection() {
         improved={getImprovedDescription()}
         changes={result?.changes || []}
         suggestions={result?.suggestions}
-        onApply={apply}
+        isEnhancing={isEnhancing}
+        onRerun={handleRerun}
+        onApply={(editedText) => apply(editedText)}
         onDiscard={discard}
         title="AI Project Enhancement"
       />

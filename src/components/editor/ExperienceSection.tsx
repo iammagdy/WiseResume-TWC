@@ -48,13 +48,33 @@ export const ExperienceSection = memo(function ExperienceSection() {
   const { enhance, isEnhancing, result, apply, discard } = useAIEnhance({
     section: 'experience',
     onApply: (content) => {
-      if (enhancingExpId && improvedEntry) {
-        updateExperience(enhancingExpId, {
-          ...(improvedEntry.description && { description: improvedEntry.description }),
-          ...(improvedEntry.achievements && { achievements: improvedEntry.achievements }),
-          ...(improvedEntry.position && { position: improvedEntry.position }),
-          ...(improvedEntry.company && { company: improvedEntry.company }),
-        });
+      // `content` is the user's edited text from the dialog (or the AI's
+      // description if they didn't edit). Use it as the authoritative
+      // description and merge with the AI's other field improvements
+      // (achievements, position, company) when they are present and look
+      // like the right shape — never blindly write `undefined` or a
+      // non-array `achievements` into the store.
+      if (!enhancingExpId) return;
+      const editedDescription = typeof content === 'string' ? content : '';
+      const updates: Partial<Experience> = {};
+      if (editedDescription.trim() !== '') {
+        updates.description = editedDescription;
+      }
+      if (improvedEntry) {
+        if (Array.isArray(improvedEntry.achievements) && improvedEntry.achievements.length > 0) {
+          updates.achievements = improvedEntry.achievements.filter(
+            (a): a is string => typeof a === 'string',
+          );
+        }
+        if (typeof improvedEntry.position === 'string' && improvedEntry.position.trim() !== '') {
+          updates.position = improvedEntry.position;
+        }
+        if (typeof improvedEntry.company === 'string' && improvedEntry.company.trim() !== '') {
+          updates.company = improvedEntry.company;
+        }
+      }
+      if (Object.keys(updates).length > 0) {
+        updateExperience(enhancingExpId, updates);
       }
       setShowDialog(false);
       setEnhancingExpId(null);
@@ -143,27 +163,71 @@ export const ExperienceSection = memo(function ExperienceSection() {
   }, []);
 
   const handleAIAction = useCallback(async (actionId: string, exp: Experience) => {
-    setEnhancingExpId(exp.id);
-    setOriginalDescription(exp.description);
-    
+    // Snapshot the original description for the dialog *now*, but only
+    // commit `enhancingExpId` and `originalDescription` to React state once
+    // the AI call resolves. Setting these before awaiting `enhance()`
+    // caused a race when the user clicked Improve on a different entry
+    // while the first call was still in flight: the second call's dialog
+    // would render the second entry's "original" against the first
+    // entry's "improved".
+    const targetId = exp.id;
+    const targetOriginal = exp.description;
+
     const enhanceResult = await enhance(
       actionId as ActionType,
       { description: exp.description, position: exp.position, company: exp.company, account: exp.account },
       currentResume
     );
-    
-    if (enhanceResult) {
-      const improved = enhanceResult.improved;
-      let entry: Record<string, unknown> | null = null;
-      if (Array.isArray(improved)) {
-        entry = improved.find((e: Record<string, unknown>) => e.id === exp.id) || improved[0] || null;
-      } else if (improved && typeof improved === 'object') {
-        entry = improved as Record<string, unknown>;
-      }
-      setImprovedEntry(entry as typeof improvedEntry);
-      setShowDialog(true);
+
+    if (!enhanceResult) {
+      // Failed call — leave per-entry state untouched. The error toast was
+      // already surfaced by the hook with the structured AIError code.
+      return;
     }
+
+    const improved = enhanceResult.improved;
+    let entry: Record<string, unknown> | null = null;
+    if (Array.isArray(improved)) {
+      entry = (improved.find((e: Record<string, unknown>) => e.id === targetId) || improved[0] || null) as Record<string, unknown> | null;
+    } else if (improved && typeof improved === 'object') {
+      entry = improved as Record<string, unknown>;
+    }
+
+    if (!entry) {
+      // Shape sanity-check: we already validated the top-level shape in the
+      // hook, but the per-entry lookup can still come back null. Surface
+      // the failure as a toast and bail without writing anything to state.
+      return;
+    }
+
+    setEnhancingExpId(targetId);
+    setOriginalDescription(targetOriginal);
+    setImprovedEntry(entry as typeof improvedEntry);
+    setShowDialog(true);
   }, [enhance, currentResume]);
+
+  const handleRerun = useCallback(async (
+    action: 'shorten' | 'improve' | 'generate',
+    currentText: string,
+  ) => {
+    if (!enhancingExpId) return;
+    const exp = experience.find(e => e.id === enhancingExpId);
+    if (!exp) return;
+    const enhanceResult = await enhance(
+      action as ActionType,
+      { description: currentText, position: exp.position, company: exp.company, account: exp.account },
+      currentResume,
+    );
+    if (!enhanceResult) return;
+    const improved = enhanceResult.improved;
+    let entry: Record<string, unknown> | null = null;
+    if (Array.isArray(improved)) {
+      entry = (improved.find((e: Record<string, unknown>) => e.id === enhancingExpId) || improved[0] || null) as Record<string, unknown> | null;
+    } else if (improved && typeof improved === 'object') {
+      entry = improved as Record<string, unknown>;
+    }
+    if (entry) setImprovedEntry(entry as typeof improvedEntry);
+  }, [enhance, enhancingExpId, experience, currentResume]);
 
   const handleTimelineDismiss = useCallback(() => setShowTimeline(false), []);
   const handleTimelineExplainGap = useCallback((gap: GapInfo) => {
@@ -322,13 +386,17 @@ export const ExperienceSection = memo(function ExperienceSection() {
         improved={improvedEntry?.description || ''}
         changes={result?.changes || []}
         suggestions={result?.suggestions}
-        onApply={() => {
-          apply();
+        isEnhancing={isEnhancing}
+        onRerun={handleRerun}
+        onApply={(editedText) => {
+          apply(editedText);
           setShowDialog(false);
         }}
         onDiscard={() => {
           discard();
           setShowDialog(false);
+          setEnhancingExpId(null);
+          setImprovedEntry(null);
         }}
         title="Enhanced Experience"
       />

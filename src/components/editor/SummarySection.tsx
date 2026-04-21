@@ -24,7 +24,12 @@ export const SummarySection = memo(function SummarySection() {
   const { enhance, isEnhancing, result, apply, discard } = useAIEnhance({
     section: 'summary',
     onApply: (content) => {
-      updateResume({ summary: content as string });
+      // `content` is the user's edited text (or the AI output if they didn't
+      // edit). Refuse to write a non-string or an empty value into the store
+      // — the dialog already guards against this but defending here means a
+      // bad payload can never blank the editor.
+      if (typeof content !== 'string' || content.trim() === '') return;
+      updateResume({ summary: content });
       setShowDialog(false);
     },
   });
@@ -47,7 +52,13 @@ export const SummarySection = memo(function SummarySection() {
       setPendingSummaryGeneration(false);
       setStarted(true);
       const enhanceResult = await enhance('generate' as ActionType, currentResume.summary || '', currentResume);
-      if (enhanceResult) setShowDialog(true);
+      if (enhanceResult) {
+        setShowDialog(true);
+      } else {
+        // Generation failed — let the user back to the empty-state CTAs
+        // instead of leaving them with an empty textarea and no path back.
+        setStarted(false);
+      }
     }, 800);
     return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -63,10 +74,17 @@ export const SummarySection = memo(function SummarySection() {
       summary,
       currentResume
     );
-    
+
     if (enhanceResult) {
       setShowDialog(true);
     }
+  };
+
+  const handleRerun = async (action: 'shorten' | 'improve' | 'generate', currentText: string) => {
+    // Re-runs feed the user's currently-edited text back into the model so
+    // they can iterate without losing changes. The dialog stays open and is
+    // updated in place via `result`.
+    await enhance(action as ActionType, currentText, currentResume);
   };
 
   if (isEmpty && !started) {
@@ -134,11 +152,13 @@ export const SummarySection = memo(function SummarySection() {
       <AIEnhanceDialog
         isOpen={showDialog}
         original={summary}
-        improved={result?.improved as string || ''}
+        improved={typeof result?.improved === 'string' ? result.improved : ''}
         changes={result?.changes || []}
         suggestions={result?.suggestions}
-        onApply={() => {
-          apply();
+        isEnhancing={isEnhancing}
+        onRerun={handleRerun}
+        onApply={(editedText) => {
+          apply(editedText);
           setShowDialog(false);
         }}
         onDiscard={() => {

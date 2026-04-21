@@ -32,6 +32,51 @@ function isTimeoutError(error: unknown): boolean {
   return msg.includes('timed out') || msg.includes('abort') || msg.includes('timeout') || msg.includes('408');
 }
 
+/**
+ * Validate the shape of `improved` returned by the edge function before we
+ * hand it to the section-level apply callback. The intent is to refuse
+ * payloads that would silently corrupt the resume — e.g. a non-string for
+ * `summary`, or `null`/`undefined` for any section. Throwing here turns
+ * shape mismatches into a structured AIError(`enhancement_failed`) so the
+ * caller can keep the dialog open and prompt the user to retry instead of
+ * writing junk into the store and blanking the editor.
+ *
+ * Special case: project clarifying-questions responses arrive as
+ * `{ type: 'questions', questions: [...] }` — those are not an "improved"
+ * payload at all and bypass this check by returning early in the caller.
+ */
+function validateImprovedShape(
+  section: SectionType,
+  improved: unknown,
+): { ok: true } | { ok: false; reason: string } {
+  if (improved === null || improved === undefined) {
+    return { ok: false, reason: 'AI returned an empty result' };
+  }
+  if (section === 'summary') {
+    if (typeof improved !== 'string') {
+      return { ok: false, reason: 'AI returned a non-text summary' };
+    }
+    return { ok: true };
+  }
+  if (section === 'experience' || section === 'education' || section === 'projects') {
+    // Accept either an object (single-entry update) or an array (full
+    // section rewrite). Arrays of strings (e.g. achievement bullets only)
+    // are also acceptable.
+    if (typeof improved === 'string') return { ok: true };
+    if (Array.isArray(improved)) return { ok: true };
+    if (typeof improved === 'object') return { ok: true };
+    return { ok: false, reason: 'AI returned an unexpected shape' };
+  }
+  if (section === 'skills') {
+    if (!Array.isArray(improved)) {
+      return { ok: false, reason: 'AI returned a non-array for skills' };
+    }
+    return { ok: true };
+  }
+  // Other sections accept any non-null payload.
+  return { ok: true };
+}
+
 export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [result, setResult] = useState<EnhanceResult | null>(null);
@@ -134,6 +179,23 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
         trackGeminiUsage();
         checkAIFallback(respData);
         respData.improved = sanitizeAIContent(respData.improved);
+
+        // Project clarifying-questions response is a control message, not
+        // an "improved" payload — let the caller short-circuit before we
+        // shape-check.
+        if (respData && typeof respData === 'object' && respData.type === 'questions') {
+          return respData;
+        }
+
+        const shape = validateImprovedShape(section, respData.improved);
+        if (!shape.ok) {
+          throw new AIError({
+            code: 'enhancement_failed',
+            status: 200,
+            message: shape.reason,
+          });
+        }
+
         return respData;
       });
 
@@ -176,12 +238,20 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
     }
   }, [section, redactPiiBeforeAI]);
 
-  const apply = useCallback(() => {
-    if (result?.improved && onApply) {
-      onApply(result.improved);
-      toast.success('Changes applied!');
-      setResult(null);
-    }
+  /**
+   * Apply the AI result to the resume. When `override` is supplied (e.g. the
+   * user edited the dialog text before pressing Apply), it is forwarded to
+   * the section's `onApply` callback as the authoritative content. The
+   * original AI payload is only used as a fallback when no override is
+   * provided.
+   */
+  const apply = useCallback((override?: unknown) => {
+    if (!onApply) return;
+    const content = override !== undefined ? override : result?.improved;
+    if (content === undefined || content === null) return;
+    onApply(content);
+    toast.success('Changes applied!');
+    setResult(null);
   }, [result, onApply]);
 
   const discard = useCallback(() => {
