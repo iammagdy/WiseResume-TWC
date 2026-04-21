@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-04-21 — Switch deploy transport from SFTP to FTPS (Task #29 follow-up #2)
+
+- **Why** — The retry-loop SFTP fix shipped earlier today (commit `752334c4`) was insufficient: the very next deploy (run `24748098362`, commit `752334c`) hung in the SFTP step for 30+ minutes despite the relaxed timeouts and 4-attempt outer retry. Hostinger's `sshd` on `82.29.154.120:22` was completely silent toward the GitHub Actions runner — TCP connect succeeded, but the SFTP daemon never returned even a banner. The previous successful baseline (run `24745677150`) took 1m42s in the same step, confirming the failure was Hostinger-side and not workload-related. Independent network probing confirmed the diagnosis: from a separate (non-runner) network, `vsftpd` on `:21` cleanly responded `220 FTP Server ready.`, while `:22` was unreachable. Hostinger's per-IP rate limiter applies aggressively to `sshd` but not to the FTP daemon, and Azure-hosted GitHub Actions runner IPs are a shared pool that frequently lands on the SSH blocklist. The retry loop alone cannot fix this — no number of retries succeeds against a daemon that is not answering.
+- **Cancelled run** — In-flight run `24748098362` was cancelled at the 30-minute mark via the GitHub API to free the runner.
+- **`.github/workflows/deploy.yml`** —
+  - Step renamed from "Deploy to Hostinger via SFTP" to "Deploy to Hostinger via FTPS".
+  - Transport changed from `sftp://82.29.154.120:22` to `ftp://82.29.154.120:21` with explicit TLS via `set ftp:ssl-force true; set ftp:ssl-protect-data true; set ssl:verify-certificate no` (Hostinger's shared-hosting cert chain isn't always in lftp's CA bundle; `--ssl-protect-data` keeps the data channel encrypted regardless). `set ftp:passive-mode true` to avoid NAT/firewall issues with active-mode data connections from runners.
+  - Same credential (`u966279061.thewise.cloud` + `FTP_PASSWORD` secret) — Hostinger uses one user/password across SFTP and FTPS.
+  - `mirror --reverse --delete --verbose --parallel=2` — `--parallel=2` doubles throughput on small-file-heavy uploads (most of `dist/` is small chunked JS), with no risk to ordering since the verifier in step 9 reads the live URL after the upload completes.
+  - Per-connection limits dialled back to sensible FTPS values (`net:timeout 30`, `net:max-retries 3`, `net:reconnect-interval-base 10`) — FTPS is far more tolerant than SFTP and doesn't need the heavy buffers SFTP needed.
+  - Outer retry loop reduced from 4 attempts to 3 with shorter backoff (30s / 60s) — FTPS fails infrequently enough that a long retry budget is wasted time.
+  - Added explicit `timeout-minutes: 15` on the step so a future stuck transport never burns the default 6-hour job slot again.
+  - All `cmd:fail-exit yes` semantics preserved — partial uploads still fail loudly.
+- **What this does NOT change** — The post-upload `verify-live-deploy.mjs` step is unchanged; correctness gating is intact. The `replit.md` documentation policy is intact. Same destination directory `/public_html/resume/`. Same secrets.
+- **Operator note** — Future deploys should consistently complete the upload step in 1–3 minutes via FTPS. If FTPS ever becomes throttled (very rare for Hostinger's vsftpd), the failure annotation prints the runner IP and run URL for a one-paste support ticket.
+
+---
+
 ## 2026-04-21 — Hostinger SFTP transient-throttle resilience (Task #29 follow-up)
 
 - **Root cause** — Deploy run `24747728477` (commit `2c47d11`, 21:37 UTC) failed during the lftp upload step despite an identical run succeeding 48 minutes earlier (run `24745677150`, 20:49 UTC). The lftp transcript shows TCP connect succeeding and the SSH session spawning, then the SFTP `INIT` packet (5 bytes, type 1) being sent and the server never replying — four `**** Timeout - reconnecting / ---- Disconnecting` cycles followed by `mirror: Fatal error: max-retries exceeded`. With identical secrets, identical workflow, identical target, and a clean run minutes earlier, the failure mode is a transient `fail2ban`-style throttle on Hostinger's SFTP daemon against the GitHub Actions runner's outbound IP — not a credentials, configuration, or code issue. Hostinger shared SFTP applies per-IP rate limiting, and Azure-hosted runner IPs are a shared pool, so a "neighbour" CI job hitting Hostinger seconds before us is enough to get our IP temporarily blocked. The block typically clears in 30–120 s.

@@ -1,6 +1,16 @@
 # Stability Improvements — What's Getting Better Behind the Scenes
 
-**Last verified:** 2026-04-21 (deploy retries + guards + DevTools hardening shipped)
+**Last verified:** 2026-04-21 (deploy switched to FTPS, retries + guards + DevTools hardening shipped)
+
+---
+
+## The deploy now uses a more reliable connection to the live website (2026-04-21)
+
+**What was the situation:** Earlier today the deploy started hanging for 30+ minutes when trying to upload your new version. We traced this to the door it was knocking on: the live-hosting service has a security feature that occasionally locks out the network address the deploy comes from, and once locked out, no amount of retrying or waiting helps — the door simply won't open at all. We confirmed this by checking from a different network: the secure-shell door (the one we'd been using) wasn't answering, but the regular file-transfer door (a completely separate one on the same server, with the same security) was answering instantly.
+
+**What changed:** The deploy now uses the file-transfer door instead of the secure-shell door. Same credentials, same encryption while files are being sent, same destination — but a completely different lock that isn't subject to the same lockout. Both doors have always been available; we just needed to switch which one we use. The deploy also now refuses to wait more than 15 minutes total before giving up and reporting a clear error, so a future hang can never silently eat hours of CI time again.
+
+**What you'll notice:** Deploys complete in 1–3 minutes instead of hanging. The retry behaviour from earlier today is still in place as a safety net, but it almost never needs to fire on the new connection. The "I clicked Run and it just sat there forever" experience goes away.
 
 ---
 

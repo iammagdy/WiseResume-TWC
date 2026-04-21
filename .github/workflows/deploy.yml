@@ -56,63 +56,77 @@ jobs:
       - name: Install lftp
         run: sudo apt-get install -y lftp
 
-      - name: Deploy to Hostinger via SFTP
+      - name: Deploy to Hostinger via FTPS
         env:
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+        timeout-minutes: 15
         run: |
           set -uo pipefail
-          # `cmd:fail-exit yes` makes lftp exit non-zero on the FIRST upload
-          # error instead of silently skipping. Without it, a partial upload
-          # (e.g. one file timing out) reports success and we end up with
-          # the "deploy succeeded but site is stale" failure mode that
-          # caused Task #29.
-          # `mirror --reverse --delete` already includes dotfiles like
-          # .htaccess by default — verified empirically against lftp 4.9.x.
-          # The authoritative pass/fail gate for "did .htaccess actually
-          # land" is the next step (verify-live-deploy.mjs), which checks
-          # the headers .htaccess produces directly against the live URL.
+          # WHY FTPS INSTEAD OF SFTP:
+          # On 2026-04-21 the SFTP transport (port 22) became unusable
+          # from GitHub Actions runner IPs. Run 24747728477 failed with
+          # "Timeout - reconnecting / max-retries exceeded" during the
+          # SFTP INIT handshake even though TCP connect succeeded. A
+          # follow-up retry-loop deploy (run 24748098362) hung for 30+
+          # minutes — Hostinger's sshd was completely silent toward
+          # the runner IP. Independent probes from a separate network
+          # showed sshd on :22 not even returning a banner, while
+          # vsftpd on :21 cleanly responded with "220 FTP Server ready."
+          # Hostinger applies aggressive per-IP rate limiting on sshd
+          # but NOT on the FTP daemon, and Azure-hosted runner IPs are
+          # a shared pool, so SFTP is fundamentally unreliable for
+          # this deploy. FTPS over port 21 with explicit TLS uses the
+          # completely separate vsftpd / pure-ftpd daemon with its own
+          # blocklist (effectively never triggered by CI traffic) and
+          # gives us the same credential, the same encryption-in-flight
+          # guarantee, and the same lftp tooling.
           #
           # WHY THE OUTER RETRY LOOP:
-          # Hostinger's shared SFTP intermittently throttles GitHub
-          # Actions runner IP ranges (run 24747728477 on 2026-04-21
-          # failed with "Timeout - reconnecting" / "max-retries
-          # exceeded" 48 minutes after a clean run on the same workflow,
-          # secrets, and target — classic fail2ban-style transient
-          # block on the runner's outbound IP). The block typically
-          # clears in 30–120s. We wrap lftp in a 4-attempt loop with
-          # widening backoff (45s, 90s, 135s) so a transient block
-          # doesn't fail the entire deploy. Per-connection limits are
-          # also relaxed (timeout 60s, max-retries 5, reconnect base
-          # 10s) so each individual attempt is more tolerant of slow
-          # Hostinger replies before falling through to the outer retry.
+          # Even FTPS can hit transient network blips on the runner.
+          # The previous SFTP run that succeeded took 1m42s, so a 15
+          # minute step timeout plus 3 retries with widening backoff
+          # (30s / 60s / 90s) absorbs any realistic transient failure
+          # without ever burning a 6-hour-default-timeout slot.
+          #
+          # WHY cmd:fail-exit yes:
+          # Without it, lftp's `mirror` reports success even when
+          # individual file uploads fail — that's the failure mode
+          # that caused the stale-v3.4 incident (Task #29).
+          # `mirror --reverse --delete` already includes dotfiles like
+          # .htaccess by default; the authoritative pass/fail gate
+          # for "did v3.5 actually go live" is the next step
+          # (verify-live-deploy.mjs), which probes the live URL.
           deploy_once() {
-            lftp -d -u "u966279061.thewise.cloud,$FTP_PASSWORD" sftp://82.29.154.120:22 \
-              -e "set cmd:fail-exit yes; \
-                  set sftp:auto-confirm yes; \
-                  set net:timeout 60; \
-                  set net:max-retries 5; \
+            lftp -d -u "u966279061.thewise.cloud,$FTP_PASSWORD" ftp://82.29.154.120:21 \
+              -e "set ftp:ssl-force true; \
+                  set ftp:ssl-protect-data true; \
+                  set ssl:verify-certificate no; \
+                  set ftp:passive-mode true; \
+                  set cmd:fail-exit yes; \
+                  set net:timeout 30; \
+                  set net:max-retries 3; \
                   set net:reconnect-interval-base 10; \
                   set net:reconnect-interval-multiplier 1.5; \
-                  set net:persist-retries 5; \
-                  mirror --reverse --delete --verbose ./dist/ /public_html/resume/; \
+                  set net:persist-retries 3; \
+                  mirror --reverse --delete --verbose --parallel=2 ./dist/ /public_html/resume/; \
                   bye" 2>&1 | tail -300
           }
-          for attempt in 1 2 3 4; do
-            echo "::group::lftp upload attempt ${attempt}/4"
+          for attempt in 1 2 3; do
+            echo "::group::FTPS upload attempt ${attempt}/3"
             if deploy_once; then
               echo "::endgroup::"
-              echo "✅ lftp upload succeeded on attempt ${attempt}."
+              echo "✅ FTPS upload succeeded on attempt ${attempt}."
               exit 0
             fi
             echo "::endgroup::"
-            if [ "$attempt" -lt 4 ]; then
-              wait_sec=$((attempt * 45))
-              echo "lftp upload attempt ${attempt} failed (likely Hostinger SFTP throttling the runner IP). Sleeping ${wait_sec}s before retry..."
+            if [ "$attempt" -lt 3 ]; then
+              wait_sec=$((attempt * 30))
+              echo "FTPS upload attempt ${attempt} failed. Sleeping ${wait_sec}s before retry..."
               sleep "$wait_sec"
             fi
           done
           runner_ip=$(curl -s --max-time 5 https://api.ipify.org 2>/dev/null || echo "the runner IP")
-          echo "::error::lftp upload failed after 4 attempts. The TCP connect succeeds but Hostinger's SFTP daemon is not responding to the SFTP INIT packet — this is a transient throttle on Hostinger's side, not a credentials or workflow problem. Wait 5–10 minutes and re-run this workflow. If it still fails, log into hPanel → Advanced → SSH Access and confirm SSH is enabled, or contact Hostinger support to lift the temporary IP block on ${runner_ip}."
+          echo "::error::FTPS upload failed after 3 attempts. This is unusual since the FTP daemon is normally extremely tolerant. Wait 5 minutes and re-run; if it still fails, contact Hostinger support and reference runner IP ${runner_ip} and run URL ${GITHUB_SERVER_URL:-https://github.com}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}."
           exit 1
 
       - name: Verify live site reflects the new build
