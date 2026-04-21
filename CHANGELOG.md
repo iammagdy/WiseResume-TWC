@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-04-21 — DB perf: audit unused indexes, no drops shipped (Task #14)
+
+- **`.local/db-analysis/pg_stat_user_indexes.json`** (new) — snapshot of `pg_stat_user_indexes` for the 32 advisor-flagged indexes plus owning-table size and `n_live_tup`, captured against project `jnsfmkzgxsviuthaqlyy` via the Supabase Management `/database/query` endpoint. Includes `pg_stat_get_db_stat_reset_time(...)` (= `2025-12-08 11:03:29 UTC`) and `pg_get_indexdef(...)` per row.
+- **`docs/db-unused-index-analysis.md`** (new) — per-index classification of all 32 candidates into (b) keep — backs a known query, or (c) keep — newly created and not yet exercised. None classified as (a) safe to drop. Documents the re-evaluation criteria (re-run when target tables exceed ~1k rows AND advisor still flags them after ≥ 2 weeks of post-growth traffic).
+- **`supabase/migrations/20260505000000_unused_index_audit_no_drops.sql`** (new) — documentation-only migration (single `RAISE NOTICE` in a `DO` block, no DDL). Records the audit checkpoint and references `docs/db-unused-index-analysis.md`.
+- **Why no drops** — every flagged table is currently 0–15 rows in production (total relation size ≤ 24 KB), so the planner always picks a sequential scan and `idx_scan = 0` is expected behaviour, not evidence the index is unneeded. 21 of 32 flagged indexes are on `wisehire_*` / `talent_pool_*` tables for the WiseHire feature that launched 2026-04-20 (one day before the advisor was run). The remaining 11 back documented filter / lookup paths (per-user resume & application lists, share-token URL resolution, coupon validation, admin queues, analytics group-bys), each ≤ 16 KB. The advisor `unused_index` count is unchanged; remaining entries are all categorized in the doc.
+
+---
+
 ## 2026-04-20 — DevKit: one-click sample resume seeding for AI Studio testing (Task #17)
 
 - **`src/lib/devkit/sampleResume.ts`** (new) — `buildSampleResume(displayName)` factory returning a realistic `ResumeData` payload + a `Demo Resume — <First>` title. Includes 3 work experiences (Northwind Labs / Brightline Health / Pixelforge Studio), 1 education entry (UC Davis BS CS), 12 skills, an AWS certification, an open-source project, and a volunteering entry. `templateId` defaults to `'modern'`. The summary, achievements, and responsibilities are written with enough specificity that `update_summary`, `tailor`, `cover_letter`, and interview-prep tools have meaningful content to operate on (vs. the cosmic placeholder in `src/lib/templateData.ts`'s `sampleResumeData`).

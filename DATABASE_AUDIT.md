@@ -157,6 +157,8 @@ Across `resumes`, `job_applications`, `bug_reports`, `portfolio_visits`, `resume
 
 **Caveat before dropping:** the advisor reports indexes as "unused" based on `pg_stat_user_indexes`. If your stats were reset recently or these indexes back rare admin queries, double-check before dropping. The full list is in `.local/db-analysis/performance.json`.
 
+**Audit outcome (2026-04-21, Task #14):** all 32 reviewed; **none dropped**. Stats were last reset 2025-12-08 (≈ 4.5 months window), but every flagged table currently holds 0–15 rows, so the planner always seq-scans and `idx_scan = 0` is expected — not evidence of unused indexes. 21 of the 32 belong to WiseHire / talent-pool tables for a feature launched 2026-04-20. The remaining 11 back documented filter / lookup paths (share-token URL resolution, coupon validation, admin queues, analytics group-bys). Per-index classification and re-evaluation criteria: `docs/db-unused-index-analysis.md`. Snapshot: `.local/db-analysis/pg_stat_user_indexes.json`.
+
 ---
 
 ## 🔥 Operational

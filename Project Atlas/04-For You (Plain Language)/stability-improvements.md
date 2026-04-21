@@ -1,10 +1,20 @@
 # Stability Improvements — What's Getting Better Behind the Scenes
 
-**Last verified:** 2026-04-19 (landing perf + scroll-stack fixes added)
+**Last verified:** 2026-04-21 (database index audit added)
 **Audience:** you (the owner). No code, no jargon, no technical paths.
 **Sources (governance — supreme):**
 - `project-governance/CHANGELOG.md` entries dated 2026-04-18 (Stability Fixes — Phases 1 to 6)
 - `project-governance/CONSTITUTION.md` §6.5–§6.6 (the rule that says every change must be documented for you, in plain English, alongside the engineering record)
+
+---
+
+## Reviewed every "unused" database index — kept them all for now (2026-04-21)
+
+**What was the situation:** A health check on the database flagged 32 indexes as never used, suggesting they could be removed to make writes faster. Removing the wrong ones, however, would silently slow down lookups — like the share-link resolver, coupon validation, and the new WiseHire candidate / pipeline screens.
+
+**What changed:** Each flagged index was reviewed against the actual tables and the queries that rely on it. The verdict: every single one is justified. Most of them belong to the brand-new WiseHire product that only launched the day before the audit, so they haven't had time to be used yet. The rest sit on tables that currently hold only a handful of rows — small enough that the database always reads the table directly and skips the index. As the data grows, the indexes will quietly start doing their job. A written record of the review is kept so the next audit doesn't have to redo the analysis from scratch.
+
+**What you'll notice:** Nothing immediately, by design. The decision avoids a class of "feature suddenly got slow" bugs that would have hit recruiters using WiseHire as soon as their pipelines filled up. The audit will be revisited once the affected tables have grown enough for "unused" to actually mean unused.
 
 ---
 
