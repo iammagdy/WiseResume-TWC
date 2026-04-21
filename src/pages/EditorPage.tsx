@@ -353,14 +353,9 @@ export default function EditorPage() {
   // Promoted sections (certifications, languages, awards, publications, volunteering) are
   // top-level tabs. Projects, hobbies, references still route through activeTab='more'.
   const handleTabChange = useCallback((newTab: string) => {
-    const moreOnlyIds = ['projects', 'hobbies', 'references'];
-    if (moreOnlyIds.includes(newTab)) {
-      setActiveTab('more');
-      setMoreSubSection(newTab);
-    } else {
-      setMoreSubSection(null);
-      setActiveTab(newTab);
-    }
+    // All sections are now direct top-level tabs; clear moreSubSection on every change.
+    setMoreSubSection(null);
+    setActiveTab(newTab);
     haptics.light();
     // Scroll content to top smoothly when switching tabs
     scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
@@ -552,12 +547,12 @@ export default function EditorPage() {
     return base;
   }, [educationFirst]);
 
-  // Count optional sections not yet added (available to add via More).
-  // Certifications, Languages, Awards, Publications, Volunteering are always in the stepper.
+  // All optional sections are now always in the stepper, so availableMoreCount is always 0.
+  // Keep the computation in case future sections are added conditionally.
   const availableMoreCount = useMemo(() => {
-    const MORE_OPTIONAL_IDS = ['projects', 'hobbies', 'references'];
+    const ALL_OPTIONAL_IDS = ['certifications', 'languages', 'awards', 'publications', 'volunteering', 'projects', 'hobbies', 'references'];
     const addedIds = new Set(steps.map(s => s.id));
-    return MORE_OPTIONAL_IDS.filter(id => !addedIds.has(id)).length;
+    return ALL_OPTIONAL_IDS.filter(id => !addedIds.has(id)).length;
   }, [steps]);
 
   // Hook 3: section scores, completion status, celebration toasts, and confetti
@@ -604,15 +599,9 @@ export default function EditorPage() {
   const handleCustomize = useCallback(() => setShowCustomize(true), []);
 
   const handleMoreSectionSelect = useCallback((sectionId: string) => {
-    // Promoted sections are top-level tabs; route them directly.
-    const promotedIds = ['certifications', 'languages', 'awards', 'publications', 'volunteering'];
-    if (promotedIds.includes(sectionId)) {
-      setActiveTab(sectionId);
-      setMoreSubSection(null);
-    } else {
-      setActiveTab('more');
-      setMoreSubSection(sectionId);
-    }
+    // All named sections are now direct top-level tabs.
+    setMoreSubSection(null);
+    setActiveTab(sectionId);
     scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 

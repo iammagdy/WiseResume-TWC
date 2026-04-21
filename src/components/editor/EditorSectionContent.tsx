@@ -180,6 +180,27 @@ export function EditorSectionContent({
           </SectionCard>
         </div>
       )}
+      {activeTab === 'projects' && (
+        <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
+          <SectionCard icon={Rocket} title="Projects" action={<SectionAIAction section="projects" />}>
+            <Suspense fallback={<ListSectionSkeleton />}><ProjectsSection /></Suspense>
+          </SectionCard>
+        </div>
+      )}
+      {activeTab === 'hobbies' && (
+        <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
+          <SectionCard icon={Palette} title="Hobbies & Interests">
+            <Suspense fallback={<ListSectionSkeleton />}><HobbiesSection /></Suspense>
+          </SectionCard>
+        </div>
+      )}
+      {activeTab === 'references' && (
+        <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
+          <SectionCard icon={Users} title="References">
+            <Suspense fallback={<ListSectionSkeleton />}><ReferencesSection /></Suspense>
+          </SectionCard>
+        </div>
+      )}
       {activeTab === 'more' && (
         <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
           {!moreSubSection ? (
