@@ -14,6 +14,7 @@ import { parseResumeText } from './pdf/sectionParsers';
 import { preprocessResumeText, extractContactHints } from './pdf/textPreprocessor';
 
 import { handleAIError } from './aiProvider';
+import { apiFnUrl } from '@/lib/apiFnUrl';
 
 export { PDFParseError, estimateOCRTime };
 export type { ExtractionResult, OCRProgressCallback };
@@ -63,7 +64,7 @@ export async function parseTextWithAI(text: string): Promise<ResumeData> {
     // is required by the server for strict file-type enforcement.
     const requestBody = JSON.stringify({ text, fileType: 'text/plain' });
 
-    let response = await fetch(`/api/fn/parse-resume`, {
+    let response = await fetch(apiFnUrl(`parse-resume`), {
       method: 'POST',
       headers,
       body: requestBody,
@@ -79,7 +80,7 @@ export async function parseTextWithAI(text: string): Promise<ResumeData> {
         const newToken = await getToken();
         const retryHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
         if (newToken) retryHeaders['Authorization'] = `Bearer ${newToken}`;
-        response = await fetch(`/api/fn/parse-resume`, {
+        response = await fetch(apiFnUrl(`parse-resume`), {
           method: 'POST',
           headers: retryHeaders,
           body: requestBody,

@@ -1,6 +1,7 @@
 import { getToken, refreshTokenIfNeeded } from '@/lib/supabaseBridge';
 import { dispatchSessionExpiredOnce } from './sessionExpired';
 import { parseAIErrorBody, aiErrorToastMessage, type AIErrorCode } from '@/lib/aiErrorParser';
+import { apiFnUrl } from '@/lib/apiFnUrl';
 
 /**
  * Classify an edge-function error response. Prefers the structured `error`
@@ -61,7 +62,7 @@ export const edgeFunctions = {
           headers['Authorization'] = `Bearer ${token}`;
         }
 
-        const url = `/api/fn/${fnName}`;
+        const url = apiFnUrl(fnName);
 
         const response = await fetch(url, {
           method: options?.method || 'POST',

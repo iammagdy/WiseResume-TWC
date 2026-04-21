@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquare, X, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import type { PublicProfile, PublicResume } from '@/hooks/usePublicPortfolio';
+import { apiFnUrl } from '@/lib/apiFnUrl';
 
 interface ChatMessage { role: 'user' | 'assistant'; content: string; }
 
@@ -64,7 +65,7 @@ export function ChatWidget({ profile, resume, accentColor, pStyle }: {
     if (!profile.username) return;
 
     setSessionLoading(true);
-    fetch(`/api/fn/create-portfolio-session`, {
+    fetch(apiFnUrl(`create-portfolio-session`), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ portfolioUsername: profile.username }),
@@ -120,7 +121,7 @@ export function ChatWidget({ profile, resume, accentColor, pStyle }: {
     setLoading(true);
 
     try {
-      const res = await fetch(`/api/fn/ask-portfolio`, {
+      const res = await fetch(apiFnUrl(`ask-portfolio`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

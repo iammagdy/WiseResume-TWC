@@ -7,6 +7,7 @@ import { showErrorToast } from '@/lib/errorToast';
 import { parseAIErrorResponse, aiErrorToastMessage, AIError } from '@/lib/aiErrorParser';
 import { hasPassiveVerbs, hasMetrics, hasLongBullets, findPassiveStarter } from '@/lib/contentAnalysis';
 import { useAICreditsMutations } from './useAICredits';
+import { apiFnUrl } from '@/lib/apiFnUrl';
 
 
 export interface ATSSuggestion {
@@ -269,7 +270,7 @@ export function useATSSuggestions(resume: ResumeData | null, jobDescription: str
       });
 
       const doFetch = async (authToken: string | null) =>
-        fetch(`/api/fn/enhance-section`, {
+        fetch(apiFnUrl(`enhance-section`), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

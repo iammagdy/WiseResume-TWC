@@ -25,6 +25,8 @@
  *   out — TODO: remove the migration block after one full release cycle).
  */
 
+import { apiFnUrl } from '@/lib/apiFnUrl';
+
 export enum BridgeErrorType {
   OFFLINE_NETWORK = 'OFFLINE_NETWORK',
   AUTH_REJECTION = 'AUTH_REJECTION',
@@ -265,7 +267,7 @@ export async function exchangeToken(kindeToken: string): Promise<void> {
 
   const promise = (async () => {
     try {
-      const url = `/api/fn/token-exchange`;
+      const url = apiFnUrl(`token-exchange`);
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 8000);
       let res: Response;

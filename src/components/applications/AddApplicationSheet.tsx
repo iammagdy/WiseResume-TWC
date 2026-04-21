@@ -12,6 +12,7 @@ import { getSupabaseToken } from '@/lib/supabaseAuth';
 import { useAuth } from '@/hooks/useAuth';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { toast } from 'sonner';
+import { apiFnUrl } from '@/lib/apiFnUrl';
 
 interface AddApplicationSheetProps {
   open: boolean;
@@ -63,7 +64,7 @@ export function AddApplicationSheet({ open, onOpenChange, defaultValues }: AddAp
     try {
       const token = await getSupabaseToken();
       const res = await fetch(
-        `/api/fn/parse-job-url`,
+        apiFnUrl(`parse-job-url`),
         {
           method: 'POST',
           headers: {

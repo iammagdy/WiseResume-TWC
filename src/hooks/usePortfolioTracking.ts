@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { apiFnUrl } from '@/lib/apiFnUrl';
 
 interface UsePortfolioTrackingProps {
   username?: string | null;
@@ -64,7 +65,7 @@ export function usePortfolioTracking({ username, refParam, abVariant }: UsePortf
       abVariant: abVariantRef.current ?? undefined,
     });
 
-    const url = `/api/fn/track-portfolio-view`;
+    const url = apiFnUrl(`track-portfolio-view`);
     if (navigator.sendBeacon) {
       navigator.sendBeacon(url, new Blob([body], { type: 'application/json' }));
     } else {

@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { getSupabaseToken } from '@/lib/supabaseAuth';
 import { cn } from '@/lib/utils';
+import { apiFnUrl } from '@/lib/apiFnUrl';
 
 interface Question {
   question: string;
@@ -65,7 +66,7 @@ export function QuestionBankSheet({
       if (!token) throw new Error('Not authenticated');
 
       const response = await fetch(
-        `/api/fn/generate-question-bank`,
+        apiFnUrl(`generate-question-bank`),
         {
           method: 'POST',
           headers: {

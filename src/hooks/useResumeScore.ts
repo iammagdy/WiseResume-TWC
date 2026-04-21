@@ -4,6 +4,7 @@ import { getSupabaseToken } from '@/lib/supabaseAuth';
 import { ResumeData } from '@/types/resume';
 import { toast } from 'sonner';
 import { useATSScoreHistoryStore } from '@/store/atsScoreHistoryStore';
+import { apiFnUrl } from '@/lib/apiFnUrl';
 
 export interface WeakBullet {
   text: string;
@@ -72,7 +73,7 @@ async function invokeScoreResume(resume: ResumeData, isBackground = false): Prom
     throw Object.assign(new Error('Scoring skipped: bridge token not available'), { isSkip: true });
   }
 
-  const res = await fetch(`/api/fn/score-resume`, {
+  const res = await fetch(apiFnUrl(`score-resume`), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

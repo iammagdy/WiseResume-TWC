@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import type { PublicProfile } from '@/hooks/usePublicPortfolio';
+import { apiFnUrl } from '@/lib/apiFnUrl';
 
 export function usePortfolioSEO(profile: PublicProfile | undefined | null) {
   useEffect(() => {
@@ -43,7 +44,7 @@ export function usePortfolioSEO(profile: PublicProfile | undefined | null) {
       
       const ogTitle = profile.metaTitle || (profile.jobTitle ? `${name} — ${profile.jobTitle}` : `${name}'s Portfolio`);
       const ogDesc = profile.metaDescription || profile.portfolioBio || `${name}'s professional portfolio`;
-      const ogImageUrl = `/api/fn/og-image?username=${encodeURIComponent(profile.username)}`;
+      const ogImageUrl = apiFnUrl(`og-image?username=${encodeURIComponent(profile.username)}`);
       
       setMeta('og:title', ogTitle);
       setMeta('og:description', ogDesc);

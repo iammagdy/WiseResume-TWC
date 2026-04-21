@@ -20,6 +20,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import type { ActionType, SectionType } from '@/hooks/useAIEnhance';
 import { trackGeminiUsage } from '@/lib/aiProvider';
 import { useAIAction } from '@/hooks/useAIAction';
+import { apiFnUrl } from '@/lib/apiFnUrl';
 
 interface AIEnhanceSheetProps {
   open: boolean;
@@ -257,7 +258,7 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
           const token = await getSupabaseToken();
           if (!token) throw new Error('401 Unauthorized – no session');
 
-          const res = await fetch(`/api/fn/enhance-section`, {
+          const res = await fetch(apiFnUrl(`enhance-section`), {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',

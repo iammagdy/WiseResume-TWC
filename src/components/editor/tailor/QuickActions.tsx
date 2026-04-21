@@ -8,6 +8,7 @@ import { showErrorToast } from '@/lib/errorToast';
 import { toast } from 'sonner';
 import { parseAIErrorResponse, parseAIErrorBody, aiErrorToastMessage, AIError } from '@/lib/aiErrorParser';
 import { ResumeData, SuperTailorResult } from '@/types/resume';
+import { apiFnUrl } from '@/lib/apiFnUrl';
 
 
 interface QuickActionsProps {
@@ -76,7 +77,7 @@ Return JSON: { "recommendedOrder": ["section1", "section2", ...], "reasoning": "
           });
         }
 
-        const res = await fetch(`/api/fn/enhance-section`, {
+        const res = await fetch(apiFnUrl(`enhance-section`), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

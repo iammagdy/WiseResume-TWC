@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { useAuth } from './useAuth';
+import { apiFnUrl } from '@/lib/apiFnUrl';
 
 export interface SuspensionState {
   isSuspended: boolean;
@@ -10,7 +11,7 @@ export interface SuspensionState {
 
 async function checkSuspensionViaMe(token: string): Promise<{ suspended: boolean; reason: string | null }> {
   try {
-    const res = await fetch(`/api/fn/me`, {
+    const res = await fetch(apiFnUrl(`me`), {
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',

@@ -4,6 +4,7 @@ import { getSupabaseToken } from '@/lib/supabaseAuth';
 import { trackGeminiUsage, withGeminiUsage } from './aiProvider';
 import { extractErrorMessage } from './errorToast';
 import { checkAIFallback } from './aiFallbackToast';
+import { apiFnUrl } from '@/lib/apiFnUrl';
 
 export interface TailorError extends Error {
   code?: 'rate_limit' | 'credits_exhausted' | 'generic';
@@ -114,7 +115,7 @@ export async function tailorResumeWithProgress(
       'Content-Type': 'application/json',
     };
     if (token) headers['Authorization'] = `Bearer ${token}`;
-    return fetch(`/api/fn/tailor-resume`, {
+    return fetch(apiFnUrl(`tailor-resume`), {
       method: 'POST',
       headers,
       body: JSON.stringify({ resume, jobDescription, intensity, ...(userInstructions ? { userInstructions } : {}) }),
@@ -300,7 +301,7 @@ export async function tailorSection(params: {
   };
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
-  const res = await fetch(`/api/fn/tailor-section`, {
+  const res = await fetch(apiFnUrl(`tailor-section`), {
     method: 'POST',
     headers,
     body: JSON.stringify(params),

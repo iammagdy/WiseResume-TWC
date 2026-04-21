@@ -12,6 +12,7 @@ import { getSupabaseToken } from '@/lib/supabaseAuth';
 import { useResumeStore } from '@/store/resumeStore';
 import { templates } from '@/lib/templateData';
 import type { TemplateId, TemplateCustomization } from '@/types/resume';
+import { apiFnUrl } from '@/lib/apiFnUrl';
 
 interface TemplateAdvisorSheetProps {
   open: boolean;
@@ -51,7 +52,7 @@ export function TemplateAdvisorSheet({ open, onOpenChange, onApply }: TemplateAd
       const industry = '';
 
       const response = await fetch(
-        `/api/fn/suggest-template`,
+        apiFnUrl(`suggest-template`),
         {
           method: 'POST',
           headers: {

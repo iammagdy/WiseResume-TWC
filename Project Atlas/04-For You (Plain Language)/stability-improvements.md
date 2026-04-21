@@ -2,6 +2,16 @@
 
 **Last verified:** 2026-04-21 (deploy switched to FTPS, retries + guards + DevTools hardening shipped)
 
+## Sign-in works on the live site again (2026-04-21, late afternoon)
+
+**What was the situation:** Earlier today's deploy fix finally let your latest version reach the live site for the first time in days — and that immediately surfaced a separate, latent issue: signing in showed a "Sign-in incomplete" card and never finished. The reason is a mismatch between how the app was built to talk to its backend in development vs in production. In development, every backend call goes through a small helper server we run locally, which verifies your sign-in and forwards the request. On the live site, that helper server doesn't exist — the live site is just static files served by Hostinger. So when the app tried to call the helper, Hostinger returned the home page instead, the app couldn't make sense of the home-page HTML, and concluded the sign-in had failed. This pattern was actually already present in the previous version too, but nobody ever saw it because that version never genuinely reached the live site (the deploy looked successful but kept the older code in place — that's the bug we fixed earlier today).
+
+**What changed:** Every backend call now knows which environment it's running in. In development it still goes through the local helper exactly as before, so nothing changes for working on the app. On the live site it talks directly to Supabase (which is the actual backend the helper was just forwarding to anyway), bypassing the missing helper entirely. The auth setup is built for this — Supabase is happy to receive the call directly, the encryption is the same, and the security checks all still happen on Supabase's side. We considered adding a forwarding rule to Hostinger instead, but that depends on optional Apache features that Hostinger sometimes disables, and it would have added a slower, more brittle middle hop for no real benefit.
+
+**What you'll notice:** Sign-in on the live site works. The "Sign-in incomplete" card no longer appears. AI features (resume tailoring, scoring, enhancement, the question bank, the template advisor, the AI health check), the public portfolio chat widget and contact form, portfolio analytics, and short-link redirects also work — they were all relying on the same helper and were silently broken too. The local development experience is completely unchanged.
+
+---
+
 ---
 
 ## The deploy now uses a more reliable connection to the live website (2026-04-21)

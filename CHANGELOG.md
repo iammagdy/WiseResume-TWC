@@ -1,5 +1,38 @@
 # Changelog
 
+## 2026-04-21 — Fix sign-in on live site: route edge functions to Supabase directly in production (Task #29 follow-up #3)
+
+- **Why** — Once the FTPS deploy fix earlier today let v3.5 actually reach production, sign-in immediately surfaced the "Sign-in incomplete" card from `src/components/layout/ProtectedRoute.tsx`. Root cause: every client call to a Supabase edge function (starting with the auth bridge's `token-exchange`) was hard-coded to a relative `/api/fn/<name>` URL. That path only resolves in dev, where Vite's proxy forwards it to the Express server on `:5001` for verification + forwarding. On Hostinger there is no Express server, so `/api/fn/*` falls through to the SPA `.htaccess` rewrite and returns `index.html` with `200 OK` and `text/html`. The bridge's `res.json()` then throws, the Kinde→Supabase exchange is marked failed, `supabaseSettled && !supabaseReady` flips true, and the protected-route card shows. Verified end-to-end with `curl -i -X POST https://resume.thewise.cloud/api/fn/token-exchange` returning HTML; the canonical Supabase function at `https://jnsfmkzgxsviuthaqlyy.supabase.co/functions/v1/token-exchange` returns the expected `{"code":"MISSING_AUTH_HEADER"}` JSON without auth and `{"code":"INVALID_KINDE_TOKEN"}` with a fake Bearer — i.e. the function is fully reachable from the public internet, no Apache `mod_proxy` required. The pattern was introduced in commit `019a7205` (Task #33 TPL-4) and pre-existed in v3.4 too, but v3.4 never actually shipped to users (silent stale deploy — see Task #29's prior follow-ups), so this is the first time the bug has been visible.
+- **`src/lib/apiFnUrl.ts`** (new) — single chokepoint: `apiFnUrl(fnName)` returns `/api/fn/<name>` when `import.meta.env.DEV` is true (so dev is unchanged and continues to use the Express middleware), and `${VITE_SUPABASE_URL}/functions/v1/<name>` in production. If `VITE_SUPABASE_URL` is unset in a non-dev build the helper falls back to the relative path so failures surface immediately instead of silently routing somewhere unintended. Query strings on `fnName` (e.g. `og-image?username=...`, `resolve-short-link?id=...`) pass through unchanged in both branches.
+- **All 17 client `/api/fn/*` call sites** rerouted through `apiFnUrl(...)`:
+  - `src/lib/supabaseBridge.ts` (`token-exchange`)
+  - `src/lib/edgeFunctions.ts` (generic JSON+FormData wrapper)
+  - `src/integrations/supabase/edgeFunctions.ts` (generic wrapper used by hooks)
+  - `src/lib/aiTailor.ts` (`tailor-resume`, `tailor-section`)
+  - `src/lib/pdfParser.ts` (`parse-resume` × 2 — initial + 401-retry)
+  - `src/hooks/useSuspensionCheck.ts` (`me`)
+  - `src/hooks/useResumeScore.ts` (`score-resume`)
+  - `src/hooks/useATSSuggestions.ts` (`enhance-section`)
+  - `src/hooks/useAIEnhance.ts` (`enhance-section`)
+  - `src/hooks/usePortfolioSEO.ts` (`og-image?username=…`)
+  - `src/hooks/usePortfolioTracking.ts` (`track-portfolio-view`)
+  - `src/components/portfolio/public/PortfolioContactForm.tsx` (`submit-contact-request`)
+  - `src/components/portfolio/public/ChatWidget.tsx` (`create-portfolio-session`, `ask-portfolio`)
+  - `src/components/ai/AIHealthBadge.tsx` (`ai-health`)
+  - `src/components/editor/tailor/QuickActions.tsx` (`enhance-section`)
+  - `src/components/editor/ai/AIEnhanceSheet.tsx` (`enhance-section`)
+  - `src/components/applications/AddApplicationSheet.tsx` (`parse-job-url`)
+  - `src/components/editor/TemplateAdvisorSheet.tsx` (`suggest-template`)
+  - `src/components/interview/QuestionBankSheet.tsx` (`generate-question-bank`)
+  - `src/pages/PublicPortfolioPage.tsx` (`portfolio-interest`)
+  - `src/pages/ShortLinkPage.tsx` (`resolve-short-link?id=…`)
+- **Why this is safe / why no `apikey` header is needed** — `token-exchange` has `verify_jwt = false` in `supabase/config.toml`, so the gateway accepts the request with only a `Authorization: Bearer <kinde-token>` header (verification happens inside the function via Kinde's JWKS). All other edge functions are `verify_jwt = true` and the existing call sites already attach `Authorization: Bearer <bridge-jwt>`, which Supabase accepts in lieu of the anon key. CORS already allow-lists `https://resume.thewise.cloud` (`supabase/functions/_shared/cors.ts`), and the `connect-src` CSP in `public/.htaccess` already includes `https://*.supabase.co`. No server-side change required.
+- **Why not an `.htaccess` proxy** — Considered `RewriteRule ^api/fn/(.*)$ https://.../functions/v1/$1 [P,L]` but that needs `mod_proxy` + `mod_proxy_http`, which Hostinger shared hosting often disables, would add a Hostinger→Supabase hop (extra latency + a single point of failure), and would obscure the request origin from Supabase's CORS/rate-limit logic. The direct-call path is the architecturally correct one — the Express server in dev was always just a developer-experience convenience, never a load-bearing production component.
+- **Dev unchanged** — `import.meta.env.DEV` keeps every dev call going through Vite → Express → Supabase exactly as before, so the Express server's profile-upsert side effects in the dev `/api/fn/token-exchange` route still fire locally.
+- **Verification** — `tsc --noEmit -p tsconfig.json` clean. `vite build` produces a 47s bundle with no remaining `/api/fn/` literals outside the helper itself (`grep -rn '/api/fn/' src/` returns only `apiFnUrl.ts` lines 22 and 26, both inside the dev / fallback branches).
+
+---
+
 ## 2026-04-21 — Switch deploy transport from SFTP to FTPS (Task #29 follow-up #2)
 
 - **Why** — The retry-loop SFTP fix shipped earlier today (commit `752334c4`) was insufficient: the very next deploy (run `24748098362`, commit `752334c`) hung in the SFTP step for 30+ minutes despite the relaxed timeouts and 4-attempt outer retry. Hostinger's `sshd` on `82.29.154.120:22` was completely silent toward the GitHub Actions runner — TCP connect succeeded, but the SFTP daemon never returned even a banner. The previous successful baseline (run `24745677150`) took 1m42s in the same step, confirming the failure was Hostinger-side and not workload-related. Independent network probing confirmed the diagnosis: from a separate (non-runner) network, `vsftpd` on `:21` cleanly responded `220 FTP Server ready.`, while `:22` was unreachable. Hostinger's per-IP rate limiter applies aggressively to `sshd` but not to the FTP daemon, and Azure-hosted GitHub Actions runner IPs are a shared pool that frequently lands on the SSH blocklist. The retry loop alone cannot fix this — no number of retries succeeds against a daemon that is not answering.

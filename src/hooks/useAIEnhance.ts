@@ -9,6 +9,7 @@ import { checkAIFallback } from '@/lib/aiFallbackToast';
 import { redactResumeForAI } from '@/lib/piiRedact';
 import { useSettingsStore } from '@/store/settingsStore';
 import { parseAIErrorResponse, parseAIErrorBody, aiErrorToastMessage, AIError } from '@/lib/aiErrorParser';
+import { apiFnUrl } from '@/lib/apiFnUrl';
 
 
 export type SectionType = 'summary' | 'experience' | 'education' | 'skills' | 'contact' | 'awards' | 'projects' | 'publications' | 'volunteering' | 'certifications' | 'languages';
@@ -82,7 +83,7 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
         });
 
         const doFetch = async (authToken: string | null) =>
-          fetch(`/api/fn/enhance-section`, {
+          fetch(apiFnUrl(`enhance-section`), {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',

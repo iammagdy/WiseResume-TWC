@@ -19,6 +19,7 @@ import { usePortfolioSEO } from '@/hooks/usePortfolioSEO';
 
 // Direct import for above-the-fold content
 import { PublicHero } from '@/components/portfolio/public/PublicHero';
+import { apiFnUrl } from '@/lib/apiFnUrl';
 
 // Lazy load below-the-fold heavy sections
 const PublicSections = lazyWithRetry(() => import('@/components/portfolio/public/PublicSections').then(m => ({ default: m.PublicSections })));
@@ -251,7 +252,7 @@ function PublicPortfolioContent({ usernameOverride }: { usernameOverride?: strin
     }
 
     try {
-      const res = await fetch(`/api/fn/portfolio-interest`, {
+      const res = await fetch(apiFnUrl(`portfolio-interest`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, token }),

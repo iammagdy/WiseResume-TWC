@@ -10,6 +10,7 @@
  */
 import { getToken, refreshTokenIfNeeded } from '@/lib/supabaseBridge';
 import { dispatchSessionExpiredOnce } from '@/integrations/supabase/sessionExpired';
+import { apiFnUrl } from '@/lib/apiFnUrl';
 
 interface InvokeOptions {
   body?: FormData | Record<string, unknown> | unknown;
@@ -46,7 +47,7 @@ async function doFetch(
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const url = `/api/fn/${fnName}`;
+  const url = apiFnUrl(fnName);
 
   return fetch(url, {
     method: options?.method ?? 'POST',
