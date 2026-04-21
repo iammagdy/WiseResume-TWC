@@ -3,7 +3,6 @@ import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { createHash } from "crypto";
-import { VitePWA } from "vite-plugin-pwa";
 import { sentryVitePlugin } from "@sentry/vite-plugin";
 import { visualizer } from "rollup-plugin-visualizer";
 
@@ -163,35 +162,10 @@ export default defineConfig(() => ({
     react(),
     cspPlugin(),
     prefetchPlugin(),
-    VitePWA({
-      strategies: "injectManifest",
-      srcDir: "public",
-      filename: "custom-sw.js",
-      registerType: "autoUpdate",
-      includeAssets: ["favicon.svg", "favicon.ico", "icons/*.png"],
-      manifest: false, // Use existing public/manifest.json
-      injectManifest: {
-        globPatterns: ["**/*.{js,css,html,ico,svg,woff2}"],
-        // Heavy export/OCR bundles are only needed when the user actually
-        // triggers the corresponding feature. Excluding them from the
-        // first-install precache keeps the SW download small (saves
-        // multiple MB on cold install). These chunks are NOT covered by
-        // any runtime cache route in `public/custom-sw.js` today, so
-        // they are fetched from the network on first use and rely on
-        // standard HTTP cache headers for subsequent requests. If
-        // offline availability of these features becomes a requirement,
-        // add a CacheFirst/StaleWhileRevalidate route for `/assets/`
-        // JS in custom-sw.js.
-        globIgnores: [
-          "**/assets/ocr-*.js",
-          "**/assets/doc-export-*.js",
-          "**/assets/charts-*.js",
-          "**/assets/ogl-*.js",
-        ],
-        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
-        dontCacheBustURLsMatching: /~oauth/,
-      },
-    }),
+    // PWA / service worker intentionally removed.
+    // public/custom-sw.js is now a tombstone that unregisters any
+    // previously-installed service worker on the user's next visit.
+    // It is copied from public/ as a plain static asset by Vite.
     process.env.SENTRY_AUTH_TOKEN
       ? sentryVitePlugin({
           org: process.env.SENTRY_ORG,

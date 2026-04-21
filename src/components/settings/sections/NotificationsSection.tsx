@@ -1,4 +1,4 @@
-import { memo, Suspense, lazy } from 'react';
+import { memo } from 'react';
 import { Bell, BellOff, Sparkles } from 'lucide-react';
 import { SettingsRow } from '@/components/settings/SettingsRow';
 import { Separator } from '@/components/ui/separator';
@@ -6,7 +6,10 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 
-const PushNotificationSettings = lazy(() => import('@/components/settings/PushNotificationSettings').then(m => ({ default: m.PushNotificationSettings })));
+// Browser push notifications are temporarily disabled because the app no
+// longer registers a service worker. The PushNotificationSettings
+// component and the underlying hook + backend endpoints are intentionally
+// left in the codebase so this can be re-enabled later without rebuilding.
 
 export const NotificationsSection = memo(function NotificationsSection() {
     const {
@@ -22,9 +25,6 @@ export const NotificationsSection = memo(function NotificationsSection() {
 
     return (
         <div className="rounded-2xl bg-card border border-border shadow-soft overflow-hidden">
-            <Suspense fallback={null}>
-                <PushNotificationSettings />
-            </Suspense>
             <SettingsRow
                 type="toggle"
                 label="Auto-save Toasts"

@@ -1,147 +1,58 @@
-import { precacheAndRoute } from 'workbox-precaching';
+// ──────────────────────────────────────────────────────────────────────
+// Tombstone service worker
+//
+// The app is no longer a PWA. This file exists ONLY so that browsers
+// which previously installed the old Workbox-based service worker can
+// fetch this update, run it once, unregister themselves, wipe every
+// cache, and reload all open tabs onto the live (network-served) site.
+//
+// Path and filename MUST stay `/custom-sw.js` so existing installations
+// auto-find it via their normal update check. Hostinger serves this file
+// with `Cache-Control: no-cache` (see public/.htaccess) so the update
+// check always sees this new contents.
+//
+// After the unregister + reload, no service worker is registered for
+// the origin and the app behaves like a plain SPA — every visit fetches
+// the latest deploy directly from Hostinger.
+// ──────────────────────────────────────────────────────────────────────
 
-// Activate new service worker immediately
 self.addEventListener('install', () => {
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    Promise.all([
-      self.clients.claim(),
-      caches.keys().then(keys =>
-        Promise.all(
-          keys
-            .filter(k => !k.startsWith('workbox-') && !k.startsWith('google-fonts') && !k.startsWith('gstatic-fonts') && !k.startsWith('navigation-cache'))
-            .map(k => caches.delete(k))
-        )
-      ),
-    ])
-  );
-});
-import { registerRoute, NavigationRoute } from 'workbox-routing';
-import { CacheFirst, NetworkFirst, NetworkOnly } from 'workbox-strategies';
-import { ExpirationPlugin } from 'workbox-expiration';
-import { CacheableResponsePlugin } from 'workbox-cacheable-response';
+  event.waitUntil((async () => {
+    // Take control of every tab opened against this origin — including ones
+    // that were still bound to the previous (Workbox) service worker — so we
+    // can definitely reach them with the reload below. Without claim() +
+    // includeUncontrolled, tabs that loaded before this SW took over may
+    // never be auto-recovered and stay on stale precached assets.
+    try { await self.clients.claim(); } catch (_) {}
 
-// Workbox precaching injection point
-precacheAndRoute(self.__WB_MANIFEST);
-
-// Always fetch latest HTML for page navigations (network-first)
-// Falls back to cache only when offline
-const navigationHandler = new NetworkFirst({
-  cacheName: 'navigation-cache',
-  plugins: [
-    new CacheableResponsePlugin({ statuses: [0, 200] }),
-  ],
-});
-registerRoute(new NavigationRoute(navigationHandler, {
-  denylist: [/^\/~oauth/],
-}));
-
-// Runtime caching for Google Fonts
-registerRoute(
-  /^https:\/\/fonts\.googleapis\.com\/.*/i,
-  new CacheFirst({
-    cacheName: 'google-fonts-cache',
-    plugins: [
-      new ExpirationPlugin({ maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 }),
-      new CacheableResponsePlugin({ statuses: [0, 200] }),
-    ],
-  })
-);
-
-registerRoute(
-  /^https:\/\/fonts\.gstatic\.com\/.*/i,
-  new CacheFirst({
-    cacheName: 'gstatic-fonts-cache',
-    plugins: [
-      new ExpirationPlugin({ maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 }),
-      new CacheableResponsePlugin({ statuses: [0, 200] }),
-    ],
-  })
-);
-
-// Supabase edge functions – always network
-registerRoute(
-  /^https:\/\/.*\.supabase\.co\/functions\/.*/i,
-  new NetworkOnly()
-);
-
-// Supabase REST API – always network (no caching to prevent auth data leaking across sessions)
-registerRoute(
-  /^https:\/\/.*\.supabase\.co\/rest\/.*/i,
-  new NetworkOnly()
-);
-
-// ─── Push Notification Handlers ───
-
-self.addEventListener('push', (event) => {
-  let data = {
-    title: 'WiseResume',
-    body: 'You have a new notification',
-    icon: '/icons/icon-192x192.png',
-    badge: '/icons/icon-96x96.png',
-    url: '/',
-  };
-
-  try {
-    if (event.data) {
-      const payload = event.data.json();
-      data = {
-        title: payload.title || data.title,
-        body: payload.body || data.body,
-        icon: payload.icon || data.icon,
-        badge: payload.badge || data.badge,
-        url: payload.url || data.url,
-      };
-    }
-  } catch (e) {
     try {
-      if (event.data) data.body = event.data.text();
+      const cacheNames = await caches.keys();
+      await Promise.all(cacheNames.map((name) => caches.delete(name)));
     } catch (_) {}
-  }
 
-  const options = {
-    body: data.body,
-    icon: data.icon,
-    badge: data.badge,
-    tag: 'app-notification',
-    renotify: true,
-    requireInteraction: false,
-    data: { url: data.url },
-  };
-
-  event.waitUntil(
-    (async () => {
-      try {
-        await self.registration.showNotification(data.title, options);
-        const windowClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-        windowClients.forEach((client) => {
-          client.postMessage({ type: 'PUSH_RECEIVED', payload: data });
-        });
-      } catch (err) {
-        console.error('[SW] Failed to display notification:', err);
+    // Reload every visible tab so it re-fetches index.html (and everything
+    // else) directly from the network. Done BEFORE unregister so the
+    // navigation request itself is not intercepted by anything stale.
+    try {
+      const allClients = await self.clients.matchAll({
+        type: 'window',
+        includeUncontrolled: true,
+      });
+      for (const client of allClients) {
+        try { client.navigate(client.url); } catch (_) {}
       }
-    })()
-  );
+    } catch (_) {}
+
+    // Finally, retire this worker. The next page load has no SW at all,
+    // which is the desired terminal state.
+    try { await self.registration.unregister(); } catch (_) {}
+  })());
 });
 
-self.addEventListener('notificationclick', (event) => {
-  event.notification.close();
-  const urlToOpen = event.notification.data?.url || '/';
-
-  event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
-      for (const client of windowClients) {
-        if (client.url.includes(self.location.origin) && 'focus' in client) {
-          client.navigate(urlToOpen);
-          return client.focus();
-        }
-      }
-      if (self.clients.openWindow) {
-        return self.clients.openWindow(urlToOpen);
-      }
-    })
-  );
+self.addEventListener('fetch', () => {
+  // Pass through to network. No interception, no cache.
 });

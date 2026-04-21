@@ -13,7 +13,6 @@ import "@fontsource/space-grotesk/700.css";
 import "@fontsource/fira-code/400.css";
 import "@fontsource/fira-code/700.css";
 import { createRoot } from "react-dom/client";
-import { registerSW } from 'virtual:pwa-register';
 import { Capacitor } from '@capacitor/core';
 import App from "./App.tsx";
 import "./index.css";
@@ -121,13 +120,6 @@ try {
   document.body.appendChild(wrap);
 }
 
-const updateSW = registerSW({
-  onNeedRefresh() {
-    updateSW(true).then(() => {
-      window.location.reload();
-    });
-  },
-  onOfflineReady() {
-    console.log('[SW] App ready for offline use');
-  },
-});
+// PWA / service worker registration intentionally removed.
+// The tombstone at /custom-sw.js handles cleanup for returning visitors
+// who still have the old service worker installed in their browser.

@@ -1,7 +1,7 @@
 # WiseResume — Full Project Knowledge Base
 
 ### Overview
-WiseResume is an AI-powered Progressive Web App (PWA) designed for comprehensive career management. It enables users to create and tailor resumes for specific job listings using AI, publish public portfolios, practice interview questions, track job applications, and manage career goals. The project aims to provide a robust, AI-driven platform for job seekers, with future expansion into an HR SaaS product (WiseHire).
+WiseResume is an AI-powered web app for comprehensive career management. (The Progressive Web App layer was removed in v3.5.0+; see the "PWA Removal" operator note below.) It enables users to create and tailor resumes for specific job listings using AI, publish public portfolios, practice interview questions, track job applications, and manage career goals. The project aims to provide a robust, AI-driven platform for job seekers, with future expansion into an HR SaaS product (WiseHire).
 
 ### User Preferences
 - **Documentation Rules**: After every completed task, bug fix, or feature, the following documentation updates are mandatory:
@@ -36,7 +36,7 @@ WiseResume is an AI-powered Progressive Web App (PWA) designed for comprehensive
 - **Authentication**: Kinde Auth (JWT verified server-side via JWKS)
 - **Database**: Neon PostgreSQL via Drizzle ORM (schema: `server/schema.ts`)
 - **Backend**: Express.js server (`server/index.ts`, port 5001)
-- **PWA**: Capacitor 8, vite-plugin-pwa
+- **Native shell**: Capacitor 8 (mobile builds only). Web build is no longer a PWA — no service worker, no precaching.
 - **Hosting**: Replit (autoscale deployment)
 
 **Authentication Flow:**
@@ -61,7 +61,7 @@ Users log in via Kinde, receiving a Kinde access token. The client exchanges thi
 - `src/`: Frontend code (components, hooks, lib, pages, store).
 - `supabase/`: Edge functions and database migrations.
 - `server/`: Express.js backend code.
-- `public/`: Static assets and PWA manifest.
+- `public/`: Static assets, Apache `.htaccess`, web app manifests (kept as metadata for Capacitor / install prompts), and the tombstone `custom-sw.js`.
 - `specs/`: Technical specifications.
 - `project-governance/`: Architecture documentation.
 - `wise-templates/`: Resume templates.
@@ -84,7 +84,16 @@ Users log in via Kinde, receiving a Kinde access token. The client exchanges thi
 - **Framer Motion**: Animation library.
 - **Zustand**: State management library.
 - **TanStack Query (React Query)**: Data fetching and caching library.
-- **Capacitor**: PWA container for native app features.
+- **Capacitor**: Native shell for mobile builds.
+
+### PWA Removal (Operator Note — added 2026-04-21, Task #22)
+The web build is no longer a Progressive Web App. `vite-plugin-pwa` and Workbox are gone, `src/main.tsx` no longer calls `registerSW`, and `src/vite-env.d.ts` no longer declares `virtual:pwa-register`. Every visit fetches the latest deploy directly from Hostinger — no precache, no offline mode, no second-refresh delay.
+
+`public/custom-sw.js` is now a **tombstone service worker**: ~45 lines that on install/activate wipe every cache, call `self.registration.unregister()`, and re-navigate every open tab. It exists only so browsers that previously installed the old Workbox SW can pick up this update via their normal SW update check (Hostinger serves it `Cache-Control: no-cache` per `public/.htaccess`). After the tombstone runs once, no SW is registered for the origin and the file is never executed again.
+
+Browser push notifications are **disabled** as a side-effect (they require a registered SW). `<PushNotificationSettings />` is no longer rendered from `NotificationsSection.tsx`. The component, the `usePushNotifications` hook, the `push_subscriptions` table, and the `send-push-notification` edge function are all left in place so this can be re-enabled later by re-introducing a SW. Do NOT add `navigator.serviceWorker.register(...)` anywhere in the app — it would resurrect the bug this change fixed.
+
+The web app manifests (`public/manifest.json`, `public/manifest-wisehire.json`) are kept because `index.html` references them and they're harmless metadata. "Install to home screen" may still appear in some browsers but will behave like a normal bookmark.
 
 ### Supabase Migration Sync (Operator Note — added 2026-04-21, Task #6)
 The production Supabase project (`jnsfmkzgxsviuthaqlyy`) is **fully in sync** with `supabase/migrations/` (187 of 187 files / 182 of 182 distinct version prefixes recorded in `supabase_migrations.schema_migrations`). Six migration files were patched in place during this task to be idempotent against the project's pre-existing schema gaps — `public.portfolios` and `public.tailoring_results` were never created on this project (the live app stores portfolio data on `public.profiles` — see the NOTE inside `20260418195801_portfolio_id_columns.sql`):
