@@ -1,0 +1,106 @@
+supabase/migrations/20260421000003_p0_security_hotfixes.sql:CREATE POLICY "talent_pool_views_hr_insert"
+supabase/migrations/20260421000003_p0_security_hotfixes.sql:CREATE POLICY "Admins can manage all messages"
+supabase/migrations/20260420000008_wisehire_pipeline_events.sql:CREATE POLICY "HR user owns their pipeline events"
+supabase/migrations/20260420000007_wisehire_candidate_briefs.sql:CREATE POLICY "HR user owns their briefs"
+supabase/migrations/20260420000006_wisehire_candidates.sql:CREATE POLICY "HR user owns their candidates"
+supabase/migrations/20260420000005_wisehire_roles.sql:CREATE POLICY "HR user owns their roles"
+supabase/migrations/20260420000004_wisehire_companies.sql:CREATE POLICY "HR user owns their company"
+supabase/migrations/20260418195802_letters_persistence.sql:    CREATE POLICY resignation_letters_owner_update ON public.resignation_letters
+supabase/migrations/20260418195802_letters_persistence.sql:    CREATE POLICY resignation_letters_owner_select ON public.resignation_letters
+supabase/migrations/20260418195802_letters_persistence.sql:    CREATE POLICY resignation_letters_owner_insert ON public.resignation_letters
+supabase/migrations/20260418195802_letters_persistence.sql:    CREATE POLICY resignation_letters_owner_delete ON public.resignation_letters
+supabase/migrations/20260418195802_letters_persistence.sql:    CREATE POLICY cover_letters_owner_update ON public.cover_letters
+supabase/migrations/20260418195802_letters_persistence.sql:    CREATE POLICY cover_letters_owner_select ON public.cover_letters
+supabase/migrations/20260418195802_letters_persistence.sql:    CREATE POLICY cover_letters_owner_insert ON public.cover_letters
+supabase/migrations/20260418195802_letters_persistence.sql:    CREATE POLICY cover_letters_owner_delete ON public.cover_letters
+supabase/migrations/20260417000000_security_audit_rls_and_hardening.sql:CREATE POLICY "block_client_update_subscriptions"
+supabase/migrations/20260417000000_security_audit_rls_and_hardening.sql:CREATE POLICY "block_client_update_credit_transactions"
+supabase/migrations/20260417000000_security_audit_rls_and_hardening.sql:CREATE POLICY "block_client_insert_subscriptions"
+supabase/migrations/20260417000000_security_audit_rls_and_hardening.sql:CREATE POLICY "block_client_insert_credit_transactions"
+supabase/migrations/20260417000000_security_audit_rls_and_hardening.sql:CREATE POLICY "block_client_delete_subscriptions"
+supabase/migrations/20260417000000_security_audit_rls_and_hardening.sql:CREATE POLICY "block_client_delete_credit_transactions"
+supabase/migrations/20260415161238_chat_sessions.sql:CREATE POLICY "chat_messages_owner_all"
+supabase/migrations/20260413000000_security_hardening_m2_m4_m5.sql:CREATE POLICY "service_role_insert_contact_requests" ON public.contact_requests
+supabase/migrations/20260413000000_security_hardening_m2_m4_m5.sql:CREATE POLICY "authenticated_read_app_settings" ON public.app_settings
+supabase/migrations/20260410400000_fix_app_settings_anon_access.sql:CREATE POLICY "authenticated_read_app_settings" ON public.app_settings
+supabase/migrations/20260410400000_fix_app_settings_anon_access.sql:CREATE POLICY "anon_read_app_settings" ON public.app_settings
+supabase/migrations/20260410200000_admin_audit_log.sql:CREATE POLICY "authenticated_read_app_settings" ON public.app_settings
+supabase/migrations/20260410100000_ultra_admin_control_panel.sql:CREATE POLICY "service_role_discount_codes" ON public.discount_codes
+supabase/migrations/20260410100000_ultra_admin_control_panel.sql:CREATE POLICY "service_role_coupon_redemptions" ON public.coupon_redemptions
+supabase/migrations/20260410100000_ultra_admin_control_panel.sql:CREATE POLICY "service_role_app_settings" ON public.app_settings
+supabase/migrations/20260410100000_ultra_admin_control_panel.sql:CREATE POLICY "service_role_admin_notes" ON public.admin_user_notes
+supabase/migrations/20260410100000_ultra_admin_control_panel.sql:CREATE POLICY "authenticated_read_app_settings" ON public.app_settings
+supabase/migrations/20260316000000_portfolio_history.sql:CREATE POLICY "Users can view own portfolio history" ON public.portfolio_history
+supabase/migrations/20260316000000_portfolio_history.sql:CREATE POLICY "Users can insert own portfolio history" ON public.portfolio_history
+supabase/migrations/20260316000000_portfolio_history.sql:CREATE POLICY "Users can delete own portfolio history" ON public.portfolio_history
+supabase/migrations/20260315041504_non_auth_audit_fixes.sql:CREATE POLICY "Admins can manage all messages" ON public.messages 
+supabase/migrations/20260314072049_consolidate_messaging.sql:CREATE POLICY "Users can manage own messages" ON public.messages 
+supabase/migrations/20260314072049_consolidate_messaging.sql:CREATE POLICY "Admins can view all messages" ON public.messages 
+supabase/migrations/20260314072024_billing_and_credits.sql:CREATE POLICY "Users can view own transactions" ON public.credit_transactions 
+supabase/migrations/20260314072024_billing_and_credits.sql:CREATE POLICY "Users can view own subscription" ON public.subscriptions 
+supabase/migrations/20260314071929_implement_soft_deletes.sql:CREATE POLICY "Users can view own resumes" ON public.resumes
+supabase/migrations/20260314071929_implement_soft_deletes.sql:CREATE POLICY "Users can view own profile" ON public.profiles
+supabase/migrations/20260314071929_implement_soft_deletes.sql:CREATE POLICY "Users can update own resumes" ON public.resumes
+supabase/migrations/20260314071822_split_profiles_table.sql:CREATE POLICY "Users can manage own social links" ON public.social_links 
+supabase/migrations/20260314071822_split_profiles_table.sql:CREATE POLICY "Users can manage own portfolio settings" ON public.portfolio_settings 
+supabase/migrations/20260314071822_split_profiles_table.sql:CREATE POLICY "Users can manage own gamification data" ON public.user_gamification 
+supabase/migrations/20260314071751_foundational_types_and_helpers.sql:-- USAGE: CREATE POLICY "Users can manage own messages" ON messages FOR ALL USING (auth.uid() = user_id AND is_deleted = false);
+supabase/migrations/20260313220000_unified_contact_requests.sql:CREATE POLICY "Anyone can insert contact requests" ON public.contact_requests
+supabase/migrations/20260313220000_unified_contact_requests.sql:CREATE POLICY "Admins can view all contact requests" ON public.contact_requests
+supabase/migrations/20260310081324_9007b456-886b-41c4-82a3-abb99e92e9e7.sql:CREATE POLICY "Users can read own usage events" ON public.usage_events
+supabase/migrations/20260310081324_9007b456-886b-41c4-82a3-abb99e92e9e7.sql:CREATE POLICY "No client inserts" ON public.usage_events
+supabase/migrations/20260308013521_dfc29ea7-17d8-4933-a611-a74bbe7358ec.sql:CREATE POLICY "Users can view own subscriptions" ON public.push_subscriptions FOR SELECT USING (get_clerk_user_id() = user_id OR safe_uid() = user_id);
+supabase/migrations/20260308013521_dfc29ea7-17d8-4933-a611-a74bbe7358ec.sql:CREATE POLICY "Users can view own resignation letters" ON public.resignation_letters FOR SELECT USING (get_clerk_user_id() = user_id OR safe_uid() = user_id);
+supabase/migrations/20260308013521_dfc29ea7-17d8-4933-a611-a74bbe7358ec.sql:CREATE POLICY "Users can view own cover letters" ON public.cover_letters FOR SELECT USING (get_clerk_user_id() = user_id OR safe_uid() = user_id);
+supabase/migrations/20260308013521_dfc29ea7-17d8-4933-a611-a74bbe7358ec.sql:CREATE POLICY "Users can update own resignation letters" ON public.resignation_letters FOR UPDATE USING (get_clerk_user_id() = user_id OR safe_uid() = user_id) WITH CHECK (get_clerk_user_id() = user_id OR safe_uid() = user_id);
+supabase/migrations/20260308013521_dfc29ea7-17d8-4933-a611-a74bbe7358ec.sql:CREATE POLICY "Users can update own cover letters" ON public.cover_letters FOR UPDATE USING (get_clerk_user_id() = user_id OR safe_uid() = user_id) WITH CHECK (get_clerk_user_id() = user_id OR safe_uid() = user_id);
+supabase/migrations/20260308013521_dfc29ea7-17d8-4933-a611-a74bbe7358ec.sql:CREATE POLICY "Users can insert own subscriptions" ON public.push_subscriptions FOR INSERT WITH CHECK (get_clerk_user_id() = user_id OR safe_uid() = user_id);
+supabase/migrations/20260308013521_dfc29ea7-17d8-4933-a611-a74bbe7358ec.sql:CREATE POLICY "Users can insert own resignation letters" ON public.resignation_letters FOR INSERT WITH CHECK (get_clerk_user_id() = user_id OR safe_uid() = user_id);
+supabase/migrations/20260308013521_dfc29ea7-17d8-4933-a611-a74bbe7358ec.sql:CREATE POLICY "Users can insert own cover letters" ON public.cover_letters FOR INSERT WITH CHECK (get_clerk_user_id() = user_id OR safe_uid() = user_id);
+supabase/migrations/20260308013521_dfc29ea7-17d8-4933-a611-a74bbe7358ec.sql:CREATE POLICY "Users can delete own subscriptions" ON public.push_subscriptions FOR DELETE USING (get_clerk_user_id() = user_id OR safe_uid() = user_id);
+supabase/migrations/20260308013521_dfc29ea7-17d8-4933-a611-a74bbe7358ec.sql:CREATE POLICY "Users can delete own resignation letters" ON public.resignation_letters FOR DELETE USING (get_clerk_user_id() = user_id OR safe_uid() = user_id);
+supabase/migrations/20260308013521_dfc29ea7-17d8-4933-a611-a74bbe7358ec.sql:CREATE POLICY "Users can delete own cover letters" ON public.cover_letters FOR DELETE USING (get_clerk_user_id() = user_id OR safe_uid() = user_id);
+supabase/migrations/20260308011145_ddc6220a-f555-4c17-9bb0-10334d8edf76.sql:CREATE POLICY "Users can view own resumes"   ON public.resumes FOR SELECT
+supabase/migrations/20260308011145_ddc6220a-f555-4c17-9bb0-10334d8edf76.sql:CREATE POLICY "Users can view own profile"   ON public.profiles FOR SELECT
+supabase/migrations/20260308011145_ddc6220a-f555-4c17-9bb0-10334d8edf76.sql:CREATE POLICY "Users can update own resumes" ON public.resumes FOR UPDATE
+supabase/migrations/20260308011145_ddc6220a-f555-4c17-9bb0-10334d8edf76.sql:CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE
+supabase/migrations/20260308011145_ddc6220a-f555-4c17-9bb0-10334d8edf76.sql:CREATE POLICY "Users can insert own resumes" ON public.resumes FOR INSERT
+supabase/migrations/20260308011145_ddc6220a-f555-4c17-9bb0-10334d8edf76.sql:CREATE POLICY "Users can insert own profile" ON public.profiles FOR INSERT
+supabase/migrations/20260308011145_ddc6220a-f555-4c17-9bb0-10334d8edf76.sql:CREATE POLICY "Users can delete own resumes" ON public.resumes FOR DELETE
+supabase/migrations/20260308011145_ddc6220a-f555-4c17-9bb0-10334d8edf76.sql:CREATE POLICY "Users can delete own profile" ON public.profiles FOR DELETE
+supabase/migrations/20260306071327_7e745528-e016-4780-9413-5c35367914a9.sql:CREATE POLICY "Users can view own subscriptions" ON public.push_subscriptions FOR SELECT TO authenticated USING (public.get_clerk_user_id() = user_id);
+supabase/migrations/20260306071327_7e745528-e016-4780-9413-5c35367914a9.sql:CREATE POLICY "Users can view own resumes" ON public.resumes FOR SELECT TO authenticated USING (public.get_clerk_user_id() = user_id);
+supabase/migrations/20260306071327_7e745528-e016-4780-9413-5c35367914a9.sql:CREATE POLICY "Users can view own resignation letters" ON public.resignation_letters FOR SELECT TO authenticated USING (public.get_clerk_user_id() = user_id);
+supabase/migrations/20260306071327_7e745528-e016-4780-9413-5c35367914a9.sql:CREATE POLICY "Users can view own profile" ON public.profiles FOR SELECT TO authenticated USING (public.get_clerk_user_id() = user_id);
+supabase/migrations/20260306071327_7e745528-e016-4780-9413-5c35367914a9.sql:CREATE POLICY "Users can view own cover letters" ON public.cover_letters FOR SELECT TO authenticated USING (public.get_clerk_user_id() = user_id);
+supabase/migrations/20260306071327_7e745528-e016-4780-9413-5c35367914a9.sql:CREATE POLICY "Users can update own resumes" ON public.resumes FOR UPDATE TO authenticated USING (public.get_clerk_user_id() = user_id);
+supabase/migrations/20260306071327_7e745528-e016-4780-9413-5c35367914a9.sql:CREATE POLICY "Users can update own resignation letters" ON public.resignation_letters FOR UPDATE TO authenticated USING (public.get_clerk_user_id() = user_id);
+supabase/migrations/20260306071327_7e745528-e016-4780-9413-5c35367914a9.sql:CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE TO authenticated USING (public.get_clerk_user_id() = user_id);
+supabase/migrations/20260306071327_7e745528-e016-4780-9413-5c35367914a9.sql:CREATE POLICY "Users can update own cover letters" ON public.cover_letters FOR UPDATE TO authenticated USING (public.get_clerk_user_id() = user_id);
+supabase/migrations/20260306071327_7e745528-e016-4780-9413-5c35367914a9.sql:CREATE POLICY "Users can insert own subscriptions" ON public.push_subscriptions FOR INSERT TO authenticated WITH CHECK (public.get_clerk_user_id() = user_id);
+supabase/migrations/20260306071327_7e745528-e016-4780-9413-5c35367914a9.sql:CREATE POLICY "Users can insert own resumes" ON public.resumes FOR INSERT TO authenticated WITH CHECK (public.get_clerk_user_id() = user_id);
+supabase/migrations/20260306071327_7e745528-e016-4780-9413-5c35367914a9.sql:CREATE POLICY "Users can insert own resignation letters" ON public.resignation_letters FOR INSERT TO authenticated WITH CHECK (public.get_clerk_user_id() = user_id);
+supabase/migrations/20260306071327_7e745528-e016-4780-9413-5c35367914a9.sql:CREATE POLICY "Users can insert own profile" ON public.profiles FOR INSERT TO authenticated WITH CHECK (public.get_clerk_user_id() = user_id);
+supabase/migrations/20260306071327_7e745528-e016-4780-9413-5c35367914a9.sql:CREATE POLICY "Users can insert own cover letters" ON public.cover_letters FOR INSERT TO authenticated WITH CHECK (public.get_clerk_user_id() = user_id);
+supabase/migrations/20260306071327_7e745528-e016-4780-9413-5c35367914a9.sql:CREATE POLICY "Users can delete own subscriptions" ON public.push_subscriptions FOR DELETE TO authenticated USING (public.get_clerk_user_id() = user_id);
+supabase/migrations/20260306071327_7e745528-e016-4780-9413-5c35367914a9.sql:CREATE POLICY "Users can delete own resumes" ON public.resumes FOR DELETE TO authenticated USING (public.get_clerk_user_id() = user_id);
+supabase/migrations/20260306071327_7e745528-e016-4780-9413-5c35367914a9.sql:CREATE POLICY "Users can delete own resignation letters" ON public.resignation_letters FOR DELETE TO authenticated USING (public.get_clerk_user_id() = user_id);
+supabase/migrations/20260306071327_7e745528-e016-4780-9413-5c35367914a9.sql:CREATE POLICY "Users can delete own cover letters" ON public.cover_letters FOR DELETE TO authenticated USING (public.get_clerk_user_id() = user_id);
+supabase/migrations/20260306071327_7e745528-e016-4780-9413-5c35367914a9.sql:CREATE POLICY "Share owners can view comments" ON public.share_comments FOR SELECT TO authenticated
+supabase/migrations/20260306071327_7e745528-e016-4780-9413-5c35367914a9.sql:CREATE POLICY "Share owners can update comments" ON public.share_comments FOR UPDATE TO authenticated
+supabase/migrations/20260306071327_7e745528-e016-4780-9413-5c35367914a9.sql:CREATE POLICY "Share owners can delete comments" ON public.share_comments FOR DELETE TO authenticated
+supabase/migrations/20260213071708_1f3634c1-e85d-469a-ba03-b6e1514b4e56.sql:CREATE POLICY "Users can view own subscriptions" ON public.push_subscriptions
+supabase/migrations/20260213071708_1f3634c1-e85d-469a-ba03-b6e1514b4e56.sql:CREATE POLICY "Users can insert own subscriptions" ON public.push_subscriptions
+supabase/migrations/20260213071708_1f3634c1-e85d-469a-ba03-b6e1514b4e56.sql:CREATE POLICY "Users can delete own subscriptions" ON public.push_subscriptions
+supabase/migrations/20260213053718_bb460f5d-a0be-46ad-8728-d0aa2ba8a9a2.sql:CREATE POLICY "Public resumes are viewable by anyone"
+supabase/migrations/20260212012141_f00efb41-ecb4-4c5c-8455-1da09fcf0b60.sql:CREATE POLICY "Users can view own cover letters" ON public.cover_letters FOR SELECT USING (auth.uid() = user_id);
+supabase/migrations/20260212012141_f00efb41-ecb4-4c5c-8455-1da09fcf0b60.sql:CREATE POLICY "Users can update own cover letters" ON public.cover_letters FOR UPDATE USING (auth.uid() = user_id);
+supabase/migrations/20260212012141_f00efb41-ecb4-4c5c-8455-1da09fcf0b60.sql:CREATE POLICY "Users can insert own cover letters" ON public.cover_letters FOR INSERT WITH CHECK (auth.uid() = user_id);
+supabase/migrations/20260212012141_f00efb41-ecb4-4c5c-8455-1da09fcf0b60.sql:CREATE POLICY "Users can delete own cover letters" ON public.cover_letters FOR DELETE USING (auth.uid() = user_id);
+supabase/migrations/20260203040508_74b7aee4-76a5-4828-a22d-2241485e58ef.sql:CREATE POLICY "Users can view own resumes" ON public.resumes
+supabase/migrations/20260203040508_74b7aee4-76a5-4828-a22d-2241485e58ef.sql:CREATE POLICY "Users can view own profile" ON public.profiles
+supabase/migrations/20260203040508_74b7aee4-76a5-4828-a22d-2241485e58ef.sql:CREATE POLICY "Users can update own resumes" ON public.resumes
+supabase/migrations/20260203040508_74b7aee4-76a5-4828-a22d-2241485e58ef.sql:CREATE POLICY "Users can update own profile" ON public.profiles
+supabase/migrations/20260203040508_74b7aee4-76a5-4828-a22d-2241485e58ef.sql:CREATE POLICY "Users can insert own resumes" ON public.resumes
+supabase/migrations/20260203040508_74b7aee4-76a5-4828-a22d-2241485e58ef.sql:CREATE POLICY "Users can insert own profile" ON public.profiles
+supabase/migrations/20260203040508_74b7aee4-76a5-4828-a22d-2241485e58ef.sql:CREATE POLICY "Users can delete own resumes" ON public.resumes
