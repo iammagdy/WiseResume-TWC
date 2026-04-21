@@ -114,7 +114,12 @@ export default defineConfig(() => ({
     },
   },
   build: {
-    sourcemap: 'hidden',
+    // Sourcemaps are only emitted when uploading to Sentry. Without the
+    // Sentry token, sourcemaps are disabled entirely so the production
+    // build that gets uploaded to Hostinger never contains *.js.map
+    // files (which would otherwise expose the original, un-minified
+    // source code to anyone who guesses the URL).
+    sourcemap: process.env.SENTRY_AUTH_TOKEN ? 'hidden' : false,
     rollupOptions: {
       output: {
         manualChunks(id) {
