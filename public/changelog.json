@@ -1,8 +1,28 @@
 [
   {
+    "version": "v3.5.0",
+    "date": "Apr 21, 2026",
+    "latest": true,
+    "summary": "Pre-production polish: schema sync, API hardening, and faster landing page.",
+    "items": [
+      {
+        "title": "Snappier landing page",
+        "description": "The home page hero now appears almost immediately on first visit instead of waiting for animations to load."
+      },
+      {
+        "title": "Stronger guardrails behind the scenes",
+        "description": "Added automatic checks that prevent broken database references from ever reaching production, and brought the database fully in sync with the app."
+      },
+      {
+        "title": "Smoother sign-in and AI features",
+        "description": "Tightened up the AI service connections and a few API endpoints so things stay reliable as the app grows."
+      }
+    ]
+  },
+  {
     "version": "v3.4.0",
     "date": "Apr 15, 2026",
-    "latest": true,
+    "latest": false,
     "summary": "This update makes the app clearer and lighter to use, with simpler user messaging, a cleaner version bump, and reduced admin search spam.",
     "items": [
       {
