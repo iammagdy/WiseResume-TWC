@@ -64,8 +64,26 @@ serve(async (req) => {
     req.headers.get("x-real-ip") ||
     null;
 
-  if (clientIp) {
-    const ipLimit = await checkIpRateLimit(clientIp, "track-portfolio-view", 30, 60);
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return new Response(JSON.stringify({ error: "Invalid JSON" }), {
+      status: 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const usernameRaw = typeof body.username === "string" ? body.username.toLowerCase() : "";
+  if (clientIp && usernameRaw) {
+    // Per-IP per-portfolio-slug rate limit (60/min) — keeps a single noisy
+    // viewer from inflating analytics for any one portfolio.
+    const ipLimit = await checkIpRateLimit(
+      clientIp,
+      `track-portfolio-view:${usernameRaw}`,
+      60,
+      60,
+    );
     if (!ipLimit.allowed) {
       return new Response(JSON.stringify({ error: "Too Many Requests" }), {
         status: 429,
@@ -79,7 +97,6 @@ serve(async (req) => {
   }
 
   try {
-    const body = await req.json();
     const { username, ref, sectionsViewed, sectionsTiming, timeSpentSeconds, device, abVariant } = body as {
       username: string;
       ref?: string;

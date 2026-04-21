@@ -56,11 +56,41 @@ Deno.serve(async (req: Request) => {
     ? token
     : crypto.randomUUID();
 
-  // IP rate limit: 1 interest per IP per portfolio per hour (secondary guard)
+  // Layered IP rate limits — these run BEFORE any DB lookup so abusive
+  // traffic is rejected cheaply.
   if (clientIp) {
-    const key = `portfolio-interest:${username.toLowerCase()}`;
-    const ipLimit = await checkIpRateLimit(clientIp, key, 1, 3600);
-    if (!ipLimit.allowed) {
+    // 5 per minute per IP across all portfolios — generic burst guard.
+    const minuteLimit = await checkIpRateLimit(clientIp, 'portfolio-interest:minute', 5, 60);
+    if (!minuteLimit.allowed) {
+      return new Response(JSON.stringify({ error: 'Too Many Requests' }), {
+        status: 429,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json',
+          'Retry-After': String(minuteLimit.retryAfterSeconds),
+        },
+      });
+    }
+    // 20 per day per IP across all portfolios — slow-drip cap.
+    const dailyLimit = await checkIpRateLimit(clientIp, 'portfolio-interest:day', 20, 86400);
+    if (!dailyLimit.allowed) {
+      return new Response(JSON.stringify({ error: 'Too Many Requests' }), {
+        status: 429,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json',
+          'Retry-After': String(dailyLimit.retryAfterSeconds),
+        },
+      });
+    }
+    // 1 per IP per portfolio per hour — silently absorbs duplicate clicks.
+    const perPortfolio = await checkIpRateLimit(
+      clientIp,
+      `portfolio-interest:${username.toLowerCase()}`,
+      1,
+      3600,
+    );
+    if (!perPortfolio.allowed) {
       return new Response(JSON.stringify({ ok: true, alreadySent: true }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

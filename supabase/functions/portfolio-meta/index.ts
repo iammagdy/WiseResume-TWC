@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { isMaliciousBot, isKnownCrawler, botBlockedResponse } from '../_shared/botGuard.ts';
+import { checkIpRateLimit } from '../_shared/rateLimiter.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -29,6 +30,28 @@ Deno.serve(async (req: Request) => {
     // so SEO and social previews continue to work correctly)
     if (isMaliciousBot(ua) && !isKnownCrawler(ua)) {
       return botBlockedResponse(corsHeaders);
+    }
+
+    // Per-IP rate limit (120/min) — exempt known crawlers so social previews
+    // and SEO indexing aren't throttled.
+    if (!isKnownCrawler(ua)) {
+      const clientIp =
+        (req.headers.get('x-forwarded-for') ?? '').split(',')[0].trim() ||
+        req.headers.get('x-real-ip') ||
+        null;
+      if (clientIp) {
+        const ipLimit = await checkIpRateLimit(clientIp, 'portfolio-meta', 120, 60);
+        if (!ipLimit.allowed) {
+          return new Response(JSON.stringify({ error: 'Too Many Requests' }), {
+            status: 429,
+            headers: {
+              ...corsHeaders,
+              'Content-Type': 'application/json',
+              'Retry-After': String(ipLimit.retryAfterSeconds),
+            },
+          });
+        }
+      }
     }
 
     if (!username) {

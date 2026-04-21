@@ -3,6 +3,7 @@ import { callAI } from "../_shared/aiClient.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
+import { checkIpRateLimit } from "../_shared/rateLimiter.ts";
 import { logger } from "../_shared/logger.ts";
 import { verifySessionToken } from "../_shared/portfolioSession.ts";
 
@@ -17,6 +18,38 @@ serve(async (req) => {
 
   const sizeError = checkPayloadSize(req, 200 * 1024);
   if (sizeError) return sizeError;
+
+  // Per-IP rate limit (10/min, 100/day) — runs before any DB / AI work so
+  // a hot loop from one IP can't run up the BYOK owner's bill.
+  const clientIp =
+    (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() ||
+    req.headers.get("x-real-ip") ||
+    null;
+
+  if (clientIp) {
+    const minuteLimit = await checkIpRateLimit(clientIp, "ask-portfolio:minute", 10, 60);
+    if (!minuteLimit.allowed) {
+      return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), {
+        status: 429,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json",
+          "Retry-After": String(minuteLimit.retryAfterSeconds),
+        },
+      });
+    }
+    const dailyLimit = await checkIpRateLimit(clientIp, "ask-portfolio:day", 100, 86400);
+    if (!dailyLimit.allowed) {
+      return new Response(JSON.stringify({ error: "Daily rate limit exceeded. Please try again tomorrow." }), {
+        status: 429,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json",
+          "Retry-After": String(dailyLimit.retryAfterSeconds),
+        },
+      });
+    }
+  }
 
   try {
     const body = await req.json();

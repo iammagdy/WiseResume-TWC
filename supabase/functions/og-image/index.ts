@@ -460,7 +460,7 @@ Deno.serve(async (req: Request) => {
     null;
 
   if (clientIp) {
-    const ipLimit = await checkIpRateLimit(clientIp, 'og-image', 60, 60);
+    const ipLimit = await checkIpRateLimit(clientIp, 'og-image', 30, 60);
     if (!ipLimit.allowed) {
       return new Response('Too Many Requests', {
         status: 429,
