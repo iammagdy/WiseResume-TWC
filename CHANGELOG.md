@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-04-21 — TPL-3: photo handling + print-safe CSS wiring (Task #32)
+
+- **`src/components/templates/CreativeTemplate.tsx`** — added `crossOrigin="anonymous"` to the photo `<img>` so html2canvas does not taint the export canvas when `photoUrl` is on a different origin (taint causes `toDataURL('image/png')` to throw `SecurityError` and aborts the entire PDF export).
+- **`src/components/templates/DesignerTemplate.tsx`** — added `crossOrigin="anonymous"` and removed `loading="lazy"` from the photo `<img>`. html2canvas does not trigger lazy loading; the offscreen capture would otherwise serialize an unpainted image and the photo would render blank in the exported PDF.
+- **`src/components/editor/TemplateSelector.tsx`** —
+  - `handleSelect` now fires a one-time `toast.warning` (sonner) when the user picks `'creative'` or `'designer'`: "Photos may hurt ATS scoring in some regions" with a description explaining the Workday / Greenhouse / US/UK scoring penalty. Suppression is persisted in `localStorage` under the key `wr.photoTemplateAtsHintShown` so it fires once per browser, not on every selection. Wrapped in try/catch so private-mode browsers without localStorage just skip the persistence (worst case the user sees the toast more than once).
+  - When the sheet is opened and Creative/Designer is already the active template, an inline amber `role="note"` banner is rendered above the grid as a passive secondary cue.
+- **`src/styles/print-safe.css`** (deleted) — every selector in the file was gated on `[data-pdf-force-layout]`. A repo-wide grep confirmed nothing in the codebase set the attribute and nothing imported the stylesheet (no `import`, no `<link>`, not in `index.html`, not in `main.tsx`, not in any Vite config). The file was dead code. Per the audit's finding #5 (P1), deletion was preferred over wiring the attribute because none of the 30 templates rely on `backdrop-filter`, `position: sticky`, or animated gradients inside the captured tree.
+- **`replit.md`** — documented the print-safe.css deletion decision and the photo `<img>` invariants (`crossOrigin="anonymous"`, no `loading="lazy"`) so future template work doesn't regress either.
+
 ## 2026-04-21 — AI-5: stop secret/prompt leakage in AI errors (Task #25)
 
 - **`supabase/functions/_shared/scrubSecrets.ts`** (new) — `scrubSecrets(s)` and `scrubAndCap(s, max=100)` redact common API key shapes (URL `key=…`, `Bearer …`, OpenAI `sk-…`, Anthropic `sk-ant-…`, Groq `gsk_…`, xAI `xai-…`, Google `AIza…`, Slack `xoxb-…`) to the marker `[REDACTED]`. Pure, idempotent, null-safe.

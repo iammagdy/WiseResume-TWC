@@ -14,7 +14,7 @@ export const CreativeTemplate = memo(function CreativeTemplate({ resume }: Templ
       <header className="bg-gradient-to-r from-violet-600 to-purple-700 text-white p-6">
         <div className="flex items-center gap-4 mb-3">
           {resume.contactInfo.photoUrl ? (
-            <img src={resume.contactInfo.photoUrl} alt={resume.contactInfo.fullName || 'Profile photo'} className="w-16 h-16 rounded-full object-cover border-2 border-white/30" />
+            <img src={resume.contactInfo.photoUrl} alt={resume.contactInfo.fullName || 'Profile photo'} crossOrigin="anonymous" className="w-16 h-16 rounded-full object-cover border-2 border-white/30" />
           ) : (
             <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center">
               <span className="text-2xl font-bold">{initials}</span>

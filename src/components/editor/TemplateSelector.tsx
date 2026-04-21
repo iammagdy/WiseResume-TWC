@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { toast } from 'sonner';
 import { useShallow } from 'zustand/react/shallow';
 import { Check, FileText, AlertTriangle, Sparkles, Star, Info } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -53,6 +54,21 @@ export function TemplateSelector({ open, onOpenChange, onTemplateApplied }: Temp
   const handleSelect = (id: TemplateId) => {
     setSelectedTemplate(id);
     updateResume({ templateId: id });
+    if (id === 'creative' || id === 'designer') {
+      try {
+        const storageKey = 'wr.photoTemplateAtsHintShown';
+        const seen = typeof window !== 'undefined' ? window.localStorage.getItem(storageKey) : '1';
+        if (!seen) {
+          toast.warning('Photos may hurt ATS scoring in some regions', {
+            description: 'Workday, Greenhouse, and many US/UK employers penalize resumes with photos. Consider a photo-free template if you are applying to those markets.',
+            duration: 8000,
+          });
+          window.localStorage.setItem(storageKey, '1');
+        }
+      } catch {
+        // localStorage unavailable (private mode etc.) — silently skip
+      }
+    }
     onOpenChange(false);
     onTemplateApplied?.();
   };
@@ -88,6 +104,20 @@ export function TemplateSelector({ open, onOpenChange, onTemplateApplied }: Temp
             <div className="mb-3 flex items-center gap-2 text-sm text-muted-foreground">
               <Star className="w-4 h-4 text-primary" />
               <span>Templates recommended for your experience level are shown first</span>
+            </div>
+          )}
+
+          {/* Photo / ATS hint for templates with photo headers */}
+          {(selectedTemplate === 'creative' || selectedTemplate === 'designer') && (
+            <div
+              role="note"
+              className="mb-3 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200"
+            >
+              <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+              <span>
+                Photos may hurt ATS scoring in some regions (Workday, Greenhouse, US/UK roles).
+                Consider a photo-free template if you're applying to those markets.
+              </span>
             </div>
           )}
 

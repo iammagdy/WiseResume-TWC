@@ -1,6 +1,19 @@
 # Stability Improvements — What's Getting Better Behind the Scenes
 
-**Last verified:** 2026-04-21 (database index audit added)
+**Last verified:** 2026-04-21 (photo-template PDF export hardened)
+
+---
+
+## Photo resumes no longer break the PDF export, and we tell you when a photo may hurt your application (2026-04-21)
+
+**What was the situation:** Two of the resume styles put your profile photo in the header. Two quiet bugs were lurking there. First, if your photo was hosted somewhere with strict sharing rules, the PDF export would simply crash and you'd get nothing back — no warning, no fallback. Second, one of those styles told the browser it could load the photo "later", which meant the PDF snapshot was sometimes taken before the photo had even appeared, leaving a blank circle where your face should have been. On top of that, photos themselves are a known scoring penalty in several large applicant-tracking systems used in the US and UK, and we never mentioned it.
+
+**What changed:** Both photo-header styles now ask the browser to load the photo in a way the export tool can capture, and the "lazy" instruction was removed so the photo is always painted before the snapshot. When you pick either of those two styles in the template chooser, you now see a small amber note explaining that photos can lower your score in markets like the US and UK and suggesting a photo-free alternative if that's where you're applying. Separately, a stylesheet that was meant to clean up the printed page but had been doing nothing for months (it was waiting for a signal that nothing in the app ever sent) was removed, so the next person reading the code isn't misled into thinking it's protecting them.
+
+**What you'll notice:** PDF exports of the photo-based styles now work reliably and the photo actually appears. Choosing one of those styles shows you a one-line heads-up about ATS scoring before you commit. Nothing else about how the resume looks changes.
+
+---
+
 **Audience:** you (the owner). No code, no jargon, no technical paths.
 **Sources (governance — supreme):**
 - `project-governance/CHANGELOG.md` entries dated 2026-04-18 (Stability Fixes — Phases 1 to 6)
