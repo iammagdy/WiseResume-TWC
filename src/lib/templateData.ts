@@ -109,7 +109,7 @@ export const templates: TemplateInfo[] = [
   },
   {
     id: 'federal',
-    name: 'Federal',
+    name: 'Government',
     description: 'Government & public sector format',
     atsScore: 'high',
     category: 'professional',

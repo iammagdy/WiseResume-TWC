@@ -26,7 +26,7 @@ const TEMPLATE_NAMES: Record<TemplateId, string> = {
   modern: 'Modern', classic: 'Classic', minimal: 'Minimal', professional: 'Professional',
   developer: 'Developer', creative: 'Creative', executive: 'Executive', compact: 'Compact',
   academic: 'Academic', healthcare: 'Healthcare', sales: 'Sales', elegant: 'Elegant',
-  corporate: 'Corporate', banking: 'Banking', consulting: 'Consulting', federal: 'Federal',
+  corporate: 'Corporate', banking: 'Banking', consulting: 'Consulting', federal: 'Government',
   legal: 'Legal', marketing: 'Marketing', designer: 'Designer', portfolio: 'Portfolio',
   startup: 'Startup', infographic: 'Infographic', 'data-science': 'Data Science',
   devops: 'DevOps', cyber: 'Cybersecurity', product: 'Product', clean: 'Clean',

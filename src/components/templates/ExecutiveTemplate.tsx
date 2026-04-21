@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
 import { ExtraSections } from './shared/ExtraSections';
 import { ContactLinks } from './shared/ContactLinks';
-import { formatDisplayDate } from '@/lib/dateUtils';
+import { formatDateRangeDisplay } from '@/lib/dateUtils';
 
 interface TemplateProps {
   resume: ResumeData;
@@ -45,7 +45,7 @@ export const ExecutiveTemplate = memo(function ExecutiveTemplate({ resume }: Tem
                 <div className="flex justify-between items-baseline mb-1">
                   <h3 className="font-semibold text-gray-900">{exp.position}</h3>
                   <span className="text-xs text-gray-500">
-                    {formatDisplayDate(exp.startDate)} — {exp.current ? 'Present' : formatDisplayDate(exp.endDate)}
+                    {formatDateRangeDisplay(exp.startDate, exp.endDate, exp.current, { separator: '—' })}
                   </span>
                 </div>
                 <p className="text-amber-700 text-sm mb-2">{exp.company}</p>
@@ -90,7 +90,7 @@ export const ExecutiveTemplate = memo(function ExecutiveTemplate({ resume }: Tem
                   <p className="font-medium text-gray-900">
                     {edu.degree} {edu.field && `in ${edu.field}`}
                   </p>
-                  <p className="text-gray-500 text-xs">{edu.institution}, {formatDisplayDate(edu.endDate)}</p>
+                  <p className="text-gray-500 text-xs">{edu.institution}{formatDateRangeDisplay('', edu.endDate, false) && `, ${formatDateRangeDisplay('', edu.endDate, false)}`}</p>
                   {edu.description && <p className="text-gray-500 text-xs mt-0.5">{edu.description}</p>}
                 </div>
               ))}
@@ -103,16 +103,7 @@ export const ExecutiveTemplate = memo(function ExecutiveTemplate({ resume }: Tem
             <h2 className="text-xs font-semibold text-amber-700 uppercase tracking-[0.2em] mb-3">
               Core Competencies
             </h2>
-            <div className="flex flex-wrap gap-1">
-              {resume.skills.map((skill, i) => (
-                <span
-                  key={i}
-                  className="text-gray-700 text-xs after:content-[','] after:mx-0.5 last:after:content-none"
-                >
-                  {skill}
-                </span>
-              ))}
-            </div>
+            <p className="text-gray-700 text-xs">{resume.skills.join(', ')}</p>
           </section>
         )}
       </div>

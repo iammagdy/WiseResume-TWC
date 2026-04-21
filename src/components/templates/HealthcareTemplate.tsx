@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
 import { ExtraSections } from './shared/ExtraSections';
 import { ContactLinks } from './shared/ContactLinks';
-import { formatDisplayDate } from '@/lib/dateUtils';
+import { formatDisplayDate, formatDateRangeDisplay } from '@/lib/dateUtils';
 
 interface HealthcareTemplateProps { resume: ResumeData; }
 
@@ -53,7 +53,7 @@ export const HealthcareTemplate = memo(function HealthcareTemplate({ resume }: H
                 <div key={exp.id} data-break-avoid className="border-l-2 pl-3" style={{ borderColor: '#99f6e4' }}>
                   <div className="flex justify-between items-baseline">
                     <h3 className="font-bold text-gray-900">{exp.position}</h3>
-                    <span className="text-gray-500 text-xs">{formatDisplayDate(exp.startDate)} – {exp.current ? 'Present' : formatDisplayDate(exp.endDate)}</span>
+                    <span className="text-gray-500 text-xs">{formatDateRangeDisplay(exp.startDate, exp.endDate, exp.current)}</span>
                   </div>
                   <p className="font-medium" style={{ color: tealColor }}>{exp.company}</p>
                   {exp.description && <p data-break-child className="text-gray-600 text-sm mt-1">{exp.description}</p>}

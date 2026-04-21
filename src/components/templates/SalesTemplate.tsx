@@ -2,19 +2,27 @@ import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
 import { ExtraSections } from './shared/ExtraSections';
 import { ContactLinks } from './shared/ContactLinks';
-import { formatDisplayDate } from '@/lib/dateUtils';
+import { formatDisplayDate, formatDateRangeDisplay } from '@/lib/dateUtils';
 
 interface SalesTemplateProps { resume: ResumeData; }
+
+const OUTCOME_VERB_RE = /\b(increased?|grew|grow|growing|reduced?|drove|driving|drives|closed?|closing|generated?|delivered?|exceeded?|surpassed?|achieved?|won|expanded?|launched?|scaled?|boosted?|improved?|accelerated?|optimized?|secured?|landed?|negotiated?|retained?|saved?|cut|added?)\b/i;
 
 export const SalesTemplate = memo(function SalesTemplate({ resume }: SalesTemplateProps) {
   const { contactInfo, summary, experience, education, skills, certifications } = resume;
   const greenColor = '#16a34a';
   const greenLight = '#dcfce7';
 
+  // A bullet should only be rendered as a metric card when the leading token
+  // is a clear quantitative result (number followed by %, $, K, M, B, or +)
+  // AND the bullet contains an outcome verb. Otherwise tokens like "5+ years"
+  // or "7 direct reports" get falsely promoted to giant green metric cards.
   const extractMetric = (text: string): { metric: string | null; rest: string } => {
-    const match = text.match(/^(\$?[\d,]+%?|\d+\+?)/);
-    if (match) return { metric: match[1], rest: text.slice(match[0].length).trim() };
-    return { metric: null, rest: text };
+    const match = text.match(/^(\$[\d,]+(?:\.\d+)?[KMB]?\+?|[\d,]+(?:\.\d+)?(?:%|[KMB]|\+))/);
+    if (!match) return { metric: null, rest: text };
+    const rest = text.slice(match[0].length).trim();
+    if (!OUTCOME_VERB_RE.test(rest)) return { metric: null, rest: text };
+    return { metric: match[1], rest };
   };
 
   return (
@@ -40,7 +48,7 @@ export const SalesTemplate = memo(function SalesTemplate({ resume }: SalesTempla
                 <div key={exp.id} data-break-avoid>
                   <div className="flex justify-between items-baseline mb-1">
                     <h3 className="font-bold text-gray-900 text-base">{exp.position}</h3>
-                    <span className="text-gray-500 text-xs font-medium">{formatDisplayDate(exp.startDate)} – {exp.current ? 'Present' : formatDisplayDate(exp.endDate)}</span>
+                    <span className="text-gray-500 text-xs font-medium">{formatDateRangeDisplay(exp.startDate, exp.endDate, exp.current)}</span>
                   </div>
                   <p className="text-gray-600 mb-2">{exp.company}</p>
                   {exp.achievements.length > 0 && (

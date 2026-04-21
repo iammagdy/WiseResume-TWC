@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
 import { ExtraSections } from './shared/ExtraSections';
 import { ContactLinks } from './shared/ContactLinks';
-import { formatDisplayDate } from '@/lib/dateUtils';
+import { formatDisplayDate, formatDateRangeDisplay } from '@/lib/dateUtils';
 
 interface TemplateProps { resume: ResumeData; }
 
@@ -32,10 +32,12 @@ export const DesignerTemplate = memo(function DesignerTemplate({ resume }: Templ
           <section data-section="experience">
             <h2 className="text-xs font-bold text-gray-900 uppercase tracking-widest mb-3">Experience</h2>
             <div className="space-y-3">
-              {resume.experience.map(exp => (
+              {resume.experience.map(exp => {
+                const range = formatDateRangeDisplay(exp.startDate, exp.endDate, exp.current);
+                return (
                 <div key={exp.id} data-break-avoid>
                   <h3 className="font-bold text-gray-900 text-xs">{exp.position}</h3>
-                  <p className="text-gray-500 text-xs">{exp.company} · {formatDisplayDate(exp.startDate)} – {exp.current ? 'Present' : formatDisplayDate(exp.endDate)}</p>
+                  <p className="text-gray-500 text-xs">{exp.company}{range && ` · ${range}`}</p>
                   {exp.description && <p data-break-child className="text-gray-700 mt-1 text-xs">{exp.description}</p>}
                   {exp.achievements && exp.achievements.length > 0 && (
                     <ul data-break-child className="mt-1 space-y-0.5 list-none">
@@ -52,7 +54,8 @@ export const DesignerTemplate = memo(function DesignerTemplate({ resume }: Templ
                     </ul>
                   )}
                 </div>
-              ))}
+                );
+              })}
             </div>
           </section>
         )}

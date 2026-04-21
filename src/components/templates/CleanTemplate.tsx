@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
 import { ExtraSections } from './shared/ExtraSections';
 import { ContactLinks } from './shared/ContactLinks';
-import { formatDisplayDate } from '@/lib/dateUtils';
+import { formatDisplayDate, formatDateRangeDisplay } from '@/lib/dateUtils';
 
 interface TemplateProps { resume: ResumeData; }
 
@@ -24,7 +24,7 @@ export const CleanTemplate = memo(function CleanTemplate({ resume }: TemplatePro
           <div className="space-y-5">
             {resume.experience.map(exp => (
               <div key={exp.id} data-break-avoid>
-                <div className="flex justify-between items-baseline"><h3 className="font-medium text-gray-900">{exp.position}</h3><span className="text-xs text-gray-400">{formatDisplayDate(exp.startDate)} – {exp.current ? 'Present' : formatDisplayDate(exp.endDate)}</span></div>
+                <div className="flex justify-between items-baseline"><h3 className="font-medium text-gray-900">{exp.position}</h3><span className="text-xs text-gray-400">{formatDateRangeDisplay(exp.startDate, exp.endDate, exp.current)}</span></div>
                 <p className="text-gray-500 text-xs">{exp.company}</p>
                 {exp.description && <p data-break-child className="text-gray-600 mt-1 text-xs">{exp.description}</p>}
                 {exp.achievements && exp.achievements.length > 0 && (

@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
 import { ExtraSections } from './shared/ExtraSections';
 import { ContactLinks } from './shared/ContactLinks';
-import { formatDisplayDate } from '@/lib/dateUtils';
+import { formatDisplayDate, formatDateRangeDisplay } from '@/lib/dateUtils';
 
 interface TemplateProps { resume: ResumeData; }
 
@@ -25,10 +25,12 @@ export const ZenTemplate = memo(function ZenTemplate({ resume }: TemplateProps) 
         <section data-section="experience" className="mb-8">
           <h2 className="text-center text-xs font-light text-gray-500 uppercase tracking-[0.3em] mb-5">Experience</h2>
           <div className="space-y-5">
-            {resume.experience.map(exp => (
+            {resume.experience.map(exp => {
+              const range = formatDateRangeDisplay(exp.startDate, exp.endDate, exp.current);
+              return (
               <div key={exp.id} data-break-avoid className="text-center">
                 <h3 className="font-medium text-gray-800">{exp.position}</h3>
-                <p className="text-gray-500 text-xs">{exp.company} · {formatDisplayDate(exp.startDate)} – {exp.current ? 'Present' : formatDisplayDate(exp.endDate)}</p>
+                <p className="text-gray-500 text-xs">{exp.company}{range && ` · ${range}`}</p>
                 {exp.description && <p data-break-child className="text-gray-600 mt-2 text-xs max-w-sm mx-auto">{exp.description}</p>}
                 {exp.achievements && exp.achievements.length > 0 && (
                   <ul data-break-child className="mt-1 space-y-0.5 list-none text-left max-w-sm mx-auto">
@@ -45,7 +47,8 @@ export const ZenTemplate = memo(function ZenTemplate({ resume }: TemplateProps) 
                   </ul>
                 )}
               </div>
-            ))}
+              );
+            })}
           </div>
         </section>
       )}

@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
 import { ExtraSections } from './shared/ExtraSections';
 import { ContactLinks } from './shared/ContactLinks';
-import { formatDisplayDate } from '@/lib/dateUtils';
+import { formatDisplayDate, formatDateRangeDisplay } from '@/lib/dateUtils';
 
 interface ElegantTemplateProps { resume: ResumeData; }
 
@@ -39,7 +39,7 @@ export const ElegantTemplate = memo(function ElegantTemplate({ resume }: Elegant
                   <div className="absolute left-0 top-1.5 w-1.5 h-1.5 rounded-full" style={{ backgroundColor: roseColor }} />
                   <div className="flex justify-between items-baseline">
                     <h3 className="font-semibold text-gray-900">{exp.position}</h3>
-                    <span className="text-gray-500 text-xs">{formatDisplayDate(exp.startDate)} – {exp.current ? 'Present' : formatDisplayDate(exp.endDate)}</span>
+                    <span className="text-gray-500 text-xs">{formatDateRangeDisplay(exp.startDate, exp.endDate, exp.current)}</span>
                   </div>
                   <p className="text-sm mb-1" style={{ color: roseColor }}>{exp.company}</p>
                   {exp.description && <p data-break-child className="text-gray-600 text-sm">{exp.description}</p>}

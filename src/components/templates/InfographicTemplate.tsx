@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
 import { ExtraSections } from './shared/ExtraSections';
 import { ContactLinks } from './shared/ContactLinks';
-import { formatDisplayDate } from '@/lib/dateUtils';
+import { formatDateRangeDisplay } from '@/lib/dateUtils';
 
 interface TemplateProps { resume: ResumeData; }
 
@@ -26,12 +26,14 @@ export const InfographicTemplate = memo(function InfographicTemplate({ resume }:
       {resume.experience.length > 0 && (
         <section data-section="experience" className="mb-6">
           <h2 className="text-xs font-bold text-violet-600 uppercase tracking-widest text-center mb-3">Experience</h2>
-          <div className="relative border-l-2 border-violet-200 ml-4 space-y-4">
-            {resume.experience.map(exp => (
+          <div className="relative border-l-2 border-violet-200 ml-2 pl-3 space-y-4">
+            {resume.experience.map(exp => {
+              const range = formatDateRangeDisplay(exp.startDate, exp.endDate, exp.current);
+              return (
               <div key={exp.id} data-break-avoid className="pl-6 relative">
-                <div className="absolute -left-[9px] top-1 w-4 h-4 bg-violet-500 rounded-full border-2 border-white" />
+                <div className="absolute -left-[5px] top-1 w-4 h-4 bg-violet-500 rounded-full border-2 border-white" />
                 <h3 className="font-bold text-gray-900 text-xs">{exp.position}</h3>
-                <p className="text-violet-600 text-xs font-medium">{exp.company} · {formatDisplayDate(exp.startDate)} – {exp.current ? 'Present' : formatDisplayDate(exp.endDate)}</p>
+                <p className="text-violet-600 text-xs font-medium">{exp.company}{range && ` · ${range}`}</p>
                 {exp.description && <p data-break-child className="text-gray-700 mt-1 text-xs">{exp.description}</p>}
                 {exp.achievements && exp.achievements.length > 0 && (
                   <ul data-break-child className="mt-1 space-y-0.5 list-none">
@@ -48,14 +50,18 @@ export const InfographicTemplate = memo(function InfographicTemplate({ resume }:
                   </ul>
                 )}
               </div>
-            ))}
+              );
+            })}
           </div>
         </section>
       )}
       {resume.education.length > 0 && (
         <section data-section="education" className="mb-6">
           <h2 className="text-xs font-bold text-violet-600 uppercase tracking-widest text-center mb-3">Education</h2>
-          <div className="text-center space-y-1">{resume.education.map(edu => (<div key={edu.id} data-break-avoid><span className="font-bold text-gray-900 text-xs">{edu.degree}</span> <span className="text-gray-500 text-xs">— {edu.institution} ({formatDisplayDate(edu.endDate)})</span>{edu.description && <p className="text-gray-500 text-xs mt-0.5">{edu.description}</p>}</div>))}</div>
+          <div className="text-center space-y-1">{resume.education.map(edu => {
+            const eduRange = formatDateRangeDisplay(edu.startDate, edu.endDate, false);
+            return (<div key={edu.id} data-break-avoid><span className="font-bold text-gray-900 text-xs">{edu.degree}</span> <span className="text-gray-500 text-xs">— {edu.institution}{eduRange && ` (${eduRange})`}</span>{edu.description && <p className="text-gray-500 text-xs mt-0.5">{edu.description}</p>}</div>);
+          })}</div>
         </section>
       )}
       {resume.skills.length > 0 && (

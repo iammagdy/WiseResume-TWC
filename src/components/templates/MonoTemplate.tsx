@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
 import { ExtraSections } from './shared/ExtraSections';
 import { ContactLinks } from './shared/ContactLinks';
-import { formatDisplayDate } from '@/lib/dateUtils';
+import { formatDisplayDate, formatDateRangeDisplay } from '@/lib/dateUtils';
 
 interface TemplateProps { resume: ResumeData; }
 
@@ -26,7 +26,7 @@ export const MonoTemplate = memo(function MonoTemplate({ resume }: TemplateProps
             {resume.experience.map(exp => (
               <div key={exp.id} data-break-avoid>
                 <h3 className="font-medium text-gray-900">{exp.position} <span className="font-normal text-gray-500">— {exp.company}</span></h3>
-                <p className="text-xs text-gray-400">{formatDisplayDate(exp.startDate)} – {exp.current ? 'Present' : formatDisplayDate(exp.endDate)}</p>
+                <p className="text-xs text-gray-400">{formatDateRangeDisplay(exp.startDate, exp.endDate, exp.current)}</p>
                 {exp.description && <p data-break-child className="text-gray-600 mt-1 text-xs">{exp.description}</p>}
                 {exp.achievements && exp.achievements.length > 0 && (
                   <ul data-break-child className="mt-1 space-y-0.5 list-none">

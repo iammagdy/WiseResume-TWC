@@ -157,6 +157,26 @@ export function formatDisplayDate(dateStr: string): string {
 }
 
 /**
+ * Format a date range for inline display, returning null when both dates are
+ * empty so callers can avoid orphaned separators (e.g. " – Present" with an
+ * empty start). When only one side is present, only that side is rendered.
+ */
+export function formatDateRangeDisplay(
+  startDate: string,
+  endDate: string,
+  isCurrent: boolean,
+  options: { separator?: string; presentLabel?: string } = {}
+): string | null {
+  const separator = options.separator ?? '–';
+  const presentLabel = options.presentLabel ?? 'Present';
+  const start = formatDisplayDate(startDate);
+  const end = isCurrent ? presentLabel : formatDisplayDate(endDate);
+  if (!start && !end) return null;
+  if (start && end) return `${start} ${separator} ${end}`;
+  return start || end;
+}
+
+/**
  * Calculate duration string from start/end dates
  */
 export function calculateDuration(startDate: string, endDate: string, isCurrent: boolean): string {

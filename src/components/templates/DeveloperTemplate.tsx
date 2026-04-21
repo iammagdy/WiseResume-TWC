@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
 import { ExtraSections } from './shared/ExtraSections';
 import { ContactLinks } from './shared/ContactLinks';
-import { formatDisplayDate } from '@/lib/dateUtils';
+import { formatDisplayDate, formatDateRangeDisplay } from '@/lib/dateUtils';
 
 interface TemplateProps { resume: ResumeData; }
 
@@ -14,7 +14,7 @@ const ExperienceItem = memo(function ExperienceItem({ exp }: { exp: ExperienceIt
     <div data-break-avoid className="border-l-2 border-gray-200 pl-3">
       <div className="flex justify-between items-baseline flex-wrap gap-1">
         <h3 className="text-gray-900"><span className="text-green-500">&gt;</span> {exp.position}<span className="text-gray-500"> @ {exp.company}</span></h3>
-        <span className="text-gray-400 text-xs">{formatDisplayDate(exp.startDate)} - {exp.current ? 'Present' : formatDisplayDate(exp.endDate)}</span>
+        <span className="text-gray-400 text-xs">{formatDateRangeDisplay(exp.startDate, exp.endDate, exp.current, { separator: '-' })}</span>
       </div>
       {exp.description && <p data-break-child className="text-gray-600 mt-1 ml-4">{exp.description}</p>}
       {exp.achievements && exp.achievements.length > 0 && (

@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
 import { ExtraSections } from './shared/ExtraSections';
 import { ContactLinks } from './shared/ContactLinks';
-import { formatDisplayDate } from '@/lib/dateUtils';
+import { formatDateRangeDisplay } from '@/lib/dateUtils';
 
 interface TemplateProps { resume: ResumeData; }
 
@@ -15,24 +15,26 @@ export const CyberTemplate = memo(function CyberTemplate({ resume }: TemplatePro
       </header>
       {resume.summary && (
         <section data-section="summary" className="mb-5">
-          <h2 className="text-xs font-bold text-red-600 uppercase tracking-widest mb-2">Security Profile</h2>
+          <h2 className="text-xs font-bold text-red-600 uppercase tracking-widest mb-2">Summary</h2>
           <p data-break-child className="text-gray-700">{resume.summary}</p>
         </section>
       )}
       {resume.skills.length > 0 && (
         <section data-section="skills" className="mb-5">
-          <h2 className="text-xs font-bold text-red-600 uppercase tracking-widest mb-2">Security Toolkit</h2>
+          <h2 className="text-xs font-bold text-red-600 uppercase tracking-widest mb-2">Skills</h2>
           <div className="grid grid-cols-3 gap-1">{resume.skills.map((s, i) => <span key={i} className="px-2 py-0.5 bg-red-50 text-red-700 border border-red-200 rounded text-xs text-center">{s}</span>)}</div>
         </section>
       )}
       {resume.experience.length > 0 && (
         <section data-section="experience" className="mb-5">
-          <h2 className="text-xs font-bold text-red-600 uppercase tracking-widest mb-3">Operations Log</h2>
+          <h2 className="text-xs font-bold text-red-600 uppercase tracking-widest mb-3">Experience</h2>
           <div className="space-y-4">
-            {resume.experience.map(exp => (
+            {resume.experience.map(exp => {
+              const range = formatDateRangeDisplay(exp.startDate, exp.endDate, exp.current, { presentLabel: 'Active' });
+              return (
               <div key={exp.id} data-break-avoid>
                 <h3 className="font-bold text-gray-900">{exp.position}</h3>
-                <p className="text-red-600 text-xs">{exp.company} | {formatDisplayDate(exp.startDate)} – {exp.current ? 'Active' : formatDisplayDate(exp.endDate)}</p>
+                <p className="text-red-600 text-xs">{exp.company}{range && ` | ${range}`}</p>
                 {exp.description && <p data-break-child className="text-gray-700 mt-1 text-xs">{exp.description}</p>}
                 {exp.achievements && exp.achievements.length > 0 && (
                   <ul data-break-child className="mt-1 space-y-0.5 list-none">
@@ -49,14 +51,18 @@ export const CyberTemplate = memo(function CyberTemplate({ resume }: TemplatePro
                   </ul>
                 )}
               </div>
-            ))}
+              );
+            })}
           </div>
         </section>
       )}
       {resume.education.length > 0 && (
         <section data-section="education">
-          <h2 className="text-xs font-bold text-red-600 uppercase tracking-widest mb-3">Credentials</h2>
-          {resume.education.map(edu => (<div key={edu.id} data-break-avoid className="mb-2"><h3 className="font-bold text-gray-900 text-xs">{edu.degree} {edu.field && `— ${edu.field}`}</h3><p className="text-gray-600 text-xs">{edu.institution}, {formatDisplayDate(edu.endDate)}</p>{edu.description && <p className="text-gray-600 text-xs mt-0.5">{edu.description}</p>}</div>))}
+          <h2 className="text-xs font-bold text-red-600 uppercase tracking-widest mb-3">Education</h2>
+          {resume.education.map(edu => {
+            const eduRange = formatDateRangeDisplay(edu.startDate, edu.endDate, false);
+            return (<div key={edu.id} data-break-avoid className="mb-2"><h3 className="font-bold text-gray-900 text-xs">{edu.degree} {edu.field && `— ${edu.field}`}</h3><p className="text-gray-600 text-xs">{edu.institution}{eduRange && `, ${eduRange}`}</p>{edu.description && <p className="text-gray-600 text-xs mt-0.5">{edu.description}</p>}</div>);
+          })}
         </section>
       )}
       <ExtraSections resume={resume} variant="cyber" />

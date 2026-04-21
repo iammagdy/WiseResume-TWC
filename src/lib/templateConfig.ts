@@ -26,7 +26,7 @@ export const TEMPLATE_CONFIGS: Record<TemplateId, TemplateConfig> = {
   corporate: { id: 'corporate', name: 'Corporate', layout: 'linear', maxRecommendedPages: 2, supportsPhoto: false },
   banking: { id: 'banking', name: 'Banking', layout: 'linear', maxRecommendedPages: 2, supportsPhoto: false },
   consulting: { id: 'consulting', name: 'Consulting', layout: 'linear', maxRecommendedPages: 2, supportsPhoto: false },
-  federal: { id: 'federal', name: 'Federal', layout: 'linear', maxRecommendedPages: 3, supportsPhoto: false },
+  federal: { id: 'federal', name: 'Government', layout: 'linear', maxRecommendedPages: 3, supportsPhoto: false },
   legal: { id: 'legal', name: 'Legal', layout: 'linear', maxRecommendedPages: 2, supportsPhoto: false },
   marketing: { id: 'marketing', name: 'Marketing', layout: 'linear', maxRecommendedPages: 2, supportsPhoto: false },
   designer: { id: 'designer', name: 'Designer', layout: 'linear', maxRecommendedPages: 3, supportsPhoto: true },

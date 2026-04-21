@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
 import { ExtraSections } from './shared/ExtraSections';
 import { ContactLinks } from './shared/ContactLinks';
-import { formatDisplayDate } from '@/lib/dateUtils';
+import { formatDateRangeDisplay } from '@/lib/dateUtils';
 
 interface TemplateProps { resume: ResumeData; }
 
@@ -15,7 +15,7 @@ const ExperienceItem = memo(function ExperienceItem({ exp }: { exp: ExperienceIt
       <div className="flex justify-between items-baseline mb-1">
         <h3 className="font-medium text-gray-900">{exp.position}</h3>
         <span className="text-xs text-gray-400">
-          {formatDisplayDate(exp.startDate)} — {exp.current ? 'Present' : formatDisplayDate(exp.endDate)}
+          {formatDateRangeDisplay(exp.startDate, exp.endDate, exp.current, { separator: '—' })}
         </span>
       </div>
       <p className="text-gray-500 text-xs mb-1">{exp.company}</p>
@@ -46,7 +46,10 @@ const EducationItem = memo(function EducationItem({ edu }: { edu: EducationItemT
       <h3 className="font-medium text-gray-900">
         {edu.degree} {edu.field && `in ${edu.field}`}
       </h3>
-      <p className="text-gray-500 text-xs">{edu.institution} - {formatDisplayDate(edu.endDate)}</p>
+      {(() => {
+        const eduRange = formatDateRangeDisplay(edu.startDate, edu.endDate, false);
+        return <p className="text-gray-500 text-xs">{edu.institution}{eduRange && ` - ${eduRange}`}</p>;
+      })()}
       {edu.description && <p className="text-gray-600 text-xs mt-0.5">{edu.description}</p>}
     </div>
   );
@@ -62,6 +65,9 @@ export const MinimalTemplate = memo(function MinimalTemplate({ resume }: Templat
 
       {resume.summary && (
         <section data-section="summary" className="mb-8">
+          <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-4">
+            Summary
+          </h2>
           <p data-break-child className="text-gray-600 leading-relaxed">{resume.summary}</p>
         </section>
       )}

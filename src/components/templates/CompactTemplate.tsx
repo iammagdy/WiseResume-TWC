@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
 import { ExtraSections } from './shared/ExtraSections';
 import { ContactLinks } from './shared/ContactLinks';
-import { formatDisplayDate } from '@/lib/dateUtils';
+import { formatDisplayDate, formatDateRangeDisplay } from '@/lib/dateUtils';
 
 interface CompactTemplateProps { resume: ResumeData; }
 
@@ -23,7 +23,7 @@ export const CompactTemplate = memo(function CompactTemplate({ resume }: Compact
               <div key={exp.id} data-break-avoid>
                 <div className="flex justify-between items-baseline">
                   <h3 className="font-semibold text-gray-900">{exp.position}</h3>
-                  <span className="text-gray-500 text-[10px]">{formatDisplayDate(exp.startDate)} – {exp.current ? 'Present' : formatDisplayDate(exp.endDate)}</span>
+                  <span className="text-gray-500 text-[10px]">{formatDateRangeDisplay(exp.startDate, exp.endDate, exp.current)}</span>
                 </div>
                 <p className="text-gray-600 text-[10px]">{exp.company}</p>
                 {exp.description && <p data-break-child className="text-gray-600 mt-0.5">{exp.description}</p>}

@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
 import { ExtraSections } from './shared/ExtraSections';
 import { ContactLinks } from './shared/ContactLinks';
-import { formatDisplayDate } from '@/lib/dateUtils';
+import { formatDisplayDate, formatDateRangeDisplay } from '@/lib/dateUtils';
 
 interface AcademicTemplateProps { resume: ResumeData; }
 
@@ -32,7 +32,7 @@ export const AcademicTemplate = memo(function AcademicTemplate({ resume }: Acade
               <div key={edu.id} data-break-avoid>
                 <div className="flex justify-between items-baseline">
                   <h3 className="font-bold text-gray-900">{edu.degree} in {edu.field}</h3>
-                  <span className="text-gray-600 text-sm">{formatDisplayDate(edu.startDate)} – {formatDisplayDate(edu.endDate)}</span>
+                  <span className="text-gray-600 text-sm">{formatDateRangeDisplay(edu.startDate, edu.endDate, false)}</span>
                 </div>
                 <p className="text-gray-700 italic">{edu.institution}</p>
                 {edu.gpa && <p className="text-gray-600 text-sm">GPA: {edu.gpa}</p>}
@@ -50,7 +50,7 @@ export const AcademicTemplate = memo(function AcademicTemplate({ resume }: Acade
               <div key={exp.id} data-break-avoid>
                 <div className="flex justify-between items-baseline">
                   <h3 className="font-bold text-gray-900">{exp.position}</h3>
-                  <span className="text-gray-600 text-sm">{formatDisplayDate(exp.startDate)} – {exp.current ? 'Present' : formatDisplayDate(exp.endDate)}</span>
+                  <span className="text-gray-600 text-sm">{formatDateRangeDisplay(exp.startDate, exp.endDate, exp.current)}</span>
                 </div>
                 <p className="text-gray-700 italic">{exp.company}</p>
                 {exp.description && <p data-break-child className="text-gray-600 mt-1 text-justify">{exp.description}</p>}
