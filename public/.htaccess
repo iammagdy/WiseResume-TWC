@@ -8,4 +8,40 @@ RewriteRule ^ index.html [QSA,L]
   Header always set X-Frame-Options "DENY"
   Header always set Referrer-Policy "strict-origin-when-cross-origin"
   Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+
+  # ── Cache-busting for files that MUST be re-fetched on every deploy ──
+  # The service worker, app shell, manifests, and changelog control what
+  # version users see. If these are cached, returning visitors will keep
+  # seeing the old version even after a fresh deploy.
+  <FilesMatch "^(custom-sw\.js|sw\.js|service-worker\.js|index\.html|404\.html|manifest.*\.json|changelog\.json|_headers|_redirects|robots\.txt|sitemap\.xml)$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate, max-age=0"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
+  </FilesMatch>
+
+  # ── Long-cache hashed build assets (safe — filenames change on rebuild) ──
+  <FilesMatch "\.(js|css|woff2?|ttf|otf|png|jpg|jpeg|webp|avif|svg|gif|ico)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+
+  # The above FilesMatch overrides the previous no-cache for index.html
+  # because Apache evaluates rules top-down. Re-assert no-cache for HTML
+  # and the explicitly-named control files so they always win.
+  <FilesMatch "^(custom-sw\.js|sw\.js|service-worker\.js|index\.html|404\.html|manifest.*\.json|changelog\.json)$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate, max-age=0"
+  </FilesMatch>
+</IfModule>
+
+# Ensure correct MIME types (some Hostinger configs miss these)
+<IfModule mod_mime.c>
+  AddType application/manifest+json .webmanifest
+  AddType application/javascript .js .mjs
+  AddType text/css .css
+  AddType image/svg+xml .svg
+  AddType application/json .json
+</IfModule>
+
+# Compression for faster initial load
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css application/javascript application/json image/svg+xml
 </IfModule>
