@@ -1466,6 +1466,7 @@ export type Database = {
           is_primary: boolean | null
           job_match_score: number | null
           job_url: string | null
+          languages: Json | null
           parent_resume_id: string | null
           projects: Json | null
           publications: Json | null
@@ -1495,6 +1496,7 @@ export type Database = {
           is_primary?: boolean | null
           job_match_score?: number | null
           job_url?: string | null
+          languages?: Json | null
           parent_resume_id?: string | null
           projects?: Json | null
           publications?: Json | null
@@ -1524,6 +1526,7 @@ export type Database = {
           is_primary?: boolean | null
           job_match_score?: number | null
           job_url?: string | null
+          languages?: Json | null
           parent_resume_id?: string | null
           projects?: Json | null
           publications?: Json | null

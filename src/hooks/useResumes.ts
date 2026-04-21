@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { useAuth } from './useAuth';
-import { ResumeData, Experience, Education, Certification, ContactInfo, Award, Project, Publication, Volunteering, Hobby, Reference } from '@/types/resume';
+import { ResumeData, Experience, Education, Certification, ContactInfo, Award, Project, Publication, Volunteering, Language, Hobby, Reference } from '@/types/resume';
 import { toast } from 'sonner';
 import { Json } from '@/integrations/supabase/types';
 import { useResumeStore } from '@/store/resumeStore';
@@ -21,6 +21,7 @@ export interface DatabaseResume {
   projects: Project[];
   publications: Publication[];
   volunteering: Volunteering[];
+  languages: Language[];
   hobbies: Hobby[];
   references: Reference[];
   template_id: string;
@@ -54,6 +55,7 @@ export function parseDbResume(dbResume: any): DatabaseResume {
     projects: (dbResume.projects as unknown as Project[]) || [],
     publications: (dbResume.publications as unknown as Publication[]) || [],
     volunteering: (dbResume.volunteering as unknown as Volunteering[]) || [],
+    languages: (dbResume.languages as unknown as Language[]) || [],
     hobbies: (dbResume.hobbies as unknown as Hobby[]) || [],
     references: (dbResume.references as unknown as Reference[]) || [],
     template_id: dbResume.template_id || 'modern',
@@ -85,6 +87,7 @@ export function dbToResumeData(dbResume: DatabaseResume): ResumeData {
     projects: dbResume.projects || [],
     publications: dbResume.publications || [],
     volunteering: dbResume.volunteering || [],
+    languages: dbResume.languages || [],
     hobbies: dbResume.hobbies || [],
     references: dbResume.references || [],
     templateId: dbResume.template_id,
@@ -108,6 +111,7 @@ export function resumeDataToDb(resume: ResumeData, userId: string, title?: strin
     projects: (resume.projects || []) as unknown as Json,
     publications: (resume.publications || []) as unknown as Json,
     volunteering: (resume.volunteering || []) as unknown as Json,
+    languages: (resume.languages || []) as unknown as Json,
     hobbies: (resume.hobbies || []) as unknown as Json,
     references: (resume.references || []) as unknown as Json,
     template_id: resume.templateId,
@@ -233,6 +237,7 @@ export function useResumeMutations() {
       if (updates.projects !== undefined) dbUpdates.projects = updates.projects;
       if (updates.publications !== undefined) dbUpdates.publications = updates.publications;
       if (updates.volunteering !== undefined) dbUpdates.volunteering = updates.volunteering;
+      if (updates.languages !== undefined) dbUpdates.languages = updates.languages;
       if (updates.hobbies !== undefined) dbUpdates.hobbies = updates.hobbies;
       if (updates.references !== undefined) dbUpdates.references = updates.references;
       if (updates.templateId !== undefined) dbUpdates.template_id = updates.templateId;
