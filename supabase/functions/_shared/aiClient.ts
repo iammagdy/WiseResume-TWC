@@ -162,8 +162,14 @@ async function deriveDecryptionKey(salt: string): Promise<CryptoKey> {
 }
 
 /**
- * Decrypts an encrypted key using the provided PBKDF2 salt.
- * Pass the static v1 salt or the per-user v2 salt depending on key_version.
+ * Decrypts an encrypted key using the v2 per-user PBKDF2 salt.
+ *
+ * AI-2: The v1 static-salt fallback was removed once the migration job
+ * finished re-encrypting every legacy row under the per-user salt and
+ * the `user_api_keys_key_version_v2_only` CHECK constraint was applied
+ * (migration `20260507000011`). A future v3 (master-secret rotation)
+ * must add its own decrypt path here in lockstep with a new migration
+ * job — see `docs/ops/api-key-encryption-rotation.md`.
  */
 async function decryptKeyWithSalt(encoded: string, salt: string): Promise<string> {
   const key = await deriveDecryptionKey(salt);
@@ -174,16 +180,37 @@ async function decryptKeyWithSalt(encoded: string, salt: string): Promise<string
   return new TextDecoder().decode(decrypted);
 }
 
-/** Resolves the correct PBKDF2 salt based on key_version and userId. */
-function resolveKeySalt(keyVersion: number | null | undefined, userId: string): string {
-  if (keyVersion === 2) return `user-api-keys-salt-v2-${userId}`;
-  return 'user-api-keys-salt';
+/**
+ * AI-2: thrown when a `user_api_keys` row is found at a non-v2
+ * `key_version`. Callers (every BYOK lookup site) propagate this so the
+ * user sees a clear "please re-enter your key in AI Settings" surface
+ * error instead of silently falling back to managed keys (which would
+ * hide the fact that their saved key is in an unreadable format).
+ */
+export class LegacyKeyVersionError extends Error {
+  readonly provider: string;
+  readonly keyVersion: number | null;
+  constructor(provider: string, keyVersion: number | null) {
+    super(
+      `BYOK ${provider} key is stored under a deprecated encryption version (v${keyVersion ?? '?'}). Please re-enter your key in AI Settings.`,
+    );
+    this.name = 'LegacyKeyVersionError';
+    this.provider = provider;
+    this.keyVersion = keyVersion;
+  }
 }
+
+const V2_SALT_PREFIX = 'user-api-keys-salt-v2-';
 
 /**
  * Fetches a user's API key from the database (decrypted).
- * Supports v1 (static salt) and v2 (per-user salt) encryption.
- * Uses the service role key to bypass RLS.
+ *
+ * AI-2: Only `key_version = 2` (per-user salt) is accepted. A row with
+ * any other version throws `LegacyKeyVersionError` rather than silently
+ * decrypting under the legacy static salt — that fallback existed before
+ * the v1 → v2 backfill and would let a service-role caller flipping
+ * `key_version` force a static-salt decrypt. Uses the service role key
+ * to bypass RLS.
  */
 export async function getUserKeyFromDB(userId: string, provider = 'gemini'): Promise<string | undefined> {
   if (!ENCRYPTION_SECRET) {
@@ -191,9 +218,9 @@ export async function getUserKeyFromDB(userId: string, provider = 'gemini'): Pro
     return undefined;
   }
 
+  let row: { encrypted_key: string; key_version: number | null } | null = null;
   try {
     const supabase = getServiceClient();
-
     const { data, error } = await supabase
       .from('user_api_keys')
       .select('encrypted_key, key_version')
@@ -202,24 +229,32 @@ export async function getUserKeyFromDB(userId: string, provider = 'gemini'): Pro
       .maybeSingle();
 
     if (error || !data?.encrypted_key) return undefined;
-    const salt = resolveKeySalt(data.key_version, userId);
-    return await decryptKeyWithSalt(data.encrypted_key, salt);
+    row = data as { encrypted_key: string; key_version: number | null };
   } catch (err) {
     console.warn('[aiClient] Failed to fetch user key from DB:', err);
     return undefined;
   }
+
+  if (row.key_version !== 2) {
+    console.warn('[aiClient] Refusing to decrypt non-v2 BYOK key', { userId, provider, keyVersion: row.key_version });
+    throw new LegacyKeyVersionError(provider, row.key_version);
+  }
+  return await decryptKeyWithSalt(row.encrypted_key, `${V2_SALT_PREFIX}${userId}`);
 }
 
 /**
  * Fetches a user's API key + base_url from the database (decrypted).
- * Supports v1 (static salt) and v2 (per-user salt) encryption.
+ *
+ * AI-2: same v2-only enforcement as `getUserKeyFromDB`.
  */
 export async function getUserKeyAndUrlFromDB(userId: string, provider: string): Promise<{ key: string; baseUrl: string | null; model: string | null } | undefined> {
   if (!ENCRYPTION_SECRET) return undefined;
 
+  let row:
+    | { encrypted_key: string; base_url: string | null; model: string | null; key_version: number | null }
+    | null = null;
   try {
     const supabase = getServiceClient();
-
     const { data, error } = await supabase
       .from('user_api_keys')
       .select('encrypted_key, base_url, model, key_version')
@@ -228,13 +263,18 @@ export async function getUserKeyAndUrlFromDB(userId: string, provider: string): 
       .maybeSingle();
 
     if (error || !data?.encrypted_key) return undefined;
-    const salt = resolveKeySalt(data.key_version, userId);
-    const key = await decryptKeyWithSalt(data.encrypted_key, salt);
-    return { key, baseUrl: data.base_url ?? null, model: data.model ?? null };
+    row = data as typeof row;
   } catch (err) {
     console.warn('[aiClient] Failed to fetch user key from DB:', err);
     return undefined;
   }
+
+  if (row!.key_version !== 2) {
+    console.warn('[aiClient] Refusing to decrypt non-v2 BYOK key', { userId, provider, keyVersion: row!.key_version });
+    throw new LegacyKeyVersionError(provider, row!.key_version);
+  }
+  const key = await decryptKeyWithSalt(row!.encrypted_key, `${V2_SALT_PREFIX}${userId}`);
+  return { key, baseUrl: row!.base_url ?? null, model: row!.model ?? null };
 }
 
 /**
