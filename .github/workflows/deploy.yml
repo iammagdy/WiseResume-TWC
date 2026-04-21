@@ -60,5 +60,40 @@ jobs:
         env:
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
         run: |
+          set -euo pipefail
+          # `cmd:fail-exit yes` makes lftp exit non-zero on the FIRST upload
+          # error instead of silently skipping. Without it, a partial upload
+          # (e.g. one file timing out) reports success and we end up with
+          # the "deploy succeeded but site is stale" failure mode that
+          # caused Task #29.
+          # `mirror --reverse --delete` already includes dotfiles like
+          # .htaccess by default — verified empirically against lftp 4.9.x.
           lftp -d -u "u966279061.thewise.cloud,$FTP_PASSWORD" sftp://82.29.154.120:22 \
-            -e "set sftp:auto-confirm yes; set net:timeout 20; set net:max-retries 2; mirror --reverse --delete --verbose ./dist/ /public_html/resume/; bye" 2>&1 | tail -200
+            -e "set cmd:fail-exit yes; set sftp:auto-confirm yes; set net:timeout 20; set net:max-retries 2; mirror --reverse --delete --verbose ./dist/ /public_html/resume/; bye" 2>&1 | tee /tmp/lftp.log | tail -200
+          # Hard assertion: .htaccess MUST appear in the transfer log.
+          # If it doesn't, the upload didn't include it (would silently
+          # leave the live site on the old security headers + cache rules)
+          # and we fail the workflow now instead of letting the site rot.
+          if ! grep -qE '(^| )\.htaccess($| )' /tmp/lftp.log && ! grep -qE 'Transferring file `.*\.htaccess' /tmp/lftp.log; then
+            echo "::error::lftp output does not show .htaccess being transferred. Aborting before the live site silently keeps stale headers."
+            exit 1
+          fi
+
+      - name: Verify live site reflects the new build
+        # Polls https://resume.thewise.cloud and asserts changelog.json
+        # version matches package.json, plus the no-cache + Task #26
+        # security headers are live. Uses `node` directly so it works
+        # even if `npm ci` cached an old node_modules. Retries for up
+        # to ~60s to allow Hostinger's edge / origin to settle.
+        run: |
+          set -e
+          for attempt in 1 2 3 4 5 6; do
+            echo "Verification attempt $attempt..."
+            if node scripts/verify-live-deploy.mjs; then
+              echo "✅ Live site verified."
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::Live site verification failed after 6 attempts (~60s). The upload may have completed but the live site is not serving the new build. See logs above."
+          exit 1
