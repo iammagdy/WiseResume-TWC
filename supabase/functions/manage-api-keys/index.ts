@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { requireAuth, authErrorResponse } from '../_shared/authMiddleware.ts';
+import { validateBaseUrl } from '../_shared/urlSafety.ts';
 
 const ENCRYPTION_SECRET = Deno.env.get('API_KEY_ENCRYPTION_SECRET');
 if (!ENCRYPTION_SECRET) throw new Error('API_KEY_ENCRYPTION_SECRET env var is required');
@@ -186,7 +187,23 @@ Deno.serve(async (req) => {
       };
       if (provider === 'ollama') {
         const resolvedBaseUrl = baseUrl || base_url;
-        upsertData.base_url = normalizeOptionalString(resolvedBaseUrl);
+        const normalizedBaseUrl = normalizeOptionalString(resolvedBaseUrl);
+        if (!normalizedBaseUrl) {
+          return new Response(
+            JSON.stringify({ error: 'Ollama base URL is required.' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+          );
+        }
+        // AI-1: validate Ollama base URL to block SSRF / cloud metadata /
+        // private IP exfil before we ever store a row.
+        const safety = await validateBaseUrl(normalizedBaseUrl);
+        if (!safety.ok) {
+          return new Response(
+            JSON.stringify({ error: `Invalid Ollama base URL: ${safety.message}` }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+          );
+        }
+        upsertData.base_url = safety.url;
         upsertData.model = normalizedModel;
       } else {
         // All other providers: save model if provided, clear base_url

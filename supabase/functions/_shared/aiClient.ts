@@ -6,6 +6,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getServiceClient } from './dbClient.ts';
+import { validateBaseUrl, assertSameSafeIps, pinnedFetch } from './urlSafety.ts';
 
 export interface AIMessage {
   role: 'system' | 'user' | 'assistant';
@@ -990,6 +991,12 @@ function isOllamaCloud(url: string): boolean {
   return /ollama\.com/i.test(url);
 }
 
+// Exported under a `__test_` prefix so the AI-1 integration smoke test can
+// drive the read-time validation + DNS-pin + outbound-fetch pipeline
+// directly with a mocked transport, without standing up the entire callAI
+// surface (DB lookups, breaker, etc.). Not part of the public API.
+export { callOllamaDirect as __test_callOllamaDirect };
+
 async function callOllamaDirect(
   apiKey: string,
   baseUrl: string,
@@ -1001,8 +1008,36 @@ async function callOllamaDirect(
   toolChoice?: { type: 'function'; function: { name: string } } | 'auto',
   signal?: AbortSignal
 ): Promise<AIResponse> {
-  // Normalize base URL
-  const cleanUrl = baseUrl.replace(/\/+$/, '');
+  // AI-1: Re-validate at request time so a legacy/tampered row whose
+  // base_url predates the write-time check (or whose hostname now resolves
+  // to a private IP) never produces an outbound fetch. We also use this
+  // safety result as the canonical, normalised URL.
+  const safety = await validateBaseUrl(baseUrl);
+  if (!safety.ok) {
+    throw createAIError(
+      'invalid_key',
+      `Ollama base URL is not allowed: ${safety.message} Please update it in AI Settings → Ollama.`,
+      400,
+    );
+  }
+  // Defeat DNS rebinding: re-resolve the hostname immediately before fetch
+  // AND pin the outbound request to one of the validated public IPs via
+  // pinnedFetch (which uses node:https' lookup hook). Even if an attacker
+  // flips DNS in the microseconds between this check and the connection,
+  // we still connect to the pinned IP rather than the attacker's address.
+  const rebindCheck = await assertSameSafeIps(safety.hostname);
+  if (!rebindCheck.ok) {
+    throw createAIError(
+      'invalid_key',
+      `Ollama host failed safety re-check: ${rebindCheck.message}`,
+      400,
+    );
+  }
+  const pinnedIp = rebindCheck.ips[0] ?? safety.ips[0];
+  if (!pinnedIp) {
+    throw createAIError('invalid_key', 'Ollama host could not be resolved to a safe IP.', 400);
+  }
+  const cleanUrl = safety.url;
   const useNativeApi = isOllamaCloud(cleanUrl);
 
   const headers: Record<string, string> = {
@@ -1031,15 +1066,15 @@ async function callOllamaDirect(
     }
   }
 
-  const response = await fetch(endpoint, {
+  const response = await pinnedFetch(endpoint, pinnedIp, {
     method: 'POST',
     headers,
     body: JSON.stringify(body),
     signal,
   });
 
-  if (!response.ok) {
-    const errorText = await response.text();
+  if (response.status < 200 || response.status >= 300) {
+    const errorText = response.bodyText;
     console.error('Ollama API error:', response.status, errorText);
 
     let errorMessage = 'Ollama request failed';
@@ -1060,7 +1095,7 @@ async function callOllamaDirect(
     throw createAIError('unknown', errorMessage, response.status);
   }
 
-  const data = await response.json();
+  const data = JSON.parse(response.bodyText);
 
   // Parse native Ollama response format
   if (useNativeApi && data.message) {
