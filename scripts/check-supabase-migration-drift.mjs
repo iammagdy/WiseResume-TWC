@@ -13,7 +13,7 @@ import { readdirSync } from 'node:fs';
 
 const PROJECT_REF = process.env.SUPABASE_PROJECT_REF || 'jnsfmkzgxsviuthaqlyy';
 const TOKEN = process.env.SUPABASE_ACCESS_TOKEN;
-const MIG_DIR = 'supabase/migrations';
+const MIG_DIR = process.env.SUPABASE_MIGRATIONS_DIR || 'supabase/migrations';
 
 if (!TOKEN) {
   console.error('SUPABASE_ACCESS_TOKEN is required.');
@@ -47,27 +47,46 @@ for (const f of files) {
 const pending = files.filter(f => !applied.has(f.match(/^(\d{14})/)[1]));
 
 const dupVersions = [...byVersion.entries()].filter(([, list]) => list.length > 1);
+const dupAppliedHistorical = dupVersions.filter(([v]) => applied.has(v));
+const dupPendingCollisions = dupVersions.filter(([v]) => !applied.has(v));
 
 console.log(`Migrations on disk:        ${files.length}`);
 console.log(`Distinct versions on disk: ${byVersion.size}`);
 console.log(`Applied to Supabase:       ${applied.size}`);
 console.log(`Pending (by version):      ${pending.length}`);
 
-if (dupVersions.length > 0) {
+if (dupAppliedHistorical.length > 0) {
   console.log(
-    `\nWARNING: ${dupVersions.length} version prefix(es) are reused by multiple files. ` +
+    `\nWARNING: ${dupAppliedHistorical.length} version prefix(es) are reused by multiple files ` +
+      `but the version is already recorded in schema_migrations. ` +
       `schema_migrations.version is unique, so once one sibling is recorded, the others ` +
       `are silently treated as "applied" by version-only checks. Verify each sibling actually ran:`,
   );
-  for (const [v, list] of dupVersions) {
+  for (const [v, list] of dupAppliedHistorical) {
     console.log(`  ${v}:`);
     for (const f of list) console.log(`    - ${f}`);
   }
 }
 
+if (dupPendingCollisions.length > 0) {
+  console.error(
+    `\nERROR: ${dupPendingCollisions.length} version prefix collision(s) detected on disk where ` +
+      `the version is NOT yet recorded in schema_migrations. Because ` +
+      `supabase_migrations.schema_migrations.version is unique, only one of the colliding ` +
+      `files can ever be recorded — the others would be silently masked as "applied" forever. ` +
+      `Resolve by renaming all-but-one of the colliding files with a fresh 14-digit timestamp ` +
+      `greater than the latest existing prefix in ${MIG_DIR}/ (see replit.md).`,
+  );
+  for (const [v, list] of dupPendingCollisions) {
+    console.error(`  ${v}:`);
+    for (const f of list) console.error(`    - ${f}`);
+  }
+  process.exit(1);
+}
+
 if (pending.length === 0) {
   console.log(
-    `\nIn sync${dupVersions.length > 0 ? ' (duplicate-version warning is informational — verify each sibling actually ran on first sync, see replit.md)' : ''}.`,
+    `\nIn sync${dupAppliedHistorical.length > 0 ? ' (duplicate-version warning is informational — verify each sibling actually ran on first sync, see replit.md)' : ''}.`,
   );
   process.exit(0);
 }
