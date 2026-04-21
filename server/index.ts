@@ -2670,7 +2670,7 @@ app.listen(PORT, '0.0.0.0', () => {
       console.log(`[server] Supabase JWT secret: ${SUPABASE_JWT_SECRET ? 'configured' : 'MISSING (Supabase calls will 401)'}`);
     })
     .catch((err: unknown) => {
-      console.error('[server] Supabase bootstrap failed (non-fatal — will retry on first request):', err);
+      console.error('[server] Supabase bootstrap failed — auth token exchange may 401 until secrets are available:', err);
     });
 });
 
