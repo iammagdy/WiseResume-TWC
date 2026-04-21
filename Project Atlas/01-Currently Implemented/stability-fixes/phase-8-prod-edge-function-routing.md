@@ -37,10 +37,14 @@ All 17 client call sites import and use it. The dev path is byte-identical to th
 
 ## Why no `apikey` header is needed
 
-- `token-exchange` is configured `verify_jwt = false` in `supabase/config.toml`, so Supabase's gateway lets the request through on a `Authorization: Bearer <kinde-token>` header alone. Kinde verification happens inside the function via JWKS.
-- Every other edge function is `verify_jwt = true` and the existing call sites already attach `Authorization: Bearer <bridge-supabase-jwt>`, which Supabase accepts in lieu of the anon key.
+- Every function in `supabase/config.toml` is `verify_jwt = false` (93 entries, all uniformly disabled). Supabase's gateway therefore never blocks the request for a missing JWT or apikey header.
+- Auth is enforced **inside** each function instead of at the gateway:
+  - `token-exchange` validates the Kinde Bearer token against Kinde's JWKS.
+  - Every other authenticated function calls the shared `requireAuth` middleware in `supabase/functions/_shared/authMiddleware.ts`, which validates the bridge-minted Supabase JWT we already attach in `Authorization: Bearer <…>`.
 - CORS already allow-lists `https://resume.thewise.cloud` (`supabase/functions/_shared/cors.ts`).
 - CSP `connect-src` in `public/.htaccess` already includes `https://*.supabase.co`.
+
+> **Invariant:** because `verify_jwt = false` puts auth entirely in the function code, any new function that touches user data must call `requireAuth` (or an equivalent in-function check). A CI guard for this is a recommended follow-up.
 
 ## Why not an `.htaccess` proxy
 
@@ -55,7 +59,7 @@ The direct-call path is architecturally correct: the Express server was always a
 
 | Scenario | Result |
 | --- | --- |
-| `VITE_SUPABASE_URL` missing in prod build | Helper falls back to `/api/fn/...` → Hostinger 200 HTML → bridge fails loudly with the same "Sign-in incomplete" card. We see the failure immediately rather than silently routing somewhere wrong. |
+| `VITE_SUPABASE_URL` missing in prod build | `src/lib/supabaseConstants.ts` throws on module load before the app renders (PROD-only `throw new Error(...)`), so the build never reaches a state where `apiFnUrl`'s defensive fallback to `/api/fn/...` is reachable at runtime. The fallback exists as a belt-and-braces safety net only. |
 | `verify_jwt = true` flipped on `token-exchange` by accident | Supabase gateway returns 401 before the function runs; bridge fails loudly. |
 | CORS allow-list pruned | Browser blocks the call; bridge fails loudly. |
 | CSP `connect-src` pruned | Browser blocks the call; bridge fails loudly. |
