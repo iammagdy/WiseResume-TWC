@@ -101,3 +101,23 @@ Operator workflow:
 - When applying a migration, INSERT into `supabase_migrations.schema_migrations(version, name, statements)` ONLY after the SQL succeeds. Never record a failed run as applied.
 - Sync state log: `.local/backups/sync-results.txt` (OK) and `.local/backups/sync-errors.txt` (FAIL — historical, all entries now resolved).
 - Pre-sync snapshot location: `.local/backups/pre-sync-snapshot-*.json` + `README.md`. Supabase auto daily backups + PITR are the actual recovery path.
+
+### Managed AI Keys (Operator Note — added 2026-04-21, Task #10)
+The managed AI providers used by `_shared/aiClient.ts` (`callWiseresumeAI`) read three env vars: `OPENROUTER_API_KEY` (primary), `OPENROUTER2_API_KEY` (failover OpenRouter account, used by the `openrouter2` engine and the `auto` chain), and `GROQ_API_KEY` (final fallback). All three live in **two places**, kept in lock-step:
+
+1. **Replit Secrets** — read by the Express server at boot. Their absence triggers the `[server] No managed AI keys present in Replit env (...)` warning and means every managed-mode AI call returns "AI is not configured".
+2. **Supabase Edge Function secrets** — read by the deployed edge functions via `Deno.env.get(...)`. They are pushed automatically at server boot by `bootstrapSupabaseSecrets()` in `server/index.ts` via `POST https://api.supabase.com/v1/projects/{ref}/secrets` using `SUPABASE_ACCESS_TOKEN`. The push is idempotent (Supabase upserts by name) and only fires for keys actually present in the Replit env, so partial sets are fine.
+
+To rotate: update the value in **Replit Secrets**, restart the `Start application` workflow, and confirm the boot log line `[server] Pushed managed AI secrets to Supabase Edge Functions: ...` lists the rotated key. The bootstrap will overwrite the Supabase-side value with the new one. To verify end-to-end, hit `ai-health` (badge probe) or `ai-test` (DevKit AI Provider panel) — both walk the same `openrouter → openrouter2 → groq` chain that real chat traffic does, so the badge will go green as long as at least one link works. Free-tier OpenRouter accounts can return 429 on burst traffic; this is expected and is exactly why the failover chain exists.
+
+**Verification recorded 2026-04-21 (Task #10 close-out):**
+- Server boot log after secrets were added (warning gone, push succeeded):
+  - `[server] Pushed managed AI secrets to Supabase Edge Functions: OPENROUTER_API_KEY, OPENROUTER2_API_KEY, GROQ_API_KEY`
+  - The previous `[server] No managed AI keys present in Replit env (...)` line is no longer emitted.
+- Upstream key validity (direct curl):
+  - `OPENROUTER_API_KEY` → `GET https://openrouter.ai/api/v1/auth/key` → HTTP 200 (free tier; chat-completions can return 429 on burst, failover handles it).
+  - `OPENROUTER2_API_KEY` → `POST .../chat/completions` with `openrouter/elephant-alpha` → HTTP 200.
+  - `GROQ_API_KEY` → `POST https://api.groq.com/openai/v1/chat/completions` with `qwen/qwen3-32b` → HTTP 200.
+- Deployed Supabase Edge Function smoke tests (called with a JWT minted from `SUPABASE_JWT_SECRET` for an existing auth user):
+  - `POST /functions/v1/ai-health` → HTTP 200, `{"status":"healthy","latencyMs":580,"provider":"wiseresume","errorCode":null}`.
+  - `POST /functions/v1/ai-test` → HTTP 200, `{"success":true,"providerUsed":"wiseresume/openrouter2:openrouter/elephant-alpha","response":"Hello! I'm Wise Resume AI","model":"openrouter/elephant-alpha","fallbackUsed":false}` — confirms a real managed-mode chat completion is now flowing for non-BYOK users via the failover chain.
