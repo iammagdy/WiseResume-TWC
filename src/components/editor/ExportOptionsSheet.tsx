@@ -78,8 +78,8 @@ export function ExportOptionsSheet({
     { id: 'linkedin', label: 'LinkedIn Format', description: 'Copy-paste ready sections for LinkedIn', icon: Linkedin, available: true },
     { id: 'plain-text', label: 'Plain Text (.txt)', description: 'Pure text, email-friendly, ATS-safe', icon: AlignLeft, available: true },
     { id: 'share-link', label: 'Shareable Web Link', description: 'Generate a public link to your resume', icon: Link2, available: true },
-    { id: 'cover-letter', label: 'Cover Letter Only', description: hasCoverLetter ? `For ${coverLetterContext?.title || 'position'} at ${coverLetterContext?.company || 'company'}` : 'Generate a cover letter first', icon: FileText, available: hasCoverLetter },
-    { id: 'combined', label: 'Application Package', description: hasCoverLetter ? 'Cover letter + Resume in one PDF' : 'Generate a cover letter first', icon: Package, available: hasCoverLetter },
+    { id: 'cover-letter', label: 'Cover Letter Only', description: !isOnline ? 'Requires an internet connection' : hasCoverLetter ? `For ${coverLetterContext?.title || 'position'} at ${coverLetterContext?.company || 'company'}` : 'Generate a cover letter first', icon: FileText, available: hasCoverLetter && isOnline },
+    { id: 'combined', label: 'Application Package', description: !isOnline ? 'Requires an internet connection' : hasCoverLetter ? 'Cover letter + Resume in one PDF' : 'Generate a cover letter first', icon: Package, available: hasCoverLetter && isOnline },
     { id: 'json', label: 'JSON Backup', description: 'Full resume data as a portable JSON file', icon: FolderDown, available: true },
   ];
 

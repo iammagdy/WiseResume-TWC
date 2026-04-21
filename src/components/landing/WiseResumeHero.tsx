@@ -128,8 +128,19 @@ export function WiseResumeHero({
             <span className="sm:whitespace-nowrap" style={{ display: 'block' }}>
               Stand out as a
             </span>
-            <span className="lp-typewriter-line" style={{ display: 'block' }}>
-              <span className="lp-gradient-text" style={{ display: 'inline-block' }}>
+            {/* lp-typewriter-line: inline-block so it only takes the width it needs,
+                with a hidden longest-word sentinel to reserve constant horizontal space
+                and prevent layout shifts as words cycle. */}
+            <span className="lp-typewriter-line" style={{ display: 'inline-block', position: 'relative' }}>
+              {/* Invisible sentinel reserves the width of the longest possible word */}
+              <span aria-hidden="true" style={{ visibility: 'hidden', display: 'block', whiteSpace: 'nowrap' }}>
+                {TYPEWRITER_WORDS.reduce((a, b) => a.length >= b.length ? a : b)}
+              </span>
+              {/* Visible gradient text, absolutely centred over the sentinel */}
+              <span
+                className="lp-gradient-text"
+                style={{ display: 'block', position: 'absolute', inset: 0, textAlign: 'center', whiteSpace: 'nowrap' }}
+              >
                 {typewriterWord || '\u00A0'}
                 <span className="lp-cursor" aria-hidden="true" />
               </span>
