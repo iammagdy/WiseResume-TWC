@@ -77,7 +77,12 @@ export const heroContainerVariants = {
   visible: { transition: { staggerChildren: 0.09, delayChildren: 0.05 } },
 };
 
+/* Task #15 (LCP fix): hero items start fully opaque so the H1 paints
+   immediately once the LandingMotionStage chunk hydrates on top of the
+   static `LandingHeroShell` Suspense fallback — no opacity 0 → 1 fade
+   gap that would push the LCP timestamp out by ~300-500ms. The slide
+   (y: 22 → 0) still gives a subtle entrance. */
 export const heroItemVariants = {
-  hidden: { opacity: 0, y: 22 },
+  hidden: { opacity: 1, y: 22 },
   visible: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 260, damping: 26 } },
 };

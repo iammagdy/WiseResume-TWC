@@ -57,10 +57,12 @@ const WaitlistModal = lazy(() =>
 const QuickTailorSheet = lazy(() =>
   import('@/components/landing/QuickTailorSheet').then((m) => ({ default: m.QuickTailorSheet }))
 );
-
-const LpFallback = ({ minHeight = 320 }: { minHeight?: number }) => (
-  <div aria-hidden="true" style={{ minHeight, width: '100%' }} />
-);
+/* Task #15 (LCP fix): static hero shell rendered as the Suspense fallback
+   for `LandingMotionStage`. It paints the H1 (the LCP element) on first
+   render of `Index` — no waiting on the motion-stage chunk, no
+   framer-motion opacity fade. The lazy stage hydrates on top once it
+   arrives, but the LCP timestamp is already locked in by the shell. */
+import LandingHeroShell from '@/components/landing/LandingHeroShell';
 
 function resolveIsDark(theme: 'light' | 'dark' | 'system'): boolean {
   if (theme === 'dark') return true;
@@ -335,7 +337,7 @@ const Index = () => {
       />
 
       <main id="landing-main" className="w-full" style={{ position: 'relative' }}>
-        <Suspense fallback={<LpFallback minHeight={800} />}>
+        <Suspense fallback={<LandingHeroShell mode={displayProduct} />}>
           <LandingMotionStage
             mode={displayProduct}
             prefersReducedMotion={prefersReducedMotion}

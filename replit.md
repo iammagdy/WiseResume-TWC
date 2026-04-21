@@ -132,6 +132,19 @@ To rotate: update the value in **Replit Secrets**, restart the `Start applicatio
   - `POST /functions/v1/ai-health` → HTTP 200, `{"status":"healthy","latencyMs":580,"provider":"wiseresume","errorCode":null}`.
   - `POST /functions/v1/ai-test` → HTTP 200, `{"success":true,"providerUsed":"wiseresume/openrouter2:openrouter/elephant-alpha","response":"Hello! I'm Wise Resume AI","model":"openrouter/elephant-alpha","fallbackUsed":false}` — confirms a real managed-mode chat completion is now flowing for non-BYOK users via the failover chain.
 
+### Landing Page LCP (Operator Note — added 2026-04-21, Task #15)
+The web-vitals reporter previously logged LCP=8080ms on `/` and `/enterprises` because the LCP element — the hero `<h1>` — sat inside `LandingMotionStage` (lazy chunk holding framer-motion + the hero subtree) AND was wrapped in `<motion.h1>` with `heroItemVariants.hidden = { opacity: 0 }`. Result: the H1 couldn't paint until (a) the entry chunk evaluated, (b) `LandingMotionStage` chunk + its `framer` chunk downloaded, (c) the framer entry-stagger animated opacity from 0 → 1.
+
+Fix shipped:
+1. **Static hero shell as Suspense fallback** — `src/components/landing/LandingHeroShell.tsx` renders a no-framer-motion copy of the hero (eyebrow + H1 with the first typewriter word + radial glow background, sized to `minHeight: 640` so CLS stays flat) for both `jobseeker` and `wisehire` modes. `Index.tsx` uses it as the `<Suspense fallback>` for `LandingMotionStage`, so the H1 paints on the FIRST render of `Index` — before any motion-stage chunk arrives. Once the lazy stage hydrates, it replaces the shell; LCP is already locked in.
+2. **`heroItemVariants.hidden.opacity` flipped to 1** in `src/components/landing/landingAnimations.ts`. The hero subtree no longer fades from opacity 0 when the lazy stage hydrates — the slide (y: 22 → 0) still gives a subtle entrance but the H1 is paintable from frame zero of the lazy mount as well, so even cold-cache visitors who don't see the shell long get the H1 on the first hero-chunk frame.
+
+Out of scope (intentionally not changed): the inactive-product hero chunk preload at the top of `Index.tsx` is preserved as-is; the `LandingMotionStage` + active hero chunk warm-up `void import()`s still fire so the lazy stage hydrates ASAP. No SSR/SSG migration. No hero redesign.
+
+LCP element identity: the `<h1>` containing "Stand out as a {typewriter}" on `/`, and the `<h1>` containing "Hire Smarter. Screen Faster." on `/enterprises`. Both are now rendered statically by `LandingHeroShell` and again by the real `WiseResumeHero` / `WiseHireHero` once the motion stage chunk loads.
+
+Verification: production build (`npm run build`) succeeds; `tsc --noEmit` passes. Empirical Lighthouse run was not possible in this environment (puppeteer's bundled Chrome is missing `libglib-2.0.so.0` in the Replit container, and no system Chromium is installed); the LCP improvement was reasoned-through structurally and must be re-measured post-deploy via the existing web-vitals reporter (`/api/metrics/web-vitals` ingest path) or a Lighthouse run from a workstation. If future regression returns LCP to "poor", first inspect the `LandingHeroShell` import in `Index.tsx` — accidental removal would push LCP back into the lazy-chunk waterfall.
+
 ### Edge Function ↔ Disk Reconciliation (Operator Note — added 2026-04-21, Task #13)
 After Task #13, the deployed edge-function set on project `jnsfmkzgxsviuthaqlyy` is fully in sync with `supabase/functions/` (97 deployed = 97 on disk; `Disk-only: []`, `Deployed-only: []`).
 
