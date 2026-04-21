@@ -2,17 +2,352 @@ import { PDFPage, PDFFont, rgb } from 'pdf-lib';
 import type { ResumeData } from '@/types/resume';
 
 /**
- * Extracts all text content from ResumeData in reading order,
- * then renders it as an invisible (transparent) text layer on a PDF page.
- * This enables Ctrl+F, copy-paste, and ATS parsing while preserving
- * the visual image layer on top.
+ * Builds the hidden ATS / Ctrl-F text layer for a rasterised resume PDF.
+ *
+ * The layer is sourced from the *rendered DOM*, in visual reading order, so
+ * templates that reorder sections (Healthcare puts Cert before Experience,
+ * Cyber puts Skills before Experience, etc.) serialise the same way the user
+ * sees them. Each chunk records the y-offset of its containing block relative
+ * to the source element top, so the caller can slice the chunks by the same
+ * `smartBreaks` array used to slice the visible image — page N's hidden text
+ * is exactly the text that lives in the image strip rendered on page N.
  */
 
-/** Flatten all resume text into a single ordered string array. */
+/** A single visual block of text in the rendered template. */
+export interface TextChunk {
+  /** Collapsed, trimmed text content of the block. */
+  text: string;
+  /** Top of the block in source-element pixels (relative to template top). */
+  y: number;
+  /** Bottom of the block in source-element pixels. */
+  bottom: number;
+}
+
+/** Thrown when the text layer cannot be rendered (overflow, font failure …). */
+export class TextLayerError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'TextLayerError';
+  }
+}
+
+/**
+ * Walks the rendered template DOM in document order and emits one TextChunk
+ * per block-level container that contains text.
+ *
+ * @param sourceElement The same element passed to html2canvas, with its
+ *  PDF-capture sizing already applied (so getBoundingClientRect matches the
+ *  captured layout).
+ */
+export function walkTemplateDOM(sourceElement: HTMLElement): TextChunk[] {
+  const sourceRect = sourceElement.getBoundingClientRect();
+
+  const isBlockDisplay = (cs: CSSStyleDeclaration): boolean => {
+    const d = cs.display;
+    if (!d || d === 'inline') return false;
+    return (
+      d.includes('block') ||
+      d.includes('grid') ||
+      d.includes('flex') ||
+      d === 'list-item' ||
+      d === 'table' ||
+      d === 'table-row' ||
+      d === 'table-cell' ||
+      d === 'table-caption'
+    );
+  };
+
+  const findBlockAncestor = (el: Element): Element => {
+    let cur: Element | null = el;
+    while (cur && cur !== sourceElement) {
+      try {
+        const cs = window.getComputedStyle(cur);
+        if (isBlockDisplay(cs)) return cur;
+      } catch {
+        // getComputedStyle can throw in detached jsdom trees — fall through
+      }
+      cur = cur.parentElement;
+    }
+    return sourceElement;
+  };
+
+  const isVisible = (el: Element): boolean => {
+    try {
+      const cs = window.getComputedStyle(el);
+      if (cs.display === 'none' || cs.visibility === 'hidden') return false;
+      // Treat opacity 0 as hidden — used by some accessibility helpers
+      const op = parseFloat(cs.opacity || '1');
+      if (!Number.isNaN(op) && op === 0) return false;
+    } catch {
+      // ignore
+    }
+    return true;
+  };
+
+  const walker = document.createTreeWalker(
+    sourceElement,
+    NodeFilter.SHOW_TEXT,
+    {
+      acceptNode(node: Node) {
+        const text = (node.nodeValue || '').replace(/\s+/g, ' ').trim();
+        if (!text) return NodeFilter.FILTER_REJECT;
+        const parent = (node as Text).parentElement;
+        if (!parent) return NodeFilter.FILTER_REJECT;
+        const tag = parent.tagName;
+        if (tag === 'STYLE' || tag === 'SCRIPT' || tag === 'NOSCRIPT') {
+          return NodeFilter.FILTER_REJECT;
+        }
+        // Walk up checking visibility — any hidden ancestor disqualifies
+        let cur: Element | null = parent;
+        while (cur && cur !== sourceElement) {
+          if (!isVisible(cur)) return NodeFilter.FILTER_REJECT;
+          cur = cur.parentElement;
+        }
+        return NodeFilter.FILTER_ACCEPT;
+      },
+    },
+  );
+
+  const chunks: TextChunk[] = [];
+  let node: Node | null;
+  let lastBlock: Element | null = null;
+  let buffer: string[] = [];
+  let bufferTop = 0;
+  let bufferBottom = 0;
+
+  const flush = () => {
+    if (!buffer.length) return;
+    const text = buffer.join(' ').replace(/\s+/g, ' ').trim();
+    if (text) chunks.push({ text, y: bufferTop, bottom: bufferBottom });
+    buffer = [];
+  };
+
+  while ((node = walker.nextNode())) {
+    const text = (node.nodeValue || '').replace(/\s+/g, ' ').trim();
+    if (!text) continue;
+    const parent = (node as Text).parentElement!;
+    const block = findBlockAncestor(parent);
+    if (block !== lastBlock) {
+      flush();
+      lastBlock = block;
+      const r = block.getBoundingClientRect();
+      bufferTop = r.top - sourceRect.top;
+      bufferBottom = r.bottom - sourceRect.top;
+    }
+    buffer.push(text);
+  }
+  flush();
+
+  return chunks;
+}
+
+/**
+ * Slices walker output for a given page using smart-break y-offsets.
+ *
+ * @param chunks Walker output for the whole template.
+ * @param pageNum Zero-based page index.
+ * @param smartBreaks The same break array used to slice the visible image —
+ *  break[i] is the y-offset where page i ends and page i+1 begins.
+ * @param totalHeight The full template content height in source pixels.
+ */
+export function chunksForPage(
+  chunks: TextChunk[],
+  pageNum: number,
+  smartBreaks: number[],
+  totalHeight: number,
+): TextChunk[] {
+  const start = pageNum === 0 ? 0 : smartBreaks[pageNum - 1];
+  const end =
+    pageNum >= smartBreaks.length ? totalHeight : smartBreaks[pageNum];
+  // A chunk belongs to the page whose strip contains its top edge. This
+  // matches the visible image: the row of pixels at the top of the block
+  // determines which page the block "starts" on.
+  return chunks.filter((c) => c.y >= start && c.y < end);
+}
+
+/**
+ * Renders the hidden text layer for one page of a multi-page PDF.
+ * Wraps every input string first, then fits the wrapped lines to the page
+ * height by shrinking font size — never silently drops overflow.
+ *
+ * Throws TextLayerError if the lines cannot be made to fit at the minimum
+ * font size, or if any draw call fails.
+ */
+export function renderDOMTextLayerForPage(
+  page: PDFPage,
+  font: PDFFont,
+  chunks: TextChunk[],
+  pageWidth: number,
+  pageHeight: number,
+): void {
+  const lines = chunks.map((c) => c.text).filter((s) => s.trim().length > 0);
+  if (lines.length === 0) return;
+  renderTextLines(page, font, lines, pageWidth, pageHeight);
+}
+
+/**
+ * Renders an invisible text layer for a specific page using a flat list
+ * of input strings. Distributes evenly across pages as a fallback for
+ * callers that have not yet adopted the DOM-driven path.
+ *
+ * @deprecated Prefer walkTemplateDOM + chunksForPage + renderDOMTextLayerForPage.
+ */
+export function renderTextLayerForPage(
+  page: PDFPage,
+  font: PDFFont,
+  textLines: string[],
+  pageNum: number,
+  totalPages: number,
+  pageWidth: number,
+  pageHeight: number,
+): void {
+  const linesPerPage = Math.ceil(textLines.length / totalPages);
+  const startLine = pageNum * linesPerPage;
+  const endLine = Math.min(startLine + linesPerPage, textLines.length);
+  const pageLines = textLines.slice(startLine, endLine);
+  if (pageLines.length === 0) return;
+  renderTextLines(page, font, pageLines, pageWidth, pageHeight);
+}
+
+/**
+ * @deprecated Use renderDOMTextLayerForPage.
+ * Renders ALL text on a single page (causes duplication on multi-page PDFs).
+ */
+export function renderTextLayer(
+  page: PDFPage,
+  font: PDFFont,
+  textLines: string[],
+  pageWidth: number,
+  pageHeight: number,
+): void {
+  renderTextLines(page, font, textLines, pageWidth, pageHeight);
+}
+
+/**
+ * Wrap-then-fit renderer.
+ *
+ * Steps:
+ *  1. Wrap every input line at the page's max width using the current font.
+ *  2. Count the wrapped-line budget; if it overflows the page height,
+ *     shrink fontSize / lineHeight and rewrap.
+ *  3. If the minimum fontSize still overflows, throw — the caller must
+ *     surface this rather than ship a silently-truncated PDF.
+ */
+function renderTextLines(
+  page: PDFPage,
+  font: PDFFont,
+  textLines: string[],
+  pageWidth: number,
+  pageHeight: number,
+): void {
+  const margin = 10;
+  const maxWidth = pageWidth - margin * 2;
+  const availableHeight = pageHeight - margin * 2;
+
+  const wrapAll = (size: number): string[] => {
+    const out: string[] = [];
+    for (const line of textLines) {
+      if (!line || !line.trim()) continue;
+      const words = line.split(/\s+/);
+      let current = '';
+      for (const word of words) {
+        const test = current ? `${current} ${word}` : word;
+        let width: number;
+        try {
+          width = font.widthOfTextAtSize(test, size);
+        } catch (err) {
+          // Font cannot measure this run — refuse to silently undercount.
+          throw new TextLayerError(
+            `Hidden text layer failed to measure "${test.slice(0, 40)}…" at ${size}pt: ` +
+              `${(err as Error).message}`,
+          );
+        }
+        if (width > maxWidth && current) {
+          out.push(current);
+          current = word;
+        } else {
+          current = test;
+        }
+      }
+      if (current) out.push(current);
+    }
+    return out;
+  };
+
+  // Try sizes from the comfortable default down to the legibility floor.
+  // Below ~2.5pt characters can't be reliably parsed by ATS OCR, but at
+  // 2.5pt + 3.1pt line-height we fit ~245 wrapped lines on a Letter page,
+  // which covers any realistic single-page resume content.
+  const candidates: { size: number; lineHeight: number }[] = [
+    { size: 4, lineHeight: 5 },
+    { size: 3.5, lineHeight: 4.4 },
+    { size: 3, lineHeight: 3.8 },
+    { size: 2.75, lineHeight: 3.4 },
+    { size: 2.5, lineHeight: 3.1 },
+  ];
+
+  let chosen: { size: number; lineHeight: number } | null = null;
+  let wrapped: string[] = [];
+  for (const cand of candidates) {
+    const w = wrapAll(cand.size);
+    if (w.length * cand.lineHeight <= availableHeight) {
+      chosen = cand;
+      wrapped = w;
+      break;
+    }
+  }
+
+  if (!chosen) {
+    const wAtMin = wrapAll(candidates[candidates.length - 1].size);
+    throw new TextLayerError(
+      `Hidden text layer cannot fit on page: ${wAtMin.length} wrapped lines ` +
+        `exceed available height ${availableHeight}pt at minimum font size ` +
+        `${candidates[candidates.length - 1].size}pt. Reduce content or ` +
+        `split this section across more pages.`,
+    );
+  }
+
+  let y = pageHeight - margin;
+  const transparentColor = rgb(0, 0, 0);
+
+  for (const line of wrapped) {
+    if (y < margin) {
+      throw new TextLayerError(
+        `Hidden text layer overflowed page after fit (line "${line.slice(0, 40)}…")`,
+      );
+    }
+    try {
+      page.drawText(line, {
+        x: margin,
+        y,
+        size: chosen.size,
+        font,
+        color: transparentColor,
+        opacity: 0.01,
+      });
+    } catch (err) {
+      // Any draw failure (encoding, font, pdf-lib state) aborts the export.
+      // Silent skipping would ship an ATS-degraded PDF the user cannot see.
+      throw new TextLayerError(
+        `Hidden text layer failed to draw "${line.slice(0, 40)}…": ` +
+          `${(err as Error).message}`,
+      );
+    }
+    y -= chosen.lineHeight;
+  }
+}
+
+/**
+ * Legacy data-order text extractor.
+ *
+ * Retained for callers that don't yet have access to a rendered DOM (e.g.
+ * server-side previews) and as a deterministic fallback when the walker
+ * returns nothing. Prefer walkTemplateDOM for any path that has access
+ * to the rendered template.
+ */
 export function extractResumeText(resume: ResumeData): string[] {
   const lines: string[] = [];
 
-  // Contact / Header
   if (resume.contactInfo.fullName) lines.push(resume.contactInfo.fullName);
   const contactParts = [
     resume.contactInfo.email,
@@ -25,27 +360,30 @@ export function extractResumeText(resume: ResumeData): string[] {
   ].filter(Boolean) as string[];
   if (contactParts.length) lines.push(contactParts.join(' | '));
 
-  // Summary
   if (resume.summary) {
     lines.push('Summary');
     lines.push(resume.summary);
   }
 
-  // Experience
   if (resume.experience?.length) {
     lines.push('Experience');
     for (const exp of resume.experience) {
       lines.push(`${exp.position} at ${exp.company}`);
       if (exp.account) lines.push(`Account: ${exp.account}`);
-      const dates = [exp.startDate, exp.current ? 'Present' : exp.endDate].filter(Boolean).join(' – ');
+      const dates = [exp.startDate, exp.current ? 'Present' : exp.endDate]
+        .filter(Boolean)
+        .join(' – ');
       if (dates) lines.push(dates);
       if (exp.description) lines.push(exp.description);
-      exp.achievements?.forEach(a => { if (a) lines.push(a); });
-      exp.responsibilities?.forEach(r => { if (r) lines.push(r); });
+      exp.achievements?.forEach((a) => {
+        if (a) lines.push(a);
+      });
+      exp.responsibilities?.forEach((r) => {
+        if (r) lines.push(r);
+      });
     }
   }
 
-  // Education
   if (resume.education?.length) {
     lines.push('Education');
     for (const edu of resume.education) {
@@ -58,13 +396,11 @@ export function extractResumeText(resume: ResumeData): string[] {
     }
   }
 
-  // Skills
   if (resume.skills?.length) {
     lines.push('Skills');
     lines.push(resume.skills.join(', '));
   }
 
-  // Certifications
   if (resume.certifications?.length) {
     lines.push('Certifications');
     for (const cert of resume.certifications) {
@@ -74,7 +410,6 @@ export function extractResumeText(resume: ResumeData): string[] {
     }
   }
 
-  // Awards
   if (resume.awards?.length) {
     lines.push('Awards');
     for (const award of resume.awards) {
@@ -84,7 +419,6 @@ export function extractResumeText(resume: ResumeData): string[] {
     }
   }
 
-  // Projects
   if (resume.projects?.length) {
     lines.push('Projects');
     for (const proj of resume.projects) {
@@ -96,7 +430,6 @@ export function extractResumeText(resume: ResumeData): string[] {
     }
   }
 
-  // Publications
   if (resume.publications?.length) {
     lines.push('Publications');
     for (const pub of resume.publications) {
@@ -107,7 +440,6 @@ export function extractResumeText(resume: ResumeData): string[] {
     }
   }
 
-  // Volunteering
   if (resume.volunteering?.length) {
     lines.push('Volunteering');
     for (const vol of resume.volunteering) {
@@ -118,20 +450,19 @@ export function extractResumeText(resume: ResumeData): string[] {
     }
   }
 
-  // Languages
   if (resume.languages?.length) {
     lines.push('Languages');
-    lines.push(resume.languages.map(l => `${l.name} (${l.proficiency})`).join(', '));
+    lines.push(
+      resume.languages.map((l) => `${l.name} (${l.proficiency})`).join(', '),
+    );
   }
 
-  // Hobbies
-  const visibleHobbies = resume.hobbies?.filter(h => h.visible);
+  const visibleHobbies = resume.hobbies?.filter((h) => h.visible);
   if (visibleHobbies?.length) {
     lines.push('Hobbies');
-    lines.push(visibleHobbies.map(h => h.name).join(', '));
+    lines.push(visibleHobbies.map((h) => h.name).join(', '));
   }
 
-  // References
   if (resume.references?.length) {
     lines.push('References');
     for (const ref of resume.references) {
@@ -146,98 +477,4 @@ export function extractResumeText(resume: ResumeData): string[] {
   }
 
   return lines;
-}
-
-/**
- * Renders an invisible text layer for a specific page of a multi-page PDF.
- * Text lines are distributed proportionally across pages to avoid duplication.
- * This prevents ATS parsers from seeing repeated content on every page.
- */
-export function renderTextLayerForPage(
-  page: PDFPage,
-  font: PDFFont,
-  textLines: string[],
-  pageNum: number,
-  totalPages: number,
-  pageWidth: number,
-  pageHeight: number
-): void {
-  // Distribute lines proportionally across pages
-  const linesPerPage = Math.ceil(textLines.length / totalPages);
-  const startLine = pageNum * linesPerPage;
-  const endLine = Math.min(startLine + linesPerPage, textLines.length);
-  const pageLines = textLines.slice(startLine, endLine);
-
-  if (pageLines.length === 0) return;
-
-  renderTextLines(page, font, pageLines, pageWidth, pageHeight);
-}
-
-/**
- * @deprecated Use renderTextLayerForPage for per-page distribution.
- * Renders ALL text on a single page (causes duplication on multi-page PDFs).
- */
-export function renderTextLayer(
-  page: PDFPage,
-  font: PDFFont,
-  textLines: string[],
-  pageWidth: number,
-  pageHeight: number
-): void {
-  renderTextLines(page, font, textLines, pageWidth, pageHeight);
-}
-
-/** Internal: renders given text lines on a PDF page as invisible text. */
-function renderTextLines(
-  page: PDFPage,
-  font: PDFFont,
-  textLines: string[],
-  pageWidth: number,
-  pageHeight: number
-): void {
-  const fontSize = 4;
-  const lineHeight = 5;
-  const margin = 10;
-  const maxWidth = pageWidth - margin * 2;
-
-  const wrappedLines: string[] = [];
-  for (const line of textLines) {
-    if (!line.trim()) continue;
-    const words = line.split(/\s+/);
-    let current = '';
-    for (const word of words) {
-      const test = current ? `${current} ${word}` : word;
-      try {
-        if (font.widthOfTextAtSize(test, fontSize) > maxWidth && current) {
-          wrappedLines.push(current);
-          current = word;
-        } else {
-          current = test;
-        }
-      } catch {
-        current = test;
-      }
-    }
-    if (current) wrappedLines.push(current);
-  }
-
-  let y = pageHeight - margin;
-  const transparentColor = rgb(0, 0, 0);
-
-  for (const line of wrappedLines) {
-    if (y < margin) break;
-    try {
-      page.drawText(line, {
-        x: margin,
-        y,
-        size: fontSize,
-        font,
-        color: transparentColor,
-        opacity: 0.01,
-      });
-    } catch {
-      // Skip lines with characters the font can't encode
-    }
-    y -= lineHeight;
-  }
 }
