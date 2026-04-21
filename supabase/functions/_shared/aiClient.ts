@@ -796,37 +796,22 @@ const RETRY_TIMEOUTS = [30_000, 45_000, 55_000];
  */
 const FALLBACK_MODEL = 'google/gemma-4-31b-it:free';
 
-/**
- * Curated allow-list of OpenRouter slugs the WiseResume managed account is
- * permitted to use, ordered by preference. **Mirror of `OPENROUTER_CURATED_MODELS`
- * in `src/lib/aiDefaults.ts`** — both files MUST stay in lockstep. See that
- * file for the rationale (admin-curated free-tier list, server-side enforcement).
- *
- * Position 0 is the default selection.
- */
-export const OPENROUTER_CURATED_MODELS: readonly string[] = [
-  'google/gemma-4-31b-it:free',
-  'nvidia/nemotron-3-super-120b-a12b:free',
-  'minimax/minimax-m2.5:free',
-  'liquid/lfm-2.5-1.2b-thinking:free',
-  'google/gemma-4-26b-a4b-it:free',
-  'openrouter/elephant-alpha',
-  'liquid/lfm-2.5-1.2b-instruct:free',
-  'openai/gpt-oss-120b:free',
-];
-
-/**
- * Sentinel slug meaning "iterate the curated chain on failure". Mirror of
- * `OPENROUTER_AUTO_SENTINEL` in `src/lib/aiDefaults.ts`.
- */
-export const OPENROUTER_AUTO_SENTINEL = '__auto__';
-
-/** True when `model` is a curated OpenRouter slug or the auto sentinel. */
-export function isAllowedOpenRouterModel(model: string): boolean {
-  if (!model) return false;
-  if (model === OPENROUTER_AUTO_SENTINEL) return true;
-  return OPENROUTER_CURATED_MODELS.includes(model);
-}
+// AI-4 (Task #24): the curated OpenRouter list, the auto sentinel, and the
+// model validator now live in `_shared/aiProviders.ts` (backed by
+// `aiProviders.json`) so the edge function, the manage-api-keys endpoint,
+// and the front-end (`src/lib/aiDefaults.ts`) all share one source of
+// truth. Re-exported here so existing importers of these names from
+// `aiClient.ts` keep working unchanged.
+export {
+  OPENROUTER_CURATED_MODELS,
+  OPENROUTER_AUTO_SENTINEL,
+  isAllowedOpenRouterModel,
+} from './aiProviders.ts';
+import {
+  OPENROUTER_CURATED_MODELS,
+  OPENROUTER_AUTO_SENTINEL,
+  isAllowedOpenRouterModel,
+} from './aiProviders.ts';
 
 // ============= Dynamic Model Discovery (cached per cold-start) =============
 
@@ -1253,16 +1238,11 @@ async function callOpenRouterDirect(
   return parseOpenAIResponse(data);
 }
 
-/**
- * Base URLs for user BYOK OpenAI-compatible providers.
- */
-const OPENAI_COMPAT_BASE_URLS: Record<string, string> = {
-  openai: 'https://api.openai.com/v1/chat/completions',
-  groq: 'https://api.groq.com/openai/v1/chat/completions',
-  mistral: 'https://api.mistral.ai/v1/chat/completions',
-  xai: 'https://api.x.ai/v1/chat/completions',
-  cohere: 'https://api.cohere.com/compatibility/v1/chat/completions',
-};
+// AI-4 (Task #24): OPENAI_COMPAT_BASE_URLS now lives in
+// `_shared/aiProviders.ts` (backed by `aiProviders.json`) so the credit
+// utility, the routing branches, and the manage-api-keys endpoint cannot
+// drift. Imported once at the top of the module-level imports.
+import { OPENAI_COMPAT_BASE_URLS } from './aiProviders.ts';
 
 /**
  * Generic call to any OpenAI-compatible API with a user-provided key.

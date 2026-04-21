@@ -1,0 +1,31 @@
+{
+  "byokAllowlist": [
+    "gemini",
+    "openrouter",
+    "ollama",
+    "openai",
+    "anthropic",
+    "groq",
+    "mistral",
+    "xai",
+    "cohere"
+  ],
+  "openaiCompatibleBaseUrls": {
+    "openai": "https://api.openai.com/v1/chat/completions",
+    "groq": "https://api.groq.com/openai/v1/chat/completions",
+    "mistral": "https://api.mistral.ai/v1/chat/completions",
+    "xai": "https://api.x.ai/v1/chat/completions",
+    "cohere": "https://api.cohere.com/compatibility/v1/chat/completions"
+  },
+  "openrouterCuratedModels": [
+    "google/gemma-4-31b-it:free",
+    "nvidia/nemotron-3-super-120b-a12b:free",
+    "minimax/minimax-m2.5:free",
+    "liquid/lfm-2.5-1.2b-thinking:free",
+    "google/gemma-4-26b-a4b-it:free",
+    "openrouter/elephant-alpha",
+    "liquid/lfm-2.5-1.2b-instruct:free",
+    "openai/gpt-oss-120b:free"
+  ],
+  "openrouterAutoSentinel": "__auto__"
+}

@@ -1,22 +1,12 @@
 import { getServiceClient } from './dbClient.ts';
 import { planDailyLimit, UNLIMITED_SENTINEL } from './planLimits.ts';
 import { logger } from './logger.ts';
+import { BYOK_PROVIDER_ALLOWLIST } from './aiProviders.ts';
 
-// BYOK provider allowlist — must stay in sync with callAI in aiClient.ts.
-// Only these recognized providers actually use BYOK keys in the AI routing
-// logic. Any other declared provider falls through to platform-managed keys,
-// so declaring an unknown provider MUST NOT grant a BYOK credit bypass.
-const BYOK_PROVIDER_ALLOWLIST = new Set([
-  'gemini',
-  'openrouter',
-  'ollama',
-  'openai',
-  'anthropic',
-  'groq',
-  'mistral',
-  'xai',
-  'cohere',
-]);
+// BYOK_PROVIDER_ALLOWLIST is the single source of truth — see
+// `_shared/aiProviders.ts`. Drift between the credit util and the routing
+// branches in callAI is enforced by the AI-4 drift-detection test
+// (`__tests__/aiProvidersDrift.test.ts`).
 
 const log = logger('creditUtils');
 

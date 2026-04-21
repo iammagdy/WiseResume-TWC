@@ -1,7 +1,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { getCorsHeaders } from '../_shared/cors.ts';
+import { getCorsHeaders, isOriginAllowed, isNativeClient } from '../_shared/cors.ts';
 import { requireAuth, authErrorResponse } from '../_shared/authMiddleware.ts';
 import { validateBaseUrl } from '../_shared/urlSafety.ts';
+import { isAllowedOpenRouterModel } from '../_shared/aiProviders.ts';
 
 const ENCRYPTION_SECRET = Deno.env.get('API_KEY_ENCRYPTION_SECRET');
 if (!ENCRYPTION_SECRET) throw new Error('API_KEY_ENCRYPTION_SECRET env var is required');
@@ -56,32 +57,12 @@ function normalizeOptionalString(value: unknown): string | null {
   return trimmed || null;
 }
 
-/**
- * Curated allow-list of OpenRouter slugs the WiseResume managed account is
- * permitted to use, plus the Auto sentinel. **Mirror of OPENROUTER_CURATED_MODELS
- * in src/lib/aiDefaults.ts and supabase/functions/_shared/aiClient.ts** —
- * keep these three lists in lockstep. Server-side enforcement (Task #24): we
- * reject any save / update_model write for provider==='openrouter' whose model
- * is not in this list. Defense-in-depth against a stale or tampered client
- * sending a decommissioned slug.
- */
-const OPENROUTER_CURATED_MODELS: readonly string[] = [
-  'google/gemma-4-31b-it:free',
-  'nvidia/nemotron-3-super-120b-a12b:free',
-  'minimax/minimax-m2.5:free',
-  'liquid/lfm-2.5-1.2b-thinking:free',
-  'google/gemma-4-26b-a4b-it:free',
-  'openrouter/elephant-alpha',
-  'liquid/lfm-2.5-1.2b-instruct:free',
-  'openai/gpt-oss-120b:free',
-];
-const OPENROUTER_AUTO_SENTINEL = '__auto__';
-
-function isAllowedOpenRouterModel(model: string | null): boolean {
-  if (!model) return false;
-  if (model === OPENROUTER_AUTO_SENTINEL) return true;
-  return OPENROUTER_CURATED_MODELS.includes(model);
-}
+// AI-4 (Task #24): the curated OpenRouter slug list, the auto sentinel,
+// and the validator now live in `_shared/aiProviders.ts` (backed by
+// `aiProviders.json`). Server-side enforcement is unchanged: we reject
+// any save / update_model write for provider==='openrouter' whose model
+// is not in the shared allow-list. Defense-in-depth against a stale or
+// tampered client sending a decommissioned slug.
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
@@ -101,10 +82,64 @@ Deno.serve(async (req) => {
     }
 
     // All requests come via POST (supabase.functions.invoke always uses POST)
-    // Route by `action` field in body: 'save' | 'delete' | 'get'
+    // Route by `action` field in body: 'save' | 'delete' | 'get' | 'update_model'
     if (req.method === 'POST') {
       const body = await req.json();
       const action = body.action || 'save'; // default to save for backward compat
+
+      // AI-4 (Task #24): Origin / CSRF defence on write actions.
+      //
+      // The endpoint already requires a valid Supabase JWT (requireAuth above),
+      // but JWT-only auth is insufficient against a logged-in user being lured
+      // to a different origin that holds their session — that origin can
+      // invoke this function via `supabase.functions.invoke` and rotate or
+      // delete keys. We therefore additionally require an in-allow-list
+      // Origin for browser write actions, with a documented native fallback.
+      //
+      // Matrix:
+      //   Action               Browser caller          Native (Capacitor) caller
+      //   ──────────────────── ─────────────────────── ─────────────────────────
+      //   get                  No Origin check         No Origin check
+      //                        (read-only; no CSRF
+      //                        write surface)
+      //   save / delete /      Origin MUST be in the   Origin missing/'null'
+      //   update_model         CORS allow-list         AND x-client-info MUST
+      //                                                match NATIVE_CLIENT_INFO
+      //                                                (env, comma-separated)
+      //
+      // The native fallback exists because Capacitor webviews on iOS/Android
+      // do not consistently send a meaningful Origin header. Native callers
+      // SHOULD set a custom `x-client-info` (e.g. via the Supabase client
+      // headers option) and the platform admin SHOULD configure
+      // NATIVE_CLIENT_INFO with the exact value(s) that callers send.
+      // If NATIVE_CLIENT_INFO is unset, the native path is closed (fail-safe).
+      const isWriteAction = action === 'save' || action === 'delete' || action === 'update_model';
+      if (isWriteAction) {
+        const originHeader = req.headers.get('origin');
+        let originOk = false;
+        if (isNativeClient(originHeader)) {
+          // Native fallback: no Origin → require known x-client-info value.
+          const allowedClients = (Deno.env.get('NATIVE_CLIENT_INFO') || '')
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean);
+          const clientInfo = req.headers.get('x-client-info') || '';
+          originOk = allowedClients.length > 0 && allowedClients.includes(clientInfo);
+        } else {
+          originOk = isOriginAllowed(originHeader);
+        }
+        if (!originOk) {
+          console.warn('manage-api-keys: rejecting write — Origin not allowed', {
+            action,
+            origin: originHeader,
+            hasClientInfo: !!req.headers.get('x-client-info'),
+          });
+          return new Response(
+            JSON.stringify({ error: 'Origin not allowed' }),
+            { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+          );
+        }
+      }
 
       // ===== GET: return user's saved keys (provider + tier, NOT the actual key) =====
       if (action === 'get') {
