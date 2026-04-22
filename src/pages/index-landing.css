@@ -969,6 +969,9 @@ body[data-lp-scheme="light"][data-lp-product="wisehire"] { background-color: #f0
 @media (prefers-reduced-motion: reduce) {
   .wh-pill-dot { animation: none !important; transform: none !important; box-shadow: 0 0 0 2px color-mix(in srgb, var(--wh-pill-dot) 35%, transparent) !important; }
   .wh-pill::after { animation: none !important; opacity: 0 !important; }
+  /* Hide the grid mesh under reduced-motion as a hint that the user
+     prefers less ambient texture (the primary glow + vignette remain). */
+  .wh-hero-bg::after { opacity: 0 !important; }
 }
 
 /* Eyebrow with thin divider rules — small horizontal lines on either
