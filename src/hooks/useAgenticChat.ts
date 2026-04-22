@@ -12,6 +12,7 @@ import { supabase } from '@/integrations/supabase/safeClient';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { ResumeData } from '@/types/resume';
+import { useAIApplyEffects } from './useAIApplyEffects';
 
 export interface PendingChatAction {
   type: 'open_company_briefing';
@@ -423,6 +424,8 @@ export function useAgenticChat(contextFilter?: string) {
     [currentResume, updateResume, confirmAndApply, navigate]
   );
 
+  const { rescoreAfterApply } = useAIApplyEffects(currentResumeId ?? undefined);
+
   const applySuggestion = useCallback(
     (proposal: SuggestionProposal) => {
       if (!currentResume) return;
@@ -494,8 +497,13 @@ export function useAgenticChat(contextFilter?: string) {
         }
       }
       haptics.success();
+      // Force ATS rescore against the freshly-mutated resume so the
+      // dashboard / detail panels reflect the chat-applied change without
+      // waiting for the debounced autosave round-trip.
+      const next = useResumeStore.getState().currentResume;
+      if (next) void rescoreAfterApply(next);
     },
-    [currentResume, updateResume]
+    [currentResume, updateResume, rescoreAfterApply]
   );
 
   const updateSuggestionStatus = useCallback(

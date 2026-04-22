@@ -44,6 +44,7 @@ import { downloadFile } from '@/lib/downloadUtils';
 import { CompareSheet } from '@/components/editor/CompareSheet';
 import type { ResumeData, TemplateCustomization } from '@/types/resume';
 import { useResumeVersionMutations } from '@/hooks/useResumeVersions';
+import { useAIApplyEffects } from '@/hooks/useAIApplyEffects';
 
 interface OnePageWizardSheetProps {
   open: boolean;
@@ -315,6 +316,8 @@ export function OnePageWizardSheet({ open, onOpenChange }: OnePageWizardSheetPro
     }
   }, [currentResume?.templateId, selectedTemplate, result?.provider]);
 
+  const { rescoreAfterApply } = useAIApplyEffects(currentResumeId ?? undefined);
+
   const applySelected = useCallback(async (download: boolean) => {
     if (!currentResume || !result) return;
     setIsApplying(true);
@@ -338,6 +341,9 @@ export function OnePageWizardSheet({ open, onOpenChange }: OnePageWizardSheetPro
       const merged = applySelectiveChanges(currentResume, result, selection);
       updateResume(merged);
       haptics.success?.();
+      // Force-refresh the score against the post-apply resume so the dashboard
+      // / detail-page panels don't lag a debounced autosave behind.
+      void rescoreAfterApply(merged);
 
       // 3) Wait for the offscreen template to repaint, then re-measure
       await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())));
@@ -661,7 +667,9 @@ export function OnePageWizardSheet({ open, onOpenChange }: OnePageWizardSheetPro
         </div>
 
         {/* ── Footer ────────────────────────────────────────────────────── */}
-        <div className="p-4 border-t border-border shrink-0 space-y-2">
+        {/* Opaque background + safe-area padding so the sticky footer never
+            shows the scrolling diff/selector through it on long resumes. */}
+        <div className="p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] border-t border-border shrink-0 space-y-2 bg-background">
           {view === 'levers' && (
             <>
               <Button

@@ -29,6 +29,8 @@ export type AIErrorCode =
   | 'provider_busy'
   | 'upstream_5xx'
   | 'not_configured'
+  | 'invalid_ai_response'
+  | 'profile_incomplete'
   | 'timeout'
   | 'offline'
   | 'internal';
@@ -84,6 +86,16 @@ function classify(status: number, code: string, message: string): AIErrorCode {
       return 'upstream_5xx';
     case 'not_configured':
       return 'not_configured';
+    case 'invalid_ai_response':
+      return 'invalid_ai_response';
+    case 'profile_incomplete':
+      return 'profile_incomplete';
+    case 'insufficient_credits':
+      return 'payment_required';
+    case 'invalid_api_key':
+      return 'invalid_key';
+    case 'provider_unavailable':
+      return 'provider_busy';
   }
 
   // 2) Message-text classification BEFORE status-based fallback. A 401 from a
@@ -165,6 +177,14 @@ export function aiErrorToastMessage(info: AIErrorInfo): string {
       return 'Failed to enhance content — please try again.';
     case 'provider_busy':
       return 'AI is temporarily busy — please try again in a moment.';
+    case 'invalid_ai_response':
+      // Server-side schema validation rejected the AI's reply. The credit
+      // is already refunded, so we explicitly tell the user not to retry
+      // the exact same request — a different prompt or section is more
+      // likely to succeed.
+      return 'AI returned an invalid response. Your credit was refunded — please try a different section or rephrase your request.';
+    case 'profile_incomplete':
+      return 'Your profile is incomplete. Please finish setting up your profile before using AI features.';
     case 'upstream_5xx':
       return 'The AI provider returned an error. Please try again — if it keeps failing, switch providers in Settings.';
     case 'timeout':

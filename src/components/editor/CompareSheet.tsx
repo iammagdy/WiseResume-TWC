@@ -336,9 +336,10 @@ export function CompareSheet({
           </TabsContent>
         </Tabs>
 
-        {/* Sticky Footer */}
-        <motion.div 
-          className="shrink-0 pt-4 pb-safe border-t border-border mt-auto"
+        {/* Sticky Footer — opaque background so the diff list never shows
+            through the action buttons on long compares. */}
+        <motion.div
+          className="shrink-0 px-4 pt-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] border-t border-border mt-auto bg-background -mx-4"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >

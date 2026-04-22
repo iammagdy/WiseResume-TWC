@@ -41,6 +41,7 @@ import { useAIAction } from '@/hooks/useAIAction';
 import { useAIDraft } from '@/hooks/useAIDraft';
 import { activityTracker } from '@/lib/activityTracker';
 import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
+import { useAIApplyEffects } from '@/hooks/useAIApplyEffects';
 
 
 interface RecruiterSimSheetProps {
@@ -57,7 +58,7 @@ interface RecruiterDraft {
 
 export function RecruiterSimSheet({ open, onOpenChange }: RecruiterSimSheetProps) {
   const { currentResume, updateResume } = useResumeStore(useShallow((s) => ({ currentResume: s.currentResume, updateResume: s.updateResume })));
-  const resumeId = (currentResume as { id?: string } | null)?.id;
+  const { rescoreAfterApply } = useAIApplyEffects((currentResume as { id?: string } | null)?.id);
   const scrollRef = useScrollFade<HTMLDivElement>();
   const [viewState, setViewState] = useState<ViewState>('persona_select');
   const [selectedPersona, setSelectedPersona] = useState<RecruiterPersonaInfo | null>(null);
@@ -107,7 +108,17 @@ export function RecruiterSimSheet({ open, onOpenChange }: RecruiterSimSheetProps
       saveDraft({ analysis: result.analysis, personaId: persona.id });
     } catch (err) {
       console.error('Recruiter simulation error:', err);
-      toast.error('Failed to run simulation. Please try again.');
+      // Bounce back to the persona picker but keep `selectedPersona` so the
+      // user can hit "Run again" without re-picking their persona on every
+      // transient failure (rate limit, blip, etc.). The picker's "Run"
+      // button reads selectedPersona to remain in a one-tap retry state.
+      toast.error('Failed to run simulation. Please try again.', {
+        action: {
+          label: 'Retry',
+          onClick: () => { void runSimulation(persona); },
+        },
+        duration: 8000,
+      });
       setViewState('persona_select');
     }
   };
@@ -191,6 +202,10 @@ export function RecruiterSimSheet({ open, onOpenChange }: RecruiterSimSheetProps
       }
 
       setFixedFlags(prev => new Set(prev).add(redFlag.issue));
+      // Force ATS rescore against the freshly mutated resume so the score
+      // panel reflects the recruiter-fix without waiting for autosave.
+      const next = useResumeStore.getState().currentResume;
+      if (next) void rescoreAfterApply(next);
       toast.success('Fix applied successfully!', {
         description: 'Review the changes in the editor.',
       });

@@ -8,6 +8,12 @@ import { useResumeStore } from '@/store/resumeStore';
 import { Experience } from '@/types/resume';
 import { toast } from 'sonner';
 import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
+import {
+  mergeAIArrayResult,
+  EXPERIENCE_FINGERPRINT,
+  experienceDefaults,
+} from '@/lib/applyAIResult';
+import { useAIApplyEffects } from '@/hooks/useAIApplyEffects';
 
 interface BoostAllExperienceSheetProps {
   open: boolean;
@@ -66,11 +72,45 @@ export function BoostAllExperienceSheet({ open, onOpenChange }: BoostAllExperien
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  const handleApply = () => {
-    if (!improved) return;
-    updateResume({ experience: improved });
+  const { rescoreAfterApply } = useAIApplyEffects(currentResume?.id);
+
+  const commitApply = useCallback((next: Experience[]) => {
+    if (!currentResume) return;
+    updateResume({ experience: next });
     toast.success('All experience entries optimized for ATS!');
+    void rescoreAfterApply({ ...currentResume, experience: next });
     onOpenChange(false);
+  }, [currentResume, updateResume, rescoreAfterApply, onOpenChange]);
+
+  const handleApply = (bypassConfirm = false) => {
+    if (!improved || !currentResume) return;
+    // Re-run the canonical merge against current originals so we never
+    // silently drop user data even if the user added/removed entries
+    // between Generate and Apply.
+    const merge = mergeAIArrayResult<Record<string, unknown>>({
+      originals: experience as unknown as Record<string, unknown>[],
+      aiEntries: improved,
+      fingerprint: EXPERIENCE_FINGERPRINT,
+      fieldDefaults: experienceDefaults,
+    });
+    const next = merge.merged as unknown as Experience[];
+    // Destructive case: AI returned fewer entries than the user has.
+    // Give a one-click "Apply anyway" so they can confirm without
+    // re-generating the whole batch.
+    if (merge.requiresConfirm && !bypassConfirm) {
+      toast.warning(
+        `AI returned ${merge.aiCount} of ${merge.originalCount} entries. Originals will be preserved.`,
+        {
+          duration: 12000,
+          action: {
+            label: 'Apply anyway',
+            onClick: () => commitApply(next),
+          },
+        },
+      );
+      return;
+    }
+    commitApply(next);
   };
 
   const handleDiscard = () => {
@@ -246,9 +286,10 @@ export function BoostAllExperienceSheet({ open, onOpenChange }: BoostAllExperien
           )}
         </div>
 
-        {/* Actions */}
+        {/* Actions — sticky, opaque background so the diff list never shows
+            through and the buttons stay readable on long lists. */}
         {improved && !isEnhancing && (
-          <div className="flex gap-3 pt-3 border-t border-border">
+          <div className="sticky bottom-0 -mx-6 px-6 pt-3 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] flex gap-3 border-t border-border bg-background z-10">
             <Button variant="outline" className="flex-1 min-h-[48px] gap-1.5" onClick={handleDiscard}>
               <X className="w-4 h-4" />
               Discard

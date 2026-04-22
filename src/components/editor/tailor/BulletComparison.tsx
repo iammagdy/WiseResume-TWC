@@ -131,7 +131,7 @@
                      </div>
  
                      {/* After */}
-                     <div className="p-3 rounded-lg bg-success/5 border border-success/20">
+                     <div className="p-3 rounded-lg bg-success/10 border border-success/30">
                        <div className="flex items-center gap-2 mb-2">
                          <Sparkles className="w-3 h-3 text-success" />
                          <span className="text-xs font-semibold text-success">AFTER</span>

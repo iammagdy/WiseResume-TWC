@@ -5,7 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from './useAuth';
 import { hasAcceptedAIPrivacy } from '@/components/ai/AIPrivacyDisclosure';
 import { useAIPrivacyDisclosure } from '@/components/ai/AIPrivacyDisclosureProvider';
-import { AIError, aiErrorToastMessage } from '@/lib/aiErrorParser';
+import { AIError, aiErrorToastMessage, parseAIErrorBody } from '@/lib/aiErrorParser';
 
 interface UseAIActionOptions {
   /** The operation type key from AI_COST_MAP (e.g. 'enhance', 'tailor') */
@@ -13,138 +13,64 @@ interface UseAIActionOptions {
 }
 
 /**
- * Classify a structured error body (parsed JSON) into a user-friendly string.
- * Returns null if the body does not match any known pattern.
+ * Coerce an arbitrary thrown error into a typed AIError so every error path
+ * goes through the single `aiErrorToastMessage` mapping. This replaces the
+ * legacy `parseErrorMessage` regex sniffer that was running in parallel
+ * with the structured parser and producing inconsistent toast copy.
  */
-function classifyErrorBody(body: Record<string, unknown>): string | null {
-  const code = (body?.code ?? body?.error_code ?? '') as string;
-  const msg = (
-    typeof body?.error === 'string'
-      ? body.error
-      : typeof body?.message === 'string'
-        ? body.message
-        : ''
-  ).toLowerCase();
-  const status =
-    typeof body?.status === 'number' ? body.status : undefined;
-
-  if (
-    code === 'insufficient_credits' ||
-    msg.includes('credit') ||
-    status === 402
-  ) {
-    return 'You have run out of AI credits. Please upgrade your plan or wait until tomorrow.';
+function coerceToAIError(err: unknown): AIError {
+  if (err instanceof AIError) return err;
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    return new AIError({ code: 'offline', status: 0, message: 'Offline' });
   }
-  if (
-    code === 'profile_incomplete' ||
-    msg.includes('profile incomplete') ||
-    msg.includes('complete your profile')
-  ) {
-    return 'Your profile is incomplete. Please finish setting up your profile before using AI features.';
-  }
-  if (
-    code === 'invalid_api_key' ||
-    msg.includes('invalid api key') ||
-    msg.includes('invalid_key')
-  ) {
-    return 'Invalid API key — please check your AI settings and re-enter your API key.';
-  }
-  if (
-    code === 'provider_unavailable' ||
-    msg.includes('provider unavailable') ||
-    msg.includes('service unavailable')
-  ) {
-    return 'The AI provider is temporarily unavailable — please try again in a moment.';
-  }
-  if (
-    code === 'unauthorized' ||
-    msg.includes('unauthorized') ||
-    msg.includes('jwt expired') ||
-    status === 401
-  ) {
-    return 'Session expired — please sign in again to use AI features.';
-  }
-  if (code === 'rate_limit' || msg.includes('rate limit') || status === 429) {
-    return 'Too many requests — please wait a moment and try again.';
-  }
-  if (code === 'invalid_ai_response') {
-    // Server already refunded the credit; surface the explicit copy.
-    return 'AI returned an incomplete plan and your credit was refunded. Please retry.';
-  }
-  if (
-    code === 'upstream_5xx' ||
-    (typeof status === 'number' && status >= 500 && status < 600 && status !== 503)
-  ) {
-    return 'The AI provider returned an error. Please try again — if it keeps failing, switch providers in Settings.';
-  }
-  return null;
-}
-
-function parseErrorMessage(err: unknown): string {
-  if (!navigator.onLine) {
-    return "You're offline — AI features need an internet connection.";
-  }
-
-  // Handle structured error objects thrown directly (e.g. { status, body, code })
-  if (err !== null && typeof err === 'object' && !(err instanceof Error)) {
-    const structured = err as Record<string, unknown>;
-    // Try classifying the object itself
-    const direct = classifyErrorBody(structured);
-    if (direct) return direct;
-    // If there's a nested body field (e.g. { status: 402, body: { code: 'insufficient_credits' } })
-    if (structured.body && typeof structured.body === 'object') {
-      const nested = classifyErrorBody(structured.body as Record<string, unknown>);
-      if (nested) return nested;
+  // Pull any structured fields off the thrown value (works for both plain
+  // objects AND Error subclasses that carry status/code/body, e.g. the
+  // shapes that `edgeFunctions.functions.invoke` and our own fetch wrapper
+  // throw). We *prefer* explicit status/code over message sniffing.
+  if (err && typeof err === 'object') {
+    const obj = err as Record<string, unknown>;
+    const status =
+      typeof obj.status === 'number'
+        ? obj.status
+        : typeof obj.statusCode === 'number'
+          ? (obj.statusCode as number)
+          : 500;
+    const body =
+      obj.body && typeof obj.body === 'object'
+        ? (obj.body as Record<string, unknown>)
+        : (obj as Record<string, unknown>);
+    // If we have at least one structured signal (status/code/error_code),
+    // route through parseAIErrorBody so explicit codes win over the
+    // message text.
+    if (
+      typeof obj.status === 'number' ||
+      typeof obj.statusCode === 'number' ||
+      typeof body.code === 'string' ||
+      typeof body.error_code === 'string'
+    ) {
+      return new AIError(parseAIErrorBody(body, status));
     }
+    // Plain Error with only a message — try JSON-parsing the message
+    // before falling through to the message-based classifier.
+    const raw = err instanceof Error ? err.message : String((obj as { message?: unknown }).message ?? '');
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') {
+        return new AIError(parseAIErrorBody(parsed as Record<string, unknown>, status));
+      }
+    } catch {
+      /* not JSON */
+    }
+    return new AIError(parseAIErrorBody({ message: raw }, status));
   }
-
-  const raw = err instanceof Error ? err.message : String(err ?? '');
-
-  // Attempt to parse structured JSON error body from edge functions
-  try {
-    const body = JSON.parse(raw) as Record<string, unknown>;
-    const classified = classifyErrorBody(body);
-    if (classified) return classified;
-  } catch {
-    // Not a JSON body; fall through to raw string matching
-  }
-
-  // HTTP status codes embedded in error messages
-  if (/401|unauthorized|jwt expired/i.test(raw)) {
-    return 'Session expired — please sign in again to use AI features.';
-  }
-  if (/429|rate.?limit/i.test(raw)) {
-    return 'Too many requests — please wait a moment and try again.';
-  }
-  if (/402|payment.?required|credit.*exhaust/i.test(raw)) {
-    return 'AI credits exhausted. Please check your account.';
-  }
-  if (/invalid.?key/i.test(raw)) {
-    return 'Invalid API key — please check your AI settings.';
-  }
-  if (/profile.*incomplete|incomplete.*profile/i.test(raw)) {
-    return 'Your profile is incomplete. Please complete your profile to use AI features.';
-  }
-  if (/not configured|please contact support/i.test(raw)) {
-    return 'WiseResume AI is not configured — go to Settings → AI Provider to add your API key.';
-  }
-  if (/quota.*exceed|daily.*quota/i.test(raw)) {
-    return 'AI daily quota exceeded. Try again tomorrow or add your own API key in Settings.';
-  }
-  if (raw === 'enhancement_failed' || /enhancement.?failed|failed to enhance/i.test(raw)) {
-    return 'Failed to enhance content — please try again.';
-  }
-  // AI-5: never surface the server diagnostic string to the user. The diag
-  // ("Something went wrong: <ErrorClass>: <msg>") is already scrubbed for
-  // secrets server-side, but UX-wise it is still a stack-trace-shaped
-  // string in a toast. Map it to a friendly message; the original raw diag
-  // is preserved by the caller in console for debugging from the browser.
-  if (/something went wrong/i.test(raw)) {
-    return 'AI request failed — check your AI settings or try again later.';
-  }
-
-  return 'AI is temporarily unavailable — please try again in a moment.';
+  // Primitive throw (string/number/etc.) — last-ditch coercion.
+  const raw = String(err ?? '');
+  return new AIError(parseAIErrorBody({ message: raw }, 500));
 }
+
+/* legacy parseErrorMessage / classifyErrorBody removed in Task #3 — every
+ * error now flows through `coerceToAIError` → `aiErrorToastMessage` so a
+ * single mapping owns the user-visible copy. */
 
 /**
  * Universal wrapper for all AI actions.
@@ -186,31 +112,25 @@ export function useAIAction({ operation }: UseAIActionOptions) {
           throw err;
         }
 
-        // Prefer the structured AIError path (Task #10): when callers throw
-        // a typed AIError, drive the toast off the structured `code` rather
-        // than re-running the legacy regex sniffer. This guarantees a single,
-        // consistent mapping from edge-function error codes to user toasts.
-        if (err instanceof AIError) {
-          const structuredMsg = aiErrorToastMessage({
-            code: err.code,
-            message: err.message,
-            status: err.status,
-          });
-          if (err.code === 'not_configured' || err.code === 'invalid_key') {
-            toast.error(structuredMsg, {
-              duration: 8000,
-              action: { label: 'Open Settings', onClick: () => navigate('/settings') },
-            });
-          } else {
-            toast.error(structuredMsg);
-          }
-          return null;
-        }
-
-        const msg = parseErrorMessage(err);
-        const rawMsg = err instanceof Error ? err.message : String(err ?? '');
-        const isNotConfigured = /not configured|please contact support/i.test(rawMsg);
-        if (isNotConfigured) {
+        // Single error path (Task #3): coerce anything thrown into a typed
+        // AIError, then drive the toast off the structured `code`. This
+        // replaces the legacy `parseErrorMessage` regex sniffer that ran in
+        // parallel with the structured parser and produced inconsistent
+        // copy. Keep "Open Settings" affordances on the codes that actually
+        // require a user-side fix.
+        const aiErr = coerceToAIError(err);
+        const msg = aiErrorToastMessage({
+          code: aiErr.code,
+          message: aiErr.message,
+          status: aiErr.status,
+        });
+        const settingsCodes = new Set([
+          'not_configured',
+          'invalid_key',
+          'quota_exceeded',
+          'profile_incomplete',
+        ]);
+        if (settingsCodes.has(aiErr.code)) {
           toast.error(msg, {
             duration: 8000,
             action: {

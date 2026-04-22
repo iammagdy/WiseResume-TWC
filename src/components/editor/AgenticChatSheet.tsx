@@ -270,7 +270,7 @@ function SuggestionCard({
         'rounded-xl border p-3 space-y-2',
         isResolved
           ? proposal.status === 'accepted'
-            ? 'bg-success/5 border-success/20'
+            ? 'bg-success/10 border-success/30'
             : 'bg-muted border-muted'
           : 'bg-card border-border'
       )}
@@ -310,9 +310,9 @@ function SuggestionCard({
             </button>
           )}
         </div>
-        <div className="p-2 rounded-lg bg-success/5 border border-success/10">
+        <div className="p-2 rounded-lg bg-success/10 border border-success/30">
           <span className="text-xs text-success/70 font-medium">After:</span>
-          <p className="text-foreground break-words">
+          <p className="text-foreground break-words break-all">
             {showMoreSuggested ? proposal.suggested : proposal.suggested.slice(0, CLAMP_LEN)}
             {suggestedLong && !showMoreSuggested && '...'}
           </p>

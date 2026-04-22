@@ -23,6 +23,16 @@ import { useAIAction } from '@/hooks/useAIAction';
 import { apiFnUrl } from '@/lib/apiFnUrl';
 import { formatDegreeAndField } from '@/lib/educationFormat';
 import { AIError, parseAIErrorResponse, parseAIErrorBody, type AIErrorCode } from '@/lib/aiErrorParser';
+import {
+  mergeAIArrayResult,
+  EXPERIENCE_FINGERPRINT,
+  EDUCATION_FINGERPRINT,
+  PROJECT_FINGERPRINT,
+  GENERIC_NAME_FINGERPRINT,
+  experienceDefaults,
+  educationDefaults,
+} from '@/lib/applyAIResult';
+import { useAIApplyEffects } from '@/hooks/useAIApplyEffects';
 
 interface AIEnhanceSheetProps {
   open: boolean;
@@ -492,105 +502,95 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
     }));
   }, []);
 
-  const applyResult = useCallback((index: number, silent = false) => {
+  const { rescoreAfterApply } = useAIApplyEffects((currentResume as { id?: string } | null)?.id);
+
+  /**
+   * Apply an AI result onto the resume.
+   *
+   * Three-arg shape:
+   *   - `silent` skips the success toast (used by batch flows that want a
+   *     single roll-up confirmation).
+   *   - `bypassConfirm` is set by the "Apply anyway" toast action so a
+   *     second invocation doesn't re-prompt for the same destructive merge.
+   *
+   * The merge logic itself lives in `mergeAIArrayResult` so every AI sheet
+   * uses identical id-preserving / fingerprint-fallback semantics. When the
+   * merge would drop originals (`requiresConfirm`), we surface a toast with
+   * an explicit "Apply anyway" affordance instead of silently committing.
+   */
+  const applyResult = useCallback((index: number, silent = false, bypassConfirm = false) => {
     const result = results[index];
     if (!result || !currentResume) return;
     haptics.medium();
 
     let data = sanitizeAIContent(result.rawImproved);
 
-    // Repair skills: flatten any objects to strings
+    // Skills is a flat string[] — no merge contract to enforce.
     if (result.section === 'skills') {
       if (!Array.isArray(data)) data = currentResume.skills || [];
       data = (data as unknown[]).map((s: unknown) =>
-        typeof s === 'string' ? s : (s as Record<string, string>)?.name || String(s)
+        typeof s === 'string' ? s : (s as Record<string, string>)?.name || String(s),
       );
+      updateResume({ [result.section]: data });
+      setResults(prev => prev.map((r, i) => (i === index ? { ...r, applied: true } : r)));
+      onEnhanced?.([result.section]);
+      if (!silent) toast.success(`${result.label} updated!`);
+      void rescoreAfterApply({ ...currentResume, [result.section]: data });
+      return;
     }
 
-    // Repair & merge experience: preserve original fields AI may have omitted
-    if (result.section === 'experience') {
-      if (!Array.isArray(data)) data = [];
-      const originals = currentResume.experience || [];
+    // Pick the right fingerprint + defaults for the section.
+    type SectionKey = 'experience' | 'education' | 'certifications' | 'awards' | 'projects' | 'publications' | 'volunteering' | 'languages';
+    const sectionKey = result.section as SectionKey;
+    const arraySections: SectionKey[] = ['experience', 'education', 'certifications', 'awards', 'projects', 'publications', 'volunteering', 'languages'];
+    if (arraySections.includes(sectionKey)) {
+      const originals = ((currentResume as unknown as Record<string, unknown>)[sectionKey] as Record<string, unknown>[]) || [];
+      const fingerprint =
+        sectionKey === 'experience' ? EXPERIENCE_FINGERPRINT :
+        sectionKey === 'education' ? EDUCATION_FINGERPRINT :
+        sectionKey === 'projects' ? PROJECT_FINGERPRINT :
+        GENERIC_NAME_FINGERPRINT;
+      const fieldDefaults =
+        sectionKey === 'experience' ? experienceDefaults :
+        sectionKey === 'education' ? educationDefaults :
+        undefined;
 
-      // Warn if entry count mismatch
-      if ((data as unknown[]).length < originals.length) {
-        toast.warning(`AI returned fewer entries (${(data as unknown[]).length} vs ${originals.length}). Missing entries are preserved from your original.`);
-        // Append missing originals
-        const aiIds = new Set((data as Record<string, unknown>[]).map(e => e.id));
-        const missing = originals.filter(o => !aiIds.has(o.id));
-        data = [...(data as Record<string, unknown>[]), ...missing];
+      const merge = mergeAIArrayResult<Record<string, unknown>>({
+        originals,
+        aiEntries: data,
+        fingerprint,
+        fieldDefaults,
+      });
+
+      // Destructive case: AI returned fewer entries than the original. Don't
+      // commit silently — give the user a one-click "Apply anyway" so they
+      // see what's about to change.
+      if (merge.requiresConfirm && !silent && !bypassConfirm) {
+        toast.warning(
+          `AI returned ${merge.aiCount} of ${merge.originalCount} entries for ${result.label}. Review before applying.`,
+          {
+            duration: 10000,
+            action: {
+              label: 'Apply anyway',
+              onClick: () => applyResult(index, false, true),
+            },
+          },
+        );
+        return;
       }
 
-      data = (data as Record<string, unknown>[]).map((aiEntry, i) => {
-        const orig = originals.find(o => o.id === (aiEntry.id as string)) || originals[i];
-        const base = orig || {} as Record<string, unknown>;
-        return {
-          ...base,
-          ...aiEntry,
-          id: (aiEntry.id as string) || (orig?.id) || crypto.randomUUID(),
-          current: typeof aiEntry.current === 'boolean' ? aiEntry.current : (orig?.current ?? false),
-          description: typeof aiEntry.description === 'string' ? aiEntry.description : (orig?.description || ''),
-          achievements: Array.isArray(aiEntry.achievements) ? aiEntry.achievements : (orig?.achievements || []),
-          responsibilities: Array.isArray(aiEntry.responsibilities) ? aiEntry.responsibilities : (orig?.responsibilities || []),
-        };
-      });
-    }
-
-    // Repair & merge education: preserve original fields AI may have omitted
-    if (result.section === 'education') {
-      if (!Array.isArray(data)) data = [];
-      const originals = currentResume.education || [];
-
-      if ((data as unknown[]).length < originals.length) {
-        toast.warning(`AI returned fewer entries (${(data as unknown[]).length} vs ${originals.length}). Missing entries are preserved.`);
-        const aiIds = new Set((data as Record<string, unknown>[]).map(e => e.id));
-        const missing = originals.filter(o => !aiIds.has(o.id));
-        data = [...(data as Record<string, unknown>[]), ...missing];
+      data = merge.merged;
+      if (merge.droppedCount > 0 && !silent) {
+        toast.info(`Preserved ${merge.droppedCount} original entr${merge.droppedCount === 1 ? 'y' : 'ies'} that the AI omitted.`);
       }
-
-      data = (data as Record<string, unknown>[]).map((aiEntry, i) => {
-        const orig = originals.find(o => o.id === (aiEntry.id as string)) || originals[i];
-        const base = orig || {} as Record<string, unknown>;
-        return {
-          ...base,
-          ...aiEntry,
-          id: (aiEntry.id as string) || (orig?.id) || crypto.randomUUID(),
-          institution: typeof aiEntry.institution === 'string' ? aiEntry.institution : (orig?.institution || ''),
-          degree: typeof aiEntry.degree === 'string' ? aiEntry.degree : (orig?.degree || ''),
-          field: typeof aiEntry.field === 'string' ? aiEntry.field : (orig?.field || ''),
-        };
-      });
-    }
-
-    // Generic ID-preserving merge for other array sections
-    const idSections = ['certifications', 'awards', 'projects', 'publications', 'volunteering', 'languages'] as const;
-    if ((idSections as readonly string[]).includes(result.section)) {
-      if (!Array.isArray(data)) data = [];
-      const originals = (currentResume as unknown as Record<string, unknown>)[result.section] as Record<string, unknown>[] || [];
-      
-      if ((data as unknown[]).length < originals.length) {
-        const aiIds = new Set((data as Record<string, unknown>[]).map(e => e.id));
-        const missing = originals.filter(o => !aiIds.has(o.id));
-        data = [...(data as Record<string, unknown>[]), ...missing];
-      }
-
-      data = (data as Record<string, unknown>[]).map((aiEntry, i) => {
-        const orig = originals.find(o => o.id === (aiEntry.id as string)) || originals[i];
-        const base = orig || {} as Record<string, unknown>;
-        return {
-          ...base,
-          ...aiEntry,
-          id: (aiEntry.id as string) || (orig?.id as string) || crypto.randomUUID(),
-        };
-      });
     }
 
     updateResume({ [result.section]: data });
-
-    setResults(prev => prev.map((r, i) => i === index ? { ...r, applied: true } : r));
+    setResults(prev => prev.map((r, i) => (i === index ? { ...r, applied: true } : r)));
     onEnhanced?.([result.section]);
     if (!silent) toast.success(`${result.label} updated!`);
-  }, [results, currentResume, updateResume]);
+    void rescoreAfterApply({ ...currentResume, [result.section]: data });
+  }, [results, currentResume, updateResume, onEnhanced, rescoreAfterApply]);
 
   const discardResult = useCallback((index: number) => {
     haptics.light();
@@ -669,12 +669,19 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
       <SheetContent side="bottom" className="max-h-[90dvh] flex flex-col rounded-t-2xl">
         <AISheetErrorBoundary key={String(open)} onClose={() => onOpenChange(false)}>
         <SheetHeader className="shrink-0 pb-3 border-b border-border">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-primary/10">
+          {/* pr-12 reserves room for the absolute-positioned Sheet Close
+              button so a long resume / section title never collides with
+              it. min-w-0 + truncate guarantees the title row never blows
+              out the flex container on small viewports. */}
+          <div className="flex items-center gap-3 pr-12 min-w-0">
+            <div className="p-2 rounded-lg bg-primary/10 shrink-0">
               <Sparkles className="w-5 h-5 text-primary" />
             </div>
-            <div>
-              <SheetTitle className="text-lg flex items-center gap-2">{sheetTitle} <AICostBadge operation="enhance" /></SheetTitle>
+            <div className="min-w-0 flex-1">
+              <SheetTitle className="text-lg flex items-center gap-2 min-w-0">
+                <span className="truncate">{sheetTitle}</span>
+                <AICostBadge operation="enhance" />
+              </SheetTitle>
               <AIProviderVia className="mt-0.5" />
             </div>
           </div>
