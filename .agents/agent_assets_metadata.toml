@@ -18,3 +18,9 @@ id = "2FZc7Yu0tXbCynGP_RrKK"
 uri = "file://reports/one-page-wizard-analysis.md"
 type = "text"
 title = "One-Page Wizard — Analysis & Improvement Report"
+
+[[outputs]]
+id = "xTs21psbC5fZ3QSed8yFy"
+uri = "file://wallpaper-kinde.png"
+type = "image"
+title = "Kinde Sign-In Background Wallpaper (1920×1080)"
