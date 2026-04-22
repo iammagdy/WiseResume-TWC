@@ -5,6 +5,13 @@ import { AuthProvider, DegradedAuthProvider } from "@/contexts/AuthContext";
 import { KindeProvider, KindeContext } from "@kinde-oss/kinde-auth-react";
 import { lazyWithRetry } from "@/lib/lazyWithRetry";
 import { useResumeStore } from "@/store/resumeStore";
+/* Task #7 follow-up: AppLanding is the lightweight chunk that serves
+   `/` and `/enterprises` on first paint. It needs the same animated
+   aurora background that the rest of the app shell uses, so the
+   shared AuroraLayer is rendered here as a sibling of LandingRoutes.
+   Without this import the landing pages painted flat (no aurora at
+   all) because the previous AuroraLayer lived only in AppInterior. */
+import { AuroraLayer } from "@/components/landing/AuroraLayer";
 
 const Index = lazyWithRetry(() => import("./pages/Index"));
 
@@ -99,12 +106,18 @@ function LandingRoutes() {
   // Dispatch between `/` and `/enterprises` happens in the outer
   // <Routes> in App.tsx — both paths render this component, and the
   // Index page itself reads the URL to pick the active product mode.
+  // AuroraLayer is a sibling so the fixed-position aurora canvas
+  // paints behind whatever Index renders, including the suspense
+  // skeleton during initial chunk load.
   return (
-    <RouteEB>
-      <Suspense fallback={<LandingFallback />}>
-        <Index />
-      </Suspense>
-    </RouteEB>
+    <>
+      <AuroraLayer />
+      <RouteEB>
+        <Suspense fallback={<LandingFallback />}>
+          <Index />
+        </Suspense>
+      </RouteEB>
+    </>
   );
 }
 

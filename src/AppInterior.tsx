@@ -62,9 +62,12 @@ const DevToolsPage = lazyWithRetry(() => import("./pages/DevToolsPage"));
 const CommandPalette = lazyWithRetry(() => import("@/components/layout/CommandPalette"));
 
 const BugReportDialog = lazyWithRetry(() => import("@/components/BugReportDialog"));
-const AuroraBackground = lazyWithRetry(() =>
-  import("@/components/landing/AuroraBackground").then((m) => ({ default: m.AuroraBackground }))
-);
+/* Task #7 follow-up: the aurora is shared between AppLanding (the
+   lightweight chunk that serves `/` and `/enterprises`) and the full
+   AppInterior shell (which serves `/pricing`, `/sign-in`, etc.). The
+   route-aware orchestration lives in `AuroraLayer` so both shells
+   render an identical aurora without duplicating logic. */
+import { AuroraLayer } from "@/components/landing/AuroraLayer";
 import { getSafeMatchMedia, isBrowser } from "@/lib/envUtils";
 
 // Landing page is lazy-loaded — the HTML pre-paint splash covers first paint
@@ -421,7 +424,7 @@ function AppRoutes() {
 
   return (
     <>
-        <AuroraLayer />
+        <AuroraLayer />{/* shared with AppLanding via @/components/landing/AuroraLayer */}
         {appSettings.announcement_enabled && appSettings.announcement_banner && (
           <AnnouncementBanner message={appSettings.announcement_banner} />
         )}
@@ -553,75 +556,10 @@ function AppRoutes() {
 
 }
 
-const AURORA_PUBLIC_PATHS = ['/', '/enterprises', '/pricing', '/whats-new', '/sign-in'];
-
-function AuroraLayer() {
-  const location = useLocation();
-  // Normalize trailing slash so `/enterprises` and `/enterprises/` (and
-  // similar) match the same path-equality checks below. Root `/` is left
-  // as-is to avoid collapsing it to an empty string.
-  const rawPath = location.pathname;
-  const path = rawPath.length > 1 && rawPath.endsWith('/')
-    ? rawPath.slice(0, -1)
-    : rawPath;
-  const isPublicPage =
-    AURORA_PUBLIC_PATHS.includes(path) ||
-    path.startsWith('/auth') ||
-    path.startsWith('/p/');
-
-  const theme = useSettingsStore((s) => s.theme);
-  const lpProduct = useSettingsStore((s) => s.lpProduct);
-  // Landing routes that surface the product toggle. `/enterprises` is the
-  // canonical WiseHire landing URL — force WiseHire tint there regardless of
-  // the persisted toggle so a deep-link to `/enterprises` always paints the
-  // blue aurora. `/` honors the toggle (Individuals ↔ Enterprises).
-  const isLandingPage = path === '/' || path === '/enterprises';
-  const effectiveLpProduct = path === '/enterprises'
-    ? 'wisehire'
-    : isLandingPage
-      ? lpProduct
-      : 'jobseeker';
-
-  useEffect(() => {
-    if (!isPublicPage) return;
-    const body = document.body;
-    const prevBodyBg = body.style.backgroundColor;
-
-    const isDark =
-      theme === 'dark'
-        ? true
-        : theme === 'light'
-        ? false
-        : getSafeMatchMedia('(prefers-color-scheme: dark)').matches;
-
-    const isWiseHire = effectiveLpProduct === 'wisehire';
-    body.style.backgroundColor = isWiseHire
-      ? (isDark ? '#00061a' : '#f0f5ff')
-      : (isDark ? '#0a0000' : '#fff5f5');
-    document.documentElement.classList.add('aurora-active');
-
-    // Defensively remove the pre-React bg style element (set in index.html
-    // before React mounts to prevent the LCP flash). It is inline + opaque
-    // (e.g. `body{background:#111111!important}`) and would otherwise fight
-    // the aurora's transparency on the body. Index.tsx removes it on its
-    // own first paint, but mounting/unmounting AuroraLayer (route changes,
-    // chunk hydration) is the correct lifecycle hook to guarantee removal.
-    const preReactBg = document.getElementById('pre-react-bg');
-    if (preReactBg) preReactBg.remove();
-
-    return () => {
-      body.style.backgroundColor = prevBodyBg;
-      document.documentElement.classList.remove('aurora-active');
-    };
-  }, [isPublicPage, theme, effectiveLpProduct]);
-
-  if (!isPublicPage) return null;
-  return (
-    <Suspense fallback={null}>
-      <AuroraBackground product={effectiveLpProduct} />
-    </Suspense>
-  );
-}
+/* AuroraLayer is now exported from `@/components/landing/AuroraLayer`
+   so both AppInterior and AppLanding can render it. The previous
+   inline implementation has been removed; see the imported module for
+   path matching, body backstop, and `aurora-active` class management. */
 
 function PrefetchOnIdle() {
   useEffect(() => {
