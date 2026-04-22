@@ -484,20 +484,48 @@ export function useAgenticChat(contextFilter?: string) {
       if (proposal.section === 'summary') {
         updateResume({ summary: proposal.suggested });
       } else if (proposal.section === 'experience' && proposal.itemId) {
-        const identifier = proposal.itemId.toLowerCase();
-        const expIndex = currentResume.experience.findIndex(
-          (exp) =>
-            exp.company.toLowerCase().includes(identifier) ||
-            exp.position.toLowerCase().includes(identifier)
-        );
+        // Match the experience entry the AI is referring to using the
+        // same id → fingerprint → substring contract that the rest of
+        // the AI Apply surfaces use. This stops a stale itemId or a
+        // company/position rename from silently no-oping the apply, and
+        // it stops two entries with similar names from both matching.
+        const itemId = proposal.itemId;
+        const identifier = itemId.toLowerCase();
+        // 1) Exact UUID match on exp.id (preferred — set by the edge
+        //    function whenever the AI gave us a real id).
+        let expIndex = currentResume.experience.findIndex((exp) => exp.id === itemId);
+        // 2) Position/company "fingerprint" match (case-insensitive
+        //    exact field equality before falling through to substring).
+        if (expIndex === -1) {
+          expIndex = currentResume.experience.findIndex(
+            (exp) =>
+              exp.position?.toLowerCase() === identifier ||
+              exp.company?.toLowerCase() === identifier,
+          );
+        }
+        // 3) Last-resort substring match (legacy behavior — kept so
+        //    existing prompt formats keep working).
+        if (expIndex === -1) {
+          expIndex = currentResume.experience.findIndex(
+            (exp) =>
+              exp.company.toLowerCase().includes(identifier) ||
+              exp.position.toLowerCase().includes(identifier),
+          );
+        }
         if (expIndex !== -1) {
           const updatedExp = { ...currentResume.experience[expIndex] };
           if (updatedExp.description?.includes(proposal.original)) {
             updatedExp.description = updatedExp.description.replace(proposal.original, proposal.suggested);
           }
           const newExperience = [...currentResume.experience];
-          newExperience[expIndex] = updatedExp;
+          // Preserve the original id explicitly — never let a spread
+          // overwrite the row identity for an in-place edit.
+          newExperience[expIndex] = { ...updatedExp, id: currentResume.experience[expIndex].id };
           updateResume({ experience: newExperience });
+        } else {
+          toast(
+            "Couldn't locate the experience entry to update — it may have been renamed or removed.",
+          );
         }
       } else if (proposal.section === 'skills') {
         const suggestedSkills = proposal.suggested.split(',').map((s) => s.trim()).filter(Boolean);
