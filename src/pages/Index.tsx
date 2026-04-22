@@ -363,6 +363,8 @@ const Index = () => {
         </Suspense>
       </main>
 
+      <LandingVersionFooter />
+
       {waitlistOpen && (
         <Suspense fallback={null}>
           <WaitlistModal open={waitlistOpen} onClose={() => setWaitlistOpen(false)} />
@@ -373,6 +375,37 @@ const Index = () => {
           <QuickTailorSheet open={tailorOpen} onOpenChange={setTailorOpen} />
         </Suspense>
       )}
+    </div>
+  );
+};
+
+interface VersionInfo {
+  shortCommit?: string;
+  commit?: string;
+  deployedAt?: string;
+}
+
+const LandingVersionFooter = () => {
+  const [info, setInfo] = useState<VersionInfo | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/version.json', { cache: 'no-cache' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (!cancelled && d) setInfo(d); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+  if (!info?.shortCommit) return null;
+  const deployedLabel = info.deployedAt
+    ? new Date(info.deployedAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+    : null;
+  return (
+    <div
+      className="w-full text-center text-xs py-3 select-none"
+      style={{ color: 'var(--lp-muted, #888)', opacity: 0.7 }}
+      aria-label="Deployment version"
+    >
+      Build {info.shortCommit}{deployedLabel ? ` · ${deployedLabel}` : ''}
     </div>
   );
 };
