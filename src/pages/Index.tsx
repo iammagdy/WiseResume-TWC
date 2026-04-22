@@ -360,8 +360,6 @@ const Index = () => {
         </Suspense>
       </main>
 
-      <LandingVersionFooter />
-
       {waitlistOpen && (
         <Suspense fallback={null}>
           <WaitlistModal open={waitlistOpen} onClose={() => setWaitlistOpen(false)} />
@@ -375,17 +373,5 @@ const Index = () => {
     </div>
   );
 };
-
-declare const __APP_VERSION__: string;
-
-const LandingVersionFooter = () => (
-  <div
-    className="w-full text-center text-[10px] py-2 select-none opacity-60"
-    style={{ color: 'var(--lp-muted, #888)' }}
-    aria-label="App version"
-  >
-    v{__APP_VERSION__}
-  </div>
-);
 
 export default Index;

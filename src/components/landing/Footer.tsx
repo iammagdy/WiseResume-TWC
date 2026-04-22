@@ -2,6 +2,8 @@ import { ShieldCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useThemeLogo } from '@/hooks/useThemeLogo';
 
+declare const __APP_VERSION__: string;
+
 interface FooterProps {
   lpMode?: boolean;
   product?: 'wisehire';
@@ -83,6 +85,16 @@ export function Footer({ lpMode, product }: FooterProps) {
             : <>&copy; 2026 WiseResume &mdash; The Wise Cloud.</>
           }
         </p>
+
+        {lpMode && (
+          <p
+            className="text-[10px] select-none opacity-50"
+            style={{ color: 'var(--lp-text-muted)' }}
+            aria-label="App version"
+          >
+            v{__APP_VERSION__}
+          </p>
+        )}
       </div>
     </footer>
   );

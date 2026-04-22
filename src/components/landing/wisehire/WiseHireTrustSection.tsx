@@ -3,10 +3,10 @@ import { Users, BrainCircuit, Target, Zap } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 const ENTRY_DIRS = [
-  { x: -90, y: 70 },
-  { x: 90, y: 70 },
-  { x: -90, y: 80 },
-  { x: 90, y: 80 },
+  { x: -90 },
+  { x: 90 },
+  { x: -90 },
+  { x: 90 },
 ];
 
 const containerVariants = {
@@ -21,11 +21,11 @@ function makeItemVariant(i: number, reduced: boolean | null) {
       visible: { opacity: 1, transition: { duration: 0.25 } },
     };
   }
-  const dir = ENTRY_DIRS[i] ?? { x: 0, y: 80 };
+  const dir = ENTRY_DIRS[i] ?? { x: 0 };
   return {
-    hidden: { opacity: 0, x: dir.x, y: dir.y },
+    hidden: { opacity: 0, x: dir.x },
     visible: {
-      opacity: 1, x: 0, y: 0,
+      opacity: 1, x: 0,
       transition: { type: 'spring' as const, stiffness: 200, damping: 22 },
     },
   };
@@ -59,7 +59,7 @@ export function WiseHireTrustSection() {
 
   const headingVariant = prefersReducedMotion
     ? { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0.25 } } }
-    : { hidden: { opacity: 0, y: 80 }, visible: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 200, damping: 22 } } };
+    : { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { type: 'spring' as const, stiffness: 200, damping: 22 } } };
 
   return (
     <section
