@@ -11,6 +11,7 @@
  * client attaches to all subsequent API requests.
  */
 
+import * as Sentry from '@sentry/node';
 import express from 'express';
 import type { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
@@ -23,6 +24,21 @@ import path from 'node:path';
 import fs from 'node:fs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Initialise Sentry as early as possible so all errors and spans are captured.
+// Uses the same DSN as the frontend (VITE_SENTRY_DSN) — both show up in the
+// same Sentry project, distinguished by their `server` / `browser` platform tag.
+const SENTRY_DSN = process.env.VITE_SENTRY_DSN || process.env.SENTRY_DSN || '';
+if (SENTRY_DSN) {
+  Sentry.init({
+    dsn: SENTRY_DSN,
+    environment: process.env.NODE_ENV ?? 'development',
+    tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
+  });
+  console.log('[server] Sentry error tracking: active');
+} else {
+  console.warn('[server] Sentry error tracking: disabled (VITE_SENTRY_DSN not set)');
+}
 
 const app = express();
 const PORT = parseInt(process.env.API_PORT || '5001', 10);
@@ -2670,6 +2686,13 @@ app.get(
     }
   },
 );
+
+// ── Sentry error handler ──────────────────────────────────────────────────────
+// Must be registered AFTER all routes and BEFORE any other error middleware so
+// Sentry sees every unhandled Express error with full request context.
+if (SENTRY_DSN) {
+  Sentry.setupExpressErrorHandler(app);
+}
 
 // ── Static file serving (Replit production deployment) ────────────────────────
 // When running in production (NODE_ENV=production), the Express server also
