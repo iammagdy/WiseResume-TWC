@@ -69,7 +69,7 @@ function getThemeVars(style: string, accentColor: string | null, font: string): 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 function PortfolioSkeleton() {
   return (
-    <div className="min-h-screen bg-[--pf-bg,#0a0a0f] p-6 space-y-6 max-w-4xl mx-auto">
+    <div className="relative z-[1] min-h-screen bg-[--pf-bg,#0a0a0f] p-6 space-y-6 max-w-4xl mx-auto">
       <div className="flex flex-col items-center gap-4 pt-16">
         <Skeleton className="h-36 w-36 rounded-full" />
         <Skeleton className="h-10 w-64" />
@@ -109,7 +109,7 @@ function SectionsSkeleton() {
 // ─── Not Found ────────────────────────────────────────────────────────────────
 function NotFound() {
   return (
-    <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center p-6">
+    <div className="relative z-[1] min-h-screen bg-[#0a0a0f] flex items-center justify-center p-6">
       <div className="text-center space-y-4">
         <SearchX className="w-16 h-16 mx-auto mb-4 text-white/60" />
         <h1 className="text-3xl font-bold text-white">Portfolio Not Found</h1>
@@ -145,7 +145,7 @@ function PasswordGate({
   }, [value, isChecking, onSubmit]);
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center p-6">
+    <div className="relative z-[1] min-h-screen bg-[#0a0a0f] flex items-center justify-center p-6">
       <motion.div
         initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
@@ -433,7 +433,7 @@ function PublicPortfolioContent({ usernameOverride }: { usernameOverride?: strin
     .map(s => ({ id: s.id, label: s.label }));
 
   return (
-    <div className={`pf-theme pf-theme-${pStyle} min-h-screen text-[--pf-fg] selection:bg-[--pf-accent] selection:text-white pb-safe overflow-x-hidden max-w-full`} style={rootStyle}>
+    <div className={`relative z-[1] pf-theme pf-theme-${pStyle} min-h-screen text-[--pf-fg] selection:bg-[--pf-accent] selection:text-white pb-safe overflow-x-hidden max-w-full`} style={rootStyle}>
       <a
         href="#portfolio-content"
         className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[200] focus:px-4 focus:py-2 focus:rounded-md focus:text-sm focus:font-semibold focus:bg-white focus:text-gray-900 focus:shadow-lg focus:outline-none"

@@ -1,5 +1,6 @@
 import type { LucideIcon } from 'lucide-react';
 import { Wifi, Sparkles, Save, FileDown, ShieldAlert, AlertCircle } from 'lucide-react';
+import { activityTracker } from './activityTracker';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -118,7 +119,11 @@ export function onBugReport(cb: BugReportListener) {
 }
 
 export function triggerBugReport(data: BugReportData) {
-  listener?.(data);
+  const merged: BugReportData = {
+    ...data,
+    detectedContext: data.detectedContext ?? activityTracker.getSnapshot(),
+  };
+  listener?.(merged);
 }
 
 /**

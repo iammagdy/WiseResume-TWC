@@ -24,6 +24,7 @@ import { reportWebVitals } from "./lib/reportWebVitals";
    handlers below via the dependency-free shim, buffered, and flushed once
    monitoring.ts loads and wires the real Sentry-backed capturer. */
 import { captureError } from "./lib/captureErrorShim";
+import { activityTracker } from "./lib/activityTracker";
 
 console.log('🚀 WiseResume App Starting...', Date.now());
 console.log('Environment:', {
@@ -48,6 +49,11 @@ window.addEventListener('error', (event) => {
     : String(err);
   console.error('Global Error:', detail);
   captureError(err, { source: 'window.onerror' });
+  if (err instanceof Error) {
+    activityTracker.pushRecentError(err.message, err.stack);
+  } else if (typeof err === 'string') {
+    activityTracker.pushRecentError(err);
+  }
 });
 
 window.addEventListener('unhandledrejection', (event) => {
@@ -57,6 +63,11 @@ window.addEventListener('unhandledrejection', (event) => {
     : String(reason);
   console.error('Unhandled Promise Rejection:', detail);
   captureError(reason, { source: 'unhandledrejection' });
+  if (reason instanceof Error) {
+    activityTracker.pushRecentError(reason.message, reason.stack);
+  } else if (typeof reason === 'string') {
+    activityTracker.pushRecentError(reason);
+  }
 });
 
 try {
