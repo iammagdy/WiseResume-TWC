@@ -90,9 +90,20 @@ function prefetchPlugin(): Plugin {
   };
 }
 
+// Build-time version metadata. The deploy workflow exports BUILD_COMMIT and
+// BUILD_TIME before `npm run build`; in dev / local builds they're absent
+// and we fall back to short placeholders so the landing footer always has
+// something to render without depending on a runtime fetch.
+const BUILD_COMMIT = (process.env.BUILD_COMMIT || process.env.GITHUB_SHA || 'dev').slice(0, 7);
+const BUILD_TIME = process.env.BUILD_TIME || new Date().toISOString();
+
 // https://vitejs.dev/config/
 export default defineConfig(() => ({
   base: '/',
+  define: {
+    __BUILD_COMMIT__: JSON.stringify(BUILD_COMMIT),
+    __BUILD_TIME__: JSON.stringify(BUILD_TIME),
+  },
   server: {
     host: "0.0.0.0",
     port: 5000,

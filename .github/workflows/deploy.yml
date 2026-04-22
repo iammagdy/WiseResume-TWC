@@ -42,6 +42,11 @@ jobs:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
           SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+          # Baked into the bundle via vite.config.ts `define`. Used by the
+          # landing-page version footer so it always shows the deployed
+          # commit even if /version.json fails to load.
+          BUILD_COMMIT: ${{ github.sha }}
+          BUILD_TIME: ${{ github.event.repository.updated_at }}
 
       - name: Write version file
         run: |

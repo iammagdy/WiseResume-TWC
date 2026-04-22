@@ -379,6 +379,9 @@ const Index = () => {
   );
 };
 
+declare const __BUILD_COMMIT__: string;
+declare const __BUILD_TIME__: string;
+
 interface VersionInfo {
   shortCommit?: string;
   commit?: string;
@@ -386,26 +389,34 @@ interface VersionInfo {
 }
 
 const LandingVersionFooter = () => {
-  const [info, setInfo] = useState<VersionInfo | null>(null);
+  // Compile-time defaults — always present, no network needed.
+  const [info, setInfo] = useState<VersionInfo>({
+    shortCommit: __BUILD_COMMIT__,
+    deployedAt: __BUILD_TIME__,
+  });
   useEffect(() => {
     let cancelled = false;
     fetch('/version.json', { cache: 'no-cache' })
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (!cancelled && d) setInfo(d); })
+      .then((d) => { if (!cancelled && d?.shortCommit) setInfo(d); })
       .catch(() => {});
     return () => { cancelled = true; };
   }, []);
-  if (!info?.shortCommit) return null;
   const deployedLabel = info.deployedAt
     ? new Date(info.deployedAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
     : null;
   return (
     <div
-      className="w-full text-center text-xs py-3 select-none"
-      style={{ color: 'var(--lp-muted, #888)', opacity: 0.7 }}
+      className="w-full text-center text-xs py-4 select-none border-t"
+      style={{
+        color: 'var(--lp-muted, #888)',
+        borderColor: 'var(--lp-border, rgba(128,128,128,0.15))',
+        background: 'var(--lp-surface, transparent)',
+      }}
       aria-label="Deployment version"
     >
-      Build {info.shortCommit}{deployedLabel ? ` · ${deployedLabel}` : ''}
+      WiseResume · Build <span style={{ fontFamily: 'monospace' }}>{info.shortCommit}</span>
+      {deployedLabel ? ` · ${deployedLabel}` : ''}
     </div>
   );
 };
