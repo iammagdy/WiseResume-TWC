@@ -272,7 +272,10 @@ export default function AuthPage() {
   // ── Redirect loading screen ───────────────────────────────────────────────
   return (
     <>
-      <OfflineBanner />
+      {/* Fixed wrapper ensures the banner stacks above the full-screen overlay */}
+      <div className="fixed top-0 left-0 right-0 z-50">
+        <OfflineBanner />
+      </div>
       <BrandedRedirectScreen mode={mode} />
     </>
   );
