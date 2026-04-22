@@ -518,9 +518,14 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
    * merge would drop originals (`requiresConfirm`), we surface a toast with
    * an explicit "Apply anyway" affordance instead of silently committing.
    */
-  const applyResult = useCallback((index: number, silent = false, bypassConfirm = false) => {
+  // Returns `true` when the section was actually committed onto the
+  // resume, `false` when the apply was deferred (e.g. destructive merge
+  // awaiting explicit user confirmation) or the call was a no-op. The
+  // boolean is what "Apply All" uses to count *successful* applies — a
+  // confirmation-gated entry must not be counted as applied.
+  const applyResult = useCallback((index: number, silent = false, bypassConfirm = false): boolean => {
     const result = results[index];
-    if (!result || !currentResume) return;
+    if (!result || !currentResume) return false;
     haptics.medium();
 
     let data = sanitizeAIContent(result.rawImproved);
@@ -536,7 +541,7 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
       onEnhanced?.([result.section]);
       if (!silent) toast.success(`${result.label} updated!`);
       void rescoreAfterApply({ ...currentResume, [result.section]: data });
-      return;
+      return true;
     }
 
     // Pick the right fingerprint + defaults for the section.
@@ -574,11 +579,11 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
             duration: 10000,
             action: {
               label: 'Apply anyway',
-              onClick: () => applyResult(index, false, true),
+              onClick: () => { applyResult(index, false, true); },
             },
           },
         );
-        return;
+        return false;
       }
 
       data = merge.merged;
@@ -592,6 +597,7 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
     onEnhanced?.([result.section]);
     if (!silent) toast.success(`${result.label} updated!`);
     void rescoreAfterApply({ ...currentResume, [result.section]: data });
+    return true;
   }, [results, currentResume, updateResume, onEnhanced, rescoreAfterApply]);
 
   const discardResult = useCallback((index: number) => {
@@ -826,12 +832,27 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
                     className="text-xs min-h-[44px] active:scale-95 transition-transform touch-manipulation"
                     onClick={() => {
                       haptics.medium();
+                      // Count *actual* commits, not attempts. A
+                      // confirmation-gated section returns false from
+                      // applyResult and surfaces its own warning toast,
+                      // so we shouldn't include it in the success count.
                       let applied = 0;
+                      let deferred = 0;
                       results.forEach((r, i) => {
-                        if (!r.applied && !r.error) { applyResult(i, true); applied++; }
+                        if (r.applied || r.error) return;
+                        if (applyResult(i, true)) applied++;
+                        else deferred++;
                       });
                       if (applied > 0) {
                         toast.success(`${applied} section${applied !== 1 ? 's' : ''} applied to your resume.`);
+                      }
+                      if (deferred > 0 && applied === 0) {
+                        // All-deferred edge case: tell the user nothing
+                        // committed yet so they don't assume "Apply All"
+                        // silently failed.
+                        toast.info(
+                          `${deferred} section${deferred !== 1 ? 's' : ''} need review before applying.`,
+                        );
                       }
                     }}
                   >

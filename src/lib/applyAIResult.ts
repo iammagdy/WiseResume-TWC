@@ -146,10 +146,14 @@ export function mergeAIArrayResult<T extends { id?: string }>(
 
     const aiEntry = rawEntry as Record<string, unknown> & { id?: string };
 
-    // 1) Exact id match wins.
+    // 1) Exact id match wins — but only if that original hasn't already
+    //    been claimed. AI providers occasionally hallucinate the same id
+    //    on two output entries; without this guard the second entry would
+    //    re-merge onto the same original and produce a duplicate row.
     let match: { entry: T; index: number } | undefined;
     if (typeof aiEntry.id === 'string' && aiEntry.id) {
-      match = byId.get(aiEntry.id);
+      const candidate = byId.get(aiEntry.id);
+      if (candidate && !consumed.has(candidate.index)) match = candidate;
     }
     // 2) Fuzzy fingerprint fallback (only if not already consumed).
     if (!match && fp) {
