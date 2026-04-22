@@ -786,6 +786,23 @@ body[data-lp-scheme="light"][data-lp-product="wisehire"] { background-color: #f0
   pointer-events: none;
   opacity: 0.7;
 }
+/* Keep the inter-card hairline divider at the geometric midpoint of the
+   actual inter-card gap, which is dynamic (effectiveItemDistance in
+   ScrollStack.tsx scales with viewport height on short screens).
+   These breakpoints mirror the effectiveItemDistance thresholds:
+     vh ≤ 600 → gap = 0.40 × vh  → midpoint = 0.20 × vh
+     vh ≤ 800 → gap = 0.50 × vh  → midpoint = 0.25 × vh
+     vh > 800 → gap = 480 px     → midpoint = 240 px (default above) */
+@media (max-height: 800px) {
+  .lp-stack-section .scroll-stack-card-wrap:not(:last-child)::after {
+    bottom: calc(-1 * 25vh);
+  }
+}
+@media (max-height: 600px) {
+  .lp-stack-section .scroll-stack-card-wrap:not(:last-child)::after {
+    bottom: calc(-1 * 20vh);
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   .lp-stack-step-chip { transition: none; }
 }

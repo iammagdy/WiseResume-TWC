@@ -70,8 +70,8 @@ export const CertificationsSection = memo(function CertificationsSection() {
               >
                 <DragHandle />
                 <div className="flex items-center gap-1 shrink-0">
-                  <button onClick={e => { e.stopPropagation(); moveUp(index); }} disabled={index === 0} className="p-1.5 rounded hover:bg-muted disabled:opacity-30 min-w-[32px] min-h-[32px] flex items-center justify-center" aria-label="Move up"><ArrowUp className="w-3.5 h-3.5" /></button>
-                  <button onClick={e => { e.stopPropagation(); moveDown(index); }} disabled={index === certifications.length - 1} className="p-1.5 rounded hover:bg-muted disabled:opacity-30 min-w-[32px] min-h-[32px] flex items-center justify-center" aria-label="Move down"><ArrowDown className="w-3.5 h-3.5" /></button>
+                  <button onClick={e => { e.stopPropagation(); moveUp(index); }} disabled={index === 0} className="p-1.5 rounded hover:bg-muted disabled:opacity-30 min-w-[40px] min-h-[40px] flex items-center justify-center touch-manipulation" aria-label="Move up"><ArrowUp className="w-3.5 h-3.5" /></button>
+                  <button onClick={e => { e.stopPropagation(); moveDown(index); }} disabled={index === certifications.length - 1} className="p-1.5 rounded hover:bg-muted disabled:opacity-30 min-w-[40px] min-h-[40px] flex items-center justify-center touch-manipulation" aria-label="Move down"><ArrowDown className="w-3.5 h-3.5" /></button>
                 </div>
                 <div className="text-left flex-1 min-w-0 px-3">
                   <p className="font-semibold text-sm truncate">{cert.name || `Certification ${index + 1}`}</p>

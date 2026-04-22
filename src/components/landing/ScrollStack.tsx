@@ -374,6 +374,13 @@ const ScrollStack = ({
         }
       });
 
+      /* onActiveCardChange fires whenever the topmost stacked card
+         changes. The trigger condition (scrollTop ≥ triggerStart) is
+         purely position-based and does not depend on viewport size, so
+         the step-chip stays in sync on phone/tablet/desktop equally.
+         Mobile users reach triggerStart faster per-swipe (smaller
+         effectiveItemDistance) which is intentional — the chip advances
+         more frequently, matching the pacing of cards. */
       if (activeIndex !== lastActiveIndex) {
         lastActiveIndex = activeIndex;
         onActiveCardChangeRef.current?.(activeIndex);
