@@ -597,6 +597,10 @@ body[data-lp-scheme="light"][data-lp-product="wisehire"] { background-color: #f0
   background: var(--lp-stack-section-bg);
   isolation: isolate;
   transition: background 0.45s ease;
+  /* clip (not hidden) prevents horizontal content bleed without creating a
+     scroll container, so position:sticky on .lp-stack-sticky-header still
+     works correctly. */
+  overflow-x: clip;
 }
 /* Ambient brand glow + hero→stack bridge */
 .lp-stack-section::before {
