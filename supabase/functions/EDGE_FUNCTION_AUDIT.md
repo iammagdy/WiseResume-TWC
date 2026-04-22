@@ -1,6 +1,6 @@
 # Edge Function Audit
 
-Last updated: 2026-04-30 (Full system audit — ghost cleanup)
+Last updated: 2026-04-22 (Task #17 — Kinde webhook + backfill reconcile)
 
 ## Server-to-Server / Platform Hooks
 
@@ -22,6 +22,8 @@ frontend call site with broken or dead code.
 | `admin-check-access` | Internal helper — invoked by other `admin-*` functions to short-circuit unauthorized callers |
 | `delete-expired-trial-resumes` | Supabase cron — deletes expired trial resumes |
 | `analytics-sweep` | Supabase cron — prunes old `audit_logs` / `error_log` rows |
+| `kinde-webhook` | Kinde webhook endpoint — receives `user.created` events and immediately provisions auth.users / profiles / user_preferences. Requires `KINDE_WEBHOOK_SECRET`. |
+| `admin-kinde-reconcile` | One-shot admin backfill — pages Kinde Management API, provisions any users missing from DB. Requires `KINDE_M2M_CLIENT_ID` + `KINDE_M2M_CLIENT_SECRET`. |
 
 ## Active Frontend-Called Functions
 
@@ -67,3 +69,4 @@ on 2026-04-30, meaning they had already been removed. No further action needed.
 | Secret | Impact | Action |
 |---|---|---|
 | `ELEVENLABS_API_KEY` | Voice interview coach and scribe transcription unavailable for users without a personal ElevenLabs key (BYOK). Text interview works. | Add to Supabase project secrets when ready. |
+| `KINDE_WEBHOOK_SECRET` | `kinde-webhook` function returns 401 for all events — no instant provisioning on signup. Users are still provisioned JIT on first login via token-exchange. | Add in Kinde dashboard (Settings → Webhooks → signing secret) then save the value as a Supabase Edge Function secret. |
