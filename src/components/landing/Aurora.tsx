@@ -158,12 +158,19 @@ export default function Aurora(props: AuroraProps) {
   const [hasWebGL, setHasWebGL] = useState(detectWebGL);
 
   /* CSS gradient fallback when WebGL is unavailable. Uses the same
-     colorStops so the visual brand still reads. */
+     colorStops so the visual brand still reads. The previous fallback
+     used ~15% alpha radial gradients which were nearly invisible in
+     light themes — Task #7 follow-up bumps the alpha and reshapes the
+     gradients so the brand wash is clearly visible. The bloom
+     concentrates near the top of the viewport (where the WebGL aurora
+     is brightest) so the visual is consistent between modes. */
   const fallbackBg = useMemo(() => {
     const [a = '#5227FF', b = '#7cff67', c = '#5227FF'] = colorStops;
-    return `radial-gradient(ellipse 80% 60% at 20% 30%, ${a}26 0%, transparent 60%),
-            radial-gradient(ellipse 70% 50% at 80% 70%, ${c}26 0%, transparent 60%),
-            radial-gradient(ellipse 60% 40% at 50% 50%, ${b}1f 0%, transparent 70%)`;
+    // Hex alpha suffix: 0x80 ≈ 50%, 0x66 ≈ 40%, 0x4d ≈ 30%.
+    return `radial-gradient(ellipse 90% 70% at 20% 15%, ${a}80 0%, transparent 60%),
+            radial-gradient(ellipse 90% 65% at 80% 20%, ${c}80 0%, transparent 60%),
+            radial-gradient(ellipse 120% 75% at 50% 0%, ${b}66 0%, transparent 65%),
+            radial-gradient(ellipse 110% 80% at 50% 55%, ${b}4d 0%, transparent 75%)`;
   }, [colorStops]);
 
   useEffect(() => {
