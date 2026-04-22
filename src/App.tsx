@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useLayoutEffect, useState } from "react";
+import { Suspense, useEffect, useLayoutEffect, useState, lazy } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -7,6 +7,8 @@ import { useSettingsStore } from "@/store/settingsStore";
 import { useShallow } from "zustand/react/shallow";
 import { lazyWithRetry } from "@/lib/lazyWithRetry";
 import { isAppHostname } from "@/hooks/usePublicPortfolio";
+
+const WallpaperPage = lazy(() => import("./pages/WallpaperPage"));
 
 const AnimatedSplash = lazyWithRetry(() =>
   import("@/components/AnimatedSplash").then((m) => ({ default: m.AnimatedSplash }))
@@ -69,6 +71,14 @@ function InteriorMount({ onReady }: { onReady: () => void }) {
     <Routes>
       <Route path="/" element={<AppLanding />} />
       <Route path="/enterprises" element={<AppLanding />} />
+      <Route
+        path="/wallpaper"
+        element={
+          <Suspense fallback={null}>
+            <WallpaperPage />
+          </Suspense>
+        }
+      />
       <Route path="*" element={<AppInterior />} />
     </Routes>
   );
