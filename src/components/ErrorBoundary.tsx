@@ -248,23 +248,52 @@ export class ErrorBoundary extends Component<Props, State> {
       };
 
       const { data: res, error } = await supabase.functions.invoke('send-contact-email', { body: payload });
-      if (error) throw error;
-      if (res?.error) throw new Error(res.error);
 
+      if (error) {
+        // 429 rate-limit: the request was already saved to DB by the edge function
+        // (or rejected before DB insert). Either way, retrying via the fallback
+        // chain would just hit the same limit — skip silently.
+        //
+        // Supabase FunctionsHttpError surfaces HTTP status on `context.status`
+        // (the underlying Response object). Some builds also copy it to `status`
+        // directly, so we check both to cover all SDK versions.
+        const httpStatus =
+          (error as { status?: number }).status ??
+          (error as { context?: { status?: number } }).context?.status;
+        const isRateLimit =
+          httpStatus === 429 ||
+          /429|too many requests|rate.?limit/i.test((error as Error).message ?? '');
+        if (isRateLimit) {
+          console.warn('[ErrorBoundary] Crash report rate-limited (429). Skipping fallback.');
+          this.setState({ reportStatus: 'saved' });
+          return;
+        }
+        throw error;
+      }
+
+      // 200 success: email was sent
       if (res?.success === true) {
         this.setState({ reportStatus: 'sent' });
         return;
       }
-      if (res?.saved === true) {
+
+      // 200 with success:false + reason:email_not_configured — email config is missing
+      // on the server, but the request was saved to DB. Treat as soft skip; do NOT
+      // fall through to the fallback chain because the fallback would hit the same
+      // missing-config problem.
+      if (res?.reason === 'email_not_configured' || res?.saved === true) {
         this.setState({ reportStatus: 'saved' });
         return;
       }
+
+      if (res?.error) throw new Error(res.error);
 
       // Unknown response shape — do not claim email was sent
       this.setState({ reportStatus: 'saved' });
     } catch (err) {
       console.error('Failed to send crash report:', err);
-      // Fallback: use submit-contact-request edge function (service role insert)
+      // Fallback: use submit-contact-request edge function (service role insert).
+      // Only reached for genuine unexpected errors (5xx, network failure, etc.).
       try {
         await supabase.functions.invoke('submit-contact-request', {
           body: {

@@ -99,6 +99,9 @@ export default defineConfig(() => ({
   base: '/',
   define: {
     __APP_VERSION__: JSON.stringify(APP_VERSION),
+    // Safety fallback: any leftover __BUILD_COMMIT__ reference will resolve
+    // to an empty string instead of throwing a ReferenceError at runtime.
+    __BUILD_COMMIT__: JSON.stringify(''),
   },
   server: {
     host: "0.0.0.0",
