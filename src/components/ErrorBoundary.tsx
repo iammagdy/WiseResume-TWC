@@ -260,7 +260,8 @@ export class ErrorBoundary extends Component<Props, State> {
         return;
       }
 
-      this.setState({ reportStatus: 'sent' });
+      // Unknown response shape — do not claim email was sent
+      this.setState({ reportStatus: 'saved' });
     } catch (err) {
       console.error('Failed to send crash report:', err);
       // Fallback: use submit-contact-request edge function (service role insert)
