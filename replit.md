@@ -42,6 +42,12 @@ WiseResume is an AI-powered web app for comprehensive career management. (The Pr
 **Authentication Flow:**
 Users log in via Kinde, receiving a Kinde access token. The client exchanges this token with the Express server at `POST /api/fn/token-exchange`. The server verifies the Kinde JWT, derives a deterministic UUID for the user, upserts profile data in Neon DB, and signs a short-lived session JWT. This session JWT is then used for all subsequent `/api/*` calls and validated locally by the server.
 
+**Replit Deployment:**
+- Development: Vite dev server on port 5000 (frontend) + tsx server on port 5001 (Express API). Vite proxies `/api/*` to port 5001.
+- Production: `npm run build:all` compiles Vite frontend into `dist/` and esbuild bundles `server/index.ts` → `dist/server.mjs`. The production server runs with `NODE_ENV=production API_PORT=5000 node dist/server.mjs` and serves both the static SPA files AND the Express `/api/*` routes on the same port 5000.
+- `src/lib/apiFnUrl.ts` always returns relative paths (`/api/fn/<name>`), so no environment branching is needed — both dev (via Vite proxy) and production (Express serves both) use the same URL pattern.
+- `server/index.ts` serves `dist/` as static files in production and uses `app.use(...)` SPA fallback for non-API routes.
+
 **Core Features & Implementations:**
 - **AI Career Management**: Resume building, AI tailoring, public portfolios, interview practice, job tracking, career goal management.
 - **AI System**: Utilizes OpenRouter and Groq as primary AI providers (free tiers), with a central AI client (`supabase/functions/_shared/aiClient.ts`) for dispatching calls. Supports "Bring Your Own Key" (BYOK) for various providers (OpenAI, Anthropic, Gemini, Groq, etc.).

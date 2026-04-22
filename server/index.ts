@@ -18,6 +18,11 @@ import { neon } from '@neondatabase/serverless';
 import { promises as dns } from 'node:dns';
 import net from 'node:net';
 import * as jose from 'jose';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
+import fs from 'node:fs';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app = express();
 const PORT = parseInt(process.env.API_PORT || '5001', 10);
@@ -2653,6 +2658,24 @@ app.get(
     }
   },
 );
+
+// ── Static file serving (Replit production deployment) ────────────────────────
+// When running in production (NODE_ENV=production), the Express server also
+// serves the Vite-built frontend from the dist/ directory. In development,
+// Vite's dev server (port 5000) handles static assets directly.
+if (process.env.NODE_ENV === 'production') {
+  const distPath = path.resolve(__dirname, '../dist');
+  if (fs.existsSync(distPath)) {
+    app.use(express.static(distPath, { maxAge: '1d' }));
+    // SPA fallback: serve index.html for all non-API routes
+    app.use((_req, res) => {
+      res.sendFile(path.join(distPath, 'index.html'));
+    });
+    console.log(`[server] Serving static files from ${distPath}`);
+  } else {
+    console.warn('[server] dist/ directory not found — run npm run build first');
+  }
+}
 
 // ── Start server ──────────────────────────────────────────────────────────────
 // Start listening immediately so the very first token-exchange request from the
