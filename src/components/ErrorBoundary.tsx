@@ -20,7 +20,7 @@ interface State {
   countdown: number;
   reportOpen: boolean;
   reportContext: string;
-  reportStatus: 'idle' | 'sending' | 'sent' | 'error';
+  reportStatus: 'idle' | 'sending' | 'sent' | 'saved' | 'error';
   isRetrying: boolean;
   errorTimestamp: string | null;
   errorRoute: string | null;
@@ -249,13 +249,16 @@ export class ErrorBoundary extends Component<Props, State> {
 
       const { data: res, error } = await supabase.functions.invoke('send-contact-email', { body: payload });
       if (error) throw error;
+      if (res?.error) throw new Error(res.error);
 
-      // Treat saved-but-not-emailed as success — the request is in the database
-      if (res?.saved === true || res?.success === true) {
+      if (res?.success === true) {
         this.setState({ reportStatus: 'sent' });
         return;
       }
-      if (res?.error) throw new Error(res.error);
+      if (res?.saved === true) {
+        this.setState({ reportStatus: 'saved' });
+        return;
+      }
 
       this.setState({ reportStatus: 'sent' });
     } catch (err) {
@@ -420,13 +423,19 @@ export class ErrorBoundary extends Component<Props, State> {
                   </button>
                 </div>
 
-                {this.state.reportStatus === 'sent' ? (
+                {(this.state.reportStatus === 'sent' || this.state.reportStatus === 'saved') ? (
                   <div className="text-center py-6 space-y-2">
-                    <div className="mx-auto w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center">
-                      <MessageSquareWarning className="w-6 h-6 text-green-400" />
+                    <div className={`mx-auto w-12 h-12 rounded-full flex items-center justify-center ${this.state.reportStatus === 'sent' ? 'bg-green-500/10' : 'bg-amber-500/10'}`}>
+                      <MessageSquareWarning className={`w-6 h-6 ${this.state.reportStatus === 'sent' ? 'text-green-400' : 'text-amber-400'}`} />
                     </div>
-                    <p className="text-sm font-medium text-foreground">Report sent!</p>
-                    <p className="text-xs text-muted-foreground">Thank you. We'll look into this.</p>
+                    <p className="text-sm font-medium text-foreground">
+                      {this.state.reportStatus === 'sent' ? 'Report sent!' : 'Report saved'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {this.state.reportStatus === 'sent'
+                        ? "We received your report. We'll look into this."
+                        : 'Your report was saved. Email delivery is pending — our team will still review it.'}
+                    </p>
                     <Button
                       onClick={() => this.setState({ reportOpen: false })}
                       variant="outline"
