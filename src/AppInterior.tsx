@@ -557,7 +557,13 @@ const AURORA_PUBLIC_PATHS = ['/', '/enterprises', '/pricing', '/whats-new', '/si
 
 function AuroraLayer() {
   const location = useLocation();
-  const path = location.pathname;
+  // Normalize trailing slash so `/enterprises` and `/enterprises/` (and
+  // similar) match the same path-equality checks below. Root `/` is left
+  // as-is to avoid collapsing it to an empty string.
+  const rawPath = location.pathname;
+  const path = rawPath.length > 1 && rawPath.endsWith('/')
+    ? rawPath.slice(0, -1)
+    : rawPath;
   const isPublicPage =
     AURORA_PUBLIC_PATHS.includes(path) ||
     path.startsWith('/auth') ||
