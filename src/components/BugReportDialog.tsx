@@ -219,7 +219,7 @@ export function BugReportDialog() {
             </DialogTitle>
             <DialogDescription className="text-sm text-muted-foreground">
               {status === 'saved'
-                ? "Your message was saved — we'll follow up via the app."
+                ? "Your report was saved. Email delivery is pending — our team will still review it."
                 : "Your report has been received. We'll investigate and resolve this shortly."
               }
             </DialogDescription>
