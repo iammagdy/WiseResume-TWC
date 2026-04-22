@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co https://*.supabase.in wss://*.supabase.co https://*.kinde.com https://api.openrouter.ai https://api.groq.com https://generativelanguage.googleapis.com https://api.elevenlabs.io; frame-src 'none'; object-src 'none'; base-uri 'self'; script-src 'self'; frame-ancestors 'none'" />
+
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-visual" />
+  <title>Wiseresume AI - AI Resume Editor</title>
+  <meta name="description" content="AI-powered resume editor with job match scoring, gap analysis, and ATS-friendly templates. Optimize your resume for any job.">
+  <meta name="author" content="Wiseresume AI" />
+  <meta name="theme-color" content="#4F46E5" />
+
+  <!-- Inter font is self-hosted via @fontsource/inter (imported in src/main.tsx).
+       Eliminates blocking Google Fonts request on FCP. -->
+
+  <!-- PWA & Mobile -->
+  <link id="app-manifest" rel="manifest" href="/manifest.json" />
+  <link id="app-favicon" rel="icon" type="image/png" href="/favicon.png">
+  <link id="app-favicon-preload" rel="preload" href="/favicon.png" as="image" />
+  <link id="app-apple-touch-icon" rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <!-- black-translucent lets the app render under the iOS status bar (safe-area handles insets) -->
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <!-- Short name displayed under the icon on the iOS home screen -->
+  <meta name="apple-mobile-web-app-title" content="Wiseresume AI" />
+  <meta name="format-detection" content="telephone=no" />
+
+  <!-- iOS PWA splash screens (prevents white flash on launch from home screen) -->
+  <!-- iPhone SE / 5s -->
+  <link rel="apple-touch-startup-image"
+    media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2)"
+    href="/icons/icon-512x512.png" />
+  <!-- iPhone 8 / SE 2 -->
+  <link rel="apple-touch-startup-image"
+    media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)"
+    href="/icons/icon-512x512.png" />
+  <!-- iPhone X / XS / 11 Pro -->
+  <link rel="apple-touch-startup-image"
+    media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)"
+    href="/icons/icon-512x512.png" />
+  <!-- iPhone XR / 11 -->
+  <link rel="apple-touch-startup-image"
+    media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2)"
+    href="/icons/icon-512x512.png" />
+  <!-- iPhone 12 / 13 / 14 -->
+  <link rel="apple-touch-startup-image"
+    media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)"
+    href="/icons/icon-512x512.png" />
+  <!-- iPhone 14 Pro / 15 -->
+  <link rel="apple-touch-startup-image"
+    media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)"
+    href="/icons/icon-512x512.png" />
+  <!-- iPhone 14 Plus / 15 Plus -->
+  <link rel="apple-touch-startup-image"
+    media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)"
+    href="/icons/icon-512x512.png" />
+
+  <!-- Open Graph & Twitter image tags are declared up here (before the
+       pre-React brand-detection script below) so that script can swap
+       their `content` attribute on first paint when the user lands on a
+       WiseHire URL. The title/description og/twitter tags stay further
+       down where React (Index.tsx) keeps them in sync. -->
+  <meta id="app-og-image" property="og:image" content="/favicon.png">
+  <meta id="app-twitter-image" name="twitter:image" content="/favicon.png">
+
+  <script>
+    // SPA redirect: restore deep-link path saved by 404.html
+    (function () {
+      var r = sessionStorage.getItem('spa-redirect');
+      if (r) { sessionStorage.removeItem('spa-redirect'); history.replaceState(null, '', r); }
+    })();
+  </script>
+  <script>
+    (function () {
+      var t = 'system';
+      try {
+        var raw = localStorage.getItem('wiseresume-settings');
+        if (raw) { t = JSON.parse(raw).state.theme || 'system'; }
+        else { t = localStorage.getItem('theme') || 'system'; }
+      } catch (e) { }
+      var resolved = t === 'system'
+        ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+        : t;
+      document.documentElement.classList.add(resolved);
+      document.documentElement.setAttribute('data-initial-theme', resolved);
+      var bg = resolved === 'dark' ? '#111111' : '#ffffff';
+      document.documentElement.style.background = bg;
+      var s = document.createElement('style');
+      s.id = 'pre-react-bg';
+      s.textContent = 'body{background:' + bg + '!important;}';
+      document.head.appendChild(s);
+
+      try {
+        var path = window.location.pathname;
+        var host = window.location.hostname;
+        var APP_HOSTS = ['.replit.dev', '.replit.app', '.thewise.cloud', '.kirk.replit.dev', '.picard.replit.dev'];
+        var isAppHost = host === 'localhost' || host === '127.0.0.1' ||
+          APP_HOSTS.some(function (s) { return host.indexOf(s, host.length - s.length) !== -1; });
+        var isPublic = path.indexOf('/p/') === 0 || path.indexOf('/share/') === 0 ||
+          path.indexOf('/l/') === 0 || path.indexOf('/auth/callback') === 0;
+        var isAdmin = path.indexOf('/devkit') === 0;
+
+        /* Brand-aware favicon swap (Task #13): on the landing page the
+           tab icon should match the active product so users can tell at a
+           glance which brand they're viewing. Detected from URL only — no
+           localStorage, no host check — so the swap applies on every host
+           and runs before React mounts to avoid an icon flash. The swap
+           is intentionally restricted to the marketing routes; deeper app
+           pages keep the canonical WiseResume favicon. */
+        var isLandingRoute = path === '/' || path === '/enterprises';
+        if (isLandingRoute) {
+          var isWHFavicon = path === '/enterprises' ||
+            new URLSearchParams(window.location.search).get('for') === 'companies';
+          if (isWHFavicon) {
+            var fav = document.getElementById('app-favicon');
+            if (fav) fav.setAttribute('href', '/favicon-wisehire.png');
+            var favPre = document.getElementById('app-favicon-preload');
+            if (favPre) favPre.setAttribute('href', '/favicon-wisehire.png');
+            var apple = document.getElementById('app-apple-touch-icon');
+            if (apple) apple.setAttribute('href', '/icons/icon-wisehire-192x192.png');
+            var ogImg = document.getElementById('app-og-image');
+            if (ogImg) ogImg.setAttribute('content', '/favicon-wisehire.png');
+            var twImg = document.getElementById('app-twitter-image');
+            if (twImg) twImg.setAttribute('content', '/favicon-wisehire.png');
+            var mani = document.getElementById('app-manifest');
+            if (mani) mani.setAttribute('href', '/manifest-wisehire.json');
+          }
+        }
+        // Splash only appears when launched as an installed PWA (standalone /
+        // fullscreen display mode, or iOS Safari home-screen launch). In a
+        // regular browser tab we skip it entirely so visitors get content
+        // immediately — route-level skeletons handle any chunk-load gap.
+        var isStandalone = false;
+        try {
+          isStandalone =
+            (window.matchMedia && (
+              window.matchMedia('(display-mode: standalone)').matches ||
+              window.matchMedia('(display-mode: fullscreen)').matches ||
+              window.matchMedia('(display-mode: minimal-ui)').matches
+            )) ||
+            window.navigator.standalone === true;
+        } catch (e) { }
+        if (isAppHost && !isPublic && !isAdmin && isStandalone) {
+          var isWH = path === '/enterprises' ||
+            new URLSearchParams(window.location.search).get('for') === 'companies';
+          document.documentElement.setAttribute('data-brand', isWH ? 'wisehire' : 'wiseresume');
+          document.documentElement.setAttribute('data-splash-painted', '1');
+        }
+      } catch (e) { }
+    })();
+  </script>
+
+  <style>
+    html:not([data-splash-painted="1"]) #pre-react-splash { display: none; }
+    #pre-react-splash {
+      position: fixed;
+      inset: 0;
+      z-index: 9998;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: var(--prs-bg, #ffffff);
+      color: var(--prs-fg, #0a0a0a);
+      font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    html[data-initial-theme="dark"] #pre-react-splash { --prs-bg: #111111; --prs-fg: #fafafa; }
+    #pre-react-splash .prs-glow {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 320px;
+      height: 320px;
+      transform: translate(-50%, -50%);
+      border-radius: 9999px;
+      pointer-events: none;
+      background: radial-gradient(circle, hsl(357,71%,56%) 0%, transparent 70%);
+      opacity: 0.1;
+      animation: prs-breathe 2.4s ease-in-out infinite;
+    }
+    html[data-brand="wisehire"] #pre-react-splash .prs-glow {
+      background: radial-gradient(circle, #1D4ED8 0%, transparent 70%);
+    }
+    #pre-react-splash .prs-icon {
+      width: 72px;
+      height: 72px;
+      border-radius: 16px;
+      -o-object-fit: contain;
+         object-fit: contain;
+      position: relative;
+    }
+    html[data-brand="wisehire"] #pre-react-splash .prs-icon {
+      filter: hue-rotate(220deg) saturate(2) brightness(0.85);
+    }
+    #pre-react-splash .prs-name {
+      margin: 20px 0 0 0;
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      line-height: 1;
+    }
+    html[data-brand="wiseresume"] #pre-react-splash .prs-name::before { content: "WiseResume"; }
+    html[data-brand="wisehire"] #pre-react-splash .prs-name::before { content: "WiseHire"; color: #1D4ED8; }
+    #pre-react-splash .prs-tagline {
+      margin: 6px 0 0 0;
+      font-size: 0.875rem;
+      opacity: 0.65;
+    }
+    html[data-brand="wiseresume"] #pre-react-splash .prs-tagline::before { content: "Your AI Career Partner"; }
+    html[data-brand="wisehire"] #pre-react-splash .prs-tagline::before { content: "Hire Smarter. Screen Faster."; }
+    html[data-initial-theme="dark"] #pre-react-splash .prs-tagline { opacity: 0.7; }
+    @keyframes prs-breathe {
+      0%, 100% { opacity: 0.06; }
+      50% { opacity: 0.14; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #pre-react-splash .prs-glow { animation: none; opacity: 0.08; }
+    }
+  </style>
+
+  <!-- Open Graph (og:image is declared higher so the pre-React script can swap it on first paint) -->
+  <meta property="og:type" content="website" />
+
+  <!-- Twitter Card (twitter:image is declared higher so the pre-React script can swap it on first paint) -->
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:site" content="@WiseresumeAI" />
+  <meta property="og:title" content="Wiseresume AI - AI Resume Editor">
+  <meta name="twitter:title" content="Wiseresume AI - AI Resume Editor">
+  <meta property="og:description"
+    content="AI-powered resume editor with job match scoring, gap analysis, and ATS-friendly templates. Optimize your resume for any job.">
+  <meta name="twitter:description"
+    content="AI-powered resume editor with job match scoring, gap analysis, and ATS-friendly templates. Optimize your resume for any job.">
+  <script type="module" crossorigin src="/assets/index-CC6IJ5ks.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/react-query-tVCEkh1-.js">
+  <link rel="modulepreload" crossorigin href="/assets/kinde-auth-CBRyRz5e.js">
+  <link rel="modulepreload" crossorigin href="/assets/supabase-CcHlFPUn.js">
+  <link rel="modulepreload" crossorigin href="/assets/radix-C9fRM7LD.js">
+  <link rel="modulepreload" crossorigin href="/assets/charts-TsyqrN3i.js">
+  <link rel="modulepreload" crossorigin href="/assets/zustand-BZEXBI_A.js">
+  <link rel="stylesheet" crossorigin href="/assets/index-dzuHOosc.css">
+  <script src="/assets/prefetch-8b632668.js" defer></script>
+</head>
+
+<body style="margin:0;">
+  <div id="root"></div>
+  <!-- Pre-React splash: brand/visibility driven by html[data-brand] / data-splash-painted set in <head>. -->
+  <div id="pre-react-splash" aria-hidden="true">
+    <div class="prs-glow"></div>
+    <img class="prs-icon" src="/favicon.png" alt="" />
+    <h1 class="prs-name"></h1>
+    <p class="prs-tagline"></p>
+  </div>
+</body>
+
+</html>
