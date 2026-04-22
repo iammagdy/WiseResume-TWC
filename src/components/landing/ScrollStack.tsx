@@ -342,7 +342,17 @@ const ScrollStack = ({
         if (isPinned) {
           translateY = scrollTop - cardTop + stackPositionPx + p.itemStackDistance * i;
         } else if (scrollTop > pinEnd) {
-          translateY = pinEnd - cardTop + stackPositionPx + p.itemStackDistance * i;
+          /* Release ramp: after pinEnd, smoothly interpolate translateY
+             back to 0 over the remaining `endElementTop - pinEnd` range
+             (= containerHeight / 2 by construction). This ensures every
+             card returns to its natural layout position by the time the
+             user reaches the end of the stack section, so cards scroll
+             off the top of the viewport naturally instead of staying
+             frozen near the top and overlapping the next section. */
+          const frozenY = pinEnd - cardTop + stackPositionPx + p.itemStackDistance * i;
+          const releaseRange = Math.max(1, endElementTop - pinEnd);
+          const releaseProgress = Math.min(1, (scrollTop - pinEnd) / releaseRange);
+          translateY = frozenY * (1 - releaseProgress);
         }
 
         const newTransform: CardTransform = {
