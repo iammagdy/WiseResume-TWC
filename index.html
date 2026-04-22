@@ -86,6 +86,7 @@
       var bg = resolved === 'dark' ? '#111111' : '#ffffff';
       document.documentElement.style.background = bg;
       var s = document.createElement('style');
+      s.id = 'pre-react-bg';
       s.textContent = 'body{background:' + bg + '!important;}';
       document.head.appendChild(s);
 

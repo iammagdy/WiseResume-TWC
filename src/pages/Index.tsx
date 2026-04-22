@@ -82,8 +82,19 @@ const Index = () => {
   const setThemeStore = useSettingsStore((s) => s.setTheme);
   const setLpProduct = useSettingsStore((s) => s.setLpProduct);
   const [isDark, setIsDark] = useState(() => resolveIsDark(storeTheme));
+  const preReactBgRemovedRef = useRef(false);
 
   useEffect(() => { setIsDark(resolveIsDark(storeTheme)); }, [storeTheme]);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.remove('light', 'dark');
+    root.classList.add(isDark ? 'dark' : 'light');
+    if (!preReactBgRemovedRef.current) {
+      preReactBgRemovedRef.current = true;
+      document.getElementById('pre-react-bg')?.remove();
+    }
+  }, [isDark]);
 
   const progressRef = useRef<HTMLDivElement>(null);
   const heroRef = useRef<HTMLElement>(null);
