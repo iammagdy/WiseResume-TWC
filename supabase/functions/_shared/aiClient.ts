@@ -1557,7 +1557,7 @@ function isSkippableError(err: unknown): boolean {
  * is intentionally pinned — never discovered via /models — because OpenRouter 2
  * exists specifically to route to this model.
  */
-const OPENROUTER2_PINNED_MODEL = 'openrouter/elephant-alpha';
+const OPENROUTER2_PINNED_MODEL = 'openai/gpt-oss-120b:free';
 
 export async function callWiseresumeAI(
   subProvider: 'openrouter' | 'groq' | 'auto' | 'openrouter2',

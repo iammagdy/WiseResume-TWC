@@ -23,9 +23,9 @@
     "minimax/minimax-m2.5:free",
     "liquid/lfm-2.5-1.2b-thinking:free",
     "google/gemma-4-26b-a4b-it:free",
-    "openrouter/elephant-alpha",
-    "liquid/lfm-2.5-1.2b-instruct:free",
-    "openai/gpt-oss-120b:free"
+    "openai/gpt-oss-120b:free",
+    "inclusionai/ling-2.6-flash:free",
+    "liquid/lfm-2.5-1.2b-instruct:free"
   ],
   "openrouterAutoSentinel": "__auto__"
 }

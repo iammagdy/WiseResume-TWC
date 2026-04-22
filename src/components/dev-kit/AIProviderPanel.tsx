@@ -510,7 +510,7 @@ function TestBanner({
 const SUB_PROVIDER_OPTIONS: { value: WiseresumeSubProvider; label: string; desc: string }[] = [
   { value: 'auto', label: 'Auto', desc: 'OpenRouter → OpenRouter 2 → Groq fallback' },
   { value: 'openrouter', label: 'OpenRouter', desc: 'Route all calls via OpenRouter' },
-  { value: 'openrouter2', label: 'OpenRouter 2', desc: 'Route all calls via OpenRouter 2 (openrouter/elephant-alpha)' },
+  { value: 'openrouter2', label: 'OpenRouter 2', desc: 'Route all calls via OpenRouter 2 (openai/gpt-oss-120b:free)' },
   { value: 'groq', label: 'Groq', desc: 'Route all calls via Groq' },
 ];
 
@@ -670,7 +670,7 @@ function FeatureRoutingSection({ subProvider }: { subProvider: WiseresumeSubProv
       : subProvider === 'openrouter'
       ? 'OpenRouter (configured model)'
       : subProvider === 'openrouter2'
-      ? 'OpenRouter 2 (openrouter/elephant-alpha)'
+      ? 'OpenRouter 2 (openai/gpt-oss-120b:free)'
       : 'OpenRouter → OpenRouter 2 → Groq fallback';
 
   const routeColor =
@@ -1001,7 +1001,7 @@ function OpenRouterPanel({
 
 /**
  * OpenRouter 2 is a secondary OpenRouter managed account pinned to one model
- * (`openrouter/elephant-alpha`). The slug is fixed in `aiClient.ts` — there is
+ * (`openai/gpt-oss-120b:free`). The slug is fixed in `aiClient.ts` — there is
  * no model picker, no live `/models` discovery, and no "active model" state to
  * persist. The panel shows balance + breaker + a Test connection button.
  */
@@ -1097,7 +1097,7 @@ function OpenRouter2Panel({
       <div className="p-3 rounded-lg bg-muted/50 border border-border space-y-1.5">
         <p className="text-xs font-medium text-foreground">Pinned model</p>
         <code className="text-xs font-mono text-fuchsia-600 dark:text-fuchsia-400">
-          {status?.pinnedModel ?? 'openrouter/elephant-alpha'}
+          {status?.pinnedModel ?? 'openai/gpt-oss-120b:free'}
         </code>
         <p className="text-[11px] text-muted-foreground">
           OpenRouter 2 always routes to this model; live model discovery is intentionally disabled.

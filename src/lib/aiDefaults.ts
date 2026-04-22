@@ -46,4 +46,4 @@ export function isAllowedOpenRouterModel(model: string): boolean {
  * managed key. If the slug ever needs to change, update it in the routing
  * code (`aiClient.ts`); it intentionally lives outside the curated list.
  */
-export const OPENROUTER2_DEFAULT_MODEL = 'openrouter/elephant-alpha';
+export const OPENROUTER2_DEFAULT_MODEL = 'openai/gpt-oss-120b:free';

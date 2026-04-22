@@ -274,7 +274,7 @@ export function AppSettingsPanel() {
           {([
             { value: 'auto', label: 'Auto (best available)', description: 'Tries OpenRouter → OpenRouter 2 → Groq in order' },
             { value: 'openrouter', label: 'OpenRouter · Gemma 4', description: 'Google Gemma 4 via OpenRouter (free tier)' },
-            { value: 'openrouter2', label: 'OpenRouter 2 · Elephant Alpha', description: 'openrouter/elephant-alpha via the secondary OpenRouter account' },
+            { value: 'openrouter2', label: 'OpenRouter 2 · GPT-OSS 120B', description: 'openai/gpt-oss-120b:free via the secondary OpenRouter account' },
             { value: 'groq', label: 'Groq · Qwen 3 32B', description: 'Qwen 3 32B via Groq (free tier — primary Groq model in fallback chain)' },
           ] as const).map((opt) => {
             const current = (settings.wiseresume_ai_engine as string) ?? 'auto';

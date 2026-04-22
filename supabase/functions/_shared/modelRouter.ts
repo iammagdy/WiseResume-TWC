@@ -5,11 +5,11 @@
  *
  *   • 'openrouter'  → Gemma 4 (OPENROUTER_API_KEY)         — creative writing,
  *                                                            chat, friendly tone
- *   • 'openrouter2' → Elephant (OPENROUTER2_API_KEY)       — premium reasoning,
+ *   • 'openrouter2' → gpt-oss-120b (OPENROUTER2_API_KEY)   — premium reasoning,
  *                                                            HR/recruiting,
  *                                                            long-context
  *                                                            analysis
- *   • 'groq'        → Qwen 3-32B (GROQ_API_KEY)            — fast, strict JSON
+ *   • 'groq'        → llama-3.3-70b (GROQ_API_KEY)         — fast, strict JSON
  *                                                            extraction,
  *                                                            classification,
  *                                                            detection
@@ -34,8 +34,14 @@ export interface ToolRoute {
 }
 
 const GEMMA_MODEL = 'google/gemma-4-31b-it:free';
-const ELEPHANT_MODEL = 'openrouter/elephant-alpha';
-const QWEN_MODEL = 'qwen/qwen3-32b';
+// Premium reasoning replacement for the retired `openrouter/elephant-alpha`.
+// `openai/gpt-oss-120b:free` is OpenAI's open-weights 120B model — strong on
+// HR/recruiting reasoning, free on OpenRouter, no thinking-token leakage.
+const ELEPHANT_MODEL = 'openai/gpt-oss-120b:free';
+// Fast structured-output workhorse on Groq. Replaces `qwen/qwen3-32b` which
+// shipped reasoning tokens (`<think>...`) into the response by default and was
+// breaking JSON parsers downstream.
+const QWEN_MODEL = 'llama-3.3-70b-versatile';
 
 /**
  * Tool → route mapping. Update this single table to retune the whole app.

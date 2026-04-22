@@ -77,7 +77,7 @@ export async function callGemma(opts: CallOpts): Promise<ProviderResult> {
 }
 
 export async function callElephant(opts: CallOpts): Promise<ProviderResult> {
-  const model = 'openrouter/elephant-alpha';
+  const model = 'openai/gpt-oss-120b:free';
   const start = Date.now();
   try {
     const { status, body } = await postJSON(
@@ -103,7 +103,7 @@ export async function callElephant(opts: CallOpts): Promise<ProviderResult> {
 }
 
 export async function callQwen(opts: CallOpts): Promise<ProviderResult> {
-  const model = 'qwen/qwen3-32b';
+  const model = 'llama-3.3-70b-versatile';
   const start = Date.now();
   try {
     const { status, body } = await postJSON(
