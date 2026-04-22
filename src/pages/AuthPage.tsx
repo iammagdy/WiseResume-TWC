@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { motion, useReducedMotion } from 'framer-motion';
@@ -169,6 +169,7 @@ export default function AuthPage() {
   const { isAuthenticated, loading: authLoading } = useAuth();
   const { login: kindeLogin, register: kindeRegister } = useKindeAuth();
   const triggered = useRef(false);
+  const [popupBlocked, setPopupBlocked] = useState(false);
 
   const redirectTo = searchParams.get('redirect') || '/dashboard';
   const mode = searchParams.get('mode');
@@ -205,8 +206,16 @@ export default function AuthPage() {
         } else {
           await kindeRegister();
         }
-      } catch {
-        toast.error('Authentication is not available right now. Please try again later.');
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        const inIframe = window.self !== window.top;
+        if (inIframe && msg.toLowerCase().includes('popup')) {
+          // Running inside an iframe (e.g. Replit preview) — the browser blocks
+          // popups from iframes. Show a prompt to open the app in its own tab.
+          setPopupBlocked(true);
+        } else {
+          toast.error('Authentication is not available right now. Please try again later.');
+        }
       }
     })();
   }, [authLoading, isAuthenticated, mode, plan, kindeLogin, kindeRegister, fromConfig]);
@@ -265,6 +274,32 @@ export default function AuthPage() {
             </Button>
           </motion.div>
         </div>
+      </div>
+    );
+  }
+
+  // ── Popup-blocked fallback (Replit preview / sandboxed iframe) ───────────
+  if (popupBlocked) {
+    return (
+      <div
+        className="fixed inset-0 flex flex-col items-center justify-center gap-6 px-6"
+        style={{ background: HERO_GRADIENT }}
+      >
+        <AppIcon size={56} />
+        <div className="flex flex-col items-center gap-3 text-center max-w-sm">
+          <p className="text-base font-semibold" style={{ color: 'rgba(255,255,255,0.9)' }}>
+            Open the app in its own tab
+          </p>
+          <p className="text-sm" style={{ color: 'rgba(255,255,255,0.5)' }}>
+            Sign-in requires a full browser window. Click below to continue.
+          </p>
+        </div>
+        <Button
+          onClick={() => window.open(window.location.href, '_blank')}
+          className="mt-2"
+        >
+          Open in new tab
+        </Button>
       </div>
     );
   }
