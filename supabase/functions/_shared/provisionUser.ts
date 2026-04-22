@@ -145,6 +145,28 @@ export async function provisionUser(
     });
   }
 
+  /**
+   * Best-effort cleanup: delete the freshly-created auth.users row when a
+   * downstream upsert fails, so callers always see a clean retryable state.
+   * Supabase admin.deleteUser returns { error } rather than throwing, so we
+   * inspect the error explicitly and log it rather than relying on .catch().
+   */
+  async function tryCleanupAuthUser(): Promise<void> {
+    try {
+      const { error: delErr } = await serviceClient.auth.admin.deleteUser(userId);
+      if (delErr) {
+        console.error('[provisionUser] cleanup deleteUser returned error', {
+          userId,
+          errorMsg: delErr.message,
+        });
+      } else {
+        console.log('[provisionUser] cleanup: orphaned auth.users row deleted', { userId });
+      }
+    } catch (e) {
+      console.error('[provisionUser] cleanup deleteUser threw unexpectedly', { userId, e });
+    }
+  }
+
   // ── Step 2: upsert public.profiles ───────────────────────────────────────
   const profileRow: Record<string, unknown> = { user_id: userId };
   if (email) profileRow.contact_email = email;
@@ -158,12 +180,7 @@ export async function provisionUser(
       userId,
       errorMsg: profileError.message,
     });
-    if (freshlyCreated) {
-      // Clean up the orphaned auth.users row so the user can retry cleanly.
-      await serviceClient.auth.admin.deleteUser(userId).catch((e) =>
-        console.warn('[provisionUser] cleanup deleteUser failed', e)
-      );
-    }
+    if (freshlyCreated) await tryCleanupAuthUser();
     throw new ProvisionError('PROFILE_UPSERT_FAILED', 500, 'Could not create user profile');
   }
 
@@ -177,11 +194,7 @@ export async function provisionUser(
       userId,
       errorMsg: prefsError.message,
     });
-    if (freshlyCreated) {
-      await serviceClient.auth.admin.deleteUser(userId).catch((e) =>
-        console.warn('[provisionUser] cleanup deleteUser failed', e)
-      );
-    }
+    if (freshlyCreated) await tryCleanupAuthUser();
     throw new ProvisionError(
       'PREFS_UPSERT_FAILED',
       500,
@@ -203,12 +216,7 @@ export async function provisionUser(
       userId,
       errorMsg: subError.message,
     });
-    if (freshlyCreated) {
-      // Clean up orphaned auth.users row so the user can retry cleanly.
-      await serviceClient.auth.admin.deleteUser(userId).catch((e) =>
-        console.warn('[provisionUser] cleanup deleteUser failed', e)
-      );
-    }
+    if (freshlyCreated) await tryCleanupAuthUser();
     throw new ProvisionError(
       'SUBSCRIPTION_UPSERT_FAILED',
       500,
