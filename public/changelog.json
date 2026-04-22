@@ -1,8 +1,20 @@
 [
   {
+    "version": "v3.5.1",
+    "date": "Apr 22, 2026",
+    "latest": true,
+    "summary": "Patch release with stability and reliability improvements across the full 3.5.x cycle.",
+    "items": [
+      {
+        "title": "Stability and reliability improvements",
+        "description": "This patch consolidates the improvements from the 3.5.x release cycle, ensuring everything works smoothly and consistently for all users."
+      }
+    ]
+  },
+  {
     "version": "v3.5.0",
     "date": "Apr 21, 2026",
-    "latest": true,
+    "latest": false,
     "summary": "Pre-production polish: schema sync, API hardening, and faster landing page.",
     "items": [
       {
