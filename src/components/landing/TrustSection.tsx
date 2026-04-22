@@ -70,6 +70,7 @@ export function TrustSection() {
         borderBottom: '1px solid var(--lp-border)',
         width: '100%',
         transition: 'background 0.3s ease',
+        overflow: 'hidden',
       }}
     >
       <div
