@@ -108,6 +108,16 @@ body[data-lp-scheme="light"] { background-color: #fff5f5; }
 body[data-lp-scheme="dark"][data-lp-product="wisehire"] { background-color: #060912; }
 body[data-lp-scheme="light"][data-lp-product="wisehire"] { background-color: #f0f5ff; }
 
+/* --lp-ticker-edge: the opaque colour the FeatureTicker / WiseHireFeatureTicker
+   edge-fade gradients must start from.  --lp-bg is transparent in dark mode,
+   so a gradient from transparent → transparent is invisible and items appear
+   abruptly at the ticker edges.  These values match the body background
+   colours above so the fade blends seamlessly with the page backdrop. */
+.lp-root                                           { --lp-ticker-edge: #0a0a0f; }
+.lp-root[data-lp-scheme="light"]                   { --lp-ticker-edge: #fff5f5; }
+.lp-root[data-lp-product="wisehire"]               { --lp-ticker-edge: #060912; }
+.lp-root[data-lp-product="wisehire"][data-lp-scheme="light"] { --lp-ticker-edge: #f0f5ff; }
+
 /* Phase 5: defensive guard — any element ScrollStack manages writes its
    own inline transform every frame; a CSS :hover translate on the same
    element would be clobbered (and cause jitter when hovering between

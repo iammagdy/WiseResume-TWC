@@ -75,7 +75,7 @@ export function FeatureTicker({ lpMode }: FeatureTickerProps) {
         className="pointer-events-none absolute inset-y-0 left-0 w-20 z-10"
         style={{
           background: lpMode
-            ? 'linear-gradient(to right, var(--lp-bg), transparent)'
+            ? 'linear-gradient(to right, var(--lp-ticker-edge), transparent)'
             : 'linear-gradient(to right, hsl(var(--background)), transparent)',
         }}
       />
@@ -83,7 +83,7 @@ export function FeatureTicker({ lpMode }: FeatureTickerProps) {
         className="pointer-events-none absolute inset-y-0 right-0 w-20 z-10"
         style={{
           background: lpMode
-            ? 'linear-gradient(to left, var(--lp-bg), transparent)'
+            ? 'linear-gradient(to left, var(--lp-ticker-edge), transparent)'
             : 'linear-gradient(to left, hsl(var(--background)), transparent)',
         }}
       />
