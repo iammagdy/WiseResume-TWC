@@ -63,11 +63,35 @@ interface TransformParams {
   rotationAmount: number;
   blurAmount: number;
   useWindowScroll: boolean;
+  itemDistance: number;
 }
 
 const prefersReducedMotion = (): boolean => {
   if (typeof window === "undefined" || !window.matchMedia) return false;
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+};
+
+/* Returns true when the primary pointer is coarse (touch screen).
+   Used to choose calmer Lenis touch settings so a normal swipe
+   advances ~one card rather than flying past several. */
+const isCoarsePointer = (): boolean => {
+  if (typeof window === "undefined" || !window.matchMedia) return false;
+  return window.matchMedia("(pointer: coarse)").matches;
+};
+
+/* Viewport-aware inter-card gap.
+   On short viewports (landscape phones / small tablets) the fixed 480 px
+   gap is a large fraction of the screen, so combined with Lenis touch
+   momentum it causes cards to fly by before the user can read them.
+   Cap at 50% of current viewport height on short screens so each card
+   occupies a meaningful portion of the scroll range. Desktop (≥ 900 px
+   tall) always gets the caller-provided base value unchanged. */
+const effectiveItemDistance = (base: number): number => {
+  if (typeof window === "undefined") return base;
+  const vh = window.innerHeight;
+  if (vh <= 600) return Math.min(base, Math.round(vh * 0.40));
+  if (vh <= 800) return Math.min(base, Math.round(vh * 0.50));
+  return base;
 };
 
 const ScrollStack = ({
@@ -118,6 +142,7 @@ const ScrollStack = ({
     rotationAmount,
     blurAmount,
     useWindowScroll,
+    itemDistance,
   });
   paramsRef.current = {
     itemScale,
@@ -128,18 +153,22 @@ const ScrollStack = ({
     rotationAmount,
     blurAmount,
     useWindowScroll,
+    itemDistance,
   };
 
   /* === Update effect: reflows card spacing when itemDistance changes,
-     does not touch Lenis. === */
+     does not touch Lenis. Uses viewport-aware effective distance so
+     orientation changes (which trigger a remeasureLayout resize callback)
+     automatically re-apply appropriate margins. === */
   useLayoutEffect(() => {
     const cards = cardsRef.current;
+    const dist = effectiveItemDistance(itemDistance);
     cards.forEach((card, i) => {
       /* Margin lives on the wrapper so the inter-card divider (drawn on
          `.scroll-stack-card-wrap::after`) is not clipped by the card's
          overflow:hidden. Fall back to the card itself for safety. */
       const wrap = (card.parentElement as HTMLElement | null) ?? card;
-      wrap.style.marginBottom = i < cards.length - 1 ? `${itemDistance}px` : "0px";
+      wrap.style.marginBottom = i < cards.length - 1 ? `${dist}px` : "0px";
       card.style.marginBottom = "0px";
     });
   }, [itemDistance]);
@@ -166,7 +195,7 @@ const ScrollStack = ({
     cards.forEach((card, i) => {
       const wrap = (card.parentElement as HTMLElement | null) ?? card;
       if (i < cards.length - 1) {
-        wrap.style.marginBottom = `${itemDistance}px`;
+        wrap.style.marginBottom = `${effectiveItemDistance(itemDistance)}px`;
       }
       card.style.willChange = "transform, filter";
       card.style.transformOrigin = "top center";
@@ -218,6 +247,14 @@ const ScrollStack = ({
     };
 
     const remeasureLayout = () => {
+      /* Re-apply viewport-aware margins before reading positions so that
+         the cached layout tops reflect the correct margin (critical after
+         orientation changes where viewport height flips). */
+      const dist = effectiveItemDistance(paramsRef.current.itemDistance);
+      cardsRef.current.forEach((card, i) => {
+        const wrap = (card.parentElement as HTMLElement | null) ?? card;
+        wrap.style.marginBottom = i < cardsRef.current.length - 1 ? `${dist}px` : "0px";
+      });
       cardLayoutTopsRef.current = cardsRef.current.map((card) =>
         measureLayoutTop(card),
       );
@@ -394,18 +431,23 @@ const ScrollStack = ({
       };
     }
 
-    /* --- Standard path: Lenis + RAF gated by IntersectionObserver --- */
+    /* --- Standard path: Lenis + RAF gated by IntersectionObserver ---
+       On coarse-pointer (touch) devices we disable syncTouch and reduce
+       touchMultiplier so that a normal finger swipe advances roughly one
+       card rather than flying past several via native momentum. Desktop
+       wheel feel is unchanged. */
+    const touch = isCoarsePointer();
     const lenis = useWindowScroll
       ? new Lenis({
           duration: 1.2,
           easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
           smoothWheel: true,
-          touchMultiplier: 2,
+          touchMultiplier: touch ? 1.0 : 2,
           infinite: false,
           gestureOrientation: "vertical",
           wheelMultiplier: 1,
-          lerp: 0.1,
-          syncTouch: true,
+          lerp: touch ? 0.08 : 0.1,
+          syncTouch: touch ? false : true,
           syncTouchLerp: 0.075,
         })
       : new Lenis({
@@ -414,12 +456,12 @@ const ScrollStack = ({
           duration: 1.2,
           easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
           smoothWheel: true,
-          touchMultiplier: 2,
+          touchMultiplier: touch ? 1.0 : 2,
           infinite: false,
           gestureOrientation: "vertical",
           wheelMultiplier: 1,
-          lerp: 0.1,
-          syncTouch: true,
+          lerp: touch ? 0.08 : 0.1,
+          syncTouch: touch ? false : true,
           syncTouchLerp: 0.075,
         });
 

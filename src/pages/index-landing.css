@@ -714,11 +714,30 @@ body[data-lp-scheme="light"][data-lp-product="wisehire"] { background-color: #f0
 }
 .lp-stack-sticky-header > * { pointer-events: auto; }
 
+/* Compact the sticky header on short viewports (landscape phones).
+   Reduces padding so more scroll area is available and the header
+   doesn't eat half the viewport height. */
+@media (max-height: 550px) {
+  .lp-stack-sticky-header {
+    padding-top: 10px;
+    padding-bottom: 8px;
+    gap: 6px;
+  }
+  .lp-stack-sticky-header h2 {
+    font-size: 1.35rem !important;
+  }
+  .lp-stack-sticky-header p {
+    display: none;
+  }
+}
+
 .lp-stack-step-chip {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   padding: 6px 14px;
+  max-width: calc(100% - 32px);
+  overflow: hidden;
   border-radius: 999px;
   font-size: 0.78rem;
   font-weight: 600;

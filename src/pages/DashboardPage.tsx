@@ -692,7 +692,7 @@ function DashboardPageContent() {
                 </Button>
                 <button
                   onClick={() => { setShowProfileBanner(false); sessionStorage.setItem('wr-dismissed-profile-banner', 'true'); }}
-                  className="shrink-0 active:scale-95 min-w-[32px] min-h-[32px] flex items-center justify-center"
+                  className="shrink-0 active:scale-95 min-w-[44px] min-h-[44px] flex items-center justify-center"
                   aria-label="Dismiss"
                 >
                   <X className="w-4 h-4 text-muted-foreground/70" />
