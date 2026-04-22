@@ -147,8 +147,21 @@ export async function parseAIErrorResponse(res: Response): Promise<AIErrorInfo> 
  */
 export function parseAIErrorBody(body: unknown, fallbackStatus = 500): AIErrorInfo {
   const obj = (body && typeof body === 'object') ? (body as Record<string, unknown>) : {};
-  const codeRaw = typeof obj.error === 'string' ? obj.error : '';
-  const message = typeof obj.message === 'string' ? obj.message : '';
+  // Edge functions are inconsistent about which key carries the structured
+  // code: `error` (legacy), `code` (current), `error_code` (a couple of
+  // older paths). Prefer the explicit code keys over the human-readable
+  // `error` string so classify() can route on the canonical code first.
+  const codeRaw =
+    (typeof obj.code === 'string' && obj.code) ||
+    (typeof obj.error_code === 'string' && obj.error_code) ||
+    (typeof obj.error === 'string' && obj.error) ||
+    '';
+  const message =
+    typeof obj.message === 'string'
+      ? obj.message
+      : typeof obj.error === 'string'
+        ? obj.error
+        : '';
   const code = classify(fallbackStatus, codeRaw, message);
   return { code, status: fallbackStatus, message: message || codeRaw || 'Unknown error' };
 }

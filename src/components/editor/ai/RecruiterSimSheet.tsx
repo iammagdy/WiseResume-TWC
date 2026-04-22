@@ -58,7 +58,8 @@ interface RecruiterDraft {
 
 export function RecruiterSimSheet({ open, onOpenChange }: RecruiterSimSheetProps) {
   const { currentResume, updateResume } = useResumeStore(useShallow((s) => ({ currentResume: s.currentResume, updateResume: s.updateResume })));
-  const { rescoreAfterApply } = useAIApplyEffects((currentResume as { id?: string } | null)?.id);
+  const resumeId = (currentResume as { id?: string } | null)?.id;
+  const { rescoreAfterApply } = useAIApplyEffects(resumeId);
   const scrollRef = useScrollFade<HTMLDivElement>();
   const [viewState, setViewState] = useState<ViewState>('persona_select');
   const [selectedPersona, setSelectedPersona] = useState<RecruiterPersonaInfo | null>(null);
