@@ -956,7 +956,11 @@ serve(async (req) => {
     await recordUsage(userId, 'enhance', { section, action, provider: aiResponse.providerUsed || 'unknown' });
 
 
-    const responseBody: Record<string, unknown> = { ...(enhancedContent as Record<string, unknown>) };
+    // IMPORTANT: serialise `finalContent` (the post-validation, post-retry,
+    // post-strip payload) — NOT the raw parsed `enhancedContent` — so that
+    // any improvements from the output-quality retry and any echo-field
+    // stripping are actually delivered to the client.
+    const responseBody: Record<string, unknown> = { ...(finalContent as Record<string, unknown>) };
     responseBody._providerUsed = aiResponse.providerUsed || 'unknown';
     if (aiResponse.fallbackUsed) {
       responseBody._fallbackUsed = true;
