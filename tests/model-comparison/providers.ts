@@ -28,19 +28,46 @@ interface CallOpts {
   jsonMode?: boolean;
 }
 
-async function postJSON(url: string, key: string, body: unknown, headers: Record<string, string> = {}): Promise<{ status: number; body: any }> {
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${key}`,
-      ...headers,
-    },
-    body: JSON.stringify(body),
-  });
-  let parsed: any = null;
-  try { parsed = await res.json(); } catch { /* ignore */ }
-  return { status: res.status, body: parsed };
+function sleep(ms: number) { return new Promise((r) => setTimeout(r, ms)); }
+
+/**
+ * Free-tier providers (OpenRouter free models, Groq free) throttle aggressively
+ * when running 30 tests back-to-back. Production never sees this because real
+ * users fire tools minutes apart. We retry once on 429 to make the test give a
+ * true picture of router correctness rather than a portrait of free-tier limits.
+ */
+async function postJSON(
+  url: string,
+  key: string,
+  body: unknown,
+  headers: Record<string, string> = {},
+  { retries = 2, baseDelayMs = 8000 } = {},
+): Promise<{ status: number; body: any }> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${key}`,
+        ...headers,
+      },
+      body: JSON.stringify(body),
+    });
+    let parsed: any = null;
+    try { parsed = await res.json(); } catch { /* ignore */ }
+    if (res.status !== 429 || attempt === retries) {
+      return { status: res.status, body: parsed };
+    }
+    // Honor Retry-After when present, else exponential backoff.
+    const retryAfterHeader = res.headers.get('retry-after');
+    const retryAfterSec = retryAfterHeader ? Number(retryAfterHeader) : NaN;
+    const delay = Number.isFinite(retryAfterSec) && retryAfterSec > 0
+      ? retryAfterSec * 1000
+      : baseDelayMs * Math.pow(2, attempt);
+    await sleep(Math.min(delay, 60_000));
+  }
+  // unreachable
+  return { status: 0, body: null };
 }
 
 function buildMessages(opts: CallOpts) {
