@@ -565,8 +565,16 @@ function AuroraLayer() {
 
   const theme = useSettingsStore((s) => s.theme);
   const lpProduct = useSettingsStore((s) => s.lpProduct);
-  const isLandingPage = path === '/';
-  const effectiveLpProduct = isLandingPage ? lpProduct : 'jobseeker';
+  // Landing routes that surface the product toggle. `/enterprises` is the
+  // canonical WiseHire landing URL — force WiseHire tint there regardless of
+  // the persisted toggle so a deep-link to `/enterprises` always paints the
+  // blue aurora. `/` honors the toggle (Individuals ↔ Enterprises).
+  const isLandingPage = path === '/' || path === '/enterprises';
+  const effectiveLpProduct = path === '/enterprises'
+    ? 'wisehire'
+    : isLandingPage
+      ? lpProduct
+      : 'jobseeker';
 
   useEffect(() => {
     if (!isPublicPage) return;
@@ -585,6 +593,16 @@ function AuroraLayer() {
       ? (isDark ? '#00061a' : '#f0f5ff')
       : (isDark ? '#0a0000' : '#fff5f5');
     document.documentElement.classList.add('aurora-active');
+
+    // Defensively remove the pre-React bg style element (set in index.html
+    // before React mounts to prevent the LCP flash). It is inline + opaque
+    // (e.g. `body{background:#111111!important}`) and would otherwise fight
+    // the aurora's transparency on the body. Index.tsx removes it on its
+    // own first paint, but mounting/unmounting AuroraLayer (route changes,
+    // chunk hydration) is the correct lifecycle hook to guarantee removal.
+    const preReactBg = document.getElementById('pre-react-bg');
+    if (preReactBg) preReactBg.remove();
+
     return () => {
       body.style.backgroundColor = prevBodyBg;
       document.documentElement.classList.remove('aurora-active');
