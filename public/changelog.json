@@ -1,8 +1,24 @@
 [
   {
-    "version": "v3.5.1",
+    "version": "v3.5.2",
     "date": "Apr 22, 2026",
     "latest": true,
+    "summary": "Landing page polish: cleaner section transitions and a calmer scroll experience.",
+    "items": [
+      {
+        "title": "Cleaner privacy section on the landing page",
+        "description": "Fixed an issue where the last product card could overlap the privacy section as you scrolled past it. The transition between sections is now clean."
+      },
+      {
+        "title": "Steadier landing page entrance",
+        "description": "Trust section cards now slide in from the sides without any vertical bounce, and the version label no longer flashes briefly during the first load."
+      }
+    ]
+  },
+  {
+    "version": "v3.5.1",
+    "date": "Apr 22, 2026",
+    "latest": false,
     "summary": "Patch release with stability and reliability improvements across the full 3.5.x cycle.",
     "items": [
       {
