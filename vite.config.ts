@@ -147,7 +147,10 @@ export default defineConfig(() => ({
     // No CSP header in dev — the production build injects it via meta tag.
     // Vite's own dev-server scripts (HMR, module preload) use inline scripts
     // and event handlers that would require 'unsafe-inline' to pass.
-    headers: {},
+    // Document-Policy is required for Sentry browser profiling.
+    headers: {
+      'Document-Policy': 'js-profiling',
+    },
     proxy: {
       // Proxy server-side API calls through the Express server (port 5001)
       // This keeps server-only secrets (DB, service keys) off the client

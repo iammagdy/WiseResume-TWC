@@ -44,6 +44,11 @@ const app = express();
 const PORT = parseInt(process.env.API_PORT || '5001', 10);
 
 // ── Middleware ────────────────────────────────────────────────────────────────
+// Required for Sentry browser profiling — must be present on the document response.
+app.use((_req, res, next) => {
+  res.setHeader('Document-Policy', 'js-profiling');
+  next();
+});
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 

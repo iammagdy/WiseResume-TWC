@@ -34,12 +34,14 @@ export function initMonitoring(): void {
     release: __APP_VERSION__,
     integrations: [
       Sentry.browserTracingIntegration(),
+      Sentry.browserProfilingIntegration(),
       Sentry.replayIntegration({
         maskAllText: true,
         blockAllMedia: true,
       }),
     ],
     tracesSampleRate: ENV === 'production' ? 0.1 : 1.0,
+    profileSessionSampleRate: ENV === 'production' ? 0.1 : 1.0,
     replaysSessionSampleRate: 0.0,
     replaysOnErrorSampleRate: 1.0,
     beforeSend(event) {
