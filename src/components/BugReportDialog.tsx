@@ -195,8 +195,8 @@ export function BugReportDialog() {
         if (fbErr) throw fbErr;
         if (fbRes?.success) {
           activityTracker.clearErrors();
-          setStatus('success');
-          setTimeout(() => setOpen(false), 2000);
+          setStatus('saved');
+          setTimeout(() => setOpen(false), 3000);
           return;
         }
       } catch (fallbackErr) {

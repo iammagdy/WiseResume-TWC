@@ -46,13 +46,14 @@ window.addEventListener('error', (event) => {
   const err = event.error;
   const detail = err instanceof Error
     ? `${err.name}: ${err.message}\n${err.stack ?? ''}`
-    : String(err);
+    : String(err ?? event.message ?? 'Unknown error');
   console.error('Global Error:', detail);
-  captureError(err, { source: 'window.onerror' });
+  captureError(err ?? event.message, { source: 'window.onerror' });
   if (err instanceof Error) {
     activityTracker.pushRecentError(err.message, err.stack);
-  } else if (typeof err === 'string') {
-    activityTracker.pushRecentError(err);
+  } else {
+    const msg = typeof err === 'string' ? err : event.message;
+    if (msg) activityTracker.pushRecentError(msg);
   }
 });
 

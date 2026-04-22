@@ -280,7 +280,7 @@ export class ErrorBoundary extends Component<Props, State> {
             },
           },
         });
-        this.setState({ reportStatus: 'sent' });
+        this.setState({ reportStatus: 'saved' });
       } catch {
         this.setState({ reportStatus: 'error' });
       }
