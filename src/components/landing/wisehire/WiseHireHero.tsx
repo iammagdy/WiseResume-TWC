@@ -133,17 +133,14 @@ export function WiseHireHero({ onOpenWaitlist, mobileToggle }: WiseHireHeroProps
         transition: 'background 0.35s ease',
       }}
     >
-      {/* Layered background — primary radial blue glow, soft auxiliary
-          glows, and a subtle grid mesh. All purely decorative + pointer
-          events disabled. The vignette is a separate sibling so it can
-          composite above the grid. */}
-      <div aria-hidden="true" className="wh-hero-bg" />
-      <div aria-hidden="true" className="wh-hero-vignette" />
-
-      {/* Decorative side ornaments — hidden < 1024px via CSS so the
-          mobile/tablet hero stays uncluttered. */}
-      <WhHeroDecor side="left" />
-      <WhHeroDecor side="right" />
+      {/* Decorative background layers (radial blue glow + grid mesh +
+          vignette) and the orbital "pipeline ring" side ornaments were
+          removed at the user's request so the WiseHire landing matches
+          WiseResume's clean aurora-only look. The shared aurora canvas
+          (rendered by AuroraLayer above the route tree) is now the
+          sole hero background. WhHeroDecor / .wh-hero-bg / .wh-hero-vignette
+          definitions are intentionally left in place so the visual can
+          be reinstated without re-authoring it. */}
 
       {/* Mobile product toggle slot — rendered here so it sits inside the hero padding area */}
       {mobileToggle}
