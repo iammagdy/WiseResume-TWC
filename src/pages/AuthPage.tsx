@@ -1,13 +1,14 @@
 import { useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
+import { motion, useReducedMotion } from 'framer-motion';
+import { Lock, CheckCircle, ShieldCheck } from 'lucide-react';
 
 import { useAuth } from '@/hooks/useAuth';
-import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { OfflineBanner } from '@/components/layout/OfflineBanner';
+import { AppIcon } from '@/components/brand/AppIcon';
 import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, ShieldCheck } from 'lucide-react';
 
 type FromContext = 'verify-email' | 'reset-password' | null;
 
@@ -36,6 +37,131 @@ const FROM_CONFIG: Record<
     cta: 'Sign In',
   },
 };
+
+/** Landing-page hero gradient — same tones used across the dark aesthetic */
+const HERO_GRADIENT =
+  'linear-gradient(135deg, #0a0a1a 0%, #0f1525 25%, #12101e 50%, #0d1520 75%, #0a0a1a 100%)';
+
+function AnimatedDots() {
+  return (
+    <div className="flex items-center gap-[6px]">
+      {[0, 1, 2].map((i) => (
+        <motion.span
+          key={i}
+          className="block w-[5px] h-[5px] rounded-full"
+          style={{ backgroundColor: 'rgba(255,255,255,0.35)' }}
+          animate={{ opacity: [0.2, 1, 0.2] }}
+          transition={{ duration: 1, repeat: Infinity, delay: i * 0.2, ease: 'easeInOut' }}
+        />
+      ))}
+    </div>
+  );
+}
+
+/** Full-screen branded redirect screen — shown while the Kinde SDK builds the OAuth URL. */
+function BrandedRedirectScreen({ mode }: { mode: string | null }) {
+  const prefersReduced = useReducedMotion();
+
+  const statusText =
+    mode === 'login' ? 'Signing you in securely\u2026' : 'Taking you to sign up\u2026';
+
+  if (prefersReduced) {
+    return (
+      <div
+        className="fixed inset-0 flex flex-col items-center justify-center gap-5"
+        style={{ background: HERO_GRADIENT }}
+      >
+        <AppIcon size={56} />
+        <p className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.7)' }}>
+          {statusText}
+        </p>
+        <p className="text-xs flex items-center gap-1.5" style={{ color: 'rgba(255,255,255,0.35)' }}>
+          <Lock size={10} />
+          Your data is encrypted and secure
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="fixed inset-0 flex flex-col items-center justify-center overflow-hidden"
+      style={{ background: HERO_GRADIENT }}
+    >
+      {/* Ambient glow blobs — pure CSS, no WebGL */}
+      <div
+        className="pointer-events-none absolute"
+        style={{
+          width: 600,
+          height: 600,
+          borderRadius: '50%',
+          background:
+            'radial-gradient(circle, rgba(239,68,68,0.08) 0%, rgba(239,68,68,0.02) 50%, transparent 70%)',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -60%)',
+        }}
+      />
+      <div
+        className="pointer-events-none absolute"
+        style={{
+          width: 400,
+          height: 400,
+          borderRadius: '50%',
+          background:
+            'radial-gradient(circle, rgba(99,102,241,0.06) 0%, rgba(99,102,241,0.01) 50%, transparent 70%)',
+          top: '60%',
+          left: '55%',
+          transform: 'translate(-50%, -50%)',
+        }}
+      />
+
+      {/* Logo + spinner ring */}
+      <div className="relative w-24 h-24 flex items-center justify-center">
+        <motion.div
+          className="absolute inset-0 rounded-full border-2"
+          style={{
+            borderColor: 'rgba(255,255,255,0.08)',
+            borderTopColor: 'hsl(var(--primary))',
+          }}
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1.0, repeat: Infinity, ease: 'linear' }}
+        />
+        <motion.div
+          className="absolute"
+          initial={{ scale: 0.75, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.45, ease: 'easeOut' }}
+        >
+          <AppIcon size={48} />
+        </motion.div>
+      </div>
+
+      {/* Status text + trust signal */}
+      <motion.div
+        className="flex flex-col items-center gap-3 mt-8"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.15, ease: 'easeOut' }}
+      >
+        <p
+          className="text-sm font-medium tracking-wide"
+          style={{ color: 'rgba(255,255,255,0.75)' }}
+        >
+          {statusText}
+        </p>
+        <AnimatedDots />
+        <p
+          className="text-xs flex items-center gap-1.5 mt-1"
+          style={{ color: 'rgba(255,255,255,0.3)' }}
+        >
+          <Lock size={10} />
+          Your data is encrypted and secure
+        </p>
+      </motion.div>
+    </div>
+  );
+}
 
 export default function AuthPage() {
   const navigate = useNavigate();
@@ -85,16 +211,46 @@ export default function AuthPage() {
     })();
   }, [authLoading, isAuthenticated, mode, plan, kindeLogin, kindeRegister, fromConfig]);
 
+  // ── Contextual post-action card (verify-email / reset-password) ──────────
   if (fromConfig) {
     return (
-      <div className="relative isolate min-h-[100dvh] flex flex-col overflow-hidden bg-background">
+      <div
+        className="relative isolate min-h-[100dvh] flex flex-col overflow-hidden"
+        style={{ background: HERO_GRADIENT }}
+      >
+        {/* Ambient glow blob */}
+        <div
+          className="pointer-events-none absolute"
+          style={{
+            width: 500,
+            height: 500,
+            borderRadius: '50%',
+            background:
+              'radial-gradient(circle, rgba(239,68,68,0.07) 0%, transparent 70%)',
+            top: '30%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+          }}
+        />
         <OfflineBanner />
-        <div className="flex-1 flex flex-col items-center justify-center px-6">
-          <div className="flex flex-col items-center gap-6 px-8 py-10 rounded-2xl bg-card border border-border shadow-soft-lg max-w-sm w-full text-center">
+        <div className="flex-1 flex flex-col items-center justify-center px-6 relative z-10">
+          <motion.div
+            className="flex flex-col items-center gap-6 px-8 py-10 rounded-2xl max-w-sm w-full text-center"
+            style={{
+              background: 'rgba(255,255,255,0.04)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              backdropFilter: 'blur(12px)',
+            }}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, ease: 'easeOut' }}
+          >
             {fromConfig.icon}
             <div className="space-y-2">
-              <h1 className="text-xl font-semibold text-foreground">{fromConfig.title}</h1>
-              <p className="text-sm text-muted-foreground">{fromConfig.body}</p>
+              <h1 className="text-xl font-semibold text-white">{fromConfig.title}</h1>
+              <p className="text-sm" style={{ color: 'rgba(255,255,255,0.55)' }}>
+                {fromConfig.body}
+              </p>
             </div>
             <Button
               className="w-full"
@@ -107,23 +263,17 @@ export default function AuthPage() {
             >
               {fromConfig.cta}
             </Button>
-          </div>
+          </motion.div>
         </div>
       </div>
     );
   }
 
+  // ── Redirect loading screen ───────────────────────────────────────────────
   return (
-    <div className="relative isolate flex flex-col overflow-y-auto bg-background" style={{ maxHeight: '100dvh', height: '100dvh' }}>
+    <>
       <OfflineBanner />
-      <div className="flex-1 flex flex-col items-center justify-center min-h-0 py-8">
-        <div className="flex flex-col items-center gap-4 px-8 py-8 rounded-2xl bg-card border border-border shadow-soft-lg">
-          <MiniSpinner size={28} />
-          <p className="text-sm font-medium text-foreground">
-            {mode === 'login' ? 'Signing you in\u2026' : 'Creating your account\u2026'}
-          </p>
-        </div>
-      </div>
-    </div>
+      <BrandedRedirectScreen mode={mode} />
+    </>
   );
 }
