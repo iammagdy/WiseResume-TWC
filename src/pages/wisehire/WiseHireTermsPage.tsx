@@ -163,7 +163,7 @@ function NumberedSection({ n, title, children }: { n: number; title: string; chi
         >
           {n}
         </span>
-        <span dangerouslySetInnerHTML={{ __html: title }} />
+        <span>{title}</span>
       </h3>
       <div className="pl-8 border-l border-border text-muted-foreground">
         {children}
