@@ -35,8 +35,8 @@ export const ReferencesSection = memo(function ReferencesSection() {
               <button onClick={() => setExpandedId(expandedId === ref.id ? null : ref.id)} className="w-full p-4 flex items-center justify-between hover:bg-muted touch-manipulation active:bg-muted/70 min-h-[72px]">
                 <DragHandle />
                 <div className="flex items-center gap-1 shrink-0">
-                  <button onClick={e => { e.stopPropagation(); moveUp(i); }} disabled={i === 0} className="p-1.5 rounded hover:bg-muted disabled:opacity-30 min-w-[32px] min-h-[32px] flex items-center justify-center" aria-label="Move up"><ArrowUp className="w-3.5 h-3.5" /></button>
-                  <button onClick={e => { e.stopPropagation(); moveDown(i); }} disabled={i === references.length - 1} className="p-1.5 rounded hover:bg-muted disabled:opacity-30 min-w-[32px] min-h-[32px] flex items-center justify-center" aria-label="Move down"><ArrowDown className="w-3.5 h-3.5" /></button>
+                  <button onClick={e => { e.stopPropagation(); moveUp(i); }} disabled={i === 0} className="p-1.5 rounded hover:bg-muted disabled:opacity-30 min-w-[40px] min-h-[40px] flex items-center justify-center touch-manipulation" aria-label="Move up"><ArrowUp className="w-3.5 h-3.5" /></button>
+                  <button onClick={e => { e.stopPropagation(); moveDown(i); }} disabled={i === references.length - 1} className="p-1.5 rounded hover:bg-muted disabled:opacity-30 min-w-[40px] min-h-[40px] flex items-center justify-center touch-manipulation" aria-label="Move down"><ArrowDown className="w-3.5 h-3.5" /></button>
                 </div>
                 <div className="text-left flex-1 min-w-0 px-3"><p className="font-semibold text-sm truncate">{ref.name || `Reference ${i + 1}`}</p><p className="text-sm text-muted-foreground truncate">{ref.title ? `${ref.title} at ${ref.company}` : 'Title & Company'}</p></div>
                 <div className="shrink-0 w-10 h-10 flex items-center justify-center">{expandedId === ref.id ? <ChevronUp className="w-5 h-5 text-muted-foreground" /> : <ChevronDown className="w-5 h-5 text-muted-foreground" />}</div>
