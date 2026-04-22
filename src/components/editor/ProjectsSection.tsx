@@ -16,6 +16,7 @@ import { AIEnhanceDialog } from './ai/AIEnhanceDialog';
 import { ProjectAIQuestionsDialog } from './ai/ProjectAIQuestionsDialog';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import { useAIApplyEffects } from '@/hooks/useAIApplyEffects';
 
 export const ProjectsSection = memo(function ProjectsSection() {
   const projects = useResumeStore(state => state.currentResume?.projects) || [];
@@ -37,6 +38,13 @@ export const ProjectsSection = memo(function ProjectsSection() {
   // any structured fields the AI returned (technologies, etc.).
   const lastImprovedRef = useRef<unknown>(null);
 
+  const { rescoreAfterApply } = useAIApplyEffects(currentResume?.id);
+
+  const triggerRescore = useCallback((nextProjects: Project[]) => {
+    if (!currentResume) return;
+    void rescoreAfterApply({ ...currentResume, projects: nextProjects });
+  }, [currentResume, rescoreAfterApply]);
+
   const onApply = useCallback((content: unknown) => {
     if (!enhancingProjectId) return;
     const proj = projects.find(p => p.id === enhancingProjectId);
@@ -51,19 +59,19 @@ export const ProjectsSection = memo(function ProjectsSection() {
       const improvedObj = (improved && typeof improved === 'object' && !Array.isArray(improved))
         ? improved as Record<string, unknown>
         : null;
-      updateResume({
-        projects: projects.map(p =>
-          p.id === enhancingProjectId
-            ? {
-                ...p,
-                description: content,
-                technologies: improvedObj && Array.isArray(improvedObj.technologies)
-                  ? improvedObj.technologies as string[]
-                  : p.technologies,
-              }
-            : p
-        ),
-      });
+      const next = projects.map(p =>
+        p.id === enhancingProjectId
+          ? {
+              ...p,
+              description: content,
+              technologies: improvedObj && Array.isArray(improvedObj.technologies)
+                ? improvedObj.technologies as string[]
+                : p.technologies,
+            }
+          : p
+      );
+      updateResume({ projects: next });
+      triggerRescore(next);
       return;
     }
 
@@ -71,37 +79,39 @@ export const ProjectsSection = memo(function ProjectsSection() {
     if (Array.isArray(content) && content.every(i => typeof i === 'string')) {
       const existingTechs = new Set(proj.technologies);
       const newTechs = (content as string[]).filter(t => !existingTechs.has(t));
-      updateResume({
-        projects: projects.map(p =>
-          p.id === enhancingProjectId
-            ? { ...p, technologies: [...p.technologies, ...newTechs] }
-            : p
-        ),
-      });
+      const next = projects.map(p =>
+        p.id === enhancingProjectId
+          ? { ...p, technologies: [...p.technologies, ...newTechs] }
+          : p
+      );
+      updateResume({ projects: next });
       toast.success(`Added ${newTechs.length} technologies`);
+      triggerRescore(next);
       return;
     }
     // Handle single project object improvement
     if (typeof content === 'object' && content !== null && !Array.isArray(content)) {
       const improved = content as Record<string, unknown>;
-      updateResume({
-        projects: projects.map(p =>
-          p.id === enhancingProjectId
-            ? {
-                ...p,
-                description: typeof improved.description === 'string' ? improved.description : p.description,
-                technologies: Array.isArray(improved.technologies) ? improved.technologies as string[] : p.technologies,
-              }
-            : p
-        ),
-      });
+      const next = projects.map(p =>
+        p.id === enhancingProjectId
+          ? {
+              ...p,
+              description: typeof improved.description === 'string' ? improved.description : p.description,
+              technologies: Array.isArray(improved.technologies) ? improved.technologies as string[] : p.technologies,
+            }
+          : p
+      );
+      updateResume({ projects: next });
+      triggerRescore(next);
       return;
     }
     // Handle array of projects (full section improve)
     if (Array.isArray(content)) {
-      updateResume({ projects: content as Project[] });
+      const next = content as Project[];
+      updateResume({ projects: next });
+      triggerRescore(next);
     }
-  }, [enhancingProjectId, projects, updateResume]);
+  }, [enhancingProjectId, projects, updateResume, triggerRescore]);
 
   const { enhance, isEnhancing, result, apply, discard } = useAIEnhance({
     section: 'projects',
@@ -174,19 +184,19 @@ export const ProjectsSection = memo(function ProjectsSection() {
       const existingTechs = new Set(proj.technologies);
       const newTechs = (resp.improved as string[]).filter(t => typeof t === 'string' && !existingTechs.has(t));
       if (newTechs.length > 0) {
-        updateResume({
-          projects: projects.map(p =>
-            p.id === proj.id ? { ...p, technologies: [...p.technologies, ...newTechs] } : p
-          ),
-        });
+        const next = projects.map(p =>
+          p.id === proj.id ? { ...p, technologies: [...p.technologies, ...newTechs] } : p
+        );
+        updateResume({ projects: next });
         toast.success(`Added ${newTechs.length} technologies`);
+        triggerRescore(next);
       } else {
         toast.info('No new technologies to suggest');
       }
       discard();
       return;
     }
-  }, [currentResume, enhance, discard, projects, updateResume]);
+  }, [currentResume, enhance, discard, projects, updateResume, triggerRescore]);
 
   const handleQuestionsSubmit = useCallback(async (answers: Record<string, string>) => {
     if (!questionsProjectId) return;

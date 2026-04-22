@@ -10,6 +10,7 @@ import { AIContextualNudge } from './AIContextualNudge';
 import { useResumeNudges } from '@/hooks/useResumeNudges';
 import { SectionEmptyState } from './SectionEmptyState';
 import { summaryExample } from '@/lib/emptyStateExamples';
+import { useAIApplyEffects } from '@/hooks/useAIApplyEffects';
 
 export const SummarySection = memo(function SummarySection() {
   const summary = useResumeStore(state => state.currentResume?.summary);
@@ -21,6 +22,8 @@ export const SummarySection = memo(function SummarySection() {
   const [touched, setTouched] = useState(false);
   const [started, setStarted] = useState(false);
   
+  const { rescoreAfterApply } = useAIApplyEffects(currentResume?.id);
+
   const { enhance, isEnhancing, result, apply, discard } = useAIEnhance({
     section: 'summary',
     onApply: (content) => {
@@ -31,6 +34,13 @@ export const SummarySection = memo(function SummarySection() {
       if (typeof content !== 'string' || content.trim() === '') return;
       updateResume({ summary: content });
       setShowDialog(false);
+      // Trigger an immediate ATS rescore against the freshly mutated resume
+      // so the score badge reflects the AI Apply without the user having to
+      // navigate away and back. Same wall-clock cache-bust path used by the
+      // Boost All / AI Enhance sheets.
+      if (currentResume) {
+        void rescoreAfterApply({ ...currentResume, summary: content });
+      }
     },
   });
 

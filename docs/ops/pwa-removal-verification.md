@@ -140,7 +140,14 @@ browser. Capture:
 - DevTools → Console output during the visit,
 
 and open a follow-up so the tombstone can be hardened (e.g. forcing a hard
-reload via `Clear-Site-Data` response header on `index.html`, or shipping a
-small inline `<script>` in `index.html` that calls
-`navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => r.unregister()))`
-unconditionally as a belt-and-braces second line of defence).
+reload via `Clear-Site-Data` response header on `index.html`).
+
+> **Update (Task #5):** the unconditional unregister snippet that this
+> doc previously suggested as a "follow-up" is now shipped — `src/main.tsx`
+> calls `navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => r.unregister()))`
+> on every boot (fire-and-forget, guarded). This catches stale workers
+> that were registered at a different path than `/custom-sw.js` (e.g. the
+> Workbox-era `/sw.js`) and that the tombstone alone cannot replace. The
+> tombstone at `public/custom-sw.js` is still required for the
+> `/custom-sw.js`-scoped path itself, since browsers' SW update check is
+> what triggers the tombstone's `activate` cache-wipe in the first place.

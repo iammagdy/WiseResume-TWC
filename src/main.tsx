@@ -129,5 +129,27 @@ try {
 }
 
 // PWA / service worker registration intentionally removed.
+//
 // The tombstone at /custom-sw.js handles cleanup for returning visitors
-// who still have the old service worker installed in their browser.
+// whose previous service worker was registered AT that exact path. Some
+// older builds registered the worker at a different scope (e.g. `/sw.js`
+// from the Workbox era), so the tombstone never replaces those — the
+// next visit can still be controlled by a stale SW that 404s on
+// already-deleted chunk URLs and crashes the app on first load.
+//
+// As a belt-and-braces second line of defence (per
+// docs/ops/pwa-removal-verification.md), unconditionally unregister
+// every active service worker registration on boot. Wrapped in a guard
+// so we never throw inside main.tsx — failure here must never prevent
+// the app from rendering.
+if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+  navigator.serviceWorker
+    .getRegistrations()
+    .then((regs) => {
+      for (const reg of regs) {
+        // Fire-and-forget: a hung unregister must not delay first paint.
+        reg.unregister().catch(() => undefined);
+      }
+    })
+    .catch(() => undefined);
+}

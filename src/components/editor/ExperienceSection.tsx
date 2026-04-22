@@ -18,6 +18,7 @@ import { GapInfo } from '@/lib/dateUtils';
 import { SectionEmptyState } from './SectionEmptyState';
 import { experienceExample } from '@/lib/emptyStateExamples';
 import { ExperienceItem } from './ExperienceItem';
+import { useAIApplyEffects } from '@/hooks/useAIApplyEffects';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -45,6 +46,8 @@ export const ExperienceSection = memo(function ExperienceSection() {
     position?: string;
     company?: string;
   } | null>(null);
+
+  const { rescoreAfterApply } = useAIApplyEffects(currentResume?.id);
 
   const { enhance, isEnhancing, result, apply, discard } = useAIEnhance({
     section: 'experience',
@@ -76,6 +79,14 @@ export const ExperienceSection = memo(function ExperienceSection() {
       }
       if (Object.keys(updates).length > 0) {
         updateExperience(enhancingExpId, updates);
+        // Trigger an immediate ATS rescore against the freshly mutated
+        // resume so the score badge updates without a navigate-away/back.
+        if (currentResume) {
+          const nextExperience = currentResume.experience.map(exp =>
+            exp.id === enhancingExpId ? { ...exp, ...updates } : exp,
+          );
+          void rescoreAfterApply({ ...currentResume, experience: nextExperience });
+        }
       }
       setShowDialog(false);
       setEnhancingExpId(null);

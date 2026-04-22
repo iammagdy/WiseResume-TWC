@@ -9,6 +9,15 @@ import { renderHook, act } from "@testing-library/react";
 // Unmock the real hook so we can test its implementation
 vi.unmock("@/hooks/useAIAction");
 
+const toastError = vi.fn();
+vi.mock("sonner", () => ({
+  toast: { error: (...args: unknown[]) => toastError(...args) },
+}));
+
+vi.mock("react-router-dom", () => ({
+  useNavigate: () => vi.fn(),
+}));
+
 // Mock dependencies
 vi.mock("@/hooks/useAuth", () => ({
   useAuth: () => ({ user: { id: "user-1" } }),
@@ -79,5 +88,32 @@ describe("useAIAction (D1)", () => {
 
     expect(value).toBeNull();
     expect(mockInvalidateQueries).not.toHaveBeenCalled();
+  });
+
+  // Regression for Task #5 / Task #3 parser unification: a structured
+  // `not_configured` error must route through the canonical aiErrorParser
+  // ("WiseResume AI is not configured…") and NOT fall through to the
+  // legacy `parseErrorMessage` regex sniffer's generic
+  // "AI temporarily unavailable" copy. This test guards against anyone
+  // re-introducing the dual-parser behaviour.
+  it("maps a structured not_configured error to the canonical message", async () => {
+    const { result } = renderHook(() => useAIAction({ operation: "tailor" }));
+    const structuredErr: Error & { body?: unknown; status?: number } = Object.assign(
+      new Error("API key not configured"),
+      {
+        body: { code: "not_configured", message: "API key not configured" },
+        status: 503,
+      },
+    );
+    const action = vi.fn().mockRejectedValue(structuredErr);
+
+    await act(async () => {
+      await result.current.execute(action);
+    });
+
+    expect(toastError).toHaveBeenCalledTimes(1);
+    const [msg] = toastError.mock.calls[0] as [string, unknown];
+    expect(msg).toMatch(/not configured/i);
+    expect(msg).not.toMatch(/temporarily unavailable/i);
   });
 });
