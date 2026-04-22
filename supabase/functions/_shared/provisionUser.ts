@@ -190,7 +190,7 @@ export async function provisionUser(
   }
 
   // ── Step 4: upsert public.subscriptions (free plan default) ──────────────
-  // On conflict we do nothing so existing paid/trial rows are never overwritten.
+  // ignoreDuplicates: true so existing paid/trial rows are never overwritten.
   const { error: subError } = await serviceClient
     .from('subscriptions')
     .upsert(
@@ -199,12 +199,21 @@ export async function provisionUser(
     );
 
   if (subError) {
-    // Non-fatal: a missing subscriptions row is handled gracefully elsewhere
-    // (admin-list-users defaults to free). Log but do not fail or roll back.
-    console.warn('[provisionUser] subscriptions upsert failed (non-fatal)', {
+    console.error('[provisionUser] SUBSCRIPTION_UPSERT_FAILED', {
       userId,
       errorMsg: subError.message,
     });
+    if (freshlyCreated) {
+      // Clean up orphaned auth.users row so the user can retry cleanly.
+      await serviceClient.auth.admin.deleteUser(userId).catch((e) =>
+        console.warn('[provisionUser] cleanup deleteUser failed', e)
+      );
+    }
+    throw new ProvisionError(
+      'SUBSCRIPTION_UPSERT_FAILED',
+      500,
+      'Could not create user subscription record',
+    );
   }
 
   return { userId, alreadyExisted };

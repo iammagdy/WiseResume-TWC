@@ -15,6 +15,9 @@ const REQUIRED_ENV_VARS: { key: string; label: string }[] = [
   { key: 'RESEND_API_KEY', label: 'Resend API Key' },
   { key: 'GEMINI_API_KEY', label: 'Gemini API Key (optional)' },
   { key: 'ELEVENLABS_API_KEY', label: 'ElevenLabs API Key (optional)' },
+  { key: 'KINDE_WEBHOOK_SECRET', label: 'Kinde Webhook Secret (kinde-webhook instant provisioning)' },
+  { key: 'KINDE_M2M_CLIENT_ID', label: 'Kinde M2M Client ID (admin-kinde-reconcile + wisehire-reset-user)' },
+  { key: 'KINDE_M2M_CLIENT_SECRET', label: 'Kinde M2M Client Secret (admin-kinde-reconcile + wisehire-reset-user)' },
 ];
 
 Deno.serve(async (req) => {
