@@ -54,6 +54,7 @@ export function ChatWidget({ profile, resume, accentColor, pStyle }: {
   });
   const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [sessionLoading, setSessionLoading] = useState(false);
+  const [sessionError, setSessionError] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const MAX_QUESTIONS = 10;
 
@@ -65,6 +66,7 @@ export function ChatWidget({ profile, resume, accentColor, pStyle }: {
     if (!profile.username) return;
 
     setSessionLoading(true);
+    setSessionError(false);
     fetch(apiFnUrl(`create-portfolio-session`), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -72,10 +74,14 @@ export function ChatWidget({ profile, resume, accentColor, pStyle }: {
     })
       .then(r => r.json())
       .then(data => {
-        if (data.token) setSessionToken(data.token);
+        if (data.token) {
+          setSessionToken(data.token);
+        } else {
+          setSessionError(true);
+        }
       })
       .catch(() => {
-        // Non-fatal: session token will be null and ask-portfolio will return 401
+        setSessionError(true);
       })
       .finally(() => setSessionLoading(false));
   }, [open, sessionToken, sessionLoading, profile.username]);
@@ -278,30 +284,36 @@ export function ChatWidget({ profile, resume, accentColor, pStyle }: {
 
             {/* Input */}
             <div className="px-3 pb-3 pt-2 shrink-0" style={{ borderTop: `1px solid ${borderColor}` }}>
-              <div className="flex gap-2 items-end">
-                <textarea
-                  value={input}
-                  onChange={e => setInput(e.target.value)}
-                  onKeyDown={handleKey}
-                  placeholder="Ask a question…"
-                  rows={1}
-                  className="flex-1 resize-none rounded-xl px-3 py-2 text-xs outline-none transition-all"
-                  style={{
-                    background: isLight ? '#f9fafb' : 'rgba(255,255,255,0.06)',
-                    border: `1px solid ${borderColor}`,
-                    color: fgColor,
-                    maxHeight: '80px',
-                  }}
-                />
-                <button
-                  onClick={() => send()}
-                  disabled={!input.trim() || loading}
-                  className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-all disabled:opacity-40 hover:scale-105 active:scale-95"
-                  style={{ background: accentColor, color: '#fff' }}
-                >
-                  <Send className="w-3.5 h-3.5" />
-                </button>
-              </div>
+              {sessionError ? (
+                <p className="text-xs text-center py-2" style={{ color: mutedColor }}>
+                  Chat is unavailable right now. Please try again later.
+                </p>
+              ) : (
+                <div className="flex gap-2 items-end">
+                  <textarea
+                    value={input}
+                    onChange={e => setInput(e.target.value)}
+                    onKeyDown={handleKey}
+                    placeholder="Ask a question…"
+                    rows={1}
+                    className="flex-1 resize-none rounded-xl px-3 py-2 text-xs outline-none transition-all"
+                    style={{
+                      background: isLight ? '#f9fafb' : 'rgba(255,255,255,0.06)',
+                      border: `1px solid ${borderColor}`,
+                      color: fgColor,
+                      maxHeight: '80px',
+                    }}
+                  />
+                  <button
+                    onClick={() => send()}
+                    disabled={!input.trim() || loading}
+                    className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-all disabled:opacity-40 hover:scale-105 active:scale-95"
+                    style={{ background: accentColor, color: '#fff' }}
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
             </div>
           </motion.div>
         )}

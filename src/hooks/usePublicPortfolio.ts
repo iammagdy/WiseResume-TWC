@@ -240,23 +240,18 @@ async function fetchPortfolioGateInfo(username: string): Promise<PortfolioGateIn
     };
   }
 
-  // Fallback: direct REST query if get_portfolio_gate_info RPC is not yet deployed.
+  // Fallback: safeClient query if get_portfolio_gate_info RPC is not yet deployed.
   // We fetch only non-sensitive columns. portfolio_extras is avoided because it
   // contains the passwordHash field. passwordEnabled is inferred from the RPC
   // failure: if the RPC is unavailable, we conservatively assume no gate is needed
   // and return passwordEnabled=false so the caller doesn't show a gate it can't enforce.
   // (The new RPC is now deployed; this path is only reached if Supabase is degraded.)
-  const params = new URLSearchParams({
-    select: 'full_name,avatar_url,portfolio_enabled,portfolio_accent_color',
-    username: `eq.${username.toLowerCase()}`,
-    limit: '1',
-  });
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?${params}`, {
-    headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` },
-  });
-  if (!res.ok) return null;
-  const rows = await res.json() as Array<Record<string, unknown>>;
-  const row = rows?.[0];
+  const { data: rows } = await supabase
+    .from('profiles')
+    .select('full_name,avatar_url,portfolio_enabled,portfolio_accent_color')
+    .eq('username', username.toLowerCase())
+    .limit(1);
+  const row = rows?.[0] as Record<string, unknown> | undefined;
   if (!row) return null;
   return {
     fullName: (row.full_name as string) || null,

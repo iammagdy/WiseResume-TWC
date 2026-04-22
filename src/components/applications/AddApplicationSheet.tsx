@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,6 +35,7 @@ export function AddApplicationSheet({ open, onOpenChange, defaultValues }: AddAp
   const [deadline, setDeadline] = useState('');
   const [resumeId, setResumeId] = useState(defaultValues?.resume_id || '');
   const [isParsingUrl, setIsParsingUrl] = useState(false);
+  const parseAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (open && defaultValues) {
@@ -60,6 +61,12 @@ export function AddApplicationSheet({ open, onOpenChange, defaultValues }: AddAp
     const trimmed = url.trim();
     if (!trimmed || !trimmed.startsWith('http')) return;
 
+    if (parseAbortRef.current) {
+      parseAbortRef.current.abort();
+    }
+    parseAbortRef.current = new AbortController();
+    const signal = parseAbortRef.current.signal;
+
     setIsParsingUrl(true);
     try {
       const token = await getSupabaseToken();
@@ -72,6 +79,7 @@ export function AddApplicationSheet({ open, onOpenChange, defaultValues }: AddAp
             ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
           },
           body: JSON.stringify({ url: trimmed }),
+          signal,
         }
       );
       if (res.ok) {
@@ -83,6 +91,7 @@ export function AddApplicationSheet({ open, onOpenChange, defaultValues }: AddAp
         toast.error('Failed to parse URL automatically.');
       }
     } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') return;
       console.error('URL parse failed:', error);
       toast.error('Failed to parse URL automatically. Please enter details manually.');
     } finally {

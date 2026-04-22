@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { getSupabaseToken } from '@/lib/supabaseAuth';
 
 import { ResumeData } from '@/types/resume';
@@ -287,6 +287,16 @@ async function runBackgroundScore(resumeId: string, resume: ResumeData, updatedA
 
 export function useResumeScore() {
   const [scoringId, setScoringId] = useState<string | null>(null);
+  const scoreRetryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (scoreRetryTimerRef.current) {
+        clearTimeout(scoreRetryTimerRef.current);
+        scoreRetryTimerRef.current = null;
+      }
+    };
+  }, []);
 
   const getCachedScore = useCallback((resumeId: string, updatedAt: string): ResumeHealthScore | null => {
     return scoreCache.get(cacheKey(resumeId, updatedAt)) ?? null;
@@ -320,7 +330,8 @@ export function useResumeScore() {
       } catch (firstErr: any) {
         if (firstErr.isAuth || firstErr.isRateLimit) throw firstErr;
         console.warn('[ScoreResume] First attempt failed, retrying in 2s…', firstErr.message);
-        await delay(2000);
+        await new Promise<void>(resolve => { scoreRetryTimerRef.current = setTimeout(resolve, 2000); });
+        scoreRetryTimerRef.current = null;
         result = await invokeScoreResume(resume);
       }
 

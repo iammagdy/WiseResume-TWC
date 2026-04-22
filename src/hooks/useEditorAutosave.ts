@@ -175,6 +175,9 @@ export function useEditorAutosave({
     }
   }, [user, currentResumeId, resumeRef, lastSavedResumeRef, updateResume, setIsSaving, setLastSavedAt, localLoadedAtRef, isSavingRef, addPendingChange]);
 
+  // Debounced auto-save effect — depends on the resume snapshot via resumeRef
+  const currentResumeSnapshot = resumeRef.current;
+
   // Track real local edit time (skip hydration write)
   const hydrationDoneRef = useRef(false);
   const lastLocalEditAtRef = useRef<number>(0);
@@ -186,10 +189,7 @@ export function useEditorAutosave({
       return;
     }
     lastLocalEditAtRef.current = Date.now();
-  });
-
-  // Debounced auto-save effect — depends on the resume snapshot via resumeRef
-  const currentResumeSnapshot = resumeRef.current;
+  }, [currentResumeSnapshot]);
   useEffect(() => {
     if (!user || !currentResumeId || !resumeRef.current) return;
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);

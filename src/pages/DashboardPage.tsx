@@ -215,8 +215,11 @@ function DashboardPageContent() {
             setShowProfileBanner(true);
           }
         }
-      } catch {
-        // silently ignore — non-critical onboarding check
+      } catch (err) {
+        console.warn('[DashboardPage] Onboarding check failed — defaulting to show onboarding:', err);
+        if (!sessionStorage.getItem('wr-dismissed-profile-banner')) {
+          setShowProfileBanner(true);
+        }
       }
     };
     run();

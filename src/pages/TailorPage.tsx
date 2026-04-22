@@ -203,12 +203,16 @@ export default function TailorPage() {
   const [rejectedBullets, setRejectedBullets] = useState<Set<string>>(new Set());
 
   const abortRef = useRef<AbortController | null>(null);
+  const copiedTextTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { execute: executeAI } = useAIAction({ operation: 'tailor' });
   const redactedResume = useRedactedResume(currentResume as ResumeData | null);
 
   useEffect(() => {
     activityTracker.setActiveFeature('Smart Tailor');
-    return () => { activityTracker.setActiveFeature(null); };
+    return () => {
+      activityTracker.setActiveFeature(null);
+      if (copiedTextTimerRef.current) clearTimeout(copiedTextTimerRef.current);
+    };
   }, []);
 
   useEffect(() => {
@@ -415,7 +419,8 @@ export default function TailorPage() {
       await navigator.clipboard.writeText(text);
       setCopiedText(true);
       toast.success('Copied to clipboard!');
-      setTimeout(() => setCopiedText(false), 2000);
+      if (copiedTextTimerRef.current) clearTimeout(copiedTextTimerRef.current);
+      copiedTextTimerRef.current = setTimeout(() => setCopiedText(false), 2000);
     } catch {
       toast.error('Failed to copy — try again');
     }
