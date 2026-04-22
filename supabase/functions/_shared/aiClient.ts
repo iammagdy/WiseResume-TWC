@@ -1553,11 +1553,29 @@ function isSkippableError(err: unknown): boolean {
  * Results are logged per-attempt for observability.
  */
 /**
- * Mirror of `OPENROUTER2_DEFAULT_MODEL` in `src/lib/aiDefaults.ts`. The slug
- * is intentionally pinned — never discovered via /models — because OpenRouter 2
- * exists specifically to route to this model.
+ * Mirror of `OPENROUTER2_DEFAULT_MODEL` in `src/lib/aiDefaults.ts`. This is
+ * the *primary* model OpenRouter 2 routes to first. Kept as a single string
+ * for the dev-kit panel which displays one "pinned" slug.
  */
 const OPENROUTER2_PINNED_MODEL = 'openai/gpt-oss-120b:free';
+
+/**
+ * Full fallback chain for the OpenRouter 2 sub-provider. The primary slug is
+ * `OPENROUTER2_PINNED_MODEL`; the rest are tried in order on skippable errors
+ * (rate-limit / 5xx / 404 / timeout). All are verified-working free models on
+ * OpenRouter as of April 2026; if any are decommissioned upstream the chain
+ * advances past them automatically. Curated for HR/recruiting reasoning
+ * quality (large models first, smaller ones as last-resort).
+ */
+const OPENROUTER2_FALLBACK_CHAIN: string[] = [
+  'openai/gpt-oss-120b:free',                    // primary — OpenAI 120B open-weights
+  'nvidia/nemotron-3-super-120b-a12b:free',      // 120B, NVIDIA reasoning-tuned
+  'meta-llama/llama-3.3-70b-instruct:free',      // 70B Llama 3.3
+  'minimax/minimax-m2.5:free',                   // MiniMax M2.5
+  'inclusionai/ling-2.6-flash:free',             // OpenRouter's announced Elephant successor
+  'google/gemma-4-31b-it:free',                  // 31B Gemma 4
+  'nvidia/nemotron-nano-9b-v2:free',             // 9B fallback
+];
 
 export async function callWiseresumeAI(
   subProvider: 'openrouter' | 'groq' | 'auto' | 'openrouter2',
@@ -1744,12 +1762,13 @@ export async function callWiseresumeAI(
   const groqModels = (subProvider === 'groq' || subProvider === 'auto') && groqKey
     ? (await getGroqModels(groqKey)).slice(0, MAX_MODELS_PER_PROVIDER)
     : [];
-  // OpenRouter 2 always uses a single pinned model — no live discovery — so
-  // the "list" is just the constant slug when the key is configured and the
-  // sub-provider permits it.
+  // OpenRouter 2 uses a curated fallback chain (no live /models discovery).
+  // The first slug is the pinned primary; the rest are tried in order on
+  // skippable errors (429/5xx/404/timeout). Capped at MAX_MODELS_PER_PROVIDER
+  // so it doesn't dwarf the other providers in `auto` mode.
   const openrouter2Models =
     (subProvider === 'openrouter2' || subProvider === 'auto') && openrouter2Key
-      ? [OPENROUTER2_PINNED_MODEL]
+      ? OPENROUTER2_FALLBACK_CHAIN.slice(0, MAX_MODELS_PER_PROVIDER)
       : [];
 
   // Priority order:
