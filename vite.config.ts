@@ -194,10 +194,7 @@ export default defineConfig(() => ({
     react(),
     cspPlugin(),
     prefetchPlugin(),
-    // PWA / service worker intentionally removed.
-    // public/custom-sw.js is now a tombstone that unregisters any
-    // previously-installed service worker on the user's next visit.
-    // It is copied from public/ as a plain static asset by Vite.
+    // PWA / service worker removed. No manifest or SW is served.
     process.env.SENTRY_AUTH_TOKEN
       ? sentryVitePlugin({
           org: process.env.SENTRY_ORG,

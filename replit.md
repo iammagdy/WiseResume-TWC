@@ -67,7 +67,7 @@ Users log in via Kinde, receiving a Kinde access token. The client exchanges thi
 - `src/`: Frontend code (components, hooks, lib, pages, store).
 - `supabase/`: Edge functions and database migrations.
 - `server/`: Express.js backend code.
-- `public/`: Static assets, Apache `.htaccess`, web app manifests (kept as metadata for Capacitor / install prompts), and the tombstone `custom-sw.js`.
+- `public/`: Static assets, Apache `.htaccess`, and the changelog JSON. No manifests, no service worker, no PWA icons.
 - `specs/`: Technical specifications.
 - `project-governance/`: Architecture documentation.
 - `wise-templates/`: Resume templates.
@@ -114,14 +114,14 @@ curl -sI "https://resume.thewise.cloud/" | grep -iE "strict-transport|x-content-
 
 If any `.map` URL still returns 200, the upload didn't replace the `assets/` directory — re-upload the **entire** fresh `dist/` (overwriting `public_html/`) and re-test. The `.htaccess` map-deny rule will start blocking them server-side as soon as the new `.htaccess` is in place, even if old `.map` files are still on disk.
 
-### PWA Removal (Operator Note — added 2026-04-21, Task #22)
-The web build is no longer a Progressive Web App. `vite-plugin-pwa` and Workbox are gone, `src/main.tsx` no longer calls `registerSW`, and `src/vite-env.d.ts` no longer declares `virtual:pwa-register`. Every visit fetches the latest deploy directly from Hostinger — no precache, no offline mode, no second-refresh delay.
+### PWA Removal (Operator Note — completed 2026-04-22, Tasks #22 + #15)
+The web build is fully de-PWA'd. Removed in two stages:
 
-`public/custom-sw.js` is now a **tombstone service worker**: ~45 lines that on install/activate wipe every cache, call `self.registration.unregister()`, and re-navigate every open tab. It exists only so browsers that previously installed the old Workbox SW can pick up this update via their normal SW update check (Hostinger serves it `Cache-Control: no-cache` per `public/.htaccess`). After the tombstone runs once, no SW is registered for the origin and the file is never executed again.
+**Task #22 (v3.5.0):** `vite-plugin-pwa` and Workbox removed; `registerSW` call removed from `src/main.tsx`; tombstone `public/custom-sw.js` deployed to unregister any prior SW on next visit.
 
-Browser push notifications are **disabled** as a side-effect (they require a registered SW). `<PushNotificationSettings />` is no longer rendered from `NotificationsSection.tsx`. The component, the `usePushNotifications` hook, the `push_subscriptions` table, and the `send-push-notification` edge function are all left in place so this can be re-enabled later by re-introducing a SW. Do NOT add `navigator.serviceWorker.register(...)` anywhere in the app — it would resurrect the bug this change fixed.
+**Task #15 (2026-04-22):** All remaining PWA artifacts deleted — `public/manifest.json`, `public/manifest-wisehire.json`, `public/custom-sw.js`, `public/icons/` (all PWA icon sizes). Removed from HTML: `<link rel="manifest">`, `<meta name="theme-color">`, `apple-mobile-web-app-*` metas, `mobile-web-app-capable`, and all `apple-touch-startup-image` splash links. Removed from code: `InstallPrompt`, `InstallButton`, and the `<AppInstallPrompt>` wrapper in `AppInterior.tsx`; the install/PWA strip section in `WiseResumeContent.tsx`; the apple-touch-icon and manifest href updates in `Index.tsx`.
 
-The web app manifests (`public/manifest.json`, `public/manifest-wisehire.json`) are kept because `index.html` references them and they're harmless metadata. "Install to home screen" may still appear in some browsers but will behave like a normal bookmark.
+No browser will show an "Install" or "Add to Home Screen" prompt for this origin. Push notifications remain disabled (`usePushNotifications` returns `isSupported: false`). Do NOT add `navigator.serviceWorker.register(...)` anywhere — it would re-trigger browser install eligibility.
 
 ### Supabase Migration Sync (Operator Note — added 2026-04-21, Task #6)
 The production Supabase project (`jnsfmkzgxsviuthaqlyy`) is **fully in sync** with `supabase/migrations/` (187 of 187 files / 182 of 182 distinct version prefixes recorded in `supabase_migrations.schema_migrations`). Six migration files were patched in place during this task to be idempotent against the project's pre-existing schema gaps — `public.portfolios` and `public.tailoring_results` were never created on this project (the live app stores portfolio data on `public.profiles` — see the NOTE inside `20260418195801_portfolio_id_columns.sql`):

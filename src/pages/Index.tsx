@@ -158,7 +158,6 @@ const Index = () => {
        toggling between Individuals/Enterprises (and direct navigation
        between `/` and `/enterprises`) without a page reload. */
     const favHref = isWH ? '/favicon-wisehire.png' : '/favicon.png';
-    const appleHref = isWH ? '/icons/icon-wisehire-192x192.png' : '/icons/icon-192x192.png';
     const setLinkHref = (id: string, href: string) => {
       const el = document.getElementById(id) as HTMLLinkElement | null;
       if (el && el.getAttribute('href') !== href) el.setAttribute('href', href);
@@ -169,10 +168,8 @@ const Index = () => {
     };
     setLinkHref('app-favicon', favHref);
     setLinkHref('app-favicon-preload', favHref);
-    setLinkHref('app-apple-touch-icon', appleHref);
     setMetaContent('app-og-image', favHref);
     setMetaContent('app-twitter-image', favHref);
-    setLinkHref('app-manifest', isWH ? '/manifest-wisehire.json' : '/manifest.json');
   }, [mode]);
 
   useEffect(() => {

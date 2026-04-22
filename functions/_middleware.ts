@@ -80,7 +80,7 @@ function isHtmlRoute(url: URL): boolean {
   if (p.startsWith('/assets/')) return false;
   if (p.startsWith('/.well-known/')) return false;
   if (p.startsWith('/icons/')) return false;
-  if (p === '/sitemap.xml' || p === '/robots.txt' || p === '/manifest.json') return false;
+  if (p === '/sitemap.xml' || p === '/robots.txt') return false;
   if (p.startsWith('/api/')) return false;
   // Files with a non-HTML extension are passed through.
   const lastSegment = p.split('/').pop() || '';

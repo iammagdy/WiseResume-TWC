@@ -17,7 +17,6 @@ import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import { JobSeekerRoute } from "@/components/layout/JobSeekerRoute";
 import { WiseHireGuard } from "@/components/wisehire/WiseHireGuard";
 import { AuthProvider, DegradedAuthProvider } from "@/contexts/AuthContext";
-import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { useAIKeyHydration } from "@/hooks/useAIKeyHydration";
 import { useSuspensionCheck } from "@/hooks/useSuspensionCheck";
 import { SuspendedScreen } from "@/components/layout/SuspendedScreen";
@@ -591,12 +590,6 @@ function DeferredProviders() {
 
 }
 
-function AppInstallPrompt() {
-  const isPublicStandalone = useIsPublicRoute();
-  if (isPublicStandalone) return null;
-  return <InstallPrompt />;
-}
-
 const AppInterior = () => {
   if (!kindeConfigStatus.valid) {
     if (import.meta.env.DEV) {
@@ -616,7 +609,6 @@ const AppInterior = () => {
               <AIPrivacyDisclosureProvider>
                 <AppRoutes />
                 <DeferredProviders />
-                <AppInstallPrompt />
               </AIPrivacyDisclosureProvider>
             </BottomSheetProvider>
           </DegradedAuthProvider>
@@ -638,7 +630,6 @@ const AppInterior = () => {
             <AIPrivacyDisclosureProvider>
               <AppRoutes />
               <DeferredProviders />
-              <AppInstallPrompt />
             </AIPrivacyDisclosureProvider>
           </BottomSheetProvider>
         </AuthProvider>

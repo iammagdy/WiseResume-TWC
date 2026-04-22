@@ -4,7 +4,6 @@ import { FeatureSection } from '@/components/landing/FeatureSection';
 import { TrustSection } from '@/components/landing/TrustSection';
 import { SoftDivider } from '@/components/landing/SoftDivider';
 import { Footer } from '@/components/landing/Footer';
-import { InstallButton } from '@/components/pwa/InstallButton';
 import {
   SCATTER_SECTION_ITEM, REDUCED_SECTION_ITEM,
   lpItemVariants,
@@ -106,33 +105,10 @@ export function WiseResumeContent({ prefersReducedMotion }: WiseResumeContentPro
         <TrustSection />
       </motion.div>
 
-      {/* ─── SECTION 3: PWA STRIP ─── */}
+      {/* ─── SECTION 3: FOOTER ─── */}
       <motion.div
         variants={sectionItem}
         custom={3}
-        initial={prefersReducedMotion ? 'visible' : 'hidden'}
-        whileInView="visible"
-        viewport={{ once: true, amount: 0.05 }}
-      >
-        <section className="px-4 sm:px-6 py-10" style={{ background: 'var(--lp-section-alt)', borderTop: '1px solid var(--lp-border)' }}>
-          <motion.div
-            className="max-w-xl mx-auto text-center"
-            variants={lpItemVariants}
-            initial={prefersReducedMotion ? 'visible' : 'hidden'}
-            whileInView="visible"
-            viewport={{ once: true, amount: 0.2 }}
-          >
-            <p className="font-semibold mb-1" style={{ color: 'var(--lp-text)' }}>Install WiseResume</p>
-            <p className="text-sm mb-4" style={{ color: 'var(--lp-text-muted)' }}>Add to your home screen for a native app experience</p>
-            <InstallButton />
-          </motion.div>
-        </section>
-      </motion.div>
-
-      {/* ─── SECTION 4: FOOTER ─── */}
-      <motion.div
-        variants={sectionItem}
-        custom={4}
         initial={prefersReducedMotion ? 'visible' : 'hidden'}
         whileInView="visible"
         viewport={{ once: true, amount: 0.05 }}

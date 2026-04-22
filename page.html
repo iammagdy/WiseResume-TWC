@@ -9,53 +9,13 @@
   <title>Wiseresume AI - AI Resume Editor</title>
   <meta name="description" content="AI-powered resume editor with job match scoring, gap analysis, and ATS-friendly templates. Optimize your resume for any job.">
   <meta name="author" content="Wiseresume AI" />
-  <meta name="theme-color" content="#4F46E5" />
 
   <!-- Inter font is self-hosted via @fontsource/inter (imported in src/main.tsx).
        Eliminates blocking Google Fonts request on FCP. -->
 
-  <!-- PWA & Mobile -->
-  <link id="app-manifest" rel="manifest" href="/manifest.json" />
   <link id="app-favicon" rel="icon" type="image/png" href="/favicon.png">
   <link id="app-favicon-preload" rel="preload" href="/favicon.png" as="image" />
-  <link id="app-apple-touch-icon" rel="apple-touch-icon" href="/icons/icon-192x192.png" />
-  <meta name="mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <!-- black-translucent lets the app render under the iOS status bar (safe-area handles insets) -->
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <!-- Short name displayed under the icon on the iOS home screen -->
-  <meta name="apple-mobile-web-app-title" content="Wiseresume AI" />
   <meta name="format-detection" content="telephone=no" />
-
-  <!-- iOS PWA splash screens (prevents white flash on launch from home screen) -->
-  <!-- iPhone SE / 5s -->
-  <link rel="apple-touch-startup-image"
-    media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2)"
-    href="/icons/icon-512x512.png" />
-  <!-- iPhone 8 / SE 2 -->
-  <link rel="apple-touch-startup-image"
-    media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)"
-    href="/icons/icon-512x512.png" />
-  <!-- iPhone X / XS / 11 Pro -->
-  <link rel="apple-touch-startup-image"
-    media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)"
-    href="/icons/icon-512x512.png" />
-  <!-- iPhone XR / 11 -->
-  <link rel="apple-touch-startup-image"
-    media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2)"
-    href="/icons/icon-512x512.png" />
-  <!-- iPhone 12 / 13 / 14 -->
-  <link rel="apple-touch-startup-image"
-    media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)"
-    href="/icons/icon-512x512.png" />
-  <!-- iPhone 14 Pro / 15 -->
-  <link rel="apple-touch-startup-image"
-    media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)"
-    href="/icons/icon-512x512.png" />
-  <!-- iPhone 14 Plus / 15 Plus -->
-  <link rel="apple-touch-startup-image"
-    media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)"
-    href="/icons/icon-512x512.png" />
 
   <!-- Open Graph & Twitter image tags are declared up here (before the
        pre-React brand-detection script below) so that script can swap
@@ -94,21 +54,12 @@
 
       try {
         var path = window.location.pathname;
-        var host = window.location.hostname;
-        var APP_HOSTS = ['.replit.dev', '.replit.app', '.thewise.cloud', '.kirk.replit.dev', '.picard.replit.dev'];
-        var isAppHost = host === 'localhost' || host === '127.0.0.1' ||
-          APP_HOSTS.some(function (s) { return host.indexOf(s, host.length - s.length) !== -1; });
-        var isPublic = path.indexOf('/p/') === 0 || path.indexOf('/share/') === 0 ||
-          path.indexOf('/l/') === 0 || path.indexOf('/auth/callback') === 0;
-        var isAdmin = path.indexOf('/devkit') === 0;
 
-        /* Brand-aware favicon swap (Task #13): on the landing page the
-           tab icon should match the active product so users can tell at a
-           glance which brand they're viewing. Detected from URL only — no
-           localStorage, no host check — so the swap applies on every host
-           and runs before React mounts to avoid an icon flash. The swap
-           is intentionally restricted to the marketing routes; deeper app
-           pages keep the canonical WiseResume favicon. */
+        /* Brand-aware favicon swap: on the landing page the tab icon matches
+           the active product. Detected from URL only — no localStorage, no
+           host check — so the swap runs before React mounts to avoid a flash.
+           Restricted to marketing routes; deeper app pages keep the canonical
+           WiseResume favicon. */
         var isLandingRoute = path === '/' || path === '/enterprises';
         if (isLandingRoute) {
           var isWHFavicon = path === '/enterprises' ||
@@ -118,35 +69,11 @@
             if (fav) fav.setAttribute('href', '/favicon-wisehire.png');
             var favPre = document.getElementById('app-favicon-preload');
             if (favPre) favPre.setAttribute('href', '/favicon-wisehire.png');
-            var apple = document.getElementById('app-apple-touch-icon');
-            if (apple) apple.setAttribute('href', '/icons/icon-wisehire-192x192.png');
             var ogImg = document.getElementById('app-og-image');
             if (ogImg) ogImg.setAttribute('content', '/favicon-wisehire.png');
             var twImg = document.getElementById('app-twitter-image');
             if (twImg) twImg.setAttribute('content', '/favicon-wisehire.png');
-            var mani = document.getElementById('app-manifest');
-            if (mani) mani.setAttribute('href', '/manifest-wisehire.json');
           }
-        }
-        // Splash only appears when launched as an installed PWA (standalone /
-        // fullscreen display mode, or iOS Safari home-screen launch). In a
-        // regular browser tab we skip it entirely so visitors get content
-        // immediately — route-level skeletons handle any chunk-load gap.
-        var isStandalone = false;
-        try {
-          isStandalone =
-            (window.matchMedia && (
-              window.matchMedia('(display-mode: standalone)').matches ||
-              window.matchMedia('(display-mode: fullscreen)').matches ||
-              window.matchMedia('(display-mode: minimal-ui)').matches
-            )) ||
-            window.navigator.standalone === true;
-        } catch (e) { }
-        if (isAppHost && !isPublic && !isAdmin && isStandalone) {
-          var isWH = path === '/enterprises' ||
-            new URLSearchParams(window.location.search).get('for') === 'companies';
-          document.documentElement.setAttribute('data-brand', isWH ? 'wisehire' : 'wiseresume');
-          document.documentElement.setAttribute('data-splash-painted', '1');
         }
       } catch (e) { }
     })();
