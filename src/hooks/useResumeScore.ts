@@ -30,8 +30,76 @@ export interface ResumeHealthScore {
   scoredAt: string;
 }
 
-// In-memory cache keyed by resume updated_at to auto-invalidate on edits
-const scoreCache = new Map<string, ResumeHealthScore>();
+// In-memory cache keyed by resume updated_at to auto-invalidate on edits.
+// Hydrated from localStorage on module load and persisted on every write so
+// background scoring on a fresh dashboard mount only fires for resumes whose
+// `updated_at` actually changed since last visit.
+const SCORE_CACHE_STORAGE_KEY = 'wr-pcache:scoreCache';
+const SCORE_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const SCORE_CACHE_MAX_ENTRIES = 50;
+
+interface PersistedScoreEntry {
+  k: string;
+  v: ResumeHealthScore;
+  t: number;
+}
+
+function hydrateScoreCacheFromStorage(): Map<string, ResumeHealthScore> {
+  const map = new Map<string, ResumeHealthScore>();
+  try {
+    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(SCORE_CACHE_STORAGE_KEY) : null;
+    if (!raw) return map;
+    const parsed = JSON.parse(raw) as { v: 1; entries: PersistedScoreEntry[] } | null;
+    if (!parsed || parsed.v !== 1 || !Array.isArray(parsed.entries)) return map;
+    const now = Date.now();
+    for (const entry of parsed.entries) {
+      if (!entry?.k || !entry?.v) continue;
+      if (now - (entry.t ?? 0) > SCORE_CACHE_TTL_MS) continue;
+      map.set(entry.k, entry.v);
+    }
+  } catch {
+    /* corrupt storage — start fresh */
+  }
+  return map;
+}
+
+const scoreCache = hydrateScoreCacheFromStorage();
+// Track per-key write timestamps so we can prune by age.
+const scoreCacheWriteTimes = new Map<string, number>(
+  Array.from(scoreCache.keys()).map(k => [k, Date.now()] as const),
+);
+
+let scorePersistTimer: ReturnType<typeof setTimeout> | null = null;
+function persistScoreCacheSoon() {
+  if (scorePersistTimer) return;
+  scorePersistTimer = setTimeout(() => {
+    scorePersistTimer = null;
+    try {
+      const now = Date.now();
+      const all: PersistedScoreEntry[] = [];
+      for (const [k, v] of scoreCache.entries()) {
+        const t = scoreCacheWriteTimes.get(k) ?? now;
+        if (now - t > SCORE_CACHE_TTL_MS) continue;
+        all.push({ k, v, t });
+      }
+      // Keep only the most recently written entries within the cap.
+      const trimmed = all
+        .sort((a, b) => b.t - a.t)
+        .slice(0, SCORE_CACHE_MAX_ENTRIES);
+      localStorage.setItem(
+        SCORE_CACHE_STORAGE_KEY,
+        JSON.stringify({ v: 1, entries: trimmed }),
+      );
+    } catch {
+      /* localStorage full or disabled — skip silently */
+    }
+  }, 250);
+}
+
+function rememberScoreCacheWrite(key: string) {
+  scoreCacheWriteTimes.set(key, Date.now());
+  persistScoreCacheSoon();
+}
 
 // Track consecutive background-score failures so we can surface a
 // user-visible toast after repeated silent failures (instead of just
@@ -47,7 +115,21 @@ function cacheKey(resumeId: string, updatedAt: string) {
 }
 
 export function clearCachedScore(resumeId: string, updatedAt: string) {
-  scoreCache.delete(cacheKey(resumeId, updatedAt));
+  const key = cacheKey(resumeId, updatedAt);
+  scoreCache.delete(key);
+  scoreCacheWriteTimes.delete(key);
+  persistScoreCacheSoon();
+}
+
+/** Drop every cached score — called on sign-out / user change. */
+export function clearAllCachedScores() {
+  scoreCache.clear();
+  scoreCacheWriteTimes.clear();
+  try {
+    localStorage.removeItem(SCORE_CACHE_STORAGE_KEY);
+  } catch {
+    /* ignore */
+  }
 }
 
 /** Strip non-content fields so identical content always produces identical requests */
@@ -175,6 +257,7 @@ async function runBackgroundScore(resumeId: string, resume: ResumeData, updatedA
     // score-resume is deterministic and unrelated to AI provider health.
     const score: ResumeHealthScore = { ...data, scoredAt: new Date().toISOString() };
     scoreCache.set(key, score);
+    rememberScoreCacheWrite(key);
     useATSScoreHistoryStore.getState().addScore(resumeId, score);
     // Reset the failure streak so a transient blip doesn't accumulate
     // toward an unrelated future toast.
@@ -250,7 +333,9 @@ export function useResumeScore() {
         scoredAt: new Date().toISOString(),
       };
 
-      scoreCache.set(cacheKey(resumeId, updatedAt), score);
+      const key = cacheKey(resumeId, updatedAt);
+      scoreCache.set(key, score);
+      rememberScoreCacheWrite(key);
       useATSScoreHistoryStore.getState().addScore(resumeId, score);
       return score;
     } catch (err: any) {

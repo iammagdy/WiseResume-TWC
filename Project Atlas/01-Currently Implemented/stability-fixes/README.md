@@ -27,3 +27,4 @@ Cards in this folder describe shipped or in-flight stability fixes from the 2026
 - [Phase 7 — Deploy & DevTools hardening](./phase-7-deploy-and-devtools-hardening.md)
 - [Phase 8 — Production edge-function routing](./phase-8-prod-edge-function-routing.md)
 - [Phase 9 — Stale-chunk silent recovery](./phase-9-stale-chunk-silent-recovery.md)
+- [Phase 10 — Editor session restore + dashboard cold-load cache](./phase-10-editor-session-and-dashboard-cache.md)

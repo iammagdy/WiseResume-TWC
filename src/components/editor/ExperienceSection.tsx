@@ -4,6 +4,7 @@ import { Plus, Briefcase, Linkedin, Sparkles, MoreHorizontal, Bot } from 'lucide
 import { useChatTriggerStore } from '@/store/chatTriggerStore';
 import { Button } from '@/components/ui/button';
 import { useResumeStore } from '@/store/resumeStore';
+import { useExpandedEntryRestore } from '@/hooks/useExpandedEntryRestore';
 import { Experience } from '@/types/resume';
 import { v4 as uuidv4 } from 'uuid';
 import { AIEnhanceDialog } from './ai/AIEnhanceDialog';
@@ -32,7 +33,7 @@ export const ExperienceSection = memo(function ExperienceSection() {
   const updateResume = useResumeStore(state => state.updateResume);
   const currentResume = useResumeStore(state => state.currentResume);
   const setPendingPrompt = useChatTriggerStore(s => s.setPendingPrompt);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useExpandedEntryRestore('experience');
   const [enhancingExpId, setEnhancingExpId] = useState<string | null>(null);
   const [showDialog, setShowDialog] = useState(false);
   const [originalDescription, setOriginalDescription] = useState('');

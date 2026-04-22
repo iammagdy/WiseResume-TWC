@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useResumeStore } from '@/store/resumeStore';
+import { useExpandedEntryRestore } from '@/hooks/useExpandedEntryRestore';
 import { Project } from '@/types/resume';
 import { v4 as uuidv4 } from 'uuid';
 import haptics from '@/lib/haptics';
@@ -21,7 +22,7 @@ export const ProjectsSection = memo(function ProjectsSection() {
   const currentResume = useResumeStore(state => state.currentResume);
   const updateResume = useResumeStore(state => state.updateResume);
   const { isAuthenticated } = useAuth();
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useExpandedEntryRestore('projects');
   const [techInput, setTechInput] = useState('');
 
   // AI state

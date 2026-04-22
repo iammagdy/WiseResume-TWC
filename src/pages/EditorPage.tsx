@@ -2,6 +2,12 @@ import { useState, useEffect, useCallback, useRef, useMemo, Suspense } from 'rea
 import { lazyWithRetry } from '@/lib/lazyWithRetry';
 import { preloadLazy } from '@/lib/preloadLazy';
 import { logAudit } from '@/lib/auditLogger';
+import {
+  readEditorSession,
+  writeEditorSession,
+  clearEditorSession,
+  type EditorSheetId,
+} from '@/lib/editorSession';
 import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
 import { Sparkles, BarChart3, Scissors, ArrowLeft, Clock, AlertTriangle } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -307,6 +313,162 @@ export default function EditorPage() {
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
+  // ───────────────── Editor session restore (per-resume) ─────────────────
+  // Persists activeTab + per-tab scroll offset + open AI sheet to
+  // sessionStorage so a hard refresh lands the user back where they were.
+  // Honors `?fresh=1` as an escape hatch that wipes the saved session.
+  const sessionRestoredRef = useRef<string | null>(null);
+  const lastScrollKeyRef = useRef<string>('contact');
+  // Hoisted up so the session-restore effect can suppress the mobile
+  // auto-scroll-to-first-input when we restored a non-zero scroll position.
+  const hasAutoScrolled = useRef(false);
+  const freshLoad = searchParams.get('fresh') === '1';
+
+  useEffect(() => {
+    if (!freshLoad) return;
+    if (currentResumeId) clearEditorSession(currentResumeId);
+    searchParams.delete('fresh');
+    setSearchParams(searchParams, { replace: true });
+  }, [freshLoad, currentResumeId, searchParams, setSearchParams]);
+
+  // The per-tab scroll key so 'more' splits per sub-section.
+  const scrollKey = useMemo(
+    () => (activeTab === 'more' && moreSubSection ? `more:${moreSubSection}` : activeTab),
+    [activeTab, moreSubSection],
+  );
+  useEffect(() => {
+    lastScrollKeyRef.current = scrollKey;
+  }, [scrollKey]);
+
+  // Sheet-id ↔ open-flag wiring. Keep in sync with the sheet renderers below.
+  const sheetSetters = useMemo<Record<EditorSheetId, (open: boolean) => void>>(
+    () => ({
+      tailor: setShowTailor,
+      recruiterSim: setShowRecruiterSim,
+      aiDetector: setShowAIDetector,
+      linkedIn: setShowLinkedIn,
+      onePage: setShowOnePage,
+      chat: setShowChat,
+      careerPath: setShowCareerPath,
+      versionHistory: setShowVersionHistory,
+      contentLibrary: setShowContentLibrary,
+      customize: setShowCustomize,
+      jobAnalysis: setShowJobSheet,
+      templates: setShowTemplates,
+      profileImport: setShowProfileImport,
+      atsScan: setShowATSScan,
+      snapshots: setShowSnapshots,
+      keywordHighlighter: setShowKeywordHighlighter,
+      shareSheet: setShowShareSheet,
+    }),
+    [],
+  );
+
+  const openSheetId = useMemo<EditorSheetId | null>(() => {
+    if (showTailor) return 'tailor';
+    if (showRecruiterSim) return 'recruiterSim';
+    if (showAIDetector) return 'aiDetector';
+    if (showLinkedIn) return 'linkedIn';
+    if (showOnePage) return 'onePage';
+    if (showChat) return 'chat';
+    if (showCareerPath) return 'careerPath';
+    if (showVersionHistory) return 'versionHistory';
+    if (showContentLibrary) return 'contentLibrary';
+    if (showCustomize) return 'customize';
+    if (showJobSheet) return 'jobAnalysis';
+    if (showTemplates) return 'templates';
+    if (showProfileImport) return 'profileImport';
+    if (showATSScan) return 'atsScan';
+    if (showSnapshots) return 'snapshots';
+    if (showKeywordHighlighter) return 'keywordHighlighter';
+    if (showShareSheet) return 'shareSheet';
+    return null;
+  }, [
+    showTailor, showRecruiterSim, showAIDetector, showLinkedIn, showOnePage,
+    showChat, showCareerPath, showVersionHistory, showContentLibrary, showCustomize,
+    showJobSheet, showTemplates, showProfileImport, showATSScan, showSnapshots,
+    showKeywordHighlighter, showShareSheet,
+  ]);
+
+  // Restore once per resume id, after the resume has been hydrated and the
+  // section nodes exist in the DOM. Skipped when ?fresh=1 cleared the session.
+  useEffect(() => {
+    if (!currentResumeId || !currentResume) return;
+    if (sessionRestoredRef.current === currentResumeId) return;
+    if (freshLoad) return;
+    const saved = readEditorSession(currentResumeId);
+    sessionRestoredRef.current = currentResumeId;
+    if (!saved) return;
+    if (saved.activeTab && saved.activeTab !== activeTab) {
+      setActiveTab(saved.activeTab);
+      setActiveSection(saved.activeTab);
+    }
+    if (saved.activeTab === 'more' && saved.moreSubSection) {
+      setMoreSubSection(saved.moreSubSection);
+    }
+    if (saved.openSheet && sheetSetters[saved.openSheet]) {
+      sheetSetters[saved.openSheet](true);
+    }
+    // Restore scroll on the next paint, after the lazy section has mounted.
+    const targetKey = saved.activeTab === 'more' && saved.moreSubSection
+      ? `more:${saved.moreSubSection}`
+      : saved.activeTab;
+    const targetTop = saved.scrollByTab?.[targetKey] ?? 0;
+    if (targetTop > 0) {
+      let attempts = 0;
+      const tryScroll = () => {
+        const el = scrollContainerRef.current;
+        if (el && el.scrollHeight > targetTop) {
+          el.scrollTo({ top: targetTop, behavior: 'auto' });
+          // Mobile auto-scroll-to-first-input would otherwise clobber this.
+          hasAutoScrolled.current = true;
+          return;
+        }
+        if (attempts++ < 20) requestAnimationFrame(tryScroll);
+      };
+      requestAnimationFrame(tryScroll);
+    } else {
+      // Even with no saved scroll we still want to suppress the mobile
+      // first-input auto-scroll if the user was past contact/summary.
+      if (saved.activeTab && saved.activeTab !== 'contact') {
+        hasAutoScrolled.current = true;
+      }
+    }
+  }, [currentResumeId, currentResume, freshLoad, sheetSetters, activeTab]);
+
+  // Persist activeTab / moreSubSection / open sheet whenever they change.
+  useEffect(() => {
+    if (!currentResumeId) return;
+    if (sessionRestoredRef.current !== currentResumeId) return;
+    writeEditorSession(currentResumeId, {
+      activeTab,
+      moreSubSection,
+      openSheet: openSheetId,
+    });
+  }, [currentResumeId, activeTab, moreSubSection, openSheetId]);
+
+  // Throttled scroll listener — capture scrollTop per active tab/sub-section.
+  useEffect(() => {
+    if (!currentResumeId) return;
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    let pending = false;
+    const handler = () => {
+      if (pending) return;
+      pending = true;
+      setTimeout(() => {
+        pending = false;
+        const top = el.scrollTop;
+        if (sessionRestoredRef.current !== currentResumeId) return;
+        writeEditorSession(currentResumeId, {
+          scrollByTab: { [lastScrollKeyRef.current]: top },
+        });
+      }, 250);
+    };
+    el.addEventListener('scroll', handler, { passive: true });
+    return () => el.removeEventListener('scroll', handler);
+  }, [currentResumeId, scrollKey]);
+
   const scrollToSection = useCallback((sectionId: string) => {
     const container = scrollContainerRef.current;
     if (!container) return;
@@ -373,8 +535,8 @@ export default function EditorPage() {
     setHasSeenAIIntro(true);
   }, [setHasSeenAIIntro]);
 
-  // Auto-scroll to first form field on mobile after initial load
-  const hasAutoScrolled = useRef(false);
+  // Auto-scroll to first form field on mobile after initial load.
+  // (`hasAutoScrolled` is declared earlier so session restore can suppress this.)
   useEffect(() => {
     if (!isMobile || !currentResume || hasAutoScrolled.current) return;
     const timer = setTimeout(() => {
@@ -425,17 +587,46 @@ export default function EditorPage() {
     resumeId: currentResumeId,
   });
 
-  // Unsaved changes warning (browser refresh/tab close)
+  // Unsaved-changes warning, refresh-aware.
+  // We still want the browser's native prompt when the user is genuinely
+  // leaving the editor (closing the tab, navigating to an external URL),
+  // because in those cases editor session restore won't help — they're
+  // gone. We *don't* want it on a refresh, because:
+  //   1. autosave + the offline write queue + Zustand persistence make
+  //      a refresh non-destructive,
+  //   2. the editor session restore (above) puts the user back exactly
+  //      where they were, and
+  //   3. the prompt blocks Phase 9's silent stale-chunk recovery.
+  // We detect refresh intent via F5 / Ctrl+R / Cmd+R keypresses and
+  // suppress the prompt for a short window after one fires. The browser
+  // refresh button is not detectable from JS, but the keyboard shortcut
+  // is by far the dominant refresh path, and the post-refresh restore
+  // means the worst case for an undetected refresh is the same prompt
+  // users have always seen.
+  const refreshIntentRef = useRef(0);
   useEffect(() => {
-    const handler = (e: BeforeUnloadEvent) => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const isF5 = e.key === 'F5';
+      const isReloadShortcut = (e.ctrlKey || e.metaKey) && (e.key === 'r' || e.key === 'R');
+      if (isF5 || isReloadShortcut) {
+        refreshIntentRef.current = Date.now();
+      }
+    };
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      // If a refresh keypress happened in the last 2 s, treat as refresh.
+      if (Date.now() - refreshIntentRef.current < 2000) return;
       const current = JSON.stringify(resumeRef.current);
       if (current !== lastSavedResumeRef.current && lastSavedResumeRef.current !== '') {
         e.preventDefault();
         e.returnValue = '';
       }
     };
-    window.addEventListener('beforeunload', handler);
-    return () => window.removeEventListener('beforeunload', handler);
+    window.addEventListener('keydown', onKeyDown, true);
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown, true);
+      window.removeEventListener('beforeunload', onBeforeUnload);
+    };
   }, []);
 
   // In-app navigation guard (custom, no useBlocker)

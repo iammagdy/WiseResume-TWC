@@ -1,4 +1,4 @@
-import { memo, useState } from 'react';
+import { memo } from 'react';
 import { Plus, Trash2, ChevronDown, ChevronUp, Users, Mail, Phone, Building2, ArrowUp, ArrowDown } from 'lucide-react';
 import { DragHandle } from './DragHandle';
 import { Button } from '@/components/ui/button';
@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useResumeStore } from '@/store/resumeStore';
+import { useExpandedEntryRestore } from '@/hooks/useExpandedEntryRestore';
 import { Reference } from '@/types/resume';
 import { v4 as uuidv4 } from 'uuid';
 import haptics from '@/lib/haptics';
@@ -13,7 +14,7 @@ import haptics from '@/lib/haptics';
 export const ReferencesSection = memo(function ReferencesSection() {
   const references = useResumeStore(state => state.currentResume?.references) || [];
   const updateResume = useResumeStore(state => state.updateResume);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useExpandedEntryRestore('references');
 
   const addRef = () => { haptics.light(); const n: Reference = { id: uuidv4(), name: '', title: '', company: '', email: '', phone: '', relationship: '', availableOnRequest: false }; updateResume({ references: [...references, n] }); setExpandedId(n.id); };
   const updateRef = (id: string, u: Partial<Reference>) => { updateResume({ references: references.map(r => r.id === id ? { ...r, ...u } : r) }); };

@@ -1,4 +1,4 @@
-import { memo, useState } from 'react';
+import { memo } from 'react';
 import { Plus, Trash2, ChevronDown, ChevronUp, BookOpen, Calendar, Link, ArrowUp, ArrowDown } from 'lucide-react';
 import { DragHandle } from './DragHandle';
 import { Button } from '@/components/ui/button';
@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useResumeStore } from '@/store/resumeStore';
+import { useExpandedEntryRestore } from '@/hooks/useExpandedEntryRestore';
 import { Publication } from '@/types/resume';
 import { v4 as uuidv4 } from 'uuid';
 import haptics from '@/lib/haptics';
@@ -13,7 +14,7 @@ import haptics from '@/lib/haptics';
 export const PublicationsSection = memo(function PublicationsSection() {
   const publications = useResumeStore(state => state.currentResume?.publications) || [];
   const updateResume = useResumeStore(state => state.updateResume);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useExpandedEntryRestore('publications');
 
   const addPublication = () => { haptics.light(); const n: Publication = { id: uuidv4(), title: '', publisher: '', date: '' }; updateResume({ publications: [...publications, n] }); setExpandedId(n.id); };
   const updatePub = (id: string, u: Partial<Publication>) => { updateResume({ publications: publications.map(p => p.id === id ? { ...p, ...u } : p) }); };

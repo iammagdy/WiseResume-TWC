@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useResumeStore } from '@/store/resumeStore';
+import { useExpandedEntryRestore } from '@/hooks/useExpandedEntryRestore';
 import { Certification } from '@/types/resume';
 import { v4 as uuidv4 } from 'uuid';
 import haptics from '@/lib/haptics';
@@ -12,7 +13,7 @@ import haptics from '@/lib/haptics';
 export const CertificationsSection = memo(function CertificationsSection() {
   const certifications = useResumeStore(state => state.currentResume?.certifications) || [];
   const updateResume = useResumeStore(state => state.updateResume);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useExpandedEntryRestore('certifications');
 
   const addCert = () => {
     haptics.light();

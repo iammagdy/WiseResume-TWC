@@ -4,6 +4,9 @@ import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useSettingsStore } from '@/store/settingsStore';
 import { logAudit } from '@/lib/auditLogger';
+import { clearAllPersistedCaches } from '@/lib/persistedQueryCache';
+import { clearAllCachedScores } from '@/hooks/useResumeScore';
+import { clearAllEditorSessions } from '@/lib/editorSession';
 import { exchangeToken, clearBridge, isReady, getUserId, setKindeTokenGetter, setCurrentKindeSub, getCachedKindeSub } from '@/lib/supabaseBridge';
 
 export interface KindeAppUser {
@@ -270,6 +273,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Skip the very first transition from null → null on cold boot.
       if (previousId !== null || currentId !== null) {
         queryClient.clear();
+        clearAllPersistedCaches();
+        clearAllCachedScores();
+        clearAllEditorSessions();
       }
     }
   }, [user?.id, queryClient]);
@@ -279,6 +285,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Drop every cached query first so any in-flight components rendering
     // during the logout transition can't briefly show the previous user's data.
     queryClient.clear();
+    clearAllPersistedCaches();
+    clearAllCachedScores();
+    clearAllEditorSessions();
     clearBridge();
     setBridgeReady(false);
     setBridgeFailed(false);

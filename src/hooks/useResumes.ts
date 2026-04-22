@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { Json } from '@/integrations/supabase/types';
 import { useResumeStore } from '@/store/resumeStore';
 import { useResumeVersionMutations } from '@/hooks/useResumeVersions';
+import { readPersistedCache, writePersistedCache } from '@/lib/persistedQueryCache';
 
 export interface DatabaseResume {
   id: string;
@@ -118,8 +119,17 @@ export function resumeDataToDb(resume: ResumeData, userId: string, title?: strin
   };
 }
 
+/**
+ * Local-storage persistence key for the resume list. Scoped per-user so
+ * a logged-in cache can't leak into another account on the same device.
+ */
+function resumeListCacheName(userId: string | undefined) {
+  return userId ? `resumes:${userId}` : null;
+}
+
 export function useResumes<TData = DatabaseResume[]>(options?: { select?: (data: DatabaseResume[]) => TData }) {
   const { user } = useAuth();
+  const cacheName = resumeListCacheName(user?.id);
 
   return useQuery({
     queryKey: ['resumes', user?.id],
@@ -131,7 +141,7 @@ export function useResumes<TData = DatabaseResume[]>(options?: { select?: (data:
 
       if (error) throw error;
       const gracePeriodCutoff = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000); // 3-day grace window
-      return (data || [])
+      const result = (data || [])
         .map(parseDbResume)
         // Hide expired trial resumes that are past the 3-day grace window.
         // Trials within the grace window remain visible as read-only so users can upgrade.
@@ -139,6 +149,8 @@ export function useResumes<TData = DatabaseResume[]>(options?: { select?: (data:
           if (!r.is_trial || !r.trial_expires_at) return true;
           return new Date(r.trial_expires_at) > gracePeriodCutoff;
         });
+      if (cacheName) writePersistedCache(cacheName, result);
+      return result;
     },
     enabled: !!user,
     staleTime: 5 * 60 * 1000,
@@ -146,8 +158,23 @@ export function useResumes<TData = DatabaseResume[]>(options?: { select?: (data:
     networkMode: 'offlineFirst',
     retry: 2,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 5000),
+    // Prime first paint after a hard refresh from the previous session's
+    // persisted list. Background revalidation against Supabase still runs
+    // and replaces this immediately. Returning a snapshot via
+    // `placeholderData` does not flip `isFetching` off, so call sites that
+    // care about freshness can still tell.
+    placeholderData: cacheName ? () => readPersistedCache<DatabaseResume[]>(cacheName) ?? undefined : undefined,
     select: options?.select,
   });
+  // NOTE: Do NOT add a defensive useEffect that writes `query.data` back to
+  // the persisted cache from observers. When callers pass a `select`,
+  // `query.data` is the *transformed* (often subset/derived) value, and
+  // writing that to the shared per-user `resumes:<userId>` cache would
+  // corrupt the dashboard's cold-paint snapshot the next time it primed
+  // from the cache (e.g. nav components that select a single item would
+  // reduce the persisted list to that one item). The queryFn above is the
+  // single source of truth for cache writes and always sees the raw
+  // `DatabaseResume[]`.
 }
 
 export function useResume(resumeId: string | null) {

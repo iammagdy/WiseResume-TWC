@@ -2,6 +2,22 @@
 
 **Last verified:** 2026-04-21 (deploy switched to FTPS, retries + guards + DevTools hardening shipped)
 
+## The editor remembers exactly where you were after a refresh, and the dashboard loads instantly from cache (2026-04-21)
+
+**What was the situation:** Two small but constant friction points on the busiest pages.
+
+The first was the editor: every time the page refreshed — whether you reloaded by accident, your browser auto-reloaded, or the silent-recovery refresh from the fix described below kicked in — you'd land back on the very first step (Contact) at the top of the page, with every AI dialog you had open closed. Your *resume content* was always safe, but your *editing spot* was lost. To make this worse, the browser would also pop up a generic "Are you sure you want to leave?" prompt every time you tried to refresh, even though refreshing was completely safe.
+
+The second was the dashboard: every time you came back to the dashboard cold (closing the tab and reopening, hard refresh, etc.), you'd see a skeleton-loader animation for a beat or two while the app re-fetched your resume list and re-scored each card from scratch — even when nothing had changed since your last visit.
+
+**What changed:** The editor now quietly remembers, per resume, which step you were on, where you'd scrolled to inside that step, which entry card you had expanded (an Experience role, an Education entry, a Project, etc.), and which AI dialog (Tailor, Recruiter Sim, Career Path, Customize, etc.) you had open. When you refresh, you land back exactly where you left off, with the same card expanded and the same dialog open if there was one. There's a 24-hour expiry on this memory so a stale session from days ago never auto-opens anything, and an escape hatch: adding `?fresh=1` to the editor URL wipes the memory and reboots from defaults — useful if anything ever gets stuck. The "are you sure you want to leave?" prompt now skips itself when you press F5 or Ctrl/Cmd+R (since refreshing is safe and you'll land back where you were), but it still appears for genuine departures like closing the tab or navigating to another website if you have unsaved changes — your safety net for "wait, I didn't mean to leave" is intact.
+
+The dashboard now keeps its previous resume list and scores in your browser, so the next time you load the dashboard cold the cards paint immediately from that snapshot while the app quietly checks for any updates in the background. Anything that changed gets refreshed seamlessly — you don't see the skeleton flash for resumes that haven't changed since your last visit. When you sign out, all of this cached information is cleared, so the next person to use the same browser never sees anything from your account.
+
+**What you'll notice:** Refreshing the editor (or the silent-recovery refresh kicking in) now lands you back on exactly the same step, scrolled to the same place, with the same dialog still open. The dashboard cards appear instantly when you come back to the app instead of showing a loading skeleton, while updates trickle in quietly in the background. Sign-out still wipes everything, so accounts on shared devices stay private.
+
+---
+
 ## The "Retrying in 5 seconds" red screen on first visit after a deploy is gone (2026-04-21)
 
 **What was the situation:** Visitors who had previously used the site (specifically: anyone who had it open back when it was offered as an installable app) had a small piece of the old version invisibly cached in their browser. On their first visit after a new release went live, that cached piece would try to load a small file from the old release that no longer existed on the server, and the page would crash into a red "Retrying in 5 seconds…" screen before refreshing itself. The most painful version of this happened right after sign-in: users saw a red error countdown the very moment they reached the dashboard. A separate self-healing piece was already in place to clean things up after the refresh — it's why the second visit always worked — but the user had to *see* the red screen and the countdown to get there. There was no useful information on that screen; the entire "fix" was just the refresh.

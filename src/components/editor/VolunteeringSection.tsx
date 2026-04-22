@@ -1,4 +1,4 @@
-import { memo, useState } from 'react';
+import { memo } from 'react';
 import { Plus, Trash2, ChevronDown, ChevronUp, Heart, Calendar, Building2, Clock, ArrowUp, ArrowDown } from 'lucide-react';
 import { DragHandle } from './DragHandle';
 import { Button } from '@/components/ui/button';
@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useResumeStore } from '@/store/resumeStore';
+import { useExpandedEntryRestore } from '@/hooks/useExpandedEntryRestore';
 import { Volunteering } from '@/types/resume';
 import { v4 as uuidv4 } from 'uuid';
 import haptics from '@/lib/haptics';
@@ -13,7 +14,7 @@ import haptics from '@/lib/haptics';
 export const VolunteeringSection = memo(function VolunteeringSection() {
   const volunteering = useResumeStore(state => state.currentResume?.volunteering) || [];
   const updateResume = useResumeStore(state => state.updateResume);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useExpandedEntryRestore('volunteering');
 
   const addEntry = () => { haptics.light(); const n: Volunteering = { id: uuidv4(), organization: '', role: '', startDate: '', endDate: '', description: '' }; updateResume({ volunteering: [...volunteering, n] }); setExpandedId(n.id); };
   const updateEntry = (id: string, u: Partial<Volunteering>) => { updateResume({ volunteering: volunteering.map(v => v.id === id ? { ...v, ...u } : v) }); };

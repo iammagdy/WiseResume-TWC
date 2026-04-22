@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useResumeStore } from '@/store/resumeStore';
+import { useExpandedEntryRestore } from '@/hooks/useExpandedEntryRestore';
 import { Education } from '@/types/resume';
 import { v4 as uuidv4 } from 'uuid';
 import { useAIEnhance, ActionType } from '@/hooks/useAIEnhance';
@@ -27,7 +28,7 @@ export const EducationSection = memo(function EducationSection() {
   const education = useResumeStore(state => state.currentResume?.education);
   const updateResume = useResumeStore(state => state.updateResume);
   const currentResume = useResumeStore(state => state.currentResume);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useExpandedEntryRestore('education');
   const [showLinkedIn, setShowLinkedIn] = useState(false);
 
   const { enhance, isEnhancing } = useAIEnhance({
