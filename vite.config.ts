@@ -90,6 +90,40 @@ function prefetchPlugin(): Plugin {
   };
 }
 
+// Emit <link rel="preload"> tags for the Inter 400 and 500 woff2 font
+// assets so the browser can fetch the most-used weights before the CSS
+// @font-face rules are parsed, eliminating FOIT on the critical hero
+// text. Only the latin subset (the smallest, most commonly used) is
+// preloaded; other subsets and weights load normally on demand.
+function fontPreloadPlugin(): Plugin {
+  return {
+    name: 'font-preload',
+    transformIndexHtml: {
+      order: 'post',
+      handler(html, ctx) {
+        if (!ctx.bundle) return html;
+        const tags: string[] = [];
+        for (const [fileName] of Object.entries(ctx.bundle)) {
+          if (!fileName.endsWith('.woff2')) continue;
+          const lower = fileName.toLowerCase();
+          // Preload Inter latin 400-normal and 500-normal — the weights
+          // used for body text and nav on the landing hero. Skip other
+          // subsets and weights; they can load on demand.
+          const isInter = lower.includes('inter');
+          const isLatinOnly = !lower.includes('ext') && !lower.includes('greek') &&
+            !lower.includes('cyrillic') && !lower.includes('vietnamese');
+          const isCriticalWeight = lower.includes('-400-') || lower.includes('-500-');
+          if (isInter && isLatinOnly && isCriticalWeight) {
+            tags.push(`  <link rel="preload" href="/${fileName}" as="font" type="font/woff2" crossorigin />\n`);
+          }
+        }
+        if (tags.length === 0) return html;
+        return html.replace('</head>', tags.join('') + '</head>');
+      },
+    },
+  };
+}
+
 // App version sourced from package.json — bump there to update the
 // internal build label shown in the landing footer.
 const APP_VERSION = require('./package.json').version as string;
@@ -197,6 +231,7 @@ export default defineConfig(() => ({
     react(),
     cspPlugin(),
     prefetchPlugin(),
+    fontPreloadPlugin(),
     // PWA / service worker removed. No manifest or SW is served.
     process.env.SENTRY_AUTH_TOKEN
       ? sentryVitePlugin({

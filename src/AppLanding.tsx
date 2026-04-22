@@ -5,13 +5,14 @@ import { AuthProvider, DegradedAuthProvider } from "@/contexts/AuthContext";
 import { KindeProvider, KindeContext } from "@kinde-oss/kinde-auth-react";
 import { lazyWithRetry } from "@/lib/lazyWithRetry";
 import { useResumeStore } from "@/store/resumeStore";
-/* Task #7 follow-up: AppLanding is the lightweight chunk that serves
-   `/` and `/enterprises` on first paint. It needs the same animated
-   aurora background that the rest of the app shell uses, so the
-   shared AuroraLayer is rendered here as a sibling of LandingRoutes.
-   Without this import the landing pages painted flat (no aurora at
-   all) because the previous AuroraLayer lived only in AppInterior. */
-import { AuroraLayer } from "@/components/landing/AuroraLayer";
+/* AuroraLayer is lazy-loaded so the ogl WebGL library (a large dep) is
+   excluded from the AppLanding critical modulepreload graph. This reduces
+   the bytes the browser must download before first paint on the landing
+   page, improving LCP/FCP. The aurora loads a split-second after the
+   hero text — visually imperceptible to users. */
+const AuroraLayerLazy = lazyWithRetry(() =>
+  import("@/components/landing/AuroraLayer").then((m) => ({ default: m.AuroraLayer }))
+);
 
 const Index = lazyWithRetry(() => import("./pages/Index"));
 
@@ -111,7 +112,9 @@ function LandingRoutes() {
   // skeleton during initial chunk load.
   return (
     <>
-      <AuroraLayer />
+      <Suspense fallback={null}>
+        <AuroraLayerLazy />
+      </Suspense>
       <RouteEB>
         <Suspense fallback={<LandingFallback />}>
           <Index />

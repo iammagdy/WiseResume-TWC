@@ -1,5 +1,7 @@
 import * as Sentry from '@sentry/react';
 
+declare const __APP_VERSION__: string;
+
 const DSN = import.meta.env.VITE_SENTRY_DSN as string | undefined;
 const ENV = import.meta.env.MODE ?? 'development';
 
@@ -18,7 +20,9 @@ const ENV = import.meta.env.MODE ?? 'development';
  */
 export function initMonitoring(): void {
   if (!DSN) {
-    if (ENV !== 'test') {
+    // Only log in development — production always has the DSN configured
+    // via the VITE_SENTRY_DSN secret, so this path is development-only.
+    if (ENV === 'development') {
       console.info('[monitoring] VITE_SENTRY_DSN not set — error tracking disabled.');
     }
     return;
@@ -27,6 +31,7 @@ export function initMonitoring(): void {
   Sentry.init({
     dsn: DSN,
     environment: ENV,
+    release: __APP_VERSION__,
     integrations: [
       Sentry.browserTracingIntegration(),
       Sentry.replayIntegration({
@@ -59,6 +64,10 @@ export function initMonitoring(): void {
       return event;
     },
   });
+
+  if (ENV !== 'production') {
+    console.info('[monitoring] Sentry initialised — error tracking active.');
+  }
 }
 
 /**
