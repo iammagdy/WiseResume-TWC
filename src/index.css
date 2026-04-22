@@ -19,6 +19,30 @@ html.aurora-active .app-theme {
   background-color: transparent !important;
 }
 
+/* Task #7: Aurora restoration on landing.
+   Many landing sections (hero, ticker, features, pricing, footer) read
+   `var(--lp-bg)` / `var(--lp-section-alt)` / `var(--lp-section-alt2)` as
+   their inline background. Those tokens default to opaque colors per
+   theme (especially in light mode and for WiseHire), which paints over
+   the fixed aurora canvas at z:0 and hides it.
+
+   Override the tokens to transparent on `.lp-root` (and the body
+   fallback bg used during pre-hydration windows) whenever the aurora
+   layer is active, so all consumers automatically let the aurora bleed
+   through without needing per-component changes. The body's solid
+   `background-color` still provides the no-flash backstop the LCP work
+   was protecting — it sits BELOW the fixed aurora canvas, so the user
+   only ever sees it through aurora's transparent regions. */
+html.aurora-active .lp-root {
+  --lp-bg: transparent !important;
+  --lp-section-alt: transparent !important;
+  --lp-section-alt2: transparent !important;
+}
+/* Soft section dividers (lp-section-divider-top/bottom) blend solid
+   --lp-section-alt to transparent — once we null the token they become
+   pure transparent (a no-op) so they don't clip the aurora at section
+   boundaries. No further change needed; this comment documents intent. */
+
 /* Security curtain — hides content from OS app-switcher screenshots on native */
 body.wr-security-curtain {
   filter: blur(20px);
