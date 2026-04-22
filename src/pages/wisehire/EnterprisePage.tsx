@@ -980,10 +980,10 @@ function FooterCtaSection() {
 
         {/* Footer nav */}
         <div className="mt-10 flex flex-wrap justify-center gap-6 text-xs" style={{ color: 'var(--lp-text-muted)' }}>
-          <Link to="/privacy-policy" className="hover:underline" style={{ color: 'var(--lp-text-muted)' }}>
+          <Link to="/wisehire/privacy-policy" className="hover:underline" style={{ color: 'var(--lp-text-muted)' }}>
             Privacy Policy
           </Link>
-          <Link to="/terms-of-service" className="hover:underline" style={{ color: 'var(--lp-text-muted)' }}>
+          <Link to="/wisehire/terms-of-service" className="hover:underline" style={{ color: 'var(--lp-text-muted)' }}>
             Terms of Service
           </Link>
           <a href="/?for=companies#wisehire-pricing" className="hover:underline" style={{ color: 'var(--lp-text-muted)' }}>

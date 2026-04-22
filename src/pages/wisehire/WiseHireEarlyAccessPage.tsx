@@ -336,9 +336,9 @@ export default function WiseHireEarlyAccessPage() {
 
         <p className="text-xs text-center text-slate-400 pt-1">
           By creating an account you agree to the{' '}
-          <Link to="/terms-of-service" className="underline hover:text-slate-600">Terms of Service</Link>
+          <Link to="/wisehire/terms-of-service" className="underline hover:text-slate-600">Terms of Service</Link>
           {' '}and{' '}
-          <Link to="/privacy-policy" className="underline hover:text-slate-600">Privacy Policy</Link>.
+          <Link to="/wisehire/privacy-policy" className="underline hover:text-slate-600">Privacy Policy</Link>.
         </p>
       </form>
     </Shell>

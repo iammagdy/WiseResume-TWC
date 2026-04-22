@@ -235,6 +235,8 @@ const AuthResetPasswordPage = lazyWithRetry(() => import("./pages/AuthResetPassw
 
 const PrivacyPage = lazyWithRetry(() => import("./pages/PrivacyPage"));
 const TermsPage = lazyWithRetry(() => import("./pages/TermsPage"));
+const WiseHireTermsPage = lazyWithRetry(() => import("./pages/wisehire/WiseHireTermsPage"));
+const WiseHirePrivacyPage = lazyWithRetry(() => import("./pages/wisehire/WiseHirePrivacyPage"));
 const PricingPage = lazyWithRetry(() => import("./pages/PricingPage"));
 const WhatsNewPage = lazyWithRetry(() => import("./pages/WhatsNewPage"));
 const HelpPage = lazyWithRetry(() => import("./pages/HelpPage"));
@@ -454,6 +456,8 @@ function AppRoutes() {
           {/* WiseHire public routes */}
           <Route path="/wisehire/signup" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><WiseHireSignupPage /></Suspense></RouteEB>} />
           <Route path="/wisehire/signup-early-access/:code" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><WiseHireEarlyAccessPage /></Suspense></RouteEB>} />
+          <Route path="/wisehire/terms-of-service" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><WiseHireTermsPage /></Suspense></RouteEB>} />
+          <Route path="/wisehire/privacy-policy" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><WiseHirePrivacyPage /></Suspense></RouteEB>} />
 
           {/* WiseHire protected routes — HR accounts only */}
           <Route element={<WiseHireGuard />}>

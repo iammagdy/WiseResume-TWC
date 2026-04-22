@@ -49,7 +49,7 @@ export function Footer({ lpMode, product }: FooterProps) {
 
         <div className="flex items-center gap-1 text-xs">
           <Link
-            to="/privacy-policy"
+            to={isWiseHire ? '/wisehire/privacy-policy' : '/privacy-policy'}
             className="transition-colors"
             style={lpMode
               ? { color: 'var(--lp-text-muted)', padding: '10px 12px', display: 'inline-flex', alignItems: 'center', minHeight: 44, textDecoration: 'underline', textDecorationColor: 'var(--lp-border)', textUnderlineOffset: 3 }
@@ -63,7 +63,7 @@ export function Footer({ lpMode, product }: FooterProps) {
             style={lpMode ? { background: 'var(--lp-border)' } : undefined}
           />
           <Link
-            to="/terms-of-service"
+            to={isWiseHire ? '/wisehire/terms-of-service' : '/terms-of-service'}
             className="transition-colors"
             style={lpMode
               ? { color: 'var(--lp-text-muted)', padding: '10px 12px', display: 'inline-flex', alignItems: 'center', minHeight: 44, textDecoration: 'underline', textDecorationColor: 'var(--lp-border)', textUnderlineOffset: 3 }
