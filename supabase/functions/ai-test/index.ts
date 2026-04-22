@@ -2,42 +2,34 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { callAI, getUserKeyAndUrlFromDB } from "../_shared/aiClient.ts";
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { requireAuth, authErrorResponse } from '../_shared/authMiddleware.ts';
+import { requireAdminAuth } from '../_shared/adminAuth.ts';
+import { getServiceClient } from '../_shared/dbClient.ts';
 import { checkRateLimit } from '../_shared/rateLimiter.ts';
 import { checkAndDeductCredit } from '../_shared/creditUtils.ts';
 import { logger } from '../_shared/logger.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import {
+  WISERESUME_OPENROUTER_MODEL,
+  WISERESUME_OPENROUTER2_MODEL,
+  WISERESUME_GROQ_MODEL,
+  LEGACY_GROQ_MODEL,
+  LEGACY_OPENROUTER2_MODEL,
+  BYOK_DEFAULT_MODELS,
+} from '../_shared/modelDefaults.ts';
 const log = logger('ai-test');
 
 
 /**
- * S4 — Supabase JWT–based admin check. Looks up the verified caller's email
- * via supabase.auth.getUser() (same authoritative path used by every other
- * admin gate) and matches it against the comma-separated `ADMIN_EMAILS` env.
+ * ADMIN AUTH PATTERN FOR EDGE FUNCTIONS
+ * ──────────────────────────────────────
+ * All admin-gated edge functions use `requireAdminAuth` from
+ * `_shared/adminAuth.ts`. It verifies a DevKit session token (HMAC-SHA-256,
+ * issued by `verify-dev-kit`) from the `Authorization: Bearer <token>` header,
+ * checks the token against the `admin_sessions` table, and confirms the
+ * session email is in the ADMIN_EMAILS allow-list.
  *
- * This is the sole admin-auth path for ai-test. The legacy DevKit HMAC
- * password fallback was removed in Task #2 once the AIProviderPanel was
- * updated to send only the Supabase Bearer JWT.
+ * Never use email-matching JWT checks (isJwtAdmin-style) in new functions.
+ * Always import and call `requireAdminAuth(req, corsHeaders)` instead.
  */
-async function isJwtAdmin(req: Request): Promise<boolean> {
-  try {
-    const auth = req.headers.get('Authorization') || '';
-    const m = auth.match(/^Bearer\s+(\S+)$/);
-    if (!m) return false;
-    const supabaseUrl = Deno.env.get('EXT_SUPABASE_URL') || Deno.env.get('SUPABASE_URL');
-    const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
-    const adminEmails = (Deno.env.get('ADMIN_EMAILS') ?? '')
-      .split(',').map((e: string) => e.trim().toLowerCase()).filter(Boolean);
-    if (!supabaseUrl || !anonKey || adminEmails.length === 0) return false;
-    const anon = createClient(supabaseUrl, anonKey, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
-    const { data: { user } } = await anon.auth.getUser(m[1]);
-    const email = (user?.email ?? '').toLowerCase();
-    return !!email && adminEmails.includes(email);
-  } catch {
-    return false;
-  }
-}
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
@@ -48,15 +40,11 @@ serve(async (req) => {
   const startTime = Date.now();
 
   try {
-    // Auth via manual JWT decode (cross-project compatible)
-    const { userId, client: supabaseAdmin } = await requireAuth(req);
-
-    const { allowed } = await checkRateLimit(userId, { actionType: 'test_check', maxRequests: 10, windowSeconds: 60 });
-    if (!allowed) {
-      return new Response(JSON.stringify({ success: false, error: "Rate limit exceeded" }), { status: 429, headers: corsHeaders });
-    }
-
-    // Parse request body for potential 'checkOnly' flag and admin-gated sub-provider override
+    // ── Parse body first ─────────────────────────────────────────────────────
+    // We need to inspect the body before choosing the auth mechanism: the
+    // `wiseresumeSubProvider` field is exclusively for admin DevKit calls
+    // and requires a different token (HMAC DevKit session) than regular user
+    // requests (Supabase Bearer JWT).
     let checkOnly = false;
     let bodySubProvider: 'openrouter' | 'groq' | 'auto' | 'openrouter2' | undefined;
     let isAdminRequest = false;
@@ -81,16 +69,13 @@ serve(async (req) => {
       // Ignore parse errors for empty/invalid bodies
     }
 
-    // Task #18: if the caller explicitly sent a `wiseresumeSubProvider`, honor
-    // it or reject with an explicit error. The previous implementation silently
-    // ignored the override when the admin-auth check flaked (env missing, a
-    // transient network error on supabase.auth.getUser, etc.), causing the
-    // server to fall back to the global `wiseresume_ai_engine` app setting.
-    // That meant clicking the Groq tab's "Test" could silently return the
-    // currently-global sub-provider's result (e.g. elephant-alpha for
-    // OpenRouter 2), which is exactly the cross-tab bleed the admin observed.
-    // Fail loudly instead so the admin sees a real error rather than a
-    // misleading "success" card from the wrong provider.
+    // ── Auth: admin path vs regular-user path ────────────────────────────────
+    // Admin sub-provider overrides use requireAdminAuth (HMAC DevKit session
+    // token). All other requests use requireAuth (Supabase Bearer JWT).
+    // This is the canonical admin-auth pattern — see _shared/adminAuth.ts.
+    let userId: string;
+    let supabaseAdmin: ReturnType<typeof getServiceClient>;
+
     if (rawBodySubProvider !== undefined) {
       const VALID_SUB_PROVIDERS = ['openrouter', 'groq', 'auto', 'openrouter2'] as const;
       type ValidSubProvider = typeof VALID_SUB_PROVIDERS[number];
@@ -103,18 +88,26 @@ serve(async (req) => {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
-      const isAdmin = await isJwtAdmin(req);
-      if (!isAdmin) {
-        return new Response(JSON.stringify({
-          success: false,
-          error: 'wiseresumeSubProvider override requires admin privileges.',
-        }), {
-          status: 403,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
+      // requireAdminAuth throws a Response (401/403/503) if the token is
+      // missing, invalid, expired, revoked, or not in ADMIN_EMAILS.
+      await requireAdminAuth(req, corsHeaders);
       bodySubProvider = rawBodySubProvider as ValidSubProvider;
       isAdminRequest = true;
+      // Admin diagnostic requests bypass per-user rate limiting, cooldown,
+      // and credit deduction (each guarded by isAdminRequest below).
+      userId = 'admin';
+      supabaseAdmin = getServiceClient();
+    } else {
+      const auth = await requireAuth(req);
+      userId = auth.userId;
+      supabaseAdmin = auth.client;
+    }
+
+    if (!isAdminRequest) {
+      const { allowed } = await checkRateLimit(userId, { actionType: 'test_check', maxRequests: 10, windowSeconds: 60 });
+      if (!allowed) {
+        return new Response(JSON.stringify({ success: false, error: "Rate limit exceeded" }), { status: 429, headers: corsHeaders });
+      }
     }
 
     // Get user's preferred provider (use service-role client for cross-project DB)
@@ -201,21 +194,12 @@ serve(async (req) => {
     // Set the expected model based on provider/sub-provider so admin diagnostics show accurate info.
     // For WiseResume managed: OpenRouter uses Gemma 4, Groq uses Qwen 3 32B.
     // For BYOK providers: read the stored model from DB; fall back to a safe per-provider default.
+    // Model slug constants are centralised in _shared/modelDefaults.ts — update them there,
+    // not here, to change which model is used.
     const BYOK_PROVIDERS_LIST = ['openai', 'anthropic', 'groq', 'mistral', 'xai', 'cohere', 'gemini', 'openrouter', 'ollama'];
-    const BYOK_DEFAULT_MODELS: Record<string, string> = {
-      openai: 'gpt-4o-mini',
-      anthropic: 'claude-3-5-haiku-20241022',
-      groq: 'qwen/qwen3-32b',
-      mistral: 'mistral-small-latest',
-      xai: 'grok-2-mini',
-      cohere: 'command-r',
-      gemini: 'gemini-2.5-flash',
-      openrouter: '',
-      ollama: '',
-    };
     // Task #24: default to the curated default so any non-overridden test
     // path uses the same baseline as production routing.
-    let testModel = 'google/gemma-4-31b-it:free';
+    let testModel = WISERESUME_OPENROUTER_MODEL;
     let storedByokModel: string | null = null;
 
     if (BYOK_PROVIDERS_LIST.includes(preferredProvider)) {
@@ -238,22 +222,25 @@ serve(async (req) => {
       testModel = storedByokModel || defaultModel;
     } else if (preferredProvider === 'wiseresume') {
       if (wiseresumeSubProvider === 'groq') {
-        testModel = 'qwen/qwen3-32b';
+        testModel = WISERESUME_GROQ_MODEL;
       } else if (wiseresumeSubProvider === 'openrouter2') {
-        testModel = 'openrouter/elephant-alpha';
+        testModel = WISERESUME_OPENROUTER2_MODEL;
       } else {
-        testModel = 'google/gemma-4-31b-it:free';
+        testModel = WISERESUME_OPENROUTER_MODEL;
       }
     }
 
     // Credit enforcement: placed after cooldown, checkOnly, and model-validation branches
     // so that credits are only deducted when the actual AI call is guaranteed to proceed.
-    const creditCheck = await checkAndDeductCredit(userId);
-    if (!creditCheck.hasCredits) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Daily AI credit limit reached. Upgrade your plan or use your own API key.' }),
-        { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    // Admin diagnostic requests bypass credit deduction entirely.
+    if (!isAdminRequest) {
+      const creditCheck = await checkAndDeductCredit(userId);
+      if (!creditCheck.hasCredits) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Daily AI credit limit reached. Upgrade your plan or use your own API key.' }),
+          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     const identityMap: Record<string, string> = {
@@ -308,29 +295,33 @@ serve(async (req) => {
     } else if (preferredProvider === 'wiseresume' && wiseresumeSubProvider === 'auto') {
       // No suffix available — fall back to the legacy heuristic for the
       // auto path so older edge function deployments don't regress.
-      if (providerUsed.includes('groq')) testModel = 'qwen/qwen3-32b';
-      else if (providerUsed.includes('openrouter2')) testModel = 'openrouter/elephant-alpha';
-      else testModel = 'google/gemma-4-31b-it:free';
+      if (providerUsed.includes('groq')) testModel = LEGACY_GROQ_MODEL;
+      else if (providerUsed.includes('openrouter2')) testModel = LEGACY_OPENROUTER2_MODEL;
+      else testModel = WISERESUME_OPENROUTER_MODEL;
     } else if (BYOK_PROVIDERS_LIST.includes(preferredProvider) && storedByokModel) {
       // BYOK path without suffix — fall back to the stored slug.
       testModel = storedByokModel;
     }
 
-    // Log test call
-    const { error: insertError } = await supabaseAdmin.from('ai_usage_logs').insert({
-      user_id: userId,
-      action_type: 'test',
-      metadata: {
-        provider: providerUsed,
-        model: testModel,
-        latencyMs,
-        response: (aiResponse.content?.trim() || 'OK').slice(0, 100),
-        fallbackUsed: aiResponse.fallbackUsed || false,
-      },
-    });
+    // Log test call — skipped for admin diagnostic requests because userId is a
+    // synthetic sentinel ('admin'), not a valid UUID, which would cause a silent
+    // insert failure on UUID-typed user_id columns.
+    if (!isAdminRequest) {
+      const { error: insertError } = await supabaseAdmin.from('ai_usage_logs').insert({
+        user_id: userId,
+        action_type: 'test',
+        metadata: {
+          provider: providerUsed,
+          model: testModel,
+          latencyMs,
+          response: (aiResponse.content?.trim() || 'OK').slice(0, 100),
+          fallbackUsed: aiResponse.fallbackUsed || false,
+        },
+      });
 
-    if (insertError) {
-      console.error('[ai-test] Failed to log usage:', insertError);
+      if (insertError) {
+        console.error('[ai-test] Failed to log usage:', insertError);
+      }
     }
 
     // Brand the response for WiseResume AI so clients never see raw sub-provider names
@@ -358,7 +349,9 @@ serve(async (req) => {
     });
   } catch (err) {
     log.error('Unhandled error', err);
-    // If it's an auth error from requireAuth, return it properly
+    // requireAdminAuth throws a fully-formed Response — return it as-is.
+    if (err instanceof Response) return err;
+    // AuthError (from requireAuth) — wrap with CORS headers.
     if (typeof err === 'object' && err !== null && 'status' in err) {
       return authErrorResponse(err, req.headers.get('origin'));
     }

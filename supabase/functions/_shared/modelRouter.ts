@@ -18,7 +18,17 @@
  * pass the returned `provider`, `model`, and `temperature` straight through
  * to `callAI()` / `callAIWithRetry()`. This is the single source of truth —
  * never hard-code provider slugs in individual tools again.
+ *
+ * MODEL SLUG CONSTANTS are defined in `_shared/modelDefaults.ts` — that file
+ * is the single authoritative location for all WiseResume managed model slugs.
+ * Update slugs there; this routing table just references them by alias.
  */
+
+import {
+  WISERESUME_OPENROUTER_MODEL,
+  WISERESUME_OPENROUTER2_MODEL,
+  WISERESUME_GROQ_MODEL,
+} from './modelDefaults.ts';
 
 export type WiseProvider = 'openrouter' | 'openrouter2' | 'groq' | 'auto';
 
@@ -33,15 +43,11 @@ export interface ToolRoute {
   label: string;
 }
 
-const GEMMA_MODEL = 'google/gemma-4-31b-it:free';
-// Premium reasoning replacement for the retired `openrouter/elephant-alpha`.
-// `openai/gpt-oss-120b:free` is OpenAI's open-weights 120B model — strong on
-// HR/recruiting reasoning, free on OpenRouter, no thinking-token leakage.
-const ELEPHANT_MODEL = 'openai/gpt-oss-120b:free';
-// Fast structured-output workhorse on Groq. Replaces `qwen/qwen3-32b` which
-// shipped reasoning tokens (`<think>...`) into the response by default and was
-// breaking JSON parsers downstream.
-const QWEN_MODEL = 'llama-3.3-70b-versatile';
+// Aliases for readability in the routing table below.
+// The actual slug strings live in _shared/modelDefaults.ts.
+const GEMMA_MODEL = WISERESUME_OPENROUTER_MODEL;   // OpenRouter (creative writing)
+const ELEPHANT_MODEL = WISERESUME_OPENROUTER2_MODEL; // OpenRouter 2 (premium reasoning)
+const QWEN_MODEL = WISERESUME_GROQ_MODEL;            // Groq (fast structured extraction)
 
 /**
  * Tool → route mapping. Update this single table to retune the whole app.

@@ -48,7 +48,7 @@ app.use(cors({
 }));
 
 // ── Config ────────────────────────────────────────────────────────────────────
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL || '';
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
 // These three are populated from explicit env vars at module load and then
 // (if still empty) auto-fetched from the Supabase Management API at startup
 // using SUPABASE_ACCESS_TOKEN. They are `let` so the bootstrap can fill them in.
@@ -62,11 +62,23 @@ const KINDE_DOMAIN = process.env.VITE_KINDE_DOMAIN || process.env.KINDE_DOMAIN |
 // are effectively dev-only.
 const SESSION_SECRET = process.env.SESSION_SECRET || '';
 
-if (!SUPABASE_URL) {
-  console.warn('[server] SUPABASE_URL not set — edge function proxy will not work');
-}
-if (!KINDE_DOMAIN) {
-  console.warn('[server] KINDE_DOMAIN not set — token-exchange will not work');
+// ── Fail-fast startup guards ───────────────────────────────────────────────────
+// These three env vars are required for the server to function correctly.
+// Missing any of them causes silent, hard-to-diagnose runtime failures, so we
+// exit immediately with a clear message rather than booting in a degraded state.
+const MISSING_REQUIRED = [
+  !SUPABASE_URL && 'SUPABASE_URL (or VITE_SUPABASE_URL)',
+  !KINDE_DOMAIN && 'KINDE_DOMAIN (or VITE_KINDE_DOMAIN)',
+  !DATABASE_URL && 'DATABASE_URL',
+].filter(Boolean);
+
+if (MISSING_REQUIRED.length > 0) {
+  console.error(
+    '[server] FATAL: Required environment variables are not set:\n' +
+    MISSING_REQUIRED.map((v) => `  • ${v}`).join('\n') + '\n' +
+    '[server] Set them as Replit Secrets and restart the server.',
+  );
+  process.exit(1);
 }
 
 /**
