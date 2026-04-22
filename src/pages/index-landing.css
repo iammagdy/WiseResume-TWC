@@ -817,3 +817,284 @@ body[data-lp-scheme="light"][data-lp-product="wisehire"] { background-color: #f0
   25%  { transform: translate(-50%, -50%) scale(1.6); opacity: 0.4; }
   100% { transform: translate(-50%, -50%) scale(2.5); opacity: 0; }
 }
+
+/* ─────────────────────────────────────────────────────────
+   WISEHIRE HERO — Visual polish (Task #6)
+   Layered background, headline accents, pill sheen, polished
+   CTAs, grouped trust row, decorative side ornament.
+   All driven by tokens so light/dark + WiseHire/WiseResume
+   product scopes cascade automatically.
+   ───────────────────────────────────────────────────────── */
+
+/* Layered background ornaments — sit behind .wh-hero-bg's main glow.
+   The grid is rendered as repeating linear-gradients so it inherits
+   theme color via currentColor on the parent. The vignette darkens
+   the corners just enough to push the eye toward the headline. */
+.wh-hero-bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+/* Primary radial blue glow — matches the original look but slightly
+   softer at the edge so the new mesh layers can blend in. */
+.wh-hero-bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 55% at 50% 0%, var(--lp-hero-glow) 0%, transparent 65%),
+    radial-gradient(ellipse 35% 25% at 18% 35%, var(--wh-hero-aux-glow, rgba(96,165,250,0.08)) 0%, transparent 70%),
+    radial-gradient(ellipse 35% 25% at 82% 30%, var(--wh-hero-aux-glow, rgba(96,165,250,0.08)) 0%, transparent 70%);
+  transition: background 0.45s ease;
+}
+/* Subtle grid mesh — 56px squares with very low opacity. Hidden if the
+   user has reduced motion as a hint they prefer less ambient texture. */
+.wh-hero-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, var(--wh-hero-grid-line, rgba(96,165,250,0.06)) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--wh-hero-grid-line, rgba(96,165,250,0.06)) 1px, transparent 1px);
+  background-size: 56px 56px;
+  /* Fade out toward the edges so the grid doesn't fight with surrounding
+     sections — radial mask centered on the headline. */
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 35%, black 0%, transparent 80%);
+          mask-image: radial-gradient(ellipse 70% 60% at 50% 35%, black 0%, transparent 80%);
+  opacity: 0.85;
+}
+/* Soft corner vignette — a separate element so it composites above the
+   grid but below content. */
+.wh-hero-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 100% 60% at 50% 50%,
+    transparent 55%,
+    var(--wh-hero-vignette, rgba(0,0,0,0.18)) 100%
+  );
+}
+
+/* Theme-scoped tokens for the new hero ornaments.
+   WiseHire dark = soft blue mesh; WiseHire light = lower-contrast tint. */
+.lp-root[data-lp-product="wisehire"][data-lp-scheme="dark"] {
+  --wh-hero-aux-glow: rgba(96,165,250,0.10);
+  --wh-hero-grid-line: rgba(96,165,250,0.07);
+  --wh-hero-vignette: rgba(0,0,0,0.32);
+  --wh-pill-dot: #3B82F6;
+  --wh-pill-sheen: rgba(255,255,255,0.18);
+  --wh-eyebrow-rule: rgba(96,165,250,0.40);
+  --wh-headline-accent-from: #93C5FD;
+  --wh-headline-accent-to: #2563EB;
+  --wh-cta-glow: 0 18px 40px -12px rgba(29,78,216,0.55), 0 0 0 1px rgba(96,165,250,0.25);
+  --wh-cta-glow-hover: 0 22px 50px -10px rgba(29,78,216,0.75), 0 0 0 1px rgba(96,165,250,0.40);
+  --wh-cta-secondary-bg-hover: rgba(29,78,216,0.10);
+  --wh-cta-secondary-border-hover: rgba(96,165,250,0.55);
+  --wh-trust-container-bg: rgba(96,165,250,0.05);
+  --wh-trust-container-border: rgba(96,165,250,0.12);
+  --wh-trust-sep: rgba(96,165,250,0.20);
+  --wh-decor-stroke: rgba(96,165,250,0.20);
+  --wh-decor-fill: rgba(96,165,250,0.05);
+}
+.lp-root[data-lp-product="wisehire"][data-lp-scheme="light"] {
+  --wh-hero-aux-glow: rgba(29,78,216,0.06);
+  --wh-hero-grid-line: rgba(29,78,216,0.06);
+  --wh-hero-vignette: rgba(15,23,42,0.06);
+  --wh-pill-dot: #1D4ED8;
+  --wh-pill-sheen: rgba(255,255,255,0.55);
+  --wh-eyebrow-rule: rgba(29,78,216,0.30);
+  --wh-headline-accent-from: #1D4ED8;
+  --wh-headline-accent-to: #2563EB;
+  --wh-cta-glow: 0 14px 32px -10px rgba(29,78,216,0.35), 0 0 0 1px rgba(29,78,216,0.10);
+  --wh-cta-glow-hover: 0 20px 44px -10px rgba(29,78,216,0.50), 0 0 0 1px rgba(29,78,216,0.20);
+  --wh-cta-secondary-bg-hover: rgba(29,78,216,0.06);
+  --wh-cta-secondary-border-hover: rgba(29,78,216,0.55);
+  --wh-trust-container-bg: rgba(29,78,216,0.04);
+  --wh-trust-container-border: rgba(29,78,216,0.12);
+  --wh-trust-sep: rgba(29,78,216,0.20);
+  --wh-decor-stroke: rgba(29,78,216,0.22);
+  --wh-decor-fill: rgba(29,78,216,0.04);
+}
+
+/* Headline accent — apply a subtle gradient ONLY to the descriptor words
+   ("Smarter."/"Faster.") so the headline gets visual rhythm instead of two
+   identical white lines. The base "Hire"/"Screen" stay in --lp-text. */
+.wh-headline-accent {
+  background: linear-gradient(135deg, var(--wh-headline-accent-from) 0%, var(--wh-headline-accent-to) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Early-access pill — animated live dot + subtle moving sheen across
+   the pill background. The sheen is built from a moving gradient so we
+   pay no extra layer cost. */
+.wh-pill {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.wh-pill-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--wh-pill-dot);
+  box-shadow: 0 0 0 0 var(--wh-pill-dot);
+  animation: wh-pill-pulse 1.8s ease-in-out infinite;
+  flex-shrink: 0;
+}
+@keyframes wh-pill-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--wh-pill-dot) 70%, transparent); transform: scale(1); }
+  50%      { box-shadow: 0 0 0 6px color-mix(in srgb, var(--wh-pill-dot) 0%,  transparent); transform: scale(1.05); }
+}
+.wh-pill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, transparent 30%, var(--wh-pill-sheen) 50%, transparent 70%);
+  background-size: 250% 100%;
+  animation: wh-pill-sheen 3.6s ease-in-out infinite;
+  pointer-events: none;
+  z-index: -1;
+  opacity: 0.55;
+}
+@keyframes wh-pill-sheen {
+  0%   { background-position: 200% 0; }
+  60%  { background-position: -100% 0; }
+  100% { background-position: -100% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wh-pill-dot { animation: none !important; transform: none !important; box-shadow: 0 0 0 2px color-mix(in srgb, var(--wh-pill-dot) 35%, transparent) !important; }
+  .wh-pill::after { animation: none !important; opacity: 0 !important; }
+}
+
+/* Eyebrow with thin divider rules — small horizontal lines on either
+   side of the eyebrow text. Implemented with flex + pseudo lines so the
+   total width hugs the text and doesn't push the layout. */
+.wh-eyebrow-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--lp-eyebrow);
+  transition: color 0.35s ease;
+}
+.wh-eyebrow-row::before,
+.wh-eyebrow-row::after {
+  content: '';
+  display: block;
+  width: clamp(20px, 6vw, 48px);
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--wh-eyebrow-rule), transparent);
+}
+
+/* Typewriter caret — softer, with a subtle inner glow so it reads as
+   a "live" caret rather than a static block. */
+.wh-cursor {
+  /* base styles already defined above; this only refines the look */
+  box-shadow: 0 0 6px color-mix(in srgb, var(--lp-eyebrow) 60%, transparent);
+}
+
+/* CTAs — primary uses a glow that intensifies on hover + a small lift.
+   Secondary gets a clearer hover/focus state.
+   These are class-based so the WiseHireHero JSX can drop the inline
+   `style` glow and inherit theme behavior automatically. */
+.wh-cta-primary {
+  background: var(--lp-brand);
+  color: #fff;
+  box-shadow: var(--wh-cta-glow);
+  transition: box-shadow 0.25s ease, transform 0.25s ease, filter 0.25s ease;
+}
+.wh-cta-primary:hover {
+  box-shadow: var(--wh-cta-glow-hover);
+  filter: brightness(1.06);
+}
+.wh-cta-primary:focus-visible {
+  outline: none;
+  box-shadow: var(--wh-cta-glow-hover), 0 0 0 3px color-mix(in srgb, var(--lp-brand) 45%, transparent);
+}
+.wh-cta-secondary {
+  background: transparent;
+  color: var(--lp-eyebrow);
+  border: 1.5px solid color-mix(in srgb, var(--lp-brand) 35%, transparent);
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+.wh-cta-secondary:hover {
+  background: var(--wh-cta-secondary-bg-hover);
+  border-color: var(--wh-cta-secondary-border-hover);
+}
+.wh-cta-secondary:focus-visible {
+  outline: none;
+  border-color: var(--wh-cta-secondary-border-hover);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--lp-brand) 30%, transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .wh-cta-primary, .wh-cta-secondary { transition: none !important; }
+}
+
+/* Trust row container — faint pill-style background + dot separators
+   between badges on sm+. On mobile we keep the existing scroll strip
+   (the global .lp-trust-badges rules still apply for that breakpoint).
+   sm+ wraps the row in a soft container with subtle inner separators. */
+@media (min-width: 640px) {
+  .wh-trust-container {
+    display: inline-flex !important;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 1.25rem;
+    padding: 10px 22px;
+    border-radius: 999px;
+    background: var(--wh-trust-container-bg);
+    border: 1px solid var(--wh-trust-container-border);
+    width: auto;
+    transition: background 0.35s ease, border-color 0.35s ease;
+  }
+  .wh-trust-container > * + *::before {
+    content: '';
+    display: inline-block;
+    width: 3px;
+    height: 3px;
+    border-radius: 999px;
+    background: var(--wh-trust-sep);
+    margin-right: 1.25rem;
+    vertical-align: middle;
+    transform: translateY(-1px);
+  }
+}
+.wh-trust-count {
+  color: var(--lp-eyebrow) !important;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Decorative side ornament — abstract concentric arcs hinting at AI /
+   pipeline rings. SVG inside a positioned <div>, hidden < 1024px so
+   it never crowds tablet/mobile. Two instances (left + right). */
+.wh-hero-decor {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 220px;
+  height: 220px;
+  pointer-events: none;
+  opacity: 0.7;
+  display: none;
+}
+.wh-hero-decor svg { width: 100%; height: 100%; display: block; }
+.wh-hero-decor circle { fill: var(--wh-decor-fill); stroke: var(--wh-decor-stroke); }
+.wh-hero-decor-left  { left: clamp(0px, 4vw, 64px); }
+.wh-hero-decor-right { right: clamp(0px, 4vw, 64px); }
+@media (min-width: 1024px) {
+  .wh-hero-decor { display: block; }
+}
+@keyframes wh-decor-drift {
+  0%, 100% { transform: translateY(-50%) translateX(0); }
+  50%      { transform: translateY(-52%) translateX(4px); }
+}
+.wh-hero-decor { animation: wh-decor-drift 9s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .wh-hero-decor { animation: none !important; transform: translateY(-50%) !important; }
+}

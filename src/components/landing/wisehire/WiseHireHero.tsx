@@ -91,6 +91,34 @@ interface WiseHireHeroProps {
   mobileToggle?: ReactNode;
 }
 
+/**
+ * Decorative side ornament — abstract concentric arcs that hint at AI /
+ * pipeline rings without crowding the headline. Hidden < 1024px via CSS,
+ * driven entirely by tokens (`--wh-decor-stroke` / `--wh-decor-fill`)
+ * so it adapts to theme + product automatically.
+ */
+function WhHeroDecor({ side }: { side: 'left' | 'right' }) {
+  return (
+    <div
+      aria-hidden="true"
+      className={`wh-hero-decor wh-hero-decor-${side}`}
+    >
+      <svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="100" cy="100" r="92" strokeWidth="1" />
+        <circle cx="100" cy="100" r="68" strokeWidth="1" />
+        <circle cx="100" cy="100" r="44" strokeWidth="1" />
+        <circle cx="100" cy="100" r="20" strokeWidth="1" />
+        {/* Small "node" dots evoking candidate cards on a pipeline ring */}
+        <circle cx="192" cy="100" r="3" />
+        <circle cx="100" cy="32"  r="3" />
+        <circle cx="100" cy="168" r="3" />
+        <circle cx="156" cy="44"  r="2" />
+        <circle cx="44"  cy="156" r="2" />
+      </svg>
+    </div>
+  );
+}
+
 export function WiseHireHero({ onOpenWaitlist, mobileToggle }: WiseHireHeroProps) {
   const prefersReducedMotion = useReducedMotion();
   const typewriterWord = useWHTypewriter(WH_TYPEWRITER_WORDS, prefersReducedMotion);
@@ -105,22 +133,24 @@ export function WiseHireHero({ onOpenWaitlist, mobileToggle }: WiseHireHeroProps
         transition: 'background 0.35s ease',
       }}
     >
-      {/* Blue radial glow */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background: 'radial-gradient(ellipse 80% 55% at 50% 0%, var(--lp-hero-glow) 0%, transparent 65%)',
-          transition: 'background 0.35s ease',
-        }}
-      />
+      {/* Layered background — primary radial blue glow, soft auxiliary
+          glows, and a subtle grid mesh. All purely decorative + pointer
+          events disabled. The vignette is a separate sibling so it can
+          composite above the grid. */}
+      <div aria-hidden="true" className="wh-hero-bg" />
+      <div aria-hidden="true" className="wh-hero-vignette" />
+
+      {/* Decorative side ornaments — hidden < 1024px via CSS so the
+          mobile/tablet hero stays uncluttered. */}
+      <WhHeroDecor side="left" />
+      <WhHeroDecor side="right" />
 
       {/* Mobile product toggle slot — rendered here so it sits inside the hero padding area */}
       {mobileToggle}
 
-      {/* WiseHire brand pill */}
+      {/* WiseHire brand pill — now with a live dot + animated sheen */}
       <div
-        className="relative z-10 flex items-center gap-2 px-4 py-1.5 rounded-full mb-4 sm:mb-6"
+        className="wh-pill relative z-10 flex items-center gap-2 px-4 py-1.5 rounded-full mb-4 sm:mb-6"
         style={{
           background: 'var(--lp-brand-pill-bg)',
           border: '1px solid var(--lp-brand-pill-border)',
@@ -128,6 +158,7 @@ export function WiseHireHero({ onOpenWaitlist, mobileToggle }: WiseHireHeroProps
           transition: 'background 0.35s ease, border-color 0.35s ease',
         }}
       >
+        <span aria-hidden="true" className="wh-pill-dot" />
         <span
           className="font-display font-semibold tracking-tight"
           style={{ fontSize: '0.85rem', color: 'var(--lp-eyebrow)', transition: 'color 0.35s ease' }}
@@ -136,36 +167,40 @@ export function WiseHireHero({ onOpenWaitlist, mobileToggle }: WiseHireHeroProps
         </span>
       </div>
 
-      {/* Eyebrow */}
+      {/* Eyebrow — paired with thin divider rules so it doesn't float alone */}
       <p
-        className="relative z-10 mb-4 sm:mb-7"
+        className="wh-eyebrow-row relative z-10 mb-4 sm:mb-7"
         style={{
           fontSize: '0.8rem',
           letterSpacing: '0.12em',
           textTransform: 'uppercase',
-          color: 'var(--lp-eyebrow)',
           fontWeight: 600,
-          transition: 'color 0.35s ease',
         }}
       >
         AI-Powered HR Platform
       </p>
 
-      {/* Headline */}
+      {/* Headline — same copy, but the descriptor words ("Smarter."/"Faster.")
+          get a subtle gradient accent so the two lines have visual rhythm
+          instead of identical white weight. */}
       <h1
-        className="relative z-10 font-extrabold leading-[1.05] max-w-4xl"
+        className="relative z-10 font-extrabold leading-[1.04] max-w-4xl"
         style={{
           fontSize: 'clamp(1.75rem, 8.5vw, 6.5rem)',
           color: 'var(--lp-text)',
-          letterSpacing: '-0.035em',
+          letterSpacing: '-0.04em',
           transition: 'color 0.35s ease',
         }}
       >
-        <span className="sm:whitespace-nowrap" style={{ display: 'block' }}>Hire Smarter.</span>
-        <span className="sm:whitespace-nowrap" style={{ display: 'block' }}>Screen Faster.</span>
+        <span className="sm:whitespace-nowrap" style={{ display: 'block' }}>
+          Hire <span className="wh-headline-accent">Smarter.</span>
+        </span>
+        <span className="sm:whitespace-nowrap" style={{ display: 'block' }}>
+          Screen <span className="wh-headline-accent">Faster.</span>
+        </span>
       </h1>
 
-      {/* Typewriter subtitle */}
+      {/* Typewriter subtitle — caret softened via CSS .wh-cursor box-shadow */}
       <p
         className="relative z-10 mt-4 sm:mt-5 wh-typewriter-line"
         style={{
@@ -196,39 +231,37 @@ export function WiseHireHero({ onOpenWaitlist, mobileToggle }: WiseHireHeroProps
         AI that screens candidates, writes job descriptions, and surfaces your best hires — in minutes, not hours.
       </p>
 
-      {/* CTAs */}
-      <div className="relative z-10 flex flex-col sm:flex-row items-center gap-3">
+      {/* CTAs — primary now uses a token-driven glow + hover lift; secondary
+          gets a clearer hover/focus state. Tightened gap (12 → 10px). */}
+      <div className="relative z-10 flex flex-col sm:flex-row items-center gap-2.5">
         <motion.button
           onClick={onOpenWaitlist}
-          className="h-12 px-8 text-base font-semibold rounded-xl flex items-center gap-2"
-          style={{ background: '#1D4ED8', color: '#fff' }}
-          whileHover={prefersReducedMotion ? undefined : { scale: 1.04 }}
+          className="wh-cta-primary h-12 px-8 text-base font-semibold rounded-xl flex items-center gap-2"
+          whileHover={prefersReducedMotion ? undefined : { y: -2, scale: 1.03 }}
           whileTap={prefersReducedMotion ? undefined : { scale: 0.97 }}
-          transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+          transition={{ type: 'spring', stiffness: 400, damping: 22 }}
         >
           Join the Waitlist
           <ArrowRight className="w-4 h-4" />
         </motion.button>
         <motion.button
           onClick={() => document.getElementById('wisehire-demo')?.scrollIntoView({ behavior: 'smooth' })}
-          className="h-12 px-8 text-base font-semibold rounded-xl flex items-center gap-2"
-          style={{
-            background: 'transparent',
-            color: 'var(--lp-eyebrow)',
-            border: '1.5px solid rgba(29,78,216,0.35)',
-          }}
-          whileHover={prefersReducedMotion ? undefined : { scale: 1.04 }}
+          className="wh-cta-secondary h-12 px-8 text-base font-semibold rounded-xl flex items-center gap-2"
+          whileHover={prefersReducedMotion ? undefined : { y: -1, scale: 1.02 }}
           whileTap={prefersReducedMotion ? undefined : { scale: 0.97 }}
-          transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+          transition={{ type: 'spring', stiffness: 400, damping: 22 }}
         >
           See it in action
           <ChevronDown className="w-4 h-4" />
         </motion.button>
       </div>
 
-      {/* Trust badges — horizontal scroll strip on mobile, wrap on sm+ */}
+      {/* Trust badges — sm+ wraps in a subtle pill-style container with
+          dot separators between badges; mobile keeps the existing scroll
+          strip via the global .lp-trust-badges rules. The 500+ count
+          gets the brand accent color via .wh-trust-count. */}
       <motion.div
-        className="relative z-10 mt-6 sm:mt-8 text-xs lp-trust-badges"
+        className="relative z-10 mt-6 sm:mt-8 text-xs lp-trust-badges wh-trust-container"
         initial={prefersReducedMotion ? false : { opacity: 0, y: 16 }}
         whileInView={prefersReducedMotion ? false : { opacity: 1, y: 0 }}
         viewport={{ once: true, amount: 0.5 }}
@@ -236,7 +269,9 @@ export function WiseHireHero({ onOpenWaitlist, mobileToggle }: WiseHireHeroProps
       >
         <span ref={waitlistCount.containerRef} className="flex items-center gap-1.5" style={{ color: 'var(--lp-trust-color)', transition: 'color 0.3s ease' }}>
           <Users className="w-3.5 h-3.5" style={{ color: 'var(--lp-trust-icon)', transition: 'color 0.3s ease' }} />
-          <span ref={waitlistCount.countRef}>{waitlistCount.initialText}</span>+ on the waitlist
+          <span ref={waitlistCount.countRef} className="wh-trust-count">{waitlistCount.initialText}</span>
+          <span className="wh-trust-count">+</span>
+          <span>&nbsp;on the waitlist</span>
         </span>
         {['Invite-only access', '7-day free trial', 'No credit card'].map((item) => (
           <span key={item} className="flex items-center gap-1.5" style={{ color: 'var(--lp-trust-color)', transition: 'color 0.3s ease' }}>
