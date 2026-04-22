@@ -2,6 +2,8 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAIWithRetry, parseAIJSONWithRetry, sanitizeInputText, toUserError } from "../_shared/aiClient.ts";
+import { selectProviderForTool } from "../_shared/modelRouter.ts";
+const __ROUTE = selectProviderForTool('tailor-section');
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
@@ -90,7 +92,9 @@ serve(async (req) => {
     const jobDescription = sanitizeInputText(rawJobDescription, 8_000);
     const keywords: string[] = Array.isArray(jobKeywords) ? jobKeywords.slice(0, 30) : [];
     const instructions = typeof userInstructions === 'string' ? userInstructions.slice(0, 500) : '';
-    const selectedModel = selectModel(tailorIntensity);
+    const selectedModel = __ROUTE.model;
+    void selectModel;
+    void tailorIntensity;
 
     console.log(`[tailor-section] Rewriting section="${section}" with model=${selectedModel}, intensity=${tailorIntensity}`);
 
@@ -164,6 +168,7 @@ Return this exact JSON:
     try {
       aiResponse = await callAIWithRetry({
         model: selectedModel,
+        wiseresumeSubProvider: __ROUTE.provider,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },

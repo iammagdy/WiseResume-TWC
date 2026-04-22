@@ -2,6 +2,8 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAI, isAIError, parseAIJSON, toUserError, sanitizeInputText } from "../_shared/aiClient.ts";
+import { selectProviderForTool } from "../_shared/modelRouter.ts";
+const __ROUTE = selectProviderForTool('parse-job-url');
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
@@ -292,7 +294,7 @@ If you can't find certain fields, make reasonable guesses based on context. The 
       let aiProviderUsed: string | undefined;
       try {
         const aiResponse = await callAI({
-          model: 'meta-llama/llama-3.3-70b-instruct:free',
+          model: __ROUTE.model, wiseresumeSubProvider: __ROUTE.provider,
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userPrompt },

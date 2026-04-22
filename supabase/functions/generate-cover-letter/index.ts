@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAIWithRetry, isAIError, sanitizeInputText, toUserError } from "../_shared/aiClient.ts";
+import { selectProviderForTool } from "../_shared/modelRouter.ts";
+const __ROUTE = selectProviderForTool('generate-cover-letter');
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
@@ -155,7 +157,7 @@ ${jobDescription}
     let aiResponse;
     try {
       aiResponse = await callAIWithRetry({
-        model: 'meta-llama/llama-3.3-70b-instruct:free',
+        model: __ROUTE.model, wiseresumeSubProvider: __ROUTE.provider,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },

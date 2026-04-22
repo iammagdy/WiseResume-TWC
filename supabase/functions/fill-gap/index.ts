@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAI, isAIError, toUserError, parseAIJSON } from "../_shared/aiClient.ts";
+import { selectProviderForTool } from "../_shared/modelRouter.ts";
+const __ROUTE = selectProviderForTool('fill-gap');
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
@@ -102,6 +104,8 @@ FACTUAL CONSTRAINTS:
     let aiResponse;
     try {
       aiResponse = await callAI({
+        model: __ROUTE.model,
+        wiseresumeSubProvider: __ROUTE.provider,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },

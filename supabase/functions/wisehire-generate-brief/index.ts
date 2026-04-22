@@ -16,6 +16,8 @@ import { requireAuth, AuthError, authErrorResponse } from '../_shared/authMiddle
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { getServiceClient } from '../_shared/dbClient.ts';
 import { callAI, getUserKeyFromDB, toUserError } from '../_shared/aiClient.ts';
+import { selectProviderForTool } from "../_shared/modelRouter.ts";
+const __ROUTE = selectProviderForTool('wisehire-generate-brief');
 import { checkRateLimit } from '../_shared/rateLimiter.ts';
 
 const WISEHIRE_PAID_PLANS = ['wisehire_starter', 'wisehire_professional', 'wisehire_business', 'wisehire_enterprise'];
@@ -170,6 +172,8 @@ Return EXACTLY this JSON structure:
 }`;
 
     const aiResponse = await callAI({
+      model: __ROUTE.model,
+      wiseresumeSubProvider: __ROUTE.provider,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },

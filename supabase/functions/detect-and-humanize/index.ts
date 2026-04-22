@@ -1,5 +1,7 @@
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAI, isAIError, parseAIJSON, toUserError } from "../_shared/aiClient.ts";
+import { selectProviderForTool } from "../_shared/modelRouter.ts";
+const __ROUTE = selectProviderForTool('detect-and-humanize');
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
@@ -109,6 +111,8 @@ ${text}
       let detectResponse;
       try {
         detectResponse = await callAI({
+          model: __ROUTE.model,
+          wiseresumeSubProvider: __ROUTE.provider,
           messages: [{ role: 'user', content: detectPrompt }],
           temperature: 0.3,
           userId: userId,
@@ -153,6 +157,8 @@ Return a JSON object:
       let humanizeResponse;
       try {
         humanizeResponse = await callAI({
+          model: __ROUTE.model,
+          wiseresumeSubProvider: __ROUTE.provider,
           messages: [{ role: 'user', content: humanizePrompt }],
           temperature: 0.7,
           userId: userId,

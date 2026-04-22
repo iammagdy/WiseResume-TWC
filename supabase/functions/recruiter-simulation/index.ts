@@ -1,5 +1,7 @@
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAI, isAIError, parseAIJSON, toUserError } from "../_shared/aiClient.ts";
+import { selectProviderForTool } from "../_shared/modelRouter.ts";
+const __ROUTE = selectProviderForTool('recruiter-simulation');
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
@@ -198,6 +200,8 @@ Analyze this resume from your unique perspective as ${personaConfig.name}. Be sp
     let aiResponse;
     try {
       aiResponse = await callAI({
+        model: __ROUTE.model,
+        wiseresumeSubProvider: __ROUTE.provider,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },

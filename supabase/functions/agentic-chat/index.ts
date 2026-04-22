@@ -1,6 +1,8 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAI, isAIError, parseAIJSON, toUserError } from "../_shared/aiClient.ts";
+import { selectProviderForTool } from "../_shared/modelRouter.ts";
+const __ROUTE = selectProviderForTool('agentic-chat');
 import { recordUsage, getUserPlan } from "../_shared/rateLimiter.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
@@ -454,7 +456,7 @@ Deno.serve(async (req: Request) => {
     let aiResponse;
     try {
       aiResponse = await callAI({
-        model: 'meta-llama/llama-3.3-70b-instruct:free',
+        model: __ROUTE.model, wiseresumeSubProvider: __ROUTE.provider,
         messages,
         tools: TOOLS as any[],
         temperature: 0.7,

@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 import { callAIWithRetry, isAIError, parseAIJSONWithRetry, sanitizeInputText } from "../_shared/aiClient.ts";
+import { selectProviderForTool } from "../_shared/modelRouter.ts";
+const __ROUTE = selectProviderForTool('enhance-section');
 import { checkRateLimit, recordUsage, getUserPlan } from "../_shared/rateLimiter.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
@@ -768,7 +770,7 @@ serve(async (req) => {
       const variantResponses = await Promise.allSettled(
         styleSuffixes.map(suffix =>
           callAIWithRetry({
-            model: 'meta-llama/llama-3.3-70b-instruct:free',
+            model: __ROUTE.model, wiseresumeSubProvider: __ROUTE.provider,
             messages: [{ role: 'user', content: prompt + suffix }],
             temperature,
             userId,
@@ -785,7 +787,7 @@ serve(async (req) => {
         const result = variantResponses[i];
         if (result.status === 'fulfilled' && result.value.content) {
           const parsed = await parseAIJSONWithRetry<Record<string, unknown>>(result.value.content, {
-            model: 'meta-llama/llama-3.3-70b-instruct:free',
+            model: __ROUTE.model, wiseresumeSubProvider: __ROUTE.provider,
             userId,
           });
           if (parsed && parsed.improved !== undefined) {
@@ -825,7 +827,7 @@ serve(async (req) => {
     let aiResponse;
     try {
       aiResponse = await callAIWithRetry({
-        model: 'meta-llama/llama-3.3-70b-instruct:free',
+        model: __ROUTE.model, wiseresumeSubProvider: __ROUTE.provider,
         messages: [{ role: 'user', content: prompt }],
         temperature,
         userId,
@@ -845,7 +847,7 @@ serve(async (req) => {
 
     // Parse the JSON from the AI response — never inject raw text into resume
     const enhancedContent = await parseAIJSONWithRetry(content, {
-      model: 'meta-llama/llama-3.3-70b-instruct:free',
+      model: __ROUTE.model, wiseresumeSubProvider: __ROUTE.provider,
       userId,
       temperature,
     });
@@ -893,7 +895,7 @@ serve(async (req) => {
         );
         try {
           const retryResp = await callAIWithRetry({
-            model: 'meta-llama/llama-3.3-70b-instruct:free',
+            model: __ROUTE.model, wiseresumeSubProvider: __ROUTE.provider,
             messages: [{ role: 'user', content: prompt + addendum }],
             // Lower temperature on the retry: we want a deterministic fix,
             // not more creativity.
@@ -902,7 +904,7 @@ serve(async (req) => {
           });
           if (retryResp.content) {
             const retryParsed = await parseAIJSONWithRetry<Record<string, unknown>>(retryResp.content, {
-              model: 'meta-llama/llama-3.3-70b-instruct:free',
+              model: __ROUTE.model, wiseresumeSubProvider: __ROUTE.provider,
               userId,
               temperature: 0.2,
             });

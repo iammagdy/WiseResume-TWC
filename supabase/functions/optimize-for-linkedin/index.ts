@@ -1,5 +1,7 @@
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAI, isAIError, parseAIJSON, toUserError, sanitizeInputText } from "../_shared/aiClient.ts";
+import { selectProviderForTool } from "../_shared/modelRouter.ts";
+const __ROUTE = selectProviderForTool('optimize-for-linkedin');
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
@@ -140,6 +142,8 @@ Generate a comprehensive LinkedIn optimization package.`;
     let aiResponse;
     try {
       aiResponse = await callAI({
+        model: __ROUTE.model,
+        wiseresumeSubProvider: __ROUTE.provider,
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.7,
         userId,

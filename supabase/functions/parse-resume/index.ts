@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAI, isAIError, toUserError, sanitizeInputText, parseAIJSON } from "../_shared/aiClient.ts";
+import { selectProviderForTool } from "../_shared/modelRouter.ts";
+const __ROUTE = selectProviderForTool('parse-resume');
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
@@ -290,7 +292,7 @@ async function cleanTextWithAI(text: string, userId: string): Promise<string> {
   try {
     console.log('🧹 Running AI text cleaning on low-quality extraction...');
     const response = await callAI({
-      model: 'google/gemini-2.5-flash-lite',
+      model: __ROUTE.model, wiseresumeSubProvider: __ROUTE.provider,
       messages: [
         {
           role: 'system',
@@ -547,7 +549,7 @@ serve(async (req) => {
 
     try {
       const aiResponse = await callAI({
-        model: 'google/gemini-2.5-flash',
+        model: __ROUTE.model, wiseresumeSubProvider: __ROUTE.provider,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: `Parse the following resume text:\n\n${sanitizeInputText(processedText, 100000)}` },
@@ -587,7 +589,7 @@ serve(async (req) => {
             .map(([field]) => field);
 
           const retryResponse = await callAI({
-            model: 'google/gemini-2.5-flash',
+            model: __ROUTE.model, wiseresumeSubProvider: __ROUTE.provider,
             messages: [
               { role: 'system', content: retryPrompt },
               {

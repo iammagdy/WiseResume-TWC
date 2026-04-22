@@ -2,6 +2,8 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAIWithRetry, parseAIJSONWithRetry, sanitizeInputText, toUserError } from "../_shared/aiClient.ts";
+import { selectProviderForTool } from "../_shared/modelRouter.ts";
+const __ROUTE = selectProviderForTool('tailor-resume');
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
@@ -76,7 +78,7 @@ For mustHaveKeywords: include 10-20 specific, searchable terms (technologies, me
 
   try {
     const response = await callAIWithRetry({
-      model: 'meta-llama/llama-3.3-70b-instruct:free',
+      model: __ROUTE.model, wiseresumeSubProvider: __ROUTE.provider,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
@@ -89,7 +91,7 @@ For mustHaveKeywords: include 10-20 specific, searchable terms (technologies, me
     if (!response.content) throw new Error('No content from Stage 1 AI');
 
     const parsed = await parseAIJSONWithRetry<Record<string, unknown>>(response.content, {
-      model: 'meta-llama/llama-3.3-70b-instruct:free',
+      model: __ROUTE.model, wiseresumeSubProvider: __ROUTE.provider,
       userId,
     });
 
@@ -449,7 +451,9 @@ serve(async (req) => {
     }
 
     // Select model based on intensity
-    const selectedModel = selectModelForIntensity(tailorIntensity);
+    const selectedModel = __ROUTE.model;
+    void selectModelForIntensity;
+    void tailorIntensity;
     console.log(`[tailor] Stage 2: Using model ${selectedModel} for intensity=${tailorIntensity}`);
 
     const profilePreamble = profileCtx.contextString
@@ -723,6 +727,7 @@ Analyze deeply, then return this exact JSON structure:
     try {
       aiResponse = await callAIWithRetry({
         model: selectedModel,
+        wiseresumeSubProvider: __ROUTE.provider,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
@@ -798,7 +803,7 @@ Return this exact JSON:
 Generate 3-5 talking points and 3 strengths. Be specific to this candidate and role.`;
 
       const stage3Response = await callAIWithRetry({
-        model: 'meta-llama/llama-3.3-70b-instruct:free',
+        model: __ROUTE.model, wiseresumeSubProvider: __ROUTE.provider,
         messages: [
           { role: 'system', content: stage3SystemPrompt },
           { role: 'user', content: stage3UserPrompt },
@@ -810,7 +815,7 @@ Generate 3-5 talking points and 3 strengths. Be specific to this candidate and r
 
       if (stage3Response.content) {
         const stage3Parsed = await parseAIJSONWithRetry<Record<string, unknown>>(stage3Response.content, {
-          model: 'meta-llama/llama-3.3-70b-instruct:free',
+          model: __ROUTE.model, wiseresumeSubProvider: __ROUTE.provider,
           userId,
         });
         if (stage3Parsed) {

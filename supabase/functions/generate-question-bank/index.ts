@@ -2,6 +2,8 @@ import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { requireAuth, authErrorResponse } from '../_shared/authMiddleware.ts';
 import { callAI, toUserError, parseAIJSON } from '../_shared/aiClient.ts';
+import { selectProviderForTool } from "../_shared/modelRouter.ts";
+const __ROUTE = selectProviderForTool('generate-question-bank');
 import { checkRateLimit, recordUsage } from '../_shared/rateLimiter.ts';
 import { checkUserRateLimit } from '../_shared/userRateLimiter.ts';
 import { checkAndDeductCredit, refundCredit } from '../_shared/creditUtils.ts';
@@ -79,7 +81,7 @@ ${resumeSummary ? `Candidate Summary: ${resumeSummary.slice(0, 1000)}` : ''}`;
     let aiResponse;
     try {
       aiResponse = await callAI({
-        model: 'meta-llama/llama-3.3-70b-instruct:free',
+        model: __ROUTE.model, wiseresumeSubProvider: __ROUTE.provider,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },

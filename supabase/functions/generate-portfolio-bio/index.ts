@@ -1,4 +1,6 @@
 import { callAI, sanitizeInputText, toUserError } from '../_shared/aiClient.ts';
+import { selectProviderForTool } from "../_shared/modelRouter.ts";
+const __ROUTE = selectProviderForTool('generate-portfolio-bio');
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { requireAuth, authErrorResponse } from '../_shared/authMiddleware.ts';
 import { checkRateLimit, recordUsage } from '../_shared/rateLimiter.ts';
@@ -94,7 +96,7 @@ Example:
       let response;
       try {
         response = await callAI({
-          model: 'meta-llama/llama-3.3-70b-instruct:free',
+          model: __ROUTE.model, wiseresumeSubProvider: __ROUTE.provider,
           messages: [{ role: 'user', content: prompt }],
           temperature: 0.7,
           maxTokens: 400,
@@ -232,7 +234,7 @@ Return ONLY the translated JSON object:`;
       let response;
       try {
         response = await callAI({
-          model: 'meta-llama/llama-3.3-70b-instruct:free',
+          model: __ROUTE.model, wiseresumeSubProvider: __ROUTE.provider,
           messages: [{ role: 'user', content: prompt }],
           temperature: 0.3,
           maxTokens: 4000,
@@ -332,7 +334,7 @@ Example:
       let response;
       try {
         response = await callAI({
-          model: 'meta-llama/llama-3.3-70b-instruct:free',
+          model: __ROUTE.model, wiseresumeSubProvider: __ROUTE.provider,
           messages: [{ role: 'user', content: prompt }],
           temperature: 0.4,
           maxTokens: 1500,
@@ -398,7 +400,7 @@ Requirements:
       let response;
       try {
         response = await callAI({
-          model: 'meta-llama/llama-3.3-70b-instruct:free',
+          model: __ROUTE.model, wiseresumeSubProvider: __ROUTE.provider,
           messages: [{ role: 'user', content: prompt }],
           temperature: 0.75,
           maxTokens: 350,
@@ -462,7 +464,7 @@ Requirements:
       let response;
       try {
         response = await callAI({
-          model: 'meta-llama/llama-3.3-70b-instruct:free',
+          model: __ROUTE.model, wiseresumeSubProvider: __ROUTE.provider,
           messages: [{ role: 'user', content: prompt }],
           temperature: 0.8,
           maxTokens: 1200,
@@ -501,7 +503,7 @@ Example output:
       let response;
       try {
         response = await callAI({
-          model: 'meta-llama/llama-3.3-70b-instruct:free',
+          model: __ROUTE.model, wiseresumeSubProvider: __ROUTE.provider,
           messages: [{ role: 'user', content: prompt }],
           temperature: 0.5,
           maxTokens: 400,
@@ -553,7 +555,7 @@ Requirements:
       let response;
       try {
         response = await callAI({
-          model: 'meta-llama/llama-3.3-70b-instruct:free',
+          model: __ROUTE.model, wiseresumeSubProvider: __ROUTE.provider,
           messages: [{ role: 'user', content: prompt }],
           temperature: 0.7,
           maxTokens: 120,

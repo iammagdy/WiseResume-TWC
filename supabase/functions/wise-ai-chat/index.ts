@@ -17,6 +17,8 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAI, isAIError, sanitizeInputText, toUserError } from "../_shared/aiClient.ts";
+import { selectProviderForTool } from "../_shared/modelRouter.ts";
+const __ROUTE = selectProviderForTool('wise-ai-chat');
 import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -260,6 +262,8 @@ serve(async (req: Request) => {
     let aiResponse;
     try {
       aiResponse = await callAI({
+        model: __ROUTE.model,
+        wiseresumeSubProvider: __ROUTE.provider,
         messages: [{ role: "user", content: prompt }],
         temperature: 0.7,
         maxTokens: 1500,

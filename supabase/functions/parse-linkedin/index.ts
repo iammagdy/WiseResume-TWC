@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAI, isAIError, toUserError, sanitizeInputText, parseAIJSON } from "../_shared/aiClient.ts";
+import { selectProviderForTool } from "../_shared/modelRouter.ts";
+const __ROUTE = selectProviderForTool('parse-linkedin');
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
@@ -98,7 +100,7 @@ Extract certifications from the "Licenses & Certifications" section, volunteerin
     let aiResponse;
     try {
       aiResponse = await callAI({
-        model: 'google/gemini-2.5-flash',
+        model: __ROUTE.model, wiseresumeSubProvider: __ROUTE.provider,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: `Extract structured data from this ${platform} profile:\n\n${sanitizeInputText(profileText, 30000)}` },

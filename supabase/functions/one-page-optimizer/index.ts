@@ -1,5 +1,7 @@
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAI, parseAIJSON, toUserError, sanitizeInputText } from "../_shared/aiClient.ts";
+import { selectProviderForTool } from "../_shared/modelRouter.ts";
+const __ROUTE = selectProviderForTool('one-page-optimizer');
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import { requireAuth } from "../_shared/authMiddleware.ts";
@@ -337,6 +339,8 @@ Return ONLY a JSON object with this EXACT structure (no markdown, no code fences
     let aiResponse;
     try {
       aiResponse = await callAI({
+        model: __ROUTE.model,
+        wiseresumeSubProvider: __ROUTE.provider,
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.5,
         userId,

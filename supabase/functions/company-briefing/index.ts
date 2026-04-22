@@ -1,5 +1,7 @@
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { callAIWithRetry, sanitizeInputText, toUserError, parseAIJSON } from '../_shared/aiClient.ts';
+import { selectProviderForTool } from "../_shared/modelRouter.ts";
+const __ROUTE = selectProviderForTool('company-briefing');
 import { checkRateLimit, recordUsage } from '../_shared/rateLimiter.ts';
 import { checkUserRateLimit } from '../_shared/userRateLimiter.ts';
 import { requireAuth, authErrorResponse } from '../_shared/authMiddleware.ts';
@@ -197,7 +199,8 @@ Deno.serve(async (req) => {
     }
 
     const isCompanyNameMode = !!companyName && !jobDescription;
-    const model = isCompanyNameMode ? 'google/gemini-2.5-pro' : 'google/gemini-2.5-flash';
+    const model = __ROUTE.model;
+    void isCompanyNameMode;
     const systemPrompt = isCompanyNameMode ? COMPANY_SYSTEM_PROMPT : JD_SYSTEM_PROMPT;
 
     let userPrompt = '';
@@ -257,6 +260,7 @@ Deno.serve(async (req) => {
     try {
       aiResponse = await callAIWithRetry({
         model,
+        wiseresumeSubProvider: __ROUTE.provider,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },

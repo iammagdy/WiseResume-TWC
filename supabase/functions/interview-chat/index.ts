@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAIWithRetry, isAIError, parseAIJSONWithRetry, sanitizeInputText, toUserError } from "../_shared/aiClient.ts";
+import { selectProviderForTool } from "../_shared/modelRouter.ts";
+const __ROUTE = selectProviderForTool('interview-chat');
 import { checkRateLimit, recordUsage, getUserPlan } from "../_shared/rateLimiter.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
@@ -112,6 +114,8 @@ Return JSON with this exact structure: {"title":"exact job title","keySkills":["
       let aiResponse;
       try {
         aiResponse = await callAIWithRetry({
+          model: __ROUTE.model,
+          wiseresumeSubProvider: __ROUTE.provider,
           messages: [{ role: 'user', content: analyzePrompt }],
           userId,
           maxTokens: 512,
@@ -226,6 +230,8 @@ Do not include markdown blocks globally. Ensure the output is valid JSON.`;
     let aiResponse;
     try {
       aiResponse = await callAIWithRetry({
+        model: __ROUTE.model,
+        wiseresumeSubProvider: __ROUTE.provider,
         messages: [{ role: "system", content: systemPrompt }, ...messages],
         userId,
         maxTokens,

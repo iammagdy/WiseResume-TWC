@@ -17,6 +17,8 @@ import { requireAuth, AuthError, authErrorResponse } from '../_shared/authMiddle
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { getServiceClient } from '../_shared/dbClient.ts';
 import { callAI, getUserKeyFromDB, toUserError } from '../_shared/aiClient.ts';
+import { selectProviderForTool } from "../_shared/modelRouter.ts";
+const __ROUTE = selectProviderForTool('wisehire-mask-cvs');
 
 const WISEHIRE_PAID_PLANS = ['wisehire_starter', 'wisehire_professional', 'wisehire_business', 'wisehire_enterprise'];
 const STARTER_DAILY_LIMIT = 3;
@@ -220,6 +222,8 @@ ${rawText}`;
 
         try {
           const aiResponse = await callAI({
+            model: __ROUTE.model,
+            wiseresumeSubProvider: __ROUTE.provider,
             userId,
             messages: [{ role: 'user', content: prompt }],
             temperature: 0.1,

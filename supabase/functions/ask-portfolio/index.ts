@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { callAI } from "../_shared/aiClient.ts";
+import { selectProviderForTool } from "../_shared/modelRouter.ts";
+const __ROUTE = selectProviderForTool('ask-portfolio');
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
@@ -246,7 +248,7 @@ ${context}`;
     ];
 
     const aiResponse = await callAI({
-      model: "google/gemini-2.5-flash",
+      model: __ROUTE.model, wiseresumeSubProvider: __ROUTE.provider,
       messages,
       temperature: 0.3,
       maxTokens: 300,
