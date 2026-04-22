@@ -32,6 +32,7 @@ export function initMonitoring(): void {
     dsn: DSN,
     environment: ENV,
     release: __APP_VERSION__,
+    sendDefaultPii: true,
     integrations: [
       Sentry.browserTracingIntegration(),
       Sentry.browserProfilingIntegration(),
@@ -40,6 +41,11 @@ export function initMonitoring(): void {
         blockAllMedia: true,
       }),
       Sentry.consoleLoggingIntegration({ levels: ['warn', 'error'] }),
+      Sentry.feedbackIntegration({
+        colorScheme: 'system',
+        isNameRequired: true,
+        isEmailRequired: true,
+      }),
     ],
     enableLogs: true,
     tracesSampleRate: ENV === 'production' ? 0.1 : 1.0,
