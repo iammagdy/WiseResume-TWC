@@ -564,8 +564,10 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
 
       // Destructive case: AI returned fewer entries than the original. Don't
       // commit silently — give the user a one-click "Apply anyway" so they
-      // see what's about to change.
-      if (merge.requiresConfirm && !silent && !bypassConfirm) {
+      // see what's about to change. We *intentionally ignore* the `silent`
+      // flag here because "Apply All" sets silent=true and we still want
+      // the user to confirm any destructive merge before mutating.
+      if (merge.requiresConfirm && !bypassConfirm) {
         toast.warning(
           `AI returned ${merge.aiCount} of ${merge.originalCount} entries for ${result.label}. Review before applying.`,
           {

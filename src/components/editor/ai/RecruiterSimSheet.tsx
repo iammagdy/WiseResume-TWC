@@ -116,7 +116,7 @@ export function RecruiterSimSheet({ open, onOpenChange }: RecruiterSimSheetProps
       toast.error('Failed to run simulation. Please try again.', {
         action: {
           label: 'Retry',
-          onClick: () => { void runSimulation(persona); },
+          onClick: () => { void handleSelectPersona(persona); },
         },
         duration: 8000,
       });

@@ -135,8 +135,20 @@ export async function parseAIErrorResponse(res: Response): Promise<AIErrorInfo> 
   } catch {
     /* non-JSON body */
   }
-  const codeRaw = typeof body.error === 'string' ? body.error : '';
-  const message = typeof body.message === 'string' ? body.message : '';
+  // Edge functions split on which key carries the structured code: prefer
+  // explicit `code` / `error_code` over the human-readable `error` string
+  // so classify() routes on the canonical code first.
+  const codeRaw =
+    (typeof body.code === 'string' && body.code) ||
+    (typeof body.error_code === 'string' && body.error_code) ||
+    (typeof body.error === 'string' && body.error) ||
+    '';
+  const message =
+    typeof body.message === 'string'
+      ? body.message
+      : typeof body.error === 'string'
+        ? body.error
+        : '';
   const code = classify(res.status, codeRaw, message);
   return { code, status: res.status, message: message || codeRaw || res.statusText };
 }

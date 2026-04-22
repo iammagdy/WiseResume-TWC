@@ -430,6 +430,13 @@ export function useAgenticChat(contextFilter?: string) {
     (proposal: SuggestionProposal) => {
       if (!currentResume) return;
 
+      // Helper: kick off ATS rescore against the latest store snapshot
+      // after any mutation so the score panel never lags the apply.
+      const rescoreLatest = () => {
+        const next = useResumeStore.getState().currentResume;
+        if (next) void rescoreAfterApply(next);
+      };
+
       // Handle delete action — remove exactly ONE confirmed entry
       if (proposal.action === 'delete' && proposal.section === 'experience') {
         const itemId = proposal.itemId || '';
@@ -444,6 +451,7 @@ export function useAgenticChat(contextFilter?: string) {
             ];
             updateResume({ experience: updated });
             haptics.success();
+            rescoreLatest();
             return;
           }
         }
@@ -465,6 +473,7 @@ export function useAgenticChat(contextFilter?: string) {
           ];
           updateResume({ experience: updated });
           haptics.success();
+          rescoreLatest();
           return;
         }
 
