@@ -43,7 +43,7 @@ export function ProtectedRoute() {
   // Always wait for Kinde auth loading (never redirect prematurely).
   // Only time-box the Supabase bridge wait so a hanging bridge doesn't block forever.
   if (loading || (!loadingTimedOut && isAuthenticated && !supabaseSettled)) return (
-    <div className="min-h-[100dvh] bg-transparent p-4 space-y-4 animate-pulse">
+    <div className="min-h-[100dvh] bg-background p-4 space-y-4 animate-pulse">
       <div className="h-10 w-32 rounded-lg bg-muted" />
       <div className="h-6 w-48 rounded bg-muted" />
       <div className="space-y-3 mt-6">

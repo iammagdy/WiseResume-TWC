@@ -515,6 +515,88 @@ app.post('/api/fn/token-exchange', async (req, res) => {
 });
 
 /**
+ * GET /api/fn/me  (replaces the Supabase `me` edge function)
+ *
+ * Returns the current user's profile, subscription, AI credits and preferences
+ * sourced from the Neon database (bypasses Supabase RLS entirely).  This is the
+ * primary data source for useMe(), usePlan(), and useAICredits().
+ *
+ * Must be registered BEFORE the generic /api/fn/:fnName proxy below so Express
+ * matches this specific route first.
+ */
+app.all('/api/fn/me', requireAuthHeader, async (req: AuthedRequest, res) => {
+  if (!sql) return res.status(503).json({ error: 'Database not configured' });
+  try {
+    const userId = req.verifiedUserId!;
+
+    const [profileRows, subRows, creditsRows, prefRows] = await Promise.all([
+      sql`SELECT * FROM profiles WHERE user_id = ${userId} LIMIT 1` as Promise<NeonRow[]>,
+      sql`SELECT * FROM subscriptions WHERE user_id = ${userId} LIMIT 1` as Promise<NeonRow[]>,
+      sql`SELECT * FROM ai_credits WHERE user_id = ${userId} LIMIT 1` as Promise<NeonRow[]>,
+      sql`SELECT * FROM user_preferences WHERE user_id = ${userId} LIMIT 1` as Promise<NeonRow[]>,
+    ]);
+
+    const profile = profileRows[0] ?? null;
+    const sub = subRows[0] ?? null;
+    const cred = creditsRows[0] ?? null;
+    const pref = prefRows[0] ?? null;
+
+    let effectivePlan = (sub?.plan_name as string) || 'free';
+    if (sub?.trial_plan && sub?.trial_expires_at) {
+      if (new Date(sub.trial_expires_at as string) > new Date()) {
+        effectivePlan = sub.trial_plan as string;
+      }
+    }
+
+    const meData = {
+      userId,
+      kinde_sub: (profile?.kinde_sub as string | null) ?? null,
+      profile: profile ?? null,
+      preferences: pref ?? null,
+      subscription: sub ? {
+        plan_name: (sub.plan_name as string) || 'free',
+        status: (sub.status as string) || 'active',
+        plan_updated_at: sub.plan_updated_at ? String(sub.plan_updated_at) : null,
+        trial_plan: (sub.trial_plan as string | null) ?? null,
+        trial_expires_at: sub.trial_expires_at ? String(sub.trial_expires_at) : null,
+        effective_plan: effectivePlan,
+      } : null,
+      ai_credits: cred ? {
+        daily_usage: Number(cred.daily_usage ?? 0),
+        daily_limit: Number(cred.daily_limit ?? 5),
+        usage_date: String(cred.usage_date ?? new Date().toISOString().slice(0, 10)),
+        total_usage: Number(cred.total_usage ?? 0),
+        updated_at: String(cred.updated_at ?? new Date().toISOString()),
+      } : null,
+    };
+
+    res.json(meData);
+  } catch (err) {
+    return dataErr(res, err);
+  }
+});
+
+/**
+ * GET /api/data/resumes  — list the authenticated user's resumes from Neon.
+ * Kept separate from the fn/ namespace so existing Supabase-direct reads can
+ * coexist; the dashboard can call this when the Supabase client is unavailable.
+ */
+app.get('/api/data/resumes', requireAuthHeader, async (req: AuthedRequest, res) => {
+  if (!sql) return res.status(503).json({ error: 'Database not configured' });
+  try {
+    const userId = req.verifiedUserId!;
+    const rows = await sql`
+      SELECT * FROM resumes
+      WHERE user_id = ${userId}
+      ORDER BY updated_at DESC
+    ` as NeonRow[];
+    res.json({ resumes: rows });
+  } catch (err) {
+    return dataErr(res, err);
+  }
+});
+
+/**
  * Edge function proxy — forwards all /api/fn/* calls to Supabase Edge Functions.
  * The client's Authorization (Kinde JWT) is forwarded as-is.
  * Sensitive Supabase keys never leave the server.

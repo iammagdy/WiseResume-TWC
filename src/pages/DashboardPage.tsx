@@ -42,6 +42,7 @@ const LinkedInImportSheet = lazy(() => import('@/components/settings/LinkedInImp
 const AnalyzeJobSheet = lazy(() => import('@/components/dashboard/AnalyzeJobSheet').then(m => ({ default: m.AnalyzeJobSheet })));
 
 import { useAuth } from '@/hooks/useAuth';
+import { getToken } from '@/lib/supabaseBridge';
 import { useGuestMigration } from '@/hooks/useGuestMigration';
 import { useResumes, useResumeMutations, dbToResumeData } from '@/hooks/useResumes';
 
@@ -188,11 +189,24 @@ function DashboardPageContent() {
         const sessionKey = `wr-onboarding-checked-${user.id}`;
         if (sessionStorage.getItem(sessionKey)) return;
 
-        const { data } = await supabase
-          .from('profiles')
-          .select('onboarding_completed')
-          .eq('user_id', user.id)
-          .single();
+        // Use the server API (Neon DB) instead of Supabase directly to avoid
+        // JWT validation issues. The /api/data/profile route validates the bridge
+        // token and queries the Neon database with no RLS concerns.
+        const token = getToken();
+        const profileRes = await fetch('/api/data/profile', {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+
+        if (!profileRes.ok) {
+          // Server-side error — don't mark as checked so we retry next mount.
+          if (!sessionStorage.getItem('wr-dismissed-profile-banner')) {
+            setShowProfileBanner(true);
+          }
+          return;
+        }
+
+        const profileJson = await profileRes.json() as { profile: Record<string, unknown> | null };
+        const data = profileJson.profile;
 
         // Mark checked only after we have a successful response.
         sessionStorage.setItem(sessionKey, '1');
@@ -215,8 +229,12 @@ function DashboardPageContent() {
             setShowProfileBanner(true);
           }
         }
+        // data === null means new user with no profile row yet — treat as onboarding needed.
+        if (!data && !sessionStorage.getItem('wr-dismissed-profile-banner')) {
+          setShowProfileBanner(true);
+        }
       } catch (err) {
-        console.warn('[DashboardPage] Onboarding check failed — defaulting to show onboarding:', err);
+        console.warn('[DashboardPage] Onboarding check failed — defaulting to show profile banner:', err);
         if (!sessionStorage.getItem('wr-dismissed-profile-banner')) {
           setShowProfileBanner(true);
         }
