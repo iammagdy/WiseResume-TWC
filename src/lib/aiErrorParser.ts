@@ -30,6 +30,7 @@ export type AIErrorCode =
   | 'upstream_5xx'
   | 'not_configured'
   | 'invalid_ai_response'
+  | 'entries_dropped'
   | 'profile_incomplete'
   | 'timeout'
   | 'offline'
@@ -88,6 +89,8 @@ function classify(status: number, code: string, message: string): AIErrorCode {
       return 'not_configured';
     case 'invalid_ai_response':
       return 'invalid_ai_response';
+    case 'entries_dropped':
+      return 'entries_dropped';
     case 'profile_incomplete':
       return 'profile_incomplete';
     case 'insufficient_credits':
@@ -208,6 +211,12 @@ export function aiErrorToastMessage(info: AIErrorInfo): string {
       // the exact same request — a different prompt or section is more
       // likely to succeed.
       return 'AI returned an invalid response. Your credit was refunded — please try a different section or rephrase your request.';
+    case 'entries_dropped':
+      // Server's output-quality validator caught the AI dropping entries
+      // even after one re-prompt. The credit is already refunded server-side
+      // and the user's original entries remain untouched.
+      return info.message ||
+        'AI returned fewer entries than you sent. Your credit was refunded and nothing was changed — please try again.';
     case 'profile_incomplete':
       return 'Your profile is incomplete. Please finish setting up your profile before using AI features.';
     case 'upstream_5xx':

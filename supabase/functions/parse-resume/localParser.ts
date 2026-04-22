@@ -42,6 +42,133 @@ interface MinimalResumeData {
   templateId: string;
 }
 
+// ===== Date extraction =====
+//
+// The previous fallback only matched bare 4-digit years (`\b(20\d{2}|19\d{2})\b`),
+// which dropped months from every parsed range — uploads of real resumes routinely
+// have date strings like "Jan 2021 – Jul 2024" or "03/2020 - Present" and the
+// downstream UI then renders bare years which the user has to re-edit.
+//
+// This expanded regex captures all the common formats:
+//   "Jan 2021", "January 2021", "01/2021", "01-2021", "2021-01", "2021/01", "2021"
+// followed (optionally) by a separator (`-`, `–`, `—`, `to`, `until`, `through`)
+// and an end token of the same shape OR a "current" sentinel
+// ("Present", "Current", "Now", "Ongoing").
+//
+// `extractDateRange` is exported so the unit tests can hit it without going
+// through the whole parser.
+
+const MONTH_NAMES =
+  '(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember|t)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)';
+// One date token: "Jan 2021" / "January, 2021" / "01/2021" / "1-2021" /
+// "2021-01" / "2021.1" / "2021"
+const DATE_TOKEN = `(?:${MONTH_NAMES}\\s*[, ]?\\s*\\d{4}|(?:0?[1-9]|1[0-2])[\\/\\-.]\\d{4}|\\d{4}[\\/\\-.](?:0?[1-9]|1[0-2])|\\d{4})`;
+const PRESENT_TOKEN = `(?:Present|Current|Now|Ongoing|Today)`;
+const SEPARATOR = `(?:\\s*[\\-\u2013\u2014]\\s*|\\s+(?:to|until|through)\\s+)`;
+const RANGE_REGEX = new RegExp(
+  `(${DATE_TOKEN})${SEPARATOR}(${DATE_TOKEN}|${PRESENT_TOKEN})`,
+  'i',
+);
+const SINGLE_DATE_REGEX = new RegExp(`(${DATE_TOKEN}|${PRESENT_TOKEN})`, 'i');
+
+export interface DateRange {
+  startDate: string;
+  endDate: string;
+  current: boolean;
+}
+
+/**
+ * Pull the first plausible date range out of a free-text block. Always
+ * returns a `DateRange`; missing fields come back as empty strings (and
+ * `current = false`) so callers don't need to null-check.
+ */
+export function extractDateRange(text: string): DateRange {
+  if (!text) return { startDate: '', endDate: '', current: false };
+  const range = text.match(RANGE_REGEX);
+  if (range) {
+    const start = range[1].trim();
+    const end = range[2].trim();
+    const isCurrent = new RegExp(`^${PRESENT_TOKEN}$`, 'i').test(end);
+    return {
+      startDate: start,
+      endDate: isCurrent ? 'Present' : end,
+      current: isCurrent,
+    };
+  }
+  // Single date — treat as a start date with no end (e.g. issue dates on
+  // certifications / awards). Don't infer "Present" because the absence
+  // of an end token is genuinely ambiguous for non-experience sections.
+  const single = text.match(SINGLE_DATE_REGEX);
+  if (single) {
+    return { startDate: single[1].trim(), endDate: '', current: false };
+  }
+  return { startDate: '', endDate: '', current: false };
+}
+
+// ===== Institution detection =====
+//
+// The previous parser always took the first non-empty line of the education
+// bucket as the institution — but PDF text-extraction order is unreliable
+// and the first line is just as often the degree, the date range, or even
+// a stray heading. This heuristic prefers a line that "looks like" a
+// school/university name and falls back to the first line only when no
+// candidate matches.
+
+const INSTITUTION_KEYWORDS = [
+  'university',
+  'college',
+  'institute',
+  'school',
+  'academy',
+  'polytechnic',
+  'seminary',
+  'conservatory',
+  // A few well-known suffixes that are not strictly the words above.
+  'tech',
+];
+
+/**
+ * Pick the line in `lines` that most resembles a school/university name.
+ * Returns `null` when no line matches so callers can fall back to their
+ * own default (typically the first line).
+ */
+export function pickInstitutionLine(lines: string[]): string | null {
+  if (!lines.length) return null;
+  // Score each line: keyword match wins, then capitalisation density, then
+  // length. We deliberately ignore lines that look like dates or degrees so
+  // a "Bachelor of Science" line on its own doesn't beat a real institution.
+  const isDateLine = (l: string) => RANGE_REGEX.test(l) || /^\s*\d{4}\s*$/.test(l);
+  const isDegreeLine = (l: string) =>
+    /\b(bachelor|master|phd|doctorate|associate|diploma|certificate|bsc|msc|mba|ba|bs|ma|ms|b\.?sc|m\.?sc)\b/i.test(l);
+
+  type Scored = { line: string; score: number };
+  const scored: Scored[] = [];
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) continue;
+    if (isDateLine(line)) continue;
+    let score = 0;
+    const lower = line.toLowerCase();
+    for (const kw of INSTITUTION_KEYWORDS) {
+      if (lower.includes(kw)) {
+        score += 10;
+        break;
+      }
+    }
+    // Capitalised words are common in institution names ("Stanford
+    // University", "Massachusetts Institute of Technology"). Count words
+    // that start with an uppercase letter.
+    const capWords = (line.match(/\b[A-Z][a-zA-Z'.-]+/g) || []).length;
+    score += capWords;
+    // De-prioritise lines that are clearly a degree on their own.
+    if (isDegreeLine(line) && score < 10) score -= 3;
+    scored.push({ line, score });
+  }
+  if (!scored.length) return null;
+  scored.sort((a, b) => b.score - a.score);
+  return scored[0].score > 0 ? scored[0].line : null;
+}
+
 export function localParseResume(text: string): MinimalResumeData {
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
 
@@ -100,31 +227,51 @@ export function localParseResume(text: string): MinimalResumeData {
     .map(s => s.trim())
     .filter(s => s.length > 1 && s.length < 80);
 
-  // Parse experience (simple — one entry per non-empty block)
+  // Parse experience (simple — one entry per non-empty block).
+  // We now also pull a date range out of the joined block so the UI gets
+  // month + year instead of nothing on the fallback path.
   const expLines = buckets.experience;
+  const expBlob = expLines.join(' ');
+  const expDates = extractDateRange(expBlob);
   const experience = expLines.length > 0
     ? [{
         id: crypto.randomUUID(),
         company: expLines[0] || '',
         position: expLines[1] || '',
-        startDate: '',
-        endDate: '',
-        current: false,
+        startDate: expDates.startDate,
+        endDate: expDates.endDate,
+        current: expDates.current,
         description: expLines.slice(2).join(' ').slice(0, 500),
         achievements: [],
       }]
     : [];
 
-  // Parse education
+  // Parse education using the position-aware institution heuristic and
+  // the new date range extractor.
   const eduLines = buckets.education;
+  const eduDates = extractDateRange(eduLines.join(' '));
+  const institution = pickInstitutionLine(eduLines) ?? eduLines[0] ?? '';
+  // Pick a degree line: prefer one with degree keywords; fall back to the
+  // first non-institution line so we don't double-map institution → degree.
+  let degreeLine = '';
+  for (const l of eduLines) {
+    if (l === institution) continue;
+    if (/\b(bachelor|master|phd|doctorate|associate|diploma|certificate|bsc|msc|mba|ba|bs|ma|ms|b\.?sc|m\.?sc)\b/i.test(l)) {
+      degreeLine = l;
+      break;
+    }
+  }
+  if (!degreeLine) {
+    degreeLine = eduLines.find(l => l !== institution) ?? '';
+  }
   const education = eduLines.length > 0
     ? [{
         id: crypto.randomUUID(),
-        institution: eduLines[0] || '',
-        degree: eduLines[1] || '',
+        institution,
+        degree: degreeLine,
         field: '',
-        startDate: '',
-        endDate: '',
+        startDate: eduDates.startDate,
+        endDate: eduDates.endDate,
       }]
     : [];
 
@@ -136,7 +283,7 @@ export function localParseResume(text: string): MinimalResumeData {
       id: crypto.randomUUID(),
       name: l.slice(0, 150),
       issuer: '',
-      date: '',
+      date: extractDateRange(l).startDate,
     }));
 
   return {
@@ -157,7 +304,7 @@ export function localParseResume(text: string): MinimalResumeData {
       id: crypto.randomUUID(),
       title: l.slice(0, 150),
       issuer: '',
-      date: l.match(/\b(20\d{2}|19\d{2})\b/)?.[0] || '',
+      date: extractDateRange(l).startDate,
     })),
     projects: buckets.projects.slice(0, 5).map(l => ({
       id: crypto.randomUUID(),

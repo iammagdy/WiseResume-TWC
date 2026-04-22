@@ -8,6 +8,13 @@ import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
 import { logger } from "../_shared/logger.ts";
+import {
+  detectEchoIssues,
+  validateEntryCount,
+  buildRetryAddendum,
+  stripEchoFields,
+  isEntryArraySection,
+} from "./validators.ts";
 const log = logger('enhance-section');
 
 
@@ -855,7 +862,95 @@ serve(async (req) => {
       });
     }
 
-    console.log('Enhancement complete:', JSON.stringify(enhancedContent).slice(0, 200));
+    // ===== Output-quality validators =====
+    // Audit task #4: enforce 1:1 entry counts on entry-array sections and
+    // catch the "X in X" / "<position> at <position>" / "<name>: <name>"
+    // echo bug across experience / projects / etc — not just education.
+    //
+    // Strategy:
+    //  1. Validate the AI's output. If either the entry count dropped or
+    //     an echo is detected, re-prompt the AI ONCE with a focused
+    //     addendum telling it exactly what to fix.
+    //  2. If the second response still has count drops, fail the request
+    //     with a structured `entries_dropped` error code (status 422) and
+    //     refund the credit — the client shows a confirmation flow rather
+    //     than silently mutating.
+    //  3. If the second response still echoes, strip the offending field
+    //     to "" so the rest of the entry still ships (better than failing
+    //     the whole apply on a cosmetic field).
+    let finalContent = enhancedContent as Record<string, unknown>;
+    if (isEntryArraySection(section)) {
+      const initialCount = validateEntryCount(section, currentContent, finalContent.improved);
+      const initialEcho = detectEchoIssues(section, finalContent.improved);
+
+      if (!initialCount.ok || initialEcho.length > 0) {
+        const addendum = buildRetryAddendum(
+          initialCount.ok ? null : initialCount,
+          initialEcho,
+        );
+        console.log(
+          `Output-quality retry for ${section}: count_ok=${initialCount.ok}, echo_issues=${initialEcho.length}`,
+        );
+        try {
+          const retryResp = await callAIWithRetry({
+            model: 'meta-llama/llama-3.3-70b-instruct:free',
+            messages: [{ role: 'user', content: prompt + addendum }],
+            // Lower temperature on the retry: we want a deterministic fix,
+            // not more creativity.
+            temperature: 0.2,
+            userId,
+          });
+          if (retryResp.content) {
+            const retryParsed = await parseAIJSONWithRetry<Record<string, unknown>>(retryResp.content, {
+              model: 'meta-llama/llama-3.3-70b-instruct:free',
+              userId,
+              temperature: 0.2,
+            });
+            if (retryParsed && retryParsed.improved !== undefined) {
+              finalContent = retryParsed;
+              if (retryResp.providerUsed) {
+                aiResponse.providerUsed = retryResp.providerUsed;
+              }
+            }
+          }
+        } catch (retryErr) {
+          // Re-prompt failure is non-fatal — fall through to second-pass
+          // validation against the original (possibly-bad) output and let
+          // the structured-error / strip path handle it deterministically.
+          log.error('Output-quality retry failed', retryErr);
+        }
+
+        // Second-pass validation. We accept the second response unless it
+        // STILL drops entries (count failure is not silently recoverable).
+        const finalCount = validateEntryCount(section, currentContent, finalContent.improved);
+        if (!finalCount.ok) {
+          await refundCredit(userId, creditCheck, 1);
+          return new Response(JSON.stringify({
+            error: 'entries_dropped',
+            code: 'entries_dropped',
+            message: `AI returned ${finalCount.improvedCount} of ${finalCount.originalCount} entries. The original entries are preserved on your resume.`,
+            originalCount: finalCount.originalCount,
+            improvedCount: finalCount.improvedCount,
+          }), {
+            status: 422,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        const finalEcho = detectEchoIssues(section, finalContent.improved);
+        if (finalEcho.length > 0) {
+          // Echo still present after one retry — strip the offending
+          // fields rather than failing the whole apply. The user can
+          // refine manually.
+          finalContent = {
+            ...finalContent,
+            improved: stripEchoFields(finalContent.improved, finalEcho),
+          };
+        }
+      }
+    }
+
+    console.log('Enhancement complete:', JSON.stringify(finalContent).slice(0, 200));
 
     // Record usage for rate limiting — include which provider handled the request
     await recordUsage(userId, 'enhance', { section, action, provider: aiResponse.providerUsed || 'unknown' });
