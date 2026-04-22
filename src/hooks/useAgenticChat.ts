@@ -523,9 +523,12 @@ export function useAgenticChat(contextFilter?: string) {
           newExperience[expIndex] = { ...updatedExp, id: currentResume.experience[expIndex].id };
           updateResume({ experience: newExperience });
         } else {
+          // Bail out early so we don't fire the trailing success haptic
+          // and ATS rescore for an apply that didn't actually mutate.
           toast(
             "Couldn't locate the experience entry to update — it may have been renamed or removed.",
           );
+          return;
         }
       } else if (proposal.section === 'skills') {
         const suggestedSkills = proposal.suggested.split(',').map((s) => s.trim()).filter(Boolean);

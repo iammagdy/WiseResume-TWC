@@ -116,7 +116,7 @@
                  >
                    <div className="mt-3 space-y-3">
                      {/* Before */}
-                     <div className="p-3 rounded-lg bg-destructive/5 border border-destructive/10">
+                     <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/30">
                        <div className="flex items-center gap-2 mb-2">
                          <span className="text-xs font-semibold text-destructive">BEFORE</span>
                        </div>

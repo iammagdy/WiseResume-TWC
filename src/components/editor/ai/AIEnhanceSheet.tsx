@@ -897,7 +897,7 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
                       <CollapsibleContent>
                         <div className="px-4 pb-4 space-y-3 border-t border-border pt-3">
                           {r.error && (
-                            <div className="flex items-start gap-2 p-2 rounded-lg bg-destructive/10 border border-destructive/20 text-xs text-destructive">
+                            <div className="flex items-start gap-2 p-2 rounded-lg bg-destructive/10 border border-destructive/30 text-xs text-destructive">
                               <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
                               <span>{r.error}</span>
                             </div>

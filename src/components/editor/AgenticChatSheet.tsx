@@ -158,7 +158,7 @@ function DeleteConfirmCard({
         'rounded-xl border p-3 space-y-2',
         isResolved
           ? proposal.status === 'accepted'
-            ? 'bg-destructive/5 border-destructive/20'
+            ? 'bg-destructive/10 border-destructive/30'
             : 'bg-muted border-muted'
           : 'bg-card border-destructive/30'
       )}
@@ -182,7 +182,7 @@ function DeleteConfirmCard({
         )}
       </div>
 
-      <div className="p-2 rounded-lg bg-destructive/5 border border-destructive/10">
+      <div className="p-2 rounded-lg bg-destructive/10 border border-destructive/30">
         <span className="text-xs text-destructive/70 font-medium block mb-1">Entry to remove:</span>
         {(() => {
           const parsed = parseExperienceOriginal(proposal.original);
@@ -295,7 +295,7 @@ function SuggestionCard({
       </div>
 
       <div className="space-y-1.5 text-sm">
-        <div className="p-2 rounded-lg bg-destructive/5 border border-destructive/10">
+        <div className="p-2 rounded-lg bg-destructive/10 border border-destructive/30">
           <span className="text-xs text-destructive/70 font-medium">Before:</span>
           <p className="text-foreground/80 line-through decoration-destructive/40 break-words">
             {showMoreOriginal ? proposal.original : proposal.original.slice(0, CLAMP_LEN)}
