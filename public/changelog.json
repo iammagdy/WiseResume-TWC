@@ -1,8 +1,24 @@
 [
   {
+    "version": "v3.5.3",
+    "date": "Apr 23, 2026",
+    "latest": true,
+    "summary": "Every PDF download is now text-selectable, and the editor's score panel is honestly labelled as keyword match.",
+    "items": [
+      {
+        "title": "Text-selectable PDFs everywhere",
+        "description": "Resumes downloaded from the dashboard's Applications view now produce real text-based PDFs that recruiters and applicant-tracking systems can search and parse, matching what the editor's other download buttons already produced."
+      },
+      {
+        "title": "Honest \"Keyword Match Score\" labelling",
+        "description": "The editor's score panel and related dialogs are renamed to make clear the number measures keyword overlap with your pasted job description, not whether external ATS tools will accept your resume. The score and algorithm are unchanged."
+      }
+    ]
+  },
+  {
     "version": "v3.5.2",
     "date": "Apr 22, 2026",
-    "latest": true,
+    "latest": false,
     "summary": "Landing page polish: cleaner section transitions and a calmer scroll experience.",
     "items": [
       {
