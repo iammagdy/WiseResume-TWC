@@ -181,8 +181,16 @@ export function useResume(resumeId: string | null) {
     queryFn: async () => {
       if (!resumeId) return null;
 
-      const response = await apiFetch<{ resume: unknown }>(`/api/data/resumes/${resumeId}`);
-      return response.resume ? parseDbResume(response.resume) : null;
+      try {
+        const response = await apiFetch<{ resume: unknown }>(`/api/data/resumes/${resumeId}`);
+        return response.resume ? parseDbResume(response.resume) : null;
+      } catch (err: unknown) {
+        // Preserve the previous .maybeSingle() semantics: 404 = resume not found → null
+        if (err && typeof err === 'object' && 'status' in err && (err as { status: number }).status === 404) {
+          return null;
+        }
+        throw err;
+      }
     },
     enabled: !!user && !!resumeId,
     retry: 2,
