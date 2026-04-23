@@ -1204,12 +1204,20 @@ export async function generateCombinedPDF(
   );
   coverLetterPages.forEach(page => combinedDoc.addPage(page));
 
+  // pdf-lib's copyPages preserves each page's Annots array in full, so the
+  // URI annotations embedded by extractAndEmbedLinkAnnotations() inside
+  // generatePDF() above (portfolio, GitHub, LinkedIn links, etc.) are
+  // automatically carried into combinedDoc — no second extraction pass needed.
   const resumePages = await combinedDoc.copyPages(
     resumeDoc,
     resumeDoc.getPageIndices()
   );
   resumePages.forEach(page => combinedDoc.addPage(page));
 
+  // addPageFooter adds branding text + clickable branding URI annotation to
+  // all pages in combinedDoc (cover letter + resume). The branding annotation
+  // is added here rather than inside generatePDF so it applies to every page
+  // of the combined document uniformly.
   await addPageFooter(combinedDoc, options);
 
   const pdfBytes = await combinedDoc.save();

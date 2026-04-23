@@ -167,17 +167,52 @@ export function chunksForPage(
 }
 
 /**
+ * Word-wraps a single text string to fit within maxWidth.
+ * Returns an array of lines preserving the full content — no truncation.
+ */
+function wrapChunkText(
+  text: string,
+  font: PDFFont,
+  fontSize: number,
+  maxWidth: number,
+): string[] {
+  const words = text.split(/\s+/);
+  const lines: string[] = [];
+  let current = '';
+
+  for (const word of words) {
+    const test = current ? `${current} ${word}` : word;
+    let testWidth: number;
+    try {
+      testWidth = font.widthOfTextAtSize(test, fontSize);
+    } catch {
+      testWidth = maxWidth + 1;
+    }
+    if (testWidth > maxWidth && current) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = test;
+    }
+  }
+  if (current) lines.push(current);
+  return lines;
+}
+
+/**
  * Renders the hidden text layer for one page of a multi-page PDF.
  *
  * When page coordinate info is provided (pageStart, globalScaleFactor,
- * footerReservedPt), each chunk is drawn at its correct vertical position
- * in the page using white text — invisible over the white background but
- * fully selectable and searchable by ATS scanners and Ctrl+F in PDF readers.
+ * footerReservedPt), each chunk is word-wrapped and drawn at its correct
+ * vertical position using white text — invisible on the white background but
+ * fully present for ATS scanners and Ctrl+F / copy-paste in PDF readers.
+ * Text is never truncated; multi-line chunks occupy successive lines below
+ * the chunk's visual top, bounded by both chunk.bottom and the footer zone.
  *
  * Falls back to the legacy pack-at-top approach when coordinate info is absent.
  *
  * Throws TextLayerError only on the legacy fallback path — the positioned
- * path is best-effort and logs individual chunk failures without aborting.
+ * path is best-effort per chunk so a single draw failure never aborts the export.
  */
 export function renderDOMTextLayerForPage(
   page: PDFPage,
@@ -205,41 +240,41 @@ export function renderDOMTextLayerForPage(
 
   const margin = 8;
   const fontSize = 8;
+  const lineHeight = fontSize + 2;
   const maxWidth = pageWidth - margin * 2;
   const safeBottom = (footerReservedPt ?? 44) + 4;
   const whiteColor = rgb(1, 1, 1);
+  const sf = globalScaleFactor!;
+  const ps = pageStart!;
 
   for (const chunk of chunks) {
     const text = chunk.text.trim();
     if (!text) continue;
 
-    const chunkRelY = chunk.y - pageStart!;
-    const pdfY = pageHeight - chunkRelY * globalScaleFactor! - fontSize;
+    const chunkTopY    = pageHeight - (chunk.y      - ps) * sf;
+    const chunkBottomY = pageHeight - (chunk.bottom - ps) * sf;
 
-    if (pdfY < safeBottom || pdfY > pageHeight - 2) continue;
+    const startY = chunkTopY - fontSize;
+    if (startY < safeBottom || startY > pageHeight - 2) continue;
 
-    let displayText = text;
-    try {
-      while (displayText.length > 1 && font.widthOfTextAtSize(displayText, fontSize) > maxWidth) {
-        displayText = displayText.slice(0, -1);
+    const lines = wrapChunkText(text, font, fontSize, maxWidth);
+
+    for (let li = 0; li < lines.length; li++) {
+      const lineY = startY - li * lineHeight;
+      if (lineY < safeBottom || lineY < chunkBottomY) break;
+
+      try {
+        page.drawText(lines[li], {
+          x: margin,
+          y: lineY,
+          size: fontSize,
+          font,
+          color: whiteColor,
+          opacity: 1,
+        });
+      } catch {
+        // Best-effort — skip this line, continue with remaining chunks
       }
-    } catch {
-      displayText = text.slice(0, Math.min(text.length, 60));
-    }
-
-    if (!displayText.trim()) continue;
-
-    try {
-      page.drawText(displayText, {
-        x: margin,
-        y: pdfY,
-        size: fontSize,
-        font,
-        color: whiteColor,
-        opacity: 1,
-      });
-    } catch {
-      // Best-effort — skip this chunk rather than abort the entire export
     }
   }
 }
