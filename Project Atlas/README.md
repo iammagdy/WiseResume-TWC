@@ -2,7 +2,7 @@
 
 A single, navigable, A‑to‑Z reference for the entire Wise Cloud platform — WiseResume + WiseHire.
 
-**Last verified:** 2026-04-17
+**Last verified:** 2026-04-23 (added `external-references-index.md` cataloguing every audit / plan / postmortem / runbook outside the Atlas)
 **Built from sources:**
 - `replit.md`
 - `README.md`
@@ -67,6 +67,7 @@ Practical consequence: every Atlas card names a "Canonical owner". That owner is
 Project Atlas/
 ├── README.md                       ← you are here
 ├── MAINTENANCE.md                  ← update protocol + the five hard rules
+├── external-references-index.md    ← every audit / plan / postmortem / runbook outside the Atlas, with paths
 ├── _templates/                     ← doc & reference-card templates
 │
 ├── 01-Currently Implemented/       ← what is built and live today

@@ -1,6 +1,6 @@
 # Stability Fixes
 
-**Last verified:** 2026-04-18
+**Last verified:** 2026-04-23
 **Type:** index
 **Canonical owner:** Project Atlas maintainer (see `../../MAINTENANCE.md`) + the per-phase task briefs under `.local/tasks/phase-*.md`
 **Sources (governance — supreme):**
@@ -28,3 +28,5 @@ Cards in this folder describe shipped or in-flight stability fixes from the 2026
 - [Phase 8 — Production edge-function routing](./phase-8-prod-edge-function-routing.md)
 - [Phase 9 — Stale-chunk silent recovery](./phase-9-stale-chunk-silent-recovery.md)
 - [Phase 10 — Editor session restore + dashboard cold-load cache](./phase-10-editor-session-and-dashboard-cache.md)
+- [Phase 11 — PDF export migration to Puppeteer (text-selectable across all surfaces)](./phase-11-pdf-export-puppeteer-migration.md)
+- [Editor ATS panel relabelled as "Job Match Analysis" / "Keyword Match Score"](./ats-keyword-match-clarity.md)

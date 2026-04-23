@@ -2,6 +2,48 @@
 
 Local changelog tracking WiseResume changes.
 
+## 2026-04-23 (Stability — Task #30: PDF export migration to Puppeteer for the dashboard list row)
+
+### STABILITY — Last legacy `html2canvas` PDF caller migrated to the native Puppeteer pipeline
+
+Finishes the multi-task migration that moved every resume PDF download in the product onto `src/lib/nativePdfGenerator.ts` (Puppeteer-backed, text-selectable). Four of the five callers had already been migrated in earlier tasks; the dashboard's Applications view (`src/components/applications/ResumeListSheet.tsx`) was the last holdout still calling the legacy `generatePDF` from `src/lib/pdfGenerator.ts` and producing image-based (rasterised) PDFs.
+
+- New `src/lib/exportResumePdf.ts` — `exportResumePdfFromData(resume, templateId, options)` mounts a lazy resume template into an offscreen container (`left:-10000px`, `width:816px`, `data-resume-template=""`) via `createRoot` + `<Suspense>`, injects the user's `generateCustomizationCSS` inline, awaits `document.fonts.ready`, RAF-polls until `scrollHeight > 100`, calls `generateNativePDF`, and unmounts in `finally`. Throws a typed `OffscreenRenderTimeoutError` if the lazy chunk never paints inside `renderTimeoutMs` (default 4 s, configurable) so the caller surfaces a clear export-failed toast instead of a blank PDF. The `renderTimeoutMs` option is stripped before forwarding to the native pipeline.
+- `src/components/applications/ResumeListSheet.tsx` — `handleDownload` switched from `generatePDF` to `exportResumePdfFromData(resume, templateId, { showPageNumbers: true, showBranding: true })` with a `console.error` on failure for diagnosability.
+- `src/lib/pdfGenerator.ts` — removed the four deprecated public exports: `generatePDF`, `generateOnePagePDF`, `generateCoverLetterPDF`, `generateCombinedPDF`. Kept the measurement utilities still consumed by the rest of the app (`PAGE_FORMAT_PX`, `FOOTER_RESERVED_PT`, `prepareForMeasure`, `calculatePDFDimensions`, `estimatePageCount`, `estimateOnePageScale`, `snapBreaksToContent`, `injectForcedBreaks`, `findWhitespaceBandSnap`, `getTemplateSourceElement`, `wrapText`, `PdfGenerationError`).
+- `src/lib/pdfGenerator.test.ts` — removed test blocks that exercised the deleted public exports (the `generatePDF` describe, the TPL-2 truncation guard, the TPL-2 raster-area ceiling test). 9 measurement-helper tests retained, all passing.
+- New `src/lib/exportResumePdf.test.ts` — covers the timeout-throw + cleanup contract: when the offscreen template never paints inside a small `renderTimeoutMs`, the function throws `OffscreenRenderTimeoutError`, never invokes `generateNativePDF`, and leaves no `[data-resume-template]` containers behind.
+
+**Drift / known gap:** ~300 lines of internal helpers in `pdfGenerator.ts` that only existed to support the removed public exports (`generatePDFPages`, `captureTemplateAsCanvas`, `prepareForCapture`, `getPageDimensions`, `addPageFooter`, `extractAndEmbedLinkAnnotations`) are now dead code but were intentionally left in place to limit blast radius. Tracked as follow-up Task #49.
+
+**Verification:** `tsc --noEmit` clean; full `src/lib` vitest suite passes (224 tests); architect code review APPROVED with the `OffscreenRenderTimeoutError` + test added in response to non-blocking review comments.
+
+**Atlas docs:** `Project Atlas/01-Currently Implemented/stability-fixes/phase-11-pdf-export-puppeteer-migration.md`; plain-language entry prepended to `Project Atlas/04-For You (Plain Language)/stability-improvements.md` ("Every PDF download is now text-selectable…").
+
+---
+
+## 2026-04-23 (Stability / Honesty — Task #12: Editor ATS panel relabelled as "Job Match Analysis" / "Keyword Match Score")
+
+### STABILITY — Editor copy now honestly describes what the score measures (keyword overlap with the pasted JD, not external-ATS prediction)
+
+The editor's "ATS Score" had been labelled and copywritten as if it predicted external applicant-tracking system behaviour. It does not — it measures only keyword and content overlap against the user's pasted job description. The misleading label produced two real risks: false confidence ("87 means I'll pass any ATS") and false panic ("42 means my template is broken"). Across every editor surface that exposes the score, the copy now consistently reflects what the metric actually measures. Score, algorithm, and panel layout are all unchanged.
+
+- `src/pages/EditorPage.tsx` — Tools-sheet entry "ATS Check / Score against ATS systems" → "Job Match Analysis / Keyword & content match vs your job description". Mobile inline ATS Scan summary footnote added to match the bottom-sheet wording.
+- `src/components/editor/JobAnalysisSheet.tsx` — overall score header relabelled "Keyword Match Score" with explanatory footnote; breakdown ScoreCard "ATS Score" → "ATS Keywords".
+- `src/components/editor/ATSScanSheet.tsx` — same explanatory footnote added under the keyword-match score.
+- `src/components/editor/ATSInlineSuggestions.tsx` — caption added clarifying suggestions reflect keyword overlap, not layout or external-tool scores.
+- `src/components/editor/TailorSheet.tsx` — toast and error copy "ATS score" → "Keyword match score".
+- `src/components/editor/tailor/TailorProgress.tsx` — step label "Calculating ATS score" → "Calculating keyword match score".
+- `src/components/editor/ai/AIEnhanceSheet.tsx` — sheet title "ATS Score Optimization" → "ATS Keyword Optimization".
+
+**Out of scope (proposed as follow-ups #47 and #48):** Dashboard / Analytics ATS Score widgets and the Multi-Job Compare / AI Studio A/B compare sheets. Same relabelling discipline to be applied there in a later pass.
+
+**Verification:** `tsc --noEmit` clean. No tests reference the changed strings.
+
+**Atlas docs:** `Project Atlas/01-Currently Implemented/stability-fixes/ats-keyword-match-clarity.md`; plain-language entry prepended to `Project Atlas/04-For You (Plain Language)/stability-improvements.md` ("The editor's 'ATS Score' panel now honestly says it measures keyword match…").
+
+---
+
 ## 2026-04-18 (Security — Task #8: Portfolio Password Server-Side Enforcement + Local-Only Mode Removal)
 
 ### SECURITY — Portfolio password enforcement moved server-side; Local-Only Mode toggle removed
