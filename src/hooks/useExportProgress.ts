@@ -10,11 +10,11 @@ export type ExportStage =
   | 'idle';
 
 const STAGE_MESSAGES: Record<ExportStage, string> = {
-  preparing: 'Preparing fonts & layout...',
-  capturing: 'Capturing resume...',
-  paginating: 'Slicing pages...',
-  embedding: 'Embedding images...',
-  finalizing: 'Adding footer & metadata...',
+  preparing: 'Preparing layout & fonts...',
+  capturing: 'Sending to rendering server...',
+  paginating: 'Rendering PDF on server...',
+  embedding: 'Embedding assets...',
+  finalizing: 'Finalising PDF...',
   downloading: 'Saving file...',
   idle: '',
 };

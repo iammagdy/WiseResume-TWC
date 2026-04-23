@@ -454,8 +454,11 @@ export default function PreviewPage() {
   const handleSaveToFiles = async () => {
     setIsGenerating(true);
     try {
-      const { generatePDF } = await import('@/lib/pdfGenerator');
-      const pdfBlob = await generatePDF(currentResume, selectedTemplate, resumeRef.current, undefined, { showPageNumbers: true });
+      const { generateNativePDF } = await import('@/lib/nativePdfGenerator');
+      const templateEl = resumeRef.current ?? (document.querySelector('[data-resume-template]') as HTMLElement | null);
+      if (!templateEl) { toast.error('Resume preview not visible'); return; }
+      const pageFormat = (currentResume.customization?.pageFormat ?? 'letter') as 'letter' | 'a4';
+      const pdfBlob = await generateNativePDF(templateEl, { pageFormat, showPageNumbers: true, showBranding: true });
       const fileName = `${currentResume.contactInfo.fullName?.replace(/\s+/g, '_') || 'Resume'}_Resume.pdf`;
       const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
 
@@ -480,8 +483,11 @@ export default function PreviewPage() {
   const handleShare = async () => {
     if (navigator.share) {
       try {
-        const { generatePDF } = await import('@/lib/pdfGenerator');
-        const pdfBlob = await generatePDF(currentResume, selectedTemplate, resumeRef.current, undefined, { showPageNumbers: true });
+        const { generateNativePDF } = await import('@/lib/nativePdfGenerator');
+        const templateEl = resumeRef.current ?? (document.querySelector('[data-resume-template]') as HTMLElement | null);
+        if (!templateEl) { toast.error('Resume preview not visible'); return; }
+        const pageFormat = (currentResume.customization?.pageFormat ?? 'letter') as 'letter' | 'a4';
+        const pdfBlob = await generateNativePDF(templateEl, { pageFormat, showPageNumbers: true, showBranding: true });
         const file = new File([pdfBlob], 'Resume.pdf', { type: 'application/pdf' });
         await navigator.share({ title: 'My Resume', files: [file] });
       } catch {

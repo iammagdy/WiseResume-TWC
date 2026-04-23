@@ -2999,7 +2999,7 @@ app.get(
 
 let _puppeteerActiveCnt = 0;
 const _puppeteerQueue: Array<() => void> = [];
-const MAX_PUPPETEER_CONCURRENT = 2;
+const MAX_PUPPETEER_CONCURRENT = 3;
 
 function _createPuppeteerRelease(): () => void {
   return () => {
@@ -3101,6 +3101,37 @@ app.post('/api/export/pdf-native', requireAuthHeader, async (req: AuthedRequest,
 
     const page = await browser.newPage();
     await page.setViewport({ width: viewportWidthPx, height: isA4 ? 1123 : 1056 });
+
+    // SSRF mitigation: intercept all network requests made by the headless browser
+    // and block those targeting private/loopback IP ranges or cloud metadata endpoints.
+    // This prevents an authenticated but malicious user from reading internal services.
+    await page.setRequestInterception(true);
+    const _SSRF_BLOCKED_PATTERNS = [
+      /^https?:\/\/169\.254\./,           // AWS/GCP/Azure link-local metadata
+      /^https?:\/\/metadata\./,            // generic metadata hostnames
+      /^https?:\/\/10\./,                  // RFC-1918 private range
+      /^https?:\/\/172\.(1[6-9]|2\d|3[01])\./, // RFC-1918 private range
+      /^https?:\/\/192\.168\./,            // RFC-1918 private range
+      /^https?:\/\/127\./,                 // loopback
+      /^https?:\/\/\[::1\]/,              // IPv6 loopback
+      /^https?:\/\/0\.0\.0\.0/,           // INADDR_ANY
+    ];
+    page.on('request', (request) => {
+      const url = request.url();
+      // Allow data URIs and same-origin app assets
+      if (url.startsWith('data:') || url.startsWith('about:')) {
+        request.continue();
+        return;
+      }
+      // Block private/metadata ranges
+      if (_SSRF_BLOCKED_PATTERNS.some(re => re.test(url))) {
+        console.warn(`[export/pdf-native] Blocked SSRF attempt to: ${url}`);
+        request.abort('addressunreachable');
+        return;
+      }
+      request.continue();
+    });
+
     await page.setContent(injectedHtml, { waitUntil: 'networkidle0', timeout: 30_000 });
 
     const pdfBuffer = await page.pdf({
