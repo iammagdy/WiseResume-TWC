@@ -338,19 +338,29 @@ async function callBYOK(opts: AICallOptions, provider: string, key: string): Pro
     ...buildAuthHeaders(cfg, key),
   };
 
+  // Anthropic native API: system prompts must be extracted to top-level `system`
+  // field; only user/assistant messages are allowed in `messages`.
+  let normalizedMessages: AIMessage[] = opts.messages;
   const body: Record<string, unknown> = {
     model: cfg.defaultModel,
-    messages: opts.messages,
     temperature: typeof opts.temperature === 'number' ? opts.temperature : 0.7,
     max_tokens: typeof opts.maxTokens === 'number' ? opts.maxTokens : 4096,
   };
-  if (typeof opts.topP === 'number') body.top_p = opts.topP;
-  if (opts.tools && cfg.authStyle !== 'anthropic') body.tools = opts.tools;
-  if (opts.toolChoice && cfg.authStyle !== 'anthropic') body.tool_choice = opts.toolChoice;
-  if (cfg.authStyle !== 'anthropic') {
+
+  if (cfg.authStyle === 'anthropic') {
+    const systemParts = opts.messages.filter(m => m.role === 'system').map(m => m.content);
+    normalizedMessages = opts.messages.filter(m => m.role !== 'system');
+    if (systemParts.length > 0) body.system = systemParts.join('\n\n');
+    body.messages = normalizedMessages;
+  } else {
+    body.messages = normalizedMessages;
+    if (opts.tools) body.tools = opts.tools;
+    if (opts.toolChoice) body.tool_choice = opts.toolChoice;
     if (opts.responseFormat) body.response_format = opts.responseFormat;
     else if (opts.jsonMode) body.response_format = { type: 'json_object' };
   }
+
+  if (typeof opts.topP === 'number') body.top_p = opts.topP;
 
   let res: Response;
   try {

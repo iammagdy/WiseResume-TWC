@@ -19,22 +19,22 @@ interface ManageApiKeysResponse {
   byok_provider: string | null;
 }
 
+async function fetchKeysFromServer(): Promise<ManageApiKeysResponse> {
+  const { data, error } = await edgeFunctions.functions.invoke('manage-api-keys', {
+    method: 'GET',
+  });
+  if (error) throw new Error((error as { message?: string }).message ?? 'Failed to fetch BYOK settings');
+  return data as ManageApiKeysResponse;
+}
+
 export function useAIKeyHydration() {
   const { user, isAuthenticated } = useAuth();
   const { setByokEnabled, setByokProvider, setByokKeyHints } = useSettingsStore();
   const queryClient = useQueryClient();
 
-  const fetchKeys = useCallback(async (): Promise<ManageApiKeysResponse> => {
-    const { data, error } = await edgeFunctions.functions.invoke('manage-api-keys', {
-      method: 'GET',
-    } as any);
-    if (error) throw new Error(error.message ?? 'Failed to fetch BYOK settings');
-    return data as ManageApiKeysResponse;
-  }, []);
-
   const { data } = useQuery({
     queryKey: ['ai-key-hydration', user?.id],
-    queryFn: fetchKeys,
+    queryFn: fetchKeysFromServer,
     enabled: !!user && isAuthenticated,
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
@@ -50,8 +50,13 @@ export function useAIKeyHydration() {
     setByokKeyHints(data.keys);
   }, [data, setByokEnabled, setByokProvider, setByokKeyHints]);
 
-  const refetch = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: ['ai-key-hydration', user?.id] });
+  /**
+   * Refetch key list from server and await fresh data before returning.
+   * Use this after key mutations (add/delete/toggle) so callers can rely
+   * on updated store state immediately after the await resolves.
+   */
+  const refetch = useCallback(async () => {
+    await queryClient.refetchQueries({ queryKey: ['ai-key-hydration', user?.id] });
   }, [queryClient, user?.id]);
 
   return { refetch };

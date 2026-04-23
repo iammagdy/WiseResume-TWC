@@ -303,15 +303,37 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
     }
   }, [byokKeyHints, byokEnabled, byokProvider, setByokKeyHints, handleToggleByok, handleSelectProvider]);
 
-  const handleKeySaved = useCallback(async (provider: string) => {
+  const handleKeySaved = useCallback(async (savedProvider: string) => {
     setAddingKey(false);
+    // Refetch key list first so the store has the new key before we enable BYOK.
     await refetch();
+
     if (!byokEnabled) {
-      await handleToggleByok(true);
+      // First key ever added: enable BYOK with this exact provider.
+      // Do NOT read byokKeyHints (stale from before the save) — use the
+      // just-saved provider string directly to avoid byok_provider=null bug.
+      setTogglingByok(true);
+      try {
+        const { error } = await edgeFunctions.functions.invoke('manage-api-keys', {
+          method: 'PATCH',
+          body: { byok_enabled: true, byok_provider: savedProvider },
+        });
+        if (error) {
+          toast.error(invokeErrorMessage(error, 'Failed to enable BYOK'));
+          return;
+        }
+        setByokEnabled(true);
+        setByokProvider(savedProvider);
+      } catch {
+        toast.error('Failed to enable BYOK');
+      } finally {
+        setTogglingByok(false);
+      }
     } else {
-      await handleSelectProvider(provider);
+      // BYOK already on — switch active provider to the newly added key.
+      await handleSelectProvider(savedProvider);
     }
-  }, [byokEnabled, refetch, handleToggleByok, handleSelectProvider]);
+  }, [byokEnabled, refetch, setByokEnabled, setByokProvider, handleSelectProvider]);
 
   const engineLabel = byokEnabled && byokProvider
     ? `Your ${PROVIDER_DISPLAY[byokProvider]?.label ?? byokProvider} key`
