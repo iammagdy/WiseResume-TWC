@@ -84,7 +84,12 @@ export function applyCustomizationCSS(c: TemplateCustomization | undefined): CSS
     '--custom-accent': c.accentColor,
     fontFamily: c.fontBody,
     fontSize: `${mul}em`,
-    padding: `${MARGIN_PX[c.margins] ?? 40}px`,
+    // NOTE: page margin is intentionally NOT set on the wrapper here.
+    // Each template hard-codes its own root padding (`p-8`, `p-10`, etc.),
+    // so adding wrapper padding on top stacked the two and made
+    // "narrow" larger than "wide". The user-selected margin is now
+    // applied via generateCustomizationCSS, which overrides the
+    // template root's padding directly. See pageMarginBlock below.
     gap: `${SPACING_PX[c.spacing] ?? 20}px`,
     lineHeight: LINE_HEIGHT_VALUES[c.lineHeight] ?? 1.15,
   } as CSSProperties;
@@ -173,6 +178,32 @@ export function generateCustomizationCSS(c: TemplateCustomization | undefined): 
     }
   ` : '';
 
+  // Page margin: override the template root's hard-coded padding (each
+  // template uses `p-6 / p-8 / p-10`) with the user's chosen value, so
+  // "Narrow" / "Normal" / "Wide" produce the actual ratios the user
+  // expects. Without this override the wrapper padding stacked on top
+  // of the template padding, making narrow look bigger than wide.
+  // Bleed-edge children (e.g. ProfessionalTemplate's dark header which
+  // uses `-m-8` to extend to the page edge) are tagged with
+  // `data-resume-bleed-edge` so their negative margins follow the
+  // user's chosen value too. We deliberately leave `margin-bottom`
+  // alone so the template's own `mb-*` after the bleed still wins.
+  const marginPx = MARGIN_PX[c.margins] ?? 40;
+  // Use `> div:first-of-type` so we target the template's root <div>
+  // and skip any sibling <style> elements that LivePreviewPanel /
+  // exportResumePdf inject before the template (those would otherwise
+  // be matched by `:first-child` and the override would no-op).
+  const pageMarginBlock = `
+    [data-resume-template] > div:first-of-type {
+      padding: ${marginPx}px !important;
+    }
+    [data-resume-template] [data-resume-bleed-edge] {
+      margin-top: -${marginPx}px !important;
+      margin-left: -${marginPx}px !important;
+      margin-right: -${marginPx}px !important;
+    }
+  `;
+
   const headerAlignBlock = c.headerAlign ? `
     [data-resume-template] header { text-align: ${c.headerAlign} !important; }
     ${c.headerAlign === 'center' || c.headerAlign === 'right' ? `
@@ -186,6 +217,7 @@ export function generateCustomizationCSS(c: TemplateCustomization | undefined): 
     ${fontBodyBlock}
     ${fontHeadingBlock}
     ${accentBlock}
+    ${pageMarginBlock}
     ${headerAlignBlock}
     ${fontScaleBlock}
     ${sectionGapBlock}

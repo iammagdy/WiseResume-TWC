@@ -59,7 +59,7 @@ const EducationItem = memo(function EducationItem({ edu }: { edu: EducationItemT
 export const ProfessionalTemplate = memo(function ProfessionalTemplate({ resume }: TemplateProps) {
   return (
     <div className="p-8 font-sans text-sm">
-      <header className="bg-gray-900 text-white -m-8 mb-6 p-6">
+      <header data-resume-bleed-edge className="bg-gray-900 text-white -m-8 mb-6 p-6">
         <h1 className="text-2xl font-bold mb-2">
           {resume.contactInfo.fullName || 'Your Name'}
         </h1>
