@@ -3,13 +3,12 @@ import { TextareaFormField } from '@/components/ui/form-field';
 import { useResumeStore } from '@/store/resumeStore';
 import { FileText, Sparkles, ChevronDown } from 'lucide-react';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
-import { AIEnhanceDialog } from './ai/AIEnhanceDialog';
-import { useAIEnhance, ActionType } from '@/hooks/useAIEnhance';
+import type { ActionType } from '@/hooks/useAIEnhance';
 import { AIContextualNudge } from './AIContextualNudge';
 import { useResumeNudges } from '@/hooks/useResumeNudges';
 import { SectionEmptyState } from './SectionEmptyState';
 import { summaryExample } from '@/lib/emptyStateExamples';
-import { useAIApplyEffects } from '@/hooks/useAIApplyEffects';
+import { useSummaryAIBridge } from '@/store/summaryAIBridge';
 
 export const SummarySection = memo(function SummarySection() {
   const summary = useResumeStore(state => state.currentResume?.summary);
@@ -17,57 +16,43 @@ export const SummarySection = memo(function SummarySection() {
   const currentResume = useResumeStore(state => state.currentResume);
   const pendingSummaryGeneration = useResumeStore(state => state.pendingSummaryGeneration);
   const setPendingSummaryGeneration = useResumeStore(state => state.setPendingSummaryGeneration);
-  const [showDialog, setShowDialog] = useState(false);
   const [touched, setTouched] = useState(false);
   const [started, setStarted] = useState(false);
-  
-  const { rescoreAfterApply } = useAIApplyEffects(currentResume?.id);
 
-  const { enhance, isEnhancing, result, apply, discard } = useAIEnhance({
-    section: 'summary',
-    onApply: (content) => {
-      // `content` is the user's edited text (or the AI output if they didn't
-      // edit). Refuse to write a non-string or an empty value into the store
-      // — the dialog already guards against this but defending here means a
-      // bad payload can never blank the editor.
-      if (typeof content !== 'string' || content.trim() === '') return;
-      updateResume({ summary: content });
-      setShowDialog(false);
-      // Trigger an immediate ATS rescore against the freshly mutated resume
-      // so the score badge reflects the AI Apply without the user having to
-      // navigate away and back. Same wall-clock cache-bust path used by the
-      // Boost All / AI Enhance sheets.
-      if (currentResume) {
-        void rescoreAfterApply({ ...currentResume, summary: content });
-      }
-    },
-  });
+  // Single source of truth for the Summary AI flow — registered by
+  // `SectionAIAction` (the only owner of the AIEnhanceDialog for
+  // summary). All summary AI entry points in this component delegate
+  // through it so the user gets one preview dialog and one in-flight
+  // request, no matter which trigger they used.
+  const triggerSummaryAI = useSummaryAIBridge(state => state.trigger);
+
+  const requestSummaryAI = (action: ActionType) => {
+    if (triggerSummaryAI) {
+      triggerSummaryAI(action);
+    }
+    // If the bridge isn't registered yet (extremely unlikely — it
+    // mounts in the same SectionCard), the click is a no-op rather
+    // than spawning a competing dialog.
+  };
 
   const { getNudgeForSection, dismissNudge } = useResumeNudges({
     resume: currentResume,
   });
 
-  // Auto-trigger AI summary generation when flagged by guided intake
+  // Auto-trigger AI summary generation when flagged by guided intake.
+  // Routed through the bridge so the dialog/result is owned by the
+  // single SectionAIAction instance.
   useEffect(() => {
     if (!pendingSummaryGeneration || !currentResume) return;
     const isEmpty = !currentResume.summary || currentResume.summary.trim() === '';
     if (!isEmpty) {
-      // Summary already exists — clear the flag without generating
       setPendingSummaryGeneration(false);
       return;
     }
-    // Queue generation after a short delay to let the editor fully mount
-    const timer = setTimeout(async () => {
+    const timer = setTimeout(() => {
       setPendingSummaryGeneration(false);
       setStarted(true);
-      const enhanceResult = await enhance('generate' as ActionType, currentResume.summary || '', currentResume);
-      if (enhanceResult) {
-        setShowDialog(true);
-      } else {
-        // Generation failed — let the user back to the empty-state CTAs
-        // instead of leaving them with an empty textarea and no path back.
-        setStarted(false);
-      }
+      requestSummaryAI('generate');
     }, 800);
     return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -76,25 +61,6 @@ export const SummarySection = memo(function SummarySection() {
   if (!currentResume || summary === undefined) return null;
 
   const isEmpty = !summary || summary.trim() === '';
-
-  const handleAction = async (actionId: string) => {
-    const enhanceResult = await enhance(
-      actionId as ActionType,
-      summary,
-      currentResume
-    );
-
-    if (enhanceResult) {
-      setShowDialog(true);
-    }
-  };
-
-  const handleRerun = async (action: 'shorten' | 'improve' | 'generate', currentText: string) => {
-    // Re-runs feed the user's currently-edited text back into the model so
-    // they can iterate without losing changes. The dialog stays open and is
-    // updated in place via `result`.
-    await enhance(action as ActionType, currentText, currentResume);
-  };
 
   if (isEmpty && !started) {
     return (
@@ -106,7 +72,7 @@ export const SummarySection = memo(function SummarySection() {
         }
         actions={[
           { label: 'Start Writing', variant: 'outline', onClick: () => setStarted(true) },
-          { label: 'Let AI Write This', variant: 'default', icon: Sparkles, onClick: () => { setStarted(true); handleAction('generate'); } },
+          { label: 'Let AI Write This', variant: 'default', icon: Sparkles, onClick: () => { setStarted(true); requestSummaryAI('generate'); } },
         ]}
       />
     );
@@ -114,7 +80,6 @@ export const SummarySection = memo(function SummarySection() {
 
   const nudge = getNudgeForSection('summary');
 
-  // Validation
   const getSummaryError = (): string | undefined => {
     if (!summary || summary.trim() === '') return 'Professional summary is required';
     if (summary.length < 50) return 'Summary should be at least 50 characters';
@@ -125,14 +90,13 @@ export const SummarySection = memo(function SummarySection() {
 
   const handleNudgeAction = () => {
     if (nudge) {
-      handleAction(nudge.action);
+      requestSummaryAI(nudge.action as ActionType);
       dismissNudge(nudge.trigger);
     }
   };
 
   return (
     <div className="space-y-5">
-      {/* Contextual Nudge */}
       <AIContextualNudge
         show={!!nudge}
         message={nudge?.message || ''}
@@ -140,7 +104,7 @@ export const SummarySection = memo(function SummarySection() {
         onAction={handleNudgeAction}
         onDismiss={() => nudge && dismissNudge(nudge.trigger)}
       />
-      
+
       <TextareaFormField
         id="summary"
         label="Summary"
@@ -155,26 +119,6 @@ export const SummarySection = memo(function SummarySection() {
         error={summaryError}
         touched={touched}
         required
-      />
-
-      {/* AI Enhancement Dialog */}
-      <AIEnhanceDialog
-        isOpen={showDialog}
-        original={summary}
-        improved={typeof result?.improved === 'string' ? result.improved : ''}
-        changes={result?.changes || []}
-        suggestions={result?.suggestions}
-        isEnhancing={isEnhancing}
-        onRerun={handleRerun}
-        onApply={(editedText) => {
-          apply(editedText);
-          setShowDialog(false);
-        }}
-        onDiscard={() => {
-          discard();
-          setShowDialog(false);
-        }}
-        title="Enhanced Summary"
       />
 
       <Collapsible defaultOpen={!summary || summary.trim().length < 50}>
