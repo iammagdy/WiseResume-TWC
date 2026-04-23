@@ -793,6 +793,10 @@ export default function EditorPage() {
   const handleCustomize = useCallback(() => setShowCustomize(true), []);
 
   const handleMoreSectionSelect = useCallback((sectionId: string) => {
+    if (useAIEnhancingStore.getState().count > 0) {
+      toast.info('AI is still working — please wait before switching sections.', { duration: 2000, id: 'ai-section-lock' });
+      return;
+    }
     // All named sections are now direct top-level tabs.
     setMoreSubSection(null);
     setActiveTab(sectionId);
