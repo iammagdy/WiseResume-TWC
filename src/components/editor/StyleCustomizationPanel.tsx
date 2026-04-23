@@ -17,6 +17,7 @@ import {
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
 import {
   Accordion,
   AccordionContent,
@@ -26,6 +27,8 @@ import {
 import { useResumeStore } from '@/store/resumeStore';
 import { FONT_OPTIONS, getDefaultCustomization } from '@/lib/templateCustomization';
 import type { TemplateCustomization } from '@/types/resume';
+
+const DEFAULT_FONT_VALUE = '__default__';
 
 interface StyleCustomizationPanelProps {
   open: boolean;
@@ -62,7 +65,21 @@ export function StyleCustomizationPanel({ open, onOpenChange }: StyleCustomizati
     [currentResume, updateResume]
   );
 
+  // One-click escape from any persisted customization (including dirty data
+  // that may have been saved by earlier panel versions). Sets only the
+  // master `enabled: false` flag, preserving the user's other tweaks in
+  // case they want to switch the panel back on later.
+  const clearAll = useCallback(() => {
+    if (!currentResume) return;
+    const base = (currentResume.customization ?? {}) as TemplateCustomization;
+    updateResume({ customization: { ...base, enabled: false } as TemplateCustomization });
+  }, [currentResume, updateResume]);
+
   if (!currentResume) return null;
+
+  // Treat undefined as ON so existing customized resumes behave identically
+  // to before this flag existed.
+  const isEnabled = c.enabled !== false;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -74,7 +91,28 @@ export function StyleCustomizationPanel({ open, onOpenChange }: StyleCustomizati
           </p>
         </SheetHeader>
 
-        <Accordion type="multiple" defaultValue={['layout', 'typography', 'spacing']} className="mt-4">
+        <div className="mt-4 flex items-center justify-between rounded-md border p-3">
+          <div className="space-y-0.5">
+            <Label htmlFor="customization-enabled" className="text-sm font-medium">
+              Apply customizations
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              Off = original template defaults. On = your edits below.
+            </p>
+          </div>
+          <Switch
+            id="customization-enabled"
+            checked={isEnabled}
+            onCheckedChange={(v) => patch({ enabled: v })}
+          />
+        </div>
+
+        <Accordion
+          type="multiple"
+          defaultValue={['layout', 'typography', 'spacing']}
+          className={`mt-4 ${isEnabled ? '' : 'pointer-events-none opacity-50'}`}
+          aria-disabled={!isEnabled}
+        >
           {/* LAYOUT */}
           <AccordionItem value="layout">
             <AccordionTrigger>Layout</AccordionTrigger>
@@ -178,11 +216,15 @@ export function StyleCustomizationPanel({ open, onOpenChange }: StyleCustomizati
 
               <div className="space-y-2">
                 <Label>Body font</Label>
-                <Select value={c.fontBody} onValueChange={v => patch({ fontBody: v })}>
+                <Select
+                  value={currentResume.customization?.fontBody ?? DEFAULT_FONT_VALUE}
+                  onValueChange={v => v === DEFAULT_FONT_VALUE ? clearKeys(['fontBody']) : patch({ fontBody: v })}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value={DEFAULT_FONT_VALUE}>Default (template)</SelectItem>
                     {FONT_OPTIONS.map(o => (
                       <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
                     ))}
@@ -192,11 +234,15 @@ export function StyleCustomizationPanel({ open, onOpenChange }: StyleCustomizati
 
               <div className="space-y-2">
                 <Label>Heading font</Label>
-                <Select value={c.fontHeading} onValueChange={v => patch({ fontHeading: v })}>
+                <Select
+                  value={currentResume.customization?.fontHeading ?? DEFAULT_FONT_VALUE}
+                  onValueChange={v => v === DEFAULT_FONT_VALUE ? clearKeys(['fontHeading']) : patch({ fontHeading: v })}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value={DEFAULT_FONT_VALUE}>Default (template)</SelectItem>
                     {FONT_OPTIONS.map(o => (
                       <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
                     ))}
@@ -281,6 +327,21 @@ export function StyleCustomizationPanel({ open, onOpenChange }: StyleCustomizati
             </AccordionContent>
           </AccordionItem>
         </Accordion>
+
+        <div className="mt-6 border-t pt-4">
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full"
+            onClick={clearAll}
+          >
+            <RotateCcw className="w-3 h-3 mr-2" />
+            Reset all customizations
+          </Button>
+          <p className="mt-2 text-xs text-muted-foreground text-center">
+            Switches the panel off and reverts the resume to the template's default look.
+          </p>
+        </div>
       </SheetContent>
     </Sheet>
   );

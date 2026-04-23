@@ -130,6 +130,11 @@ export interface TemplateCustomization {
   sectionGap?: number;
   /** Px gap between consecutive entries (data-break-avoid blocks) within a section. */
   entryGap?: number;
+  /** Master ON/OFF for the Style Customization panel. When false, all overrides
+   *  are skipped and the template renders with its natural designer styling.
+   *  Undefined is treated as ON (true) for backward compatibility with existing
+   *  resumes that were customized before this flag existed. */
+  enabled?: boolean;
 }
 
 export interface ParseMeta {

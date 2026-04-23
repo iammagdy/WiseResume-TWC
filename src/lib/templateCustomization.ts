@@ -75,6 +75,10 @@ export const PAGE_FORMAT_PX: Record<string, { width: number; height: number }> =
 
 export function applyCustomizationCSS(c: TemplateCustomization | undefined): CSSProperties {
   if (!c) return {};
+  // Master toggle: when explicitly OFF, emit no inline overrides so the
+  // template renders with its designer styling regardless of any other
+  // (possibly dirty) saved fields.
+  if (c.enabled === false) return {};
   const mul = FONT_SIZE_MULTIPLIER[c.fontSize] ?? 1;
   return {
     '--custom-accent': c.accentColor,
@@ -88,6 +92,7 @@ export function applyCustomizationCSS(c: TemplateCustomization | undefined): CSS
 
 export function headingStyle(c: TemplateCustomization | undefined): CSSProperties {
   if (!c) return {};
+  if (c.enabled === false) return {};
   return {
     fontFamily: c.fontHeading,
     color: c.accentColor,
@@ -101,6 +106,11 @@ export function headingStyle(c: TemplateCustomization | undefined): CSSPropertie
  */
 export function generateCustomizationCSS(c: TemplateCustomization | undefined): string {
   if (!c) return '';
+  // Master toggle: when explicitly OFF, emit no CSS overrides so the
+  // template renders 100% as the designer built it. This is also the
+  // user's escape hatch for any dirty data persisted from earlier
+  // versions of the customization panel.
+  if (c.enabled === false) return '';
 
   // IMPORTANT: every override block is gated on the relevant field being
   // EXPLICITLY set. Previously these used `||` fallbacks (e.g. accent
@@ -137,13 +147,24 @@ export function generateCustomizationCSS(c: TemplateCustomization | undefined): 
     [data-resume-template] h3 { font-family: ${c.fontHeading} !important; }
   ` : '';
 
-  // Tailwind text-* sizes are rem-based (relative to <html>, not the wrapper),
-  // so changing the wrapper's font-size has no effect on real templates. CSS
-  // `zoom` scales every descendant proportionally — including spacing — which
-  // is exactly what the user wants for shrinking page count. Puppeteer/Chrome
-  // both render zoom natively in PDF output.
+  // Templates use the standard 9 Tailwind text-* utility classes, which are
+  // rem-based (relative to <html>) — so a wrapper-level font-size change has
+  // no effect, and CSS `zoom` shrinks the entire layout (page width, padding,
+  // images) instead of just the text. The fix is to scale ONLY the text-*
+  // class values via a CSS variable, leaving page width, padding, and images
+  // untouched. Result: text shrinks, the rendered DOM gets shorter, and the
+  // page-count badge drops accordingly.
   const fontScaleBlock = typeof c.fontScale === 'number' ? `
-    [data-resume-template] { zoom: ${c.fontScale}; }
+    [data-resume-template] { --font-scale: ${c.fontScale}; }
+    [data-resume-template] .text-xs   { font-size: calc(0.75rem  * var(--font-scale)) !important; }
+    [data-resume-template] .text-sm   { font-size: calc(0.875rem * var(--font-scale)) !important; }
+    [data-resume-template] .text-base { font-size: calc(1rem     * var(--font-scale)) !important; }
+    [data-resume-template] .text-lg   { font-size: calc(1.125rem * var(--font-scale)) !important; }
+    [data-resume-template] .text-xl   { font-size: calc(1.25rem  * var(--font-scale)) !important; }
+    [data-resume-template] .text-2xl  { font-size: calc(1.5rem   * var(--font-scale)) !important; }
+    [data-resume-template] .text-3xl  { font-size: calc(1.875rem * var(--font-scale)) !important; }
+    [data-resume-template] .text-4xl  { font-size: calc(2.25rem  * var(--font-scale)) !important; }
+    [data-resume-template] .text-5xl  { font-size: calc(3rem     * var(--font-scale)) !important; }
   ` : '';
 
   // Templates space sections via the previous section's bottom margin
