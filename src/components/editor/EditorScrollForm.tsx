@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState, useRef, useEffect, useCallback } from 'react';
+import { lazy, Suspense, useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { Plus, Trophy, Rocket, Award, BookOpen, Heart, Palette, Globe, Users, X } from 'lucide-react';
 import { User, AlignLeft, Briefcase, GraduationCap, Wrench } from 'lucide-react';
@@ -44,14 +44,28 @@ const MORE_SECTION_COMPONENTS: Record<string, MoreSectionConfig> = {
   references: { icon: Users, title: 'References', Component: ReferencesSection },
 };
 
-function MoreSubSectionContent({ moreSubSection }: { moreSubSection: string }) {
+const CORE_SECTION_IDS = ['contact', 'summary', 'experience', 'education', 'skills'];
+
+function MoreSubSectionContent({
+  moreSubSection,
+  isOpen,
+  onToggle,
+}: {
+  moreSubSection: string;
+  isOpen: boolean;
+  onToggle: () => void;
+}) {
   const config = MORE_SECTION_COMPONENTS[moreSubSection];
-  if (!config) {
-    return null;
-  }
+  if (!config) return null;
   const { icon, title, aiSection, Component } = config;
   return (
-    <SectionCard icon={icon} title={title} action={aiSection ? <SectionAIAction section={aiSection} /> : undefined}>
+    <SectionCard
+      icon={icon}
+      title={title}
+      action={aiSection ? <SectionAIAction section={aiSection} /> : undefined}
+      isOpen={isOpen}
+      onToggle={onToggle}
+    >
       <Component />
     </SectionCard>
   );
@@ -72,6 +86,7 @@ export interface EditorScrollFormProps {
   onRequestJobDescription: () => void;
   onActiveSectionChange: (sectionId: string) => void;
   scrollContainerRef: React.RefObject<HTMLDivElement>;
+  expandSectionRef?: React.MutableRefObject<((id: string) => void) | null>;
 }
 
 const ONBOARDING_HINT_KEY = 'wr-onboarding-hint-seen';
@@ -91,6 +106,7 @@ export function EditorScrollForm({
   onRequestJobDescription,
   onActiveSectionChange,
   scrollContainerRef,
+  expandSectionRef,
 }: EditorScrollFormProps) {
   const [bannerDismissed, setBannerDismissed] = useState(
     () => !!localStorage.getItem(ONBOARDING_HINT_KEY)
@@ -101,6 +117,41 @@ export function EditorScrollForm({
     localStorage.setItem(ONBOARDING_HINT_KEY, 'true');
     setBannerDismissed(true);
   };
+
+  // Compute the initial open state for all sections.
+  // Core sections start open if they are empty (to prompt the user to fill them in).
+  // All other sections start collapsed.
+  const initialOpenSections = useMemo<Record<string, boolean>>(() => {
+    const result: Record<string, boolean> = {};
+    for (const id of CORE_SECTION_IDS) {
+      result[id] = (sectionScores[id] ?? 0) === 0;
+    }
+    return result;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // intentionally only on mount
+
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>(initialOpenSections);
+
+  const toggleSection = useCallback((id: string) => {
+    setOpenSections(prev => ({ ...prev, [id]: !prev[id] }));
+  }, []);
+
+  const expandSection = useCallback((id: string) => {
+    setOpenSections(prev => {
+      if (prev[id]) return prev; // already open
+      return { ...prev, [id]: true };
+    });
+  }, []);
+
+  // Register expandSection with the parent ref so EditorPage can call it
+  useEffect(() => {
+    if (expandSectionRef) {
+      expandSectionRef.current = expandSection;
+    }
+    return () => {
+      if (expandSectionRef) expandSectionRef.current = null;
+    };
+  }, [expandSectionRef, expandSection]);
 
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
 
@@ -167,14 +218,30 @@ export function EditorScrollForm({
 
       {/* Contact */}
       <section ref={setSectionRef('contact')} data-section-id="contact">
-        <SectionCard icon={User} title="Contact Information" tip="Add your name, email, phone and LinkedIn — these appear at the top of your resume" status={getSectionStatus(sectionScores.contact)} action={<SectionAIAction section="contact" />}>
+        <SectionCard
+          icon={User}
+          title="Contact Information"
+          tip="Add your name, email, phone and LinkedIn — these appear at the top of your resume"
+          status={getSectionStatus(sectionScores.contact)}
+          action={<SectionAIAction section="contact" />}
+          isOpen={openSections['contact'] ?? false}
+          onToggle={() => toggleSection('contact')}
+        >
           <Suspense fallback={<ContactSectionSkeleton />}><ContactSection /></Suspense>
         </SectionCard>
       </section>
 
       {/* Summary */}
       <section ref={setSectionRef('summary')} data-section-id="summary">
-        <SectionCard icon={AlignLeft} title="Professional Summary" tip="Write 2–4 sentences about your experience and what you're looking for" status={getSectionStatus(sectionScores.summary)} action={<SectionAIAction section="summary" />}>
+        <SectionCard
+          icon={AlignLeft}
+          title="Professional Summary"
+          tip="Write 2–4 sentences about your experience and what you're looking for"
+          status={getSectionStatus(sectionScores.summary)}
+          action={<SectionAIAction section="summary" />}
+          isOpen={openSections['summary'] ?? false}
+          onToggle={() => toggleSection('summary')}
+        >
           <Suspense fallback={<SummarySectionSkeleton />}><SummarySection /></Suspense>
           <ATSInlineSuggestions section="summary" suggestions={getATSSuggestions('summary')} isAnalyzing={isAnalyzingSection('summary')} onDeepAnalyze={fetchDeepSuggestions} deepResult={deepResults['summary']} onApplyDeep={(improved) => handleApplyDeep('summary', improved)} onDiscardDeep={() => clearDeepResult('summary')} hasJobDescription={!!jobDescription?.trim()} onRequestJobDescription={onRequestJobDescription} />
         </SectionCard>
@@ -182,7 +249,15 @@ export function EditorScrollForm({
 
       {/* Experience */}
       <section ref={setSectionRef('experience')} data-section-id="experience">
-        <SectionCard icon={Briefcase} title="Work Experience" tip="Add your most recent job first — click an entry to expand and edit it" status={getSectionStatus(sectionScores.experience)} action={<SectionAIAction section="experience" />}>
+        <SectionCard
+          icon={Briefcase}
+          title="Work Experience"
+          tip="Add your most recent job first — click an entry to expand and edit it"
+          status={getSectionStatus(sectionScores.experience)}
+          action={<SectionAIAction section="experience" />}
+          isOpen={openSections['experience'] ?? false}
+          onToggle={() => toggleSection('experience')}
+        >
           <Suspense fallback={<ExperienceSectionSkeleton />}><ExperienceSection /></Suspense>
           <ATSInlineSuggestions section="experience" suggestions={getATSSuggestions('experience')} isAnalyzing={isAnalyzingSection('experience')} onDeepAnalyze={fetchDeepSuggestions} deepResult={deepResults['experience']} onApplyDeep={(improved) => handleApplyDeep('experience', improved)} onDiscardDeep={() => clearDeepResult('experience')} hasJobDescription={!!jobDescription?.trim()} onRequestJobDescription={onRequestJobDescription} />
         </SectionCard>
@@ -190,7 +265,15 @@ export function EditorScrollForm({
 
       {/* Education */}
       <section ref={setSectionRef('education')} data-section-id="education">
-        <SectionCard icon={GraduationCap} title="Education" tip="List your highest degree first — GPA is optional" status={getSectionStatus(sectionScores.education)} action={<SectionAIAction section="education" />}>
+        <SectionCard
+          icon={GraduationCap}
+          title="Education"
+          tip="List your highest degree first — GPA is optional"
+          status={getSectionStatus(sectionScores.education)}
+          action={<SectionAIAction section="education" />}
+          isOpen={openSections['education'] ?? false}
+          onToggle={() => toggleSection('education')}
+        >
           <Suspense fallback={<EducationSectionSkeleton />}><EducationSection /></Suspense>
           {jobDescription && <ATSInlineSuggestions section="education" suggestions={getATSSuggestions('education')} isAnalyzing={isAnalyzingSection('education')} onDeepAnalyze={fetchDeepSuggestions} deepResult={deepResults['education']} onApplyDeep={(improved) => handleApplyDeep('education', improved)} onDiscardDeep={() => clearDeepResult('education')} />}
         </SectionCard>
@@ -198,7 +281,15 @@ export function EditorScrollForm({
 
       {/* Skills */}
       <section ref={setSectionRef('skills')} data-section-id="skills">
-        <SectionCard icon={Wrench} title="Skills" tip="Add 6–10 skills matching the jobs you're applying to" status={getSectionStatus(sectionScores.skills)} action={<SectionAIAction section="skills" />}>
+        <SectionCard
+          icon={Wrench}
+          title="Skills"
+          tip="Add 6–10 skills matching the jobs you're applying to"
+          status={getSectionStatus(sectionScores.skills)}
+          action={<SectionAIAction section="skills" />}
+          isOpen={openSections['skills'] ?? false}
+          onToggle={() => toggleSection('skills')}
+        >
           <Suspense fallback={<SkillsSectionSkeleton />}><SkillsSection /></Suspense>
           {jobDescription && <ATSInlineSuggestions section="skills" suggestions={getATSSuggestions('skills')} isAnalyzing={isAnalyzingSection('skills')} onDeepAnalyze={fetchDeepSuggestions} deepResult={deepResults['skills']} onApplyDeep={(improved) => handleApplyDeep('skills', improved)} onDiscardDeep={() => clearDeepResult('skills')} />}
         </SectionCard>
@@ -211,7 +302,13 @@ export function EditorScrollForm({
         const { icon, title, aiSection, Component } = config;
         return (
           <section key={step.id} ref={setSectionRef(step.id)} data-section-id={step.id}>
-            <SectionCard icon={icon} title={title} action={aiSection ? <SectionAIAction section={aiSection} /> : undefined}>
+            <SectionCard
+              icon={icon}
+              title={title}
+              action={aiSection ? <SectionAIAction section={aiSection} /> : undefined}
+              isOpen={openSections[step.id] ?? false}
+              onToggle={() => toggleSection(step.id)}
+            >
               <Suspense fallback={<ListSectionSkeleton />}><Component /></Suspense>
             </SectionCard>
           </section>
@@ -222,7 +319,12 @@ export function EditorScrollForm({
       {hasMoreStep && (
         <section ref={setSectionRef('more')} data-section-id="more">
           {!moreSubSection ? (
-            <SectionCard icon={Plus} title="More Sections" tip="Add optional sections to stand out">
+            <SectionCard
+              icon={Plus}
+              title="More Sections"
+              tip="Add optional sections to stand out"
+              collapsible={false}
+            >
               <AddSectionSheet onSelectSection={(s) => setMoreSubSection(s)} />
             </SectionCard>
           ) : (
@@ -231,7 +333,11 @@ export function EditorScrollForm({
                 All Sections
               </button>
               <Suspense fallback={<ListSectionSkeleton />}>
-                <MoreSubSectionContent moreSubSection={moreSubSection!} />
+                <MoreSubSectionContent
+                  moreSubSection={moreSubSection!}
+                  isOpen={openSections['more'] ?? false}
+                  onToggle={() => toggleSection('more')}
+                />
               </Suspense>
             </div>
           )}

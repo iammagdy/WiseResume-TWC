@@ -439,6 +439,7 @@ export default function EditorPage() {
   }, [resumeFromDb?.id]);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const expandSectionRef = useRef<((id: string) => void) | null>(null);
 
   // ───────────────── Editor session restore (per-resume) ─────────────────
   // Persists activeTab + per-tab scroll offset + open AI sheet to
@@ -599,10 +600,12 @@ export default function EditorPage() {
   const scrollToSection = useCallback((sectionId: string) => {
     const container = scrollContainerRef.current;
     if (!container) return;
-    const target = container.querySelector(`[data-section-id="${sectionId}"]`);
-    if (target) {
-      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
+    expandSectionRef.current?.(sectionId);
+    const doScroll = () => {
+      const target = container.querySelector(`[data-section-id="${sectionId}"]`);
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
+    setTimeout(doScroll, 80);
   }, []);
 
   // Called by desktop scrollspy/sidebar. Keeps activeTab in sync for preview highlight and ATS.
@@ -982,6 +985,7 @@ export default function EditorPage() {
     onRequestJobDescription: handleTailor,
     onActiveSectionChange: handleDesktopSectionChange,
     scrollContainerRef,
+    expandSectionRef,
   } as const;
 
 
