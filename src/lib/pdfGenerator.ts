@@ -1034,6 +1034,13 @@ export async function generateOnePagePDF(
   }
 }
 
+/**
+ * @deprecated All active call sites now use generateCoverLetterNativePDF from
+ * nativePdfGenerator.ts (Puppeteer-rendered, text-selectable). This pdf-lib
+ * implementation remains to keep generateCombinedPDF below compilable but
+ * should not be called directly. Remove both when generateCombinedPDF is also
+ * retired.
+ */
 export async function generateCoverLetterPDF(
   coverLetter: string,
   contactInfo: ContactInfo,
@@ -1117,6 +1124,9 @@ export async function generateCoverLetterPDF(
 
 /**
  * Generates a combined PDF with cover letter followed by resume.
+ * @deprecated Use generateCoverLetterNativePDF + generateNativePDF +
+ * mergePDFBlobs from nativePdfGenerator.ts instead. The EditorPage and
+ * PreviewPage combined-export paths already use the native pipeline.
  */
 export async function generateCombinedPDF(
   resume: ResumeData,
