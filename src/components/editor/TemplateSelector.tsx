@@ -37,10 +37,12 @@ export function TemplateSelector({ open, onOpenChange, onTemplateApplied }: Temp
   const { user } = useAuth();
   const { profile } = useProfile(user?.id);
 
-  // Get recommended template IDs based on career level
-  const recommendedIds = profile?.careerLevel 
-    ? CAREER_LEVEL_RECOMMENDATIONS[profile.careerLevel] 
-    : [];
+  // Get recommended template IDs based on career level. Guard against an
+  // unexpected `careerLevel` value (anything not in CAREER_LEVEL_RECOMMENDATIONS)
+  // so the dictionary lookup never returns `undefined` and crashes the sort.
+  const recommendedIds: TemplateId[] = (profile?.careerLevel
+    ? CAREER_LEVEL_RECOMMENDATIONS[profile.careerLevel as CareerLevel]
+    : undefined) ?? [];
 
   // Sort templates: recommended first, then others
   const sortedTemplates = [...templates].sort((a, b) => {
