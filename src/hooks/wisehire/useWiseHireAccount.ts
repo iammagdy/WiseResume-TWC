@@ -77,7 +77,7 @@ export function useWiseHireAccount() {
   const { data: meData } = useMe();
 
   const companyQuery = useQuery({
-    queryKey: ['wisehire-company', userId],
+    queryKey: ['wisehire-account', userId],
     queryFn: async (): Promise<WiseHireCompany | null> => {
       if (!userId) return null;
 
