@@ -55,6 +55,54 @@ export async function generateNativePDF(
   const clone = element.cloneNode(true) as HTMLElement;
   const origin = window.location.origin;
 
+  // Compress large base64-encoded images to JPEG before serialisation so the
+  // HTML payload stays well within the server's size limit even when the resume
+  // contains a high-resolution profile photo or other inline raster assets.
+  const MAX_IMG_BYTES = 200_000; // images larger than ~200 KB get recompressed
+  const JPEG_QUALITY = 0.82;
+  const MAX_DIMENSION = 800; // cap width/height to avoid enormous canvases
+
+  const compressDataUri = (dataUri: string): Promise<string> =>
+    new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
+          const scale = MAX_DIMENSION / Math.max(width, height);
+          width = Math.round(width * scale);
+          height = Math.round(height * scale);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { resolve(dataUri); return; }
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', JPEG_QUALITY));
+      };
+      img.onerror = () => resolve(dataUri);
+      img.src = dataUri;
+    });
+
+  // Process all inline base64 images in the cloned DOM.
+  // Only compress raster photo formats (JPEG, PNG, WebP, BMP, TIFF).
+  // SVG, GIF, and other formats are left untouched to preserve vector
+  // fidelity, animation, and alpha transparency.
+  const PHOTO_MIME_RE = /^data:image\/(jpeg|jpg|png|webp|bmp|tiff)/i;
+  const imgCompressPromises: Promise<void>[] = [];
+  clone.querySelectorAll<HTMLImageElement>('img[src]').forEach(img => {
+    const src = img.getAttribute('src') ?? '';
+    if (PHOTO_MIME_RE.test(src) && src.length > MAX_IMG_BYTES) {
+      imgCompressPromises.push(
+        compressDataUri(src).then(compressed => { img.setAttribute('src', compressed); }),
+      );
+    } else if (src && !src.startsWith('http') && !src.startsWith('data:') && !src.startsWith('//')) {
+      img.setAttribute('src', new URL(src, origin).href);
+    }
+  });
+  await Promise.all(imgCompressPromises);
+
+  // Fix remaining relative URLs (non-data-uri images).
   clone.querySelectorAll<HTMLImageElement>('img[src]').forEach(img => {
     const src = img.getAttribute('src') ?? '';
     if (src && !src.startsWith('http') && !src.startsWith('data:') && !src.startsWith('//')) {

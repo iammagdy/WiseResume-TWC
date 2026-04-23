@@ -49,6 +49,13 @@ app.use((_req, res, next) => {
   res.setHeader('Document-Policy', 'js-profiling');
   next();
 });
+// The PDF export endpoint receives self-contained HTML with embedded base64
+// assets that can legitimately exceed the default 10 MB limit. Register its
+// larger body-parser limit first so body-parser skips re-parsing on the
+// subsequent global middleware (body-parser sets req._body=true after parsing).
+app.use('/api/export/pdf-native', express.json({ limit: '50mb' }));
+app.use('/api/export/pdf-native', express.urlencoded({ extended: true, limit: '50mb' }));
+// General body parsing for all other routes (10 MB is sufficient).
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
@@ -3052,7 +3059,7 @@ app.post('/api/export/pdf-native', requireAuthHeader, async (req: AuthedRequest,
     showBranding?: unknown;
   };
 
-  if (typeof html !== 'string' || html.length < 10 || html.length > 12_000_000) {
+  if (typeof html !== 'string' || html.length < 10 || html.length > 50_000_000) {
     res.status(400).json({ error: 'Invalid HTML payload' });
     return;
   }
