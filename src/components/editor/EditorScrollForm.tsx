@@ -119,8 +119,13 @@ export function EditorScrollForm({
   };
 
   // Compute the initial open state for all sections.
-  // Core sections start open if they are empty (to prompt the user to fill them in).
+  // Core sections start open if they are empty (score === 0) to prompt new users to fill them in.
   // All other sections start collapsed.
+  //
+  // Product decision: this is intentionally mount-only (empty deps) so the open/closed state
+  // isn't overwritten by mid-session score updates (e.g., user fills a section → score rises,
+  // but the card stays open because the user is actively editing it). EditorScrollForm is keyed
+  // by resumeId in EditorPage, so switching resumes forces a clean remount and recomputation.
   const initialOpenSections = useMemo<Record<string, boolean>>(() => {
     const result: Record<string, boolean> = {};
     for (const id of CORE_SECTION_IDS) {
@@ -128,7 +133,7 @@ export function EditorScrollForm({
     }
     return result;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // intentionally only on mount
+  }, []); // intentionally only on mount — see comment above
 
   const [openSections, setOpenSections] = useState<Record<string, boolean>>(initialOpenSections);
 

@@ -601,11 +601,14 @@ export default function EditorPage() {
     const container = scrollContainerRef.current;
     if (!container) return;
     expandSectionRef.current?.(sectionId);
-    const doScroll = () => {
-      const target = container.querySelector(`[data-section-id="${sectionId}"]`);
-      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    };
-    setTimeout(doScroll, 80);
+    // Double rAF: first frame lets React flush the open-state update + CollapsibleContent render,
+    // second frame lets the browser perform layout so scrollIntoView lands correctly.
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const target = container.querySelector(`[data-section-id="${sectionId}"]`);
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    });
   }, []);
 
   // Called by desktop scrollspy/sidebar. Keeps activeTab in sync for preview highlight and ATS.
