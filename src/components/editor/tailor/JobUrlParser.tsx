@@ -200,8 +200,10 @@ export function JobUrlParser({ value, onChange, onParsed }: JobUrlParserProps) {
         </AnimatePresence>
       </div>
 
-      <p className="text-sm text-muted-foreground">
-        The AI will rewrite your resume to match this job's requirements
+      <p className="text-sm text-muted-foreground leading-relaxed">
+        Paste the full job description from any posting you are applying to — from LinkedIn, Indeed,
+        a company careers page, or anywhere else. AI will use it to tailor your resume's keywords,
+        summary, and experience bullets to match the role.
       </p>
     </div>
   );

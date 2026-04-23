@@ -199,27 +199,34 @@ export const ATSInlineSuggestions = memo(function ATSInlineSuggestions({
             {/* Deep Analyze CTA — swap to Add-JD prompt when no JD attached */}
             {!deepResult && (
               hasJobDescription ? (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="w-full text-xs mt-1"
-                  onClick={() => {
-                    haptics.light();
-                    onDeepAnalyze(section);
-                  }}
-                  disabled={isAnalyzing}
-                >
-                  {isAnalyzing ? (
-                    <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                  ) : (
-                    <Sparkles className="w-3.5 h-3.5 mr-1.5" />
-                  )}
-                  {isAnalyzing ? 'Analyzing…' : 'Deep Analyze'}
-                </Button>
+                <div className="mt-1 space-y-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full text-xs"
+                    onClick={() => {
+                      haptics.light();
+                      onDeepAnalyze(section);
+                    }}
+                    disabled={isAnalyzing}
+                  >
+                    {isAnalyzing ? (
+                      <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                    ) : (
+                      <Sparkles className="w-3.5 h-3.5 mr-1.5" />
+                    )}
+                    {isAnalyzing ? 'Analyzing…' : 'Deep Analyze'}
+                  </Button>
+                  <p className="text-[11px] text-center text-muted-foreground leading-snug px-1">
+                    Rewrites this section to better match your target job
+                  </p>
+                </div>
               ) : (
-                <div className="mt-1 rounded-lg border border-dashed border-primary/30 bg-primary/5 p-2.5 space-y-2">
+                <div className="mt-1 rounded-lg border border-dashed border-primary/30 bg-primary/5 p-3 space-y-2">
+                  <p className="text-xs font-medium text-foreground">Tailor this section to a job posting</p>
                   <p className="text-[11px] text-muted-foreground leading-snug">
-                    Deep Analyze tailors this section to a specific job. Add a job description to enable it.
+                    Paste a job description from any posting you're applying to, and AI will rewrite
+                    this section to match its keywords and requirements.
                   </p>
                   <Button
                     variant="outline"
@@ -231,7 +238,7 @@ export const ATSInlineSuggestions = memo(function ATSInlineSuggestions({
                     }}
                   >
                     <FileText className="w-3.5 h-3.5 mr-1.5" />
-                    Add a job description to enable Deep Analyze
+                    Paste job description →
                   </Button>
                 </div>
               )
