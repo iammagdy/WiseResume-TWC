@@ -21,7 +21,7 @@ import { selectProviderForTool } from "../_shared/modelRouter.ts";
 const __ROUTE = selectProviderForTool('wise-ai-chat');
 import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
-import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import type { SupabaseClient } from "npm:@supabase/supabase-js@2.49.1";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
 import { requireAuth } from "../_shared/authMiddleware.ts";
 

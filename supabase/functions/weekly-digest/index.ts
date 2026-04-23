@@ -10,7 +10,7 @@
 //   CRON_SECRET is not set in the environment.
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { requireCronSecret } from '../_shared/webhookAuth.ts';
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.42.0";
+import { createClient } from "npm:@supabase/supabase-js@2.49.1";
 
 const TIPS = [
   "Quantify your achievements — numbers make bullets 3x more impactful.",

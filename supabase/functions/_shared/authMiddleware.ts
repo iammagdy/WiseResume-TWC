@@ -1,7 +1,7 @@
 import { getCorsHeaders } from './cors.ts';
 import { getServiceClient } from './dbClient.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
+import type { SupabaseClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { logger } from './logger.ts';
 
 const log = logger('authMiddleware');

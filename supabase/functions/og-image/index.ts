@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { checkIpRateLimit } from '../_shared/rateLimiter.ts';
 import { isMaliciousBot, isKnownCrawler, botBlockedResponse } from '../_shared/botGuard.ts';
 

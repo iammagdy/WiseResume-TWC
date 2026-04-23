@@ -20,7 +20,7 @@
  * payload. Returns the inserted row id, or throws.
  */
 
-import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import type { SupabaseClient } from 'npm:@supabase/supabase-js@2.49.1';
 
 function isMissingColumnError(err: unknown): boolean {
   if (!err || typeof err !== 'object') return false;

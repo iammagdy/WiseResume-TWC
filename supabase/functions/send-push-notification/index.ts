@@ -195,7 +195,7 @@ Deno.serve(async (req) => {
     const vapidPublicKey = base64ToUint8Array(vapidPublicKeyB64);
     const vapidPrivateKey = base64ToUint8Array(vapidPrivateKeyB64);
 
-    const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2.49.1");
+    const { createClient } = await import("npm:@supabase/supabase-js@2.49.1");
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const { data: subscriptions, error: fetchError } = await supabase
