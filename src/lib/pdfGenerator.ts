@@ -82,7 +82,8 @@ function wrapText(
   return lines;
 }
 
-const BRANDING_URL = 'https://resume.thewise.cloud';
+const BRANDING_URL: string =
+  (import.meta.env.VITE_APP_URL as string | undefined) ?? 'https://resume.thewise.cloud';
 
 /**
  * Adds a clickable URI annotation to a PDF page at the given rectangle.
