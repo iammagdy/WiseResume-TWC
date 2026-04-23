@@ -341,6 +341,7 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
             {showPageBreaks && pageBreaks.map((breakY, i) => (
               <div
                 key={i}
+                data-html2canvas-ignore="true"
                 className="absolute left-0 w-full z-10 pointer-events-none"
                 style={{ top: `${breakY}px` }}
               >

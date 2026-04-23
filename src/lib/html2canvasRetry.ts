@@ -81,8 +81,9 @@ export function convertSvgsToImages(clonedDoc: Document): void {
     img.style.maxWidth = `${w}px`;
     img.style.maxHeight = `${h}px`;
     img.style.flexShrink = '0';
-    img.style.display = 'inline-block';
+    img.style.display = svg.style.display || 'inline';
     img.style.verticalAlign = 'middle';
+    img.style.alignSelf = 'center';
     img.style.margin = '0';
     img.style.padding = '0';
 

@@ -191,13 +191,13 @@ export const ExtraSections = memo(function ExtraSections({
                   <div className="flex flex-wrap gap-3 mt-1">
                     {proj.url && (
                       <span className="flex items-center gap-1 text-blue-600 text-[10px]">
-                        <Globe style={{ width: 12, height: 12, display: 'block', verticalAlign: 'middle', flexShrink: 0 }} />
+                        <Globe style={{ width: 12, height: 12, display: 'inline', verticalAlign: 'middle', flexShrink: 0 }} />
                         {proj.url}
                       </span>
                     )}
                     {proj.githubUrl && (
                       <span className="flex items-center gap-1 text-gray-600 text-[10px]">
-                        <Github style={{ width: 12, height: 12, display: 'block', verticalAlign: 'middle', flexShrink: 0 }} />
+                        <Github style={{ width: 12, height: 12, display: 'inline', verticalAlign: 'middle', flexShrink: 0 }} />
                         {proj.githubUrl}
                       </span>
                     )}
