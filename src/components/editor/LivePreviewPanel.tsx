@@ -104,6 +104,7 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
   const [showPageBreaks, setShowPageBreaks] = useState(true);
   const [pageBreaks, setPageBreaks] = useState<number[]>([]);
   const [pageCount, setPageCount] = useState(1);
+  const [domSections, setDomSections] = useState<string[]>([]);
   const resumeRef = useRef<HTMLDivElement>(null);
 
   const TemplateComponent = templateComponents[selectedTemplate];
@@ -118,9 +119,27 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
       const smartBreaks = computePreviewBreaks(el, pageWidth, pageHeight);
       const manualSections = currentResume?.customization?.manualPageBreaks ?? [];
       const totalHeight = el.scrollHeight || el.offsetHeight;
+      // Post-snap merge: forced-break positions are inserted after smart-snapping
+      // so they always land exactly at the section's offsetTop, overriding any
+      // nearby auto-snapped break within MIN_GAP (40px). This is simpler than
+      // threading forced positions through snapBreaksToContent and produces the
+      // same result since forced positions are already at section boundaries.
       const breaks = injectForcedBreaks(smartBreaks, el, manualSections, totalHeight);
       setPageBreaks(breaks);
       setPageCount(estimatePageCount(el, pageWidth, pageHeight));
+      // Derive section list from DOM so order and availability match the actual
+      // rendered template (templates may omit or reorder sections dynamically).
+      const sectionEls = el.querySelectorAll('[data-section]');
+      const seen = new Set<string>();
+      const ordered: string[] = [];
+      sectionEls.forEach(sEl => {
+        const name = sEl.getAttribute('data-section');
+        if (name && SECTION_LABELS[name] && !seen.has(name)) {
+          seen.add(name);
+          ordered.push(name);
+        }
+      });
+      setDomSections(ordered);
     };
     // Delay initial calculation to allow layout to settle after template render
     const timer = setTimeout(update, 150);
@@ -164,13 +183,16 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
   const filteredResume = filterResume(renderResume, hiddenSections);
   const customizationStyle = applyCustomizationCSS(currentResume.customization);
 
-  // Determine which sections have content for toggle UI
-  const activeSections = Object.keys(SECTION_LABELS).filter(key => {
-    const val = (currentResume as any)[key];
-    if (typeof val === 'string') return val.length > 0;
-    if (Array.isArray(val)) return val.length > 0;
-    return false;
-  });
+  // Use DOM-derived section order (populated by the ResizeObserver update loop).
+  // Falls back to static key order on first render before the DOM has settled.
+  const activeSections = domSections.length > 0
+    ? domSections
+    : Object.keys(SECTION_LABELS).filter(key => {
+        const val = (currentResume as any)[key];
+        if (typeof val === 'string') return val.length > 0;
+        if (Array.isArray(val)) return val.length > 0;
+        return false;
+      });
 
   return (
     <div className={cn('flex flex-col h-full min-h-0 overflow-hidden bg-muted', className)}>

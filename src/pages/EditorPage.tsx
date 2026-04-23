@@ -312,7 +312,7 @@ export default function EditorPage() {
 
         if (type === 'ats-pdf') {
           const atsResume = { ...currentResume, customization: { ...(currentResume.customization || {}), accentColor: '#000000', layout: 'single' as const, fontHeading: 'Arial', fontBody: 'Arial', fontSize: 'medium' as const, spacing: 'normal' as const, margins: 'normal' as const, lineHeight: '1.15' as const, pageFormat: (currentResume.customization?.pageFormat || 'letter') as 'a4' | 'letter' }, contactInfo: { ...currentResume.contactInfo, photoUrl: undefined } };
-          pdfBlob = await generatePDF(atsResume, 'clean', null, undefined, { ...pdfOptions, showBranding: false }, onProgress);
+          pdfBlob = await generatePDF(atsResume, 'clean', null, currentResume.customization?.manualPageBreaks, { ...pdfOptions, showBranding: false }, onProgress);
           fileName = `${baseName}_Resume_ATS.pdf`;
         } else if (type === 'one-page') {
           pdfBlob = await generateOnePagePDF(currentResume, selectedTemplate, null, pdfOptions, onProgress);
