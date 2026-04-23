@@ -1,13 +1,9 @@
 import { memo, useState, useCallback, Suspense, useRef, CSSProperties, useEffect } from 'react';
-import { ZoomIn, ZoomOut, Download, Eye, EyeOff, X, Scissors } from 'lucide-react';
-import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { ZoomIn, ZoomOut, Eye, EyeOff, X, Scissors } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useResumeStore } from '@/store/resumeStore';
 import { applyCustomizationCSS, generateCustomizationCSS } from '@/lib/templateCustomization';
-// pdfGenerator is dynamically imported in handleDownload to reduce initial bundle
-import { downloadFile } from '@/lib/downloadUtils';
 import { computePreviewBreaks, estimatePageCount, getPageDimensionsForFormat } from '@/lib/pdfUtils';
-import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TemplateId, ResumeData } from '@/types/resume';
@@ -102,7 +98,6 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
     mql.addEventListener('change', handler);
     return () => mql.removeEventListener('change', handler);
   }, []);
-  const [isGenerating, setIsGenerating] = useState(false);
   const [hiddenSections, setHiddenSections] = useState<Set<string>>(new Set());
   const [showSectionToggles, setShowSectionToggles] = useState(false);
   const [showPageBreaks, setShowPageBreaks] = useState(true);
@@ -144,38 +139,6 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
     });
   }, []);
 
-  const handleDownload = useCallback(async () => {
-    if (!currentResume) return;
-    haptics.medium();
-    setIsGenerating(true);
-    try {
-      // Flush the preview debounce so the DOM (which html2canvas captures)
-      // reflects the same resume snapshot we pass to generatePDF.
-      setDebouncedResume(currentResume);
-      await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())));
-      // Temporarily reset parent zoom transform so html2canvas captures at true size
-      const zoomWrapper = resumeRef.current?.parentElement?.parentElement;
-      const origTransform = zoomWrapper?.style.transform;
-      const origWidth = zoomWrapper?.style.width;
-      if (zoomWrapper) {
-        zoomWrapper.style.transform = 'none';
-        zoomWrapper.style.width = 'auto';
-      }
-      const { generatePDF } = await import('@/lib/pdfGenerator');
-      const pdfBlob = await generatePDF(currentResume, selectedTemplate, resumeRef.current, undefined, { showPageNumbers: true });
-      if (zoomWrapper) {
-        zoomWrapper.style.transform = origTransform || '';
-        zoomWrapper.style.width = origWidth || '';
-      }
-      const fileName = `${currentResume.contactInfo.fullName?.replace(/\s+/g, '_') || 'Resume'}_Resume.pdf`;
-      await downloadFile({ blob: pdfBlob, fileName });
-      toast.success('Resume downloaded!');
-    } catch {
-      toast.error('Failed to generate PDF');
-    } finally {
-      setIsGenerating(false);
-    }
-  }, [currentResume, selectedTemplate]);
 
   if (!currentResume || !TemplateComponent) return null;
 
@@ -245,18 +208,6 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
           )}>
             {pageCount} {pageCount === 1 ? 'page' : 'pages'}
           </span>
-
-          {/* Download */}
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-9 px-3 touch-manipulation active:scale-95"
-            onClick={handleDownload}
-            disabled={isGenerating}
-          >
-            {isGenerating ? <MiniSpinner size={16} /> : <Download className="w-4 h-4" />}
-            <span className="ml-1.5 hidden sm:inline text-xs">PDF</span>
-          </Button>
 
           {/* Close (desktop) */}
           {onClose && (
