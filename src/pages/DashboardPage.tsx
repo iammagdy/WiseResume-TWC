@@ -1267,10 +1267,9 @@ function DashboardPageContent() {
                 template_id: 'modern',
               };
               const { apiFetch } = await import('@/lib/apiFetch');
-              // The server stores rich resume fields inside `content` (jsonb)
-              // and only echoes back `id` + `template_id`, so hydrate the
-              // editor from the payload we just submitted rather than from
-              // the returned row.
+              // The server inserts into Supabase via the service-role key and
+              // returns the full row. We hydrate the editor from the submitted
+              // payload rather than the returned row to avoid a round-trip.
               type CreatedResume = { id: string; template_id?: string };
               let created: CreatedResume | null = null;
               try {

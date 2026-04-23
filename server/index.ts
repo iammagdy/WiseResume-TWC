@@ -1615,26 +1615,112 @@ app.get('/api/data/me', requireAuthHeader, async (req: AuthedRequest, res) => {
 });
 
 // ── /api/data/resumes ──────────────────────────────────────────────────────────
-// Limited-purpose insert used by useGuestMigration and DashboardPage's
-// "create resume from LinkedIn" path. The client passes the rich resume
-// payload; we only persist columns that exist on the current Neon schema.
+// Insert a new resume via the Supabase service-role key (bypasses RLS).
+// Used by useResumes createResume, useGuestMigration, and DashboardPage's
+// "create resume from LinkedIn" path.
 app.post('/api/data/resumes', requireAuthHeader, async (req: AuthedRequest, res) => {
-  if (!sql) return res.status(503).json({ error: 'Database not configured' });
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+    return res.status(503).json({ error: 'Supabase not configured' });
+  }
   try {
     const userId = req.verifiedUserId!;
     const body = (req.body ?? {}) as Record<string, unknown>;
-    const title = typeof body.title === 'string' && body.title ? body.title : 'My Resume';
-    const templateId = typeof body.template_id === 'string' ? body.template_id : 'modern';
-    // Pack everything else into `content` since the schema is jsonb-centric.
-    const { title: _t, template_id: _tid, user_id: _uid, ...rest } = body;
-    void _t; void _tid; void _uid;
-    const content = rest;
-    const rows = await sql`
-      INSERT INTO resumes (user_id, title, content, template_id)
-      VALUES (${userId}, ${title}, ${JSON.stringify(content)}::jsonb, ${templateId})
-      RETURNING *
-    ` as NeonRow[];
+
+    // Allowlist of columns a client may set on create.
+    // Identity/system columns (user_id, id, is_primary, is_trial, etc.) are
+    // controlled server-side or by DB defaults and must not be forwarded.
+    const RESUME_CREATE_COLUMNS = new Set([
+      'title', 'template_id', 'contact_info', 'summary', 'experience',
+      'education', 'skills', 'certifications', 'awards', 'projects',
+      'publications', 'volunteering', 'languages', 'hobbies', 'references',
+      'customization',
+    ]);
+    const filtered: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(body)) {
+      if (RESUME_CREATE_COLUMNS.has(k)) filtered[k] = v;
+    }
+
+    const payload = {
+      ...filtered,
+      user_id: userId,
+      title: typeof body.title === 'string' && body.title ? body.title : 'My Resume',
+      template_id: typeof body.template_id === 'string' ? body.template_id : 'modern',
+    };
+
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/resumes`, {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_SERVICE_ROLE_KEY,
+        Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+        'Content-Type': 'application/json',
+        Prefer: 'return=representation',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!r.ok) {
+      const body = await r.text().catch(() => '');
+      console.error(`[data-api] Supabase POST /resumes returned ${r.status}: ${body}`);
+      return res.status(502).json({ error: 'Failed to create resume' });
+    }
+
+    const rows = await r.json() as Record<string, unknown>[];
     res.json({ resume: rows[0] ?? null });
+  } catch (err) {
+    return dataErr(res, err);
+  }
+});
+
+// ── PATCH /api/data/resumes/:id ────────────────────────────────────────────────
+// Update an existing resume via the Supabase service-role key (bypasses RLS).
+// Enforces ownership by filtering on both id and user_id.
+app.patch('/api/data/resumes/:id', requireAuthHeader, async (req: AuthedRequest, res) => {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+    return res.status(503).json({ error: 'Supabase not configured' });
+  }
+  try {
+    const id = req.params.id;
+    if (!/^[0-9a-f-]{36}$/i.test(id)) return res.status(400).json({ error: 'Invalid resume id' });
+    const userId = req.verifiedUserId!;
+    const body = (req.body ?? {}) as Record<string, unknown>;
+
+    // Allowlist of columns a client may update.
+    // Includes trial_expires_at so the client-side belt-and-suspenders trial
+    // expiry in updateResume can still set it alongside the DB trigger.
+    const RESUME_UPDATE_COLUMNS = new Set([
+      'title', 'template_id', 'contact_info', 'summary', 'experience',
+      'education', 'skills', 'certifications', 'awards', 'projects',
+      'publications', 'volunteering', 'languages', 'hobbies', 'references',
+      'customization', 'trial_expires_at',
+    ]);
+    const updates: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(body)) {
+      if (RESUME_UPDATE_COLUMNS.has(k)) updates[k] = v;
+    }
+
+    const url = `${SUPABASE_URL}/rest/v1/resumes?id=eq.${encodeURIComponent(id)}&user_id=eq.${encodeURIComponent(userId)}`;
+    const r = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        apikey: SUPABASE_SERVICE_ROLE_KEY,
+        Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+        'Content-Type': 'application/json',
+        Prefer: 'return=representation',
+      },
+      body: JSON.stringify(updates),
+    });
+
+    if (!r.ok) {
+      const errBody = await r.text().catch(() => '');
+      console.error(`[data-api] Supabase PATCH /resumes/:id returned ${r.status}: ${errBody}`);
+      return res.status(502).json({ error: 'Failed to update resume' });
+    }
+
+    const rows = await r.json() as Record<string, unknown>[];
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Resume not found' });
+    }
+    res.json({ resume: rows[0] });
   } catch (err) {
     return dataErr(res, err);
   }

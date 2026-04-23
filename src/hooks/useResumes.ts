@@ -220,14 +220,11 @@ export function useResumeMutations() {
       if (!user) throw new Error('Not authenticated');
 
       const dbData = resumeDataToDb(resume, user.id, title);
-      const { data, error } = await supabase
-        .from('resumes')
-        .insert(dbData)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return parseDbResume(data);
+      const result = await apiFetch<{ resume: unknown }>('/api/data/resumes', {
+        method: 'POST',
+        body: dbData,
+      });
+      return parseDbResume(result.resume);
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['resumes'] });
@@ -292,15 +289,11 @@ export function useResumeMutations() {
         }
       }
 
-      const { data, error } = await supabase
-        .from('resumes')
-        .update(dbUpdates)
-        .eq('id', resumeId)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return parseDbResume(data);
+      const result = await apiFetch<{ resume: unknown }>(`/api/data/resumes/${encodeURIComponent(resumeId)}`, {
+        method: 'PATCH',
+        body: dbUpdates,
+      });
+      return parseDbResume(result.resume);
     },
     onSuccess: async (data) => {
       queryClient.invalidateQueries({ queryKey: ['resumes'] });
@@ -317,9 +310,14 @@ export function useResumeMutations() {
         // Version save failure is non-critical — silently ignore
       }
     },
-    onError: (error: Error & { code?: string }) => {
-      // Check for PGRST116 error (no rows found - stale resume ID)
-      if (error?.message?.includes('PGRST116') || error?.code === 'PGRST116') {
+    onError: (error: Error & { code?: string; status?: number }) => {
+      // Check for PGRST116 error (no rows found - stale resume ID) or server 404
+      if (
+        error?.message?.includes('PGRST116') ||
+        error?.code === 'PGRST116' ||
+        error?.message?.includes('Resume not found') ||
+        (error as { status?: number })?.status === 404
+      ) {
         toast.error('Resume not found. It may have been deleted.');
         // Clear the stale ID to stop the error loop
         useResumeStore.getState().setCurrentResumeId(null);
