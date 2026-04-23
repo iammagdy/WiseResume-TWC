@@ -15,7 +15,7 @@ import * as Sentry from '@sentry/node';
 import express from 'express';
 import type { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
-import { neon } from '@neondatabase/serverless';
+import pg from 'pg';
 import { promises as dns } from 'node:dns';
 import net from 'node:net';
 import * as jose from 'jose';
@@ -314,8 +314,54 @@ async function ensureSupabaseShadowUser(userId: string, email: string | null): P
   }
 }
 
-// Neon DB connection (for direct server-side queries)
-const sql = DATABASE_URL ? neon(DATABASE_URL) : null;
+// Postgres connection pool (for direct server-side queries).
+// We previously used `neon()` from @neondatabase/serverless, but that is an
+// HTTP-only client speaking Neon's wire protocol. The local Replit Postgres
+// instance does not understand that protocol, so parameterized queries
+// returned `null` and crashed downstream. The standard `pg` TCP driver
+// works correctly against both Replit Postgres and Neon (via the standard
+// Postgres wire protocol).
+const pgPool: pg.Pool | null = DATABASE_URL ? new pg.Pool({ connectionString: DATABASE_URL }) : null;
+if (pgPool) {
+  pgPool.on('error', (err) => {
+    console.error('[server] Postgres pool error:', err);
+  });
+}
+
+type SqlTag = {
+  <T = Record<string, unknown>>(strings: TemplateStringsArray, ...values: unknown[]): Promise<T[]>;
+  query<T = Record<string, unknown>>(text: string, params?: unknown[]): Promise<T[]>;
+};
+
+// Tagged-template-literal wrapper around pg.Pool that mirrors the interface
+// previously provided by `neon(DATABASE_URL)`. Two call styles are supported:
+//   1. Tagged template:  await sql`SELECT * FROM t WHERE id = ${id}`
+//   2. Raw query:        await sql.query('SELECT * FROM t WHERE id = $1', [id])
+// Both resolve to the rows array directly (matching the prior neon behavior).
+function makeSqlTag(pool: pg.Pool): SqlTag {
+  const tag = async <T = Record<string, unknown>>(
+    strings: TemplateStringsArray,
+    ...values: unknown[]
+  ): Promise<T[]> => {
+    let text = '';
+    for (let i = 0; i < strings.length; i++) {
+      text += strings[i];
+      if (i < values.length) text += `$${i + 1}`;
+    }
+    const result = await pool.query(text, values);
+    return result.rows as T[];
+  };
+  (tag as SqlTag).query = async <T = Record<string, unknown>>(
+    text: string,
+    params: unknown[] = [],
+  ): Promise<T[]> => {
+    const result = await pool.query(text, params);
+    return result.rows as T[];
+  };
+  return tag as SqlTag;
+}
+
+const sql: SqlTag | null = pgPool ? makeSqlTag(pgPool) : null;
 
 // ── Kinde JWKS cache ──────────────────────────────────────────────────────────
 let _kindeJWKS: jose.JSONWebKeySet | null = null;
@@ -1584,9 +1630,7 @@ app.get('/api/data/job-activity-rows', requireAuthHeader, async (req: AuthedRequ
 // subscriptions, and ai_credits from Supabase using the service-role key
 // (bypasses RLS) and returns the same MeData shape the client expects.
 app.get('/api/data/me', requireAuthHeader, async (req: AuthedRequest, res) => {
-  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-    return res.status(503).json({ error: 'Supabase not configured' });
-  }
+  if (!sql) return res.status(503).json({ error: 'Database not configured' });
   try {
     const userId = req.verifiedUserId!;
 
@@ -1600,29 +1644,12 @@ app.get('/api/data/me', requireAuthHeader, async (req: AuthedRequest, res) => {
       kindeSub = typeof claims.kinde_sub === 'string' ? claims.kinde_sub : null;
     } catch { /* kinde_sub is optional */ }
 
-    const sbHeaders = {
-      apikey: SUPABASE_SERVICE_ROLE_KEY,
-      Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-      'Content-Type': 'application/json',
-    };
-
-    const [profileRes, prefsRes, subsRes, creditsRes] = await Promise.all([
-      fetch(`${SUPABASE_URL}/rest/v1/profiles?user_id=eq.${encodeURIComponent(userId)}&select=*&limit=1`, { headers: sbHeaders }),
-      fetch(`${SUPABASE_URL}/rest/v1/user_preferences?user_id=eq.${encodeURIComponent(userId)}&select=*&limit=1`, { headers: sbHeaders }),
-      fetch(`${SUPABASE_URL}/rest/v1/subscriptions?user_id=eq.${encodeURIComponent(userId)}&select=plan_name,status,plan_updated_at,trial_plan,trial_expires_at&limit=1`, { headers: sbHeaders }),
-      fetch(`${SUPABASE_URL}/rest/v1/ai_credits?user_id=eq.${encodeURIComponent(userId)}&select=daily_usage,daily_limit,usage_date,total_usage,updated_at&limit=1`, { headers: sbHeaders }),
+    const [profileArr, prefsArr, subsArr, creditsArr] = await Promise.all([
+      sql`SELECT * FROM profiles WHERE user_id = ${userId} LIMIT 1`,
+      sql`SELECT * FROM user_preferences WHERE user_id = ${userId} LIMIT 1`,
+      sql`SELECT plan_name, status, plan_updated_at, trial_plan, trial_expires_at FROM subscriptions WHERE user_id = ${userId} LIMIT 1`,
+      sql`SELECT daily_usage, daily_limit, usage_date, total_usage, updated_at FROM ai_credits WHERE user_id = ${userId} LIMIT 1`,
     ]);
-
-    if (!profileRes.ok || !prefsRes.ok || !subsRes.ok || !creditsRes.ok) {
-      const statuses = [profileRes.status, prefsRes.status, subsRes.status, creditsRes.status];
-      console.error('[data-api] /api/data/me Supabase fetch failed, statuses:', statuses);
-      return res.status(502).json({ error: 'Failed to fetch user data from Supabase' });
-    }
-
-    const profileArr = await profileRes.json() as Record<string, unknown>[];
-    const prefsArr = await prefsRes.json() as Record<string, unknown>[];
-    const subsArr = await subsRes.json() as Record<string, unknown>[];
-    const creditsArr = await creditsRes.json() as Record<string, unknown>[];
 
     const profile = profileArr[0] ?? null;
     const prefs = prefsArr[0] ?? null;
