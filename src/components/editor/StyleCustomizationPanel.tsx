@@ -336,10 +336,10 @@ export function StyleCustomizationPanel({ open, onOpenChange }: StyleCustomizati
             onClick={clearAll}
           >
             <RotateCcw className="w-3 h-3 mr-2" />
-            Reset all customizations
+            Turn off customizations
           </Button>
           <p className="mt-2 text-xs text-muted-foreground text-center">
-            Switches the panel off and reverts the resume to the template's default look.
+            Reverts to the template's default look. Your saved tweaks are kept and will return when you switch the panel back on.
           </p>
         </div>
       </SheetContent>
