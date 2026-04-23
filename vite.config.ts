@@ -1,6 +1,6 @@
 /// <reference types="vitest" />
 import { defineConfig, type Plugin } from "vite";
-import react from "@vitejs/plugin-react-swc";
+import react from "@vitejs/plugin-react";
 import path from "path";
 import { createHash } from "crypto";
 import { sentryVitePlugin } from "@sentry/vite-plugin";
@@ -255,11 +255,12 @@ export default defineConfig(() => ({
       : null,
   ].filter(Boolean),
   optimizeDeps: {
-    exclude: ['docx'],
+    exclude: ['docx', 'pdf-lib', 'pdfjs-dist'],
   },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      'pdfjs-dist': 'pdfjs-dist/build/pdf.mjs',
     },
   },
   test: {
