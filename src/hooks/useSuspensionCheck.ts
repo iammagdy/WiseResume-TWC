@@ -1,6 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMe } from './useMe';
 import { useAuth } from './useAuth';
-import { apiFetch } from '@/lib/apiFetch';
 
 export interface SuspensionState {
   isSuspended: boolean;
@@ -8,41 +7,38 @@ export interface SuspensionState {
   isLoading: boolean;
 }
 
+/**
+ * Derives suspension state from the shared `useMe` query — no additional
+ * network calls. When `/api/data/me` returns a 403 with `{ suspended: true }`,
+ * React Query stores the thrown ApiFetchError on the `useMe` query's `error`
+ * property. We read that error here instead of making a duplicate request.
+ */
 export function useSuspensionCheck(): SuspensionState {
   const { user, isAuthenticated } = useAuth();
+  const { isLoading, isError, error } = useMe();
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['suspension', user?.id],
-    queryFn: async (): Promise<{ is_suspended: boolean; suspension_reason: string | null }> => {
-      try {
-        await apiFetch('/api/data/me');
-        // apiFetch throws ApiFetchError on non-2xx; reaching here means not suspended
-        return { is_suspended: false, suspension_reason: null };
-      } catch (err: unknown) {
-        if (err && typeof err === 'object' && 'status' in err && (err as { status: number }).status === 403) {
-          const body = (err as { body?: unknown }).body;
-          if (body && typeof body === 'object' && 'suspended' in body && (body as { suspended: unknown }).suspended === true) {
-            return {
-              is_suspended: true,
-              suspension_reason: (body as { reason?: string }).reason ?? null,
-            };
-          }
-        }
-        // Any other error (401, 503, network) → assume not suspended, not a crisis
-        return { is_suspended: false, suspension_reason: null };
+  if (!user || !isAuthenticated) {
+    return { isSuspended: false, suspensionReason: null, isLoading: false };
+  }
+
+  let isSuspended = false;
+  let suspensionReason: string | null = null;
+
+  if (isError && error) {
+    const e = error as { status?: number; body?: unknown };
+    if (e.status === 403) {
+      const body = e.body;
+      if (
+        body &&
+        typeof body === 'object' &&
+        'suspended' in body &&
+        (body as { suspended: unknown }).suspended === true
+      ) {
+        isSuspended = true;
+        suspensionReason = (body as { reason?: string }).reason ?? null;
       }
-    },
-    enabled: !!user && isAuthenticated,
-    staleTime: 60 * 1000,
-    gcTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: true,
-    refetchInterval: 5 * 60 * 1000,
-    retry: 1,
-  });
+    }
+  }
 
-  return {
-    isSuspended: data?.is_suspended ?? false,
-    suspensionReason: data?.suspension_reason ?? null,
-    isLoading,
-  };
+  return { isSuspended, suspensionReason, isLoading };
 }

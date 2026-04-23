@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { useAuth } from '@/hooks/useAuth';
 import { getUserId } from '@/lib/supabaseBridge';
+import { useMe, type MeSubscription } from '@/hooks/useMe';
 
 export interface WiseHireCompany {
   id: string;
@@ -16,20 +17,9 @@ export interface WiseHireCompany {
   updated_at: string;
 }
 
-export interface WiseHireSubscription {
-  user_id: string;
-  plan_name: string;
-  status: string;
-  trial_plan: string | null;
-  trial_expires_at: string | null;
-  coupon_code: string | null;
-  coupon_discount_percent: number | null;
-  current_period_end: string | null;
-}
-
 export interface WiseHireAccountData {
   company: WiseHireCompany | null;
-  subscription: WiseHireSubscription | null;
+  subscription: MeSubscription | null;
   /** True when trial is active (trial_plan set + trial_expires_at in the future) */
   isTrialActive: boolean;
   /** Days remaining in trial (0 if not active) */
@@ -49,7 +39,7 @@ const WISEHIRE_PAID_PLANS = [
 
 function computeAccount(
   company: WiseHireCompany | null,
-  sub: WiseHireSubscription | null,
+  sub: MeSubscription | null,
 ): WiseHireAccountData {
   const now = new Date();
 
@@ -75,39 +65,47 @@ function computeAccount(
   return { company, subscription: sub, isTrialActive, daysRemaining, currentPlan, isExpiredWithNoPlan };
 }
 
+/**
+ * Fetches WiseHire-specific company data and combines it with the subscription
+ * already loaded by `useMe`. The direct `subscriptions` Supabase query has been
+ * removed — `MeSubscription` from `/api/data/me` covers all fields needed by
+ * `computeAccount`, preventing a duplicate round-trip.
+ */
 export function useWiseHireAccount() {
   const { isAuthenticated, supabaseReady } = useAuth();
   const userId = getUserId();
+  const { data: meData } = useMe();
 
-  return useQuery({
-    queryKey: ['wisehire-account', userId],
-    queryFn: async (): Promise<WiseHireAccountData> => {
-      if (!userId) return computeAccount(null, null);
+  const companyQuery = useQuery({
+    queryKey: ['wisehire-company', userId],
+    queryFn: async (): Promise<WiseHireCompany | null> => {
+      if (!userId) return null;
 
-      const [companyRes, subRes] = await Promise.all([
-        supabase
-          .from('wisehire_companies')
-          .select('id, owner_id, name, size, role_types, monthly_volume, onboarding_completed, slug, created_at, updated_at')
-          .eq('owner_id', userId)
-          .maybeSingle(),
-        supabase
-          .from('subscriptions')
-          .select('user_id, plan_name, status, trial_plan, trial_expires_at, coupon_code, coupon_discount_percent, current_period_end')
-          .eq('user_id', userId)
-          .maybeSingle(),
-      ]);
+      const { data, error } = await supabase
+        .from('wisehire_companies')
+        .select('id, owner_id, name, size, role_types, monthly_volume, onboarding_completed, slug, created_at, updated_at')
+        .eq('owner_id', userId)
+        .maybeSingle();
 
-      if (companyRes.error) console.warn('[useWiseHireAccount] company fetch:', companyRes.error.message);
-      if (subRes.error) console.warn('[useWiseHireAccount] subscription fetch:', subRes.error.message);
-
-      return computeAccount(
-        companyRes.data as WiseHireCompany | null,
-        subRes.data as WiseHireSubscription | null,
-      );
+      if (error) console.warn('[useWiseHireAccount] company fetch:', error.message);
+      return data as WiseHireCompany | null;
     },
     enabled: isAuthenticated && supabaseReady && !!userId,
     staleTime: 2 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
     retry: 1,
   });
+
+  // Combine company (from Supabase, unique to this hook) with subscription
+  // (from useMe cache, no extra network call). Recomputed on every render so
+  // subscription changes from Realtime invalidations are reflected immediately.
+  const accountData = computeAccount(
+    companyQuery.data ?? null,
+    meData?.subscription ?? null,
+  );
+
+  return {
+    ...companyQuery,
+    data: companyQuery.status !== 'pending' || !isAuthenticated ? accountData : undefined,
+  };
 }

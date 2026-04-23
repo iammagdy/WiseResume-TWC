@@ -84,6 +84,9 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
   const { execute: executeAI } = useAIAction({ operation: 'enhance' });
   const slowToastShown = useRef(false);
   const redactPiiBeforeAI = useSettingsStore(s => s.redactPiiBeforeAI);
+  // Ref-based in-flight guard prevents a second POST while the first is pending.
+  // Using a ref (not state) avoids stale-closure issues in the useCallback deps.
+  const inFlightRef = useRef(false);
 
   const enhance = useCallback(async (
     action: ActionType,
@@ -91,6 +94,8 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
     resumeContext: unknown,
     jobDescription?: string
   ) => {
+    if (inFlightRef.current) return null;
+    inFlightRef.current = true;
     setIsEnhancing(true);
     setCurrentAction(action);
     setResult(null);
@@ -233,6 +238,7 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
       }
       return null;
     } finally {
+      inFlightRef.current = false;
       setIsEnhancing(false);
       setCurrentAction(null);
       useAIEnhancingStore.getState().decrement();
