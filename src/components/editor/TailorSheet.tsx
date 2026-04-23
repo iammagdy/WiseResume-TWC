@@ -711,10 +711,11 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
     if (!appliedMergedResume || isDownloadingPdf) return;
     setIsDownloadingPdf(true);
     try {
-      const { generatePDF } = await import('@/lib/pdfGenerator');
+      const { generateNativePDF } = await import('@/lib/nativePdfGenerator');
       const { downloadFile } = await import('@/lib/downloadUtils');
-      const templateId = (appliedMergedResume.templateId || 'modern') as import('@/types/resume').TemplateId;
-      const blob = await generatePDF(appliedMergedResume, templateId, tailoredTemplateRef.current);
+      if (!tailoredTemplateRef.current) throw new Error('Template not ready');
+      const pageFormat = (appliedMergedResume.customization?.pageFormat ?? 'letter') as 'letter' | 'a4';
+      const blob = await generateNativePDF(tailoredTemplateRef.current, { pageFormat });
       const name = appliedMergedResume.contactInfo?.fullName || 'Resume';
       const jobSuffix = appliedJobInfo?.title ? `_${appliedJobInfo.title}` : '';
       const fileName = `${name}${jobSuffix}_Tailored.pdf`.replace(/\s+/g, '_');

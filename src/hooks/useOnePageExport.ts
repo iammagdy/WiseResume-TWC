@@ -113,17 +113,19 @@ export function useOnePageExport({ resume, templateId, enabled }: UseOnePageExpo
     if (!resume) throw new Error('No resume to export');
     const el = elementRef.current;
     if (!el) throw new Error('Offscreen template not ready');
-    const mod = pdfModRef.current ?? (await import('@/lib/pdfGenerator'));
-    return mod.generatePDF(resume, templateId, el, undefined, undefined, onProgress);
-  }, [resume, templateId]);
+    const { generateNativePDF } = await import('@/lib/nativePdfGenerator');
+    const pageFormat = (resume.customization?.pageFormat ?? 'letter') as 'letter' | 'a4';
+    return generateNativePDF(el, { pageFormat, onProgress });
+  }, [resume]);
 
   const exportOnePagePdf = useCallback(async ({ onProgress }: { onProgress?: OnProgressCallback } = {}) => {
     if (!resume) throw new Error('No resume to export');
     const el = elementRef.current;
     if (!el) throw new Error('Offscreen template not ready');
-    const mod = pdfModRef.current ?? (await import('@/lib/pdfGenerator'));
-    return mod.generateOnePagePDF(resume, templateId, el, undefined, onProgress);
-  }, [resume, templateId]);
+    const { generateNativePDF } = await import('@/lib/nativePdfGenerator');
+    const pageFormat = (resume.customization?.pageFormat ?? 'letter') as 'letter' | 'a4';
+    return generateNativePDF(el, { pageFormat, onePage: true, onProgress });
+  }, [resume]);
 
   // Stable identity so consumers can include the api in effect deps without looping
   return useMemo(

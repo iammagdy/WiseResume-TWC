@@ -38,8 +38,11 @@ export function ShareSheet({
     haptics.medium();
     setIsGeneratingPDF(true);
     try {
-      const { generatePDF } = await import('@/lib/pdfGenerator');
-      const pdfBlob = await generatePDF(resume, templateId, resumeRef.current, undefined, { showPageNumbers: true });
+      const { generateNativePDF } = await import('@/lib/nativePdfGenerator');
+      const templateEl = resumeRef.current ?? (document.querySelector('[data-resume-template]') as HTMLElement | null);
+      if (!templateEl) throw new Error('Resume template not found');
+      const pageFormat = (resume.customization?.pageFormat ?? 'letter') as 'letter' | 'a4';
+      const pdfBlob = await generateNativePDF(templateEl, { pageFormat, showPageNumbers: true, showBranding: true });
       const fileName = `${resume.contactInfo.fullName?.replace(/\s+/g, '_') || 'Resume'}_Resume.pdf`;
       const shared = await shareAsPDF(pdfBlob, fileName);
       if (shared) {

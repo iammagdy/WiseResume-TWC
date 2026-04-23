@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { ResumeData, ContactInfo, CoverLetterHistory } from '@/types/resume';
 import { generateCoverLetter } from '@/lib/aiTailor';
 import { useResumeStore } from '@/store/resumeStore';
-import { generateCoverLetterPDF } from '@/lib/pdfGenerator';
+import { generateCoverLetterNativePDF } from '@/lib/nativePdfGenerator';
 import { downloadFile } from '@/lib/downloadUtils';
 import { toast } from 'sonner';
 import { CoverLetterHistorySheet } from './CoverLetterHistorySheet';
@@ -206,7 +206,7 @@ export function CoverLetterGenerator({
     if (!coverLetter || !resume) return;
     setIsDownloading(true);
     try {
-      const pdfBlob = await generateCoverLetterPDF(coverLetter, resume.contactInfo);
+      const pdfBlob = await generateCoverLetterNativePDF(coverLetter, resume.contactInfo);
       await downloadFile({
         blob: pdfBlob,
         fileName: `Cover_Letter_${(jobCompany || 'Company').replace(/\s+/g, '_')}.pdf`,
