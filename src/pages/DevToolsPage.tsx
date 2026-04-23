@@ -235,16 +235,34 @@ function DevToolsInner() {
     setTotp('');
 
     try {
-      // AUTH-5: Step the Supabase session up to AAL2 by completing an MFA
+      // Step 1: Ensure we have a Supabase session. If the admin is not signed
+      // into the main app, sign them in directly using the account password so
+      // that DevKit works as a fully standalone page.
+      let { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData?.session) {
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: submittedEmail,
+          password: submittedPw,
+        });
+        if (signInError) {
+          const msg = signInError.message ?? '';
+          if (msg.toLowerCase().includes('invalid login credentials') || signInError.status === 400) {
+            setLoginError('Incorrect email or password.');
+          } else if (msg.toLowerCase().includes('email not confirmed')) {
+            setLoginError('Email not confirmed — check your inbox.');
+          } else {
+            setLoginError('Sign-in failed — check your credentials and try again.');
+          }
+          return;
+        }
+        const { data: freshSession } = await supabase.auth.getSession();
+        sessionData = freshSession;
+      }
+
+      // Step 2: Step the Supabase session up to AAL2 by completing an MFA
       // challenge against the user's enrolled TOTP factor. verify-dev-kit
       // refuses to mint a DevKit token unless the access token presents
       // `aal: aal2`.
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData?.session) {
-        setLoginError('Sign in to the main app first, then retry.');
-        return;
-      }
-
       const aalRes = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
       if (aalRes.error) {
         setLoginError('Could not read MFA state — try again.');
@@ -259,7 +277,7 @@ function DevToolsInner() {
         }
         const totpFactor = factorsRes.data?.totp?.find((f) => f.status === 'verified');
         if (!totpFactor) {
-          setLoginError('Enroll a TOTP authenticator on your account before opening the DevKit.');
+          setLoginError('Enroll a TOTP authenticator on your Supabase account before opening the DevKit.');
           return;
         }
         const verifyRes = await supabase.auth.mfa.challengeAndVerify({
@@ -272,8 +290,20 @@ function DevToolsInner() {
         }
       }
 
+      // Step 3: Retrieve the stepped-up (AAL2) access token and pass it
+      // explicitly to verify-dev-kit so the edge function can validate the
+      // AAL2 claim. Without this the proxy would send the bridge token, which
+      // does not carry aal2 and would cause the function to reject the call.
+      const { data: aal2Session } = await supabase.auth.getSession();
+      const aal2AccessToken = aal2Session?.session?.access_token ?? null;
+      if (!aal2AccessToken) {
+        setLoginError('Could not retrieve session token — try again.');
+        return;
+      }
+
       const { data, error } = await edgeFunctions.functions.invoke('verify-dev-kit', {
         body: { email: submittedEmail, password: submittedPw },
+        headers: { Authorization: `Bearer ${aal2AccessToken}` },
       });
 
       if (error) {
@@ -302,7 +332,7 @@ function DevToolsInner() {
       } else if (data?.reason === 'email_mismatch') {
         setLoginError('DevKit email must match your signed-in Supabase account.');
       } else if (data?.reason === 'invalid_session') {
-        setLoginError('Your Supabase session expired — sign in again.');
+        setLoginError('Session could not be validated — try again.');
       } else {
         setLoginError('Incorrect email, password, or code — try again.');
       }
@@ -370,11 +400,11 @@ function DevToolsInner() {
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-white/40">Admin password</label>
+                <label className="text-xs font-medium text-white/40">Account password</label>
                 <div className="relative">
                   <Input
                     type={showPw ? 'text' : 'password'}
-                    placeholder="Enter your dev-kit password"
+                    placeholder="Your Supabase account password"
                     value={pw}
                     onChange={(e) => { setPw(e.target.value); setLoginError(null); }}
                     disabled={isVerifying || isLockedOut}
