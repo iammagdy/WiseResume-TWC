@@ -198,7 +198,8 @@ function DashboardPageContent() {
         });
 
         if (!profileRes.ok) {
-          // Server-side error — don't mark as checked so we retry next mount.
+          // Server-side error — log for diagnostics, don't mark as checked so we retry next mount.
+          console.warn('[DashboardPage] Onboarding profile check HTTP error:', profileRes.status);
           if (!sessionStorage.getItem('wr-dismissed-profile-banner')) {
             setShowProfileBanner(true);
           }
@@ -234,7 +235,7 @@ function DashboardPageContent() {
           setShowProfileBanner(true);
         }
       } catch (err) {
-        console.warn('[DashboardPage] Onboarding check failed — defaulting to show profile banner:', err);
+        console.warn('[DashboardPage] Onboarding check unexpected exception:', err);
         if (!sessionStorage.getItem('wr-dismissed-profile-banner')) {
           setShowProfileBanner(true);
         }

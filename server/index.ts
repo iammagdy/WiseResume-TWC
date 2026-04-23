@@ -605,7 +605,13 @@ app.all('/api/fn/:fnName', async (req, res) => {
   const { fnName } = req.params;
 
   if (!SUPABASE_URL) {
-    return res.status(503).json({ error: 'Supabase not configured' });
+    console.error(`[server] /api/fn/${fnName}: SUPABASE_URL is not set — cannot proxy edge function`);
+    return res.status(503).json({ error: 'Supabase not configured', detail: 'SUPABASE_URL env var is missing' });
+  }
+
+  if (!SUPABASE_ANON_KEY) {
+    console.error(`[server] /api/fn/${fnName}: SUPABASE_ANON_KEY is not set — edge function call would be rejected by Supabase`);
+    return res.status(503).json({ error: 'Supabase not configured', detail: 'SUPABASE_ANON_KEY env var is missing' });
   }
 
   const edgeFunctionUrl = `${SUPABASE_URL}/functions/v1/${fnName}`;

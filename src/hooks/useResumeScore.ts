@@ -155,25 +155,43 @@ async function invokeScoreResume(resume: ResumeData, isBackground = false): Prom
     throw Object.assign(new Error('Scoring skipped: bridge token not available'), { isSkip: true });
   }
 
-  const res = await fetch(apiFnUrl(`score-resume`), {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
-    body: JSON.stringify({ resume: normalized, templateId, ...(isBackground ? { source: 'background' } : {}) }),
-  });
+  const scoreUrl = apiFnUrl(`score-resume`);
+  let res: Response;
+  try {
+    res = await fetch(scoreUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ resume: normalized, templateId, ...(isBackground ? { source: 'background' } : {}) }),
+    });
+  } catch (networkErr) {
+    // TypeError: Failed to fetch — the request never reached the server.
+    // Common causes: offline, DNS failure, or the Express server isn't reachable.
+    const detail = networkErr instanceof Error ? networkErr.message : String(networkErr);
+    console.error(`[ScoreResume] Network-level fetch error (${scoreUrl}):`, detail);
+    throw Object.assign(
+      new Error(`Scoring unavailable: network error — ${detail}`),
+      { isNetworkError: true },
+    );
+  }
 
   if (!res.ok) {
     const errText = await res.text().catch(() => '');
-    console.error('[ScoreResume] fetch failed:', res.status, errText);
+    console.error('[ScoreResume] HTTP error:', res.status, errText);
     if (res.status === 401) {
       throw Object.assign(new Error('Session expired. Please sign in again.'), { isAuth: true });
     }
     if (res.status === 429) {
       throw Object.assign(new Error('Rate limit reached. Try again shortly.'), { isRateLimit: true });
     }
-    throw new Error(`Scoring failed (${res.status})`);
+    if (res.status === 503) {
+      // Server is missing required Supabase config — log clearly so it shows in production logs
+      console.error('[ScoreResume] Server configuration error (503):', errText);
+      throw Object.assign(new Error(`Scoring service misconfigured: ${errText}`), { isConfigError: true });
+    }
+    throw new Error(`Scoring failed (${res.status}): ${errText}`);
   }
 
   const data = await res.json();
@@ -268,10 +286,34 @@ async function runBackgroundScore(resumeId: string, resume: ResumeData, updatedA
     // outages. We still log to the console for observability and, after
     // repeated consecutive failures, surface a single non-spammy toast
     // so the user knows their score may be stale.
+
+    // A "skip" means the bridge token wasn't ready yet — this is expected
+    // on first mount and should not count as a real failure or trigger a toast.
+    const errObj = err as Error & { isSkip?: boolean; isNetworkError?: boolean; isConfigError?: boolean };
+    if (errObj.isSkip) {
+      console.debug('[backgroundScore] skipped — bridge token not ready yet');
+      return;
+    }
+
+    // Transient network errors (offline, DNS failure, etc.) should not accumulate
+    // toward the failure streak — they are device-level and unrelated to the
+    // scoring infrastructure. Log clearly so production logs are actionable.
+    if (errObj.isNetworkError) {
+      console.warn('[backgroundScore] transient network error — not counting toward failure streak:', errObj.message);
+      return;
+    }
+
+    // Configuration errors (missing env vars on the server) are permanent and
+    // should surface loudly so they are caught in production logs quickly.
+    if (errObj.isConfigError) {
+      console.error('[backgroundScore] server configuration error — scoring will not work until resolved:', errObj.message);
+    }
+
     backgroundFailureStreak += 1;
+    const errMessage = err instanceof Error ? err.message : String(err);
     console.warn(
-      `[backgroundScore] silenced (deterministic scoring) — streak=${backgroundFailureStreak}:`,
-      err instanceof Error ? err.message : err,
+      `[backgroundScore] failed (deterministic scoring) — streak=${backgroundFailureStreak}:`,
+      errMessage,
     );
     const now = Date.now();
     const due = now - lastBackgroundFailureToastAt > BACKGROUND_FAILURE_TOAST_COOLDOWN_MS;
