@@ -82,13 +82,8 @@ export const SectionCard = memo(function SectionCard({
       >
         {/* Header — acts as the collapsible trigger when collapsible */}
         {collapsible ? (
-          <CollapsibleTrigger asChild>
-            <div
-              className="flex items-center gap-2.5 px-4 pt-3 pb-3 cursor-pointer select-none active:opacity-80 touch-manipulation min-h-[52px]"
-              aria-expanded={isOpen}
-            >
-              {headerContent}
-            </div>
+          <CollapsibleTrigger className="flex w-full items-center gap-2.5 px-4 pt-3 pb-3 text-left select-none active:opacity-80 touch-manipulation min-h-[52px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-inset rounded-t-2xl">
+            {headerContent}
           </CollapsibleTrigger>
         ) : (
           <div className="flex items-center gap-2.5 px-4 pt-4 pb-1 min-h-[52px]">
