@@ -17,12 +17,12 @@
  * still meaningful (temperature, maxTokens, messages); the rest are
  * silently ignored.
  *
- * BYOK has been removed. `getUserKeyFromDB` and `getUserKeyAndUrlFromDB`
- * are kept as no-op stubs so the few callers that still import them
- * compile; both always return undefined.
+ * BYOK has been fully removed. `getUserKeyFromDB`, `getUserKeyAndUrlFromDB`,
+ * and `isBreakerOpen` stubs have been deleted. Any caller that previously
+ * imported those symbols must be updated to remove the import.
  *
- * Circuit breaker has been removed. `isBreakerOpen` always returns false
- * and `recordBreakerEvent` is a no-op.
+ * Circuit breaker has been removed. `recordBreakerEvent` is a no-op kept
+ * only for source-compat with older edge-function call sites.
  */
 
 // ── Public types ──────────────────────────────────────────────────────────────

@@ -295,7 +295,7 @@ export function DevKitRunner() {
       id: 'read-ai-settings', label: 'Read AI Settings', description: 'Read provider settings from store', section: 'settings',
       run: () => strictInvoke('read-ai-settings', async () => {
         const s = useSettingsStore.getState();
-        return { aiProvider: s.aiProvider, geminiModel: s.geminiModel, theme: s.theme };
+        return { aiProvider: s.aiProvider, theme: s.theme };
       }),
     },
     {

@@ -6,15 +6,9 @@ export type BiometricLockTimeout = 0 | 30000 | 60000 | 300000;
 export type AutoSaveToastMode = 'always' | 'errors-only';
 export type AITipFrequency = 'daily' | 'weekly' | 'on-demand';
 
-// AI Provider type — kept for backward compat with rateLimiter and AIPrivacyDisclosureProvider.
+// Kept for backward compat with AIPrivacyDisclosureProvider and DevKitRunner.
 // The flat 6-key managed pool is the only active engine; aiProvider is always 'wiseresume'.
 export type AIProvider = 'wiseresume' | 'openai' | 'anthropic' | 'gemini' | 'groq' | 'mistral' | 'xai' | 'cohere' | 'openrouter' | 'ollama';
-export type GeminiKeyTier = 'free' | 'paid' | 'unknown';
-
-interface GeminiDailyUsage {
-  date: string;
-  count: number;
-}
 
 interface SettingsState {
   // Notifications
@@ -54,15 +48,9 @@ interface SettingsState {
   // Export
   lastExportType: string | null;
   
-  // AI Provider (always 'wiseresume' — flat 6-key pool is the only engine)
+  // AI Provider — always 'wiseresume'; pinned in onRehydrateStorage.
+  // Setter is a no-op kept for backward compat with DevKit and AIPrivacyDisclosureProvider.
   aiProvider: AIProvider;
-
-  // Gemini fields retained for rateLimiter backward compat (effectively dead since aiProvider === 'wiseresume')
-  geminiApiKey: string;
-  geminiKeyTier: GeminiKeyTier;
-  geminiKeyValidated: boolean;
-  geminiDailyUsage: GeminiDailyUsage;
-  geminiModel: string;
   
   // Actions
   setShowAutoSaveToasts: (value: boolean) => void;
@@ -86,14 +74,8 @@ interface SettingsState {
   setTheme: (theme: 'light' | 'dark' | 'system') => void;
   setLastExportType: (type: string) => void;
   
-  // AI Provider actions (effectively no-ops — kept for compat with DevKit read-ai-settings panel)
+  // No-op — aiProvider is pinned to 'wiseresume'; kept for compat
   setAIProvider: (provider: AIProvider) => void;
-  setGeminiApiKey: (key: string) => void;
-  setGeminiKeyTier: (tier: GeminiKeyTier) => void;
-  setGeminiKeyValidated: (validated: boolean) => void;
-  setGeminiModel: (model: string) => void;
-  incrementGeminiDailyUsage: () => void;
-  resetGeminiDailyUsage: () => void;
   
   resetSettings: () => void;
   resetUserSettings: () => void;
@@ -125,23 +107,12 @@ const defaultSettings = {
   theme: 'system' as 'light' | 'dark' | 'system',
   lpProduct: 'jobseeker' as 'jobseeker' | 'wisehire',
   lastExportType: null as string | null,
-  // AI Provider — always 'wiseresume' (flat 6-key pool is the only engine)
   aiProvider: 'wiseresume' as AIProvider,
-  // Gemini fields retained for rateLimiter backward compat
-  geminiApiKey: '',
-  geminiKeyTier: 'unknown' as GeminiKeyTier,
-  geminiKeyValidated: false,
-  geminiDailyUsage: { date: '', count: 0 } as GeminiDailyUsage,
-  geminiModel: 'gemini-2.5-flash',
 };
-
-function getTodayPacific(): string {
-  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
-}
 
 export const useSettingsStore = create<SettingsState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       ...defaultSettings,
 
       setShowAutoSaveToasts: (value) => set({ showAutoSaveToasts: value }),
@@ -169,33 +140,14 @@ export const useSettingsStore = create<SettingsState>()(
       setLpProduct: (product) => set({ lpProduct: product }),
       setLastExportType: (type) => set({ lastExportType: type }),
       
-      // AI Provider actions
-      setAIProvider: (provider) => set({ aiProvider: provider }),
-      setGeminiApiKey: (key) => set({ 
-        geminiApiKey: key,
-        geminiKeyValidated: false,
-        geminiKeyTier: 'unknown',
-      }),
-      setGeminiKeyTier: (tier) => set({ geminiKeyTier: tier }),
-      setGeminiKeyValidated: (validated) => set({ geminiKeyValidated: validated }),
-      setGeminiModel: (model) => set({ geminiModel: model }),
-      incrementGeminiDailyUsage: () => {
-        const today = getTodayPacific();
-        const current = get().geminiDailyUsage;
-        if (current.date !== today) {
-          set({ geminiDailyUsage: { date: today, count: 1 } });
-        } else {
-          set({ geminiDailyUsage: { date: today, count: current.count + 1 } });
-        }
-      },
-      resetGeminiDailyUsage: () => set({ geminiDailyUsage: { date: '', count: 0 } }),
+      // No-op — flat 6-key pool is the only engine
+      setAIProvider: (_provider) => { /* no-op */ },
       
       resetSettings: () => set(defaultSettings),
 
       resetUserSettings: () => set((state) => ({
         ...defaultSettings,
-        // Preserve one-time flags that are device/user experience state,
-        // not account-specific data. These should never reset on sign-out.
+        // Preserve one-time UX flags that are device-local, not account-specific.
         hasSeenAIIntro: state.hasSeenAIIntro,
         hasSeenPreviewHint: state.hasSeenPreviewHint,
         hasSeenTailorHint: state.hasSeenTailorHint,
@@ -206,19 +158,18 @@ export const useSettingsStore = create<SettingsState>()(
     {
       name: 'wiseresume-settings',
       partialize: (state) => {
-        // Exclude sensitive fields and ephemeral session state from localStorage.
-        // lpProduct is ephemeral — never persisted.
-        // hasSeenSplash is session-only — splash shows on every cold page load.
-        // geminiApiKey is stored server-side only.
+        // Exclude ephemeral and sensitive fields from localStorage.
+        // elevenlabsApiKey is in-memory only.
+        // lpProduct and hasSeenSplash are session-only.
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { geminiApiKey, elevenlabsApiKey, lpProduct: _lpProduct, hasSeenSplash: _hasSeenSplash, ...rest } = state;
+        const { elevenlabsApiKey, lpProduct: _lp, hasSeenSplash: _splash, ...rest } = state;
         return rest;
       },
       onRehydrateStorage: () => (state) => {
         if (state) {
-          // Splash shows on every fresh page load regardless of persisted value.
+          // Splash shows on every fresh page load.
           state.hasSeenSplash = false;
-          // Always force managed pool — legacy persisted BYOK provider values are ignored.
+          // Always force managed pool regardless of any legacy persisted value.
           state.aiProvider = 'wiseresume';
         }
       },

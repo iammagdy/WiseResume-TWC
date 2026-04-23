@@ -1,4 +1,3 @@
-import { useSettingsStore } from '@/store/settingsStore';
 
 class RateLimiter {
   private requests: Map<string, number[]> = new Map();
@@ -115,49 +114,20 @@ interface RateLimitConfig {
 type RateLimitProfile = Record<AIFeature, RateLimitConfig>;
 
 /**
- * Gets the appropriate rate limits based on the current AI provider and tier
+ * Returns the default rate-limit profile.
+ * BYOK / Gemini provider paths have been removed — the flat 6-key managed
+ * pool is the only AI source, so DEFAULT_RATE_LIMITS always applies.
  */
 function getRateLimitsForProvider(): RateLimitProfile {
-  const { aiProvider, geminiKeyTier } = useSettingsStore.getState();
-  
-  if (aiProvider === 'wiseresume') {
-    return DEFAULT_RATE_LIMITS as unknown as RateLimitProfile;
-  }
-  
-  // Gemini provider
-  if (geminiKeyTier === 'paid') {
-    return GEMINI_PAID_RATE_LIMITS as unknown as RateLimitProfile;
-  }
-  
-  // Default to free tier limits for safety
-  return GEMINI_FREE_RATE_LIMITS as unknown as RateLimitProfile;
+  return DEFAULT_RATE_LIMITS as unknown as RateLimitProfile;
 }
 
 /**
- * Checks if a daily limit has been exceeded (for Gemini free tier)
+ * Daily limit check — permanently returns no-exceeded since the managed pool
+ * has no per-user daily cap on the client side (server enforces credits).
  */
-function checkDailyLimit(feature: AIFeature): { exceeded: boolean; remaining: number } {
-  const { aiProvider, geminiKeyTier, geminiDailyUsage } = useSettingsStore.getState();
-  
-  // Only check daily limits for Gemini free tier
-  if (aiProvider !== 'gemini' || geminiKeyTier !== 'free') {
-    return { exceeded: false, remaining: Infinity };
-  }
-  
-  const limits = GEMINI_FREE_RATE_LIMITS[feature];
-  if (limits.rpd === Infinity) {
-    return { exceeded: false, remaining: Infinity };
-  }
-  
-  // Check if we need to reset (new day in Pacific time)
-  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
-  if (geminiDailyUsage.date !== today) {
-    // New day, reset happens on next increment
-    return { exceeded: false, remaining: limits.rpd };
-  }
-  
-  const remaining = limits.rpd - geminiDailyUsage.count;
-  return { exceeded: remaining <= 0, remaining: Math.max(0, remaining) };
+function checkDailyLimit(_feature: AIFeature): { exceeded: boolean; remaining: number } {
+  return { exceeded: false, remaining: Infinity };
 }
 
 /**
@@ -214,32 +184,17 @@ export function getAIUsageStats(feature: AIFeature): {
 } {
   const limits = getRateLimitsForProvider();
   const limit = limits[feature];
-  const { aiProvider, geminiKeyTier, geminiDailyUsage } = useSettingsStore.getState();
-  
   const remaining = aiRateLimiter.getRemainingRequests(
     `ai:${feature}`,
     limit.maxRequests,
     limit.windowMs
   );
-  
-  const result: ReturnType<typeof getAIUsageStats> = {
+  return {
     rpm: {
       used: limit.maxRequests - remaining,
       limit: limit.maxRequests,
     },
     rpd: null,
   };
-  
-  // Add daily stats for Gemini free tier
-  if (aiProvider === 'gemini' && geminiKeyTier === 'free' && limit.rpd !== Infinity) {
-    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
-    const dailyUsed = geminiDailyUsage.date === today ? geminiDailyUsage.count : 0;
-    result.rpd = {
-      used: dailyUsed,
-      limit: limit.rpd,
-    };
-  }
-  
-  return result;
 }
 

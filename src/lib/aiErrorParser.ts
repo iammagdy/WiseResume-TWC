@@ -218,7 +218,7 @@ export function aiErrorToastMessage(info: AIErrorInfo): string {
     case 'profile_incomplete':
       return 'Your profile is incomplete. Please finish setting up your profile before using AI features.';
     case 'upstream_5xx':
-      return 'The AI provider returned an error. Please try again — if it keeps failing, switch providers in Settings.';
+      return 'The AI provider returned an error. Please try again in a moment — if it keeps failing, contact support.';
     case 'timeout':
       return 'The AI request timed out. Please try again.';
     case 'offline':
