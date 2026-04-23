@@ -36,8 +36,12 @@ function classifyEdgeError(status: number, text: string): {
 
 /**
  * Authenticated edge function client.
- * Routes all calls through the Express server proxy at /api/fn/:fnName
- * so that Supabase keys never leave the server.
+ * Routes via apiFnUrl(): in dev, through the Express proxy at
+ * /api/fn/:fnName; in production (Hostinger static), directly to the
+ * Supabase Edge Function at ${VITE_SUPABASE_URL}/functions/v1/:fnName
+ * (Phase 8 contract — see
+ * Project Atlas/01-Currently Implemented/stability-fixes/
+ * phase-8-prod-edge-function-routing.md).
  * Automatically retries once on 401 after refreshing the bridge token.
  */
 export const edgeFunctions = {

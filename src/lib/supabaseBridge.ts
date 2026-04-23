@@ -252,9 +252,14 @@ function isIdentityMismatch(): boolean {
 
 /**
  * Exchange a Kinde access token for a Supabase JWT.
- * Routes through the Express server proxy at /api/fn/token-exchange
- * so Supabase keys never leave the server.
- * Deduplicates concurrent calls (only one in-flight request at a time).
+ * Routes via apiFnUrl(): in dev, through the Express proxy at
+ * /api/fn/token-exchange (which verifies the Kinde JWT server-side and
+ * upserts the profile); in production (Hostinger static), directly to
+ * the Supabase Edge Function at
+ * ${VITE_SUPABASE_URL}/functions/v1/token-exchange — the Phase 8 contract
+ * (see Project Atlas/01-Currently Implemented/stability-fixes/
+ * phase-8-prod-edge-function-routing.md). Deduplicates concurrent calls
+ * (only one in-flight request at a time).
  */
 export async function exchangeToken(kindeToken: string): Promise<void> {
   // AUTH_AUDIT M1: dedupe per Kinde-token hash. Two callers presenting

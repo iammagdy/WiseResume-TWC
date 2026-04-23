@@ -92,7 +92,7 @@ Users log in via Kinde, receiving a Kinde access token. The client exchanges thi
 **Replit Deployment:**
 - Development: Vite dev server on port 5000 (frontend) + tsx server on port 5001 (Express API). Vite proxies `/api/*` to port 5001.
 - Production: `npm run build:all` compiles Vite frontend into `dist/` and esbuild bundles `server/index.ts` → `dist/server.mjs`. The production server runs with `NODE_ENV=production API_PORT=5000 node dist/server.mjs` and serves both the static SPA files AND the Express `/api/*` routes on the same port 5000.
-- `src/lib/apiFnUrl.ts` always returns relative paths (`/api/fn/<name>`), so no environment branching is needed — both dev (via Vite proxy) and production (Express serves both) use the same URL pattern.
+- `src/lib/apiFnUrl.ts` is environment-aware (Phase 8 contract): dev returns `/api/fn/<name>` (Vite → Express :5001), and production returns `${VITE_SUPABASE_URL}/functions/v1/<name>` so the live Hostinger static deploy at `resume.thewise.cloud` (no Express in prod) calls Supabase directly. See `Project Atlas/01-Currently Implemented/stability-fixes/phase-8-prod-edge-function-routing.md`. Do NOT revert this to "always relative" — it breaks sign-in on the live site.
 - `server/index.ts` serves `dist/` as static files in production and uses `app.use(...)` SPA fallback for non-API routes.
 
 **Core Features & Implementations:**
