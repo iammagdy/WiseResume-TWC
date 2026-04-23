@@ -1,5 +1,5 @@
 import { captureWithRetry, convertSvgsToImages, tagSvgDimensions } from '@/lib/html2canvasRetry';
-import { PDFDocument, StandardFonts, rgb, PDFFont } from 'pdf-lib';
+import { PDFDocument, StandardFonts, rgb, PDFFont, PDFName, PDFString, PDFArray, PDFPage } from 'pdf-lib';
 import { ResumeData, TemplateId, ContactInfo, PDFOptions } from '@/types/resume';
 import { getTemplateConfig } from '@/lib/templateConfig';
 import { PAGE_FORMAT_PX, generateCustomizationCSS } from '@/lib/templateCustomization';
@@ -82,6 +82,107 @@ function wrapText(
   return lines;
 }
 
+const BRANDING_URL = 'https://resume.thewise.cloud';
+
+/**
+ * Adds a clickable URI annotation to a PDF page at the given rectangle.
+ * No visible border — the annotation is invisible but activates in any PDF reader.
+ */
+function addUriAnnotation(
+  pdfDoc: PDFDocument,
+  page: PDFPage,
+  url: string,
+  lx: number,
+  ly: number,
+  rx: number,
+  ry: number,
+): void {
+  if (lx >= rx || ly >= ry) return;
+  const annot = pdfDoc.context.register(
+    pdfDoc.context.obj({
+      Type: 'Annot',
+      Subtype: 'Link',
+      Rect: [lx, ly, rx, ry],
+      Border: [0, 0, 0],
+      A: {
+        Type: 'Action',
+        S: 'URI',
+        URI: PDFString.of(url),
+      },
+    })
+  );
+  const existingAnnots = page.node.lookup(PDFName.of('Annots'), PDFArray);
+  if (existingAnnots) {
+    existingAnnots.push(annot);
+  } else {
+    page.node.set(PDFName.of('Annots'), pdfDoc.context.obj([annot]));
+  }
+}
+
+/**
+ * Walks the prepared source element for <a href> elements and embeds clickable
+ * URI annotations on the correct PDF pages. Must be called while the element
+ * still has its capture-preparation sizing applied (before cleanup()).
+ *
+ * Coordinate system: DOM y-coords (top=0 at template top) are mapped to PDF
+ * coords (y=0 at page bottom) using globalScaleFactor = pageWidth / sourceWidth.
+ */
+function extractAndEmbedLinkAnnotations(
+  pdfDoc: PDFDocument,
+  sourceElement: HTMLElement,
+  smartBreaks: number[],
+  totalHeight: number,
+  pageWidth: number,
+  pageHeight: number,
+  globalScaleFactor: number,
+): void {
+  const sourceRect = sourceElement.getBoundingClientRect();
+  const anchors = sourceElement.querySelectorAll('a[href]');
+  const numPages = smartBreaks.length + 1;
+
+  anchors.forEach((anchor) => {
+    const href = (anchor as HTMLAnchorElement).getAttribute('href') || '';
+    if (!href || href.startsWith('#')) return;
+    if (
+      !href.startsWith('http://') &&
+      !href.startsWith('https://') &&
+      !href.startsWith('mailto:') &&
+      !href.startsWith('tel:')
+    ) return;
+
+    const domRect = anchor.getBoundingClientRect();
+    const domTop    = domRect.top    - sourceRect.top;
+    const domBottom = domRect.bottom - sourceRect.top;
+    const domLeft   = domRect.left   - sourceRect.left;
+    const domRight  = domRect.right  - sourceRect.left;
+
+    if (domBottom <= 0 || domTop >= totalHeight) return;
+    if (domRect.width <= 0 || domRect.height <= 0) return;
+
+    const pages = pdfDoc.getPages();
+
+    for (let pageNum = 0; pageNum < numPages; pageNum++) {
+      const pageStart = pageNum === 0 ? 0 : smartBreaks[pageNum - 1];
+      const pageEnd   = pageNum >= smartBreaks.length ? totalHeight : smartBreaks[pageNum];
+
+      if (domBottom <= pageStart || domTop >= pageEnd) continue;
+
+      const clampedTop    = Math.max(domTop,    pageStart);
+      const clampedBottom = Math.min(domBottom, pageEnd);
+
+      const pdfLeft   = Math.max(0,         domLeft  * globalScaleFactor);
+      const pdfRight  = Math.min(pageWidth,  domRight * globalScaleFactor);
+      const pdfTop    = pageHeight - (clampedTop    - pageStart) * globalScaleFactor;
+      const pdfBottom = pageHeight - (clampedBottom - pageStart) * globalScaleFactor;
+
+      if (pdfLeft >= pdfRight || pdfBottom >= pdfTop) continue;
+      if (pageNum >= pages.length) continue;
+
+      addUriAnnotation(pdfDoc, pages[pageNum], href, pdfLeft, pdfBottom, pdfRight, pdfTop);
+    }
+  });
+}
+
 /**
  * Adds page footer with page numbers and optional branding badge.
  */
@@ -125,14 +226,22 @@ async function addPageFooter(
     if (showBranding) {
       const brandingText = '• Created with WiseResume · part of The Wise Cloud';
       const brandingWidth = font.widthOfTextAtSize(brandingText, 7);
+      const brandingX = (pageWidth - brandingWidth) / 2;
+      const brandingY = 12;
 
       page.drawText(brandingText, {
-        x: (pageWidth - brandingWidth) / 2,
-        y: 12,
+        x: brandingX,
+        y: brandingY,
         size: 7,
         font,
-        color: rgb(0.55, 0.55, 0.55), // Lighter than page number
+        color: rgb(0.55, 0.55, 0.55),
       });
+
+      addUriAnnotation(
+        pdfDoc, page, BRANDING_URL,
+        brandingX, brandingY - 2,
+        brandingX + brandingWidth, brandingY + 9,
+      );
     }
   }
 }
@@ -493,7 +602,10 @@ export async function generatePDFPages(
     if (textFont && textChunks.length > 0) {
       const pageChunks = chunksForPage(textChunks, pageNum, smartBreaks, totalHeight);
       try {
-        renderDOMTextLayerForPage(page, textFont, pageChunks, pageWidth, pageHeight);
+        renderDOMTextLayerForPage(
+          page, textFont, pageChunks, pageWidth, pageHeight,
+          pageStart, globalScaleFactor, FOOTER_RESERVED_PT,
+        );
       } catch (e) {
         const message = e instanceof TextLayerError ? e.message : String(e);
         throw new PdfGenerationError(
@@ -830,6 +942,11 @@ export async function generatePDF(
     await generatePDFPages(
       pdfDoc, canvas, smartBreaks, totalHeight, globalScaleFactor,
       pageWidth, pageHeight, resume, sourceElement, actualScale,
+    );
+
+    extractAndEmbedLinkAnnotations(
+      pdfDoc, sourceElement, smartBreaks, totalHeight,
+      pageWidth, pageHeight, globalScaleFactor,
     );
 
     onProgress?.('finalizing', 80);

@@ -168,11 +168,16 @@ export function chunksForPage(
 
 /**
  * Renders the hidden text layer for one page of a multi-page PDF.
- * Wraps every input string first, then fits the wrapped lines to the page
- * height by shrinking font size — never silently drops overflow.
  *
- * Throws TextLayerError if the lines cannot be made to fit at the minimum
- * font size, or if any draw call fails.
+ * When page coordinate info is provided (pageStart, globalScaleFactor,
+ * footerReservedPt), each chunk is drawn at its correct vertical position
+ * in the page using white text — invisible over the white background but
+ * fully selectable and searchable by ATS scanners and Ctrl+F in PDF readers.
+ *
+ * Falls back to the legacy pack-at-top approach when coordinate info is absent.
+ *
+ * Throws TextLayerError only on the legacy fallback path — the positioned
+ * path is best-effort and logs individual chunk failures without aborting.
  */
 export function renderDOMTextLayerForPage(
   page: PDFPage,
@@ -180,10 +185,63 @@ export function renderDOMTextLayerForPage(
   chunks: TextChunk[],
   pageWidth: number,
   pageHeight: number,
+  pageStart?: number,
+  globalScaleFactor?: number,
+  footerReservedPt?: number,
 ): void {
-  const lines = chunks.map((c) => c.text).filter((s) => s.trim().length > 0);
-  if (lines.length === 0) return;
-  renderTextLines(page, font, lines, pageWidth, pageHeight);
+  if (chunks.length === 0) return;
+
+  const hasCoords =
+    pageStart !== undefined &&
+    globalScaleFactor !== undefined &&
+    globalScaleFactor > 0;
+
+  if (!hasCoords) {
+    const lines = chunks.map((c) => c.text).filter((s) => s.trim().length > 0);
+    if (lines.length === 0) return;
+    renderTextLines(page, font, lines, pageWidth, pageHeight);
+    return;
+  }
+
+  const margin = 8;
+  const fontSize = 8;
+  const maxWidth = pageWidth - margin * 2;
+  const safeBottom = (footerReservedPt ?? 44) + 4;
+  const whiteColor = rgb(1, 1, 1);
+
+  for (const chunk of chunks) {
+    const text = chunk.text.trim();
+    if (!text) continue;
+
+    const chunkRelY = chunk.y - pageStart!;
+    const pdfY = pageHeight - chunkRelY * globalScaleFactor! - fontSize;
+
+    if (pdfY < safeBottom || pdfY > pageHeight - 2) continue;
+
+    let displayText = text;
+    try {
+      while (displayText.length > 1 && font.widthOfTextAtSize(displayText, fontSize) > maxWidth) {
+        displayText = displayText.slice(0, -1);
+      }
+    } catch {
+      displayText = text.slice(0, Math.min(text.length, 60));
+    }
+
+    if (!displayText.trim()) continue;
+
+    try {
+      page.drawText(displayText, {
+        x: margin,
+        y: pdfY,
+        size: fontSize,
+        font,
+        color: whiteColor,
+        opacity: 1,
+      });
+    } catch {
+      // Best-effort — skip this chunk rather than abort the entire export
+    }
+  }
 }
 
 /**

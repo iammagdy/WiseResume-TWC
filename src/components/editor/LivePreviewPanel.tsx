@@ -291,7 +291,7 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
               >
                 <div className="border-t border-dashed border-destructive/50 w-full" />
                 <span className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white text-destructive text-[9px] font-medium px-1.5 py-0.5 rounded-full shadow-sm whitespace-nowrap">
-                  Page {i + 1} · Page {i + 2}
+                  — Page break —
                 </span>
               </div>
             ))}
