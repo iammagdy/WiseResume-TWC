@@ -41,8 +41,13 @@ export function StyleCustomizationPanel({ open, onOpenChange }: StyleCustomizati
   const patch = useCallback(
     (next: Partial<TemplateCustomization>) => {
       if (!currentResume) return;
-      const base = currentResume.customization ?? getDefaultCustomization();
-      updateResume({ customization: { ...base, ...next } });
+      // IMPORTANT: do NOT fall back to getDefaultCustomization() here.
+      // Doing so would silently inject the default accent color / fonts into
+      // a resume that previously had no customization, which then triggers
+      // the existing accent-override CSS in generateCustomizationCSS and
+      // turns the whole resume blue. Only persist the user's actual choices.
+      const base = (currentResume.customization ?? {}) as TemplateCustomization;
+      updateResume({ customization: { ...base, ...next } as TemplateCustomization });
     },
     [currentResume, updateResume]
   );

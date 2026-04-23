@@ -145,9 +145,11 @@ export function generateCustomizationCSS(c: TemplateCustomization | undefined): 
     [data-resume-template] header {
       text-align: ${c.headerAlign} !important;
     }
+    ${c.headerAlign === 'center' || c.headerAlign === 'right' ? `
     [data-resume-template] header > * {
-      justify-content: ${c.headerAlign === 'center' ? 'center' : c.headerAlign === 'right' ? 'flex-end' : 'flex-start'} !important;
+      justify-content: ${c.headerAlign === 'center' ? 'center' : 'flex-end'} !important;
     }
+    ` : ''}
     ` : ''}
     ${typeof c.fontScale === 'number' ? `
     [data-resume-template] {
