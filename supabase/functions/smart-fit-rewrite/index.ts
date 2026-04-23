@@ -11,18 +11,21 @@ import { logger } from "../_shared/logger.ts";
 
 const log = logger('smart-fit-rewrite');
 
+interface ProtectedTokenIn { text: string; kind: string }
+
 interface RewriteCandidate {
   id: string;
   text: string;
-  preserve: { text: string; kind: string }[];
+  /** Hint from the client. Server extracts its own and unions the two sets. */
+  preserve?: ProtectedTokenIn[];
   targetLength: number;
 }
 
 interface RewriteRequest {
-  /** Defaults to 'rewrite' when omitted. 'telemetry' just records an event
-   *  and returns 200 without consuming credits or calling the model. */
   mode?: 'rewrite' | 'telemetry';
   candidates?: RewriteCandidate[];
+  /** Used server-side to derive JD keywords for protection. */
+  jobDescription?: string;
   telemetry?: TelemetryEvent;
 }
 
@@ -46,17 +49,105 @@ interface TelemetryEvent {
   convergedMs?: number;
 }
 
+interface CandidateOutcome {
+  id: string;
+  text: string;
+  valid: boolean;
+  reason?: string;
+  missingTokens?: string[];
+}
+
 const MAX_PAYLOAD = 100_000;
 const MAX_CANDIDATES = 12;
 
-function findMissing(candidate: string, tokens: { text: string }[]): string[] {
+// ─── Server-side protected token extraction ────────────────────────────────
+// Mirrors the client logic in src/lib/smartFit/protectedTokens.ts. We
+// recompute tokens from each candidate's source text + JD here so the
+// validation contract is enforced server-side and a malicious client can
+// never widen what the AI is allowed to drop.
+
+const NUMBER_RE = /\b\d+(?:[.,]\d+)*\b/g;
+const PERCENT_RE = /\b\d+(?:\.\d+)?%/g;
+const CURRENCY_RE = /[$€£¥]\s?\d+(?:[.,]\d+)*[KMB]?/g;
+const DATE_RE = /\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)[a-z]*\s+\d{4}\b|\b\d{4}\s*[–-]\s*(?:\d{4}|Present|present)\b|\bQ[1-4]\s*\d{4}\b|\b\d{4}\b/g;
+const ACRONYM_RE = /\b[A-Z]{2,}(?:\/[A-Z]{2,})*\b/g;
+
+const TECH_TERMS = [
+  'AWS', 'GCP', 'Azure', 'React', 'Vue', 'Angular', 'Node.js', 'Python',
+  'TypeScript', 'JavaScript', 'Go', 'Rust', 'Java', 'Kotlin', 'Swift',
+  'PostgreSQL', 'Postgres', 'MySQL', 'MongoDB', 'Redis', 'Kafka', 'Docker',
+  'Kubernetes', 'Terraform', 'GraphQL', 'REST', 'gRPC', 'TensorFlow', 'PyTorch',
+];
+
+const JD_STOP_WORDS = new Set([
+  'the', 'and', 'for', 'with', 'you', 'are', 'our', 'this', 'that', 'will',
+  'have', 'has', 'from', 'your', 'their', 'they', 'them', 'these', 'those',
+  'who', 'what', 'when', 'where', 'why', 'how', 'work', 'team', 'role',
+  'about', 'into', 'over', 'such', 'each', 'some', 'more', 'than', 'also',
+]);
+
+function uniqMerge(out: ProtectedTokenIn[], add: ProtectedTokenIn[]): void {
+  const seen = new Set(out.map(t => t.text.toLowerCase()));
+  for (const t of add) {
+    const k = t.text.toLowerCase();
+    if (!seen.has(k)) { out.push(t); seen.add(k); }
+  }
+}
+
+function extractFromText(text: string): ProtectedTokenIn[] {
+  const tokens: ProtectedTokenIn[] = [];
+  for (const m of text.matchAll(NUMBER_RE)) tokens.push({ text: m[0], kind: 'number' });
+  for (const m of text.matchAll(PERCENT_RE)) tokens.push({ text: m[0], kind: 'percent' });
+  for (const m of text.matchAll(CURRENCY_RE)) tokens.push({ text: m[0], kind: 'currency' });
+  for (const m of text.matchAll(DATE_RE)) tokens.push({ text: m[0], kind: 'date' });
+  for (const m of text.matchAll(ACRONYM_RE)) tokens.push({ text: m[0], kind: 'acronym' });
+  const lower = text.toLowerCase();
+  for (const term of TECH_TERMS) {
+    if (lower.includes(term.toLowerCase())) tokens.push({ text: term, kind: 'tech' });
+  }
+  // De-dupe.
+  const out: ProtectedTokenIn[] = [];
+  uniqMerge(out, tokens);
+  return out;
+}
+
+function extractJdKeywords(jd: string): ProtectedTokenIn[] {
+  if (!jd) return [];
+  const words = jd.match(/\b[A-Za-z][A-Za-z+#.-]{2,}\b/g) ?? [];
+  const counts = new Map<string, number>();
+  for (const w of words) {
+    const lower = w.toLowerCase();
+    if (JD_STOP_WORDS.has(lower) || lower.length < 4) continue;
+    counts.set(w, (counts.get(w) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .filter(([, c]) => c >= 2)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 30)
+    .map(([text]) => ({ text, kind: 'jd-keyword' }));
+}
+
+function serverProtectedTokens(
+  candidate: RewriteCandidate,
+  jdTokens: ProtectedTokenIn[],
+): ProtectedTokenIn[] {
+  const out: ProtectedTokenIn[] = [];
+  uniqMerge(out, extractFromText(candidate.text));
+  uniqMerge(out, candidate.preserve ?? []);
+  // JD tokens count only if they appear in this candidate's source text.
+  const lower = candidate.text.toLowerCase();
+  uniqMerge(out, jdTokens.filter(t => lower.includes(t.text.toLowerCase())));
+  return out;
+}
+
+function findMissing(candidate: string, tokens: ProtectedTokenIn[]): string[] {
   const lower = candidate.toLowerCase();
   return tokens.filter(t => !lower.includes(t.text.toLowerCase())).map(t => t.text);
 }
 
-function buildPrompt(candidates: RewriteCandidate[], strict: boolean): string {
+function buildPrompt(candidates: RewriteCandidate[], serverPreserve: Map<string, ProtectedTokenIn[]>, strict: boolean): string {
   const lines = candidates.map((c, i) => {
-    const preserved = c.preserve.map(p => `"${p.text}"`).join(', ') || '(none)';
+    const preserved = (serverPreserve.get(c.id) ?? []).map(p => `"${p.text}"`).join(', ') || '(none)';
     return [
       `--- Candidate ${i + 1} (id: ${c.id}) ---`,
       `Original (${c.text.length} chars):`,
@@ -81,28 +172,42 @@ function buildPrompt(candidates: RewriteCandidate[], strict: boolean): string {
   ].join('\n');
 }
 
-function validateAndSanitize(
+function buildOutcomes(
   rewrites: unknown,
   candidates: RewriteCandidate[],
-): { id: string; text: string }[] {
-  if (!Array.isArray(rewrites)) return [];
-  const byId = new Map<string, RewriteCandidate>();
-  for (const c of candidates) byId.set(c.id, c);
-  const out: { id: string; text: string }[] = [];
-  for (const r of rewrites) {
-    if (!r || typeof r !== 'object') continue;
-    const obj = r as Record<string, unknown>;
-    if (typeof obj.id !== 'string' || typeof obj.text !== 'string') continue;
-    const cand = byId.get(obj.id);
-    if (!cand) continue;
-    const text = obj.text.trim();
-    if (!text) continue;
-    const missing = findMissing(text, cand.preserve);
-    if (missing.length > 0) continue; // fail closed
-    if (text.length >= cand.text.length) continue; // must actually shorten
-    out.push({ id: cand.id, text });
+  serverPreserve: Map<string, ProtectedTokenIn[]>,
+): CandidateOutcome[] {
+  const byId = new Map<string, { id: string; text: string }>();
+  if (Array.isArray(rewrites)) {
+    for (const r of rewrites) {
+      if (!r || typeof r !== 'object') continue;
+      const obj = r as Record<string, unknown>;
+      if (typeof obj.id === 'string' && typeof obj.text === 'string') {
+        byId.set(obj.id, { id: obj.id, text: obj.text.trim() });
+      }
+    }
   }
-  return out;
+  return candidates.map(c => {
+    const r = byId.get(c.id);
+    if (!r || !r.text) {
+      return { id: c.id, text: c.text, valid: false, reason: 'AI did not return a rewrite for this sentence.' };
+    }
+    if (r.text.length >= c.text.length) {
+      return { id: c.id, text: r.text, valid: false, reason: 'AI rewrite was not shorter than the original.' };
+    }
+    const tokens = serverPreserve.get(c.id) ?? [];
+    const missing = findMissing(r.text, tokens);
+    if (missing.length > 0) {
+      return {
+        id: c.id,
+        text: r.text,
+        valid: false,
+        reason: `AI dropped ${missing.length} protected ${missing.length === 1 ? 'token' : 'tokens'}: ${missing.slice(0, 3).join(', ')}`,
+        missingTokens: missing,
+      };
+    }
+    return { id: c.id, text: r.text, valid: true };
+  });
 }
 
 Deno.serve(async (req) => {
@@ -123,15 +228,10 @@ Deno.serve(async (req) => {
     }
     const parsed: RewriteRequest = JSON.parse(bodyText);
 
-    // Telemetry mode — log the event and return without touching credits or
-    // calling the model. The wizard fires these on analyze/apply/undo to
-    // give us stage-reached + acceptance-rate observability.
     if (parsed.mode === 'telemetry') {
       const tele = parsed.telemetry || { outcome: 'analyzed' };
-      // Lightweight per-user rate limit so a misbehaving client can't spam.
       const teleRate = await checkUserRateLimit(userId, 'smart_fit_telemetry', 60, 60);
       if (!teleRate.allowed) {
-        // Silently no-op on rate limit — telemetry must never bubble back to UX.
         return new Response(JSON.stringify({ success: true, recorded: false }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
@@ -145,10 +245,17 @@ Deno.serve(async (req) => {
     const candidates = (parsed.candidates ?? []).slice(0, MAX_CANDIDATES);
     if (candidates.length === 0) {
       return new Response(
-        JSON.stringify({ success: true, rewrites: [] }),
+        JSON.stringify({ success: true, outcomes: [] }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
+
+    // Recompute protected tokens server-side. This is the trust boundary —
+    // even if the client sends an empty `preserve` array, the server still
+    // rejects rewrites that drop numbers, dates, JD keywords, etc.
+    const jdTokens = extractJdKeywords(parsed.jobDescription ?? '');
+    const serverPreserve = new Map<string, ProtectedTokenIn[]>();
+    for (const c of candidates) serverPreserve.set(c.id, serverProtectedTokens(c, jdTokens));
 
     const rate = await checkRateLimit(userId, {
       maxRequests: 20,
@@ -178,7 +285,7 @@ Deno.serve(async (req) => {
     }
 
     const callOnce = async (strict: boolean) => {
-      const prompt = buildPrompt(candidates, strict);
+      const prompt = buildPrompt(candidates, serverPreserve, strict);
       const ai = await callAI({
         model: __ROUTE.model,
         wiseresumeSubProvider: __ROUTE.provider,
@@ -187,30 +294,31 @@ Deno.serve(async (req) => {
         userId,
       });
       const json = parseAIJSON(ai.content || '{}');
-      const rewrites = validateAndSanitize(
+      const outcomes = buildOutcomes(
         (json && typeof json === 'object' && (json as Record<string, unknown>).rewrites) || [],
         candidates,
+        serverPreserve,
       );
-      return { ai, rewrites };
+      return { ai, outcomes };
     };
 
-    let attempt: { ai: Awaited<ReturnType<typeof callAI>>; rewrites: { id: string; text: string }[] };
+    let attempt: { ai: Awaited<ReturnType<typeof callAI>>; outcomes: CandidateOutcome[] };
     try {
       attempt = await callOnce(false);
-      // If at least one candidate failed validation, retry once with strict prompt
-      if (attempt.rewrites.length < candidates.length) {
-        const missingIds = candidates
-          .filter(c => !attempt.rewrites.some(r => r.id === c.id))
-          .map(c => c.id);
+      // Retry strictly for any candidate whose first-pass outcome was invalid.
+      const invalidIds = attempt.outcomes.filter(o => !o.valid).map(o => o.id);
+      if (invalidIds.length > 0) {
         log.info('partial validation pass — retrying strictly', {
-          userId, missingIds, total: candidates.length,
+          userId, invalidIds, total: candidates.length,
         });
         const retry = await callOnce(true);
-        // Merge: keep the first-pass winners, add retry winners only if first lacks them.
-        const seen = new Set(attempt.rewrites.map(r => r.id));
-        for (const r of retry.rewrites) {
-          if (!seen.has(r.id)) attempt.rewrites.push(r);
-        }
+        // Replace any first-pass invalid outcome with the retry's outcome
+        // (which itself may still be invalid — that's surfaced to the UI).
+        const retryById = new Map(retry.outcomes.map(o => [o.id, o]));
+        attempt = {
+          ai: retry.ai,
+          outcomes: attempt.outcomes.map(o => o.valid ? o : (retryById.get(o.id) ?? o)),
+        };
       }
     } catch (err) {
       await refundCredit(userId, credit, 1);
@@ -222,13 +330,13 @@ Deno.serve(async (req) => {
       userId,
       provider: attempt.ai.providerUsed,
       candidates: candidates.length,
-      validated: attempt.rewrites.length,
+      validated: attempt.outcomes.filter(o => o.valid).length,
     });
 
     return new Response(
       JSON.stringify({
         success: true,
-        rewrites: attempt.rewrites,
+        outcomes: attempt.outcomes,
         provider: attempt.ai.providerUsed || null,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },

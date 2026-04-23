@@ -41,7 +41,7 @@ import { runSmartFit, applySmartFitPlan } from '@/lib/smartFit/orchestrator';
 import { convergeSmartFitPlan, type ConvergeProgress } from '@/lib/smartFit/converge';
 import { buildDiffHighlight, type HighlightSegment } from '@/lib/smartFit/diffHighlight';
 import type { SmartFitPlan, SmartFitSelection, LayoutFitProposal } from '@/lib/smartFit/types';
-import { edgeFunctions } from '@/lib/edgeFunctions';
+import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 
 interface SmartFitWizardSheetProps {
   open: boolean;
@@ -68,11 +68,8 @@ function emptySelection(): SmartFitSelection {
   return { rewrites: new Set(), drops: new Set(), collapses: new Set(), layoutFit: false };
 }
 
-/**
- * Char-count fallback if the offscreen template hasn't finished mounting
- * by the measure deadline. Mirrors the heuristic used by the
- * `one-page-optimizer` edge function so client + server agree.
- */
+/** Char-count fallback if the offscreen template hasn't finished mounting
+ *  by the measure deadline. Divisor must match orchestrator's CHARS_PER_PAGE. */
 function estimatePagesFromContent(resume: ResumeData | null): number {
   if (!resume) return 1;
   let charCount = 0;
@@ -122,10 +119,7 @@ export function SmartFitWizardSheet({
   const [isApplying, setIsApplying] = useState(false);
   const previousResumeRef = useRef<ResumeData | null>(null);
 
-  // ── Scratch resume + measurement ────────────────────────────────────
-  // We mount a SECOND offscreen template controlled by `scratchResume`.
-  // The convergence loop calls `measureScratch(altResume)` to render any
-  // hypothetical resume, wait for layout, and read back the page count.
+  // Scratch container for hypothetical-resume measurement during convergence.
   const [scratchResume, setScratchResume] = useState<ResumeData | null>(null);
   const scratchElRef = useRef<HTMLElement | null>(null);
   const pdfModRef = useRef<typeof import('@/lib/pdfGenerator') | null>(null);
@@ -169,16 +163,10 @@ export function SmartFitWizardSheet({
     if (targetPagesProp) setTargetPages(targetPagesProp);
   }, [targetPagesProp]);
 
-  /**
-   * Render `alt` into the scratch container, wait two RAFs + a 60ms layout-
-   * settle window, then synchronously measure the rendered height. Falls
-   * back to the char-count heuristic only if the DOM isn't reachable.
-   */
   const measureScratch = useCallback(async (alt: ResumeData): Promise<number> => {
     setScratchResume(alt);
-    // Two RAFs lets React commit AND lets the browser paint the new layout.
+    // Two RAFs (React commit + browser paint) plus a small settle window.
     await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())));
-    // Small settle window for fonts / async template content.
     await new Promise(r => setTimeout(r, 60));
     const el = scratchElRef.current;
     const mod = pdfModRef.current;
@@ -205,7 +193,6 @@ export function SmartFitWizardSheet({
     setConvergeProgress(null);
     const analyzeStart = performance.now();
     try {
-      // Wait for the offscreen template to mount + finish layout.
       let liveMeasurement = exportApi.measure();
       const deadline = performance.now() + 5000;
       while (!liveMeasurement && performance.now() < deadline) {
@@ -217,10 +204,9 @@ export function SmartFitWizardSheet({
       setAnalyzeStage('scoring');
       await new Promise(r => setTimeout(r, 50));
 
-      // Stage 0 is run inside `convergeSmartFitPlan`. We give the
-      // orchestrator the *unscaled* current page count so its char-savings
-      // heuristic stays pessimistic (better to over-propose edits and
-      // let convergence prune than under-propose and miss the target).
+      // Layout stage runs inside convergeSmartFitPlan. We pass the unscaled
+      // page count so the orchestrator's char-savings heuristic stays
+      // pessimistic — better to over-propose and let convergence prune.
       setAnalyzeStage('asking-ai');
       const result = await executeAI(async () => {
         return runSmartFit({
@@ -233,10 +219,6 @@ export function SmartFitWizardSheet({
       });
       if (!result) { setView('intro'); return; }
 
-      // ── Convergence loop ──────────────────────────────────────────
-      // Apply edits one at a time, re-measuring after each, until the
-      // target page count is reached. This is what makes the headline
-      // promise (exact N pages) actually true.
       setAnalyzeStage('converging');
       let convResult;
       try {
@@ -263,8 +245,6 @@ export function SmartFitWizardSheet({
         stillOverflowing: convResult?.stillOverflowing ?? result.stillOverflowing,
       };
 
-      // Default selection = convergence recommendation if available; else
-      // every validated rewrite + every drop + every collapse.
       const defaultSel: SmartFitSelection = convResult?.recommended ?? {
         rewrites: new Set(result.rewrites.filter(r => r.validated).map(r => r.id)),
         drops: new Set(result.drops.map(d => d.id)),
@@ -275,7 +255,6 @@ export function SmartFitWizardSheet({
       setPlan(finalPlan);
       setView('results');
 
-      // Telemetry — fire-and-forget so a slow request never blocks the UX.
       void postTelemetry({
         outcome: 'analyzed',
         targetPages,
@@ -325,7 +304,6 @@ export function SmartFitWizardSheet({
         }
       }
       let merged = applySmartFitPlan(currentResume, plan, selection);
-      // Apply the layout-fit fontScale if accepted.
       if (selection.layoutFit && plan.layoutFit) {
         merged = {
           ...merged,
@@ -339,7 +317,6 @@ export function SmartFitWizardSheet({
       haptics.success?.();
       void rescoreAfterApply(merged);
 
-      // Re-measure after apply (gives us the "actually achieved" count).
       const finalPages = await measureScratch(merged);
 
       void postTelemetry({
@@ -412,7 +389,7 @@ export function SmartFitWizardSheet({
           <AIProviderVia className="mt-0.5" />
         </SheetHeader>
 
-        {/* Hidden offscreen render for the BASELINE measurement (current resume). */}
+        {/* Baseline measurement container (current resume). */}
         {open && currentResume && (
           <div
             aria-hidden
@@ -434,8 +411,7 @@ export function SmartFitWizardSheet({
           </div>
         )}
 
-        {/* Hidden offscreen render for SCRATCH measurement (hypothetical resumes
-            tested by the convergence loop). */}
+        {/* Scratch container for convergence-loop hypothetical measurements. */}
         {open && scratchResume && (
           <div
             aria-hidden
@@ -645,7 +621,6 @@ async function postTelemetry(payload: TelemetryPayload): Promise<void> {
       body: { mode: 'telemetry', telemetry: payload },
     });
   } catch (e) {
-    // Telemetry MUST never affect user-facing flows — log and forget.
     console.warn('[SmartFit] telemetry failed (non-blocking)', e);
   }
 }
@@ -728,7 +703,6 @@ function LayoutFitCard({
 function RewriteCard({
   rewrite, selected, onToggle,
 }: { rewrite: SmartFitPlan['rewrites'][number]; selected: boolean; onToggle: () => void }) {
-  // Build the protected-token-aware diff once per rewrite.
   const { before: beforeSegs, after: afterSegs } = useMemo(
     () => buildDiffHighlight(rewrite.before, rewrite.after, rewrite.preserved),
     [rewrite.before, rewrite.after, rewrite.preserved],

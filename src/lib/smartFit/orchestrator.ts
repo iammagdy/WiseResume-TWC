@@ -37,23 +37,30 @@ export interface SmartFitInput {
   /** When false, every AI-rewrite proposal is skipped — useful in tests
    *  and as a fallback when the rewrite endpoint is unavailable. */
   enableRewrite?: boolean;
-  /** Override the AI rewrite request (test seam). Resolves with one rewrite
-   *  per input candidate; rewrites that come back with `null` are skipped. */
-  rewriteFn?: (candidates: RewriteRequest[]) => Promise<(RewriteResponse | null)[]>;
+  /** Override the AI rewrite request (test seam). Resolves with one outcome
+   *  per input candidate. Invalid outcomes still produce a card so the user
+   *  can see why the rewrite was rejected. */
+  rewriteFn?: (candidates: RewriteRequest[], jobDescription?: string) => Promise<RewriteOutcome[]>;
 }
 
 export interface RewriteRequest {
   id: string;
   text: string;
-  /** Protected tokens that must appear verbatim in the rewrite. */
+  /** Hint for the server. The server recomputes its own protected-token
+   *  set from the source text + JD and unions it with this hint. */
   preserve: ProtectedToken[];
   /** Soft target length in characters. */
   targetLength: number;
 }
 
-export interface RewriteResponse {
+export interface RewriteOutcome {
   id: string;
   text: string;
+  valid: boolean;
+  reason?: string;
+  /** Tokens the server detected as missing — used to populate the
+   *  preserved-chip list on the card so the user can see what was at risk. */
+  missingTokens?: string[];
 }
 
 /**
@@ -93,6 +100,7 @@ export async function runSmartFit(input: SmartFitInput): Promise<SmartFitPlan> {
       scored,
       protectedTokens,
       charsToRecover,
+      jobDescription,
       rewriteFn: input.rewriteFn ?? defaultRewriteFn,
     });
     const charsRecoveredFromRewrites = rewrites
@@ -136,13 +144,11 @@ interface RunRewriteArgs {
   scored: ScoredSentenceWithIndex[];
   protectedTokens: ProtectedToken[];
   charsToRecover: number;
-  rewriteFn: (candidates: RewriteRequest[]) => Promise<(RewriteResponse | null)[]>;
+  jobDescription?: string;
+  rewriteFn: (candidates: RewriteRequest[], jobDescription?: string) => Promise<RewriteOutcome[]>;
 }
 
 async function runRewriteStage(args: RunRewriteArgs): Promise<SentenceRewriteProposal[]> {
-  // Pick the top-K candidates that are long enough to be worth shortening
-  // and whose protected-token density doesn't already cap them at their
-  // current length.
   const candidates = args.scored
     .filter(s => s.length >= MIN_REWRITE_LENGTH + 20)
     .filter(s => s.score > 30)
@@ -154,40 +160,50 @@ async function runRewriteStage(args: RunRewriteArgs): Promise<SentenceRewritePro
     id: c.id,
     text: c.text,
     preserve: tokensInText(c.text, args.protectedTokens),
-    // Soft target: aim to halve the overflow contribution of this sentence,
-    // but never below MIN_REWRITE_LENGTH.
     targetLength: Math.max(MIN_REWRITE_LENGTH, Math.round(c.length * 0.7)),
   }));
 
-  let responses: (RewriteResponse | null)[];
+  let outcomes: RewriteOutcome[];
   try {
-    responses = await args.rewriteFn(requests);
+    outcomes = await args.rewriteFn(requests, args.jobDescription);
   } catch (err) {
     console.warn('[smartFit] rewrite stage failed; skipping', err);
     return [];
   }
 
+  const byId = new Map(outcomes.map(o => [o.id, o] as const));
   const out: SentenceRewriteProposal[] = [];
   for (let i = 0; i < candidates.length; i++) {
     const cand = candidates[i];
-    const resp = responses[i];
-    if (!resp || !resp.text) continue;
-    const after = resp.text.trim();
-    // Require the AI to actually shorten — same/longer rewrites are skipped.
-    if (after.length >= cand.text.length) continue;
-    const missing = findMissingTokens(after, requests[i].preserve);
+    const outcome = byId.get(cand.id);
+    if (!outcome) continue;
+    // Defence in depth: re-validate the server's verdict against our local
+    // token set. If our local extractor finds a token the server missed,
+    // we still mark the card invalid.
+    const localMissing = outcome.valid
+      ? findMissingTokens(outcome.text, requests[i].preserve)
+      : [];
+    const validated = outcome.valid && localMissing.length === 0;
+    let validationReason: string | undefined;
+    if (!validated) {
+      const missingNames = (outcome.missingTokens ?? localMissing.map(t => t.text)).slice(0, 3);
+      validationReason = outcome.reason
+        ?? (missingNames.length > 0
+          ? `AI dropped protected ${missingNames.length === 1 ? 'token' : 'tokens'}: ${missingNames.join(', ')}`
+          : 'AI rewrite was rejected.');
+    }
     out.push({
       id: cand.id,
       location: cand.location,
       sentenceIndex: cand.sentenceIndex,
       before: cand.text,
-      after,
+      after: outcome.text,
       preserved: requests[i].preserve,
-      validated: missing.length === 0,
-      validationReason: missing.length > 0
-        ? `AI dropped ${missing.length} protected ${missing.length === 1 ? 'token' : 'tokens'}: ${missing.slice(0, 3).map(m => m.text).join(', ')}`
-        : undefined,
-      reason: `Top-scoring long sentence in ${describeLocation(cand)}.`,
+      validated,
+      validationReason,
+      reason: validated
+        ? `Top-scoring long sentence in ${describeLocation(cand)}.`
+        : `Kept original — ${describeLocation(cand)} (${validationReason}).`,
     });
   }
   return out;
@@ -202,35 +218,29 @@ function describeLocation(s: ScoredSentenceWithIndex): string {
   }
 }
 
-/**
- * Default rewrite function — POSTs to the smart-fit-rewrite edge function
- * via the existing /api/fn proxy. Fails closed: if the endpoint is missing
- * or returns a non-OK response, returns nulls so the orchestrator skips
- * the rewrite stage cleanly.
- */
+/** POST to the smart-fit-rewrite edge function. Fails closed: on transport
+ *  error, returns "AI didn't respond" outcomes so the user still sees a
+ *  per-sentence card explaining why no rewrite was offered. */
 async function defaultRewriteFn(
   candidates: RewriteRequest[],
-): Promise<(RewriteResponse | null)[]> {
-  // Lazy-import to keep the orchestrator's surface tree-shakeable in tests.
+  jobDescription?: string,
+): Promise<RewriteOutcome[]> {
   const { edgeFunctions } = await import('@/integrations/supabase/edgeFunctions');
+  const fallback = (reason: string): RewriteOutcome[] =>
+    candidates.map(c => ({ id: c.id, text: c.text, valid: false, reason }));
   try {
     const { data, error } = await edgeFunctions.functions.invoke('smart-fit-rewrite', {
-      body: { candidates },
+      body: { candidates, jobDescription },
     });
-    if (error || !data?.success || !Array.isArray(data.rewrites)) {
-      return candidates.map(() => null);
+    if (error || !data?.success || !Array.isArray(data.outcomes)) {
+      return fallback('AI rewrite endpoint unavailable.');
     }
-    const byId = new Map<string, string>();
-    for (const r of data.rewrites as { id: string; text: string }[]) {
-      if (typeof r.id === 'string' && typeof r.text === 'string') byId.set(r.id, r.text);
-    }
-    return candidates.map(c => {
-      const text = byId.get(c.id);
-      return text ? { id: c.id, text } : null;
-    });
+    return (data.outcomes as RewriteOutcome[]).filter(
+      o => o && typeof o.id === 'string' && typeof o.text === 'string',
+    );
   } catch (err) {
     console.warn('[smartFit] rewrite endpoint unavailable; skipping AI stage', err);
-    return candidates.map(() => null);
+    return fallback('AI rewrite endpoint unavailable.');
   }
 }
 

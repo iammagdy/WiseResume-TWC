@@ -7,27 +7,16 @@ export type HighlightSegment =
   | { kind: 'removed'; text: string }
   | { kind: 'protected'; text: string; tokenKind: ProtectedToken['kind'] };
 
-/**
- * Produce a render-ready diff between `before` and `after`, with every
- * occurrence of a protected token wrapped as its own `protected` segment
- * so the UI can highlight it green. This is the "verifiable diff" the
- * spec requires — the user can visually confirm that every protected
- * token is preserved verbatim in the rewrite.
- *
- * Algorithm:
- *  1. Run a word-level diff (LCS) to get added/removed/unchanged spans.
- *  2. For each unchanged or added span, walk it and split at every
- *     protected-token boundary (longest tokens first to avoid one token
- *     being eaten by another's prefix).
- */
+/** Word-level diff with every protected-token occurrence wrapped as its
+ *  own `protected` segment so the UI can highlight it. Tokens are matched
+ *  longest-first to keep e.g. "Q4 2024" intact rather than splitting into
+ *  "Q4" + "2024". */
 export function buildDiffHighlight(
   before: string,
   after: string,
   protectedTokens: ProtectedToken[],
 ): { before: HighlightSegment[]; after: HighlightSegment[] } {
   const diffs: TextDiff[] = diffText(before, after);
-  // diffText splits on /\s+/ and joins back without spaces, so we re-insert
-  // a single space between adjacent same-kind words for display.
   const beforeSegs: HighlightSegment[] = [];
   const afterSegs: HighlightSegment[] = [];
 
@@ -64,11 +53,7 @@ function splitProtected(
   if (!text || protectedTokens.length === 0) {
     return [{ kind: fallbackKind, text }];
   }
-  // Sort by length desc so longer tokens (e.g. "Q4 2024") win over their
-  // shorter substrings ("2024").
   const sorted = [...protectedTokens].sort((a, b) => b.text.length - a.text.length);
-
-  // Mark intervals [start, end, tokenKind] that match a protected token.
   type Interval = { start: number; end: number; kind: ProtectedToken['kind'] };
   const taken: Interval[] = [];
   const lower = text.toLowerCase();
@@ -79,7 +64,6 @@ function splitProtected(
     while (from < lower.length) {
       const idx = lower.indexOf(needle, from);
       if (idx === -1) break;
-      // Skip if this range overlaps an already-taken (longer) token.
       const overlaps = taken.some(iv => idx < iv.end && idx + needle.length > iv.start);
       if (!overlaps) {
         taken.push({ start: idx, end: idx + needle.length, kind: t.kind });

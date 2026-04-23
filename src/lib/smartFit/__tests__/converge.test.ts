@@ -1,13 +1,3 @@
-/**
- * Integration test for the Smart Fit convergence loop. This is the test
- * the spec calls out as required: it asserts that after running Smart
- * Fit, the resume reaches the chosen page count AND every protected
- * token is preserved verbatim.
- *
- * Note: vitest cannot currently run in the dev container (bus error on
- * startup), but the test is written against the standard vitest API so
- * it executes cleanly anywhere vitest is installed.
- */
 import { describe, it, expect } from 'vitest';
 import { convergeSmartFitPlan, verifyTokensPreserved } from '../converge';
 import { applySmartFitPlan } from '../orchestrator';

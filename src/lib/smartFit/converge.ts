@@ -12,17 +12,8 @@ import type {
   ProtectedToken,
 } from './types';
 
-/** Difference under which two scales are considered equal — keeps us from
- *  proposing a layout fit that doesn't actually change anything. */
 const SCALE_EPSILON = 0.005;
-
-/** Minimum absolute reduction in measured pages required to keep a content
- *  edit during convergence. Anything below this is considered a no-op
- *  (e.g. AI rewrite that didn't actually shrink rendered height). */
 const MIN_PAGE_DELTA = 0.0;
-
-/** Maximum number of layout-fit refinement passes — text re-wrap at smaller
- *  font sizes is non-linear so a single projection isn't always enough. */
 const MAX_LAYOUT_ITERATIONS = 3;
 
 export interface MeasureFn {
@@ -63,18 +54,10 @@ export interface ConvergeResult {
 }
 
 /**
- * Drive a measurement-anchored convergence loop that applies edits in
- * priority order — layout first, then content stages — and re-measures
- * after each application. We stop the moment `measure(resume) ≤ target`.
- *
- * This is the function that makes Smart Fit's headline promise true:
- * "after clicking Smart Fit, the resume reaches exactly the chosen page
- * count" (assuming the available edits add up to enough vertical space).
- *
+ * Apply edits in priority order (layout → rewrites → drops → collapses) and
+ * re-measure after each application. Stops as soon as `measure(resume) ≤ target`.
  * Edits that don't actually reduce measured pages are dropped from the
- * recommended selection — even if the orchestrator's char-savings
- * heuristic predicted they would help. This keeps the user-facing plan
- * minimal and honest.
+ * recommendation, so the surfaced plan is the minimal set that hits the target.
  */
 export async function convergeSmartFitPlan(args: ConvergeArgs): Promise<ConvergeResult> {
   const { resume, plan, targetPages, measure, onProgress } = args;
@@ -98,10 +81,7 @@ export async function convergeSmartFitPlan(args: ConvergeArgs): Promise<Converge
   const recommended = emptySelection();
   let layoutFit: LayoutFitProposal | undefined;
 
-  // ── Stage 0: layout fit ──────────────────────────────────────────────
-  // Try to bring the page count down by shrinking `customization.fontScale`
-  // alone. This is a deterministic, content-preserving step — we always
-  // try it first because it costs no AI credits and never alters wording.
+  // Stage 0: layout fit (deterministic, content-preserving).
   const layoutResult = await tryLayoutFit({
     resume: workingResume,
     targetPages,
@@ -119,11 +99,7 @@ export async function convergeSmartFitPlan(args: ConvergeArgs): Promise<Converge
     }
   }
 
-  // ── Stage 1: rewrites (validated only, in score order) ───────────────
-  // The orchestrator already ranked rewrites by source-sentence score
-  // (longest, most filler-heavy first). We accept them one at a time and
-  // re-measure; if a rewrite doesn't reduce the page count we drop it
-  // from the recommendation.
+  // Stage 1: rewrites (validated only, in score order).
   const validRewrites = plan.rewrites.filter(r => r.validated);
   for (let i = 0; i < validRewrites.length; i++) {
     if (workingPages <= targetPages) break;
@@ -136,7 +112,6 @@ export async function convergeSmartFitPlan(args: ConvergeArgs): Promise<Converge
       workingResume = candidate;
       workingPages = pagesAfter;
     } else {
-      // No-op edit — revert the recommendation.
       recommended.rewrites.delete(r.id);
     }
   }
@@ -147,7 +122,7 @@ export async function convergeSmartFitPlan(args: ConvergeArgs): Promise<Converge
     return { finalPages: workingPages, recommended, layoutFit, trace, stillOverflowing: false };
   }
 
-  // ── Stage 2: bullet drops ────────────────────────────────────────────
+  // Stage 2: bullet drops.
   for (let i = 0; i < plan.drops.length; i++) {
     if (workingPages <= targetPages) break;
     const d = plan.drops[i];
@@ -169,7 +144,7 @@ export async function convergeSmartFitPlan(args: ConvergeArgs): Promise<Converge
     return { finalPages: workingPages, recommended, layoutFit, trace, stillOverflowing: false };
   }
 
-  // ── Stage 3: section collapses ──────────────────────────────────────
+  // Stage 3: section collapses.
   for (let i = 0; i < plan.collapses.length; i++) {
     if (workingPages <= targetPages) break;
     const c = plan.collapses[i];
@@ -210,11 +185,8 @@ interface TryLayoutFitResult {
   pagesAfter: number;
 }
 
-/**
- * Iteratively refine `customization.fontScale` to bring page count toward
- * the target. Mirrors `useFitToPages`'s linear projection but driven by
- * real measurement instead of one-shot height-then-update.
- */
+/** Iteratively refine `customization.fontScale` toward the target page count
+ *  using a linear projection refined by real measurement (max 3 passes). */
 async function tryLayoutFit(args: TryLayoutFitArgs): Promise<TryLayoutFitResult | null> {
   const { resume, targetPages, measure, onProgress } = args;
   const startScale = resume.customization?.fontScale ?? 1;
@@ -228,7 +200,6 @@ async function tryLayoutFit(args: TryLayoutFitArgs): Promise<TryLayoutFitResult 
   let bestPages = workingPages;
 
   for (let iter = 0; iter < MAX_LAYOUT_ITERATIONS; iter++) {
-    // Linear projection — same math as useFitToPages.
     const projected = currentScale * (targetPages / Math.max(1, workingPages));
     const clamped = Math.max(COMPACT_SCALE_MIN, Math.min(AUTO_FIT_SCALE_MAX, projected));
     if (Math.abs(clamped - currentScale) < SCALE_EPSILON) break;
@@ -238,8 +209,6 @@ async function tryLayoutFit(args: TryLayoutFitArgs): Promise<TryLayoutFitResult 
     };
     const pagesAfter = await measure(candidate);
     onProgress?.({ stage: 'layout', tested: iter + 1, total: MAX_LAYOUT_ITERATIONS, pages: pagesAfter });
-
-    // Always remember the best (smallest pages, ties: largest scale).
     if (pagesAfter < bestPages || (pagesAfter === bestPages && clamped > bestScale)) {
       bestPages = pagesAfter;
       bestScale = clamped;
@@ -250,8 +219,6 @@ async function tryLayoutFit(args: TryLayoutFitArgs): Promise<TryLayoutFitResult 
     if (pagesAfter <= targetPages) break;
   }
 
-  // No-op if layout didn't actually help OR if the best scale is essentially
-  // the same as the starting scale.
   if (bestPages >= startPages || Math.abs(bestScale - startScale) < SCALE_EPSILON) {
     return null;
   }
@@ -277,12 +244,8 @@ function emptySelection(): SmartFitSelection {
   return { rewrites: new Set(), drops: new Set(), collapses: new Set() };
 }
 
-/**
- * Final invariant check — after applying the plan, every protected token
- * collected from the *original* resume must still appear somewhere in the
- * resulting resume's text. Used by the integration test (and could be
- * wired to a runtime assertion in dev builds).
- */
+/** Invariant check: every protected token from the original resume must
+ *  still appear in the merged resume after the plan is applied. */
 export function verifyTokensPreserved(
   before: ResumeData,
   after: ResumeData,
