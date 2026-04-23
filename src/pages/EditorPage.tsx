@@ -1283,7 +1283,7 @@ export default function EditorPage() {
                   className="editor-scroll-container flex-1 overflow-y-auto px-4 py-4 pb-4 space-y-0"
                   ref={scrollContainerRef}
                 >
-                  <EditorScrollForm {...editorScrollFormProps} />
+                  <EditorScrollForm key={currentResumeId ?? 'no-resume'} {...editorScrollFormProps} />
                 </div>
               </div>
             </div>
@@ -1349,7 +1349,7 @@ export default function EditorPage() {
               className="editor-scroll-container flex-1 overflow-y-auto px-4 py-4 pb-4 space-y-0"
               ref={scrollContainerRef}
             >
-              <EditorScrollForm {...editorScrollFormProps} />
+              <EditorScrollForm key={currentResumeId ?? 'no-resume'} {...editorScrollFormProps} />
             </div>
           </div>
         </div>

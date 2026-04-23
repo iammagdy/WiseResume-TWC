@@ -86,11 +86,12 @@ export const SectionCard = memo(function SectionCard({
             )}
           </div>
 
-          {/* AI action — stopPropagation so clicking it doesn't toggle the header */}
+          {/* AI action — stop click + keyboard propagation so it never toggles the header */}
           {action && (
             <div
               className="shrink-0 pr-3 flex items-center min-h-[44px]"
               onClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => e.stopPropagation()}
             >
               {action}
             </div>
