@@ -3107,14 +3107,19 @@ app.post('/api/export/pdf-native', requireAuthHeader, async (req: AuthedRequest,
     // This prevents an authenticated but malicious user from reading internal services.
     await page.setRequestInterception(true);
     const _SSRF_BLOCKED_PATTERNS = [
-      /^https?:\/\/169\.254\./,           // AWS/GCP/Azure link-local metadata
-      /^https?:\/\/metadata\./,            // generic metadata hostnames
-      /^https?:\/\/10\./,                  // RFC-1918 private range
-      /^https?:\/\/172\.(1[6-9]|2\d|3[01])\./, // RFC-1918 private range
-      /^https?:\/\/192\.168\./,            // RFC-1918 private range
-      /^https?:\/\/127\./,                 // loopback
-      /^https?:\/\/\[::1\]/,              // IPv6 loopback
-      /^https?:\/\/0\.0\.0\.0/,           // INADDR_ANY
+      /^https?:\/\/169\.254\./,                    // AWS/GCP/Azure link-local metadata
+      /^https?:\/\/metadata\./,                    // generic metadata hostnames
+      /^https?:\/\/10\./,                          // RFC-1918 private range
+      /^https?:\/\/172\.(1[6-9]|2\d|3[01])\./,    // RFC-1918 private range
+      /^https?:\/\/192\.168\./,                    // RFC-1918 private range
+      /^https?:\/\/127\./,                         // IPv4 loopback
+      /^https?:\/\/localhost([:/]|$)/i,            // localhost hostname
+      /^https?:\/\/[^/]*\.localhost([:/]|$)/i,     // *.localhost subdomains
+      /^https?:\/\/\[::1\]/,                       // IPv6 loopback
+      /^https?:\/\/\[fc00:/i,                      // IPv6 unique-local (fc00::/7)
+      /^https?:\/\/\[fd[0-9a-f]{2}:/i,            // IPv6 unique-local (fd00::/8)
+      /^https?:\/\/\[fe80:/i,                      // IPv6 link-local
+      /^https?:\/\/0\.0\.0\.0/,                   // INADDR_ANY
     ];
     page.on('request', (request) => {
       const url = request.url();
