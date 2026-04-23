@@ -3212,9 +3212,15 @@ async function getSharedBrowser(): Promise<import('puppeteer').Browser> {
   }
 
   const { default: puppeteer } = await import('puppeteer');
+  // Allow operators to point at a system-installed Chrome / Chromium instead
+  // of the one Puppeteer downloads to ~/.cache/puppeteer. Useful on hosts
+  // where the cache directory is ephemeral or where chromium is provided by
+  // the OS package manager (NixOS, Docker images, etc.).
+  const explicitChromePath = process.env.PUPPETEER_EXECUTABLE_PATH || undefined;
   _browserLaunching = puppeteer
     .launch({
       headless: true,
+      executablePath: explicitChromePath,
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',

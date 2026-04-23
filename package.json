@@ -21,7 +21,8 @@
     "db:studio": "drizzle-kit studio",
     "db:generate": "drizzle-kit generate",
     "preview:emails": "node scripts/preview-waitlist-emails.mjs",
-    "db:check-drift": "node scripts/check-supabase-migration-drift.mjs"
+    "db:check-drift": "node scripts/check-supabase-migration-drift.mjs",
+    "postinstall": "node scripts/ensure-puppeteer-chrome.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.0.2",
