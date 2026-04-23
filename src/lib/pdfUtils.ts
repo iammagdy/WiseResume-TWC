@@ -203,6 +203,44 @@ export function estimatePageCount(
   return Math.ceil(totalHeight / sourceHeightPerPage);
 }
 
+/**
+ * Merges user-forced section breaks into an existing smart-break array.
+ * For each section name in manualBreakSections, queries [data-section="<name>"]
+ * and inserts its offsetTop as a forced break, replacing any nearby smart break
+ * (within MIN_GAP px) so there are never two breaks too close together.
+ *
+ * Uses the same offsetTop-relative coordinate system as computePreviewBreaks
+ * so live-preview and PDF coordinates stay in sync.
+ */
+export function injectForcedBreaks(
+  smartBreaks: number[],
+  sourceElement: HTMLElement,
+  manualBreakSections: string[],
+  totalHeight: number,
+): number[] {
+  if (!manualBreakSections || !manualBreakSections.length) return smartBreaks;
+
+  const MIN_GAP = 40;
+  const forced: number[] = [];
+
+  for (const name of manualBreakSections) {
+    const el = sourceElement.querySelector(`[data-section="${name}"]`) as HTMLElement | null;
+    if (!el) continue;
+    const y = getOffsetTopRelative(el, sourceElement);
+    if (y > MIN_GAP && y < totalHeight - MIN_GAP) {
+      forced.push(y);
+    }
+  }
+
+  if (forced.length === 0) return smartBreaks;
+
+  const filtered = smartBreaks.filter(sb =>
+    !forced.some(fb => Math.abs(fb - sb) < MIN_GAP)
+  );
+
+  return [...filtered, ...forced].sort((a, b) => a - b);
+}
+
 /** Typed error class for programmatic handling of PDF generation failures. */
 export class PdfGenerationError extends Error {
   code: 'EMPTY_CANVAS' | 'MISSING_ELEMENT' | 'CAPTURE_FAILED' | 'TRUNCATED_CANVAS' | 'UNKNOWN';

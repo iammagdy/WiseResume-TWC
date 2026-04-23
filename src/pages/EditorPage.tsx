@@ -216,7 +216,7 @@ export default function EditorPage() {
     try {
       const { generatePDF } = await import('@/lib/pdfGenerator');
       const { downloadFile } = await import('@/lib/downloadUtils');
-      const pdfBlob = await generatePDF(currentResume, selectedTemplate, null, undefined, { showPageNumbers: true });
+      const pdfBlob = await generatePDF(currentResume, selectedTemplate, null, currentResume.customization?.manualPageBreaks, { showPageNumbers: true });
       const fileName = `${currentResume.contactInfo?.fullName?.replace(/\s+/g, '_') || 'Resume'}_Resume.pdf`;
       await downloadFile({ blob: pdfBlob, fileName, mimeType: 'application/pdf' });
       haptics.success();
@@ -325,10 +325,10 @@ export default function EditorPage() {
         } else if (type === 'combined') {
           const { generatedCoverLetter } = useResumeStore.getState();
           if (!generatedCoverLetter) { toast.error('Generate a cover letter first'); return; }
-          pdfBlob = await generateCombinedPDF(currentResume, selectedTemplate, generatedCoverLetter, null, undefined, pdfOptions);
+          pdfBlob = await generateCombinedPDF(currentResume, selectedTemplate, generatedCoverLetter, null, currentResume.customization?.manualPageBreaks, pdfOptions);
           fileName = `${baseName}_Application_Package.pdf`;
         } else {
-          pdfBlob = await generatePDF(currentResume, selectedTemplate, null, undefined, pdfOptions, onProgress);
+          pdfBlob = await generatePDF(currentResume, selectedTemplate, null, currentResume.customization?.manualPageBreaks, pdfOptions, onProgress);
           fileName = `${baseName}_Resume.pdf`;
         }
 

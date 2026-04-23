@@ -119,6 +119,8 @@ export interface TemplateCustomization {
   margins: 'narrow' | 'normal' | 'wide';
   lineHeight: 'single' | '1.15' | '1.5' | 'double';
   pageFormat: 'a4' | 'letter';
+  /** Section names (matching data-section attribute values) to force a page break BEFORE. */
+  manualPageBreaks?: string[];
 }
 
 export interface ParseMeta {

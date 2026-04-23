@@ -14,6 +14,7 @@ import {
   TextLayerError,
   type TextChunk,
 } from '@/lib/pdfTextLayer';
+import { injectForcedBreaks } from '@/lib/pdfUtils';
 
 /** Typed error class for programmatic handling of PDF generation failures. */
 export class PdfGenerationError extends Error {
@@ -889,7 +890,7 @@ export async function generatePDF(
   resume: ResumeData,
   templateId: TemplateId,
   templateElement?: HTMLElement | null,
-  _manualBreakSections?: string[],
+  manualBreakSections?: string[],
   options?: PDFOptions,
   onProgress?: OnProgressCallback,
   _customBreakPositions?: number[]
@@ -940,13 +941,20 @@ export async function generatePDF(
       actualScale,
     );
 
+    const finalBreaks = injectForcedBreaks(
+      smartBreaks,
+      sourceElement,
+      resume.customization?.manualPageBreaks ?? manualBreakSections ?? [],
+      totalHeight,
+    );
+
     await generatePDFPages(
-      pdfDoc, canvas, smartBreaks, totalHeight, globalScaleFactor,
+      pdfDoc, canvas, finalBreaks, totalHeight, globalScaleFactor,
       pageWidth, pageHeight, resume, sourceElement, actualScale,
     );
 
     extractAndEmbedLinkAnnotations(
-      pdfDoc, sourceElement, smartBreaks, totalHeight,
+      pdfDoc, sourceElement, finalBreaks, totalHeight,
       pageWidth, pageHeight, globalScaleFactor,
     );
 
@@ -1171,7 +1179,7 @@ export async function generateCombinedPDF(
   templateId: TemplateId,
   coverLetter: string,
   templateElement?: HTMLElement | null,
-  _manualBreakSections?: string[],
+  manualBreakSections?: string[],
   options?: PDFOptions,
   onProgress?: OnProgressCallback,
   _customBreakPositions?: number[]
@@ -1189,7 +1197,7 @@ export async function generateCombinedPDF(
     resume,
     templateId,
     templateElement,
-    undefined,
+    manualBreakSections,
     { showPageNumbers: false },
     onProgress,
     undefined

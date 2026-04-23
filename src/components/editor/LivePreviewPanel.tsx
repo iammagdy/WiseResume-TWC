@@ -1,9 +1,9 @@
 import { memo, useState, useCallback, Suspense, useRef, CSSProperties, useEffect } from 'react';
-import { ZoomIn, ZoomOut, Eye, EyeOff, X, Scissors } from 'lucide-react';
+import { ZoomIn, ZoomOut, Eye, EyeOff, X, Scissors, SeparatorHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useResumeStore } from '@/store/resumeStore';
 import { applyCustomizationCSS, generateCustomizationCSS } from '@/lib/templateCustomization';
-import { computePreviewBreaks, estimatePageCount, getPageDimensionsForFormat } from '@/lib/pdfUtils';
+import { computePreviewBreaks, estimatePageCount, getPageDimensionsForFormat, injectForcedBreaks } from '@/lib/pdfUtils';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TemplateId, ResumeData } from '@/types/resume';
@@ -69,6 +69,7 @@ interface LivePreviewPanelProps {
 export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, className, highlightSection }: LivePreviewPanelProps) {
   const currentResume = useResumeStore(s => s.currentResume);
   const selectedTemplate = useResumeStore(s => s.selectedTemplate);
+  const updateResume = useResumeStore(s => s.updateResume);
 
   // Debounce the resume passed to the template by ~100ms so bursts of
   // keystrokes coalesce into a single re-render of the (heavy) template tree.
@@ -114,7 +115,10 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
     const format = currentResume?.customization?.pageFormat || 'letter';
     const { pageWidth, pageHeight } = getPageDimensionsForFormat(format);
     const update = () => {
-      const breaks = computePreviewBreaks(el, pageWidth, pageHeight);
+      const smartBreaks = computePreviewBreaks(el, pageWidth, pageHeight);
+      const manualSections = currentResume?.customization?.manualPageBreaks ?? [];
+      const totalHeight = el.scrollHeight || el.offsetHeight;
+      const breaks = injectForcedBreaks(smartBreaks, el, manualSections, totalHeight);
       setPageBreaks(breaks);
       setPageCount(estimatePageCount(el, pageWidth, pageHeight));
     };
@@ -128,7 +132,8 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
     };
     // Key off the debounced render snapshot so page-break recalculation
     // happens at the same cadence as the actual template re-render.
-  }, [debouncedResume, selectedTemplate]);
+    // Also re-run when manualPageBreaks changes so forced breaks update immediately.
+  }, [debouncedResume, selectedTemplate, currentResume?.customization?.manualPageBreaks]);
 
   const toggleSection = useCallback((section: string) => {
     setHiddenSections(prev => {
@@ -138,6 +143,17 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
       return next;
     });
   }, []);
+
+  const toggleBreakBefore = useCallback((section: string) => {
+    if (!currentResume) return;
+    const current = currentResume.customization?.manualPageBreaks ?? [];
+    const next = current.includes(section)
+      ? current.filter(s => s !== section)
+      : [...current, section];
+    updateResume({
+      customization: { ...currentResume.customization, manualPageBreaks: next } as typeof currentResume.customization,
+    });
+  }, [currentResume, updateResume]);
 
 
   if (!currentResume || !TemplateComponent) return null;
@@ -222,23 +238,40 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
         </div>
       </div>
 
-      {/* Section visibility toggles */}
+      {/* Section visibility + page-break toggles */}
       {showSectionToggles && activeSections.length > 0 && (
         <div className="shrink-0 flex flex-wrap gap-1.5 px-3 py-2 border-b border-border bg-background/60">
-          {activeSections.map(section => (
-            <button
-              key={section}
-              onClick={() => { toggleSection(section); haptics.light(); }}
-              className={cn(
-                'px-2.5 py-1 rounded-full text-xs font-medium transition-colors touch-manipulation active:scale-95 min-h-[36px]',
-                hiddenSections.has(section)
-                  ? 'bg-muted text-muted-foreground line-through'
-                  : 'bg-primary/10 text-primary'
-              )}
-            >
-              {SECTION_LABELS[section]}
-            </button>
-          ))}
+          {activeSections.map(section => {
+            const isHidden = hiddenSections.has(section);
+            const hasBreak = (currentResume.customization?.manualPageBreaks ?? []).includes(section);
+            return (
+              <div key={section} className="flex items-center">
+                <button
+                  onClick={() => { toggleSection(section); haptics.light(); }}
+                  className={cn(
+                    'px-2.5 py-1 rounded-l-full text-xs font-medium transition-colors touch-manipulation active:scale-95 min-h-[36px]',
+                    isHidden
+                      ? 'bg-muted text-muted-foreground line-through'
+                      : 'bg-primary/10 text-primary'
+                  )}
+                >
+                  {SECTION_LABELS[section]}
+                </button>
+                <button
+                  onClick={() => { toggleBreakBefore(section); haptics.light(); }}
+                  title={`${hasBreak ? 'Remove' : 'Force'} page break before ${SECTION_LABELS[section]}`}
+                  className={cn(
+                    'px-1.5 py-1 rounded-r-full text-xs transition-colors touch-manipulation active:scale-95 min-h-[36px] border-l',
+                    hasBreak
+                      ? 'bg-destructive/10 text-destructive border-destructive/20'
+                      : 'bg-primary/10 text-primary/40 border-primary/20 hover:text-primary hover:bg-primary/20'
+                  )}
+                >
+                  <SeparatorHorizontal className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            );
+          })}
         </div>
       )}
 
