@@ -2,24 +2,54 @@
  * Symmetric AES-GCM encryption for BYOK API keys stored in user_api_keys.
  *
  * Reads the 64-char hex key from API_KEY_ENCRYPTION_SECRET. If the secret is
- * missing, encrypt/decrypt both throw an Error with code 'encryption_not_configured'.
+ * missing OR contains non-hex characters, encrypt/decrypt both throw an Error
+ * with `code === 'encryption_not_configured'` so callers can surface a clear
+ * user-facing message without revealing internal details.
  *
- * Format: base64(iv[12] ++ ciphertext)
+ * Strict hex validation is intentional: parseInt silently coerces invalid chars
+ * to NaN→0, which would produce an unintended AES key and make all ciphertext
+ * permanently unrecoverable once the secret is corrected. We reject loudly.
+ *
+ * Wire format: base64(iv[12] ++ ciphertext)
  */
 
 const ALG = { name: 'AES-GCM', length: 256 };
 const IV_BYTES = 12;
+const HEX_SECRET_RE = /^[0-9a-fA-F]{64}$/;
+
+/**
+ * Typed error thrown when the encryption secret is missing or invalid.
+ * Using a plain class (no `as any`) so the `code` field is fully typed.
+ */
+class EncryptionConfigError extends Error {
+  readonly code = 'encryption_not_configured';
+  constructor(reason: string) {
+    super(
+      `API_KEY_ENCRYPTION_SECRET ${reason}. ` +
+      'BYOK key storage is unavailable until this secret is correctly configured.',
+    );
+    this.name = 'EncryptionConfigError';
+  }
+}
 
 function getSecretKey(): Uint8Array {
   const raw = Deno.env.get('API_KEY_ENCRYPTION_SECRET') ?? '';
-  if (!raw || raw.length !== 64) {
-    const err = new Error(
-      'API_KEY_ENCRYPTION_SECRET is not set or is not a 64-character hex string. ' +
-      'BYOK is unavailable until this secret is configured.',
-    );
-    (err as any).code = 'encryption_not_configured';
-    throw err;
+
+  if (!raw) {
+    throw new EncryptionConfigError('is not set');
   }
+
+  // Strict hex validation: length must be exactly 64 and every character must
+  // be a valid hex digit. parseInt('xy', 16) silently returns NaN which
+  // Uint8Array coerces to 0, silently corrupting the key.
+  if (!HEX_SECRET_RE.test(raw)) {
+    throw new EncryptionConfigError(
+      raw.length !== 64
+        ? `must be a 64-character hex string (got ${raw.length} chars)`
+        : 'contains non-hexadecimal characters',
+    );
+  }
+
   const bytes = new Uint8Array(32);
   for (let i = 0; i < 32; i++) {
     bytes[i] = parseInt(raw.slice(i * 2, i * 2 + 2), 16);
