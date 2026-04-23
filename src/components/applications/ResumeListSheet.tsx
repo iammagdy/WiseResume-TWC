@@ -59,14 +59,19 @@ export function ResumeListSheet({ open, onOpenChange, filter }: ResumeListSheetP
     e.stopPropagation();
     haptics.light();
     try {
-      const { generatePDF } = await import('@/lib/pdfGenerator');
+      const { exportResumePdfFromData } = await import('@/lib/exportResumePdf');
       const { downloadFile } = await import('@/lib/downloadUtils');
       const resumeData = dbToResumeData(resume);
-      const blob = await generatePDF(resumeData, (resume.template_id || 'modern') as TemplateId);
+      const blob = await exportResumePdfFromData(
+        resumeData,
+        (resume.template_id || 'modern') as TemplateId,
+        { showPageNumbers: true, showBranding: true },
+      );
       const fileName = `${resumeData.contactInfo.fullName || resume.title}_Resume.pdf`.replace(/\s+/g, '_');
       await downloadFile({ blob, fileName });
       toast.success('PDF downloaded');
-    } catch {
+    } catch (e) {
+      console.error('[ResumeListSheet] PDF download failed', e);
       toast.error('Failed to download PDF');
     }
   };

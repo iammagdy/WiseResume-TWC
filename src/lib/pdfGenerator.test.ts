@@ -1,7 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
-  generatePDF,
-  generateOnePagePDF,
   estimatePageCount,
   getTemplateSourceElement,
   calculatePDFDimensions,
@@ -118,24 +116,6 @@ describe("pdfGenerator", () => {
     vi.clearAllMocks();
   });
 
-  describe("generatePDF", () => {
-    it("should generate a PDF blob", async () => {
-      const resumeData: any = { contactInfo: {} };
-      const blob = await generatePDF(resumeData, "modern", mockElement);
-
-      expect(blob).toBeInstanceOf(Blob);
-      expect(html2canvas).toHaveBeenCalledWith(mockElement, expect.any(Object));
-      expect(pdfLib.PDFDocument.create).toHaveBeenCalled();
-    });
-
-    it("should handle missing template element by throwing error", async () => {
-      document.body.innerHTML = "";
-      const resumeData: any = { contactInfo: {} };
-
-      await expect(generatePDF(resumeData, "modern", null)).rejects.toThrow("Resume template not found");
-    });
-  });
-
   describe("estimatePageCount", () => {
     it("should return 1 for short content", () => {
       vi.spyOn(window, "getComputedStyle").mockReturnValue({
@@ -202,58 +182,6 @@ describe("pdfGenerator", () => {
       await generatePDFPages(pdfDoc, canvas, smartBreaks, totalHeight, globalScaleFactor);
 
       expect(addPageSpy).toHaveBeenCalledTimes(2);
-    });
-  });
-
-  // ===== TPL-2 capture safety guards =====
-
-  describe("TPL-2 truncation guard (0.98 ratio + retry at scale=1)", () => {
-    it("retries at scale=1 when first capture is truncated and succeeds", async () => {
-      // scrollHeight=1000 → expected@scale=2 = 2000; truncated returns 1500 (75%).
-      // Retry at scale=1 → expected = 1000; full canvas returned.
-      Object.defineProperty(mockElement, 'scrollHeight', { value: 1000, configurable: true });
-      Object.defineProperty(mockElement, 'offsetWidth', { value: 612, configurable: true });
-
-      const truncated = document.createElement('canvas');
-      truncated.width = 1224;
-      truncated.height = 1500; // 75% of 2000 → below 0.98 → forces retry
-      const fullScale1 = document.createElement('canvas');
-      fullScale1.width = 612;
-      fullScale1.height = 1000; // 100% of expected at scale=1
-      // Make toDataURL safe on these canvases
-      truncated.toDataURL = vi.fn().mockReturnValue('data:image/png;base64,a');
-      fullScale1.toDataURL = vi.fn().mockReturnValue('data:image/png;base64,b');
-
-      (html2canvas as any)
-        .mockResolvedValueOnce(truncated)
-        .mockResolvedValueOnce(fullScale1);
-
-      const blob = await generatePDF({ contactInfo: {} } as any, "modern", mockElement);
-      expect(blob).toBeInstanceOf(Blob);
-      expect((html2canvas as any).mock.calls.length).toBeGreaterThanOrEqual(2);
-      // Second call should request scale=1
-      const secondCallOpts = (html2canvas as any).mock.calls[1][1];
-      expect(secondCallOpts.scale).toBe(1);
-    });
-
-    it("throws TRUNCATED_CANVAS when the retry at scale=1 is also truncated", async () => {
-      Object.defineProperty(mockElement, 'scrollHeight', { value: 1000, configurable: true });
-      Object.defineProperty(mockElement, 'offsetWidth', { value: 612, configurable: true });
-
-      const truncated2x = document.createElement('canvas');
-      truncated2x.width = 1224;
-      truncated2x.height = 1000; // 50% of expected at scale=2
-      const truncated1x = document.createElement('canvas');
-      truncated1x.width = 612;
-      truncated1x.height = 500; // 50% of expected at scale=1
-
-      (html2canvas as any)
-        .mockResolvedValueOnce(truncated2x)
-        .mockResolvedValueOnce(truncated1x);
-
-      await expect(
-        generatePDF({ contactInfo: {} } as any, "modern", mockElement)
-      ).rejects.toMatchObject({ name: 'PdfGenerationError', code: 'TRUNCATED_CANVAS' });
     });
   });
 
@@ -355,64 +283,4 @@ describe("pdfGenerator", () => {
     });
   });
 
-  describe("TPL-2 one-page raster-area ceiling", () => {
-    it("caps dynamic scale below 5 for very tall content and emits a soft-output warning", async () => {
-      // Force a tall element so fitScale << 1 and ideal scale is huge.
-      Object.defineProperty(mockElement, 'scrollHeight', { value: 4000, configurable: true });
-      Object.defineProperty(mockElement, 'offsetWidth', { value: 612, configurable: true });
-      Object.defineProperty(mockElement, 'offsetHeight', { value: 4000, configurable: true });
-
-      // Always return a "large enough" canvas so the truncation guard passes.
-      (html2canvas as any).mockImplementation((_el: any, opts: any) => {
-        const canvas = document.createElement('canvas');
-        canvas.width = Math.round(612 * (opts.scale || 1));
-        canvas.height = Math.round(4000 * (opts.scale || 1));
-        canvas.toDataURL = vi.fn().mockReturnValue('data:image/png;base64,a');
-        return Promise.resolve(canvas);
-      });
-
-      const warnings: string[] = [];
-      const onProgress = vi.fn((_stage, _pct, warning) => {
-        if (warning) warnings.push(warning);
-      });
-
-      await generateOnePagePDF({ contactInfo: {} } as any, "modern", mockElement, undefined, onProgress);
-
-      // Sourcearea = 612*4000 ≈ 2.45M; max scale by 14M area cap ≈ sqrt(14M/2.45M) ≈ 2.39
-      const requestedScale = (html2canvas as any).mock.calls[0][1].scale;
-      expect(requestedScale).toBeLessThanOrEqual(2.5);
-      expect(requestedScale).toBeLessThan(5); // confirm the legacy hard-coded ceiling is gone
-      expect(requestedScale).toBeGreaterThan(0);
-      // With this geometry, 2.39 > 2 so no warning expected
-      expect(warnings.length).toBe(0);
-    });
-
-    it("warns when the area cap forces dynamic scale below 2", async () => {
-      // Make the element extremely tall so even the area cap forces scale<2.
-      // sourceArea = 612 * 12000 = 7.34M → maxScaleByArea = sqrt(14M/7.34M) ≈ 1.38
-      Object.defineProperty(mockElement, 'scrollHeight', { value: 12000, configurable: true });
-      Object.defineProperty(mockElement, 'offsetWidth', { value: 612, configurable: true });
-      Object.defineProperty(mockElement, 'offsetHeight', { value: 12000, configurable: true });
-
-      (html2canvas as any).mockImplementation((_el: any, opts: any) => {
-        const canvas = document.createElement('canvas');
-        canvas.width = Math.round(612 * (opts.scale || 1));
-        canvas.height = Math.round(12000 * (opts.scale || 1));
-        canvas.toDataURL = vi.fn().mockReturnValue('data:image/png;base64,a');
-        return Promise.resolve(canvas);
-      });
-
-      const warnings: string[] = [];
-      const onProgress = vi.fn((_stage, _pct, warning) => {
-        if (warning) warnings.push(warning);
-      });
-
-      await generateOnePagePDF({ contactInfo: {} } as any, "modern", mockElement, undefined, onProgress);
-
-      const requestedScale = (html2canvas as any).mock.calls[0][1].scale;
-      expect(requestedScale).toBeLessThan(2);
-      expect(warnings.length).toBeGreaterThan(0);
-      expect(warnings[0]).toMatch(/soft|two-page/i);
-    });
-  });
 });
