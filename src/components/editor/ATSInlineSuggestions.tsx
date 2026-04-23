@@ -1,5 +1,5 @@
 import { memo, useState, useCallback, useEffect } from 'react';
-import { ChevronDown, ChevronUp, X, Zap, AlertTriangle, Info, Sparkles, Check, Loader2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, X, Zap, AlertTriangle, Info, Sparkles, Check, Loader2, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -19,6 +19,8 @@ interface ATSInlineSuggestionsProps {
   deepResult?: DeepResult;
   onApplyDeep?: (improved: unknown) => void;
   onDiscardDeep?: () => void;
+  hasJobDescription?: boolean;
+  onRequestJobDescription?: () => void;
 }
 
 const priorityConfig = {
@@ -37,6 +39,8 @@ export const ATSInlineSuggestions = memo(function ATSInlineSuggestions({
   deepResult,
   onApplyDeep,
   onDiscardDeep,
+  hasJobDescription = true,
+  onRequestJobDescription,
 }: ATSInlineSuggestionsProps) {
   const [isOpen, setIsOpen] = useState(true);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
@@ -192,25 +196,45 @@ export const ATSInlineSuggestions = memo(function ATSInlineSuggestions({
               </div>
             )}
 
-            {/* Deep Analyze CTA */}
+            {/* Deep Analyze CTA — swap to Add-JD prompt when no JD attached */}
             {!deepResult && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-full text-xs mt-1"
-                onClick={() => {
-                  haptics.light();
-                  onDeepAnalyze(section);
-                }}
-                disabled={isAnalyzing}
-              >
-                {isAnalyzing ? (
-                  <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                ) : (
-                  <Sparkles className="w-3.5 h-3.5 mr-1.5" />
-                )}
-                {isAnalyzing ? 'Analyzing…' : 'Deep Analyze'}
-              </Button>
+              hasJobDescription ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full text-xs mt-1"
+                  onClick={() => {
+                    haptics.light();
+                    onDeepAnalyze(section);
+                  }}
+                  disabled={isAnalyzing}
+                >
+                  {isAnalyzing ? (
+                    <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                  ) : (
+                    <Sparkles className="w-3.5 h-3.5 mr-1.5" />
+                  )}
+                  {isAnalyzing ? 'Analyzing…' : 'Deep Analyze'}
+                </Button>
+              ) : (
+                <div className="mt-1 rounded-lg border border-dashed border-primary/30 bg-primary/5 p-2.5 space-y-2">
+                  <p className="text-[11px] text-muted-foreground leading-snug">
+                    Deep Analyze tailors this section to a specific job. Add a job description to enable it.
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full text-xs"
+                    onClick={() => {
+                      haptics.light();
+                      onRequestJobDescription?.();
+                    }}
+                  >
+                    <FileText className="w-3.5 h-3.5 mr-1.5" />
+                    Add a job description to enable Deep Analyze
+                  </Button>
+                </div>
+              )
             )}
           </div>
         </CollapsibleContent>

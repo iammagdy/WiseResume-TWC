@@ -242,7 +242,8 @@ export function useATSSuggestions(resume: ResumeData | null, jobDescription: str
 
   const fetchDeepSuggestions = useCallback(async (section: SectionId) => {
     if (!jobDescription || !jobDescription.trim()) {
-      toast.error('Please add a job description first to use Deep Analyze');
+      // Silent no-op — UI now surfaces an inline "Add a job description" CTA
+      // that opens the Tailor sheet, so this code path should be unreachable.
       return;
     }
 

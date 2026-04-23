@@ -69,6 +69,7 @@ export interface EditorScrollFormProps {
   deepResults: Record<string, DeepResult | undefined>;
   handleApplyDeep: (section: string, improved: unknown) => void;
   clearDeepResult: (section: SectionId) => void;
+  onRequestJobDescription: () => void;
   onActiveSectionChange: (sectionId: string) => void;
   scrollContainerRef: React.RefObject<HTMLDivElement>;
 }
@@ -87,6 +88,7 @@ export function EditorScrollForm({
   deepResults,
   handleApplyDeep,
   clearDeepResult,
+  onRequestJobDescription,
   onActiveSectionChange,
   scrollContainerRef,
 }: EditorScrollFormProps) {
@@ -174,7 +176,7 @@ export function EditorScrollForm({
       <section ref={setSectionRef('summary')} data-section-id="summary">
         <SectionCard icon={AlignLeft} title="Professional Summary" tip="Write 2–4 sentences about your experience and what you're looking for" status={getSectionStatus(sectionScores.summary)} action={<SectionAIAction section="summary" />}>
           <Suspense fallback={<SummarySectionSkeleton />}><SummarySection /></Suspense>
-          <ATSInlineSuggestions section="summary" suggestions={getATSSuggestions('summary')} isAnalyzing={isAnalyzingSection('summary')} onDeepAnalyze={fetchDeepSuggestions} deepResult={deepResults['summary']} onApplyDeep={(improved) => handleApplyDeep('summary', improved)} onDiscardDeep={() => clearDeepResult('summary')} />
+          <ATSInlineSuggestions section="summary" suggestions={getATSSuggestions('summary')} isAnalyzing={isAnalyzingSection('summary')} onDeepAnalyze={fetchDeepSuggestions} deepResult={deepResults['summary']} onApplyDeep={(improved) => handleApplyDeep('summary', improved)} onDiscardDeep={() => clearDeepResult('summary')} hasJobDescription={!!jobDescription?.trim()} onRequestJobDescription={onRequestJobDescription} />
         </SectionCard>
       </section>
 
@@ -182,7 +184,7 @@ export function EditorScrollForm({
       <section ref={setSectionRef('experience')} data-section-id="experience">
         <SectionCard icon={Briefcase} title="Work Experience" tip="Add your most recent job first — click an entry to expand and edit it" status={getSectionStatus(sectionScores.experience)} action={<SectionAIAction section="experience" />}>
           <Suspense fallback={<ExperienceSectionSkeleton />}><ExperienceSection /></Suspense>
-          <ATSInlineSuggestions section="experience" suggestions={getATSSuggestions('experience')} isAnalyzing={isAnalyzingSection('experience')} onDeepAnalyze={fetchDeepSuggestions} deepResult={deepResults['experience']} onApplyDeep={(improved) => handleApplyDeep('experience', improved)} onDiscardDeep={() => clearDeepResult('experience')} />
+          <ATSInlineSuggestions section="experience" suggestions={getATSSuggestions('experience')} isAnalyzing={isAnalyzingSection('experience')} onDeepAnalyze={fetchDeepSuggestions} deepResult={deepResults['experience']} onApplyDeep={(improved) => handleApplyDeep('experience', improved)} onDiscardDeep={() => clearDeepResult('experience')} hasJobDescription={!!jobDescription?.trim()} onRequestJobDescription={onRequestJobDescription} />
         </SectionCard>
       </section>
 

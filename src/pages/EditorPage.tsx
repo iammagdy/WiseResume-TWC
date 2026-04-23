@@ -963,6 +963,7 @@ export default function EditorPage() {
     deepResults,
     handleApplyDeep,
     clearDeepResult,
+    onRequestJobDescription: handleTailor,
   } as const;
 
   // EditorScrollForm props — used in desktop scrollable layout
@@ -978,6 +979,7 @@ export default function EditorPage() {
     deepResults,
     handleApplyDeep,
     clearDeepResult,
+    onRequestJobDescription: handleTailor,
     onActiveSectionChange: handleDesktopSectionChange,
     scrollContainerRef,
   } as const;
