@@ -41,9 +41,16 @@ export default defineConfig({
   webServer: process.env.E2E_NO_WEBSERVER
     ? undefined
     : {
-        command: 'echo "Using existing dev server on ' + BASE_URL + '"',
+        // Auto-start the full dev stack (Express API + Vite frontend on
+        // port 5000) if no server is already responding on baseURL.
+        // `reuseExistingServer: true` short-circuits when the workflow
+        // already has it up, so this is a no-op in the normal Replit
+        // development case but still satisfies CI / cold-boot runs.
+        command: 'npm run server:dev & npm run dev',
         url: BASE_URL,
         reuseExistingServer: true,
-        timeout: 5_000,
+        timeout: 120_000,
+        stdout: 'ignore',
+        stderr: 'pipe',
       },
 });

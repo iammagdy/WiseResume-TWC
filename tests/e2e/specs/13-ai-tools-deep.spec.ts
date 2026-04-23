@@ -1,4 +1,4 @@
-import type { Response } from '@playwright/test';
+import type { Page, Response } from '@playwright/test';
 import { test, expect } from '../fixtures/auth-required';
 import { attachObservers, DEMO_JOB_DESCRIPTION } from '../fixtures/observers';
 
@@ -15,7 +15,7 @@ interface DeepAssertion {
   responseValidator?: (body: string) => string | null; // returns failure reason or null
 }
 
-async function awaitEdgeFn(page: any, regex: RegExp, timeoutMs = 90_000): Promise<Response> {
+async function awaitEdgeFn(page: Page, regex: RegExp, timeoutMs = 90_000): Promise<Response> {
   return page.waitForResponse(
     (res: Response) => regex.test(res.url()) && res.request().method() !== 'OPTIONS',
     { timeout: timeoutMs },
