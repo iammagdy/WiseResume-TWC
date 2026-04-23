@@ -1,4 +1,4 @@
-import { captureFeedback, getLastSentryEventId } from './captureErrorShim';
+import { captureFeedback } from './captureErrorShim';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { supabase } from '@/integrations/supabase/safeClient';
 
