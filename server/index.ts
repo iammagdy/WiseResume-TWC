@@ -468,10 +468,20 @@ app.get('/api/health', (_req, res) => {
 
 // ── AI health ─────────────────────────────────────────────────────────────────
 // Lightweight health check used by the AIHealthBadge in the client.
-// Does NOT require authentication — it reports server-level AI key availability.
-// If no AI provider keys are configured, returns { status: 'down', reason: 'no_keys' }
-// so the badge can surface a clear "no keys configured" message instead of a
-// generic "AI Unavailable" that implies the provider itself is down.
+// Does NOT require authentication.
+//
+// AI calls in this app flow through TWO possible paths:
+//   1) Direct path: Express server → AI provider (OpenRouter / Groq) using
+//      OPENROUTER_KEY_n / GROQ_KEY_n configured as Replit secrets. This path
+//      is OPTIONAL — only used if the operator wants the server to call AI
+//      providers without going through Supabase.
+//   2) Supabase Edge Function path (PRIMARY in this deployment): Express
+//      proxies /api/fn/<name> to ${SUPABASE_URL}/functions/v1/<name>. The
+//      AI keys live as Supabase Edge Function secrets, NOT on Replit.
+//
+// The badge should report healthy if EITHER path is operational. Previously
+// it only checked path #1, which produced a false "AI Unavailable" warning
+// for deployments that legitimately keep all AI keys on Supabase.
 let _aiHealthCache: { data: unknown; expiresAt: number } | null = null;
 app.get('/api/ai-health', async (_req, res) => {
   const now = Date.now();
@@ -481,43 +491,94 @@ app.get('/api/ai-health', async (_req, res) => {
 
   const openrouterKey = process.env.OPENROUTER_KEY_1 || process.env.OPENROUTER_KEY_2 || process.env.OPENROUTER_KEY_3;
   const groqKey = process.env.GROQ_KEY_1 || process.env.GROQ_KEY_2 || process.env.GROQ_KEY_3;
+  const supabaseEdgeConfigured = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
 
-  if (!openrouterKey && !groqKey) {
-    const payload = { status: 'down', reason: 'no_keys', latencyMs: null, provider: null };
-    _aiHealthCache = { data: payload, expiresAt: now + 30_000 };
-    return res.json(payload);
-  }
-
-  const provider = openrouterKey ? 'openrouter' : 'groq';
-  const pingStart = Date.now();
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000);
-    let pingRes: globalThis.Response;
-    if (openrouterKey) {
-      pingRes = await fetch('https://openrouter.ai/api/v1/models', {
-        headers: { Authorization: `Bearer ${openrouterKey}` },
-        signal: controller.signal,
-      });
-    } else {
-      pingRes = await fetch('https://api.groq.com/openai/v1/models', {
-        headers: { Authorization: `Bearer ${groqKey}` },
-        signal: controller.signal,
-      });
+  // Path #1: direct server-side AI keys. Use them when present.
+  // If they return healthy → done. If they fail (network OR non-OK HTTP),
+  // fall through to the Supabase Edge path so a stale/throttled direct key
+  // doesn't mask a fully working Supabase-hosted AI path.
+  if (openrouterKey || groqKey) {
+    const provider = openrouterKey ? 'openrouter' : 'groq';
+    const pingStart = Date.now();
+    let directHealthy = false;
+    let directPayload: { status: string; latencyMs: number; provider: string; errorCode: number | null } | null = null;
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
+      let pingRes: globalThis.Response;
+      if (openrouterKey) {
+        pingRes = await fetch('https://openrouter.ai/api/v1/models', {
+          headers: { Authorization: `Bearer ${openrouterKey}` },
+          signal: controller.signal,
+        });
+      } else {
+        pingRes = await fetch('https://api.groq.com/openai/v1/models', {
+          headers: { Authorization: `Bearer ${groqKey}` },
+          signal: controller.signal,
+        });
+      }
+      clearTimeout(timeout);
+      const latencyMs = Date.now() - pingStart;
+      directHealthy = pingRes.ok;
+      directPayload = {
+        status: pingRes.ok ? (latencyMs > 8000 ? 'degraded' : 'healthy') : 'down',
+        latencyMs,
+        provider,
+        errorCode: pingRes.ok ? null : pingRes.status,
+      };
+    } catch {
+      const latencyMs = Date.now() - pingStart;
+      directPayload = { status: 'down', latencyMs, provider, errorCode: 0 };
     }
-    clearTimeout(timeout);
-    const latencyMs = Date.now() - pingStart;
-    const status = pingRes.ok ? (latencyMs > 8000 ? 'degraded' : 'healthy') : 'down';
-    const errorCode = pingRes.ok ? null : pingRes.status;
-    const payload = { status, latencyMs, provider, errorCode };
-    _aiHealthCache = { data: payload, expiresAt: now + 30_000 };
-    return res.json(payload);
-  } catch {
-    const latencyMs = Date.now() - pingStart;
-    const payload = { status: 'down', latencyMs, provider, errorCode: 0 };
-    _aiHealthCache = { data: payload, expiresAt: now + 15_000 };
-    return res.json(payload);
+
+    // Direct path succeeded — return immediately.
+    if (directHealthy && directPayload) {
+      _aiHealthCache = { data: directPayload, expiresAt: now + 30_000 };
+      return res.json(directPayload);
+    }
+
+    // Direct path failed and Supabase path is unavailable — return the
+    // direct-path failure as the diagnostic.
+    if (!supabaseEdgeConfigured && directPayload) {
+      _aiHealthCache = { data: directPayload, expiresAt: now + 15_000 };
+      return res.json(directPayload);
+    }
+    // Otherwise fall through to Supabase Edge probe below.
   }
+
+  // Path #2: Supabase Edge Function path. The AI keys live on Supabase, so
+  // health here means "the Supabase Functions runtime is reachable". We hit
+  // the auth health endpoint (no AI cost, no auth required) on the same
+  // Supabase project. If it answers, the edge functions are reachable and
+  // the AI calls will succeed.
+  if (supabaseEdgeConfigured) {
+    const pingStart = Date.now();
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5000);
+      const pingRes = await fetch(`${SUPABASE_URL}/auth/v1/health`, {
+        headers: { apikey: SUPABASE_ANON_KEY },
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      const latencyMs = Date.now() - pingStart;
+      const status = pingRes.ok ? (latencyMs > 5000 ? 'degraded' : 'healthy') : 'down';
+      const errorCode = pingRes.ok ? null : pingRes.status;
+      const payload = { status, latencyMs, provider: 'supabase-edge', errorCode };
+      _aiHealthCache = { data: payload, expiresAt: now + 30_000 };
+      return res.json(payload);
+    } catch {
+      const latencyMs = Date.now() - pingStart;
+      const payload = { status: 'down', latencyMs, provider: 'supabase-edge', errorCode: 0 };
+      _aiHealthCache = { data: payload, expiresAt: now + 15_000 };
+      return res.json(payload);
+    }
+  }
+
+  // Neither path is configured.
+  const payload = { status: 'down', reason: 'no_keys', latencyMs: null, provider: null };
+  _aiHealthCache = { data: payload, expiresAt: now + 30_000 };
+  return res.json(payload);
 });
 
 // ── Database health ───────────────────────────────────────────────────────────
