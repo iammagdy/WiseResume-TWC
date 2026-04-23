@@ -255,7 +255,8 @@ export default defineConfig(() => ({
       : null,
   ].filter(Boolean),
   optimizeDeps: {
-    exclude: ['docx', 'pdf-lib', 'pdfjs-dist'],
+    exclude: ['docx', 'pdfjs-dist'],
+    include: ['pdf-lib', 'pako'],
   },
   resolve: {
     alias: [
