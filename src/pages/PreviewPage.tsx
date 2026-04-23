@@ -536,9 +536,19 @@ export default function PreviewPage() {
             setPreviewScale={setPreviewScale}
           >
             <Suspense fallback={<TemplateSkeleton />}>
-              {currentResume.sections != null
-                ? <TemplateComponent resume={currentResume} accentColor={currentResume.customization?.accentColor} />
-                : <TemplateSkeleton />}
+              {/*
+                The page-level `if (!currentResume) return <TemplateSkeleton />`
+                guard above already covers the "store not hydrated yet" case.
+                Do NOT add a `currentResume.sections != null` check here —
+                ResumeData has no `sections` field (data lives in `experience`,
+                `education`, `skills`, etc.), so any such guard is permanently
+                false and traps the preview on the skeleton, breaking PDF
+                download via the auto-export effect.
+              */}
+              <TemplateComponent
+                resume={currentResume}
+                accentColor={currentResume.customization?.accentColor}
+              />
             </Suspense>
           </PreviewScaledWrapper>
         </div>
