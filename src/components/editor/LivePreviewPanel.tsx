@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button';
 import { useResumeStore } from '@/store/resumeStore';
 import { applyCustomizationCSS, generateCustomizationCSS } from '@/lib/templateCustomization';
 import { StyleCustomizationPanel } from '@/components/editor/StyleCustomizationPanel';
+import { useFitToPages } from '@/hooks/useFitToPages';
+import type { TemplateCustomization } from '@/types/resume';
 import { computePreviewBreaks, estimatePageCount, getPageDimensionsForFormat, injectForcedBreaks } from '@/lib/pdfUtils';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -176,6 +178,21 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
     });
   }, [currentResume, updateResume]);
 
+  // Auto-fit-to-pages: when customization.targetPageCount is set, this hook
+  // measures the rendered preview and patches customization.fontScale so the
+  // resume occupies the requested page count. No-op when targetPageCount is
+  // undefined (manual mode).
+  const handleFitScale = useCallback((scale: number) => {
+    if (!currentResume) return;
+    const base = (currentResume.customization ?? {}) as TemplateCustomization;
+    if (Math.abs((base.fontScale ?? 1) - scale) < 0.005) return;
+    updateResume({ customization: { ...base, fontScale: scale } });
+  }, [currentResume, updateResume]);
+  useFitToPages({
+    templateRef: resumeRef,
+    resume: currentResume,
+    onScaleComputed: handleFitScale,
+  });
 
   if (!currentResume || !TemplateComponent) return null;
 

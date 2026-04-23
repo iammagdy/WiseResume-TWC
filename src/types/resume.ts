@@ -135,6 +135,11 @@ export interface TemplateCustomization {
    *  Undefined is treated as ON (true) for backward compatibility with existing
    *  resumes that were customized before this flag existed. */
   enabled?: boolean;
+  /** Auto-fit mode: when set, useFitToPages computes fontScale automatically so
+   *  the rendered resume occupies this many pages (or shows a warning if even
+   *  the minimum scale isn't enough). When set, the manual Font Size slider in
+   *  the panel is read-only. Undefined disables auto-fit. */
+  targetPageCount?: 1 | 2 | 3;
 }
 
 export interface ParseMeta {

@@ -25,7 +25,11 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import { useResumeStore } from '@/store/resumeStore';
-import { FONT_OPTIONS, getDefaultCustomization } from '@/lib/templateCustomization';
+import {
+  FONT_OPTIONS,
+  getDefaultCustomization,
+  COMPACT_SCALE_MIN,
+} from '@/lib/templateCustomization';
 import type { TemplateCustomization } from '@/types/resume';
 
 const DEFAULT_FONT_VALUE = '__default__';
@@ -108,10 +112,51 @@ export function StyleCustomizationPanel({ open, onOpenChange }: StyleCustomizati
 
         <Accordion
           type="multiple"
-          defaultValue={['layout', 'typography', 'spacing']}
+          defaultValue={['fit', 'layout', 'typography', 'spacing']}
           className={`mt-4 ${isEnabled ? '' : 'pointer-events-none opacity-50'}`}
           aria-disabled={!isEnabled}
         >
+          {/* AUTO-FIT — drives fontScale automatically so the resume occupies
+              the requested page count. Read useFitToPages to understand the
+              measurement loop. */}
+          <AccordionItem value="fit">
+            <AccordionTrigger>Auto-fit pages</AccordionTrigger>
+            <AccordionContent className="space-y-3 pt-2">
+              <p className="text-xs text-muted-foreground">
+                Automatically shrink font, line height, and spacing to fit your
+                resume into a target page count. Overrides the manual Font Size
+                slider while active.
+              </p>
+              <ToggleGroup
+                type="single"
+                value={c.targetPageCount ? String(c.targetPageCount) : 'off'}
+                onValueChange={v => {
+                  if (!v) return;
+                  if (v === 'off') {
+                    // Clear the target AND restore fontScale to 1 so the
+                    // user isn't left with a small auto-computed scale that
+                    // looks "stuck" on the manual slider after toggling off.
+                    clearKeys(['targetPageCount']);
+                    patch({ fontScale: 1 });
+                  } else {
+                    patch({ targetPageCount: Number(v) as 1 | 2 | 3 });
+                  }
+                }}
+                className="justify-start"
+              >
+                <ToggleGroupItem value="off" aria-label="Auto-fit off">Off</ToggleGroupItem>
+                <ToggleGroupItem value="1" aria-label="Fit to 1 page">1 page</ToggleGroupItem>
+                <ToggleGroupItem value="2" aria-label="Fit to 2 pages">2 pages</ToggleGroupItem>
+                <ToggleGroupItem value="3" aria-label="Fit to 3 pages">3 pages</ToggleGroupItem>
+              </ToggleGroup>
+              {c.targetPageCount && typeof c.fontScale === 'number' && c.fontScale <= COMPACT_SCALE_MIN + 0.001 && (
+                <p className="text-xs text-amber-600">
+                  Resume is too long to fit on {c.targetPageCount} page{c.targetPageCount === 1 ? '' : 's'} at the minimum readable scale. Consider trimming content or raising the target.
+                </p>
+              )}
+            </AccordionContent>
+          </AccordionItem>
+
           {/* LAYOUT */}
           <AccordionItem value="layout">
             <AccordionTrigger>Layout</AccordionTrigger>
@@ -184,15 +229,22 @@ export function StyleCustomizationPanel({ open, onOpenChange }: StyleCustomizati
                   <Label>Font size</Label>
                   <span className="text-xs text-muted-foreground tabular-nums">
                     {Math.round((c.fontScale ?? 1) * 100)}%
+                    {c.targetPageCount ? ' (auto)' : ''}
                   </span>
                 </div>
                 <Slider
-                  min={85}
+                  min={60}
                   max={115}
                   step={1}
                   value={[Math.round((c.fontScale ?? 1) * 100)]}
                   onValueChange={([v]) => patch({ fontScale: v / 100 })}
+                  disabled={!!c.targetPageCount}
                 />
+                {c.targetPageCount ? (
+                  <p className="text-[11px] text-muted-foreground">
+                    Auto-fit is controlling this slider. Turn off Auto-fit to set the font size manually.
+                  </p>
+                ) : null}
               </div>
 
               <div className="space-y-2">

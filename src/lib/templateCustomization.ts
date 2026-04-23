@@ -147,25 +147,16 @@ export function generateCustomizationCSS(c: TemplateCustomization | undefined): 
     [data-resume-template] h3 { font-family: ${c.fontHeading} !important; }
   ` : '';
 
-  // Templates use the standard 9 Tailwind text-* utility classes, which are
-  // rem-based (relative to <html>) — so a wrapper-level font-size change has
-  // no effect, and CSS `zoom` shrinks the entire layout (page width, padding,
-  // images) instead of just the text. The fix is to scale ONLY the text-*
-  // class values via a CSS variable, leaving page width, padding, and images
-  // untouched. Result: text shrinks, the rendered DOM gets shorter, and the
-  // page-count badge drops accordingly.
-  const fontScaleBlock = typeof c.fontScale === 'number' ? `
-    [data-resume-template] { --font-scale: ${c.fontScale}; }
-    [data-resume-template] .text-xs   { font-size: calc(0.75rem  * var(--font-scale)) !important; }
-    [data-resume-template] .text-sm   { font-size: calc(0.875rem * var(--font-scale)) !important; }
-    [data-resume-template] .text-base { font-size: calc(1rem     * var(--font-scale)) !important; }
-    [data-resume-template] .text-lg   { font-size: calc(1.125rem * var(--font-scale)) !important; }
-    [data-resume-template] .text-xl   { font-size: calc(1.25rem  * var(--font-scale)) !important; }
-    [data-resume-template] .text-2xl  { font-size: calc(1.5rem   * var(--font-scale)) !important; }
-    [data-resume-template] .text-3xl  { font-size: calc(1.875rem * var(--font-scale)) !important; }
-    [data-resume-template] .text-4xl  { font-size: calc(2.25rem  * var(--font-scale)) !important; }
-    [data-resume-template] .text-5xl  { font-size: calc(3rem     * var(--font-scale)) !important; }
-  ` : '';
+  // Templates build vertical real-estate from THREE things: (1) text-* font
+  // size, (2) leading-* line height, (3) spacing utility classes
+  // (mb-*, mt-*, p-*, py-*, gap-*, space-y-*). To make `fontScale` actually
+  // reduce page count (rather than just shrinking characters in the same
+  // vertical strips), we scale ALL THREE in lockstep via a single
+  // `--compact-scale` CSS variable — gated on `[data-resume-template]` so it
+  // never leaks into the surrounding editor UI. See `useFitToPages` for the
+  // auto-fit measurement loop that drives `fontScale` from a target page
+  // count.
+  const fontScaleBlock = typeof c.fontScale === 'number' ? buildCompactScaleBlock(c.fontScale) : '';
 
   // Templates space sections via the previous section's bottom margin
   // (e.g. `<section class="mb-5">`), not the next section's top margin.
@@ -199,5 +190,128 @@ export function generateCustomizationCSS(c: TemplateCustomization | undefined): 
     ${fontScaleBlock}
     ${sectionGapBlock}
     ${entryGapBlock}
+  `;
+}
+
+/** Min/max range for the auto-fit / fontScale knob. Below MIN, line height
+ *  collapses below 1.0 which makes ascenders touch the line above; above MAX
+ *  the panel is offering "make my resume bigger", which we don't expose. */
+export const COMPACT_SCALE_MIN = 0.6;
+export const COMPACT_SCALE_MAX = 1.0;
+
+/** Tailwind spacing scale, in rem (1 unit = 0.25rem). Only the keys actually
+ *  used by the templates are listed — see the grep that produced this list. */
+const SPACING_REM: Record<string, number> = {
+  '0': 0,
+  '0.5': 0.125,
+  '1': 0.25,
+  '1.5': 0.375,
+  '2': 0.5,
+  '3': 0.75,
+  '4': 1,
+  '5': 1.25,
+  '6': 1.5,
+  '8': 2,
+  '10': 2.5,
+};
+
+/** Tailwind line-height keyword scale (unitless). */
+const LEADING_KEYWORDS: Record<string, number> = {
+  none: 1,
+  tight: 1.25,
+  snug: 1.375,
+  // 'normal' deliberately omitted — many shadcn UI elements live inside the
+  // resume preview wrapper as `leading-normal`; rescaling it would tweak
+  // unrelated UI. Templates don't use leading-normal directly.
+  relaxed: 1.625,
+  loose: 2,
+};
+
+/** Build the CSS block that scales font size, line height, and spacing
+ *  utility classes by `--compact-scale`. Selector is gated on
+ *  `[data-resume-template]` so it cannot leak into the surrounding editor UI.
+ *  Result: shrinking the scale shrinks BOTH characters AND the vertical strips
+ *  they live in, which is what makes auto-fit / Font Size actually reduce
+ *  page count. */
+function buildCompactScaleBlock(scale: number): string {
+  // Clamp defensively — the panel and useFitToPages already clamp, but a
+  // dirty persisted value should still produce sensible CSS rather than
+  // collapsing the layout.
+  const s = Math.max(COMPACT_SCALE_MIN, Math.min(COMPACT_SCALE_MAX, scale));
+
+  // text-* classes (Tailwind defaults). Multiplying the literal rem value by
+  // the variable gives the compact font size while keeping the resume's
+  // physical width and image dimensions untouched.
+  const textClasses: Array<[string, number]> = [
+    ['text-xs', 0.75],
+    ['text-sm', 0.875],
+    ['text-base', 1],
+    ['text-lg', 1.125],
+    ['text-xl', 1.25],
+    ['text-2xl', 1.5],
+    ['text-3xl', 1.875],
+    ['text-4xl', 2.25],
+    ['text-5xl', 3],
+  ];
+  const textRules = textClasses
+    .map(([cls, rem]) => `[data-resume-template] .${cls} { font-size: calc(${rem}rem * var(--compact-scale)) !important; }`)
+    .join('\n    ');
+
+  // leading-* keyword classes — overriding line-height so each line of text
+  // occupies less vertical space at smaller scale. Without this, shrinking
+  // the font barely changes page count because line-height stays anchored.
+  const leadingRules = Object.entries(LEADING_KEYWORDS)
+    .map(([k, lh]) => `[data-resume-template] .leading-${k} { line-height: calc(${lh} * var(--compact-scale)) !important; }`)
+    .join('\n    ');
+
+  // Spacing utility classes used by the templates. Each rule recomputes the
+  // class's natural rem value times --compact-scale. We intentionally only
+  // override the directional/property variants the templates actually use
+  // (mb-*, mt-*, p-*, py-*, px-*, gap-*, space-y-*) to keep the emitted CSS
+  // small and avoid touching unrelated utilities a future template might add.
+  const spacingProps: Array<[string, string]> = [
+    ['mb', 'margin-bottom'],
+    ['mt', 'margin-top'],
+    // pb/pt/pl/pr — directional padding. pb-* in particular drives a lot of
+    // section spacing in our templates (45+ occurrences) and was missing
+    // from the first pass, which made auto-fit under-shrink on those.
+    ['pb', 'padding-bottom'],
+    ['pt', 'padding-top'],
+    ['pl', 'padding-left'],
+    ['pr', 'padding-right'],
+    ['p', 'padding'],
+    ['py', 'padding-block'],
+    ['px', 'padding-inline'],
+    ['gap', 'gap'],
+    // gap-y / gap-x map to row-gap / column-gap respectively. gap-y in
+    // particular contributes to vertical height and must be scaled.
+    ['gap-y', 'row-gap'],
+    ['gap-x', 'column-gap'],
+  ];
+  const spacingRules = spacingProps.flatMap(([prefix, prop]) =>
+    Object.entries(SPACING_REM).map(([n, rem]) =>
+      rem === 0
+        ? `[data-resume-template] .${prefix}-${n} { ${prop}: 0 !important; }`
+        : `[data-resume-template] .${prefix}-${n} { ${prop}: calc(${rem}rem * var(--compact-scale)) !important; }`
+    )
+  ).join('\n    ');
+
+  // space-y-* applies margin-top to every adjacent sibling after the first
+  // (`> :not([hidden]) ~ :not([hidden])`). Tailwind's exact selector matters
+  // for specificity ties, so we mirror it.
+  const spaceYRules = Object.entries(SPACING_REM)
+    .map(([n, rem]) =>
+      rem === 0
+        ? `[data-resume-template] .space-y-${n} > :not([hidden]) ~ :not([hidden]) { margin-top: 0 !important; }`
+        : `[data-resume-template] .space-y-${n} > :not([hidden]) ~ :not([hidden]) { margin-top: calc(${rem}rem * var(--compact-scale)) !important; }`
+    )
+    .join('\n    ');
+
+  return `
+    [data-resume-template] { --compact-scale: ${s}; }
+    ${textRules}
+    ${leadingRules}
+    ${spacingRules}
+    ${spaceYRules}
   `;
 }
