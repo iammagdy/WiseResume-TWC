@@ -256,7 +256,7 @@ export default defineConfig(() => ({
   ].filter(Boolean),
   optimizeDeps: {
     exclude: ['docx', 'pdfjs-dist'],
-    include: ['pdf-lib', 'pako'],
+    include: ['pdf-lib'],
   },
   resolve: {
     alias: [
@@ -266,6 +266,11 @@ export default defineConfig(() => ({
       // subpath imports like `pdfjs-dist/build/pdf.worker.min.mjs?url`,
       // which a plain string alias would mangle into a non-existent path.
       { find: /^pdfjs-dist$/, replacement: 'pdfjs-dist/build/pdf.mjs' },
+      // pako@1 is CJS-only and has no ESM `default` export. pdf-lib and
+      // friends do `import pako from 'pako'`, which crashes when Vite
+      // pre-bundles pako. Route the bare specifier through a shim that
+      // synthesises the default export from the namespace.
+      { find: /^pako$/, replacement: path.resolve(__dirname, './src/shims/pako.ts') },
     ],
   },
   test: {
