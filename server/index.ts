@@ -363,6 +363,64 @@ function makeSqlTag(pool: pg.Pool): SqlTag {
 
 const sql: SqlTag | null = pgPool ? makeSqlTag(pgPool) : null;
 
+// ── Supabase REST helper ──────────────────────────────────────────────────────
+// Reads user-owned data straight from the Supabase project (bypassing RLS via
+// the service-role key). Used by the dashboard read endpoints because the
+// authoritative copy of resumes, profiles, subscriptions, etc. lives in
+// Supabase — the local Postgres is a dev sidecar that does not contain the
+// user's real data.
+async function supabaseGet<T = Record<string, unknown>>(
+  table: string,
+  query: string,
+): Promise<T[]> {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+    throw new Error('Supabase not configured');
+  }
+  const url = `${SUPABASE_URL}/rest/v1/${table}?${query}`;
+  const r = await fetch(url, {
+    headers: {
+      apikey: SUPABASE_SERVICE_ROLE_KEY,
+      Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+      'Content-Type': 'application/json',
+    },
+  });
+  if (!r.ok) {
+    const body = await r.text().catch(() => '');
+    throw new Error(`Supabase REST ${table} ${r.status}: ${body.slice(0, 300)}`);
+  }
+  return (await r.json()) as T[];
+}
+
+// Upsert one or more rows via Supabase REST. Uses
+// `Prefer: resolution=merge-duplicates` so a unique-key collision merges
+// the new column values into the existing row instead of failing. Pass the
+// `onConflict` column(s) so PostgREST knows which constraint to target.
+async function supabaseUpsert<T = Record<string, unknown>>(
+  table: string,
+  body: Record<string, unknown> | Record<string, unknown>[],
+  onConflict: string,
+): Promise<T[]> {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+    throw new Error('Supabase not configured');
+  }
+  const url = `${SUPABASE_URL}/rest/v1/${table}?on_conflict=${encodeURIComponent(onConflict)}`;
+  const r = await fetch(url, {
+    method: 'POST',
+    headers: {
+      apikey: SUPABASE_SERVICE_ROLE_KEY,
+      Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+      'Content-Type': 'application/json',
+      Prefer: 'resolution=merge-duplicates,return=representation',
+    },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) {
+    const text = await r.text().catch(() => '');
+    throw new Error(`Supabase REST upsert ${table} ${r.status}: ${text.slice(0, 300)}`);
+  }
+  return (await r.json()) as T[];
+}
+
 // ── Kinde JWKS cache ──────────────────────────────────────────────────────────
 let _kindeJWKS: jose.JSONWebKeySet | null = null;
 let _kindejwksCachedAt = 0;
@@ -520,30 +578,28 @@ app.post('/api/fn/token-exchange', async (req, res) => {
     // 3. Derive deterministic UUID from Kinde sub (same algorithm as edge function)
     userId = await uuidV5(kindeSub, UUID_NAMESPACE);
 
-    // 4. Upsert profile + preferences in Neon DB
+    // 4. Upsert profile + preferences in Supabase (the authoritative store).
+    //    These are merge-duplicates upserts so existing users are no-ops; new
+    //    users get a row created. Local Postgres is intentionally NOT touched
+    //    here — read endpoints (/api/data/me, /profile, etc.) read from
+    //    Supabase, so writes must go to the same place to avoid split-brain.
+    // Note: Supabase `profiles` does not have an `email` column (email lives
+    // on auth.users). Only persist user_id here so the upsert is portable.
+    try {
+      await supabaseUpsert('profiles', { user_id: userId }, 'user_id');
+      await supabaseUpsert('user_preferences', { user_id: userId }, 'user_id');
+    } catch (dbErr) {
+      console.error('[token-exchange] Supabase profile upsert failed:', dbErr);
+      return res.status(500).json({ code: 'PROFILE_UPSERT_FAILED', message: 'Could not create user profile' });
+    }
+    // Best-effort local audit log (non-fatal — local pg may lag/be absent).
     if (sql) {
       try {
         await sql`
-          INSERT INTO profiles (user_id, email)
-          VALUES (${userId}, ${email || null})
-          ON CONFLICT (user_id) DO NOTHING
+          INSERT INTO token_exchanges (kinde_sub, user_id, status)
+          VALUES (${kindeSub}, ${userId}, 'success')
         `;
-        await sql`
-          INSERT INTO user_preferences (user_id)
-          VALUES (${userId})
-          ON CONFLICT (user_id) DO NOTHING
-        `;
-        // Audit log
-        try {
-          await sql`
-            INSERT INTO token_exchanges (kinde_sub, user_id, status)
-            VALUES (${kindeSub}, ${userId}, 'success')
-          `;
-        } catch { /* non-fatal */ }
-      } catch (dbErr) {
-        console.error('[token-exchange] DB upsert failed:', dbErr);
-        return res.status(500).json({ code: 'PROFILE_UPSERT_FAILED', message: 'Could not create user profile' });
-      }
+      } catch { /* non-fatal */ }
     }
 
     // 5. Select signing secret: prefer SUPABASE_JWT_SECRET (accepted by both
@@ -646,14 +702,12 @@ app.post('/api/fn/token-exchange', async (req, res) => {
  * coexist; the dashboard can call this when the Supabase client is unavailable.
  */
 app.get('/api/data/resumes', requireAuthHeader, async (req: AuthedRequest, res) => {
-  if (!sql) return res.status(503).json({ error: 'Database not configured' });
   try {
     const userId = req.verifiedUserId!;
-    const rows = await sql`
-      SELECT * FROM resumes
-      WHERE user_id = ${userId}
-      ORDER BY updated_at DESC
-    ` as NeonRow[];
+    const rows = await supabaseGet<NeonRow>(
+      'resumes',
+      `user_id=eq.${encodeURIComponent(userId)}&select=*&order=updated_at.desc`,
+    );
     res.json({ resumes: rows });
   } catch (err) {
     return dataErr(res, err);
@@ -661,16 +715,14 @@ app.get('/api/data/resumes', requireAuthHeader, async (req: AuthedRequest, res) 
 });
 
 app.get('/api/data/resumes/:id', requireAuthHeader, async (req: AuthedRequest, res) => {
-  if (!sql) return res.status(503).json({ error: 'Database not configured' });
   try {
     const id = req.params.id;
     if (!/^[0-9a-f-]{36}$/i.test(id)) return res.status(400).json({ error: 'Invalid resume id' });
     const userId = req.verifiedUserId!;
-    const rows = await sql`
-      SELECT * FROM resumes
-      WHERE id = ${id} AND user_id = ${userId}
-      LIMIT 1
-    ` as NeonRow[];
+    const rows = await supabaseGet<NeonRow>(
+      'resumes',
+      `id=eq.${encodeURIComponent(id)}&user_id=eq.${encodeURIComponent(userId)}&select=*&limit=1`,
+    );
     if (rows.length === 0) return res.status(404).json({ error: 'Resume not found' });
     res.json({ resume: rows[0] });
   } catch (err) {
@@ -1482,12 +1534,12 @@ function dataErr(res: Response, err: unknown): Response {
 
 // ── /api/data/profile ──────────────────────────────────────────────────────────
 app.get('/api/data/profile', requireAuthHeader, async (req: AuthedRequest, res) => {
-  if (!sql) return res.status(503).json({ error: 'Database not configured' });
   try {
     const userId = req.verifiedUserId!;
-    const rows = await sql`
-      SELECT * FROM profiles WHERE user_id = ${userId} LIMIT 1
-    ` as NeonRow[];
+    const rows = await supabaseGet<NeonRow>(
+      'profiles',
+      `user_id=eq.${encodeURIComponent(userId)}&select=*&limit=1`,
+    );
     res.json({ profile: rows[0] ?? null });
   } catch (err) {
     return dataErr(res, err);
@@ -1524,37 +1576,20 @@ async function getProfileColumns(): Promise<Set<string>> {
 }
 
 app.patch('/api/data/profile', requireAuthHeader, async (req: AuthedRequest, res) => {
-  if (!sql) return res.status(503).json({ error: 'Database not configured' });
   try {
     const userId = req.verifiedUserId!;
     const body = (req.body ?? {}) as Record<string, unknown>;
-    const cols = await getProfileColumns();
 
-    // Filter to writable + actually-present columns. Unknown / missing
-    // columns are silently dropped so a client referencing a not-yet-
-    // migrated column doesn't break the whole request.
-    const updates: Record<string, unknown> = {};
+    // Filter to the writable allow-list. Unknown columns are dropped so a
+    // request referencing a non-existent column doesn't fail the whole
+    // upsert; PostgREST will reject any column that doesn't exist on the
+    // Supabase profiles table, so we still surface a 4xx in that case.
+    const updates: Record<string, unknown> = { user_id: userId };
     for (const [k, v] of Object.entries(body)) {
-      if (PROFILE_WRITABLE_COLUMNS.has(k) && cols.has(k)) updates[k] = v;
+      if (PROFILE_WRITABLE_COLUMNS.has(k)) updates[k] = v;
     }
 
-    // Always upsert by user_id. Build the column/value lists dynamically.
-    const colNames = Object.keys(updates);
-    const params: unknown[] = [userId];
-    const insertCols = ['user_id', ...colNames];
-    const insertVals = ['$1', ...colNames.map((_, i) => `$${i + 2}`)];
-    for (const c of colNames) params.push(updates[c]);
-
-    const setClause = colNames.length
-      ? colNames.map((c, i) => `${c} = $${i + 2}`).join(', ')
-      : 'user_id = $1';
-    const queryText = `
-      INSERT INTO profiles (${insertCols.join(', ')})
-      VALUES (${insertVals.join(', ')})
-      ON CONFLICT (user_id) DO UPDATE SET ${setClause}
-      RETURNING *
-    `;
-    const rows = (await sql.query(queryText, params)) as NeonRow[];
+    const rows = await supabaseUpsert<NeonRow>('profiles', updates, 'user_id');
     res.json({ profile: rows[0] ?? null });
   } catch (err) {
     return dataErr(res, err);
@@ -1563,11 +1598,11 @@ app.patch('/api/data/profile', requireAuthHeader, async (req: AuthedRequest, res
 
 // ── /api/data/portfolios/me ────────────────────────────────────────────────────
 app.get('/api/data/portfolios/me', requireAuthHeader, async (req: AuthedRequest, res) => {
-  if (!sql) return res.status(503).json({ error: 'Database not configured' });
   try {
-    const rows = await sql`
-      SELECT id, username FROM portfolios WHERE user_id = ${req.verifiedUserId!} LIMIT 1
-    ` as NeonRow[];
+    const rows = await supabaseGet<NeonRow>(
+      'portfolios',
+      `user_id=eq.${encodeURIComponent(req.verifiedUserId!)}&select=id,username&limit=1`,
+    );
     res.json({ portfolio: rows[0] ?? null });
   } catch (err) {
     return dataErr(res, err);
@@ -1578,17 +1613,18 @@ app.get('/api/data/portfolios/me', requireAuthHeader, async (req: AuthedRequest,
 // Returns the date-stamp arrays needed by useActivityStreak in a single round
 // trip. `since` is an ISO timestamp; rows older than that are excluded.
 app.get('/api/data/activity-rows', requireAuthHeader, async (req: AuthedRequest, res) => {
-  if (!sql) return res.status(503).json({ error: 'Database not configured' });
   try {
     const userId = req.verifiedUserId!;
     const sinceRaw = typeof req.query.since === 'string' ? req.query.since : '';
     const since = sinceRaw && !Number.isNaN(new Date(sinceRaw).getTime())
       ? new Date(sinceRaw).toISOString()
       : new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString();
+    const u = encodeURIComponent(userId);
+    const s = encodeURIComponent(since);
     const [resumes, apps, covers] = await Promise.all([
-      sql`SELECT created_at FROM resumes WHERE user_id = ${userId} AND created_at >= ${since}` as Promise<NeonRow[]>,
-      sql`SELECT applied_at, status FROM job_applications WHERE user_id = ${userId} AND applied_at >= ${since}` as Promise<NeonRow[]>,
-      sql`SELECT created_at FROM cover_letters WHERE user_id = ${userId} AND created_at >= ${since}` as Promise<NeonRow[]>,
+      supabaseGet<NeonRow>('resumes', `user_id=eq.${u}&created_at=gte.${s}&select=created_at`),
+      supabaseGet<NeonRow>('job_applications', `user_id=eq.${u}&applied_at=gte.${s}&select=applied_at,status`),
+      supabaseGet<NeonRow>('cover_letters', `user_id=eq.${u}&created_at=gte.${s}&select=created_at`),
     ]);
     res.json({
       resumes,
@@ -1606,13 +1642,13 @@ app.get('/api/data/activity-rows', requireAuthHeader, async (req: AuthedRequest,
 // aggregate. `parent_resume_id` doesn't exist on the current schema, so we
 // always report it as null; tailor_history is an empty array.
 app.get('/api/data/job-activity-rows', requireAuthHeader, async (req: AuthedRequest, res) => {
-  if (!sql) return res.status(503).json({ error: 'Database not configured' });
   try {
     const userId = req.verifiedUserId!;
+    const u = encodeURIComponent(userId);
     const [resumes, covers, apps] = await Promise.all([
-      sql`SELECT id FROM resumes WHERE user_id = ${userId}` as Promise<NeonRow[]>,
-      sql`SELECT id FROM cover_letters WHERE user_id = ${userId}` as Promise<NeonRow[]>,
-      sql`SELECT status, applied_at FROM job_applications WHERE user_id = ${userId}` as Promise<NeonRow[]>,
+      supabaseGet<NeonRow>('resumes', `user_id=eq.${u}&select=id`),
+      supabaseGet<NeonRow>('cover_letters', `user_id=eq.${u}&select=id`),
+      supabaseGet<NeonRow>('job_applications', `user_id=eq.${u}&select=status,applied_at`),
     ]);
     res.json({
       resumes: resumes.map((r) => ({ parent_resume_id: null, ...r })),
@@ -1630,7 +1666,6 @@ app.get('/api/data/job-activity-rows', requireAuthHeader, async (req: AuthedRequ
 // subscriptions, and ai_credits from Supabase using the service-role key
 // (bypasses RLS) and returns the same MeData shape the client expects.
 app.get('/api/data/me', requireAuthHeader, async (req: AuthedRequest, res) => {
-  if (!sql) return res.status(503).json({ error: 'Database not configured' });
   try {
     const userId = req.verifiedUserId!;
 
@@ -1644,11 +1679,12 @@ app.get('/api/data/me', requireAuthHeader, async (req: AuthedRequest, res) => {
       kindeSub = typeof claims.kinde_sub === 'string' ? claims.kinde_sub : null;
     } catch { /* kinde_sub is optional */ }
 
+    const u = encodeURIComponent(userId);
     const [profileArr, prefsArr, subsArr, creditsArr] = await Promise.all([
-      sql`SELECT * FROM profiles WHERE user_id = ${userId} LIMIT 1`,
-      sql`SELECT * FROM user_preferences WHERE user_id = ${userId} LIMIT 1`,
-      sql`SELECT plan_name, status, plan_updated_at, trial_plan, trial_expires_at FROM subscriptions WHERE user_id = ${userId} LIMIT 1`,
-      sql`SELECT daily_usage, daily_limit, usage_date, total_usage, updated_at FROM ai_credits WHERE user_id = ${userId} LIMIT 1`,
+      supabaseGet<Record<string, unknown>>('profiles', `user_id=eq.${u}&select=*&limit=1`),
+      supabaseGet<Record<string, unknown>>('user_preferences', `user_id=eq.${u}&select=*&limit=1`),
+      supabaseGet<Record<string, unknown>>('subscriptions', `user_id=eq.${u}&select=plan_name,status,plan_updated_at,trial_plan,trial_expires_at&limit=1`),
+      supabaseGet<Record<string, unknown>>('ai_credits', `user_id=eq.${u}&select=daily_usage,daily_limit,usage_date,total_usage,updated_at&limit=1`),
     ]);
 
     const profile = profileArr[0] ?? null;
@@ -1835,13 +1871,13 @@ app.patch('/api/data/resumes/:id', requireAuthHeader, async (req: AuthedRequest,
 });
 
 app.get('/api/data/resumes/exists/:id', requireAuthHeader, async (req: AuthedRequest, res) => {
-  if (!sql) return res.status(503).json({ error: 'Database not configured' });
   try {
     const id = req.params.id;
     if (!/^[0-9a-f-]{36}$/i.test(id)) return res.json({ exists: false });
-    const rows = await sql`
-      SELECT id FROM resumes WHERE id = ${id} AND user_id = ${req.verifiedUserId!} LIMIT 1
-    ` as NeonRow[];
+    const rows = await supabaseGet<NeonRow>(
+      'resumes',
+      `id=eq.${encodeURIComponent(id)}&user_id=eq.${encodeURIComponent(req.verifiedUserId!)}&select=id&limit=1`,
+    );
     res.json({ exists: rows.length > 0 });
   } catch (err) {
     return dataErr(res, err);
