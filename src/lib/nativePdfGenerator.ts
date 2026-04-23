@@ -59,6 +59,13 @@ export async function generateNativePDF(
   const clone = element.cloneNode(true) as HTMLElement;
   const origin = window.location.origin;
 
+  // Strip editor-only overlays (page-break indicators etc.) that get rendered
+  // alongside the resume template in the live preview. They carry
+  // data-html2canvas-ignore as a hint from the previous html2canvas pipeline;
+  // Puppeteer doesn't honour that attribute on its own, so we remove them
+  // from the clone explicitly.
+  clone.querySelectorAll('[data-html2canvas-ignore]').forEach(el => el.remove());
+
   // Compress large base64-encoded images to JPEG before serialisation so the
   // HTML payload stays well within the server's size limit even when the resume
   // contains a high-resolution profile photo or other inline raster assets.

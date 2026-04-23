@@ -18,17 +18,29 @@ interface ContactItem {
   icon: typeof Mail;
   label: string;
   value: string;
+  /** Optional href — when set, the label is rendered as an anchor so the
+   *  exported PDF (and live preview) include a clickable hyperlink. */
+  href?: string;
+}
+
+/** Ensures URLs without a scheme become absolute so anchors are clickable. */
+function ensureUrl(raw: string): string {
+  const trimmed = raw.trim();
+  if (/^https?:\/\//i.test(trimmed) || /^mailto:/i.test(trimmed) || /^tel:/i.test(trimmed)) {
+    return trimmed;
+  }
+  return `https://${trimmed}`;
 }
 
 function getItems(contact: ContactInfo): ContactItem[] {
   const items: ContactItem[] = [];
-  if (contact.email) items.push({ key: 'email', icon: Mail, label: contact.email, value: contact.email });
-  if (contact.email2) items.push({ key: 'email2', icon: Mail, label: contact.email2, value: contact.email2 });
-  if (contact.phone) items.push({ key: 'phone', icon: Phone, label: contact.phone, value: contact.phone });
+  if (contact.email) items.push({ key: 'email', icon: Mail, label: contact.email, value: contact.email, href: `mailto:${contact.email}` });
+  if (contact.email2) items.push({ key: 'email2', icon: Mail, label: contact.email2, value: contact.email2, href: `mailto:${contact.email2}` });
+  if (contact.phone) items.push({ key: 'phone', icon: Phone, label: contact.phone, value: contact.phone, href: `tel:${contact.phone.replace(/[^+\d]/g, '')}` });
   if (contact.location) items.push({ key: 'location', icon: MapPin, label: contact.location, value: contact.location });
-  if (contact.linkedin) items.push({ key: 'linkedin', icon: Linkedin, label: extractLinkedInUsername(contact.linkedin), value: contact.linkedin });
-  if (contact.github) items.push({ key: 'github', icon: Github, label: extractGitHubUsername(contact.github), value: contact.github });
-  if (contact.portfolio) items.push({ key: 'portfolio', icon: Globe, label: extractDomain(contact.portfolio), value: contact.portfolio });
+  if (contact.linkedin) items.push({ key: 'linkedin', icon: Linkedin, label: extractLinkedInUsername(contact.linkedin), value: contact.linkedin, href: ensureUrl(contact.linkedin) });
+  if (contact.github) items.push({ key: 'github', icon: Github, label: extractGitHubUsername(contact.github), value: contact.github, href: ensureUrl(contact.github) });
+  if (contact.portfolio) items.push({ key: 'portfolio', icon: Globe, label: extractDomain(contact.portfolio), value: contact.portfolio, href: ensureUrl(contact.portfolio) });
   return items;
 }
 
@@ -60,13 +72,18 @@ export const ContactLinks = memo(function ContactLinks({
 
   return (
     <div className={`flex flex-wrap gap-x-3 gap-y-1 ${className}`}>
-      {items.map((item, i) => (
-        <span key={item.key + i} className="flex items-center gap-1">
-          {separator && i > 0 && <span className="mr-1">{separator}</span>}
-          {showIcons && <item.icon style={{ width: iconSize * 4, height: iconSize * 4, flexShrink: 0, display: 'inline', verticalAlign: 'middle', alignSelf: 'center' }} />}
-          <span>{item.label}</span>
-        </span>
-      ))}
+      {items.map((item, i) => {
+        const Label = item.href
+          ? <a href={item.href} target="_blank" rel="noopener noreferrer" className="hover:underline" style={{ color: 'inherit', textDecoration: 'none' }}>{item.label}</a>
+          : <span>{item.label}</span>;
+        return (
+          <span key={item.key + i} className="flex items-center gap-1">
+            {separator && i > 0 && <span className="mr-1">{separator}</span>}
+            {showIcons && <item.icon style={{ width: iconSize * 4, height: iconSize * 4, flexShrink: 0, display: 'inline', verticalAlign: 'middle', alignSelf: 'center' }} />}
+            {Label}
+          </span>
+        );
+      })}
     </div>
   );
 });
