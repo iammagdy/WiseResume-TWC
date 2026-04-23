@@ -22,7 +22,10 @@
     "db:generate": "node_modules/.bin/drizzle-kit generate",
     "preview:emails": "node scripts/preview-waitlist-emails.mjs",
     "db:check-drift": "node scripts/check-supabase-migration-drift.mjs",
-    "postinstall": "node scripts/ensure-puppeteer-chrome.mjs"
+    "postinstall": "node scripts/ensure-puppeteer-chrome.mjs",
+    "test:e2e": "playwright test --project=chromium",
+    "test:e2e:headed": "E2E_HEADED=1 playwright test --project=chromium --headed",
+    "test:e2e:report": "playwright show-report reports/e2e-html"
   },
   "dependencies": {
     "@capacitor/android": "^8.0.2",
@@ -123,6 +126,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",
+    "@playwright/test": "^1.59.1",
     "@sentry/vite-plugin": "^5.2.0",
     "@tailwindcss/typography": "^0.5.16",
     "@testing-library/jest-dom": "^6.9.1",
