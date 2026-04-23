@@ -54,6 +54,18 @@ export async function generateNativePDF(
     }
   }
 
+  // 1a. Explicitly pick up any inline <style> tags inside the resume element
+  //     (notably the per-resume customization CSS injected by LivePreviewPanel).
+  //     document.styleSheets sometimes fails to expose cssRules for these
+  //     React-rendered inline style nodes; appending their textContent at the
+  //     end of cssChunks guarantees customization (accent colour, fonts,
+  //     font-scale, gaps, header alignment) ends up in the head of the
+  //     Puppeteer document and wins ordering ties against template CSS.
+  element.querySelectorAll('style').forEach(s => {
+    const text = s.textContent?.trim();
+    if (text) cssChunks.push(text);
+  });
+
   // 2. Clone the element and fix relative asset URLs so the headless browser
   //    can fetch them from the running dev/prod server.
   const clone = element.cloneNode(true) as HTMLElement;
