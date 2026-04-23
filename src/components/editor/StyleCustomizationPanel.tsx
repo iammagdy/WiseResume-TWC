@@ -65,14 +65,13 @@ export function StyleCustomizationPanel({ open, onOpenChange }: StyleCustomizati
     [currentResume, updateResume]
   );
 
-  // One-click escape from any persisted customization (including dirty data
-  // that may have been saved by earlier panel versions). Sets only the
-  // master `enabled: false` flag, preserving the user's other tweaks in
-  // case they want to switch the panel back on later.
+  // True reset: wipes ALL persisted customization fields (including dirty
+  // data like accentColor='#1e40af' that earlier panel versions baked in
+  // and which silently re-painted everything blue). Keeps the panel ON so
+  // the user can start customizing again from a clean slate.
   const clearAll = useCallback(() => {
     if (!currentResume) return;
-    const base = (currentResume.customization ?? {}) as TemplateCustomization;
-    updateResume({ customization: { ...base, enabled: false } as TemplateCustomization });
+    updateResume({ customization: { enabled: true } as TemplateCustomization });
   }, [currentResume, updateResume]);
 
   if (!currentResume) return null;
@@ -336,10 +335,10 @@ export function StyleCustomizationPanel({ open, onOpenChange }: StyleCustomizati
             onClick={clearAll}
           >
             <RotateCcw className="w-3 h-3 mr-2" />
-            Turn off customizations
+            Reset to template defaults
           </Button>
           <p className="mt-2 text-xs text-muted-foreground text-center">
-            Reverts to the template's default look. Your saved tweaks are kept and will return when you switch the panel back on.
+            Clears every customization saved on this resume so the template renders with its original styling. Use this if your CV is stuck looking wrong (e.g. all-blue text).
           </p>
         </div>
       </SheetContent>
