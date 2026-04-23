@@ -3,9 +3,8 @@ import { WiseHireShell } from '@/components/wisehire/WiseHireShell';
 import { useWiseHireAccount } from '@/hooks/wisehire/useWiseHireAccount';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/safeClient';
-import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { getUserId } from '@/lib/supabaseBridge';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,16 +16,13 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
-  KeyRound,
   AlertCircle,
   Loader2,
   Building2,
   User,
   Save,
-  Settings2,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { AISettingsSheet } from '@/components/settings/AISettingsSheet';
 
 const COMPANY_SIZES = [
   { value: '1-10', label: '1–10 employees' },
@@ -36,86 +32,6 @@ const COMPANY_SIZES = [
   { value: '501-1000', label: '501–1,000 employees' },
   { value: '1000+', label: '1,000+ employees' },
 ];
-
-const PROVIDER_LABELS: Record<string, string> = {
-  openai: 'OpenAI',
-  anthropic: 'Anthropic',
-  gemini: 'Gemini',
-  groq: 'Groq',
-  mistral: 'Mistral',
-  xai: 'xAI',
-  cohere: 'Cohere',
-  openrouter: 'OpenRouter',
-  ollama: 'Ollama',
-};
-
-function formatProviderLabel(provider: string): string {
-  return PROVIDER_LABELS[provider] ?? provider;
-}
-
-// ── AI Key Section ────────────────────────────────────────────────────
-
-function AIKeySection({ onOpen }: { onOpen: () => void }) {
-  const { data, isLoading: loading } = useQuery({
-    queryKey: ['ai-keys'],
-    queryFn: async () => {
-      const { data, error } = await edgeFunctions.functions.invoke('manage-api-keys', {
-        body: { action: 'get' },
-      });
-      if (error || !data?.keys) return [] as string[];
-      return (data.keys as Array<{ provider: string }>).map((k) => k.provider);
-    },
-    staleTime: 30 * 1000,
-  });
-  const providers = data ?? [];
-
-  function renderStatus() {
-    if (loading) {
-      return (
-        <span className="flex items-center gap-1.5 text-sm text-slate-400 dark:text-slate-500">
-          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          Checking connected keys…
-        </span>
-      );
-    }
-    if (providers.length === 0) {
-      return (
-        <span className="text-sm text-slate-400 dark:text-slate-500">No keys configured</span>
-      );
-    }
-    const labels = providers.map(formatProviderLabel).join(', ');
-    return (
-      <span className="text-sm text-emerald-600 dark:text-emerald-400 font-medium">
-        {labels} connected
-      </span>
-    );
-  }
-
-  return (
-    <section className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 space-y-5">
-      <div className="flex items-start gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-50 dark:bg-amber-900/20">
-          <KeyRound className="h-4.5 w-4.5 text-amber-600 dark:text-amber-400" />
-        </div>
-        <div className="flex-1">
-          <h2 className="text-base font-semibold text-slate-900 dark:text-white">AI API Keys (BYOK)</h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed mt-0.5">
-            Connect your own API keys for OpenAI, Anthropic, Groq, Mistral, and more.
-          </p>
-          <div className="mt-2">{renderStatus()}</div>
-        </div>
-      </div>
-      <Button
-        onClick={onOpen}
-        variant="outline"
-        className="gap-2"
-      >
-        <Settings2 className="h-4 w-4" />
-        Manage AI Keys
-      </Button>
-    </section>
-  );
-}
 
 // ── Company Profile Section ───────────────────────────────────────
 
@@ -259,8 +175,6 @@ function AccountInfoSection() {
 // ── Page ─────────────────────────────────────────────────────────
 
 export default function WiseHireSettingsPage() {
-  const [showAISettings, setShowAISettings] = useState(false);
-
   return (
     <WiseHireShell>
       <div className="p-5 lg:p-8 space-y-6 max-w-2xl mx-auto w-full">
@@ -269,16 +183,13 @@ export default function WiseHireSettingsPage() {
             Settings
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-            Manage your company profile, AI keys, and account.
+            Manage your company profile and account.
           </p>
         </div>
 
         <CompanyProfileSection />
-        <AIKeySection onOpen={() => setShowAISettings(true)} />
         <AccountInfoSection />
       </div>
-
-      <AISettingsSheet open={showAISettings} onOpenChange={setShowAISettings} />
     </WiseHireShell>
   );
 }

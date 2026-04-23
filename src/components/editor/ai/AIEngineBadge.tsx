@@ -52,7 +52,7 @@ export const AIEngineBadge = memo(function AIEngineBadge({
 
           {/* Shimmer text */}
           <span className="ai-engine-text text-sm font-medium">
-            Powered by {providerInfo.name}
+            Powered by {providerInfo.label}
           </span>
 
           {/* Settings gear */}

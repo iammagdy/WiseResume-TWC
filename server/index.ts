@@ -168,12 +168,15 @@ async function bootstrapSupabaseSecrets(): Promise<void> {
     console.warn('[server] Supabase secret bootstrap failed (non-fatal):', err);
   }
 
-  // Push managed AI provider keys (set in Replit env) into Supabase Edge
+  // Push the flat AI key pool (set in Replit env) into Supabase Edge
   // Function secrets so `Deno.env.get(...)` inside `_shared/aiClient.ts` sees
   // them. Idempotent — Supabase upserts by name, so re-running is a no-op
-  // when the value hasn't changed. The keys checked here are exactly the
-  // env names referenced by callWiseresumeAI().
-  const managedAiKeys = ['OPENROUTER_API_KEY', 'OPENROUTER2_API_KEY', 'GROQ_API_KEY'] as const;
+  // when the value hasn't changed. The keys here are the only AI secrets
+  // the new flat-pool client reads.
+  const managedAiKeys = [
+    'OPENROUTER_KEY_1', 'OPENROUTER_KEY_2', 'OPENROUTER_KEY_3',
+    'GROQ_KEY_1', 'GROQ_KEY_2', 'GROQ_KEY_3',
+  ] as const;
   const secretsToPush = managedAiKeys
     .map((name) => ({ name, value: process.env[name] }))
     .filter((s): s is { name: string; value: string } => typeof s.value === 'string' && s.value.length > 0);
@@ -203,10 +206,9 @@ async function bootstrapSupabaseSecrets(): Promise<void> {
     const missing = managedAiKeys.filter((k) => !process.env[k]);
     console.warn(
       `[server] No managed AI keys present in Replit env (${missing.join(', ')}). ` +
-      `Test AI in WiseResume managed mode will fail with "AI is not configured" ` +
-      `until at least one of these is set as a Replit Secret AND pushed to ` +
-      `Supabase Edge Function secrets (this bootstrap only pushes keys that ` +
-      `exist in the Replit env).`
+      `Every AI call will fail until at least one OPENROUTER_KEY_n or GROQ_KEY_n ` +
+      `is set as a Replit Secret AND pushed to Supabase Edge Function secrets ` +
+      `(this bootstrap only pushes keys that exist in the Replit env).`
     );
   }
 }

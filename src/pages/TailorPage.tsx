@@ -22,7 +22,6 @@ import { JobUrlParser } from '@/components/editor/tailor/JobUrlParser';
 import { TailorPreviewSheet } from '@/components/editor/tailor/TailorPreviewSheet';
 import { buildMergedResume } from '@/lib/tailorMerge';
 import { AICostBadge } from '@/components/ai/AICostBadge';
-import { AISettingsSheet } from '@/components/settings/AISettingsSheet';
 import { reportBug } from '@/lib/bugReport';
 import { useAIAction } from '@/hooks/useAIAction';
 import { useResumes, dbToResumeData, DatabaseResume } from '@/hooks/useResumes';
@@ -183,7 +182,6 @@ export default function TailorPage() {
   const [isApplying, setIsApplying] = useState(false);
   const [jobUrl, setJobUrl] = useState<string | undefined>(undefined);
   const [tailorError, setTailorError] = useState<{ message: string; code?: string } | null>(null);
-  const [showAISettings, setShowAISettings] = useState(false);
   const [copiedText, setCopiedText] = useState(false);
   const [showAppliedCTA, setShowAppliedCTA] = useState(false);
   const [showTailorPreview, setShowTailorPreview] = useState(false);
@@ -561,9 +559,6 @@ export default function TailorPage() {
                 {copiedText ? 'Copied!' : 'Copy text'}
               </Button>
             )}
-            <Button size="sm" variant="ghost" onClick={() => setShowAISettings(true)}>
-              <Settings className="w-4 h-4" />
-            </Button>
           </div>
         </div>
       </header>
@@ -693,7 +688,7 @@ export default function TailorPage() {
                 onPreview={() => setShowTailorPreview(true)}
                 isApplying={isApplying}
                 onRetry={() => { setTailorError(null); handleTailor(); }}
-                onSettings={() => setShowAISettings(true)}
+                onSettings={() => {}}
                 onRevert={() => setTailorResult(null)}
                 abortRef={abortRef}
                 setIsTailoring={setIsTailoring}
@@ -732,7 +727,7 @@ export default function TailorPage() {
               onPreview={() => setShowTailorPreview(true)}
               isApplying={isApplying}
               onRetry={() => { setTailorError(null); handleTailor(); }}
-              onSettings={() => setShowAISettings(true)}
+              onSettings={() => {}}
               onRevert={() => setTailorResult(null)}
               abortRef={abortRef}
               setIsTailoring={setIsTailoring}
@@ -764,7 +759,6 @@ export default function TailorPage() {
         </div>
       </div>
 
-      <AISettingsSheet open={showAISettings} onOpenChange={setShowAISettings} />
 
       {/* Tailored Resume Preview Sheet — ephemeral render of merged result */}
       <TailorPreviewSheet

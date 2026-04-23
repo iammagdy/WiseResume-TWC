@@ -37,8 +37,6 @@ const DataExportSheet = lazy(() => import('@/components/settings/DataExportSheet
 const DeleteDataDialog = lazy(() => import('@/components/settings/DeleteDataDialog').then((m) => ({ default: m.DeleteDataDialog })));
 const BiometricSetupSheet = lazy(() => import('@/components/settings/BiometricSetupSheet').then((m) => ({ default: m.BiometricSetupSheet })));
 const BiometricTimeoutSheet = lazy(() => import('@/components/settings/BiometricTimeoutSheet').then((m) => ({ default: m.BiometricTimeoutSheet })));
-const ElevenLabsKeySheet = lazy(() => import('@/components/settings/ElevenLabsKeySheet').then((m) => ({ default: m.ElevenLabsKeySheet })));
-const AISettingsSheet = lazy(() => import('@/components/settings/AISettingsSheet').then((m) => ({ default: m.AISettingsSheet })));
 const HelpSheet = lazy(() => import('@/components/settings/HelpSheet').then((m) => ({ default: m.HelpSheet })));
 const ProfileCard = lazy(() => import('@/components/settings/ProfileCard'));
 
@@ -46,7 +44,6 @@ const ProfileCard = lazy(() => import('@/components/settings/ProfileCard'));
 import { TalentPoolDiscoverableCard } from '@/components/settings/TalentPoolDiscoverableCard';
 import { AccountSection } from '@/components/settings/sections/AccountSection';
 import { AppearanceSection } from '@/components/settings/sections/AppearanceSection';
-import { AIVoiceSection } from '@/components/settings/sections/AIVoiceSection';
 import { EditorExportSection } from '@/components/settings/sections/EditorExportSection';
 import { NotificationsSection } from '@/components/settings/sections/NotificationsSection';
 import { PrivacySection } from '@/components/settings/sections/PrivacySection';
@@ -96,8 +93,6 @@ export default function SettingsPage() {
   const {
     biometricLockEnabled,
     setBiometricLockEnabled,
-    elevenlabsApiKey,
-    setElevenlabsApiKey,
     setHasSeenSplash
   } = useSettingsStore();
 
@@ -109,8 +104,6 @@ export default function SettingsPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [biometricSetupOpen, setBiometricSetupOpen] = useState(false);
   const [biometricTimeoutOpen, setBiometricTimeoutOpen] = useState(false);
-  const [elevenLabsKeyOpen, setElevenLabsKeyOpen] = useState(false);
-  const [aiSettingsOpen, setAISettingsOpen] = useState(false);
   const [helpSheetOpen, setHelpSheetOpen] = useState(false);
   const [changelogOpen, setChangelogOpen] = useState(false);
   const [aboutDialogOpen, setAboutDialogOpen] = useState(false);
@@ -330,17 +323,6 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* AI & Voice */}
-          <div>
-            <SectionLabel>AI & Voice</SectionLabel>
-            <div className="mx-4">
-              <AIVoiceSection
-                onOpenAISettings={() => setAISettingsOpen(true)}
-                onOpenElevenLabsKey={() => setElevenLabsKeyOpen(true)}
-              />
-            </div>
-          </div>
-
           {/* Notifications */}
           <div>
             <SectionLabel>Notifications</SectionLabel>
@@ -491,20 +473,6 @@ export default function SettingsPage() {
           onOpenChange={setBiometricTimeoutOpen}
           selectedTimeout={useSettingsStore.getState().biometricLockTimeout}
           onSelect={useSettingsStore.getState().setBiometricLockTimeout} />
-
-        }
-        {elevenLabsKeyOpen &&
-        <ElevenLabsKeySheet
-          open={elevenLabsKeyOpen}
-          onOpenChange={setElevenLabsKeyOpen}
-          currentKey={elevenlabsApiKey}
-          onSave={setElevenlabsApiKey} />
-
-        }
-        {aiSettingsOpen &&
-        <AISettingsSheet
-          open={aiSettingsOpen}
-          onOpenChange={setAISettingsOpen} />
 
         }
         {helpSheetOpen &&

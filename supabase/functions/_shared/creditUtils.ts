@@ -1,12 +1,10 @@
 import { getServiceClient } from './dbClient.ts';
 import { planDailyLimit, UNLIMITED_SENTINEL } from './planLimits.ts';
 import { logger } from './logger.ts';
-import { BYOK_PROVIDER_ALLOWLIST } from './aiProviders.ts';
-
-// BYOK_PROVIDER_ALLOWLIST is the single source of truth — see
-// `_shared/aiProviders.ts`. Drift between the credit util and the routing
-// branches in callAI is enforced by the AI-4 drift-detection test
-// (`__tests__/aiProvidersDrift.test.ts`).
+// BYOK has been removed. Every authenticated AI request now runs through
+// the managed flat 6-key pool, so credit deduction always applies and the
+// `isByok` field is permanently false. The field is retained on
+// CreditCheckResult for source-compat with existing call sites.
 
 const log = logger('creditUtils');
 
@@ -67,41 +65,15 @@ export async function checkAndDeductCredit(
 ): Promise<CreditCheckResult> {
   const supabase = getServiceClient();
 
-  // Fetch BYOK preference and subscription concurrently.
-  const [prefsRes, subRes] = await Promise.all([
-    supabase.from('user_preferences').select('ai_provider').eq('user_id', userId).maybeSingle(),
-    supabase.from('subscriptions').select('plan_name, trial_plan, trial_expires_at').eq('user_id', userId).maybeSingle(),
-  ]);
+  const subRes = await supabase
+    .from('subscriptions')
+    .select('plan_name, trial_plan, trial_expires_at')
+    .eq('user_id', userId)
+    .maybeSingle();
 
-  if (prefsRes.error) {
-    log.error('user_preferences lookup failed — rejecting AI request fail-closed', prefsRes.error, { userId });
-    throw new Error(`Billing state lookup failed: ${prefsRes.error.message}`);
-  }
   if (subRes.error) {
     log.error('subscriptions lookup failed — rejecting AI request fail-closed', subRes.error, { userId });
     throw new Error(`Billing state lookup failed: ${subRes.error.message}`);
-  }
-
-  const declaredProvider = prefsRes.data?.ai_provider;
-  const isKnownByokProvider =
-    declaredProvider &&
-    declaredProvider !== 'wiseresume' &&
-    BYOK_PROVIDER_ALLOWLIST.has(declaredProvider.toLowerCase());
-
-  if (isKnownByokProvider) {
-    const { data: keyRow } = await supabase
-      .from('user_api_keys')
-      .select('provider')
-      .eq('user_id', userId)
-      .eq('provider', declaredProvider)
-      .maybeSingle();
-
-    if (keyRow?.provider) {
-      return { hasCredits: true, remaining: 9999, isByok: true, effectivePlan: 'byok' };
-    }
-
-    log.warn('BYOK rejection: declared provider has no stored key', { userId, declaredProvider });
-    return { hasCredits: false, remaining: 0, isByok: false, effectivePlan: 'byok' };
   }
 
   const sub = subRes.data;
