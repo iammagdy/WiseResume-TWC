@@ -2157,8 +2157,13 @@ button,
 }
 
 /* ─── Interview Summary Print Styles ──────────────────────────────────────── */
+/* Scoped via :has() so the global "hide everything" rule only fires on the
+   Interview Summary page, where #interview-summary-content actually exists.
+   Without this guard the rule leaked into every @media print context —
+   including Puppeteer-rendered resume/cover-letter PDFs — producing
+   correctly-paginated but completely blank pages. */
 @media print {
-  body * {
+  body:has(#interview-summary-content) * {
     visibility: hidden !important;
   }
   #interview-summary-content,
