@@ -30,10 +30,9 @@
 #         Confirm the commit list loads without errors
 # ─────────────────────────────────────────────────────────────────────────────────────
 
-set -e
-
 PROJECT_REF="jnsfmkzgxsviuthaqlyy"
 FUNCTIONS_DIR="supabase/functions"
+PARALLEL="${DEPLOY_PARALLEL:-8}"
 
 if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
   echo "Error: SUPABASE_ACCESS_TOKEN is not set."
@@ -42,31 +41,48 @@ if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
   exit 1
 fi
 
-echo "Deploying all edge functions to project $PROJECT_REF..."
+echo "Deploying all edge functions to project $PROJECT_REF (parallel=$PARALLEL)..."
 echo ""
 
-DEPLOYED=0
-FAILED=0
-SKIPPED=0
+LIST_FILE=$(mktemp)
+trap 'rm -f "$LIST_FILE"' EXIT
 
 for fn_dir in "$FUNCTIONS_DIR"/*/; do
   fn=$(basename "$fn_dir")
   entry="$fn_dir/index.ts"
-
-  # Skip non-function entries (e.g. _shared, EDGE_FUNCTION_AUDIT.md treated as dir)
-  if [[ "$fn" == _* ]] || [ ! -f "$entry" ]; then
-    SKIPPED=$((SKIPPED + 1))
-    continue
-  fi
-
-  echo "→ Deploying $fn..."
-  if npx supabase functions deploy "$fn" --project-ref "$PROJECT_REF" --use-api 2>&1 | tail -1; then
-    DEPLOYED=$((DEPLOYED + 1))
-  else
-    echo "  ⚠ Failed to deploy $fn — continuing..."
-    FAILED=$((FAILED + 1))
-  fi
+  if [[ "$fn" == _* ]] || [ ! -f "$entry" ]; then continue; fi
+  echo "$fn" >> "$LIST_FILE"
 done
 
+RESULT_FILE=$(mktemp)
+trap 'rm -f "$LIST_FILE" "$RESULT_FILE"' EXIT
+
+deploy_one() {
+  local fn="$1"
+  local log
+  log=$(npx supabase functions deploy "$fn" --project-ref "$PROJECT_REF" --use-api 2>&1)
+  if [ $? -eq 0 ] && echo "$log" | grep -q "Deployed Functions on project"; then
+    echo "  OK   $fn"
+    echo "OK $fn" >> "$RESULT_FILE"
+  else
+    echo "  FAIL $fn"
+    echo "FAIL $fn" >> "$RESULT_FILE"
+  fi
+}
+export -f deploy_one
+export PROJECT_REF RESULT_FILE
+
+TOTAL=$(wc -l < "$LIST_FILE")
+cat "$LIST_FILE" | xargs -P "$PARALLEL" -n 1 -I {} bash -c 'deploy_one "$@"' _ {}
+
+OK=$(grep -c "^OK " "$RESULT_FILE" 2>/dev/null || echo 0)
+FAILED=$(grep -c "^FAIL " "$RESULT_FILE" 2>/dev/null || echo 0)
+
 echo ""
-echo "Done. Deployed: $DEPLOYED, Failed: $FAILED, Skipped: $SKIPPED."
+echo "Summary: $OK/$TOTAL deployed, $FAILED failed."
+if [ "$FAILED" -gt 0 ]; then
+  echo "Failed functions:"
+  grep "^FAIL " "$RESULT_FILE" | awk '{print "  - " $2}'
+  exit 1
+fi
+exit 0
