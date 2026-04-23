@@ -100,6 +100,23 @@ export interface SentenceRewriteProposal {
 /** Stage tag for telemetry + UI grouping. */
 export type SmartFitStage = 'layout' | 'rewrite' | 'prune' | 'collapse';
 
+/** A layout-only fit proposal: shrink the resume's `customization.fontScale`
+ *  to a tested value that brings the resume closer to (or at) the target
+ *  page count. This is Stage 0 of the convergence loop — purely deterministic,
+ *  no AI, no content removal. */
+export interface LayoutFitProposal {
+  id: string;
+  /** The fontScale value currently on the resume. */
+  fontScaleBefore: number;
+  /** The smaller fontScale this proposal would write back. */
+  fontScaleAfter: number;
+  /** Pages measured BEFORE this proposal applied. */
+  pagesBefore: number;
+  /** Pages measured AFTER this proposal alone applied (no content edits). */
+  pagesAfter: number;
+  reason: string;
+}
+
 /** A complete plan returned by the orchestrator. The UI is responsible for
  * showing per-edit cards and ultimately calling `applySmartFitPlan` with
  * the user-selected subset. */
@@ -116,6 +133,16 @@ export interface SmartFitPlan {
   rewrites: SentenceRewriteProposal[];
   drops: BulletDropProposal[];
   collapses: SectionCollapseProposal[];
+  /** Optional layout-only fit proposed by the convergence loop. Present only
+   *  if the wizard's Stage 0 found a fontScale that helps. */
+  layoutFit?: LayoutFitProposal;
+  /** Final measured page count if the user accepts the convergence-recommended
+   *  selection. Set by the convergence loop, undefined if convergence was
+   *  skipped (e.g. measure unavailable). */
+  pagesAfterRecommended?: number;
+  /** Selection IDs the convergence loop found *necessary* to reach the
+   *  target. The wizard pre-checks these. */
+  recommendedSelection?: SmartFitSelection;
 }
 
 /** User selection across all proposed edits. */
@@ -123,4 +150,6 @@ export interface SmartFitSelection {
   rewrites: Set<string>;
   drops: Set<string>;
   collapses: Set<string>;
+  /** True when the user wants the layout-fit fontScale change applied. */
+  layoutFit?: boolean;
 }

@@ -19,7 +19,31 @@ interface RewriteCandidate {
 }
 
 interface RewriteRequest {
-  candidates: RewriteCandidate[];
+  /** Defaults to 'rewrite' when omitted. 'telemetry' just records an event
+   *  and returns 200 without consuming credits or calling the model. */
+  mode?: 'rewrite' | 'telemetry';
+  candidates?: RewriteCandidate[];
+  telemetry?: TelemetryEvent;
+}
+
+interface TelemetryEvent {
+  outcome: 'analyzed' | 'applied' | 'undone' | 'still_overflowing';
+  targetPages?: number;
+  pagesBefore?: number;
+  pagesAfterRecommended?: number;
+  pagesAfterApplied?: number;
+  rewriteCount?: number;
+  dropCount?: number;
+  collapseCount?: number;
+  recommendedRewrites?: number;
+  recommendedDrops?: number;
+  recommendedCollapses?: number;
+  appliedRewrites?: number;
+  appliedDrops?: number;
+  appliedCollapses?: number;
+  layoutFitApplied?: boolean;
+  stillOverflowing?: boolean;
+  convergedMs?: number;
 }
 
 const MAX_PAYLOAD = 100_000;
@@ -98,6 +122,26 @@ Deno.serve(async (req) => {
       );
     }
     const parsed: RewriteRequest = JSON.parse(bodyText);
+
+    // Telemetry mode — log the event and return without touching credits or
+    // calling the model. The wizard fires these on analyze/apply/undo to
+    // give us stage-reached + acceptance-rate observability.
+    if (parsed.mode === 'telemetry') {
+      const tele = parsed.telemetry || { outcome: 'analyzed' };
+      // Lightweight per-user rate limit so a misbehaving client can't spam.
+      const teleRate = await checkUserRateLimit(userId, 'smart_fit_telemetry', 60, 60);
+      if (!teleRate.allowed) {
+        // Silently no-op on rate limit — telemetry must never bubble back to UX.
+        return new Response(JSON.stringify({ success: true, recorded: false }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      log.info('smart_fit_telemetry', { userId, ...tele });
+      return new Response(JSON.stringify({ success: true, recorded: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const candidates = (parsed.candidates ?? []).slice(0, MAX_CANDIDATES);
     if (candidates.length === 0) {
       return new Response(

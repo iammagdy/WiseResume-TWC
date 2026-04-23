@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  FileText,
   Loader2,
   CheckCircle2,
   Scissors,
@@ -9,10 +8,10 @@ import {
   Sparkles,
   ShieldCheck,
   Layers,
-  Undo2,
   Wand2,
   Check,
   X,
+  Type,
 } from 'lucide-react';
 import {
   Sheet,
@@ -39,7 +38,10 @@ import type { ResumeData } from '@/types/resume';
 import { useResumeVersionMutations } from '@/hooks/useResumeVersions';
 import { useAIApplyEffects } from '@/hooks/useAIApplyEffects';
 import { runSmartFit, applySmartFitPlan } from '@/lib/smartFit/orchestrator';
-import type { SmartFitPlan, SmartFitSelection } from '@/lib/smartFit/types';
+import { convergeSmartFitPlan, type ConvergeProgress } from '@/lib/smartFit/converge';
+import { buildDiffHighlight, type HighlightSegment } from '@/lib/smartFit/diffHighlight';
+import type { SmartFitPlan, SmartFitSelection, LayoutFitProposal } from '@/lib/smartFit/types';
+import { edgeFunctions } from '@/lib/edgeFunctions';
 
 interface SmartFitWizardSheetProps {
   open: boolean;
@@ -49,29 +51,29 @@ interface SmartFitWizardSheetProps {
 }
 
 type ViewState = 'intro' | 'analyzing' | 'results';
-type AnalyzeStage = 'measuring' | 'scoring' | 'asking-ai' | 'finalising';
+type AnalyzeStage = 'measuring' | 'scoring' | 'asking-ai' | 'converging' | 'finalising';
 
 const STAGE_LABEL: Record<AnalyzeStage, string> = {
   measuring: 'Measuring your resume…',
   scoring: 'Ranking sentences…',
   'asking-ai': 'Asking AI to shorten the longest ones…',
+  converging: 'Trying edits one at a time until we hit your target…',
   finalising: 'Finalising the plan…',
 };
 const STAGE_PCT: Record<AnalyzeStage, number> = {
-  measuring: 15, scoring: 35, 'asking-ai': 75, finalising: 95,
+  measuring: 10, scoring: 25, 'asking-ai': 55, converging: 85, finalising: 95,
 };
 
 function emptySelection(): SmartFitSelection {
-  return { rewrites: new Set(), drops: new Set(), collapses: new Set() };
+  return { rewrites: new Set(), drops: new Set(), collapses: new Set(), layoutFit: false };
 }
 
 /**
- * Char-count fallback when the offscreen template hasn't finished mounting
+ * Char-count fallback if the offscreen template hasn't finished mounting
  * by the measure deadline. Mirrors the heuristic used by the
- * `one-page-optimizer` edge function so client + server agree on what
- * "current pages" means when DOM measurement is unavailable.
+ * `one-page-optimizer` edge function so client + server agree.
  */
-function estimatePagesFromContent(resume: import('@/types/resume').ResumeData | null): number {
+function estimatePagesFromContent(resume: ResumeData | null): number {
   if (!resume) return 1;
   let charCount = 0;
   charCount += Object.values(resume.contactInfo ?? {}).filter(Boolean).join(' ').length;
@@ -90,10 +92,6 @@ function estimatePagesFromContent(resume: import('@/types/resume').ResumeData | 
   for (const cert of resume.certifications ?? []) {
     charCount += (cert.name?.length ?? 0) + (cert.issuer?.length ?? 0) + 30;
   }
-  // Divisor MUST match `CHARS_PER_PAGE` in orchestrator.ts. If they drift,
-  // the fallback can round a 1.1-page resume down to 1, then the
-  // orchestrator's "chars to recover" calculation returns 0 and Smart Fit
-  // silently no-ops on what is actually an overflowing resume.
   return Math.max(1, Math.ceil(charCount / 2400));
 }
 
@@ -118,10 +116,19 @@ export function SmartFitWizardSheet({
   );
   const [view, setView] = useState<ViewState>('intro');
   const [analyzeStage, setAnalyzeStage] = useState<AnalyzeStage>('measuring');
+  const [convergeProgress, setConvergeProgress] = useState<ConvergeProgress | null>(null);
   const [plan, setPlan] = useState<SmartFitPlan | null>(null);
   const [selection, setSelection] = useState<SmartFitSelection>(emptySelection());
   const [isApplying, setIsApplying] = useState(false);
   const previousResumeRef = useRef<ResumeData | null>(null);
+
+  // ── Scratch resume + measurement ────────────────────────────────────
+  // We mount a SECOND offscreen template controlled by `scratchResume`.
+  // The convergence loop calls `measureScratch(altResume)` to render any
+  // hypothetical resume, wait for layout, and read back the page count.
+  const [scratchResume, setScratchResume] = useState<ResumeData | null>(null);
+  const scratchElRef = useRef<HTMLElement | null>(null);
+  const pdfModRef = useRef<typeof import('@/lib/pdfGenerator') | null>(null);
 
   const exportApi = useOnePageExport({
     resume: currentResume,
@@ -137,12 +144,24 @@ export function SmartFitWizardSheet({
     return templateComponents[tid] || templateComponents.modern;
   }, [currentResume?.templateId, selectedTemplate]);
 
+  // Pre-warm pdfGenerator so the very first measureScratch is fast
+  useEffect(() => {
+    if (!open || pdfModRef.current) return;
+    let cancelled = false;
+    import('@/lib/pdfGenerator').then(mod => {
+      if (!cancelled) pdfModRef.current = mod;
+    }).catch(() => { /* non-fatal */ });
+    return () => { cancelled = true; };
+  }, [open]);
+
   // Reset state on close
   useEffect(() => {
     if (open) return;
     setView('intro');
     setPlan(null);
     setSelection(emptySelection());
+    setScratchResume(null);
+    setConvergeProgress(null);
   }, [open]);
 
   // Sync target pages with prop when it changes
@@ -150,7 +169,30 @@ export function SmartFitWizardSheet({
     if (targetPagesProp) setTargetPages(targetPagesProp);
   }, [targetPagesProp]);
 
-  const customization = currentResume?.customization || getDefaultCustomization();
+  /**
+   * Render `alt` into the scratch container, wait two RAFs + a 60ms layout-
+   * settle window, then synchronously measure the rendered height. Falls
+   * back to the char-count heuristic only if the DOM isn't reachable.
+   */
+  const measureScratch = useCallback(async (alt: ResumeData): Promise<number> => {
+    setScratchResume(alt);
+    // Two RAFs lets React commit AND lets the browser paint the new layout.
+    await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+    // Small settle window for fonts / async template content.
+    await new Promise(r => setTimeout(r, 60));
+    const el = scratchElRef.current;
+    const mod = pdfModRef.current;
+    if (!el || !mod) return estimatePagesFromContent(alt);
+    try {
+      const fmt = (alt.customization?.pageFormat || 'letter') as 'a4' | 'letter';
+      const dims = mod.PAGE_FORMAT_PX[fmt] || mod.PAGE_FORMAT_PX.letter;
+      const pages = mod.estimatePageCount(el, dims.width, dims.height - mod.FOOTER_RESERVED_PT);
+      return Math.max(1, pages);
+    } catch (e) {
+      console.warn('[SmartFit] measureScratch failed', e);
+      return estimatePagesFromContent(alt);
+    }
+  }, []);
 
   const handleAnalyze = useCallback(async () => {
     if (!currentResume) {
@@ -160,13 +202,10 @@ export function SmartFitWizardSheet({
     haptics.medium?.();
     setView('analyzing');
     setAnalyzeStage('measuring');
+    setConvergeProgress(null);
+    const analyzeStart = performance.now();
     try {
-      // Wait for the offscreen template to mount + finish layout. The first
-      // few frames after open are spent rendering Suspense fallback + the
-      // template itself; on slower devices that can take >1s, so we give
-      // it a generous 5s budget. If we still can't measure, we fall back
-      // to a char-based heuristic — never a hardcoded "1 page" which
-      // would cause Smart Fit to silently no-op on overflowing resumes.
+      // Wait for the offscreen template to mount + finish layout.
       let liveMeasurement = exportApi.measure();
       const deadline = performance.now() + 5000;
       while (!liveMeasurement && performance.now() < deadline) {
@@ -178,12 +217,10 @@ export function SmartFitWizardSheet({
       setAnalyzeStage('scoring');
       await new Promise(r => setTimeout(r, 50));
 
-      // For now we treat "current pages" as the layout-only result too —
-      // the editor's useFitToPages auto-fit has already run if the user
-      // had it enabled. The orchestrator only invokes later stages when
-      // pagesAfterLayout > targetPages, so this is the honest input.
-      const pagesAfterLayout = currentPages;
-
+      // Stage 0 is run inside `convergeSmartFitPlan`. We give the
+      // orchestrator the *unscaled* current page count so its char-savings
+      // heuristic stays pessimistic (better to over-propose edits and
+      // let convergence prune than under-propose and miss the target).
       setAnalyzeStage('asking-ai');
       const result = await executeAI(async () => {
         return runSmartFit({
@@ -191,28 +228,74 @@ export function SmartFitWizardSheet({
           jobDescription,
           targetPages,
           currentPages,
-          pagesAfterLayout,
+          pagesAfterLayout: currentPages,
         });
       });
       if (!result) { setView('intro'); return; }
 
+      // ── Convergence loop ──────────────────────────────────────────
+      // Apply edits one at a time, re-measuring after each, until the
+      // target page count is reached. This is what makes the headline
+      // promise (exact N pages) actually true.
+      setAnalyzeStage('converging');
+      let convResult;
+      try {
+        convResult = await convergeSmartFitPlan({
+          resume: currentResume,
+          plan: result,
+          targetPages,
+          measure: measureScratch,
+          onProgress: setConvergeProgress,
+        });
+      } catch (e) {
+        console.warn('[SmartFit] convergence failed, falling back to default selection', e);
+        convResult = null;
+      }
+
       setAnalyzeStage('finalising');
       await new Promise(r => setTimeout(r, 100));
 
-      // Default-select every validated rewrite, every drop, and every collapse.
-      setSelection({
+      const finalPlan: SmartFitPlan = {
+        ...result,
+        layoutFit: convResult?.layoutFit,
+        pagesAfterRecommended: convResult?.finalPages,
+        recommendedSelection: convResult?.recommended,
+        stillOverflowing: convResult?.stillOverflowing ?? result.stillOverflowing,
+      };
+
+      // Default selection = convergence recommendation if available; else
+      // every validated rewrite + every drop + every collapse.
+      const defaultSel: SmartFitSelection = convResult?.recommended ?? {
         rewrites: new Set(result.rewrites.filter(r => r.validated).map(r => r.id)),
         drops: new Set(result.drops.map(d => d.id)),
         collapses: new Set(result.collapses.map(c => c.id)),
-      });
-      setPlan(result);
+        layoutFit: false,
+      };
+      setSelection(defaultSel);
+      setPlan(finalPlan);
       setView('results');
+
+      // Telemetry — fire-and-forget so a slow request never blocks the UX.
+      void postTelemetry({
+        outcome: 'analyzed',
+        targetPages,
+        pagesBefore: currentPages,
+        pagesAfterRecommended: convResult?.finalPages ?? currentPages,
+        rewriteCount: result.rewrites.length,
+        dropCount: result.drops.length,
+        collapseCount: result.collapses.length,
+        recommendedRewrites: defaultSel.rewrites.size,
+        recommendedDrops: defaultSel.drops.size,
+        recommendedCollapses: defaultSel.collapses.size,
+        stillOverflowing: convResult?.stillOverflowing ?? false,
+        convergedMs: Math.round(performance.now() - analyzeStart),
+      });
     } catch (err: unknown) {
       console.error('[SmartFit] analyze error', err);
       toast.error(err instanceof Error ? err.message : 'Failed to analyze. Please try again.');
       setView('intro');
     }
-  }, [currentResume, exportApi, executeAI, jobDescription, targetPages]);
+  }, [currentResume, exportApi, executeAI, jobDescription, measureScratch, targetPages]);
 
   const { rescoreAfterApply } = useAIApplyEffects(currentResumeId ?? undefined);
 
@@ -221,8 +304,9 @@ export function SmartFitWizardSheet({
     if (!prev) return;
     setCurrentResume(prev);
     previousResumeRef.current = null;
+    void postTelemetry({ outcome: 'undone', targetPages });
     toast.success('Reverted to previous version');
-  }, [setCurrentResume]);
+  }, [setCurrentResume, targetPages]);
 
   const handleApply = useCallback(async () => {
     if (!currentResume || !plan) return;
@@ -240,22 +324,51 @@ export function SmartFitWizardSheet({
           console.warn('[SmartFit] snapshot failed (non-blocking)', e);
         }
       }
-      const merged = applySmartFitPlan(currentResume, plan, selection);
+      let merged = applySmartFitPlan(currentResume, plan, selection);
+      // Apply the layout-fit fontScale if accepted.
+      if (selection.layoutFit && plan.layoutFit) {
+        merged = {
+          ...merged,
+          customization: {
+            ...(merged.customization ?? {}),
+            fontScale: plan.layoutFit.fontScaleAfter,
+          },
+        };
+      }
       updateResume(merged);
       haptics.success?.();
       void rescoreAfterApply(merged);
 
-      toast.success('Smart Fit applied', {
-        action: { label: 'Undo', onClick: handleUndo },
-        duration: 10_000,
+      // Re-measure after apply (gives us the "actually achieved" count).
+      const finalPages = await measureScratch(merged);
+
+      void postTelemetry({
+        outcome: finalPages <= targetPages ? 'applied' : 'still_overflowing',
+        targetPages,
+        pagesBefore: plan.pagesBefore,
+        pagesAfterApplied: finalPages,
+        appliedRewrites: selection.rewrites.size,
+        appliedDrops: selection.drops.size,
+        appliedCollapses: selection.collapses.size,
+        layoutFitApplied: !!selection.layoutFit,
       });
+
+      toast.success(
+        finalPages <= targetPages
+          ? `Smart Fit applied — now ${finalPages} ${finalPages === 1 ? 'page' : 'pages'}.`
+          : `Applied — still ${finalPages} pages. Try selecting more edits.`,
+        {
+          action: { label: 'Undo', onClick: handleUndo },
+          duration: 10_000,
+        },
+      );
       onOpenChange(false);
     } finally {
       setIsApplying(false);
     }
-  }, [currentResume, currentResumeId, handleUndo, onOpenChange, plan, rescoreAfterApply, saveVersion, selection, targetPages, updateResume]);
+  }, [currentResume, currentResumeId, handleUndo, measureScratch, onOpenChange, plan, rescoreAfterApply, saveVersion, selection, targetPages, updateResume]);
 
-  const toggleSel = useCallback(<K extends keyof SmartFitSelection>(key: K, id: string) => {
+  const toggleSel = useCallback(<K extends 'rewrites' | 'drops' | 'collapses'>(key: K, id: string) => {
     setSelection(prev => {
       const next = new Set(prev[key]);
       if (next.has(id)) next.delete(id); else next.add(id);
@@ -263,8 +376,30 @@ export function SmartFitWizardSheet({
     });
   }, []);
 
+  const toggleLayout = useCallback(() => {
+    setSelection(prev => ({ ...prev, layoutFit: !prev.layoutFit }));
+  }, []);
+
+  const acceptAll = useCallback(() => {
+    if (!plan) return;
+    setSelection({
+      rewrites: new Set(plan.rewrites.filter(r => r.validated).map(r => r.id)),
+      drops: new Set(plan.drops.map(d => d.id)),
+      collapses: new Set(plan.collapses.map(c => c.id)),
+      layoutFit: !!plan.layoutFit,
+    });
+  }, [plan]);
+
+  const rejectAll = useCallback(() => {
+    setSelection(emptySelection());
+  }, []);
+
   const totalSelected =
-    selection.rewrites.size + selection.drops.size + selection.collapses.size;
+    selection.rewrites.size + selection.drops.size + selection.collapses.size + (selection.layoutFit ? 1 : 0);
+  const totalAvailable = (plan?.rewrites.filter(r => r.validated).length ?? 0)
+    + (plan?.drops.length ?? 0)
+    + (plan?.collapses.length ?? 0)
+    + (plan?.layoutFit ? 1 : 0);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -277,7 +412,7 @@ export function SmartFitWizardSheet({
           <AIProviderVia className="mt-0.5" />
         </SheetHeader>
 
-        {/* Hidden offscreen render for measurement */}
+        {/* Hidden offscreen render for the BASELINE measurement (current resume). */}
         {open && currentResume && (
           <div
             aria-hidden
@@ -299,6 +434,30 @@ export function SmartFitWizardSheet({
           </div>
         )}
 
+        {/* Hidden offscreen render for SCRATCH measurement (hypothetical resumes
+            tested by the convergence loop). */}
+        {open && scratchResume && (
+          <div
+            aria-hidden
+            style={{ position: 'fixed', left: '-99999px', top: 1000, width: '612px', pointerEvents: 'none', opacity: 0 }}
+          >
+            <div
+              ref={el => { scratchElRef.current = el; }}
+              data-resume-template
+              data-smart-fit-scratch
+              className="bg-white text-black mx-auto"
+              style={{ width: '612px', minHeight: '792px' }}
+            >
+              {scratchResume.customization && (
+                <style>{generateCustomizationCSS(scratchResume.customization)}</style>
+              )}
+              <Suspense fallback={null}>
+                <TemplateComponent resume={scratchResume} accentColor={scratchResume.customization?.accentColor} />
+              </Suspense>
+            </div>
+          </div>
+        )}
+
         <div ref={scrollRef} className="flex-1 overflow-y-auto min-h-0 ai-output-scroll-fade">
           <AnimatePresence mode="wait">
             {view === 'intro' && (
@@ -313,7 +472,7 @@ export function SmartFitWizardSheet({
                   </div>
                   <h3 className="text-lg font-semibold mb-1">Choose your target</h3>
                   <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-                    Smart Fit shortens long sentences, drops the lowest-impact bullets, and collapses low-signal sections — never numbers, dates, employer names, or job-description keywords.
+                    Smart Fit shrinks the layout first, then shortens the longest sentences, drops the lowest-impact bullets, and collapses low-signal sections — never numbers, dates, employer names, or job-description keywords.
                   </p>
                 </div>
 
@@ -330,7 +489,7 @@ export function SmartFitWizardSheet({
                 <div className="rounded-xl border border-border bg-muted/40 p-3 flex items-start gap-2 text-xs text-muted-foreground">
                   <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                   <p>
-                    AI is only used as a last resort. Every change appears as its own card you can accept or reject — and your numbers, dates, employer names, and job-description keywords are protected from AI rewrites.
+                    AI is only used as a last resort. Every change appears as its own card you can accept or reject — and your numbers, dates, employer names, and job-description keywords are highlighted in green to prove they were preserved.
                   </p>
                 </div>
 
@@ -349,6 +508,13 @@ export function SmartFitWizardSheet({
               >
                 <Loader2 className="w-10 h-10 text-primary animate-spin mx-auto" />
                 <p className="text-sm font-medium">{STAGE_LABEL[analyzeStage]}</p>
+                {analyzeStage === 'converging' && convergeProgress && (
+                  <p className="text-xs text-muted-foreground">
+                    {convergeProgress.stage === 'baseline'
+                      ? `Currently ${convergeProgress.pages} pages.`
+                      : `Tested ${convergeProgress.tested}/${convergeProgress.total} ${convergeProgress.stage}${convergeProgress.tested === 1 ? '' : 's'} — now ${convergeProgress.pages} pages.`}
+                  </p>
+                )}
                 <Progress value={STAGE_PCT[analyzeStage]} className="max-w-sm mx-auto" />
               </motion.div>
             )}
@@ -361,8 +527,29 @@ export function SmartFitWizardSheet({
               >
                 <PlanSummary plan={plan} />
 
+                {totalAvailable > 1 && (
+                  <div className="flex items-center gap-2">
+                    <Button size="sm" variant="outline" onClick={acceptAll} className="flex-1">
+                      <Check className="w-3.5 h-3.5 mr-1" />Accept all
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={rejectAll} className="flex-1">
+                      <X className="w-3.5 h-3.5 mr-1" />Reject all
+                    </Button>
+                  </div>
+                )}
+
+                {plan.layoutFit && (
+                  <Section title="Layout fit" hint="A smaller font size that fits without removing any content." icon={<Type className="w-4 h-4" />}>
+                    <LayoutFitCard
+                      proposal={plan.layoutFit}
+                      selected={!!selection.layoutFit}
+                      onToggle={toggleLayout}
+                    />
+                  </Section>
+                )}
+
                 {plan.rewrites.length > 0 && (
-                  <Section title="Sentence rewrites" hint="AI-shortened versions of your longest sentences." icon={<Wand2 className="w-4 h-4" />}>
+                  <Section title="Sentence rewrites" hint="AI-shortened versions of your longest sentences. Green tokens are preserved verbatim." icon={<Wand2 className="w-4 h-4" />}>
                     {plan.rewrites.map(r => (
                       <RewriteCard
                         key={r.id}
@@ -400,7 +587,7 @@ export function SmartFitWizardSheet({
                   </Section>
                 )}
 
-                {plan.rewrites.length === 0 && plan.drops.length === 0 && plan.collapses.length === 0 && (
+                {plan.rewrites.length === 0 && plan.drops.length === 0 && plan.collapses.length === 0 && !plan.layoutFit && (
                   <div className="rounded-xl border border-border bg-muted/30 p-6 text-center text-sm text-muted-foreground">
                     <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto mb-2" />
                     Nothing to change — your resume already fits in {plan.targetPages} {plan.targetPages === 1 ? 'page' : 'pages'}.
@@ -411,10 +598,10 @@ export function SmartFitWizardSheet({
           </AnimatePresence>
         </div>
 
-        {view === 'results' && plan && (plan.rewrites.length + plan.drops.length + plan.collapses.length > 0) && (
+        {view === 'results' && plan && totalAvailable > 0 && (
           <div className="border-t border-border bg-background p-3 flex items-center justify-between gap-2 shrink-0">
             <div className="text-xs text-muted-foreground">
-              {totalSelected} of {plan.rewrites.length + plan.drops.length + plan.collapses.length} edit{totalSelected === 1 ? '' : 's'} selected
+              {totalSelected} of {totalAvailable} edit{totalAvailable === 1 ? '' : 's'} selected
             </div>
             <div className="flex items-center gap-2">
               <Button variant="ghost" size="sm" onClick={() => setView('intro')}>Back</Button>
@@ -430,21 +617,62 @@ export function SmartFitWizardSheet({
   );
 }
 
+// ─── Telemetry ──────────────────────────────────────────────────────────────
+
+interface TelemetryPayload {
+  outcome: 'analyzed' | 'applied' | 'undone' | 'still_overflowing';
+  targetPages: number;
+  pagesBefore?: number;
+  pagesAfterRecommended?: number;
+  pagesAfterApplied?: number;
+  rewriteCount?: number;
+  dropCount?: number;
+  collapseCount?: number;
+  recommendedRewrites?: number;
+  recommendedDrops?: number;
+  recommendedCollapses?: number;
+  appliedRewrites?: number;
+  appliedDrops?: number;
+  appliedCollapses?: number;
+  layoutFitApplied?: boolean;
+  stillOverflowing?: boolean;
+  convergedMs?: number;
+}
+
+async function postTelemetry(payload: TelemetryPayload): Promise<void> {
+  try {
+    await edgeFunctions.functions.invoke('smart-fit-rewrite', {
+      body: { mode: 'telemetry', telemetry: payload },
+    });
+  } catch (e) {
+    // Telemetry MUST never affect user-facing flows — log and forget.
+    console.warn('[SmartFit] telemetry failed (non-blocking)', e);
+  }
+}
+
 // ─── Sub-components ─────────────────────────────────────────────────────────
 
 function PlanSummary({ plan }: { plan: SmartFitPlan }) {
+  const willHit = plan.pagesAfterRecommended !== undefined
+    && plan.pagesAfterRecommended <= plan.targetPages;
   return (
-    <div className="rounded-xl border border-border bg-card p-3">
-      <div className="flex items-center justify-between mb-2">
+    <div className="rounded-xl border border-border bg-card p-3 space-y-2">
+      <div className="flex items-center justify-between">
         <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Plan summary</span>
         <Badge variant="outline" className="text-xs font-mono">
-          {plan.pagesBefore} → target {plan.targetPages}
+          {plan.pagesBefore} → {plan.pagesAfterRecommended ?? '?'} (target {plan.targetPages})
         </Badge>
       </div>
       <div className="flex flex-wrap gap-1.5 text-xs">
         {plan.stagesRun.map(s => (
           <Badge key={s} variant="secondary" className="capitalize">{s}</Badge>
         ))}
+        {willHit && (
+          <Badge variant="default" className="gap-1 bg-emerald-600 hover:bg-emerald-700">
+            <CheckCircle2 className="w-3 h-3" />
+            Hits target
+          </Badge>
+        )}
         {plan.stillOverflowing && (
           <Badge variant="destructive" className="gap-1">
             <AlertCircle className="w-3 h-3" />
@@ -471,9 +699,40 @@ function Section({
   );
 }
 
+function LayoutFitCard({
+  proposal, selected, onToggle,
+}: { proposal: LayoutFitProposal; selected: boolean; onToggle: () => void }) {
+  return (
+    <div className={cn(
+      'rounded-xl border p-3 space-y-2 transition-colors',
+      selected ? 'border-primary bg-primary/5' : 'border-border bg-card',
+    )}>
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-xs text-muted-foreground italic">{proposal.reason}</p>
+        <Button size="sm" variant={selected ? 'default' : 'outline'} onClick={onToggle} className="shrink-0 h-7 px-2">
+          {selected ? <Check className="w-3.5 h-3.5" /> : <X className="w-3.5 h-3.5" />}
+        </Button>
+      </div>
+      <div className="flex items-center gap-2 text-xs">
+        <Badge variant="outline" className="font-mono">
+          {Math.round(proposal.fontScaleBefore * 100)}% → {Math.round(proposal.fontScaleAfter * 100)}%
+        </Badge>
+        <Badge variant="secondary" className="font-mono">
+          {proposal.pagesBefore}p → {proposal.pagesAfter}p
+        </Badge>
+      </div>
+    </div>
+  );
+}
+
 function RewriteCard({
   rewrite, selected, onToggle,
 }: { rewrite: SmartFitPlan['rewrites'][number]; selected: boolean; onToggle: () => void }) {
+  // Build the protected-token-aware diff once per rewrite.
+  const { before: beforeSegs, after: afterSegs } = useMemo(
+    () => buildDiffHighlight(rewrite.before, rewrite.after, rewrite.preserved),
+    [rewrite.before, rewrite.after, rewrite.preserved],
+  );
   return (
     <div className={cn(
       'rounded-xl border p-3 space-y-2 transition-colors',
@@ -495,11 +754,11 @@ function RewriteCard({
       <div className="text-xs space-y-1.5">
         <div>
           <span className="font-medium text-muted-foreground">Before:</span>{' '}
-          <span className="line-through text-muted-foreground">{rewrite.before}</span>
+          <DiffLine segments={beforeSegs} side="before" />
         </div>
         <div>
           <span className="font-medium text-emerald-700">After:</span>{' '}
-          <span>{rewrite.after}</span>
+          <DiffLine segments={afterSegs} side="after" />
         </div>
       </div>
       {rewrite.preserved.length > 0 && (
@@ -522,6 +781,35 @@ function RewriteCard({
         </div>
       )}
     </div>
+  );
+}
+
+function DiffLine({ segments, side }: { segments: HighlightSegment[]; side: 'before' | 'after' }) {
+  return (
+    <span>
+      {segments.map((seg, i) => {
+        if (seg.kind === 'protected') {
+          return (
+            <span
+              key={i}
+              className="bg-emerald-100 text-emerald-900 rounded px-0.5 font-medium"
+              title={`Protected: ${seg.tokenKind}`}
+            >
+              {seg.text}
+            </span>
+          );
+        }
+        if (seg.kind === 'added') {
+          return <span key={i} className="bg-emerald-50 text-emerald-800 rounded px-0.5">{seg.text}</span>;
+        }
+        if (seg.kind === 'removed') {
+          return <span key={i} className="bg-rose-50 text-rose-800 line-through rounded px-0.5">{seg.text}</span>;
+        }
+        return (
+          <span key={i} className={side === 'before' ? 'text-muted-foreground' : ''}>{seg.text}</span>
+        );
+      })}
+    </span>
   );
 }
 
@@ -561,7 +849,8 @@ function CollapseCard({
           {selected ? <Check className="w-3.5 h-3.5" /> : <X className="w-3.5 h-3.5" />}
         </Button>
       </div>
-      <p className="text-[11px] text-muted-foreground">{collapse.itemIds.length} item{collapse.itemIds.length === 1 ? '' : 's'} • ~{collapse.estimatedCharsSaved} chars saved</p>
     </div>
   );
 }
+
+export default SmartFitWizardSheet;
