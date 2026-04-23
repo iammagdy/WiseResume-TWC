@@ -13,7 +13,7 @@ interface SectionCardProps {
   children: ReactNode;
   isOpen?: boolean;
   onToggle?: () => void;
-  collapsible?: boolean;
+  isCollapsible?: boolean;
 }
 
 export const SectionCard = memo(function SectionCard({
@@ -25,26 +25,25 @@ export const SectionCard = memo(function SectionCard({
   children,
   isOpen = true,
   onToggle,
-  collapsible = true,
+  isCollapsible = true,
 }: SectionCardProps) {
-  const isCollapsible = collapsible && onToggle !== undefined;
-
-  const iconEl = (
-    <div className={cn(
-      'w-6 h-6 rounded-md flex items-center justify-center shrink-0',
-      status === 'complete' ? 'bg-success/15' : 'bg-primary/10',
-    )}>
-      <Icon className={cn(
-        'w-3.5 h-3.5',
-        status === 'complete' ? 'text-success' : 'text-primary',
-      )} />
-    </div>
-  );
+  const collapsible = isCollapsible && onToggle !== undefined;
 
   const headerContent = (
     <>
-      {iconEl}
+      <div className={cn(
+        'w-6 h-6 rounded-md flex items-center justify-center shrink-0',
+        status === 'complete' ? 'bg-success/15' : 'bg-primary/10',
+      )}>
+        <Icon className={cn(
+          'w-3.5 h-3.5',
+          status === 'complete' ? 'text-success' : 'text-primary',
+        )} />
+      </div>
+
       <h2 className="text-h3 !text-sm flex-1 min-w-0">{title}</h2>
+
+      {/* AI action — stop propagation so tapping it doesn't toggle the card */}
       {action && (
         <div
           className="shrink-0 min-h-[44px] flex items-center"
@@ -53,7 +52,9 @@ export const SectionCard = memo(function SectionCard({
           {action}
         </div>
       )}
-      {isCollapsible && (
+
+      {/* Chevron */}
+      {collapsible && (
         <ChevronDown
           className={cn(
             'w-4 h-4 text-muted-foreground shrink-0 transition-transform duration-200',
@@ -66,8 +67,8 @@ export const SectionCard = memo(function SectionCard({
 
   return (
     <Collapsible
-      open={isCollapsible ? isOpen : true}
-      onOpenChange={isCollapsible ? (open) => { if (open !== isOpen) onToggle?.(); } : undefined}
+      open={collapsible ? isOpen : true}
+      onOpenChange={collapsible ? (open) => { if (open !== isOpen) onToggle?.(); } : undefined}
     >
       <div
         className={cn(
@@ -79,7 +80,8 @@ export const SectionCard = memo(function SectionCard({
           status === 'empty' && 'before:bg-muted-foreground/20',
         )}
       >
-        {isCollapsible ? (
+        {/* Header — acts as the collapsible trigger when collapsible */}
+        {collapsible ? (
           <CollapsibleTrigger asChild>
             <div
               className="flex items-center gap-2.5 px-4 pt-3 pb-3 cursor-pointer select-none active:opacity-80 touch-manipulation min-h-[52px]"
@@ -94,14 +96,17 @@ export const SectionCard = memo(function SectionCard({
           </div>
         )}
 
+        {/* Tip pill — visible even while collapsed so users know what the section is for */}
+        {tip && status !== 'complete' && (
+          <div className="px-4 pb-2">
+            <span className="inline-block text-xs text-muted-foreground bg-muted px-2.5 py-1 rounded-full">
+              💡 {tip}
+            </span>
+          </div>
+        )}
+
+        {/* Section content — hidden when collapsed */}
         <CollapsibleContent>
-          {tip && status !== 'complete' && (
-            <div className="px-4 pb-1">
-              <span className="inline-block text-xs text-muted-foreground bg-muted px-2.5 py-1 rounded-full">
-                💡 {tip}
-              </span>
-            </div>
-          )}
           <div className="px-4 pb-4 flex-1">
             {children}
           </div>
