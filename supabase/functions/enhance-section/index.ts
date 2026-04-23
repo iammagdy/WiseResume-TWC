@@ -667,7 +667,7 @@ serve(async (req) => {
 
     // Server-side rate limiting
     const userPlan = await getUserPlan(userId);
-    const rateCheck = await checkRateLimit(userId, { maxRequests: 20, proMaxRequests: 100, windowSeconds: 60, actionType: 'enhance', plan: userPlan });
+    const rateCheck = await checkRateLimit(userId, { maxRequests: 30, proMaxRequests: 150, windowSeconds: 60, actionType: 'enhance', plan: userPlan });
     if (!rateCheck.allowed) {
       return new Response(
         JSON.stringify({ error: 'rate_limit', message: `Rate limit exceeded. Try again in ${rateCheck.retryAfterSeconds}s.` }),
@@ -675,7 +675,8 @@ serve(async (req) => {
       );
     }
 
-    const serverRateCheck = await checkUserRateLimit(userId, 'enhance', 20, 60);
+    const serverRateLimit = userPlan === 'premium' ? 10000 : userPlan === 'pro' ? 150 : 30;
+    const serverRateCheck = await checkUserRateLimit(userId, 'enhance', serverRateLimit, 60);
     if (!serverRateCheck.allowed) {
       return new Response(
         JSON.stringify({ error: 'rate_limit', message: `Rate limit exceeded. Try again in ${serverRateCheck.retryAfterSeconds}s.` }),

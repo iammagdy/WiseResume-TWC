@@ -4,7 +4,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAIWithRetry, parseAIJSONWithRetry, sanitizeInputText, toUserError } from "../_shared/aiClient.ts";
 import { selectProviderForTool } from "../_shared/modelRouter.ts";
 const __ROUTE = selectProviderForTool('tailor-section');
-import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
+import { checkRateLimit, recordUsage, getUserPlan } from "../_shared/rateLimiter.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
@@ -47,7 +47,8 @@ serve(async (req) => {
     }
     console.log('[tailor-section] Authenticated user:', userId);
 
-    const rateCheck = await checkRateLimit(userId, { maxRequests: 20, windowSeconds: 60, actionType: 'tailor_section' });
+    const userPlan = await getUserPlan(userId);
+    const rateCheck = await checkRateLimit(userId, { maxRequests: 30, proMaxRequests: 150, windowSeconds: 60, actionType: 'tailor_section', plan: userPlan });
     if (!rateCheck.allowed) {
       return new Response(
         JSON.stringify({ error: `Rate limit exceeded. Try again in ${rateCheck.retryAfterSeconds}s.` }),
@@ -55,7 +56,8 @@ serve(async (req) => {
       );
     }
 
-    const serverRateCheck = await checkUserRateLimit(userId, 'tailor_section', 20, 60);
+    const serverRateLimit = userPlan === 'premium' ? 10000 : userPlan === 'pro' ? 150 : 30;
+    const serverRateCheck = await checkUserRateLimit(userId, 'tailor_section', serverRateLimit, 60);
     if (!serverRateCheck.allowed) {
       return new Response(
         JSON.stringify({ error: `Rate limit exceeded. Try again in ${serverRateCheck.retryAfterSeconds}s.` }),
