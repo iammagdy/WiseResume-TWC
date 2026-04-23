@@ -1,5 +1,5 @@
 import { ReactNode, memo } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { LucideIcon } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -58,10 +58,10 @@ export const SectionCard = memo(function SectionCard({
                 )} />
               </div>
               <h2 className="text-h3 !text-sm flex-1 min-w-0 truncate">{title}</h2>
-              <ChevronDown
+              <ChevronRight
                 className={cn(
                   'w-4 h-4 text-muted-foreground shrink-0 transition-transform duration-200',
-                  isOpen && 'rotate-180',
+                  isOpen && 'rotate-90',
                 )}
               />
             </CollapsibleTrigger>
