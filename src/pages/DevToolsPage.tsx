@@ -35,7 +35,7 @@ import { DeploymentPanel } from '@/components/dev-kit/DeploymentPanel';
 import { EmailManagementPanel } from '@/components/dev-kit/EmailManagementPanel';
 import { WiseHireWaitlistPanel } from '@/components/dev-kit/WiseHireWaitlistPanel';
 import { PortfolioUsernamesPanel } from '@/components/dev-kit/PortfolioUsernamesPanel';
-import { AIProviderPanel } from '@/components/dev-kit/AIProviderPanel';
+import { OpenRouterPanel, GroqPanel } from '@/components/dev-kit/AIKeySlotPanels';
 import { DEV_KIT_VERSION } from '@/components/dev-kit/config';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { supabase } from '@/integrations/supabase/safeClient';
@@ -44,7 +44,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { DevKitPanelBoundary } from '@/components/dev-kit/DevKitPanelBoundary';
 
-type Tab = 'overview' | 'analytics' | 'onboarding' | 'live' | 'deployment' | 'users' | 'coupons' | 'settings' | 'activity' | 'email' | 'wisehire' | 'portfolio' | 'ai-provider';
+type Tab = 'overview' | 'analytics' | 'onboarding' | 'live' | 'deployment' | 'users' | 'coupons' | 'settings' | 'activity' | 'email' | 'wisehire' | 'portfolio' | 'openrouter' | 'groq';
 
 interface NavItem {
   id: Tab;
@@ -81,7 +81,8 @@ const NAV_SECTIONS: NavSection[] = [
     title: 'System',
     items: [
       { id: 'deployment', label: 'Deployment', icon: Rocket },
-      { id: 'ai-provider', label: 'AI Provider', icon: BrainCircuit },
+      { id: 'openrouter', label: 'OpenRouter', icon: BrainCircuit },
+      { id: 'groq', label: 'Groq', icon: BrainCircuit },
       { id: 'settings', label: 'Settings', icon: Settings },
       { id: 'activity', label: 'Audit Log', icon: Clock },
     ],
@@ -101,7 +102,8 @@ const TAB_LABELS: Record<Tab, string> = {
   email: 'Email',
   wisehire: 'WiseHire',
   portfolio: 'Portfolio',
-  'ai-provider': 'AI Provider',
+  openrouter: 'OpenRouter',
+  groq: 'Groq',
 };
 
 type ConnectionStatus = 'checking' | 'connected' | 'degraded' | 'disconnected';
@@ -764,7 +766,35 @@ function DevToolsInner() {
                 </div>
               )}
 
-              {activeTab === 'ai-provider' && <AIProviderPanel />}
+              {activeTab === 'openrouter' && (
+                <div className="space-y-4">
+                  <div>
+                    <h2 className="text-lg font-semibold flex items-center gap-2">
+                      <BrainCircuit className="w-5 h-5 text-primary" />
+                      OpenRouter
+                    </h2>
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                      Inspect and smoke-test the three OpenRouter keys backing the AI engine. Raw key values stay on the server — only the last 4 characters are shown.
+                    </p>
+                  </div>
+                  <OpenRouterPanel />
+                </div>
+              )}
+
+              {activeTab === 'groq' && (
+                <div className="space-y-4">
+                  <div>
+                    <h2 className="text-lg font-semibold flex items-center gap-2">
+                      <BrainCircuit className="w-5 h-5 text-primary" />
+                      Groq
+                    </h2>
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                      Inspect and smoke-test the three Groq keys backing the AI engine. Raw key values stay on the server — only the last 4 characters are shown.
+                    </p>
+                  </div>
+                  <GroqPanel />
+                </div>
+              )}
             </DevKitPanelBoundary>
 
           </div>
