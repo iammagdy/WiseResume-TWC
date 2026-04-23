@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/safeClient';
 import { useAuth } from './useAuth';
-import { apiFnUrl } from '@/lib/apiFnUrl';
+import { apiFetch } from '@/lib/apiFetch';
 
 export interface SuspensionState {
   isSuspended: boolean;
@@ -9,62 +8,31 @@ export interface SuspensionState {
   isLoading: boolean;
 }
 
-async function checkSuspensionViaMe(token: string): Promise<{ suspended: boolean; reason: string | null }> {
-  try {
-    const res = await fetch(apiFnUrl(`me`), {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (res.status === 403) {
-      const body = await res.json().catch(() => ({}));
-      if (body?.suspended === true) {
-        return { suspended: true, reason: body.reason ?? null };
-      }
-    }
-    return { suspended: false, reason: null };
-  } catch {
-    return { suspended: false, reason: null };
-  }
-}
-
 export function useSuspensionCheck(): SuspensionState {
-  const { user, isAuthenticated, supabaseReady, getKindeToken } = useAuth();
+  const { user, isAuthenticated } = useAuth();
 
   const { data, isLoading } = useQuery({
     queryKey: ['suspension', user?.id],
     queryFn: async (): Promise<{ is_suspended: boolean; suspension_reason: string | null }> => {
-      // Primary: check me endpoint for 403 (aligned with suspension contract)
       try {
-        const token = await getKindeToken();
-        if (token) {
-          const meResult = await checkSuspensionViaMe(token);
-          if (meResult.suspended) {
-            return { is_suspended: true, suspension_reason: meResult.reason };
+        await apiFetch('/api/data/me');
+        // apiFetch throws ApiFetchError on non-2xx; reaching here means not suspended
+        return { is_suspended: false, suspension_reason: null };
+      } catch (err: unknown) {
+        if (err && typeof err === 'object' && 'status' in err && (err as { status: number }).status === 403) {
+          const body = (err as { body?: unknown }).body;
+          if (body && typeof body === 'object' && 'suspended' in body && (body as { suspended: unknown }).suspended === true) {
+            return {
+              is_suspended: true,
+              suspension_reason: (body as { reason?: string }).reason ?? null,
+            };
           }
         }
-      } catch {
-        // Fallthrough to profile polling
-      }
-
-      // Fallback: direct profiles table check
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('is_suspended, suspension_reason')
-        .eq('user_id', user!.id)
-        .maybeSingle();
-      if (error) {
-        console.warn('[useSuspensionCheck] Error:', error.message);
+        // Any other error (401, 503, network) → assume not suspended, not a crisis
         return { is_suspended: false, suspension_reason: null };
       }
-      return {
-        is_suspended: data?.is_suspended ?? false,
-        suspension_reason: data?.suspension_reason ?? null,
-      };
     },
-    enabled: !!user && isAuthenticated && supabaseReady,
+    enabled: !!user && isAuthenticated,
     staleTime: 60 * 1000,
     gcTime: 5 * 60 * 1000,
     refetchOnWindowFocus: true,

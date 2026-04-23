@@ -5,8 +5,7 @@ import { useAIHealth, AIHealthStatus } from '@/hooks/useAIHealth';
 import { useAIHealthStore } from '@/store/aiHealthStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { cn } from '@/lib/utils';
-import { getSupabaseToken } from '@/lib/supabaseAuth';
-import { apiFnUrl } from '@/lib/apiFnUrl';
+import { getToken } from '@/lib/supabaseBridge';
 
 type PingState = 'idle' | 'pinging' | 'done';
 
@@ -14,6 +13,7 @@ interface PingResult {
   latencyMs: number | null;
   status: AIHealthStatus;
   errorCode: number | null;
+  reason?: string | null;
   // True when the 429 came from our OWN ai-health endpoint throttling
   // the badge (too many pings from this user across tabs), as opposed
   // to a real upstream provider 429. Used to render an honest label
@@ -103,41 +103,19 @@ export function AIHealthBadge() {
   const runPing = useCallback(async () => {
     setPingState('pinging');
     try {
-      const token = await getSupabaseToken();
+      const token = getToken();
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
-      const res = await fetch(apiFnUrl(`ai-health`), {
+      const res = await fetch('/api/ai-health', {
         method: 'GET',
         headers,
       });
 
       if (!res.ok) {
         const code = res.status;
-        // Try to read body — a 429 from ai-health itself returns
-        // `{ error: 'health_throttled' }` which is NOT an upstream issue.
-        // We label and tally these differently so the badge stops shouting
-        // "Rate limited" when the AI is actually fine.
-        let selfThrottled = false;
-        try {
-          const body = await res.json();
-          if (code === 429 && body?.error === 'health_throttled') {
-            selfThrottled = true;
-          }
-        } catch {
-          // body wasn't JSON — leave selfThrottled false
-        }
-        if (!selfThrottled) {
-          recordFailure(code);
-        }
-        // For self-throttle, keep status as the previous known state
-        // (don't slam to 'down') — we just couldn't probe right now.
-        setPingResult({
-          latencyMs: null,
-          status: selfThrottled ? (storeStatus ?? 'healthy') : 'down',
-          errorCode: code,
-          selfThrottled,
-        });
+        recordFailure(code);
+        setPingResult({ latencyMs: null, status: 'down', errorCode: code });
         setPingResultAt(Date.now());
         setPingState('done');
         return;
@@ -148,6 +126,7 @@ export function AIHealthBadge() {
       const pingStatus: AIHealthStatus = data.status ?? 'healthy';
       const pingErrorCode: number | null = data.errorCode ?? null;
       const pingProvider: string = data.provider ?? 'wiseresume';
+      const pingReason: string | null = data.reason ?? null;
 
       recordProvider(pingProvider);
       if (pingStatus === 'down') {
@@ -156,7 +135,7 @@ export function AIHealthBadge() {
         recordSuccess(latency);
       }
 
-      setPingResult({ latencyMs: latency > 0 ? latency : null, status: pingStatus, errorCode: pingErrorCode });
+      setPingResult({ latencyMs: latency > 0 ? latency : null, status: pingStatus, errorCode: pingErrorCode, reason: pingReason });
       setPingResultAt(Date.now());
       setPingState('done');
     } catch {
@@ -165,7 +144,7 @@ export function AIHealthBadge() {
       setPingResultAt(Date.now());
       setPingState('done');
     }
-  }, [recordSuccess, recordFailure, recordProvider, storeStatus]);
+  }, [recordSuccess, recordFailure, recordProvider]);
 
   const handleOpenChange = useCallback((open: boolean) => {
     if (open && pingState !== 'pinging') {
@@ -326,7 +305,10 @@ export function AIHealthBadge() {
           </div>
 
           {/* Error label if any */}
-          {pingState === 'done' && displayError && (
+          {pingState === 'done' && pingResult?.reason === 'no_keys' && (
+            <p className="text-[11px] text-amber-400/90">No AI provider keys configured on the server</p>
+          )}
+          {pingState === 'done' && displayError && pingResult?.reason !== 'no_keys' && (
             <p className="text-[11px] text-red-400/80">{errorLabel(displayError, pingResult?.selfThrottled)}</p>
           )}
         </div>

@@ -135,14 +135,9 @@ export function useResumes<TData = DatabaseResume[]>(options?: { select?: (data:
   return useQuery({
     queryKey: ['resumes', user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('resumes')
-        .select('*')
-        .order('updated_at', { ascending: false });
-
-      if (error) throw error;
+      const response = await apiFetch<{ resumes: unknown[] }>('/api/data/resumes');
       const gracePeriodCutoff = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000); // 3-day grace window
-      const result = (data || [])
+      const result = (response.resumes || [])
         .map(parseDbResume)
         // Hide expired trial resumes that are past the 3-day grace window.
         // Trials within the grace window remain visible as read-only so users can upgrade.
@@ -186,14 +181,8 @@ export function useResume(resumeId: string | null) {
     queryFn: async () => {
       if (!resumeId) return null;
 
-      const { data, error } = await supabase
-        .from('resumes')
-        .select('*')
-        .eq('id', resumeId)
-        .maybeSingle();
-
-      if (error) throw error;
-      return data ? parseDbResume(data) : null;
+      const response = await apiFetch<{ resume: unknown }>(`/api/data/resumes/${resumeId}`);
+      return response.resume ? parseDbResume(response.resume) : null;
     },
     enabled: !!user && !!resumeId,
     retry: 2,

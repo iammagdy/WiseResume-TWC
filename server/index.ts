@@ -362,6 +362,60 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// ── AI health ─────────────────────────────────────────────────────────────────
+// Lightweight health check used by the AIHealthBadge in the client.
+// Does NOT require authentication — it reports server-level AI key availability.
+// If no AI provider keys are configured, returns { status: 'down', reason: 'no_keys' }
+// so the badge can surface a clear "no keys configured" message instead of a
+// generic "AI Unavailable" that implies the provider itself is down.
+let _aiHealthCache: { data: unknown; expiresAt: number } | null = null;
+app.get('/api/ai-health', async (_req, res) => {
+  const now = Date.now();
+  if (_aiHealthCache && _aiHealthCache.expiresAt > now) {
+    return res.json(_aiHealthCache.data);
+  }
+
+  const openrouterKey = process.env.OPENROUTER_KEY_1 || process.env.OPENROUTER_KEY_2 || process.env.OPENROUTER_KEY_3;
+  const groqKey = process.env.GROQ_KEY_1 || process.env.GROQ_KEY_2 || process.env.GROQ_KEY_3;
+
+  if (!openrouterKey && !groqKey) {
+    const payload = { status: 'down', reason: 'no_keys', latencyMs: null, provider: null };
+    _aiHealthCache = { data: payload, expiresAt: now + 30_000 };
+    return res.json(payload);
+  }
+
+  const provider = openrouterKey ? 'openrouter' : 'groq';
+  const pingStart = Date.now();
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    let pingRes: globalThis.Response;
+    if (openrouterKey) {
+      pingRes = await fetch('https://openrouter.ai/api/v1/models', {
+        headers: { Authorization: `Bearer ${openrouterKey}` },
+        signal: controller.signal,
+      });
+    } else {
+      pingRes = await fetch('https://api.groq.com/openai/v1/models', {
+        headers: { Authorization: `Bearer ${groqKey}` },
+        signal: controller.signal,
+      });
+    }
+    clearTimeout(timeout);
+    const latencyMs = Date.now() - pingStart;
+    const status = pingRes.ok ? (latencyMs > 8000 ? 'degraded' : 'healthy') : 'down';
+    const errorCode = pingRes.ok ? null : pingRes.status;
+    const payload = { status, latencyMs, provider, errorCode };
+    _aiHealthCache = { data: payload, expiresAt: now + 30_000 };
+    return res.json(payload);
+  } catch {
+    const latencyMs = Date.now() - pingStart;
+    const payload = { status: 'down', latencyMs, provider, errorCode: 0 };
+    _aiHealthCache = { data: payload, expiresAt: now + 15_000 };
+    return res.json(payload);
+  }
+});
+
 // ── Database health ───────────────────────────────────────────────────────────
 app.get('/api/db-health', async (_req, res) => {
   if (!sql) {
@@ -555,6 +609,24 @@ app.get('/api/data/resumes', requireAuthHeader, async (req: AuthedRequest, res) 
       ORDER BY updated_at DESC
     ` as NeonRow[];
     res.json({ resumes: rows });
+  } catch (err) {
+    return dataErr(res, err);
+  }
+});
+
+app.get('/api/data/resumes/:id', requireAuthHeader, async (req: AuthedRequest, res) => {
+  if (!sql) return res.status(503).json({ error: 'Database not configured' });
+  try {
+    const id = req.params.id;
+    if (!/^[0-9a-f-]{36}$/i.test(id)) return res.status(400).json({ error: 'Invalid resume id' });
+    const userId = req.verifiedUserId!;
+    const rows = await sql`
+      SELECT * FROM resumes
+      WHERE id = ${id} AND user_id = ${userId}
+      LIMIT 1
+    ` as NeonRow[];
+    if (rows.length === 0) return res.status(404).json({ error: 'Resume not found' });
+    res.json({ resume: rows[0] });
   } catch (err) {
     return dataErr(res, err);
   }
@@ -1575,7 +1647,9 @@ app.get('/api/data/me', requireAuthHeader, async (req: AuthedRequest, res) => {
       }
     }
 
-    const subscriptionPayload = sub ? { ...sub, effective_plan: effectivePlan } : null;
+    const subscriptionPayload = sub
+      ? { ...sub, effective_plan: effectivePlan }
+      : { plan_name: 'free', status: 'active', plan_updated_at: null, trial_plan: null, trial_expires_at: null, effective_plan: 'free' };
 
     // Plan daily limits (mirrors supabase/functions/_shared/creditLimits.json)
     const PLAN_DAILY_LIMITS: Record<string, number> = { free: 5, pro: 100, premium: -1 };
