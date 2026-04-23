@@ -1162,9 +1162,9 @@ function DashboardPageContent() {
       <AlertDialog open={!!deleteResumeId} onOpenChange={(open) => { if (!open && !deleteResume.isPending) setDeleteResumeId(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Move to Trash?</AlertDialogTitle>
+            <AlertDialogTitle>Delete Resume?</AlertDialogTitle>
             <AlertDialogDescription>
-              This resume will be moved to trash and auto-deleted after 30 days. You can restore it anytime from the trash.
+              This will permanently delete this resume. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1175,7 +1175,7 @@ function DashboardPageContent() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90 inline-flex items-center gap-2"
             >
               {deleteResume.isPending && <MiniSpinner size={14} />}
-              {deleteResume.isPending ? 'Deleting…' : 'Move to Trash'}
+              {deleteResume.isPending ? 'Deleting…' : 'Delete Permanently'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1185,9 +1185,9 @@ function DashboardPageContent() {
       <AlertDialog open={showBulkDeleteConfirm} onOpenChange={setShowBulkDeleteConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Move {selectedIds.size} Resume{selectedIds.size > 1 ? 's' : ''} to Trash?</AlertDialogTitle>
+            <AlertDialogTitle>Delete {selectedIds.size} Resume{selectedIds.size > 1 ? 's' : ''}?</AlertDialogTitle>
             <AlertDialogDescription>
-              These resumes will be moved to trash and auto-deleted after 30 days. You can restore them anytime from the trash.
+              This will permanently delete {selectedIds.size > 1 ? 'these resumes' : 'this resume'}. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1196,7 +1196,7 @@ function DashboardPageContent() {
               onClick={confirmBulkDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Move to Trash
+              Delete Permanently
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

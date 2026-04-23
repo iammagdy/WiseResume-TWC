@@ -1540,6 +1540,38 @@ app.get('/api/data/resumes/exists/:id', requireAuthHeader, async (req: AuthedReq
   }
 });
 
+app.delete('/api/data/resumes/:id', requireAuthHeader, async (req: AuthedRequest, res) => {
+  if (!sql) return res.status(503).json({ error: 'Database not configured' });
+  try {
+    const id = req.params.id;
+    if (!/^[0-9a-f-]{36}$/i.test(id)) return res.status(400).json({ error: 'Invalid resume id' });
+    const userId = req.verifiedUserId!;
+    await sql`
+      DELETE FROM resumes WHERE id = ${id} AND user_id = ${userId}
+    `;
+    res.status(204).end();
+  } catch (err) {
+    return dataErr(res, err);
+  }
+});
+
+app.delete('/api/data/resumes', requireAuthHeader, async (req: AuthedRequest, res) => {
+  if (!sql) return res.status(503).json({ error: 'Database not configured' });
+  try {
+    const { ids } = (req.body ?? {}) as { ids?: unknown };
+    if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: 'ids array required' });
+    const validIds = (ids as unknown[]).filter((id): id is string => typeof id === 'string' && /^[0-9a-f-]{36}$/i.test(id));
+    if (validIds.length === 0) return res.status(400).json({ error: 'No valid ids provided' });
+    const userId = req.verifiedUserId!;
+    await sql`
+      DELETE FROM resumes WHERE id = ANY(${validIds}::uuid[]) AND user_id = ${userId}
+    `;
+    res.status(204).end();
+  } catch (err) {
+    return dataErr(res, err);
+  }
+});
+
 // ── /api/data/hr-analytics ─────────────────────────────────────────────────────
 // Aggregator for useHRAnalytics. Only consults tables that currently exist;
 // returns 0/empty for the rest so the UI degrades gracefully.

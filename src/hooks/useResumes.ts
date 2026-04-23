@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/safeClient';
+import { apiFetch } from '@/lib/apiFetch';
 import { useAuth } from './useAuth';
 import { ResumeData, Experience, Education, Certification, ContactInfo, Award, Project, Publication, Volunteering, Language, Hobby, Reference } from '@/types/resume';
 import { toast } from 'sonner';
@@ -334,14 +335,7 @@ export function useResumeMutations() {
 
   const deleteResume = useMutation({
     mutationFn: async (resumeId: string) => {
-      if (!user) throw new Error('Not authenticated');
-
-      const { error } = await supabase
-        .from('resumes')
-        .delete()
-        .eq('id', resumeId)
-        .eq('user_id', user.id);
-      if (error) throw error;
+      await apiFetch(`/api/data/resumes/${encodeURIComponent(resumeId)}`, { method: 'DELETE' });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['resumes'] });
@@ -354,14 +348,7 @@ export function useResumeMutations() {
 
   const deleteMultipleResumes = useMutation({
     mutationFn: async (resumeIds: string[]) => {
-      if (!user) throw new Error('Not authenticated');
-
-      const { error } = await supabase
-        .from('resumes')
-        .delete()
-        .in('id', resumeIds)
-        .eq('user_id', user.id);
-      if (error) throw error;
+      await apiFetch('/api/data/resumes', { method: 'DELETE', body: { ids: resumeIds } });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['resumes'] });
