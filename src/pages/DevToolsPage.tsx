@@ -144,6 +144,8 @@ function DevToolsInner() {
   const unlocked = isUnlocked;
 
   const [email, setEmail] = useState('');
+  const [supabasePw, setSupabasePw] = useState('');
+  const [showSupabasePw, setShowSupabasePw] = useState(false);
   const [pw, setPw] = useState('');
   const [totp, setTotp] = useState('');
   const [showPw, setShowPw] = useState(false);
@@ -223,35 +225,37 @@ function DevToolsInner() {
 
   const handleUnlock = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim() || !pw.trim() || totp.trim().length !== 6 || isLockedOut) return;
+    if (!email.trim() || !supabasePw.trim() || !pw.trim() || totp.trim().length !== 6 || isLockedOut) return;
 
     setIsVerifying(true);
     setLoginError(null);
 
     const submittedEmail = email.trim();
+    const submittedSupabasePw = supabasePw;
     const submittedPw = pw;
     const submittedTotp = totp.trim();
+    setSupabasePw('');
     setPw('');
     setTotp('');
 
     try {
       // Step 1: Ensure we have a Supabase session. If the admin is not signed
-      // into the main app, sign them in directly using the account password so
+      // into the main app, sign them in with their Supabase account password so
       // that DevKit works as a fully standalone page.
       let { data: sessionData } = await supabase.auth.getSession();
       if (!sessionData?.session) {
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email: submittedEmail,
-          password: submittedPw,
+          password: submittedSupabasePw,
         });
         if (signInError) {
           const msg = signInError.message ?? '';
-          if (msg.toLowerCase().includes('invalid login credentials') || signInError.status === 400) {
-            setLoginError('Incorrect email or password.');
+          if (msg.toLowerCase().includes('invalid login credentials')) {
+            setLoginError('Incorrect email or account password.');
           } else if (msg.toLowerCase().includes('email not confirmed')) {
             setLoginError('Email not confirmed — check your inbox.');
           } else {
-            setLoginError('Sign-in failed — check your credentials and try again.');
+            setLoginError('Sign-in failed — check your account credentials and try again.');
           }
           return;
         }
@@ -346,6 +350,7 @@ function DevToolsInner() {
   const handleLock = () => {
     lock();
     setEmail('');
+    setSupabasePw('');
     setPw('');
     setTotp('');
     setLoginError(null);
@@ -403,12 +408,37 @@ function DevToolsInner() {
                 <label className="text-xs font-medium text-white/40">Account password</label>
                 <div className="relative">
                   <Input
-                    type={showPw ? 'text' : 'password'}
+                    type={showSupabasePw ? 'text' : 'password'}
                     placeholder="Your Supabase account password"
+                    value={supabasePw}
+                    onChange={(e) => { setSupabasePw(e.target.value); setLoginError(null); }}
+                    disabled={isVerifying || isLockedOut}
+                    autoComplete="current-password"
+                    className={cn(
+                      'h-11 pr-10 bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-white/30 focus:ring-white/10',
+                      loginError && 'border-red-500/50 ring-1 ring-red-500/20'
+                    )}
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors"
+                    onClick={() => setShowSupabasePw(!showSupabasePw)}
+                    tabIndex={-1}
+                  >
+                    {showSupabasePw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-white/40">Dev-kit password</label>
+                <div className="relative">
+                  <Input
+                    type={showPw ? 'text' : 'password'}
+                    placeholder="DEV_KIT_PASSWORD secret"
                     value={pw}
                     onChange={(e) => { setPw(e.target.value); setLoginError(null); }}
                     disabled={isVerifying || isLockedOut}
-                    autoComplete="current-password"
+                    autoComplete="off"
                     className={cn(
                       'h-11 pr-10 bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-white/30 focus:ring-white/10',
                       loginError && 'border-red-500/50 ring-1 ring-red-500/20'
@@ -454,7 +484,7 @@ function DevToolsInner() {
               </div>
               <Button
                 type="submit"
-                disabled={isVerifying || isLockedOut || !email.trim() || !pw.trim() || totp.trim().length !== 6}
+                disabled={isVerifying || isLockedOut || !email.trim() || !supabasePw.trim() || !pw.trim() || totp.trim().length !== 6}
                 className="w-full h-11 font-semibold bg-white text-zinc-950 hover:bg-white/90"
               >
                 {isVerifying ? (
