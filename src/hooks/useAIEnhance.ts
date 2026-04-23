@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { trackGeminiUsage } from '@/lib/aiProvider';
 import { useAIAction } from '@/hooks/useAIAction';
 import { useAIHealthStore } from '@/store/aiHealthStore';
+import { useAIEnhancingStore } from '@/store/aiEnhancingStore';
 import { sanitizeAIContent } from '@/lib/ai/sanitizeContent';
 import { checkAIFallback } from '@/lib/aiFallbackToast';
 import { redactResumeForAI } from '@/lib/piiRedact';
@@ -95,6 +96,7 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
     setCurrentAction(action);
     setResult(null);
     slowToastShown.current = false;
+    useAIEnhancingStore.getState().increment();
 
     // Show an immediate "AI is working" loading toast
     const loadingToastId = toast.loading('AI is thinking…', { duration: Infinity });
@@ -235,6 +237,7 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
     } finally {
       setIsEnhancing(false);
       setCurrentAction(null);
+      useAIEnhancingStore.getState().decrement();
     }
   }, [section, redactPiiBeforeAI]);
 

@@ -9,7 +9,8 @@ import {
   type EditorSheetId,
 } from '@/lib/editorSession';
 import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
-import { Sparkles, BarChart3, Scissors, ArrowLeft, Clock, AlertTriangle } from 'lucide-react';
+import { Sparkles, BarChart3, Scissors, ArrowLeft, Clock, AlertTriangle, Loader2 } from 'lucide-react';
+import { useAIEnhancingStore } from '@/store/aiEnhancingStore';
 import { useIsMobile } from '@/hooks/use-mobile';
 // Tooltip removed – Radix Popper causes infinite setRef loop on this page
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -240,6 +241,8 @@ export default function EditorPage() {
   // Desktop scrollspy: track which section is currently visible
   const [activeSection, setActiveSection] = useState('contact');
   const isMobile = useIsMobile();
+  // Track any in-flight AI enhance operations so we can block section switches
+  const aiEnhancingCount = useAIEnhancingStore((s) => s.count);
   // Auto-open Tailor sheet if navigated with ?openTailor=1 or ?tailor=true.
   // Track intent with a ref so the plan gate can be applied once planLoading settles.
   const autoOpenTailorRef = useRef(false);
@@ -509,6 +512,12 @@ export default function EditorPage() {
   // Promoted sections (certifications, languages, awards, publications, volunteering) are
   // top-level tabs. Projects, hobbies, references still route through activeTab='more'.
   const handleTabChange = useCallback((newTab: string) => {
+    // Block section switching while any AI enhance operation is in-flight to
+    // prevent unmounting the section mid-enhance and losing the dialog state.
+    if (useAIEnhancingStore.getState().count > 0) {
+      toast.info('AI is still working — please wait before switching sections.', { duration: 2000, id: 'ai-section-lock' });
+      return;
+    }
     // All sections are now direct top-level tabs; clear moreSubSection on every change.
     setMoreSubSection(null);
     setActiveTab(newTab);
@@ -1021,7 +1030,11 @@ export default function EditorPage() {
       {isMobile ? (
         <Tabs
           value={mobileEditorTab}
-          onValueChange={(v) => setMobileEditorTab(v as 'editor' | 'preview' | 'ats')}
+          onValueChange={(v) => {
+            const next = v as 'editor' | 'preview' | 'ats';
+            if (useAIEnhancingStore.getState().count > 0 && next !== 'editor') return;
+            setMobileEditorTab(next);
+          }}
           className="flex-1 flex flex-col min-h-0 overflow-hidden"
         >
           {/* Combined single-row nav: view mode toggle + section pills */}
@@ -1031,7 +1044,14 @@ export default function EditorPage() {
               {(['editor', 'preview', 'ats'] as const).map((tab) => (
                 <button
                   key={tab}
-                  onClick={() => { setMobileEditorTab(tab); haptics.light(); }}
+                  onClick={() => {
+                    if (aiEnhancingCount > 0 && tab !== 'editor') {
+                      toast.info('AI is still working — please wait.', { duration: 2000, id: 'ai-section-lock' });
+                      return;
+                    }
+                    setMobileEditorTab(tab);
+                    haptics.light();
+                  }}
                   className={cn(
                     'px-2.5 h-7 rounded-full text-xs font-medium border transition-colors whitespace-nowrap touch-manipulation active:scale-95',
                     mobileEditorTab === tab
@@ -1082,7 +1102,7 @@ export default function EditorPage() {
             {mobileEditorTab === 'preview' && (
               <>
                 <div className="flex-1 min-h-0 overflow-hidden">
-                  <Suspense fallback={null}>
+                  <Suspense fallback={<div className="flex-1 flex items-center justify-center h-full"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>}>
                     <LivePreviewPanel highlightSection={activeTab} />
                   </Suspense>
                 </div>
@@ -1103,7 +1123,7 @@ export default function EditorPage() {
                   </button>
                 </div>
                 <div className="flex-1 min-h-0 overflow-hidden">
-                  <Suspense fallback={null}>
+                  <Suspense fallback={<div className="flex-1 flex items-center justify-center h-full"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>}>
                     <ATSParserPreview />
                   </Suspense>
                 </div>
