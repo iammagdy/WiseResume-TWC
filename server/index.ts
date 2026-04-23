@@ -184,8 +184,7 @@ async function bootstrapSupabaseSecrets(): Promise<void> {
   const presentKeys = managedAiKeys.filter((k) => process.env[k]);
   const missingKeys = managedAiKeys.filter((k) => !process.env[k]);
   console.log(
-    `[server] Managed AI key pool: present=[${presentKeys.join(', ') || 'none'}]` +
-    (missingKeys.length ? ` missing=[${missingKeys.join(', ')}]` : ''),
+    `[server] Managed AI key pool: present=[${presentKeys.join(', ') || 'none'}] missing=[${missingKeys.join(', ') || 'none'}]`,
   );
 
   if (secretsToPush.length > 0) {
