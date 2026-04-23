@@ -4,7 +4,6 @@ import { useAIEnhance, ActionType } from '@/hooks/useAIEnhance';
 import { useResumeStore } from '@/store/resumeStore';
 import { useAuth } from '@/hooks/useAuth';
 import { useAIApplyEffects } from '@/hooks/useAIApplyEffects';
-import { toast } from 'sonner';
 import type { Experience, Education, ContactInfo, ResumeData } from '@/types/resume';
 import { AIEnhanceDialog } from './ai/AIEnhanceDialog';
 import { useSummaryAIBridge } from '@/store/summaryAIBridge';
@@ -13,20 +12,6 @@ const SignInPromptDialog = lazy(() => import('@/components/auth/SignInPromptDial
 
 interface SectionAIActionProps {
   section: SectionType;
-}
-
-/**
- * String- and single-object-shaped sections route through the preview
- * dialog so the user can review (and discard) the AI output before it
- * overwrites the resume. Array-shaped sections (experience, skills,
- * education, etc.) keep the existing direct-apply + merge-by-id
- * behavior — building a proper diff/preview UI for those structured
- * lists is tracked separately and out of scope here.
- */
-const PREVIEW_SECTIONS: ReadonlySet<SectionType> = new Set(['summary', 'contact']);
-
-function isPreviewSection(section: SectionType): boolean {
-  return PREVIEW_SECTIONS.has(section);
 }
 
 /** Render a contact info object as a stable, human-readable preview string. */
@@ -48,6 +33,110 @@ function contactToText(c?: Partial<ContactInfo> | null): string {
     })
     .filter((line): line is string => line !== null)
     .join('\n');
+}
+
+function getString(o: unknown, k: string): string {
+  if (o && typeof o === 'object' && k in (o as Record<string, unknown>)) {
+    const v = (o as Record<string, unknown>)[k];
+    return typeof v === 'string' ? v : '';
+  }
+  return '';
+}
+
+function getStringArray(o: unknown, k: string): string[] {
+  if (o && typeof o === 'object' && k in (o as Record<string, unknown>)) {
+    const v = (o as Record<string, unknown>)[k];
+    if (Array.isArray(v)) return v.filter((x): x is string => typeof x === 'string');
+  }
+  return [];
+}
+
+/**
+ * Format an arbitrary array/object AI suggestion as readable text for the
+ * preview dialog. Mirrors the `contactToText` pattern: the preview is
+ * display-only — Approve writes the original structured payload, not this
+ * formatted string.
+ */
+function formatSuggestionForPreview(section: SectionType, value: unknown): string {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'string') return value;
+
+  if (section === 'skills' || section === 'languages') {
+    if (Array.isArray(value)) {
+      return value
+        .map(v => {
+          if (typeof v === 'string') return v;
+          if (v && typeof v === 'object') {
+            const name = getString(v, 'name') || getString(v, 'language');
+            const prof = getString(v, 'proficiency') || getString(v, 'level');
+            return prof ? `${name} (${prof})` : name;
+          }
+          return '';
+        })
+        .filter(Boolean)
+        .join(', ');
+    }
+    return String(value);
+  }
+
+  const formatItem = (item: unknown): string => {
+    if (typeof item === 'string') return item;
+    if (!item || typeof item !== 'object') return '';
+    switch (section) {
+      case 'experience': {
+        const head = [getString(item, 'position'), getString(item, 'company')].filter(Boolean).join(' — ');
+        const desc = getString(item, 'description');
+        const ach = getStringArray(item, 'achievements');
+        const parts = [head, desc, ...ach.map(a => `• ${a}`)].filter(Boolean);
+        return parts.join('\n');
+      }
+      case 'education': {
+        const deg = [getString(item, 'degree'), getString(item, 'field')].filter(Boolean).join(' in ');
+        const inst = getString(item, 'institution');
+        const head = [deg, inst].filter(Boolean).join(' — ');
+        const desc = getString(item, 'description');
+        return [head, desc].filter(Boolean).join('\n');
+      }
+      case 'projects': {
+        const head = [getString(item, 'name'), getString(item, 'role')].filter(Boolean).join(' — ');
+        const desc = getString(item, 'description');
+        const techs = getStringArray(item, 'technologies');
+        const techLine = techs.length > 0 ? `Technologies: ${techs.join(', ')}` : '';
+        return [head, desc, techLine].filter(Boolean).join('\n');
+      }
+      case 'awards': {
+        const head = [getString(item, 'title'), getString(item, 'issuer')].filter(Boolean).join(' — ');
+        const desc = getString(item, 'description');
+        return [head, desc].filter(Boolean).join('\n');
+      }
+      case 'publications': {
+        const head = [getString(item, 'title'), getString(item, 'publisher')].filter(Boolean).join(' — ');
+        const desc = getString(item, 'description');
+        return [head, desc].filter(Boolean).join('\n');
+      }
+      case 'volunteering': {
+        const head = [getString(item, 'role'), getString(item, 'organization')].filter(Boolean).join(' @ ');
+        const desc = getString(item, 'description');
+        return [head, desc].filter(Boolean).join('\n');
+      }
+      case 'certifications': {
+        const head = [getString(item, 'name'), getString(item, 'issuer')].filter(Boolean).join(' — ');
+        const date = getString(item, 'date');
+        return [head, date].filter(Boolean).join('\n');
+      }
+      default:
+        try {
+          return JSON.stringify(item);
+        } catch {
+          return '';
+        }
+    }
+  };
+
+  if (Array.isArray(value)) {
+    return value.map(formatItem).filter(Boolean).join('\n\n');
+  }
+  return formatItem(value);
 }
 
 /**
@@ -104,45 +193,18 @@ export const SectionAIAction = memo(function SectionAIAction({ section }: Sectio
   const [showDialog, setShowDialog] = useState(false);
   const { rescoreAfterApply } = useAIApplyEffects(currentResume?.id);
 
-  // For structured (non-string) preview sections like `contact`, the
-  // dialog displays a formatted text rendering of the AI's object, but
-  // the apply path needs the original structured object — keep the
-  // latest snapshot here so Apply writes the real object, not the
-  // serialized text.
-  const contactSnapshotRef = useRef<Partial<ContactInfo> | null>(null);
+  // Cache the latest structured AI payload. The dialog displays a
+  // formatted text rendering of this for non-string sections, but the
+  // Approve path needs the original object/array so we can merge it
+  // safely back into the resume — the formatted string is display-only.
+  const latestPayloadRef = useRef<unknown>(null);
 
   const { enhance, isEnhancing, result, apply, discard } = useAIEnhance({
     section,
-    onApply: (content) => {
-      // Array-shaped sections only — string/object preview sections
-      // route their apply through the dialog's onApply handler below.
-      if (isPreviewSection(section)) return;
-      const applyMap: Record<string, () => void> = {
-        experience: () => {
-          if (Array.isArray(content)) {
-            updateResume({ experience: mergeByIdOrReplace<Experience>(currentResume?.experience ?? [], content as Experience[]) });
-          } else if (content && typeof content === 'object' && 'id' in content && typeof (content as { id: unknown }).id === 'string') {
-            updateResume({ experience: mergeObjectById<Experience>(currentResume?.experience ?? [], content as Experience) });
-          }
-        },
-        education: () => {
-          if (Array.isArray(content)) {
-            updateResume({ education: mergeByIdOrReplace<Education>(currentResume?.education ?? [], content as Education[]) });
-          } else if (content && typeof content === 'object' && 'id' in content && typeof (content as { id: unknown }).id === 'string') {
-            updateResume({ education: mergeObjectById<Education>(currentResume?.education ?? [], content as Education) });
-          }
-        },
-        skills: () => { if (Array.isArray(content)) updateResume({ skills: content }); },
-        awards: () => { if (Array.isArray(content)) updateResume({ awards: content }); },
-        projects: () => { if (Array.isArray(content)) updateResume({ projects: content }); },
-        publications: () => { if (Array.isArray(content)) updateResume({ publications: content }); },
-        volunteering: () => { if (Array.isArray(content)) updateResume({ volunteering: content }); },
-        certifications: () => { if (Array.isArray(content)) updateResume({ certifications: content }); },
-        languages: () => { if (Array.isArray(content)) updateResume({ languages: content }); },
-      };
-      if (Object.prototype.hasOwnProperty.call(applyMap, section)) applyMap[section]();
-      toast.success('AI suggestion applied!');
-    },
+    // All sections route through the preview popup now — the dialog's
+    // onApply handler does the actual merge into the store, so the hook's
+    // onApply is a no-op here.
+    onApply: () => {},
   });
 
   const handleAction = async (actionId: string) => {
@@ -171,49 +233,11 @@ export const SectionAIAction = memo(function SectionAIAction({ section }: Sectio
 
     if (!enhanceResult) return;
 
-    // Preview sections: open the dialog whenever the enhance call
-    // succeeded — even if `improved` came back empty (e.g. the
-    // server-side sanitizer scrubbed everything away). The dialog
-    // lets the user edit manually or hit Re-run instead of leaving
-    // them with a no-op click and no recovery path.
-    if (isPreviewSection(section)) {
-      if (section === 'contact' && enhanceResult.improved && typeof enhanceResult.improved === 'object' && !Array.isArray(enhanceResult.improved)) {
-        contactSnapshotRef.current = enhanceResult.improved as Partial<ContactInfo>;
-      }
-      setShowDialog(true);
-      return;
-    }
-
-    if (!enhanceResult.improved) return;
-
-    // Array-shaped sections: keep the existing direct-apply behavior
-    // with merge-by-id safety so partial responses don't wipe
-    // unmentioned entries.
-    const applyMap: Record<string, () => void> = {
-      experience: () => {
-        if (Array.isArray(enhanceResult.improved)) {
-          updateResume({ experience: mergeByIdOrReplace<Experience>(currentResume?.experience ?? [], enhanceResult.improved as Experience[]) });
-        } else if (enhanceResult.improved && typeof enhanceResult.improved === 'object' && 'id' in enhanceResult.improved && typeof (enhanceResult.improved as { id: unknown }).id === 'string') {
-          updateResume({ experience: mergeObjectById<Experience>(currentResume?.experience ?? [], enhanceResult.improved as Experience) });
-        }
-      },
-      education: () => {
-        if (Array.isArray(enhanceResult.improved)) {
-          updateResume({ education: mergeByIdOrReplace<Education>(currentResume?.education ?? [], enhanceResult.improved as Education[]) });
-        } else if (enhanceResult.improved && typeof enhanceResult.improved === 'object' && 'id' in enhanceResult.improved && typeof (enhanceResult.improved as { id: unknown }).id === 'string') {
-          updateResume({ education: mergeObjectById<Education>(currentResume?.education ?? [], enhanceResult.improved as Education) });
-        }
-      },
-      skills: () => { if (Array.isArray(enhanceResult.improved)) updateResume({ skills: enhanceResult.improved }); },
-      awards: () => { if (Array.isArray(enhanceResult.improved)) updateResume({ awards: enhanceResult.improved }); },
-      projects: () => { if (Array.isArray(enhanceResult.improved)) updateResume({ projects: enhanceResult.improved }); },
-      publications: () => { if (Array.isArray(enhanceResult.improved)) updateResume({ publications: enhanceResult.improved }); },
-      volunteering: () => { if (Array.isArray(enhanceResult.improved)) updateResume({ volunteering: enhanceResult.improved }); },
-      certifications: () => { if (Array.isArray(enhanceResult.improved)) updateResume({ certifications: enhanceResult.improved }); },
-      languages: () => { if (Array.isArray(enhanceResult.improved)) updateResume({ languages: enhanceResult.improved }); },
-    };
-    if (Object.prototype.hasOwnProperty.call(applyMap, section)) applyMap[section]();
-    toast.success('AI suggestion applied!');
+    // Stash the original structured payload so Approve can write the
+    // real object/array back into the store. The dialog only sees the
+    // formatted preview text.
+    latestPayloadRef.current = enhanceResult.improved;
+    setShowDialog(true);
   };
 
   // Register the trigger in the shared bridge so other summary entry
@@ -239,49 +263,105 @@ export const SectionAIAction = memo(function SectionAIAction({ section }: Sectio
 
   const handleRerun = async (action: 'shorten' | 'improve' | 'generate', currentText: string) => {
     if (!currentResume) return;
-    // For contact, currentText is the formatted preview string and is
-    // not a meaningful re-run input. Send the live contact object
-    // instead so the model has real fields to work with, and refresh
-    // the snapshot from whatever comes back.
-    if (section === 'contact') {
-      const r = await enhance(action as ActionType, currentResume.contactInfo, currentResume, jobDescription || undefined);
-      if (r?.improved && typeof r.improved === 'object' && !Array.isArray(r.improved)) {
-        contactSnapshotRef.current = r.improved as Partial<ContactInfo>;
-      }
+    // For non-string sections, currentText is the formatted preview and
+    // is not a meaningful re-run input. Send the live section data so
+    // the model has the real fields to work with.
+    if (section === 'summary') {
+      await enhance(action as ActionType, currentText, currentResume, jobDescription || undefined);
       return;
     }
-    await enhance(action as ActionType, currentText, currentResume, jobDescription || undefined);
+    const liveContent: Record<SectionType, unknown> = {
+      contact: currentResume.contactInfo,
+      summary: currentResume.summary,
+      experience: currentResume.experience,
+      education: currentResume.education,
+      skills: currentResume.skills,
+      awards: currentResume.awards || [],
+      projects: currentResume.projects || [],
+      publications: currentResume.publications || [],
+      volunteering: currentResume.volunteering || [],
+      certifications: currentResume.certifications || [],
+      languages: currentResume.languages || [],
+    };
+    const r = await enhance(action as ActionType, liveContent[section], currentResume, jobDescription || undefined);
+    if (r?.improved !== undefined) {
+      latestPayloadRef.current = r.improved;
+    }
   };
 
+  /**
+   * Apply the AI suggestion to the resume. The dialog passes the user's
+   * edited text — for `summary` we use that text directly. For all other
+   * sections the structured payload from `latestPayloadRef` is the
+   * authoritative content (the formatted preview text isn't a safe
+   * round-trip back to the section's data shape).
+   */
   const handleApplyFromDialog = (editedText: string) => {
-    if (section === 'summary') {
-      if (typeof editedText !== 'string' || editedText.trim() === '') return;
-      updateResume({ summary: editedText });
-      // Match SummarySection's apply behavior — rescore against the
-      // freshly mutated resume so the ATS score badge reflects the
-      // change without waiting for the next background pass.
-      if (currentResume) {
-        const next: ResumeData = { ...currentResume, summary: editedText };
-        void rescoreAfterApply(next);
-      }
-    } else if (section === 'contact') {
-      // Contact edits in the dialog are display-only (the field
-      // structure can't be safely round-tripped from free-form text).
-      // Apply the AI-returned object snapshot.
-      const snapshot = contactSnapshotRef.current;
-      if (snapshot && typeof snapshot === 'object') {
-        updateResume({ contactInfo: { ...currentResume?.contactInfo, ...snapshot } as ContactInfo });
-      }
-      contactSnapshotRef.current = null;
+    if (!currentResume) {
+      setShowDialog(false);
+      return;
     }
-    // Clear the AI result and close the dialog. apply() also fires the
-    // "Changes applied!" toast via useAIEnhance's internal handler.
+
+    if (section === 'summary') {
+      if (typeof editedText !== 'string' || editedText.trim() === '') {
+        setShowDialog(false);
+        return;
+      }
+      updateResume({ summary: editedText });
+      const next: ResumeData = { ...currentResume, summary: editedText };
+      void rescoreAfterApply(next);
+      apply(editedText);
+      setShowDialog(false);
+      latestPayloadRef.current = null;
+      return;
+    }
+
+    const payload = latestPayloadRef.current;
+
+    if (section === 'contact') {
+      if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
+        updateResume({
+          contactInfo: { ...currentResume.contactInfo, ...(payload as Partial<ContactInfo>) } as ContactInfo,
+        });
+      }
+      apply(editedText);
+      setShowDialog(false);
+      latestPayloadRef.current = null;
+      return;
+    }
+
+    // Array-shaped sections — merge by id where possible.
+    const applyMap: Record<string, () => void> = {
+      experience: () => {
+        if (Array.isArray(payload)) {
+          updateResume({ experience: mergeByIdOrReplace<Experience>(currentResume.experience ?? [], payload as Experience[]) });
+        } else if (payload && typeof payload === 'object' && 'id' in payload && typeof (payload as { id: unknown }).id === 'string') {
+          updateResume({ experience: mergeObjectById<Experience>(currentResume.experience ?? [], payload as Experience) });
+        }
+      },
+      education: () => {
+        if (Array.isArray(payload)) {
+          updateResume({ education: mergeByIdOrReplace<Education>(currentResume.education ?? [], payload as Education[]) });
+        } else if (payload && typeof payload === 'object' && 'id' in payload && typeof (payload as { id: unknown }).id === 'string') {
+          updateResume({ education: mergeObjectById<Education>(currentResume.education ?? [], payload as Education) });
+        }
+      },
+      skills: () => { if (Array.isArray(payload)) updateResume({ skills: payload as string[] }); },
+      awards: () => { if (Array.isArray(payload)) updateResume({ awards: payload as ResumeData['awards'] }); },
+      projects: () => { if (Array.isArray(payload)) updateResume({ projects: payload as ResumeData['projects'] }); },
+      publications: () => { if (Array.isArray(payload)) updateResume({ publications: payload as ResumeData['publications'] }); },
+      volunteering: () => { if (Array.isArray(payload)) updateResume({ volunteering: payload as ResumeData['volunteering'] }); },
+      certifications: () => { if (Array.isArray(payload)) updateResume({ certifications: payload as ResumeData['certifications'] }); },
+      languages: () => { if (Array.isArray(payload)) updateResume({ languages: payload as ResumeData['languages'] }); },
+    };
+    if (Object.prototype.hasOwnProperty.call(applyMap, section)) applyMap[section]();
     apply(editedText);
     setShowDialog(false);
+    latestPayloadRef.current = null;
   };
 
   const handleDiscardFromDialog = () => {
-    contactSnapshotRef.current = null;
+    latestPayloadRef.current = null;
     discard();
     setShowDialog(false);
   };
@@ -296,7 +376,40 @@ export const SectionAIAction = memo(function SectionAIAction({ section }: Sectio
     previewImproved = result?.improved && typeof result.improved === 'object' && !Array.isArray(result.improved)
       ? contactToText(result.improved as Partial<ContactInfo>)
       : '';
+  } else {
+    const liveOriginal: Record<SectionType, unknown> = {
+      contact: currentResume?.contactInfo,
+      summary: currentResume?.summary,
+      experience: currentResume?.experience,
+      education: currentResume?.education,
+      skills: currentResume?.skills,
+      awards: currentResume?.awards || [],
+      projects: currentResume?.projects || [],
+      publications: currentResume?.publications || [],
+      volunteering: currentResume?.volunteering || [],
+      certifications: currentResume?.certifications || [],
+      languages: currentResume?.languages || [],
+    };
+    previewOriginal = formatSuggestionForPreview(section, liveOriginal[section]);
+    previewImproved = formatSuggestionForPreview(section, result?.improved);
   }
+
+  const dialogTitle = (() => {
+    switch (section) {
+      case 'summary': return 'Enhanced Summary';
+      case 'contact': return 'Contact Updates';
+      case 'experience': return 'Enhanced Experience';
+      case 'education': return 'Enhanced Education';
+      case 'skills': return 'Enhanced Skills';
+      case 'awards': return 'Enhanced Awards';
+      case 'projects': return 'Enhanced Projects';
+      case 'publications': return 'Enhanced Publications';
+      case 'volunteering': return 'Enhanced Volunteering';
+      case 'certifications': return 'Enhanced Certifications';
+      case 'languages': return 'Enhanced Languages';
+      default: return 'AI Enhancement';
+    }
+  })();
 
   return (
     <>
@@ -308,20 +421,18 @@ export const SectionAIAction = memo(function SectionAIAction({ section }: Sectio
         onLockedClick={() => setShowSignIn(true)}
       />
 
-      {isPreviewSection(section) && (
-        <AIEnhanceDialog
-          isOpen={showDialog}
-          original={previewOriginal}
-          improved={previewImproved}
-          changes={result?.changes || []}
-          suggestions={result?.suggestions}
-          isEnhancing={isEnhancing}
-          onRerun={handleRerun}
-          onApply={handleApplyFromDialog}
-          onDiscard={handleDiscardFromDialog}
-          title={section === 'summary' ? 'Enhanced Summary' : section === 'contact' ? 'Contact Updates' : 'AI Enhancement'}
-        />
-      )}
+      <AIEnhanceDialog
+        isOpen={showDialog}
+        original={previewOriginal}
+        improved={previewImproved}
+        changes={result?.changes || []}
+        suggestions={result?.suggestions}
+        isEnhancing={isEnhancing}
+        onRerun={handleRerun}
+        onApply={handleApplyFromDialog}
+        onDiscard={handleDiscardFromDialog}
+        title={dialogTitle}
+      />
 
       {showSignIn && (
         <Suspense fallback={null}>

@@ -266,6 +266,18 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
     toast.info('Changes discarded');
   }, []);
 
+  /**
+   * Internal-cleanup reset: clear the AI result without firing the
+   * "Changes discarded" toast. Use this whenever code (not the user)
+   * is closing/clearing the suggestion — for example, after an
+   * auto-apply branch, after a successful Apply, or when programmatically
+   * dismissing the dialog. Only `discard()` should fire the toast, and
+   * only when the user explicitly clicks Discard.
+   */
+  const reset = useCallback(() => {
+    setResult(null);
+  }, []);
+
   return {
     enhance,
     isEnhancing,
@@ -273,5 +285,6 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
     result,
     apply,
     discard,
+    reset,
   };
 }

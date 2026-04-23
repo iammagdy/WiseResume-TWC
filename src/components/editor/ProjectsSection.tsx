@@ -29,6 +29,10 @@ export const ProjectsSection = memo(function ProjectsSection() {
   // AI state
   const [enhancingProjectId, setEnhancingProjectId] = useState<string | null>(null);
   const [originalDescription, setOriginalDescription] = useState('');
+  // Track which AI action triggered the current popup so the Approve
+  // handler knows whether to write a description (string sections) or
+  // append technology suggestions (array-of-strings section).
+  const [currentActionId, setCurrentActionId] = useState<string | null>(null);
   const [aiQuestions, setAiQuestions] = useState<string[]>([]);
   const [questionsProjectId, setQuestionsProjectId] = useState<string | null>(null);
   const [questionsLoading, setQuestionsLoading] = useState(false);
@@ -113,7 +117,7 @@ export const ProjectsSection = memo(function ProjectsSection() {
     }
   }, [enhancingProjectId, projects, updateResume, triggerRescore]);
 
-  const { enhance, isEnhancing, result, apply, discard } = useAIEnhance({
+  const { enhance, isEnhancing, result, apply, discard, reset } = useAIEnhance({
     section: 'projects',
     onApply,
   });
@@ -153,6 +157,7 @@ export const ProjectsSection = memo(function ProjectsSection() {
   const handleAIAction = useCallback(async (actionId: string, proj: Project) => {
     setEnhancingProjectId(proj.id);
     setOriginalDescription(proj.description || '');
+    setCurrentActionId(actionId);
 
     const singleProject = {
       id: proj.id,
@@ -179,24 +184,10 @@ export const ProjectsSection = memo(function ProjectsSection() {
       return;
     }
 
-    // Auto-apply technology suggestions (skip dialog)
-    if (actionId === 'suggest_technologies' && resp?.improved && Array.isArray(resp.improved)) {
-      const existingTechs = new Set(proj.technologies);
-      const newTechs = (resp.improved as string[]).filter(t => typeof t === 'string' && !existingTechs.has(t));
-      if (newTechs.length > 0) {
-        const next = projects.map(p =>
-          p.id === proj.id ? { ...p, technologies: [...p.technologies, ...newTechs] } : p
-        );
-        updateResume({ projects: next });
-        toast.success(`Added ${newTechs.length} technologies`);
-        triggerRescore(next);
-      } else {
-        toast.info('No new technologies to suggest');
-      }
-      discard();
-      return;
-    }
-  }, [currentResume, enhance, discard, projects, updateResume, triggerRescore]);
+    // For suggest_technologies the popup opens via `result`; the
+    // dialog's Approve handler dedupes against existing technologies
+    // and writes the appended list back to the resume.
+  }, [currentResume, enhance, projects]);
 
   const handleQuestionsSubmit = useCallback(async (answers: Record<string, string>) => {
     if (!questionsProjectId) return;
@@ -294,6 +285,16 @@ export const ProjectsSection = memo(function ProjectsSection() {
   const getImprovedDescription = (): string => {
     if (!result?.improved) return '';
     const imp = result.improved;
+    // Tech suggestions arrive as a string array; render the *new* (not
+    // already-listed) techs as a readable comma-separated preview so the
+    // user knows exactly what Approve will add.
+    if (currentActionId === 'suggest_technologies' && Array.isArray(imp)) {
+      const proj = projects.find(p => p.id === enhancingProjectId);
+      const existing = new Set(proj?.technologies ?? []);
+      return (imp as unknown[])
+        .filter((t): t is string => typeof t === 'string' && !existing.has(t))
+        .join(', ');
+    }
     if (typeof imp === 'string') return imp;
     if (Array.isArray(imp) && imp.length > 0) {
       const first = imp[0];
@@ -307,6 +308,55 @@ export const ProjectsSection = memo(function ProjectsSection() {
     }
     return JSON.stringify(imp);
   };
+
+  const getOriginalForDialog = (): string => {
+    if (currentActionId === 'suggest_technologies') {
+      const proj = projects.find(p => p.id === enhancingProjectId);
+      return proj?.technologies.join(', ') ?? '';
+    }
+    return originalDescription;
+  };
+
+  const dialogTitle = currentActionId === 'suggest_technologies'
+    ? 'Suggested Technologies'
+    : 'AI Project Enhancement';
+
+  // Approve handler: branches on the action that triggered this preview.
+  // For tech suggestions we ignore the user's edited preview text and
+  // append the original AI string-array (deduped) to the project's
+  // technology list — only after the user clicks Approve.
+  const handleDialogApply = useCallback((editedText: string) => {
+    if (currentActionId === 'suggest_technologies') {
+      const payload = lastImprovedRef.current;
+      const proj = projects.find(p => p.id === enhancingProjectId);
+      if (proj && Array.isArray(payload)) {
+        const existing = new Set(proj.technologies);
+        const newTechs = (payload as unknown[]).filter(
+          (t): t is string => typeof t === 'string' && !existing.has(t),
+        );
+        if (newTechs.length > 0) {
+          const next = projects.map(p =>
+            p.id === proj.id ? { ...p, technologies: [...p.technologies, ...newTechs] } : p,
+          );
+          updateResume({ projects: next });
+          toast.success('Changes applied!', { description: `Added ${newTechs.length} technologies` });
+          triggerRescore(next);
+        } else {
+          toast.success('Changes applied!', { description: 'No new technologies to add' });
+        }
+      }
+      reset();
+      setCurrentActionId(null);
+      return;
+    }
+    apply(editedText);
+    setCurrentActionId(null);
+  }, [currentActionId, projects, enhancingProjectId, updateResume, triggerRescore, apply, reset]);
+
+  const handleDialogDiscard = useCallback(() => {
+    discard();
+    setCurrentActionId(null);
+  }, [discard]);
 
   return (
     <div className="space-y-4">
@@ -400,15 +450,15 @@ export const ProjectsSection = memo(function ProjectsSection() {
       {/* AI Enhance Dialog */}
       <AIEnhanceDialog
         isOpen={!!result}
-        original={originalDescription}
+        original={getOriginalForDialog()}
         improved={getImprovedDescription()}
         changes={result?.changes || []}
         suggestions={result?.suggestions}
         isEnhancing={isEnhancing}
-        onRerun={handleRerun}
-        onApply={(editedText) => apply(editedText)}
-        onDiscard={discard}
-        title="AI Project Enhancement"
+        onRerun={currentActionId === 'suggest_technologies' ? undefined : handleRerun}
+        onApply={handleDialogApply}
+        onDiscard={handleDialogDiscard}
+        title={dialogTitle}
       />
 
       {/* Clarifying Questions Dialog */}
