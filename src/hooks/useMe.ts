@@ -54,11 +54,11 @@ const REALTIME_BACKOFF_MS = [500, 1500];
 /**
  * Shared hook for fetching the current user's profile, plan, and credits data.
  *
- * Uses the `me` edge function which validates the bridge token server-side via
- * requireAuth(), queries data using a service-role client (bypasses RLS), and
- * returns a proper 401 on auth failure so the edgeFunctions client can auto-retry
- * with a fresh token. This avoids the silent-failure problem that occurs when
- * the bridge token expires and `auth.uid()` returns null in direct DB queries.
+ * Calls the Express server endpoint GET /api/data/me, which queries
+ * profiles, user_preferences, subscriptions, and ai_credits from Supabase
+ * using the service-role key (bypasses RLS) and validates the caller via
+ * the session JWT (SESSION_SECRET). This replaces the former `me` Supabase
+ * edge function, which became unavailable (404).
  */
 export function useMe() {
   const { user, isAuthenticated } = useAuth();
