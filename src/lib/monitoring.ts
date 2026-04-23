@@ -1,4 +1,5 @@
 import * as Sentry from '@sentry/react';
+import type { FeedbackPayload } from './captureErrorShim';
 
 declare const __APP_VERSION__: string;
 
@@ -13,10 +14,10 @@ const ENV = import.meta.env.MODE ?? 'development';
  * the app functions normally without it, but production error alerting is
  * disabled until the DSN is configured.
  *
- * Configuration:
- *   - Set VITE_SENTRY_DSN in environment secrets to your project's DSN.
- *   - tracesSampleRate: 0.1 in production (10% of transactions traced).
- *   - replaysOnErrorSampleRate: 1.0 to capture session replays on every error.
+ * Note: the standalone Sentry feedback widget (feedbackIntegration) is
+ * intentionally NOT installed — feedback is submitted programmatically via
+ * captureFeedback() from our own bug-report dialogs so we control the UX
+ * and dual-channel (email + Sentry) delivery.
  */
 export function initMonitoring(): void {
   if (!DSN) {
@@ -41,11 +42,6 @@ export function initMonitoring(): void {
         blockAllMedia: true,
       }),
       Sentry.consoleLoggingIntegration({ levels: ['warn', 'error'] }),
-      Sentry.feedbackIntegration({
-        colorScheme: 'system',
-        isNameRequired: true,
-        isEmailRequired: true,
-      }),
     ],
     enableLogs: true,
     tracesSampleRate: ENV === 'production' ? 0.1 : 1.0,
@@ -97,6 +93,34 @@ export function captureError(err: unknown, context?: Record<string, unknown>): v
 }
 
 /**
+ * Submit a user-feedback entry to Sentry's User Feedback API.
+ * Safe to call when Sentry is not initialized (returns undefined).
+ *
+ * When `associatedEventId` is supplied, Sentry attaches the feedback to
+ * the corresponding error event so the original stacktrace and replay
+ * are linked from the feedback view.
+ */
+export function captureFeedback(payload: FeedbackPayload): string | undefined {
+  if (!DSN) return undefined;
+  try {
+    let id: string | undefined;
+    Sentry.withScope((scope) => {
+      if (payload.tags) scope.setTags(payload.tags);
+      id = Sentry.captureFeedback({
+        name: payload.name,
+        email: payload.email,
+        message: payload.message,
+        associatedEventId: payload.associatedEventId,
+      });
+    });
+    return id;
+  } catch (err) {
+    console.warn('[monitoring] captureFeedback failed:', err);
+    return undefined;
+  }
+}
+
+/**
  * Set the authenticated user on Sentry scope.
  * Call this after successful sign-in; clear on sign-out.
  */
@@ -106,6 +130,20 @@ export function setMonitoringUser(userId: string | null): void {
     Sentry.setUser({ id: userId });
   } else {
     Sentry.setUser(null);
+  }
+}
+
+/**
+ * Returns the most recent Sentry event id (e.g. the last captured
+ * exception). Used by auto-crash report flows to associate the user
+ * feedback submission with the originating error event.
+ */
+export function getLastSentryEventId(): string | undefined {
+  if (!DSN) return undefined;
+  try {
+    return Sentry.lastEventId();
+  } catch {
+    return undefined;
   }
 }
 

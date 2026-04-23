@@ -5,10 +5,9 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { HeartHandshake, Send, CheckCircle2, MapPin, Info, Wrench, AlertTriangle, ToggleLeft, ToggleRight } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
-import { getSupabaseToken, getAuthUserId } from '@/lib/supabaseAuth';
 import { getUserId } from '@/lib/supabaseBridge';
-import { supabase } from '@/integrations/supabase/safeClient';
-import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { sendFeedback } from '@/lib/sendFeedback';
+import { getLastSentryEventId } from '@/lib/captureErrorShim';
 import { useAuth } from '@/hooks/useAuth';
 import {
   onBugReport,
@@ -163,48 +162,52 @@ export function BugReportDialog() {
       },
     };
 
-    try {
-      // Primary path: new centralized edge function
-      const { data: res, error } = await edgeFunctions.functions.invoke('send-contact-email', {
-        body: payload,
-      });
-      if (error) throw error;
-      if (res?.error) throw new Error(res.error);
+    // Auto-detected error events should link the originating Sentry event
+    // so the replay/stacktrace surfaces alongside the feedback entry. We
+    // only opt-in to lastEventId in detected mode — for ad-hoc bug
+    // reports the most recent Sentry event is unrelated to the user's
+    // complaint and would mis-link the feedback.
+    const associatedEventId =
+      reportMode === 'detected' && recentError ? getLastSentryEventId() : undefined;
 
+    const result = await sendFeedback({
+      type: 'bug',
+      email: payload.email,
+      name: user?.email || undefined,
+      subject: payload.subject,
+      message: payload.message,
+      metadata: payload.metadata,
+      associatedEventId,
+      tags: {
+        screen: screenLabel,
+        category: categoryInfo.category,
+        ...(activeFeature ? { feature: activeFeature } : {}),
+        report_mode: reportMode,
+        ...(isShake ? { source: 'shake' } : {}),
+      },
+    });
+
+    if (result.anyDelivered) {
       activityTracker.clearErrors();
-      if (res?.saved === true && res?.success === false) {
+      // Show "saved" wording only when the email channel didn't actually
+      // send (saved-to-DB or Sentry-only delivery). Full success requires
+      // an actual Resend send.
+      if (result.emailOk && !result.emailSaved) {
+        setStatus('success');
+        setTimeout(() => setOpen(false), 2000);
+      } else {
         setStatus('saved');
         setTimeout(() => setOpen(false), 3000);
-        return;
       }
-      setStatus('success');
-      setTimeout(() => setOpen(false), 2000);
-    } catch (err) {
-      console.error('Email send failed:', err);
-      // Fallback: submit via the edge function (which uses service role to insert)
-      try {
-        const { data: fbRes, error: fbErr } = await edgeFunctions.functions.invoke('submit-contact-request', {
-          body: {
-            type: payload.type,
-            email: payload.email,
-            subject: payload.subject,
-            message: payload.message,
-            metadata: payload.metadata,
-          },
-        });
-        if (fbErr) throw fbErr;
-        if (fbRes?.success) {
-          activityTracker.clearErrors();
-          setStatus('saved');
-          setTimeout(() => setOpen(false), 3000);
-          return;
-        }
-      } catch (fallbackErr) {
-        console.error('Fallback submit-contact-request failed:', fallbackErr);
-      }
-      setStatus('error');
+      return;
     }
-  }, [data, additionalContext, screenLabel, categoryInfo.category, activeFeature, recentError, reportMode]);
+
+    console.error('Bug report failed on both channels:', {
+      emailError: result.emailError,
+      sentryOk: result.sentryOk,
+    });
+    setStatus('error');
+  }, [data, additionalContext, screenLabel, categoryInfo.category, activeFeature, recentError, reportMode, user, email, isShake]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

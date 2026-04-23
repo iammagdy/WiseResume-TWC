@@ -5,9 +5,9 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Lightbulb, Send, CheckCircle2 } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
-import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { useAuth } from '@/hooks/useAuth';
 import { getUserId } from '@/lib/supabaseBridge';
+import { sendFeedback } from '@/lib/sendFeedback';
 
 let cachedAppVersion: string | null = null;
 async function getAppVersion(): Promise<string> {
@@ -58,33 +58,32 @@ export function FeatureRequestDialog({ open, onOpenChange }: FeatureRequestDialo
       },
     };
 
-    try {
-      const { data: res, error } = await edgeFunctions.functions.invoke('send-contact-email', {
-        body: payload,
-      });
-      if (error) throw error;
-      if (res?.error) throw new Error(res.error);
-      if (res?.saved === true && res?.success === false) {
-        setStatus('saved');
-        setTimeout(() => {
-          onOpenChange(false);
-          setTimeout(() => { setStatus('idle'); setFeatureTitle(''); setFeatureDescription(''); }, 300);
-        }, 3500);
-        return;
-      }
-      setStatus('success');
-      setTimeout(() => {
-        onOpenChange(false);
-        setTimeout(() => {
-          setStatus('idle');
-          setFeatureTitle('');
-          setFeatureDescription('');
-        }, 300);
-      }, 2000);
-    } catch {
+    const result = await sendFeedback({
+      type: 'feature',
+      email: payload.email,
+      name: user?.email || undefined,
+      subject: payload.subject,
+      message: payload.message,
+      metadata: payload.metadata,
+      tags: { feature_title: featureTitle.trim().slice(0, 80) },
+    });
+
+    if (!result.anyDelivered) {
       setStatus('error');
+      return;
     }
-  }, [featureTitle, featureDescription, onOpenChange]);
+
+    const sentOnEmail = result.emailOk && !result.emailSaved;
+    setStatus(sentOnEmail ? 'success' : 'saved');
+    setTimeout(() => {
+      onOpenChange(false);
+      setTimeout(() => {
+        setStatus('idle');
+        setFeatureTitle('');
+        setFeatureDescription('');
+      }, 300);
+    }, sentOnEmail ? 2000 : 3500);
+  }, [featureTitle, featureDescription, email, user, onOpenChange]);
 
   const handleOpenChange = (newOpen: boolean) => {
     onOpenChange(newOpen);

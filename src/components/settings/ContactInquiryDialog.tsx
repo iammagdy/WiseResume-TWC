@@ -6,9 +6,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MessageSquare, Send, CheckCircle2 } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
-import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { useAuth } from '@/hooks/useAuth';
 import { getUserId } from '@/lib/supabaseBridge';
+import { sendFeedback } from '@/lib/sendFeedback';
 
 export const DEPARTMENTS = [
   { value: 'general', label: 'General Support' },
@@ -82,34 +82,33 @@ export function ContactInquiryDialog({ open, onOpenChange, defaultDepartment }: 
       },
     };
 
-    try {
-      const { data: res, error } = await edgeFunctions.functions.invoke('send-contact-email', {
-        body: payload,
-      });
-      if (error) throw error;
-      if (res?.error) throw new Error(res.error);
-      if (res?.saved === true && res?.success === false) {
-        setStatus('saved');
-        setTimeout(() => {
-          onOpenChange(false);
-          setTimeout(() => { setStatus('idle'); setSubject(''); setMessage(''); setDepartment('general'); }, 300);
-        }, 3500);
-        return;
-      }
-      setStatus('success');
-      setTimeout(() => {
-        onOpenChange(false);
-        setTimeout(() => {
-          setStatus('idle');
-          setSubject('');
-          setMessage('');
-          setDepartment('general');
-        }, 300);
-      }, 3000);
-    } catch {
+    const result = await sendFeedback({
+      type: 'contact',
+      email: payload.email,
+      name: user?.email || undefined,
+      subject: payload.subject,
+      message: payload.message,
+      metadata: payload.metadata,
+      tags: { department: deptLabel },
+    });
+
+    if (!result.anyDelivered) {
       setStatus('error');
+      return;
     }
-  }, [subject, message, department, onOpenChange]);
+
+    const sentOnEmail = result.emailOk && !result.emailSaved;
+    setStatus(sentOnEmail ? 'success' : 'saved');
+    setTimeout(() => {
+      onOpenChange(false);
+      setTimeout(() => {
+        setStatus('idle');
+        setSubject('');
+        setMessage('');
+        setDepartment('general');
+      }, 300);
+    }, sentOnEmail ? 3000 : 3500);
+  }, [subject, message, department, email, user, onOpenChange]);
 
   const handleOpenChange = (newOpen: boolean) => {
     onOpenChange(newOpen);

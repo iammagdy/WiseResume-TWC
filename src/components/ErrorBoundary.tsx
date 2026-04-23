@@ -3,7 +3,8 @@ import { AlertTriangle, RefreshCw, Home, ArrowLeft, MessageSquareWarning, Send, 
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { getUserId } from '@/lib/supabaseBridge';
-import { captureError } from '@/lib/captureErrorShim';
+import { captureError, getLastSentryEventId } from '@/lib/captureErrorShim';
+import { sendFeedback } from '@/lib/sendFeedback';
 
 interface Props {
   children: ReactNode;
@@ -227,16 +228,23 @@ export class ErrorBoundary extends Component<Props, State> {
 
   private handleSendReport = async () => {
     this.setState({ reportStatus: 'sending' });
-    try {
-      const userId = getUserId() || 'anonymous';
-      const errorMsg = this.state.error?.message || 'Unknown error';
-      const userNote = this.state.reportContext?.trim();
+    const userId = getUserId() || 'anonymous';
+    const errorMsg = this.state.error?.message || 'Unknown error';
+    const userNote = this.state.reportContext?.trim();
 
-      const payload = {
+    // Dual-channel send: Sentry user-feedback (linked to the most recent
+    // captured exception via getLastSentryEventId() inside sendFeedback)
+    // AND the existing email pipeline. Each channel succeeds/fails
+    // independently; we treat the report as accepted if either lands.
+    const result = await sendFeedback(
+      {
         type: 'auto-crash-report',
         email: 'crash@wiseresume.app',
         subject: `Auto Crash: ${errorMsg.slice(0, 80)}`,
         message: errorMsg + (userNote ? `\n\nUser note: ${userNote}` : ''),
+        // Link the user feedback entry to the just-captured exception so
+        // Sentry attaches its stacktrace and session replay automatically.
+        associatedEventId: getLastSentryEventId(),
         metadata: {
           error_stack: this.state.error?.stack?.slice(0, 4000) ?? null,
           component_stack: this.state.errorInfo?.componentStack?.slice(0, 4000) ?? null,
@@ -245,76 +253,28 @@ export class ErrorBoundary extends Component<Props, State> {
           user_id: userId,
           app_version: 'unknown',
         },
-      };
+        tags: {
+          source: 'error_boundary',
+          error_name: this.state.error?.name ?? 'Error',
+        },
+      },
+      // Use the supabase client directly (the /api/fn proxy itself may be
+      // implicated when the boundary fires) and skip the
+      // submit-contact-request fallback, since a 429 from the primary
+      // function will re-trigger the same rate limit on the fallback.
+      { useDirectSupabase: true, skipFallback: true },
+    );
 
-      const { data: res, error } = await supabase.functions.invoke('send-contact-email', { body: payload });
-
-      if (error) {
-        // 429 rate-limit: the request was already saved to DB by the edge function
-        // (or rejected before DB insert). Either way, retrying via the fallback
-        // chain would just hit the same limit — skip silently.
-        //
-        // Supabase FunctionsHttpError surfaces HTTP status on `context.status`
-        // (the underlying Response object). Some builds also copy it to `status`
-        // directly, so we check both to cover all SDK versions.
-        const httpStatus =
-          (error as { status?: number }).status ??
-          (error as { context?: { status?: number } }).context?.status;
-        const isRateLimit =
-          httpStatus === 429 ||
-          /429|too many requests|rate.?limit/i.test((error as Error).message ?? '');
-        if (isRateLimit) {
-          console.warn('[ErrorBoundary] Crash report rate-limited (429). Skipping fallback.');
-          this.setState({ reportStatus: 'saved' });
-          return;
-        }
-        throw error;
-      }
-
-      // 200 success: email was sent
-      if (res?.success === true) {
-        this.setState({ reportStatus: 'sent' });
-        return;
-      }
-
-      // 200 with success:false + reason:email_not_configured — email config is missing
-      // on the server, but the request was saved to DB. Treat as soft skip; do NOT
-      // fall through to the fallback chain because the fallback would hit the same
-      // missing-config problem.
-      if (res?.reason === 'email_not_configured' || res?.saved === true) {
-        this.setState({ reportStatus: 'saved' });
-        return;
-      }
-
-      if (res?.error) throw new Error(res.error);
-
-      // Unknown response shape — do not claim email was sent
-      this.setState({ reportStatus: 'saved' });
-    } catch (err) {
-      console.error('Failed to send crash report:', err);
-      // Fallback: use submit-contact-request edge function (service role insert).
-      // Only reached for genuine unexpected errors (5xx, network failure, etc.).
-      try {
-        await supabase.functions.invoke('submit-contact-request', {
-          body: {
-            type: 'auto-crash-report',
-            email: 'crash@wiseresume.app',
-            subject: `Auto Crash: ${this.state.error?.message?.slice(0, 80) ?? 'Unknown'}`,
-            message: this.state.error?.message || 'Unknown error',
-            metadata: {
-              error_stack: this.state.error?.stack?.slice(0, 4000) ?? null,
-              component_stack: this.state.errorInfo?.componentStack?.slice(0, 4000) ?? null,
-              route: window.location.pathname,
-              user_agent: navigator.userAgent,
-              user_id: getUserId() ?? null,
-            },
-          },
-        });
-        this.setState({ reportStatus: 'saved' });
-      } catch {
-        this.setState({ reportStatus: 'error' });
-      }
+    if (!result.anyDelivered) {
+      console.error('Failed to send crash report on both channels:', result.emailError);
+      this.setState({ reportStatus: 'error' });
+      return;
     }
+
+    // "sent" only when the email channel actually delivered via Resend;
+    // otherwise "saved" (Sentry-only, or saved-to-DB without delivery).
+    const fullySent = result.emailOk && !result.emailSaved;
+    this.setState({ reportStatus: fullySent ? 'sent' : 'saved' });
   };
 
   public render() {

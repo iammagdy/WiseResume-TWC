@@ -102,9 +102,15 @@ try {
     ]).then(([mon, shim]) => {
       mon.initMonitoring();
       shim.setRealCaptureError(mon.captureError);
+      shim.setRealCaptureFeedback(mon.captureFeedback);
+      shim.setRealLastEventId(mon.getLastSentryEventId);
       while (shim.earlyCaptureBuffer.length > 0) {
         const entry = shim.earlyCaptureBuffer.shift();
         if (entry) mon.captureError(entry.err, entry.context);
+      }
+      while (shim.earlyFeedbackBuffer.length > 0) {
+        const fb = shim.earlyFeedbackBuffer.shift();
+        if (fb) mon.captureFeedback(fb);
       }
     }).catch(() => undefined);
   };
