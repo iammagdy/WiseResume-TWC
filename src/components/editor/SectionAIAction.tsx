@@ -5,7 +5,7 @@ import { useResumeStore } from '@/store/resumeStore';
 import { useAuth } from '@/hooks/useAuth';
 import { useAIApplyEffects } from '@/hooks/useAIApplyEffects';
 import type { Experience, Education, ContactInfo, ResumeData } from '@/types/resume';
-import { AIEnhanceDialog } from './ai/AIEnhanceDialog';
+import { AIEnhanceDialog, type EntryDiff, type FieldDiff, type ListLineDiff, type FieldDiffStatus } from './ai/AIEnhanceDialog';
 import { useSectionAIBridge } from '@/store/sectionAIBridge';
 
 const SignInPromptDialog = lazy(() => import('@/components/auth/SignInPromptDialog').then(m => ({ default: m.SignInPromptDialog })));
@@ -137,6 +137,377 @@ function formatSuggestionForPreview(section: SectionType, value: unknown): strin
     return value.map(formatItem).filter(Boolean).join('\n\n');
   }
   return formatItem(value);
+}
+
+// ===== Entry-diff builders =====
+//
+// Produce a structured per-entry diff for array-shaped sections so the
+// preview popup can render each entry as its own block with field-level
+// highlights instead of a flat block of text.
+
+type FieldSpec = {
+  key: string;
+  label: string;
+  /** Treat the value as a string array (e.g. achievements). */
+  isList?: boolean;
+};
+
+const SECTION_FIELDS: Record<string, FieldSpec[]> = {
+  experience: [
+    { key: 'position', label: 'Position' },
+    { key: 'company', label: 'Company' },
+    { key: 'account', label: 'Account' },
+    { key: 'startDate', label: 'Start' },
+    { key: 'endDate', label: 'End' },
+    { key: 'description', label: 'Description' },
+    { key: 'achievements', label: 'Achievements', isList: true },
+    { key: 'responsibilities', label: 'Responsibilities', isList: true },
+  ],
+  education: [
+    { key: 'degree', label: 'Degree' },
+    { key: 'field', label: 'Field' },
+    { key: 'institution', label: 'Institution' },
+    { key: 'startDate', label: 'Start' },
+    { key: 'endDate', label: 'End' },
+    { key: 'gpa', label: 'GPA' },
+    { key: 'description', label: 'Description' },
+  ],
+  projects: [
+    { key: 'name', label: 'Name' },
+    { key: 'role', label: 'Role' },
+    { key: 'startDate', label: 'Start' },
+    { key: 'endDate', label: 'End' },
+    { key: 'technologies', label: 'Technologies', isList: true },
+    { key: 'description', label: 'Description' },
+    { key: 'url', label: 'URL' },
+    { key: 'githubUrl', label: 'GitHub' },
+  ],
+  awards: [
+    { key: 'title', label: 'Title' },
+    { key: 'issuer', label: 'Issuer' },
+    { key: 'date', label: 'Date' },
+    { key: 'description', label: 'Description' },
+  ],
+  publications: [
+    { key: 'title', label: 'Title' },
+    { key: 'publisher', label: 'Publisher' },
+    { key: 'date', label: 'Date' },
+    { key: 'coAuthors', label: 'Co-authors' },
+    { key: 'url', label: 'URL' },
+    { key: 'description', label: 'Description' },
+  ],
+  volunteering: [
+    { key: 'role', label: 'Role' },
+    { key: 'organization', label: 'Organization' },
+    { key: 'startDate', label: 'Start' },
+    { key: 'endDate', label: 'End' },
+    { key: 'hours', label: 'Hours' },
+    { key: 'description', label: 'Description' },
+  ],
+  certifications: [
+    { key: 'name', label: 'Name' },
+    { key: 'issuer', label: 'Issuer' },
+    { key: 'date', label: 'Date' },
+    { key: 'expiryDate', label: 'Expires' },
+    { key: 'credentialId', label: 'Credential ID' },
+  ],
+};
+
+function entryTitle(section: SectionType, item: Record<string, unknown> | null | undefined): string {
+  if (!item) return '';
+  const s = (k: string) => getString(item, k);
+  switch (section) {
+    case 'experience': return [s('position'), s('company')].filter(Boolean).join(' @ ') || '(Untitled experience)';
+    case 'education': {
+      const left = [s('degree'), s('field')].filter(Boolean).join(' in ');
+      return [left, s('institution')].filter(Boolean).join(' — ') || '(Untitled education)';
+    }
+    case 'projects': return [s('name'), s('role')].filter(Boolean).join(' — ') || '(Untitled project)';
+    case 'awards': return [s('title'), s('issuer')].filter(Boolean).join(' — ') || '(Untitled award)';
+    case 'publications': return [s('title'), s('publisher')].filter(Boolean).join(' — ') || '(Untitled publication)';
+    case 'volunteering': return [s('role'), s('organization')].filter(Boolean).join(' @ ') || '(Untitled volunteering)';
+    case 'certifications': return [s('name'), s('issuer')].filter(Boolean).join(' — ') || '(Untitled certification)';
+    case 'languages': {
+      const name = s('name') || s('language');
+      const prof = s('proficiency') || s('level');
+      return prof ? `${name} (${prof})` : (name || '(Untitled language)');
+    }
+    default: return '';
+  }
+}
+
+function listLineDiffs(before: string[], after: string[]): ListLineDiff[] {
+  const beforeSet = new Set(before);
+  const afterSet = new Set(after);
+  const out: ListLineDiff[] = [];
+  before.forEach(t => {
+    out.push({ text: t, status: afterSet.has(t) ? 'unchanged' : 'removed' });
+  });
+  after.forEach(t => {
+    if (!beforeSet.has(t)) out.push({ text: t, status: 'added' });
+  });
+  return out;
+}
+
+function scalarStatus(before: string, after: string): FieldDiffStatus {
+  const a = (before ?? '').trim();
+  const b = (after ?? '').trim();
+  if (a === b) return 'unchanged';
+  if (!a && b) return 'added';
+  if (a && !b) return 'removed';
+  return 'changed';
+}
+
+function buildEntryFields(
+  spec: FieldSpec[],
+  before: Record<string, unknown> | null,
+  after: Record<string, unknown> | null,
+): FieldDiff[] {
+  return spec.map(({ key, label, isList }) => {
+    if (isList) {
+      const a = before ? getStringArray(before, key) : [];
+      const b = after ? getStringArray(after, key) : [];
+      const lines = listLineDiffs(a, b);
+      const anyChange = lines.some(l => l.status !== 'unchanged');
+      const onlyAdded = lines.every(l => l.status === 'added' || l.status === 'unchanged') && lines.some(l => l.status === 'added');
+      const onlyRemoved = lines.every(l => l.status === 'removed' || l.status === 'unchanged') && lines.some(l => l.status === 'removed');
+      const status: FieldDiffStatus = !anyChange
+        ? 'unchanged'
+        : onlyAdded
+        ? 'added'
+        : onlyRemoved
+        ? 'removed'
+        : 'changed';
+      return { key, label, status, isList: true, lines };
+    }
+    const a = before ? getString(before, key) : '';
+    const b = after ? getString(after, key) : '';
+    return { key, label, status: scalarStatus(a, b), before: a, after: b };
+  }).filter(f => {
+    // Drop fields that are unchanged AND empty on both sides — they add no info.
+    if (f.status !== 'unchanged') return true;
+    if (f.isList) return (f.lines?.length ?? 0) > 0;
+    return Boolean((f.before ?? '') || (f.after ?? ''));
+  });
+}
+
+/**
+ * Build per-entry diffs for an array-shaped section. Returns null when
+ * the section isn't an array-of-objects shape we can render this way
+ * (skills/languages handled separately; summary/contact bypass entirely).
+ */
+function buildEntryDiffs(
+  section: SectionType,
+  originalValue: unknown,
+  improvedValue: unknown,
+): EntryDiff[] | null {
+  // Skills: flat string array. Apply does a full replace — any skill the
+  // AI dropped will actually be removed from the resume, so reflect that
+  // honestly here.
+  if (section === 'skills') {
+    const before = Array.isArray(originalValue) ? (originalValue as unknown[]).filter((x): x is string => typeof x === 'string') : [];
+    let after: string[] | null = null;
+    if (Array.isArray(improvedValue)) {
+      after = (improvedValue as unknown[]).filter((x): x is string => typeof x === 'string');
+    }
+    if (after === null) return null;
+    const beforeSet = new Set(before);
+    const afterSet = new Set(after);
+    const seen = new Set<string>();
+    const entries: EntryDiff[] = [];
+    before.forEach(s => {
+      if (seen.has(s)) return;
+      seen.add(s);
+      entries.push({
+        id: `skill:${s}`,
+        title: s,
+        status: afterSet.has(s) ? 'unchanged' : 'removed',
+        fields: [],
+      });
+    });
+    after.forEach(s => {
+      if (seen.has(s)) return;
+      seen.add(s);
+      entries.push({
+        id: `skill:${s}`,
+        title: s,
+        status: beforeSet.has(s) ? 'unchanged' : 'new',
+        fields: [],
+      });
+    });
+    return entries;
+  }
+
+  // Languages: array of {id?, name, proficiency}. Apply does a full
+  // replace, so omitted languages are actually removed — show that.
+  if (section === 'languages') {
+    if (!Array.isArray(improvedValue)) return null;
+    const beforeArr = (Array.isArray(originalValue) ? originalValue : []) as Record<string, unknown>[];
+    const afterArr = improvedValue as Record<string, unknown>[];
+    const keyOf = (item: Record<string, unknown>) =>
+      (getString(item, 'name') || getString(item, 'language')).toLowerCase();
+    const afterMap = new Map<string, Record<string, unknown>>();
+    afterArr.forEach(it => { const k = keyOf(it); if (k) afterMap.set(k, it); });
+    const beforeKeys = new Set<string>();
+    beforeArr.forEach(it => { const k = keyOf(it); if (k) beforeKeys.add(k); });
+    const entries: EntryDiff[] = [];
+    const seen = new Set<string>();
+    beforeArr.forEach(it => {
+      const k = keyOf(it);
+      if (!k || seen.has(k)) return;
+      seen.add(k);
+      const a = afterMap.get(k) ?? null;
+      if (!a) {
+        entries.push({
+          id: `lang:${k}`,
+          title: entryTitle('languages', it),
+          status: 'removed',
+          fields: [],
+        });
+        return;
+      }
+      const before = getString(it, 'proficiency') || getString(it, 'level');
+      const after = getString(a, 'proficiency') || getString(a, 'level');
+      const changed = before !== after;
+      entries.push({
+        id: `lang:${k}`,
+        title: entryTitle('languages', a),
+        status: changed ? 'changed' : 'unchanged',
+        fields: changed ? [{ key: 'proficiency', label: 'Proficiency', status: scalarStatus(before, after), before, after }] : [],
+      });
+    });
+    afterArr.forEach(it => {
+      const k = keyOf(it);
+      if (!k || seen.has(k)) return;
+      seen.add(k);
+      entries.push({
+        id: `lang:${k}`,
+        title: entryTitle('languages', it),
+        status: beforeKeys.has(k) ? 'unchanged' : 'new',
+        fields: [],
+      });
+    });
+    return entries;
+  }
+
+  const spec = SECTION_FIELDS[section];
+  if (!spec) return null;
+
+  // Normalise the improved payload to an array of objects, and remember
+  // whether the AI returned a single object vs a real array — that
+  // determines which apply path runs (mergeObjectById vs
+  // mergeByIdOrReplace vs full replace) and therefore how the diff
+  // should be presented.
+  let improvedArr: Record<string, unknown>[] | null = null;
+  let isSingleObject = false;
+  if (Array.isArray(improvedValue)) {
+    improvedArr = (improvedValue as unknown[]).filter((x): x is Record<string, unknown> => !!x && typeof x === 'object' && !Array.isArray(x));
+  } else if (improvedValue && typeof improvedValue === 'object' && !Array.isArray(improvedValue)) {
+    improvedArr = [improvedValue as Record<string, unknown>];
+    isSingleObject = true;
+  }
+  if (!improvedArr || improvedArr.length === 0) return null;
+
+  const originalArr = (Array.isArray(originalValue) ? originalValue : []) as Record<string, unknown>[];
+
+  // Mirror the apply-time behaviour exactly:
+  //   - awards/projects/publications/volunteering/certifications: the
+  //     entire array is replaced with the AI payload, regardless of ids.
+  //     Anything the AI omitted is REMOVED from the resume.
+  //   - experience/education:
+  //       * single object payload + id → mergeObjectById (touches one entry).
+  //       * single object payload without id → apply is a no-op.
+  //       * array payload with ids on every item → mergeByIdOrReplace
+  //         keeps omitted originals untouched.
+  //       * array payload with any item missing an id → mergeByIdOrReplace
+  //         falls back to a full replace, so omitted originals are removed.
+  const REPLACE_SECTIONS = new Set<SectionType>([
+    'awards', 'projects', 'publications', 'volunteering', 'certifications',
+  ]);
+  const everyHasId = improvedArr.every(it => !!getString(it, 'id'));
+  let strategy: 'merge' | 'replace' | 'noop';
+  if (REPLACE_SECTIONS.has(section)) {
+    strategy = 'replace';
+  } else if (isSingleObject) {
+    strategy = getString(improvedArr[0], 'id') ? 'merge' : 'noop';
+  } else {
+    strategy = everyHasId ? 'merge' : 'replace';
+  }
+
+  // No-op apply path (single object without id in merge-only section):
+  // there's nothing meaningful to preview as a diff. Fall back to the
+  // text view so the user at least sees the raw AI suggestion.
+  if (strategy === 'noop') return null;
+
+  const willMergeById = strategy === 'merge';
+
+  const originalMap = new Map<string, Record<string, unknown>>();
+  originalArr.forEach(it => {
+    const id = getString(it, 'id');
+    if (id) originalMap.set(id, it);
+  });
+  const improvedIds = new Set<string>();
+  improvedArr.forEach(it => { const id = getString(it, 'id'); if (id) improvedIds.add(id); });
+
+  const entries: EntryDiff[] = [];
+  const seen = new Set<string>();
+
+  // Walk original first so the diff list mirrors the resume's existing order.
+  originalArr.forEach((orig, idx) => {
+    const oid = getString(orig, 'id');
+    const key = oid || `orig:${idx}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    const ai = oid ? (improvedIds.has(oid) ? improvedArr!.find(a => getString(a, 'id') === oid) ?? null : null) : null;
+
+    if (ai) {
+      const fields = buildEntryFields(spec, orig, ai);
+      const anyChanged = fields.some(f => f.status !== 'unchanged');
+      entries.push({
+        id: key,
+        title: entryTitle(section, ai) || entryTitle(section, orig),
+        status: anyChanged ? 'changed' : 'unchanged',
+        fields,
+      });
+      return;
+    }
+
+    // No AI counterpart for this original entry.
+    if (willMergeById) {
+      // Apply preserves it. Show as unchanged, no fields.
+      entries.push({
+        id: key,
+        title: entryTitle(section, orig),
+        status: 'unchanged',
+        fields: [],
+      });
+    } else {
+      // Apply will replace the whole array, dropping this entry.
+      entries.push({
+        id: key,
+        title: entryTitle(section, orig),
+        status: 'removed',
+        fields: [],
+      });
+    }
+  });
+
+  // Then any AI items the original didn't have — these will be inserted.
+  improvedArr.forEach((ai, idx) => {
+    const aid = getString(ai, 'id');
+    const key = aid || `new:${idx}`;
+    if (seen.has(key)) return;
+    if (aid && originalMap.has(aid)) return;
+    seen.add(key);
+    entries.push({
+      id: key,
+      title: entryTitle(section, ai),
+      status: 'new',
+      fields: buildEntryFields(spec, null, ai),
+    });
+  });
+
+  return entries;
 }
 
 /**
@@ -394,6 +765,29 @@ export const SectionAIAction = memo(function SectionAIAction({ section }: Sectio
     previewImproved = formatSuggestionForPreview(section, result?.improved);
   }
 
+  // Build a per-entry diff for array-shaped sections so the popup can show
+  // each entry as its own block (changed fields highlighted, unchanged
+  // entries collapsed) instead of one flat formatted string.
+  const entryDiffs: EntryDiff[] | undefined = (() => {
+    if (section === 'summary' || section === 'contact') return undefined;
+    if (!result?.improved) return undefined;
+    const liveOriginal: Record<SectionType, unknown> = {
+      contact: currentResume?.contactInfo,
+      summary: currentResume?.summary,
+      experience: currentResume?.experience,
+      education: currentResume?.education,
+      skills: currentResume?.skills,
+      awards: currentResume?.awards || [],
+      projects: currentResume?.projects || [],
+      publications: currentResume?.publications || [],
+      volunteering: currentResume?.volunteering || [],
+      certifications: currentResume?.certifications || [],
+      languages: currentResume?.languages || [],
+    };
+    const built = buildEntryDiffs(section, liveOriginal[section], result.improved);
+    return built && built.length > 0 ? built : undefined;
+  })();
+
   const dialogTitle = (() => {
     switch (section) {
       case 'summary': return 'Enhanced Summary';
@@ -425,6 +819,7 @@ export const SectionAIAction = memo(function SectionAIAction({ section }: Sectio
         isOpen={showDialog}
         original={previewOriginal}
         improved={previewImproved}
+        entries={entryDiffs}
         changes={result?.changes || []}
         suggestions={result?.suggestions}
         isEnhancing={isEnhancing}
