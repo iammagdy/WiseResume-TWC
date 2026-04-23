@@ -33,6 +33,7 @@
 set -e
 
 PROJECT_REF="jnsfmkzgxsviuthaqlyy"
+FUNCTIONS_DIR="supabase/functions"
 
 if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
   echo "Error: SUPABASE_ACCESS_TOKEN is not set."
@@ -42,5 +43,30 @@ if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
 fi
 
 echo "Deploying all edge functions to project $PROJECT_REF..."
-npx supabase functions deploy --project-ref "$PROJECT_REF" --use-api
-echo "Done. Edge functions deployed."
+echo ""
+
+DEPLOYED=0
+FAILED=0
+SKIPPED=0
+
+for fn_dir in "$FUNCTIONS_DIR"/*/; do
+  fn=$(basename "$fn_dir")
+  entry="$fn_dir/index.ts"
+
+  # Skip non-function entries (e.g. _shared, EDGE_FUNCTION_AUDIT.md treated as dir)
+  if [[ "$fn" == _* ]] || [ ! -f "$entry" ]; then
+    SKIPPED=$((SKIPPED + 1))
+    continue
+  fi
+
+  echo "→ Deploying $fn..."
+  if npx supabase functions deploy "$fn" --project-ref "$PROJECT_REF" --use-api 2>&1 | tail -1; then
+    DEPLOYED=$((DEPLOYED + 1))
+  else
+    echo "  ⚠ Failed to deploy $fn — continuing..."
+    FAILED=$((FAILED + 1))
+  fi
+done
+
+echo ""
+echo "Done. Deployed: $DEPLOYED, Failed: $FAILED, Skipped: $SKIPPED."
