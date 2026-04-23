@@ -72,12 +72,12 @@ export const TailorPreviewSheet = memo(function TailorPreviewSheet({
   const handleDownloadPdf = useCallback(async () => {
     if (!resume || isDownloadingPdf) return;
     try {
-      const { generatePDF, generateOnePagePDF } = await import('@/lib/pdfGenerator');
+      const { generateNativePDF } = await import('@/lib/nativePdfGenerator');
       const { downloadFile } = await import('@/lib/downloadUtils');
-      const tid = effectiveTemplate as TemplateId;
-      const blob = pdfMode === 'one-page'
-        ? await generateOnePagePDF(resume, tid, templateRef.current, undefined, onProgress)
-        : await generatePDF(resume, tid, templateRef.current, undefined, undefined, onProgress);
+      const blob = await generateNativePDF(templateRef.current!, {
+        onePage: pdfMode === 'one-page',
+        onProgress,
+      });
       const name = resume.contactInfo?.fullName || 'Resume';
       const jobSuffix = jobTitle ? `_${jobTitle}` : '';
       const fileName = `${name}${jobSuffix}_Tailored.pdf`.replace(/\s+/g, '_');
@@ -89,7 +89,7 @@ export const TailorPreviewSheet = memo(function TailorPreviewSheet({
     } finally {
       resetProgress();
     }
-  }, [resume, jobTitle, isDownloadingPdf, effectiveTemplate, pdfMode, onProgress, resetProgress]);
+  }, [resume, jobTitle, isDownloadingPdf, pdfMode, onProgress, resetProgress]);
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
