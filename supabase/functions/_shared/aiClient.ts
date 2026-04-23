@@ -15,7 +15,7 @@
  */
 import { getServiceClient } from './dbClient.ts';
 import { decrypt } from './encryption.ts';
-import { getProvider } from './providers.ts';
+import { getProvider, buildAuthHeaders, extractResponseContent } from './providers.ts';
 
 // ── Public types ──────────────────────────────────────────────────────────────
 export interface AIMessage {
@@ -249,35 +249,74 @@ interface ByokResolved {
 }
 
 /**
- * Look up the user's BYOK preference + active key. Returns null if BYOK
- * is disabled or no matching key is found — caller should fall through
- * to the pool in that case.
+ * Look up the user's BYOK preference + active key.
+ *
+ * Returns null  → BYOK is disabled; caller falls through to the managed pool.
+ * Returns value → decrypted key ready to use.
+ * Throws AIError{code:'byok_failed'} → BYOK is ENABLED but key resolution
+ *   failed (missing key, decryption error, bad provider). Must NOT fall back
+ *   to pool in this case — surface the error immediately.
  */
 async function resolveByok(userId: string): Promise<ByokResolved | null> {
+  let byokEnabled = false;
   try {
     const db = getServiceClient();
-    const [prefsRes, keysRes] = await Promise.all([
-      db.from('user_preferences')
-        .select('byok_enabled, byok_provider')
-        .eq('user_id', userId)
-        .maybeSingle(),
-      db.from('user_api_keys')
-        .select('provider, encrypted_key, is_active')
-        .eq('user_id', userId)
-        .eq('is_active', true),
-    ]);
 
-    if (!prefsRes.data?.byok_enabled) return null;
+    // Phase 1: read user preference
+    const prefsRes = await db
+      .from('user_preferences')
+      .select('byok_enabled, byok_provider')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (!prefsRes.data?.byok_enabled) return null; // BYOK off → use pool
+    byokEnabled = true;
 
     const chosenProvider: string = prefsRes.data.byok_provider ?? '';
-    const keys = keysRes.data ?? [];
-    const activeKey = keys.find(k => k.provider === chosenProvider);
-    if (!activeKey) return null;
+    if (!chosenProvider) {
+      throw {
+        message: 'BYOK is enabled but no provider is selected',
+        status: 400,
+        code: 'byok_failed',
+      } as AIError;
+    }
 
-    const plainKey = await decrypt(activeKey.encrypted_key);
+    // Phase 2: fetch the active key for that provider
+    const keysRes = await db
+      .from('user_api_keys')
+      .select('provider, encrypted_key')
+      .eq('user_id', userId)
+      .eq('provider', chosenProvider)
+      .eq('is_active', true)
+      .maybeSingle();
+
+    if (!keysRes.data) {
+      throw {
+        message: `BYOK: no active key found for provider '${chosenProvider}'`,
+        status: 400,
+        code: 'byok_failed',
+      } as AIError;
+    }
+
+    // Phase 3: decrypt
+    const plainKey = await decrypt(keysRes.data.encrypted_key);
     return { provider: chosenProvider, key: plainKey };
-  } catch {
-    // Fail open to pool if DB lookup fails (e.g. encryption secret not configured)
+  } catch (err) {
+    const aiErr = err as AIError;
+    if (aiErr.code === 'byok_failed') throw err; // already typed — re-throw as-is
+
+    if (byokEnabled) {
+      // BYOK is enabled but an unexpected error occurred during resolution.
+      // Never fall back to pool when the user has explicitly opted into BYOK.
+      throw {
+        message: `BYOK key resolution failed: ${(err as Error).message ?? 'unknown error'}`,
+        status: 500,
+        code: 'byok_failed',
+      } as AIError;
+    }
+
+    // BYOK status unknown (DB unreachable before we could read the preference).
+    // Safe to fall through to pool — we don't know if BYOK was wanted.
     return null;
   }
 }
@@ -296,21 +335,22 @@ async function callBYOK(opts: AICallOptions, provider: string, key: string): Pro
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    Authorization: `Bearer ${key}`,
-    ...cfg.extraHeaders,
+    ...buildAuthHeaders(cfg, key),
   };
 
   const body: Record<string, unknown> = {
     model: cfg.defaultModel,
     messages: opts.messages,
     temperature: typeof opts.temperature === 'number' ? opts.temperature : 0.7,
+    max_tokens: typeof opts.maxTokens === 'number' ? opts.maxTokens : 4096,
   };
-  if (typeof opts.maxTokens === 'number') body.max_tokens = opts.maxTokens;
   if (typeof opts.topP === 'number') body.top_p = opts.topP;
-  if (opts.tools) body.tools = opts.tools;
-  if (opts.toolChoice) body.tool_choice = opts.toolChoice;
-  if (opts.responseFormat) body.response_format = opts.responseFormat;
-  else if (opts.jsonMode) body.response_format = { type: 'json_object' };
+  if (opts.tools && cfg.authStyle !== 'anthropic') body.tools = opts.tools;
+  if (opts.toolChoice && cfg.authStyle !== 'anthropic') body.tool_choice = opts.toolChoice;
+  if (cfg.authStyle !== 'anthropic') {
+    if (opts.responseFormat) body.response_format = opts.responseFormat;
+    else if (opts.jsonMode) body.response_format = { type: 'json_object' };
+  }
 
   let res: Response;
   try {
@@ -332,7 +372,10 @@ async function callBYOK(opts: AICallOptions, provider: string, key: string): Pro
   const rawText = await res.text();
   if (!res.ok) {
     let userMessage = rawText.slice(0, 400);
-    try { const j = JSON.parse(rawText); userMessage = j?.error?.message ?? j?.message ?? userMessage; } catch { /* ignore */ }
+    try {
+      const j = JSON.parse(rawText);
+      userMessage = j?.error?.message ?? j?.error?.error ?? j?.message ?? userMessage;
+    } catch { /* ignore */ }
     throw {
       message: `BYOK ${provider} ${res.status}: ${userMessage}`,
       status: res.status,
@@ -341,21 +384,26 @@ async function callBYOK(opts: AICallOptions, provider: string, key: string): Pro
     } as AIError;
   }
 
-  let parsed: any;
+  let parsed: Record<string, unknown>;
   try { parsed = JSON.parse(rawText); } catch {
     throw { message: `BYOK ${provider} non-JSON response`, status: 502, code: 'byok_failed', provider } as AIError;
   }
 
-  const choice = parsed?.choices?.[0];
-  const content = choice?.message?.content ?? '';
+  const content = extractResponseContent(cfg, parsed);
+
+  // Tool calls are only available on OpenAI-compat responses
+  const choices = parsed?.choices as Array<{ message?: { tool_calls?: unknown }; finish_reason?: string }> | undefined;
+  const choice = choices?.[0];
+
+  const usage = parsed?.usage as { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } | undefined;
   return {
-    content: typeof content === 'string' ? content : JSON.stringify(content),
+    content,
     providerUsed: `byok:${provider}`,
-    model: parsed?.model ?? cfg.defaultModel,
+    model: (parsed?.model as string | undefined) ?? cfg.defaultModel,
     toolCalls: choice?.message?.tool_calls,
     finishReason: choice?.finish_reason ?? null,
-    usage: parsed?.usage
-      ? { promptTokens: parsed.usage.prompt_tokens, completionTokens: parsed.usage.completion_tokens, totalTokens: parsed.usage.total_tokens }
+    usage: usage
+      ? { promptTokens: usage.prompt_tokens, completionTokens: usage.completion_tokens, totalTokens: usage.total_tokens }
       : undefined,
   };
 }

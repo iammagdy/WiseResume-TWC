@@ -9,9 +9,12 @@ export interface ProviderConfig {
   baseUrl: string;
   chatEndpoint: string;
   defaultModel: string;
-  /** 'bearer' — Authorization: Bearer {key} */
-  authStyle: 'bearer';
-  /** Extra headers to add (e.g. OpenRouter requires HTTP-Referer). */
+  /**
+   * 'bearer'    — Authorization: Bearer {key}  (OpenAI-compatible APIs)
+   * 'anthropic' — x-api-key: {key} + anthropic-version header (Anthropic native)
+   */
+  authStyle: 'bearer' | 'anthropic';
+  /** Extra headers to merge in (e.g. OpenRouter HTTP-Referer). */
   extraHeaders?: Record<string, string>;
 }
 
@@ -27,8 +30,8 @@ export const PROVIDERS: Record<string, ProviderConfig> = {
     displayName: 'Anthropic',
     baseUrl: 'https://api.anthropic.com',
     chatEndpoint: 'https://api.anthropic.com/v1/messages',
-    defaultModel: 'claude-3-haiku-20240307',
-    authStyle: 'bearer',
+    defaultModel: 'claude-haiku-4-5',
+    authStyle: 'anthropic',
   },
   gemini: {
     displayName: 'Google Gemini',
@@ -84,6 +87,44 @@ export function getProvider(slug: string): ProviderConfig | null {
   return PROVIDERS[slug] ?? null;
 }
 
+/**
+ * Build the HTTP headers for a provider's auth style.
+ * Returns an object ready to merge into a fetch headers map.
+ */
+export function buildAuthHeaders(
+  cfg: ProviderConfig,
+  key: string,
+): Record<string, string> {
+  if (cfg.authStyle === 'anthropic') {
+    return {
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01',
+      ...cfg.extraHeaders,
+    };
+  }
+  return {
+    Authorization: `Bearer ${key}`,
+    ...cfg.extraHeaders,
+  };
+}
+
+/**
+ * Extract the text content from an API response body (already parsed JSON).
+ * Handles both OpenAI-compatible format and Anthropic native format.
+ */
+export function extractResponseContent(
+  cfg: ProviderConfig,
+  parsed: Record<string, unknown>,
+): string {
+  if (cfg.authStyle === 'anthropic') {
+    const blocks = parsed?.content as Array<{ type: string; text?: string }> | undefined;
+    return blocks?.[0]?.text ?? '';
+  }
+  const choices = parsed?.choices as Array<{ message?: { content?: string } }> | undefined;
+  const content = choices?.[0]?.message?.content;
+  return typeof content === 'string' ? content : JSON.stringify(content ?? '');
+}
+
 /** Make a minimal one-token chat completion using the given key+provider. */
 export async function pingProvider(
   provider: string,
@@ -98,12 +139,9 @@ export async function pingProvider(
   const start = Date.now();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    Authorization: `Bearer ${key}`,
-    ...cfg.extraHeaders,
+    ...buildAuthHeaders(cfg, key),
   };
 
-  // Anthropic uses a different header for its native API; but we support the
-  // OpenAI-compat endpoint for all providers, so Bearer is always correct here.
   const body: Record<string, unknown> = {
     model: cfg.defaultModel,
     messages: [{ role: 'user', content: 'ping' }],
@@ -125,7 +163,7 @@ export async function pingProvider(
       let message = text.slice(0, 300);
       try {
         const j = JSON.parse(text);
-        message = j?.error?.message ?? j?.message ?? message;
+        message = j?.error?.message ?? j?.error?.error ?? j?.message ?? message;
       } catch { /* ignore */ }
       return { ok: false, error: message, latencyMs };
     }

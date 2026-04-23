@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Zap, Key, Trash2, Plus, RefreshCw, Check, X, ChevronDown, Shield } from 'lucide-react';
+import { Zap, Key, Trash2, Plus, RefreshCw, Check, X, Shield } from 'lucide-react';
 import {
   Sheet,
   SheetContent,
@@ -48,6 +48,14 @@ function ProviderBadge({ provider }: { provider: string }) {
   );
 }
 
+/** Extract a human-readable error string from an edgeFunctions invoke error object. */
+function invokeErrorMessage(error: unknown, fallback: string): string {
+  if (!error) return fallback;
+  if (typeof error === 'string') return error;
+  const e = error as Record<string, unknown>;
+  return (e.message as string | undefined) ?? (e.error as string | undefined) ?? fallback;
+}
+
 interface AddKeyFormProps {
   existingProviders: string[];
   onSaved: (provider: string) => void;
@@ -68,13 +76,18 @@ function AddKeyForm({ existingProviders, onSaved, onCancel }: AddKeyFormProps) {
     setTesting(true);
     setTested(null);
     try {
-      const { data, response } = await edgeFunctions.functions.invoke('validate-api-key', {
+      const { data, error } = await edgeFunctions.functions.invoke('validate-api-key', {
         body: { provider, key: key.trim() },
-      }) as any;
-      if (!response.ok || !data?.ok) {
-        setTested({ ok: false, error: data?.error ?? `HTTP ${response.status}` });
+      });
+      if (error) {
+        setTested({ ok: false, error: invokeErrorMessage(error, 'Validation request failed') });
+        return;
+      }
+      const d = data as { ok?: boolean; model?: string; error?: string } | null;
+      if (!d?.ok) {
+        setTested({ ok: false, error: d?.error ?? 'Key validation failed' });
       } else {
-        setTested({ ok: true, model: data.model });
+        setTested({ ok: true, model: d.model });
       }
     } catch (err) {
       setTested({ ok: false, error: (err as Error).message });
@@ -87,14 +100,24 @@ function AddKeyForm({ existingProviders, onSaved, onCancel }: AddKeyFormProps) {
     if (!provider || !key.trim() || !tested?.ok) return;
     setSaving(true);
     try {
-      const { data, response } = await edgeFunctions.functions.invoke('manage-api-keys', {
+      const { data, error } = await edgeFunctions.functions.invoke('manage-api-keys', {
         body: { provider, key: key.trim() },
-      }) as any;
-      if (!response.ok) {
-        if (data?.error === 'encryption_not_configured') {
+      });
+      if (error) {
+        const msg = invokeErrorMessage(error, 'Failed to save key');
+        if (msg.includes('encryption_not_configured')) {
           toast.error('BYOK storage is not yet configured on this server. Contact the administrator.');
         } else {
-          toast.error(data?.message ?? 'Failed to save key');
+          toast.error(msg);
+        }
+        return;
+      }
+      const d = data as { error?: string; message?: string } | null;
+      if (d?.error) {
+        if (d.error === 'encryption_not_configured') {
+          toast.error('BYOK storage is not yet configured on this server. Contact the administrator.');
+        } else {
+          toast.error(d.message ?? d.error ?? 'Failed to save key');
         }
         return;
       }
@@ -213,18 +236,17 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
   const handleToggleByok = useCallback(async (enabled: boolean) => {
     setTogglingByok(true);
     try {
-      // Determine which provider to activate when enabling
       const newProvider = enabled && byokKeyHints.length > 0
         ? (byokKeyHints.find(k => k.is_active)?.provider ?? byokKeyHints[0].provider)
         : byokProvider;
 
-      const { response } = await edgeFunctions.functions.invoke('manage-api-keys', {
+      const { error } = await edgeFunctions.functions.invoke('manage-api-keys', {
         method: 'PATCH',
         body: { byok_enabled: enabled, byok_provider: enabled ? newProvider : null },
-      }) as any;
+      });
 
-      if (!response.ok) {
-        toast.error('Failed to update AI engine setting');
+      if (error) {
+        toast.error(invokeErrorMessage(error, 'Failed to update AI engine setting'));
         return;
       }
 
@@ -236,37 +258,42 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
     } finally {
       setTogglingByok(false);
     }
-  }, [byokEnabled, byokKeyHints, byokProvider, setByokEnabled, setByokProvider]);
+  }, [byokKeyHints, byokProvider, setByokEnabled, setByokProvider]);
 
   const handleSelectProvider = useCallback(async (provider: string) => {
     try {
-      const { response } = await edgeFunctions.functions.invoke('manage-api-keys', {
+      const { error } = await edgeFunctions.functions.invoke('manage-api-keys', {
         method: 'PATCH',
         body: { byok_provider: provider },
-      }) as any;
-      if (!response.ok) { toast.error('Failed to update provider'); return; }
+      });
+      if (error) {
+        toast.error(invokeErrorMessage(error, 'Failed to update provider'));
+        return;
+      }
       setByokProvider(provider);
     } catch {
       toast.error('Failed to update provider');
     }
   }, [setByokProvider]);
 
-  const handleDelete = useCallback(async (key: ByokKeyHint) => {
-    setDeletingId(key.id);
+  const handleDelete = useCallback(async (keyHint: ByokKeyHint) => {
+    setDeletingId(keyHint.id);
     try {
-      const { response } = await edgeFunctions.functions.invoke('manage-api-keys', {
+      const { error } = await edgeFunctions.functions.invoke('manage-api-keys', {
         method: 'DELETE',
-        body: { id: key.id },
-      }) as any;
-      if (!response.ok) { toast.error('Failed to delete key'); return; }
+        body: { id: keyHint.id },
+      });
+      if (error) {
+        toast.error(invokeErrorMessage(error, 'Failed to delete key'));
+        return;
+      }
 
-      const updated = byokKeyHints.filter(k => k.id !== key.id);
+      const updated = byokKeyHints.filter(k => k.id !== keyHint.id);
       setByokKeyHints(updated);
 
-      // If we just deleted the active BYOK provider, disable BYOK
-      if (byokEnabled && byokProvider === key.provider && updated.length === 0) {
+      if (byokEnabled && byokProvider === keyHint.provider && updated.length === 0) {
         await handleToggleByok(false);
-      } else if (byokEnabled && byokProvider === key.provider && updated.length > 0) {
+      } else if (byokEnabled && byokProvider === keyHint.provider && updated.length > 0) {
         await handleSelectProvider(updated[0].provider);
       }
     } catch {
@@ -278,13 +305,10 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
 
   const handleKeySaved = useCallback(async (provider: string) => {
     setAddingKey(false);
-    // Refresh key list from server
     await refetch();
-    // If this is the first key and BYOK was off, offer to enable
     if (!byokEnabled) {
       await handleToggleByok(true);
     } else {
-      // Auto-select the newly added provider
       await handleSelectProvider(provider);
     }
   }, [byokEnabled, refetch, handleToggleByok, handleSelectProvider]);
