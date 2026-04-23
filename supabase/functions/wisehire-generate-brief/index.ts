@@ -15,7 +15,7 @@
 import { requireAuth, AuthError, authErrorResponse } from '../_shared/authMiddleware.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { getServiceClient } from '../_shared/dbClient.ts';
-import { callAI, getUserKeyFromDB, toUserError } from '../_shared/aiClient.ts';
+import { callAI, toUserError } from '../_shared/aiClient.ts';
 import { selectProviderForTool } from "../_shared/modelRouter.ts";
 const __ROUTE = selectProviderForTool('wisehire-generate-brief');
 import { checkRateLimit } from '../_shared/rateLimiter.ts';
@@ -111,16 +111,7 @@ Deno.serve(async (req) => {
     const isPro = effectivePlan === 'wisehire_professional';
     const isUnlimited = ['wisehire_business', 'wisehire_enterprise'].includes(effectivePlan);
 
-    // ── 5. BYOK check for Starter plan ───────────────────────────
-    if (isStarter) {
-      const openaiKey = await getUserKeyFromDB(userId, 'openai');
-      const anthropicKey = await getUserKeyFromDB(userId, 'anthropic');
-      if (!openaiKey && !anthropicKey) {
-        return json({ requiresApiKey: true, error: 'Add an OpenAI or Anthropic API key in Settings to generate briefs on the Starter plan.' }, 402, cors);
-      }
-    }
-
-    // ── 6. Rate limits ────────────────────────────────────────────
+    // ── 5. Rate limits ────────────────────────────────────────────
     if (isStarter) {
       const [dailyResult, monthlyResult] = await Promise.all([
         checkRateLimit(userId, { actionType: 'wisehire_brief', maxRequests: STARTER_DAILY_LIMIT, windowSeconds: 86_400, plan: 'free' }),

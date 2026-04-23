@@ -240,7 +240,7 @@ export async function deleteAllUserData(userId: string): Promise<void> {
     'ai_credits',
     'notifications',
     'push_subscriptions',
-    'user_api_keys',
+    'user_api_keys', // table retained for legacy export compat; BYOK removed, rows are empty
     'bug_reports',
     'resignation_letters',
     'user_preferences',

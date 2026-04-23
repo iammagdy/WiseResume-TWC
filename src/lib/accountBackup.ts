@@ -141,7 +141,8 @@ export async function exportFullAccount(
     .maybeSingle();
   tick();
 
-  // API keys metadata only (no encrypted keys)
+  // API keys metadata — BYOK has been removed; this view returns empty rows.
+  // Retained in backup schema for backward compat with existing export bundles.
   const { data: apiKeys } = await supabase
     .from('user_api_keys_safe' as any)
     .select('provider, key_tier')

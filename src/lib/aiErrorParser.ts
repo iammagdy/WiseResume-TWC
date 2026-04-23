@@ -194,13 +194,11 @@ export function aiErrorToastMessage(info: AIErrorInfo): string {
     case 'payment_required':
       return 'AI credits exhausted. Please check your account.';
     case 'invalid_key':
-      return info.message && /invalid/i.test(info.message)
-        ? info.message
-        : 'Invalid API key — please check your AI settings.';
+      return 'AI service authentication failed — please try again in a moment or contact support if this persists.';
     case 'quota_exceeded':
-      return 'AI daily quota exceeded. Try again tomorrow or add your own API key in Settings.';
+      return 'AI daily quota exceeded. Please try again tomorrow.';
     case 'not_configured':
-      return 'WiseResume AI is not configured — go to Settings → AI Provider to add your API key.';
+      return 'AI service is temporarily unavailable — please try again in a moment or contact support.';
     case 'enhancement_failed':
       return 'Failed to enhance content — please try again.';
     case 'provider_busy':

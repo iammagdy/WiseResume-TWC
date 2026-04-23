@@ -1,5 +1,4 @@
 import { useAIHealthStore, deriveHealthStatus, deriveLatency, deriveLastChecked, deriveErrorCode } from '@/store/aiHealthStore';
-import { useSettingsStore } from '@/store/settingsStore';
 
 export type AIHealthStatus = 'healthy' | 'degraded' | 'down';
 
@@ -7,29 +6,19 @@ export interface AIHealthData {
   status: AIHealthStatus;
   latencyMs: number | null;
   lastChecked: Date | null;
-  provider: 'wiseresume' | 'gemini' | 'ollama' | 'openrouter';
+  provider: 'wiseresume';
   errorCode: number | null;
 }
 
 export function useAIHealth() {
   const results = useAIHealthStore((s) => s.results);
-  const aiProvider = useSettingsStore((s) => s.aiProvider);
-  const geminiApiKey = useSettingsStore((s) => s.geminiApiKey);
-  const geminiKeyValidated = useSettingsStore((s) => s.geminiKeyValidated);
-  const ollamaKeyValidated = useSettingsStore((s) => s.ollamaKeyValidated);
-  const openrouterKeyValidated = useSettingsStore((s) => s.openrouterKeyValidated);
-
-  const provider: 'wiseresume' | 'gemini' | 'ollama' | 'openrouter' =
-    aiProvider === 'openrouter' && openrouterKeyValidated ? 'openrouter' :
-    aiProvider === 'ollama' && ollamaKeyValidated ? 'ollama' :
-    aiProvider === 'gemini' && geminiKeyValidated ? 'gemini' : 'wiseresume';
 
   return {
     status: deriveHealthStatus(results),
     latencyMs: deriveLatency(results),
     lastChecked: deriveLastChecked(results),
-    provider,
+    provider: 'wiseresume' as const,
     errorCode: deriveErrorCode(results),
-    refetch: () => { }, // no-op — status is derived from real calls
+    refetch: () => { },
   };
 }

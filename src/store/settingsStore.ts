@@ -1,22 +1,15 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { TemplateId, PDFOptions } from '@/types/resume';
-// Inlined former aiDefaults (BYOK selection has been removed; the
-// flat 6-key pool decides everything server-side now).
-const OPENROUTER_DEFAULT_MODEL = 'meta-llama/llama-3.3-70b-instruct:free';
-const OPENROUTER_AUTO_SENTINEL = '__auto__';
-function isAllowedOpenRouterModel(_model: unknown): boolean {
-  return true;
-}
 
 export type BiometricLockTimeout = 0 | 30000 | 60000 | 300000;
 export type AutoSaveToastMode = 'always' | 'errors-only';
 export type AITipFrequency = 'daily' | 'weekly' | 'on-demand';
 
-// AI Provider types
+// AI Provider type — kept for backward compat with rateLimiter and AIPrivacyDisclosureProvider.
+// The flat 6-key managed pool is the only active engine; aiProvider is always 'wiseresume'.
 export type AIProvider = 'wiseresume' | 'openai' | 'anthropic' | 'gemini' | 'groq' | 'mistral' | 'xai' | 'cohere' | 'openrouter' | 'ollama';
 export type GeminiKeyTier = 'free' | 'paid' | 'unknown';
-export type WiseresumeSubProvider = 'openrouter' | 'groq' | 'auto' | 'openrouter2';
 
 interface GeminiDailyUsage {
   date: string;
@@ -61,61 +54,15 @@ interface SettingsState {
   // Export
   lastExportType: string | null;
   
-  // AI Provider Settings
+  // AI Provider (always 'wiseresume' — flat 6-key pool is the only engine)
   aiProvider: AIProvider;
-  /** Stores a masked preview of the key (e.g. AIza...xyz). The full key is only in the server DB. */
+
+  // Gemini fields retained for rateLimiter backward compat (effectively dead since aiProvider === 'wiseresume')
   geminiApiKey: string;
   geminiKeyTier: GeminiKeyTier;
   geminiKeyValidated: boolean;
   geminiDailyUsage: GeminiDailyUsage;
   geminiModel: string;
-  
-  // Ollama Provider Settings (in-memory only, keys stored server-side)
-  ollamaApiKey: string;
-  ollamaBaseUrl: string;
-  ollamaModel: string;
-  ollamaKeyValidated: boolean;
-  
-  // OpenRouter Provider Settings (in-memory only, keys stored server-side)
-  openrouterApiKey: string;
-  openrouterModel: string;
-  openrouterKeyValidated: boolean;
-  /**
-   * When true, OpenRouter requests iterate the curated chain on failure
-   * instead of pinning to a single slug. Persisted to localStorage; the
-   * server reflects this by storing the auto-sentinel in user_api_keys.model.
-   */
-  openrouterAuto: boolean;
-
-  // WiseResume AI sub-provider selection
-  wiseresumeSubProvider: WiseresumeSubProvider;
-
-  // ── New BYOK providers ─────────────────────────────────────────────────────
-  // OpenAI
-  openaiApiKey: string;
-  openaiModel: string;
-  openaiKeyValidated: boolean;
-  // Anthropic (Claude)
-  anthropicApiKey: string;
-  anthropicModel: string;
-  anthropicKeyValidated: boolean;
-  // Groq (user BYOK key, distinct from managed WiseResume Groq)
-  groqApiKey: string;
-  groqModel: string;
-  groqKeyValidated: boolean;
-  // Mistral AI
-  mistralApiKey: string;
-  mistralModel: string;
-  mistralKeyValidated: boolean;
-  // xAI (Grok)
-  xaiApiKey: string;
-  xaiModel: string;
-  xaiKeyValidated: boolean;
-  // Cohere
-  cohereApiKey: string;
-  cohereModel: string;
-  cohereKeyValidated: boolean;
-  // ──────────────────────────────────────────────────────────────────────────
   
   // Actions
   setShowAutoSaveToasts: (value: boolean) => void;
@@ -139,7 +86,7 @@ interface SettingsState {
   setTheme: (theme: 'light' | 'dark' | 'system') => void;
   setLastExportType: (type: string) => void;
   
-  // AI Provider Actions
+  // AI Provider actions (effectively no-ops — kept for compat with DevKit read-ai-settings panel)
   setAIProvider: (provider: AIProvider) => void;
   setGeminiApiKey: (key: string) => void;
   setGeminiKeyTier: (tier: GeminiKeyTier) => void;
@@ -147,41 +94,6 @@ interface SettingsState {
   setGeminiModel: (model: string) => void;
   incrementGeminiDailyUsage: () => void;
   resetGeminiDailyUsage: () => void;
-  
-  // Ollama Actions
-  setOllamaApiKey: (key: string) => void;
-  setOllamaBaseUrl: (url: string) => void;
-  setOllamaModel: (model: string) => void;
-  setOllamaKeyValidated: (validated: boolean) => void;
-  
-  // OpenRouter Actions
-  setOpenrouterApiKey: (key: string) => void;
-  setOpenrouterModel: (model: string) => void;
-  setOpenrouterKeyValidated: (validated: boolean) => void;
-  setOpenrouterAuto: (auto: boolean) => void;
-
-  // WiseResume sub-provider
-  setWiseresumeSubProvider: (sub: WiseresumeSubProvider) => void;
-
-  // New BYOK provider actions
-  setOpenaiApiKey: (key: string) => void;
-  setOpenaiModel: (model: string) => void;
-  setOpenaiKeyValidated: (validated: boolean) => void;
-  setAnthropicApiKey: (key: string) => void;
-  setAnthropicModel: (model: string) => void;
-  setAnthropicKeyValidated: (validated: boolean) => void;
-  setGroqApiKey: (key: string) => void;
-  setGroqModel: (model: string) => void;
-  setGroqKeyValidated: (validated: boolean) => void;
-  setMistralApiKey: (key: string) => void;
-  setMistralModel: (model: string) => void;
-  setMistralKeyValidated: (validated: boolean) => void;
-  setXaiApiKey: (key: string) => void;
-  setXaiModel: (model: string) => void;
-  setXaiKeyValidated: (validated: boolean) => void;
-  setCohereApiKey: (key: string) => void;
-  setCohereModel: (model: string) => void;
-  setCohereKeyValidated: (validated: boolean) => void;
   
   resetSettings: () => void;
   resetUserSettings: () => void;
@@ -213,47 +125,16 @@ const defaultSettings = {
   theme: 'system' as 'light' | 'dark' | 'system',
   lpProduct: 'jobseeker' as 'jobseeker' | 'wisehire',
   lastExportType: null as string | null,
-  // AI Provider defaults
+  // AI Provider — always 'wiseresume' (flat 6-key pool is the only engine)
   aiProvider: 'wiseresume' as AIProvider,
+  // Gemini fields retained for rateLimiter backward compat
   geminiApiKey: '',
   geminiKeyTier: 'unknown' as GeminiKeyTier,
   geminiKeyValidated: false,
   geminiDailyUsage: { date: '', count: 0 } as GeminiDailyUsage,
   geminiModel: 'gemini-2.5-flash',
-  // Ollama defaults
-  ollamaApiKey: '',
-  ollamaBaseUrl: '',
-  ollamaModel: '',
-  ollamaKeyValidated: false,
-  // OpenRouter defaults
-  openrouterApiKey: '',
-  openrouterModel: OPENROUTER_DEFAULT_MODEL as string,
-  openrouterKeyValidated: false,
-  openrouterAuto: false,
-  // WiseResume sub-provider default
-  wiseresumeSubProvider: 'auto' as WiseresumeSubProvider,
-  // New BYOK provider defaults
-  openaiApiKey: '',
-  openaiModel: 'gpt-4o-mini',
-  openaiKeyValidated: false,
-  anthropicApiKey: '',
-  anthropicModel: 'claude-3-5-haiku-20241022',
-  anthropicKeyValidated: false,
-  groqApiKey: '',
-  groqModel: 'qwen/qwen3-32b',
-  groqKeyValidated: false,
-  mistralApiKey: '',
-  mistralModel: 'mistral-small-latest',
-  mistralKeyValidated: false,
-  xaiApiKey: '',
-  xaiModel: 'grok-2-mini',
-  xaiKeyValidated: false,
-  cohereApiKey: '',
-  cohereModel: 'command-r',
-  cohereKeyValidated: false,
 };
 
-// Helper to get Pacific midnight reset
 function getTodayPacific(): string {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
 }
@@ -288,7 +169,7 @@ export const useSettingsStore = create<SettingsState>()(
       setLpProduct: (product) => set({ lpProduct: product }),
       setLastExportType: (type) => set({ lastExportType: type }),
       
-      // AI Provider Actions
+      // AI Provider actions
       setAIProvider: (provider) => set({ aiProvider: provider }),
       setGeminiApiKey: (key) => set({ 
         geminiApiKey: key,
@@ -301,7 +182,6 @@ export const useSettingsStore = create<SettingsState>()(
       incrementGeminiDailyUsage: () => {
         const today = getTodayPacific();
         const current = get().geminiDailyUsage;
-        
         if (current.date !== today) {
           set({ geminiDailyUsage: { date: today, count: 1 } });
         } else {
@@ -310,55 +190,12 @@ export const useSettingsStore = create<SettingsState>()(
       },
       resetGeminiDailyUsage: () => set({ geminiDailyUsage: { date: '', count: 0 } }),
       
-      // Ollama Actions
-      setOllamaApiKey: (key) => set({ ollamaApiKey: key, ollamaKeyValidated: false }),
-      setOllamaBaseUrl: (url) => set({ ollamaBaseUrl: url }),
-      setOllamaModel: (model) => set({ ollamaModel: model }),
-      setOllamaKeyValidated: (validated) => set({ ollamaKeyValidated: validated }),
-      
-      // OpenRouter Actions
-      // openrouterModel ALWAYS holds a real curated slug (the "primary").
-      // openrouterAuto is an independent flag toggling fallback iteration.
-      // The two are persisted separately so toggling Auto on/off never loses
-      // the admin's primary selection.
-      setOpenrouterApiKey: (key) => set({ openrouterApiKey: key, openrouterKeyValidated: false }),
-      setOpenrouterModel: (model) =>
-        set({
-          openrouterModel: isAllowedOpenRouterModel(model) ? model : OPENROUTER_DEFAULT_MODEL,
-        }),
-      setOpenrouterKeyValidated: (validated) => set({ openrouterKeyValidated: validated }),
-      setOpenrouterAuto: (auto) => set({ openrouterAuto: auto }),
-
-      // WiseResume sub-provider
-      setWiseresumeSubProvider: (sub) => set({ wiseresumeSubProvider: sub }),
-
-      // New BYOK provider actions
-      setOpenaiApiKey: (key) => set({ openaiApiKey: key, openaiKeyValidated: false }),
-      setOpenaiModel: (model) => set({ openaiModel: model }),
-      setOpenaiKeyValidated: (validated) => set({ openaiKeyValidated: validated }),
-      setAnthropicApiKey: (key) => set({ anthropicApiKey: key, anthropicKeyValidated: false }),
-      setAnthropicModel: (model) => set({ anthropicModel: model }),
-      setAnthropicKeyValidated: (validated) => set({ anthropicKeyValidated: validated }),
-      setGroqApiKey: (key) => set({ groqApiKey: key, groqKeyValidated: false }),
-      setGroqModel: (model) => set({ groqModel: model }),
-      setGroqKeyValidated: (validated) => set({ groqKeyValidated: validated }),
-      setMistralApiKey: (key) => set({ mistralApiKey: key, mistralKeyValidated: false }),
-      setMistralModel: (model) => set({ mistralModel: model }),
-      setMistralKeyValidated: (validated) => set({ mistralKeyValidated: validated }),
-      setXaiApiKey: (key) => set({ xaiApiKey: key, xaiKeyValidated: false }),
-      setXaiModel: (model) => set({ xaiModel: model }),
-      setXaiKeyValidated: (validated) => set({ xaiKeyValidated: validated }),
-      setCohereApiKey: (key) => set({ cohereApiKey: key, cohereKeyValidated: false }),
-      setCohereModel: (model) => set({ cohereModel: model }),
-      setCohereKeyValidated: (validated) => set({ cohereKeyValidated: validated }),
-      
       resetSettings: () => set(defaultSettings),
 
       resetUserSettings: () => set((state) => ({
         ...defaultSettings,
         // Preserve one-time flags that are device/user experience state,
         // not account-specific data. These should never reset on sign-out.
-        // Note: hasSeenSplash is intentionally NOT preserved — splash shows on every fresh load.
         hasSeenAIIntro: state.hasSeenAIIntro,
         hasSeenPreviewHint: state.hasSeenPreviewHint,
         hasSeenTailorHint: state.hasSeenTailorHint,
@@ -369,37 +206,20 @@ export const useSettingsStore = create<SettingsState>()(
     {
       name: 'wiseresume-settings',
       partialize: (state) => {
-        // Exclude sensitive keys from localStorage persistence
-        // Keys are now stored server-side via manage-api-keys edge function
-        // lpProduct is ephemeral session state — never persisted
-        // hasSeenSplash is session-only — splash shows on every cold page load
-        const {
-          geminiApiKey, elevenlabsApiKey, ollamaApiKey, openrouterApiKey,
-          openaiApiKey, anthropicApiKey, groqApiKey, mistralApiKey, xaiApiKey, cohereApiKey,
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          lpProduct: _lpProduct,
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          hasSeenSplash: _hasSeenSplash,
-          ...rest
-        } = state;
+        // Exclude sensitive fields and ephemeral session state from localStorage.
+        // lpProduct is ephemeral — never persisted.
+        // hasSeenSplash is session-only — splash shows on every cold page load.
+        // geminiApiKey is stored server-side only.
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { geminiApiKey, elevenlabsApiKey, lpProduct: _lpProduct, hasSeenSplash: _hasSeenSplash, ...rest } = state;
         return rest;
       },
-      // Strip legacy persisted hasSeenSplash so existing users who have
-      // hasSeenSplash: true in localStorage still see the splash on every
-      // fresh page load after this migration.
       onRehydrateStorage: () => (state) => {
         if (state) {
+          // Splash shows on every fresh page load regardless of persisted value.
           state.hasSeenSplash = false;
-          // Migrate persisted state to the curated allow-list. The auto
-          // sentinel previously stored in openrouterModel is now a
-          // separate boolean — promote it and reset the model to default.
-          if (state.openrouterModel === OPENROUTER_AUTO_SENTINEL) {
-            state.openrouterModel = OPENROUTER_DEFAULT_MODEL;
-            state.openrouterAuto = true;
-          } else if (!isAllowedOpenRouterModel(state.openrouterModel)) {
-            state.openrouterModel = OPENROUTER_DEFAULT_MODEL;
-          }
-          if (typeof state.openrouterAuto !== 'boolean') state.openrouterAuto = false;
+          // Always force managed pool — legacy persisted BYOK provider values are ignored.
+          state.aiProvider = 'wiseresume';
         }
       },
     }

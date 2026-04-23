@@ -180,6 +180,14 @@ async function bootstrapSupabaseSecrets(): Promise<void> {
   const secretsToPush = managedAiKeys
     .map((name) => ({ name, value: process.env[name] }))
     .filter((s): s is { name: string; value: string } => typeof s.value === 'string' && s.value.length > 0);
+  // Always log presence/absence of every key so operators can spot a missing key at a glance.
+  const presentKeys = managedAiKeys.filter((k) => process.env[k]);
+  const missingKeys = managedAiKeys.filter((k) => !process.env[k]);
+  console.log(
+    `[server] Managed AI key pool: present=[${presentKeys.join(', ') || 'none'}]` +
+    (missingKeys.length ? ` missing=[${missingKeys.join(', ')}]` : ''),
+  );
+
   if (secretsToPush.length > 0) {
     try {
       const r = await fetch(`https://api.supabase.com/v1/projects/${ref}/secrets`, {
@@ -191,7 +199,7 @@ async function bootstrapSupabaseSecrets(): Promise<void> {
         body: JSON.stringify(secretsToPush),
       });
       if (r.ok) {
-        console.log(`[server] Pushed managed AI secrets to Supabase Edge Functions: ${secretsToPush.map(s => s.name).join(', ')}`);
+        console.log(`[server] Pushed ${secretsToPush.length} managed AI secrets to Supabase Edge Functions.`);
       } else {
         console.warn(`[server] Failed to push managed AI secrets to Supabase (${r.status}): ${await r.text().catch(() => '')}`);
       }
@@ -199,16 +207,9 @@ async function bootstrapSupabaseSecrets(): Promise<void> {
       console.warn('[server] Managed AI secret push failed (non-fatal):', err);
     }
   } else {
-    // Loud warning: zero managed AI keys means every "Test AI" / managed-mode
-    // request to the WiseResume edge function will throw "WiseResume AI is not
-    // configured" with no other context. Surface this at boot so the operator
-    // notices before users do.
-    const missing = managedAiKeys.filter((k) => !process.env[k]);
     console.warn(
-      `[server] No managed AI keys present in Replit env (${missing.join(', ')}). ` +
-      `Every AI call will fail until at least one OPENROUTER_KEY_n or GROQ_KEY_n ` +
-      `is set as a Replit Secret AND pushed to Supabase Edge Function secrets ` +
-      `(this bootstrap only pushes keys that exist in the Replit env).`
+      `[server] No managed AI keys found in Replit env — every AI call will fail. ` +
+      `Set at least one OPENROUTER_KEY_n or GROQ_KEY_n as a Replit Secret.`
     );
   }
 }

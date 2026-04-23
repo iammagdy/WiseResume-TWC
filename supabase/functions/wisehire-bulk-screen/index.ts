@@ -8,7 +8,7 @@
  *   role_id?: string (optional)
  *
  * Rate limits:
- *   Starter plan     : 3 batches / day (BYOK required)
+ *   Starter plan     : 3 batches / day
  *   Professional plan: 20 batches / day
  *   Business+        : unlimited
  *
@@ -18,7 +18,7 @@
 import { requireAuth, AuthError, authErrorResponse } from '../_shared/authMiddleware.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { getServiceClient } from '../_shared/dbClient.ts';
-import { callAI, getUserKeyFromDB, toUserError } from '../_shared/aiClient.ts';
+import { callAI, toUserError } from '../_shared/aiClient.ts';
 import { selectProviderForTool } from "../_shared/modelRouter.ts";
 const __ROUTE = selectProviderForTool('wisehire-bulk-screen');
 import { checkRateLimit } from '../_shared/rateLimiter.ts';
@@ -136,16 +136,7 @@ Deno.serve(async (req) => {
     const isStarter = effectivePlan === 'wisehire_starter';
     const isPro = effectivePlan === 'wisehire_professional';
 
-    // ── 4. BYOK check for Starter ─────────────────────────────────
-    if (isStarter) {
-      const openaiKey = await getUserKeyFromDB(userId, 'openai');
-      const anthropicKey = await getUserKeyFromDB(userId, 'anthropic');
-      if (!openaiKey && !anthropicKey) {
-        return json({ requiresApiKey: true, error: 'Starter plan requires your own OpenAI or Anthropic API key' }, 402, cors);
-      }
-    }
-
-    // ── 5. Rate limit ─────────────────────────────────────────────
+    // ── 4. Rate limit ─────────────────────────────────────────────
     if (!isStarter && !isPro) {
       // Business+ — unlimited, skip
     } else {

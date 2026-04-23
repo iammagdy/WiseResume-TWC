@@ -278,22 +278,6 @@ export async function callWiseresumeAI(opts: AICallOptions): Promise<AIResponse>
   return callAIWithRetry(opts);
 }
 
-// ── BYOK / breaker no-op stubs (kept for source-compat) ──────────────────────
-export async function getUserKeyFromDB(_userId: string, _provider = 'gemini'): Promise<string | undefined> {
-  return undefined;
-}
-
-export async function getUserKeyAndUrlFromDB(
-  _userId: string,
-  _provider: string,
-): Promise<{ key: string; baseUrl: string | null; model: string | null } | undefined> {
-  return undefined;
-}
-
-export async function isBreakerOpen(_provider: string): Promise<boolean> {
-  return false;
-}
-
 export async function recordBreakerEvent(_provider: string, _success: boolean): Promise<null> {
   return null;
 }

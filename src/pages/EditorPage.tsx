@@ -78,19 +78,6 @@ export default function EditorPage() {
   const { user, loading: authLoading } = useAuth();
   const storeHydrated = useResumeStoreHydration();
   const { hasSeenAIIntro, setHasSeenAIIntro } = useSettingsStore();
-  // BYOK has been removed — the flat managed AI key pool is the only engine.
-  // Server enforces all plan/credit limits, so the client must not bypass them.
-  const isBYOK = false && useSettingsStore((s) =>
-    (s.aiProvider === 'gemini' && s.geminiKeyValidated) ||
-    (s.aiProvider === 'ollama' && s.ollamaKeyValidated) ||
-    (s.aiProvider === 'openai' && s.openaiKeyValidated) ||
-    (s.aiProvider === 'anthropic' && s.anthropicKeyValidated) ||
-    (s.aiProvider === 'groq' && s.groqKeyValidated) ||
-    (s.aiProvider === 'mistral' && s.mistralKeyValidated) ||
-    (s.aiProvider === 'xai' && s.xaiKeyValidated) ||
-    (s.aiProvider === 'cohere' && s.cohereKeyValidated) ||
-    (s.aiProvider === 'openrouter' && s.openrouterKeyValidated)
-  );
   const { gate, triggerGate, dialogOpen: tierGateOpen, dialogState: tierGateState, closeDialog: closeTierGate, isPro, isLoading: planLoading } = useTierGate();
   const [templateBtnSeen, setTemplateBtnSeen] = useState(() => localStorage.getItem('template_btn_seen') === 'true');
 
@@ -264,7 +251,7 @@ export default function EditorPage() {
   useEffect(() => {
     if (!planLoading && autoOpenTailorRef.current) {
       autoOpenTailorRef.current = false;
-      if (isPro || isBYOK) {
+      if (isPro) {
         setShowTailor(true);
       } else {
         triggerGate({
@@ -280,7 +267,7 @@ export default function EditorPage() {
         });
       }
     }
-  }, [planLoading, isPro, isBYOK, triggerGate]);
+  }, [planLoading, isPro, triggerGate]);
 
   // Handle guided intake params: ?experienceLevel= reorders sections; ?intakeJobTitle= queues summary stub
   useEffect(() => {
@@ -766,9 +753,8 @@ export default function EditorPage() {
       featureName: 'Smart Tailoring',
       description: 'Paste a job description and AI rewrites your resume to match it perfectly.',
       features: TAILOR_FEATURES,
-      bypassCondition: isBYOK,
     }),
-    [gate, isBYOK]
+    [gate]
   );
 
   const handleBack = useCallback(() => {
@@ -781,9 +767,8 @@ export default function EditorPage() {
       featureName: 'Smart Tailoring',
       description: 'Paste a job description and AI rewrites your resume to match it perfectly.',
       features: TAILOR_FEATURES,
-      bypassCondition: isBYOK,
     }),
-    [gate, isBYOK]
+    [gate]
   );
   const handleAnalyze = useCallback(() => setShowJobSheet(true), []);
   const handleRecruiterSim = useCallback(() => setShowRecruiterSim(true), []);
