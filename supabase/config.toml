@@ -61,8 +61,6 @@ project_id = "jnsfmkzgxsviuthaqlyy"
     verify_jwt = false
   [functions.generate-cover-letter]
     verify_jwt = false
-  [functions.generate-headshot]
-    verify_jwt = false
   [functions.generate-portfolio-bio]
     verify_jwt = false
   [functions.generate-question-bank]
