@@ -2474,49 +2474,52 @@ function logAndSanitiseUpstreamError(label: string, e: unknown): string {
 
 /**
  * GET /api/admin/ai-provider/openrouter-status
- * Returns the managed OpenRouter key balance / rate-limit info.
+ * Returns balance / rate-limit info for all three managed OpenRouter keys
+ * (OPENROUTER_KEY_1, OPENROUTER_KEY_2, OPENROUTER_KEY_3) in parallel.
+ * Response: { keys: Array<{ slot, configured, data?, error? }> }
  */
 app.get(
   '/api/admin/ai-provider/openrouter-status',
   requireAuthHeader,
   requireAdminEmail,
   async (_req, res) => {
-    const key = process.env.OPENROUTER_KEY_1;
-    if (!key) {
-      res.json({ configured: false });
-      return;
-    }
-    const cacheKey = 'openrouter-status';
+    const cacheKey = 'openrouter-status-all';
     const cached = getCached<unknown>(cacheKey);
     if (cached) { res.json(cached); return; }
-    const controller = new AbortController();
-    const t = setTimeout(() => controller.abort(), 8000);
-    try {
-      const r = await fetch('https://openrouter.ai/api/v1/auth/key', {
-        headers: { Authorization: `Bearer ${key}` },
-        signal: controller.signal,
-      });
-      if (!r.ok) {
-        res.json({ configured: true, error: `Upstream HTTP ${r.status}` });
-        return;
-      }
-      const body = (await r.json()) as { data?: Record<string, unknown> };
-      const out = { configured: true, data: body.data ?? null };
-      setCached(cacheKey, out);
-      res.json(out);
-    } catch (e) {
-      res.json({ configured: true, error: logAndSanitiseUpstreamError('openrouter-status', e) });
-    } finally {
-      clearTimeout(t);
-    }
+
+    const slots = [1, 2, 3] as const;
+    const results = await Promise.all(
+      slots.map(async (slot) => {
+        const key = process.env[`OPENROUTER_KEY_${slot}`];
+        if (!key) return { slot, configured: false };
+        const controller = new AbortController();
+        const t = setTimeout(() => controller.abort(), 8000);
+        try {
+          const r = await fetch('https://openrouter.ai/api/v1/auth/key', {
+            headers: { Authorization: `Bearer ${key}` },
+            signal: controller.signal,
+          });
+          if (!r.ok) return { slot, configured: true, error: `Upstream HTTP ${r.status}` };
+          const body = (await r.json()) as { data?: Record<string, unknown> };
+          return { slot, configured: true, data: body.data ?? null };
+        } catch (e) {
+          return { slot, configured: true, error: logAndSanitiseUpstreamError(`openrouter-status-${slot}`, e) };
+        } finally {
+          clearTimeout(t);
+        }
+      }),
+    );
+
+    const out = { keys: results };
+    setCached(cacheKey, out);
+    res.json(out);
   },
 );
 
 /**
  * GET /api/admin/ai-provider/openrouter2-status
- * Returns the managed OpenRouter secondary key balance / rate-limit info.
- * Pinned to OPENROUTER_KEY_2; the model used by the routing layer is
- * always `openrouter/elephant-alpha` regardless of the live model list.
+ * Alias kept for backward compatibility — returns slot 2 data only.
+ * Prefer /api/admin/ai-provider/openrouter-status which returns all 3 slots.
  */
 app.get(
   '/api/admin/ai-provider/openrouter2-status',
@@ -2524,13 +2527,7 @@ app.get(
   requireAdminEmail,
   async (_req, res) => {
     const key = process.env.OPENROUTER_KEY_2;
-    if (!key) {
-      res.json({ configured: false });
-      return;
-    }
-    const cacheKey = 'openrouter2-status';
-    const cached = getCached<unknown>(cacheKey);
-    if (cached) { res.json(cached); return; }
+    if (!key) { res.json({ configured: false }); return; }
     const controller = new AbortController();
     const t = setTimeout(() => controller.abort(), 8000);
     try {
@@ -2538,14 +2535,9 @@ app.get(
         headers: { Authorization: `Bearer ${key}` },
         signal: controller.signal,
       });
-      if (!r.ok) {
-        res.json({ configured: true, error: `Upstream HTTP ${r.status}` });
-        return;
-      }
+      if (!r.ok) { res.json({ configured: true, error: `Upstream HTTP ${r.status}` }); return; }
       const body = (await r.json()) as { data?: Record<string, unknown> };
-      const out = { configured: true, data: body.data ?? null, pinnedModel: 'openrouter/elephant-alpha' };
-      setCached(cacheKey, out);
-      res.json(out);
+      res.json({ configured: true, slot: 2, data: body.data ?? null });
     } catch (e) {
       res.json({ configured: true, error: logAndSanitiseUpstreamError('openrouter2-status', e) });
     } finally {
@@ -2629,36 +2621,38 @@ app.get(
 
 /**
  * GET /api/admin/ai-provider/groq-usage
- * Returns today's request/token usage and rate-limit ceiling from the managed GROQ_KEY_1.
+ * Returns today's request/token usage for all three managed Groq keys
+ * (GROQ_KEY_1, GROQ_KEY_2, GROQ_KEY_3) fetched in parallel.
+ * Response: { keys: Array<{ slot, configured, usage?, error? }> }
  */
 app.get(
   '/api/admin/ai-provider/groq-usage',
   requireAuthHeader,
   requireAdminEmail,
   async (_req, res) => {
-    const key = process.env.GROQ_KEY_1;
-    if (!key) {
-      res.json({ configured: false });
-      return;
-    }
-    const controller = new AbortController();
-    const t = setTimeout(() => controller.abort(), 8000);
-    try {
-      const r = await fetch('https://api.groq.com/openai/v1/usage', {
-        headers: { Authorization: `Bearer ${key}` },
-        signal: controller.signal,
-      });
-      if (!r.ok) {
-        res.json({ configured: true, error: `Upstream HTTP ${r.status}` });
-        return;
-      }
-      const body = await r.json() as Record<string, unknown>;
-      res.json({ configured: true, ...body });
-    } catch (e) {
-      res.json({ configured: true, error: logAndSanitiseUpstreamError('groq-usage', e) });
-    } finally {
-      clearTimeout(t);
-    }
+    const slots = [1, 2, 3] as const;
+    const results = await Promise.all(
+      slots.map(async (slot) => {
+        const key = process.env[`GROQ_KEY_${slot}`];
+        if (!key) return { slot, configured: false };
+        const controller = new AbortController();
+        const t = setTimeout(() => controller.abort(), 8000);
+        try {
+          const r = await fetch('https://api.groq.com/openai/v1/usage', {
+            headers: { Authorization: `Bearer ${key}` },
+            signal: controller.signal,
+          });
+          if (!r.ok) return { slot, configured: true, error: `Upstream HTTP ${r.status}` };
+          const body = await r.json() as Record<string, unknown>;
+          return { slot, configured: true, usage: body };
+        } catch (e) {
+          return { slot, configured: true, error: logAndSanitiseUpstreamError(`groq-usage-${slot}`, e) };
+        } finally {
+          clearTimeout(t);
+        }
+      }),
+    );
+    res.json({ keys: results });
   },
 );
 
