@@ -102,70 +102,81 @@ export function headingStyle(c: TemplateCustomization | undefined): CSSPropertie
 export function generateCustomizationCSS(c: TemplateCustomization | undefined): string {
   if (!c) return '';
 
-  const accent = c.accentColor || '#1e40af';
-  const fontBody = c.fontBody || 'Inter';
-  const fontHeading = c.fontHeading || 'Inter';
-
-  return `
-    [data-resume-template] {
-      font-family: ${fontBody} !important;
-    }
-    [data-resume-template] h1,
-    [data-resume-template] h2,
-    [data-resume-template] h3 {
-      font-family: ${fontHeading} !important;
-    }
-    [data-resume-template] h2 {
-      color: ${accent} !important;
-    }
-    [data-resume-template] h1 {
-      color: ${accent} !important;
-    }
-    [data-resume-template] header {
-      border-color: ${accent} !important;
-    }
-    [data-resume-template] [class*="border-"] {
-      border-color: ${accent} !important;
-    }
+  // IMPORTANT: every override block is gated on the relevant field being
+  // EXPLICITLY set. Previously these used `||` fallbacks (e.g. accent
+  // defaulted to '#1e40af'), which meant that touching ANY customization
+  // field (e.g. headerAlign) silently re-painted every Tailwind gray-*
+  // text class to blue. With this gating, untouched fields produce no CSS,
+  // so the template's natural styling is preserved.
+  const accentBlock = c.accentColor ? `
+    [data-resume-template] h2 { color: ${c.accentColor} !important; }
+    [data-resume-template] h1 { color: ${c.accentColor} !important; }
+    [data-resume-template] header { border-color: ${c.accentColor} !important; }
+    [data-resume-template] [class*="border-"] { border-color: ${c.accentColor} !important; }
     [data-resume-template] [class*="bg-"][class*="-600"],
     [data-resume-template] [class*="bg-"][class*="-700"],
     [data-resume-template] [class*="bg-"][class*="-800"],
     [data-resume-template] [class*="bg-"][class*="-900"] {
-      background-color: ${accent} !important;
+      background-color: ${c.accentColor} !important;
     }
     [data-resume-template] [class*="text-"][class*="-600"],
     [data-resume-template] [class*="text-"][class*="-700"],
     [data-resume-template] [class*="text-"][class*="-800"] {
-      color: ${accent} !important;
+      color: ${c.accentColor} !important;
     }
-    [data-resume-template] .divide-y > * + * {
-      border-color: ${accent}33 !important;
-    }
-    ${c.headerAlign ? `
-    [data-resume-template] header {
-      text-align: ${c.headerAlign} !important;
-    }
-    ${c.headerAlign === 'center' || c.headerAlign === 'right' ? `
-    [data-resume-template] header > * {
-      justify-content: ${c.headerAlign === 'center' ? 'center' : 'flex-end'} !important;
-    }
-    ` : ''}
-    ` : ''}
-    ${typeof c.fontScale === 'number' ? `
-    [data-resume-template] {
-      font-size: ${c.fontScale}em !important;
-    }
-    ` : ''}
-    ${typeof c.sectionGap === 'number' ? `
-    [data-resume-template] section + section,
-    [data-resume-template] [data-section] + [data-section] {
-      margin-top: ${c.sectionGap}px !important;
-    }
-    ` : ''}
-    ${typeof c.entryGap === 'number' ? `
+    [data-resume-template] .divide-y > * + * { border-color: ${c.accentColor}33 !important; }
+  ` : '';
+
+  const fontBodyBlock = c.fontBody ? `
+    [data-resume-template] { font-family: ${c.fontBody} !important; }
+  ` : '';
+
+  const fontHeadingBlock = c.fontHeading ? `
+    [data-resume-template] h1,
+    [data-resume-template] h2,
+    [data-resume-template] h3 { font-family: ${c.fontHeading} !important; }
+  ` : '';
+
+  // Tailwind text-* sizes are rem-based (relative to <html>, not the wrapper),
+  // so changing the wrapper's font-size has no effect on real templates. CSS
+  // `zoom` scales every descendant proportionally — including spacing — which
+  // is exactly what the user wants for shrinking page count. Puppeteer/Chrome
+  // both render zoom natively in PDF output.
+  const fontScaleBlock = typeof c.fontScale === 'number' ? `
+    [data-resume-template] { zoom: ${c.fontScale}; }
+  ` : '';
+
+  // Templates space sections via the previous section's bottom margin
+  // (e.g. `<section class="mb-5">`), not the next section's top margin.
+  // Override margin-bottom on every [data-section] so the user's gap value
+  // actually replaces the template's spacing instead of stacking on top.
+  const sectionGapBlock = typeof c.sectionGap === 'number' ? `
+    [data-resume-template] [data-section] { margin-bottom: ${c.sectionGap}px !important; }
+    [data-resume-template] [data-section]:last-child { margin-bottom: 0 !important; }
+  ` : '';
+
+  const entryGapBlock = typeof c.entryGap === 'number' ? `
     [data-resume-template] [data-break-avoid] + [data-break-avoid] {
       margin-top: ${c.entryGap}px !important;
     }
+  ` : '';
+
+  const headerAlignBlock = c.headerAlign ? `
+    [data-resume-template] header { text-align: ${c.headerAlign} !important; }
+    ${c.headerAlign === 'center' || c.headerAlign === 'right' ? `
+      [data-resume-template] header > * {
+        justify-content: ${c.headerAlign === 'center' ? 'center' : 'flex-end'} !important;
+      }
     ` : ''}
+  ` : '';
+
+  return `
+    ${fontBodyBlock}
+    ${fontHeadingBlock}
+    ${accentBlock}
+    ${headerAlignBlock}
+    ${fontScaleBlock}
+    ${sectionGapBlock}
+    ${entryGapBlock}
   `;
 }
