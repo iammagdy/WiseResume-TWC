@@ -1,0 +1,45 @@
+%PDF-1.4
+1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj
+2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj
+3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >> endobj
+4 0 obj << /Length 1011 >> stream
+BT /F1 11 Tf 50 780 Td 14 TL
+(Replit Test Candidate) Tj T*
+() Tj T*
+(Email: replit.test@example.com) Tj T*
+(Phone: 555-0142) Tj T*
+(LinkedIn: linkedin.com/in/replit-test) Tj T*
+() Tj T*
+(SUMMARY) Tj T*
+(Senior Software Engineer with 8 years experience building React, TypeScript, and Node.js applications at scale.) Tj T*
+() Tj T*
+(EXPERIENCE) Tj T*
+(Senior Software Engineer, Acme Corp \(2020-Present\)) Tj T*
+(- Led migration of monolith to microservices, reducing latency 40 percent.) Tj T*
+(- Mentored 5 engineers and ran weekly architecture reviews.) Tj T*
+(- Built AI-powered features using OpenAI and LangChain.) Tj T*
+() Tj T*
+(Software Engineer, BetaCo \(2017-2020\)) Tj T*
+(- Owned the React rewrite of the customer dashboard.) Tj T*
+(- Shipped a Postgres analytics pipeline serving 200k events per day.) Tj T*
+() Tj T*
+(EDUCATION) Tj T*
+(B.S. Computer Science, MIT \(2017\)) Tj T*
+() Tj T*
+(SKILLS) Tj T*
+(React, TypeScript, Node.js, PostgreSQL, AWS, Docker, GraphQL, AI/LLM, GitHub Actions) Tj T*
+ET
+endstream endobj
+5 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000241 00000 n 
+0000001304 00000 n 
+trailer << /Size 6 /Root 1 0 R >>
+startxref
+1374
+%%EOF

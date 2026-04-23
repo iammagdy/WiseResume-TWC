@@ -1,3 +1,4 @@
+import type { Page } from '@playwright/test';
 import { test, expect } from '../fixtures/auth-required';
 import { attachObservers } from '../fixtures/observers';
 
@@ -8,7 +9,7 @@ import { attachObservers } from '../fixtures/observers';
  * cite real evidence.
  */
 
-async function openFirstResume(page: any): Promise<boolean> {
+async function openFirstResume(page: Page): Promise<boolean> {
   await page.goto('/dashboard');
   await page.waitForLoadState('domcontentloaded');
   await page.waitForTimeout(3500);

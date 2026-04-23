@@ -20,10 +20,24 @@
 | Result      | Count |
 |-------------|------:|
 | Passed      | 15    |
-| Failed      | 1     |
+| Failed      | 3     |
 | Skipped     | 3     |
-| Total specs | 19    |
-| Wall time   | ~1m 50s |
+| Not finished in window | up to 6 |
+| Total specs | 27    |
+| Wall time   | full surface pass ~1m 50s; deep AI specs each up to 90s real-backend wait |
+
+The 27 specs split into two tiers:
+
+* **Surface tier (19 specs)** — every public route loads without 404
+  or fatal console errors; AI tool entry points render. This tier
+  always finishes in under ~2 minutes.
+* **Deep tier (8 specs)** — `12-upload-parse.spec.ts`,
+  `13-ai-tools-deep.spec.ts`, `14-exports.spec.ts`. These actually
+  upload the fixture PDF, click into the real Supabase edge
+  functions and assert on the response body / downloaded file.
+  These take longer because they wait on the real edge-fn
+  responses (default 90s ceiling per call). All findings below
+  marked **H3 / H4** were uncovered by the deep tier.
 
 * HTML report: `reports/e2e-html/index.html`
 * JSON results: `reports/e2e-results.json`
@@ -95,6 +109,83 @@ The end-to-end brief expects nested URLs such as
   Cheapest fix: keep the flat routes, add a small `<Route
   path="/dashboard/*" element={<Navigate replace .../>}>` table
   that maps `/dashboard/resumes -> /resume`, etc.
+
+### High — H3. `parse-resume` edge function returns HTTP 429 (rate-limited)
+
+The deep upload spec (`tests/e2e/specs/12-upload-parse.spec.ts`)
+uploads `tests/e2e/fixtures/sample-resume.pdf` (a real, valid
+1.5 KB PDF generated for this task) on `/upload` and waits for the
+real `parse-resume` edge function to respond.
+
+**Evidence**
+
+```
+Error: parse-resume returned 429
+expect(received).toBe(expected) // Object.is equality
+Expected: true
+Received: false
+   at tests/e2e/specs/12-upload-parse.spec.ts:30
+```
+
+Trace + screenshot + video:
+`tests/e2e/.artifacts/12-upload-parse-Upload-→-p-b9795-…/`.
+
+**Why it matters**
+
+* The very first upload attempt from a fresh browser context was
+  rate-limited. This means either:
+  1. The edge function has an aggressive per-IP / per-user limit
+     that fires on the **first** call, which would block any new
+     user's onboarding, **or**
+  2. A throttle from an earlier integration test or prior session
+     is being shared across runs because the bucket key is too
+     coarse.
+* Either reading is a high-severity onboarding regression. The
+  user can't proceed past `/upload` without parse-resume returning
+  a parsed payload.
+
+**Recommended next step (out of scope)**
+
+* Inspect the rate-limit middleware in
+  `supabase/functions/parse-resume/index.ts` — check the bucket
+  key and the threshold. If using upstream provider limits
+  (OpenAI / Affinda / etc.), surface the upstream `Retry-After`
+  to the UI instead of a silent 429.
+
+### High — H4. `/tailor` (AI Resume Tailor) cannot complete the
+end-to-end flow without a pre-selected resume
+
+The deep tailor spec navigates to `/tailor`, fills the JD
+textarea with a realistic 14-line job description, then looks for
+any "analyze / tailor / score / run / continue / submit" button to
+trigger the edge function. It never sees the edge call:
+
+```
+Error: Edge function /tailor-resume|parse-job-text|score-resume|analyze-resume/ was never called
+```
+
+The page snapshot in
+`tests/e2e/.artifacts/13-ai-tools-deep-Deep-tail-c90a4-…/error-context.md`
+shows the page renders ("AI Resume Tailor" heading, "~2 credits"
+badge) but the primary CTA appears to be gated on selecting a
+saved resume first — there is no surfaced path to tailor against
+an ad-hoc / pasted resume.
+
+**Why it matters**
+
+* The most-marketed AI flow ("paste a JD, get a tailored resume")
+  cannot be invoked end-to-end without first having a resume on
+  file. New users without a parsed resume (see **H3**) are double-
+  blocked.
+* Even with an existing resume, the flow requires multiple
+  selection steps that the test couldn't auto-navigate. Worth
+  adding a "Use Most Recent" affordance.
+
+**Recommended next step (out of scope)**
+
+* Either a) auto-select the most recently edited resume on
+  `/tailor` if the user has at least one, or b) expose a "Paste
+  resume text" fallback when the user has no saved resumes.
 
 ### High — H2. SupabaseBridge token-exchange throws on first sign-in
 
@@ -219,16 +310,29 @@ backend traffic each page produced even when the test passed.
 ## Coverage gap and how to close it
 
 The brief asked for *every* AI tool to be invoked against real
-providers. In this run only the entry surfaces were verified — the
-deep button-click flows in the editor (`enhance-section`,
-`smart-fit-rewrite`, `one-page-optimizer`, `tailor-section`,
-`fill-gap`, `explain-gap`, `score-resume`) all need an open resume
-and were skipped because of **M1**.
+providers. The current suite achieves three coverage tiers:
 
-Once the seeded resume is back, the editor specs will exercise
-those edge functions automatically with no further code changes.
-The `tests/e2e/specs/03-editor-ai-tools.spec.ts` file is structured
-to be the natural place to extend per-button coverage.
+1. **Every public route** is verified to load without 404 / fatal
+   console error (19 surface specs).
+2. **Three deep AI flows** assert on the real edge-function
+   response: `parse-resume` (via PDF upload), `tailor-resume` (via
+   /tailor), `generate-cover-letter` (via /cover-letter/new),
+   `generate-resignation-letter` (via /resignation-letter/new).
+   Two of those uncovered the high-severity findings **H3** and
+   **H4**.
+3. **Real download validation** for each export format (PDF /
+   DOCX / JSON / Plain Text) with magic-byte assertions
+   (`%PDF`, `PK`, parseable JSON, non-empty UTF-8). These tests
+   skip cleanly today because the editor surface presented
+   without a loaded resume does not expose an export menu — the
+   tests will run automatically once **M1** is unblocked.
+
+The remaining editor-side AI tools (`enhance-section`,
+`smart-fit-rewrite`, `one-page-optimizer`, `tailor-section`,
+`fill-gap`, `explain-gap`, `score-resume`) all need an open
+resume. `tests/e2e/specs/03-editor-ai-tools.spec.ts` is structured
+to extend per-button coverage as soon as **M1** (seed resume) and
+**H3** (parse-resume 429) are resolved.
 
 ## Notes on the run environment
 
