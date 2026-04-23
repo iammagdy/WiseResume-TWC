@@ -13,6 +13,9 @@ export interface NativePdfOptions {
   showPageNumbers?: boolean;
   showBranding?: boolean;
   onProgress?: OnProgressCallback;
+  /** When true, injects ATS-clean CSS overrides (black text, white bg, Arial,
+   *  no decorative images) so the PDF is maximally machine-readable. */
+  atsMode?: boolean;
 }
 
 /**
@@ -30,6 +33,7 @@ export async function generateNativePDF(
     showPageNumbers = true,
     showBranding = true,
     onProgress,
+    atsMode = false,
   } = options;
 
   onProgress?.('preparing', 5);
@@ -130,6 +134,25 @@ export async function generateNativePDF(
   }
 
   // 4. Build a self-contained HTML document.
+  // ATS mode: inject overriding CSS that strips all decorative styling so the
+  // resulting PDF is maximally machine-readable (black text, white bg, Arial).
+  const atsCssBlock = atsMode ? `
+<style>
+/* ATS-clean overrides — force plain black-on-white, Arial, no decoration */
+* {
+  color: #000 !important;
+  background: #fff !important;
+  background-color: #fff !important;
+  background-image: none !important;
+  border-color: #ccc !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  font-family: Arial, Helvetica, sans-serif !important;
+}
+img { display: none !important; }
+[class*="gradient"] { background: #fff !important; }
+</style>` : '';
+
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -138,6 +161,7 @@ export async function generateNativePDF(
 <style>
 ${cssChunks.join('\n')}
 </style>
+${atsCssBlock}
 </head>
 <body style="margin:0;padding:0;background:#fff;">
 ${clone.outerHTML}
@@ -159,6 +183,133 @@ ${clone.outerHTML}
       pageFormat,
       onePage,
       fitScale,
+      showPageNumbers,
+      showBranding,
+    }),
+  });
+
+  if (!response.ok) {
+    let errMsg = `Server error ${response.status}`;
+    try {
+      const errBody = await response.json() as { error?: string };
+      if (errBody.error) errMsg = errBody.error;
+    } catch { /* ignore */ }
+    throw new Error(errMsg);
+  }
+
+  onProgress?.('finalizing', 85);
+  const blob = await response.blob();
+  onProgress?.('downloading', 100);
+  return blob;
+}
+
+/**
+ * Generates a cover letter PDF via Puppeteer by building a clean HTML document
+ * from the cover letter text and sending it to the server for rendering.
+ * Produces a visually consistent, text-selectable PDF that matches the resume
+ * style when used in a combined (Application Package) export.
+ */
+export async function generateCoverLetterNativePDF(
+  coverLetter: string,
+  contactInfo: {
+    fullName?: string;
+    email?: string;
+    phone?: string;
+    location?: string;
+  },
+  options: NativePdfOptions = {},
+): Promise<Blob> {
+  const {
+    pageFormat = 'letter',
+    showPageNumbers = true,
+    showBranding = true,
+    onProgress,
+  } = options;
+
+  onProgress?.('preparing', 5);
+
+  const today = new Date().toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+
+  const contactParts = [contactInfo.email, contactInfo.phone, contactInfo.location].filter(Boolean);
+
+  // Convert plain-text newlines to HTML paragraphs (double newline = paragraph break).
+  const paragraphs = coverLetter
+    .split(/\n\n+/)
+    .map((p) => `<p>${p.replace(/\n/g, '<br>')}</p>`)
+    .join('');
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #fff;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 11pt;
+    line-height: 1.6;
+    color: #000;
+  }
+  .page {
+    max-width: 612px;
+    padding: 72px;
+    box-sizing: border-box;
+  }
+  .name {
+    font-size: 18pt;
+    font-weight: bold;
+    margin: 0 0 4px 0;
+    font-family: Georgia, 'Times New Roman', serif;
+  }
+  .contact {
+    font-size: 10pt;
+    color: #444;
+    margin: 0 0 6px 0;
+  }
+  .divider {
+    border: none;
+    border-top: 1px solid #ccc;
+    margin: 12px 0 18px 0;
+  }
+  .date {
+    font-size: 11pt;
+    margin-bottom: 24px;
+  }
+  .body p {
+    margin: 0 0 14px 0;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  ${contactInfo.fullName ? `<div class="name">${contactInfo.fullName}</div>` : ''}
+  ${contactParts.length ? `<div class="contact">${contactParts.join(' \u00b7 ')}</div>` : ''}
+  <hr class="divider">
+  <div class="date">${today}</div>
+  <div class="body">${paragraphs}</div>
+</div>
+</body>
+</html>`;
+
+  onProgress?.('capturing', 20);
+
+  const token = getToken();
+  const response = await fetch('/api/export/pdf-native', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({
+      html,
+      pageFormat,
       showPageNumbers,
       showBranding,
     }),

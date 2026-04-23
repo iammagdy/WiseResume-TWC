@@ -206,7 +206,6 @@ export default function PreviewPage() {
 
     const tryExport = async (): Promise<void> => {
       try {
-        const { generatePDF, generateCoverLetterPDF } = await import('@/lib/pdfGenerator');
         const sanitized = customFileName
           ? customFileName.replace(/[/\\:*?"<>|]/g, '').trim().slice(0, 100)
           : '';
@@ -301,41 +300,30 @@ export default function PreviewPage() {
         let fileName: string;
 
         switch (type) {
-          case 'cover-letter':
+          case 'cover-letter': {
             if (!generatedCoverLetter) {toast.error('Generate a cover letter first');return;}
-            pdfBlob = await generateCoverLetterPDF(generatedCoverLetter, currentResume.contactInfo, pdfOptions);
+            const { generateCoverLetterNativePDF } = await import('@/lib/nativePdfGenerator');
+            pdfBlob = await generateCoverLetterNativePDF(generatedCoverLetter, currentResume.contactInfo, { pageFormat, ...pdfOptions, onProgress });
             fileName = `${baseName}_Cover_Letter.pdf`;
             break;
+          }
 
-          case 'ats-pdf':{
-              const atsResume = {
-                ...currentResume,
-                customization: {
-                  ...(currentResume.customization || {}),
-                  accentColor: '#000000',
-                  layout: 'single' as const,
-                  fontHeading: 'Arial',
-                  fontBody: 'Arial',
-                  fontSize: 'medium' as const,
-                  spacing: 'normal' as const,
-                  margins: 'normal' as const,
-                  lineHeight: '1.15' as const,
-                  pageFormat: (currentResume.customization?.pageFormat || 'letter') as 'a4' | 'letter'
-                },
-                contactInfo: { ...currentResume.contactInfo, photoUrl: undefined }
-              };
-              pdfBlob = await generatePDF(atsResume, 'clean', resumeRef.current, undefined, { ...pdfOptions, showBranding: false }, onProgress);
-              fileName = `${baseName}_Resume_ATS.pdf`;
-              break;
-            }
+          case 'ats-pdf': {
+            const { generateNativePDF: nativePdf } = await import('@/lib/nativePdfGenerator');
+            const templateEl = resumeRef.current ?? (document.querySelector('[data-resume-template]') as HTMLElement | null);
+            if (!templateEl) { toast.error('Resume preview not visible'); return; }
+            pdfBlob = await nativePdf(templateEl, { pageFormat, atsMode: true, showPageNumbers: false, showBranding: false, onProgress });
+            fileName = `${baseName}_Resume_ATS.pdf`;
+            break;
+          }
 
           case 'combined': {
             if (!generatedCoverLetter) {toast.error('Generate a cover letter first');return;}
-            const { generateNativePDF: nativePdf, mergePDFBlobs } = await import('@/lib/nativePdfGenerator');
+            const { generateNativePDF: nativePdf, generateCoverLetterNativePDF, mergePDFBlobs } = await import('@/lib/nativePdfGenerator');
             const templateEl = resumeRef.current ?? (document.querySelector('[data-resume-template]') as HTMLElement | null);
             if (!templateEl) { toast.error('Resume preview not visible'); return; }
             onProgress('capturing', 20);
-            const coverBlob = await generateCoverLetterPDF(generatedCoverLetter, currentResume.contactInfo, { showPageNumbers: false });
+            const coverBlob = await generateCoverLetterNativePDF(generatedCoverLetter, currentResume.contactInfo, { pageFormat, showPageNumbers: false, showBranding: false });
             onProgress('capturing', 40);
             const resumeBlob = await nativePdf(templateEl, { pageFormat, showPageNumbers: false, showBranding: false, onProgress });
             onProgress('finalizing', 90);

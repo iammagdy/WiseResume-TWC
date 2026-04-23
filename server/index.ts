@@ -3075,8 +3075,9 @@ app.get(
 
 // ── Native PDF export (Puppeteer) ─────────────────────────────────────────────
 // Renders a self-contained HTML document via Puppeteer and streams back a
-// text-selectable PDF. A simple semaphore keeps concurrent Chromium launches
-// bounded so we don't exhaust container memory on bursty traffic.
+// text-selectable PDF. A persistent shared browser instance is reused across
+// requests to eliminate the 3-5s Chromium startup overhead. A semaphore caps
+// the number of concurrent pages to avoid exhausting container memory.
 
 let _puppeteerActiveCnt = 0;
 const _puppeteerQueue: Array<() => void> = [];
@@ -3101,6 +3102,58 @@ async function acquirePuppeteerSlot(): Promise<() => void> {
       resolve(_createPuppeteerRelease());
     });
   });
+}
+
+// Persistent browser singleton — launched once and reused across all requests.
+// On crash (disconnected event) the reference is cleared and a fresh instance
+// is launched on the next request.
+let _sharedBrowser: import('puppeteer').Browser | null = null;
+let _browserLaunching: Promise<import('puppeteer').Browser> | null = null;
+
+async function getSharedBrowser(): Promise<import('puppeteer').Browser> {
+  if (_sharedBrowser) {
+    try {
+      // Health-check: pages() throws if the browser process died.
+      await _sharedBrowser.pages();
+      return _sharedBrowser;
+    } catch {
+      _sharedBrowser = null;
+    }
+  }
+
+  // Another concurrent request is already launching — piggyback on it.
+  if (_browserLaunching) {
+    return _browserLaunching;
+  }
+
+  const { default: puppeteer } = await import('puppeteer');
+  _browserLaunching = puppeteer
+    .launch({
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--font-render-hinting=none',
+      ],
+    })
+    .then((browser) => {
+      _sharedBrowser = browser;
+      _browserLaunching = null;
+      browser.on('disconnected', () => {
+        console.warn('[puppeteer] browser disconnected — will relaunch on next request');
+        _sharedBrowser = null;
+      });
+      console.log('[puppeteer] shared browser launched');
+      return browser;
+    })
+    .catch((err) => {
+      _browserLaunching = null;
+      throw err;
+    });
+
+  return _browserLaunching;
 }
 
 function _buildPuppeteerFooter(showPageNumbers: boolean, showBranding: boolean): string {
@@ -3166,21 +3219,10 @@ app.post('/api/export/pdf-native', requireAuthHeader, async (req: AuthedRequest,
   const injectedHtml = html.replace(/<head>/i, `<head>${zoomSnippet}`);
 
   const release = await acquirePuppeteerSlot();
-  let browser: import('puppeteer').Browser | null = null;
+  let page: import('puppeteer').Page | null = null;
   try {
-    const { default: puppeteer } = await import('puppeteer');
-    browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu',
-        '--font-render-hinting=none',
-      ],
-    });
-
-    const page = await browser.newPage();
+    const browser = await getSharedBrowser();
+    page = await browser.newPage();
     await page.setViewport({ width: viewportWidthPx, height: isA4 ? 1123 : 1056 });
 
     // SSRF mitigation: intercept all network requests made by the headless browser
@@ -3242,8 +3284,8 @@ app.post('/api/export/pdf-native', requireAuthHeader, async (req: AuthedRequest,
     console.error('[export/pdf-native] Puppeteer error:', err);
     res.status(500).json({ error: 'PDF rendering failed. Please try again.' });
   } finally {
-    if (browser) {
-      try { await browser.close(); } catch { /* ignore */ }
+    if (page) {
+      try { await page.close(); } catch { /* ignore */ }
     }
     release();
   }
