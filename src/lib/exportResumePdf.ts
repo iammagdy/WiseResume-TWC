@@ -47,12 +47,30 @@ function mountOffscreenTemplate(resume: ResumeData, templateId: TemplateId): Off
   return { container, template, root };
 }
 
+export class OffscreenRenderTimeoutError extends Error {
+  readonly code = 'OFFSCREEN_RENDER_TIMEOUT';
+  constructor(message: string) {
+    super(message);
+    this.name = 'OffscreenRenderTimeoutError';
+  }
+}
+
 async function waitForRender(template: HTMLElement, timeoutMs = 4000): Promise<void> {
   try { await document.fonts.ready; } catch { /* ignore */ }
   const deadline = performance.now() + timeoutMs;
+  let painted = false;
   while (performance.now() < deadline) {
     await new Promise<void>(r => requestAnimationFrame(() => r()));
-    if (template.scrollHeight > 100 && template.children.length > 0) break;
+    if (template.scrollHeight > 100 && template.children.length > 0) {
+      painted = true;
+      break;
+    }
+  }
+  if (!painted) {
+    throw new OffscreenRenderTimeoutError(
+      `Resume template did not render within ${timeoutMs}ms (scrollHeight=${template.scrollHeight}, children=${template.children.length}). ` +
+        `The lazy template chunk may have failed to load.`,
+    );
   }
   // Two extra RAF ticks so layout settles after the first content paint
   await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())));
@@ -67,14 +85,15 @@ async function waitForRender(template: HTMLElement, timeoutMs = 4000): Promise<v
 export async function exportResumePdfFromData(
   resume: ResumeData,
   templateId: TemplateId,
-  options?: NativePdfOptions,
+  options?: NativePdfOptions & { renderTimeoutMs?: number },
 ): Promise<Blob> {
   const { generateNativePDF } = await import('@/lib/nativePdfGenerator');
   const mount = mountOffscreenTemplate(resume, templateId);
   try {
-    await waitForRender(mount.template);
+    await waitForRender(mount.template, options?.renderTimeoutMs ?? 4000);
     const pageFormat = (resume.customization?.pageFormat ?? 'letter') as 'letter' | 'a4';
-    return await generateNativePDF(mount.template, { pageFormat, ...options });
+    const { renderTimeoutMs: _renderTimeoutMs, ...nativeOpts } = options ?? {};
+    return await generateNativePDF(mount.template, { pageFormat, ...nativeOpts });
   } finally {
     try { mount.root.unmount(); } catch { /* ignore */ }
     if (mount.container.parentNode) mount.container.parentNode.removeChild(mount.container);
