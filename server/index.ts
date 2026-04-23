@@ -2481,7 +2481,7 @@ app.get(
   requireAuthHeader,
   requireAdminEmail,
   async (_req, res) => {
-    const key = process.env.OPENROUTER_API_KEY;
+    const key = process.env.OPENROUTER_KEY_1;
     if (!key) {
       res.json({ configured: false });
       return;
@@ -2514,8 +2514,8 @@ app.get(
 
 /**
  * GET /api/admin/ai-provider/openrouter2-status
- * Returns the managed OpenRouter 2 (secondary account) key balance / rate-limit
- * info. Pinned to OPENROUTER2_API_KEY; the model used by the routing layer is
+ * Returns the managed OpenRouter secondary key balance / rate-limit info.
+ * Pinned to OPENROUTER_KEY_2; the model used by the routing layer is
  * always `openrouter/elephant-alpha` regardless of the live model list.
  */
 app.get(
@@ -2523,7 +2523,7 @@ app.get(
   requireAuthHeader,
   requireAdminEmail,
   async (_req, res) => {
-    const key = process.env.OPENROUTER2_API_KEY;
+    const key = process.env.OPENROUTER_KEY_2;
     if (!key) {
       res.json({ configured: false });
       return;
@@ -2589,14 +2589,14 @@ app.get(
 
 /**
  * GET /api/admin/ai-provider/groq-models
- * Returns the live Groq model list using the managed GROQ_API_KEY.
+ * Returns the live Groq model list using the managed GROQ_KEY_1.
  */
 app.get(
   '/api/admin/ai-provider/groq-models',
   requireAuthHeader,
   requireAdminEmail,
   async (_req, res) => {
-    const key = process.env.GROQ_API_KEY;
+    const key = process.env.GROQ_KEY_1;
     if (!key) {
       res.json({ configured: false, models: [] });
       return;
@@ -2629,14 +2629,14 @@ app.get(
 
 /**
  * GET /api/admin/ai-provider/groq-usage
- * Returns today's request/token usage and rate-limit ceiling from the managed GROQ_API_KEY.
+ * Returns today's request/token usage and rate-limit ceiling from the managed GROQ_KEY_1.
  */
 app.get(
   '/api/admin/ai-provider/groq-usage',
   requireAuthHeader,
   requireAdminEmail,
   async (_req, res) => {
-    const key = process.env.GROQ_API_KEY;
+    const key = process.env.GROQ_KEY_1;
     if (!key) {
       res.json({ configured: false });
       return;
