@@ -71,6 +71,22 @@ const PERCENT_RE = /\b\d+(?:\.\d+)?%/g;
 const CURRENCY_RE = /[$€£¥]\s?\d+(?:[.,]\d+)*[KMB]?/g;
 const DATE_RE = /\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)[a-z]*\s+\d{4}\b|\b\d{4}\s*[–-]\s*(?:\d{4}|Present|present)\b|\bQ[1-4]\s*\d{4}\b|\b\d{4}\b/g;
 const ACRONYM_RE = /\b[A-Z]{2,}(?:\/[A-Z]{2,})*\b/g;
+// Multi-word capitalized phrases catch company / person / institution / cert
+// names that appear in the candidate text (e.g. "Acme Corp", "John Smith",
+// "Stanford University", "AWS Solutions Architect"). Single capitalized
+// words are skipped here — sentence-starts would over-match — but they are
+// still picked up via ACRONYM_RE / TECH_TERMS when relevant.
+const PROPER_PHRASE_RE = /\b[A-Z][a-zA-Z]+(?:[ &.-]+[A-Z][a-zA-Z]+){1,4}\b/g;
+
+const PROPER_PHRASE_STOP_HEADS = new Set([
+  // Sentence-start verb-noun phrases that the regex would otherwise catch
+  // ("Led Cross Functional Team", "Built Customer Facing Dashboard"…). We
+  // require the *head* word to not be a high-frequency action verb.
+  'led', 'built', 'designed', 'managed', 'created', 'developed', 'launched',
+  'shipped', 'delivered', 'drove', 'owned', 'partnered', 'collaborated',
+  'increased', 'reduced', 'improved', 'enabled', 'enhanced', 'supported',
+  'worked', 'used', 'helped', 'oversaw', 'spearheaded', 'achieved',
+]);
 
 const TECH_TERMS = [
   'AWS', 'GCP', 'Azure', 'React', 'Vue', 'Angular', 'Node.js', 'Python',
@@ -101,11 +117,15 @@ function extractFromText(text: string): ProtectedTokenIn[] {
   for (const m of text.matchAll(CURRENCY_RE)) tokens.push({ text: m[0], kind: 'currency' });
   for (const m of text.matchAll(DATE_RE)) tokens.push({ text: m[0], kind: 'date' });
   for (const m of text.matchAll(ACRONYM_RE)) tokens.push({ text: m[0], kind: 'acronym' });
+  for (const m of text.matchAll(PROPER_PHRASE_RE)) {
+    const head = m[0].split(/[\s.&-]+/)[0].toLowerCase();
+    if (PROPER_PHRASE_STOP_HEADS.has(head)) continue;
+    tokens.push({ text: m[0], kind: 'proper-noun' });
+  }
   const lower = text.toLowerCase();
   for (const term of TECH_TERMS) {
     if (lower.includes(term.toLowerCase())) tokens.push({ text: term, kind: 'tech' });
   }
-  // De-dupe.
   const out: ProtectedTokenIn[] = [];
   uniqMerge(out, tokens);
   return out;
@@ -132,11 +152,21 @@ function serverProtectedTokens(
   jdTokens: ProtectedTokenIn[],
 ): ProtectedTokenIn[] {
   const out: ProtectedTokenIn[] = [];
+  // Trust floor: regex extraction over the candidate text. This is the set
+  // we guarantee to enforce regardless of what the client sent.
   uniqMerge(out, extractFromText(candidate.text));
-  uniqMerge(out, candidate.preserve ?? []);
-  // JD tokens count only if they appear in this candidate's source text.
+  // JD tokens count only when they actually appear in the candidate text.
   const lower = candidate.text.toLowerCase();
   uniqMerge(out, jdTokens.filter(t => lower.includes(t.text.toLowerCase())));
+  // Client `preserve` is ADDITIVE — it can only widen what's protected,
+  // never narrow it. Filtered to entries that actually appear in the text
+  // so a malicious client can't pad the set with junk to break rewrites.
+  if (Array.isArray(candidate.preserve)) {
+    const filtered = candidate.preserve
+      .filter(p => p && typeof p.text === 'string' && p.text.length > 0)
+      .filter(p => lower.includes(p.text.toLowerCase()));
+    uniqMerge(out, filtered);
+  }
   return out;
 }
 
