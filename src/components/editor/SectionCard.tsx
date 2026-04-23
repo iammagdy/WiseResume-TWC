@@ -2,7 +2,7 @@ import { ReactNode, memo } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { LucideIcon } from 'lucide-react';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible';
 
 interface SectionCardProps {
   icon: LucideIcon;
@@ -29,6 +29,13 @@ export const SectionCard = memo(function SectionCard({
 }: SectionCardProps) {
   const collapsible = isCollapsible && onToggle !== undefined;
 
+  const handleHeaderKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onToggle?.();
+    }
+  };
+
   return (
     <Collapsible
       open={collapsible ? isOpen : true}
@@ -44,51 +51,53 @@ export const SectionCard = memo(function SectionCard({
           status === 'empty' && 'before:bg-muted-foreground/20',
         )}
       >
-        {/* Header row — trigger + AI action are siblings, never nested */}
-        <div className="flex items-center min-h-[52px]">
-          {collapsible ? (
-            <CollapsibleTrigger className="flex flex-1 items-center gap-2.5 pl-4 pr-2 py-3 text-left select-none active:opacity-80 touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-inset rounded-tl-2xl min-w-0">
-              <div className={cn(
-                'w-6 h-6 rounded-md flex items-center justify-center shrink-0',
-                status === 'complete' ? 'bg-success/15' : 'bg-primary/10',
-              )}>
-                <Icon className={cn(
-                  'w-3.5 h-3.5',
-                  status === 'complete' ? 'text-success' : 'text-primary',
-                )} />
-              </div>
-              <h2 className="text-h3 !text-sm flex-1 min-w-0 truncate">{title}</h2>
+        {/* Header — full row is the toggle target when collapsible (no nested buttons) */}
+        <div
+          className={cn(
+            'flex items-center min-h-[52px]',
+            collapsible && 'cursor-pointer select-none active:opacity-80 touch-manipulation',
+          )}
+          onClick={collapsible ? onToggle : undefined}
+          role={collapsible ? 'button' : undefined}
+          tabIndex={collapsible ? 0 : undefined}
+          aria-expanded={collapsible ? isOpen : undefined}
+          onKeyDown={collapsible ? handleHeaderKeyDown : undefined}
+        >
+          <div className="flex flex-1 items-center gap-2.5 pl-4 pr-2 py-3 min-w-0">
+            <div className={cn(
+              'w-6 h-6 rounded-md flex items-center justify-center shrink-0',
+              status === 'complete' ? 'bg-success/15' : 'bg-primary/10',
+            )}>
+              <Icon className={cn(
+                'w-3.5 h-3.5',
+                status === 'complete' ? 'text-success' : 'text-primary',
+              )} />
+            </div>
+
+            <h2 className="text-h3 !text-sm flex-1 min-w-0 truncate">{title}</h2>
+
+            {collapsible && (
               <ChevronRight
                 className={cn(
                   'w-4 h-4 text-muted-foreground shrink-0 transition-transform duration-200',
                   isOpen && 'rotate-90',
                 )}
               />
-            </CollapsibleTrigger>
-          ) : (
-            <div className="flex flex-1 items-center gap-2.5 pl-4 pr-2 pt-4 pb-1 min-w-0">
-              <div className={cn(
-                'w-6 h-6 rounded-md flex items-center justify-center shrink-0',
-                status === 'complete' ? 'bg-success/15' : 'bg-primary/10',
-              )}>
-                <Icon className={cn(
-                  'w-3.5 h-3.5',
-                  status === 'complete' ? 'text-success' : 'text-primary',
-                )} />
-              </div>
-              <h2 className="text-h3 !text-sm flex-1 min-w-0 truncate">{title}</h2>
-            </div>
-          )}
+            )}
+          </div>
 
-          {/* AI action — sibling of the trigger, not inside it */}
+          {/* AI action — stopPropagation so clicking it doesn't toggle the header */}
           {action && (
-            <div className="shrink-0 pr-3 flex items-center min-h-[44px]">
+            <div
+              className="shrink-0 pr-3 flex items-center min-h-[44px]"
+              onClick={(e) => e.stopPropagation()}
+            >
               {action}
             </div>
           )}
         </div>
 
-        {/* Tip pill — always visible so users know what the section is for */}
+        {/* Tip pill — always visible so users understand the section purpose while collapsed */}
         {tip && status !== 'complete' && (
           <div className="px-4 pb-2">
             <span className="inline-block text-xs text-muted-foreground bg-muted px-2.5 py-1 rounded-full">
