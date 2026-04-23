@@ -38,7 +38,7 @@ import type { ResumeData } from '@/types/resume';
 import { useResumeVersionMutations } from '@/hooks/useResumeVersions';
 import { useAIApplyEffects } from '@/hooks/useAIApplyEffects';
 import { runSmartFit, applySmartFitPlan } from '@/lib/smartFit/orchestrator';
-import { convergeSmartFitPlan, type ConvergeProgress } from '@/lib/smartFit/converge';
+import { convergeSmartFitPlan, runLayoutOnlyFit, type ConvergeProgress } from '@/lib/smartFit/converge';
 import { buildDiffHighlight, type HighlightSegment } from '@/lib/smartFit/diffHighlight';
 import type { SmartFitPlan, SmartFitSelection, LayoutFitProposal } from '@/lib/smartFit/types';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
@@ -204,9 +204,66 @@ export function SmartFitWizardSheet({
       setAnalyzeStage('scoring');
       await new Promise(r => setTimeout(r, 50));
 
-      // Layout stage runs inside convergeSmartFitPlan. We pass the unscaled
-      // page count so the orchestrator's char-savings heuristic stays
-      // pessimistic — better to over-propose and let convergence prune.
+      // ── Stage 0: deterministic layout-only fit FIRST ────────────────
+      // AI is the last resort. We try font scaling alone before spending
+      // any credits or risking content rewrites.
+      let layoutOnly: Awaited<ReturnType<typeof runLayoutOnlyFit>> = null;
+      try {
+        layoutOnly = await runLayoutOnlyFit({
+          resume: currentResume,
+          targetPages,
+          measure: measureScratch,
+          onProgress: setConvergeProgress,
+        });
+      } catch (e) {
+        console.warn('[SmartFit] layout-only fit failed, continuing', e);
+      }
+      const pagesAfterLayout = layoutOnly?.pagesAfter ?? currentPages;
+
+      // Layout solved it — skip AI and content stages entirely.
+      if (pagesAfterLayout <= targetPages) {
+        setAnalyzeStage('finalising');
+        await new Promise(r => setTimeout(r, 50));
+        const layoutOnlyPlan: SmartFitPlan = {
+          targetPages,
+          pagesBefore: currentPages,
+          pagesAfterLayout,
+          stagesRun: ['layout'],
+          stillOverflowing: false,
+          rewrites: [],
+          drops: [],
+          collapses: [],
+          layoutFit: layoutOnly?.proposal,
+          pagesAfterRecommended: pagesAfterLayout,
+          recommendedSelection: {
+            rewrites: new Set(),
+            drops: new Set(),
+            collapses: new Set(),
+            layoutFit: !!layoutOnly,
+          },
+        };
+        setSelection(layoutOnlyPlan.recommendedSelection!);
+        setPlan(layoutOnlyPlan);
+        setView('results');
+        void postTelemetry({
+          outcome: 'analyzed',
+          targetPages,
+          pagesBefore: currentPages,
+          pagesAfterRecommended: pagesAfterLayout,
+          rewriteCount: 0,
+          dropCount: 0,
+          collapseCount: 0,
+          recommendedRewrites: 0,
+          recommendedDrops: 0,
+          recommendedCollapses: 0,
+          layoutFitApplied: !!layoutOnly,
+          stillOverflowing: false,
+          convergedMs: Math.round(performance.now() - analyzeStart),
+        });
+        return;
+      }
+
+      // ── Stage 1+: AI rewrites + deterministic content stages ────────
       setAnalyzeStage('asking-ai');
       const result = await executeAI(async () => {
         return runSmartFit({
@@ -214,7 +271,7 @@ export function SmartFitWizardSheet({
           jobDescription,
           targetPages,
           currentPages,
-          pagesAfterLayout: currentPages,
+          pagesAfterLayout,
         });
       });
       if (!result) { setView('intro'); return; }
@@ -239,7 +296,7 @@ export function SmartFitWizardSheet({
 
       const finalPlan: SmartFitPlan = {
         ...result,
-        layoutFit: convResult?.layoutFit,
+        layoutFit: convResult?.layoutFit ?? layoutOnly?.proposal,
         pagesAfterRecommended: convResult?.finalPages,
         recommendedSelection: convResult?.recommended,
         stillOverflowing: convResult?.stillOverflowing ?? result.stillOverflowing,
@@ -249,7 +306,7 @@ export function SmartFitWizardSheet({
         rewrites: new Set(result.rewrites.filter(r => r.validated).map(r => r.id)),
         drops: new Set(result.drops.map(d => d.id)),
         collapses: new Set(result.collapses.map(c => c.id)),
-        layoutFit: false,
+        layoutFit: !!finalPlan.layoutFit,
       };
       setSelection(defaultSel);
       setPlan(finalPlan);

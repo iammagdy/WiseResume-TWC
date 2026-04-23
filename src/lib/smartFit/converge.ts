@@ -76,21 +76,26 @@ export async function convergeSmartFitPlan(args: ConvergeArgs): Promise<Converge
     };
   }
 
-  let workingResume = resume;
+  // baseResume is the STABLE resume that recommended is applied against.
+  // It only changes when the layout-fit step accepts a new fontScale.
+  // For all content stages, applySmartFitPlan(baseResume, plan, recommended)
+  // is computed from scratch each iteration so achievement-index lookups
+  // in plan.drops always resolve against the original (untouched) array.
+  let baseResume = resume;
   let workingPages = baseline;
   const recommended = emptySelection();
   let layoutFit: LayoutFitProposal | undefined;
 
   // Stage 0: layout fit (deterministic, content-preserving).
   const layoutResult = await tryLayoutFit({
-    resume: workingResume,
+    resume: baseResume,
     targetPages,
     measure,
     onProgress,
   });
   if (layoutResult) {
     layoutFit = layoutResult.proposal;
-    workingResume = layoutResult.resume;
+    baseResume = layoutResult.resume;
     workingPages = layoutResult.pagesAfter;
     trace.push({ stage: 'layout', pages: workingPages, appliedCount: 1 });
     recommended.layoutFit = true;
@@ -99,22 +104,28 @@ export async function convergeSmartFitPlan(args: ConvergeArgs): Promise<Converge
     }
   }
 
-  // Stage 1: rewrites (validated only, in score order).
-  const validRewrites = plan.rewrites.filter(r => r.validated);
-  for (let i = 0; i < validRewrites.length; i++) {
-    if (workingPages <= targetPages) break;
-    const r = validRewrites[i];
-    recommended.rewrites.add(r.id);
-    const candidate = applySmartFitPlan(workingResume, plan, recommended);
-    const pagesAfter = await measure(candidate);
-    onProgress?.({ stage: 'rewrite', tested: i + 1, total: validRewrites.length, pages: pagesAfter });
-    if (pagesAfter < workingPages - MIN_PAGE_DELTA) {
-      workingResume = candidate;
-      workingPages = pagesAfter;
-    } else {
-      recommended.rewrites.delete(r.id);
+  const tryStage = async (
+    items: { id: string }[],
+    bucket: Set<string>,
+    stageName: ConvergeProgress['stage'],
+  ) => {
+    for (let i = 0; i < items.length; i++) {
+      if (workingPages <= targetPages) break;
+      bucket.add(items[i].id);
+      const candidate = applySmartFitPlan(baseResume, plan, recommended);
+      const pagesAfter = await measure(candidate);
+      onProgress?.({ stage: stageName, tested: i + 1, total: items.length, pages: pagesAfter });
+      if (pagesAfter < workingPages - MIN_PAGE_DELTA) {
+        workingPages = pagesAfter;
+      } else {
+        bucket.delete(items[i].id);
+      }
     }
-  }
+  };
+
+  // Stage 1: AI rewrites (validated only, in score order).
+  const validRewrites = plan.rewrites.filter(r => r.validated);
+  await tryStage(validRewrites, recommended.rewrites, 'rewrite');
   if (recommended.rewrites.size > 0) {
     trace.push({ stage: 'rewrite', pages: workingPages, appliedCount: recommended.rewrites.size });
   }
@@ -123,20 +134,7 @@ export async function convergeSmartFitPlan(args: ConvergeArgs): Promise<Converge
   }
 
   // Stage 2: bullet drops.
-  for (let i = 0; i < plan.drops.length; i++) {
-    if (workingPages <= targetPages) break;
-    const d = plan.drops[i];
-    recommended.drops.add(d.id);
-    const candidate = applySmartFitPlan(workingResume, plan, recommended);
-    const pagesAfter = await measure(candidate);
-    onProgress?.({ stage: 'prune', tested: i + 1, total: plan.drops.length, pages: pagesAfter });
-    if (pagesAfter < workingPages - MIN_PAGE_DELTA) {
-      workingResume = candidate;
-      workingPages = pagesAfter;
-    } else {
-      recommended.drops.delete(d.id);
-    }
-  }
+  await tryStage(plan.drops, recommended.drops, 'prune');
   if (recommended.drops.size > 0) {
     trace.push({ stage: 'prune', pages: workingPages, appliedCount: recommended.drops.size });
   }
@@ -145,20 +143,7 @@ export async function convergeSmartFitPlan(args: ConvergeArgs): Promise<Converge
   }
 
   // Stage 3: section collapses.
-  for (let i = 0; i < plan.collapses.length; i++) {
-    if (workingPages <= targetPages) break;
-    const c = plan.collapses[i];
-    recommended.collapses.add(c.id);
-    const candidate = applySmartFitPlan(workingResume, plan, recommended);
-    const pagesAfter = await measure(candidate);
-    onProgress?.({ stage: 'collapse', tested: i + 1, total: plan.collapses.length, pages: pagesAfter });
-    if (pagesAfter < workingPages - MIN_PAGE_DELTA) {
-      workingResume = candidate;
-      workingPages = pagesAfter;
-    } else {
-      recommended.collapses.delete(c.id);
-    }
-  }
+  await tryStage(plan.collapses, recommended.collapses, 'collapse');
   if (recommended.collapses.size > 0) {
     trace.push({ stage: 'collapse', pages: workingPages, appliedCount: recommended.collapses.size });
   }
@@ -170,6 +155,18 @@ export async function convergeSmartFitPlan(args: ConvergeArgs): Promise<Converge
     trace,
     stillOverflowing: workingPages > targetPages,
   };
+}
+
+/** Run the deterministic layout-only fit step on its own. The wizard calls
+ *  this BEFORE invoking the AI orchestrator so that AI rewrites are only
+ *  attempted when font scaling alone cannot reach the target page count. */
+export async function runLayoutOnlyFit(args: {
+  resume: ResumeData;
+  targetPages: number;
+  measure: MeasureFn;
+  onProgress?: (info: ConvergeProgress) => void;
+}): Promise<{ proposal: LayoutFitProposal; resume: ResumeData; pagesAfter: number } | null> {
+  return tryLayoutFit(args);
 }
 
 interface TryLayoutFitArgs {
