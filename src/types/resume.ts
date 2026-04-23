@@ -121,6 +121,15 @@ export interface TemplateCustomization {
   pageFormat: 'a4' | 'letter';
   /** Section names (matching data-section attribute values) to force a page break BEFORE. */
   manualPageBreaks?: string[];
+  /** Optional fine-tuning knobs surfaced through the Style Customization panel.
+   *  All optional — when undefined, the template's natural styling is used. */
+  headerAlign?: 'left' | 'center' | 'right';
+  /** Multiplier on top of the fontSize enum (0.85–1.15). */
+  fontScale?: number;
+  /** Px gap between top-level sections. Overrides the spacing preset when set. */
+  sectionGap?: number;
+  /** Px gap between consecutive entries (data-break-avoid blocks) within a section. */
+  entryGap?: number;
 }
 
 export interface ParseMeta {

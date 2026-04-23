@@ -141,5 +141,29 @@ export function generateCustomizationCSS(c: TemplateCustomization | undefined): 
     [data-resume-template] .divide-y > * + * {
       border-color: ${accent}33 !important;
     }
+    ${c.headerAlign ? `
+    [data-resume-template] header {
+      text-align: ${c.headerAlign} !important;
+    }
+    [data-resume-template] header > * {
+      justify-content: ${c.headerAlign === 'center' ? 'center' : c.headerAlign === 'right' ? 'flex-end' : 'flex-start'} !important;
+    }
+    ` : ''}
+    ${typeof c.fontScale === 'number' ? `
+    [data-resume-template] {
+      font-size: ${c.fontScale}em !important;
+    }
+    ` : ''}
+    ${typeof c.sectionGap === 'number' ? `
+    [data-resume-template] section + section,
+    [data-resume-template] [data-section] + [data-section] {
+      margin-top: ${c.sectionGap}px !important;
+    }
+    ` : ''}
+    ${typeof c.entryGap === 'number' ? `
+    [data-resume-template] [data-break-avoid] + [data-break-avoid] {
+      margin-top: ${c.entryGap}px !important;
+    }
+    ` : ''}
   `;
 }

@@ -1,8 +1,9 @@
 import { memo, useState, useCallback, Suspense, useRef, CSSProperties, useEffect } from 'react';
-import { ZoomIn, ZoomOut, Eye, EyeOff, X, Scissors, SeparatorHorizontal } from 'lucide-react';
+import { ZoomIn, ZoomOut, Eye, EyeOff, X, Scissors, SeparatorHorizontal, Sliders } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useResumeStore } from '@/store/resumeStore';
 import { applyCustomizationCSS, generateCustomizationCSS } from '@/lib/templateCustomization';
+import { StyleCustomizationPanel } from '@/components/editor/StyleCustomizationPanel';
 import { computePreviewBreaks, estimatePageCount, getPageDimensionsForFormat, injectForcedBreaks } from '@/lib/pdfUtils';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -101,6 +102,7 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
   }, []);
   const [hiddenSections, setHiddenSections] = useState<Set<string>>(new Set());
   const [showSectionToggles, setShowSectionToggles] = useState(false);
+  const [showStylePanel, setShowStylePanel] = useState(false);
   const [showPageBreaks, setShowPageBreaks] = useState(true);
   const [pageBreaks, setPageBreaks] = useState<number[]>([]);
   const [pageCount, setPageCount] = useState(1);
@@ -239,10 +241,24 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
             {showSectionToggles ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
           </button>
 
-          {/* Live page count badge */}
+          {/* Customize style button */}
+          <button
+            onClick={() => { setShowStylePanel(true); haptics.light(); }}
+            className="p-2 rounded-lg transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center touch-manipulation active:scale-95 text-muted-foreground hover:bg-muted"
+            aria-label="Customize style"
+            title="Customize style"
+          >
+            <Sliders className="w-4 h-4" />
+          </button>
+
+          {/* Live page count badge — green ≤2 / amber 3-4 / red ≥5 */}
           <span className={cn(
             'text-xs font-medium px-2 py-1 rounded-md whitespace-nowrap',
-            pageCount > 1 ? 'bg-destructive/10 text-destructive' : 'bg-muted text-muted-foreground'
+            pageCount <= 2
+              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+              : pageCount <= 4
+                ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                : 'bg-destructive/10 text-destructive'
           )}>
             {pageCount} {pageCount === 1 ? 'page' : 'pages'}
           </span>
@@ -354,6 +370,8 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
           </div>
         </div>
       </div>
+
+      <StyleCustomizationPanel open={showStylePanel} onOpenChange={setShowStylePanel} />
     </div>
   );
 });
