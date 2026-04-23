@@ -177,6 +177,15 @@ cite, q, time, label, output {
 img { display: none !important; }
 </style>` : '';
 
+  // Map the existing [data-break-avoid] markers used throughout the templates
+  // (experience, education, project, certification, award, etc. entries) onto
+  // native CSS pagination so Puppeteer keeps each entry on a single page.
+  // The markers were originally only consumed by the html2canvas paginator.
+  const paginationCss = `
+<style>
+[data-break-avoid] { break-inside: avoid; page-break-inside: avoid; }
+</style>`;
+
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -185,6 +194,7 @@ img { display: none !important; }
 <style>
 ${cssChunks.join('\n')}
 </style>
+${paginationCss}
 ${atsCssBlock}
 </head>
 <body style="margin:0;padding:0;background:#fff;">
