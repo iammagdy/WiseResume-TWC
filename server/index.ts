@@ -168,24 +168,26 @@ async function bootstrapSupabaseSecrets(): Promise<void> {
     console.warn('[server] Supabase secret bootstrap failed (non-fatal):', err);
   }
 
-  // Push the flat AI key pool (set in Replit env) into Supabase Edge
-  // Function secrets so `Deno.env.get(...)` inside `_shared/aiClient.ts` sees
-  // them. Idempotent — Supabase upserts by name, so re-running is a no-op
-  // when the value hasn't changed. The keys here are the only AI secrets
-  // the new flat-pool client reads.
+  // Push the flat AI key pool + BYOK encryption secret into Supabase Edge
+  // Function secrets. Idempotent — Supabase upserts by name.
   const managedAiKeys = [
     'OPENROUTER_KEY_1', 'OPENROUTER_KEY_2', 'OPENROUTER_KEY_3',
     'GROQ_KEY_1', 'GROQ_KEY_2', 'GROQ_KEY_3',
   ] as const;
-  const secretsToPush = managedAiKeys
-    .map((name) => ({ name, value: process.env[name] }))
-    .filter((s): s is { name: string; value: string } => typeof s.value === 'string' && s.value.length > 0);
+  const secretsToPush = [
+    ...managedAiKeys.map((name) => ({ name, value: process.env[name] })),
+    { name: 'API_KEY_ENCRYPTION_SECRET', value: process.env.API_KEY_ENCRYPTION_SECRET },
+  ].filter((s): s is { name: string; value: string } => typeof s.value === 'string' && s.value.length > 0);
+
   // Always log presence/absence of every key so operators can spot a missing key at a glance.
   const presentKeys = managedAiKeys.filter((k) => process.env[k]);
   const missingKeys = managedAiKeys.filter((k) => !process.env[k]);
   console.log(
     `[server] Managed AI key pool: present=[${presentKeys.join(', ') || 'none'}] missing=[${missingKeys.join(', ') || 'none'}]`,
   );
+  if (!process.env.API_KEY_ENCRYPTION_SECRET) {
+    console.warn('[server] API_KEY_ENCRYPTION_SECRET not set — BYOK key storage unavailable.');
+  }
 
   if (secretsToPush.length > 0) {
     try {

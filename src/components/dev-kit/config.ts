@@ -12,4 +12,5 @@ export const SECTIONS: { id: SectionId; title: string; emoji: string }[] = [
   { id: 'db', title: 'Resume & Data Checks', emoji: '🗄️' },
   { id: 'errors', title: 'Error Handling & Logging', emoji: '🔥' },
   { id: 'usage', title: 'Usage Events', emoji: '📊' },
+  { id: 'byok', title: 'BYOK API Key Probe', emoji: '🔐' },
 ];

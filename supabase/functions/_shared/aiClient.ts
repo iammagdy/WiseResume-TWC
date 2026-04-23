@@ -1,29 +1,21 @@
 /**
- * Flat-pool AI client.
+ * Flat-pool + BYOK AI client.
  *
- * 6 keys total: 3 OpenRouter (`OPENROUTER_KEY_1..3`) + 3 Groq
- * (`GROQ_KEY_1..3`). On every call we pick a provider at random (50/50
- * when both have keys), then a random key from that provider's pool.
- * On failure we retry once with a *different* key from the same provider.
+ * Default path (pool):
+ *   6 keys: 3 OpenRouter + 3 Groq. Randomly picked, with one retry on
+ *   a sibling key. Free models only.
  *
- * Free models only:
- *   - OpenRouter: meta-llama/llama-3.3-70b-instruct:free
- *   - Groq:       llama-3.3-70b-versatile
+ * BYOK path (when opts.userId is provided and user has byok_enabled=true):
+ *   Resolves the user's saved key from user_api_keys, decrypts it, and
+ *   routes the call through their chosen provider. On any failure, throws
+ *   AIError { code: 'byok_failed' } — never silently falls back to pool.
  *
- * Public surface preserved from the prior multi-provider client so the
- * 30+ AI edge functions don't need per-file edits. The fields they
- * reference but no longer matter (`model`, `wiseresumeSubProvider`,
- * `userId`, `temperature`, `maxTokens`, …) are accepted and used where
- * still meaningful (temperature, maxTokens, messages); the rest are
- * silently ignored.
- *
- * BYOK has been fully removed. `getUserKeyFromDB`, `getUserKeyAndUrlFromDB`,
- * and `isBreakerOpen` stubs have been deleted. Any caller that previously
- * imported those symbols must be updated to remove the import.
- *
- * Circuit breaker has been removed. `recordBreakerEvent` is a no-op kept
- * only for source-compat with older edge-function call sites.
+ * Public surface preserved so the 30+ AI edge functions don't need edits.
+ * Circuit breaker removed; `recordBreakerEvent` is a no-op for compat.
  */
+import { getServiceClient } from './dbClient.ts';
+import { decrypt } from './encryption.ts';
+import { getProvider } from './providers.ts';
 
 // ── Public types ──────────────────────────────────────────────────────────────
 export interface AIMessage {
@@ -249,8 +241,131 @@ async function callOnce(entry: KeyEntry, opts: AICallOptions): Promise<AIRespons
   };
 }
 
+// ── BYOK path ─────────────────────────────────────────────────────────────────
+
+interface ByokResolved {
+  provider: string;
+  key: string;
+}
+
+/**
+ * Look up the user's BYOK preference + active key. Returns null if BYOK
+ * is disabled or no matching key is found — caller should fall through
+ * to the pool in that case.
+ */
+async function resolveByok(userId: string): Promise<ByokResolved | null> {
+  try {
+    const db = getServiceClient();
+    const [prefsRes, keysRes] = await Promise.all([
+      db.from('user_preferences')
+        .select('byok_enabled, byok_provider')
+        .eq('user_id', userId)
+        .maybeSingle(),
+      db.from('user_api_keys')
+        .select('provider, encrypted_key, is_active')
+        .eq('user_id', userId)
+        .eq('is_active', true),
+    ]);
+
+    if (!prefsRes.data?.byok_enabled) return null;
+
+    const chosenProvider: string = prefsRes.data.byok_provider ?? '';
+    const keys = keysRes.data ?? [];
+    const activeKey = keys.find(k => k.provider === chosenProvider);
+    if (!activeKey) return null;
+
+    const plainKey = await decrypt(activeKey.encrypted_key);
+    return { provider: chosenProvider, key: plainKey };
+  } catch {
+    // Fail open to pool if DB lookup fails (e.g. encryption secret not configured)
+    return null;
+  }
+}
+
+/** Make a real AI call through a BYOK provider. Throws AIError{code:'byok_failed'} on any error. */
+async function callBYOK(opts: AICallOptions, provider: string, key: string): Promise<AIResponse> {
+  const cfg = getProvider(provider);
+  if (!cfg) {
+    throw {
+      message: `BYOK: unknown provider '${provider}'`,
+      status: 400,
+      code: 'byok_failed',
+      provider,
+    } as AIError;
+  }
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${key}`,
+    ...cfg.extraHeaders,
+  };
+
+  const body: Record<string, unknown> = {
+    model: cfg.defaultModel,
+    messages: opts.messages,
+    temperature: typeof opts.temperature === 'number' ? opts.temperature : 0.7,
+  };
+  if (typeof opts.maxTokens === 'number') body.max_tokens = opts.maxTokens;
+  if (typeof opts.topP === 'number') body.top_p = opts.topP;
+  if (opts.tools) body.tools = opts.tools;
+  if (opts.toolChoice) body.tool_choice = opts.toolChoice;
+  if (opts.responseFormat) body.response_format = opts.responseFormat;
+  else if (opts.jsonMode) body.response_format = { type: 'json_object' };
+
+  let res: Response;
+  try {
+    res = await fetch(cfg.chatEndpoint, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
+      signal: opts.signal,
+    });
+  } catch (fetchErr) {
+    throw {
+      message: `BYOK ${provider} network error: ${(fetchErr as Error).message}`,
+      status: 0,
+      code: 'byok_failed',
+      provider,
+    } as AIError;
+  }
+
+  const rawText = await res.text();
+  if (!res.ok) {
+    let userMessage = rawText.slice(0, 400);
+    try { const j = JSON.parse(rawText); userMessage = j?.error?.message ?? j?.message ?? userMessage; } catch { /* ignore */ }
+    throw {
+      message: `BYOK ${provider} ${res.status}: ${userMessage}`,
+      status: res.status,
+      code: 'byok_failed',
+      provider,
+    } as AIError;
+  }
+
+  let parsed: any;
+  try { parsed = JSON.parse(rawText); } catch {
+    throw { message: `BYOK ${provider} non-JSON response`, status: 502, code: 'byok_failed', provider } as AIError;
+  }
+
+  const choice = parsed?.choices?.[0];
+  const content = choice?.message?.content ?? '';
+  return {
+    content: typeof content === 'string' ? content : JSON.stringify(content),
+    providerUsed: `byok:${provider}`,
+    model: parsed?.model ?? cfg.defaultModel,
+    toolCalls: choice?.message?.tool_calls,
+    finishReason: choice?.finish_reason ?? null,
+    usage: parsed?.usage
+      ? { promptTokens: parsed.usage.prompt_tokens, completionTokens: parsed.usage.completion_tokens, totalTokens: parsed.usage.total_tokens }
+      : undefined,
+  };
+}
+
 // ── Public entry points ───────────────────────────────────────────────────────
 export async function callAI(opts: AICallOptions): Promise<AIResponse> {
+  if (opts.userId) {
+    const byok = await resolveByok(opts.userId);
+    if (byok) return callBYOK(opts, byok.provider, byok.key);
+  }
   const picked = pickKey(opts);
   return callOnce(picked, opts);
 }
@@ -258,8 +373,13 @@ export async function callAI(opts: AICallOptions): Promise<AIResponse> {
 /**
  * One retry on failure with a *different* key in the same provider.
  * If no sibling key is available we just propagate the original error.
+ * BYOK path does NOT retry — failure is surfaced immediately.
  */
 export async function callAIWithRetry(opts: AICallOptions): Promise<AIResponse> {
+  if (opts.userId) {
+    const byok = await resolveByok(opts.userId);
+    if (byok) return callBYOK(opts, byok.provider, byok.key);
+  }
   const picked = pickKey(opts);
   try {
     return await callOnce(picked, opts);

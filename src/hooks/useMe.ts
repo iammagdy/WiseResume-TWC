@@ -29,6 +29,8 @@ export interface MeData {
   preferences: Record<string, unknown> | null;
   subscription: MeSubscription | null;
   ai_credits: MeAICredits | null;
+  byok_enabled: boolean;
+  byok_provider: string | null;
 }
 
 /**

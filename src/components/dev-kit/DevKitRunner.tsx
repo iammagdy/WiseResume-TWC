@@ -281,6 +281,41 @@ export function DevKitRunner() {
         });
       },
     },
+    // === BYOK ===
+    {
+      id: 'byok-status', label: 'BYOK Status', description: 'Read byokEnabled / byokProvider from store and list configured keys from edge function', section: 'byok',
+      run: async (): Promise<TestResult> => {
+        if (!auth.isAuthenticated) return { status: 'warn', summary: 'Skipped — sign in first', durationMs: 0 };
+        return strictInvoke('byok-status', async () => {
+          const s = useSettingsStore.getState();
+          const res = await edgeFunctions.functions.invoke('manage-api-keys', { method: 'GET' } as Parameters<typeof edgeFunctions.functions.invoke>[1]);
+          if (res.error) throw new Error((res.error as { message?: string }).message || 'manage-api-keys error');
+          const keys: Array<{ provider: string; hint: string }> = Array.isArray(res.data?.keys) ? res.data.keys : [];
+          return {
+            byokEnabled: s.byokEnabled,
+            byokProvider: s.byokProvider,
+            configuredProviders: keys.map((k) => `${k.provider} (${k.hint})`),
+            keyCount: keys.length,
+          };
+        });
+      },
+    },
+    ...(['openai', 'anthropic', 'gemini', 'groq', 'mistral', 'cohere'] as const).map((provider) => ({
+      id: `byok-probe-${provider}`,
+      label: `BYOK Probe · ${provider.charAt(0).toUpperCase() + provider.slice(1)}`,
+      description: `Fetch manage-api-keys list and confirm ${provider} key presence`,
+      section: 'byok' as const,
+      run: async (): Promise<TestResult> => {
+        if (!auth.isAuthenticated) return { status: 'warn', summary: 'Skipped — sign in first', durationMs: 0 };
+        return strictInvoke(`byok-probe-${provider}`, async () => {
+          const res = await edgeFunctions.functions.invoke('manage-api-keys', { method: 'GET' } as Parameters<typeof edgeFunctions.functions.invoke>[1]);
+          if (res.error) throw new Error((res.error as { message?: string }).message || 'manage-api-keys error');
+          const keys: Array<{ provider: string; hint: string }> = Array.isArray(res.data?.keys) ? res.data.keys : [];
+          const match = keys.find((k) => k.provider === provider);
+          return { provider, configured: !!match, hint: match?.hint ?? null, summary: match ? `Key configured: ${match.hint}` : `No ${provider} key configured` };
+        });
+      },
+    })),
     // === ROUTING ===
     {
       id: 'dashboard-route', label: 'Dashboard Route Check', description: 'Query resumes table (RLS check)', section: 'routing',

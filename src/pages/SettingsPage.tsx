@@ -39,6 +39,7 @@ const BiometricSetupSheet = lazy(() => import('@/components/settings/BiometricSe
 const BiometricTimeoutSheet = lazy(() => import('@/components/settings/BiometricTimeoutSheet').then((m) => ({ default: m.BiometricTimeoutSheet })));
 const HelpSheet = lazy(() => import('@/components/settings/HelpSheet').then((m) => ({ default: m.HelpSheet })));
 const ProfileCard = lazy(() => import('@/components/settings/ProfileCard'));
+const AISettingsSheet = lazy(() => import('@/components/ai/AISettingsSheet').then((m) => ({ default: m.AISettingsSheet })));
 
 // Extracted section components
 import { TalentPoolDiscoverableCard } from '@/components/settings/TalentPoolDiscoverableCard';
@@ -93,7 +94,9 @@ export default function SettingsPage() {
   const {
     biometricLockEnabled,
     setBiometricLockEnabled,
-    setHasSeenSplash
+    setHasSeenSplash,
+    byokEnabled,
+    byokProvider,
   } = useSettingsStore();
 
   const { isAvailable: biometricAvailable, biometryType, authenticate } = useBiometricLock(biometricLockEnabled);
@@ -105,6 +108,7 @@ export default function SettingsPage() {
   const [biometricSetupOpen, setBiometricSetupOpen] = useState(false);
   const [biometricTimeoutOpen, setBiometricTimeoutOpen] = useState(false);
   const [helpSheetOpen, setHelpSheetOpen] = useState(false);
+  const [aiSettingsOpen, setAISettingsOpen] = useState(false);
   const [changelogOpen, setChangelogOpen] = useState(false);
   const [aboutDialogOpen, setAboutDialogOpen] = useState(false);
   const [signOutConfirmOpen, setSignOutConfirmOpen] = useState(false);
@@ -310,6 +314,27 @@ export default function SettingsPage() {
             </div>
           )}
 
+          {/* AI Engine */}
+          {user && (
+            <div>
+              <SectionLabel>AI Engine</SectionLabel>
+              <div className="mx-4">
+                <div className="rounded-2xl bg-card border border-border shadow-soft overflow-hidden">
+                  <SettingsRow
+                    type="navigation"
+                    label="AI Engine"
+                    description={
+                      byokEnabled && byokProvider
+                        ? `Using your ${byokProvider} key`
+                        : 'Using WiseResume AI Pool'
+                    }
+                    onClick={() => setAISettingsOpen(true)}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Preferences (Appearance + Editor & Export merged) */}
           <div>
             <SectionLabel>Preferences</SectionLabel>
@@ -479,7 +504,11 @@ export default function SettingsPage() {
         <HelpSheet
           open={helpSheetOpen}
           onOpenChange={setHelpSheetOpen} />
-
+        }
+        {aiSettingsOpen &&
+        <AISettingsSheet
+          open={aiSettingsOpen}
+          onOpenChange={setAISettingsOpen} />
         }
       </Suspense>
 

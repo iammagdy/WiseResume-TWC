@@ -27,7 +27,7 @@ serve(async (req) => {
     // Using service client (from requireAuth) bypasses RLS — no auth.uid() dependency.
     const [profileResult, prefsResult, subsResult, creditsResult] = await Promise.all([
       client.from('profiles').select('*').eq('user_id', userId).maybeSingle(),
-      client.from('user_preferences').select('*').eq('user_id', userId).maybeSingle(),
+      client.from('user_preferences').select('*, byok_enabled, byok_provider').eq('user_id', userId).maybeSingle(),
       client.from('subscriptions')
         .select('plan_name, status, plan_updated_at, trial_plan, trial_expires_at')
         .eq('user_id', userId)
@@ -112,6 +112,8 @@ serve(async (req) => {
         preferences: prefsResult.data || null,
         subscription: subscriptionPayload,
         ai_credits: aiCreditsPayload,
+        byok_enabled: prefsResult.data?.byok_enabled ?? false,
+        byok_provider: prefsResult.data?.byok_provider ?? null,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );

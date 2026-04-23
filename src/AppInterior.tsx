@@ -25,6 +25,7 @@ import { useAppSettings } from "@/hooks/useAppSettings";
 import { useAuth } from "@/hooks/useAuth";
 import { isAppHostname, usePublicPortfolioByDomain } from "@/hooks/usePublicPortfolio";
 import { AIPrivacyDisclosureProvider } from "@/components/ai/AIPrivacyDisclosureProvider";
+import { useAIKeyHydration } from "@/hooks/useAIKeyHydration";
 import { BottomSheetProvider } from "@/context/BottomSheetContext";
 
 import { KindeProvider, KindeContext } from "@kinde-oss/kinde-auth-react";
@@ -334,6 +335,7 @@ function AppRoutes() {
   useBackButton();
   useStatusBarThemeSync();
   useDeepLinking();
+  useAIKeyHydration();
 
   useEffect(() => {
     document.body.style.overflow = '';

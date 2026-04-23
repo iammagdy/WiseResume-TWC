@@ -10,7 +10,20 @@ export type AITipFrequency = 'daily' | 'weekly' | 'on-demand';
 // The flat 6-key managed pool is the only active engine; aiProvider is always 'wiseresume'.
 export type AIProvider = 'wiseresume' | 'openai' | 'anthropic' | 'gemini' | 'groq' | 'mistral' | 'xai' | 'cohere' | 'openrouter' | 'ollama';
 
+export interface ByokKeyHint {
+  id: string;
+  provider: string;
+  key_hint: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
 interface SettingsState {
+  // BYOK state — populated by useAIKeyHydration, never persisted
+  byokEnabled: boolean;
+  byokProvider: string | null;
+  byokKeyHints: ByokKeyHint[];
+
   // Notifications
   showAutoSaveToasts: boolean;
   autoSaveToastMode: AutoSaveToastMode;
@@ -52,6 +65,11 @@ interface SettingsState {
   // Setter is a no-op kept for backward compat with DevKit and AIPrivacyDisclosureProvider.
   aiProvider: AIProvider;
   
+  // BYOK setters (called by useAIKeyHydration after fetching from server)
+  setByokEnabled: (value: boolean) => void;
+  setByokProvider: (provider: string | null) => void;
+  setByokKeyHints: (hints: ByokKeyHint[]) => void;
+
   // Actions
   setShowAutoSaveToasts: (value: boolean) => void;
   setAutoSaveToastMode: (mode: AutoSaveToastMode) => void;
@@ -82,6 +100,9 @@ interface SettingsState {
 }
 
 const defaultSettings = {
+  byokEnabled: false,
+  byokProvider: null as string | null,
+  byokKeyHints: [] as ByokKeyHint[],
   showAutoSaveToasts: true,
   autoSaveToastMode: 'always' as AutoSaveToastMode,
   showAIEnhancementTips: true,
@@ -115,6 +136,9 @@ export const useSettingsStore = create<SettingsState>()(
     (set) => ({
       ...defaultSettings,
 
+      setByokEnabled: (value) => set({ byokEnabled: value }),
+      setByokProvider: (provider) => set({ byokProvider: provider }),
+      setByokKeyHints: (hints) => set({ byokKeyHints: hints }),
       setShowAutoSaveToasts: (value) => set({ showAutoSaveToasts: value }),
       setAutoSaveToastMode: (mode) => set({ autoSaveToastMode: mode }),
       setShowAIEnhancementTips: (value) => set({ showAIEnhancementTips: value }),
@@ -161,8 +185,9 @@ export const useSettingsStore = create<SettingsState>()(
         // Exclude ephemeral and sensitive fields from localStorage.
         // elevenlabsApiKey is in-memory only.
         // lpProduct and hasSeenSplash are session-only.
+        // byok* state is hydrated from server on each load — never persisted.
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { elevenlabsApiKey, lpProduct: _lp, hasSeenSplash: _splash, ...rest } = state;
+        const { elevenlabsApiKey, lpProduct: _lp, hasSeenSplash: _splash, byokEnabled: _be, byokProvider: _bp, byokKeyHints: _bkh, ...rest } = state;
         return rest;
       },
       onRehydrateStorage: () => (state) => {

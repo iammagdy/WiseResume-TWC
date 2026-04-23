@@ -1,8 +1,9 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Zap, AlertTriangle, WifiOff, RefreshCw } from 'lucide-react';
+import { Zap, AlertTriangle, WifiOff, RefreshCw, Settings } from 'lucide-react';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { useAIHealth, AIHealthStatus } from '@/hooks/useAIHealth';
 import { useAIHealthStore } from '@/store/aiHealthStore';
+import { useSettingsStore } from '@/store/settingsStore';
 import { cn } from '@/lib/utils';
 import { getSupabaseToken } from '@/lib/supabaseAuth';
 import { apiFnUrl } from '@/lib/apiFnUrl';
@@ -74,18 +75,24 @@ function errorLabel(code: number | null, selfThrottled?: boolean): string {
   return `Error ${code}`;
 }
 
-function providerLabel(provider: string): string {
-  const map: Record<string, string> = {
-    wiseresume: 'WiseResume AI',
-    gemini: 'Gemini',
-    ollama: 'Ollama',
-    openrouter: 'OpenRouter',
-  };
-  return map[provider] ?? provider;
+const PROVIDER_NAMES: Record<string, string> = {
+  openai: 'OpenAI', anthropic: 'Anthropic', gemini: 'Google Gemini',
+  groq: 'Groq', mistral: 'Mistral AI', cohere: 'Cohere',
+  openrouter: 'OpenRouter', xai: 'xAI Grok',
+};
+
+function useEngineLabel(): string {
+  const byokEnabled = useSettingsStore((s) => s.byokEnabled);
+  const byokProvider = useSettingsStore((s) => s.byokProvider);
+  if (byokEnabled && byokProvider) {
+    return `Your ${PROVIDER_NAMES[byokProvider] ?? byokProvider} key`;
+  }
+  return 'WiseResume AI';
 }
 
 export function AIHealthBadge() {
-  const { status: storeStatus, provider } = useAIHealth();
+  const { status: storeStatus } = useAIHealth();
+  const engineLabel = useEngineLabel();
   const { recordSuccess, recordFailure, recordProvider } = useAIHealthStore();
   const storeResults = useAIHealthStore((s) => s.results);
   const lastStoreEventAt = storeResults.length > 0 ? storeResults[storeResults.length - 1].timestamp : 0;
@@ -327,7 +334,7 @@ export function AIHealthBadge() {
         {/* Provider row */}
         <div className="px-4 py-2.5 border-b border-border/40 flex items-center justify-between">
           <span className="text-[11px] text-muted-foreground">Engine</span>
-          <span className="text-[11px] font-medium text-foreground">{providerLabel(provider)}</span>
+          <span className="text-[11px] font-medium text-foreground">{engineLabel}</span>
         </div>
 
       </PopoverContent>

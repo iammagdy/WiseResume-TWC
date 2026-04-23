@@ -34,6 +34,8 @@ export type AIErrorCode =
   | 'profile_incomplete'
   | 'timeout'
   | 'offline'
+  | 'byok_failed'
+  | 'free_limit_reached'
   | 'internal';
 
 export interface AIErrorInfo {
@@ -99,6 +101,10 @@ function classify(status: number, code: string, message: string): AIErrorCode {
       return 'invalid_key';
     case 'provider_unavailable':
       return 'provider_busy';
+    case 'byok_failed':
+      return 'byok_failed';
+    case 'free_limit_reached':
+      return 'free_limit_reached';
   }
 
   // 2) Message-text classification BEFORE status-based fallback. A 401 from a
@@ -219,6 +225,12 @@ export function aiErrorToastMessage(info: AIErrorInfo): string {
       return 'Your profile is incomplete. Please finish setting up your profile before using AI features.';
     case 'upstream_5xx':
       return 'The AI provider returned an error. Please try again in a moment — if it keeps failing, contact support.';
+    case 'byok_failed':
+      return info.message
+        ? `Your API key failed: ${info.message}`
+        : 'Your API key returned an error — check key validity in AI Engine settings or switch back to WiseResume Pool.';
+    case 'free_limit_reached':
+      return 'Daily AI limit reached. Upgrade your plan or add your own API key in AI Engine settings.';
     case 'timeout':
       return 'The AI request timed out. Please try again.';
     case 'offline':
