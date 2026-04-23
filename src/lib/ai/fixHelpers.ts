@@ -75,7 +75,6 @@ export function findTargetContent(resume: ResumeData, redFlag: RedFlag): TargetC
     return {
       section: 'summary',
       content: resume.summary,
-      fuzzyConfidence: 1.0,
     };
   }
 
@@ -84,17 +83,12 @@ export function findTargetContent(resume: ResumeData, redFlag: RedFlag): TargetC
     return {
       section: 'skills',
       content: resume.skills,
-      fuzzyConfidence: 1.0,
     };
   }
 
   // 3. Experience
   if (fixType === 'experience') {
     if (!quote || quote === 'N/A' || quote.length < 5) {
-      // No quote — return first experience entry as best guess with low confidence
-      if (resume.experience.length > 0) {
-        return { section: 'experience', id: resume.experience[0].id, content: resume.experience[0], fuzzyConfidence: 0.3 };
-      }
       return null;
     }
 
@@ -120,18 +114,9 @@ export function findTargetContent(resume: ResumeData, redFlag: RedFlag): TargetC
         section: 'experience',
         id: bestJob.id,
         content: bestJob,
-        fuzzyConfidence: bestScore,
       };
     }
-    // If we have a job but confidence is low, still return with flag
-    if (bestJob) {
-      return {
-        section: 'experience',
-        id: bestJob.id,
-        content: bestJob,
-        fuzzyConfidence: bestScore,
-      };
-    }
+    return null;
   }
 
   // 4. Education
@@ -160,7 +145,6 @@ export function findTargetContent(resume: ResumeData, redFlag: RedFlag): TargetC
         section: 'education',
         id: bestEdu.id,
         content: bestEdu,
-        fuzzyConfidence: bestScore,
       };
     }
   }

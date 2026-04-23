@@ -61,7 +61,8 @@ describe("PortfolioEditorPage", () => {
 
   it("shows the status bar with the portfolio URL", async () => {
     render(<PortfolioEditorPage />, { wrapper });
-    expect(await screen.findByText(/resume\.thewise\.cloud\/p\/johndoe/i)).toBeDefined();
+    const matches = await screen.findAllByText(/resume\.thewise\.cloud\/p\/johndoe/i);
+    expect(matches.length).toBeGreaterThan(0);
   });
 
   it("can switch between tabs", async () => {

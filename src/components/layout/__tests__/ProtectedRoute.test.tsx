@@ -63,6 +63,8 @@ describe('ProtectedRoute', () => {
   it('renders outlet when user is authenticated', () => {
     vi.mocked(useAuthHook.useAuth).mockReturnValue(makeAuth({
       isAuthenticated: true,
+      supabaseSettled: true,
+      supabaseReady: true,
       user: { id: 'test-user' } as any,
     }));
 

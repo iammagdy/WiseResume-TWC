@@ -53,7 +53,12 @@ vi.mock("@/hooks/useNotifications", () => ({
 }));
 
 vi.mock("@/hooks/useJobActivityStats", () => ({
-  useJobActivityStats: vi.fn(() => ({ data: null, isLoading: false })),
+  useJobActivityStats: vi.fn(() => ({
+    originals: 0, tailored: 0, jobsAnalyzed: 0, coverLetters: 0,
+    applicationsSubmitted: 0, interviewsScheduled: 0, offersReceived: 0,
+    screeningCount: 0, appliedCount: 0, responseRate: 0, interviewRate: 0,
+    offerRate: 0, weeklyTrend: [], isLoading: false,
+  })),
 }));
 
 vi.mock("@/lib/activityTracker", () => ({
@@ -76,6 +81,10 @@ vi.mock("@/hooks/useResumes", () => ({
 
 vi.mock("@/lib/haptics", () => ({
   haptics: { light: vi.fn(), medium: vi.fn(), selection: vi.fn() },
+}));
+
+vi.mock("@/hooks/usePlan", () => ({
+  usePlan: vi.fn(() => ({ isPro: true, isPremium: false, isLoading: false, plan: "pro" })),
 }));
 
 import * as useAuthHook from "@/hooks/useAuth";

@@ -89,5 +89,5 @@ export const supabase: SupabaseClient<Database> = createClient<Database>(
 });
 
 // Backward-compatible exports
-export const supabaseConfig = { url: SUPABASE_URL };
+export const supabaseConfig = { url: SUPABASE_URL || 'https://placeholder.supabase.co' };
 export { SUPABASE_URL, SUPABASE_ANON_KEY as SUPABASE_PUBLISHABLE_KEY };

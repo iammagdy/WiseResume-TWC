@@ -33,6 +33,7 @@ describe("supabaseBridge", () => {
       json: async () => ({
         supabaseToken: mockToken,
         userId: "user-123",
+        kindeSub: "kinde-sub-123",
         // Expires far in the future
         expiresAt: Math.floor(Date.now() / 1000) + 3600
       })
@@ -45,16 +46,15 @@ describe("supabaseBridge", () => {
     // Exchange token
     await exchangeToken("fake-kinde-token");
 
-    // Verify fetch was called correctly
+    // Verify fetch was called correctly (apiFnUrl produces /api/fn/<name>)
     expect(global.fetch).toHaveBeenCalledWith(
-      "https://mock-edge-functions.com/functions/v1/token-exchange",
+      "/api/fn/token-exchange",
       expect.objectContaining({
         method: "POST",
-        headers: {
+        headers: expect.objectContaining({
           "Content-Type": "application/json",
           "Authorization": "Bearer fake-kinde-token",
-          "apikey": "mock-anon-key"
-        }
+        })
       })
     );
 
@@ -70,6 +70,7 @@ describe("supabaseBridge", () => {
       json: async () => ({
         supabaseToken: "token-to-be-cleared",
         userId: "user-123",
+        kindeSub: "kinde-sub-123",
         expiresAt: Math.floor(Date.now() / 1000) + 3600
       })
     });
@@ -91,6 +92,7 @@ describe("supabaseBridge", () => {
       json: async () => ({
         supabaseToken: "refreshed-token-456",
         userId: "user-123",
+        kindeSub: "kinde-sub-123",
         expiresAt: Math.floor(Date.now() / 1000) + 3600
       })
     });

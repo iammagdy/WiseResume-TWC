@@ -78,7 +78,7 @@ describe("ProtectedRoute — redirect param (D3)", () => {
 
   it("renders protected content when authenticated", () => {
     mockUseAuth.mockReturnValue(
-      makeAuth({ isAuthenticated: true, user: { id: "u1", email: "jane@example.com", name: "Jane" } })
+      makeAuth({ isAuthenticated: true, supabaseSettled: true, supabaseReady: true, user: { id: "u1", email: "jane@example.com", name: "Jane" } })
     );
 
     render(
@@ -97,7 +97,7 @@ describe("ProtectedRoute — redirect param (D3)", () => {
 
 describe("ProtectedRoute — session-expired event (D3)", () => {
   it("calls navigate with /auth?reason=session_expired when event fires", () => {
-    mockUseAuth.mockReturnValue(makeAuth({ isAuthenticated: true }));
+    mockUseAuth.mockReturnValue(makeAuth({ isAuthenticated: true, supabaseSettled: true, supabaseReady: true }));
     mockNavigate.mockClear();
 
     render(
@@ -118,8 +118,9 @@ describe("ProtectedRoute — session-expired event (D3)", () => {
     });
 
     // useNavigate is globally mocked — verify it was called with the right path
+    // ProtectedRoute navigates with mode=login&reason=session_expired
     expect(mockNavigate).toHaveBeenCalledWith(
-      "/auth?reason=session_expired",
+      "/auth?mode=login&reason=session_expired",
       { replace: true }
     );
   });

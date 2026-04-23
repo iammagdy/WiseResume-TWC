@@ -8,6 +8,10 @@ import { screen } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
 
 vi.mock("@/hooks/usePublicPortfolio", () => ({
+  usePortfolioGate: vi.fn(() => ({
+    data: { requiresPassword: false },
+    isLoading: false,
+  })),
   usePublicPortfolio: vi.fn(() => ({
     data: {
       profile: {

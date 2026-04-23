@@ -49,20 +49,34 @@ const FIXTURE_HTML = `<!DOCTYPE html>
 
 let browser: Browser;
 let page: Page;
+let chromeMissing = false;
 
 beforeAll(async () => {
-  browser = await puppeteer.launch({
-    headless: true,
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
-  });
-  page = await browser.newPage();
-  await page.setViewport({ width: 800, height: 1000, deviceScaleFactor: 1 });
-  await page.setContent(FIXTURE_HTML, { waitUntil: "load" });
-  await page.addScriptTag({ path: HTML2CANVAS_BUNDLE });
+  try {
+    browser = await puppeteer.launch({
+      headless: true,
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    });
+    page = await browser.newPage();
+    await page.setViewport({ width: 800, height: 1000, deviceScaleFactor: 1 });
+    await page.setContent(FIXTURE_HTML, { waitUntil: "load" });
+    await page.addScriptTag({ path: HTML2CANVAS_BUNDLE });
+  } catch (err) {
+    if (err instanceof Error && (err.message.includes('Could not find Chrome') || err.message.includes('chrome'))) {
+      chromeMissing = true;
+      return;
+    }
+    throw err;
+  }
 }, 30_000);
 
 afterAll(async () => {
-  await browser.close();
+  if (browser) await browser.close();
+});
+
+// Skip all tests when Chrome is not available (CI environments without puppeteer browsers)
+beforeEach(({ skip }) => {
+  if (chromeMissing) skip();
 });
 
 describe("Export capture — page-break overlay exclusion (headless browser)", () => {

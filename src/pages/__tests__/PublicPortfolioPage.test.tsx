@@ -16,6 +16,10 @@ vi.mock("@/hooks/usePublicPortfolio", () => ({
     isLoading: false,
     isError: false,
   }),
+  usePortfolioGate: () => ({
+    data: { requiresPassword: false },
+    isLoading: false,
+  }),
 }));
 
 const queryClient = new QueryClient({

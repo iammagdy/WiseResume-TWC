@@ -204,7 +204,7 @@ export function aiErrorToastMessage(info: AIErrorInfo): string {
     case 'quota_exceeded':
       return 'AI daily quota exceeded. Please try again tomorrow.';
     case 'not_configured':
-      return 'AI service is temporarily unavailable — please try again in a moment or contact support.';
+      return 'AI is not configured — please check your settings or contact support.';
     case 'enhancement_failed':
       return 'Failed to enhance content — please try again.';
     case 'provider_busy':
