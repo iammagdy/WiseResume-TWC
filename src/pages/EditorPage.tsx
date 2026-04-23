@@ -857,22 +857,31 @@ export default function EditorPage() {
           { id: 'education', label: 'Education' },
           { id: 'skills', label: 'Skills' },
         ];
-    // These sections are universally expected on CVs — always visible in the stepper.
-    base.push({ id: 'certifications', label: 'Certifications' });
-    base.push({ id: 'languages', label: 'Languages' });
-    base.push({ id: 'awards', label: 'Awards' });
-    base.push({ id: 'publications', label: 'Publications' });
-    base.push({ id: 'volunteering', label: 'Volunteering' });
-    // Projects, Hobbies, References always appear so the step count stays stable.
-    base.push({ id: 'projects', label: 'Projects' });
-    base.push({ id: 'hobbies', label: 'Hobbies' });
-    base.push({ id: 'references', label: 'References' });
+
+    // Optional sections — only appear in the sidebar when the user has added data
+    const OPTIONAL_SECTIONS: { id: string; label: string; hasData: (r: typeof currentResume) => boolean }[] = [
+      { id: 'certifications', label: 'Certifications', hasData: r => (r?.certifications?.length ?? 0) > 0 },
+      { id: 'languages',      label: 'Languages',      hasData: r => (r?.languages?.length ?? 0) > 0 },
+      { id: 'awards',         label: 'Awards',         hasData: r => (r?.awards?.length ?? 0) > 0 },
+      { id: 'publications',   label: 'Publications',   hasData: r => (r?.publications?.length ?? 0) > 0 },
+      { id: 'volunteering',   label: 'Volunteering',   hasData: r => (r?.volunteering?.length ?? 0) > 0 },
+      { id: 'projects',       label: 'Projects',       hasData: r => (r?.projects?.length ?? 0) > 0 },
+      { id: 'hobbies',        label: 'Hobbies',        hasData: r => (r?.hobbies?.length ?? 0) > 0 },
+      { id: 'references',     label: 'References',     hasData: r => (r?.references?.length ?? 0) > 0 },
+    ];
+
+    for (const sec of OPTIONAL_SECTIONS) {
+      if (sec.hasData(currentResume)) {
+        base.push({ id: sec.id, label: sec.label });
+      }
+    }
+
     base.push({ id: 'more', label: 'More' });
     return base;
-  }, [educationFirst]);
+  }, [educationFirst, currentResume]);
 
-  // All optional sections are now always in the stepper, so availableMoreCount is always 0.
-  // Keep the computation in case future sections are added conditionally.
+  // availableMoreCount = how many optional sections have not yet been added (no data yet).
+  // Used to show a badge/count on the "More" button in the sidebar.
   const availableMoreCount = useMemo(() => {
     const ALL_OPTIONAL_IDS = ['certifications', 'languages', 'awards', 'publications', 'volunteering', 'projects', 'hobbies', 'references'];
     const addedIds = new Set(steps.map(s => s.id));
