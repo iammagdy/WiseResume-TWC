@@ -152,6 +152,9 @@ function DevToolsInner() {
   const [loginError, setLoginError] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>('overview');
+  // Track whether the DevKit flow itself performed the Supabase sign-in so we
+  // can sign out on lock, keeping the session genuinely temporary.
+  const devKitSignedInRef = React.useRef(false);
 
   const [lockoutSecondsLeft, setLockoutSecondsLeft] = useState<number | null>(null);
   const lockoutIntervalRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
@@ -261,6 +264,7 @@ function DevToolsInner() {
         }
         const { data: freshSession } = await supabase.auth.getSession();
         sessionData = freshSession;
+        devKitSignedInRef.current = true;
       }
 
       // Step 2: Step the Supabase session up to AAL2 by completing an MFA
@@ -348,6 +352,12 @@ function DevToolsInner() {
   };
 
   const handleLock = () => {
+    // Sign out of the temporary Supabase session if DevKit created it, so
+    // the session does not persist beyond the DevKit flow.
+    if (devKitSignedInRef.current) {
+      devKitSignedInRef.current = false;
+      supabase.auth.signOut().catch(() => { /* best-effort */ });
+    }
     lock();
     setEmail('');
     setSupabasePw('');
