@@ -23,7 +23,7 @@ export const SectionCard = memo(function SectionCard({
   status,
   action,
   children,
-  isOpen = true,
+  isOpen = false,
   onToggle,
   isCollapsible = true,
 }: SectionCardProps) {
