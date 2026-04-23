@@ -429,8 +429,12 @@ export async function callAI(opts: AICallOptions): Promise<AIResponse> {
 }
 
 /**
- * One retry on failure with a *different* key in the same provider.
- * If no sibling key is available we just propagate the original error.
+ * Retry with up to three attempts across two providers:
+ *   1. Chosen key (random provider).
+ *   2. Sibling key in the same provider (if available).
+ *   3. Cross-provider fallback — picks any key from the OTHER provider.
+ * This handles the common case where all keys for one provider are
+ * temporarily rate-limited and we need to spill over to the other pool.
  * BYOK path does NOT retry — failure is surfaced immediately.
  */
 export async function callAIWithRetry(opts: AICallOptions): Promise<AIResponse> {
@@ -439,16 +443,43 @@ export async function callAIWithRetry(opts: AICallOptions): Promise<AIResponse> 
     if (byok) return callBYOK(opts, byok.provider, byok.key);
   }
   const picked = pickKey(opts);
+
+  // Attempt 1: chosen key
+  let lastErr: unknown;
   try {
     return await callOnce(picked, opts);
-  } catch (firstErr) {
-    if (picked.siblings.length === 0) throw firstErr;
+  } catch (err) {
+    lastErr = err;
+    console.warn(`[aiClient] attempt 1 failed on ${picked.provider}:${picked.index}`);
+  }
+
+  // Attempt 2: sibling key in same provider
+  if (picked.siblings.length > 0) {
     const retryEntry = pickRandom(picked.siblings);
     console.warn(
-      `[aiClient] retrying after ${picked.provider}:${picked.index} failed; using ${retryEntry.provider}:${retryEntry.index}`,
+      `[aiClient] attempt 2 — sibling ${retryEntry.provider}:${retryEntry.index}`,
     );
-    return await callOnce(retryEntry, opts);
+    try {
+      return await callOnce(retryEntry, opts);
+    } catch (err) {
+      lastErr = err;
+      console.warn(`[aiClient] attempt 2 failed on ${retryEntry.provider}:${retryEntry.index}`);
+    }
   }
+
+  // Attempt 3: cross-provider fallback
+  const otherProvider: Provider = picked.provider === 'openrouter' ? 'groq' : 'openrouter';
+  const allKeys = loadPool();
+  const crossPool = allKeys.filter(k => k.provider === otherProvider);
+  if (crossPool.length > 0) {
+    const crossEntry = pickRandom(crossPool);
+    console.warn(
+      `[aiClient] attempt 3 — cross-provider fallback to ${crossEntry.provider}:${crossEntry.index}`,
+    );
+    return await callOnce(crossEntry, opts);
+  }
+
+  throw lastErr;
 }
 
 /** Legacy alias kept for callers that still import `callWiseresumeAI`. */
