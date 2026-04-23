@@ -39,6 +39,7 @@ const VersionHistorySheet = lazyWithRetry(() => import('@/components/editor/Vers
 const ContentLibrarySheet = lazyWithRetry(() => import('@/components/editor/ContentLibrarySheet').then(m => ({ default: m.ContentLibrarySheet })));
 const CustomizeSheet = lazyWithRetry(() => import('@/components/editor/CustomizeSheet').then(m => ({ default: m.CustomizeSheet })));
 const ShareSheet = lazyWithRetry(() => import('@/components/editor/ShareSheet').then(m => ({ default: m.ShareSheet })));
+const ExportOptionsSheet = lazyWithRetry(() => import('@/components/editor/ExportOptionsSheet').then(m => ({ default: m.ExportOptionsSheet })));
 const LivePreviewPanel = lazyWithRetry(() => import('@/components/editor/LivePreviewPanel').then(m => ({ default: m.LivePreviewPanel })));
 const ATSParserPreview = lazyWithRetry(() => import('@/components/editor/ATSParserPreview'));
 import { useShallow } from 'zustand/react/shallow';
@@ -54,7 +55,9 @@ import { Target } from 'lucide-react';
 import { useEditorShortcuts } from '@/hooks/useEditorShortcuts';
 import { useUndoRedo } from '@/hooks/useUndoRedo';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { useExportProgress } from '@/hooks/useExportProgress';
 import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
+import type { ExportType } from '@/types/resume';
 import { getBackRoute } from '@/lib/navigation';
 import { UnsavedChangesDialog } from '@/components/editor/UnsavedChangesDialog';
 import { useBackButton } from '@/hooks/useBackButton';
@@ -225,6 +228,138 @@ export default function EditorPage() {
       setIsQuickDownloading(false);
     }
   }, [currentResume, selectedTemplate]);
+
+  const { exportProgress, onProgress, reset: resetExportProgress } = useExportProgress();
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExport = useCallback(async (type: ExportType, showPageNumbers: boolean, showBranding = true, customFileName?: string) => {
+    if (!currentResume) return;
+    setIsExporting(true);
+    resetExportProgress();
+    haptics.medium();
+
+    const MAX_RETRIES = 2;
+    let attempt = 0;
+
+    const tryExport = async (): Promise<void> => {
+      try {
+        const sanitized = customFileName ? customFileName.replace(/[/\\:*?"<>|]/g, '').trim().slice(0, 100) : '';
+        const baseName = (sanitized.length >= 3 ? sanitized : null) || currentResume.contactInfo?.fullName?.replace(/\s+/g, '_') || 'Resume';
+        const pdfOptions = { showPageNumbers, pageNumberFormat: 'full' as const, showBranding };
+        const { downloadFile } = await import('@/lib/downloadUtils');
+
+        if (type === 'docx') {
+          onProgress('preparing', 10); onProgress('finalizing', 50);
+          const { generateAndDownloadDOCX } = await import('@/lib/docxGenerator');
+          const success = await generateAndDownloadDOCX(currentResume);
+          onProgress('downloading', 100);
+          if (success) { toast.success('Word document downloaded!'); setShowExport(false); }
+          return;
+        }
+
+        if (type === 'json') {
+          const blob = new Blob([JSON.stringify(currentResume, null, 2)], { type: 'application/json' });
+          const result = await downloadFile({ blob, fileName: `${baseName}_Backup.json` });
+          if (result.success) toast.success('JSON backup downloaded!');
+          setShowExport(false); return;
+        }
+
+        if (type === 'plain-text') {
+          const { generatePlainText } = await import('@/lib/shareUtils');
+          const blob = new Blob([generatePlainText(currentResume)], { type: 'text/plain;charset=utf-8' });
+          const result = await downloadFile({ blob, fileName: `${baseName}_Resume.txt` });
+          if (result.success) toast.success('Plain text downloaded!');
+          setShowExport(false); return;
+        }
+
+        if (type === 'linkedin') {
+          const { generateLinkedInFormat } = await import('@/lib/shareUtils');
+          const sections = generateLinkedInFormat(currentResume);
+          const text = `=== ABOUT ===\n${sections.about}\n\n=== EXPERIENCE ===\n${sections.experience}\n\n=== EDUCATION ===\n${sections.education}\n\n=== SKILLS ===\n${sections.skills}`;
+          await navigator.clipboard.writeText(text);
+          toast.success('LinkedIn format copied to clipboard!');
+          setShowExport(false); return;
+        }
+
+        if (type === 'share-link') {
+          const { shareAsLink } = await import('@/lib/shareUtils');
+          if (currentResume.id) { await shareAsLink(currentResume.id); }
+          else { toast.error('Save your resume first to generate a share link'); }
+          setShowExport(false); return;
+        }
+
+        if (type === 'image') {
+          onProgress('preparing', 10);
+          const { captureWithRetry, convertSvgsToImages, tagSvgDimensions } = await import('@/lib/html2canvasRetry');
+          const el = document.querySelector('[data-resume-template]') as HTMLElement;
+          if (!el) { toast.error('Resume preview not visible. Open Live Preview and try again.'); return; }
+          onProgress('finalizing', 40);
+          const cleanupTags = tagSvgDimensions(el);
+          const scale = 3840 / el.offsetWidth;
+          const canvas = await captureWithRetry(el, { scale, backgroundColor: '#ffffff', onclone: (doc: Document) => convertSvgsToImages(doc) });
+          cleanupTags();
+          onProgress('downloading', 80);
+          const blob = await new Promise<Blob>((resolve, reject) => {
+            canvas.toBlob((b) => b ? resolve(b) : reject(new Error('Failed to create image blob')), 'image/png');
+          });
+          const result = await downloadFile({ blob, fileName: `${baseName}_Resume_4K.png` });
+          if (result.success) toast.success('4K image downloaded!');
+          onProgress('downloading', 100); setShowExport(false); return;
+        }
+
+        const { generatePDF, generateOnePagePDF, generateCoverLetterPDF, generateCombinedPDF } = await import('@/lib/pdfGenerator');
+        let pdfBlob: Blob; let fileName: string;
+
+        if (type === 'ats-pdf') {
+          const atsResume = { ...currentResume, customization: { ...(currentResume.customization || {}), accentColor: '#000000', layout: 'single' as const, fontHeading: 'Arial', fontBody: 'Arial', fontSize: 'medium' as const, spacing: 'normal' as const, margins: 'normal' as const, lineHeight: '1.15' as const, pageFormat: (currentResume.customization?.pageFormat || 'letter') as 'a4' | 'letter' }, contactInfo: { ...currentResume.contactInfo, photoUrl: undefined } };
+          pdfBlob = await generatePDF(atsResume, 'clean', null, undefined, { ...pdfOptions, showBranding: false }, onProgress);
+          fileName = `${baseName}_Resume_ATS.pdf`;
+        } else if (type === 'one-page') {
+          pdfBlob = await generateOnePagePDF(currentResume, selectedTemplate, null, pdfOptions, onProgress);
+          fileName = `${baseName}_Resume_OnePage.pdf`;
+        } else if (type === 'cover-letter') {
+          const { generatedCoverLetter } = useResumeStore.getState();
+          if (!generatedCoverLetter) { toast.error('Generate a cover letter first'); return; }
+          pdfBlob = await generateCoverLetterPDF(generatedCoverLetter, currentResume.contactInfo, pdfOptions);
+          fileName = `${baseName}_Cover_Letter.pdf`;
+        } else if (type === 'combined') {
+          const { generatedCoverLetter } = useResumeStore.getState();
+          if (!generatedCoverLetter) { toast.error('Generate a cover letter first'); return; }
+          pdfBlob = await generateCombinedPDF(currentResume, selectedTemplate, generatedCoverLetter, null, undefined, pdfOptions);
+          fileName = `${baseName}_Application_Package.pdf`;
+        } else {
+          pdfBlob = await generatePDF(currentResume, selectedTemplate, null, undefined, pdfOptions, onProgress);
+          fileName = `${baseName}_Resume.pdf`;
+        }
+
+        onProgress('downloading', 95);
+        const result = await downloadFile({ blob: pdfBlob, fileName });
+        if (result.cancelled) { toast.info('Download cancelled. Tap download again to save your PDF.'); return; }
+        if (result.success) {
+          const msgs: Record<string, string> = { 'resume': 'Resume downloaded!', 'cover-letter': 'Cover letter downloaded!', 'combined': 'Application package downloaded!', 'one-page': 'One-page resume downloaded!', 'ats-pdf': 'ATS-optimized PDF downloaded!' };
+          toast.success(msgs[type] || 'Downloaded!');
+          if (result.method === 'data-url' || result.method === 'open') toast.info('If the file did not save, use the share icon to "Save to Files"', { duration: 6000 });
+        }
+        onProgress('downloading', 100);
+        setShowExport(false);
+      } catch (error) {
+        attempt++;
+        const errMsg = error instanceof Error ? error.message : '';
+        const is401 = errMsg.includes('401') || errMsg.toLowerCase().includes('unauthorized') || errMsg.toLowerCase().includes('jwt expired');
+        if (is401) { toast.error('Session expired — please sign in again.'); return; }
+        if (attempt < MAX_RETRIES) {
+          toast.error('Export failed. Retrying...', { duration: 3000 });
+          await new Promise(r => setTimeout(r, 500));
+          return tryExport();
+        }
+        toast.error('Export failed. Please try again.');
+        haptics.error();
+      }
+    };
+
+    try { await tryExport(); }
+    finally { setIsExporting(false); setTimeout(() => resetExportProgress(), 600); }
+  }, [currentResume, selectedTemplate, onProgress, resetExportProgress]);
   const [mobileEditorTab, setMobileEditorTab] = useState<'editor' | 'preview' | 'ats'>('editor');
   const [desktopPreviewMode, setDesktopPreviewMode] = useState<'visual' | 'ats'>('visual');
   // Desktop scrollspy: track which section is currently visible
@@ -958,7 +1093,7 @@ export default function EditorPage() {
         onTogglePreview={() => setShowPreview(v => { const next = !v; localStorage.setItem('wr-live-preview', String(next)); return next; })}
         onOpenChat={() => setShowChat(true)}
         onTemplateBtnSeen={() => { if (!templateBtnSeen) { localStorage.setItem('template_btn_seen', 'true'); setTemplateBtnSeen(true); } setShowTemplates(true); }}
-        onDownload={handleQuickDownload}
+        onDownload={() => setShowExport(true)}
         isQuickDownloading={isQuickDownloading}
         onImportProfile={() => setShowProfileImport(true)}
       />
@@ -1439,6 +1574,18 @@ export default function EditorPage() {
               templateId={selectedTemplate}
               templateName={selectedTemplate}
               resumeRef={{ current: null } as React.RefObject<HTMLDivElement>}
+            />
+          )}
+          {showExport && currentResume && (
+            <ExportOptionsSheet
+              open={showExport}
+              onOpenChange={setShowExport}
+              hasCoverLetter={!!useResumeStore.getState().generatedCoverLetter}
+              onExport={handleExport}
+              isExporting={isExporting}
+              exportProgress={exportProgress}
+              resumeName={currentResume.contactInfo?.fullName || ''}
+              templateName={selectedTemplate}
             />
           )}
         </Suspense>

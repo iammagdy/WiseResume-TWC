@@ -365,15 +365,15 @@ export function EditorHeader({
               <span className="text-[9px] font-medium leading-none">Import</span>
             </button>
           )}
-          {/* Download shortcut */}
+          {/* Export shortcut */}
           <button
             onClick={() => { onDownload(); haptics.light(); }}
             disabled={isQuickDownloading}
             className="keyboard-hide relative rounded-full transition-all touch-manipulation min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95 hover:bg-muted text-muted-foreground disabled:opacity-50 disabled:cursor-not-allowed"
-            aria-label="Download resume as PDF"
+            aria-label="Export resume"
           >
             {isQuickDownloading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Download className="w-5 h-5" />}
-            <span className="text-[9px] font-medium leading-none">Download</span>
+            <span className="text-[9px] font-medium leading-none">Export</span>
           </button>
           <button
             onClick={onOpenChat}
