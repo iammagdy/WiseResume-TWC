@@ -258,10 +258,14 @@ export default defineConfig(() => ({
     exclude: ['docx', 'pdf-lib', 'pdfjs-dist'],
   },
   resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
-      'pdfjs-dist': 'pdfjs-dist/build/pdf.mjs',
-    },
+    alias: [
+      { find: '@', replacement: path.resolve(__dirname, './src') },
+      // Only rewrite the bare `pdfjs-dist` specifier to the ESM build entry.
+      // Using a regex with a `$` anchor prevents Vite from also rewriting
+      // subpath imports like `pdfjs-dist/build/pdf.worker.min.mjs?url`,
+      // which a plain string alias would mangle into a non-existent path.
+      { find: /^pdfjs-dist$/, replacement: 'pdfjs-dist/build/pdf.mjs' },
+    ],
   },
   test: {
     globals: true,
