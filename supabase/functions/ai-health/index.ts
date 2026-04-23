@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { callAI } from "../_shared/aiClient.ts";
+import { callAIWithRetry } from "../_shared/aiClient.ts";
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { requireAuth } from '../_shared/authMiddleware.ts';
 import { checkRateLimit } from '../_shared/rateLimiter.ts';
@@ -7,11 +7,12 @@ import { checkRateLimit } from '../_shared/rateLimiter.ts';
 /**
  * AI health probe.
  *
- * Sends a tiny chat completion through the new flat 6-key pool. Whichever
- * provider+key the random pick lands on is the one whose health we report.
+ * Sends a tiny chat completion through callAIWithRetry so the probe exercises
+ * the same key-rotation and cross-provider fallback that real requests use.
+ * The measured latency therefore reflects what users actually experience.
  * Returns:
- *   - healthy:  upstream responded OK in < 8s
- *   - degraded: upstream responded OK but slow, or replied 429/402
+ *   - healthy:  pool responded OK in < 15s (fast key found within retries)
+ *   - degraded: pool responded OK but slow, or replied 429/402
  *   - down:     anything else (timeout, network error, 5xx, 401, …)
  */
 serve(async (req) => {
@@ -42,12 +43,13 @@ serve(async (req) => {
     }
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10_000);
+    // Allow up to 25s so retries across providers can complete before aborting.
+    const timeoutId = setTimeout(() => controller.abort(), 25_000);
     let status: 'healthy' | 'degraded' | 'down' = 'down';
     let providerUsed = 'unknown';
     let errorCode: number | null = null;
     try {
-      const r = await callAI({
+      const r = await callAIWithRetry({
         messages: [{ role: 'user', content: 'ping' }],
         maxTokens: 1,
         temperature: 0,
@@ -55,7 +57,9 @@ serve(async (req) => {
       });
       providerUsed = r.providerUsed;
       const latency = Date.now() - startTime;
-      status = latency < 8000 ? 'healthy' : 'degraded';
+      // 15s threshold: even if the first key is slow and a retry is needed,
+      // finding a fast key within ~15s is still a healthy user experience.
+      status = latency < 15_000 ? 'healthy' : 'degraded';
     } catch (err) {
       const e = err as { status?: number; message?: string };
       errorCode = typeof e?.status === 'number' ? e.status : 0;
