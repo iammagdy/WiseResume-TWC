@@ -8,7 +8,7 @@ import { AIContextualNudge } from './AIContextualNudge';
 import { useResumeNudges } from '@/hooks/useResumeNudges';
 import { SectionEmptyState } from './SectionEmptyState';
 import { summaryExample } from '@/lib/emptyStateExamples';
-import { useSummaryAIBridge } from '@/store/summaryAIBridge';
+import { useSectionAITrigger } from '@/store/sectionAIBridge';
 
 export const SummarySection = memo(function SummarySection() {
   const summary = useResumeStore(state => state.currentResume?.summary);
@@ -24,7 +24,7 @@ export const SummarySection = memo(function SummarySection() {
   // summary). All summary AI entry points in this component delegate
   // through it so the user gets one preview dialog and one in-flight
   // request, no matter which trigger they used.
-  const triggerSummaryAI = useSummaryAIBridge(state => state.trigger);
+  const triggerSummaryAI = useSectionAITrigger('summary');
 
   const requestSummaryAI = (action: ActionType) => {
     if (triggerSummaryAI) {

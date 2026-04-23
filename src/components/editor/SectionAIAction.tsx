@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useAIApplyEffects } from '@/hooks/useAIApplyEffects';
 import type { Experience, Education, ContactInfo, ResumeData } from '@/types/resume';
 import { AIEnhanceDialog } from './ai/AIEnhanceDialog';
-import { useSummaryAIBridge } from '@/store/summaryAIBridge';
+import { useSectionAIBridge } from '@/store/sectionAIBridge';
 
 const SignInPromptDialog = lazy(() => import('@/components/auth/SignInPromptDialog').then(m => ({ default: m.SignInPromptDialog })));
 
@@ -240,24 +240,24 @@ export const SectionAIAction = memo(function SectionAIAction({ section }: Sectio
     setShowDialog(true);
   };
 
-  // Register the trigger in the shared bridge so other summary entry
-  // points (empty-state CTA, contextual nudge, intake auto-gen) flow
-  // through this single instance instead of mounting their own dialog.
-  // Keep a ref to the latest handler so we don't re-register on every
-  // render (which would recreate the trigger reference and cause
-  // consumers to thrash).
-  const setBridgeTrigger = useSummaryAIBridge(state => state.setTrigger);
+  // Register the trigger in the shared bridge so other entry points
+  // for this section (empty-state CTAs, contextual nudges, intake
+  // auto-gen) flow through this single instance instead of mounting
+  // their own dialog or — worse — writing the AI payload directly to
+  // the resume without a preview. Keep a ref to the latest handler so
+  // we don't re-register on every render (which would recreate the
+  // trigger reference and cause consumers to thrash).
+  const setBridgeTrigger = useSectionAIBridge(state => state.setTrigger);
   const handleActionRef = useRef(handleAction);
   handleActionRef.current = handleAction;
   useEffect(() => {
-    if (section !== 'summary') return;
     const trigger = (action: ActionType) => { void handleActionRef.current(action); };
-    setBridgeTrigger(trigger);
+    setBridgeTrigger(section, trigger);
     return () => {
       // Only clear if we're still the registered owner. (Defensive
       // against StrictMode double-invoke or a future second instance.)
-      const current = useSummaryAIBridge.getState().trigger;
-      if (current === trigger) setBridgeTrigger(null);
+      const current = useSectionAIBridge.getState().triggers[section];
+      if (current === trigger) setBridgeTrigger(section, null);
     };
   }, [section, setBridgeTrigger]);
 

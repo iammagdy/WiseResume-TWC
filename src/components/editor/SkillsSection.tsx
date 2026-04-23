@@ -5,13 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useResumeStore } from '@/store/resumeStore';
-import { useAIEnhance, ActionType } from '@/hooks/useAIEnhance';
-import { toast } from 'sonner';
-import { InlineAIButton } from './InlineAIButton';
+import type { ActionType } from '@/hooks/useAIEnhance';
 import { AIContextualNudge } from './AIContextualNudge';
 import { useResumeNudges } from '@/hooks/useResumeNudges';
 import { SectionEmptyState } from './SectionEmptyState';
 import { skillsExample } from '@/lib/emptyStateExamples';
+import { useSectionAITrigger } from '@/store/sectionAIBridge';
 
 const SKILL_SUGGESTIONS_BY_ROLE: Record<string, string[]> = {
   engineer: ['JavaScript', 'TypeScript', 'React', 'Node.js', 'Python', 'SQL', 'Git', 'REST APIs', 'CI/CD', 'Docker'],
@@ -68,17 +67,11 @@ export const SkillsSection = memo(function SkillsSection() {
   const updateResume = useResumeStore(state => state.updateResume);
   const currentResume = useResumeStore(state => state.currentResume);
   const [newSkill, setNewSkill] = useState('');
-  
-  const { enhance, isEnhancing } = useAIEnhance({
-    section: 'skills',
-    onApply: (content) => {
-      const updatedSkills = content as string[];
-      if (Array.isArray(updatedSkills)) {
-        updateResume({ skills: updatedSkills });
-        toast.success('Skills updated!');
-      }
-    },
-  });
+
+  // Route every Skills AI entry point (empty-state CTA, contextual
+  // nudge) through the shared bridge so the user sees the preview
+  // popup owned by `SectionAIAction` before any change is written.
+  const triggerSkillsAI = useSectionAITrigger('skills');
 
   const hasMissingSkills = gapAnalysis && gapAnalysis.missingSkills.length > 0;
   
@@ -128,25 +121,21 @@ export const SkillsSection = memo(function SkillsSection() {
     }
   };
 
-  const handleAIAction = async (actionId: string) => {
-    const result = await enhance(
-      actionId as ActionType,
-      skills,
-      currentResume
-    );
-    
-    if (result?.improved) {
-      const updatedSkills = result.improved as string[];
-      if (Array.isArray(updatedSkills)) {
-        updateResume({ skills: updatedSkills });
-        toast.success(`${result.changes?.join(', ') || 'Skills enhanced!'}`);
-      }
+  const requestSkillsAI = (action: ActionType): boolean => {
+    if (triggerSkillsAI) {
+      triggerSkillsAI(action);
+      return true;
     }
+    // If the bridge isn't registered yet (extremely unlikely — it
+    // mounts in the same SectionCard), do nothing rather than spawn
+    // a competing dialog or bypass the preview. Caller can decide
+    // whether to leave the prompt visible so the user can retry.
+    return false;
   };
 
   const handleNudgeAction = () => {
-    if (nudge) {
-      handleAIAction(nudge.action);
+    if (!nudge) return;
+    if (requestSkillsAI(nudge.action as ActionType)) {
       dismissNudge(nudge.trigger);
     }
   };
@@ -208,7 +197,7 @@ export const SkillsSection = memo(function SkillsSection() {
           }
           actions={[
             { label: 'Add Your Skills', variant: 'outline', icon: Plus, onClick: () => { /* focus handled by existing input */ } },
-            { label: 'AI Suggest Skills', variant: 'default', icon: Sparkles, onClick: () => handleAIAction('generate') },
+            { label: 'AI Suggest Skills', variant: 'default', icon: Sparkles, onClick: () => requestSkillsAI('generate') },
           ]}
         />
       )}

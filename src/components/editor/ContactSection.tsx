@@ -2,9 +2,6 @@ import { useState, memo } from 'react';
 import { InputFormField } from '@/components/ui/form-field';
 import { useResumeStore } from '@/store/resumeStore';
 import { User, Mail, Phone, MapPin, Linkedin, Globe, Github } from 'lucide-react';
-import { useAIEnhance, ActionType } from '@/hooks/useAIEnhance';
-import { toast } from 'sonner';
-import { InlineAIButton } from './InlineAIButton';
 import { z } from 'zod';
 import { SectionEmptyState } from './SectionEmptyState';
 import { contactExample } from '@/lib/emptyStateExamples';
@@ -40,11 +37,6 @@ export const ContactSection = memo(function ContactSection() {
   const currentResume = useResumeStore(state => state.currentResume);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [started, setStarted] = useState(false);
-
-  const { enhance, isEnhancing } = useAIEnhance({
-    section: 'contact',
-    onApply: () => {},
-  });
 
   const { getNudgeForSection, dismissNudge } = useResumeNudges({ resume: currentResume });
 
@@ -164,34 +156,6 @@ export const ContactSection = memo(function ContactSection() {
       return undefined;
     } catch {
       return 'Please enter a valid URL';
-    }
-  };
-
-  const handleAIAction = async (actionId: string) => {
-    const result = await enhance(
-      actionId as ActionType,
-      contactInfo,
-      currentResume
-    );
-    
-    if (result?.improved) {
-      const improved = result.improved as {
-        fullName?: string;
-        email?: string;
-        phone?: string;
-        location?: string;
-        linkedin?: string;
-        portfolio?: string;
-      };
-      if (improved.fullName) handleChange('fullName', improved.fullName);
-      if (improved.email) handleChange('email', improved.email);
-      if (improved.phone) handleChange('phone', improved.phone);
-      if (improved.location) handleChange('location', improved.location);
-      if (improved.linkedin) handleChange('linkedin', improved.linkedin);
-      if (improved.portfolio) handleChange('portfolio', improved.portfolio);
-      toast.success(result.changes?.join(', ') || 'Contact info improved!');
-    } else if (result?.suggestions) {
-      toast.info(`💡 ${result.suggestions.join(' • ')}`);
     }
   };
 

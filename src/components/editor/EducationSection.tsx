@@ -9,9 +9,9 @@ import { useResumeStore } from '@/store/resumeStore';
 import { useExpandedEntryRestore } from '@/hooks/useExpandedEntryRestore';
 import { Education } from '@/types/resume';
 import { v4 as uuidv4 } from 'uuid';
-import { useAIEnhance, ActionType } from '@/hooks/useAIEnhance';
-import { toast } from 'sonner';
+import type { ActionType } from '@/hooks/useAIEnhance';
 import { AIContextualNudge } from './AIContextualNudge';
+import { useSectionAITrigger } from '@/store/sectionAIBridge';
 import { useResumeNudges } from '@/hooks/useResumeNudges';
 import { SectionEmptyState } from './SectionEmptyState';
 import { educationExample } from '@/lib/emptyStateExamples';
@@ -31,10 +31,10 @@ export const EducationSection = memo(function EducationSection() {
   const [expandedId, setExpandedId] = useExpandedEntryRestore('education');
   const [showLinkedIn, setShowLinkedIn] = useState(false);
 
-  const { enhance, isEnhancing } = useAIEnhance({
-    section: 'education',
-    onApply: () => {},
-  });
+  // Route the Education contextual nudge through the shared bridge so
+  // accepting it opens the preview popup owned by `SectionAIAction`
+  // before any education entries are overwritten.
+  const triggerEducationAI = useSectionAITrigger('education');
 
   const { getNudgeForSection, dismissNudge } = useResumeNudges({
     resume: currentResume,
@@ -98,33 +98,19 @@ export const EducationSection = memo(function EducationSection() {
     updateResume({ education: reordered });
   };
 
-  const handleAIAction = async (actionId: string) => {
-    const result = await enhance(
-      actionId as ActionType,
-      education,
-      currentResume
-    );
-    
-    if (result?.improved) {
-      const improvedEducation = result.improved as Education[];
-      if (Array.isArray(improvedEducation) && improvedEducation.length > 0) {
-        updateResume({ education: improvedEducation });
-        toast.success(result.changes?.join(', ') || 'Education improved!');
-      }
-    } else if (result?.suggestions) {
-      toast.info(`💡 ${result.suggestions.join(' • ')}`);
-    }
-  };
-
   const handleNudgeAction = () => {
-    if (nudge) {
-      if (education.length === 0) {
-        addEducation();
-      } else {
-        handleAIAction(nudge.action);
-      }
-      dismissNudge(nudge.trigger);
+    if (!nudge) return;
+    // Always route through the preview popup — even when there are no
+    // education entries yet — so the AI's suggested entries are shown
+    // for review before being written to the resume.
+    if (!triggerEducationAI) {
+      // Bridge not yet registered (e.g. SectionAIAction still mounting).
+      // Leave the nudge visible so the user can retry instead of
+      // silently dropping the action.
+      return;
     }
+    triggerEducationAI(nudge.action as ActionType);
+    dismissNudge(nudge.trigger);
   };
 
   return (
