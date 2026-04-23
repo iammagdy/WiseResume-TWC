@@ -48,6 +48,10 @@ interface SmartFitWizardSheetProps {
   onOpenChange: (open: boolean) => void;
   /** Defaults to 1 so existing One-Page Wizard call sites keep working. */
   targetPages?: 1 | 2 | 3;
+  /** Backward-compat with the previous One-Page Wizard call sites: invoked
+   *  after a successful apply when the user targeted a single page so the
+   *  caller (e.g. PreviewPage) can trigger its export-to-PDF flow. */
+  onExportOnePage?: () => void;
 }
 
 type ViewState = 'intro' | 'analyzing' | 'results';
@@ -96,6 +100,7 @@ export function SmartFitWizardSheet({
   open,
   onOpenChange,
   targetPages: targetPagesProp,
+  onExportOnePage,
 }: SmartFitWizardSheetProps) {
   const { currentResume, currentResumeId, updateResume, selectedTemplate, jobDescription, setCurrentResume } = useResumeStore(
     useShallow(s => ({
@@ -397,6 +402,11 @@ export function SmartFitWizardSheet({
         },
       );
       onOpenChange(false);
+      // Backward-compat: PreviewPage passes onExportOnePage to chain its
+      // export-to-PDF flow after a successful single-page apply.
+      if (onExportOnePage && targetPages === 1 && finalPages <= 1) {
+        try { onExportOnePage(); } catch (e) { console.warn('[SmartFit] onExportOnePage failed', e); }
+      }
     } finally {
       setIsApplying(false);
     }

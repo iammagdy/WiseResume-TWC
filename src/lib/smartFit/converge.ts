@@ -254,17 +254,33 @@ export function verifyTokensPreserved(
   return missing.length === 0 ? { ok: true } : { ok: false, missing };
 }
 
+/** Serialize every text field that `extractProtectedTokens` reads from so
+ *  the verification scope matches the extraction scope exactly. Otherwise
+ *  fields like contactInfo.fullName would be reported as missing even
+ *  though they were never altered. */
 function serializeResumeForCheck(r: ResumeData): string {
   const parts: string[] = [];
+  if (r.contactInfo) {
+    for (const v of Object.values(r.contactInfo)) {
+      if (typeof v === 'string' && v) parts.push(v);
+    }
+  }
   if (r.summary) parts.push(r.summary);
   for (const e of r.experience ?? []) {
-    parts.push(e.position ?? '', e.company ?? '', e.description ?? '');
+    parts.push(e.position ?? '', e.company ?? '', e.account ?? '', e.description ?? '');
     for (const a of e.achievements ?? []) parts.push(a ?? '');
+    for (const r2 of e.responsibilities ?? []) parts.push(r2 ?? '');
   }
   for (const ed of r.education ?? []) {
-    parts.push(ed.degree ?? '', ed.field ?? '', ed.institution ?? '');
+    parts.push(ed.degree ?? '', ed.field ?? '', ed.institution ?? '', ed.description ?? '');
   }
-  for (const p of r.projects ?? []) parts.push(p.name ?? '', p.description ?? '');
-  for (const c of r.certifications ?? []) parts.push(c.name ?? '', c.issuer ?? '');
+  for (const p of r.projects ?? []) {
+    parts.push(p.name ?? '', p.description ?? '');
+    for (const t of p.technologies ?? []) parts.push(t ?? '');
+  }
+  for (const c of r.certifications ?? []) {
+    parts.push(c.name ?? '', c.issuer ?? '', c.credentialId ?? '');
+  }
+  for (const a of r.awards ?? []) parts.push(a.description ?? '');
   return parts.join(' ');
 }
