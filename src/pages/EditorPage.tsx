@@ -16,6 +16,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { StepperNav } from '@/components/editor/StepperNav';
 import { SectionSidebar } from '@/components/editor/SectionSidebar';
+import { LivePreviewPanel } from '@/components/editor/LivePreviewPanel';
 import { useResumeStore, useResumeStoreHydration } from '@/store/resumeStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useAuth } from '@/hooks/useAuth';
@@ -40,7 +41,6 @@ const ContentLibrarySheet = lazyWithRetry(() => import('@/components/editor/Cont
 const CustomizeSheet = lazyWithRetry(() => import('@/components/editor/CustomizeSheet').then(m => ({ default: m.CustomizeSheet })));
 const ShareSheet = lazyWithRetry(() => import('@/components/editor/ShareSheet').then(m => ({ default: m.ShareSheet })));
 const ExportOptionsSheet = lazyWithRetry(() => import('@/components/editor/ExportOptionsSheet').then(m => ({ default: m.ExportOptionsSheet })));
-const LivePreviewPanel = lazyWithRetry(() => import('@/components/editor/LivePreviewPanel').then(m => ({ default: m.LivePreviewPanel })));
 const ATSParserPreview = lazyWithRetry(() => import('@/components/editor/ATSParserPreview'));
 import { useShallow } from 'zustand/react/shallow';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
