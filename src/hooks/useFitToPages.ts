@@ -57,6 +57,11 @@ export function useFitToPages({ templateRef, resume, onScaleComputed }: UseFitTo
   const pageFormat = resume?.customization?.pageFormat ?? 'letter';
   const fontBody = resume?.customization?.fontBody;
   const fontHeading = resume?.customization?.fontHeading;
+  // headerAlign affects header wrap height in some templates (e.g. center
+  // alignment can stack contact info on multiple lines). Including it in
+  // the input key ensures auto-fit re-measures immediately after a
+  // toggle, instead of waiting for the next content edit.
+  const headerAlign = resume?.customization?.headerAlign;
   const currentScale = resume?.customization?.fontScale ?? 1;
 
   // Cheap content fingerprint — enough to detect "user added/removed stuff"
@@ -74,7 +79,7 @@ export function useFitToPages({ templateRef, resume, onScaleComputed }: UseFitTo
 
   useEffect(() => {
     if (!target) return;
-    const inputKey = `${target}|${pageFormat}|${contentKey}|${fontBody ?? ''}|${fontHeading ?? ''}`;
+    const inputKey = `${target}|${pageFormat}|${contentKey}|${fontBody ?? ''}|${fontHeading ?? ''}|${headerAlign ?? ''}`;
     if (lastInputKeyRef.current !== inputKey) {
       lastInputKeyRef.current = inputKey;
       iterRef.current = 0;
@@ -95,7 +100,7 @@ export function useFitToPages({ templateRef, resume, onScaleComputed }: UseFitTo
     return () => clearTimeout(t);
     // currentScale is intentionally in deps so we re-measure after the patch
     // applies — but iterRef caps the loop so we cannot oscillate forever.
-  }, [target, pageFormat, contentKey, fontBody, fontHeading, currentScale, templateRef]);
+  }, [target, pageFormat, contentKey, fontBody, fontHeading, headerAlign, currentScale, templateRef]);
 }
 
 interface RunArgs {
