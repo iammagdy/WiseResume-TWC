@@ -7,18 +7,11 @@ import { PAGE_FORMAT_PX, generateCustomizationCSS } from '@/lib/templateCustomiz
 // the same module they use for measure/export — single source of truth.
 export { PAGE_FORMAT_PX };
 import type { OnProgressCallback } from '@/hooks/useExportProgress';
-import {
-  walkTemplateDOM,
-  chunksForPage,
-  renderDOMTextLayerForPage,
-  TextLayerError,
-  type TextChunk,
-} from '@/lib/pdfTextLayer';
 import { injectForcedBreaks } from '@/lib/pdfUtils';
 
 /** Typed error class for programmatic handling of PDF generation failures. */
 export class PdfGenerationError extends Error {
-  code: 'EMPTY_CANVAS' | 'MISSING_ELEMENT' | 'CAPTURE_FAILED' | 'TRUNCATED_CANVAS' | 'TEXT_LAYER_FAILED' | 'ENTRY_TOO_TALL' | 'UNKNOWN';
+  code: 'EMPTY_CANVAS' | 'MISSING_ELEMENT' | 'CAPTURE_FAILED' | 'TRUNCATED_CANVAS' | 'ENTRY_TOO_TALL' | 'UNKNOWN';
   constructor(message: string, code: PdfGenerationError['code'] = 'UNKNOWN') {
     super(message);
     this.name = 'PdfGenerationError';
@@ -522,19 +515,6 @@ export async function generatePDFPages(
 ): Promise<void> {
   const numPages = smartBreaks.length + 1;
 
-  // Build the hidden text layer once from the rendered DOM so it stays in
-  // visual reading order and can be sliced by the same break offsets used
-  // for the visible image. Falls back to no text layer only if no DOM is
-  // available — failures during the actual draw are surfaced, not swallowed.
-  let textChunks: TextChunk[] = [];
-  let textFont: PDFFont | null = null;
-  if (sourceElement) {
-    textChunks = walkTemplateDOM(sourceElement);
-    if (textChunks.length > 0) {
-      textFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
-    }
-  }
-
   for (let pageNum = 0; pageNum < numPages; pageNum++) {
     const pageStart = pageNum === 0 ? 0 : smartBreaks[pageNum - 1];
     const pageEnd = pageNum === numPages - 1 ? totalHeight : smartBreaks[pageNum];
@@ -597,26 +577,6 @@ export async function generatePDFPages(
       height: segmentPdfHeight,
     });
 
-    // Add invisible text layer for ATS / Ctrl+F — sliced by the same
-    // smart-breaks used for the image so page N's hidden text matches
-    // page N's visible content. Failures here are surfaced (not swallowed)
-    // because an image-only PDF scores zero with ATS.
-    if (textFont && textChunks.length > 0) {
-      const pageChunks = chunksForPage(textChunks, pageNum, smartBreaks, totalHeight);
-      try {
-        renderDOMTextLayerForPage(
-          page, textFont, pageChunks, pageWidth, pageHeight,
-          pageStart, globalScaleFactor, FOOTER_RESERVED_PT,
-        );
-      } catch (e) {
-        const message = e instanceof TextLayerError ? e.message : String(e);
-        throw new PdfGenerationError(
-          `Hidden ATS text layer failed on page ${pageNum + 1} of ${numPages}: ${message}. ` +
-            `Aborting export — an image-only PDF would be invisible to applicant tracking systems.`,
-          'TEXT_LAYER_FAILED',
-        );
-      }
-    }
   }
 }
 
@@ -1048,22 +1008,6 @@ export async function generateOnePagePDF(
       width: finalWidth,
       height: finalHeight,
     });
-
-    // Add invisible text layer for ATS / Ctrl+F — DOM-driven, surfaces failures.
-    const textChunks = walkTemplateDOM(sourceElement);
-    if (textChunks.length > 0) {
-      try {
-        const textFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
-        renderDOMTextLayerForPage(page, textFont, textChunks, pageWidth, pageHeight);
-      } catch (e) {
-        const message = e instanceof TextLayerError ? e.message : String(e);
-        throw new PdfGenerationError(
-          `Hidden ATS text layer failed on one-page export: ${message}. ` +
-            `Aborting export — an image-only PDF would be invisible to applicant tracking systems.`,
-          'TEXT_LAYER_FAILED',
-        );
-      }
-    }
 
     const contentBottomY = pageHeight - finalHeight;
     if (contentBottomY > FOOTER_RESERVED_PT) {

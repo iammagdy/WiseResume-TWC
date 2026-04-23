@@ -2992,6 +2992,146 @@ app.get(
   },
 );
 
+// ── Native PDF export (Puppeteer) ─────────────────────────────────────────────
+// Renders a self-contained HTML document via Puppeteer and streams back a
+// text-selectable PDF. A simple semaphore keeps concurrent Chromium launches
+// bounded so we don't exhaust container memory on bursty traffic.
+
+let _puppeteerActiveCnt = 0;
+const _puppeteerQueue: Array<() => void> = [];
+const MAX_PUPPETEER_CONCURRENT = 2;
+
+function _createPuppeteerRelease(): () => void {
+  return () => {
+    _puppeteerActiveCnt--;
+    const next = _puppeteerQueue.shift();
+    if (next) next();
+  };
+}
+
+async function acquirePuppeteerSlot(): Promise<() => void> {
+  if (_puppeteerActiveCnt < MAX_PUPPETEER_CONCURRENT) {
+    _puppeteerActiveCnt++;
+    return _createPuppeteerRelease();
+  }
+  return new Promise<() => void>((resolve) => {
+    _puppeteerQueue.push(() => {
+      _puppeteerActiveCnt++;
+      resolve(_createPuppeteerRelease());
+    });
+  });
+}
+
+function _buildPuppeteerFooter(showPageNumbers: boolean, showBranding: boolean): string {
+  const pageNum = showPageNumbers
+    ? `<span style="font-family:Arial,Helvetica,sans-serif;font-size:8px;color:#888;">Page <span class="pageNumber"></span> of <span class="totalPages"></span></span>`
+    : '';
+  const branding = showBranding
+    ? `<span style="font-family:Arial,Helvetica,sans-serif;font-size:7px;color:#aaa;">\u2756 Created with WiseResume \u00b7 part of The Wise Cloud</span>`
+    : '';
+  const sep = showPageNumbers && showBranding
+    ? `<span style="color:#ccc;margin:0 8px;">|</span>`
+    : '';
+  return `<div style="width:100%;display:flex;align-items:center;justify-content:center;padding:0 20px;box-sizing:border-box;">${pageNum}${sep}${branding}</div>`;
+}
+
+app.post('/api/export/pdf-native', requireAuthHeader, async (req: AuthedRequest, res: Response) => {
+  const {
+    html,
+    pageFormat = 'letter',
+    onePage = false,
+    fitScale = 1,
+    showPageNumbers = true,
+    showBranding = true,
+  } = req.body as {
+    html?: unknown;
+    pageFormat?: unknown;
+    onePage?: unknown;
+    fitScale?: unknown;
+    showPageNumbers?: unknown;
+    showBranding?: unknown;
+  };
+
+  if (typeof html !== 'string' || html.length < 10 || html.length > 12_000_000) {
+    res.status(400).json({ error: 'Invalid HTML payload' });
+    return;
+  }
+
+  const isA4 = pageFormat === 'a4';
+  const safeOnePage = onePage === true;
+  const safeFitScale = typeof fitScale === 'number' && isFinite(fitScale)
+    ? Math.max(0.05, Math.min(fitScale, 2))
+    : 1;
+  const safeShowPageNumbers = showPageNumbers !== false;
+  const safeShowBranding = showBranding !== false;
+
+  // Resume content is designed at 612px (Letter) / 595px (A4) — matching the
+  // PDF point dimensions. Chromium's print mode uses 96dpi, so to fill a
+  // physical Letter/A4 page we zoom the content by (viewportPx / resumePx).
+  const resumeWidthPx = isA4 ? 595 : 612;
+  const viewportWidthPx = isA4 ? 794 : 816; // = physical page width in inches × 96dpi
+  const pageZoom = viewportWidthPx / resumeWidthPx; // ≈ 1.3333
+  const totalZoom = safeOnePage ? pageZoom * safeFitScale : pageZoom;
+
+  const needsFooter = !safeOnePage && (safeShowPageNumbers || safeShowBranding);
+  const footerHeightPx = needsFooter ? 36 : 0;
+  const footerHtml = needsFooter
+    ? _buildPuppeteerFooter(safeShowPageNumbers, safeShowBranding)
+    : '<span></span>';
+
+  // Inject zoom + print-colour accuracy before any other styles so templates
+  // cannot accidentally override the zoom.
+  const zoomSnippet = `<style>html{zoom:${totalZoom};-webkit-print-color-adjust:exact;print-color-adjust:exact;}</style>`;
+  const injectedHtml = html.replace(/<head>/i, `<head>${zoomSnippet}`);
+
+  const release = await acquirePuppeteerSlot();
+  let browser: import('puppeteer').Browser | null = null;
+  try {
+    const { default: puppeteer } = await import('puppeteer');
+    browser = await puppeteer.launch({
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--font-render-hinting=none',
+      ],
+    });
+
+    const page = await browser.newPage();
+    await page.setViewport({ width: viewportWidthPx, height: isA4 ? 1123 : 1056 });
+    await page.setContent(injectedHtml, { waitUntil: 'networkidle0', timeout: 30_000 });
+
+    const pdfBuffer = await page.pdf({
+      format: isA4 ? 'A4' : 'Letter',
+      printBackground: true,
+      margin: {
+        top: '0',
+        right: '0',
+        bottom: footerHeightPx ? `${footerHeightPx}px` : '0',
+        left: '0',
+      },
+      displayHeaderFooter: needsFooter,
+      headerTemplate: '<span></span>',
+      footerTemplate: footerHtml,
+      pageRanges: safeOnePage ? '1' : undefined,
+    });
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename="resume.pdf"');
+    res.send(Buffer.from(pdfBuffer));
+  } catch (err) {
+    console.error('[export/pdf-native] Puppeteer error:', err);
+    res.status(500).json({ error: 'PDF rendering failed. Please try again.' });
+  } finally {
+    if (browser) {
+      try { await browser.close(); } catch { /* ignore */ }
+    }
+    release();
+  }
+});
+
 // ── Sentry error handler ──────────────────────────────────────────────────────
 // Must be registered AFTER all routes and BEFORE any other error middleware so
 // Sentry sees every unhandled Express error with full request context.

@@ -206,7 +206,7 @@ export default function PreviewPage() {
 
     const tryExport = async (): Promise<void> => {
       try {
-        const { generatePDF, generateCoverLetterPDF, generateCombinedPDF, generateOnePagePDF } = await import('@/lib/pdfGenerator');
+        const { generatePDF, generateCoverLetterPDF } = await import('@/lib/pdfGenerator');
         const sanitized = customFileName
           ? customFileName.replace(/[/\\:*?"<>|]/g, '').trim().slice(0, 100)
           : '';
@@ -296,6 +296,7 @@ export default function PreviewPage() {
           return;
         }
 
+        const pageFormat = (currentResume.customization?.pageFormat ?? 'letter') as 'letter' | 'a4';
         let pdfBlob: Blob;
         let fileName: string;
 
@@ -304,17 +305,6 @@ export default function PreviewPage() {
             if (!generatedCoverLetter) {toast.error('Generate a cover letter first');return;}
             pdfBlob = await generateCoverLetterPDF(generatedCoverLetter, currentResume.contactInfo, pdfOptions);
             fileName = `${baseName}_Cover_Letter.pdf`;
-            break;
-
-          case 'combined':
-            if (!generatedCoverLetter) {toast.error('Generate a cover letter first');return;}
-            pdfBlob = await generateCombinedPDF(currentResume, selectedTemplate, generatedCoverLetter, resumeRef.current, undefined, pdfOptions);
-            fileName = `${baseName}_Application_Package.pdf`;
-            break;
-
-          case 'one-page':
-            pdfBlob = await generateOnePagePDF(currentResume, selectedTemplate, resumeRef.current, pdfOptions, onProgress);
-            fileName = `${baseName}_Resume_OnePage.pdf`;
             break;
 
           case 'ats-pdf':{
@@ -339,11 +329,39 @@ export default function PreviewPage() {
               break;
             }
 
+          case 'combined': {
+            if (!generatedCoverLetter) {toast.error('Generate a cover letter first');return;}
+            const { generateNativePDF: nativePdf, mergePDFBlobs } = await import('@/lib/nativePdfGenerator');
+            const templateEl = resumeRef.current ?? (document.querySelector('[data-resume-template]') as HTMLElement | null);
+            if (!templateEl) { toast.error('Resume preview not visible'); return; }
+            onProgress('capturing', 20);
+            const coverBlob = await generateCoverLetterPDF(generatedCoverLetter, currentResume.contactInfo, { showPageNumbers: false });
+            onProgress('capturing', 40);
+            const resumeBlob = await nativePdf(templateEl, { pageFormat, showPageNumbers: false, showBranding: false, onProgress });
+            onProgress('finalizing', 90);
+            pdfBlob = await mergePDFBlobs(coverBlob, resumeBlob);
+            fileName = `${baseName}_Application_Package.pdf`;
+            break;
+          }
+
+          case 'one-page': {
+            const { generateNativePDF: nativePdf } = await import('@/lib/nativePdfGenerator');
+            const templateEl = resumeRef.current ?? (document.querySelector('[data-resume-template]') as HTMLElement | null);
+            if (!templateEl) { toast.error('Resume preview not visible'); return; }
+            pdfBlob = await nativePdf(templateEl, { pageFormat, onePage: true, showPageNumbers, showBranding, onProgress });
+            fileName = `${baseName}_Resume_OnePage.pdf`;
+            break;
+          }
+
           case 'resume':
-          default:
-            pdfBlob = await generatePDF(currentResume, selectedTemplate, resumeRef.current, undefined, pdfOptions, onProgress);
+          default: {
+            const { generateNativePDF: nativePdf } = await import('@/lib/nativePdfGenerator');
+            const templateEl = resumeRef.current ?? (document.querySelector('[data-resume-template]') as HTMLElement | null);
+            if (!templateEl) { toast.error('Resume preview not visible'); return; }
+            pdfBlob = await nativePdf(templateEl, { pageFormat, showPageNumbers, showBranding, onProgress });
             fileName = `${baseName}_Resume.pdf`;
             break;
+          }
         }
 
         onProgress('downloading', 95);
