@@ -193,11 +193,16 @@ export function generateCustomizationCSS(c: TemplateCustomization | undefined): 
   `;
 }
 
-/** Min/max range for the auto-fit / fontScale knob. Below MIN, line height
- *  collapses below 1.0 which makes ascenders touch the line above; above MAX
- *  the panel is offering "make my resume bigger", which we don't expose. */
+/** Floor for the compact-scale CSS variable. Below this, line-height
+ *  collapses below 1.0 and ascenders touch the line above — unreadable. */
 export const COMPACT_SCALE_MIN = 0.6;
-export const COMPACT_SCALE_MAX = 1.0;
+/** Ceiling for the compact-scale CSS variable. Matches the manual Font Size
+ *  slider's upper bound (115%) so values up the slider end produce real CSS
+ *  output instead of being silently clamped to 1.0. */
+export const COMPACT_SCALE_MAX = 1.15;
+/** Auto-fit (useFitToPages) clamps its computed scale to this narrower
+ *  range — auto-fit shrinks but never grows, so the upper bound is 1.0. */
+export const AUTO_FIT_SCALE_MAX = 1.0;
 
 /** Tailwind spacing scale, in rem (1 unit = 0.25rem). Only the keys actually
  *  used by the templates are listed — see the grep that produced this list. */
@@ -225,6 +230,20 @@ const LEADING_KEYWORDS: Record<string, number> = {
   // unrelated UI. Templates don't use leading-normal directly.
   relaxed: 1.625,
   loose: 2,
+};
+
+/** Tailwind numeric line-height tokens, in rem (1 unit = 0.25rem).
+ *  Templates use leading-3..leading-10 alongside keyword leadings, and
+ *  missing these makes auto-fit under-shrink on those templates. */
+const LEADING_NUMERIC_REM: Record<string, number> = {
+  '3': 0.75,
+  '4': 1,
+  '5': 1.25,
+  '6': 1.5,
+  '7': 1.75,
+  '8': 2,
+  '9': 2.25,
+  '10': 2.5,
 };
 
 /** Build the CSS block that scales font size, line height, and spacing
@@ -260,9 +279,18 @@ function buildCompactScaleBlock(scale: number): string {
   // leading-* keyword classes — overriding line-height so each line of text
   // occupies less vertical space at smaller scale. Without this, shrinking
   // the font barely changes page count because line-height stays anchored.
-  const leadingRules = Object.entries(LEADING_KEYWORDS)
+  const leadingKeywordRules = Object.entries(LEADING_KEYWORDS)
     .map(([k, lh]) => `[data-resume-template] .leading-${k} { line-height: calc(${lh} * var(--compact-scale)) !important; }`)
     .join('\n    ');
+
+  // leading-N numeric tokens (e.g. leading-6 = 1.5rem). These are absolute
+  // rem values, not unitless multipliers, so they're scaled in rem like the
+  // spacing utilities.
+  const leadingNumericRules = Object.entries(LEADING_NUMERIC_REM)
+    .map(([n, rem]) => `[data-resume-template] .leading-${n} { line-height: calc(${rem}rem * var(--compact-scale)) !important; }`)
+    .join('\n    ');
+
+  const leadingRules = `${leadingKeywordRules}\n    ${leadingNumericRules}`;
 
   // Spacing utility classes used by the templates. Each rule recomputes the
   // class's natural rem value times --compact-scale. We intentionally only

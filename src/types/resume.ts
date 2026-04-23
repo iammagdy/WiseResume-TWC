@@ -140,6 +140,11 @@ export interface TemplateCustomization {
    *  the minimum scale isn't enough). When set, the manual Font Size slider in
    *  the panel is read-only. Undefined disables auto-fit. */
   targetPageCount?: 1 | 2 | 3;
+  /** Snapshot of the user's manual fontScale at the moment auto-fit was
+   *  enabled. Used to restore the prior manual value when auto-fit is
+   *  switched Off. Stored on customization (rather than in component state)
+   *  so the snapshot survives panel remounts and resume reloads. */
+  manualFontScale?: number;
 }
 
 export interface ParseMeta {

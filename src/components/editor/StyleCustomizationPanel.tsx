@@ -131,15 +131,40 @@ export function StyleCustomizationPanel({ open, onOpenChange }: StyleCustomizati
                 type="single"
                 value={c.targetPageCount ? String(c.targetPageCount) : 'off'}
                 onValueChange={v => {
-                  if (!v) return;
+                  if (!v || !currentResume) return;
+                  // Both transitions must be a SINGLE atomic updateResume
+                  // call. Calling clearKeys then patch sequentially reads
+                  // stale state in the second call and can reintroduce the
+                  // key we just deleted.
+                  const base = (currentResume.customization ?? {}) as TemplateCustomization;
                   if (v === 'off') {
-                    // Clear the target AND restore fontScale to 1 so the
-                    // user isn't left with a small auto-computed scale that
-                    // looks "stuck" on the manual slider after toggling off.
-                    clearKeys(['targetPageCount']);
-                    patch({ fontScale: 1 });
+                    // Restore the manual fontScale snapshot taken at the
+                    // moment auto-fit was first enabled. If no snapshot
+                    // exists (auto-fit never engaged), drop fontScale so
+                    // the resume returns to its natural rendering rather
+                    // than being pinned to the auto-computed value.
+                    const next: TemplateCustomization = { ...base };
+                    delete (next as Record<string, unknown>).targetPageCount;
+                    if (typeof base.manualFontScale === 'number') {
+                      next.fontScale = base.manualFontScale;
+                    } else {
+                      delete (next as Record<string, unknown>).fontScale;
+                    }
+                    delete (next as Record<string, unknown>).manualFontScale;
+                    updateResume({ customization: next });
                   } else {
-                    patch({ targetPageCount: Number(v) as 1 | 2 | 3 });
+                    // Snapshot the current manual fontScale on the first
+                    // transition into auto mode so we can restore it when
+                    // the user toggles Off. Don't overwrite an existing
+                    // snapshot (e.g. when switching between 1/2/3).
+                    const next: TemplateCustomization = {
+                      ...base,
+                      targetPageCount: Number(v) as 1 | 2 | 3,
+                    };
+                    if (base.manualFontScale === undefined && !base.targetPageCount) {
+                      next.manualFontScale = base.fontScale;
+                    }
+                    updateResume({ customization: next });
                   }
                 }}
                 className="justify-start"

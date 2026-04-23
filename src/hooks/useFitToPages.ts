@@ -10,7 +10,7 @@ import {
 import {
   PAGE_FORMAT_PX,
   COMPACT_SCALE_MIN,
-  COMPACT_SCALE_MAX,
+  AUTO_FIT_SCALE_MAX,
 } from '@/lib/templateCustomization';
 
 const SCALE_DELTA_THRESHOLD = 0.005;
@@ -128,7 +128,9 @@ function runMeasurement({ el, target, pageFormat, currentScale, cb, bumpIter }: 
   // --compact-scale. Not perfectly true (text re-wraps at smaller sizes), so
   // we let the effect re-fire with the new currentScale to refine.
   const desired = currentScale * (target * printable) / totalHeight;
-  const clamped = Math.max(COMPACT_SCALE_MIN, Math.min(COMPACT_SCALE_MAX, desired));
+  // Auto-fit clamps to [MIN, AUTO_FIT_MAX]. AUTO_FIT_MAX = 1.0 because
+  // auto-fit is meant to shrink — never grow — the resume.
+  const clamped = Math.max(COMPACT_SCALE_MIN, Math.min(AUTO_FIT_SCALE_MAX, desired));
 
   bumpIter();
 
