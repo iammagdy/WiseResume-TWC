@@ -365,6 +365,7 @@ Instructions:
 - Every claim MUST trace back to the experience data above. Do NOT fabricate.`;
 
     case 'ats_improve':
+    case 'ats_optimize':
       return `Optimize this summary for ATS scoring while grounding EVERY claim in the user's actual work experience below.
 
 CURRENT SUMMARY:
@@ -375,16 +376,78 @@ ${experienceContext}
 
 ACTUAL SKILLS: ${skillsList || 'N/A'}
 
+OUTPUT FORMAT — NON-NEGOTIABLE:
+- Output is a flowing PARAGRAPH of 3-5 sentences. Not bullet points. Not a list.
+- Plain prose only — no bullet symbols (•, ●, ■, -, *), no line breaks between sentences, no Markdown.
+- Do NOT use the XYZ bullet formula. Do NOT use banned-opener / action-verb-first bullet structure. Sentences read like a human-written summary, not a resume bullet list.
+
+METRIC RULES — NON-NEGOTIABLE:
+- NEVER write bracket placeholders like [X%], [Y%], [N], [~$X], [project], [team size], or any other [ ... ] token. They are forbidden in this output.
+- Only include a number if it is a REAL number that already appears in the user's actual experience above. If a real number does not exist, OMIT the metric entirely — do not insert a placeholder, do not invent a number, do not approximate.
+
 ATS RULES:
-- Mention at least ${Math.min(5, skillsList.split(', ').filter(Boolean).length)} skills by EXACT name from the skills list.
-- Start sentences with strong action verbs.
-- Include at least 2 quantified achievements pulled from the experience entries.
-- Keep between 3-5 sentences.
+- Mention at least ${Math.min(5, skillsList.split(', ').filter(Boolean).length)} skills by EXACT name from the skills list (verbatim — "JavaScript" not "JS"). Weave them in naturally; no keyword stuffing.
+- Start with a strong positioning statement that names the user's most recent or most relevant job title.
+- Reference real company names or account names from the experience when they add credibility.
 - Every claim MUST trace back to the experience data above. Do NOT fabricate metrics, companies, or roles.`;
 
     default:
       return null;
   }
+}
+
+/**
+ * Post-process a summary string returned by the model.
+ *
+ * The summary section is a flowing paragraph, but the model — even with
+ * explicit prompt rules — will occasionally regress and emit (a) literal
+ * bracket placeholders like `[X%]` / `[~$X]` / `[N]` that the user has to
+ * delete by hand, or (b) bullet-symbol layouts that turn the paragraph
+ * into a stub list. This sanitizer is a deterministic safety net so a
+ * single misbehaving response cannot poison the user's resume.
+ *
+ * - Strips literal placeholder tokens (`[X%]`, `[Y%]`, `[N]`, `[~$X]`,
+ *   `[$X]`, `[project]`, `[team size]`, etc.) along with adjacent
+ *   filler words ("by", "with", "of", "to") so the sentence still reads
+ *   naturally after removal.
+ * - Strips leading bullet symbols at the start of any line.
+ * - Collapses multi-line / single-line-per-sentence layouts back into a
+ *   single-paragraph string.
+ * - Squeezes runs of whitespace and tidies orphan punctuation/spacing.
+ */
+function sanitizeSummaryString(input: string): string {
+  if (typeof input !== 'string') return input;
+  let s = input;
+
+  // 1. Strip leading bullet symbols on every line.
+  s = s.replace(/^[\s]*[•●■◦▪▫\-*]+[\s]+/gm, '');
+
+  // 2. Remove placeholder tokens together with the small connector word
+  //    that introduced them ("by [X%]", "with [N] reports", "of [~$X]M").
+  //    Also gobble immediate suffix markers commonly attached to
+  //    placeholders ("[N]+", "[~$X]M", "[X]%", "[N]x") and the next
+  //    short unit word ("engineers", "users", "reports", "revenue") so
+  //    we don't leave dangling fragments like "engineers" or "M revenue".
+  const PLACEHOLDER = /\[[^\]\n]*\][+%KMBkmbxX]*/.source;
+  s = s.replace(
+    new RegExp(`\\s*\\b(?:by|with|of|to|over|across|for|in|than)\\s+${PLACEHOLDER}(?:\\s+[A-Za-z][A-Za-z-]*)?`, 'gi'),
+    '',
+  );
+  // 3. Remove any remaining bracketed placeholders standalone (still
+  //    consuming attached suffix markers).
+  s = s.replace(new RegExp(`\\s*${PLACEHOLDER}`, 'g'), '');
+
+  // 4. Collapse line breaks into spaces — paragraph, not list.
+  s = s.replace(/\s*\r?\n+\s*/g, ' ');
+
+  // 5. Tidy orphan punctuation that the placeholder removal can leave
+  //    behind (e.g. "delivered , managing" → "delivered, managing";
+  //    "by ." → ".").
+  s = s.replace(/\s+([,.;:!?])/g, '$1');
+  s = s.replace(/([,.;:])\1+/g, '$1');
+  s = s.replace(/\s{2,}/g, ' ');
+
+  return s.trim();
 }
 
 function buildExperienceRoleContext(currentContent: unknown): string {
@@ -536,7 +599,7 @@ ABSOLUTE RULES:
 - NEVER remove, rename, or rephrase existing content in ways that change its meaning
 - NEVER reformat dates — preserve the exact format given
 - Only ADD and IMPROVE — never subtract`,
-    ats_optimize: `${roleContext}Optimize this resume section to MAXIMIZE the ATS score using the same 6-pillar scoring framework that drives the ATS Score meter:
+    ats_optimize: summaryOverride && action === 'ats_optimize' ? summaryOverride : `${roleContext}Optimize this resume section to MAXIMIZE the ATS score using the same 6-pillar scoring framework that drives the ATS Score meter:
 
 1. KEYWORD OPTIMIZATION (35% weight): Echo EXACT skill names from the resume's skills list verbatim in the experience/summary text. The scorer uses exact string matching — "JavaScript" must appear as "JavaScript", not "JS" or "scripting". Natural placement only — no keyword stuffing.
 2. CONTENT QUALITY (25% weight): Every bullet in "achievements" MUST: (a) start with one of these approved action verbs: ${ACTION_VERBS.join(', ')}, AND (b) contain at least one quantified metric or bracket placeholder like [X%] or [~$X].
@@ -627,8 +690,11 @@ Suggest 5-10 relevant technologies. Consider the project context carefully and o
 
   // Inject the universal ATS compliance preamble into every content-producing action.
   // Skipped for utility actions where bullet rules don't apply.
+  // ALSO skipped for the summary section, whose output is a flowing paragraph —
+  // the bullet/XYZ rules in the preamble actively conflict with the
+  // paragraph-only instructions in `getSummaryActionPrompt`.
   const PREAMBLE_SKIP_ACTIONS = new Set(['fix_error', 'custom', 'suggest_technologies']);
-  const actionPreamble = PREAMBLE_SKIP_ACTIONS.has(action) ? '' : ATS_BULLET_PREAMBLE;
+  const actionPreamble = (PREAMBLE_SKIP_ACTIONS.has(action) || section === 'summary') ? '' : ATS_BULLET_PREAMBLE;
 
   return baseContext + '\n\nTask: ' + actionPreamble + (actionPrompts[action] || actionPrompts.improve) + `
 
@@ -951,6 +1017,17 @@ serve(async (req) => {
           };
         }
       }
+    }
+
+    // Summary safety net: deterministically scrub bracket placeholders and
+    // bullet-symbol layouts from the model's string output so a single
+    // misbehaving response cannot poison the user's resume. Prompt rules
+    // forbid these tokens already; this is belt-and-braces.
+    if (section === 'summary' && typeof finalContent.improved === 'string') {
+      finalContent = {
+        ...finalContent,
+        improved: sanitizeSummaryString(finalContent.improved as string),
+      };
     }
 
     console.log('Enhancement complete:', JSON.stringify(finalContent).slice(0, 200));

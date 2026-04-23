@@ -5,7 +5,6 @@ import { FileText, Sparkles, ChevronDown } from 'lucide-react';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { AIEnhanceDialog } from './ai/AIEnhanceDialog';
 import { useAIEnhance, ActionType } from '@/hooks/useAIEnhance';
-import { InlineAIButton } from './InlineAIButton';
 import { AIContextualNudge } from './AIContextualNudge';
 import { useResumeNudges } from '@/hooks/useResumeNudges';
 import { SectionEmptyState } from './SectionEmptyState';
