@@ -47,7 +47,7 @@ const templateComponentMap: Record<string, ReturnType<typeof lazy>> = {
 // Lazy-loaded sheets
 const ExportOptionsSheet = lazy(() => import('@/components/editor/ExportOptionsSheet').then((m) => ({ default: m.ExportOptionsSheet })));
 const ResumePhotoSheet = lazy(() => import('@/components/editor/ResumePhotoSheet').then((m) => ({ default: m.ResumePhotoSheet })));
-const OnePageWizardSheet = lazy(() => import('@/components/editor/ai/OnePageWizardSheet').then((m) => ({ default: m.OnePageWizardSheet })));
+const OnePageWizardSheet = lazy(() => import('@/components/editor/ai/SmartFitWizardSheet').then((m) => ({ default: m.SmartFitWizardSheet })));
 const ShareSheet = lazy(() => import('@/components/editor/ShareSheet').then((m) => ({ default: m.ShareSheet })));
 import { PdfGenerationError } from '@/lib/pdfUtils';
 import { getTemplateConfig } from '@/lib/templateConfig';

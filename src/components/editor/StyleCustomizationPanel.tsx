@@ -1,5 +1,9 @@
-import { useCallback } from 'react';
-import { AlignLeft, AlignCenter, AlignRight, RotateCcw } from 'lucide-react';
+import { lazy, Suspense, useCallback, useState } from 'react';
+import { AlignLeft, AlignCenter, AlignRight, RotateCcw, Wand2 } from 'lucide-react';
+
+const SmartFitWizardSheet = lazy(() =>
+  import('@/components/editor/ai/SmartFitWizardSheet').then(m => ({ default: m.SmartFitWizardSheet })),
+);
 import {
   Sheet,
   SheetContent,
@@ -40,6 +44,7 @@ interface StyleCustomizationPanelProps {
 }
 
 export function StyleCustomizationPanel({ open, onOpenChange }: StyleCustomizationPanelProps) {
+  const [smartFitOpen, setSmartFitOpen] = useState(false);
   const currentResume = useResumeStore(s => s.currentResume);
   const updateResume = useResumeStore(s => s.updateResume);
 
@@ -85,6 +90,7 @@ export function StyleCustomizationPanel({ open, onOpenChange }: StyleCustomizati
   const isEnabled = c.enabled !== false;
 
   return (
+    <>
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
         <SheetHeader>
@@ -179,6 +185,24 @@ export function StyleCustomizationPanel({ open, onOpenChange }: StyleCustomizati
                   Resume is too long to fit on {c.targetPageCount} page{c.targetPageCount === 1 ? '' : 's'} at the minimum readable scale. Consider trimming content or raising the target.
                 </p>
               )}
+              {/* Smart Fit launcher — opens the AI-assisted wizard with the
+                  currently-selected target so the user can review per-edit
+                  cards (rewrite / drop / collapse) before applying. */}
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full mt-2 gap-2"
+                onClick={() => {
+                  // Close the style panel first so we don't stack two
+                  // overlapping Sheets (focus-trap + double-overlay on
+                  // mobile). The wizard owns the screen until dismissed.
+                  onOpenChange(false);
+                  setSmartFitOpen(true);
+                }}
+              >
+                <Wand2 className="w-3.5 h-3.5" />
+                Open Smart Fit ({c.targetPageCount ?? 1} {(c.targetPageCount ?? 1) === 1 ? 'page' : 'pages'})
+              </Button>
             </AccordionContent>
           </AccordionItem>
 
@@ -420,5 +444,15 @@ export function StyleCustomizationPanel({ open, onOpenChange }: StyleCustomizati
         </div>
       </SheetContent>
     </Sheet>
+    {smartFitOpen && (
+      <Suspense fallback={null}>
+        <SmartFitWizardSheet
+          open={smartFitOpen}
+          onOpenChange={setSmartFitOpen}
+          targetPages={(c.targetPageCount ?? 1) as 1 | 2 | 3}
+        />
+      </Suspense>
+    )}
+    </>
   );
 }

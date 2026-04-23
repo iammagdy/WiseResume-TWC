@@ -63,7 +63,7 @@ const JobAnalysisSheet = lazy(() => import('@/components/editor/JobAnalysisSheet
 const RecruiterSimSheet = lazy(() => import('@/components/editor/ai/RecruiterSimSheet').then((m) => ({ default: m.RecruiterSimSheet })));
 const AIDetectorSheet = lazy(() => import('@/components/editor/ai/AIDetectorSheet').then((m) => ({ default: m.AIDetectorSheet })));
 const LinkedInOptimizerSheet = lazy(() => import('@/components/editor/ai/LinkedInOptimizerSheet').then((m) => ({ default: m.LinkedInOptimizerSheet })));
-const OnePageWizardSheet = lazy(() => import('@/components/editor/ai/OnePageWizardSheet').then((m) => ({ default: m.OnePageWizardSheet })));
+const OnePageWizardSheet = lazy(() => import('@/components/editor/ai/SmartFitWizardSheet').then((m) => ({ default: m.SmartFitWizardSheet })));
 const AgenticChatSheet = lazy(() => import('@/components/editor/AgenticChatSheet').then((m) => ({ default: m.AgenticChatSheet })));
 const CareerPathSheet = lazy(() => import('@/components/editor/CareerPathSheet').then((m) => ({ default: m.CareerPathSheet })));
 const AIEnhanceSheet = lazy(() => import('@/components/editor/ai/AIEnhanceSheet').then((m) => ({ default: m.AIEnhanceSheet })));

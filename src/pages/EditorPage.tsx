@@ -33,7 +33,8 @@ const TailorSheet = lazyWithRetry(() => import('@/components/editor/TailorSheet'
 const RecruiterSimSheet = lazyWithRetry(() => import('@/components/editor/ai/RecruiterSimSheet').then(m => ({ default: m.RecruiterSimSheet })));
 const AIDetectorSheet = lazyWithRetry(() => import('@/components/editor/ai/AIDetectorSheet').then(m => ({ default: m.AIDetectorSheet })));
 const LinkedInOptimizerSheet = lazyWithRetry(() => import('@/components/editor/ai/LinkedInOptimizerSheet').then(m => ({ default: m.LinkedInOptimizerSheet })));
-const OnePageWizardSheet = lazyWithRetry(() => import('@/components/editor/ai/OnePageWizardSheet').then(m => ({ default: m.OnePageWizardSheet })));
+// Smart Fit (default targetPages=1) replaces the old One-Page Wizard at this entry point.
+const OnePageWizardSheet = lazyWithRetry(() => import('@/components/editor/ai/SmartFitWizardSheet').then(m => ({ default: m.SmartFitWizardSheet })));
 const AgenticChatSheet = lazyWithRetry(() => import('@/components/editor/AgenticChatSheet').then(m => ({ default: m.AgenticChatSheet })));
 const CareerPathSheet = lazyWithRetry(() => import('@/components/editor/CareerPathSheet').then(m => ({ default: m.CareerPathSheet })));
 const VersionHistorySheet = lazyWithRetry(() => import('@/components/editor/VersionHistorySheet').then(m => ({ default: m.VersionHistorySheet })));
