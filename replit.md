@@ -27,6 +27,53 @@ WiseResume is an AI-powered web app for comprehensive career management. (The Pr
 - **PDF capture / print-safe.css**: `print-safe.css` was deleted in TPL-3 because every rule was gated on a `[data-pdf-force-layout]` attribute that nothing in the codebase ever set, and the file was not imported anywhere. None of the 30 templates use `backdrop-filter` or `position: sticky` inside the captured tree, so no rule from the file was needed. If a future template introduces those properties, set `data-pdf-force-layout` on the source element inside `prepareForCapture` (and remove it in the cleanup callback) and re-introduce the targeted overrides — do not bring back the dead file as-is.
 - **Template photo elements**: `<img>` tags inside `[data-resume-template]` (currently `CreativeTemplate` and `DesignerTemplate`) MUST set `crossOrigin="anonymous"` and MUST NOT use `loading="lazy"`. Lazy loading is not triggered by `html2canvas` and a missing `crossOrigin` taints the export canvas, breaking `toDataURL`. The Supabase Storage public bucket serving `photoUrl` must respond with `Access-Control-Allow-Origin: *` for the matching `crossOrigin` mode.
 
+### Production Database Guardrails
+
+This section is an additive operator note. Do NOT rewrite or remove existing architecture notes unless explicitly asked. Treat the rules below as a higher-priority clarification for current production behavior.
+
+**Current production source of truth**
+- The canonical production database for user-facing WiseResume data is the Supabase project `jnsfmkzgxsviuthaqlyy`.
+- For production reads and writes involving user data, treat Supabase as the source of truth for:
+  - `profiles`
+  - `resumes`
+  - `subscriptions`
+  - `ai_credits`
+  - `user_preferences`
+  - other dashboard/user-facing tables already populated in Supabase
+- Do NOT switch dashboard or authenticated user endpoints back to local Replit Postgres or a fallback Neon/local Postgres path unless the user explicitly asks for a full database migration.
+
+**Do not break production by "aligning" to local Postgres**
+- If local Postgres / Replit Postgres / Neon appears available but does not contain the real production rows, it must NOT be treated as the active source of truth for dashboard data.
+- Do NOT "fix" endpoints by repointing them from Supabase to local Postgres just because `replit.md` mentions Neon/Drizzle in older architecture notes.
+- If there is any conflict between older architecture text and the live production data location, prefer the live production data location above.
+
+**Mandatory behavior for agents**
+- Before changing any database access path, first determine where the real production data currently lives.
+- If user-facing data already lives in Supabase, preserve Supabase-backed reads/writes.
+- Do NOT introduce split-brain behavior where reads go to Supabase but writes go to local Postgres, or vice versa.
+- Any change affecting auth-linked profile creation, resume creation/update, subscriptions, credits, or dashboard hydration must keep read/write paths consistent.
+
+**Protected endpoints / flows**
+- Do NOT repoint these production read paths away from Supabase unless explicitly instructed by the user:
+  - `/api/data/me`
+  - `/api/data/resumes`
+  - `/api/data/profile`
+  - `/api/data/activity-rows`
+  - `/api/data/job-activity-rows`
+  - `/api/data/portfolios/me`
+  - `/api/data/resumes/:id`
+  - `/api/data/resumes/exists/:id`
+  - any other authenticated `/api/data/*` route serving dashboard hydration
+
+**Before making any DB-related change, the agent MUST:**
+1. Read this section first.
+2. Confirm whether the affected table already has live production rows in Supabase. If yes, all reads AND writes for that table go through Supabase (REST via service-role key on the server, or `supabase-js` on the client) — never local Postgres.
+3. If the change touches a write path, check the matching read path (and vice versa) in the same edit so they cannot drift apart.
+4. If unsure where the data lives, ASK the user before changing access paths. Do not guess and do not "harmonize" to whichever DB looks most convenient.
+
+**Portability note (importing into another Replit account)**
+- These rules apply regardless of which Replit account hosts the workspace. The Supabase project ID above is the production source of truth and must be re-bound via the same secrets (`SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWT_SECRET`) on import. Local Postgres in the new account will be empty and must NOT be treated as authoritative.
+
 ### System Architecture
 
 **Tech Stack:**
