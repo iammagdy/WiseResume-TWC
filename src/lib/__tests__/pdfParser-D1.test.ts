@@ -46,8 +46,6 @@ vi.mock("@/lib/supabaseAuth", () => ({
 
 vi.mock("@/lib/aiProvider", () => ({
   trackGeminiUsage: vi.fn(),
-  handleAIError: vi.fn().mockRejectedValue(new Error("AI failed")),
-  checkAIFallback: vi.fn(),
 }));
 
 import { parseResumeText, extractDateRange } from "@/lib/pdf/sectionParsers";

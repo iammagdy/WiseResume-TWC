@@ -13,7 +13,6 @@ import { extractTextWithOCR, OCRProgressCallback, estimateOCRTime } from './pdf/
 import { parseResumeText } from './pdf/sectionParsers';
 import { preprocessResumeText, extractContactHints } from './pdf/textPreprocessor';
 
-import { handleAIError } from './aiProvider';
 import { apiFnUrl } from '@/lib/apiFnUrl';
 
 export { PDFParseError, estimateOCRTime };
@@ -90,7 +89,15 @@ export async function parseTextWithAI(text: string): Promise<ResumeData> {
     }
 
     if (!response.ok) {
-      await handleAIError(response, 'AI parsing failed');
+      const errData = await response.json().catch(() => ({} as { error?: string; message?: string }));
+      const msg = errData?.error || errData?.message || 'AI parsing failed';
+      if (response.status === 429 || msg.toLowerCase().includes('rate limit')) {
+        throw new Error('Rate limit reached. Please try again in a moment.');
+      }
+      if (response.status === 402 || msg.toLowerCase().includes('credits')) {
+        throw new Error('AI credits exhausted for today.');
+      }
+      throw new Error(msg);
     }
 
     const data = await response.json();
