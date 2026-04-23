@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { apiFetch } from '@/lib/apiFetch';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { getToken, getUserId } from '@/lib/supabaseBridge';
 import { useAuth } from './useAuth';
@@ -213,12 +213,8 @@ export function useMe() {
   return useQuery({
     queryKey: ['me', user?.id],
     queryFn: async (): Promise<MeData> => {
-      const { data, error } = await edgeFunctions.functions.invoke('me', { body: {} });
-      if (error) {
-        console.error('[useMe] edge function error:', error);
-        throw new Error(error.message ?? 'Failed to fetch user data');
-      }
-      return data as MeData;
+      const data = await apiFetch<MeData>('/api/data/me');
+      return data;
     },
     enabled: !!user && isAuthenticated,
     staleTime: 30 * 1000,

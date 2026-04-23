@@ -1500,6 +1500,120 @@ app.get('/api/data/job-activity-rows', requireAuthHeader, async (req: AuthedRequ
   }
 });
 
+// ── /api/data/me ───────────────────────────────────────────────────────────────
+// Replaces the `me` Supabase edge function. Queries profiles, user_preferences,
+// subscriptions, and ai_credits from Supabase using the service-role key
+// (bypasses RLS) and returns the same MeData shape the client expects.
+app.get('/api/data/me', requireAuthHeader, async (req: AuthedRequest, res) => {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+    return res.status(503).json({ error: 'Supabase not configured' });
+  }
+  try {
+    const userId = req.verifiedUserId!;
+
+    // Extract kinde_sub from the raw Bearer token claims (already signature-verified by requireAuthHeader).
+    let kindeSub: string | null = null;
+    try {
+      const raw = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+      const b64 = raw.split('.')[1]?.replace(/-/g, '+').replace(/_/g, '/') || '';
+      const padded = b64.padEnd(b64.length + (4 - (b64.length % 4)) % 4, '=');
+      const claims = JSON.parse(Buffer.from(padded, 'base64').toString('utf8'));
+      kindeSub = typeof claims.kinde_sub === 'string' ? claims.kinde_sub : null;
+    } catch { /* kinde_sub is optional */ }
+
+    const sbHeaders = {
+      apikey: SUPABASE_SERVICE_ROLE_KEY,
+      Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+      'Content-Type': 'application/json',
+    };
+
+    const [profileRes, prefsRes, subsRes, creditsRes] = await Promise.all([
+      fetch(`${SUPABASE_URL}/rest/v1/profiles?user_id=eq.${encodeURIComponent(userId)}&select=*&limit=1`, { headers: sbHeaders }),
+      fetch(`${SUPABASE_URL}/rest/v1/user_preferences?user_id=eq.${encodeURIComponent(userId)}&select=*&limit=1`, { headers: sbHeaders }),
+      fetch(`${SUPABASE_URL}/rest/v1/subscriptions?user_id=eq.${encodeURIComponent(userId)}&select=plan_name,status,plan_updated_at,trial_plan,trial_expires_at&limit=1`, { headers: sbHeaders }),
+      fetch(`${SUPABASE_URL}/rest/v1/ai_credits?user_id=eq.${encodeURIComponent(userId)}&select=daily_usage,daily_limit,usage_date,total_usage,updated_at&limit=1`, { headers: sbHeaders }),
+    ]);
+
+    if (!profileRes.ok || !prefsRes.ok || !subsRes.ok || !creditsRes.ok) {
+      const statuses = [profileRes.status, prefsRes.status, subsRes.status, creditsRes.status];
+      console.error('[data-api] /api/data/me Supabase fetch failed, statuses:', statuses);
+      return res.status(502).json({ error: 'Failed to fetch user data from Supabase' });
+    }
+
+    const profileArr = await profileRes.json() as Record<string, unknown>[];
+    const prefsArr = await prefsRes.json() as Record<string, unknown>[];
+    const subsArr = await subsRes.json() as Record<string, unknown>[];
+    const creditsArr = await creditsRes.json() as Record<string, unknown>[];
+
+    const profile = profileArr[0] ?? null;
+    const prefs = prefsArr[0] ?? null;
+    const sub = subsArr[0] ?? null;
+    const rawCredits = creditsArr[0] ?? null;
+
+    // Suspension check
+    if (profile && profile.is_suspended) {
+      return res.status(403).json({
+        suspended: true,
+        reason: profile.suspension_reason ?? null,
+        message: 'Your account has been suspended. Please contact support.',
+      });
+    }
+
+    // Compute effective plan: active trial takes precedence over plan_name
+    let effectivePlan: string = (sub && typeof sub.plan_name === 'string') ? sub.plan_name : 'free';
+    if (sub && sub.trial_plan && sub.trial_expires_at) {
+      const expiresAt = new Date(sub.trial_expires_at as string);
+      if (expiresAt > new Date()) {
+        effectivePlan = sub.trial_plan as string;
+      }
+    }
+
+    const subscriptionPayload = sub ? { ...sub, effective_plan: effectivePlan } : null;
+
+    // Plan daily limits (mirrors supabase/functions/_shared/creditLimits.json)
+    const PLAN_DAILY_LIMITS: Record<string, number> = { free: 5, pro: 100, premium: -1 };
+    function planDailyLimit(plan: string): number {
+      return PLAN_DAILY_LIMITS[plan] ?? PLAN_DAILY_LIMITS.free;
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+    let aiCreditsPayload: Record<string, unknown> | null = null;
+    if (rawCredits) {
+      const rawLimit = typeof rawCredits.daily_limit === 'number' ? rawCredits.daily_limit : planDailyLimit(effectivePlan);
+      if (effectivePlan === 'premium') {
+        aiCreditsPayload = { ...rawCredits, daily_limit: planDailyLimit('premium') };
+      } else if (effectivePlan === 'pro') {
+        const planDefault = planDailyLimit('pro');
+        const effectiveLimit = rawLimit > planDefault ? rawLimit : planDefault;
+        aiCreditsPayload = { ...rawCredits, daily_limit: effectiveLimit };
+      } else {
+        aiCreditsPayload = rawCredits as Record<string, unknown>;
+      }
+    } else {
+      aiCreditsPayload = {
+        daily_usage: 0,
+        daily_limit: planDailyLimit(effectivePlan),
+        usage_date: today,
+        total_usage: 0,
+        updated_at: new Date().toISOString(),
+      };
+    }
+
+    res.json({
+      userId,
+      kinde_sub: kindeSub,
+      profile,
+      preferences: prefs,
+      subscription: subscriptionPayload,
+      ai_credits: aiCreditsPayload,
+      byok_enabled: prefs && typeof prefs.byok_enabled !== 'undefined' ? prefs.byok_enabled : false,
+      byok_provider: prefs && typeof prefs.byok_provider !== 'undefined' ? prefs.byok_provider : null,
+    });
+  } catch (err) {
+    return dataErr(res, err);
+  }
+});
+
 // ── /api/data/resumes ──────────────────────────────────────────────────────────
 // Limited-purpose insert used by useGuestMigration and DashboardPage's
 // "create resume from LinkedIn" path. The client passes the rich resume
@@ -1541,14 +1655,28 @@ app.get('/api/data/resumes/exists/:id', requireAuthHeader, async (req: AuthedReq
 });
 
 app.delete('/api/data/resumes/:id', requireAuthHeader, async (req: AuthedRequest, res) => {
-  if (!sql) return res.status(503).json({ error: 'Database not configured' });
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+    return res.status(503).json({ error: 'Supabase not configured' });
+  }
   try {
     const id = req.params.id;
     if (!/^[0-9a-f-]{36}$/i.test(id)) return res.status(400).json({ error: 'Invalid resume id' });
     const userId = req.verifiedUserId!;
-    await sql`
-      DELETE FROM resumes WHERE id = ${id} AND user_id = ${userId}
-    `;
+    const url = `${SUPABASE_URL}/rest/v1/resumes?id=eq.${encodeURIComponent(id)}&user_id=eq.${encodeURIComponent(userId)}`;
+    const r = await fetch(url, {
+      method: 'DELETE',
+      headers: {
+        apikey: SUPABASE_SERVICE_ROLE_KEY,
+        Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+        'Content-Type': 'application/json',
+        Prefer: 'return=minimal',
+      },
+    });
+    if (!r.ok) {
+      const body = await r.text().catch(() => '');
+      console.error(`[data-api] Supabase DELETE /resumes/:id returned ${r.status}: ${body}`);
+      return res.status(502).json({ error: 'Failed to delete resume' });
+    }
     res.status(204).end();
   } catch (err) {
     return dataErr(res, err);
@@ -1556,16 +1684,31 @@ app.delete('/api/data/resumes/:id', requireAuthHeader, async (req: AuthedRequest
 });
 
 app.delete('/api/data/resumes', requireAuthHeader, async (req: AuthedRequest, res) => {
-  if (!sql) return res.status(503).json({ error: 'Database not configured' });
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+    return res.status(503).json({ error: 'Supabase not configured' });
+  }
   try {
     const { ids } = (req.body ?? {}) as { ids?: unknown };
     if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: 'ids array required' });
     const validIds = (ids as unknown[]).filter((id): id is string => typeof id === 'string' && /^[0-9a-f-]{36}$/i.test(id));
     if (validIds.length === 0) return res.status(400).json({ error: 'No valid ids provided' });
     const userId = req.verifiedUserId!;
-    await sql`
-      DELETE FROM resumes WHERE id = ANY(${validIds}::uuid[]) AND user_id = ${userId}
-    `;
+    const inList = validIds.map(id => encodeURIComponent(id)).join(',');
+    const url = `${SUPABASE_URL}/rest/v1/resumes?id=in.(${inList})&user_id=eq.${encodeURIComponent(userId)}`;
+    const r = await fetch(url, {
+      method: 'DELETE',
+      headers: {
+        apikey: SUPABASE_SERVICE_ROLE_KEY,
+        Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+        'Content-Type': 'application/json',
+        Prefer: 'return=minimal',
+      },
+    });
+    if (!r.ok) {
+      const body = await r.text().catch(() => '');
+      console.error(`[data-api] Supabase DELETE /resumes (bulk) returned ${r.status}: ${body}`);
+      return res.status(502).json({ error: 'Failed to delete resumes' });
+    }
     res.status(204).end();
   } catch (err) {
     return dataErr(res, err);
