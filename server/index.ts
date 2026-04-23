@@ -3105,10 +3105,32 @@ async function acquirePuppeteerSlot(): Promise<() => void> {
 }
 
 // Persistent browser singleton — launched once and reused across all requests.
-// On crash (disconnected event) the reference is cleared and a fresh instance
-// is launched on the next request.
+// On crash (disconnected event or keep-alive failure) the reference is cleared
+// and a fresh instance is launched on the next request.
 let _sharedBrowser: import('puppeteer').Browser | null = null;
 let _browserLaunching: Promise<import('puppeteer').Browser> | null = null;
+let _keepAliveInterval: ReturnType<typeof setInterval> | null = null;
+
+/** Starts a periodic keep-alive ping that proactively detects a dead browser. */
+function _startKeepAlive(browser: import('puppeteer').Browser): void {
+  if (_keepAliveInterval) clearInterval(_keepAliveInterval);
+  _keepAliveInterval = setInterval(async () => {
+    if (_sharedBrowser !== browser) {
+      // A different instance is now active — stop pinging the old one.
+      clearInterval(_keepAliveInterval!);
+      _keepAliveInterval = null;
+      return;
+    }
+    try {
+      await browser.pages();
+    } catch {
+      console.warn('[puppeteer] keep-alive ping failed — marking browser as dead');
+      if (_sharedBrowser === browser) _sharedBrowser = null;
+      clearInterval(_keepAliveInterval!);
+      _keepAliveInterval = null;
+    }
+  }, 30_000); // ping every 30 seconds
+}
 
 async function getSharedBrowser(): Promise<import('puppeteer').Browser> {
   if (_sharedBrowser) {
@@ -3143,8 +3165,9 @@ async function getSharedBrowser(): Promise<import('puppeteer').Browser> {
       _browserLaunching = null;
       browser.on('disconnected', () => {
         console.warn('[puppeteer] browser disconnected — will relaunch on next request');
-        _sharedBrowser = null;
+        if (_sharedBrowser === browser) _sharedBrowser = null;
       });
+      _startKeepAlive(browser);
       console.log('[puppeteer] shared browser launched');
       return browser;
     })

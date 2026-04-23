@@ -138,7 +138,8 @@ export async function generateNativePDF(
   // resulting PDF is maximally machine-readable (black text, white bg, Arial).
   const atsCssBlock = atsMode ? `
 <style>
-/* ATS-clean overrides — force plain black-on-white, Arial, no decoration */
+/* ATS-clean overrides — force plain black-on-white, Arial, single-column.
+   Applied after all template CSS so !important wins universally. */
 * {
   color: #000 !important;
   background: #fff !important;
@@ -148,9 +149,25 @@ export async function generateNativePDF(
   box-shadow: none !important;
   text-shadow: none !important;
   font-family: Arial, Helvetica, sans-serif !important;
+  column-count: 1 !important;
+  column-gap: 0 !important;
+  float: none !important;
 }
+/* Collapse flex/grid containers to vertical block flow so two-column
+   template layouts linearise into a single-column reading order. */
+div, section, aside, main, header, footer, article, nav {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+/* Restore inline behaviour for text-level elements so words don't stack. */
+span, a, strong, em, b, i, u, s, code, mark, sub, sup, small, abbr,
+cite, q, time, label, output {
+  display: inline !important;
+  width: auto !important;
+}
+/* Hide profile photos and any decorative images. */
 img { display: none !important; }
-[class*="gradient"] { background: #fff !important; }
 </style>` : '';
 
   const html = `<!DOCTYPE html>
@@ -203,11 +220,24 @@ ${clone.outerHTML}
   return blob;
 }
 
+/** Escapes a plain string for safe insertion as HTML text content. */
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;');
+}
+
 /**
  * Generates a cover letter PDF via Puppeteer by building a clean HTML document
  * from the cover letter text and sending it to the server for rendering.
- * Produces a visually consistent, text-selectable PDF that matches the resume
- * style when used in a combined (Application Package) export.
+ * Produces a visually consistent, text-selectable PDF whose sans-serif styling
+ * complements the Puppeteer-rendered resume.
+ *
+ * All user-supplied values are HTML-escaped before insertion to prevent
+ * script/markup injection into the headless browser context.
  */
 export async function generateCoverLetterNativePDF(
   coverLetter: string,
@@ -234,13 +264,17 @@ export async function generateCoverLetterNativePDF(
     day: 'numeric',
   });
 
-  const contactParts = [contactInfo.email, contactInfo.phone, contactInfo.location].filter(Boolean);
+  const contactParts = [contactInfo.email, contactInfo.phone, contactInfo.location]
+    .filter(Boolean)
+    .map(s => escapeHtml(s as string));
 
-  // Convert plain-text newlines to HTML paragraphs (double newline = paragraph break).
+  // Escape then convert plain-text newlines to HTML paragraphs.
   const paragraphs = coverLetter
     .split(/\n\n+/)
-    .map((p) => `<p>${p.replace(/\n/g, '<br>')}</p>`)
+    .map((p) => `<p>${escapeHtml(p).replace(/\n/g, '<br>')}</p>`)
     .join('');
+
+  const safeName = contactInfo.fullName ? escapeHtml(contactInfo.fullName) : '';
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -252,10 +286,10 @@ export async function generateCoverLetterNativePDF(
     margin: 0;
     padding: 0;
     background: #fff;
-    font-family: Georgia, 'Times New Roman', serif;
+    font-family: Arial, Helvetica, sans-serif;
     font-size: 11pt;
     line-height: 1.6;
-    color: #000;
+    color: #111;
   }
   .page {
     max-width: 612px;
@@ -266,20 +300,21 @@ export async function generateCoverLetterNativePDF(
     font-size: 18pt;
     font-weight: bold;
     margin: 0 0 4px 0;
-    font-family: Georgia, 'Times New Roman', serif;
+    letter-spacing: -0.3px;
   }
   .contact {
     font-size: 10pt;
-    color: #444;
+    color: #555;
     margin: 0 0 6px 0;
   }
   .divider {
     border: none;
-    border-top: 1px solid #ccc;
-    margin: 12px 0 18px 0;
+    border-top: 1px solid #d0d0d0;
+    margin: 12px 0 20px 0;
   }
   .date {
     font-size: 11pt;
+    color: #333;
     margin-bottom: 24px;
   }
   .body p {
@@ -289,7 +324,7 @@ export async function generateCoverLetterNativePDF(
 </head>
 <body>
 <div class="page">
-  ${contactInfo.fullName ? `<div class="name">${contactInfo.fullName}</div>` : ''}
+  ${safeName ? `<div class="name">${safeName}</div>` : ''}
   ${contactParts.length ? `<div class="contact">${contactParts.join(' \u00b7 ')}</div>` : ''}
   <hr class="divider">
   <div class="date">${today}</div>
