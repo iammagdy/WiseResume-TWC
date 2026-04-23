@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, Sparkles } from 'lucide-react';
+import { Info, Sparkles } from 'lucide-react';
 import { BackButton } from '@/components/ui/BackButton';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { TemplateThumbnail } from '@/components/editor/TemplateThumbnail';
-import { templates, sampleResumeData, atsScoreColors, atsScoreLabels } from '@/lib/templateData';
+import { templates, sampleResumeData, atsScoreColors, atsScoreDescriptions, atsScoreLabels } from '@/lib/templateData';
 import { TemplateId, TemplateInfo, TemplateCustomization } from '@/types/resume';
 import { useResumeStore } from '@/store/resumeStore';
 import { motion } from 'framer-motion';
@@ -108,13 +109,22 @@ export default function TemplatesPage() {
                 <p className="font-semibold text-sm text-foreground">{tmpl.name}</p>
                 <p className="text-xs text-muted-foreground line-clamp-1">{tmpl.description}</p>
               </div>
-              <Badge
-                variant="outline"
-                className={`absolute top-1.5 left-1.5 text-[8px] px-1.5 py-0.5 ${atsScoreColors[tmpl.atsScore]}`}
-              >
-                {tmpl.atsScore === 'medium' && <AlertTriangle className="w-2.5 h-2.5 mr-0.5" />}
-                {atsScoreLabels[tmpl.atsScore]}
-              </Badge>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge
+                      variant="outline"
+                      className={`absolute top-1.5 left-1.5 text-[8px] px-1.5 py-0.5 cursor-help ${atsScoreColors[tmpl.atsScore]}`}
+                    >
+                      {atsScoreLabels[tmpl.atsScore]}
+                      <Info className="w-2 h-2 ml-0.5 opacity-60" />
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-[200px] text-center">
+                    <p className="text-xs">{atsScoreDescriptions[tmpl.atsScore]}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </motion.button>
           ))}
         </div>
@@ -134,9 +144,19 @@ export default function TemplatesPage() {
                 </div>
                 <p className="text-muted-foreground text-sm">{previewTemplate.description}</p>
                 <div className="flex items-center gap-2">
-                  <Badge variant="outline" className={atsScoreColors[previewTemplate.atsScore]}>
-                    {atsScoreLabels[previewTemplate.atsScore]}
-                  </Badge>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Badge variant="outline" className={`cursor-help ${atsScoreColors[previewTemplate.atsScore]}`}>
+                          {atsScoreLabels[previewTemplate.atsScore]}
+                          <Info className="w-3 h-3 ml-1 opacity-60" />
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-[220px] text-center">
+                        <p className="text-xs">{atsScoreDescriptions[previewTemplate.atsScore]}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                   <Badge variant="secondary" className="text-xs capitalize">{previewTemplate.category}</Badge>
                 </div>
                 <Button

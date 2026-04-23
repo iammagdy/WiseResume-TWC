@@ -91,10 +91,11 @@ export function TemplateSelector({ open, onOpenChange, onTemplateApplied }: Temp
           <div className="mb-4 p-4 rounded-xl bg-muted border border-border flex items-start gap-4">
             <Sparkles className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
             <div className="text-sm">
-              <p className="font-medium text-foreground mb-1">About ATS Compatibility</p>
+              <p className="font-medium text-foreground mb-1">About ATS Layout Score</p>
               <p className="text-muted-foreground">
-                ATS (Applicant Tracking Systems) scan resumes before recruiters see them. 
-                Templates marked "ATS-Friendly" use simple layouts that parse correctly.
+                The ATS Layout badge shows how well a template's <strong>design</strong> can be
+                parsed by Applicant Tracking Systems — not your resume's keyword match or content
+                quality. Use Deep Analyze to optimize keywords for a specific job.
               </p>
             </div>
           </div>
@@ -154,9 +155,6 @@ export function TemplateSelector({ open, onOpenChange, onTemplateApplied }: Temp
                         variant="outline"
                         className={`absolute top-1.5 left-1.5 text-xs px-2 py-0.5 cursor-help ${atsScoreColors[template.atsScore]}`}
                       >
-                        {template.atsScore === 'medium' && (
-                          <AlertTriangle className="w-3 h-3 mr-1" />
-                        )}
                         {atsScoreLabels[template.atsScore]}
                         <Info className="w-3 h-3 ml-1 opacity-60" />
                       </Badge>

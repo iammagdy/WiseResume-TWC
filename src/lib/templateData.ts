@@ -215,21 +215,21 @@ export const templates: TemplateInfo[] = [
 ];
 
 export const atsScoreDescriptions: Record<string, string> = {
-  high: 'Optimized for automated screening – parses correctly in 95%+ of ATS systems',
-  medium: 'Some design elements may affect parsing in certain ATS systems',
-  low: 'Best for direct submissions – may have issues with automated screening',
+  high: 'This template\'s layout is optimized for ATS parsing — clean structure, no graphics or tables that block scanners. This measures layout readability only, not your resume\'s keyword match or content quality.',
+  medium: 'Some design elements in this template may affect parsing in certain ATS systems. Layout readability is good but not fully optimized. This does not measure keyword match or content quality.',
+  low: 'This visually creative template may have reduced ATS parsability due to its design. Best for roles where you submit directly to a recruiter. This does not measure keyword match or content quality.',
 };
 
 export const atsScoreColors: Record<string, string> = {
   high: 'bg-success/20 text-success border-success/30',
   medium: 'bg-warning/20 text-warning border-warning/30',
-  low: 'bg-destructive/20 text-destructive border-destructive/30',
+  low: 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800/40',
 };
 
 export const atsScoreLabels: Record<string, string> = {
-  high: 'ATS-Friendly',
-  medium: 'Moderate ATS',
-  low: 'Low ATS',
+  high: 'ATS Layout: Optimized',
+  medium: 'ATS Layout: Good',
+  low: 'ATS Layout: Creative',
 };
 
 export const sampleResumeData = {
