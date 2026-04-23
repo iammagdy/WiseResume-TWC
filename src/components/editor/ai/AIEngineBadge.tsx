@@ -1,9 +1,6 @@
-import { memo, useState } from 'react';
-import { Sparkles, Diamond, Settings } from 'lucide-react';
+import { memo } from 'react';
+import { Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useAIProviderInfo } from '@/hooks/useAIProviderInfo';
-import { haptics } from '@/lib/haptics';
-import { AISettingsSheet } from '@/components/settings/AISettingsSheet';
 import './AIEngineBadge.css';
 
 interface AIEngineBadgeProps {
@@ -11,58 +8,30 @@ interface AIEngineBadgeProps {
   className?: string;
 }
 
+/**
+ * Static "Powered by WiseResume AI" badge. The flat 6-key pool is the
+ * only engine — there is nothing for the user to configure, so the
+ * showSettingsLink prop is accepted for backward compatibility but has
+ * no effect.
+ */
 export const AIEngineBadge = memo(function AIEngineBadge({
-  showSettingsLink = false,
-  className
+  className,
 }: AIEngineBadgeProps) {
-  const [sheetOpen, setSheetOpen] = useState(false);
-  const providerInfo = useAIProviderInfo();
-
-  const handleClick = () => {
-    if (showSettingsLink) {
-      haptics.light();
-      setSheetOpen(true);
-    }
-  };
-
-  const isGemini = providerInfo.provider === 'gemini';
-  const IconComponent = isGemini ? Diamond : Sparkles;
-
   return (
-    <>
-      <button
-        onClick={handleClick}
-        disabled={!showSettingsLink}
-        className={cn(
-          'ai-engine-badge',
-          showSettingsLink && 'cursor-pointer active:scale-[0.98]',
-          !showSettingsLink && 'cursor-default',
-          className
-        )}>
-        
-        <div className="ai-engine-badge-inner opacity-90">
-          {/* Floating particles */}
-          <span className="ai-engine-particle" />
-          <span className="ai-engine-particle" />
-
-          {/* Pulsing icon */}
-          <IconComponent
-            className="w-4 h-4 ai-engine-icon text-primary" />
-          
-
-          {/* Shimmer text */}
-          <span className="ai-engine-text text-sm font-medium">
-            Powered by {providerInfo.label}
-          </span>
-
-          {/* Settings gear */}
-          {showSettingsLink &&
-          <Settings className="w-4 h-4 ai-engine-settings text-muted-foreground" />
-          }
-        </div>
-      </button>
-
-      <AISettingsSheet open={sheetOpen} onOpenChange={setSheetOpen} />
-    </>);
-
+    <div
+      className={cn(
+        'ai-engine-badge cursor-default',
+        className
+      )}
+    >
+      <div className="ai-engine-badge-inner opacity-90">
+        <span className="ai-engine-particle" />
+        <span className="ai-engine-particle" />
+        <Sparkles className="w-4 h-4 ai-engine-icon text-primary" />
+        <span className="ai-engine-text text-sm font-medium">
+          Powered by WiseResume AI
+        </span>
+      </div>
+    </div>
+  );
 });

@@ -1,6 +1,5 @@
 import { ResumeData, JobMatchScore, GapAnalysis } from '@/types/resume';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
-import { trackGeminiUsage } from './aiProvider';
 import { extractErrorMessage } from './errorToast';
 import { checkAIFallback } from './aiFallbackToast';
 
@@ -25,7 +24,6 @@ export async function analyzeResume(
     throw new Error(data.message || data.error);
   }
 
-  trackGeminiUsage();
   checkAIFallback(data);
   return data;
 }

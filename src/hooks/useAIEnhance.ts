@@ -1,7 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import { getSupabaseToken } from '@/lib/supabaseAuth';
 import { toast } from 'sonner';
-import { trackGeminiUsage } from '@/lib/aiProvider';
 import { useAIAction } from '@/hooks/useAIAction';
 import { useAIHealthStore } from '@/store/aiHealthStore';
 import { useAIEnhancingStore } from '@/store/aiEnhancingStore';
@@ -178,7 +177,6 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
         }
 
         useAIHealthStore.getState().recordSuccess(_latency);
-        trackGeminiUsage();
         checkAIFallback(respData);
         respData.improved = sanitizeAIContent(respData.improved);
 

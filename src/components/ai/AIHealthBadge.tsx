@@ -1,10 +1,9 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Zap, AlertTriangle, WifiOff, Settings, RefreshCw } from 'lucide-react';
+import { Zap, AlertTriangle, WifiOff, RefreshCw } from 'lucide-react';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { useAIHealth, AIHealthStatus } from '@/hooks/useAIHealth';
 import { useAIHealthStore } from '@/store/aiHealthStore';
 import { cn } from '@/lib/utils';
-import { AISettingsSheet } from '@/components/settings/AISettingsSheet';
 import { getSupabaseToken } from '@/lib/supabaseAuth';
 import { apiFnUrl } from '@/lib/apiFnUrl';
 
@@ -90,7 +89,6 @@ export function AIHealthBadge() {
   const { recordSuccess, recordFailure, recordProvider } = useAIHealthStore();
   const storeResults = useAIHealthStore((s) => s.results);
   const lastStoreEventAt = storeResults.length > 0 ? storeResults[storeResults.length - 1].timestamp : 0;
-  const [showSettings, setShowSettings] = useState(false);
   const [pingState, setPingState] = useState<PingState>('idle');
   const [pingResult, setPingResult] = useState<PingResult | null>(null);
   const [pingResultAt, setPingResultAt] = useState<number>(0);
@@ -332,23 +330,7 @@ export function AIHealthBadge() {
           <span className="text-[11px] font-medium text-foreground">{providerLabel(provider)}</span>
         </div>
 
-        {/* Settings button */}
-        <div className="px-3 py-2.5">
-          <button
-            onClick={() => setShowSettings(true)}
-            className={cn(
-              'flex items-center justify-center gap-1.5 w-full px-3 py-2 rounded-lg',
-              'text-xs font-medium text-foreground/70 hover:text-foreground',
-              'bg-muted/40 hover:bg-muted/70 transition-colors'
-            )}
-          >
-            <Settings className="w-3.5 h-3.5" />
-            Open AI Settings
-          </button>
-        </div>
       </PopoverContent>
-
-      <AISettingsSheet open={showSettings} onOpenChange={setShowSettings} />
     </Popover>
   );
 }

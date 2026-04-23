@@ -1,7 +1,6 @@
 import { ResumeData, TailorProgress, EnhancedTailorStep, EnhancedTailorProgress, SuperTailorResult } from '@/types/resume';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { getSupabaseToken } from '@/lib/supabaseAuth';
-import { trackGeminiUsage } from './aiProvider';
 import { extractErrorMessage } from './errorToast';
 import { checkAIFallback } from './aiFallbackToast';
 import { apiFnUrl } from '@/lib/apiFnUrl';
@@ -142,12 +141,12 @@ export async function tailorResumeWithProgress(
         throw new Error('Session expired. Please sign in again to use AI features.');
       }
       if (response.status === 429 || msg.toLowerCase().includes('rate limit')) {
-        const e = new Error('Our AI servers are experiencing high demand. Please try again in a moment or use your own Gemini API key for uninterrupted access.');
+        const e = new Error('Our AI servers are experiencing high demand. Please try again in a moment.');
         (e as TailorError).code = 'rate_limit';
         throw e;
       }
       if (response.status === 402 || msg.toLowerCase().includes('credits')) {
-        const e = new Error('Your AI credits have been used up for today. Add your own Gemini API key for unlimited access.');
+        const e = new Error('Your AI credits have been used up for today. Try again tomorrow or upgrade your plan.');
         (e as TailorError).code = 'credits_exhausted';
         throw e;
       }
@@ -186,7 +185,6 @@ export async function tailorResumeWithProgress(
     clearTimeout(slowTimer);
 
     // Track usage for Gemini free tier
-    trackGeminiUsage();
     checkAIFallback(data);
 
     onProgress({
@@ -231,7 +229,6 @@ export async function parseJobUrl(url: string): Promise<ParsedJobData> {
   });
   if (error) throw new Error(extractErrorMessage(error, data, 'Failed to parse job URL'));
   if (data?.error) throw new Error(data.error || 'Failed to parse job URL');
-  trackGeminiUsage();
   return data as ParsedJobData;
 }
 
@@ -244,7 +241,6 @@ export async function parseJobText(text: string): Promise<ParsedJobData> {
     throw new Error(extractErrorMessage(error, data, 'Failed to analyze job description'));
   }
   if (data?.error) throw new Error(data.message || data.error);
-  trackGeminiUsage();
   return data as ParsedJobData;
 }
 
@@ -267,11 +263,10 @@ export async function generateCoverLetter(
     throw new Error(data.message || data.error);
   }
 
-  trackGeminiUsage();
   return data.coverLetter;
 }
 
-// Note: tailorResumeWithProgress calls trackGeminiUsage() inline above so the
+// Note: tailorResumeWithProgress no longer tracks per-provider usage; the
 // user-visible "complete" progress callback fires immediately after tracking.
 
 export interface TailorSectionResult {

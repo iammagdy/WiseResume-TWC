@@ -1,11 +1,13 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { TemplateId, PDFOptions } from '@/types/resume';
-import {
-  OPENROUTER_DEFAULT_MODEL,
-  OPENROUTER_AUTO_SENTINEL,
-  isAllowedOpenRouterModel,
-} from '@/lib/aiDefaults';
+// Inlined former aiDefaults (BYOK selection has been removed; the
+// flat 6-key pool decides everything server-side now).
+const OPENROUTER_DEFAULT_MODEL = 'meta-llama/llama-3.3-70b-instruct:free';
+const OPENROUTER_AUTO_SENTINEL = '__auto__';
+function isAllowedOpenRouterModel(_model: unknown): boolean {
+  return true;
+}
 
 export type BiometricLockTimeout = 0 | 30000 | 60000 | 300000;
 export type AutoSaveToastMode = 'always' | 'errors-only';

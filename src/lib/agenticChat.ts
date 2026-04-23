@@ -1,7 +1,6 @@
 import { ResumeData } from '@/types/resume';
 import { checkAIRateLimit } from './rateLimiter';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
-import { trackGeminiUsage } from './aiProvider';
 
 export type ChatErrorKind =
   | 'rate_limit_client'
@@ -56,7 +55,7 @@ export function classifyAndThrow(error: unknown, data: unknown): never {
   if (errCode === 'rate_limit' || status === 429 || combined.includes('rate limit')) {
     const fromBody = typeof dataObj.retryAfterSeconds === 'number' ? dataObj.retryAfterSeconds : undefined;
     const m = !fromBody ? message.match(/(\d+)\s*s/) : null;
-    throw new ChatError('rate_limit_server', message || 'Server is busy. Wait a moment, or switch to your own AI key in AI Settings for higher limits.', {
+    throw new ChatError('rate_limit_server', message || 'Server is busy. Wait a moment and try again.', {
       retryAfterSeconds: fromBody ?? (m ? Number(m[1]) : undefined),
       status: 429,
     });
@@ -73,12 +72,12 @@ export function classifyAndThrow(error: unknown, data: unknown): never {
     combined.includes('your ai key') ||
     (combined.includes('api key') && (combined.includes('failed') || combined.includes('check') || combined.includes('invalid')))
   ) {
-    throw new ChatError('invalid_key', message || rawMsg || 'Your AI key isn\'t working. Please re-check it in AI Settings.', { status: status ?? 401 });
+    throw new ChatError('invalid_key', message || rawMsg || 'AI service authentication failed. Please try again.', { status: status ?? 401 });
   }
 
   // 3. Credits — only matches the explicit 'credits' code or unambiguous credit text
   if (errCode === 'credits' || errCode === 'payment_required' || combined.includes('insufficient ai credits') || combined.includes('used your free ai credits') || combined.includes('credits exhausted')) {
-    throw new ChatError('credits', message || 'You\'ve used your free AI credits. Add your own key for unlimited chat.', { status: 402 });
+    throw new ChatError('credits', message || 'You\'ve used your AI credits for today. Try again tomorrow or upgrade your plan.', { status: 402 });
   }
 
   // 4. Model selection / unsupported model errors
@@ -90,7 +89,7 @@ export function classifyAndThrow(error: unknown, data: unknown): never {
     combined.includes('invalid model') ||
     (status === 400 && combined.includes('model'))
   ) {
-    throw new ChatError('model_error', message || rawMsg || 'The selected AI model isn\'t available. Pick a different model in AI Settings.', { status: status ?? 400 });
+    throw new ChatError('model_error', message || rawMsg || 'The AI model isn\'t available right now. Please try again.', { status: status ?? 400 });
   }
 
   // 5. Service unavailable — when the edge function exhausts every model
@@ -132,7 +131,7 @@ export function classifyAndThrow(error: unknown, data: unknown): never {
 
   // 6. Timeout
   if (combined.includes('timed out') || combined.includes('timeout') || status === 408) {
-    throw new ChatError('timeout', 'The AI took too long to respond. Try again or switch to a faster model in AI Settings.', { status: 408 });
+    throw new ChatError('timeout', 'The AI took too long to respond. Please try again.', { status: 408 });
   }
 
   // 7. Network
@@ -215,7 +214,7 @@ export async function sendChatMessage(
   if (!rateCheck.allowed) {
     throw new ChatError(
       'rate_limit_client',
-      `You're sending messages a bit too quickly. Wait ${rateCheck.waitSeconds || 30}s, or add your own AI key in AI Settings for higher limits.`,
+      `You're sending messages a bit too quickly. Wait ${rateCheck.waitSeconds || 30}s and try again.`,
       { retryAfterSeconds: rateCheck.waitSeconds || 30 }
     );
   }
@@ -244,7 +243,6 @@ export async function sendChatMessage(
     classifyAndThrow(new Error(String(data.error)), data);
   }
 
-  trackGeminiUsage();
   return data;
 }
 

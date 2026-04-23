@@ -1,7 +1,6 @@
 import { ResumeData } from '@/types/resume';
 import { checkAIRateLimit } from './rateLimiter';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
-import { trackGeminiUsage } from './aiProvider';
 import { extractErrorMessage } from './errorToast';
 
 export interface NextRole {
@@ -86,6 +85,5 @@ export async function analyzeCareerPath(
     throw new Error(data.message || data.error);
   }
 
-  trackGeminiUsage();
   return data;
 }

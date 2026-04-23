@@ -78,7 +78,9 @@ export default function EditorPage() {
   const { user, loading: authLoading } = useAuth();
   const storeHydrated = useResumeStoreHydration();
   const { hasSeenAIIntro, setHasSeenAIIntro } = useSettingsStore();
-  const isBYOK = useSettingsStore((s) =>
+  // BYOK has been removed — the flat managed AI key pool is the only engine.
+  // Server enforces all plan/credit limits, so the client must not bypass them.
+  const isBYOK = false && useSettingsStore((s) =>
     (s.aiProvider === 'gemini' && s.geminiKeyValidated) ||
     (s.aiProvider === 'ollama' && s.ollamaKeyValidated) ||
     (s.aiProvider === 'openai' && s.openaiKeyValidated) ||

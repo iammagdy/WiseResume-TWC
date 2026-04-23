@@ -18,7 +18,6 @@ import { AISheetErrorBoundary } from '@/components/ai/AISheetErrorBoundary';
 import { activityTracker } from '@/lib/activityTracker';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import type { ActionType, SectionType } from '@/hooks/useAIEnhance';
-import { trackGeminiUsage } from '@/lib/aiProvider';
 import { useAIAction } from '@/hooks/useAIAction';
 import { apiFnUrl } from '@/lib/apiFnUrl';
 import { formatDegreeAndField } from '@/lib/educationFormat';
@@ -281,7 +280,6 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
         throw new AIError(info);
       }
 
-      trackGeminiUsage();
       incrementUsage.mutate();
       return respData;
     }, { silent: true });

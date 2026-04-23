@@ -35,7 +35,6 @@ import { MultiJobCompareSheet } from './tailor/MultiJobCompareSheet';
 import { KeywordMatchBar } from './tailor/KeywordMatchBar';
 import { KeywordMatchList } from './tailor/KeywordMatchList';
 import { QuickActions } from './tailor/QuickActions';
-import { AISettingsSheet } from '@/components/settings/AISettingsSheet';
 import { reportBug } from '@/lib/bugReport';
 import { useAIAction } from '@/hooks/useAIAction';
 import { activityTracker } from '@/lib/activityTracker';
@@ -305,7 +304,6 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
   }, [customInstructions]);
   const abortRef = useRef<AbortController | null>(null);
   const [tailorError, setTailorError] = useState<{ message: string; code?: string } | null>(null);
-  const [showAISettings, setShowAISettings] = useState(false);
   const [showCacheRestore, setShowCacheRestore] = useState(false);
   const cachedDataRef = useRef<TailorCache | null>(null);
 
@@ -921,7 +919,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() => setShowAISettings(true)}
+                onClick={() => {}}
                 className="text-muted-foreground"
               >
                 <Settings className="w-4 h-4" />
@@ -1020,10 +1018,6 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
                   <RefreshCw className="w-4 h-4 mr-1.5" />
                   Try Again
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => setShowAISettings(true)} className="min-h-[44px] active:scale-95 transition-transform">
-                  <Key className="w-4 h-4 mr-1.5" />
-                  Use Your Own Key
-                </Button>
                 <Button
                   size="sm"
                   variant="ghost"
@@ -1034,10 +1028,6 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
                   Report
                 </Button>
               </div>
-
-              <p className="text-xs text-muted-foreground/70 italic">
-                💡 Tip: Adding your own Gemini API key gives you unlimited, uninterrupted access
-              </p>
             </div>
           )}
 
@@ -1233,10 +1223,6 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
                         <Button size="sm" variant="ghost" className="text-xs min-h-[44px] active:scale-95 transition-transform" onClick={handleTailor}>
                           <RefreshCw className="w-3 h-3 mr-1" />
                           Re-Tailor
-                        </Button>
-                        <Button size="sm" variant="ghost" className="text-xs min-h-[44px] active:scale-95 transition-transform" onClick={() => setShowAISettings(true)}>
-                          <Key className="w-3 h-3 mr-1" />
-                          Use Your Own Key
                         </Button>
                       </div>
                     </div>
@@ -1761,7 +1747,6 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
       </SheetContent>
 
       {/* AI Settings Sheet */}
-      <AISettingsSheet open={showAISettings} onOpenChange={setShowAISettings} />
 
       {/* Compare Sheet */}
       <CompareSheet

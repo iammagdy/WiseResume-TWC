@@ -10,11 +10,6 @@ vi.mock("@/lib/supabaseAuth", () => ({
   getSupabaseToken: vi.fn().mockResolvedValue(null),
 }));
 
-// Mock aiProvider side effects
-vi.mock("@/lib/aiProvider", () => ({
-  trackGeminiUsage: vi.fn(),
-}));
-
 vi.mock("@/lib/aiFallbackToast", () => ({
   checkAIFallback: vi.fn(),
 }));

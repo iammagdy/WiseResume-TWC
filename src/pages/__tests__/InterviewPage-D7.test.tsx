@@ -66,14 +66,6 @@ vi.mock("@/hooks/useInterviewHistory", () => ({
   useLatestInterviewDraft: vi.fn(() => ({ data: null, isLoading: false })),
 }));
 
-vi.mock("@/hooks/useAIKeyHydration", () => ({
-  useAIKeyHydration: vi.fn(() => ({
-    elevenLabsKey: null,
-    geminiKey: null,
-    isLoaded: true,
-  })),
-}));
-
 vi.mock("@/lib/activityTracker", () => ({
   activityTracker: { setActiveFeature: vi.fn(), trackAction: vi.fn() },
 }));

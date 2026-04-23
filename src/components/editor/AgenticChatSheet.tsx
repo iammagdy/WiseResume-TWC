@@ -53,7 +53,6 @@ import { useShallow } from 'zustand/react/shallow';
 import { useChatSessions, useDeleteChatSession } from '@/hooks/useChatHistory';
 import { useToolCache } from '@/hooks/useToolCache';
 import { CompanyBriefingSheet } from '@/components/interview/CompanyBriefingSheet';
-import { AISettingsSheet } from '@/components/settings/AISettingsSheet';
 import type { ChatErrorInfo } from '@/lib/agenticChat';
 import type { CompanyBriefing } from '@/types/companyBriefing';
 
@@ -408,11 +407,10 @@ function GuestShowcase({ onClose, onSignIn }: { onClose: () => void; onSignIn: (
 function ChatErrorCard({
   info,
   onRetry,
-  onOpenSettings,
 }: {
   info: ChatErrorInfo;
   onRetry: () => void;
-  onOpenSettings: () => void;
+  onOpenSettings?: () => void;
 }) {
   const tone =
     info.kind === 'credits' || info.kind === 'invalid_key'
@@ -430,29 +428,16 @@ function ChatErrorCard({
           <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{info.message}</p>
         </div>
       </div>
-      {(info.retryable || info.showSettings) && (
+      {info.retryable && (
         <div className="flex flex-wrap gap-2 pt-1">
-          {info.retryable && (
-            <Button
-              size="sm"
-              className="h-8 text-xs gap-1.5"
-              onClick={onRetry}
-            >
-              <RefreshCw className="w-3 h-3" />
-              Retry
-            </Button>
-          )}
-          {info.showSettings && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-8 text-xs gap-1.5"
-              onClick={onOpenSettings}
-            >
-              <SettingsIcon className="w-3 h-3" />
-              {info.kind === 'credits' ? 'Add your key' : 'AI Settings'}
-            </Button>
-          )}
+          <Button
+            size="sm"
+            className="h-8 text-xs gap-1.5"
+            onClick={onRetry}
+          >
+            <RefreshCw className="w-3 h-3" />
+            Retry
+          </Button>
         </div>
       )}
     </div>
@@ -478,7 +463,6 @@ export function AgenticChatSheet({ open, onOpenChange, initialMessage }: Agentic
     loadSession,
     updateSuggestionStatus,
   } = useAgenticChat(activeContext);
-  const [aiSettingsOpen, setAiSettingsOpen] = useState(false);
   const [input, setInput] = useState('');
   const [resumePickerOpen, setResumePickerOpen] = useState(false);
   const [chatPanel, setChatPanel] = useState<'chat' | 'history'>('chat');
@@ -784,7 +768,6 @@ export function AgenticChatSheet({ open, onOpenChange, initialMessage }: Agentic
                             <ChatErrorCard
                               info={msg.error}
                               onRetry={() => { haptics.light(); retryLastMessage(); }}
-                              onOpenSettings={() => { haptics.light(); setAiSettingsOpen(true); }}
                             />
                           </div>
                         ) : (
@@ -1009,8 +992,6 @@ export function AgenticChatSheet({ open, onOpenChange, initialMessage }: Agentic
       }}
     />
 
-    {/* AI Settings — opened from inline error cards */}
-    <AISettingsSheet open={aiSettingsOpen} onOpenChange={setAiSettingsOpen} />
   </>
   );
 }

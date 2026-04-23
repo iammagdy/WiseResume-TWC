@@ -1,7 +1,6 @@
 import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { useAuth } from './useAuth';
 import { useMe } from './useMe';
-import { useSettingsStore } from '@/store/settingsStore';
 import { PLAN_CREDIT_LIMITS } from '@/lib/planConfig';
 
 export interface AICredits {
@@ -17,28 +16,11 @@ export interface AICredits {
 /** Sentinel value in daily_limit meaning unlimited (Premium plan). */
 const UNLIMITED_SENTINEL = -1;
 
+// BYOK was removed in the flat-pool migration. The managed 6-key pool is the
+// only AI engine, and the server enforces all plan/credit limits, so the
+// client must never report itself as "bring your own key" to bypass them.
 function useIsBYOK(): boolean {
-  const aiProvider = useSettingsStore((s) => s.aiProvider);
-  const geminiKeyValidated = useSettingsStore((s) => s.geminiKeyValidated);
-  const ollamaKeyValidated = useSettingsStore((s) => s.ollamaKeyValidated);
-  const openaiKeyValidated = useSettingsStore((s) => s.openaiKeyValidated);
-  const anthropicKeyValidated = useSettingsStore((s) => s.anthropicKeyValidated);
-  const groqKeyValidated = useSettingsStore((s) => s.groqKeyValidated);
-  const mistralKeyValidated = useSettingsStore((s) => s.mistralKeyValidated);
-  const xaiKeyValidated = useSettingsStore((s) => s.xaiKeyValidated);
-  const cohereKeyValidated = useSettingsStore((s) => s.cohereKeyValidated);
-  const openrouterKeyValidated = useSettingsStore((s) => s.openrouterKeyValidated);
-  return (
-    (aiProvider === 'gemini' && geminiKeyValidated) ||
-    (aiProvider === 'ollama' && ollamaKeyValidated) ||
-    (aiProvider === 'openai' && openaiKeyValidated) ||
-    (aiProvider === 'anthropic' && anthropicKeyValidated) ||
-    (aiProvider === 'groq' && groqKeyValidated) ||
-    (aiProvider === 'mistral' && mistralKeyValidated) ||
-    (aiProvider === 'xai' && xaiKeyValidated) ||
-    (aiProvider === 'cohere' && cohereKeyValidated) ||
-    (aiProvider === 'openrouter' && openrouterKeyValidated)
-  );
+  return false;
 }
 
 /**
@@ -173,16 +155,6 @@ export function useAICreditsMutations() {
 
   const checkCredits = async (): Promise<boolean> => {
     if (!user) return true;
-    const { aiProvider, geminiKeyValidated, ollamaKeyValidated, openaiKeyValidated, anthropicKeyValidated, groqKeyValidated, mistralKeyValidated, xaiKeyValidated, cohereKeyValidated, openrouterKeyValidated } = useSettingsStore.getState();
-    if (aiProvider === 'gemini' && geminiKeyValidated) return true;
-    if (aiProvider === 'ollama' && ollamaKeyValidated) return true;
-    if (aiProvider === 'openai' && openaiKeyValidated) return true;
-    if (aiProvider === 'anthropic' && anthropicKeyValidated) return true;
-    if (aiProvider === 'groq' && groqKeyValidated) return true;
-    if (aiProvider === 'mistral' && mistralKeyValidated) return true;
-    if (aiProvider === 'xai' && xaiKeyValidated) return true;
-    if (aiProvider === 'cohere' && cohereKeyValidated) return true;
-    if (aiProvider === 'openrouter' && openrouterKeyValidated) return true;
 
     // Use cached 'me' data for a fast optimistic check (server will enforce the hard limit)
     type MeCacheShape = { ai_credits: { daily_usage: number; daily_limit: number; usage_date: string } | null } | null;

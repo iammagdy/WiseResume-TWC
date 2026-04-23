@@ -19,10 +19,6 @@ vi.mock("@/lib/supabaseAuth", () => ({
   getSupabaseToken: vi.fn().mockResolvedValue(null),
 }));
 
-vi.mock("@/lib/aiProvider", () => ({
-  trackGeminiUsage: vi.fn(),
-}));
-
 vi.mock("@/lib/pdf/ocrExtractor", () => ({
   extractTextWithOCR: vi.fn().mockResolvedValue("John Doe\njohn@example.com\nSUMMARY\nEngineer"),
   estimateOCRTime: vi.fn().mockReturnValue(10),

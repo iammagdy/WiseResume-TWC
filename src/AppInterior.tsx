@@ -17,7 +17,6 @@ import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import { JobSeekerRoute } from "@/components/layout/JobSeekerRoute";
 import { WiseHireGuard } from "@/components/wisehire/WiseHireGuard";
 import { AuthProvider, DegradedAuthProvider } from "@/contexts/AuthContext";
-import { useAIKeyHydration } from "@/hooks/useAIKeyHydration";
 import { useSuspensionCheck } from "@/hooks/useSuspensionCheck";
 import { SuspendedScreen } from "@/components/layout/SuspendedScreen";
 import { MaintenanceScreen } from "@/components/layout/MaintenanceScreen";
@@ -335,7 +334,6 @@ function AppRoutes() {
   useBackButton();
   useStatusBarThemeSync();
   useDeepLinking();
-  useAIKeyHydration();
 
   useEffect(() => {
     document.body.style.overflow = '';
