@@ -78,6 +78,9 @@ export const ATSScanSheet = memo(function ATSScanSheet({
                   {summary.matchedKeywords} of {summary.totalKeywords} keywords matched
                 </p>
                 <Progress value={summary.matchPercentage} className="h-2" />
+                <p className="text-[11px] text-muted-foreground leading-snug max-w-[280px] mx-auto pt-1">
+                  Measures keyword overlap with your job description — not template layout parsability or external ATS-tool scores.
+                </p>
               </div>
 
               {/* Per-section breakdown */}

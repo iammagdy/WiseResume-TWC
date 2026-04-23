@@ -816,7 +816,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
 
       if (typeof beforeScore === 'number' && typeof afterScore === 'number') {
         handleUpdateTailorResult({ overallScore: { before: beforeScore, after: afterScore } });
-        toast.success('ATS score calculated.');
+        toast.success('Keyword match score calculated.');
       } else {
         toast.error('Could not retrieve score — try re-tailoring.');
       }
@@ -1212,7 +1212,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
                         <div>
                           <p className="text-sm font-medium text-amber-600 dark:text-amber-400">Score couldn't be calculated</p>
                           <p className="text-xs text-muted-foreground mt-1">
-                            The ATS score couldn't be calculated this time. Your tailored content is 100% valid — estimate the score from keyword analysis (free), or re-tailor fully for an AI-computed score.
+                            The keyword match score couldn't be calculated this time. Your tailored content is 100% valid — estimate the score from keyword analysis (free), or re-tailor fully for an AI-computed score.
                           </p>
                         </div>
                       </div>

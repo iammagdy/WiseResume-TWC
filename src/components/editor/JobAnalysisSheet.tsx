@@ -173,9 +173,12 @@ export function JobAnalysisSheet({ open, onOpenChange }: JobAnalysisSheetProps) 
             >
               {/* Overall Score */}
               <div className="p-6 rounded-2xl bg-card border border-border text-center">
-                <p className="text-sm text-muted-foreground mb-2">Match Score</p>
+                <p className="text-sm text-muted-foreground mb-2">Keyword Match Score</p>
                 <p className={`text-5xl font-display font-bold ${getScoreColor(matchScore.overallScore)}`}>
                   {matchScore.overallScore}%
+                </p>
+                <p className="text-[11px] text-muted-foreground mt-2 leading-snug max-w-[260px] mx-auto">
+                  Measures how well your resume content matches this job description's keywords — not your template's layout parsability or how external tools (Jobscan, Resumeworded) will score it.
                 </p>
               </div>
 
@@ -184,7 +187,7 @@ export function JobAnalysisSheet({ open, onOpenChange }: JobAnalysisSheetProps) 
                 <ScoreCard label="Skills Match" value={matchScore.skillsMatch} />
                 <ScoreCard label="Experience" value={matchScore.experienceRelevance} />
                 <ScoreCard label="Keywords" value={matchScore.keywordAlignment} />
-                <ScoreCard label="ATS Score" value={matchScore.atsCompatibility} />
+                <ScoreCard label="ATS Keywords" value={matchScore.atsCompatibility} />
               </div>
 
               {/* Strengths */}

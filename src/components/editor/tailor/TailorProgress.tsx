@@ -22,7 +22,7 @@ const STEPS: { id: TailorStep | EnhancedTailorStep; label: string }[] = [
   { id: 'optimizing_skills', label: 'Optimizing skills for ATS' },
   { id: 'transforming_bullets', label: 'Transforming achievements' },
   { id: 'enhancing_experience', label: 'Enhancing with metrics' },
-  { id: 'calculating_ats', label: 'Calculating ATS score' },
+  { id: 'calculating_ats', label: 'Calculating keyword match score' },
   { id: 'generating_interview_prep', label: 'Preparing interview tips' },
   { id: 'generating_recs', label: 'Generating recommendations' },
   { id: 'finalizing', label: 'Finalizing enhancements' },
@@ -36,7 +36,7 @@ const FUN_FACTS = [
   "🔑 Including metrics makes achievements 40% more compelling",
   "🏆 Top resumes use 11-14 unique skills on average",
   "📈 Quantified achievements get 40% more callbacks",
-  "🚀 Keywords from job descriptions boost ATS scores by 60%",
+  "🚀 Mirroring keywords from a job description boosts your keyword match score by 60%",
 ];
 
 const getVisibleSteps = (currentStep: TailorStep | EnhancedTailorStep) => {

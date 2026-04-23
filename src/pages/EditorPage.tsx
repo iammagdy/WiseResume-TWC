@@ -1512,8 +1512,8 @@ export default function EditorPage() {
                     >
                       <BarChart3 className="w-5 h-5 text-emerald-500 shrink-0" />
                       <div className="text-left min-w-0">
-                        <p className="text-sm font-medium">ATS Check</p>
-                        <p className="text-xs text-muted-foreground">Score against ATS systems</p>
+                        <p className="text-sm font-medium">Job Match Analysis</p>
+                        <p className="text-xs text-muted-foreground">Keyword & content match vs your job description</p>
                       </div>
                     </button>
                     <button
@@ -1570,6 +1570,9 @@ export default function EditorPage() {
                           </p>
                           <p className="text-xs text-muted-foreground">
                             {scanSummary.matchedKeywords} of {scanSummary.totalKeywords} keywords matched
+                          </p>
+                          <p className="text-[11px] text-muted-foreground leading-snug max-w-[280px] mx-auto pt-1">
+                            Measures keyword overlap with your job description — not template layout parsability or external ATS-tool scores.
                           </p>
                         </div>
                         {scanSummary.perSection.length > 0 && (

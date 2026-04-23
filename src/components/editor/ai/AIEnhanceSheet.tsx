@@ -615,7 +615,7 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
 
   const availableSections = enabledSections;
 
-  const sheetTitle = atsMode ? 'ATS Score Optimization' : 'AI Enhance';
+  const sheetTitle = atsMode ? 'ATS Keyword Optimization' : 'AI Enhance';
 
   // Render structured before/after for experience/education, plain text for others
   const renderSectionPreview = (sectionId: SectionType, content: unknown, variant: 'original' | 'enhanced') => {

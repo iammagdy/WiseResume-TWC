@@ -104,6 +104,11 @@ export const ATSInlineSuggestions = memo(function ATSInlineSuggestions({
 
         <CollapsibleContent>
           <div className="px-3 pb-3 space-y-1.5">
+            {suggestions.some(s => s.type === 'missing_keyword') && (
+              <p className="text-[11px] text-muted-foreground leading-snug px-0.5 pb-1">
+                Suggestions based on keyword overlap with your job description — not template layout or external ATS-tool scores.
+              </p>
+            )}
             {/* Stepped progress while analyzing */}
             {isAnalyzing && (
               <div className="flex items-center gap-2 rounded-lg px-2.5 py-2.5 bg-primary/5 border border-primary/10">
