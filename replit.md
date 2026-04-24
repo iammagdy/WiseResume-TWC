@@ -1,5 +1,50 @@
 # WiseResume — Full Project Knowledge Base
 
+---
+
+## ⚠️ CRITICAL — READ THIS FIRST BEFORE TOUCHING ANYTHING
+
+### Replit is the DEVELOPMENT environment only. Supabase is the BACKEND.
+
+**Production site:** `https://resume.thewise.cloud` (hosted on Hostinger — static frontend + Supabase backend)
+**Supabase project:** `jnsfmkzgxsviuthaqlyy` (`https://jnsfmkzgxsviuthaqlyy.supabase.co`)
+**Replit role:** Development/preview workspace ONLY — not a production host.
+
+### What this means for every agent working in this repo:
+
+1. **NEVER migrate away from Supabase.** Supabase is the permanent backend. All user data (profiles, resumes, subscriptions, AI credits, portfolios, WiseHire data, etc.) lives in Supabase Postgres and is served by Supabase Edge Functions. This will not change.
+
+2. **NEVER repoint data calls to Replit Postgres / Neon / local Postgres.** The Replit-bundled Postgres (`DATABASE_URL`) is a dev sidecar used only for auxiliary server-side tables (admin audit log, analytics sweep lock, token exchange log). It does NOT contain real user data and MUST NOT be treated as a source of truth for anything user-facing.
+
+3. **NEVER replace Supabase Edge Functions with Express routes** for business logic that already runs on Supabase. The `supabase/functions/` directory contains 97 deployed Deno edge functions — they are the live backend. The Express server in `server/index.ts` is a dev-only proxy that forwards `/api/fn/*` requests to those edge functions.
+
+4. **NEVER replace Kinde Auth with Replit Auth or any other auth system.** Kinde is the production identity provider. The `@kinde-oss/kinde-auth-react` SDK, the JWKS bridge, and the shadow-user flow are all production-critical.
+
+5. **NEVER add, remove, or change Supabase secrets without the user's explicit instruction.** The following secrets MUST be present in Replit Secrets (not env vars) for the dev environment to make authenticated calls to Supabase:
+   - `SUPABASE_SERVICE_ROLE_KEY` — server-side Supabase admin access
+   - `SUPABASE_JWT_SECRET` — for signing/verifying bridge JWTs
+   - `SUPABASE_ACCESS_TOKEN` — for auto-pushing AI secrets to Supabase edge functions
+   - AI keys: `OPENROUTER_API_KEY`, `OPENROUTER2_API_KEY`, `GROQ_API_KEY`
+
+6. **The production deploy flow is:** build frontend → upload `dist/` to Hostinger → Supabase edge functions are already live. Replit autoscale deployment (`NODE_ENV=production node dist/server.mjs`) is an ALTERNATIVE dev/staging path — NOT what serves `resume.thewise.cloud`.
+
+7. **Do not run `npm run db:push` against Supabase.** `drizzle-kit push` targets the Replit Postgres (`DATABASE_URL`). Supabase schema changes go through SQL migrations in `supabase/migrations/` applied via the Supabase CLI or dashboard.
+
+### Summary of what each system is responsible for:
+
+| System | Role |
+|---|---|
+| **Supabase Postgres** | All user data — canonical production database |
+| **Supabase Edge Functions** | All business logic, AI calls, auth helpers |
+| **Supabase Auth** | Shadow users for RLS (Kinde is the primary IdP) |
+| **Kinde Auth** | Primary identity provider (JWTs, login, sign-up) |
+| **Replit Postgres** | Dev-only auxiliary tables (audit log, sweep lock, token log) |
+| **Express server (`server/index.ts`)** | Dev proxy, PDF export, admin bridge — NOT a Supabase replacement |
+| **Hostinger** | Static frontend hosting for `resume.thewise.cloud` |
+| **Replit** | Development environment only |
+
+---
+
 ### Overview
 WiseResume is an AI-powered web app for comprehensive career management. (The Progressive Web App layer was removed in v3.5.0+; see the "PWA Removal" operator note below.) It enables users to create and tailor resumes for specific job listings using AI, publish public portfolios, practice interview questions, track job applications, and manage career goals. The project aims to provide a robust, AI-driven platform for job seekers, with future expansion into an HR SaaS product (WiseHire).
 
