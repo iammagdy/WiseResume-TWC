@@ -124,12 +124,19 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
 
   const TemplateComponent = templateComponents[selectedTemplate];
 
+  // Resolve the design dimensions matching the user's chosen page format so
+  // the live preview lays out at the SAME width Puppeteer will render the
+  // PDF at. Letter -> 612 × 792, A4 -> 595 × 842 (CSS px === PDF pt at the
+  // design width). See the comment on the template wrapper below for why
+  // pinning these dimensions is essential for accurate page-break placement.
+  const previewPageFormat = currentResume?.customization?.pageFormat || 'letter';
+  const previewDims = getPageDimensionsForFormat(previewPageFormat);
+
   // Track resume content and compute snap-aware page break positions
   useEffect(() => {
     const el = resumeRef.current;
     if (!el) return;
-    const format = currentResume?.customization?.pageFormat || 'letter';
-    const { pageWidth, pageHeight } = getPageDimensionsForFormat(format);
+    const { pageWidth, pageHeight } = previewDims;
     const update = () => {
       const smartBreaks = computePreviewBreaks(el, pageWidth, pageHeight);
       const manualSections = currentResume?.customization?.manualPageBreaks ?? [];
@@ -461,23 +468,26 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
             className="bg-white text-black mx-auto shadow-2xl relative"
             style={{
               // Pin the template's CSS layout width to the PDF design width
-              // (612 px = 612 pt for Letter / 8.5 in) so click-Y values and
-              // `cleanedContentHeight` are captured in the SAME coordinate
-              // space Puppeteer renders at. The parent div's `transform:
-              // scale(zoom)` shrinks the *visual* size to fit the editor
-              // sidebar without affecting layout. Without this pin, a
-              // narrower sidebar would force `width: 100%` to fall below
-              // 612 px and reflow text into more lines, producing a
-              // totalContentHeight 15-20 % taller than the actual PDF —
-              // the source of the misaligned page-break bug.
-              width: '612px',
-              minHeight: '792px',
+              // for the user's chosen page format (612 px Letter / 595 px
+              // A4 — 1 CSS px === 1 PDF pt at the design width). This makes
+              // click-Y values and `cleanedContentHeight` live in the SAME
+              // coordinate space Puppeteer renders at on the server, so
+              // user-placed page breaks land exactly where they clicked.
+              // The parent div's `transform: scale(zoom)` shrinks the
+              // *visual* size to fit the editor sidebar without affecting
+              // layout. Without this pin, a narrower sidebar would force
+              // `width: 100%` to fall below the design width and reflow
+              // text into more lines, producing a totalContentHeight 15-20
+              // % taller than the actual PDF — the source of the
+              // misaligned page-break bug.
+              width: `${previewDims.pageWidth}px`,
+              minHeight: `${previewDims.pageHeight}px`,
               cursor: isBreakEditMode ? 'crosshair' : undefined,
               ...customizationStyle,
               // Re-pin width AFTER the spread so customisation styles can't
               // accidentally override it (e.g. with width: 100%).
-              maxWidth: '612px',
-              minWidth: '612px',
+              maxWidth: `${previewDims.pageWidth}px`,
+              minWidth: `${previewDims.pageWidth}px`,
             } as CSSProperties}
             onClick={handleResumeClick}
           >
