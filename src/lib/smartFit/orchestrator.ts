@@ -10,7 +10,22 @@ import type {
   SmartFitSelection,
   SmartFitStage,
   ProtectedToken,
+  RewriteFailureInfo,
 } from './types';
+
+/** Thrown by defaultRewriteFn when the endpoint fails for a known reason.
+ *  Re-thrown through runRewriteStage so runSmartFit can attach structured
+ *  failure info to the plan instead of surfacing N redundant per-card errors. */
+class RewriteFailureError extends Error {
+  constructor(
+    public readonly failureKind: RewriteFailureInfo['kind'],
+    message: string,
+    public readonly retryAfterSeconds?: number,
+  ) {
+    super(message);
+    this.name = 'RewriteFailureError';
+  }
+}
 
 /** How much each whole page is worth in characters — used as a coarse
  * "how much do we need to cut?" target for the deterministic stages. */
@@ -94,15 +109,23 @@ export async function runSmartFit(input: SmartFitInput): Promise<SmartFitPlan> {
 
   // ── Stage 1: surgical AI rewrite ────────────────────────────────────────
   let rewrites: SentenceRewriteProposal[] = [];
+  let rewriteFailure: RewriteFailureInfo | undefined;
   if (input.enableRewrite !== false) {
     stagesRun.push('rewrite');
-    rewrites = await runRewriteStage({
-      scored,
-      protectedTokens,
-      charsToRecover,
-      jobDescription,
-      rewriteFn: input.rewriteFn ?? defaultRewriteFn,
-    });
+    try {
+      rewrites = await runRewriteStage({
+        scored,
+        protectedTokens,
+        charsToRecover,
+        jobDescription,
+        rewriteFn: input.rewriteFn ?? defaultRewriteFn,
+      });
+    } catch (err) {
+      if (err instanceof RewriteFailureError) {
+        rewriteFailure = { kind: err.failureKind, message: err.message, retryAfterSeconds: err.retryAfterSeconds };
+      }
+      console.warn('[smartFit] rewrite stage failed', err);
+    }
     const charsRecoveredFromRewrites = rewrites
       .filter(r => r.validated)
       .reduce((sum, r) => sum + Math.max(0, r.before.length - r.after.length), 0);
@@ -137,6 +160,7 @@ export async function runSmartFit(input: SmartFitInput): Promise<SmartFitPlan> {
     rewrites,
     drops,
     collapses,
+    rewriteFailure,
   };
 }
 
@@ -167,6 +191,7 @@ async function runRewriteStage(args: RunRewriteArgs): Promise<SentenceRewritePro
   try {
     outcomes = await args.rewriteFn(requests, args.jobDescription);
   } catch (err) {
+    if (err instanceof RewriteFailureError) throw err;
     console.warn('[smartFit] rewrite stage failed; skipping', err);
     return [];
   }
@@ -218,30 +243,46 @@ function describeLocation(s: ScoredSentenceWithIndex): string {
   }
 }
 
-/** POST to the smart-fit-rewrite edge function. Fails closed: on transport
- *  error, returns "AI didn't respond" outcomes so the user still sees a
- *  per-sentence card explaining why no rewrite was offered. */
+/** POST to the smart-fit-rewrite edge function. Throws RewriteFailureError
+ *  when the endpoint cannot be reached or returns a non-success response,
+ *  letting the orchestrator attach structured failure info to the plan once
+ *  (instead of generating N redundant per-sentence error cards). */
 async function defaultRewriteFn(
   candidates: RewriteRequest[],
   jobDescription?: string,
 ): Promise<RewriteOutcome[]> {
   const { edgeFunctions } = await import('@/integrations/supabase/edgeFunctions');
-  const fallback = (reason: string): RewriteOutcome[] =>
-    candidates.map(c => ({ id: c.id, text: c.text, valid: false, reason }));
-  try {
-    const { data, error } = await edgeFunctions.functions.invoke('smart-fit-rewrite', {
-      body: { candidates, jobDescription },
-    });
-    if (error || !data?.success || !Array.isArray(data.outcomes)) {
-      return fallback('AI rewrite endpoint unavailable.');
+  const { data, error } = await edgeFunctions.functions.invoke('smart-fit-rewrite', {
+    body: { candidates, jobDescription },
+  });
+  if (error) {
+    // edgeFunctions wrapper catches fetch failures and returns { data: null, error: { message } }
+    // with no status field — those are network errors.
+    const e = error as { message?: string; status?: number };
+    const status = e.status ?? 0;
+    if (status === 0) {
+      throw new RewriteFailureError('network', e.message || 'Cannot reach the AI service. Check your connection and try again.');
     }
-    return (data.outcomes as RewriteOutcome[]).filter(
-      o => o && typeof o.id === 'string' && typeof o.text === 'string',
-    );
-  } catch (err) {
-    console.warn('[smartFit] rewrite endpoint unavailable; skipping AI stage', err);
-    return fallback('AI rewrite endpoint unavailable.');
+    if (status === 402) {
+      throw new RewriteFailureError('out-of-credits', e.message || 'Out of AI credits. Add your own Gemini API key for unlimited access.');
+    }
+    if (status === 429) {
+      const m = e.message ?? '';
+      const sec = parseInt(m.match(/(\d+)s/)?.[1] ?? '0', 10) || undefined;
+      throw new RewriteFailureError('rate-limited', e.message || 'Rate limited — please wait a moment and retry.', sec);
+    }
+    if (status === 401 || status === 403) {
+      throw new RewriteFailureError('unavailable', e.message || 'AI rewrite service authentication failed. Try signing out and back in.');
+    }
+    throw new RewriteFailureError('provider-error', e.message || 'AI service returned an error. Please try again.');
   }
+  const d = data as Record<string, unknown> | null;
+  if (!d?.success || !Array.isArray(d.outcomes)) {
+    throw new RewriteFailureError('unavailable', 'AI rewrite service returned an unexpected response. Please try again.');
+  }
+  return (d.outcomes as RewriteOutcome[]).filter(
+    o => o && typeof o.id === 'string' && typeof o.text === 'string',
+  );
 }
 
 /**

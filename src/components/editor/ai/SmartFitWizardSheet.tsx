@@ -12,6 +12,9 @@ import {
   Check,
   X,
   Type,
+  RotateCcw,
+  CreditCard,
+  Wifi,
 } from 'lucide-react';
 import {
   Sheet,
@@ -40,7 +43,7 @@ import { useAIApplyEffects } from '@/hooks/useAIApplyEffects';
 import { runSmartFit, applySmartFitPlan } from '@/lib/smartFit/orchestrator';
 import { convergeSmartFitPlan, runLayoutOnlyFit, type ConvergeProgress } from '@/lib/smartFit/converge';
 import { buildDiffHighlight, type HighlightSegment } from '@/lib/smartFit/diffHighlight';
-import type { SmartFitPlan, SmartFitSelection, LayoutFitProposal } from '@/lib/smartFit/types';
+import type { SmartFitPlan, SmartFitSelection, LayoutFitProposal, RewriteFailureInfo } from '@/lib/smartFit/types';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 
 interface SmartFitWizardSheetProps {
@@ -162,11 +165,6 @@ export function SmartFitWizardSheet({
     setScratchResume(null);
     setConvergeProgress(null);
   }, [open]);
-
-  // Sync target pages with prop when it changes
-  useEffect(() => {
-    if (targetPagesProp) setTargetPages(targetPagesProp);
-  }, [targetPagesProp]);
 
   const measureScratch = useCallback(async (alt: ResumeData): Promise<number> => {
     setScratchResume(alt);
@@ -366,15 +364,14 @@ export function SmartFitWizardSheet({
         }
       }
       let merged = applySmartFitPlan(currentResume, plan, selection);
-      if (selection.layoutFit && plan.layoutFit) {
-        merged = {
-          ...merged,
-          customization: {
-            ...(merged.customization ?? {}),
-            fontScale: plan.layoutFit.fontScaleAfter,
-          },
-        };
-      }
+      merged = {
+        ...merged,
+        customization: {
+          ...(merged.customization ?? {}),
+          targetPageCount: targetPages,
+          ...(selection.layoutFit && plan.layoutFit ? { fontScale: plan.layoutFit.fontScaleAfter } : {}),
+        },
+      };
       updateResume(merged);
       haptics.success?.();
       void rescoreAfterApply(merged);
@@ -451,7 +448,9 @@ export function SmartFitWizardSheet({
         <SheetHeader className="px-4 pt-4 pb-2 border-b border-border shrink-0">
           <SheetTitle className="flex items-center gap-2">
             <Wand2 className="w-5 h-5 text-primary" />
-            Smart Fit to {targetPages} {targetPages === 1 ? 'Page' : 'Pages'}
+            {view === 'intro'
+              ? 'Smart Fit'
+              : `Smart Fit to ${targetPages} ${targetPages === 1 ? 'Page' : 'Pages'}`}
           </SheetTitle>
           <AIProviderVia className="mt-0.5" />
         </SheetHeader>
@@ -519,15 +518,13 @@ export function SmartFitWizardSheet({
                   </p>
                 </div>
 
-                {!targetPagesProp && (
-                  <div className="flex justify-center">
-                    <ToggleGroup type="single" value={String(targetPages)} onValueChange={v => v && setTargetPages(Number(v) as 1 | 2 | 3)}>
-                      <ToggleGroupItem value="1">1 page</ToggleGroupItem>
-                      <ToggleGroupItem value="2">2 pages</ToggleGroupItem>
-                      <ToggleGroupItem value="3">3 pages</ToggleGroupItem>
-                    </ToggleGroup>
-                  </div>
-                )}
+                <div className="flex justify-center">
+                  <ToggleGroup type="single" value={String(targetPages)} onValueChange={v => v && setTargetPages(Number(v) as 1 | 2 | 3)}>
+                    <ToggleGroupItem value="1">1 page</ToggleGroupItem>
+                    <ToggleGroupItem value="2">2 pages</ToggleGroupItem>
+                    <ToggleGroupItem value="3">3 pages</ToggleGroupItem>
+                  </ToggleGroup>
+                </div>
 
                 <div className="rounded-xl border border-border bg-muted/40 p-3 flex items-start gap-2 text-xs text-muted-foreground">
                   <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
@@ -591,7 +588,11 @@ export function SmartFitWizardSheet({
                   </Section>
                 )}
 
-                {plan.rewrites.length > 0 && (
+                {plan.rewriteFailure && (
+                  <RewriteFailureBanner failure={plan.rewriteFailure} onRetry={handleAnalyze} />
+                )}
+
+                {!plan.rewriteFailure && plan.rewrites.length > 0 && (
                   <Section title="Sentence rewrites" hint="AI-shortened versions of your longest sentences. Green tokens are preserved verbatim." icon={<Wand2 className="w-4 h-4" />}>
                     {plan.rewrites.map(r => (
                       <RewriteCard
@@ -697,6 +698,7 @@ async function postTelemetry(payload: TelemetryPayload): Promise<void> {
 function PlanSummary({ plan }: { plan: SmartFitPlan }) {
   const willHit = plan.pagesAfterRecommended !== undefined
     && plan.pagesAfterRecommended <= plan.targetPages;
+  const rewriteSkipped = !!plan.rewriteFailure;
   return (
     <div className="rounded-xl border border-border bg-card p-3 space-y-2">
       <div className="flex items-center justify-between">
@@ -715,10 +717,16 @@ function PlanSummary({ plan }: { plan: SmartFitPlan }) {
             Hits target
           </Badge>
         )}
-        {plan.stillOverflowing && (
+        {plan.stillOverflowing && !rewriteSkipped && (
           <Badge variant="destructive" className="gap-1">
             <AlertCircle className="w-3 h-3" />
             May still overflow
+          </Badge>
+        )}
+        {plan.stillOverflowing && rewriteSkipped && (
+          <Badge variant="outline" className="gap-1 text-amber-700 border-amber-300 bg-amber-50">
+            <AlertCircle className="w-3 h-3" />
+            AI rewrites skipped
           </Badge>
         )}
       </div>
@@ -737,6 +745,43 @@ function Section({
       </div>
       <p className="text-xs text-muted-foreground px-1">{hint}</p>
       <div className="space-y-2">{children}</div>
+    </div>
+  );
+}
+
+function RewriteFailureBanner({ failure, onRetry }: { failure: RewriteFailureInfo; onRetry: () => void }) {
+  const iconClass = 'w-4 h-4 shrink-0 mt-0.5';
+  const icon = failure.kind === 'out-of-credits' ? <CreditCard className={iconClass} />
+    : failure.kind === 'network' ? <Wifi className={iconClass} />
+    : <AlertCircle className={iconClass} />;
+
+  const cta = failure.kind === 'out-of-credits'
+    ? (
+      <a
+        href="/settings/api-keys"
+        className="inline-flex items-center gap-1 text-[11px] font-medium underline underline-offset-2"
+      >
+        Add a Gemini API key
+      </a>
+    )
+    : (
+      <Button size="sm" variant="outline" className="h-7 px-2 text-xs gap-1" onClick={onRetry}>
+        <RotateCcw className="w-3 h-3" />
+        Retry AI rewrites
+      </Button>
+    );
+
+  return (
+    <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 flex items-start gap-2.5">
+      <span className="text-amber-700">{icon}</span>
+      <div className="flex-1 space-y-2 min-w-0">
+        <div className="flex items-center gap-1.5">
+          <Wand2 className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+          <p className="text-xs font-semibold text-amber-900">AI sentence rewrites skipped</p>
+        </div>
+        <p className="text-[11px] text-amber-800 leading-relaxed">{failure.message}</p>
+        <div className="text-amber-700">{cta}</div>
+      </div>
     </div>
   );
 }

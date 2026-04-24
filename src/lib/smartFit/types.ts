@@ -100,6 +100,14 @@ export interface SentenceRewriteProposal {
 /** Stage tag for telemetry + UI grouping. */
 export type SmartFitStage = 'layout' | 'rewrite' | 'prune' | 'collapse';
 
+/** Structured reason why the AI rewrite stage could not complete. */
+export interface RewriteFailureInfo {
+  kind: 'out-of-credits' | 'rate-limited' | 'network' | 'provider-error' | 'unavailable';
+  message: string;
+  /** Only present for rate-limited failures. */
+  retryAfterSeconds?: number;
+}
+
 /** A layout-only fit proposal: shrink the resume's `customization.fontScale`
  *  to a tested value that brings the resume closer to (or at) the target
  *  page count. This is Stage 0 of the convergence loop — purely deterministic,
@@ -143,6 +151,9 @@ export interface SmartFitPlan {
   /** Selection IDs the convergence loop found *necessary* to reach the
    *  target. The wizard pre-checks these. */
   recommendedSelection?: SmartFitSelection;
+  /** Present when the AI rewrite stage could not complete. The UI should
+   *  surface a single explanatory banner rather than per-sentence cards. */
+  rewriteFailure?: RewriteFailureInfo;
 }
 
 /** User selection across all proposed edits. */
