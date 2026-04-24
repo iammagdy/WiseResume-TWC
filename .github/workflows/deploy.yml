@@ -207,7 +207,7 @@ jobs:
             return 1
           }
 
-          echo "--- Transport 1: Explicit FTPS (port 21, hostname) ---"
+          echo "--- Transport 1: Explicit FTPS (port 21) ---"
           if try_transport "Explicit FTPS :21" deploy_explicit; then
             exit 0
           fi
