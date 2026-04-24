@@ -3510,34 +3510,48 @@ app.post('/api/export/pdf-native', requireAuthHeader, async (req: AuthedRequest,
         const yEnd   = breakpoints[si + 1];
         const segH   = yEnd - yStart; // CSS px = PDF pt at 612 pt design width
 
-        const segViewportH = Math.max(1, Math.round(segH * pageZoom));
-        await page.setViewport({ width: viewportWidthPx, height: segViewportH });
+        // Guard against degenerate segments that would cause Puppeteer to throw.
+        if (segH <= 0) {
+          console.warn(`[export/pdf-native] Skipping degenerate segment ${si}: yStart=${yStart} yEnd=${yEnd} segH=${segH}`);
+          continue;
+        }
 
-        // Clip HTML to segment height and translate body up to reveal this slice.
-        // html { zoom } is already applied via zoomSnippet so we work in unzoomed
-        // CSS pixels here; the zoom then scales them to the correct viewport size.
-        await page.evaluate((yS: number, sH: number) => {
-          document.documentElement.style.height   = `${sH}px`;
-          document.documentElement.style.overflow = 'hidden';
-          document.body.style.transform           = `translateY(-${yS}px)`;
-        }, yStart, segH);
+        try {
+          const segViewportH = Math.max(1, Math.round(segH * pageZoom));
+          await page.setViewport({ width: viewportWidthPx, height: segViewportH });
 
-        const segPdf = await page.pdf({
-          width:           `${resumeWidthPx}pt`,
-          height:          `${segH}pt`,
-          printBackground: true,
-          margin: { top: '0', right: '0', bottom: '0', left: '0' },
-          displayHeaderFooter: false,
-        });
+          // Clip HTML to segment height and translate body up to reveal this slice.
+          // html { zoom } is already applied via zoomSnippet so we work in unzoomed
+          // CSS pixels here; the zoom then scales them to the correct viewport size.
+          await page.evaluate((yS: number, sH: number) => {
+            document.documentElement.style.height   = `${sH}px`;
+            document.documentElement.style.overflow = 'hidden';
+            document.body.style.transform           = `translateY(-${yS}px)`;
+          }, yStart, segH);
 
-        pageBuffers.push(Buffer.from(segPdf));
+          const segPdf = await page.pdf({
+            width:           `${resumeWidthPx}pt`,
+            height:          `${segH}pt`,
+            printBackground: true,
+            margin: { top: '0', right: '0', bottom: '0', left: '0' },
+            displayHeaderFooter: false,
+          });
 
-        // Reset styles before next segment
-        await page.evaluate(() => {
-          document.documentElement.style.height   = '';
-          document.documentElement.style.overflow = '';
-          document.body.style.transform           = '';
-        });
+          pageBuffers.push(Buffer.from(segPdf));
+
+          // Reset styles before next segment
+          await page.evaluate(() => {
+            document.documentElement.style.height   = '';
+            document.documentElement.style.overflow = '';
+            document.body.style.transform           = '';
+          });
+        } catch (segErr) {
+          console.error(
+            `[export/pdf-native] Segment ${si} failed — yStart=${yStart} yEnd=${yEnd} segH=${segH}:`,
+            segErr,
+          );
+          throw segErr;
+        }
       }
 
       // Merge all single-page PDFs into one multi-page document

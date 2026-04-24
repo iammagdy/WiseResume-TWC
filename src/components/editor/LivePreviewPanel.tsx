@@ -262,8 +262,9 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
       });
       const baseName = currentResume.contactInfo?.fullName?.replace(/\s+/g, '_') || 'Resume';
       await downloadFile({ blob: pdfBlob, fileName: `${baseName}_Resume_CustomBreaks.pdf`, mimeType: 'application/pdf' });
-    } catch {
-      toast.error('Download failed. Please try again.');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Download failed. Please try again.';
+      toast.error(msg);
     } finally {
       setIsCustomBreakDownloading(false);
     }

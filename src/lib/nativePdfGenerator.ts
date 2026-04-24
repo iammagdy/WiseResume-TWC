@@ -88,6 +88,24 @@ export async function generateNativePDF(
   // from the clone explicitly.
   clone.querySelectorAll('[data-html2canvas-ignore]').forEach(el => el.remove());
 
+  // For custom-break exports, measure the content height from the already-stripped
+  // clone rather than from element.scrollHeight (which still includes the removed
+  // overlays). The clone must be briefly attached to the document for scrollHeight
+  // to reflect real layout; we use the same width as the source element so the
+  // browser performs an identical text/flow layout.
+  let cleanedContentHeight: number | undefined;
+  if (hasCustomBreaks) {
+    const measurer = document.createElement('div');
+    measurer.style.cssText =
+      `position:fixed;top:-9999px;left:0;width:${element.offsetWidth}px;` +
+      `visibility:hidden;pointer-events:none;overflow:hidden;`;
+    document.body.appendChild(measurer);
+    measurer.appendChild(clone);
+    cleanedContentHeight = clone.scrollHeight;
+    measurer.removeChild(clone);
+    document.body.removeChild(measurer);
+  }
+
   // Compress large base64-encoded images to JPEG before serialisation so the
   // HTML payload stays well within the server's size limit even when the resume
   // contains a high-resolution profile photo or other inline raster assets.
@@ -243,7 +261,9 @@ ${clone.outerHTML}
       showBranding,
       ...(hasCustomBreaks && {
         customBreakPositions,
-        totalContentHeightPx: element.scrollHeight,
+        // Use the height measured from the stripped clone (computed above) so
+        // editor-only overlays with [data-html2canvas-ignore] are excluded.
+        totalContentHeightPx: cleanedContentHeight ?? element.scrollHeight,
       }),
     }),
   });
