@@ -42,6 +42,7 @@ import { getServiceClient } from '../_shared/dbClient.ts';
 import { requireAdminAuth } from '../_shared/adminAuth.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { encrypt, decrypt } from '../_shared/encryption.ts';
+import { escapeHtml } from '../_shared/htmlEscape.ts';
 
 // ---------- TOTP helpers ----------
 
@@ -182,6 +183,88 @@ async function updateSupabaseSecret(name: string, value: string): Promise<{ ok: 
     return { ok: false, error: `Management API returned ${response.status}: ${body}` };
   }
   return { ok: true };
+}
+
+// ---------- Rotation notification email ----------
+
+const ROTATION_NOTIFY_FROM = 'WiseResume Security <notifications@thewise.cloud>';
+
+async function sendRotationNotification(params: {
+  toEmail: string;
+  rotatedAt: string;
+  automated: boolean;
+  manualReason?: string | null;
+}): Promise<void> {
+  const apiKey = Deno.env.get('RESEND_API_KEY')?.trim();
+  if (!apiKey) {
+    console.warn('[admin-rotate-totp] RESEND_API_KEY not configured — skipping rotation notification email');
+    return;
+  }
+
+  const { toEmail, rotatedAt, automated, manualReason } = params;
+  const mode = automated ? 'automatic' : 'manual';
+  const subject = `WiseResume admin TOTP secret rotated (${mode})`;
+
+  const safeEmail = escapeHtml(toEmail);
+  const safeWhen = escapeHtml(rotatedAt);
+  const safeMode = escapeHtml(mode);
+  const safeReason = manualReason ? escapeHtml(manualReason) : '';
+
+  const modeBlurb = automated
+    ? 'The new secret was applied automatically via the Supabase Management API. No further action is required.'
+    : 'The Management API update did not run, so the new secret was returned in the DevKit UI for manual entry into Supabase secrets.';
+
+  const html = `<!doctype html>
+<html><body style="font-family: -apple-system, Segoe UI, sans-serif; color: #111; line-height: 1.5;">
+  <h2 style="margin: 0 0 12px;">Admin TOTP secret rotated</h2>
+  <p>The DevKit admin TOTP secret was rotated for <strong>${safeEmail}</strong>.</p>
+  <ul>
+    <li><strong>When:</strong> ${safeWhen}</li>
+    <li><strong>Type:</strong> ${safeMode}</li>
+  </ul>
+  <p>${escapeHtml(modeBlurb)}</p>
+  ${safeReason ? `<p style="color:#666;font-size:12px;"><strong>Manual update reason:</strong> ${safeReason}</p>` : ''}
+  <p style="color:#666;font-size:12px;margin-top:24px;">
+    If you did not perform this rotation, treat this as a security incident: revoke active DevKit sessions and rotate <code>DEV_KIT_PASSWORD</code> immediately.
+  </p>
+</body></html>`;
+
+  const text = [
+    'Admin TOTP secret rotated',
+    '',
+    `Account: ${toEmail}`,
+    `When:    ${rotatedAt}`,
+    `Type:    ${mode}`,
+    '',
+    modeBlurb,
+    manualReason ? `\nManual update reason: ${manualReason}` : '',
+    '',
+    'If you did not perform this rotation, treat it as a security incident:',
+    'revoke active DevKit sessions and rotate DEV_KIT_PASSWORD immediately.',
+  ].filter(Boolean).join('\n');
+
+  try {
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: ROTATION_NOTIFY_FROM,
+        to: [toEmail],
+        subject,
+        html,
+        text,
+      }),
+    });
+    if (!response.ok) {
+      const errText = await response.text().catch(() => '');
+      console.warn(`[admin-rotate-totp] rotation notification email failed (${response.status}):`, errText);
+    }
+  } catch (err) {
+    console.warn('[admin-rotate-totp] rotation notification email threw (non-fatal):', err);
+  }
 }
 
 // ---------- Bootstrap rate limiting (IP-keyed via rpc_rate_limits) ----------
@@ -465,6 +548,7 @@ Deno.serve(async (req) => {
 
       // TOTP verified — attempt to update via Management API
       const updateResult = await updateSupabaseSecret('ADMIN_TOTP_SECRET', pendingSecret);
+      const rotatedAt = new Date().toISOString();
 
       // Clean up pending regardless
       await supabase.from('app_settings').delete().eq('key', PENDING_KEY);
@@ -482,14 +566,26 @@ Deno.serve(async (req) => {
           rotated_by: callerEmail,
           automated_update: updateResult.ok,
           update_error: updateResult.error ?? null,
-          rotated_at: new Date().toISOString(),
+          rotated_at: rotatedAt,
         },
-        created_at: new Date().toISOString(),
+        created_at: rotatedAt,
       });
 
       if (auditInsert.error) {
         console.warn('[admin-rotate-totp] audit log write failed (non-fatal):', auditInsert.error);
       }
+
+      // Fire-and-forget notification email so the admin gets a confirmation
+      // even if the rotation was triggered without their knowledge. We await
+      // it here (rather than truly fire-and-forget) so the edge function
+      // doesn't terminate before the request finishes; the helper itself
+      // swallows any send errors so they can't break the rotation response.
+      await sendRotationNotification({
+        toEmail: callerEmail,
+        rotatedAt,
+        automated: updateResult.ok,
+        manualReason: updateResult.ok ? null : updateResult.error ?? null,
+      });
 
       if (updateResult.ok) {
         return new Response(
