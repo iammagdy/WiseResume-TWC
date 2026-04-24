@@ -1,8 +1,20 @@
 [
   {
-    "version": "v3.5.8",
+    "version": "v3.5.9",
     "date": "Apr 24, 2026",
     "latest": true,
+    "summary": "New WiseResume favicon — including a proper multi-resolution .ico so the right icon shows up everywhere, including on raw URLs like the changelog.",
+    "items": [
+      {
+        "title": "Refreshed WiseResume tab icon across the app",
+        "description": "Updated the WiseResume favicon and added a multi-resolution .ico version (16, 32, 48 pixels). Browsers will pick the sharpest one for the tab, the bookmark bar, and the home-screen shortcut. The WiseHire favicon on the enterprises page is unchanged."
+      }
+    ]
+  },
+  {
+    "version": "v3.5.8",
+    "date": "Apr 24, 2026",
+    "latest": false,
     "summary": "Tightened the live-site routing fix from v3.5.7 so secondary endpoints behave the same as the dev server.",
     "items": [
       {

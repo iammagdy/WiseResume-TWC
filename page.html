@@ -13,7 +13,12 @@
   <!-- Inter font is self-hosted via @fontsource/inter (imported in src/main.tsx).
        Eliminates blocking Google Fonts request on FCP. -->
 
-  <link id="app-favicon" rel="icon" type="image/png" href="/favicon.png">
+  <!-- Multi-resolution .ico is the canonical tab icon (browsers prefer it,
+       and it's also what raw URLs like /changelog.json fall back to via
+       the implicit /favicon.ico request). The hi-res PNG is offered as a
+       sized hint for retina/high-density displays and used for og:image. -->
+  <link id="app-favicon-ico" rel="icon" href="/favicon.ico" sizes="any">
+  <link id="app-favicon" rel="icon" type="image/png" sizes="32x32" href="/favicon.png">
   <link id="app-favicon-preload" rel="preload" href="/favicon.png" as="image" />
   <meta name="format-detection" content="telephone=no" />
 
