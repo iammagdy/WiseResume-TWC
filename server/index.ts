@@ -3506,6 +3506,17 @@ app.post('/api/export/pdf-native', requireAuthHeader, async (req: AuthedRequest,
       typeof totalContentHeightPx === 'number' &&
       (totalContentHeightPx as number) > 10;
 
+    console.log('[export/pdf-native] request', {
+      hasCustomBreaks,
+      onePage: safeOnePage,
+      pageFormat: isA4 ? 'a4' : 'letter',
+      customBreakPositions: Array.isArray(customBreakPositions)
+        ? (customBreakPositions as unknown[])
+        : `(non-array: ${typeof customBreakPositions})`,
+      totalContentHeightPx,
+      htmlBytes: typeof html === 'string' ? html.length : 0,
+    });
+
     if (hasCustomBreaks) {
       const totalH = totalContentHeightPx as number;
       const safeBreaks = (customBreakPositions as unknown[])
@@ -3530,14 +3541,36 @@ app.post('/api/export/pdf-native', requireAuthHeader, async (req: AuthedRequest,
           const segViewportH = Math.max(1, Math.round(segH * pageZoom));
           await page.setViewport({ width: viewportWidthPx, height: segViewportH });
 
-          // Clip HTML to segment height and translate body up to reveal this slice.
-          // html { zoom } is already applied via zoomSnippet so we work in unzoomed
-          // CSS pixels here; the zoom then scales them to the correct viewport size.
-          await page.evaluate((yS: number, sH: number) => {
-            document.documentElement.style.height   = `${sH}px`;
-            document.documentElement.style.overflow = 'hidden';
-            document.body.style.transform           = `translateY(-${yS}px)`;
-          }, yStart, segH);
+          // Clip the document to exactly the segment slice. We have to clamp
+          // BOTH <html> and <body> sizes — Chromium's print engine paginates
+          // based on the body's natural box height, so simply hiding overflow
+          // on <html> is not enough to stop multi-page rendering of a single
+          // slice. We also stash inline `width` so we restore it cleanly.
+          // html { zoom } is already applied via zoomSnippet so we work in
+          // unzoomed CSS pixels here.
+          await page.evaluate((yS: number, sH: number, wPx: number) => {
+            const docEl = document.documentElement;
+            const body  = document.body;
+            // Save originals on the element so we can restore them later.
+            const stash = (el: HTMLElement, key: string) => {
+              if (el.dataset[`__seg_${key}`] === undefined) {
+                el.dataset[`__seg_${key}`] = (el.style.getPropertyValue(key) || '');
+              }
+            };
+            stash(docEl, 'height'); stash(docEl, 'overflow');
+            stash(body,  'height'); stash(body,  'width');
+            stash(body,  'overflow'); stash(body,  'transform');
+            stash(body,  'margin');   stash(body,  'padding');
+
+            docEl.style.height   = `${sH}px`;
+            docEl.style.overflow = 'hidden';
+            body.style.height    = `${sH}px`;
+            body.style.width     = `${wPx}px`;
+            body.style.overflow  = 'hidden';
+            body.style.margin    = '0';
+            body.style.padding   = '0';
+            body.style.transform = `translateY(-${yS}px)`;
+          }, yStart, segH, resumeWidthPx);
 
           // Puppeteer's `page.pdf()` does NOT accept `pt` as a unit
           // (`convertPrintParameterToInches` only handles px/in/cm/mm). The
@@ -3545,22 +3578,37 @@ app.post('/api/export/pdf-native', requireAuthHeader, async (req: AuthedRequest,
           // width), so convert to inches: 1 pt = 1/72 in. This keeps the
           // page exactly the size of its content slice — including a short
           // last page that holds only one section, which must NOT be padded
-          // up to A4/Letter height.
+          // up to A4/Letter height. `pageRanges: '1'` is a defensive cap so
+          // even if the body still overflows after clipping, we never emit
+          // more than one physical page per segment.
           const segPdf = await page.pdf({
             width:           `${resumeWidthPx / 72}in`,
             height:          `${segH / 72}in`,
             printBackground: true,
             margin: { top: '0', right: '0', bottom: '0', left: '0' },
             displayHeaderFooter: false,
+            pageRanges: '1',
+            preferCSSPageSize: false,
           });
 
           pageBuffers.push(Buffer.from(segPdf));
 
-          // Reset styles before next segment
+          // Restore styles before next segment
           await page.evaluate(() => {
-            document.documentElement.style.height   = '';
-            document.documentElement.style.overflow = '';
-            document.body.style.transform           = '';
+            const docEl = document.documentElement;
+            const body  = document.body;
+            const restore = (el: HTMLElement, key: string) => {
+              const saved = el.dataset[`__seg_${key}`];
+              if (saved !== undefined) {
+                if (saved === '') el.style.removeProperty(key);
+                else              el.style.setProperty(key, saved);
+                delete el.dataset[`__seg_${key}`];
+              }
+            };
+            restore(docEl, 'height'); restore(docEl, 'overflow');
+            restore(body,  'height'); restore(body,  'width');
+            restore(body,  'overflow'); restore(body,  'transform');
+            restore(body,  'margin');   restore(body,  'padding');
           });
         } catch (segErr) {
           console.error(
