@@ -1,5 +1,5 @@
 import { memo, useState, useCallback, Suspense, useRef, CSSProperties, useEffect } from 'react';
-import { ZoomIn, ZoomOut, Eye, EyeOff, X, Scissors, SeparatorHorizontal, Sliders } from 'lucide-react';
+import { ZoomIn, ZoomOut, Eye, EyeOff, X, Scissors, SeparatorHorizontal, Sliders, GripVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useResumeStore } from '@/store/resumeStore';
 import { applyCustomizationCSS, generateCustomizationCSS } from '@/lib/templateCustomization';
@@ -111,6 +111,15 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
   const [domSections, setDomSections] = useState<string[]>([]);
   const resumeRef = useRef<HTMLDivElement>(null);
 
+  const [isBreakEditMode, setIsBreakEditMode] = useState(false);
+  const [draggingBreak, setDraggingBreak] = useState<{
+    index: number;
+    startClientY: number;
+    startBreakY: number;
+    currentY: number;
+  } | null>(null);
+  const justDraggedRef = useRef(false);
+
   const TemplateComponent = templateComponents[selectedTemplate];
 
   // Track resume content and compute snap-aware page break positions
@@ -178,6 +187,58 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
     });
   }, [currentResume, updateResume]);
 
+  const sortedCustomBreaks = [...(currentResume?.customization?.customBreakPositions ?? [])].sort((a, b) => a - b);
+
+  const setCustomBreaks = useCallback((positions: number[]) => {
+    if (!currentResume) return;
+    const sorted = positions.filter(y => isFinite(y) && y > 0).sort((a, b) => a - b);
+    updateResume({
+      customization: { ...currentResume.customization, customBreakPositions: sorted } as typeof currentResume.customization,
+    });
+  }, [currentResume, updateResume]);
+
+  const handleResumeClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isBreakEditMode || !resumeRef.current) return;
+    if (justDraggedRef.current) return;
+    const rect = resumeRef.current.getBoundingClientRect();
+    const cssY = Math.round((e.clientY - rect.top) / zoom);
+    const totalH = resumeRef.current.scrollHeight;
+    if (cssY <= 5 || cssY >= totalH - 5) return;
+    const existing = currentResume?.customization?.customBreakPositions ?? [];
+    if (existing.some(b => Math.abs(b - cssY) < 30)) return;
+    setCustomBreaks([...existing, cssY]);
+  }, [isBreakEditMode, zoom, currentResume, setCustomBreaks]);
+
+  const handleDragStart = useCallback((e: React.PointerEvent, index: number, breakY: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    setDraggingBreak({ index, startClientY: e.clientY, startBreakY: breakY, currentY: breakY });
+  }, []);
+
+  const handleDragMove = useCallback((e: React.PointerEvent, index: number) => {
+    if (!draggingBreak || draggingBreak.index !== index || !resumeRef.current) return;
+    const delta = (e.clientY - draggingBreak.startClientY) / zoom;
+    const totalH = resumeRef.current.scrollHeight;
+    const newY = Math.round(Math.max(5, Math.min(totalH - 5, draggingBreak.startBreakY + delta)));
+    setDraggingBreak(prev => prev ? { ...prev, currentY: newY } : null);
+  }, [draggingBreak, zoom]);
+
+  const handleDragEnd = useCallback((index: number) => {
+    if (!draggingBreak || draggingBreak.index !== index) return;
+    justDraggedRef.current = true;
+    setTimeout(() => { justDraggedRef.current = false; }, 80);
+    const positions = [...(currentResume?.customization?.customBreakPositions ?? [])].sort((a, b) => a - b);
+    positions[draggingBreak.index] = draggingBreak.currentY;
+    setCustomBreaks(positions);
+    setDraggingBreak(null);
+  }, [draggingBreak, currentResume, setCustomBreaks]);
+
+  const removeCustomBreak = useCallback((index: number) => {
+    const positions = [...(currentResume?.customization?.customBreakPositions ?? [])].sort((a, b) => a - b);
+    setCustomBreaks(positions.filter((_, i) => i !== index));
+  }, [currentResume, setCustomBreaks]);
+
   // Auto-fit-to-pages: when customization.targetPageCount is set, this hook
   // measures the rendered preview and patches customization.fontScale so the
   // resume occupies the requested page count. No-op when targetPageCount is
@@ -242,9 +303,34 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
               showPageBreaks ? 'bg-destructive/10 text-destructive' : 'text-muted-foreground hover:bg-muted'
             )}
             aria-label="Toggle page break indicators"
+            title="Show/hide auto page break lines"
           >
             <Scissors className="w-4 h-4" />
           </button>
+
+          {/* Custom break edit mode */}
+          <button
+            onClick={() => { setIsBreakEditMode(v => !v); haptics.light(); }}
+            className={cn(
+              'p-2 rounded-lg transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center touch-manipulation active:scale-95',
+              isBreakEditMode ? 'bg-primary/10 text-primary ring-1 ring-primary/30' : 'text-muted-foreground hover:bg-muted'
+            )}
+            aria-label="Edit custom page breaks"
+            title={isBreakEditMode ? 'Click resume to add breaks · drag handles to move · click ✕ to delete' : 'Place custom page breaks (overrides auto-pagination on export)'}
+          >
+            <GripVertical className="w-4 h-4" />
+          </button>
+
+          {/* Clear custom breaks */}
+          {sortedCustomBreaks.length > 0 && (
+            <button
+              onClick={() => { setCustomBreaks([]); setIsBreakEditMode(false); haptics.light(); }}
+              className="px-2 py-1 rounded-lg text-xs transition-colors text-muted-foreground hover:bg-muted hover:text-destructive min-h-[44px] whitespace-nowrap touch-manipulation active:scale-95"
+              title="Remove all custom page breaks"
+            >
+              Clear {sortedCustomBreaks.length} break{sortedCustomBreaks.length > 1 ? 's' : ''}
+            </button>
+          )}
 
           {/* Section toggle button */}
           <button
@@ -346,8 +432,10 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
               width: '100%',
               maxWidth: '612px',
               minHeight: '792px',
+              cursor: isBreakEditMode ? 'crosshair' : undefined,
               ...customizationStyle,
             } as CSSProperties}
+            onClick={handleResumeClick}
           >
             {currentResume.customization && (
               <style>
@@ -370,7 +458,7 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
               <TemplateComponent resume={filteredResume} accentColor={filteredResume?.customization?.accentColor} />
             </Suspense>
 
-            {/* Page break indicators — positions match PDF export snap algorithm */}
+            {/* Auto page break indicators (dashed) */}
             {showPageBreaks && pageBreaks.map((breakY, i) => (
               <div
                 key={i}
@@ -380,10 +468,53 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
               >
                 <div className="border-t border-dashed border-destructive/50 w-full" />
                 <span className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white text-destructive text-[9px] font-medium px-1.5 py-0.5 rounded-full shadow-sm whitespace-nowrap">
-                  — Page break —
+                  — Auto break —
                 </span>
               </div>
             ))}
+
+            {/* Custom break indicators (solid, draggable) */}
+            {sortedCustomBreaks.map((breakY, i) => {
+              const visualY = draggingBreak?.index === i ? draggingBreak.currentY : breakY;
+              return (
+                <div
+                  key={`custom-${i}`}
+                  data-html2canvas-ignore="true"
+                  className="absolute left-0 w-full z-20"
+                  style={{ top: `${visualY}px`, touchAction: 'none' }}
+                >
+                  <div className="border-t-2 border-primary w-full" />
+                  <div
+                    className="absolute left-0 top-0 -translate-y-1/2 flex items-center bg-primary text-primary-foreground rounded-r px-1 py-0.5 cursor-ns-resize select-none gap-0.5 shadow"
+                    style={{ touchAction: 'none' }}
+                    onPointerDown={(e) => handleDragStart(e, i, breakY)}
+                    onPointerMove={(e) => handleDragMove(e, i)}
+                    onPointerUp={() => handleDragEnd(i)}
+                  >
+                    <GripVertical className="w-3 h-3" />
+                    <span className="text-[8px] font-medium leading-none">break {i + 1}</span>
+                  </div>
+                  <button
+                    data-html2canvas-ignore="true"
+                    className="absolute right-1 top-0 -translate-y-1/2 bg-primary text-primary-foreground rounded-full w-4 h-4 flex items-center justify-center text-[9px] leading-none shadow hover:bg-destructive transition-colors"
+                    onClick={(e) => { e.stopPropagation(); removeCustomBreak(i); }}
+                    title="Remove this break"
+                  >
+                    ×
+                  </button>
+                </div>
+              );
+            })}
+
+            {/* Break-edit-mode hint bar */}
+            {isBreakEditMode && (
+              <div
+                data-html2canvas-ignore="true"
+                className="sticky bottom-0 left-0 w-full bg-primary/90 text-primary-foreground text-[10px] text-center py-1 z-30 pointer-events-none select-none"
+              >
+                Click anywhere to add a break · Drag handle to move · × to delete
+              </div>
+            )}
           </div>
         </div>
       </div>

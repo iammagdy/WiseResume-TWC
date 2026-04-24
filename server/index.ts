@@ -12,6 +12,7 @@
  */
 
 import * as Sentry from '@sentry/node';
+import { PDFDocument } from 'pdf-lib';
 import express from 'express';
 import type { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
@@ -3330,6 +3331,8 @@ app.post('/api/export/pdf-native', requireAuthHeader, async (req: AuthedRequest,
     fitScale = 1,
     showPageNumbers = true,
     showBranding = true,
+    customBreakPositions,
+    totalContentHeightPx,
   } = req.body as {
     html?: unknown;
     pageFormat?: unknown;
@@ -3337,6 +3340,8 @@ app.post('/api/export/pdf-native', requireAuthHeader, async (req: AuthedRequest,
     fitScale?: unknown;
     showPageNumbers?: unknown;
     showBranding?: unknown;
+    customBreakPositions?: unknown;
+    totalContentHeightPx?: unknown;
   };
 
   if (typeof html !== 'string' || html.length < 10 || html.length > 50_000_000) {
@@ -3415,6 +3420,78 @@ app.post('/api/export/pdf-native', requireAuthHeader, async (req: AuthedRequest,
 
     await page.setContent(injectedHtml, { waitUntil: 'networkidle0', timeout: 30_000 });
 
+    // ── Custom break mode ──────────────────────────────────────────────────────
+    // When the user has placed exact break positions we render one PDF segment
+    // per page so each page has its own precise height. The last page is never
+    // padded to A4/Letter — it is exactly as tall as its remaining content.
+    // At 612 pt design width, 1 CSS pixel === 1 PDF point, so break Y values
+    // and segment heights can be used directly as pt dimensions.
+    const hasCustomBreaks =
+      Array.isArray(customBreakPositions) &&
+      (customBreakPositions as unknown[]).length > 0 &&
+      typeof totalContentHeightPx === 'number' &&
+      (totalContentHeightPx as number) > 10;
+
+    if (hasCustomBreaks) {
+      const totalH = totalContentHeightPx as number;
+      const safeBreaks = (customBreakPositions as unknown[])
+        .filter((y): y is number => typeof y === 'number' && isFinite(y) && y > 0 && y < totalH)
+        .sort((a, b) => a - b);
+
+      const breakpoints = [0, ...safeBreaks, totalH];
+      const pageBuffers: Buffer[] = [];
+
+      for (let si = 0; si < breakpoints.length - 1; si++) {
+        const yStart = breakpoints[si];
+        const yEnd   = breakpoints[si + 1];
+        const segH   = yEnd - yStart; // CSS px = PDF pt at 612 pt design width
+
+        const segViewportH = Math.max(1, Math.round(segH * pageZoom));
+        await page.setViewport({ width: viewportWidthPx, height: segViewportH });
+
+        // Clip HTML to segment height and translate body up to reveal this slice.
+        // html { zoom } is already applied via zoomSnippet so we work in unzoomed
+        // CSS pixels here; the zoom then scales them to the correct viewport size.
+        await page.evaluate((yS: number, sH: number) => {
+          document.documentElement.style.height   = `${sH}px`;
+          document.documentElement.style.overflow = 'hidden';
+          document.body.style.transform           = `translateY(-${yS}px)`;
+        }, yStart, segH);
+
+        const segPdf = await page.pdf({
+          width:           `${resumeWidthPx}pt`,
+          height:          `${segH}pt`,
+          printBackground: true,
+          margin: { top: '0', right: '0', bottom: '0', left: '0' },
+          displayHeaderFooter: false,
+        });
+
+        pageBuffers.push(Buffer.from(segPdf));
+
+        // Reset styles before next segment
+        await page.evaluate(() => {
+          document.documentElement.style.height   = '';
+          document.documentElement.style.overflow = '';
+          document.body.style.transform           = '';
+        });
+      }
+
+      // Merge all single-page PDFs into one multi-page document
+      const merged = await PDFDocument.create();
+      for (const buf of pageBuffers) {
+        const doc   = await PDFDocument.load(buf);
+        const pages = await merged.copyPages(doc, doc.getPageIndices());
+        pages.forEach(p => merged.addPage(p));
+      }
+      const finalBytes = await merged.save();
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'attachment; filename="resume.pdf"');
+      res.send(Buffer.from(finalBytes));
+      return;
+    }
+
+    // ── Standard A4 / Letter rendering ────────────────────────────────────────
     const pdfBuffer = await page.pdf({
       format: isA4 ? 'A4' : 'Letter',
       printBackground: true,

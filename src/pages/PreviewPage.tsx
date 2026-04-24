@@ -346,7 +346,14 @@ export default function PreviewPage() {
             const { generateNativePDF: nativePdf } = await import('@/lib/nativePdfGenerator');
             const templateEl = resumeRef.current ?? (document.querySelector('[data-resume-template]') as HTMLElement | null);
             if (!templateEl) { toast.error('Resume preview not visible'); return; }
-            pdfBlob = await nativePdf(templateEl, { pageFormat, showPageNumbers, showBranding, onProgress });
+            const customBreakPositions = currentResume.customization?.customBreakPositions;
+            pdfBlob = await nativePdf(templateEl, {
+              pageFormat,
+              showPageNumbers: customBreakPositions?.length ? false : showPageNumbers,
+              showBranding,
+              onProgress,
+              ...(customBreakPositions?.length ? { customBreakPositions } : {}),
+            });
             fileName = `${baseName}_Resume.pdf`;
             break;
           }

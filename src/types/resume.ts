@@ -121,6 +121,12 @@ export interface TemplateCustomization {
   pageFormat: 'a4' | 'letter';
   /** Section names (matching data-section attribute values) to force a page break BEFORE. */
   manualPageBreaks?: string[];
+  /**
+   * User-placed exact page break positions in CSS pixels at 612 px design width.
+   * When non-empty the export engine uses ONLY these positions — each segment is
+   * rendered at its exact height so the last page is never padded to A4/Letter.
+   */
+  customBreakPositions?: number[];
   /** Optional fine-tuning knobs surfaced through the Style Customization panel.
    *  All optional — when undefined, the template's natural styling is used. */
   headerAlign?: 'left' | 'center' | 'right';

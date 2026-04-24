@@ -16,6 +16,13 @@ export interface NativePdfOptions {
   /** When true, injects ATS-clean CSS overrides (black text, white bg, Arial,
    *  no decorative images) so the PDF is maximally machine-readable. */
   atsMode?: boolean;
+  /**
+   * User-placed exact page break Y positions in CSS pixels (at 612 px design
+   * width). When provided the server renders one PDF slice per segment so each
+   * page is exactly as tall as the content — the last page is never padded to
+   * A4/Letter size. Mutually exclusive with onePage.
+   */
+  customBreakPositions?: number[];
 }
 
 /**
@@ -34,7 +41,10 @@ export async function generateNativePDF(
     showBranding = true,
     onProgress,
     atsMode = false,
+    customBreakPositions,
   } = options;
+
+  const hasCustomBreaks = !onePage && Array.isArray(customBreakPositions) && customBreakPositions.length > 0;
 
   onProgress?.('preparing', 5);
   await document.fonts.ready;
@@ -231,6 +241,10 @@ ${clone.outerHTML}
       fitScale,
       showPageNumbers,
       showBranding,
+      ...(hasCustomBreaks && {
+        customBreakPositions,
+        totalContentHeightPx: element.scrollHeight,
+      }),
     }),
   });
 
