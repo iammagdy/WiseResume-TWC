@@ -306,7 +306,8 @@ function DevKitLoginForm() {
     if (rememberedEmail) setEmail(rememberedEmail);
   }, [rememberedEmail]);
 
-  // Detect biometric mode on mount
+  // Detect biometric mode on mount. When a remembered session exists and biometric is
+  // unavailable, auto-unlock immediately so the user never sees the login form.
   useEffect(() => {
     if (!hasRememberedSession) {
       setBiometricMode('unavailable');
@@ -316,9 +317,17 @@ function DevKitLoginForm() {
     detectBiometricMode().then(mode => {
       setBiometricMode(mode);
       if (mode === 'unavailable') {
-        setShowFullForm(true);
+        // No biometric available — auto-unlock with the stored token immediately.
+        const remembered = loadRememberedToken();
+        if (remembered) {
+          unlock(remembered.token);
+        } else {
+          // Token expired or cleared — fall back to full login form.
+          setShowFullForm(true);
+        }
       }
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasRememberedSession]);
 
   // Auto-trigger biometric when mode is known and session exists

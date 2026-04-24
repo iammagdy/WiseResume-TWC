@@ -169,9 +169,10 @@ Deno.serve(async (req) => {
 
     const ADMIN_TOTP_SECRET = Deno.env.get("ADMIN_TOTP_SECRET")?.trim();
     if (!ADMIN_TOTP_SECRET) {
+      // Return 200 so the structured payload reaches the frontend's data field, not error.
       return new Response(
-        JSON.stringify({ error: "ADMIN_TOTP_SECRET secret is not configured.", reason: "totp_secret_missing" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ success: false, reason: "totp_secret_missing", error: "ADMIN_TOTP_SECRET secret is not configured." }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 

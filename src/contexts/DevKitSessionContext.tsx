@@ -29,7 +29,7 @@ function notifyLockListeners() {
   }
 }
 
-function loadRememberedToken(): { token: string; email: string } | null {
+export function loadRememberedToken(): { token: string; email: string } | null {
   try {
     const token = localStorage.getItem(LS_TOKEN_KEY);
     const expiry = localStorage.getItem(LS_EXPIRY_KEY);
@@ -48,7 +48,7 @@ function loadRememberedToken(): { token: string; email: string } | null {
   }
 }
 
-function saveRememberedToken(token: string, expiresAt: number, email: string) {
+export function saveRememberedToken(token: string, expiresAt: number, email: string) {
   try {
     localStorage.setItem(LS_TOKEN_KEY, token);
     localStorage.setItem(LS_EXPIRY_KEY, String(expiresAt));
@@ -56,7 +56,7 @@ function saveRememberedToken(token: string, expiresAt: number, email: string) {
   } catch { }
 }
 
-function clearRememberedToken() {
+export function clearRememberedToken() {
   try {
     localStorage.removeItem(LS_TOKEN_KEY);
     localStorage.removeItem(LS_EXPIRY_KEY);
@@ -67,6 +67,7 @@ function clearRememberedToken() {
 interface DevKitSessionContextValue {
   isUnlocked: boolean;
   unlock: (sessionToken: string, opts?: { rememberMe?: boolean; expiresAt?: number; email?: string }) => void;
+  /** Explicit lock — clears remembered session from localStorage. Call on user-initiated lock. */
   lock: () => void;
   secondsUntilLock: number | null;
   rememberedEmail: string | null;
@@ -98,6 +99,20 @@ export function DevKitSessionProvider({ children }: { children: React.ReactNode 
     lockAtRef.current = null;
   }, []);
 
+  // Inactivity lock: session expires after idle time, but remembered token stays in
+  // localStorage so the user can re-unlock via biometric or remembered session on the
+  // next visit without re-entering their full credentials.
+  const inactivityLock = useCallback(() => {
+    setDevKitToken(null);
+    notifyLockListeners();
+    setIsUnlocked(false);
+    setSecondsUntilLock(null);
+    clearTimers();
+    // Intentionally does NOT clear localStorage — remembered session survives inactivity.
+  }, [clearTimers]);
+
+  // Explicit lock: user-initiated "Lock session". Clears the remembered token so the
+  // next visit requires full credential entry again.
   const lock = useCallback(() => {
     setDevKitToken(null);
     notifyLockListeners();
@@ -105,6 +120,7 @@ export function DevKitSessionProvider({ children }: { children: React.ReactNode 
     setSecondsUntilLock(null);
     clearRememberedToken();
     setHasRememberedSession(false);
+    setRememberedEmail(null);
     clearTimers();
   }, [clearTimers]);
 
@@ -113,14 +129,14 @@ export function DevKitSessionProvider({ children }: { children: React.ReactNode 
     const lockAt = Date.now() + INACTIVITY_TIMEOUT_MS;
     lockAtRef.current = lockAt;
     lockTimeoutRef.current = setTimeout(() => {
-      lock();
+      inactivityLock();
     }, INACTIVITY_TIMEOUT_MS);
     countdownIntervalRef.current = setInterval(() => {
       const remaining = lockAtRef.current ? Math.max(0, Math.ceil((lockAtRef.current - Date.now()) / 1000)) : 0;
       setSecondsUntilLock(remaining);
     }, 1000);
     setSecondsUntilLock(Math.ceil(INACTIVITY_TIMEOUT_MS / 1000));
-  }, [clearTimers, lock]);
+  }, [clearTimers, inactivityLock]);
 
   const resetInactivityTimer = useCallback(() => {
     if (!lockAtRef.current) return;
@@ -142,7 +158,7 @@ export function DevKitSessionProvider({ children }: { children: React.ReactNode 
     }
   }, [startInactivityTimer]);
 
-  // On mount, check for a valid remembered session and auto-unlock
+  // On mount, check for a valid remembered session.
   useEffect(() => {
     const remembered = loadRememberedToken();
     if (remembered) {
@@ -197,5 +213,3 @@ export function useDevKitSession(): DevKitSessionContextValue {
   }
   return ctx;
 }
-
-export { loadRememberedToken, clearRememberedToken };
