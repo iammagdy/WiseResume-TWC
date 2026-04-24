@@ -66,6 +66,11 @@ export function SectionAIPopover({ open, onOpenChange, sectionName }: SectionAIP
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [originalSnapshot, setOriginalSnapshot] = useState<unknown>(null);
   const [proposed, setProposed] = useState<unknown>(null);
+  // The editable buffer the user can tweak before applying. For string
+  // sections this is the literal text; for structured sections it's the
+  // pretty-printed JSON of the proposed payload.
+  const [editedText, setEditedText] = useState('');
+  const [parseError, setParseError] = useState<string | null>(null);
 
   // Reset all internal phase state whenever the dialog reopens or switches
   // section so a stale result/request from a previous interaction never
@@ -77,6 +82,8 @@ export function SectionAIPopover({ open, onOpenChange, sectionName }: SectionAIP
     setErrorMsg(null);
     setOriginalSnapshot(null);
     setProposed(null);
+    setEditedText('');
+    setParseError(null);
   }, [open, sectionName]);
 
   const sectionLabel = SECTION_LABELS[sectionName] ?? sectionName;
@@ -113,6 +120,10 @@ export function SectionAIPopover({ open, onOpenChange, sectionName }: SectionAIP
         return;
       }
       setProposed(improved);
+      setEditedText(
+        typeof improved === 'string' ? improved : JSON.stringify(improved, null, 2),
+      );
+      setParseError(null);
       setPhase('result');
     } catch (e) {
       setErrorMsg(e instanceof Error ? e.message : 'Unknown error.');
@@ -127,12 +138,33 @@ export function SectionAIPopover({ open, onOpenChange, sectionName }: SectionAIP
       onOpenChange(false);
       return;
     }
-    updateResume({ [key]: proposed } as Partial<ResumeData>);
+    // Resolve the final content from the editable buffer. Strings go
+    // through verbatim; structured payloads must round-trip through JSON
+    // so the user can hand-edit the proposed object/array. A parse failure
+    // keeps the dialog open and surfaces the error inline rather than
+    // writing the original AI payload (which would silently discard the
+    // user's edits).
+    let finalContent: unknown;
+    if (typeof proposed === 'string') {
+      finalContent = editedText;
+    } else {
+      try {
+        finalContent = JSON.parse(editedText);
+      } catch (e) {
+        setParseError(
+          e instanceof Error ? e.message : 'Invalid JSON — please fix and try again.',
+        );
+        return;
+      }
+    }
+    updateResume({ [key]: finalContent } as Partial<ResumeData>);
     onOpenChange(false);
-  }, [currentResume, proposed, sectionName, updateResume, onOpenChange]);
+  }, [currentResume, proposed, editedText, sectionName, updateResume, onOpenChange]);
 
   const handleTryAgain = useCallback(() => {
     setProposed(null);
+    setEditedText('');
+    setParseError(null);
     setPhase('input');
   }, []);
 
@@ -149,11 +181,11 @@ export function SectionAIPopover({ open, onOpenChange, sectionName }: SectionAIP
   }, [request, runRequest]);
 
   const oldSummary = summarizeContent(originalSnapshot).slice(0, 80);
-  const newSummary = summarizeContent(proposed).slice(0, 80);
+  const isStringSection = typeof proposed === 'string';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md" onClick={(e) => e.stopPropagation()}>
+      <DialogContent className="sm:max-w-lg" onClick={(e) => e.stopPropagation()}>
         <DialogHeader>
           <DialogTitle>Edit {sectionLabel} with AI</DialogTitle>
           <DialogDescription>
@@ -194,27 +226,50 @@ export function SectionAIPopover({ open, onOpenChange, sectionName }: SectionAIP
         {phase === 'result' && (
           <div className="space-y-3">
             <p className="text-xs text-muted-foreground">
-              Here's the updated {sectionLabel.toLowerCase()}:
+              Here's the updated {sectionLabel.toLowerCase()}. Tweak it below if you'd like, then Apply.
             </p>
-            <div className="rounded-md border bg-muted/40 p-3 space-y-2 text-xs">
-              {oldSummary && (
+            {oldSummary && (
+              <div className="rounded-md border bg-muted/40 p-3 text-xs">
                 <div className="line-through text-muted-foreground/70 break-words">
                   {oldSummary}
                   {summarizeContent(originalSnapshot).length > 80 ? '…' : ''}
                 </div>
-              )}
-              <div className="text-foreground break-words">
-                {newSummary}
-                {summarizeContent(proposed).length > 80 ? '…' : ''}
               </div>
-            </div>
+            )}
+            <Textarea
+              rows={isStringSection ? 6 : 10}
+              value={editedText}
+              onChange={(e) => {
+                setEditedText(e.target.value);
+                if (parseError) setParseError(null);
+              }}
+              className={isStringSection ? '' : 'font-mono text-xs'}
+              spellCheck={isStringSection}
+              aria-label={`Edit proposed ${sectionLabel.toLowerCase()}`}
+            />
+            {!isStringSection && (
+              <p className="text-[11px] text-muted-foreground">
+                This section is structured. Edit the JSON above before applying.
+              </p>
+            )}
+            {parseError && (
+              <div className="rounded-md border border-destructive/50 bg-destructive/10 p-2 text-xs text-destructive break-words">
+                {parseError}
+              </div>
+            )}
             <div className="flex flex-wrap justify-end gap-2">
               <Button variant="ghost" size="sm" onClick={handleDiscard}>Discard</Button>
               <Button variant="outline" size="sm" onClick={handleTryAgain} className="gap-1.5">
                 <RefreshCw className="w-3.5 h-3.5" />
                 Try again
               </Button>
-              <Button size="sm" onClick={handleApply}>Apply</Button>
+              <Button
+                size="sm"
+                onClick={handleApply}
+                disabled={isStringSection ? editedText.trim().length === 0 : editedText.length === 0}
+              >
+                Apply
+              </Button>
             </div>
           </div>
         )}
