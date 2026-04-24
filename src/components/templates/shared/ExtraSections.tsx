@@ -192,13 +192,13 @@ export const ExtraSections = memo(function ExtraSections({
                     {proj.url && (
                       <span className="flex items-center gap-1 text-blue-600 text-[10px]">
                         <Globe style={{ width: 12, height: 12, display: 'inline', verticalAlign: 'middle', flexShrink: 0, alignSelf: 'center' }} />
-                        <a href={/^https?:\/\//i.test(proj.url) ? proj.url : `https://${proj.url}`} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>{proj.url}</a>
+                        <a href={/^https?:\/\//i.test(proj.url) ? proj.url : `https://${proj.url}`} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'underline', textUnderlineOffset: '2px', textDecorationThickness: '0.5px' }}>{proj.url}</a>
                       </span>
                     )}
                     {proj.githubUrl && (
                       <span className="flex items-center gap-1 text-gray-600 text-[10px]">
                         <Github style={{ width: 12, height: 12, display: 'inline', verticalAlign: 'middle', flexShrink: 0, alignSelf: 'center' }} />
-                        <a href={/^https?:\/\//i.test(proj.githubUrl) ? proj.githubUrl : `https://${proj.githubUrl}`} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>{proj.githubUrl}</a>
+                        <a href={/^https?:\/\//i.test(proj.githubUrl) ? proj.githubUrl : `https://${proj.githubUrl}`} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'underline', textUnderlineOffset: '2px', textDecorationThickness: '0.5px' }}>{proj.githubUrl}</a>
                       </span>
                     )}
                   </div>

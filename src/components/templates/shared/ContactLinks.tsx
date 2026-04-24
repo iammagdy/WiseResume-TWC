@@ -36,7 +36,7 @@ function getItems(contact: ContactInfo): ContactItem[] {
   const items: ContactItem[] = [];
   if (contact.email) items.push({ key: 'email', icon: Mail, label: contact.email, value: contact.email, href: `mailto:${contact.email}` });
   if (contact.email2) items.push({ key: 'email2', icon: Mail, label: contact.email2, value: contact.email2, href: `mailto:${contact.email2}` });
-  if (contact.phone) items.push({ key: 'phone', icon: Phone, label: contact.phone, value: contact.phone, href: `tel:${contact.phone.replace(/[^+\d]/g, '')}` });
+  if (contact.phone) items.push({ key: 'phone', icon: Phone, label: contact.phone, value: contact.phone });
   if (contact.location) items.push({ key: 'location', icon: MapPin, label: contact.location, value: contact.location });
   if (contact.linkedin) items.push({ key: 'linkedin', icon: Linkedin, label: extractLinkedInUsername(contact.linkedin), value: contact.linkedin, href: ensureUrl(contact.linkedin) });
   if (contact.github) items.push({ key: 'github', icon: Github, label: extractGitHubUsername(contact.github), value: contact.github, href: ensureUrl(contact.github) });
@@ -74,7 +74,7 @@ export const ContactLinks = memo(function ContactLinks({
     <div className={`flex flex-wrap gap-x-3 gap-y-1 ${className}`}>
       {items.map((item, i) => {
         const Label = item.href
-          ? <a href={item.href} target="_blank" rel="noopener noreferrer" className="hover:underline" style={{ color: 'inherit', textDecoration: 'none' }}>{item.label}</a>
+          ? <a href={item.href} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'underline', textUnderlineOffset: '2px', textDecorationThickness: '0.5px' }}>{item.label}</a>
           : <span>{item.label}</span>;
         return (
           <span key={item.key + i} className="flex items-center gap-1">
