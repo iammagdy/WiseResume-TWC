@@ -1,15 +1,29 @@
 /**
  * Authenticated JSON fetch wrapper for `/api/data/*` endpoints.
  *
- * Replaces direct `supabase.from(...)` calls in `src/hooks/**` and
- * `src/pages/**`. Attaches the bridge session token as a Bearer header so
- * the Express server can authenticate the caller without any Supabase
- * round-trip. The token is signed with `SESSION_SECRET` and verified
- * locally on the server (see `validateSupabaseToken` in `server/index.ts`),
- * so the secret no longer needs to match Supabase's JWT secret for these
- * code paths to work.
+ * In DEV: posts directly to the relative `/api/data/*` paths, which Vite
+ * proxies to the local Express server on :5001 (see `server/index.ts`).
+ *
+ * In PROD (Hostinger static hosting at resume.thewise.cloud): there is NO
+ * Express server — the deploy is a static `lftp mirror` of `dist/`, and
+ * `public/.htaccess` rewrites every non-existent path to `index.html`.
+ * A relative `/api/data/me` would therefore return the SPA HTML with
+ * `200 OK + text/html`, JSON.parse would silently fail, and the dashboard
+ * would render with no premium plan, no resumes, and an "AI unavailable"
+ * badge (this was the v3.5.6 production regression).
+ *
+ * The prod path translates each `/api/data/*` route to either the matching
+ * Supabase Edge Function (`me`) or a direct PostgREST query against the
+ * underlying table, signed with the bridge JWT so RLS policies enforce
+ * per-user access. Response shapes are preserved exactly so call sites do
+ * not need to change.
+ *
+ * Bridge JWT authentication: the bridge token is signed with the same
+ * SUPABASE_JWT_SECRET that PostgREST uses, so Supabase accepts it and RLS
+ * `auth.uid() = user_id` predicates resolve to the correct supabaseUserId.
  */
-import { getToken } from './supabaseBridge';
+import { getToken, getUserId } from './supabaseBridge';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from './supabaseConstants';
 
 export interface ApiFetchOptions {
   method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
@@ -39,19 +53,234 @@ function buildUrl(path: string, query?: ApiFetchOptions['query']): string {
   return qs ? `${path}?${qs}` : path;
 }
 
+/**
+ * Production routing for `/api/data/*` requests.
+ * Returns null for paths that have no production mapping yet — those should
+ * fall through to the dev path (which will fail loudly in prod, surfacing
+ * the gap instead of silently returning empty data).
+ *
+ * Each entry maps the Express response shape exactly so call sites stay
+ * unchanged. PostgREST returns bare arrays; we wrap them when the Express
+ * handler does (e.g. `{ resumes: [...] }`).
+ */
+type ProdRoute = {
+  url: string;
+  method: string;
+  body?: unknown;
+  extraHeaders?: Record<string, string>;
+  /** Transform the raw PostgREST/edge-function response into the legacy Express shape. */
+  transform?: (raw: unknown) => unknown;
+  /** Treat empty PostgREST result as a 404. */
+  emptyAs404?: boolean;
+};
+
+function resolveProdRoute(path: string, method: string, body: unknown): ProdRoute | null {
+  const base = SUPABASE_URL.replace(/\/+$/, '');
+
+  // ── /api/data/me → me edge function ─────────────────────────────────────
+  if (path === '/api/data/me' && method === 'GET') {
+    return { url: `${base}/functions/v1/me`, method: 'GET' };
+  }
+
+  const userId = getUserId();
+  if (!userId) return null; // PostgREST routes need the bridge identity.
+
+  const u = encodeURIComponent(userId);
+
+  // ── /api/data/resumes ───────────────────────────────────────────────────
+  if (path === '/api/data/resumes') {
+    if (method === 'GET') {
+      return {
+        url: `${base}/rest/v1/resumes?user_id=eq.${u}&select=*&order=updated_at.desc`,
+        method: 'GET',
+        transform: (raw) => ({ resumes: Array.isArray(raw) ? raw : [] }),
+      };
+    }
+    if (method === 'POST') {
+      const insertBody = { ...(body as Record<string, unknown> || {}), user_id: userId };
+      return {
+        url: `${base}/rest/v1/resumes?select=*`,
+        method: 'POST',
+        body: insertBody,
+        extraHeaders: { Prefer: 'return=representation' },
+        transform: (raw) => {
+          const arr = Array.isArray(raw) ? raw : [raw];
+          return { resume: arr[0] };
+        },
+      };
+    }
+    if (method === 'DELETE') {
+      const ids = (body as { ids?: unknown })?.ids;
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return { url: `${base}/rest/v1/resumes?id=eq.never`, method: 'DELETE', transform: () => ({}) };
+      }
+      const list = ids.map((id) => encodeURIComponent(String(id))).join(',');
+      return {
+        url: `${base}/rest/v1/resumes?id=in.(${list})&user_id=eq.${u}`,
+        method: 'DELETE',
+        transform: () => ({}),
+      };
+    }
+  }
+
+  // ── /api/data/resumes/exists/:id ────────────────────────────────────────
+  const existsMatch = path.match(/^\/api\/data\/resumes\/exists\/([^/]+)$/);
+  if (existsMatch && method === 'GET') {
+    const id = encodeURIComponent(existsMatch[1]);
+    return {
+      url: `${base}/rest/v1/resumes?id=eq.${id}&user_id=eq.${u}&select=id&limit=1`,
+      method: 'GET',
+      transform: (raw) => ({ exists: Array.isArray(raw) && raw.length > 0 }),
+    };
+  }
+
+  // ── /api/data/resumes/:id ───────────────────────────────────────────────
+  const resumeIdMatch = path.match(/^\/api\/data\/resumes\/([^/]+)$/);
+  if (resumeIdMatch) {
+    const id = encodeURIComponent(resumeIdMatch[1]);
+    if (method === 'GET') {
+      return {
+        url: `${base}/rest/v1/resumes?id=eq.${id}&user_id=eq.${u}&select=*&limit=1`,
+        method: 'GET',
+        emptyAs404: true,
+        transform: (raw) => ({ resume: Array.isArray(raw) ? raw[0] : raw }),
+      };
+    }
+    if (method === 'PATCH') {
+      return {
+        url: `${base}/rest/v1/resumes?id=eq.${id}&user_id=eq.${u}&select=*`,
+        method: 'PATCH',
+        body,
+        extraHeaders: { Prefer: 'return=representation' },
+        transform: (raw) => {
+          const arr = Array.isArray(raw) ? raw : [raw];
+          return { resume: arr[0] };
+        },
+      };
+    }
+    if (method === 'DELETE') {
+      return {
+        url: `${base}/rest/v1/resumes?id=eq.${id}&user_id=eq.${u}`,
+        method: 'DELETE',
+        transform: () => ({}),
+      };
+    }
+  }
+
+  // ── /api/data/profile GET / PATCH ───────────────────────────────────────
+  if (path === '/api/data/profile') {
+    if (method === 'GET') {
+      return {
+        url: `${base}/rest/v1/profiles?user_id=eq.${u}&select=*&limit=1`,
+        method: 'GET',
+        transform: (raw) => ({ profile: Array.isArray(raw) && raw.length > 0 ? raw[0] : null }),
+      };
+    }
+    if (method === 'PATCH') {
+      return {
+        url: `${base}/rest/v1/profiles?user_id=eq.${u}`,
+        method: 'PATCH',
+        body,
+        transform: () => ({}),
+      };
+    }
+  }
+
+  // ── /api/data/notifications (list / mark / delete) ──────────────────────
+  if (path === '/api/data/notifications' && method === 'GET') {
+    return {
+      url: `${base}/rest/v1/notifications?user_id=eq.${u}&select=*&order=created_at.desc&limit=50`,
+      method: 'GET',
+      transform: (raw) => ({ notifications: Array.isArray(raw) ? raw : [] }),
+    };
+  }
+  if (path === '/api/data/notifications/unread-count' && method === 'GET') {
+    return {
+      url: `${base}/rest/v1/notifications?user_id=eq.${u}&read_at=is.null&select=id`,
+      method: 'GET',
+      extraHeaders: { Prefer: 'count=exact' },
+      transform: (raw) => ({ count: Array.isArray(raw) ? raw.length : 0 }),
+    };
+  }
+
+  // ── /api/data/jobs ──────────────────────────────────────────────────────
+  if (path === '/api/data/jobs' && method === 'GET') {
+    return {
+      url: `${base}/rest/v1/jobs?user_id=eq.${u}&select=*&order=created_at.desc`,
+      method: 'GET',
+      transform: (raw) => ({ jobs: Array.isArray(raw) ? raw : [] }),
+    };
+  }
+
+  return null;
+}
+
 export async function apiFetch<T = unknown>(
   path: string,
   opts: ApiFetchOptions = {},
 ): Promise<T> {
+  const method = opts.method ?? 'GET';
   const token = getToken();
-  const headers: Record<string, string> = {
-    Accept: 'application/json',
-  };
+
+  // Production routing: translate /api/data/* to Supabase calls.
+  if (!import.meta.env.DEV && path.startsWith('/api/data/')) {
+    const route = resolveProdRoute(path, method, opts.body);
+    if (route) {
+      const headers: Record<string, string> = {
+        Accept: 'application/json',
+        apikey: SUPABASE_ANON_KEY,
+      };
+      if (token) headers.Authorization = `Bearer ${token}`;
+      if (route.body !== undefined) headers['Content-Type'] = 'application/json';
+      if (route.extraHeaders) Object.assign(headers, route.extraHeaders);
+
+      const res = await fetch(buildUrl(route.url, opts.query), {
+        method: route.method,
+        headers,
+        body: route.body !== undefined ? JSON.stringify(route.body) : undefined,
+        signal: opts.signal,
+      });
+
+      const ct = res.headers.get('content-type') || '';
+      let raw: unknown = null;
+      if (ct.includes('application/json')) {
+        raw = await res.json().catch(() => null);
+      } else if (res.status !== 204) {
+        raw = await res.text().catch(() => null);
+      }
+
+      if (!res.ok) {
+        const message =
+          raw && typeof raw === 'object' && 'message' in raw && typeof (raw as { message: unknown }).message === 'string'
+            ? (raw as { message: string }).message
+            : `Request failed (${res.status})`;
+        throw new ApiFetchError(res.status, message, raw);
+      }
+
+      // PostgREST 204 No Content for DELETE/PATCH-no-prefer cases.
+      if (route.emptyAs404 && Array.isArray(raw) && raw.length === 0) {
+        throw new ApiFetchError(404, 'Not found', { error: 'Not found' });
+      }
+
+      const shaped = route.transform ? route.transform(raw) : raw;
+      return shaped as T;
+    }
+    // No prod mapping for this path — surface a clear error rather than
+    // silently returning HTML (which is what the broken v3.5.6 build did).
+    throw new ApiFetchError(
+      501,
+      `apiFetch: no production routing for ${method} ${path}. Add it to resolveProdRoute().`,
+      null,
+    );
+  }
+
+  // Dev path: hit the local Express server on the relative URL.
+  const headers: Record<string, string> = { Accept: 'application/json' };
   if (token) headers.Authorization = `Bearer ${token}`;
   if (opts.body !== undefined) headers['Content-Type'] = 'application/json';
 
   const res = await fetch(buildUrl(path, opts.query), {
-    method: opts.method ?? 'GET',
+    method,
     headers,
     body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
     signal: opts.signal,

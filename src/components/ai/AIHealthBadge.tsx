@@ -6,6 +6,7 @@ import { useAIHealthStore } from '@/store/aiHealthStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { cn } from '@/lib/utils';
 import { getToken } from '@/lib/supabaseBridge';
+import { apiFnUrl } from '@/lib/apiFnUrl';
 
 type PingState = 'idle' | 'pinging' | 'done';
 
@@ -107,7 +108,10 @@ export function AIHealthBadge() {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
-      const res = await fetch('/api/ai-health', {
+      // Route via apiFnUrl so prod hits the Supabase Edge Function directly
+      // (Hostinger static has no /api/ai-health Express endpoint — would 200/HTML
+      // and the badge would be permanently "down").
+      const res = await fetch(apiFnUrl('ai-health'), {
         method: 'GET',
         headers,
       });

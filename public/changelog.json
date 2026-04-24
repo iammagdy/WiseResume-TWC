@@ -1,8 +1,28 @@
 [
   {
-    "version": "v3.5.6",
+    "version": "v3.5.7",
     "date": "Apr 24, 2026",
     "latest": true,
+    "summary": "Restored the dashboard, resumes list, premium plan reflection, and AI status badge on the live site.",
+    "items": [
+      {
+        "title": "Account, plan, and resumes load again",
+        "description": "Several of the data calls the app makes after sign-in were pointed at a dev-only backend that does not exist on the public site. Hostinger was returning the app shell HTML for those calls instead of JSON, so the dashboard quietly looked empty: no premium reflected, no resumes, no profile. These calls now go straight to the database with your authenticated session, with no shape changes for the rest of the app."
+      },
+      {
+        "title": "AI status badge shows real status",
+        "description": "The AI health badge was probing the same dev-only endpoint and always settled into 'unavailable' on the live site. It now pings the live AI service directly, so the badge reflects what AI requests will actually do."
+      },
+      {
+        "title": "Clear errors when something is unmapped",
+        "description": "If any future data call slips through without a production route, the app now throws an explicit error instead of silently treating an HTML page as empty data — making this class of regression impossible to miss again."
+      }
+    ]
+  },
+  {
+    "version": "v3.5.6",
+    "date": "Apr 24, 2026",
+    "latest": false,
     "summary": "Restored AI settings, saved keys, and members/resumes data after a long-standing schema gap surfaced once sign-in was working again.",
     "items": [
       {
