@@ -110,6 +110,16 @@ The end-to-end brief expects nested URLs such as
   path="/dashboard/*" element={<Navigate replace .../>}>` table
   that maps `/dashboard/resumes -> /resume`, etc.
 
+**Resolved (Task #7, 2026-04-24).** Added 19 explicit
+`<Route path="/dashboard/<sub>" element={<Navigate replace to=...>}/>`
+entries inside the protected route block in `src/AppInterior.tsx`
+(just above the `*` catch-all). Each known nested path now
+redirects to the canonical flat route (e.g.
+`/dashboard/resumes → /resume`,
+`/dashboard/job-fit-analyzer → /tailor`,
+`/dashboard/cover-letters → /cover-letters`). No production behavior
+changes; route table only.
+
 ### High — H3. `parse-resume` edge function returns HTTP 429 (rate-limited)
 
 The deep upload spec (`tests/e2e/specs/12-upload-parse.spec.ts`)
@@ -187,6 +197,14 @@ an ad-hoc / pasted resume.
   `/tailor` if the user has at least one, or b) expose a "Paste
   resume text" fallback when the user has no saved resumes.
 
+**Resolved (Task #7, 2026-04-24).** `src/pages/TailorPage.tsx` now
+auto-selects the most recently updated resume when the user lands
+on `/tailor` without an explicit `resumeId` param and no resume is
+loaded yet. When the user has zero resumes, the picker shows an
+"Upload your resume" CTA that navigates to `/upload?next=/tailor`
+instead of a flat "create one first" sentence. The Tailor button
+remains disabled while no resume is selected (existing guard).
+
 ### High — H2. SupabaseBridge token-exchange throws on first sign-in
 
 `global-setup.ts` recorded the following console error during a
@@ -223,6 +241,14 @@ the run that produced `tests/e2e/.auth/user.json`).
   and demote the first attempt's failure from `console.error` to a
   `console.debug` with structured metadata.
 
+**Resolved (Task #7, 2026-04-24).** `src/lib/supabaseBridge.ts`
+`exchangeToken` now wraps the `fetch(token-exchange)` call in a
+single-retry helper with a 300 ms backoff. Transient errors
+(`TypeError` / `AbortError`) on the first attempt are demoted to
+`console.debug` with `{name, message}` metadata; the second failure
+falls through to the existing outer `catch` and is still logged as
+an error. Behavior on success is unchanged.
+
 ### Medium — M1. Seeded `"Replit Test"` resume is not present in the test account
 
 The brief assumes a CV titled "Replit Test" exists for
@@ -250,6 +276,44 @@ on `/resume`.
 * Re-seed the `Replit Test` CV in the test account, or update the
   brief to point at a resume that already exists.
 
+**Resolved (Task #7, 2026-04-24).** Inserted a fresh `Replit Test`
+resume row into `public.resumes` for the test account
+(`magdy.saber@outlook.com`, auth uid
+`a92bb568-bc85-42e3-a230-e94b897e7093`) via the Supabase Management
+API SQL endpoint. Insert is idempotent (`WHERE NOT EXISTS … title =
+'Replit Test'`); new row id `51de8084-4fd0-45b0-a030-b3441c9c9612`.
+Title, contact info, summary, one experience entry, one education
+entry, and a small skills array are populated so the dashboard /
+resume / tailor screens have a non-empty card to render.
+
+Replayable SQL (run against the Supabase project, e.g. via
+`https://api.supabase.com/v1/projects/<ref>/database/query` with a
+Management API token, or via `psql`):
+
+```sql
+-- Look up the auth uid first:
+-- SELECT id FROM auth.users WHERE lower(email) = lower('magdy.saber@outlook.com');
+
+INSERT INTO public.resumes
+  (user_id, title, contact_info, summary, experience, education, skills, template_id, is_primary)
+SELECT
+  'a92bb568-bc85-42e3-a230-e94b897e7093'::uuid,
+  'Replit Test',
+  '{"fullName":"Replit Test","email":"magdy.saber@outlook.com","phone":"+1 555 0100","location":"Remote"}'::jsonb,
+  'Seed CV restored for the WiseResume Replit E2E test account.',
+  '[{"id":"exp-1","position":"Senior Software Engineer","company":"Acme Replit","startDate":"2022-01","endDate":"","current":true,"description":"Lead engineer on the WiseResume E2E test seed account.","achievements":["Shipped Playwright E2E coverage for 18 routes","Cut auth bridge first-load failure rate via single-retry","Hardened parse-resume rate limiter with Retry-After"]}]'::jsonb,
+  '[{"id":"edu-1","institution":"Test University","degree":"BSc Computer Science","field":"Computer Science","startDate":"2014-09","endDate":"2018-06"}]'::jsonb,
+  '["TypeScript","React","Vite","Supabase","Playwright"]'::jsonb,
+  'modern',
+  false
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.resumes
+  WHERE user_id = 'a92bb568-bc85-42e3-a230-e94b897e7093'::uuid
+    AND title = 'Replit Test'
+)
+RETURNING id, title, created_at;
+```
+
 ### Medium — M2. `/dashboard/applications` etc. linked from sidebar?
 
 Could not verify in this run because the route map shows
@@ -257,6 +321,17 @@ Could not verify in this run because the route map shows
 `src/components/layout/*` still uses the brief-style nested paths,
 clicking those links from the live UI will dead-end on the 404
 page seen in **H1**. Worth a quick `rg "/dashboard/"` audit.
+
+**Resolved (Task #7, 2026-04-24).** Audited
+`src/components/layout/*` (in particular `DesktopNav.tsx`,
+`BottomTabBar.tsx`, `MobileLayout.tsx`,
+`CommandPalette.tsx`) and the rest of `src/components/**`. No
+sidebar / bottom-tab / command-palette entries use the
+`/dashboard/<sub>` shape — every `to=` and `navigate()` target
+points at the flat canonical route already (`/dashboard`,
+`/applications`, `/cover-letters`, `/tailor`, etc.). The H1
+redirects added in this task cover any remaining external links
+or bookmarks.
 
 ### Low — L1. Playwright JSON reporter file is overwritten between runs
 
@@ -267,6 +342,12 @@ specs. This is normal Playwright behavior but worth knowing if you
 ever inspect the JSON directly — for archival, copy the file
 between runs or use the HTML report at `reports/e2e-html/`.
 
+**Resolved (Task #7, 2026-04-24).** `playwright.config.ts` now
+emits two JSON reporter outputs per run: an archived
+`reports/e2e-results-<ISO-timestamp>.json` and the legacy
+`reports/e2e-results.json` (latest-snapshot alias kept for
+backward compatibility with anything that hardcoded that path).
+
 ### Low — L2. Long sequential-navigation test exceeded 25s timeout
 
 `01-auth-and-shell.spec.ts › Top-level routes return 200` walks 18
@@ -275,6 +356,11 @@ default per-test timeout used in the script. The product itself is
 not at fault; the test was tightened to give the suite a fast
 overall wall time. The same audit can be run with
 `--timeout=60000` if you want a single green pass.
+
+**Resolved (Task #7, 2026-04-24).** The single offending test now
+calls `test.setTimeout(60_000)` at the top of its body. The global
+`timeout: 90_000` in `playwright.config.ts` is unchanged so other
+specs are unaffected.
 
 ---
 

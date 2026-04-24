@@ -263,6 +263,26 @@ export default function TailorPage() {
     }
   }, [paramResumeId, allResumes, currentResumeId, setCurrentResumeId, setCurrentResume]);
 
+  // Auto-select the most recently updated resume when the user lands on
+  // /tailor without an explicit resumeId param and nothing is loaded yet.
+  // Prevents the page from rendering a "Select a resume" picker that the
+  // user has to manually click through every visit when they only have
+  // one (or one favourite) resume.
+  useEffect(() => {
+    if (paramResumeId) return;
+    if (currentResume) return;
+    if (!allResumes || allResumes.length === 0) return;
+    const mostRecent = [...allResumes].sort((a: DatabaseResume, b: DatabaseResume) => {
+      const at = new Date(a.updated_at ?? a.created_at ?? 0).getTime();
+      const bt = new Date(b.updated_at ?? b.created_at ?? 0).getTime();
+      return bt - at;
+    })[0];
+    if (mostRecent) {
+      setCurrentResumeId(mostRecent.id);
+      setCurrentResume(dbToResumeData(mostRecent));
+    }
+  }, [paramResumeId, currentResume, allResumes, setCurrentResumeId, setCurrentResume]);
+
   const toggleSection = (sectionId: TailorSectionId) => {
     setEnabledSections(prev =>
       prev.includes(sectionId) ? prev.filter(s => s !== sectionId) : [...prev, sectionId]
@@ -589,7 +609,19 @@ export default function TailorPage() {
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">No resumes yet. Create one first!</p>
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    You don't have a resume yet. Upload your existing CV (PDF or DOCX) and
+                    we'll tailor it for this job in seconds.
+                  </p>
+                  <Button
+                    className="w-full"
+                    onClick={() => navigate('/upload?next=/tailor')}
+                  >
+                    <Wand2 className="w-4 h-4 mr-2" />
+                    Upload your resume
+                  </Button>
+                </div>
               )}
             </div>
           )}

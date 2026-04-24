@@ -7,6 +7,14 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const BASE_URL = process.env.E2E_BASE_URL || 'http://localhost:5000';
 const HEADLESS = process.env.E2E_HEADED !== '1';
 
+// Per-run JSON results filename. The default `reports/e2e-results.json`
+// gets silently overwritten when the suite is re-run, which makes it
+// hard to compare runs after the fact. Keep that filename for backward
+// compatibility (latest-run snapshot) but also archive each run under a
+// timestamped name.
+const RUN_TS = new Date().toISOString().replace(/[:.]/g, '-');
+const JSON_RESULTS = `reports/e2e-results-${RUN_TS}.json`;
+
 export default defineConfig({
   testDir: './tests/e2e/specs',
   outputDir: './tests/e2e/.artifacts',
@@ -17,6 +25,10 @@ export default defineConfig({
   retries: 0,
   reporter: [
     ['list'],
+    // Archive: timestamped per-run JSON so older runs are preserved.
+    ['json', { outputFile: JSON_RESULTS }],
+    // Latest-snapshot alias kept for backward compatibility with tooling
+    // that hardcodes the legacy filename.
     ['json', { outputFile: 'reports/e2e-results.json' }],
     ['html', { outputFolder: 'reports/e2e-html', open: 'never' }],
   ],

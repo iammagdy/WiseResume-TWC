@@ -395,20 +395,47 @@ serve(async (req) => {
     const { userId } = await requireAuth(req);
     _refundUserId = userId;
 
-    // Rate limiting
+    // Rate limiting — when blocked, surface a structured error body and
+    // a standard `Retry-After` HTTP header so clients (and the UI) can
+    // present a clear "wait N seconds and try again" message instead of
+    // an opaque 429.
     const rateCheck = await checkRateLimit(userId, { maxRequests: 10, windowSeconds: 60, actionType: 'parse_resume' });
     if (!rateCheck.allowed) {
+      const retryAfter = rateCheck.retryAfterSeconds ?? 30;
       return new Response(
-        JSON.stringify({ error: `Rate limit exceeded. Try again in ${rateCheck.retryAfterSeconds}s.` }),
-        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({
+          error: 'RATE_LIMITED',
+          message: `Rate limit exceeded. Try again in ${retryAfter}s.`,
+          retryAfter,
+        }),
+        {
+          status: 429,
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json',
+            'Retry-After': String(retryAfter),
+          },
+        }
       );
     }
 
     const serverRateCheck = await checkUserRateLimit(userId, 'parse_resume', 10, 60);
     if (!serverRateCheck.allowed) {
+      const retryAfter = serverRateCheck.retryAfterSeconds ?? 30;
       return new Response(
-        JSON.stringify({ error: `Rate limit exceeded. Try again in ${serverRateCheck.retryAfterSeconds}s.` }),
-        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({
+          error: 'RATE_LIMITED',
+          message: `Rate limit exceeded. Try again in ${retryAfter}s.`,
+          retryAfter,
+        }),
+        {
+          status: 429,
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json',
+            'Retry-After': String(retryAfter),
+          },
+        }
       );
     }
 
@@ -823,15 +850,30 @@ serve(async (req) => {
       const httpStatus = err?.status ?? err?.statusCode ?? 0;
 
       if (httpStatus === 429) {
-        // Rate limited — refund credit and tell client to retry
+        // Rate limited by the upstream AI provider — refund credit, propagate
+        // the upstream `Retry-After` if we got one, and tell the client to
+        // retry.
         await refundCredit(userId, creditCheck, 1);
+        const upstreamRetryAfter = Number(
+          err?.headers?.get?.('retry-after') ?? err?.retryAfter ?? 0,
+        );
+        const retryAfter = Number.isFinite(upstreamRetryAfter) && upstreamRetryAfter > 0
+          ? Math.min(upstreamRetryAfter, 300)
+          : 30;
         return new Response(
           JSON.stringify({
             error: 'RATE_LIMITED',
-            message: 'AI service is temporarily busy. Please wait 30 seconds and try again.',
-            retryAfter: 30,
+            message: `AI service is temporarily busy. Please wait ${retryAfter} seconds and try again.`,
+            retryAfter,
           }),
-          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          {
+            status: 429,
+            headers: {
+              ...corsHeaders,
+              'Content-Type': 'application/json',
+              'Retry-After': String(retryAfter),
+            },
+          }
         );
       }
 

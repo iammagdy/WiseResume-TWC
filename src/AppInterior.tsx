@@ -550,7 +550,32 @@ function AppRoutes() {
 
         {/* DevKit — self-contained email+password auth, no Kinde/Supabase session required */}
         <Route path="/devkit" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><DevToolsPage /></Suspense></RouteEB>} />
-        
+
+        {/* Compatibility redirects: brief / external links use /dashboard/<sub>
+            but the real route table is flat. Map each known nested path to
+            its canonical flat route so deep links / bookmarks / emails do
+            not dead-end on the 404 page. */}
+        <Route path="/dashboard/resumes" element={<Navigate replace to="/resume" />} />
+        <Route path="/dashboard/cover-letters" element={<Navigate replace to="/cover-letters" />} />
+        <Route path="/dashboard/resignation-letters" element={<Navigate replace to="/resignation-letters" />} />
+        <Route path="/dashboard/job-fit-analyzer" element={<Navigate replace to="/tailor" />} />
+        <Route path="/dashboard/tailor" element={<Navigate replace to="/tailor" />} />
+        <Route path="/dashboard/career" element={<Navigate replace to="/career" />} />
+        <Route path="/dashboard/career-coach" element={<Navigate replace to="/career" />} />
+        <Route path="/dashboard/portfolio" element={<Navigate replace to="/portfolio" />} />
+        <Route path="/dashboard/interview" element={<Navigate replace to="/interview" />} />
+        <Route path="/dashboard/templates" element={<Navigate replace to="/templates" />} />
+        <Route path="/dashboard/ai-studio" element={<Navigate replace to="/ai-studio" />} />
+        <Route path="/dashboard/onboarding" element={<Navigate replace to="/onboarding" />} />
+        <Route path="/dashboard/upload" element={<Navigate replace to="/upload" />} />
+        <Route path="/dashboard/settings" element={<Navigate replace to="/settings" />} />
+        <Route path="/dashboard/applications" element={<Navigate replace to="/applications" />} />
+        <Route path="/dashboard/profile" element={<Navigate replace to="/profile" />} />
+        <Route path="/dashboard/notifications" element={<Navigate replace to="/notifications" />} />
+        <Route path="/dashboard/achievements" element={<Navigate replace to="/achievements" />} />
+        <Route path="/dashboard/analytics" element={<Navigate replace to="/analytics" />} />
+        <Route path="/dashboard/help" element={<Navigate replace to="/help" />} />
+
         <Route path="*" element={<RouteEB><Suspense fallback={<DetailSkeleton />}><NotFound /></Suspense></RouteEB>} />
       </Routes>
       

@@ -273,20 +273,46 @@ export async function exchangeToken(kindeToken: string): Promise<void> {
   const promise = (async () => {
     try {
       const url = apiFnUrl(`token-exchange`);
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+      // Single-retry helper. The first fetch occasionally races with the
+      // dev server's /api/* proxy startup or with a brief network hiccup
+      // and throws `TypeError: Failed to fetch`. Retrying once after a
+      // short backoff is enough to clear the race in practice; the second
+      // failure is the one we surface as a real error.
+      const doFetch = async (): Promise<Response> => {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+        try {
+          return await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${kindeToken}`,
+            },
+            signal: controller.signal,
+          });
+        } finally {
+          clearTimeout(timeoutId);
+        }
+      };
+
       let res: Response;
       try {
-        res = await fetch(url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${kindeToken}`,
-          },
-          signal: controller.signal,
+        res = await doFetch();
+      } catch (firstErr) {
+        // Demote first-attempt transient errors to debug; only the second
+        // failure (logged below in the outer catch) is treated as a
+        // genuine bridge failure.
+        const isTransient =
+          firstErr instanceof TypeError ||
+          (firstErr as DOMException | undefined)?.name === 'AbortError';
+        if (!isTransient) throw firstErr;
+        console.debug('[SupabaseBridge] Token exchange first attempt failed, retrying once', {
+          name: (firstErr as Error)?.name,
+          message: (firstErr as Error)?.message,
         });
-      } finally {
-        clearTimeout(timeoutId);
+        await new Promise((r) => setTimeout(r, 300));
+        res = await doFetch();
       }
 
       if (!res.ok) {

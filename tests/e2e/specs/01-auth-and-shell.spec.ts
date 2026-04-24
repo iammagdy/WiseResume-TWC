@@ -14,6 +14,11 @@ test.describe('Auth & app shell', () => {
   });
 
   test('Top-level routes return 200', async ({ page }) => {
+    // 18 routes × ~2 s dwell each ≈ 30–40 s wall time, which exceeds the
+    // 25 s ceiling some operators run the suite under. Give this single
+    // sequential walk a generous per-test timeout without raising the
+    // global default.
+    test.setTimeout(60_000);
     const routes = [
       '/dashboard', '/resume', '/cover-letters', '/applications', '/interview',
       '/career', '/tailor', '/portfolio', '/settings', '/templates',
