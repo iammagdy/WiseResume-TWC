@@ -3549,10 +3549,39 @@ app.post('/api/export/pdf-native', requireAuthHeader, async (req: AuthedRequest,
     });
 
     if (hasCustomBreaks) {
-      const totalH = totalContentHeightPx as number;
+      const clientTotalH = totalContentHeightPx as number;
+
+      // Measure the actually-rendered body height in Puppeteer so we can
+      // detect — and correct for — any drift from what the client measured
+      // in the live preview. Drift can happen because of font fallback,
+      // text-wrapping differences, or rounding in the css-zoom transform.
+      // If the rendered content is e.g. 5% taller in Puppeteer, the user's
+      // break Y values (recorded in the live-preview's coordinate space)
+      // would otherwise land 5% short of where the user clicked.
+      const renderedTotalH = await page.evaluate(
+        `(() => {
+          const shift = document.getElementById('__seg_shift__');
+          return shift ? shift.scrollHeight : document.body.scrollHeight;
+        })()`
+      ) as number;
+
+      const scale = renderedTotalH > 10 ? renderedTotalH / clientTotalH : 1;
+      const totalH = renderedTotalH > 10 ? renderedTotalH : clientTotalH;
+
       const safeBreaks = (customBreakPositions as unknown[])
-        .filter((y): y is number => typeof y === 'number' && isFinite(y) && y > 0 && y < totalH)
+        .filter((y): y is number => typeof y === 'number' && isFinite(y) && y > 0)
+        .map(y => Math.round(y * scale))
+        .filter(y => y > 0 && y < totalH)
         .sort((a, b) => a - b);
+
+      console.log('[export/pdf-native] segment plan', {
+        clientTotalH,
+        renderedTotalH,
+        scale: Number(scale.toFixed(4)),
+        rawBreaks: customBreakPositions,
+        scaledBreaks: safeBreaks,
+        totalH,
+      });
 
       const breakpoints = [0, ...safeBreaks, totalH];
       const pageBuffers: Buffer[] = [];
