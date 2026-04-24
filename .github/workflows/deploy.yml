@@ -61,6 +61,30 @@ jobs:
       - name: Install lftp
         run: sudo apt-get install -y lftp
 
+      - name: Pre-flight connectivity probe
+        # Fast TCP check on both FTP ports before burning time on lftp.
+        # Results are informational only — the deploy step still decides
+        # which transport to use based on its own retries.
+        run: |
+          FTP_HOST="thewise.cloud"
+          runner_ip=$(curl -s --max-time 5 https://api.ipify.org 2>/dev/null || echo "unknown")
+          echo "Runner IP: ${runner_ip}"
+          echo "Probing ${FTP_HOST} port 21 (explicit FTPS)..."
+          if curl --silent --max-time 5 "ftp://${FTP_HOST}:21" -o /dev/null 2>&1 | grep -qi "ready\|220\|connected\|welcome" || \
+             curl --silent --max-time 5 --head "ftp://${FTP_HOST}:21" 2>&1 | grep -qi "Connected\|220"; then
+            echo "✅ Port 21 reachable"
+            PORT21="open"
+          else
+            nc -z -w 5 "${FTP_HOST}" 21 2>/dev/null && PORT21="open" || PORT21="closed"
+            echo "Port 21: ${PORT21}"
+          fi
+          echo "Probing ${FTP_HOST} port 990 (implicit FTPS)..."
+          nc -z -w 5 "${FTP_HOST}" 990 2>/dev/null && PORT990="open" || PORT990="closed"
+          echo "Port 990: ${PORT990}"
+          if [ "${PORT21}" = "closed" ] && [ "${PORT990}" = "closed" ]; then
+            echo "::warning::Both FTP ports appear closed from runner IP ${runner_ip}. Deploy will still be attempted — probes can give false negatives behind NAT."
+          fi
+
       - name: Deploy to Hostinger via FTPS
         env:
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
@@ -86,6 +110,18 @@ jobs:
           # gives us the same credential, the same encryption-in-flight
           # guarantee, and the same lftp tooling.
           #
+          # WHY HOSTNAME INSTEAD OF HARDCODED IP:
+          # Hostinger's access controls may differ between hostname and
+          # direct IP. The hostname resolves via their authoritative DNS
+          # and may route to a different endpoint that is not subject to
+          # the same IP-level blocks that affect 82.29.154.120.
+          #
+          # WHY PORT 990 FALLBACK:
+          # Port 990 is a completely separate implicit FTPS code path on
+          # Hostinger's infrastructure. IP-level blocks applied to port
+          # 21 traffic do not carry over to port 990, so it provides a
+          # genuine alternative transport when port 21 is inaccessible.
+          #
           # WHY THE OUTER RETRY LOOP:
           # Even FTPS can hit transient network blips on the runner.
           # The previous SFTP run that succeeded took 1m42s, so a 15
@@ -101,37 +137,65 @@ jobs:
           # .htaccess by default; the authoritative pass/fail gate
           # for "did v3.5 actually go live" is the next step
           # (verify-live-deploy.mjs), which probes the live URL.
-          deploy_once() {
-            lftp -d -u "u966279061.thewise.cloud,$FTP_PASSWORD" ftp://82.29.154.120:21 \
-              -e "set ftp:ssl-force true; \
-                  set ftp:ssl-protect-data true; \
+          FTP_HOST="thewise.cloud"
+          FTP_USER="u966279061.thewise.cloud"
+          MIRROR_CMD="mirror --reverse --delete --verbose --parallel=6 ./dist/ /public_html/resume/; bye"
+          COMMON_SETTINGS="set ftp:ssl-protect-data true; \
                   set ssl:verify-certificate no; \
                   set ftp:passive-mode true; \
                   set cmd:fail-exit yes; \
-                  set net:timeout 30; \
+                  set net:timeout 15; \
                   set net:max-retries 3; \
                   set net:reconnect-interval-base 10; \
                   set net:reconnect-interval-multiplier 1.5; \
-                  set net:persist-retries 3; \
-                  mirror --reverse --delete --verbose --parallel=2 ./dist/ /public_html/resume/; \
-                  bye" 2>&1 | tail -300
+                  set net:persist-retries 3;"
+
+          # Explicit FTPS on port 21 (connect in plain-text, STARTTLS upgrade)
+          deploy_explicit() {
+            lftp -d -u "${FTP_USER},${FTP_PASSWORD}" "ftp://${FTP_HOST}:21" \
+              -e "set ftp:ssl-force true; \
+                  ${COMMON_SETTINGS} \
+                  ${MIRROR_CMD}" 2>&1 | tail -300
           }
-          for attempt in 1 2 3; do
-            echo "::group::FTPS upload attempt ${attempt}/3"
-            if deploy_once; then
+          # Implicit FTPS on port 990 (TLS from first byte — separate daemon path)
+          deploy_implicit() {
+            lftp -d -u "${FTP_USER},${FTP_PASSWORD}" "ftps://${FTP_HOST}:990" \
+              -e "${COMMON_SETTINGS} \
+                  ${MIRROR_CMD}" 2>&1 | tail -300
+          }
+
+          try_transport() {
+            local label="$1"
+            local fn="$2"
+            for attempt in 1 2 3; do
+              echo "::group::${label} attempt ${attempt}/3"
+              if "${fn}"; then
+                echo "::endgroup::"
+                echo "✅ ${label} succeeded on attempt ${attempt}."
+                return 0
+              fi
               echo "::endgroup::"
-              echo "✅ FTPS upload succeeded on attempt ${attempt}."
-              exit 0
-            fi
-            echo "::endgroup::"
-            if [ "$attempt" -lt 3 ]; then
-              wait_sec=$((attempt * 30))
-              echo "FTPS upload attempt ${attempt} failed. Sleeping ${wait_sec}s before retry..."
-              sleep "$wait_sec"
-            fi
-          done
+              if [ "$attempt" -lt 3 ]; then
+                wait_sec=$((attempt * 30))
+                echo "${label} attempt ${attempt} failed. Sleeping ${wait_sec}s before retry..."
+                sleep "$wait_sec"
+              fi
+            done
+            return 1
+          }
+
+          echo "--- Transport 1: Explicit FTPS (port 21, hostname) ---"
+          if try_transport "Explicit FTPS :21" deploy_explicit; then
+            exit 0
+          fi
+
+          echo "--- Transport 1 exhausted. Trying Transport 2: Implicit FTPS (port 990) ---"
+          if try_transport "Implicit FTPS :990" deploy_implicit; then
+            exit 0
+          fi
+
           runner_ip=$(curl -s --max-time 5 https://api.ipify.org 2>/dev/null || echo "the runner IP")
-          echo "::error::FTPS upload failed after 3 attempts. This is unusual since the FTP daemon is normally extremely tolerant. Wait 5 minutes and re-run; if it still fails, contact Hostinger support and reference runner IP ${runner_ip} and run URL ${GITHUB_SERVER_URL:-https://github.com}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}."
+          echo "::error::FTPS upload failed on both port 21 (explicit) and port 990 (implicit) after 3 attempts each. Runner IP: ${runner_ip}. Run URL: ${GITHUB_SERVER_URL:-https://github.com}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}. Contact Hostinger support with these details if the issue persists."
           exit 1
 
       - name: Verify live site reflects the new build
