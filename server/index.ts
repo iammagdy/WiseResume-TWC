@@ -3340,8 +3340,18 @@ async function attachBrandLinkToPdf(
     const { width } = page.getSize();
 
     if (opts.drawBrand && font) {
-      const textWidth = font.widthOfTextAtSize(PDF_BRAND_TEXT, fontSize);
-      page.drawText(PDF_BRAND_TEXT, {
+      // pdf-lib's standard fonts (Helvetica) use WinAnsi (cp1252) encoding
+      // which only covers code points <= 0xFF. The brand string contains
+      // the ornament "❖" (U+2756) which is purely decorative — strip any
+      // characters outside WinAnsi so a font-encoding error can't crash
+      // the export. The HTML footerTemplate path (Puppeteer) renders the
+      // ornament fine and is unaffected.
+      const safeText = PDF_BRAND_TEXT
+        .replace(/[^\x00-\xFF]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+      const textWidth = font.widthOfTextAtSize(safeText, fontSize);
+      page.drawText(safeText, {
         x: Math.max(0, (width - textWidth) / 2),
         y: 5,
         size: fontSize,
