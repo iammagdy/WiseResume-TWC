@@ -41,6 +41,7 @@ import { WiseHireWaitlistPanel } from '@/components/dev-kit/WiseHireWaitlistPane
 import { PortfolioUsernamesPanel } from '@/components/dev-kit/PortfolioUsernamesPanel';
 import { OpenRouterPanel, GroqPanel } from '@/components/dev-kit/AIKeySlotPanels';
 import { TotpRotationPanel } from '@/components/dev-kit/TotpRotationPanel';
+import { TotpBootstrapWizard } from '@/components/dev-kit/TotpBootstrapWizard';
 import { DEV_KIT_VERSION } from '@/components/dev-kit/config';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { DevKitSessionProvider, useDevKitSession, loadRememberedToken } from '@/contexts/DevKitSessionContext';
@@ -281,6 +282,9 @@ function DevKitLoginForm() {
   const [showFullForm, setShowFullForm] = useState(false);
   const biometricTriggeredRef = useRef(false);
 
+  const [showBootstrapWizard, setShowBootstrapWizard] = useState(false);
+  const bootstrapStatusCheckedRef = useRef(false);
+
   const isLockedOut = lockoutSecondsLeft !== null && lockoutSecondsLeft > 0;
 
   const formatLockoutTime = (seconds: number) => {
@@ -313,6 +317,33 @@ function DevKitLoginForm() {
   useEffect(() => {
     if (rememberedEmail) setEmail(rememberedEmail);
   }, [rememberedEmail]);
+
+  // Auto-launch the first-time setup wizard when the install has no
+  // ADMIN_TOTP_SECRET yet — so a fresh visitor isn't asked to first
+  // type a code that can't possibly verify. We only run the check once
+  // per mount, and only when there's no remembered session (a remembered
+  // session implies the secret existed at the time the session was minted).
+  useEffect(() => {
+    if (bootstrapStatusCheckedRef.current) return;
+    if (hasRememberedSession) return;
+    bootstrapStatusCheckedRef.current = true;
+    (async () => {
+      try {
+        const { data, error } = await edgeFunctions.functions.invoke('admin-rotate-totp', {
+          body: { action: 'bootstrap_status' },
+        });
+        if (error) return;
+        const payload = data as { totp_configured?: boolean } | null;
+        if (payload && payload.totp_configured === false) {
+          setTotpSecretMissing(true);
+          setShowBootstrapWizard(true);
+        }
+      } catch {
+        // Best-effort only — the regular login still surfaces a missing
+        // secret via verify-dev-kit's totp_secret_missing reason.
+      }
+    })();
+  }, [hasRememberedSession]);
 
   // Detect biometric mode on mount. When a remembered session exists and biometric is
   // unavailable, auto-unlock immediately so the user never sees the login form.
@@ -415,6 +446,7 @@ function DevKitLoginForm() {
 
       if (data?.reason === 'totp_secret_missing') {
         setTotpSecretMissing(true);
+        setShowBootstrapWizard(true);
         return;
       }
 
@@ -464,6 +496,17 @@ function DevKitLoginForm() {
     ? Fingerprint
     : ScanFace;
 
+  const handleWizardComplete = useCallback((completedEmail: string) => {
+    setShowBootstrapWizard(false);
+    setTotpSecretMissing(false);
+    bootstrapStatusCheckedRef.current = true;
+    setEmail(completedEmail);
+    setShowFullForm(true);
+    toast.success('Setup complete', {
+      description: 'Now sign in with your authenticator code.',
+    });
+  }, []);
+
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4 relative">
       {/* Subtle background decoration using app theme */}
@@ -472,6 +515,28 @@ function DevKitLoginForm() {
         <div className="absolute -bottom-40 -left-40 w-96 h-96 rounded-full bg-primary/5 blur-3xl" />
       </div>
 
+      {/* First-time bootstrap wizard. Renders in place of the login UI when
+          the install has no ADMIN_TOTP_SECRET configured. */}
+      {showBootstrapWizard ? (
+        <div className="w-full max-w-sm relative z-10 space-y-6">
+          <TotpBootstrapWizard
+            initialEmail={email}
+            onCancel={() => {
+              setShowBootstrapWizard(false);
+            }}
+            onComplete={handleWizardComplete}
+          />
+          <div className="text-center">
+            <button
+              onClick={() => navigate(-1)}
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1 mx-auto"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              Back to app
+            </button>
+          </div>
+        </div>
+      ) : (
       <div className="w-full max-w-sm space-y-6 relative z-10">
         {/* Header */}
         <div className="text-center space-y-4">
@@ -488,47 +553,27 @@ function DevKitLoginForm() {
           </div>
         </div>
 
-        {/* TOTP secret missing guidance */}
+        {/* TOTP secret missing — offer to launch the guided setup wizard. */}
         {totpSecretMissing && (
           <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 space-y-3">
             <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
               <AlertTriangle className="w-4 h-4 shrink-0" />
-              <span className="text-xs font-semibold">ADMIN_TOTP_SECRET not configured</span>
+              <span className="text-xs font-semibold">DevKit isn&apos;t set up yet</span>
             </div>
             <p className="text-[11px] text-amber-700 dark:text-amber-300 leading-relaxed">
-              A DevKit-specific TOTP secret must be set in Supabase Edge Function secrets. Once set, scan the QR code in your authenticator app.
+              No authenticator secret is configured for this install. Run the
+              one-time setup wizard to enrol your authenticator app — works on
+              your phone, no terminal needed.
             </p>
-            <ol className="text-[11px] text-amber-700 dark:text-amber-300 space-y-1.5 list-decimal list-inside">
-              <li>
-                Generate a secret:{' '}
-                <code className="font-mono bg-amber-500/20 px-1 rounded">openssl rand -base32 20</code>
-              </li>
-              <li>
-                Add it as <code className="font-mono">ADMIN_TOTP_SECRET</code> in{' '}
-                <a
-                  href="https://supabase.com/dashboard/project/jnsfmkzgxsviuthaqlyy/functions"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline underline-offset-2 hover:opacity-80"
-                >
-                  Supabase Edge Function secrets
-                </a>
-              </li>
-              <li>
-                Build your OTP URI: <code className="font-mono bg-amber-500/20 px-1 rounded text-[10px]">otpauth://totp/WiseResume%20DevKit?secret=YOUR_SECRET&amp;issuer=WiseResume%20DevKit&amp;digits=6&amp;period=30</code>
-              </li>
-              <li>
-                Scan with your authenticator app using a{' '}
-                <a
-                  href="https://stefansundin.github.io/2fa-qr/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline underline-offset-2 hover:opacity-80"
-                >
-                  QR code generator
-                </a>
-              </li>
-            </ol>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => setShowBootstrapWizard(true)}
+              className="w-full h-9 text-xs font-semibold"
+            >
+              <ShieldCheck className="w-3.5 h-3.5 mr-1.5" />
+              Start setup
+            </Button>
           </div>
         )}
 
@@ -732,6 +777,7 @@ function DevKitLoginForm() {
           </button>
         </div>
       </div>
+      )}
     </div>
   );
 }

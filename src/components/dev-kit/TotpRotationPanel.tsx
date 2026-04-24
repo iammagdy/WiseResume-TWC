@@ -1,5 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import QRCodeStyling from 'qr-code-styling';
+import { useState, useEffect, useCallback } from 'react';
 import { ShieldCheck, RefreshCw, AlertTriangle, CheckCircle2, Copy, Eye, EyeOff, RotateCcw, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +7,7 @@ import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
 import { unwrapAdminResponse, formatEdgeError, EdgeFunctionError } from '@/lib/devkit/edgeResponse';
 import { toast } from 'sonner';
 import { useIsMounted } from '@/lib/devkit/hooks';
+import { TotpQRCode } from './TotpQRCode';
 
 interface StatusResult {
   success: boolean;
@@ -35,38 +35,6 @@ interface ConfirmResult {
 }
 
 type Phase = 'idle' | 'scanning' | 'confirmed_auto' | 'confirmed_manual';
-
-const QR_SIZE = 220;
-
-function TotpQRCode({ otpauthUrl }: { otpauthUrl: string }) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const qrRef = useRef<QRCodeStyling | null>(null);
-
-  useEffect(() => {
-    if (!containerRef.current || !otpauthUrl) return;
-
-    qrRef.current = new QRCodeStyling({
-      width: QR_SIZE,
-      height: QR_SIZE,
-      type: 'svg',
-      data: otpauthUrl,
-      margin: 8,
-      qrOptions: { errorCorrectionLevel: 'M' },
-      dotsOptions: { color: '#000000', type: 'rounded' },
-      cornersSquareOptions: { type: 'extra-rounded' },
-      backgroundOptions: { color: '#ffffff' },
-    });
-
-    containerRef.current.innerHTML = '';
-    qrRef.current.append(containerRef.current);
-  }, [otpauthUrl]);
-
-  return (
-    <div className="rounded-lg border-2 border-border bg-white p-2 shadow-sm inline-block">
-      <div ref={containerRef} style={{ width: QR_SIZE, height: QR_SIZE }} />
-    </div>
-  );
-}
 
 export function TotpRotationPanel() {
   const isMounted = useIsMounted();
