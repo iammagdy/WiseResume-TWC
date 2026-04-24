@@ -1,5 +1,5 @@
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { callAI, parseAIJSON, toUserError, sanitizeInputText } from "../_shared/aiClient.ts";
+import { callAIWithRetry, parseAIJSON, toUserError, sanitizeInputText } from "../_shared/aiClient.ts";
 import { selectProviderForTool } from "../_shared/modelRouter.ts";
 const __ROUTE = selectProviderForTool('one-page-optimizer');
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
@@ -316,7 +316,7 @@ Deno.serve(async (req) => {
 
     const callOnce = async (strict: boolean) => {
       const prompt = buildPrompt(candidates, serverPreserve, strict);
-      const ai = await callAI({
+      const ai = await callAIWithRetry({
         model: __ROUTE.model,
         wiseresumeSubProvider: __ROUTE.provider,
         messages: [{ role: 'user', content: prompt }],
