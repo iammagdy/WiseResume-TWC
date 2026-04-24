@@ -1,8 +1,24 @@
 [
   {
+    "version": "v3.5.4",
+    "date": "Apr 24, 2026",
+    "latest": true,
+    "summary": "Restored automatic deployments and fixed the sign-in session issue caused by a stale live build.",
+    "items": [
+      {
+        "title": "Sign-in works again on the live site",
+        "description": "The live site had been frozen on an older build for several days because deployments were silently failing, which is why some users saw their email confirmed but couldn't establish a session. The latest build is now live and sign-in completes normally."
+      },
+      {
+        "title": "Reliable, fast deployments",
+        "description": "Fixed the file-upload step in the release pipeline so new builds publish in roughly 2-3 minutes again instead of timing out after 13+ minutes."
+      }
+    ]
+  },
+  {
     "version": "v3.5.3",
     "date": "Apr 23, 2026",
-    "latest": true,
+    "latest": false,
     "summary": "Every PDF download is now text-selectable, and the editor's score panel is honestly labelled as keyword match.",
     "items": [
       {
