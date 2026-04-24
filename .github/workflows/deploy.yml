@@ -63,26 +63,36 @@ jobs:
 
       - name: Pre-flight connectivity probe
         # Fast TCP check on both FTP ports before burning time on lftp.
+        # curl is used for both: non-zero exit = unreachable/timeout.
         # Results are informational only — the deploy step still decides
         # which transport to use based on its own retries.
         run: |
           FTP_HOST="thewise.cloud"
-          runner_ip=$(curl -s --max-time 5 https://api.ipify.org 2>/dev/null || echo "unknown")
+          runner_ip=$(curl -s --connect-timeout 5 --max-time 5 https://api.ipify.org 2>/dev/null || echo "unknown")
           echo "Runner IP: ${runner_ip}"
-          echo "Probing ${FTP_HOST} port 21 (explicit FTPS)..."
-          if curl --silent --max-time 5 "ftp://${FTP_HOST}:21" -o /dev/null 2>&1 | grep -qi "ready\|220\|connected\|welcome" || \
-             curl --silent --max-time 5 --head "ftp://${FTP_HOST}:21" 2>&1 | grep -qi "Connected\|220"; then
-            echo "✅ Port 21 reachable"
+
+          echo "Probing ${FTP_HOST}:21 (explicit FTPS)..."
+          if curl --silent --connect-timeout 5 --max-time 5 \
+               "ftp://${FTP_HOST}:21" -o /dev/null 2>/dev/null; then
+            echo "✅ Port 21: reachable"
             PORT21="open"
           else
-            nc -z -w 5 "${FTP_HOST}" 21 2>/dev/null && PORT21="open" || PORT21="closed"
-            echo "Port 21: ${PORT21}"
+            echo "⚠️  Port 21: unreachable or timed out"
+            PORT21="closed"
           fi
-          echo "Probing ${FTP_HOST} port 990 (implicit FTPS)..."
-          nc -z -w 5 "${FTP_HOST}" 990 2>/dev/null && PORT990="open" || PORT990="closed"
-          echo "Port 990: ${PORT990}"
+
+          echo "Probing ${FTP_HOST}:990 (implicit FTPS)..."
+          if curl --silent --connect-timeout 5 --max-time 5 --insecure \
+               "ftps://${FTP_HOST}:990" -o /dev/null 2>/dev/null; then
+            echo "✅ Port 990: reachable"
+            PORT990="open"
+          else
+            echo "⚠️  Port 990: unreachable or timed out"
+            PORT990="closed"
+          fi
+
           if [ "${PORT21}" = "closed" ] && [ "${PORT990}" = "closed" ]; then
-            echo "::warning::Both FTP ports appear closed from runner IP ${runner_ip}. Deploy will still be attempted — probes can give false negatives behind NAT."
+            echo "::warning::Both FTP ports appear unreachable from runner IP ${runner_ip}. Deploy will still be attempted — probes can give false negatives behind NAT."
           fi
 
       - name: Deploy to Hostinger via FTPS
