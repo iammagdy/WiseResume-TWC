@@ -40,7 +40,7 @@
  
    const openAppStore = useCallback(() => {
      markAsPrompted();
-     openExternal('https://play.google.com/store/apps/details?id=com.wiseresume.app');
+     openExternal('https://play.google.com/store/apps/details?id=cloud.thewise.resume');
    }, [markAsPrompted]);
  
    const dismissRating = useCallback(() => {

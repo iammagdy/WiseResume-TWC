@@ -43,7 +43,7 @@ cd android
 ### App Details
 ```
 Name: Wise Resume
-Package: com.wiseresume.app
+Package: cloud.thewise.resume
 Version: 2.3.1
 Category: Productivity
 ```

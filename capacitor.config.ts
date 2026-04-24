@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
  const config: CapacitorConfig = {
-   appId: 'com.wiseresume.app',
+   appId: 'cloud.thewise.resume',
    appName: 'Wise Resume',
   webDir: 'dist',
   version: '2.5.4',

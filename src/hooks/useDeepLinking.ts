@@ -16,7 +16,7 @@ export function useDeepLinking() {
         let search = '';
         let hash = '';
 
-        // Custom schemes (e.g. com.wiseresume.app://) cause new URL() to
+        // Custom schemes (e.g. cloud.thewise.resume://) cause new URL() to
         // misparse the pathname — the host eats the first path segment.
         // Manually extract the path for these URLs.
         const customSchemeMatch = event.url.match(/^[a-z][a-z0-9+.\-]*:\/\/(.*)$/i);

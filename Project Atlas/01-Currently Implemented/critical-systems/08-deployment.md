@@ -75,6 +75,6 @@ Platform merges do **not** trigger GitHub Actions webhooks — always trigger `w
 
 → `QUICK_START.md` + `capacitor.config.ts`.
 
-WiseResume ships as a Capacitor 8 PWA (`com.wiseresume.app`, currently version 2.3.1). Android build flow is documented in `QUICK_START.md` and `ANDROID_DEPLOYMENT_GUIDE.md` (referenced from `QUICK_START.md`).
+WiseResume ships as a Capacitor 8 PWA (`cloud.thewise.resume`, currently version 2.3.1). Android build flow is documented in `QUICK_START.md` and `ANDROID_DEPLOYMENT_GUIDE.md` (referenced from `QUICK_START.md`).
 
 > ⚠️ `ANDROID_DEPLOYMENT_GUIDE.md` is referenced by `QUICK_START.md` but was not directly opened during this verification. Re-read it if mobile deploy details are needed.

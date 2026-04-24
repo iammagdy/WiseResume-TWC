@@ -239,7 +239,7 @@ export class ErrorBoundary extends Component<Props, State> {
     const result = await sendFeedback(
       {
         type: 'auto-crash-report',
-        email: 'crash@wiseresume.app',
+        email: 'contact@thewise.cloud',
         subject: `Auto Crash: ${errorMsg.slice(0, 80)}`,
         message: errorMsg + (userNote ? `\n\nUser note: ${userNote}` : ''),
         // Link the user feedback entry to the just-captured exception so
