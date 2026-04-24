@@ -219,10 +219,12 @@ export default function EditorPage() {
       const { downloadFile } = await import('@/lib/downloadUtils');
       const templateEl = document.querySelector('[data-resume-template]') as HTMLElement | null;
       if (!templateEl) throw new Error('Resume template not visible');
+      const customBreakPositions = currentResume.customization?.customBreakPositions;
       const pdfBlob = await generateNativePDF(templateEl, {
         pageFormat: (currentResume.customization?.pageFormat ?? 'letter') as 'letter' | 'a4',
-        showPageNumbers: true,
+        showPageNumbers: customBreakPositions?.length ? false : true,
         showBranding: true,
+        ...(customBreakPositions?.length ? { customBreakPositions } : {}),
       });
       const fileName = `${currentResume.contactInfo?.fullName?.replace(/\s+/g, '_') || 'Resume'}_Resume.pdf`;
       await downloadFile({ blob: pdfBlob, fileName, mimeType: 'application/pdf' });
@@ -348,7 +350,14 @@ export default function EditorPage() {
             pdfBlob = await mergePDFBlobs(coverBlob, resumeBlob);
             fileName = `${baseName}_Application_Package.pdf`;
           } else {
-            pdfBlob = await generateNativePDF(templateEl, { pageFormat, showPageNumbers, showBranding, onProgress });
+            const customBreakPositions = currentResume.customization?.customBreakPositions;
+            pdfBlob = await generateNativePDF(templateEl, {
+              pageFormat,
+              showPageNumbers: customBreakPositions?.length ? false : showPageNumbers,
+              showBranding,
+              onProgress,
+              ...(customBreakPositions?.length ? { customBreakPositions } : {}),
+            });
             fileName = `${baseName}_Resume.pdf`;
           }
         }

@@ -1,5 +1,5 @@
 import { memo, useState, useCallback, Suspense, useRef, CSSProperties, useEffect } from 'react';
-import { ZoomIn, ZoomOut, Eye, EyeOff, X, Scissors, SeparatorHorizontal, Sliders, GripVertical } from 'lucide-react';
+import { ZoomIn, ZoomOut, Eye, EyeOff, X, Scissors, SeparatorHorizontal, Sliders, GripVertical, Download, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useResumeStore } from '@/store/resumeStore';
 import { applyCustomizationCSS, generateCustomizationCSS } from '@/lib/templateCustomization';
@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TemplateId, ResumeData } from '@/types/resume';
 import haptics from '@/lib/haptics';
+import { toast } from 'sonner';
 
 import templateComponents from '@/components/templates/registry';
 
@@ -239,6 +240,34 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
     const positions = [...(currentResume?.customization?.customBreakPositions ?? [])].sort((a, b) => a - b);
     setCustomBreaks(positions.filter((_, i) => i !== index));
   }, [currentResume, setCustomBreaks]);
+
+  const [isCustomBreakDownloading, setIsCustomBreakDownloading] = useState(false);
+
+  const handleCustomBreakDownload = useCallback(async () => {
+    if (!currentResume || !resumeRef.current) return;
+    const customBreakPositions = currentResume.customization?.customBreakPositions;
+    if (!customBreakPositions?.length) return;
+    setIsCustomBreakDownloading(true);
+    try {
+      const { generateNativePDF } = await import('@/lib/nativePdfGenerator');
+      const { downloadFile } = await import('@/lib/downloadUtils');
+      const templateEl = resumeRef.current.querySelector('[data-resume-template]') as HTMLElement | null
+        ?? resumeRef.current;
+      const pageFormat = (currentResume.customization?.pageFormat ?? 'letter') as 'letter' | 'a4';
+      const pdfBlob = await generateNativePDF(templateEl, {
+        pageFormat,
+        showPageNumbers: false,
+        showBranding: true,
+        customBreakPositions,
+      });
+      const baseName = currentResume.contactInfo?.fullName?.replace(/\s+/g, '_') || 'Resume';
+      await downloadFile({ blob: pdfBlob, fileName: `${baseName}_Resume_CustomBreaks.pdf`, mimeType: 'application/pdf' });
+    } catch {
+      toast.error('Download failed. Please try again.');
+    } finally {
+      setIsCustomBreakDownloading(false);
+    }
+  }, [currentResume]);
 
   // Auto-fit-to-pages: when customization.targetPageCount is set, this hook
   // measures the rendered preview and patches customization.fontScale so the
@@ -515,13 +544,33 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
               isBreakEditMode={isBreakEditMode}
             />
 
-            {/* Break-edit-mode hint bar */}
-            {isBreakEditMode && (
+            {/* Sticky bottom bar(s): hint + download button stacked in one container */}
+            {(isBreakEditMode || sortedCustomBreaks.length > 0) && (
               <div
                 data-html2canvas-ignore="true"
-                className="sticky bottom-0 left-0 w-full bg-primary/90 text-primary-foreground text-[10px] text-center py-1 z-30 pointer-events-none select-none"
+                className="sticky bottom-0 left-0 w-full z-40 flex flex-col"
               >
-                Click anywhere to add a break · Drag handle to move · × to delete
+                {isBreakEditMode && (
+                  <div className="w-full bg-primary/90 text-primary-foreground text-[10px] text-center py-1 pointer-events-none select-none">
+                    Click anywhere to add a break · Drag handle to move · × to delete
+                  </div>
+                )}
+                {sortedCustomBreaks.length > 0 && (
+                  <button
+                    disabled={isCustomBreakDownloading}
+                    onClick={(e) => { e.stopPropagation(); handleCustomBreakDownload(); }}
+                    className="w-full flex items-center justify-center gap-1.5 bg-primary text-primary-foreground text-[11px] font-medium py-1.5 hover:bg-primary/90 transition-colors select-none touch-manipulation active:scale-[0.99] disabled:opacity-70 disabled:cursor-not-allowed"
+                  >
+                    {isCustomBreakDownloading
+                      ? <Loader2 className="w-3 h-3 animate-spin" />
+                      : <Download className="w-3 h-3" />
+                    }
+                    {isCustomBreakDownloading
+                      ? 'Generating…'
+                      : `Download (${sortedCustomBreaks.length + 1} page${sortedCustomBreaks.length + 1 > 1 ? 's' : ''})`
+                    }
+                  </button>
+                )}
               </div>
             )}
           </div>
