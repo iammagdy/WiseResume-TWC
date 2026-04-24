@@ -4,9 +4,16 @@
 //   status  — returns whether ADMIN_TOTP_SECRET is configured and whether a pending rotation exists
 //   request — generates a fresh TOTP secret, stores it pending in app_settings, returns QR code
 //   confirm — verifies the admin's new TOTP code; if valid, updates the secret via Supabase
-//             Management API (requires SUPABASE_MANAGEMENT_TOKEN + SUPABASE_PROJECT_REF), or
+//             Management API (requires a management token + project ref — see below), or
 //             returns the new secret for manual update if those are not configured
 //   cancel  — discards the pending rotation
+//
+// Management API credentials (set as edge function secrets):
+//   SUPABASE_MANAGEMENT_TOKEN — preferred name for the Supabase personal access token.
+//                               Falls back to ADMIN_MANAGEMENT_TOKEN when Supabase blocks the
+//                               SUPABASE_ prefix on user-defined secrets (which it often does).
+//   SUPABASE_PROJECT_REF      — preferred name for the project ref (e.g. jnsfmkzgxsviuthaqlyy).
+//                               Falls back to extracting the ref from the built-in SUPABASE_URL.
 //
 // Auth: requires a valid DevKit session token in Authorization: Bearer <token>
 
@@ -87,13 +94,41 @@ async function verifyTotp(secretB32: string, userCode: string): Promise<boolean>
 
 // ---------- Management API helper ----------
 
+function resolveProjectRef(): string | undefined {
+  const explicit = Deno.env.get('SUPABASE_PROJECT_REF')?.trim();
+  if (explicit) return explicit;
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')?.trim();
+  if (!supabaseUrl) return undefined;
+  try {
+    const hostname = new URL(supabaseUrl).hostname;
+    return hostname.split('.')[0] || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function resolveManagementToken(): string | undefined {
+  return (
+    Deno.env.get('SUPABASE_MANAGEMENT_TOKEN')?.trim() ||
+    Deno.env.get('ADMIN_MANAGEMENT_TOKEN')?.trim()
+  );
+}
+
 async function updateSupabaseSecret(name: string, value: string): Promise<{ ok: boolean; error?: string }> {
-  const managementToken = Deno.env.get('SUPABASE_MANAGEMENT_TOKEN')?.trim();
-  const projectRef = Deno.env.get('SUPABASE_PROJECT_REF')?.trim();
+  const managementToken = resolveManagementToken();
+  const projectRef = resolveProjectRef();
 
   if (!managementToken || !projectRef) {
-    return { ok: false, error: 'SUPABASE_MANAGEMENT_TOKEN or SUPABASE_PROJECT_REF not configured' };
+    return { ok: false, error: 'SUPABASE_MANAGEMENT_TOKEN (or ADMIN_MANAGEMENT_TOKEN) not configured, or project ref could not be determined' };
   }
+
+  const tokenSource = Deno.env.get('SUPABASE_MANAGEMENT_TOKEN')?.trim()
+    ? 'SUPABASE_MANAGEMENT_TOKEN'
+    : 'ADMIN_MANAGEMENT_TOKEN';
+  const refSource = Deno.env.get('SUPABASE_PROJECT_REF')?.trim()
+    ? 'SUPABASE_PROJECT_REF'
+    : 'SUPABASE_URL (derived)';
+  console.log(`[admin-rotate-totp] updateSupabaseSecret: token source=${tokenSource}, ref source=${refSource}, project=${projectRef}`);
 
   const response = await fetch(
     `https://api.supabase.com/v1/projects/${projectRef}/secrets`,
@@ -154,8 +189,8 @@ Deno.serve(async (req) => {
     if (action === 'status') {
       const isConfigured = !!Deno.env.get('ADMIN_TOTP_SECRET')?.trim();
       const canAutoUpdate = !!(
-        Deno.env.get('SUPABASE_MANAGEMENT_TOKEN')?.trim() &&
-        Deno.env.get('SUPABASE_PROJECT_REF')?.trim()
+        resolveManagementToken() &&
+        resolveProjectRef()
       );
 
       const { data: pendingRow } = await supabase
