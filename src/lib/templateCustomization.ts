@@ -213,6 +213,40 @@ export function generateCustomizationCSS(c: TemplateCustomization | undefined): 
     ` : ''}
   ` : '';
 
+  // Per-section overrides emitted by the inline section editor overlay.
+  // These come AFTER the global blocks so they win for the specific
+  // [data-section="<name>"] selector. Each rule uses !important to match the
+  // rest of this file. fontScale here is a per-section multiplier applied to
+  // every descendant of the section (1em * fontScale), which compounds
+  // cleanly with the global --compact-scale variable.
+  let sectionOverridesBlock = '';
+  if (c.sectionOverrides && Object.keys(c.sectionOverrides).length > 0) {
+    const parts: string[] = [];
+    for (const [name, override] of Object.entries(c.sectionOverrides)) {
+      if (!override) continue;
+      const safe = String(name).replace(/[^a-zA-Z0-9_-]/g, '');
+      if (!safe) continue;
+      const sel = `[data-resume-template] [data-section="${safe}"]`;
+      const decls: string[] = [];
+      if (typeof override.paddingTop === 'number') {
+        decls.push(`padding-top: ${override.paddingTop}px !important;`);
+      }
+      if (typeof override.paddingBottom === 'number') {
+        decls.push(`padding-bottom: ${override.paddingBottom}px !important;`);
+      }
+      if (typeof override.marginBottom === 'number') {
+        decls.push(`margin-bottom: ${override.marginBottom}px !important;`);
+      }
+      if (decls.length > 0) {
+        parts.push(`${sel} { ${decls.join(' ')} }`);
+      }
+      if (typeof override.fontScale === 'number') {
+        parts.push(`${sel} * { font-size: calc(1em * ${override.fontScale}) !important; }`);
+      }
+    }
+    sectionOverridesBlock = parts.join('\n    ');
+  }
+
   return `
     ${fontBodyBlock}
     ${fontHeadingBlock}
@@ -222,6 +256,7 @@ export function generateCustomizationCSS(c: TemplateCustomization | undefined): 
     ${fontScaleBlock}
     ${sectionGapBlock}
     ${entryGapBlock}
+    ${sectionOverridesBlock}
   `;
 }
 

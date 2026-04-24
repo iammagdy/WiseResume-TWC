@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { ResumeData, JobMatchScore, GapAnalysis, TemplateId, TailorHistory, TailorSectionId, EnhancedTailorResult, CoverLetterContext, MultiJobComparison, JobComparisonEntry, SuperTailorResult, CoverLetterHistory } from '@/types/resume';
+import { ResumeData, JobMatchScore, GapAnalysis, TemplateId, TailorHistory, TailorSectionId, EnhancedTailorResult, CoverLetterContext, MultiJobComparison, JobComparisonEntry, SuperTailorResult, CoverLetterHistory, SectionStyleOverride, TemplateCustomization } from '@/types/resume';
+import { getDefaultCustomization } from '@/lib/templateCustomization';
 import { TailorIntensity } from '@/lib/aiTailor';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -51,6 +52,7 @@ interface ResumeState {
   setIsSaving: (saving: boolean) => void;
   setLastSavedAt: (date: Date | null) => void;
   updateResume: (updates: Partial<ResumeData>) => void;
+  updateSectionOverride: (sectionName: string, override: Partial<SectionStyleOverride>) => void;
   setJobDescription: (description: string) => void;
   setMatchScore: (score: JobMatchScore | null) => void;
   setGapAnalysis: (analysis: GapAnalysis | null) => void;
@@ -165,6 +167,43 @@ export const useResumeStore = create<ResumeState>()(
           currentResume: state.currentResume
             ? { ...state.currentResume, ...sanitized }
             : { ...defaultResume, ...sanitized }
+        };
+      }),
+
+      updateSectionOverride: (sectionName, override) => set((state) => {
+        if (!state.currentResume) return state;
+        const baseCustomization: TemplateCustomization =
+          state.currentResume.customization ?? getDefaultCustomization();
+        const existingMap = baseCustomization.sectionOverrides ?? {};
+        const nextMap: Record<string, SectionStyleOverride> = { ...existingMap };
+        // Empty object => clear all overrides for this section.
+        if (override && Object.keys(override).length === 0) {
+          delete nextMap[sectionName];
+        } else {
+          const merged: SectionStyleOverride = {
+            ...(existingMap[sectionName] ?? {}),
+            ...override,
+          };
+          // Strip keys explicitly set to undefined so the override map only
+          // carries real values (keeps the per-section CSS minimal and lets
+          // callers "clear one knob" by passing `{ paddingTop: undefined }`).
+          for (const k of Object.keys(merged) as Array<keyof SectionStyleOverride>) {
+            if (merged[k] === undefined) delete merged[k];
+          }
+          if (Object.keys(merged).length === 0) {
+            delete nextMap[sectionName];
+          } else {
+            nextMap[sectionName] = merged;
+          }
+        }
+        return {
+          currentResume: {
+            ...state.currentResume,
+            customization: {
+              ...baseCustomization,
+              sectionOverrides: nextMap,
+            },
+          },
         };
       }),
 

@@ -151,6 +151,23 @@ export interface TemplateCustomization {
    *  switched Off. Stored on customization (rather than in component state)
    *  so the snapshot survives panel remounts and resume reloads. */
   manualFontScale?: number;
+  /** Per-section visual overrides, keyed by `data-section` attribute value
+   *  (e.g. "summary", "experience"). Set via the inline section editor
+   *  overlay in the desktop live preview. Each entry is independent of the
+   *  global typography/spacing knobs and applies only to that one section. */
+  sectionOverrides?: Record<string, SectionStyleOverride>;
+}
+
+export interface SectionStyleOverride {
+  /** Top padding in px applied to `[data-section="<name>"]`. */
+  paddingTop?: number;
+  /** Bottom padding in px applied to `[data-section="<name>"]`. */
+  paddingBottom?: number;
+  /** Margin below the section in px. Overrides the global `sectionGap`
+   *  rule for this specific section. */
+  marginBottom?: number;
+  /** Multiplier applied to the section's natural font size, e.g. 0.9 = 90%. */
+  fontScale?: number;
 }
 
 export interface ParseMeta {

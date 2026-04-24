@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { useResumeStore } from '@/store/resumeStore';
 import { applyCustomizationCSS, generateCustomizationCSS } from '@/lib/templateCustomization';
 import { StyleCustomizationPanel } from '@/components/editor/StyleCustomizationPanel';
+import { SectionOverlayManager } from '@/components/editor/SectionOverlayManager';
 import { useFitToPages } from '@/hooks/useFitToPages';
 import type { TemplateCustomization } from '@/types/resume';
 import { computePreviewBreaks, estimatePageCount, getPageDimensionsForFormat, injectForcedBreaks } from '@/lib/pdfUtils';
@@ -16,7 +17,7 @@ import templateComponents from '@/components/templates/registry';
 
 const ZOOM_LEVELS = [0.5, 0.75, 1, 1.25] as const;
 
-const SECTION_LABELS: Record<string, string> = {
+export const SECTION_LABELS: Record<string, string> = {
   summary: 'Summary',
   experience: 'Experience',
   education: 'Education',
@@ -505,6 +506,14 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
                 </div>
               );
             })}
+
+            {/* Inline per-section editor overlay (desktop hover-to-reveal
+                style/AI buttons). Skipped during break-edit mode so it
+                doesn't intercept the click-to-add-break gesture. */}
+            <SectionOverlayManager
+              resumeRef={resumeRef}
+              isBreakEditMode={isBreakEditMode}
+            />
 
             {/* Break-edit-mode hint bar */}
             {isBreakEditMode && (
