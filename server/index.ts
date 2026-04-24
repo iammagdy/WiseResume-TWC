@@ -12,7 +12,7 @@
  */
 
 import * as Sentry from '@sentry/node';
-import { PDFDocument } from 'pdf-lib';
+import { PDFDocument, PDFArray, PDFName, PDFString, StandardFonts, rgb } from 'pdf-lib';
 import express from 'express';
 import type { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
@@ -3310,6 +3310,70 @@ async function getSharedBrowser(): Promise<import('puppeteer').Browser> {
   return _browserLaunching;
 }
 
+/**
+ * URL the in-PDF "Created with WiseResume" footer brand links to.
+ * Clicking the brand strip on any PDF page opens this URL in the user's browser.
+ */
+const PDF_BRAND_URL = 'https://resume.thewise.cloud';
+const PDF_BRAND_TEXT = '\u2756 Created with WiseResume \u00b7 part of The Wise Cloud';
+
+/**
+ * Adds a clickable URI link annotation across the bottom strip of every page
+ * in the supplied PDF. When `drawBrand` is true the brand text is also drawn
+ * inside that strip — used for the custom-break path where Puppeteer's
+ * footerTemplate is disabled (each segment has its own height).
+ *
+ * Chromium's print-to-PDF does NOT preserve hyperlinks placed in
+ * headerTemplate/footerTemplate, so the brand has to be made clickable
+ * here as a post-processing step using pdf-lib's link annotations.
+ */
+async function attachBrandLinkToPdf(
+  pdfBytes: Uint8Array | Buffer,
+  opts: { drawBrand: boolean; bandHeightPt?: number },
+): Promise<Uint8Array> {
+  const doc = await PDFDocument.load(pdfBytes);
+  const bandHeightPt = opts.bandHeightPt ?? (opts.drawBrand ? 16 : 36);
+  const font = opts.drawBrand ? await doc.embedFont(StandardFonts.Helvetica) : null;
+  const fontSize = 7;
+
+  for (const page of doc.getPages()) {
+    const { width } = page.getSize();
+
+    if (opts.drawBrand && font) {
+      const textWidth = font.widthOfTextAtSize(PDF_BRAND_TEXT, fontSize);
+      page.drawText(PDF_BRAND_TEXT, {
+        x: Math.max(0, (width - textWidth) / 2),
+        y: 5,
+        size: fontSize,
+        font,
+        color: rgb(0.67, 0.67, 0.67),
+      });
+    }
+
+    const linkAnnot = doc.context.obj({
+      Type: 'Annot',
+      Subtype: 'Link',
+      Rect: [0, 0, width, bandHeightPt],
+      Border: [0, 0, 0],
+      A: {
+        Type: 'Action',
+        S: 'URI',
+        URI: PDFString.of(PDF_BRAND_URL),
+      },
+    });
+    const linkRef = doc.context.register(linkAnnot);
+
+    const existing = page.node.lookup(PDFName.of('Annots'));
+    if (existing instanceof PDFArray) {
+      existing.push(linkRef);
+    } else {
+      page.node.set(PDFName.of('Annots'), doc.context.obj([linkRef]));
+    }
+  }
+
+  return doc.save();
+}
+
 function _buildPuppeteerFooter(showPageNumbers: boolean, showBranding: boolean): string {
   const pageNum = showPageNumbers
     ? `<span style="font-family:Arial,Helvetica,sans-serif;font-size:8px;color:#888;">Page <span class="pageNumber"></span> of <span class="totalPages"></span></span>`
@@ -3483,7 +3547,14 @@ app.post('/api/export/pdf-native', requireAuthHeader, async (req: AuthedRequest,
         const pages = await merged.copyPages(doc, doc.getPageIndices());
         pages.forEach(p => merged.addPage(p));
       }
-      const finalBytes = await merged.save();
+      let finalBytes = await merged.save();
+
+      // Brand the bottom of every custom-break page and make it click-through.
+      // Puppeteer's footerTemplate is disabled in this path (each segment has
+      // its own height), so the brand text is drawn here by pdf-lib.
+      if (safeShowBranding) {
+        finalBytes = await attachBrandLinkToPdf(finalBytes, { drawBrand: true });
+      }
 
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', 'attachment; filename="resume.pdf"');
@@ -3507,9 +3578,20 @@ app.post('/api/export/pdf-native', requireAuthHeader, async (req: AuthedRequest,
       pageRanges: safeOnePage ? '1' : undefined,
     });
 
+    // Make the Puppeteer-rendered footer brand band clickable. Chromium does
+    // not preserve <a> hyperlinks placed in footerTemplate, so we add a URI
+    // link annotation across the same band via pdf-lib post-processing.
+    let outBytes: Uint8Array | Buffer = pdfBuffer;
+    if (needsFooter && safeShowBranding) {
+      outBytes = await attachBrandLinkToPdf(pdfBuffer, {
+        drawBrand: false,
+        bandHeightPt: footerHeightPx, // matches Puppeteer's bottom margin
+      });
+    }
+
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename="resume.pdf"');
-    res.send(Buffer.from(pdfBuffer));
+    res.send(Buffer.from(outBytes));
   } catch (err) {
     console.error('[export/pdf-native] Puppeteer error:', err);
     res.status(500).json({ error: 'PDF rendering failed. Please try again.' });
