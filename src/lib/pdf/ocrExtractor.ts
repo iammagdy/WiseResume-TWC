@@ -87,8 +87,14 @@ export async function extractTextWithOCR(
 ): Promise<string> {
   const arrayBuffer = await file.arrayBuffer();
   
-  // Load PDF document
-  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  // Load PDF document with locally-bundled cmaps and standard fonts so iOS
+  // WebKit can decode embedded-font PDFs without falling back to OCR.
+  const pdf = await pdfjsLib.getDocument({
+    data: arrayBuffer,
+    cMapUrl: '/pdfjs/cmaps/',
+    cMapPacked: true,
+    standardFontDataUrl: '/pdfjs/standard_fonts/',
+  }).promise;
   const numPages = pdf.numPages;
   
   // Initialize Tesseract worker once for all pages (more efficient)
@@ -96,7 +102,11 @@ export async function extractTextWithOCR(
   
   let worker: Worker;
   try {
-    worker = await createWorker('eng');
+    worker = await createWorker('eng', undefined, {
+      workerPath: '/tesseract/worker.min.js',
+      corePath: '/tesseract/core',
+      langPath: '/tesseract/lang',
+    });
   } catch (error) {
     console.error('Failed to initialize Tesseract worker:', error);
     throw new Error(
@@ -298,7 +308,11 @@ export async function extractTextFromImage(
   // Initialize Tesseract worker
   let worker: Worker;
   try {
-    worker = await createWorker('eng');
+    worker = await createWorker('eng', undefined, {
+      workerPath: '/tesseract/worker.min.js',
+      corePath: '/tesseract/core',
+      langPath: '/tesseract/lang',
+    });
   } catch (error) {
     console.error('Failed to initialize Tesseract worker:', error);
     throw new Error(

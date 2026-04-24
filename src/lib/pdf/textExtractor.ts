@@ -93,7 +93,12 @@ export async function extractTextFromPDF(file: File): Promise<ExtractionResult> 
 
   let pdf;
   try {
-    pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    pdf = await pdfjsLib.getDocument({
+      data: arrayBuffer,
+      cMapUrl: '/pdfjs/cmaps/',
+      cMapPacked: true,
+      standardFontDataUrl: '/pdfjs/standard_fonts/',
+    }).promise;
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : '';
     const errorName = error instanceof Error ? error.name : '';
