@@ -3529,9 +3529,16 @@ app.post('/api/export/pdf-native', requireAuthHeader, async (req: AuthedRequest,
             document.body.style.transform           = `translateY(-${yS}px)`;
           }, yStart, segH);
 
+          // Puppeteer's `page.pdf()` does NOT accept `pt` as a unit
+          // (`convertPrintParameterToInches` only handles px/in/cm/mm). The
+          // values here are in PT (1 CSS px === 1 PDF pt at the 612pt design
+          // width), so convert to inches: 1 pt = 1/72 in. This keeps the
+          // page exactly the size of its content slice — including a short
+          // last page that holds only one section, which must NOT be padded
+          // up to A4/Letter height.
           const segPdf = await page.pdf({
-            width:           `${resumeWidthPx}pt`,
-            height:          `${segH}pt`,
+            width:           `${resumeWidthPx / 72}in`,
+            height:          `${segH / 72}in`,
             printBackground: true,
             margin: { top: '0', right: '0', bottom: '0', left: '0' },
             displayHeaderFooter: false,
