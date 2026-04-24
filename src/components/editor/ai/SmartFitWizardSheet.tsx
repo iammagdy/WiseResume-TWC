@@ -40,7 +40,7 @@ import templateComponents from '@/components/templates/registry';
 import type { ResumeData } from '@/types/resume';
 import { useResumeVersionMutations } from '@/hooks/useResumeVersions';
 import { useAIApplyEffects } from '@/hooks/useAIApplyEffects';
-import { runSmartFit, applySmartFitPlan } from '@/lib/smartFit/orchestrator';
+import { runSmartFit, applySmartFitPlan, retrySmartFitRewrites } from '@/lib/smartFit/orchestrator';
 import { convergeSmartFitPlan, runLayoutOnlyFit, type ConvergeProgress } from '@/lib/smartFit/converge';
 import { buildDiffHighlight, type HighlightSegment } from '@/lib/smartFit/diffHighlight';
 import type { SmartFitPlan, SmartFitSelection, LayoutFitProposal, RewriteFailureInfo } from '@/lib/smartFit/types';
@@ -125,6 +125,7 @@ export function SmartFitWizardSheet({
   const [plan, setPlan] = useState<SmartFitPlan | null>(null);
   const [selection, setSelection] = useState<SmartFitSelection>(emptySelection());
   const [isApplying, setIsApplying] = useState(false);
+  const [isRetryingRewrites, setIsRetryingRewrites] = useState(false);
   const previousResumeRef = useRef<ResumeData | null>(null);
 
   // Scratch container for hypothetical-resume measurement during convergence.
@@ -421,6 +422,33 @@ export function SmartFitWizardSheet({
     setSelection(prev => ({ ...prev, layoutFit: !prev.layoutFit }));
   }, []);
 
+  const handleRetryRewrites = useCallback(async () => {
+    if (!currentResume || !plan || isRetryingRewrites) return;
+    setIsRetryingRewrites(true);
+    try {
+      const { rewrites, rewriteFailure } = await retrySmartFitRewrites(
+        currentResume,
+        jobDescription,
+        targetPages,
+        plan.pagesAfterLayout,
+      );
+      setPlan(prev => prev ? {
+        ...prev,
+        rewrites,
+        rewriteFailure,
+        stagesRun: prev.stagesRun.includes('rewrite') ? prev.stagesRun : [...prev.stagesRun, 'rewrite' as const],
+      } : null);
+      setSelection(prev => ({
+        ...prev,
+        rewrites: new Set(rewrites.filter(r => r.validated).map(r => r.id)),
+      }));
+    } catch (err) {
+      console.warn('[SmartFit] retry rewrites failed', err);
+    } finally {
+      setIsRetryingRewrites(false);
+    }
+  }, [currentResume, isRetryingRewrites, jobDescription, plan, targetPages]);
+
   const acceptAll = useCallback(() => {
     if (!plan) return;
     setSelection({
@@ -448,9 +476,7 @@ export function SmartFitWizardSheet({
         <SheetHeader className="px-4 pt-4 pb-2 border-b border-border shrink-0">
           <SheetTitle className="flex items-center gap-2">
             <Wand2 className="w-5 h-5 text-primary" />
-            {view === 'intro'
-              ? 'Smart Fit'
-              : `Smart Fit to ${targetPages} ${targetPages === 1 ? 'Page' : 'Pages'}`}
+            Smart Fit to {targetPages} {targetPages === 1 ? 'Page' : 'Pages'}
           </SheetTitle>
           <AIProviderVia className="mt-0.5" />
         </SheetHeader>
@@ -589,7 +615,11 @@ export function SmartFitWizardSheet({
                 )}
 
                 {plan.rewriteFailure && (
-                  <RewriteFailureBanner failure={plan.rewriteFailure} onRetry={handleAnalyze} />
+                  <RewriteFailureBanner
+                    failure={plan.rewriteFailure}
+                    onRetry={handleRetryRewrites}
+                    isRetrying={isRetryingRewrites}
+                  />
                 )}
 
                 {!plan.rewriteFailure && plan.rewrites.length > 0 && (
@@ -749,11 +779,32 @@ function Section({
   );
 }
 
-function RewriteFailureBanner({ failure, onRetry }: { failure: RewriteFailureInfo; onRetry: () => void }) {
+function RewriteFailureBanner({
+  failure, onRetry, isRetrying,
+}: { failure: RewriteFailureInfo; onRetry: () => void; isRetrying: boolean }) {
+  const [countdown, setCountdown] = useState<number>(failure.retryAfterSeconds ?? 0);
+
+  useEffect(() => {
+    if (failure.kind !== 'rate-limited' || !failure.retryAfterSeconds) return;
+    setCountdown(failure.retryAfterSeconds);
+    const id = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) { clearInterval(id); return 0; }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [failure.kind, failure.retryAfterSeconds]);
+
   const iconClass = 'w-4 h-4 shrink-0 mt-0.5';
   const icon = failure.kind === 'out-of-credits' ? <CreditCard className={iconClass} />
     : failure.kind === 'network' ? <Wifi className={iconClass} />
     : <AlertCircle className={iconClass} />;
+
+  const retryBlocked = isRetrying || (failure.kind === 'rate-limited' && countdown > 0);
+  const retryLabel = failure.kind === 'rate-limited' && countdown > 0
+    ? `Retry in ${countdown}s`
+    : isRetrying ? 'Retrying…' : 'Retry AI rewrites';
 
   const cta = failure.kind === 'out-of-credits'
     ? (
@@ -765,9 +816,17 @@ function RewriteFailureBanner({ failure, onRetry }: { failure: RewriteFailureInf
       </a>
     )
     : (
-      <Button size="sm" variant="outline" className="h-7 px-2 text-xs gap-1" onClick={onRetry}>
-        <RotateCcw className="w-3 h-3" />
-        Retry AI rewrites
+      <Button
+        size="sm"
+        variant="outline"
+        className="h-7 px-2 text-xs gap-1"
+        onClick={onRetry}
+        disabled={retryBlocked}
+      >
+        {isRetrying
+          ? <Loader2 className="w-3 h-3 animate-spin" />
+          : <RotateCcw className="w-3 h-3" />}
+        {retryLabel}
       </Button>
     );
 

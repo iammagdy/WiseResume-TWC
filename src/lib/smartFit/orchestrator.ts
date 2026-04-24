@@ -285,6 +285,48 @@ async function defaultRewriteFn(
   );
 }
 
+/** Result of a rewrite-only retry. */
+export interface RewriteRetryResult {
+  rewrites: SentenceRewriteProposal[];
+  rewriteFailure?: RewriteFailureInfo;
+}
+
+/**
+ * Re-run only the AI rewrite stage so the UI can refresh rewrite cards
+ * without re-doing layout measurement, bullet-pruning, or section-collapse.
+ * Merges cleanly into an existing SmartFitPlan on the caller side.
+ */
+export async function retrySmartFitRewrites(
+  resume: ResumeData,
+  jobDescription: string | undefined,
+  targetPages: 1 | 2 | 3,
+  pagesAfterLayout: number,
+  rewriteFn?: (candidates: RewriteRequest[], jobDescription?: string) => Promise<RewriteOutcome[]>,
+): Promise<RewriteRetryResult> {
+  const overflowPages = pagesAfterLayout - targetPages;
+  const charsToRecover = Math.ceil(Math.max(0, overflowPages) * CHARS_PER_PAGE);
+  const protectedTokens = extractProtectedTokens(resume, jobDescription);
+  const scored = scoreResume(resume, protectedTokens);
+
+  let rewrites: SentenceRewriteProposal[] = [];
+  let rewriteFailure: RewriteFailureInfo | undefined;
+  try {
+    rewrites = await runRewriteStage({
+      scored,
+      protectedTokens,
+      charsToRecover,
+      jobDescription,
+      rewriteFn: rewriteFn ?? defaultRewriteFn,
+    });
+  } catch (err) {
+    if (err instanceof RewriteFailureError) {
+      rewriteFailure = { kind: err.failureKind, message: err.message, retryAfterSeconds: err.retryAfterSeconds };
+    }
+    console.warn('[smartFit] retry rewrite stage failed', err);
+  }
+  return { rewrites, rewriteFailure };
+}
+
 /**
  * Apply the user's selection from a SmartFitPlan to a resume, returning a
  * new ResumeData. Pure — never mutates the input.
