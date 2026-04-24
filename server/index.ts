@@ -3494,6 +3494,37 @@ app.post('/api/export/pdf-native', requireAuthHeader, async (req: AuthedRequest,
 
     await page.setContent(injectedHtml, { waitUntil: 'networkidle0', timeout: 30_000 });
 
+    // For custom-break rendering we need to slice the body into segments
+    // using layout properties (NOT CSS transforms) because Chromium's print
+    // engine ignores transforms and `<html overflow:hidden>` when paginating
+    // — it walks the body's natural box, which is why the previous attempts
+    // produced extra/empty pages. Wrap the body's children once now in a
+    // clipping div + content shifter; per-segment we just adjust the wrapper
+    // height and the inner shifter's negative margin.
+    if (
+      Array.isArray(customBreakPositions) &&
+      (customBreakPositions as unknown[]).length > 0 &&
+      typeof totalContentHeightPx === 'number' &&
+      (totalContentHeightPx as number) > 10
+    ) {
+      await page.evaluate(
+        `(() => {
+          const body = document.body;
+          const clip = document.createElement('div');
+          clip.id = '__seg_clip__';
+          clip.style.cssText = 'position:relative;width:100%;overflow:hidden;';
+          const shift = document.createElement('div');
+          shift.id = '__seg_shift__';
+          shift.style.cssText = 'width:100%;';
+          while (body.firstChild) shift.appendChild(body.firstChild);
+          clip.appendChild(shift);
+          body.appendChild(clip);
+          body.style.margin  = '0';
+          body.style.padding = '0';
+        })()`
+      );
+    }
+
     // ── Custom break mode ──────────────────────────────────────────────────────
     // When the user has placed exact break positions we render one PDF segment
     // per page so each page has its own precise height. The last page is never
@@ -3541,46 +3572,29 @@ app.post('/api/export/pdf-native', requireAuthHeader, async (req: AuthedRequest,
           const segViewportH = Math.max(1, Math.round(segH * pageZoom));
           await page.setViewport({ width: viewportWidthPx, height: segViewportH });
 
-          // Clip the document to exactly the segment slice. We have to clamp
-          // BOTH <html> and <body> sizes — Chromium's print engine paginates
-          // based on the body's natural box height, so simply hiding overflow
-          // on <html> is not enough to stop multi-page rendering of a single
-          // slice. html { zoom } is already applied via zoomSnippet so we
-          // work in unzoomed CSS pixels here.
+          // Slice the document via LAYOUT properties — set the clip
+          // wrapper's height to segH and the inner shifter's negative
+          // top margin to -yStart. Chromium's print engine respects
+          // overflow:hidden + margin (which are layout, not paint), so
+          // body's effective height becomes exactly segH and only the
+          // requested [yStart, yStart+segH] slice is visible.
           //
-          // NOTE: `page.evaluate(fn)` serialises the function and runs it
-          // in the browser context. Any nested function declarations inside
-          // `fn` end up wrapped by tsx/esbuild with a `__name(...)` helper
-          // (from the `keepNames` transform) which doesn't exist in the
-          // browser, causing `ReferenceError: __name is not defined`. We
-          // therefore inline everything as plain statements — no helpers,
-          // no nested fns. The original styles are stashed via `dataset`
-          // so the matching restore call can read them back.
+          // NOTE: `page.evaluate(fn)` serialises the function and runs
+          // it in the browser context. Any nested function declarations
+          // inside `fn` end up wrapped by tsx/esbuild with a `__name(...)`
+          // helper (from the `keepNames` transform) which doesn't exist
+          // in the browser, causing `ReferenceError: __name is not
+          // defined`. We therefore pass a plain string IIFE — tsx
+          // leaves string literals untouched.
           await page.evaluate(
             `(() => {
-              const docEl = document.documentElement;
-              const body  = document.body;
-              const keys = [
-                ['html','height'], ['html','overflow'],
-                ['body','height'], ['body','width'],
-                ['body','overflow'], ['body','transform'],
-                ['body','margin'],  ['body','padding'],
-              ];
-              for (const [tag, key] of keys) {
-                const el = tag === 'html' ? docEl : body;
-                const slot = '__seg_' + tag + '_' + key;
-                if (el.dataset[slot] === undefined) {
-                  el.dataset[slot] = el.style.getPropertyValue(key) || '';
-                }
+              const clip  = document.getElementById('__seg_clip__');
+              const shift = document.getElementById('__seg_shift__');
+              if (clip && shift) {
+                clip.style.height    = '${segH}px';
+                clip.style.overflow  = 'hidden';
+                shift.style.marginTop = '-${yStart}px';
               }
-              docEl.style.height   = '${segH}px';
-              docEl.style.overflow = 'hidden';
-              body.style.height    = '${segH}px';
-              body.style.width     = '${resumeWidthPx}px';
-              body.style.overflow  = 'hidden';
-              body.style.margin    = '0';
-              body.style.padding   = '0';
-              body.style.transform = 'translateY(-${yStart}px)';
             })()`
           );
 
@@ -3604,33 +3618,8 @@ app.post('/api/export/pdf-native', requireAuthHeader, async (req: AuthedRequest,
           });
 
           pageBuffers.push(Buffer.from(segPdf));
-
-          // Restore styles before next segment. Same rationale as the
-          // clipping evaluate above — we pass the body as a plain string
-          // expression to avoid tsx's keepNames `__name` helper, which
-          // doesn't exist in the browser context.
-          await page.evaluate(
-            `(() => {
-              const docEl = document.documentElement;
-              const body  = document.body;
-              const keys = [
-                ['html','height'], ['html','overflow'],
-                ['body','height'], ['body','width'],
-                ['body','overflow'], ['body','transform'],
-                ['body','margin'],  ['body','padding'],
-              ];
-              for (const [tag, key] of keys) {
-                const el = tag === 'html' ? docEl : body;
-                const slot = '__seg_' + tag + '_' + key;
-                const saved = el.dataset[slot];
-                if (saved !== undefined) {
-                  if (saved === '') el.style.removeProperty(key);
-                  else              el.style.setProperty(key, saved);
-                  delete el.dataset[slot];
-                }
-              }
-            })()`
-          );
+          // No reset needed — the next iteration overwrites the clip
+          // wrapper's height and the shifter's negative margin in place.
         } catch (segErr) {
           console.error(
             `[export/pdf-native] Segment ${si} failed — yStart=${yStart} yEnd=${yEnd} segH=${segH}:`,
