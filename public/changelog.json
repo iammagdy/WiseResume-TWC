@@ -1,8 +1,20 @@
 [
   {
-    "version": "v3.5.7",
+    "version": "v3.5.8",
     "date": "Apr 24, 2026",
     "latest": true,
+    "summary": "Tightened the live-site routing fix from v3.5.7 so secondary endpoints behave the same as the dev server.",
+    "items": [
+      {
+        "title": "Notifications, jobs, and profile saves stay consistent",
+        "description": "Three follow-ups on the v3.5.7 routing fix: the unread-count call no longer attempts a query against a column name the live database doesn't have; notification mark-read / mark-all-read / delete and the saved-jobs list now return the same simple stub responses the dev server returns; and profile saves return the updated profile in the same shape callers expect."
+      }
+    ]
+  },
+  {
+    "version": "v3.5.7",
+    "date": "Apr 24, 2026",
+    "latest": false,
     "summary": "Restored the dashboard, resumes list, premium plan reflection, and AI status badge on the live site.",
     "items": [
       {

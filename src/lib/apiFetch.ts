@@ -64,8 +64,11 @@ function buildUrl(path: string, query?: ApiFetchOptions['query']): string {
  * handler does (e.g. `{ resumes: [...] }`).
  */
 type ProdRoute = {
-  url: string;
-  method: string;
+  /** When set, skip the network call and synthesize this response. Used for
+   *  endpoints whose Express handlers are hardcoded stubs. */
+  synthetic?: unknown;
+  url?: string;
+  method?: string;
   body?: unknown;
   extraHeaders?: Record<string, string>;
   /** Transform the raw PostgREST/edge-function response into the legacy Express shape. */
@@ -177,16 +180,26 @@ function resolveProdRoute(path: string, method: string, body: unknown): ProdRout
       };
     }
     if (method === 'PATCH') {
+      // Server returns `{ profile: row }` — preserve the same shape so any
+      // future caller that destructures `.profile` keeps working.
       return {
-        url: `${base}/rest/v1/profiles?user_id=eq.${u}`,
+        url: `${base}/rest/v1/profiles?user_id=eq.${u}&select=*`,
         method: 'PATCH',
-        body,
-        transform: () => ({}),
+        body: { ...(body as Record<string, unknown> || {}), user_id: userId },
+        extraHeaders: { Prefer: 'return=representation,resolution=merge-duplicates' },
+        transform: (raw) => {
+          const arr = Array.isArray(raw) ? raw : [raw];
+          return { profile: arr[0] ?? null };
+        },
       };
     }
   }
 
-  // ── /api/data/notifications (list / mark / delete) ──────────────────────
+  // ── /api/data/notifications ─────────────────────────────────────────────
+  // The Express handlers for unread-count / mark-* / DELETE are hardcoded
+  // stubs (`{ count: 0 }`, `{ ok: true }`); reproduce those shapes
+  // synthetically so prod stays in lock-step with dev. Only the LIST
+  // endpoint actually queries the table.
   if (path === '/api/data/notifications' && method === 'GET') {
     return {
       url: `${base}/rest/v1/notifications?user_id=eq.${u}&select=*&order=created_at.desc&limit=50`,
@@ -195,21 +208,25 @@ function resolveProdRoute(path: string, method: string, body: unknown): ProdRout
     };
   }
   if (path === '/api/data/notifications/unread-count' && method === 'GET') {
-    return {
-      url: `${base}/rest/v1/notifications?user_id=eq.${u}&read_at=is.null&select=id`,
-      method: 'GET',
-      extraHeaders: { Prefer: 'count=exact' },
-      transform: (raw) => ({ count: Array.isArray(raw) ? raw.length : 0 }),
-    };
+    return { synthetic: { count: 0 } };
+  }
+  if (path === '/api/data/notifications/mark-read' && method === 'POST') {
+    return { synthetic: { ok: true } };
+  }
+  if (path === '/api/data/notifications/mark-all-read' && method === 'POST') {
+    return { synthetic: { ok: true } };
+  }
+  if (path === '/api/data/notifications' && method === 'DELETE') {
+    return { synthetic: { ok: true } };
+  }
+  if (/^\/api\/data\/notifications\/[^/]+$/.test(path) && method === 'DELETE') {
+    return { synthetic: { ok: true } };
   }
 
   // ── /api/data/jobs ──────────────────────────────────────────────────────
+  // Express handler is a hardcoded `{ jobs: [] }` stub (no jobs table yet).
   if (path === '/api/data/jobs' && method === 'GET') {
-    return {
-      url: `${base}/rest/v1/jobs?user_id=eq.${u}&select=*&order=created_at.desc`,
-      method: 'GET',
-      transform: (raw) => ({ jobs: Array.isArray(raw) ? raw : [] }),
-    };
+    return { synthetic: { jobs: [] } };
   }
 
   return null;
@@ -226,6 +243,12 @@ export async function apiFetch<T = unknown>(
   if (!import.meta.env.DEV && path.startsWith('/api/data/')) {
     const route = resolveProdRoute(path, method, opts.body);
     if (route) {
+      // Synthetic response — used for endpoints whose Express handlers
+      // are hardcoded stubs (notifications mark-*, unread-count, jobs list).
+      if (route.synthetic !== undefined) {
+        return route.synthetic as T;
+      }
+
       const headers: Record<string, string> = {
         Accept: 'application/json',
         apikey: SUPABASE_ANON_KEY,
@@ -234,8 +257,8 @@ export async function apiFetch<T = unknown>(
       if (route.body !== undefined) headers['Content-Type'] = 'application/json';
       if (route.extraHeaders) Object.assign(headers, route.extraHeaders);
 
-      const res = await fetch(buildUrl(route.url, opts.query), {
-        method: route.method,
+      const res = await fetch(buildUrl(route.url!, opts.query), {
+        method: route.method!,
         headers,
         body: route.body !== undefined ? JSON.stringify(route.body) : undefined,
         signal: opts.signal,
