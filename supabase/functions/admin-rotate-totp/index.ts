@@ -13,6 +13,7 @@
 import { getServiceClient } from '../_shared/dbClient.ts';
 import { requireAdminAuth } from '../_shared/adminAuth.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
+import { encrypt, decrypt } from '../_shared/encryption.ts';
 
 // ---------- TOTP helpers ----------
 
@@ -117,6 +118,7 @@ async function updateSupabaseSecret(name: string, value: string): Promise<{ ok: 
 
 interface PendingRotation {
   secret: string;
+  encrypted: boolean;
   generated_at: string;
   generated_by: string;
   expires_at: string;
@@ -193,8 +195,22 @@ Deno.serve(async (req) => {
       const now = new Date();
       const expiresAt = new Date(now.getTime() + ROTATION_TTL_MINUTES * 60 * 1000);
 
+      let secretToStore = newSecretB32;
+      let isEncrypted = false;
+      try {
+        secretToStore = await encrypt(newSecretB32);
+        isEncrypted = true;
+      } catch (encErr: unknown) {
+        if (encErr instanceof Error && (encErr as { code?: string }).code === 'encryption_not_configured') {
+          console.warn('[admin-rotate-totp] ' + encErr.message + ' — storing pending TOTP secret as plain text');
+        } else {
+          throw encErr;
+        }
+      }
+
       const pendingValue: PendingRotation = {
-        secret: newSecretB32,
+        secret: secretToStore,
+        encrypted: isEncrypted,
         generated_at: now.toISOString(),
         generated_by: callerEmail,
         expires_at: expiresAt.toISOString(),
@@ -266,7 +282,20 @@ Deno.serve(async (req) => {
         );
       }
 
-      const isValid = await verifyTotp(pending.secret, totp_code.trim());
+      let pendingSecret = pending.secret;
+      if (pending.encrypted) {
+        try {
+          pendingSecret = await decrypt(pending.secret);
+        } catch (decErr: unknown) {
+          console.error('[admin-rotate-totp] failed to decrypt pending secret — API_KEY_ENCRYPTION_SECRET may have changed:', decErr);
+          return new Response(
+            JSON.stringify({ success: false, error: 'Failed to decrypt pending rotation secret. The encryption key may have changed — please cancel and request a new rotation.' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      }
+
+      const isValid = await verifyTotp(pendingSecret, totp_code.trim());
       if (!isValid) {
         return new Response(
           JSON.stringify({ success: false, error: 'Invalid code — make sure you scanned the new QR code and that your device clock is accurate.' }),
@@ -275,7 +304,7 @@ Deno.serve(async (req) => {
       }
 
       // TOTP verified — attempt to update via Management API
-      const updateResult = await updateSupabaseSecret('ADMIN_TOTP_SECRET', pending.secret);
+      const updateResult = await updateSupabaseSecret('ADMIN_TOTP_SECRET', pendingSecret);
 
       // Clean up pending regardless
       await supabase.from('app_settings').delete().eq('key', PENDING_KEY);
@@ -314,7 +343,7 @@ Deno.serve(async (req) => {
         JSON.stringify({
           success: true,
           automated: false,
-          new_secret: pending.secret,
+          new_secret: pendingSecret,
           manual_update_reason: updateResult.error,
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
