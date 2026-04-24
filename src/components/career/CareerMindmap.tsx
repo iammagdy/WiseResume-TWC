@@ -365,14 +365,19 @@ export function CareerMindmap({ careerMap }: Props) {
           </div>
 
           {/* Branded Footer */}
-          <div className="flex items-center justify-center gap-2 mt-4 pt-3 border-t border-white/10">
+          <a
+            href={PORTFOLIO_DOMAIN}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-2 mt-4 pt-3 border-t border-white/10 no-underline hover:opacity-80 transition-opacity"
+          >
             <span className="text-[10px] text-white/30">Made with</span>
             <span className="text-[10px] font-bold bg-gradient-to-r from-violet-400 to-pink-400 bg-clip-text" style={{ WebkitTextFillColor: 'transparent' }}>
               WiseResume AI
             </span>
             <span className="text-[10px] text-white/20">•</span>
             <span className="text-[10px] text-white/30">{PORTFOLIO_DOMAIN.replace('https://', '')}</span>
-          </div>
+          </a>
         </div>
       </CardContent>
     </Card>

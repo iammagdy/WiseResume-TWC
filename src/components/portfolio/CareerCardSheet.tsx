@@ -345,9 +345,14 @@ const CareerCardCanvas = ({
         paddingTop: '20px',
         marginTop: '16px',
       }}>
-        <div style={{ fontSize: '13px', color: s.textMuted, fontWeight: 500 }}>
+        <a
+          href="https://resume.thewise.cloud"
+          target="_blank"
+          rel="noreferrer"
+          style={{ fontSize: '13px', color: s.textMuted, fontWeight: 500, textDecoration: 'none' }}
+        >
           Made with <span style={{ color: accent, fontWeight: 700 }}>WiseResume</span>
-        </div>
+        </a>
         {username && (
           <div style={{
             fontSize: '13px',
@@ -625,7 +630,7 @@ export function CareerCardSheet({
 
                 {/* Footer */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: `1px solid ${s.divider}`, paddingTop: '20px', marginTop: '16px' }}>
-                  <div style={{ fontSize: '13px', color: s.textMuted, fontWeight: 500 }}>Made with <span style={{ color: accentColor, fontWeight: 700 }}>WiseResume</span></div>
+                  <a href="https://resume.thewise.cloud" target="_blank" rel="noreferrer" style={{ fontSize: '13px', color: s.textMuted, fontWeight: 500, textDecoration: 'none' }}>Made with <span style={{ color: accentColor, fontWeight: 700 }}>WiseResume</span></a>
                   {username && <div style={{ fontSize: '13px', color: s.textMuted, fontFamily: 'monospace' }}>WiseResume/{username}</div>}
                 </div>
               </div>
