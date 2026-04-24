@@ -337,6 +337,22 @@ WHERE NOT EXISTS (
 RETURNING id, title, created_at;
 ```
 
+Operational verification (2026-04-24, post-insert):
+
+```
+SELECT r.id, r.title, r.created_at, u.email
+FROM public.resumes r
+JOIN auth.users u ON u.id = r.user_id
+WHERE lower(u.email) = lower('Magdy.saber@outlook.com')
+  AND r.title = 'Replit Test';
+
+-- Returned: 1 row
+-- id=51de8084-4fd0-45b0-a030-b3441c9c9612
+-- title='Replit Test'
+-- created_at=2026-04-24 00:01:48.804076+00
+-- email=magdy.saber@outlook.com
+```
+
 ### Medium — M2. `/dashboard/applications` etc. linked from sidebar?
 
 Could not verify in this run because the route map shows
