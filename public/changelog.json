@@ -1,8 +1,20 @@
 [
   {
-    "version": "v3.5.9",
+    "version": "v3.6.0",
     "date": "Apr 24, 2026",
     "latest": true,
+    "summary": "Maintenance release. No user-facing app changes — internal admin tooling and security hardening only.",
+    "items": [
+      {
+        "title": "Internal hardening and admin tooling",
+        "description": "Behind-the-scenes improvements to admin tooling and operational safety. Nothing changes in how you use WiseResume — your resumes, dashboard, downloads, and AI features all work exactly as they did in v3.5.9."
+      }
+    ]
+  },
+  {
+    "version": "v3.5.9",
+    "date": "Apr 24, 2026",
+    "latest": false,
     "summary": "New WiseResume favicon — including a proper multi-resolution .ico so the right icon shows up everywhere, including on raw URLs like the changelog.",
     "items": [
       {
