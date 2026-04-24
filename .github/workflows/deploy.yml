@@ -66,8 +66,16 @@ jobs:
         # curl is used for both: non-zero exit = unreachable/timeout.
         # Results are informational only — the deploy step still decides
         # which transport to use based on its own retries.
+        #
+        # NOTE: We use the FTP server's IP address (82.29.154.120) directly
+        # rather than the website hostname (thewise.cloud). The hostname
+        # resolves via Hostinger's authoritative DNS to a *rotating pool*
+        # of web-frontend IPs (Cloudflare/CDN edges) that do NOT run an
+        # FTP daemon — every connection times out. The same IP is used by
+        # rollback-frontend.yml and is the only address known to actually
+        # accept FTP traffic.
         run: |
-          FTP_HOST="thewise.cloud"
+          FTP_HOST="82.29.154.120"
           runner_ip=$(curl -s --connect-timeout 5 --max-time 5 https://api.ipify.org 2>/dev/null || echo "unknown")
           echo "Runner IP: ${runner_ip}"
 
@@ -120,11 +128,16 @@ jobs:
           # gives us the same credential, the same encryption-in-flight
           # guarantee, and the same lftp tooling.
           #
-          # WHY HOSTNAME INSTEAD OF HARDCODED IP:
-          # Hostinger's access controls may differ between hostname and
-          # direct IP. The hostname resolves via their authoritative DNS
-          # and may route to a different endpoint that is not subject to
-          # the same IP-level blocks that affect 82.29.154.120.
+          # WHY HARDCODED IP INSTEAD OF HOSTNAME:
+          # `thewise.cloud` resolves to a rotating pool of Hostinger
+          # web-frontend / CDN IPs (e.g. 195.35.60.x, 191.96.144.x,
+          # 191.101.104.x, 212.1.212.x) that do NOT run an FTP daemon.
+          # Every attempt against the hostname times out at the TCP
+          # connect stage. 82.29.154.120 is the actual FTP server IP
+          # (`220 FTP Server ready.`) and is the same address used by
+          # rollback-frontend.yml. Using the hostname caused 100% deploy
+          # failure across runs 24866204895, 24867338086, 24868950054,
+          # and 24869377124, each timing out at ~14 minutes.
           #
           # WHY PORT 990 FALLBACK:
           # Port 990 is a completely separate implicit FTPS code path on
@@ -147,7 +160,7 @@ jobs:
           # .htaccess by default; the authoritative pass/fail gate
           # for "did v3.5 actually go live" is the next step
           # (verify-live-deploy.mjs), which probes the live URL.
-          FTP_HOST="thewise.cloud"
+          FTP_HOST="82.29.154.120"
           FTP_USER="u966279061.thewise.cloud"
           MIRROR_CMD="mirror --reverse --delete --verbose --parallel=6 ./dist/ /public_html/resume/; bye"
           COMMON_SETTINGS="set ftp:ssl-protect-data true; \
