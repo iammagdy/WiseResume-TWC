@@ -91,13 +91,20 @@ export async function generateNativePDF(
   // For custom-break exports, measure the content height from the already-stripped
   // clone rather than from element.scrollHeight (which still includes the removed
   // overlays). The clone must be briefly attached to the document for scrollHeight
-  // to reflect real layout; we use the same width as the source element so the
-  // browser performs an identical text/flow layout.
+  // to reflect real layout. Crucially, we measure at the EXACT page-design width
+  // Puppeteer will lay out at on the server (612 px for Letter, 595 px for A4 —
+  // 1 CSS px == 1 PDF pt at the design width) instead of element.offsetWidth.
+  // The live preview's offsetWidth depends on editor sidebar size and may differ
+  // from the design width by 15–20 %, which causes text to wrap into a different
+  // number of lines and produces a totalContentHeight that doesn't match what
+  // Puppeteer renders — making the user's break Y values land at the wrong
+  // content position in the resulting PDF.
   let cleanedContentHeight: number | undefined;
   if (hasCustomBreaks) {
+    const designWidthPx = pageFormat === 'a4' ? 595 : 612;
     const measurer = document.createElement('div');
     measurer.style.cssText =
-      `position:fixed;top:-9999px;left:0;width:${element.offsetWidth}px;` +
+      `position:fixed;top:-9999px;left:0;width:${designWidthPx}px;` +
       `visibility:hidden;pointer-events:none;overflow:hidden;`;
     document.body.appendChild(measurer);
     measurer.appendChild(clone);

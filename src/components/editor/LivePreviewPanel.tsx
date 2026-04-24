@@ -460,11 +460,24 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
             data-resume-template
             className="bg-white text-black mx-auto shadow-2xl relative"
             style={{
-              width: '100%',
-              maxWidth: '612px',
+              // Pin the template's CSS layout width to the PDF design width
+              // (612 px = 612 pt for Letter / 8.5 in) so click-Y values and
+              // `cleanedContentHeight` are captured in the SAME coordinate
+              // space Puppeteer renders at. The parent div's `transform:
+              // scale(zoom)` shrinks the *visual* size to fit the editor
+              // sidebar without affecting layout. Without this pin, a
+              // narrower sidebar would force `width: 100%` to fall below
+              // 612 px and reflow text into more lines, producing a
+              // totalContentHeight 15-20 % taller than the actual PDF —
+              // the source of the misaligned page-break bug.
+              width: '612px',
               minHeight: '792px',
               cursor: isBreakEditMode ? 'crosshair' : undefined,
               ...customizationStyle,
+              // Re-pin width AFTER the spread so customisation styles can't
+              // accidentally override it (e.g. with width: 100%).
+              maxWidth: '612px',
+              minWidth: '612px',
             } as CSSProperties}
             onClick={handleResumeClick}
           >
