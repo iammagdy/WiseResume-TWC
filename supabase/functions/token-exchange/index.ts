@@ -110,16 +110,58 @@ serve(async (req) => {
     if (!kindeClientId) throw new Error('KINDE_CLIENT_ID env var is required');
     let payload: jose.JWTPayload;
     try {
+      // AUTH_AUDIT M5 (corrected 2026-04-24):
+      // Verify the JWT signature + issuer via JWKS. We deliberately do NOT
+      // pass `audience: kindeClientId` to jose.jwtVerify here. Kinde access
+      // tokens carry their *API audience* in the `aud` claim (or leave it
+      // empty when no API audience is configured); the issuing client is
+      // identified by `azp` (authorized party) and `client_id`. The previous
+      // implementation that asserted `aud === KINDE_CLIENT_ID` rejected
+      // every legitimate Kinde sign-in with `unexpected "aud" claim value`,
+      // surfacing the "Sign-in incomplete" card to all users.
       const result = await jose.jwtVerify(kindeToken, keySet, {
         issuer: kindeDomain,
-        audience: kindeClientId,
       });
       payload = result.payload;
     } catch (verifyErr) {
-      console.error('[token-exchange] JWT verification failed:', verifyErr);
+      // Log the actual token claims (header + body, signature stripped) so
+      // future failures of this kind can be diagnosed in seconds rather than
+      // hours. We never log the signature, and we only emit this on the
+      // failure path so the happy path stays clean.
+      let claimDump = '<unparseable>';
+      try {
+        const parts = kindeToken.split('.');
+        if (parts.length === 3) {
+          const decode = (b64: string) => {
+            const pad = b64 + '='.repeat((4 - (b64.length % 4)) % 4);
+            return atob(pad.replace(/-/g, '+').replace(/_/g, '/'));
+          };
+          claimDump = JSON.stringify({
+            header: JSON.parse(decode(parts[0])),
+            payload: JSON.parse(decode(parts[1])),
+          });
+        }
+      } catch { /* ignore — leave as <unparseable> */ }
+      console.error('[token-exchange] JWT verification failed:', verifyErr, 'claims=', claimDump);
       const serviceClient = getServiceClient();
       await logExchange(serviceClient, kindeSub, supabaseUserId, 'error', 'INVALID_KINDE_TOKEN');
       return errorResponse('INVALID_KINDE_TOKEN', 'Kinde token invalid or expired', 401, corsHeaders);
+    }
+
+    // AUTH_AUDIT M5 (corrected): enforce that the token was issued FOR THIS
+    // app's Kinde client, not some other app in the same Kinde organization.
+    // Kinde puts the issuing client_id in `azp` (per OIDC) and also mirrors
+    // it into a top-level `client_id` claim on access tokens. Accept either.
+    const tokenAzp = (payload as Record<string, unknown>).azp as string | undefined;
+    const tokenClientId = (payload as Record<string, unknown>).client_id as string | undefined;
+    const issuedToThisClient = tokenAzp === kindeClientId || tokenClientId === kindeClientId;
+    if (!issuedToThisClient) {
+      console.error(
+        `[token-exchange] Token client_id mismatch: expected=${kindeClientId} azp=${tokenAzp ?? '(none)'} client_id=${tokenClientId ?? '(none)'}`,
+      );
+      const serviceClient = getServiceClient();
+      await logExchange(serviceClient, (payload.sub as string) || kindeSub, supabaseUserId, 'error', 'WRONG_CLIENT_ID');
+      return errorResponse('WRONG_CLIENT_ID', 'Token was not issued for this application', 401, corsHeaders);
     }
 
     // 3. Extract Kinde user info

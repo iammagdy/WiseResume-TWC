@@ -1,8 +1,20 @@
 [
   {
-    "version": "v3.5.4",
+    "version": "v3.5.5",
     "date": "Apr 24, 2026",
     "latest": true,
+    "summary": "Fixed the persistent \"Sign-in incomplete\" error so users can sign in successfully.",
+    "items": [
+      {
+        "title": "Sign-in completes successfully",
+        "description": "Resolved the underlying cause of the \"Your account was verified but we couldn't finish setting up your session\" message: a token-validation rule in our auth service was checking the wrong field on Kinde sign-in tokens and rejecting every legitimate sign-in. Sign-in now completes normally on the live site."
+      }
+    ]
+  },
+  {
+    "version": "v3.5.4",
+    "date": "Apr 24, 2026",
+    "latest": false,
     "summary": "Restored automatic deployments and fixed the sign-in session issue caused by a stale live build.",
     "items": [
       {
