@@ -202,6 +202,11 @@ async function nativeBiometricAuth(): Promise<boolean> {
   }
 }
 
+// WebAuthn is used here as a LOCAL device-level gating mechanism only.
+// It protects the remembered DevKit token stored in localStorage (device biometric
+// must succeed before the token is read). It does NOT replace server-side auth —
+// the actual DevKit session token was issued by verify-dev-kit and remains the
+// server-authoritative credential for all admin API calls.
 async function webAuthnAuth(): Promise<boolean> {
   try {
     const credIdStr = localStorage.getItem(LS_WEBAUTHN_CRED_KEY);
@@ -357,11 +362,14 @@ function DevKitLoginForm() {
       if (remembered) {
         unlock(remembered.token);
       } else {
+        // Token expired — fall back to full form
         setBiometricFailed(true);
         setShowFullForm(true);
       }
     } else {
+      // Biometric failed — show password form automatically after first failure
       setBiometricFailed(true);
+      setShowFullForm(true);
     }
     setBiometricAuthenticating(false);
   }, [biometricMode, biometricAuthenticating, unlock]);
@@ -479,19 +487,44 @@ function DevKitLoginForm() {
 
         {/* TOTP secret missing guidance */}
         {totpSecretMissing && (
-          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 space-y-2">
+          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 space-y-3">
             <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
               <AlertTriangle className="w-4 h-4 shrink-0" />
               <span className="text-xs font-semibold">ADMIN_TOTP_SECRET not configured</span>
             </div>
             <p className="text-[11px] text-amber-700 dark:text-amber-300 leading-relaxed">
-              Add <code className="bg-amber-500/20 px-1 rounded font-mono">ADMIN_TOTP_SECRET</code> to your Supabase Edge Function secrets, then scan the new QR code in your authenticator app.
+              A DevKit-specific TOTP secret must be set in Supabase Edge Function secrets. Once set, scan the QR code in your authenticator app.
             </p>
-            <ol className="text-[11px] text-amber-700 dark:text-amber-300 space-y-1 list-decimal list-inside">
-              <li>Generate: <code className="font-mono bg-amber-500/20 px-1 rounded">openssl rand -base32 20</code></li>
-              <li>Add it as <code className="font-mono">ADMIN_TOTP_SECRET</code> in Supabase Edge Function secrets</li>
-              <li>Add a new entry in your authenticator app using that secret</li>
-              <li>Deploy the updated <code className="font-mono">verify-dev-kit</code> function</li>
+            <ol className="text-[11px] text-amber-700 dark:text-amber-300 space-y-1.5 list-decimal list-inside">
+              <li>
+                Generate a secret:{' '}
+                <code className="font-mono bg-amber-500/20 px-1 rounded">openssl rand -base32 20</code>
+              </li>
+              <li>
+                Add it as <code className="font-mono">ADMIN_TOTP_SECRET</code> in{' '}
+                <a
+                  href="https://supabase.com/dashboard/project/jnsfmkzgxsviuthaqlyy/functions"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline underline-offset-2 hover:opacity-80"
+                >
+                  Supabase Edge Function secrets
+                </a>
+              </li>
+              <li>
+                Build your OTP URI: <code className="font-mono bg-amber-500/20 px-1 rounded text-[10px]">otpauth://totp/WiseResume%20DevKit?secret=YOUR_SECRET&amp;issuer=WiseResume%20DevKit&amp;digits=6&amp;period=30</code>
+              </li>
+              <li>
+                Scan with your authenticator app using a{' '}
+                <a
+                  href="https://stefansundin.github.io/2fa-qr/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline underline-offset-2 hover:opacity-80"
+                >
+                  QR code generator
+                </a>
+              </li>
             </ol>
           </div>
         )}
