@@ -157,7 +157,8 @@ export function SmartFitWizardSheet({
     return () => { cancelled = true; };
   }, [open]);
 
-  // Reset state on close
+  // Reset state on close, including targetPages so an unsaved intro pick
+  // is discarded on the next open — only Apply permanently saves the choice.
   useEffect(() => {
     if (open) return;
     setView('intro');
@@ -165,6 +166,17 @@ export function SmartFitWizardSheet({
     setSelection(emptySelection());
     setScratchResume(null);
     setConvergeProgress(null);
+  }, [open]);
+
+  // On open: restore targetPages from the saved resume preference (or prop),
+  // so repeated opens always start from the persisted/initial value rather
+  // than the last unsaved intro selection. Only Apply saves the choice.
+  useEffect(() => {
+    if (!open) return;
+    setTargetPages(targetPagesProp ?? currentResume?.customization?.targetPageCount ?? 1);
+  // Intentionally only reacts to open/close — prop/resume are initial-value
+  // sources, not live sync triggers (user's in-session choice is authoritative).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   const measureScratch = useCallback(async (alt: ResumeData): Promise<number> => {
