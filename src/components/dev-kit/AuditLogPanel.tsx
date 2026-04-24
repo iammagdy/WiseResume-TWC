@@ -32,6 +32,7 @@ const ACTION_COLORS: Record<string, string> = {
   note_deleted: 'bg-red-500/10 text-red-600 border-red-500/20',
   account_deleted: 'bg-red-500/10 text-red-600 border-red-500/20',
   sessions_revoked: 'bg-orange-500/10 text-orange-600 border-orange-500/20',
+  totp_rotated: 'bg-purple-500/10 text-purple-600 border-purple-500/20',
 };
 
 const ACTION_FILTERS = [
@@ -47,6 +48,7 @@ const ACTION_FILTERS = [
   { value: 'note_deleted', label: 'Note deleted' },
   { value: 'account_deleted', label: 'Account deleted' },
   { value: 'sessions_revoked', label: 'Sessions revoked' },
+  { value: 'totp_rotated', label: 'TOTP rotated' },
 ];
 
 const PER_PAGE = 50;
@@ -81,6 +83,11 @@ function summarizeMetadata(action: string, meta: Record<string, unknown>): strin
   if (action === 'identity_merged') {
     const orphanId = meta.orphan_user_id as string | undefined;
     return `Identity merged${orphanId ? ` (orphan: ${String(orphanId).slice(0, 8)}…)` : ''}`;
+  }
+  if (action === 'totp_rotated') {
+    const by = meta.rotated_by as string | undefined;
+    const auto = meta.automated_update as boolean | undefined;
+    return `${by ? `by ${by}` : ''}${auto !== undefined ? (auto ? ' · automated' : ' · manual update required') : ''}`.trim();
   }
   if (meta.reason) return String(meta.reason);
   return '';
