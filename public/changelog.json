@@ -1,8 +1,20 @@
 [
   {
-    "version": "v3.5.5",
+    "version": "v3.5.6",
     "date": "Apr 24, 2026",
     "latest": true,
+    "summary": "Restored AI settings, saved keys, and members/resumes data after a long-standing schema gap surfaced once sign-in was working again.",
+    "items": [
+      {
+        "title": "AI provider settings load again",
+        "description": "Four columns referenced by the AI-keys and account services were missing from the database, so the BYOK panel, the saved-keys list, and parts of the dashboard returned errors as soon as anyone reached them. The columns are now in place with safe defaults; existing saved keys are kept as active."
+      }
+    ]
+  },
+  {
+    "version": "v3.5.5",
+    "date": "Apr 24, 2026",
+    "latest": false,
     "summary": "Fixed the persistent \"Sign-in incomplete\" error so users can sign in successfully.",
     "items": [
       {
