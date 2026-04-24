@@ -14,7 +14,7 @@
 
 1. **NEVER migrate away from Supabase.** Supabase is the permanent backend. All user data (profiles, resumes, subscriptions, AI credits, portfolios, WiseHire data, etc.) lives in Supabase Postgres and is served by Supabase Edge Functions. This will not change.
 
-2. **NEVER repoint data calls to Replit Postgres / Neon / local Postgres.** The Replit-bundled Postgres (`DATABASE_URL`) is a dev sidecar used only for auxiliary server-side tables (admin audit log, analytics sweep lock, token exchange log). It does NOT contain real user data and MUST NOT be treated as a source of truth for anything user-facing.
+2. **NEVER use or touch Replit Postgres (`DATABASE_URL`) for anything.** Replit automatically provisions a Postgres database and sets `DATABASE_URL`, but it plays no role in this application. It contains no real data. Do NOT run `npm run db:push` or `drizzle-kit push` — doing so writes schema to the wrong database and causes server errors (e.g. the analytics sweep calling stored procedures that only exist in Supabase). Do NOT repoint any data calls to it. Treat `DATABASE_URL` as an unused Replit built-in.
 
 3. **NEVER replace Supabase Edge Functions with Express routes** for business logic that already runs on Supabase. The `supabase/functions/` directory contains 97 deployed Deno edge functions — they are the live backend. The Express server in `server/index.ts` is a dev-only proxy that forwards `/api/fn/*` requests to those edge functions.
 
@@ -38,7 +38,7 @@
 | **Supabase Edge Functions** | All business logic, AI calls, auth helpers |
 | **Supabase Auth** | Shadow users for RLS (Kinde is the primary IdP) |
 | **Kinde Auth** | Primary identity provider (JWTs, login, sign-up) |
-| **Replit Postgres** | Dev-only auxiliary tables (audit log, sweep lock, token log) |
+| **Replit Postgres** | Unused — Replit built-in, ignore it entirely |
 | **Express server (`server/index.ts`)** | Dev proxy, PDF export, admin bridge — NOT a Supabase replacement |
 | **Hostinger** | Static frontend hosting for `resume.thewise.cloud` |
 | **Replit** | Development environment only |
