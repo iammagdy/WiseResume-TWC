@@ -1,6 +1,12 @@
 # WiseResume — End-to-End Test Report
 
-**Run date:** 2026-04-23
+**Run date:** 2026-04-23 (original) · 2026-04-24 (Task #7 partial re-verification)
+**Re-verification status:** `01-auth-and-shell.spec.ts` was re-run after the
+Task #7 fixes and passed both tests in ~1m07s, including the previously
+failing `Top-level routes return 200` (now ✅, 53.5s — confirms **L2** is
+fixed and **H1** redirects do not regress any flat route). The full
+27-spec suite re-run is tracked as the first follow-up task (#8); the
+old summary table below still reflects the pre-fix counts.
 **Suite:** `tests/e2e/specs/*.spec.ts` (Playwright 1.59 / Chromium 147)
 **Target:** local dev server `http://localhost:5000`
   (The task brief named `http://localhost:3000`; the running workflow
@@ -153,6 +159,23 @@ Trace + screenshot + video:
 * Either reading is a high-severity onboarding regression. The
   user can't proceed past `/upload` without parse-resume returning
   a parsed payload.
+
+**Investigation result (Task #7).** Re-read both rate limiters in
+`supabase/functions/parse-resume/index.ts`. The bucket key is **per
+authenticated user** (`checkRateLimit`/`checkUserRateLimit` both
+keyed on `userId`, not on IP), and the cap is 10 requests / 60 s
+per limiter — neither aggressive nor coarse. Reading **(1)** is
+ruled out: a fresh user's *first* call cannot trigger 429 under
+this config. Reading **(2)** is also ruled out: the bucket is not
+shared across users. The 429 observed in the original run is
+attributable to **prior Task #6 test calls accumulating in the same
+per-user bucket within the 60 s window** (the suite was iterated
+several times back-to-back during that exploratory run). The fix
+is therefore scoped to the *response contract*: the limiter still
+gates correctly when triggered, but now communicates the wait via
+a standard `Retry-After` header + `retryAfter` JSON field instead
+of an opaque 429. Changing the limiter's bucket-keying or
+thresholds would be an out-of-scope production behavior change.
 
 **Recommended next step (out of scope)**
 
