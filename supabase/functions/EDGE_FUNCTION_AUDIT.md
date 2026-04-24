@@ -1,6 +1,6 @@
 # Edge Function Audit
 
-Last updated: 2026-04-22 (Task #17 — Kinde webhook + backfill reconcile)
+Last updated: 2026-04-24 (removed 3 unused functions to free a deployment slot for smart-fit-rewrite)
 
 ## Server-to-Server / Platform Hooks
 
@@ -50,6 +50,10 @@ in `src/` or in any other edge function.
 | `send-feature-request` | All UI now uses `send-contact-email`. | 2026-04-18 |
 | `send-contact-inquiry` | Same — UI consolidated on `send-contact-email`. | 2026-04-18 |
 | `generate-store-screenshots` | No frontend callers and no CI usage confirmed. Removed from repo to keep function list clean. | 2026-04-30 |
+| `interview-chat` | Full AI interview coach implementation but no frontend component ever called it. Feature never shipped in UI. Deleted from Supabase and repo to free a deployment slot. Re-deploy when the interview feature UI is built. | 2026-04-24 |
+| `send-push-notification` | Admin-gated Web Push sender. No admin UI or DevKit panel called it — push notification feature was dormant. | 2026-04-24 |
+| `admin-revoke-devkit-sessions` | DevKit session revocation tool superseded by `admin-revoke-sessions`. No call sites anywhere in `src/`. | 2026-04-24 |
+| `admin-reset-credits` | Ghost reference only — called in `AppSettingsPanel.tsx` with a graceful "not deployed" fallback, but the function directory never existed and was never deployed. UI reference removed. | 2026-04-24 |
 
 ## Ghost Functions — Resolved
 

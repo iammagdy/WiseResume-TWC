@@ -39,9 +39,6 @@ export function AppSettingsPanel() {
   const [announcementText, setAnnouncementText] = useState('');
   const [saving, setSaving] = useState<string | null>(null);
   const [globalLimitInput, setGlobalLimitInput] = useState('');
-  const [resettingCredits, setResettingCredits] = useState(false);
-
-  const [resetCreditsDialogOpen, setResetCreditsDialogOpen] = useState(false);
   const [creatingSampleResume, setCreatingSampleResume] = useState(false);
 
   const { user } = useAuth();
@@ -138,28 +135,6 @@ export function AppSettingsPanel() {
     }
   };
 
-  const handleResetCreditsConfirm = async () => {
-    setResettingCredits(true);
-    try {
-      const tuple = await edgeFunctions.functions.invoke('admin-reset-credits', {
-        headers: devKitAuthHeaders(),
-        body: {},
-      });
-      const result = unwrapAdminResponse<{ reset_count?: number }>(tuple, 'admin-reset-credits');
-      toast.success(`Daily AI credits reset for ${result.reset_count ?? 'all'} users`);
-    } catch (e) {
-      if (e instanceof EdgeFunctionError && e.notDeployed) {
-        toast.info('admin-reset-credits not deployed', {
-          description: 'Deploy the admin-reset-credits edge function to use this feature.',
-          duration: 6000,
-        });
-      } else {
-        toast.error(formatEdgeError(e, 'Failed to reset credits'));
-      }
-    } finally {
-      if (isMounted()) setResettingCredits(false);
-    }
-  };
 
   const handleMaintenanceToggleConfirm = () => {
     updateSetting('maintenance_mode', !settings.maintenance_mode);
@@ -342,22 +317,6 @@ export function AppSettingsPanel() {
           )}
         </div>
 
-        <div className="pt-1 border-t border-border space-y-2">
-          <p className="text-xs text-muted-foreground font-medium">Reset daily credits</p>
-          <p className="text-xs text-muted-foreground">Resets the used-today counter back to 0 for all users immediately. Useful after an incident or when manually granting extra usage.</p>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setResetCreditsDialogOpen(true)}
-            disabled={resettingCredits}
-            className="flex items-center gap-2 text-destructive border-destructive/30 hover:bg-destructive/10"
-          >
-            {resettingCredits
-              ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" />Resetting…</>
-              : <><RotateCcw className="w-3.5 h-3.5" />Reset all daily credits</>
-            }
-          </Button>
-        </div>
       </div>
 
       {/* Demo Data */}
@@ -389,27 +348,6 @@ export function AppSettingsPanel() {
           )}
         </div>
       </div>
-
-      {/* Reset Credits Confirmation Dialog */}
-      <AlertDialog open={resetCreditsDialogOpen} onOpenChange={setResetCreditsDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Reset daily AI credits for all users?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will immediately set the used-today counter back to 0 for every user on the platform, regardless of how many credits they have already consumed today. This cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleResetCreditsConfirm}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Reset all credits
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       {/* Maintenance Mode Confirmation Dialog */}
       <AlertDialog open={maintenanceDialogOpen} onOpenChange={setMaintenanceDialogOpen}>
