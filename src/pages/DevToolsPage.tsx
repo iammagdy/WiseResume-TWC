@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   ArrowLeft,
   Activity,
@@ -19,6 +19,10 @@ import {
   AtSign,
   ChevronRight,
   BrainCircuit,
+  Fingerprint,
+  ScanFace,
+  ShieldCheck,
+  AlertTriangle,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -38,11 +42,12 @@ import { PortfolioUsernamesPanel } from '@/components/dev-kit/PortfolioUsernames
 import { OpenRouterPanel, GroqPanel } from '@/components/dev-kit/AIKeySlotPanels';
 import { DEV_KIT_VERSION } from '@/components/dev-kit/config';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
-import { supabase } from '@/integrations/supabase/safeClient';
-import { DevKitSessionProvider, useDevKitSession } from '@/contexts/DevKitSessionContext';
+import { DevKitSessionProvider, useDevKitSession, loadRememberedToken } from '@/contexts/DevKitSessionContext';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { DevKitPanelBoundary } from '@/components/dev-kit/DevKitPanelBoundary';
+import { NativeBiometric } from '@capgo/capacitor-native-biometric';
+import { Capacitor } from '@capacitor/core';
 
 type Tab = 'overview' | 'analytics' | 'onboarding' | 'live' | 'deployment' | 'users' | 'coupons' | 'settings' | 'activity' | 'email' | 'wisehire' | 'portfolio' | 'openrouter' | 'groq';
 
@@ -141,27 +146,142 @@ function ConnectionPill({ status }: { status: ConnectionStatus }) {
   );
 }
 
-function DevToolsInner() {
-  const { isUnlocked, unlock, lock } = useDevKitSession();
-  const unlocked = isUnlocked;
+// ---------- Biometric helpers ----------
+
+const LS_WEBAUTHN_CRED_KEY = 'devkit_webauthn_cred_id';
+
+function toBase64Url(buffer: ArrayBuffer): string {
+  return btoa(String.fromCharCode(...new Uint8Array(buffer)))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+}
+
+function fromBase64Url(str: string): ArrayBuffer {
+  const b64 = str.replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(b64);
+  const buf = new ArrayBuffer(raw.length);
+  const view = new Uint8Array(buf);
+  for (let i = 0; i < raw.length; i++) view[i] = raw.charCodeAt(i);
+  return buf;
+}
+
+type BiometricMode = 'checking' | 'native' | 'webauthn' | 'unavailable';
+
+async function detectBiometricMode(): Promise<BiometricMode> {
+  if (Capacitor.isNativePlatform()) {
+    try {
+      const res = await NativeBiometric.isAvailable();
+      return res.isAvailable ? 'native' : 'unavailable';
+    } catch {
+      return 'unavailable';
+    }
+  }
+  if (typeof PublicKeyCredential !== 'undefined') {
+    try {
+      const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+      if (available) {
+        const credId = localStorage.getItem(LS_WEBAUTHN_CRED_KEY);
+        return credId ? 'webauthn' : 'unavailable';
+      }
+    } catch { }
+  }
+  return 'unavailable';
+}
+
+async function nativeBiometricAuth(): Promise<boolean> {
+  try {
+    await NativeBiometric.verifyIdentity({
+      reason: 'Unlock DevKit admin panel',
+      title: 'Authenticate',
+      subtitle: 'Use biometrics to unlock DevKit',
+      useFallback: true,
+      fallbackTitle: 'Use Device Password',
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function webAuthnAuth(): Promise<boolean> {
+  try {
+    const credIdStr = localStorage.getItem(LS_WEBAUTHN_CRED_KEY);
+    if (!credIdStr) return false;
+    const challenge = crypto.getRandomValues(new Uint8Array(32));
+    const cred = await navigator.credentials.get({
+      publicKey: {
+        challenge,
+        allowCredentials: [{ id: fromBase64Url(credIdStr), type: 'public-key' }],
+        userVerification: 'required',
+        timeout: 60000,
+      },
+    });
+    return !!cred;
+  } catch {
+    return false;
+  }
+}
+
+async function registerWebAuthnCredential(): Promise<boolean> {
+  try {
+    const challenge = crypto.getRandomValues(new Uint8Array(32));
+    const cred = await navigator.credentials.create({
+      publicKey: {
+        challenge,
+        rp: { name: 'WiseResume DevKit', id: window.location.hostname },
+        user: {
+          id: new TextEncoder().encode('devkit-admin'),
+          name: 'DevKit Admin',
+          displayName: 'DevKit Admin',
+        },
+        pubKeyCredParams: [{ alg: -7, type: 'public-key' }],
+        authenticatorSelection: {
+          authenticatorAttachment: 'platform',
+          userVerification: 'required',
+        },
+        timeout: 60000,
+      },
+    }) as PublicKeyCredential | null;
+    if (!cred) return false;
+    localStorage.setItem(LS_WEBAUTHN_CRED_KEY, toBase64Url(cred.rawId));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// ---------- Login form ----------
+
+function DevKitLoginForm() {
+  const { unlock, hasRememberedSession, rememberedEmail } = useDevKitSession();
+  const navigate = useNavigate();
 
   const [email, setEmail] = useState('');
-  const [supabasePw, setSupabasePw] = useState('');
-  const [showSupabasePw, setShowSupabasePw] = useState(false);
   const [pw, setPw] = useState('');
   const [totp, setTotp] = useState('');
   const [showPw, setShowPw] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
-  const [activeTab, setActiveTab] = useState<Tab>('overview');
-  // Track whether the DevKit flow itself performed the Supabase sign-in so we
-  // can sign out on lock, keeping the session genuinely temporary.
-  const devKitSignedInRef = React.useRef(false);
+  const [totpSecretMissing, setTotpSecretMissing] = useState(false);
 
   const [lockoutSecondsLeft, setLockoutSecondsLeft] = useState<number | null>(null);
-  const lockoutIntervalRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
+  const lockoutIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const startLockoutCountdown = React.useCallback((seconds: number) => {
+  const [biometricMode, setBiometricMode] = useState<BiometricMode>('checking');
+  const [biometricAuthenticating, setBiometricAuthenticating] = useState(false);
+  const [biometricFailed, setBiometricFailed] = useState(false);
+  const [showFullForm, setShowFullForm] = useState(false);
+  const biometricTriggeredRef = useRef(false);
+
+  const isLockedOut = lockoutSecondsLeft !== null && lockoutSecondsLeft > 0;
+
+  const formatLockoutTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return m > 0 ? `${m}m ${s.toString().padStart(2, '0')}s` : `${s}s`;
+  };
+
+  const startLockoutCountdown = useCallback((seconds: number) => {
     setLockoutSecondsLeft(seconds);
     if (lockoutIntervalRef.current) clearInterval(lockoutIntervalRef.current);
     lockoutIntervalRef.current = setInterval(() => {
@@ -175,20 +295,408 @@ function DevToolsInner() {
     }, 1000);
   }, []);
 
-  React.useEffect(() => {
+  useEffect(() => {
     return () => {
       if (lockoutIntervalRef.current) clearInterval(lockoutIntervalRef.current);
     };
   }, []);
 
-  const isLockedOut = lockoutSecondsLeft !== null && lockoutSecondsLeft > 0;
+  // Pre-fill email from remembered session
+  useEffect(() => {
+    if (rememberedEmail) setEmail(rememberedEmail);
+  }, [rememberedEmail]);
 
-  const formatLockoutTime = (seconds: number) => {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return m > 0 ? `${m}m ${s.toString().padStart(2, '0')}s` : `${s}s`;
+  // Detect biometric mode on mount
+  useEffect(() => {
+    if (!hasRememberedSession) {
+      setBiometricMode('unavailable');
+      setShowFullForm(true);
+      return;
+    }
+    detectBiometricMode().then(mode => {
+      setBiometricMode(mode);
+      if (mode === 'unavailable') {
+        setShowFullForm(true);
+      }
+    });
+  }, [hasRememberedSession]);
+
+  // Auto-trigger biometric when mode is known and session exists
+  useEffect(() => {
+    if (biometricTriggeredRef.current) return;
+    if (biometricMode === 'checking' || biometricMode === 'unavailable') return;
+    if (!hasRememberedSession) return;
+    biometricTriggeredRef.current = true;
+    handleBiometricUnlock();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [biometricMode, hasRememberedSession]);
+
+  const handleBiometricUnlock = useCallback(async () => {
+    if (biometricAuthenticating) return;
+    setBiometricAuthenticating(true);
+    setBiometricFailed(false);
+
+    let success = false;
+    if (biometricMode === 'native') {
+      success = await nativeBiometricAuth();
+    } else if (biometricMode === 'webauthn') {
+      success = await webAuthnAuth();
+    }
+
+    if (success) {
+      const remembered = loadRememberedToken();
+      if (remembered) {
+        unlock(remembered.token);
+      } else {
+        setBiometricFailed(true);
+        setShowFullForm(true);
+      }
+    } else {
+      setBiometricFailed(true);
+    }
+    setBiometricAuthenticating(false);
+  }, [biometricMode, biometricAuthenticating, unlock]);
+
+  const handleUnlock = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim() || !pw.trim() || totp.trim().length !== 6 || isLockedOut) return;
+
+    setIsVerifying(true);
+    setLoginError(null);
+    setTotpSecretMissing(false);
+
+    const submittedEmail = email.trim();
+    const submittedPw = pw;
+    const submittedTotp = totp.trim();
+    setPw('');
+    setTotp('');
+
+    try {
+      const { data, error } = await edgeFunctions.functions.invoke('verify-dev-kit', {
+        body: {
+          email: submittedEmail,
+          password: submittedPw,
+          totp: submittedTotp,
+          rememberMe,
+        },
+      });
+
+      if (error) {
+        if (error.message?.includes('Failed to fetch') || error.status === 404) {
+          toast.error('Verification Function Not Found', {
+            description: 'Please deploy the "verify-dev-kit" Edge Function to your Supabase project.',
+            duration: 6000,
+          });
+        } else {
+          toast.error('Verification failed: ' + error.message);
+        }
+        return;
+      }
+
+      if (data?.reason === 'totp_secret_missing') {
+        setTotpSecretMissing(true);
+        return;
+      }
+
+      if (data?.success && data?.token) {
+        setLockoutSecondsLeft(null);
+
+        // After a successful "remember me" login on web, try to register WebAuthn credential
+        if (rememberMe && !Capacitor.isNativePlatform()) {
+          const isPlatformAvailable = typeof PublicKeyCredential !== 'undefined' &&
+            await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().catch(() => false);
+          if (isPlatformAvailable) {
+            await registerWebAuthnCredential().catch(() => { });
+          }
+        }
+
+        unlock(data.token as string, {
+          rememberMe,
+          expiresAt: data.expires_at as number,
+          email: submittedEmail,
+        });
+      } else if (data?.locked) {
+        const retryAfter = (data.retry_after_seconds as number) ?? 600;
+        startLockoutCountdown(retryAfter);
+        setLoginError(null);
+      } else if (data?.authorized === false) {
+        setLoginError('This email is not authorised for admin access.');
+      } else if (data?.reason === 'invalid_totp') {
+        setLoginError('Invalid authenticator code — try again.');
+      } else if (data?.reason === 'mfa_required') {
+        setLoginError('Please enter your 6-digit authenticator code.');
+      } else {
+        setLoginError('Incorrect email, password, or code — try again.');
+      }
+    } catch {
+      toast.error('System error during verification');
+    } finally {
+      setIsVerifying(false);
+    }
   };
 
+  // Biometric screen (when remembered session exists and biometric is available)
+  const showBiometricScreen = hasRememberedSession &&
+    (biometricMode === 'native' || biometricMode === 'webauthn') &&
+    !showFullForm;
+
+  const BiometricIcon = biometricMode === 'native' && Capacitor.isNativePlatform()
+    ? Fingerprint
+    : ScanFace;
+
+  return (
+    <div className="min-h-screen bg-background flex items-center justify-center p-4 relative">
+      {/* Subtle background decoration using app theme */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-96 h-96 rounded-full bg-primary/5 blur-3xl" />
+        <div className="absolute -bottom-40 -left-40 w-96 h-96 rounded-full bg-primary/5 blur-3xl" />
+      </div>
+
+      <div className="w-full max-w-sm space-y-6 relative z-10">
+        {/* Header */}
+        <div className="text-center space-y-4">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 shadow-xl mx-auto">
+            <Lock className="w-7 h-7 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-foreground tracking-tight">WiseResume</h1>
+            <p className="text-sm text-muted-foreground mt-1">Developer Admin Panel</p>
+          </div>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-muted border border-border text-[11px] text-muted-foreground font-mono">
+            <span className="w-1.5 h-1.5 rounded-full bg-primary/60" />
+            {DEV_KIT_VERSION}
+          </div>
+        </div>
+
+        {/* TOTP secret missing guidance */}
+        {totpSecretMissing && (
+          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 space-y-2">
+            <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              <span className="text-xs font-semibold">ADMIN_TOTP_SECRET not configured</span>
+            </div>
+            <p className="text-[11px] text-amber-700 dark:text-amber-300 leading-relaxed">
+              Add <code className="bg-amber-500/20 px-1 rounded font-mono">ADMIN_TOTP_SECRET</code> to your Supabase Edge Function secrets, then scan the new QR code in your authenticator app.
+            </p>
+            <ol className="text-[11px] text-amber-700 dark:text-amber-300 space-y-1 list-decimal list-inside">
+              <li>Generate: <code className="font-mono bg-amber-500/20 px-1 rounded">openssl rand -base32 20</code></li>
+              <li>Add it as <code className="font-mono">ADMIN_TOTP_SECRET</code> in Supabase Edge Function secrets</li>
+              <li>Add a new entry in your authenticator app using that secret</li>
+              <li>Deploy the updated <code className="font-mono">verify-dev-kit</code> function</li>
+            </ol>
+          </div>
+        )}
+
+        {/* Biometric unlock screen */}
+        {showBiometricScreen && !totpSecretMissing && (
+          <div className="bg-card border border-border rounded-2xl p-6 shadow-lg space-y-5">
+            <div className="text-center space-y-3">
+              <div
+                onClick={!biometricAuthenticating ? handleBiometricUnlock : undefined}
+                className={cn(
+                  'inline-flex items-center justify-center w-20 h-20 rounded-full mx-auto cursor-pointer transition-all duration-200',
+                  biometricAuthenticating
+                    ? 'bg-primary/20 text-primary animate-pulse scale-105'
+                    : biometricFailed
+                    ? 'bg-destructive/10 text-destructive'
+                    : 'bg-primary/10 text-primary hover:bg-primary/20 hover:scale-105'
+                )}
+              >
+                <BiometricIcon className="w-9 h-9" />
+              </div>
+              <div>
+                <p className="text-base font-semibold text-foreground">
+                  {biometricAuthenticating
+                    ? 'Authenticating…'
+                    : biometricFailed
+                    ? 'Authentication failed'
+                    : biometricMode === 'native'
+                    ? 'Use biometrics to unlock'
+                    : 'Use platform authenticator to unlock'}
+                </p>
+                {rememberedEmail && (
+                  <p className="text-xs text-muted-foreground mt-1">{rememberedEmail}</p>
+                )}
+              </div>
+            </div>
+            {biometricFailed && (
+              <p className="text-xs text-destructive text-center">
+                Try again or use your password instead.
+              </p>
+            )}
+            <Button
+              onClick={handleBiometricUnlock}
+              disabled={biometricAuthenticating}
+              className="w-full h-11 font-semibold"
+            >
+              {biometricAuthenticating ? (
+                <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Authenticating…</>
+              ) : biometricFailed ? (
+                <><BiometricIcon className="w-4 h-4 mr-2" />Try Again</>
+              ) : (
+                <><BiometricIcon className="w-4 h-4 mr-2" />Unlock with Biometrics</>
+              )}
+            </Button>
+            <button
+              onClick={() => setShowFullForm(true)}
+              className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors py-1"
+            >
+              Use password instead
+            </button>
+          </div>
+        )}
+
+        {/* Main login form */}
+        {(showFullForm || (!showBiometricScreen && biometricMode !== 'checking')) && !totpSecretMissing && (
+          <div className="bg-card border border-border rounded-2xl p-6 shadow-lg space-y-4">
+            {isLockedOut && lockoutSecondsLeft !== null && (
+              <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-sm text-destructive text-center space-y-1">
+                <p className="font-semibold text-xs">Too many attempts — temporarily locked</p>
+                <p className="font-mono text-lg font-bold tabular-nums">{formatLockoutTime(lockoutSecondsLeft)}</p>
+                <p className="text-[10px] opacity-70">Try again when the timer expires</p>
+              </div>
+            )}
+
+            <form onSubmit={handleUnlock} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Admin email</label>
+                <Input
+                  type="email"
+                  placeholder="admin@example.com"
+                  value={email}
+                  onChange={(e) => { setEmail(e.target.value); setLoginError(null); }}
+                  disabled={isVerifying || isLockedOut}
+                  autoFocus
+                  autoComplete="username"
+                  className={cn(
+                    'h-11',
+                    loginError && 'border-destructive ring-1 ring-destructive/20'
+                  )}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Dev-kit password</label>
+                <div className="relative">
+                  <Input
+                    type={showPw ? 'text' : 'password'}
+                    placeholder="DEV_KIT_PASSWORD secret"
+                    value={pw}
+                    onChange={(e) => { setPw(e.target.value); setLoginError(null); }}
+                    disabled={isVerifying || isLockedOut}
+                    autoComplete="off"
+                    className={cn(
+                      'h-11 pr-10',
+                      loginError && 'border-destructive ring-1 ring-destructive/20'
+                    )}
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    onClick={() => setShowPw(!showPw)}
+                    tabIndex={-1}
+                  >
+                    {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Authenticator code</label>
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]{6}"
+                  maxLength={6}
+                  placeholder="123456"
+                  value={totp}
+                  onChange={(e) => {
+                    const v = e.target.value.replace(/\D/g, '').slice(0, 6);
+                    setTotp(v);
+                    setLoginError(null);
+                  }}
+                  disabled={isVerifying || isLockedOut}
+                  autoComplete="one-time-code"
+                  className={cn(
+                    'h-11 font-mono tracking-widest text-center',
+                    loginError && 'border-destructive ring-1 ring-destructive/20'
+                  )}
+                />
+                <p className="text-[10px] text-muted-foreground pl-0.5">6-digit code from your authenticator app</p>
+              </div>
+
+              {loginError && (
+                <p className="text-xs text-destructive font-medium pl-0.5">{loginError}</p>
+              )}
+
+              {/* Remember this device */}
+              <label className="flex items-center gap-2.5 cursor-pointer group select-none">
+                <div
+                  onClick={() => setRememberMe(!rememberMe)}
+                  className={cn(
+                    'w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors',
+                    rememberMe
+                      ? 'bg-primary border-primary'
+                      : 'border-border bg-background group-hover:border-primary/50'
+                  )}
+                >
+                  {rememberMe && (
+                    <svg className="w-2.5 h-2.5 text-primary-foreground" viewBox="0 0 10 10" fill="none">
+                      <path d="M1.5 5l2.5 2.5 4.5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                </div>
+                <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">
+                  Remember this device for 30 days
+                </span>
+              </label>
+
+              <Button
+                type="submit"
+                disabled={isVerifying || isLockedOut || !email.trim() || !pw.trim() || totp.trim().length !== 6}
+                className="w-full h-11 font-semibold"
+              >
+                {isVerifying ? (
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Verifying…</>
+                ) : isLockedOut ? (
+                  `Locked — ${formatLockoutTime(lockoutSecondsLeft!)}`
+                ) : (
+                  <><ShieldCheck className="w-4 h-4 mr-2" />Unlock admin panel</>
+                )}
+              </Button>
+            </form>
+            <p className="text-center text-[10px] text-muted-foreground">
+              Admin access only · Powered by Supabase Edge Functions
+            </p>
+          </div>
+        )}
+
+        {/* Checking state */}
+        {biometricMode === 'checking' && hasRememberedSession && (
+          <div className="bg-card border border-border rounded-2xl p-6 shadow-lg flex items-center justify-center gap-2 text-muted-foreground">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            <span className="text-sm">Checking session…</span>
+          </div>
+        )}
+
+        <div className="text-center">
+          <button
+            onClick={() => navigate(-1)}
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1 mx-auto"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            Back to app
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------- Inner (manages both login and dashboard) ----------
+
+function DevToolsInner() {
+  const { isUnlocked, lock } = useDevKitSession();
+
+  const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [userCount, setUserCount] = useState<number | null>(null);
   const [couponCount, setCouponCount] = useState<number | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('checking');
@@ -222,309 +730,22 @@ function DevToolsInner() {
   }, []);
 
   useEffect(() => {
-    if (!unlocked) return;
+    if (!isUnlocked) return;
     checkConnection();
     const interval = setInterval(checkConnection, 30_000);
     return () => clearInterval(interval);
-  }, [unlocked, checkConnection]);
-
-  const handleUnlock = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email.trim() || !supabasePw.trim() || !pw.trim() || totp.trim().length !== 6 || isLockedOut) return;
-
-    setIsVerifying(true);
-    setLoginError(null);
-
-    const submittedEmail = email.trim();
-    const submittedSupabasePw = supabasePw;
-    const submittedPw = pw;
-    const submittedTotp = totp.trim();
-    setSupabasePw('');
-    setPw('');
-    setTotp('');
-
-    try {
-      // Step 1: Ensure we have a Supabase session. If the admin is not signed
-      // into the main app, sign them in with their Supabase account password so
-      // that DevKit works as a fully standalone page.
-      let { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData?.session) {
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email: submittedEmail,
-          password: submittedSupabasePw,
-        });
-        if (signInError) {
-          const msg = signInError.message ?? '';
-          if (msg.toLowerCase().includes('invalid login credentials')) {
-            setLoginError('Incorrect email or account password.');
-          } else if (msg.toLowerCase().includes('email not confirmed')) {
-            setLoginError('Email not confirmed — check your inbox.');
-          } else {
-            setLoginError('Sign-in failed — check your account credentials and try again.');
-          }
-          return;
-        }
-        const { data: freshSession } = await supabase.auth.getSession();
-        sessionData = freshSession;
-        devKitSignedInRef.current = true;
-      }
-
-      // Step 2: Step the Supabase session up to AAL2 by completing an MFA
-      // challenge against the user's enrolled TOTP factor. verify-dev-kit
-      // refuses to mint a DevKit token unless the access token presents
-      // `aal: aal2`.
-      const aalRes = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-      if (aalRes.error) {
-        setLoginError('Could not read MFA state — try again.');
-        return;
-      }
-
-      if (aalRes.data?.currentLevel !== 'aal2') {
-        const factorsRes = await supabase.auth.mfa.listFactors();
-        if (factorsRes.error) {
-          setLoginError('Could not list MFA factors — try again.');
-          return;
-        }
-        const totpFactor = factorsRes.data?.totp?.find((f) => f.status === 'verified');
-        if (!totpFactor) {
-          setLoginError('Enroll a TOTP authenticator on your Supabase account before opening the DevKit.');
-          return;
-        }
-        const verifyRes = await supabase.auth.mfa.challengeAndVerify({
-          factorId: totpFactor.id,
-          code: submittedTotp,
-        });
-        if (verifyRes.error) {
-          setLoginError('Invalid authenticator code — try again.');
-          return;
-        }
-      }
-
-      // Step 3: Retrieve the stepped-up (AAL2) access token and pass it
-      // explicitly to verify-dev-kit so the edge function can validate the
-      // AAL2 claim. Without this the proxy would send the bridge token, which
-      // does not carry aal2 and would cause the function to reject the call.
-      const { data: aal2Session } = await supabase.auth.getSession();
-      const aal2AccessToken = aal2Session?.session?.access_token ?? null;
-      if (!aal2AccessToken) {
-        setLoginError('Could not retrieve session token — try again.');
-        return;
-      }
-
-      const { data, error } = await edgeFunctions.functions.invoke('verify-dev-kit', {
-        body: { email: submittedEmail, password: submittedPw },
-        headers: { Authorization: `Bearer ${aal2AccessToken}` },
-      });
-
-      if (error) {
-        if (error.message?.includes('Failed to fetch') || error.status === 404) {
-          toast.error('Verification Function Not Found', {
-            description: 'Please deploy the "verify-dev-kit" Edge Function to your Supabase project.',
-            duration: 6000,
-          });
-        } else {
-          toast.error('Verification failed: ' + error.message);
-        }
-        return;
-      }
-
-      if (data?.success && data?.token) {
-        setLockoutSecondsLeft(null);
-        unlock(data.token as string);
-      } else if (data?.locked) {
-        const retryAfter = (data.retry_after_seconds as number) ?? 600;
-        startLockoutCountdown(retryAfter);
-        setLoginError(null);
-      } else if (data?.authorized === false) {
-        setLoginError('This email is not authorised for admin access.');
-      } else if (data?.reason === 'mfa_required') {
-        setLoginError('MFA challenge required — re-enter your authenticator code.');
-      } else if (data?.reason === 'email_mismatch') {
-        setLoginError('DevKit email must match your signed-in Supabase account.');
-      } else if (data?.reason === 'invalid_session') {
-        setLoginError('Session could not be validated — try again.');
-      } else {
-        setLoginError('Incorrect email, password, or code — try again.');
-      }
-    } catch {
-      toast.error('System error during verification');
-    } finally {
-      setIsVerifying(false);
-    }
-  };
+  }, [isUnlocked, checkConnection]);
 
   const handleLock = () => {
-    // Sign out of the temporary Supabase session if DevKit created it, so
-    // the session does not persist beyond the DevKit flow.
-    if (devKitSignedInRef.current) {
-      devKitSignedInRef.current = false;
-      supabase.auth.signOut().catch(() => { /* best-effort */ });
-    }
     lock();
-    setEmail('');
-    setSupabasePw('');
-    setPw('');
-    setTotp('');
-    setLoginError(null);
     setActiveTab('overview');
     setUserCount(null);
     setCouponCount(null);
     setConnectionStatus('checking');
   };
 
-  if (!unlocked) {
-    return (
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4 relative z-10">
-        <div className="w-full max-w-sm space-y-6">
-          <div className="text-center space-y-4">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white/5 border border-white/10 shadow-2xl mx-auto">
-              <Lock className="w-7 h-7 text-white/70" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-white tracking-tight">WiseResume</h1>
-              <p className="text-sm text-white/40 mt-1">Developer Admin Panel</p>
-            </div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[11px] text-white/40 font-mono">
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-400/60" />
-              {DEV_KIT_VERSION}
-            </div>
-          </div>
-
-          <div className="bg-white/[0.04] border border-white/10 rounded-2xl p-6 shadow-2xl space-y-4 backdrop-blur-sm">
-            {isLockedOut && lockoutSecondsLeft !== null && (
-              <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-sm text-red-400 text-center space-y-1">
-                <p className="font-semibold text-xs">Too many attempts — temporarily locked</p>
-                <p className="font-mono text-lg font-bold tabular-nums">{formatLockoutTime(lockoutSecondsLeft)}</p>
-                <p className="text-[10px] opacity-70">Try again when the timer expires</p>
-              </div>
-            )}
-
-            <form onSubmit={handleUnlock} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-white/40">Admin email</label>
-                <Input
-                  type="email"
-                  placeholder="admin@example.com"
-                  value={email}
-                  onChange={(e) => { setEmail(e.target.value); setLoginError(null); }}
-                  disabled={isVerifying || isLockedOut}
-                  autoFocus
-                  autoComplete="username"
-                  className={cn(
-                    'h-11 bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-white/30 focus:ring-white/10',
-                    loginError && 'border-red-500/50 ring-1 ring-red-500/20'
-                  )}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-white/40">Account password</label>
-                <div className="relative">
-                  <Input
-                    type={showSupabasePw ? 'text' : 'password'}
-                    placeholder="Your Supabase account password"
-                    value={supabasePw}
-                    onChange={(e) => { setSupabasePw(e.target.value); setLoginError(null); }}
-                    disabled={isVerifying || isLockedOut}
-                    autoComplete="current-password"
-                    className={cn(
-                      'h-11 pr-10 bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-white/30 focus:ring-white/10',
-                      loginError && 'border-red-500/50 ring-1 ring-red-500/20'
-                    )}
-                  />
-                  <button
-                    type="button"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors"
-                    onClick={() => setShowSupabasePw(!showSupabasePw)}
-                    tabIndex={-1}
-                  >
-                    {showSupabasePw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-white/40">Dev-kit password</label>
-                <div className="relative">
-                  <Input
-                    type={showPw ? 'text' : 'password'}
-                    placeholder="DEV_KIT_PASSWORD secret"
-                    value={pw}
-                    onChange={(e) => { setPw(e.target.value); setLoginError(null); }}
-                    disabled={isVerifying || isLockedOut}
-                    autoComplete="off"
-                    className={cn(
-                      'h-11 pr-10 bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-white/30 focus:ring-white/10',
-                      loginError && 'border-red-500/50 ring-1 ring-red-500/20'
-                    )}
-                  />
-                  <button
-                    type="button"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors"
-                    onClick={() => setShowPw(!showPw)}
-                    tabIndex={-1}
-                  >
-                    {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-                {loginError && (
-                  <p className="text-xs text-red-400 font-medium pl-0.5">
-                    {loginError}
-                  </p>
-                )}
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-white/40">Authenticator code</label>
-                <Input
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]{6}"
-                  maxLength={6}
-                  placeholder="123456"
-                  value={totp}
-                  onChange={(e) => {
-                    const v = e.target.value.replace(/\D/g, '').slice(0, 6);
-                    setTotp(v);
-                    setLoginError(null);
-                  }}
-                  disabled={isVerifying || isLockedOut}
-                  autoComplete="one-time-code"
-                  className={cn(
-                    'h-11 bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-white/30 focus:ring-white/10 font-mono tracking-widest text-center',
-                    loginError && 'border-red-500/50 ring-1 ring-red-500/20'
-                  )}
-                />
-                <p className="text-[10px] text-white/30 pl-0.5">6-digit code from your authenticator app</p>
-              </div>
-              <Button
-                type="submit"
-                disabled={isVerifying || isLockedOut || !email.trim() || !supabasePw.trim() || !pw.trim() || totp.trim().length !== 6}
-                className="w-full h-11 font-semibold bg-white text-zinc-950 hover:bg-white/90"
-              >
-                {isVerifying ? (
-                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Verifying…</>
-                ) : isLockedOut ? (
-                  `Locked — ${formatLockoutTime(lockoutSecondsLeft!)}`
-                ) : (
-                  'Unlock admin panel'
-                )}
-              </Button>
-            </form>
-            <p className="text-center text-[10px] text-white/20">
-              Admin access only · Powered by Supabase Edge Functions
-            </p>
-          </div>
-
-          <div className="text-center">
-            <button
-              onClick={() => navigate(-1)}
-              className="text-xs text-white/30 hover:text-white/60 transition-colors inline-flex items-center gap-1 mx-auto"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              Back to app
-            </button>
-          </div>
-        </div>
-      </div>
-    );
+  if (!isUnlocked) {
+    return <DevKitLoginForm />;
   }
 
   return (

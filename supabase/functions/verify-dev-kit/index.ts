@@ -1,9 +1,7 @@
-// verify-dev-kit (AUTH-5): Issues a revocable admin DevKit session token.
-// MFA enforcement is delegated to Supabase Auth: the request must carry an
-// `Authorization: Bearer <supabase_access_token>` whose JWT has been stepped
-// up to AAL2 (i.e. the user has just completed a Supabase MFA challenge).
-// We do NOT keep our own TOTP secrets — the user's enrolled Supabase MFA
-// factor is the source of truth.
+// verify-dev-kit: Issues a revocable admin DevKit session token.
+// Auth: email ∈ ADMIN_EMAILS + DevKit password + TOTP code verified directly
+// against ADMIN_TOTP_SECRET (HMAC-SHA1, RFC 6238, 30-second window ±1).
+// No Supabase account password or AAL2 session required.
 import { getServiceClient } from '../_shared/dbClient.ts';
 
 const corsHeaders = {
@@ -16,6 +14,60 @@ const LOCKOUT_WINDOW_SECONDS = 10 * 60;
 const MAX_FAILURES = 5;
 const LOCKOUT_DURATION_SECONDS = 10 * 60;
 const SESSION_TTL_HOURS = 8;
+const SESSION_TTL_REMEMBER_DAYS = 30;
+
+// ---------- TOTP (RFC 6238 / HOTP RFC 4226) ----------
+
+function base32Decode(input: string): Uint8Array {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  const str = input.toUpperCase().replace(/=+$/, '').replace(/\s/g, '');
+  let bits = 0;
+  let value = 0;
+  let idx = 0;
+  const output = new Uint8Array(Math.floor((str.length * 5) / 8));
+  for (const char of str) {
+    const pos = alphabet.indexOf(char);
+    if (pos < 0) continue;
+    value = (value << 5) | pos;
+    bits += 5;
+    if (bits >= 8) {
+      output[idx++] = (value >>> (bits - 8)) & 0xff;
+      bits -= 8;
+    }
+  }
+  return output.slice(0, idx);
+}
+
+async function hotpCode(secret: Uint8Array, counter: bigint): Promise<string> {
+  const buf = new ArrayBuffer(8);
+  const view = new DataView(buf);
+  view.setBigUint64(0, counter, false);
+  const key = await crypto.subtle.importKey(
+    'raw', secret, { name: 'HMAC', hash: 'SHA-1' }, false, ['sign']
+  );
+  const sig = await crypto.subtle.sign('HMAC', key, buf);
+  const bytes = new Uint8Array(sig);
+  const offset = bytes[19] & 0x0f;
+  const code =
+    (((bytes[offset] & 0x7f) << 24) |
+      (bytes[offset + 1] << 16) |
+      (bytes[offset + 2] << 8) |
+      bytes[offset + 3]) %
+    1_000_000;
+  return code.toString().padStart(6, '0');
+}
+
+async function verifyTotp(secretB32: string, userCode: string): Promise<boolean> {
+  const secret = base32Decode(secretB32);
+  const counter = BigInt(Math.floor(Date.now() / 1000 / 30));
+  for (const delta of [-1n, 0n, 1n]) {
+    const expected = await hotpCode(secret, counter + delta);
+    if (expected === userCode.trim()) return true;
+  }
+  return false;
+}
+
+// ---------- Session token ----------
 
 async function signSessionToken(
   email: string,
@@ -46,25 +98,7 @@ async function hmacPasswordEqual(a: string, b: string): Promise<boolean> {
   return macA === macB;
 }
 
-function decodeJwtPayload(token: string): Record<string, unknown> | null {
-  try {
-    const parts = token.split('.');
-    if (parts.length < 2) return null;
-    let b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-    while (b64.length % 4) b64 += '=';
-    const json = atob(b64);
-    return JSON.parse(json);
-  } catch {
-    return null;
-  }
-}
-
-function extractBearer(req: Request): string | null {
-  const h = req.headers.get('authorization') ?? req.headers.get('Authorization');
-  if (!h) return null;
-  const m = /^Bearer\s+(.+)$/i.exec(h.trim());
-  return m ? m[1].trim() : null;
-}
+// ---------- Rate limiting ----------
 
 async function getLockoutStatus(lockKey: string): Promise<{ locked: boolean; retry_after_seconds?: number; locked_until?: string }> {
   const supabase = getServiceClient();
@@ -108,13 +142,15 @@ function clientIp(req: Request): string | null {
     ?? null;
 }
 
+// ---------- Handler ----------
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { email, password } = await req.json();
+    const { email, password, totp, rememberMe } = await req.json();
 
     if (!email || !password) {
       return new Response(
@@ -127,6 +163,14 @@ Deno.serve(async (req) => {
     if (!SECRET_PASSWORD) {
       return new Response(
         JSON.stringify({ error: "DEV_KIT_PASSWORD secret is not configured." }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const ADMIN_TOTP_SECRET = Deno.env.get("ADMIN_TOTP_SECRET")?.trim();
+    if (!ADMIN_TOTP_SECRET) {
+      return new Response(
+        JSON.stringify({ error: "ADMIN_TOTP_SECRET secret is not configured.", reason: "totp_secret_missing" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -168,8 +212,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    const isValid = await hmacPasswordEqual(password.trim(), SECRET_PASSWORD);
-    if (!isValid) {
+    const isPasswordValid = await hmacPasswordEqual(password.trim(), SECRET_PASSWORD);
+    if (!isPasswordValid) {
       await recordFailedAttempt(lockKey);
       const newLockoutStatus = await getLockoutStatus(lockKey);
       if (newLockoutStatus.locked) {
@@ -190,58 +234,44 @@ Deno.serve(async (req) => {
       );
     }
 
-    // AUTH-5 / audit finding H2: require Supabase MFA AAL2 in addition to
-    // the DevKit password before we mint a session token. The caller must
-    // pass a Supabase access token whose JWT carries `aal: aal2`, proving
-    // they have just completed a Supabase MFA challenge.
-    const accessToken = extractBearer(req);
-    if (!accessToken) {
+    // Verify TOTP code directly against ADMIN_TOTP_SECRET
+    if (!totp || typeof totp !== 'string' || totp.trim().length !== 6) {
       await recordFailedAttempt(lockKey);
       return new Response(
-        JSON.stringify({
-          success: false,
-          reason: "mfa_required",
-          error: "Supabase MFA assertion missing. Sign in and complete an MFA challenge before opening the DevKit.",
-        }),
+        JSON.stringify({ success: false, reason: "mfa_required", error: "A 6-digit authenticator code is required." }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    const isTotpValid = await verifyTotp(ADMIN_TOTP_SECRET, totp.trim());
+    if (!isTotpValid) {
+      await recordFailedAttempt(lockKey);
+      const newLockoutStatus = await getLockoutStatus(lockKey);
+      if (newLockoutStatus.locked) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            locked: true,
+            retry_after_seconds: newLockoutStatus.retry_after_seconds,
+            locked_until: newLockoutStatus.locked_until,
+            error: "Too many failed attempts. Please wait before trying again.",
+          }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      return new Response(
+        JSON.stringify({ success: false, reason: "invalid_totp", error: "Invalid authenticator code — try again." }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Mint session token. rememberMe = 30 days, otherwise 8 hours.
+    const ttlMs = rememberMe
+      ? SESSION_TTL_REMEMBER_DAYS * 24 * 60 * 60 * 1000
+      : SESSION_TTL_HOURS * 60 * 60 * 1000;
+    const expiresAtMs = Date.now() + ttlMs;
 
     const supabase = getServiceClient();
-    const { data: userRes, error: userErr } = await supabase.auth.getUser(accessToken);
-    if (userErr || !userRes?.user) {
-      await recordFailedAttempt(lockKey);
-      return new Response(
-        JSON.stringify({ success: false, reason: "invalid_session", error: "Supabase session is invalid or expired." }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const sessionEmail = (userRes.user.email ?? '').toLowerCase();
-    if (sessionEmail !== callerEmail) {
-      await recordFailedAttempt(lockKey);
-      return new Response(
-        JSON.stringify({ success: false, reason: "email_mismatch", error: "DevKit email must match your signed-in Supabase account." }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const claims = decodeJwtPayload(accessToken);
-    const aal = claims && typeof claims.aal === 'string' ? (claims.aal as string) : null;
-    if (aal !== 'aal2') {
-      await recordFailedAttempt(lockKey);
-      return new Response(
-        JSON.stringify({
-          success: false,
-          reason: "mfa_required",
-          error: "Supabase MFA AAL2 required. Complete an authenticator challenge and retry.",
-        }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Persist the session row so it can be revoked individually.
-    const expiresAtMs = Date.now() + SESSION_TTL_HOURS * 60 * 60 * 1000;
     const { data: inserted, error: insertErr } = await supabase
       .from('admin_sessions')
       .insert({
@@ -269,7 +299,7 @@ Deno.serve(async (req) => {
     );
 
     return new Response(
-      JSON.stringify({ success: true, token: sessionToken, session_id: inserted.id }),
+      JSON.stringify({ success: true, token: sessionToken, session_id: inserted.id, expires_at: expiresAtMs }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
