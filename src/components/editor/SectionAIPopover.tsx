@@ -89,6 +89,9 @@ export function SectionAIPopover({ open, onOpenChange, sectionName }: SectionAIP
   const [proposed, setProposed] = useState<unknown>(null);
   const [editedText, setEditedText] = useState('');
   const [parseError, setParseError] = useState<string | null>(null);
+  // Preserve last attempted action so Retry can replay quick-action failures
+  const [lastInstruction, setLastInstruction] = useState('');
+  const [lastQuickAction, setLastQuickAction] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     if (!open) return;
@@ -100,6 +103,8 @@ export function SectionAIPopover({ open, onOpenChange, sectionName }: SectionAIP
     setProposed(null);
     setEditedText('');
     setParseError(null);
+    setLastInstruction('');
+    setLastQuickAction(undefined);
   }, [open, sectionName, isExperience]);
 
   const sectionLabel = SECTION_LABELS[sectionName] ?? sectionName;
@@ -116,6 +121,10 @@ export function SectionAIPopover({ open, onOpenChange, sectionName }: SectionAIP
       action = quickAction;
       fixInstruction = undefined;
     }
+
+    // Persist for Retry replay
+    setLastInstruction(instruction);
+    setLastQuickAction(quickAction);
 
     if (isExperience && selectedEntry) {
       snapshot = [selectedEntry];
@@ -166,7 +175,19 @@ export function SectionAIPopover({ open, onOpenChange, sectionName }: SectionAIP
       setParseError(null);
       setPhase('result');
     } catch (e) {
-      setErrorMsg(e instanceof Error ? e.message : 'Unknown error. Please try again.');
+      // Map network-level failures (offline, CORS, DNS) to actionable messages
+      const isNetworkError =
+        e instanceof TypeError &&
+        (e.message.toLowerCase().includes('fetch') ||
+          e.message.toLowerCase().includes('network') ||
+          e.message.toLowerCase().includes('failed'));
+      setErrorMsg(
+        isNetworkError
+          ? 'Unable to reach the AI service. Please check your connection and try again.'
+          : e instanceof Error
+          ? e.message
+          : 'Something went wrong. Please try again.',
+      );
       setPhase('error');
     }
   }, [currentResume, sectionName, selectedEntry, isExperience]);
@@ -193,13 +214,20 @@ export function SectionAIPopover({ open, onOpenChange, sectionName }: SectionAIP
         ? (finalContent as ExperienceEntry[]).find(e => e.id === selectedEntry.id) ?? (finalContent as ExperienceEntry[])[0]
         : finalContent as ExperienceEntry;
 
+      if (!improvedEntry || typeof improvedEntry !== 'object') {
+        setParseError('Could not resolve the improved entry from the AI response. Please try again.');
+        return;
+      }
+
       const existingEntries = Array.isArray(currentResume.experience)
         ? [...(currentResume.experience as ExperienceEntry[])]
         : [];
       const idx = existingEntries.findIndex(e => e.id === selectedEntry.id);
-      if (idx !== -1 && improvedEntry && typeof improvedEntry === 'object') {
-        existingEntries[idx] = { ...existingEntries[idx], ...improvedEntry as object };
+      if (idx === -1) {
+        setParseError('Could not find the original entry to update — it may have been removed. Please close and try again.');
+        return;
       }
+      existingEntries[idx] = { ...existingEntries[idx], ...improvedEntry as object };
       updateResume({ experience: existingEntries } as Partial<ResumeData>);
     } else {
       updateResume({ [key]: finalContent } as Partial<ResumeData>);
@@ -218,9 +246,17 @@ export function SectionAIPopover({ open, onOpenChange, sectionName }: SectionAIP
   const handleDiscard = useCallback(() => { onOpenChange(false); }, [onOpenChange]);
 
   const handleRetry = useCallback(() => {
-    if (request.trim()) void runRequest(request);
-    else setPhase('input');
-  }, [request, runRequest]);
+    // Replay the exact last action (including quick-action buttons)
+    if (lastQuickAction) {
+      void runRequest(lastInstruction, lastQuickAction);
+    } else if (lastInstruction.trim()) {
+      void runRequest(lastInstruction);
+    } else if (request.trim()) {
+      void runRequest(request);
+    } else {
+      setPhase('input');
+    }
+  }, [lastInstruction, lastQuickAction, request, runRequest]);
 
   const handlePickEntry = useCallback((entry: ExperienceEntry | null) => {
     setSelectedEntry(entry);
