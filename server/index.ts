@@ -3545,32 +3545,44 @@ app.post('/api/export/pdf-native', requireAuthHeader, async (req: AuthedRequest,
           // BOTH <html> and <body> sizes — Chromium's print engine paginates
           // based on the body's natural box height, so simply hiding overflow
           // on <html> is not enough to stop multi-page rendering of a single
-          // slice. We also stash inline `width` so we restore it cleanly.
-          // html { zoom } is already applied via zoomSnippet so we work in
-          // unzoomed CSS pixels here.
-          await page.evaluate((yS: number, sH: number, wPx: number) => {
-            const docEl = document.documentElement;
-            const body  = document.body;
-            // Save originals on the element so we can restore them later.
-            const stash = (el: HTMLElement, key: string) => {
-              if (el.dataset[`__seg_${key}`] === undefined) {
-                el.dataset[`__seg_${key}`] = (el.style.getPropertyValue(key) || '');
+          // slice. html { zoom } is already applied via zoomSnippet so we
+          // work in unzoomed CSS pixels here.
+          //
+          // NOTE: `page.evaluate(fn)` serialises the function and runs it
+          // in the browser context. Any nested function declarations inside
+          // `fn` end up wrapped by tsx/esbuild with a `__name(...)` helper
+          // (from the `keepNames` transform) which doesn't exist in the
+          // browser, causing `ReferenceError: __name is not defined`. We
+          // therefore inline everything as plain statements — no helpers,
+          // no nested fns. The original styles are stashed via `dataset`
+          // so the matching restore call can read them back.
+          await page.evaluate(
+            `(() => {
+              const docEl = document.documentElement;
+              const body  = document.body;
+              const keys = [
+                ['html','height'], ['html','overflow'],
+                ['body','height'], ['body','width'],
+                ['body','overflow'], ['body','transform'],
+                ['body','margin'],  ['body','padding'],
+              ];
+              for (const [tag, key] of keys) {
+                const el = tag === 'html' ? docEl : body;
+                const slot = '__seg_' + tag + '_' + key;
+                if (el.dataset[slot] === undefined) {
+                  el.dataset[slot] = el.style.getPropertyValue(key) || '';
+                }
               }
-            };
-            stash(docEl, 'height'); stash(docEl, 'overflow');
-            stash(body,  'height'); stash(body,  'width');
-            stash(body,  'overflow'); stash(body,  'transform');
-            stash(body,  'margin');   stash(body,  'padding');
-
-            docEl.style.height   = `${sH}px`;
-            docEl.style.overflow = 'hidden';
-            body.style.height    = `${sH}px`;
-            body.style.width     = `${wPx}px`;
-            body.style.overflow  = 'hidden';
-            body.style.margin    = '0';
-            body.style.padding   = '0';
-            body.style.transform = `translateY(-${yS}px)`;
-          }, yStart, segH, resumeWidthPx);
+              docEl.style.height   = '${segH}px';
+              docEl.style.overflow = 'hidden';
+              body.style.height    = '${segH}px';
+              body.style.width     = '${resumeWidthPx}px';
+              body.style.overflow  = 'hidden';
+              body.style.margin    = '0';
+              body.style.padding   = '0';
+              body.style.transform = 'translateY(-${yStart}px)';
+            })()`
+          );
 
           // Puppeteer's `page.pdf()` does NOT accept `pt` as a unit
           // (`convertPrintParameterToInches` only handles px/in/cm/mm). The
@@ -3593,23 +3605,32 @@ app.post('/api/export/pdf-native', requireAuthHeader, async (req: AuthedRequest,
 
           pageBuffers.push(Buffer.from(segPdf));
 
-          // Restore styles before next segment
-          await page.evaluate(() => {
-            const docEl = document.documentElement;
-            const body  = document.body;
-            const restore = (el: HTMLElement, key: string) => {
-              const saved = el.dataset[`__seg_${key}`];
-              if (saved !== undefined) {
-                if (saved === '') el.style.removeProperty(key);
-                else              el.style.setProperty(key, saved);
-                delete el.dataset[`__seg_${key}`];
+          // Restore styles before next segment. Same rationale as the
+          // clipping evaluate above — we pass the body as a plain string
+          // expression to avoid tsx's keepNames `__name` helper, which
+          // doesn't exist in the browser context.
+          await page.evaluate(
+            `(() => {
+              const docEl = document.documentElement;
+              const body  = document.body;
+              const keys = [
+                ['html','height'], ['html','overflow'],
+                ['body','height'], ['body','width'],
+                ['body','overflow'], ['body','transform'],
+                ['body','margin'],  ['body','padding'],
+              ];
+              for (const [tag, key] of keys) {
+                const el = tag === 'html' ? docEl : body;
+                const slot = '__seg_' + tag + '_' + key;
+                const saved = el.dataset[slot];
+                if (saved !== undefined) {
+                  if (saved === '') el.style.removeProperty(key);
+                  else              el.style.setProperty(key, saved);
+                  delete el.dataset[slot];
+                }
               }
-            };
-            restore(docEl, 'height'); restore(docEl, 'overflow');
-            restore(body,  'height'); restore(body,  'width');
-            restore(body,  'overflow'); restore(body,  'transform');
-            restore(body,  'margin');   restore(body,  'padding');
-          });
+            })()`
+          );
         } catch (segErr) {
           console.error(
             `[export/pdf-native] Segment ${si} failed — yStart=${yStart} yEnd=${yEnd} segH=${segH}:`,
