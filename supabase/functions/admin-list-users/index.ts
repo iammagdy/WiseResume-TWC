@@ -101,13 +101,31 @@ Deno.serve(async (req) => {
         );
       }
 
-      let unconfirmedAuthUsers = (authResult.data.users ?? []).filter(u => !u.email_confirmed_at);
+      const allUnconfirmed = (authResult.data.users ?? []).filter(u => !u.email_confirmed_at);
+
+      // Fetch profiles for all unconfirmed users so search can match contact_email / full_name
+      const allIds = allUnconfirmed.map(u => u.id);
+      const profilesResult = allIds.length > 0
+        ? await supabase.from('profiles').select('user_id, full_name, created_at, contact_email, account_type').in('user_id', allIds)
+        : { data: [] };
+
+      const profileMap = new Map(
+        (profilesResult.data ?? []).map((p: Record<string, unknown>) => [p.user_id as string, p])
+      );
+
+      let unconfirmedAuthUsers = allUnconfirmed;
 
       if (search && search.trim()) {
         const q = search.trim().toLowerCase();
-        unconfirmedAuthUsers = unconfirmedAuthUsers.filter(u =>
-          (u.email ?? '').toLowerCase().includes(q) || u.id.toLowerCase().startsWith(q)
-        );
+        unconfirmedAuthUsers = unconfirmedAuthUsers.filter(u => {
+          const p = (profileMap.get(u.id) ?? {}) as Record<string, unknown>;
+          return (
+            (u.email ?? '').toLowerCase().includes(q) ||
+            u.id.toLowerCase().startsWith(q) ||
+            ((p.contact_email as string) ?? '').toLowerCase().includes(q) ||
+            ((p.full_name as string) ?? '').toLowerCase().includes(q)
+          );
+        });
       }
 
       unconfirmedAuthUsers.sort((a, b) =>
@@ -116,15 +134,6 @@ Deno.serve(async (req) => {
 
       const total = unconfirmedAuthUsers.length;
       const pageSlice = unconfirmedAuthUsers.slice(offset, offset + limit);
-
-      const pageIds = pageSlice.map(u => u.id);
-      const profilesResult = pageIds.length > 0
-        ? await supabase.from('profiles').select('user_id, full_name, created_at, contact_email, account_type').in('user_id', pageIds)
-        : { data: [] };
-
-      const profileMap = new Map(
-        (profilesResult.data ?? []).map((p: Record<string, unknown>) => [p.user_id as string, p])
-      );
 
       const users: UserRecord[] = pageSlice.map(au => {
         const p = (profileMap.get(au.id) ?? {}) as Record<string, unknown>;

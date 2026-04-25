@@ -7,14 +7,16 @@ const REQUIRED_ENV_VARS: { key: string; label: string }[] = [
   { key: 'SUPABASE_SERVICE_ROLE_KEY', label: 'Supabase Service Role Key' },
   { key: 'DEV_KIT_PASSWORD', label: 'DevKit Password' },
   { key: 'KINDE_DOMAIN', label: 'Kinde Domain (token-exchange)' },
-  { key: 'OPENROUTER_API_KEY', label: 'OpenRouter API Key' },
-  { key: 'GROQ_API_KEY', label: 'Groq API Key' },
+  { key: 'OPENROUTER_KEY_1', label: 'OpenRouter Key 1' },
+  { key: 'OPENROUTER_KEY_2', label: 'OpenRouter Key 2' },
+  { key: 'OPENROUTER_KEY_3', label: 'OpenRouter Key 3' },
+  { key: 'GROQ_KEY_1', label: 'Groq Key 1' },
+  { key: 'GROQ_KEY_2', label: 'Groq Key 2' },
+  { key: 'GROQ_KEY_3', label: 'Groq Key 3' },
   { key: 'GITHUB_TOKEN', label: 'GitHub Token' },
   { key: 'GITHUB_OWNER', label: 'GitHub Owner' },
   { key: 'GITHUB_REPO', label: 'GitHub Repo' },
   { key: 'RESEND_API_KEY', label: 'Resend API Key' },
-  { key: 'GEMINI_API_KEY', label: 'Gemini API Key (optional)' },
-  { key: 'ELEVENLABS_API_KEY', label: 'ElevenLabs API Key (optional)' },
   { key: 'KINDE_WEBHOOK_SECRET', label: 'Kinde Webhook Secret (kinde-webhook instant provisioning)' },
   { key: 'KINDE_M2M_CLIENT_ID', label: 'Kinde M2M Client ID (admin-kinde-reconcile + wisehire-reset-user)' },
   { key: 'KINDE_M2M_CLIENT_SECRET', label: 'Kinde M2M Client Secret (admin-kinde-reconcile + wisehire-reset-user)' },
@@ -28,7 +30,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const body = await req.json();
     try {
       await requireAdminAuth(req);
     } catch (authErr) {

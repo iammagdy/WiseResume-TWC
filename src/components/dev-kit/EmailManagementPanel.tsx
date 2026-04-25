@@ -210,9 +210,14 @@ function UnconfirmedUsersSection({ onSendToUser }: UnconfirmedUsersProps) {
                     {filtered.map((user) => (
                       <tr key={user.user_id} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
                         <td className="px-4 py-3">
-                          <p className="font-mono text-xs truncate max-w-[200px]">{user.email}</p>
+                          <p className="font-mono text-xs truncate max-w-[200px]">{user.contact_email ?? user.email}</p>
                           {user.full_name && (
                             <p className="text-xs text-muted-foreground truncate max-w-[200px]">{user.full_name}</p>
+                          )}
+                          {user.contact_email && (user.email ?? '').endsWith('@collision.kinde.placeholder') && (
+                            <p className="text-[10px] text-muted-foreground font-mono truncate max-w-[200px]">
+                              Auth: {user.email}
+                            </p>
                           )}
                         </td>
                         <td className="px-4 py-3 text-xs text-muted-foreground hidden sm:table-cell">

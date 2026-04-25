@@ -695,29 +695,56 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
                             }
                           </td>
                           <td className="px-4 py-3">
-                            <div className="min-w-0 space-y-0.5">
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <p className="font-mono text-xs truncate max-w-[160px]">{user.email}</p>
-                                {user.has_id_conflict && (
-                                  <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-600 border-amber-500/30 dark:text-amber-400 shrink-0">
-                                    ID conflict
-                                  </Badge>
-                                )}
-                                {user.matched_via === 'contact_email' && !user.has_id_conflict && (
-                                  <Badge variant="outline" className="text-[10px] bg-blue-500/10 text-blue-600 border-blue-500/20 shrink-0">
-                                    Kinde identity
-                                  </Badge>
-                                )}
+                            <div className="flex items-start gap-2.5 min-w-0">
+                              {/* Initials avatar */}
+                              {(() => {
+                                const fallback = user.contact_email || user.email || '';
+                                const initials = user.full_name
+                                  ? user.full_name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
+                                  : (fallback[0]?.toUpperCase() ?? '?');
+                                return (
+                                  <div className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-semibold shrink-0 mt-0.5">
+                                    {initials}
+                                  </div>
+                                );
+                              })()}
+                              <div className="min-w-0 space-y-0.5">
+                              {(() => {
+                                const isKindeShadow = (user.email ?? '').endsWith('@collision.kinde.placeholder');
+                                const displayEmail = user.contact_email || user.email;
+                                return (
+                                  <>
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <p className="font-mono text-xs truncate max-w-[160px]">{displayEmail}</p>
+                                      {user.has_id_conflict && !user.contact_email && (
+                                        <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-600 border-amber-500/30 dark:text-amber-400 shrink-0">
+                                          ID conflict
+                                        </Badge>
+                                      )}
+                                      {user.matched_via === 'contact_email' && !user.has_id_conflict && (
+                                        <Badge variant="outline" className="text-[10px] bg-blue-500/10 text-blue-600 border-blue-500/20 shrink-0">
+                                          Kinde identity
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    {user.full_name && (
+                                      <p className="text-xs text-muted-foreground truncate max-w-[160px]">{user.full_name}</p>
+                                    )}
+                                    {isKindeShadow && user.contact_email && (
+                                      <p className="text-[10px] text-muted-foreground font-mono truncate max-w-[160px]">
+                                        Auth: {user.email}
+                                      </p>
+                                    )}
+                                    {isKindeShadow && !user.contact_email && (
+                                      <p className="text-[10px] text-amber-600 dark:text-amber-400">
+                                        Unidentified · Kinde shadow
+                                      </p>
+                                    )}
+                                    <AccountTypeBadge accountType={user.account_type} />
+                                  </>
+                                );
+                              })()}
                               </div>
-                              {user.full_name && (
-                                <p className="text-xs text-muted-foreground truncate max-w-[160px]">{user.full_name}</p>
-                              )}
-                              <AccountTypeBadge accountType={user.account_type} />
-                              {user.has_id_conflict && user.contact_email && (
-                                <p className="text-[10px] text-muted-foreground truncate max-w-[160px]">
-                                  Real: {user.contact_email}
-                                </p>
-                              )}
                             </div>
                           </td>
                           <td className="px-4 py-3 hidden sm:table-cell">

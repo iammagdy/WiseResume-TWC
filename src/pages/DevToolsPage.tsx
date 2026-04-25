@@ -39,7 +39,6 @@ import { EmailManagementPanel } from '@/components/dev-kit/EmailManagementPanel'
 import { WiseHireWaitlistPanel } from '@/components/dev-kit/WiseHireWaitlistPanel';
 import { PortfolioUsernamesPanel } from '@/components/dev-kit/PortfolioUsernamesPanel';
 import { OpenRouterPanel, GroqPanel } from '@/components/dev-kit/AIKeySlotPanels';
-import { TotpRotationPanel } from '@/components/dev-kit/TotpRotationPanel';
 import { DEV_KIT_VERSION } from '@/components/dev-kit/config';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { apiFnUrl } from '@/lib/apiFnUrl';
@@ -51,7 +50,7 @@ import { DevKitPanelBoundary } from '@/components/dev-kit/DevKitPanelBoundary';
 import { NativeBiometric } from '@capgo/capacitor-native-biometric';
 import { Capacitor } from '@capacitor/core';
 
-type Tab = 'overview' | 'analytics' | 'onboarding' | 'live' | 'deployment' | 'users' | 'coupons' | 'settings' | 'activity' | 'email' | 'wisehire' | 'portfolio' | 'openrouter' | 'groq' | 'security';
+type Tab = 'overview' | 'analytics' | 'onboarding' | 'live' | 'deployment' | 'users' | 'coupons' | 'settings' | 'activity' | 'email' | 'wisehire' | 'portfolio' | 'openrouter' | 'groq';
 
 interface NavItem {
   id: Tab;
@@ -90,7 +89,6 @@ const NAV_SECTIONS: NavSection[] = [
       { id: 'deployment', label: 'Deployment', icon: Rocket },
       { id: 'openrouter', label: 'OpenRouter', icon: BrainCircuit },
       { id: 'groq', label: 'Groq', icon: BrainCircuit },
-      { id: 'security', label: 'Security', icon: ShieldCheck },
       { id: 'settings', label: 'Settings', icon: Settings },
       { id: 'activity', label: 'Audit Log', icon: Clock },
     ],
@@ -101,7 +99,6 @@ const TAB_LABELS: Record<Tab, string> = {
   overview: 'Overview',
   analytics: 'Analytics',
   onboarding: 'Onboarding Funnel',
-  security: 'Security',
   live: 'Live Activity',
   deployment: 'Deployment',
   users: 'Users',
@@ -1049,20 +1046,6 @@ function DevToolsInner() {
                 </div>
               )}
 
-              {activeTab === 'security' && (
-                <div className="space-y-4">
-                  <div>
-                    <h2 className="text-lg font-semibold flex items-center gap-2">
-                      <ShieldCheck className="w-5 h-5 text-primary" />
-                      Security
-                    </h2>
-                    <p className="text-sm text-muted-foreground mt-0.5">
-                      Manage authentication settings for DevKit access. Rotate the TOTP secret if you lose access to your authenticator app or get a new device.
-                    </p>
-                  </div>
-                  <TotpRotationPanel />
-                </div>
-              )}
             </DevKitPanelBoundary>
 
           </div>

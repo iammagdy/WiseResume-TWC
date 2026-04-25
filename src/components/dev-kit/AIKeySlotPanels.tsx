@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
-import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
+import { unwrapAdminResponse, formatEdgeError, EdgeFunctionError } from '@/lib/devkit/edgeResponse';
 import { useIsMounted } from '@/lib/devkit/hooks';
 import { cn } from '@/lib/utils';
 
@@ -175,7 +175,11 @@ function ProviderPanel({ provider }: ProviderPanelProps) {
       setKeys(result.keys ?? []);
     } catch (e) {
       if (!isMounted()) return;
-      setLoadError(formatEdgeError(e, 'Failed to load AI key status'));
+      if (e instanceof EdgeFunctionError && e.status === 401) {
+        setLoadError('DevKit session expired — sign in to DevKit again to load key status.');
+      } else {
+        setLoadError(formatEdgeError(e, 'Failed to load AI key status'));
+      }
     } finally {
       if (isMounted()) setLoading(false);
     }
