@@ -20,8 +20,16 @@ CREATE INDEX IF NOT EXISTS idx_edge_function_logs_created
 
 ALTER TABLE public.edge_function_logs ENABLE ROW LEVEL SECURITY;
 
--- Service role only: no public read, no public write.
--- Edge functions use the service key; the admin panel reads via admin-observability.
+-- Explicit RLS policies: all public roles are denied.
+-- Only the service_role (which bypasses RLS) can read/write this table.
+-- Writes come from _shared/fnLogger.ts using the service key.
+-- Reads come from admin-observability using the service key.
+CREATE POLICY "deny_public_access" ON public.edge_function_logs
+  AS RESTRICTIVE
+  FOR ALL
+  TO public
+  USING (false)
+  WITH CHECK (false);
 
 -- Add reviewed_at to error_log so the Observability panel can mark errors reviewed.
 -- This is a nullable column so existing rows are unaffected.
