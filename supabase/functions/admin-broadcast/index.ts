@@ -19,23 +19,28 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { action, id, title, body: msgBody, severity, expires_at } = body as {
+    const { action, id, title, body: msgBody, severity, expires_at, active_only } = body as {
       action: string;
       id?: string;
       title?: string;
       body?: string;
       severity?: string;
       expires_at?: string | null;
+      active_only?: boolean;
     };
 
     const supabase = getServiceClient();
 
     if (action === 'list') {
-      const { data, error } = await supabase
+      let q = supabase
         .from('broadcasts')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(100);
+      if (active_only === true) {
+        q = q.eq('active', true);
+      }
+      const { data, error } = await q;
       if (error) throw error;
       return new Response(
         JSON.stringify({ success: true, broadcasts: data ?? [] }),
