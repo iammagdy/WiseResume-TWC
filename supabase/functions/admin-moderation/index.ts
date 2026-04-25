@@ -114,9 +114,12 @@ Deno.serve(async (req) => {
       return json({ success: false, error: 'type must be email, user_id, or pattern' }, 400, cors);
     }
 
+    // Normalize email values to lowercase for deterministic matching.
+    const normalizedValue = type === 'email' ? value.trim().toLowerCase() : value.trim();
+
     const { data, error } = await supabase
       .from('blocklist')
-      .insert({ type, value: value.trim(), reason: reason ?? null, added_by: callerEmail })
+      .insert({ type, value: normalizedValue, reason: reason ?? null, added_by: callerEmail })
       .select()
       .single();
 

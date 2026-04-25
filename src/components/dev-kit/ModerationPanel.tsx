@@ -114,7 +114,7 @@ function BugInboxTab({ onCountChange }: { onCountChange?: (n: number) => void })
         'admin-moderation',
         devKitInvokeOptions({ action: 'list_bug_reports', status_filter: statusFilter }),
       );
-      const data = unwrapAdminResponse<{ bug_reports: BugReport[]; total: number }>(tuple);
+      const data = unwrapAdminResponse<{ bug_reports: BugReport[]; total: number }>(tuple, 'admin-moderation');
       if (!isMounted()) return;
       setBugs(data.bug_reports ?? []);
       setTotal(data.total ?? 0);
@@ -137,7 +137,7 @@ function BugInboxTab({ onCountChange }: { onCountChange?: (n: number) => void })
         'admin-moderation',
         devKitInvokeOptions({ action: 'update_bug_report', report_id: id, ...updates }),
       );
-      unwrapAdminResponse(tuple);
+      unwrapAdminResponse(tuple, 'admin-moderation');
       toast.success('Bug report updated');
       fetchBugs();
     } catch (err) {
@@ -310,7 +310,7 @@ function BlocklistTab() {
         'admin-moderation',
         devKitInvokeOptions({ action: 'list_blocklist' }),
       );
-      const data = unwrapAdminResponse<{ entries: BlocklistEntry[] }>(tuple);
+      const data = unwrapAdminResponse<{ entries: BlocklistEntry[] }>(tuple, 'admin-moderation');
       if (!isMounted()) return;
       setEntries(data.entries ?? []);
     } catch (err) {
@@ -331,7 +331,7 @@ function BlocklistTab() {
         'admin-moderation',
         devKitInvokeOptions({ action: 'add_blocklist', type: form.type, value: form.value, reason: form.reason }),
       );
-      unwrapAdminResponse(tuple);
+      unwrapAdminResponse(tuple, 'admin-moderation');
       toast.success(`Blocked ${form.type}: ${form.value}`);
       setForm({ type: 'email', value: '', reason: '' });
       fetchEntries();
@@ -349,7 +349,7 @@ function BlocklistTab() {
         'admin-moderation',
         devKitInvokeOptions({ action: 'remove_blocklist', entry_id: id }),
       );
-      unwrapAdminResponse(tuple);
+      unwrapAdminResponse(tuple, 'admin-moderation');
       toast.success('Entry removed');
       fetchEntries();
     } catch (err) {
@@ -466,7 +466,7 @@ function ModerationQueueTab() {
         'admin-moderation',
         devKitInvokeOptions({ action: 'list_moderation_queue', status_filter: statusFilter }),
       );
-      const data = unwrapAdminResponse<{ items: QueueItem[]; total: number }>(tuple);
+      const data = unwrapAdminResponse<{ items: QueueItem[]; total: number }>(tuple, 'admin-moderation');
       if (!isMounted()) return;
       setItems(data.items ?? []);
       setTotal(data.total ?? 0);
@@ -487,7 +487,7 @@ function ModerationQueueTab() {
         'admin-moderation',
         devKitInvokeOptions({ action: 'review_queue_item', item_id: id, decision, suspend_user: suspendUser }),
       );
-      unwrapAdminResponse(tuple);
+      unwrapAdminResponse(tuple, 'admin-moderation');
       toast.success(`Item marked as ${decision}`);
       fetchItems();
     } catch (err) {
@@ -611,7 +611,7 @@ export function ModerationPanel() {
           'admin-moderation',
           devKitInvokeOptions({ action: 'list_bug_reports', status_filter: 'open', per_page: 1 }),
         );
-        const data = unwrapAdminResponse<{ total: number }>(tuple);
+        const data = unwrapAdminResponse<{ total: number }>(tuple, 'admin-moderation');
         if (active && isMounted()) setOpenBugCount(data.total ?? 0);
       } catch { /* ignore — badge is non-critical */ }
     }

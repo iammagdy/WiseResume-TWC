@@ -87,7 +87,7 @@ function KindeEventsTab() {
         'admin-moderation',
         devKitInvokeOptions({ action: 'list_kinde_events', event_type: typeFilter }),
       );
-      const data = unwrapAdminResponse<{ events: KindeEvent[]; total: number; missing_table?: boolean }>(tuple);
+      const data = unwrapAdminResponse<{ events: KindeEvent[]; total: number; missing_table?: boolean }>(tuple, 'admin-moderation');
       if (!isMounted()) return;
       if (data.missing_table) {
         setError('kinde_events table not yet migrated. Run the latest migration to enable this feature.');
@@ -188,7 +188,7 @@ function ResendBouncesTab() {
         'admin-integrations',
         devKitInvokeOptions({ action: 'get_resend_bounces' }),
       );
-      const data = unwrapAdminResponse<{ bounces: BounceEntry[]; total_emails_checked: number }>(tuple);
+      const data = unwrapAdminResponse<{ bounces: BounceEntry[]; total_emails_checked: number }>(tuple, 'admin-integrations');
       if (!isMounted()) return;
       setBounces(data.bounces ?? []);
       setTotalChecked(data.total_emails_checked ?? 0);
@@ -209,7 +209,7 @@ function ResendBouncesTab() {
         'admin-moderation',
         devKitInvokeOptions({ action: 'suppress_email', email }),
       );
-      const data = unwrapAdminResponse<{ already_blocked?: boolean }>(tuple);
+      const data = unwrapAdminResponse<{ already_blocked?: boolean }>(tuple, 'admin-moderation');
       toast.success(data.already_blocked ? `${email} already in blocklist` : `${email} suppressed`);
     } catch (err) {
       toast.error(formatEdgeError(err));
@@ -307,7 +307,7 @@ function DeployTab() {
         'admin-integrations',
         devKitInvokeOptions({ action: 'get_deploy_status' }),
       );
-      const data = unwrapAdminResponse<{ runs: DeployRun[]; repo_url: string }>(tuple);
+      const data = unwrapAdminResponse<{ runs: DeployRun[]; repo_url: string }>(tuple, 'admin-integrations');
       if (!isMounted()) return;
       setRuns(data.runs ?? []);
       setRepoUrl(data.repo_url ?? '');
@@ -328,7 +328,7 @@ function DeployTab() {
         'admin-integrations',
         devKitInvokeOptions({ action: 'trigger_deploy', ref: 'main' }),
       );
-      const data = unwrapAdminResponse<{ message: string }>(tuple);
+      const data = unwrapAdminResponse<{ message: string }>(tuple, 'admin-integrations');
       toast.success(data.message ?? 'Deploy triggered');
       setTimeout(fetchStatus, 3000);
     } catch (err) {

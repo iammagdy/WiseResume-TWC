@@ -1056,11 +1056,15 @@ serve(wrapHandler('enhance-section', async (req) => {
     // Record usage for rate limiting — include which provider handled the request
     await recordUsage(userId, 'enhance', { section, action, provider: aiResponse.providerUsed || 'unknown' });
 
-    // Screen AI output against pattern blocklist — fire-and-forget, never blocks user.
+    // Screen AI output against pattern blocklist.
+    // The queue insert is fire-and-forget; we do await the match result so we can
+    // include a _moderation_warning in the response for the AI output review UI.
     const outputText = typeof finalContent.improved === 'string'
       ? finalContent.improved
       : JSON.stringify(finalContent.improved ?? '');
-    screenContent(getServiceClient(), outputText, 'ai_enhance_section', undefined, userId).catch(() => {});
+    const moderationMatches = await screenContent(
+      getServiceClient(), outputText, 'ai_enhance_section', undefined, userId,
+    ).catch(() => []);
 
     // IMPORTANT: serialise `finalContent` (the post-validation, post-retry,
     // post-strip payload) — NOT the raw parsed `enhancedContent` — so that
@@ -1071,6 +1075,13 @@ serve(wrapHandler('enhance-section', async (req) => {
     if (aiResponse.fallbackUsed) {
       responseBody._fallbackUsed = true;
       responseBody._fallbackReason = aiResponse.fallbackReason;
+    }
+    // Surface content-moderation warning for the AI output review path.
+    if (moderationMatches.length > 0) {
+      responseBody._moderation_warning = {
+        matched_patterns: moderationMatches.map((m) => m.pattern),
+        queued_for_review: true,
+      };
     }
 
     return new Response(JSON.stringify(responseBody), {

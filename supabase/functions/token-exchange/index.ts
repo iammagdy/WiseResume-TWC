@@ -189,11 +189,14 @@ serve(wrapHandler('token-exchange', async (req) => {
       let blocklistError: unknown = null;
       let blockEntry: { id: string } | null = null;
 
+      // Normalize email to lowercase to match add_blocklist normalization.
+      const normalizedEmail = email.toLowerCase();
+
       try {
         // Run both checks in parallel: one for email, one for UUID.
         const [emailCheck, uuidCheck] = await Promise.all([
-          email
-            ? blocklistClient.from('blocklist').select('id').eq('type', 'email').eq('value', email).limit(1).maybeSingle()
+          normalizedEmail
+            ? blocklistClient.from('blocklist').select('id').eq('type', 'email').eq('value', normalizedEmail).limit(1).maybeSingle()
             : Promise.resolve({ data: null, error: null }),
           supabaseUserId
             ? blocklistClient.from('blocklist').select('id').eq('type', 'user_id').eq('value', supabaseUserId).limit(1).maybeSingle()
