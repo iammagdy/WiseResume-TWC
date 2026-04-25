@@ -1,7 +1,10 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
+import * as jose from 'https://deno.land/x/jose@v5.2.2/index.ts';
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { requireAdminAuth } from "../_shared/adminAuth.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
+
+const SESSION_TTL_SECONDS = 30 * 60;
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
@@ -37,7 +40,7 @@ serve(async (req) => {
 
   if (action === 'exit') {
     const { target_user_id } = body;
-    const { error: auditExitErr } = await supabase.from('audit_logs').insert({
+    const { error: auditErr } = await supabase.from('audit_logs').insert({
       user_id: null,
       category: 'admin_impersonation',
       action: 'impersonation_exit',
@@ -47,9 +50,15 @@ serve(async (req) => {
         exited_at: new Date().toISOString(),
       },
     });
-    if (auditExitErr) {
-      console.error('[admin-impersonate] exit audit insert failed:', auditExitErr);
+
+    if (auditErr) {
+      console.error('[admin-impersonate] exit audit insert failed:', auditErr);
+      return new Response(
+        JSON.stringify({ error: 'Could not write exit audit log', details: auditErr.message }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
     }
+
     return new Response(JSON.stringify({ success: true }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -87,19 +96,32 @@ serve(async (req) => {
     );
   }
 
-  const { data: sessionData, error: sessionErr } = await supabase.auth.admin.createSession({
-    user_id: target_user_id,
-  });
-
-  if (sessionErr || !sessionData?.session) {
-    console.error('[admin-impersonate] createSession error:', sessionErr);
-    return new Response(JSON.stringify({ error: 'Failed to create impersonation session' }), {
+  const jwtSecret = Deno.env.get('EXT_SUPABASE_JWT_SECRET') || Deno.env.get('SUPABASE_JWT_SECRET');
+  if (!jwtSecret) {
+    console.error('[admin-impersonate] SUPABASE_JWT_SECRET not configured');
+    return new Response(JSON.stringify({ error: 'Server configuration error' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 
-  const expiresAt = Date.now() + 30 * 60 * 1000;
+  const now = Math.floor(Date.now() / 1000);
+  const expiresAtSeconds = now + SESSION_TTL_SECONDS;
+  const expiresAtMs = expiresAtSeconds * 1000;
+
+  const secret = new TextEncoder().encode(jwtSecret);
+  const accessToken = await new jose.SignJWT({
+    sub: target_user_id,
+    email: targetEmail,
+    role: 'authenticated',
+    aud: 'authenticated',
+    iss: 'supabase',
+    iat: now,
+    exp: expiresAtSeconds,
+    is_impersonation: true,
+  })
+    .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
+    .sign(secret);
 
   const { error: auditErr } = await supabase.from('audit_logs').insert({
     user_id: null,
@@ -110,11 +132,12 @@ serve(async (req) => {
       target_user_id,
       target_email: targetEmail || target_user_id,
       started_at: new Date().toISOString(),
+      expires_at: new Date(expiresAtMs).toISOString(),
     },
   });
 
   if (auditErr) {
-    console.error('[admin-impersonate] audit insert failed:', auditErr);
+    console.error('[admin-impersonate] start audit insert failed:', auditErr);
     return new Response(
       JSON.stringify({ error: 'Could not write audit log — impersonation blocked' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
@@ -124,10 +147,10 @@ serve(async (req) => {
   return new Response(
     JSON.stringify({
       success: true,
-      access_token: sessionData.session.access_token,
+      access_token: accessToken,
       user_id: target_user_id,
       email: targetEmail || target_user_id,
-      expires_at: expiresAt,
+      expires_at: expiresAtMs,
     }),
     { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
   );

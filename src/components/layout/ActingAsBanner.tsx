@@ -5,6 +5,19 @@ import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
 import { toast } from 'sonner';
 
+async function callExit(userId: string | null): Promise<void> {
+  const { data, error } = await edgeFunctions.functions.invoke('admin-impersonate', {
+    headers: devKitAuthHeaders(),
+    body: { action: 'exit', target_user_id: userId },
+  });
+  if (error || (data && !data.success)) {
+    console.warn('[ActingAsBanner] exit audit log failed:', error ?? data);
+    toast.warning('Impersonation exited but audit log failed', {
+      description: 'The session was cleared locally. The exit may not be recorded server-side.',
+    });
+  }
+}
+
 export function ActingAsBanner() {
   const [state, setState] = useState(() => ({
     active: isImpersonating(),
@@ -34,14 +47,7 @@ export function ActingAsBanner() {
       return;
     }
     const timer = setTimeout(async () => {
-      try {
-        await edgeFunctions.functions.invoke('admin-impersonate', {
-          headers: devKitAuthHeaders(),
-          body: { action: 'exit', target_user_id: state.userId },
-        });
-      } catch {
-        // Non-fatal — still clear locally
-      }
+      await callExit(state.userId);
       toast.warning('Impersonation session expired', {
         description: 'The 30-minute impersonation session has ended.',
       });
@@ -53,12 +59,7 @@ export function ActingAsBanner() {
   const handleExit = useCallback(async () => {
     setExiting(true);
     try {
-      await edgeFunctions.functions.invoke('admin-impersonate', {
-        headers: devKitAuthHeaders(),
-        body: { action: 'exit', target_user_id: state.userId },
-      });
-    } catch {
-      // Non-fatal — still exit locally
+      await callExit(state.userId);
     } finally {
       setExiting(false);
       exitImpersonation();
