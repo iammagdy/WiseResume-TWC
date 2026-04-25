@@ -103,10 +103,11 @@ async function hmacPasswordEqual(a: string, b: string): Promise<boolean> {
 async function getLockoutStatus(lockKey: string): Promise<{ locked: boolean; retry_after_seconds?: number; locked_until?: string }> {
   const supabase = getServiceClient();
   const windowStart = new Date(Date.now() - LOCKOUT_WINDOW_SECONDS * 1000).toISOString();
+  // NOTE: user_id is type uuid; we store the email-derived key in ip_address (text) instead.
   const { data: failRows, error } = await supabase
     .from('rpc_rate_limits')
     .select('created_at')
-    .eq('user_id', lockKey)
+    .eq('ip_address', lockKey)
     .eq('endpoint', 'devkit-login-fail')
     .gte('created_at', windowStart)
     .order('created_at', { ascending: false });
@@ -126,9 +127,14 @@ async function getLockoutStatus(lockKey: string): Promise<{ locked: boolean; ret
 
 async function recordFailedAttempt(lockKey: string): Promise<void> {
   const supabase = getServiceClient();
-  await supabase
+  // user_id is type uuid — store the email-derived key in ip_address (text) so
+  // the insert doesn't fail silently on a UUID cast error.
+  const { error } = await supabase
     .from('rpc_rate_limits')
-    .insert({ user_id: lockKey, endpoint: 'devkit-login-fail', ip_address: 'devkit:login' });
+    .insert({ user_id: null, endpoint: 'devkit-login-fail', ip_address: lockKey });
+  if (error) {
+    console.error('[verify-dev-kit] recordFailedAttempt insert error:', error.message);
+  }
 }
 
 function clientIp(req: Request): string | null {
@@ -151,6 +157,7 @@ Deno.serve(async (req) => {
 
   try {
     const { email, password, totp, rememberMe } = await req.json();
+    console.log('[verify-dev-kit] request — email_len:', email?.length, 'pw_len:', password?.length, 'totp_len:', totp?.length, 'pw_empty:', !password);
 
     if (!email || !password) {
       return new Response(
@@ -213,7 +220,9 @@ Deno.serve(async (req) => {
       );
     }
 
+    console.log('[verify-dev-kit] password check — submitted_len:', password.trim().length, 'stored_len:', SECRET_PASSWORD.length);
     const isPasswordValid = await hmacPasswordEqual(password.trim(), SECRET_PASSWORD);
+    console.log('[verify-dev-kit] password valid:', isPasswordValid);
     if (!isPasswordValid) {
       await recordFailedAttempt(lockKey);
       const newLockoutStatus = await getLockoutStatus(lockKey);
