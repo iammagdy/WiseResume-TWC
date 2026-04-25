@@ -157,8 +157,6 @@ Deno.serve(async (req) => {
 
   try {
     const { email, password, totp, rememberMe } = await req.json();
-    console.log('[verify-dev-kit] request — email_len:', email?.length, 'pw_len:', password?.length, 'totp_len:', totp?.length, 'pw_empty:', !password);
-
     if (!email || !password) {
       return new Response(
         JSON.stringify({ error: "Email and password are required" }),
@@ -220,9 +218,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log('[verify-dev-kit] password check — submitted_len:', password.trim().length, 'stored_len:', SECRET_PASSWORD.length);
     const isPasswordValid = await hmacPasswordEqual(password.trim(), SECRET_PASSWORD);
-    console.log('[verify-dev-kit] password valid:', isPasswordValid);
     if (!isPasswordValid) {
       await recordFailedAttempt(lockKey);
       const newLockoutStatus = await getLockoutStatus(lockKey);
@@ -239,10 +235,7 @@ Deno.serve(async (req) => {
         );
       }
       return new Response(
-        JSON.stringify({
-          success: false,
-          _dbg: { sl: password.trim().length, kl: SECRET_PASSWORD.length },
-        }),
+        JSON.stringify({ success: false }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -256,9 +249,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log('[verify-dev-kit] password ok — checking TOTP, totp_len:', totp.trim().length, 'secret_b32_len:', ADMIN_TOTP_SECRET.length);
     const isTotpValid = await verifyTotp(ADMIN_TOTP_SECRET, totp.trim());
-    console.log('[verify-dev-kit] totp valid:', isTotpValid);
     if (!isTotpValid) {
       await recordFailedAttempt(lockKey);
       const newLockoutStatus = await getLockoutStatus(lockKey);
