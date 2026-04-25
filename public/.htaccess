@@ -67,6 +67,12 @@ RewriteRule ^ index.html [QSA,L]
   AddType text/css .css
   AddType image/svg+xml .svg
   AddType application/json .json
+  # PDF.js + Tesseract.js bundled assets (Task #17). Without these,
+  # Hostinger serves them as text/html which breaks WASM streaming
+  # compilation and Tesseract's traineddata loader.
+  AddType application/wasm .wasm
+  AddType application/octet-stream .bcmap .traineddata
+  AddEncoding gzip .gz
 </IfModule>
 
 # Compression for faster initial load

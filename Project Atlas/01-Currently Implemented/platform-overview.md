@@ -40,7 +40,7 @@ The landing page (`/`) shows both via a "For Job Seekers" / "For Companies" togg
 | Database | Supabase Postgres + RLS on every table | `supabase/migrations/`, `src/integrations/supabase/types.ts` |
 | Backend | Supabase Edge Functions (Deno) — 93 functions | `supabase/functions/` |
 | AI | 8-step routing chain across 9 providers w/ BYOK | `supabase/functions/_shared/aiClient.ts` |
-| Voice | ElevenLabs Scribe + browser Web Speech API | `supabase/functions/elevenlabs-scribe-token/` |
+| Voice | _Removed_ — Interview Coach voice path retired; `useVoiceInterview.ts` is a stub. The `elevenlabs-scribe-token` edge function was deleted 2026-04-24 (Task #21). | `src/hooks/useVoiceInterview.ts` |
 | Mobile | Capacitor 8 PWA wrapper | `capacitor.config.ts` |
 | Hosting | Hostinger (frontend) + Supabase (backend) | `.github/workflows/deploy.yml` |
 

@@ -1,8 +1,24 @@
 [
   {
-    "version": "v3.6.0",
+    "version": "v3.6.1",
     "date": "Apr 24, 2026",
     "latest": true,
+    "summary": "Fixed PDF upload on iPhone and made OCR work fully offline.",
+    "items": [
+      {
+        "title": "PDF upload now works on iPhone Safari and Chrome",
+        "description": "Uploading a resume from an iPhone (Create New Resume → Upload PDF) used to fail with a 'Please check your connection' error and the OCR fallback also failed. WiseResume now bundles the PDF reader's font and character-map files alongside the app, so iOS can read embedded-font PDFs the same way desktop browsers do. Desktop and Android upload flows are unchanged."
+      },
+      {
+        "title": "OCR (image-based PDFs and scans) works without a third-party CDN",
+        "description": "The OCR engine, its WebAssembly modules, and the English language data are now served directly from resume.thewise.cloud instead of an external CDN. This means OCR works inside the strict security policy of the live site, no longer triggers the connection-error toast, and starts up faster on slow networks."
+      }
+    ]
+  },
+  {
+    "version": "v3.6.0",
+    "date": "Apr 24, 2026",
+    "latest": false,
     "summary": "Maintenance release. No user-facing app changes — internal admin tooling and security hardening only.",
     "items": [
       {

@@ -1,0 +1,35 @@
+name: Check Edge Functions Are Deployed
+
+# Catch source/deployment drift before users hit a missing endpoint:
+# any edge function that exists in supabase/functions/ but has not been
+# deployed to the project causes this job to fail with an actionable error.
+#
+# Uses the existing SUPABASE_ACCESS_TOKEN secret (Management API).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - 'supabase/functions/**'
+      - 'scripts/check-edge-functions-deployed.mjs'
+      - '.github/workflows/check-edge-functions-deployed.yml'
+  workflow_dispatch:
+
+jobs:
+  check-deployed:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Compare local edge functions against deployed project
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+        run: node scripts/check-edge-functions-deployed.mjs

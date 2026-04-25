@@ -279,9 +279,9 @@ After Task #13, the deployed edge-function set on project `jnsfmkzgxsviuthaqlyy`
 
 Reconciled functions and their disposition:
 - **Disk-only → DEPLOYED (3):**
-  - `admin-migrate-api-key-encryption` — kept; deployed and used to migrate the single legacy v1 BYOK row (gemini provider, user `58b8cbc6-…`) to v2. Audit row `action=migrated, from_version=1, to_version=2` recorded in `ai_key_migration_audit`.
-  - `admin-backfill-ollama-urls` — kept; deployed. Smoke-tested with valid DevKit token (`scanned=0, dry_run=true`). Useful future admin tool if Ollama URL safety rules change.
-  - `admin-revoke-devkit-sessions` — kept; deployed. Smoke-tested with valid DevKit token (`{all:true}` → `revoked_count=1`). No frontend button currently calls it (despite Task #13 description suggesting one); kept anyway because it's the canonical panic-revoke for `admin_sessions` and intentional per the AUTH-5 thread.
+  - `admin-migrate-api-key-encryption` — deployed and used to migrate the single legacy v1 BYOK row (gemini provider, user `58b8cbc6-…`) to v2. Audit row `action=migrated, from_version=1, to_version=2` recorded in `ai_key_migration_audit`. **Later DELETED on 2026-04-24 (Task #21)** — source disappeared from disk, migration was already complete, zero v1 rows remain.
+  - `admin-backfill-ollama-urls` — deployed. Smoke-tested with valid DevKit token (`scanned=0, dry_run=true`). **Later DELETED on 2026-04-24 (Task #21)** — source disappeared from disk; re-implement fresh if Ollama URL safety rules change.
+  - `admin-revoke-devkit-sessions` — deployed. Smoke-tested with valid DevKit token (`{all:true}` → `revoked_count=1`). No frontend button currently calls it (despite Task #13 description suggesting one); kept anyway because it's the canonical panic-revoke for `admin_sessions` and intentional per the AUTH-5 thread.
 - **Deployed-only → DELETED (4):** all four are confirmed orphans per `BACKEND_AUDIT.md` / `EDGE_FUNCTION_AUDIT.md` / Task #13 brief and have zero client/CI references.
   - `generate-store-screenshots` — deleted from Supabase deployment.
   - `send-contact-inquiry` — deleted (UI uses `send-contact-email`).
@@ -291,3 +291,14 @@ Reconciled functions and their disposition:
 `user_api_keys` constraint state: `user_api_keys_key_version_v2_only` is **VALIDATED** (`pg_constraint.convalidated = true`); 0 rows with `key_version <> 2`.
 
 One-shot helper: a temporary `task13-bridge` edge function was deployed solely to mint a DevKit session token from inside the Edge runtime (since `DEV_KIT_PASSWORD` is only available to deployed Deno code). It was gated by a one-time `TASK13_BRIDGE_SECRET` Supabase secret, used for two token mints (one for the production migration, one for smoke tests against the two newly-deployed admin helpers), and then deleted along with the secret and the issued `admin_sessions` rows (revoked_at set). The bridge is NOT in the repo and NOT in `supabase/config.toml`.
+
+### Edge Function Orphan Cleanup (Operator Note — added 2026-04-24, Task #21)
+Task #20 added `npm run check:functions:deployed` warning lists for "deployed but no source directory" orphans. Task #21 cleared those: 5 functions were deleted from the Supabase deployment via `DELETE /v1/projects/{ref}/functions/{slug}` because their source directories no longer existed in `supabase/functions/` and they had zero callers in `src/` / `server/`:
+
+- `admin-backfill-ollama-urls` — was kept after Task #13 but source later disappeared; only ever smoke-tested at `scanned=0`. Re-implement fresh if needed.
+- `admin-migrate-api-key-encryption` — one-shot v1→v2 BYOK key migration, completed 2026-04-21. Constraint `user_api_keys_key_version_v2_only` is VALIDATED; zero v1 rows remain. The runbook in `docs/ops/api-key-encryption-rotation.md` is now historical.
+- `ai-breaker-status` — Phase 4 admin observability stub. Never wired into the AI Provider panel (the panel polls `/api/admin/ai-provider/openrouter-status` etc.). No callers, no source on disk, not in git history.
+- `elevenlabs-scribe-token` — Interview Coach voice path was removed; `src/hooks/useVoiceInterview.ts` is now a stub. Source still in git history.
+- `generate-headshot` — "AI Professional Headshot" feature was never shipped (`AvatarCropSheet.tsx` shows a "coming soon" toast). Source still in git history.
+
+After deletion, deployed count dropped from 98 to 93. `npm run check:functions:deployed` reports zero "deployed but no source directory" warnings — verification log captured at `.local/evidence/task-21-check-functions-deployed.log`. Full removal log lives in `Project Atlas/01-Currently Implemented/critical-systems/08-deployment.md`.

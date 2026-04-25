@@ -44,6 +44,15 @@ fi
 echo "Deploying all edge functions to project $PROJECT_REF (parallel=$PARALLEL)..."
 echo ""
 
+# Pre-warm the npx supabase CLI cache with a single no-op invocation so that
+# the subsequent parallel deploys all find the binary already installed. Without
+# this, concurrent npx installs race on the same cache directory and crash with
+# ENOTEMPTY / rename errors.
+if ! command -v supabase &>/dev/null; then
+  echo "Warming npx supabase cache..."
+  npx supabase --version &>/dev/null || true
+fi
+
 LIST_FILE=$(mktemp)
 trap 'rm -f "$LIST_FILE"' EXIT
 
@@ -60,7 +69,7 @@ trap 'rm -f "$LIST_FILE" "$RESULT_FILE"' EXIT
 deploy_one() {
   local fn="$1"
   local log
-  log=$(npx supabase functions deploy "$fn" --project-ref "$PROJECT_REF" --use-api 2>&1)
+  log=$(npx supabase functions deploy "$fn" --project-ref "$PROJECT_REF" 2>&1)
   if [ $? -eq 0 ] && echo "$log" | grep -q "Deployed Functions on project"; then
     echo "  OK   $fn"
     echo "OK $fn" >> "$RESULT_FILE"
@@ -73,10 +82,12 @@ export -f deploy_one
 export PROJECT_REF RESULT_FILE
 
 TOTAL=$(wc -l < "$LIST_FILE")
-cat "$LIST_FILE" | xargs -P "$PARALLEL" -n 1 -I {} bash -c 'deploy_one "$@"' _ {}
+xargs -P "$PARALLEL" -I {} bash -c 'deploy_one "$@"' _ {} < "$LIST_FILE"
 
-OK=$(grep -c "^OK " "$RESULT_FILE" 2>/dev/null || echo 0)
-FAILED=$(grep -c "^FAIL " "$RESULT_FILE" 2>/dev/null || echo 0)
+OK=$(grep -c "^OK " "$RESULT_FILE" 2>/dev/null || true)
+FAILED=$(grep -c "^FAIL " "$RESULT_FILE" 2>/dev/null || true)
+OK=${OK:-0}
+FAILED=${FAILED:-0}
 
 echo ""
 echo "Summary: $OK/$TOTAL deployed, $FAILED failed."

@@ -38,7 +38,7 @@ You MUST NEVER assume outdated documentation (such as files in `legacy-docs/enha
 
 **Rule C — Orphan Function Retention**: `fetch-github-projects` was an intentionally retained orphan pending UI wiring (a "Sync GitHub" button in portfolio settings). **Status (2026-04-23 audit):** the function directory is no longer present under `supabase/functions/`. The retention rule is **suspended pending owner sign-off** — see `AUDIT-2026-04.md` (item A1). Until the owner confirms the wiring task is cancelled (in which case this rule should be deleted) or restores the function (in which case it must be re-deployed), no new orphan function may be added under this rule.
 
-**Rule D — Voice Pipeline Change Protocol**: The interview coaching voice pipeline has three sequential dependent layers: ElevenLabs Scribe STT → Gemma LLM (`interview-chat`) → browser `speechSynthesis` TTS. Any modification to `interview-chat`, `elevenlabs-scribe-token`, or the Web Speech API fallback path in `useVoiceInterview.ts` MUST be validated end-to-end across all three layers simultaneously before merging. Layer-by-layer testing in isolation is insufficient.
+**Rule D — Voice Pipeline Change Protocol**: ~~The interview coaching voice pipeline has three sequential dependent layers: ElevenLabs Scribe STT → Gemma LLM (`interview-chat`) → browser `speechSynthesis` TTS. Any modification to `interview-chat`, `elevenlabs-scribe-token`, or the Web Speech API fallback path in `useVoiceInterview.ts` MUST be validated end-to-end across all three layers simultaneously before merging. Layer-by-layer testing in isolation is insufficient.~~ **Rule retired 2026-04-24 (Task #21):** the interview voice path was removed (`useVoiceInterview.ts` is now a stub) and the `elevenlabs-scribe-token` edge function was deleted from the deployment. If voice is re-introduced, write a fresh protocol against the actual replacement pipeline.
 
 ---
 
@@ -239,7 +239,7 @@ All edge functions live in `supabase/functions/`. See also `supabase/functions/E
 | `generate-resignation-letter` | Professional resignation letter |
 | `generate-portfolio-bio` | AI bio for public portfolio |
 | `generate-question-bank` | Interview questions for a specific role |
-| `generate-headshot` | AI-generated professional headshot |
+| ~~`generate-headshot`~~ | _Removed 2026-04-24 (Task #21)._ "AI Professional Headshot" feature was never shipped (`AvatarCropSheet.tsx` shows a "coming soon" toast). Source still in git history. |
 | `detect-and-humanize` | AI detection + humanization suggestions |
 | `optimize-for-linkedin` | Reformat resume for LinkedIn |
 | `company-briefing` | Company research brief for interview prep |
@@ -262,7 +262,7 @@ All edge functions live in `supabase/functions/`. See also `supabase/functions/E
 |----------|---------|
 | `interview-chat` | AI interview session: questions, answers, scoring |
 | `recruiter-simulation` | Simulates an AI recruiter in an interview |
-| `elevenlabs-scribe-token` | Issues secure tokens for ElevenLabs voice-to-text |
+| ~~`elevenlabs-scribe-token`~~ | _Removed 2026-04-24 (Task #21)._ Interview voice path retired; `useVoiceInterview.ts` is now a stub. Source still in git history. |
 
 ### Portfolio & Public
 | Function | Purpose |
@@ -445,22 +445,22 @@ Returns `{ content: string, providerUsed: string, fallbackUsed: boolean }`.
 
 ### Voice Interview Pipeline
 
-The interview coaching feature (`interview-chat` + `useVoiceInterview.ts`) is the most architecturally complex AI flow on the platform. It has three sequential dependent layers — a failure in any layer breaks the whole pipeline.
+> **Removed 2026-04-24 (Task #21).** The interview voice path was retired; `src/hooks/useVoiceInterview.ts` is now a stub returning a no-op interface, and the `elevenlabs-scribe-token` edge function was deleted from the deployment. The historical pipeline diagram is preserved below for reference.
 
 ```
 User speech
-  → [STT] ElevenLabs Scribe  (token from `elevenlabs-scribe-token` edge fn)
+  → [STT] ElevenLabs Scribe  (token from `elevenlabs-scribe-token` edge fn — now deleted)
        ↓  (fallback: browser Web Speech API)
   → [LLM] `interview-chat` edge fn  (Gemma 4 via `callAI`)
        ↓
   → [TTS] browser `speechSynthesis`  (reads AI response aloud)
 ```
 
-**Fallback path**: When ElevenLabs is unavailable or the user's browser cannot obtain a Scribe token, `useVoiceInterview.ts` falls back to the browser's native Web Speech API for STT. TTS always uses `speechSynthesis` (no ElevenLabs TTS dependency).
+**Fallback path (historical)**: When ElevenLabs was unavailable or the user's browser could not obtain a Scribe token, `useVoiceInterview.ts` fell back to the browser's native Web Speech API for STT. TTS always used `speechSynthesis` (no ElevenLabs TTS dependency).
 
 **Scoring**: The LLM returns a score (1–10), actionable tips, and an "improved answer" for every user response.
 
-**Change protocol (Rule D)**: Any modification to any of these three layers must be validated end-to-end before merging. See Rule D in Section 2.
+**Change protocol (Rule D)**: ~~Any modification to any of these three layers must be validated end-to-end before merging.~~ Rule D was retired 2026-04-24 (Task #21) when this pipeline was removed. See Rule D in Section 2.
 
 ### Key Frontend AI Hooks
 
