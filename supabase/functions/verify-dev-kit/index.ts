@@ -1,7 +1,6 @@
 // verify-dev-kit: Issues a revocable admin DevKit session token.
-// Auth: email ∈ ADMIN_EMAILS + DevKit password + TOTP code verified directly
-// against ADMIN_TOTP_SECRET (HMAC-SHA1, RFC 6238, 30-second window ±1).
-// No Supabase account password or AAL2 session required.
+// Auth: email ∈ ADMIN_EMAILS + DevKit password (DEV_KIT_PASSWORD).
+// No TOTP / authenticator app required.
 import { getServiceClient } from '../_shared/dbClient.ts';
 
 const corsHeaders = {
@@ -15,57 +14,6 @@ const MAX_FAILURES = 5;
 const LOCKOUT_DURATION_SECONDS = 10 * 60;
 const SESSION_TTL_HOURS = 8;
 const SESSION_TTL_REMEMBER_DAYS = 30;
-
-// ---------- TOTP (RFC 6238 / HOTP RFC 4226) ----------
-
-function base32Decode(input: string): Uint8Array {
-  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
-  const str = input.toUpperCase().replace(/=+$/, '').replace(/\s/g, '');
-  let bits = 0;
-  let value = 0;
-  let idx = 0;
-  const output = new Uint8Array(Math.floor((str.length * 5) / 8));
-  for (const char of str) {
-    const pos = alphabet.indexOf(char);
-    if (pos < 0) continue;
-    value = (value << 5) | pos;
-    bits += 5;
-    if (bits >= 8) {
-      output[idx++] = (value >>> (bits - 8)) & 0xff;
-      bits -= 8;
-    }
-  }
-  return output.slice(0, idx);
-}
-
-async function hotpCode(secret: Uint8Array, counter: bigint): Promise<string> {
-  const buf = new ArrayBuffer(8);
-  const view = new DataView(buf);
-  view.setBigUint64(0, counter, false);
-  const key = await crypto.subtle.importKey(
-    'raw', secret, { name: 'HMAC', hash: 'SHA-1' }, false, ['sign']
-  );
-  const sig = await crypto.subtle.sign('HMAC', key, buf);
-  const bytes = new Uint8Array(sig);
-  const offset = bytes[19] & 0x0f;
-  const code =
-    (((bytes[offset] & 0x7f) << 24) |
-      (bytes[offset + 1] << 16) |
-      (bytes[offset + 2] << 8) |
-      bytes[offset + 3]) %
-    1_000_000;
-  return code.toString().padStart(6, '0');
-}
-
-async function verifyTotp(secretB32: string, userCode: string): Promise<boolean> {
-  const secret = base32Decode(secretB32);
-  const counter = BigInt(Math.floor(Date.now() / 1000 / 30));
-  for (const delta of [-1n, 0n, 1n]) {
-    const expected = await hotpCode(secret, counter + delta);
-    if (expected === userCode.trim()) return true;
-  }
-  return false;
-}
 
 // ---------- Session token ----------
 
@@ -106,7 +54,7 @@ async function getLockoutStatus(lockKey: string): Promise<{ locked: boolean; ret
   const { data: failRows, error } = await supabase
     .from('rpc_rate_limits')
     .select('created_at')
-    .eq('user_id', lockKey)
+    .eq('ip_address', lockKey)
     .eq('endpoint', 'devkit-login-fail')
     .gte('created_at', windowStart)
     .order('created_at', { ascending: false });
@@ -126,9 +74,12 @@ async function getLockoutStatus(lockKey: string): Promise<{ locked: boolean; ret
 
 async function recordFailedAttempt(lockKey: string): Promise<void> {
   const supabase = getServiceClient();
-  await supabase
+  const { error } = await supabase
     .from('rpc_rate_limits')
-    .insert({ user_id: lockKey, endpoint: 'devkit-login-fail', ip_address: 'devkit:login' });
+    .insert({ user_id: null, endpoint: 'devkit-login-fail', ip_address: lockKey });
+  if (error) {
+    console.error('[verify-dev-kit] recordFailedAttempt insert error:', error.message);
+  }
 }
 
 function clientIp(req: Request): string | null {
@@ -150,8 +101,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { email, password, totp, rememberMe } = await req.json();
-
+    const { email, password, rememberMe } = await req.json();
     if (!email || !password) {
       return new Response(
         JSON.stringify({ error: "Email and password are required" }),
@@ -164,15 +114,6 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ error: "DEV_KIT_PASSWORD secret is not configured." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const ADMIN_TOTP_SECRET = Deno.env.get("ADMIN_TOTP_SECRET")?.trim();
-    if (!ADMIN_TOTP_SECRET) {
-      // Return 200 so the structured payload reaches the frontend's data field, not error.
-      return new Response(
-        JSON.stringify({ success: false, reason: "totp_secret_missing", error: "ADMIN_TOTP_SECRET secret is not configured." }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -231,37 +172,6 @@ Deno.serve(async (req) => {
       }
       return new Response(
         JSON.stringify({ success: false }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Verify TOTP code directly against ADMIN_TOTP_SECRET
-    if (!totp || typeof totp !== 'string' || totp.trim().length !== 6) {
-      await recordFailedAttempt(lockKey);
-      return new Response(
-        JSON.stringify({ success: false, reason: "mfa_required", error: "A 6-digit authenticator code is required." }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const isTotpValid = await verifyTotp(ADMIN_TOTP_SECRET, totp.trim());
-    if (!isTotpValid) {
-      await recordFailedAttempt(lockKey);
-      const newLockoutStatus = await getLockoutStatus(lockKey);
-      if (newLockoutStatus.locked) {
-        return new Response(
-          JSON.stringify({
-            success: false,
-            locked: true,
-            retry_after_seconds: newLockoutStatus.retry_after_seconds,
-            locked_until: newLockoutStatus.locked_until,
-            error: "Too many failed attempts. Please wait before trying again.",
-          }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      return new Response(
-        JSON.stringify({ success: false, reason: "invalid_totp", error: "Invalid authenticator code — try again." }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
