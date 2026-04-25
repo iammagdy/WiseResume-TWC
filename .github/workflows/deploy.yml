@@ -62,10 +62,21 @@ jobs:
         run: sudo apt-get install -y lftp
 
       - name: Pre-flight connectivity probe
-        # Fast TCP check on both FTP ports before burning time on lftp.
-        # curl is used for both: non-zero exit = unreachable/timeout.
-        # Results are informational only — the deploy step still decides
-        # which transport to use based on its own retries.
+        # Fast TCP-level reachability check on both FTP ports before
+        # burning 14+ minutes on lftp. If both ports fail to even open
+        # a TCP connection, the runner's Azure IP has been blocked by
+        # Hostinger's perimeter firewall — fail fast so the auto-retry
+        # workflow (auto-retry-deploy.yml) can re-run on a fresh runner
+        # with a different IP.
+        #
+        # WHY bash /dev/tcp INSTEAD OF curl ftp://:
+        # `curl ftp://host` performs a full FTP login (anonymous USER),
+        # which Hostinger refuses — that gave false negatives even on
+        # runs where the deploy ultimately succeeded. A bare TCP SYN
+        # via /dev/tcp tells us only one thing: did the firewall let
+        # the connection through? That is exactly the signal we need.
+        # We probe twice per port with a short sleep to absorb
+        # one-off network blips.
         #
         # NOTE: We use the FTP server's IP address (82.29.154.120) directly
         # rather than the website hostname (thewise.cloud). The hostname
@@ -79,28 +90,38 @@ jobs:
           runner_ip=$(curl -s --connect-timeout 5 --max-time 5 https://api.ipify.org 2>/dev/null || echo "unknown")
           echo "Runner IP: ${runner_ip}"
 
-          echo "Probing ${FTP_HOST}:21 (explicit FTPS)..."
-          if curl --silent --connect-timeout 5 --max-time 5 \
-               "ftp://${FTP_HOST}:21" -o /dev/null 2>/dev/null; then
-            echo "✅ Port 21: reachable"
+          probe_tcp() {
+            local port="$1"
+            for try in 1 2; do
+              if timeout 5 bash -c "exec 3<>/dev/tcp/${FTP_HOST}/${port}" 2>/dev/null; then
+                return 0
+              fi
+              [ "$try" = "1" ] && sleep 2
+            done
+            return 1
+          }
+
+          echo "Probing ${FTP_HOST}:21 (explicit FTPS, TCP-only)..."
+          if probe_tcp 21; then
+            echo "✅ Port 21: TCP open"
             PORT21="open"
           else
-            echo "⚠️  Port 21: unreachable or timed out"
+            echo "❌ Port 21: TCP connection refused or timed out"
             PORT21="closed"
           fi
 
-          echo "Probing ${FTP_HOST}:990 (implicit FTPS)..."
-          if curl --silent --connect-timeout 5 --max-time 5 --insecure \
-               "ftps://${FTP_HOST}:990" -o /dev/null 2>/dev/null; then
-            echo "✅ Port 990: reachable"
+          echo "Probing ${FTP_HOST}:990 (implicit FTPS, TCP-only)..."
+          if probe_tcp 990; then
+            echo "✅ Port 990: TCP open"
             PORT990="open"
           else
-            echo "⚠️  Port 990: unreachable or timed out"
+            echo "❌ Port 990: TCP connection refused or timed out"
             PORT990="closed"
           fi
 
           if [ "${PORT21}" = "closed" ] && [ "${PORT990}" = "closed" ]; then
-            echo "::warning::Both FTP ports appear unreachable from runner IP ${runner_ip}. Deploy will still be attempted — probes can give false negatives behind NAT."
+            echo "::error::Both FTP ports are TCP-unreachable from runner IP ${runner_ip}. Hostinger's perimeter firewall has blocked this Azure runner IP. Failing fast so auto-retry-deploy.yml can re-run on a fresh runner (different IP). No time wasted on lftp retries — they would all time out the same way."
+            exit 1
           fi
 
       - name: Deploy to Hostinger via FTPS
