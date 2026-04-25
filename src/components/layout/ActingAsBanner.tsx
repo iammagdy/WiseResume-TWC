@@ -43,7 +43,7 @@ export function ActingAsBanner() {
     if (!state.active || !state.expiresAt) return;
     const msLeft = state.expiresAt - Date.now();
     if (msLeft <= 0) {
-      exitImpersonation();
+      void callExit(state.userId).finally(() => exitImpersonation());
       return;
     }
     const timer = setTimeout(async () => {
