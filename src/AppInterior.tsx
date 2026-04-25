@@ -21,6 +21,7 @@ import { useSuspensionCheck } from "@/hooks/useSuspensionCheck";
 import { SuspendedScreen } from "@/components/layout/SuspendedScreen";
 import { MaintenanceScreen } from "@/components/layout/MaintenanceScreen";
 import { AnnouncementBanner } from "@/components/layout/AnnouncementBanner";
+import { ActingAsBanner } from "@/components/layout/ActingAsBanner";
 import { useAppSettings } from "@/hooks/useAppSettings";
 import { useAuth } from "@/hooks/useAuth";
 import { isAppHostname, usePublicPortfolioByDomain } from "@/hooks/usePublicPortfolio";
@@ -649,6 +650,7 @@ const AppInterior = () => {
   return (
     <>
       <Toaster />
+      <ActingAsBanner />
       <KindeProvider
         clientId={KINDE_CLIENT_ID ?? ''}
         domain={KINDE_DOMAIN ?? ''}

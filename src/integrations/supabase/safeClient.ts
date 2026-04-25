@@ -10,6 +10,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabaseConstants';
 import { getToken, refreshTokenIfNeeded } from '@/lib/supabaseBridge';
+import { getImpersonationToken } from '@/lib/impersonationStore';
 import { dispatchSessionExpiredOnce } from './sessionExpired';
 
 /**
@@ -68,10 +69,16 @@ export const supabase: SupabaseClient<Database> = createClient<Database>(
         return fetch(url, init);
       };
 
-      const response = await doFetch(getToken());
+      const impersonationToken = getImpersonationToken();
+      const response = await doFetch(impersonationToken ?? getToken());
 
       // On 401 OR a PostgREST JWT-rejection error (PGRST301/PGRST302/PGRST303),
       // the bridge token is unusable even if its local expiry hasn't fired.
+      // Skip auto-refresh when impersonating — the impersonation token cannot
+      // be refreshed via the standard bridge and a 401 likely means the session
+      // was revoked server-side.
+      if (impersonationToken) return response;
+
       // Force-refresh the bridge and retry once before surfacing the failure.
       const needsRetry = await shouldForceRefresh(response);
       if (needsRetry) {

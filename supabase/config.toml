@@ -190,3 +190,5 @@ project_id = "jnsfmkzgxsviuthaqlyy"
     verify_jwt = false
   [functions.admin-feature-flags]
     verify_jwt = false
+  [functions.admin-impersonate]
+    verify_jwt = false

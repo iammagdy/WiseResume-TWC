@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { RefreshCw, Search, Users, Download, Filter, ChevronDown, CheckSquare, Square, X, Crown, ShieldOff, Shield, Zap, AlertTriangle, CheckCircle2, XCircle } from 'lucide-react';
+import { RefreshCw, Search, Users, Download, Filter, ChevronDown, CheckSquare, Square, X, Crown, ShieldOff, Shield, Zap, AlertTriangle, CheckCircle2, XCircle, UserCog } from 'lucide-react';
 import { AccountTypeBadge } from './DevKitBadges';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { useIsMounted } from '@/lib/devkit/hooks';
 import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
+import { startImpersonation } from '@/lib/impersonationStore';
 import {
   Dialog,
   DialogContent,
@@ -393,6 +394,34 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
     }
     handleUserUpdated();
   };
+
+  const [impersonatingId, setImpersonatingId] = useState<string | null>(null);
+
+  const handleImpersonate = useCallback(async (user: AdminUser, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setImpersonatingId(user.user_id);
+    try {
+      const tuple = await edgeFunctions.functions.invoke('admin-impersonate', {
+        headers: devKitAuthHeaders(),
+        body: { action: 'start', target_user_id: user.user_id },
+      });
+      const result = unwrapAdminResponse<{
+        access_token: string;
+        user_id: string;
+        email: string;
+        expires_at: number;
+      }>(tuple, 'admin-impersonate');
+      startImpersonation(result.access_token, result.user_id, result.email, result.expires_at);
+      toast.success(`Now acting as ${result.email}`, {
+        description: 'Impersonation session starts. Click "Exit" in the top banner to end it.',
+        duration: 6000,
+      });
+    } catch (err) {
+      toast.error('Impersonation failed', { description: formatEdgeError(err, 'Could not start session') });
+    } finally {
+      if (isMounted()) setImpersonatingId(null);
+    }
+  }, [isMounted]);
 
   const [exportingCSV, setExportingCSV] = useState(false);
 
@@ -806,14 +835,30 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
                             {formatDate(user.last_sign_in_at)}
                           </td>
                           <td className="px-4 py-3 text-right">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-7 text-xs"
-                              onClick={(e) => { e.stopPropagation(); setSelectedUser(user); }}
-                            >
-                              Manage
-                            </Button>
+                            <div className="flex items-center justify-end gap-1.5">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-xs gap-1"
+                                disabled={impersonatingId === user.user_id}
+                                onClick={(e) => handleImpersonate(user, e)}
+                                title="Impersonate this user"
+                              >
+                                {impersonatingId === user.user_id
+                                  ? <RefreshCw className="w-3 h-3 animate-spin" />
+                                  : <UserCog className="w-3 h-3" />
+                                }
+                                <span className="hidden sm:inline">Act as</span>
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-xs"
+                                onClick={(e) => { e.stopPropagation(); setSelectedUser(user); }}
+                              >
+                                Manage
+                              </Button>
+                            </div>
                           </td>
                         </tr>
                       );
