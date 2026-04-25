@@ -107,7 +107,7 @@ async function hotpCode(secret: Uint8Array, counter: bigint): Promise<string> {
 async function verifyTotp(secretB32: string, userCode: string): Promise<boolean> {
   const secret = base32Decode(secretB32);
   const counter = BigInt(Math.floor(Date.now() / 1000 / 30));
-  for (const delta of [-1n, 0n, 1n]) {
+  for (const delta of [-2n, -1n, 0n, 1n, 2n]) {
     const expected = await hotpCode(secret, counter + delta);
     if (expected === userCode.trim()) return true;
   }
