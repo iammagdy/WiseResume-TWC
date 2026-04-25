@@ -1,5 +1,19 @@
 # BYOK API Key Encryption — Migration & Rotation Runbook
 
+> **HISTORICAL — 2026-04-24, Task #21.** The `admin-migrate-api-key-encryption`
+> edge function this runbook depends on has been **deleted** from the Supabase
+> deployment. The v1 → v2 backfill it performed is complete (the only legacy
+> row was migrated 2026-04-21, and the `user_api_keys_key_version_v2_only`
+> CHECK constraint is now VALIDATED with zero rows of `key_version <> 2`).
+>
+> Part 1 below is preserved as a record of the procedure that was actually
+> run. Part 2 (future master-secret rotation to v3) is still valid as a
+> recipe, but the operator MUST first re-implement an
+> `admin-migrate-api-key-encryption-v3` (or similar) edge function from the
+> v1→v2 spec — the original source is **not** in git history.
+
+---
+
 This runbook covers two operational procedures for `public.user_api_keys`:
 
 1. **Initial v1 → v2 backfill** (one-shot, AI-2). Re-encrypts every legacy

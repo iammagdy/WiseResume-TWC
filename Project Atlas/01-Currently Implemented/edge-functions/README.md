@@ -3,7 +3,7 @@
   **Last verified:** 2026-04-18
   **Type:** index
   **Sources:**
-  - `supabase/functions/` (94 deployed functions — 93 per `CHANGELOG.md` 2026-04-15 plus `ai-breaker-status` added by Phase 4 of the 2026-Q2 stability initiative)
+  - `supabase/functions/` (93 deployed functions as of 2026-04-24, after Task #21 removed 5 orphans — `admin-backfill-ollama-urls`, `admin-migrate-api-key-encryption`, `ai-breaker-status`, `elevenlabs-scribe-token`, `generate-headshot`. See `../critical-systems/08-deployment.md` → "Orphan removal log".)
   - `project-governance/ARCHITECTURE.md` §7 (Edge Functions inventory)
   - `supabase/functions/EDGE_FUNCTION_AUDIT.md` (when available)
 
@@ -56,10 +56,9 @@
 - [wisehire-waitlist-join](./wisehire-waitlist-join.md)
 - [wisehire-write-jd](./wisehire-write-jd.md)
 
-## AI (27)
+## AI (25)
 
 - [agentic-chat](./agentic-chat.md)
-- [ai-breaker-status](./ai-breaker-status.md)
 - [ai-health](./ai-health.md)
 - [ai-test](./ai-test.md)
 - [analyze-resume](./analyze-resume.md)
@@ -71,7 +70,6 @@
 - [enhance-section](./enhance-section.md)
 - [explain-gap](./explain-gap.md)
 - [generate-cover-letter](./generate-cover-letter.md)
-- [generate-headshot](./generate-headshot.md)
 - [generate-portfolio-bio](./generate-portfolio-bio.md)
 - [generate-question-bank](./generate-question-bank.md)
 - [generate-resignation-letter](./generate-resignation-letter.md)
@@ -117,9 +115,8 @@
 - [hard-purge](./hard-purge.md)
 - [score-resume](./score-resume.md)
 
-## Other (12)
+## Other (11)
 
-- [elevenlabs-scribe-token](./elevenlabs-scribe-token.md)
 - [fill-gap](./fill-gap.md)
 - [interview-chat](./interview-chat.md)
 - [one-page-optimizer](./one-page-optimizer.md)

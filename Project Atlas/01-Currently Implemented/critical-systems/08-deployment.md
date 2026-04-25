@@ -83,6 +83,26 @@ The same script runs in three places:
 
 **When the check fails:** run the "Deploy Supabase Edge Functions" workflow (or `bash scripts/deploy-functions.sh` from Replit, where `SUPABASE_ACCESS_TOKEN` is already a secret), then re-run the check to confirm.
 
+### Orphan removal log
+
+Functions deleted from the Supabase deployment because they had no source-of-truth code in `supabase/functions/`. Each was confirmed unused before deletion (no callers in `src/`, `server/`, or other edge functions; one-shot operational migrations were complete). Deletes were performed via `DELETE /v1/projects/{ref}/functions/{slug}` against the Management API.
+
+| Date | Function | Why removed |
+|---|---|---|
+| 2026-04-21 (Task #13) | `generate-store-screenshots` | Orphan per `BACKEND_AUDIT.md` / `EDGE_FUNCTION_AUDIT.md`; zero client/CI references. |
+| 2026-04-21 (Task #13) | `send-contact-inquiry` | Superseded by `send-contact-email` (UI uses that). |
+| 2026-04-21 (Task #13) | `send-feature-request` | Superseded by `send-contact-email`. |
+| 2026-04-21 (Task #13) | `wisehire-apply` | Superseded by `wisehire-bulk-screen` + direct candidate insertion. |
+| 2026-04-24 (Task #21) | `admin-backfill-ollama-urls` | One-shot admin tool; smoke-tested at `scanned=0`; no source on disk and zero callers. Re-implement fresh if Ollama URL safety rules change. |
+| 2026-04-24 (Task #21) | `admin-migrate-api-key-encryption` | One-shot v1→v2 BYOK key migration; completed for the only legacy row on 2026-04-21 (constraint `user_api_keys_key_version_v2_only` is VALIDATED, zero rows with `key_version <> 2`). The runbook in `docs/ops/api-key-encryption-rotation.md` is now historical — re-implement from spec if a future rotation is required. |
+| 2026-04-24 (Task #21) | `ai-breaker-status` | Phase 4 admin observability stub (read-only breaker state). Never wired into the AI Provider panel — the panel polls `/api/admin/ai-provider/openrouter-status` etc., not this function. Zero callers in `src/`. No source on disk and not in git history. |
+| 2026-04-24 (Task #21) | `elevenlabs-scribe-token` | Issued ElevenLabs Scribe tokens for the Interview Coach voice path. The voice path was removed (`src/hooks/useVoiceInterview.ts` is now a stub). Source still in git history if needed. |
+| 2026-04-24 (Task #21) | `generate-headshot` | "AI Professional Headshot" feature was never shipped (`AvatarCropSheet.tsx` shows a "coming soon" toast). Source still in git history if needed. |
+
+After each removal batch, `npm run check:functions:deployed` should report zero "deployed but no source directory" warnings.
+
+**Verification evidence (Task #21, 2026-04-24):** post-deletion run captured at `.local/evidence/task-21-check-functions-deployed.log` — `exit 0`, ends with `In sync — every local edge function is deployed.`, no orphan-warning section, no missing-deployment error. (The "Possibly stale" warnings shown there are informational and unrelated to orphan removal — see "Edge function deployment drift check" above.)
+
 ## Manual deployment from the workspace
 
 ```bash
