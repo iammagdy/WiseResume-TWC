@@ -12,6 +12,7 @@ import { supabase } from '@/integrations/supabase/safeClient';
 import { useAuth } from '@/hooks/useAuth';
 import { getDevKitToken } from '@/contexts/DevKitSessionContext';
 import { useIsMounted } from '@/lib/devkit/hooks';
+import { isImpersonating, subscribe as subscribeImpersonation } from '@/lib/impersonationStore';
 import { unwrapAdminResponse, tryUnwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
 import type { AdminUser } from './AdminUsersPanel';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
@@ -122,6 +123,9 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
   const queryClient = useQueryClient();
   const { user: authUser } = useAuth();
   const isMounted = useIsMounted();
+
+  const [impersonating, setImpersonating] = useState(isImpersonating);
+  useEffect(() => subscribeImpersonation(() => setImpersonating(isImpersonating())), []);
 
   const [user, setUser] = useState<AdminUser>(userProp);
   const [drawerTab, setDrawerTab] = useState<DrawerTab>('actions');
@@ -1428,7 +1432,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
                         {user.plan_name === plan && <span className="ml-auto text-[10px] text-muted-foreground">current</span>}
                       </button>
                     ))}
-                    <Button onClick={handleSetPlan} disabled={savingPlan} size="sm" className="w-full mt-1">
+                    <Button onClick={handleSetPlan} disabled={savingPlan || impersonating} size="sm" className="w-full mt-1" title={impersonating ? 'Unavailable during impersonation' : undefined}>
                       {savingPlan ? 'Saving…' : 'Set permanent plan'}
                     </Button>
                   </div>
@@ -1440,7 +1444,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
                       <div className="p-2.5 rounded-lg bg-purple-500/10 border border-purple-500/20 text-xs text-purple-600 dark:text-purple-400">
                         <p className="font-medium">Active {user.trial_plan} trial</p>
                         <p className="opacity-80 mt-0.5">Expires {formatDate(user.trial_expires_at)} · {trialDaysLeft} days left</p>
-                        <Button variant="outline" size="sm" onClick={handleRevokeTrial} disabled={revokingTrial} className="mt-2 h-6 text-[10px] text-destructive border-destructive/30">
+                        <Button variant="outline" size="sm" onClick={handleRevokeTrial} disabled={revokingTrial || impersonating} className="mt-2 h-6 text-[10px] text-destructive border-destructive/30" title={impersonating ? 'Unavailable during impersonation' : undefined}>
                           {revokingTrial ? 'Revoking…' : 'Revoke trial'}
                         </Button>
                       </div>
@@ -1468,7 +1472,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
                         </select>
                       </div>
                     </div>
-                    <Button onClick={handleGrantTrial} disabled={savingTrial} size="sm" className="w-full">
+                    <Button onClick={handleGrantTrial} disabled={savingTrial || impersonating} size="sm" className="w-full" title={impersonating ? 'Unavailable during impersonation' : undefined}>
                       {savingTrial ? 'Granting…' : `Grant ${trialPlan} trial for ${trialDays} days`}
                     </Button>
                   </div>
@@ -1509,7 +1513,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
                   <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-xs text-red-600 dark:text-red-400 space-y-2">
                     <p className="font-medium">Account is suspended</p>
                     {user.suspension_reason && <p className="opacity-80">Reason: {user.suspension_reason}</p>}
-                    <Button variant="outline" size="sm" onClick={handleToggleSuspend} disabled={savingSuspend} className="h-7 text-xs">
+                    <Button variant="outline" size="sm" onClick={handleToggleSuspend} disabled={savingSuspend || impersonating} className="h-7 text-xs" title={impersonating ? 'Unavailable during impersonation' : undefined}>
                       {savingSuspend ? 'Unsuspending…' : 'Unsuspend account'}
                     </Button>
                   </div>
@@ -1525,8 +1529,9 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
                       variant="outline"
                       size="sm"
                       onClick={handleToggleSuspend}
-                      disabled={savingSuspend}
+                      disabled={savingSuspend || impersonating}
                       className="h-8 text-xs text-destructive border-destructive/30 hover:bg-destructive/10 w-full"
+                      title={impersonating ? 'Unavailable during impersonation' : undefined}
                     >
                       {savingSuspend ? 'Suspending…' : 'Suspend account'}
                     </Button>
@@ -1691,8 +1696,9 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
               <Button
                 size="sm"
                 onClick={handleResetUser}
-                disabled={resettingUser || resetConfirmText !== 'RESET'}
+                disabled={resettingUser || resetConfirmText !== 'RESET' || impersonating}
                 className="flex-1 bg-blue-600 hover:bg-blue-500 text-white"
+                title={impersonating ? 'Unavailable during impersonation' : undefined}
               >
                 {resettingUser ? 'Resetting…' : 'Reset user'}
               </Button>
@@ -1746,8 +1752,9 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
                 variant="destructive"
                 size="sm"
                 onClick={handleDeleteUser}
-                disabled={deletingUser || deleteEmailConfirm !== user.email}
+                disabled={deletingUser || deleteEmailConfirm !== user.email || impersonating}
                 className="flex-1"
+                title={impersonating ? 'Unavailable during impersonation' : undefined}
               >
                 {deletingUser ? 'Deleting…' : 'Delete account'}
               </Button>

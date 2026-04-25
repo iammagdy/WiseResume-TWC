@@ -1,4 +1,5 @@
 import { getToken, refreshTokenIfNeeded } from '@/lib/supabaseBridge';
+import { getImpersonationToken } from '@/lib/impersonationStore';
 import { dispatchSessionExpiredOnce } from './sessionExpired';
 import { parseAIErrorBody, aiErrorToastMessage, type AIErrorCode } from '@/lib/aiErrorParser';
 import { apiFnUrl } from '@/lib/apiFnUrl';
@@ -96,14 +97,21 @@ export const edgeFunctions = {
       };
 
       try {
-        let result = await doInvoke(getToken());
+        // Prefer the impersonation token when active (user-facing feature calls
+        // should run as the impersonated user). Caller-supplied Authorization
+        // headers (e.g. DevKit admin calls via devKitAuthHeaders) take priority
+        // inside doInvoke, so admin ops are unaffected.
+        const effectiveToken = getImpersonationToken() ?? getToken();
+        let result = await doInvoke(effectiveToken);
 
         // On 401: only refresh + retry when the structured classification
         // says this is a true session-auth failure. A BYOK 401
         // (invalid_key / not_configured) must NOT consume a refresh.
+        // Skip refresh entirely when impersonating — the impersonation token
+        // cannot be refreshed via the standard bridge.
         if (result.response.status === 401) {
           const { isSessionAuthFailure } = classifyEdgeError(401, result.text);
-          if (isSessionAuthFailure) {
+          if (isSessionAuthFailure && !getImpersonationToken()) {
             const refreshed = await refreshTokenIfNeeded();
             if (refreshed) {
               result = await doInvoke(getToken());
