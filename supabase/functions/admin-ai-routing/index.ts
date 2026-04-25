@@ -115,6 +115,24 @@ Deno.serve(async (req) => {
         );
       }
 
+      // Audit log — non-fatal
+      await supabase.from('audit_logs').insert({
+        action: 'ai_routing_update',
+        category: 'ai_routing',
+        metadata: {
+          feature_name,
+          provider: resolvedProvider,
+          model: model ?? '',
+          ab_secondary_provider: ab_secondary_provider || null,
+          ab_split_pct: splitPct,
+          updated_by: 'dev-kit',
+          updated_at: now,
+        },
+        created_at: now,
+      }).then(({ error: auditErr }) => {
+        if (auditErr) console.warn('[admin-ai-routing] audit log error (non-fatal):', auditErr);
+      });
+
       return new Response(
         JSON.stringify({ success: true, feature_name, provider: resolvedProvider }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
@@ -122,6 +140,7 @@ Deno.serve(async (req) => {
     }
 
     // ── RESET_FEATURE ────────────────────────────────────────────────────────
+    // Deletes the config row so the feature falls back to random pool selection.
     if (action === 'reset_feature') {
       const { feature_name } = body;
 
@@ -133,25 +152,27 @@ Deno.serve(async (req) => {
       }
 
       const now = new Date().toISOString();
-      const { error: upsertErr } = await supabase
+      const { error: deleteErr } = await supabase
         .from('ai_routing_config')
-        .upsert({
-          feature_name,
-          provider: 'auto',
-          model: '',
-          ab_secondary_provider: null,
-          ab_secondary_model: '',
-          ab_split_pct: 0,
-          updated_by: 'dev-kit',
-          updated_at: now,
-        }, { onConflict: 'feature_name' });
+        .delete()
+        .eq('feature_name', feature_name);
 
-      if (upsertErr) {
+      if (deleteErr) {
         return new Response(
-          JSON.stringify({ success: false, error: upsertErr.message }),
+          JSON.stringify({ success: false, error: deleteErr.message }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
         );
       }
+
+      // Audit log — non-fatal
+      await supabase.from('audit_logs').insert({
+        action: 'ai_routing_reset',
+        category: 'ai_routing',
+        metadata: { feature_name, reset_to: 'auto', updated_by: 'dev-kit', updated_at: now },
+        created_at: now,
+      }).then(({ error: auditErr }) => {
+        if (auditErr) console.warn('[admin-ai-routing] audit log error (non-fatal):', auditErr);
+      });
 
       return new Response(
         JSON.stringify({ success: true, feature_name, reset: true }),

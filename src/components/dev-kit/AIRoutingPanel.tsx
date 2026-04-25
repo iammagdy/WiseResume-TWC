@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { RefreshCw, Save, RotateCcw, SplitSquareVertical, Zap, Route } from 'lucide-react';
+import { RefreshCw, Save, RotateCcw, SplitSquareVertical, Zap, Route, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -11,12 +11,13 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
 type Provider = 'auto' | 'openrouter' | 'groq';
+type SecondaryProvider = 'openrouter' | 'groq';
 
 interface RoutingConfig {
   feature_name: string;
   provider: Provider;
   model: string;
-  ab_secondary_provider: string | null;
+  ab_secondary_provider: SecondaryProvider | null;
   ab_secondary_model: string;
   ab_split_pct: number;
   updated_by: string | null;
@@ -27,6 +28,7 @@ interface CapValues {
   daily_cap_free: string | null;
   daily_cap_trial: string | null;
   daily_cap_pro: string | null;
+  global_daily_limit: string | null;
 }
 
 const FEATURE_LABELS: Record<string, string> = {
@@ -45,7 +47,7 @@ const PROVIDER_OPTIONS: { value: Provider; label: string }[] = [
   { value: 'groq', label: 'Groq' },
 ];
 
-type InternalTab = 'routing' | 'caps';
+type InternalTab = 'routing' | 'ab' | 'caps';
 
 export function AIRoutingPanel() {
   const isMounted = useIsMounted();
@@ -59,8 +61,8 @@ export function AIRoutingPanel() {
 
   const [localConfigs, setLocalConfigs] = useState<Record<string, Partial<RoutingConfig>>>({});
 
-  const [caps, setCaps] = useState<CapValues>({ daily_cap_free: null, daily_cap_trial: null, daily_cap_pro: null });
-  const [capInputs, setCapInputs] = useState<Record<string, string>>({ free: '', trial: '', pro: '' });
+  const [caps, setCaps] = useState<CapValues>({ daily_cap_free: null, daily_cap_trial: null, daily_cap_pro: null, global_daily_limit: null });
+  const [capInputs, setCapInputs] = useState<Record<string, string>>({ free: '', trial: '', pro: '', global: '' });
   const [loadingCaps, setLoadingCaps] = useState(false);
   const [capsError, setCapsError] = useState<string | null>(null);
   const [savingCap, setSavingCap] = useState<string | null>(null);
@@ -95,12 +97,13 @@ export function AIRoutingPanel() {
       });
       const result = unwrapAdminResponse<{ caps: CapValues }>(tuple, 'admin-ai-caps');
       if (!isMounted()) return;
-      const c = result.caps ?? { daily_cap_free: null, daily_cap_trial: null, daily_cap_pro: null };
+      const c = result.caps ?? { daily_cap_free: null, daily_cap_trial: null, daily_cap_pro: null, global_daily_limit: null };
       setCaps(c);
       setCapInputs({
         free: c.daily_cap_free ?? '',
         trial: c.daily_cap_trial ?? '',
         pro: c.daily_cap_pro ?? '',
+        global: c.global_daily_limit ?? '',
       });
     } catch (e) {
       if (!isMounted()) return;
@@ -177,17 +180,13 @@ export function AIRoutingPanel() {
     }
   };
 
-  const saveCap = async (plan: string) => {
+  const savePlanCap = async (plan: string) => {
     const rawVal = capInputs[plan]?.trim();
     setSavingCap(plan);
     try {
       const tuple = await edgeFunctions.functions.invoke('admin-ai-caps', {
         headers: devKitAuthHeaders(),
-        body: {
-          action: 'set_plan_cap',
-          plan,
-          value: rawVal === '' ? null : rawVal,
-        },
+        body: { action: 'set_plan_cap', plan, value: rawVal === '' ? null : rawVal },
       });
       unwrapAdminResponse(tuple, 'admin-ai-caps');
       if (!isMounted()) return;
@@ -195,7 +194,26 @@ export function AIRoutingPanel() {
       setCaps(prev => ({ ...prev, [capKey]: rawVal === '' ? null : rawVal }));
       toast.success(`${plan.charAt(0).toUpperCase() + plan.slice(1)} plan cap saved`);
     } catch (e) {
-      toast.error(formatEdgeError(e, 'Failed to save cap'));
+      toast.error(formatEdgeError(e, 'Failed to save plan cap'));
+    } finally {
+      if (isMounted()) setSavingCap(null);
+    }
+  };
+
+  const saveGlobalCap = async () => {
+    const rawVal = capInputs['global']?.trim();
+    setSavingCap('global');
+    try {
+      const tuple = await edgeFunctions.functions.invoke('admin-ai-caps', {
+        headers: devKitAuthHeaders(),
+        body: { action: 'set_global_cap', value: rawVal === '' ? null : rawVal },
+      });
+      unwrapAdminResponse(tuple, 'admin-ai-caps');
+      if (!isMounted()) return;
+      setCaps(prev => ({ ...prev, global_daily_limit: rawVal === '' ? null : rawVal }));
+      toast.success('Global cap saved');
+    } catch (e) {
+      toast.error(formatEdgeError(e, 'Failed to save global cap'));
     } finally {
       if (isMounted()) setSavingCap(null);
     }
@@ -203,8 +221,40 @@ export function AIRoutingPanel() {
 
   const hasLocalChanges = (feature: string) => Object.keys(localConfigs[feature] ?? {}).length > 0;
 
+  const featureActionButtons = (cfg: RoutingConfig) => {
+    const resolved = resolvedConfig(cfg);
+    const dirty = hasLocalChanges(cfg.feature_name);
+    const isSaving = savingFeature === cfg.feature_name;
+    const isResetting = resetingFeature === cfg.feature_name;
+    const isClean = resolved.provider === 'auto' && !resolved.model && !resolved.ab_secondary_provider;
+    return (
+      <div className="flex items-center gap-1.5">
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => resetFeature(cfg.feature_name)}
+          disabled={isResetting || isSaving || isClean}
+          className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+        >
+          <RotateCcw className="w-3 h-3 mr-1" />
+          {isResetting ? 'Resetting…' : 'Reset'}
+        </Button>
+        <Button
+          size="sm"
+          onClick={() => saveFeature(cfg.feature_name)}
+          disabled={isSaving || isResetting || !dirty}
+          className="h-7 px-2 text-xs"
+        >
+          <Save className="w-3 h-3 mr-1" />
+          {isSaving ? 'Saving…' : 'Save'}
+        </Button>
+      </div>
+    );
+  };
+
   const tabs: { id: InternalTab; label: string; icon: React.ElementType }[] = [
     { id: 'routing', label: 'Routing Config', icon: Route },
+    { id: 'ab', label: 'A/B Testing', icon: SplitSquareVertical },
     { id: 'caps', label: 'Spend Caps', icon: Zap },
   ];
 
@@ -230,11 +280,12 @@ export function AIRoutingPanel() {
         </div>
       </div>
 
+      {/* ── ROUTING TAB ──────────────────────────────────────────────────── */}
       {activeTab === 'routing' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <p className="text-xs text-muted-foreground">
-              Select a provider and optional model for each AI feature. Changes take effect immediately — no redeploy needed.
+              Select a primary provider and optional model for each AI feature. Changes take effect immediately.
             </p>
             <Button variant="outline" size="sm" onClick={fetchRouting} disabled={loadingRouting}>
               <RefreshCw className={cn('w-3.5 h-3.5 mr-1.5', loadingRouting && 'animate-spin')} />
@@ -252,8 +303,6 @@ export function AIRoutingPanel() {
             {configs.map((cfg) => {
               const resolved = resolvedConfig(cfg);
               const dirty = hasLocalChanges(cfg.feature_name);
-              const isSaving = savingFeature === cfg.feature_name;
-              const isResetting = resetingFeature === cfg.feature_name;
 
               return (
                 <div key={cfg.feature_name} className={cn(
@@ -270,27 +319,7 @@ export function AIRoutingPanel() {
                         </Badge>
                       )}
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => resetFeature(cfg.feature_name)}
-                        disabled={isResetting || isSaving || (resolved.provider === 'auto' && !resolved.model && !resolved.ab_secondary_provider)}
-                        className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
-                      >
-                        <RotateCcw className="w-3 h-3 mr-1" />
-                        Reset
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={() => saveFeature(cfg.feature_name)}
-                        disabled={isSaving || isResetting || !dirty}
-                        className="h-7 px-2 text-xs"
-                      >
-                        <Save className="w-3 h-3 mr-1" />
-                        {isSaving ? 'Saving…' : 'Save'}
-                      </Button>
-                    </div>
+                    {featureActionButtons(cfg)}
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -321,57 +350,118 @@ export function AIRoutingPanel() {
                     </div>
                   </div>
 
-                  <div className="border-t border-border/60 pt-3 space-y-2">
-                    <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-medium">
-                      <SplitSquareVertical className="w-3 h-3" />
-                      A/B split
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                      <div className="space-y-1">
-                        <label className="text-[11px] text-muted-foreground">Secondary provider</label>
-                        <select
-                          value={resolved.ab_secondary_provider ?? ''}
-                          onChange={(e) => setLocalField(cfg.feature_name, 'ab_secondary_provider', e.target.value || null)}
-                          className="w-full h-8 px-2 text-xs bg-background border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
-                        >
-                          <option value="">None</option>
-                          <option value="openrouter">OpenRouter</option>
-                          <option value="groq">Groq</option>
-                        </select>
-                      </div>
+                  {cfg.updated_at && (
+                    <p className="text-[10px] text-muted-foreground">
+                      Last updated {new Date(cfg.updated_at).toLocaleString()}
+                      {cfg.updated_by ? ` by ${cfg.updated_by}` : ''}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
 
-                      <div className="space-y-1">
-                        <label className="text-[11px] text-muted-foreground">Secondary model</label>
+            {!loadingRouting && configs.length === 0 && (
+              <div className="text-xs text-muted-foreground text-center py-6">
+                No routing config found. Run the migration to seed the table.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── A/B TESTING TAB ──────────────────────────────────────────────── */}
+      {activeTab === 'ab' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-muted-foreground">
+              Split traffic between a primary and secondary provider per feature. The split % goes to the secondary; remainder goes to primary.
+            </p>
+            <Button variant="outline" size="sm" onClick={fetchRouting} disabled={loadingRouting}>
+              <RefreshCw className={cn('w-3.5 h-3.5 mr-1.5', loadingRouting && 'animate-spin')} />
+              Refresh
+            </Button>
+          </div>
+
+          {routingError && (
+            <div className="rounded-md bg-red-500/5 border border-red-500/20 p-3 text-xs text-red-600 dark:text-red-400">
+              {routingError}
+            </div>
+          )}
+
+          <div className="space-y-3">
+            {configs.map((cfg) => {
+              const resolved = resolvedConfig(cfg);
+              const dirty = hasLocalChanges(cfg.feature_name);
+              const hasAB = !!resolved.ab_secondary_provider;
+
+              return (
+                <div key={cfg.feature_name} className={cn(
+                  'rounded-xl border p-4 space-y-3 transition-colors',
+                  dirty ? 'border-primary/40 bg-primary/3' : 'border-border bg-card',
+                )}>
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">{FEATURE_LABELS[cfg.feature_name] ?? cfg.feature_name}</span>
+                      <span className="text-[10px] font-mono text-muted-foreground">{cfg.feature_name}</span>
+                      {hasAB && (resolved.ab_split_pct ?? 0) > 0 && (
+                        <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-600 border-amber-500/20">
+                          {100 - (resolved.ab_split_pct ?? 0)}% / {resolved.ab_split_pct}% split
+                        </Badge>
+                      )}
+                      {dirty && (
+                        <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/20">
+                          unsaved
+                        </Badge>
+                      )}
+                    </div>
+                    {featureActionButtons(cfg)}
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[11px] text-muted-foreground font-medium">Secondary provider</label>
+                      <select
+                        value={resolved.ab_secondary_provider ?? ''}
+                        onChange={(e) => setLocalField(cfg.feature_name, 'ab_secondary_provider', (e.target.value || null) as SecondaryProvider | null)}
+                        className="w-full h-8 px-2 text-xs bg-background border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
+                      >
+                        <option value="">None — A/B disabled</option>
+                        <option value="openrouter">OpenRouter</option>
+                        <option value="groq">Groq</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[11px] text-muted-foreground font-medium">Secondary model</label>
+                      <Input
+                        placeholder="e.g. gemma-3n-e4b-it-fp8"
+                        value={resolved.ab_secondary_model ?? ''}
+                        onChange={(e) => setLocalField(cfg.feature_name, 'ab_secondary_model', e.target.value)}
+                        className="h-8 text-xs font-mono"
+                        disabled={!resolved.ab_secondary_provider}
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[11px] text-muted-foreground font-medium">Split % to secondary</label>
+                      <div className="flex items-center gap-1.5">
                         <Input
-                          placeholder="e.g. gemma-3n-e4b-it-fp8"
-                          value={resolved.ab_secondary_model ?? ''}
-                          onChange={(e) => setLocalField(cfg.feature_name, 'ab_secondary_model', e.target.value)}
-                          className="h-8 text-xs font-mono"
+                          type="number"
+                          min={0}
+                          max={100}
+                          placeholder="0"
+                          value={resolved.ab_split_pct ?? 0}
+                          onChange={(e) => setLocalField(cfg.feature_name, 'ab_split_pct', Math.min(100, Math.max(0, Number(e.target.value))))}
+                          className="h-8 text-xs w-20"
                           disabled={!resolved.ab_secondary_provider}
                         />
+                        <span className="text-xs text-muted-foreground">%</span>
                       </div>
-
-                      <div className="space-y-1">
-                        <label className="text-[11px] text-muted-foreground">Split % to secondary</label>
-                        <div className="flex items-center gap-1.5">
-                          <Input
-                            type="number"
-                            min={0}
-                            max={100}
-                            placeholder="0"
-                            value={resolved.ab_split_pct ?? 0}
-                            onChange={(e) => setLocalField(cfg.feature_name, 'ab_split_pct', Math.min(100, Math.max(0, Number(e.target.value))))}
-                            className="h-8 text-xs w-20"
-                            disabled={!resolved.ab_secondary_provider}
-                          />
-                          <span className="text-xs text-muted-foreground">%</span>
-                          {(resolved.ab_split_pct ?? 0) > 0 && resolved.ab_secondary_provider && (
-                            <span className="text-[10px] text-muted-foreground">
-                              {100 - (resolved.ab_split_pct ?? 0)}% primary / {resolved.ab_split_pct}% secondary
-                            </span>
-                          )}
-                        </div>
-                      </div>
+                      {hasAB && (resolved.ab_split_pct ?? 0) > 0 && (
+                        <p className="text-[10px] text-muted-foreground">
+                          {100 - (resolved.ab_split_pct ?? 0)}% → primary · {resolved.ab_split_pct}% → secondary
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -394,11 +484,12 @@ export function AIRoutingPanel() {
         </div>
       )}
 
+      {/* ── SPEND CAPS TAB ───────────────────────────────────────────────── */}
       {activeTab === 'caps' && (
-        <div className="space-y-4">
+        <div className="space-y-5">
           <div className="flex items-center justify-between">
             <p className="text-xs text-muted-foreground">
-              Override the per-plan daily AI credit limits. Leave blank to use the built-in plan defaults. Use -1 for unlimited.
+              Override daily AI credit limits. Leave blank to use built-in defaults. Use -1 for unlimited.
             </p>
             <Button variant="outline" size="sm" onClick={fetchCaps} disabled={loadingCaps}>
               <RefreshCw className={cn('w-3.5 h-3.5 mr-1.5', loadingCaps && 'animate-spin')} />
@@ -412,60 +503,108 @@ export function AIRoutingPanel() {
             </div>
           )}
 
-          <div className="space-y-3">
-            {([
-              { plan: 'free', label: 'Free plan', description: 'Users on the free tier' },
-              { plan: 'trial', label: 'Trial plan', description: 'Users with an active trial (any plan)' },
-              { plan: 'pro', label: 'Pro plan', description: 'Users on Pro (also applies to Premium as a floor)' },
-            ] as const).map(({ plan, label, description }) => {
-              const capKey = `daily_cap_${plan}` as keyof CapValues;
-              const currentVal = caps[capKey];
-              return (
-                <div key={plan} className="rounded-xl border border-border bg-card p-4 space-y-3">
-                  <div>
-                    <h3 className="text-sm font-medium">{label}</h3>
-                    <p className="text-xs text-muted-foreground">{description}</p>
+          {/* Global cap */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+              <Globe className="w-3.5 h-3.5 text-muted-foreground" />
+              Global cap
+            </div>
+            <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+              <div>
+                <h3 className="text-sm font-medium">Platform-wide daily limit</h3>
+                <p className="text-xs text-muted-foreground">
+                  When set, applies to ALL users regardless of plan. Overrides per-plan caps. Clear to disable.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  min={-1}
+                  placeholder="blank = disabled, -1 = unlimited"
+                  value={capInputs['global'] ?? ''}
+                  onChange={(e) => setCapInputs(prev => ({ ...prev, global: e.target.value }))}
+                  className="h-8 text-sm flex-1"
+                />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={saveGlobalCap}
+                  disabled={savingCap === 'global'}
+                  className="shrink-0 flex items-center gap-1.5 h-8"
+                >
+                  <Save className="w-3 h-3" />
+                  {savingCap === 'global' ? 'Saving…' : 'Save'}
+                </Button>
+              </div>
+              {caps.global_daily_limit != null ? (
+                <p className="text-xs text-muted-foreground">
+                  Active global cap:{' '}
+                  <strong>{caps.global_daily_limit === '-1' ? 'Unlimited' : `${caps.global_daily_limit} credits/day`}</strong>
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground italic">No global cap active — using per-plan caps</p>
+              )}
+            </div>
+          </div>
+
+          {/* Per-plan caps */}
+          <div className="space-y-2">
+            <div className="text-xs font-semibold text-foreground">Per-plan caps</div>
+            <div className="space-y-3">
+              {([
+                { plan: 'free', label: 'Free plan', description: 'Users on the free tier' },
+                { plan: 'trial', label: 'Trial plan', description: 'Users with an active trial (any plan)' },
+                { plan: 'pro', label: 'Pro plan', description: 'Users on Pro (also applies to Premium as a floor)' },
+              ] as const).map(({ plan, label, description }) => {
+                const capKey = `daily_cap_${plan}` as keyof CapValues;
+                const currentVal = caps[capKey];
+                return (
+                  <div key={plan} className="rounded-xl border border-border bg-card p-4 space-y-3">
+                    <div>
+                      <h3 className="text-sm font-medium">{label}</h3>
+                      <p className="text-xs text-muted-foreground">{description}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        min={-1}
+                        placeholder="blank = built-in default, -1 = unlimited"
+                        value={capInputs[plan] ?? ''}
+                        onChange={(e) => setCapInputs(prev => ({ ...prev, [plan]: e.target.value }))}
+                        className="h-8 text-sm flex-1"
+                      />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => savePlanCap(plan)}
+                        disabled={savingCap === plan}
+                        className="shrink-0 flex items-center gap-1.5 h-8"
+                      >
+                        <Save className="w-3 h-3" />
+                        {savingCap === plan ? 'Saving…' : 'Save'}
+                      </Button>
+                    </div>
+                    {currentVal != null ? (
+                      <p className="text-xs text-muted-foreground">
+                        Current override:{' '}
+                        <strong>{currentVal === '-1' ? 'Unlimited' : `${currentVal} credits/day`}</strong>
+                      </p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground italic">No override — using built-in plan default</p>
+                    )}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="number"
-                      min={-1}
-                      placeholder="blank = per-plan default, -1 = unlimited"
-                      value={capInputs[plan] ?? ''}
-                      onChange={(e) => setCapInputs(prev => ({ ...prev, [plan]: e.target.value }))}
-                      className="h-8 text-sm flex-1"
-                    />
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => saveCap(plan)}
-                      disabled={savingCap === plan}
-                      className="shrink-0 flex items-center gap-1.5 h-8"
-                    >
-                      <Save className="w-3 h-3" />
-                      {savingCap === plan ? 'Saving…' : 'Save'}
-                    </Button>
-                  </div>
-                  {currentVal != null && (
-                    <p className="text-xs text-muted-foreground">
-                      Current override:{' '}
-                      <strong>{currentVal === '-1' ? 'Unlimited' : `${currentVal} credits/day`}</strong>
-                    </p>
-                  )}
-                  {currentVal == null && (
-                    <p className="text-xs text-muted-foreground italic">No override — using per-plan default</p>
-                  )}
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
 
           <div className="rounded-xl border border-border/50 bg-muted/20 p-4 text-xs text-muted-foreground space-y-1">
-            <p className="font-medium text-foreground">Priority order</p>
+            <p className="font-medium text-foreground">Priority order (highest wins)</p>
             <ol className="list-decimal list-inside space-y-0.5">
+              <li>Global daily cap (this panel — applies to all users)</li>
               <li>Per-user override (set via Users panel → Set Credits)</li>
-              <li>Per-plan cap override (set here)</li>
-              <li>Built-in plan default from creditLimits.json</li>
+              <li>Per-plan cap override (this panel)</li>
+              <li>Built-in plan default from planLimits.ts</li>
             </ol>
           </div>
         </div>

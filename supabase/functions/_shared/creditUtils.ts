@@ -108,6 +108,25 @@ export async function checkAndDeductCredit(
     }
   }
 
+  // Check for platform-wide global_daily_limit override (highest priority, overrides per-plan caps).
+  // Set via DevKit → AI Routing → Spend Caps → Global cap. Non-fatal if missing.
+  try {
+    const { data: globalRow } = await supabase
+      .from('app_settings')
+      .select('value')
+      .eq('key', 'global_daily_limit')
+      .maybeSingle();
+    if (globalRow?.value != null && globalRow.value !== '') {
+      const globalVal = Number(globalRow.value);
+      if (!isNaN(globalVal) && globalVal >= -1) {
+        authoritativeLimit = globalVal;
+        log.info('global spend cap applied from app_settings', { globalVal });
+      }
+    }
+  } catch (globalCapErr) {
+    log.warn('global cap lookup failed — using lower-priority cap', { error: String(globalCapErr) });
+  }
+
   // Diagnostic log — surfaces the exact billing identity resolved for this
   // request so we can diff what the server saw vs what the UI ('me' endpoint)
   // showed when users report "premium but blocked" discrepancies.
