@@ -42,6 +42,8 @@ import { OpenRouterPanel, GroqPanel } from '@/components/dev-kit/AIKeySlotPanels
 import { TotpRotationPanel } from '@/components/dev-kit/TotpRotationPanel';
 import { DEV_KIT_VERSION } from '@/components/dev-kit/config';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { apiFnUrl } from '@/lib/apiFnUrl';
+import { EDGE_FUNCTIONS_ANON_KEY } from '@/lib/supabaseConstants';
 import { DevKitSessionProvider, useDevKitSession, loadRememberedToken } from '@/contexts/DevKitSessionContext';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -386,27 +388,87 @@ function DevKitLoginForm() {
     setPw('');
 
     try {
-      const { data, error } = await edgeFunctions.functions.invoke('verify-dev-kit', {
-        body: {
-          email: submittedEmail,
-          password: submittedPw,
-          rememberMe,
-        },
-      });
+      // Direct fetch (not the edgeFunctions wrapper) so we can map every
+      // status / body shape to a specific UI message. The wrapper consumes
+      // non-2xx response bodies before the caller can see them, which
+      // previously masked both lockout (429 + locked:true) and the function's
+      // 500-level config-error responses behind a generic toast.
+      const url = apiFnUrl('verify-dev-kit');
+      let response: Response;
+      try {
+        response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(EDGE_FUNCTIONS_ANON_KEY ? {
+              'Authorization': `Bearer ${EDGE_FUNCTIONS_ANON_KEY}`,
+              'apikey': EDGE_FUNCTIONS_ANON_KEY,
+            } : {}),
+          },
+          body: JSON.stringify({
+            email: submittedEmail,
+            password: submittedPw,
+            rememberMe,
+          }),
+        });
+      } catch {
+        // Network-level failure (offline, DNS, CORS preflight blocked).
+        toast.error('Cannot reach the verification service', {
+          description: 'Check your connection, then try again.',
+          duration: 6000,
+        });
+        return;
+      }
 
-      if (error) {
-        if (error.message?.includes('Failed to fetch') || error.status === 404) {
-          toast.error('Verification Function Not Found', {
-            description: 'Please deploy the "verify-dev-kit" Edge Function to your Supabase project.',
-            duration: 6000,
-          });
+      // Parse body once; tolerate empty / non-JSON bodies.
+      const rawText = await response.text();
+      let data: Record<string, unknown> | null = null;
+      try {
+        data = rawText ? (JSON.parse(rawText) as Record<string, unknown>) : null;
+      } catch {
+        data = null;
+      }
+      const bodyError = typeof data?.error === 'string' ? (data.error as string) : null;
+
+      // Function not deployed at all (Supabase gateway 404, or .htaccess SPA fallback).
+      if (response.status === 404) {
+        toast.error('Verification function not found', {
+          description: 'Deploy the "verify-dev-kit" Edge Function to Supabase.',
+          duration: 6000,
+        });
+        return;
+      }
+
+      // Lockout: function returns 429 with { success:false, locked:true, retry_after_seconds }.
+      if (response.status === 429 && data?.locked) {
+        const rawRetry = data.retry_after_seconds;
+        const retryAfter =
+          typeof rawRetry === 'number' && Number.isFinite(rawRetry) && rawRetry > 0
+            ? Math.min(Math.floor(rawRetry), 24 * 60 * 60) // cap at 24 h to guard against malformed payloads
+            : 600;
+        startLockoutCountdown(retryAfter);
+        setLoginError(null);
+        return;
+      }
+
+      // Server-side config drift / session-issue failure (500). Show the exact
+      // diagnosis the function reports so an admin can fix the secret without
+      // touching code, and a generic catch-all for anything else 5xx.
+      if (response.status >= 500) {
+        if (bodyError === 'DEV_KIT_PASSWORD secret is not configured.') {
+          setLoginError('DEV_KIT_PASSWORD is not set in Supabase secrets — ask the deploy owner to push it.');
+        } else if (bodyError === 'ADMIN_EMAILS secret is not configured.') {
+          setLoginError('ADMIN_EMAILS is not set in Supabase secrets — admin allowlist is empty.');
+        } else if (bodyError === 'Failed to issue session') {
+          setLoginError('Could not create an admin session. Check the admin_sessions table and service-role key.');
         } else {
-          toast.error('Verification failed: ' + error.message);
+          setLoginError('Login service unavailable — check the verify-dev-kit edge function deploy.');
         }
         return;
       }
 
-      if (data?.success && data?.token) {
+      // Success path: 200 + { success:true, token }.
+      if (response.ok && data?.success && typeof data?.token === 'string') {
         setLockoutSecondsLeft(null);
 
         // After a successful "remember me" login on web, try to register WebAuthn credential
@@ -423,15 +485,24 @@ function DevKitLoginForm() {
           expiresAt: data.expires_at as number,
           email: submittedEmail,
         });
-      } else if (data?.locked) {
-        const retryAfter = (data.retry_after_seconds as number) ?? 600;
-        startLockoutCountdown(retryAfter);
-        setLoginError(null);
-      } else if (data?.authorized === false) {
-        setLoginError('This email is not authorised for admin access.');
-      } else {
-        setLoginError('Incorrect email or password — try again.');
+        return;
       }
+
+      // 200 + { success:false, authorized:false } — email not on allowlist.
+      if (response.ok && data?.authorized === false) {
+        setLoginError('This email is not authorised for admin access.');
+        return;
+      }
+
+      // 400 — function rejected the request shape (e.g. missing fields).
+      if (response.status === 400) {
+        setLoginError(bodyError ?? 'Email and password are required.');
+        return;
+      }
+
+      // 200 + { success:false } (wrong password) and any other unhandled shape
+      // both fall through here — keep the existing generic message.
+      setLoginError('Incorrect email or password — try again.');
     } catch {
       toast.error('System error during verification');
     } finally {

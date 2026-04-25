@@ -1,6 +1,56 @@
 # Admin Dev Kit
 
-**Last verified:** 2026-04-18 (Task #10)
+**Last verified:** 2026-04-25 (Task #25)
+
+## Login recovery — what to do when /devkit rejects the admin
+
+> Added 2026-04-25 (Task #25). Step-by-step playbook for the next time `/devkit` says "Incorrect email or password — try again." even with what should be the right credentials.
+
+1. **Look at the login screen first.** It now distinguishes the failure modes itself — no need to read edge logs to know which one it is:
+   - "DEV_KIT_PASSWORD is not set in Supabase secrets…" → the `DEV_KIT_PASSWORD` secret is missing from the Supabase project. Push it (step 3 below).
+   - "ADMIN_EMAILS is not set in Supabase secrets…" → the email allowlist is empty. Push `ADMIN_EMAILS` to Supabase the same way.
+   - "Could not create an admin session…" → the function couldn't insert into `public.admin_sessions`. Check the service-role key and that the table still exists (migration `20260507000000_admin_sessions.sql`).
+   - "Login service unavailable — check the verify-dev-kit edge function deploy." → generic 5xx fallback. Redeploy with `npx supabase functions deploy verify-dev-kit --project-ref jnsfmkzgxsviuthaqlyy`.
+   - "Verification function not found" toast → function isn't deployed at all. Run `bash scripts/deploy-functions.sh`.
+   - "Too many attempts — temporarily locked" countdown → the admin tripped the 5-failures-in-10-minutes brute-force guard. Either wait it out or sweep the row (step 2 below).
+   - Generic "Incorrect email or password — try again." → genuine password mismatch. Either the admin typed it wrong or the `DEV_KIT_PASSWORD` Supabase secret is stale. Rotate it via step 3.
+2. **Clear an active lockout for one email.** The lockout key is the email lowercased with every non-`[a-z0-9]` character replaced with `_` (e.g. `magdy.saber@outlook.com` → `magdy_saber_outlook_com`). Delete only that key — never truncate the table:
+   ```sql
+   delete from public.rpc_rate_limits
+   where endpoint = 'devkit-login-fail'
+     and ip_address = '<lockout_key>';
+   ```
+   Or via the supabase-js service-role client from the Replit shell:
+   ```js
+   await c.from('rpc_rate_limits').delete()
+     .eq('endpoint', 'devkit-login-fail')
+     .eq('ip_address', '<lockout_key>');
+   ```
+3. **Rotate `DEV_KIT_PASSWORD` in Supabase.** The function reads it via `Deno.env.get("DEV_KIT_PASSWORD")` at request time, so a fresh deploy is not required after a secret update — but doing one anyway is the safe default.
+   ```bash
+   curl -X POST "https://api.supabase.com/v1/projects/jnsfmkzgxsviuthaqlyy/secrets" \
+     -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '[{"name":"DEV_KIT_PASSWORD","value":"<new-password>"}]'
+   ```
+   Verify it landed:
+   ```bash
+   curl "https://api.supabase.com/v1/projects/jnsfmkzgxsviuthaqlyy/secrets" \
+     -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+     | jq '.[] | select(.name=="DEV_KIT_PASSWORD") | {name, updated_at}'
+   ```
+4. **Redeploy `verify-dev-kit` if you suspect a stale build.** `npx supabase functions deploy verify-dev-kit --project-ref jnsfmkzgxsviuthaqlyy` (or `bash scripts/deploy-functions.sh` for the full set).
+5. **Verify end-to-end without the UI.** A direct POST avoids browser/auth-state confusion:
+   ```bash
+   curl -sS -X POST "$SUPABASE_URL/functions/v1/verify-dev-kit" \
+     -H "Authorization: Bearer $VITE_SUPABASE_PUBLISHABLE_KEY" \
+     -H "apikey: $VITE_SUPABASE_PUBLISHABLE_KEY" \
+     -H "Content-Type: application/json" \
+     -d '{"email":"<admin@email>","password":"<new-password>","rememberMe":false}'
+   ```
+   Expect `{"success":true,"token":"…","session_id":"…","expires_at":…}`. If you tested with a wrong password to confirm the rejection path, sweep the lockout row again (step 2) before handing off.
+
+
 **Type:** deep dive
 **Sources:**
 - `src/components/dev-kit/`
