@@ -22,7 +22,6 @@ import {
   Fingerprint,
   ScanFace,
   ShieldCheck,
-  AlertTriangle,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -41,7 +40,6 @@ import { WiseHireWaitlistPanel } from '@/components/dev-kit/WiseHireWaitlistPane
 import { PortfolioUsernamesPanel } from '@/components/dev-kit/PortfolioUsernamesPanel';
 import { OpenRouterPanel, GroqPanel } from '@/components/dev-kit/AIKeySlotPanels';
 import { TotpRotationPanel } from '@/components/dev-kit/TotpRotationPanel';
-import { TotpBootstrapWizard } from '@/components/dev-kit/TotpBootstrapWizard';
 import { DEV_KIT_VERSION } from '@/components/dev-kit/config';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { DevKitSessionProvider, useDevKitSession, loadRememberedToken } from '@/contexts/DevKitSessionContext';
@@ -266,12 +264,10 @@ function DevKitLoginForm() {
 
   const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
-  const [totp, setTotp] = useState('');
   const [showPw, setShowPw] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
-  const [totpSecretMissing, setTotpSecretMissing] = useState(false);
 
   const [lockoutSecondsLeft, setLockoutSecondsLeft] = useState<number | null>(null);
   const lockoutIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -281,9 +277,6 @@ function DevKitLoginForm() {
   const [biometricFailed, setBiometricFailed] = useState(false);
   const [showFullForm, setShowFullForm] = useState(false);
   const biometricTriggeredRef = useRef(false);
-
-  const [showBootstrapWizard, setShowBootstrapWizard] = useState(false);
-  const bootstrapStatusCheckedRef = useRef(false);
 
   const isLockedOut = lockoutSecondsLeft !== null && lockoutSecondsLeft > 0;
 
@@ -317,33 +310,6 @@ function DevKitLoginForm() {
   useEffect(() => {
     if (rememberedEmail) setEmail(rememberedEmail);
   }, [rememberedEmail]);
-
-  // Auto-launch the first-time setup wizard when the install has no
-  // ADMIN_TOTP_SECRET yet — so a fresh visitor isn't asked to first
-  // type a code that can't possibly verify. We only run the check once
-  // per mount, and only when there's no remembered session (a remembered
-  // session implies the secret existed at the time the session was minted).
-  useEffect(() => {
-    if (bootstrapStatusCheckedRef.current) return;
-    if (hasRememberedSession) return;
-    bootstrapStatusCheckedRef.current = true;
-    (async () => {
-      try {
-        const { data, error } = await edgeFunctions.functions.invoke('admin-rotate-totp', {
-          body: { action: 'bootstrap_status' },
-        });
-        if (error) return;
-        const payload = data as { totp_configured?: boolean } | null;
-        if (payload && payload.totp_configured === false) {
-          setTotpSecretMissing(true);
-          setShowBootstrapWizard(true);
-        }
-      } catch {
-        // Best-effort only — the regular login still surfaces a missing
-        // secret via verify-dev-kit's totp_secret_missing reason.
-      }
-    })();
-  }, [hasRememberedSession]);
 
   // Detect biometric mode on mount. When a remembered session exists and biometric is
   // unavailable, auto-unlock immediately so the user never sees the login form.
@@ -410,24 +376,20 @@ function DevKitLoginForm() {
 
   const handleUnlock = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim() || !pw.trim() || totp.trim().length !== 6 || isLockedOut) return;
+    if (!email.trim() || !pw.trim() || isLockedOut) return;
 
     setIsVerifying(true);
     setLoginError(null);
-    setTotpSecretMissing(false);
 
     const submittedEmail = email.trim();
     const submittedPw = pw;
-    const submittedTotp = totp.trim();
     setPw('');
-    setTotp('');
 
     try {
       const { data, error } = await edgeFunctions.functions.invoke('verify-dev-kit', {
         body: {
           email: submittedEmail,
           password: submittedPw,
-          totp: submittedTotp,
           rememberMe,
         },
       });
@@ -441,12 +403,6 @@ function DevKitLoginForm() {
         } else {
           toast.error('Verification failed: ' + error.message);
         }
-        return;
-      }
-
-      if (data?.reason === 'totp_secret_missing') {
-        setTotpSecretMissing(true);
-        setShowBootstrapWizard(true);
         return;
       }
 
@@ -473,12 +429,8 @@ function DevKitLoginForm() {
         setLoginError(null);
       } else if (data?.authorized === false) {
         setLoginError('This email is not authorised for admin access.');
-      } else if (data?.reason === 'invalid_totp') {
-        setLoginError('Invalid authenticator code — try again.');
-      } else if (data?.reason === 'mfa_required') {
-        setLoginError('Please enter your 6-digit authenticator code.');
       } else {
-        setLoginError('Incorrect email, password, or code — try again.');
+        setLoginError('Incorrect email or password — try again.');
       }
     } catch {
       toast.error('System error during verification');
@@ -496,17 +448,6 @@ function DevKitLoginForm() {
     ? Fingerprint
     : ScanFace;
 
-  const handleWizardComplete = useCallback((completedEmail: string) => {
-    setShowBootstrapWizard(false);
-    setTotpSecretMissing(false);
-    bootstrapStatusCheckedRef.current = true;
-    setEmail(completedEmail);
-    setShowFullForm(true);
-    toast.success('Setup complete', {
-      description: 'Now sign in with your authenticator code.',
-    });
-  }, []);
-
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4 relative">
       {/* Subtle background decoration using app theme */}
@@ -515,28 +456,6 @@ function DevKitLoginForm() {
         <div className="absolute -bottom-40 -left-40 w-96 h-96 rounded-full bg-primary/5 blur-3xl" />
       </div>
 
-      {/* First-time bootstrap wizard. Renders in place of the login UI when
-          the install has no ADMIN_TOTP_SECRET configured. */}
-      {showBootstrapWizard ? (
-        <div className="w-full max-w-sm relative z-10 space-y-6">
-          <TotpBootstrapWizard
-            initialEmail={email}
-            onCancel={() => {
-              setShowBootstrapWizard(false);
-            }}
-            onComplete={handleWizardComplete}
-          />
-          <div className="text-center">
-            <button
-              onClick={() => navigate(-1)}
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1 mx-auto"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              Back to app
-            </button>
-          </div>
-        </div>
-      ) : (
       <div className="w-full max-w-sm space-y-6 relative z-10">
         {/* Header */}
         <div className="text-center space-y-4">
@@ -553,32 +472,8 @@ function DevKitLoginForm() {
           </div>
         </div>
 
-        {/* TOTP secret missing — offer to launch the guided setup wizard. */}
-        {totpSecretMissing && (
-          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 space-y-3">
-            <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
-              <AlertTriangle className="w-4 h-4 shrink-0" />
-              <span className="text-xs font-semibold">DevKit isn&apos;t set up yet</span>
-            </div>
-            <p className="text-[11px] text-amber-700 dark:text-amber-300 leading-relaxed">
-              No authenticator secret is configured for this install. Run the
-              one-time setup wizard to enrol your authenticator app — works on
-              your phone, no terminal needed.
-            </p>
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => setShowBootstrapWizard(true)}
-              className="w-full h-9 text-xs font-semibold"
-            >
-              <ShieldCheck className="w-3.5 h-3.5 mr-1.5" />
-              Start setup
-            </Button>
-          </div>
-        )}
-
         {/* Biometric unlock screen */}
-        {showBiometricScreen && !totpSecretMissing && (
+        {showBiometricScreen && (
           <div className="bg-card border border-border rounded-2xl p-6 shadow-lg space-y-5">
             <div className="text-center space-y-3">
               <div
@@ -637,7 +532,7 @@ function DevKitLoginForm() {
         )}
 
         {/* Main login form */}
-        {(showFullForm || (!showBiometricScreen && biometricMode !== 'checking')) && !totpSecretMissing && (
+        {(showFullForm || (!showBiometricScreen && biometricMode !== 'checking')) && (
           <div className="bg-card border border-border rounded-2xl p-6 shadow-lg space-y-4">
             {isLockedOut && lockoutSecondsLeft !== null && (
               <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-sm text-destructive text-center space-y-1">
@@ -689,30 +584,6 @@ function DevKitLoginForm() {
                   </button>
                 </div>
               </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Authenticator code</label>
-                <Input
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]{6}"
-                  maxLength={6}
-                  placeholder="123456"
-                  value={totp}
-                  onChange={(e) => {
-                    const v = e.target.value.replace(/\D/g, '').slice(0, 6);
-                    setTotp(v);
-                    setLoginError(null);
-                  }}
-                  disabled={isVerifying || isLockedOut}
-                  autoComplete="one-time-code"
-                  className={cn(
-                    'h-11 font-mono tracking-widest text-center',
-                    loginError && 'border-destructive ring-1 ring-destructive/20'
-                  )}
-                />
-                <p className="text-[10px] text-muted-foreground pl-0.5">6-digit code from your authenticator app</p>
-              </div>
-
               {loginError && (
                 <p className="text-xs text-destructive font-medium pl-0.5">{loginError}</p>
               )}
@@ -741,7 +612,7 @@ function DevKitLoginForm() {
 
               <Button
                 type="submit"
-                disabled={isVerifying || isLockedOut || !email.trim() || !pw.trim() || totp.trim().length !== 6}
+                disabled={isVerifying || isLockedOut || !email.trim() || !pw.trim()}
                 className="w-full h-11 font-semibold"
               >
                 {isVerifying ? (
@@ -777,7 +648,6 @@ function DevKitLoginForm() {
           </button>
         </div>
       </div>
-      )}
     </div>
   );
 }
