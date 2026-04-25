@@ -2,6 +2,8 @@ import { getServiceClient } from '../_shared/dbClient.ts';
 import { requireAdminAuth } from '../_shared/adminAuth.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 
+// score-resume is excluded: it is fully deterministic and never calls an LLM,
+// so routing config has no effect on it.
 const SUPPORTED_FEATURES = [
   'tailor-resume',
   'enhance-section',
@@ -9,7 +11,6 @@ const SUPPORTED_FEATURES = [
   'generate-cover-letter',
   'agentic-chat',
   'wise-ai-chat',
-  'score-resume',
 ] as const;
 
 const VALID_PROVIDERS = ['auto', 'openrouter', 'groq'];

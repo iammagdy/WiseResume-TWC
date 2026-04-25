@@ -31,6 +31,7 @@ interface CapValues {
   global_daily_limit: string | null;
 }
 
+// score-resume is excluded — fully deterministic, no LLM calls, routing has no effect.
 const FEATURE_LABELS: Record<string, string> = {
   'tailor-resume': 'Tailor Resume',
   'enhance-section': 'Enhance Section',
@@ -38,7 +39,6 @@ const FEATURE_LABELS: Record<string, string> = {
   'generate-cover-letter': 'Cover Letter',
   'agentic-chat': 'Agentic Chat',
   'wise-ai-chat': 'Wise AI Chat',
-  'score-resume': 'Score Resume',
 };
 
 const PROVIDER_OPTIONS: { value: Provider; label: string }[] = [

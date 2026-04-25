@@ -16,15 +16,16 @@ CREATE TABLE IF NOT EXISTS public.ai_routing_config (
 
 ALTER TABLE public.ai_routing_config ENABLE ROW LEVEL SECURITY;
 
--- Seed supported AI features (idempotent)
+-- Seed the 6 AI features that use callAI/callAIWithRetry (idempotent).
+-- score-resume is excluded — it is fully deterministic and does not call any LLM,
+-- so routing config has no effect on it.
 INSERT INTO public.ai_routing_config (feature_name) VALUES
   ('tailor-resume'),
   ('enhance-section'),
   ('analyze-resume'),
   ('generate-cover-letter'),
   ('agentic-chat'),
-  ('wise-ai-chat'),
-  ('score-resume')
+  ('wise-ai-chat')
 ON CONFLICT (feature_name) DO NOTHING;
 
 -- Plan-level spend caps are stored as k/v pairs in the existing app_settings table:

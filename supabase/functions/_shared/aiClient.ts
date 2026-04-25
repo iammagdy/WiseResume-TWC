@@ -522,9 +522,15 @@ export async function callAIWithRetry(opts: AICallOptions): Promise<AIResponse> 
     console.warn(`[aiClient] attempt 1 failed on ${picked.provider}:${picked.index}`);
   }
 
-  // Attempt 2: sibling key in same provider
+  // Attempt 2: sibling key in same provider, preserving model override from routing config.
   if (picked.siblings.length > 0) {
-    const retryEntry = pickRandom(picked.siblings);
+    const siblingBase = pickRandom(picked.siblings);
+    // Carry the forced model override so retries honour the same routing config.
+    const retryEntry: PickedKey = {
+      ...siblingBase,
+      siblings: [],
+      modelOverride: picked.modelOverride,
+    };
     console.warn(
       `[aiClient] attempt 2 — sibling ${retryEntry.provider}:${retryEntry.index}`,
     );
@@ -536,7 +542,12 @@ export async function callAIWithRetry(opts: AICallOptions): Promise<AIResponse> 
     }
   }
 
-  // Attempt 3: cross-provider fallback
+  // Attempt 3: cross-provider fallback.
+  // Skipped when a provider was explicitly forced via routing config so that
+  // traffic split / A-B assignments are not silently distorted by retries.
+  if (forced?.provider) {
+    throw lastErr ?? new Error('[aiClient] all forced-provider attempts exhausted');
+  }
   const otherProvider: Provider = picked.provider === 'openrouter' ? 'groq' : 'openrouter';
   const allKeys = loadPool();
   const crossPool = allKeys.filter(k => k.provider === otherProvider);
