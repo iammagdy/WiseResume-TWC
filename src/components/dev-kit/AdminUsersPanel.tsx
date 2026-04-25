@@ -50,6 +50,7 @@ export interface AdminUser {
   email_confirmed_at: string | null;
   has_id_conflict: boolean;
   matched_via?: string;
+  avatar_url?: string | null;
 }
 
 interface AdminUsersPanelProps {
@@ -696,14 +697,37 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex items-start gap-2.5 min-w-0">
-                              {/* Initials avatar */}
+                              {/* Profile photo with initials fallback */}
+                              {(() => {
+                                const fallback = user.contact_email || user.email || '';
+                                const initials = user.full_name
+                                  ? user.full_name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
+                                  : (fallback[0]?.toUpperCase() ?? '?');
+                                return user.avatar_url ? (
+                                  <img
+                                    src={user.avatar_url}
+                                    alt={user.full_name ?? initials}
+                                    className="w-7 h-7 rounded-full object-cover shrink-0 mt-0.5"
+                                    onError={(e) => {
+                                      const target = e.currentTarget;
+                                      target.style.display = 'none';
+                                      const sib = target.nextElementSibling as HTMLElement | null;
+                                      if (sib) sib.style.display = 'flex';
+                                    }}
+                                  />
+                                ) : null;
+                              })()}
+                              {/* Initials fallback (always rendered; hidden when photo loads OK) */}
                               {(() => {
                                 const fallback = user.contact_email || user.email || '';
                                 const initials = user.full_name
                                   ? user.full_name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
                                   : (fallback[0]?.toUpperCase() ?? '?');
                                 return (
-                                  <div className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-semibold shrink-0 mt-0.5">
+                                  <div
+                                    className="w-7 h-7 rounded-full bg-primary/10 text-primary items-center justify-center text-[10px] font-semibold shrink-0 mt-0.5"
+                                    style={{ display: user.avatar_url ? 'none' : 'flex' }}
+                                  >
                                     {initials}
                                   </div>
                                 );

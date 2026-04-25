@@ -408,7 +408,15 @@ function ComposeEmailForm({
     setSending(true);
     setInviteUrl(null);
     try {
-      const recipientEmail = selectedUser?.email ?? emailSearch.trim();
+      // Resolve the deliverable email for the selected user: for Kinde shadow/
+      // collision rows the auth email is a non-deliverable placeholder, so fall
+      // back to contact_email which holds the real address.
+      const resolvedUserEmail = selectedUser
+        ? ((selectedUser.email ?? '').endsWith('@collision.kinde.placeholder')
+            ? (selectedUser.contact_email ?? selectedUser.email)
+            : selectedUser.email)
+        : null;
+      const recipientEmail = resolvedUserEmail ?? emailSearch.trim();
 
       if (isWiseHireInvite) {
         const tuple = await edgeFunctions.functions.invoke('admin-wisehire-invite', {
@@ -425,7 +433,7 @@ function ComposeEmailForm({
       const body: Record<string, unknown> = {
         action,
         ...(selectedUser
-          ? { target_user_id: selectedUser.user_id, target_email: selectedUser.email }
+          ? { target_user_id: selectedUser.user_id, target_email: recipientEmail }
           : { target_email: emailSearch.trim() }),
       };
       if (isCustomMode) {

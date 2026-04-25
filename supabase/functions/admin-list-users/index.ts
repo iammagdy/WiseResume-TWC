@@ -69,6 +69,7 @@ Deno.serve(async (req) => {
       email: string | null;
       contact_email: string | null;
       full_name: string | null;
+      avatar_url: string | null;
       plan_name: string;
       account_type: string;
       plan_status: string;
@@ -138,11 +139,13 @@ Deno.serve(async (req) => {
       const users: UserRecord[] = pageSlice.map(au => {
         const p = (profileMap.get(au.id) ?? {}) as Record<string, unknown>;
         const isCollision = (au.email ?? '').endsWith('@collision.kinde.placeholder');
+        const meta = (au.user_metadata ?? {}) as Record<string, unknown>;
         return {
           user_id: au.id,
           email: au.email ?? null,
           contact_email: (p.contact_email as string) ?? null,
           full_name: (p.full_name as string) ?? null,
+          avatar_url: (meta.avatar_url as string) || (meta.picture as string) || null,
           plan_name: 'free',
           account_type: (p.account_type as string) ?? 'job_seeker',
           plan_status: 'active',
@@ -231,11 +234,13 @@ Deno.serve(async (req) => {
       const usageDate = ac.usage_date as string | undefined;
       const creditsUsedToday = usageDate === todayDate ? ((ac.daily_usage as number) ?? 0) : 0;
       const isCollision = (au.email ?? '').endsWith('@collision.kinde.placeholder');
+      const meta = (au.user_metadata ?? {}) as Record<string, unknown>;
       return {
         user_id: au.id,
         email: au.email ?? null,
         contact_email: (p.contact_email as string) ?? null,
         full_name: (p.full_name as string) ?? null,
+        avatar_url: (meta.avatar_url as string) || (meta.picture as string) || null,
         plan_name: (s.plan_name as string) ?? 'free',
         account_type: (p.account_type as string) ?? 'job_seeker',
         plan_status: (s.status as string) ?? 'active',
@@ -303,11 +308,13 @@ Deno.serve(async (req) => {
               const ac = (creditsMap.get(orphanAuth.id) ?? {}) as Record<string, unknown>;
               const usageDate = ac.usage_date as string | undefined;
               const creditsUsedToday = usageDate === todayDate ? ((ac.daily_usage as number) ?? 0) : 0;
+              const orphanMeta = (orphanAuth.user_metadata ?? {}) as Record<string, unknown>;
               users.push({
                 user_id: orphanAuth.id,
                 email: orphanAuth.email ?? null,
                 contact_email: (p.contact_email as string) ?? null,
                 full_name: (p.full_name as string) ?? null,
+                avatar_url: (orphanMeta.avatar_url as string) || (orphanMeta.picture as string) || null,
                 plan_name: (s.plan_name as string) ?? 'free',
                 account_type: (p.account_type as string) ?? 'job_seeker',
                 plan_status: (s.status as string) ?? 'active',
@@ -360,11 +367,13 @@ Deno.serve(async (req) => {
                   const usageDate2 = ac2.usage_date as string | undefined;
                   const creditsUsedToday2 = usageDate2 === todayDate ? ((ac2.daily_usage as number) ?? 0) : 0;
                   const isCollision2 = (collisionAuth.email ?? '').endsWith('@collision.kinde.placeholder');
+                  const collisionMeta = (collisionAuth.user_metadata ?? {}) as Record<string, unknown>;
                   users.push({
                     user_id: collisionAuth.id,
                     email: collisionAuth.email ?? null,
                     contact_email: (p2.contact_email as string) ?? null,
                     full_name: (p2.full_name as string) ?? null,
+                    avatar_url: (collisionMeta.avatar_url as string) || (collisionMeta.picture as string) || null,
                     plan_name: (s2.plan_name as string) ?? 'free',
                     account_type: (p2.account_type as string) ?? 'job_seeker',
                     plan_status: (s2.status as string) ?? 'active',
