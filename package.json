@@ -1,11 +1,12 @@
 {
   "name": "wise-resume",
   "private": true,
-  "version": "3.6.0",
+  "version": "3.6.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "start": "vite --host 0.0.0.0 --port 3000",
+    "prebuild": "node scripts/copy-pdf-ocr-assets.mjs",
     "build": "tsc --noEmit && vite build && node scripts/check-no-sourcemaps.mjs",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
@@ -22,6 +23,7 @@
     "db:generate": "node_modules/.bin/drizzle-kit generate",
     "preview:emails": "node scripts/preview-waitlist-emails.mjs",
     "db:check-drift": "node scripts/check-supabase-migration-drift.mjs",
+    "check:functions:deployed": "node scripts/check-edge-functions-deployed.mjs",
     "postinstall": "node scripts/ensure-puppeteer-chrome.mjs",
     "test:e2e": "playwright test --project=chromium",
     "test:e2e:headed": "E2E_HEADED=1 playwright test --project=chromium --headed",
