@@ -35,6 +35,29 @@ import { getServiceClient } from '../_shared/dbClient.ts';
 import { timingSafeEqual } from '../_shared/webhookAuth.ts';
 import { provisionUser, ProvisionError } from '../_shared/provisionUser.ts';
 
+/** Fire-and-forget: insert a row into kinde_events (fails silently). */
+function logKindeEvent(
+  eventType: string,
+  kindeUserId: string,
+  email: string,
+  payload: Record<string, unknown>,
+  provisioningOk: boolean | null,
+): void {
+  try {
+    getServiceClient()
+      .from('kinde_events')
+      .insert({
+        event_type: eventType,
+        kinde_user_id: kindeUserId || null,
+        email: email || null,
+        payload,
+        provisioning_ok: provisioningOk,
+      })
+      .then(() => {})
+      .catch(() => {});
+  } catch { /* ignore */ }
+}
+
 function json(data: unknown, status = 200, corsHeaders: Record<string, string> = {}) {
   return new Response(JSON.stringify(data), {
     status,
@@ -118,6 +141,7 @@ Deno.serve(async (req) => {
   // Only process user.created; acknowledge everything else immediately.
   if (eventType !== 'user.created') {
     console.log(`[kinde-webhook] Ignoring event type: ${eventType ?? '(unknown)'}`);
+    logKindeEvent(eventType ?? 'unknown', '', '', payload, null);
     return json({ received: true, processed: false }, 200, corsHeaders);
   }
 
@@ -146,6 +170,8 @@ Deno.serve(async (req) => {
       `[kinde-webhook] Provisioned user — userId=${result.userId}, alreadyExisted=${result.alreadyExisted}`,
     );
 
+    logKindeEvent('user.created', kindeSub, email, payload, true);
+
     return json(
       { received: true, processed: true, userId: result.userId, alreadyExisted: result.alreadyExisted },
       200,
@@ -165,10 +191,13 @@ Deno.serve(async (req) => {
           email,
           eventId,
         });
+        logKindeEvent('user.created', kindeSub, email, payload, false);
         return json({ received: true, processed: false, code: err.code }, 200, corsHeaders);
       }
+      logKindeEvent('user.created', kindeSub, email, payload, false);
       return json({ error: err.code }, 500, corsHeaders);
     }
+    logKindeEvent('user.created', kindeSub, email, payload, false);
     console.error('[kinde-webhook] Unexpected error:', err);
     return json({ error: 'Internal server error' }, 500, corsHeaders);
   }

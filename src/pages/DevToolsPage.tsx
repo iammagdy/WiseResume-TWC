@@ -22,6 +22,8 @@ import {
   Fingerprint,
   ScanFace,
   ShieldCheck,
+  ShieldAlert,
+  Plug,
   Radio,
   Flag,
   Megaphone,
@@ -48,6 +50,8 @@ import { FeatureFlagsPanel } from '@/components/dev-kit/FeatureFlagsPanel';
 import { OwnerOpsPanel } from '@/components/dev-kit/OwnerOpsPanel';
 import { AIRoutingPanel } from '@/components/dev-kit/AIRoutingPanel';
 import { ObservabilityPanel } from '@/components/dev-kit/ObservabilityPanel';
+import { ModerationPanel } from '@/components/dev-kit/ModerationPanel';
+import { IntegrationsPanel } from '@/components/dev-kit/IntegrationsPanel';
 import { DEV_KIT_VERSION } from '@/components/dev-kit/config';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { apiFnUrl } from '@/lib/apiFnUrl';
@@ -59,7 +63,7 @@ import { DevKitPanelBoundary } from '@/components/dev-kit/DevKitPanelBoundary';
 import { NativeBiometric } from '@capgo/capacitor-native-biometric';
 import { Capacitor } from '@capacitor/core';
 
-type Tab = 'mission' | 'overview' | 'analytics' | 'onboarding' | 'live' | 'deployment' | 'users' | 'coupons' | 'settings' | 'activity' | 'email' | 'wisehire' | 'portfolio' | 'openrouter' | 'groq' | 'flags' | 'owner-ops' | 'ai-routing' | 'observability';
+type Tab = 'mission' | 'overview' | 'analytics' | 'onboarding' | 'live' | 'deployment' | 'users' | 'coupons' | 'settings' | 'activity' | 'email' | 'wisehire' | 'portfolio' | 'openrouter' | 'groq' | 'flags' | 'owner-ops' | 'ai-routing' | 'observability' | 'moderation' | 'integrations';
 
 interface NavItem {
   id: Tab;
@@ -92,6 +96,7 @@ const NAV_SECTIONS: NavSection[] = [
       { id: 'coupons', label: 'Coupons', icon: Tag },
       { id: 'wisehire', label: 'WiseHire', icon: Briefcase },
       { id: 'portfolio', label: 'Portfolio', icon: AtSign },
+      { id: 'moderation', label: 'Moderation', icon: ShieldAlert },
     ],
   },
   {
@@ -100,6 +105,7 @@ const NAV_SECTIONS: NavSection[] = [
       { id: 'flags', label: 'Feature Flags', icon: Flag },
       { id: 'ai-routing', label: 'AI Routing', icon: BrainCircuit },
       { id: 'observability', label: 'Observability', icon: Telescope },
+      { id: 'integrations', label: 'Integrations', icon: Plug },
       { id: 'deployment', label: 'Deployment', icon: Rocket },
       { id: 'openrouter', label: 'OpenRouter', icon: BrainCircuit },
       { id: 'groq', label: 'Groq', icon: BrainCircuit },
@@ -129,6 +135,8 @@ const TAB_LABELS: Record<Tab, string> = {
   'owner-ops': 'Owner Ops',
   'ai-routing': 'AI Routing',
   observability: 'Observability',
+  moderation: 'Moderation',
+  integrations: 'Integrations',
 };
 
 type ConnectionStatus = 'checking' | 'connected' | 'degraded' | 'disconnected';
@@ -1126,6 +1134,36 @@ function DevToolsInner() {
                     </p>
                   </div>
                   <ObservabilityPanel />
+                </div>
+              )}
+
+              {activeTab === 'moderation' && (
+                <div className="space-y-4">
+                  <div>
+                    <h2 className="text-lg font-semibold flex items-center gap-2">
+                      <ShieldAlert className="w-5 h-5 text-primary" />
+                      Moderation
+                    </h2>
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                      Review and triage bug reports, manage the blocklist to block abusive accounts at login, and process flagged content from the moderation queue.
+                    </p>
+                  </div>
+                  <ModerationPanel />
+                </div>
+              )}
+
+              {activeTab === 'integrations' && (
+                <div className="space-y-4">
+                  <div>
+                    <h2 className="text-lg font-semibold flex items-center gap-2">
+                      <Plug className="w-5 h-5 text-primary" />
+                      Integrations
+                    </h2>
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                      Monitor Kinde auth events, inspect Resend email bounce reports, and trigger or review GitHub Actions deploy runs — all without leaving the DevKit.
+                    </p>
+                  </div>
+                  <IntegrationsPanel />
                 </div>
               )}
 

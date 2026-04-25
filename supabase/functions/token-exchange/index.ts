@@ -181,6 +181,26 @@ serve(wrapHandler('token-exchange', async (req) => {
     // 4. Compute deterministic UUID (needed for audit log even before provisioning)
     supabaseUserId = await kindeSubToUserId(kindeSub);
 
+    // 4b. Check blocklist — reject suspended accounts before provisioning.
+    try {
+      const blocklistClient = getServiceClient();
+      const { data: blockEntry } = await blocklistClient
+        .from('blocklist')
+        .select('id, reason')
+        .in('value', [email, kindeSub].filter(Boolean))
+        .limit(1)
+        .maybeSingle();
+
+      if (blockEntry) {
+        log.warn('account_suspended', { kindeSub, email });
+        await logExchange(blocklistClient, kindeSub, supabaseUserId, 'error', 'ACCOUNT_SUSPENDED');
+        return errorResponse('ACCOUNT_SUSPENDED', 'This account has been suspended', 403, corsHeaders);
+      }
+    } catch (blErr) {
+      // Non-fatal: if the blocklist table doesn't exist yet, proceed normally.
+      log.warn('blocklist_check_failed', { error: String(blErr) });
+    }
+
     // 5. Provision all required DB rows via shared helper.
     //    The helper handles: shadow auth user creation, profile upsert, prefs
     //    upsert, email-collision detection, and orphan cleanup on partial failure.

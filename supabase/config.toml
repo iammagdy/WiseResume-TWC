@@ -202,3 +202,7 @@ project_id = "jnsfmkzgxsviuthaqlyy"
     verify_jwt = false
   [functions.admin-observability]
     verify_jwt = false
+  [functions.admin-moderation]
+    verify_jwt = false
+  [functions.admin-integrations]
+    verify_jwt = false
