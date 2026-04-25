@@ -18,6 +18,7 @@ interface HourBucket {
 interface TelemetryRow {
   function_name: string;
   total_count: number;
+  last_1h_count: number;
   error_count: number;
   error_rate: number;
   p50_ms: number;
@@ -56,13 +57,16 @@ function computeTelemetry(rows: LogRow[], nowMs: number): TelemetryRow[] {
     byFn.set(row.function_name, arr);
   }
 
+  const oneHourAgo = nowMs - 60 * 60 * 1000;
   const result: TelemetryRow[] = [];
   for (const [fnName, fnRows] of byFn) {
     const latencies = fnRows.map(r => r.latency_ms).sort((a, b) => a - b);
     const errorCount = fnRows.filter(r => r.error).length;
+    const last1hCount = fnRows.filter(r => new Date(r.created_at).getTime() >= oneHourAgo).length;
     result.push({
       function_name: fnName,
       total_count: fnRows.length,
+      last_1h_count: last1hCount,
       error_count: errorCount,
       error_rate: fnRows.length > 0 ? Math.round((errorCount / fnRows.length) * 100) : 0,
       p50_ms: percentile(latencies, 50),

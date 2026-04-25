@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
 type InternalTab = 'telemetry' | 'errors';
-type SortKey = 'function_name' | 'total_count' | 'p50_ms' | 'p95_ms' | 'error_rate';
+type SortKey = 'function_name' | 'total_count' | 'last_1h_count' | 'p50_ms' | 'p95_ms' | 'error_rate';
 type SortDir = 'asc' | 'desc';
 type SeverityFilter = 'all' | 'error' | 'warn';
 type TimeRange = '1h' | '6h' | '24h';
@@ -19,6 +19,7 @@ type TimeRange = '1h' | '6h' | '24h';
 interface TelemetryRow {
   function_name: string;
   total_count: number;
+  last_1h_count: number;
   error_count: number;
   error_rate: number;
   p50_ms: number;
@@ -310,7 +311,7 @@ export function ObservabilityPanel() {
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-xs text-muted-foreground">
-              Last 24h invocations across instrumented edge functions · auto-refreshes every 30s
+              Req (1h) = last hour · Req (24h) = rolling day · auto-refreshes every 30s
               {telemetryUpdatedAt && <> · updated {formatRelative(telemetryUpdatedAt.toISOString())}</>}
             </p>
           </div>
@@ -352,7 +353,10 @@ export function ObservabilityPanel() {
                         <SortHeader col="function_name" label="Function" />
                       </th>
                       <th className="px-4 py-2.5 text-right">
-                        <SortHeader col="total_count" label="Requests" />
+                        <SortHeader col="last_1h_count" label="Req (1h)" />
+                      </th>
+                      <th className="px-4 py-2.5 text-right">
+                        <SortHeader col="total_count" label="Req (24h)" />
                       </th>
                       <th className="px-4 py-2.5 text-right">
                         <SortHeader col="p50_ms" label="P50 ms" />
@@ -374,7 +378,10 @@ export function ObservabilityPanel() {
                         <td className="px-4 py-2.5">
                           <code className="text-xs font-mono text-foreground">{row.function_name}</code>
                         </td>
-                        <td className="px-4 py-2.5 text-right tabular-nums text-sm">
+                        <td className="px-4 py-2.5 text-right tabular-nums text-sm font-medium">
+                          {row.last_1h_count.toLocaleString()}
+                        </td>
+                        <td className="px-4 py-2.5 text-right tabular-nums text-sm text-muted-foreground">
                           {row.total_count.toLocaleString()}
                         </td>
                         <td className="px-4 py-2.5 text-right tabular-nums text-sm">
@@ -545,26 +552,47 @@ export function ObservabilityPanel() {
                       )}
                     </div>
 
-                    {isExpanded && (
-                      <div className="border-t border-border px-3 py-3 space-y-2 bg-muted/20 rounded-b-xl">
-                        {err.context && (
+                    {isExpanded && (() => {
+                      const ctx = err.context as Record<string, unknown> | null;
+                      const rawStack = ctx?.stack ?? ctx?.stackTrace ?? ctx?.stack_trace;
+                      const stackStr = typeof rawStack === 'string' ? rawStack : null;
+                      const contextWithoutStack = ctx ? Object.fromEntries(
+                        Object.entries(ctx).filter(([k]) => !['stack', 'stackTrace', 'stack_trace'].includes(k))
+                      ) : null;
+                      const hasContext = contextWithoutStack && Object.keys(contextWithoutStack).length > 0;
+                      return (
+                        <div className="border-t border-border px-3 py-3 space-y-3 bg-muted/20 rounded-b-xl">
                           <div>
-                            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">Context</p>
-                            <pre className="text-[11px] font-mono text-foreground bg-muted/40 rounded-lg p-2.5 overflow-x-auto whitespace-pre-wrap break-all">
-                              {JSON.stringify(err.context, null, 2)}
-                            </pre>
+                            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">Message</p>
+                            <p className="text-sm font-mono text-foreground bg-muted/40 rounded-lg p-2.5 break-all whitespace-pre-wrap">{err.message}</p>
                           </div>
-                        )}
-                        {err.user_id && (
-                          <p className="text-xs text-muted-foreground">
-                            User ID: <code className="font-mono">{err.user_id}</code>
-                          </p>
-                        )}
-                        {!err.context && !err.user_id && (
-                          <p className="text-xs text-muted-foreground">No additional context available.</p>
-                        )}
-                      </div>
-                    )}
+                          {stackStr && (
+                            <div>
+                              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">Stack Trace</p>
+                              <pre className="text-[11px] font-mono text-foreground bg-muted/40 rounded-lg p-2.5 overflow-x-auto whitespace-pre-wrap break-all max-h-48 overflow-y-auto">
+                                {stackStr}
+                              </pre>
+                            </div>
+                          )}
+                          {hasContext && (
+                            <div>
+                              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">Context</p>
+                              <pre className="text-[11px] font-mono text-foreground bg-muted/40 rounded-lg p-2.5 overflow-x-auto whitespace-pre-wrap break-all">
+                                {JSON.stringify(contextWithoutStack, null, 2)}
+                              </pre>
+                            </div>
+                          )}
+                          {err.user_id && (
+                            <p className="text-xs text-muted-foreground">
+                              User ID: <code className="font-mono">{err.user_id}</code>
+                            </p>
+                          )}
+                          {!stackStr && !hasContext && !err.user_id && (
+                            <p className="text-xs text-muted-foreground">No additional context available.</p>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 );
               })}
