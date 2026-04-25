@@ -711,7 +711,11 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
                               <div className="min-w-0 space-y-0.5">
                               {(() => {
                                 const isKindeShadow = (user.email ?? '').endsWith('@collision.kinde.placeholder');
-                                const displayEmail = user.contact_email || user.email;
+                                // For shadow/collision rows, show the real contact_email as primary.
+                                // For normal rows, always show the auth email as primary.
+                                const displayEmail = isKindeShadow
+                                  ? (user.contact_email || user.email)
+                                  : user.email;
                                 return (
                                   <>
                                     <div className="flex items-center gap-1.5 flex-wrap">

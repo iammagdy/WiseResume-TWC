@@ -160,12 +160,14 @@ function ProviderPanel({ provider }: ProviderPanelProps) {
   const [keys, setKeys] = useState<KeyEntry[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [sessionExpired, setSessionExpired] = useState(false);
   const [results, setResults] = useState<Record<string, TestResult>>({});
   const [testingKey, setTestingKey] = useState<string | null>(null);
 
   const fetchKeys = useCallback(async () => {
     setLoading(true);
     setLoadError(null);
+    setSessionExpired(false);
     try {
       const tuple = await edgeFunctions.functions.invoke('inspect-ai-keys', {
         headers: devKitAuthHeaders(),
@@ -176,6 +178,7 @@ function ProviderPanel({ provider }: ProviderPanelProps) {
     } catch (e) {
       if (!isMounted()) return;
       if (e instanceof EdgeFunctionError && e.status === 401) {
+        setSessionExpired(true);
         setLoadError('DevKit session expired — sign in to DevKit again to load key status.');
       } else {
         setLoadError(formatEdgeError(e, 'Failed to load AI key status'));
@@ -287,8 +290,16 @@ function ProviderPanel({ provider }: ProviderPanelProps) {
       </div>
 
       {loadError && (
-        <div className="rounded-md bg-red-500/5 border border-red-500/20 p-3 text-xs text-red-600 dark:text-red-400">
-          {loadError}
+        <div className="rounded-md bg-red-500/5 border border-red-500/20 p-3 text-xs text-red-600 dark:text-red-400 space-y-2">
+          <p>{loadError}</p>
+          {sessionExpired && (
+            <a
+              href="/devkit"
+              className="inline-flex items-center gap-1 underline underline-offset-2 hover:opacity-80 font-medium"
+            >
+              Sign in to DevKit →
+            </a>
+          )}
         </div>
       )}
 

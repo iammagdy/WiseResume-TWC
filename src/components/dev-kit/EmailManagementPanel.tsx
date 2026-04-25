@@ -107,22 +107,29 @@ function UnconfirmedUsersSection({ onSendToUser }: UnconfirmedUsersProps) {
 
   const handleResendConfirmation = async (user: AdminUser) => {
     setSendingId(user.user_id);
+    // For Kinde shadow/collision rows the auth email is a non-deliverable
+    // placeholder (kp_xxx@collision.kinde.placeholder). Fall back to
+    // contact_email so the confirmation reaches the real inbox.
+    const isKindeShadow = (user.email ?? '').endsWith('@collision.kinde.placeholder');
+    const resolvedEmail = isKindeShadow
+      ? (user.contact_email ?? user.email)
+      : user.email;
     try {
       const tuple = await edgeFunctions.functions.invoke('admin-email-actions', {
         headers: devKitAuthHeaders(),
         body: { action: 'resend_confirmation',
           target_user_id: user.user_id,
-          target_email: user.email,
+          target_email: resolvedEmail,
         },
       });
       const result = unwrapAdminResponse<{ message_id?: string }>(tuple, 'admin-email-actions');
       if (result.message_id) {
         toast.success('Confirmation email accepted by Resend', {
-          description: `ID: ${result.message_id} → ${user.email}. Delivery requires thewise.cloud to be verified in Resend.`,
+          description: `ID: ${result.message_id} → ${resolvedEmail}. Delivery requires thewise.cloud to be verified in Resend.`,
         });
       } else {
         toast.warning('Email submitted but delivery unconfirmed', {
-          description: `No message ID returned for ${user.email}. The sending domain (thewise.cloud) may not be verified in Resend — check your Resend dashboard.`,
+          description: `No message ID returned for ${resolvedEmail}. The sending domain (thewise.cloud) may not be verified in Resend — check your Resend dashboard.`,
         });
       }
     } catch (e) {
@@ -210,15 +217,28 @@ function UnconfirmedUsersSection({ onSendToUser }: UnconfirmedUsersProps) {
                     {filtered.map((user) => (
                       <tr key={user.user_id} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
                         <td className="px-4 py-3">
-                          <p className="font-mono text-xs truncate max-w-[200px]">{user.contact_email ?? user.email}</p>
-                          {user.full_name && (
-                            <p className="text-xs text-muted-foreground truncate max-w-[200px]">{user.full_name}</p>
-                          )}
-                          {user.contact_email && (user.email ?? '').endsWith('@collision.kinde.placeholder') && (
-                            <p className="text-[10px] text-muted-foreground font-mono truncate max-w-[200px]">
-                              Auth: {user.email}
-                            </p>
-                          )}
+                          {(() => {
+                            const isKindeShadow = (user.email ?? '').endsWith('@collision.kinde.placeholder');
+                            const displayEmail = isKindeShadow ? (user.contact_email ?? user.email) : user.email;
+                            return (
+                              <>
+                                <p className="font-mono text-xs truncate max-w-[200px]">{displayEmail}</p>
+                                {user.full_name && (
+                                  <p className="text-xs text-muted-foreground truncate max-w-[200px]">{user.full_name}</p>
+                                )}
+                                {isKindeShadow && user.contact_email && (
+                                  <p className="text-[10px] text-muted-foreground font-mono truncate max-w-[200px]">
+                                    Auth: {user.email}
+                                  </p>
+                                )}
+                                {isKindeShadow && !user.contact_email && (
+                                  <p className="text-[10px] text-amber-600 dark:text-amber-400">
+                                    Unidentified · Kinde shadow
+                                  </p>
+                                )}
+                              </>
+                            );
+                          })()}
                         </td>
                         <td className="px-4 py-3 text-xs text-muted-foreground hidden sm:table-cell">
                           {formatDate(user.created_at)}
