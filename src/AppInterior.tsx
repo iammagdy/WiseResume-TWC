@@ -21,6 +21,7 @@ import { useSuspensionCheck } from "@/hooks/useSuspensionCheck";
 import { SuspendedScreen } from "@/components/layout/SuspendedScreen";
 import { MaintenanceScreen } from "@/components/layout/MaintenanceScreen";
 import { AnnouncementBanner } from "@/components/layout/AnnouncementBanner";
+import { BroadcastBanner, MaintenanceCountdown } from "@/components/layout/BroadcastBanner";
 import { ActingAsBanner } from "@/components/layout/ActingAsBanner";
 import { useAppSettings } from "@/hooks/useAppSettings";
 import { useAuth } from "@/hooks/useAuth";
@@ -430,6 +431,11 @@ function AppRoutes() {
         {appSettings.announcement_enabled && appSettings.announcement_banner && (
           <AnnouncementBanner message={appSettings.announcement_banner} />
         )}
+        <BroadcastBanner />
+        <MaintenanceCountdown
+          windowStart={appSettings.maintenance_window_start}
+          windowEnd={appSettings.maintenance_window_end}
+        />
         <Routes>
           {/* Public routes */}
           <Route path="/" element={<RouteEB><Suspense fallback={<LandingSkeleton />}><Index /></Suspense></RouteEB>} />

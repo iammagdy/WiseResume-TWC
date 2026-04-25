@@ -24,6 +24,7 @@ import {
   ShieldCheck,
   Radio,
   Flag,
+  Megaphone,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -43,6 +44,7 @@ import { PortfolioUsernamesPanel } from '@/components/dev-kit/PortfolioUsernames
 import { OpenRouterPanel, GroqPanel } from '@/components/dev-kit/AIKeySlotPanels';
 import { MissionControlPanel } from '@/components/dev-kit/MissionControlPanel';
 import { FeatureFlagsPanel } from '@/components/dev-kit/FeatureFlagsPanel';
+import { OwnerOpsPanel } from '@/components/dev-kit/OwnerOpsPanel';
 import { DEV_KIT_VERSION } from '@/components/dev-kit/config';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { apiFnUrl } from '@/lib/apiFnUrl';
@@ -54,7 +56,7 @@ import { DevKitPanelBoundary } from '@/components/dev-kit/DevKitPanelBoundary';
 import { NativeBiometric } from '@capgo/capacitor-native-biometric';
 import { Capacitor } from '@capacitor/core';
 
-type Tab = 'mission' | 'overview' | 'analytics' | 'onboarding' | 'live' | 'deployment' | 'users' | 'coupons' | 'settings' | 'activity' | 'email' | 'wisehire' | 'portfolio' | 'openrouter' | 'groq' | 'flags';
+type Tab = 'mission' | 'overview' | 'analytics' | 'onboarding' | 'live' | 'deployment' | 'users' | 'coupons' | 'settings' | 'activity' | 'email' | 'wisehire' | 'portfolio' | 'openrouter' | 'groq' | 'flags' | 'owner-ops';
 
 interface NavItem {
   id: Tab;
@@ -83,6 +85,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { id: 'users', label: 'Users', icon: Users },
       { id: 'email', label: 'Email', icon: Mail },
+      { id: 'owner-ops', label: 'Owner Ops', icon: Megaphone },
       { id: 'coupons', label: 'Coupons', icon: Tag },
       { id: 'wisehire', label: 'WiseHire', icon: Briefcase },
       { id: 'portfolio', label: 'Portfolio', icon: AtSign },
@@ -118,6 +121,7 @@ const TAB_LABELS: Record<Tab, string> = {
   openrouter: 'OpenRouter',
   groq: 'Groq',
   flags: 'Feature Flags',
+  'owner-ops': 'Owner Ops',
 };
 
 type ConnectionStatus = 'checking' | 'connected' | 'degraded' | 'disconnected';
@@ -1010,6 +1014,21 @@ function DevToolsInner() {
                     </p>
                   </div>
                   <PortfolioUsernamesPanel />
+                </div>
+              )}
+
+              {activeTab === 'owner-ops' && (
+                <div className="space-y-4">
+                  <div>
+                    <h2 className="text-lg font-semibold flex items-center gap-2">
+                      <Megaphone className="w-5 h-5 text-primary" />
+                      Owner Operations
+                    </h2>
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                      App-wide communications and operational controls: in-app broadcasts, email campaigns, scheduled maintenance windows, and database backup triggers.
+                    </p>
+                  </div>
+                  <OwnerOpsPanel />
                 </div>
               )}
 

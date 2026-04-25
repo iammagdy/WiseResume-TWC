@@ -15,6 +15,8 @@ type EmailAction =
   | 'send_otp'
   | 'send_password_reset'
   | 'send_custom'
+  | 'send_email_broadcast'
+  | 'estimate_broadcast_recipients'
 
 async function sendResendEmail(options: {
   to: string
@@ -106,6 +108,161 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       )
     }
+
+    // ── Broadcast actions (no target_user_id / target_email needed) ──────────
+    if (action === 'estimate_broadcast_recipients' || action === 'send_email_broadcast') {
+      const {
+        audience = 'all',
+        broadcast_subject,
+        broadcast_body,
+      } = body as {
+        audience?: 'all' | 'pro' | 'free' | 'trial'
+        broadcast_subject?: string
+        broadcast_body?: string
+      }
+
+      // Build audience filter on profiles
+      let profileQuery = supabase.from('profiles').select('id, email')
+      if (audience === 'pro') {
+        profileQuery = profileQuery.in('plan_name', ['pro', 'enterprise', 'pro_annual'])
+      } else if (audience === 'free') {
+        profileQuery = profileQuery.eq('plan_name', 'free')
+      }
+      // 'trial' is filtered below via subscriptions
+
+      let recipientEmails: string[] = []
+
+      if (audience === 'trial') {
+        // Query active trial users
+        const now = new Date().toISOString()
+        const { data: trialProfiles, error: trialErr } = await supabase
+          .from('profiles')
+          .select('id, email')
+          .gt('trial_expires_at', now)
+        if (trialErr) throw trialErr
+        recipientEmails = (trialProfiles ?? [])
+          .map((p: { email?: string | null }) => p.email ?? '')
+          .filter(Boolean)
+      } else {
+        const { data: profiles, error: profileErr } = await profileQuery
+        if (profileErr) throw profileErr
+        recipientEmails = (profiles ?? [])
+          .map((p: { email?: string | null }) => p.email ?? '')
+          .filter(Boolean)
+      }
+
+      // Deduplicate
+      recipientEmails = [...new Set(recipientEmails)]
+
+      if (action === 'estimate_broadcast_recipients') {
+        return new Response(
+          JSON.stringify({ success: true, count: recipientEmails.length, audience }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        )
+      }
+
+      // action === 'send_email_broadcast'
+      if (!broadcast_subject?.trim() || !broadcast_body?.trim()) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'broadcast_subject and broadcast_body are required' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        )
+      }
+
+      if (!RESEND_API_KEY) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'RESEND_API_KEY not configured' }),
+          { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        )
+      }
+
+      if (recipientEmails.length === 0) {
+        return new Response(
+          JSON.stringify({ success: true, sent: 0, failed: 0, audience }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        )
+      }
+
+      const escapedBody = broadcast_body
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\n/g, '<br/>')
+
+      const htmlTemplate = (subject: string, bodyHtml: string) => `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"/></head>
+<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#fff;padding:0;margin:0;">
+  <div style="max-width:520px;margin:0 auto;">
+    <div style="background:#1a1a2e;padding:28px 32px;text-align:center;border-radius:16px 16px 0 0;">
+      <span style="color:#fff;font-size:18px;font-weight:700;">WiseResume</span>
+    </div>
+    <div style="height:3px;background:#e63946;"></div>
+    <div style="background:#f8f9fa;padding:40px 32px 32px;">
+      <h1 style="font-size:22px;font-weight:800;color:#1a1a2e;margin:0 0 16px;text-align:center;">${subject.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</h1>
+      <div style="font-size:15px;color:#4b5563;line-height:1.7;">${bodyHtml}</div>
+    </div>
+    <div style="background:#1a1a2e;padding:24px 32px;text-align:center;border-radius:0 0 16px 16px;">
+      <p style="font-size:11px;color:#6b7280;margin:0;">WiseResume — Build your career story</p>
+      <p style="font-size:11px;color:#4b5563;margin:4px 0 0;">thewise.cloud</p>
+    </div>
+  </div>
+</body>
+</html>`
+
+      const BATCH_SIZE = 50
+      const BATCH_DELAY_MS = 1100
+      let sent = 0
+      let failed = 0
+      const failedEmails: string[] = []
+
+      for (let i = 0; i < recipientEmails.length; i += BATCH_SIZE) {
+        const batch = recipientEmails.slice(i, i + BATCH_SIZE)
+        await Promise.all(batch.map(async (to) => {
+          try {
+            await sendResendEmail({
+              to,
+              from: SENDER_FROM,
+              subject: broadcast_subject,
+              html: htmlTemplate(broadcast_subject, escapedBody),
+              text: `${broadcast_subject}\n\n${broadcast_body}\n\n—\nWiseResume (thewise.cloud)`,
+              apiKey: RESEND_API_KEY!,
+            })
+            sent++
+          } catch (e) {
+            failed++
+            failedEmails.push(to)
+            console.error(`[admin-email-actions] Broadcast send failed for ${to}:`, e)
+          }
+        }))
+        // Rate-limit: wait between batches (skip after last batch)
+        if (i + BATCH_SIZE < recipientEmails.length) {
+          await new Promise((r) => setTimeout(r, BATCH_DELAY_MS))
+        }
+      }
+
+      await supabase.from('audit_logs').insert({
+        user_id: null,
+        category: 'admin_email',
+        action: 'email_broadcast_sent',
+        metadata: {
+          performed_by: callerEmail,
+          audience,
+          total_recipients: recipientEmails.length,
+          sent,
+          failed,
+          broadcast_subject,
+          broadcast_body_preview: broadcast_body.slice(0, 200),
+          sent_at: new Date().toISOString(),
+        },
+      }).catch((e: Error) => console.error('[admin-email-actions] Broadcast audit failed:', e.message))
+
+      return new Response(
+        JSON.stringify({ success: true, sent, failed, audience, total: recipientEmails.length }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
+    }
+    // ── End broadcast actions ─────────────────────────────────────────────────
 
     if (!target_user_id && !target_email) {
       return new Response(

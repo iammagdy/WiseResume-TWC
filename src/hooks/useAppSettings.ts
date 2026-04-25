@@ -11,6 +11,8 @@ export interface AppSettings {
   feature_portfolio: boolean;
   feature_interview_coach: boolean;
   feature_career_advisor: boolean;
+  maintenance_window_start: string | null;
+  maintenance_window_end: string | null;
 }
 
 const DEFAULTS: AppSettings = {
@@ -23,14 +25,22 @@ const DEFAULTS: AppSettings = {
   feature_portfolio: true,
   feature_interview_coach: true,
   feature_career_advisor: true,
+  maintenance_window_start: null,
+  maintenance_window_end: null,
 };
+
+const STRING_KEYS: (keyof AppSettings)[] = [
+  'announcement_banner',
+  'maintenance_window_start',
+  'maintenance_window_end',
+];
 
 function parseSettings(obj: Record<string, unknown>): AppSettings {
   const parsed: Partial<AppSettings> = {};
   for (const [key, val] of Object.entries(obj)) {
     const k = key as keyof AppSettings;
-    if (k === 'announcement_banner') {
-      (parsed as Record<string, unknown>)[k] = val === null ? null : String(val);
+    if (STRING_KEYS.includes(k)) {
+      (parsed as Record<string, unknown>)[k] = val === null || val === undefined ? null : String(val);
     } else {
       (parsed as Record<string, unknown>)[k] = val === true || val === 'true';
     }
@@ -42,16 +52,11 @@ export function useAppSettings(): AppSettings & { isLoading: boolean } {
   const { data, isLoading } = useQuery({
     queryKey: ['app-settings'],
     queryFn: async (): Promise<AppSettings> => {
-      // Skip all network calls if Supabase is not configured — avoids
-      // ERR_NAME_NOT_RESOLVED errors and noisy console warnings in dev.
       if (!SUPABASE_URL) return DEFAULTS;
 
-      // Use the get_app_settings RPC which is accessible to anon + authenticated
-      // This ensures maintenance mode is enforced even for unauthenticated users
       const { data, error } = await supabase.rpc('get_app_settings');
 
       if (error) {
-        // Fallback: try direct table read (authenticated sessions may have row-level access)
         const { data: tableData, error: tableError } = await supabase
           .from('app_settings')
           .select('key, value');

@@ -192,3 +192,7 @@ project_id = "jnsfmkzgxsviuthaqlyy"
     verify_jwt = false
   [functions.admin-impersonate]
     verify_jwt = false
+  [functions.admin-broadcast]
+    verify_jwt = false
+  [functions.admin-owner-ops]
+    verify_jwt = false
