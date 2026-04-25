@@ -10,9 +10,16 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
-  const authResult = await requireAdminAuth(req);
-  if (authResult instanceof Response) return authResult;
-  const { email: adminEmail } = authResult;
+  let adminEmail: string;
+  try {
+    adminEmail = await requireAdminAuth(req, corsHeaders);
+  } catch (err) {
+    if (err instanceof Response) return err;
+    return new Response(JSON.stringify({ error: 'Authentication failed' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
 
   const supabase = getServiceClient();
 
@@ -42,9 +49,8 @@ serve(async (req) => {
         },
       });
     } catch {
-      // Non-fatal — still return success
+      // Exit audit failure is non-fatal — session is already cleared client-side
     }
-
     return new Response(JSON.stringify({ success: true }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -67,7 +73,20 @@ serve(async (req) => {
     });
   }
 
-  const targetEmail = targetUser.user.email ?? target_user_id;
+  const targetEmail = targetUser.user.email ?? '';
+
+  const ADMIN_EMAILS = Deno.env.get('ADMIN_EMAILS');
+  const adminEmailList = (ADMIN_EMAILS ?? '')
+    .split(',')
+    .map((e: string) => e.trim().toLowerCase())
+    .filter(Boolean);
+
+  if (targetEmail && adminEmailList.includes(targetEmail.toLowerCase())) {
+    return new Response(
+      JSON.stringify({ error: 'Impersonating another admin is not permitted' }),
+      { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    );
+  }
 
   const { data: sessionData, error: sessionErr } = await supabase.auth.admin.createSession({
     user_id: target_user_id,
@@ -83,20 +102,24 @@ serve(async (req) => {
 
   const expiresAt = Date.now() + 30 * 60 * 1000;
 
-  try {
-    await supabase.from('audit_logs').insert({
-      user_id: null,
-      category: 'admin_impersonation',
-      action: 'impersonation_start',
-      metadata: {
-        performed_by: adminEmail,
-        target_user_id,
-        target_email: targetEmail,
-        started_at: new Date().toISOString(),
-      },
-    });
-  } catch {
-    // Non-fatal
+  const { error: auditErr } = await supabase.from('audit_logs').insert({
+    user_id: null,
+    category: 'admin_impersonation',
+    action: 'impersonation_start',
+    metadata: {
+      performed_by: adminEmail,
+      target_user_id,
+      target_email: targetEmail || target_user_id,
+      started_at: new Date().toISOString(),
+    },
+  });
+
+  if (auditErr) {
+    console.error('[admin-impersonate] audit insert failed:', auditErr);
+    return new Response(
+      JSON.stringify({ error: 'Could not write audit log — impersonation blocked' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    );
   }
 
   return new Response(
@@ -104,7 +127,7 @@ serve(async (req) => {
       success: true,
       access_token: sessionData.session.access_token,
       user_id: target_user_id,
-      email: targetEmail,
+      email: targetEmail || target_user_id,
       expires_at: expiresAt,
     }),
     { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
