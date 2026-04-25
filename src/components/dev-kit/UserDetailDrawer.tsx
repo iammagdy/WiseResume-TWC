@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Crown, Shield, ShieldOff, Zap, StickyNote, Copy, Check, Clock, UserPen, AlertTriangle, Trash2, LogOut, UserX, FileText, ChevronRight, Fingerprint, Merge, RotateCcw } from 'lucide-react';
+import { X, Crown, Shield, ShieldOff, Zap, StickyNote, Copy, Check, Clock, UserPen, AlertTriangle, Trash2, LogOut, UserX, FileText, ChevronRight, Fingerprint, Merge, RotateCcw, Activity, Filter, CalendarDays, Loader2 } from 'lucide-react';
 import { AccountTypeBadge } from './DevKitBadges';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -28,7 +28,7 @@ interface UserDetailDrawerProps {
 }
 
 type PlanTab = 'permanent' | 'trial';
-type DrawerTab = 'actions' | 'content';
+type DrawerTab = 'actions' | 'content' | 'activity';
 
 interface AuditEntry {
   id: string;
@@ -54,6 +54,13 @@ interface ResumeItem {
 
 interface ResumeDetail extends ResumeItem {
   content: unknown;
+}
+
+interface UsageEvent {
+  id: string;
+  event_type: string;
+  metadata: Record<string, unknown>;
+  created_at: string;
 }
 
 const PLAN_COLORS: Record<string, string> = {
@@ -177,6 +184,21 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
   const [selectedResume, setSelectedResume] = useState<ResumeDetail | null>(null);
   const [resumeDetailLoading, setResumeDetailLoading] = useState(false);
 
+  // Activity tab state
+  const [activityEvents, setActivityEvents] = useState<UsageEvent[]>([]);
+  const [activityLoading, setActivityLoading] = useState(false);
+  const [activityError, setActivityError] = useState<string | null>(null);
+  const [activityEventTypeFilter, setActivityEventTypeFilter] = useState<string>('all');
+  const [contentStats, setContentStats] = useState<{
+    resumeCount: number | null;
+    coverLetterCount: number | null;
+    hasPortfolio: boolean;
+    portfolioEnabled: boolean | null;
+    portfolioUsername: string | null;
+    aiCredits30d: number | null;
+    planHistory: Array<{ action: string; metadata: Record<string, unknown>; created_at: string }>;
+  } | null>(null);
+
   // Identity section state
   const [identityData, setIdentityData] = useState<{
     auth_email: string | null;
@@ -240,6 +262,56 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
 
     return () => { cancelled = true; };
   }, [open, user.user_id]);
+
+  // Load activity events + content stats when activity tab is opened
+  useEffect(() => {
+    if (drawerTab !== 'activity' || !open) return;
+    let cancelled = false;
+    setActivityLoading(true);
+    setActivityError(null);
+
+    const eventsPromise = edgeFunctions.functions.invoke('admin-live-activity', {
+      headers: devKitAuthHeaders(),
+      body: { resource: 'usage_events', user_id: user.user_id },
+    }).then((tuple) => {
+      if (cancelled) return;
+      try {
+        const result = unwrapAdminResponse<{ data?: UsageEvent[] }>(tuple, 'admin-live-activity');
+        setActivityEvents(result.data ?? []);
+      } catch (e) {
+        setActivityError(formatEdgeError(e, 'Failed to load activity'));
+        setActivityEvents([]);
+      }
+    });
+
+    const statsPromise = edgeFunctions.functions.invoke('admin-live-activity', {
+      headers: devKitAuthHeaders(),
+      body: { resource: 'user_content_stats', user_id: user.user_id },
+    }).then((tuple) => {
+      if (cancelled) return;
+      try {
+        const result = unwrapAdminResponse<{
+          resumeCount: number | null;
+          coverLetterCount: number | null;
+          hasPortfolio: boolean;
+          portfolioEnabled: boolean | null;
+          portfolioUsername: string | null;
+          aiCredits30d: number | null;
+          planHistory: Array<{ action: string; metadata: Record<string, unknown>; created_at: string }>;
+        }>(tuple, 'admin-live-activity (stats)');
+        setContentStats(result);
+      } catch {
+        // stats are non-critical; silently skip
+      }
+    });
+
+    Promise.all([eventsPromise, statsPromise]).finally(() => {
+      if (!cancelled) setActivityLoading(false);
+    });
+
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drawerTab, open, user.user_id]);
 
   // Load resumes when content tab is opened
   useEffect(() => {
@@ -733,20 +805,223 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
 
         {/* Drawer Tabs */}
         <div className="flex gap-1 p-2 border-b border-border shrink-0">
-          {(['actions', 'content'] as DrawerTab[]).map(tab => (
-            <button
-              key={tab}
-              onClick={() => setDrawerTab(tab)}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all capitalize flex items-center gap-1.5 ${drawerTab === tab ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
-            >
-              {tab === 'content' ? <FileText className="w-3.5 h-3.5" /> : null}
-              {tab === 'actions' ? 'Actions' : 'Content'}
-            </button>
-          ))}
+          <button
+            onClick={() => setDrawerTab('actions')}
+            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all flex items-center gap-1.5 ${drawerTab === 'actions' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
+          >
+            Actions
+          </button>
+          <button
+            onClick={() => setDrawerTab('activity')}
+            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all flex items-center gap-1.5 ${drawerTab === 'activity' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
+          >
+            <Activity className="w-3.5 h-3.5" />
+            Activity
+          </button>
+          <button
+            onClick={() => setDrawerTab('content')}
+            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all flex items-center gap-1.5 ${drawerTab === 'content' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
+          >
+            <FileText className="w-3.5 h-3.5" />
+            Content
+          </button>
         </div>
 
         {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto p-4 space-y-5">
+
+          {/* === ACTIVITY TAB === */}
+          {drawerTab === 'activity' && (
+            <div className="space-y-4">
+              {/* Account summary */}
+              <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-2">
+                <h3 className="flex items-center gap-2 text-sm font-semibold mb-3">
+                  <CalendarDays className="w-4 h-4 text-primary" />
+                  Account Summary
+                </h3>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Signed up</span>
+                  <span className="text-xs">{formatDate(user.created_at)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Last active</span>
+                  <span className="text-xs">{formatDate(user.last_sign_in_at)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Provider</span>
+                  <span className="text-xs">
+                    {identityData?.kinde_sub ? 'Kinde (SSO)' : 'Email / password'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Email confirmed</span>
+                  <span className={`text-xs ${user.email_confirmed_at ? 'text-green-600 dark:text-green-400' : 'text-amber-500'}`}>
+                    {user.email_confirmed_at ? formatDate(user.email_confirmed_at) : 'Not confirmed'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Plan</span>
+                  <span className="text-xs capitalize">{user.plan_name}{user.trial_plan ? ` (trial ${user.trial_plan})` : ''}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Account type</span>
+                  <span className="text-xs capitalize">{user.account_type ?? 'job_seeker'}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Suspended</span>
+                  <span className={`text-xs ${user.is_suspended ? 'text-destructive font-medium' : ''}`}>{user.is_suspended ? 'Yes' : 'No'}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">AI credits today</span>
+                  <span className="text-xs">
+                    {user.credits_used_today} / {user.daily_limit === -1 ? 'unlimited' : (user.daily_limit ?? '—')}
+                  </span>
+                </div>
+              </div>
+
+              {/* Content stats */}
+              <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-2">
+                <h3 className="text-sm font-semibold mb-3">Content &amp; Usage</h3>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Resumes</span>
+                  <span className="text-xs">{contentStats?.resumeCount ?? user.resume_count ?? 0}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Cover letters</span>
+                  <span className="text-xs">{contentStats?.coverLetterCount !== null && contentStats?.coverLetterCount !== undefined ? contentStats.coverLetterCount : '—'}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Portfolio</span>
+                  <span className="text-xs">
+                    {contentStats === null
+                      ? '—'
+                      : contentStats.hasPortfolio
+                      ? `${contentStats.portfolioUsername ?? 'set'}${contentStats.portfolioEnabled ? ' (live)' : ' (hidden)'}`
+                      : 'None'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Short links</span>
+                  <span className="text-xs">{user.link_count ?? 0}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">AI calls (30d)</span>
+                  <span className="text-xs">{contentStats?.aiCredits30d !== null && contentStats?.aiCredits30d !== undefined ? contentStats.aiCredits30d : '—'}</span>
+                </div>
+              </div>
+
+              {/* Onboarding funnel milestones */}
+              {(() => {
+                const eventTypes = new Set(activityEvents.map(e => e.event_type));
+                const milestones = [
+                  { label: 'Signed up', done: true },
+                  { label: 'Email confirmed', done: !!user.email_confirmed_at },
+                  { label: 'Created first resume', done: (contentStats?.resumeCount ?? user.resume_count ?? 0) > 0 },
+                  { label: 'Used AI feature', done: [...eventTypes].some(t => t.startsWith('ai_')) || (contentStats?.aiCredits30d ?? 0) > 0 },
+                  { label: 'Published portfolio', done: contentStats?.hasPortfolio === true },
+                  { label: 'Upgraded plan', done: user.plan_name !== 'free' || (contentStats?.planHistory?.some(h => h.action === 'plan_change') ?? false) },
+                ];
+                return (
+                  <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-2">
+                    <h3 className="text-sm font-semibold mb-3">Onboarding Progress</h3>
+                    {milestones.map(m => (
+                      <div key={m.label} className="flex items-center gap-2.5">
+                        <span className={`inline-flex w-4 h-4 rounded-full shrink-0 items-center justify-center text-[10px] font-bold ${m.done ? 'bg-green-500 text-white' : 'bg-muted border border-border text-muted-foreground'}`}>
+                          {m.done ? '✓' : ''}
+                        </span>
+                        <span className={`text-xs ${m.done ? 'text-foreground' : 'text-muted-foreground'}`}>{m.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+
+              {/* Plan history */}
+              {contentStats?.planHistory && contentStats.planHistory.length > 0 && (
+                <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-2">
+                  <h3 className="text-sm font-semibold mb-3">Plan History</h3>
+                  {contentStats.planHistory.map((entry, i) => (
+                    <div key={i} className="flex items-center justify-between">
+                      <span className="text-xs capitalize text-foreground">
+                        {entry.action === 'plan_change' ? `Plan → ${String(entry.metadata?.new_plan ?? '?')}` : entry.action}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">{formatDate(entry.created_at)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Usage events */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="flex items-center gap-2 text-sm font-semibold">
+                    <Activity className="w-4 h-4 text-primary" />
+                    Recent Events
+                    {activityEvents.length > 0 && (
+                      <span className="text-xs font-normal text-muted-foreground">({activityEvents.length})</span>
+                    )}
+                  </h3>
+                  <div className="flex items-center gap-1.5">
+                    <Filter className="w-3 h-3 text-muted-foreground" />
+                    <select
+                      value={activityEventTypeFilter}
+                      onChange={e => setActivityEventTypeFilter(e.target.value)}
+                      className="text-[10px] bg-background border border-border rounded px-1.5 py-1 focus:outline-none focus:ring-1 focus:ring-primary"
+                    >
+                      <option value="all">All types</option>
+                      {[...new Set(activityEvents.map(e => e.event_type))].sort().map(t => (
+                        <option key={t} value={t}>{t}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {activityLoading && (
+                  <div className="flex items-center justify-center py-8 gap-2 text-muted-foreground">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span className="text-sm">Loading activity…</span>
+                  </div>
+                )}
+
+                {activityError && (
+                  <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-xs text-destructive">
+                    {activityError}
+                  </div>
+                )}
+
+                {!activityLoading && !activityError && activityEvents.length === 0 && (
+                  <div className="py-8 text-center text-muted-foreground">
+                    <Activity className="w-6 h-6 mx-auto mb-2 opacity-40" />
+                    <p className="text-sm">No events recorded for this user.</p>
+                    <p className="text-xs mt-1 opacity-60">Events are logged as users interact with the app.</p>
+                  </div>
+                )}
+
+                {!activityLoading && activityEvents.length > 0 && (
+                  <div className="rounded-xl border border-border overflow-hidden">
+                    {activityEvents
+                      .filter(e => activityEventTypeFilter === 'all' || e.event_type === activityEventTypeFilter)
+                      .map(event => (
+                        <div key={event.id} className="px-3 py-2 border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0 flex-1">
+                              <p className="text-[11px] font-medium font-mono truncate text-foreground">{event.event_type}</p>
+                              {Object.keys(event.metadata ?? {}).length > 0 && (
+                                <p className="text-[10px] text-muted-foreground truncate">
+                                  {Object.entries(event.metadata).slice(0, 3).map(([k, v]) => `${k}: ${String(v)}`).join(' · ')}
+                                </p>
+                              )}
+                            </div>
+                            <span className="text-[10px] text-muted-foreground shrink-0 tabular-nums">{formatDate(event.created_at)}</span>
+                          </div>
+                        </div>
+                      ))
+                    }
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* === CONTENT TAB === */}
           {drawerTab === 'content' && (

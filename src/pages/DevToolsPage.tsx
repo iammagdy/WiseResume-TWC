@@ -22,6 +22,7 @@ import {
   Fingerprint,
   ScanFace,
   ShieldCheck,
+  Radio,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -39,6 +40,7 @@ import { EmailManagementPanel } from '@/components/dev-kit/EmailManagementPanel'
 import { WiseHireWaitlistPanel } from '@/components/dev-kit/WiseHireWaitlistPanel';
 import { PortfolioUsernamesPanel } from '@/components/dev-kit/PortfolioUsernamesPanel';
 import { OpenRouterPanel, GroqPanel } from '@/components/dev-kit/AIKeySlotPanels';
+import { MissionControlPanel } from '@/components/dev-kit/MissionControlPanel';
 import { DEV_KIT_VERSION } from '@/components/dev-kit/config';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { apiFnUrl } from '@/lib/apiFnUrl';
@@ -50,7 +52,7 @@ import { DevKitPanelBoundary } from '@/components/dev-kit/DevKitPanelBoundary';
 import { NativeBiometric } from '@capgo/capacitor-native-biometric';
 import { Capacitor } from '@capacitor/core';
 
-type Tab = 'overview' | 'analytics' | 'onboarding' | 'live' | 'deployment' | 'users' | 'coupons' | 'settings' | 'activity' | 'email' | 'wisehire' | 'portfolio' | 'openrouter' | 'groq';
+type Tab = 'mission' | 'overview' | 'analytics' | 'onboarding' | 'live' | 'deployment' | 'users' | 'coupons' | 'settings' | 'activity' | 'email' | 'wisehire' | 'portfolio' | 'openrouter' | 'groq';
 
 interface NavItem {
   id: Tab;
@@ -67,6 +69,7 @@ const NAV_SECTIONS: NavSection[] = [
   {
     title: 'Monitor',
     items: [
+      { id: 'mission', label: 'Mission Control', icon: Radio },
       { id: 'overview', label: 'Overview', icon: LayoutDashboard },
       { id: 'analytics', label: 'Analytics', icon: BarChart2 },
       { id: 'onboarding', label: 'Onboarding', icon: Filter },
@@ -96,6 +99,7 @@ const NAV_SECTIONS: NavSection[] = [
 ];
 
 const TAB_LABELS: Record<Tab, string> = {
+  mission: 'Mission Control',
   overview: 'Overview',
   analytics: 'Analytics',
   onboarding: 'Onboarding Funnel',
@@ -725,7 +729,7 @@ function DevKitLoginForm() {
 function DevToolsInner() {
   const { isUnlocked, lock } = useDevKitSession();
 
-  const [activeTab, setActiveTab] = useState<Tab>('overview');
+  const [activeTab, setActiveTab] = useState<Tab>('mission');
   const [userCount, setUserCount] = useState<number | null>(null);
   const [couponCount, setCouponCount] = useState<number | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('checking');
@@ -767,7 +771,7 @@ function DevToolsInner() {
 
   const handleLock = () => {
     lock();
-    setActiveTab('overview');
+    setActiveTab('mission');
     setUserCount(null);
     setCouponCount(null);
     setConnectionStatus('checking');
@@ -891,6 +895,10 @@ function DevToolsInner() {
           <div className="p-6 max-w-5xl">
 
             <DevKitPanelBoundary key={activeTab} panelName={TAB_LABELS[activeTab]}>
+              {activeTab === 'mission' && (
+                <MissionControlPanel onNavigate={(tab) => setActiveTab(tab as Tab)} />
+              )}
+
               {activeTab === 'overview' && (
                 <OverviewPanel />
               )}
