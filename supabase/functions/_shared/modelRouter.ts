@@ -1,26 +1,74 @@
 /**
- * Stub model router.
+ * Model router — canonical feature routing helper.
  *
- * The real router used to pick between OpenRouter / OpenRouter2 / Groq /
- * Gemini etc. with per-tool overrides from `app_settings`. The new flat
- * 6-key pool client (`_shared/aiClient.ts`) does its own random
- * provider+key pick on every call, so this module has no work to do.
+ * Resolves which AI provider and model to use for a given feature name by
+ * querying `ai_routing_config`. Applies weighted A/B splits when configured.
  *
- * We keep the `selectProviderForTool` export so the 30+ AI edge functions
- * that still call `__ROUTE = selectProviderForTool('foo')` and pass
- * `__ROUTE.model` / `__ROUTE.provider` through to `callAIWithRetry` keep
- * compiling. Both fields are ignored downstream.
+ * Usage:
+ *   const route = await resolveFeatureRoute('tailor-resume');
+ *   // route.provider = 'groq', route.model = 'llama-3.3-70b-versatile'
+ *   // Pass featureName to callAI / callAIWithRetry — aiClient calls this internally.
+ *
+ * Legacy callers (30+ edge functions) that still call selectProviderForTool()
+ * get a no-op stub. Migrate them to pass featureName directly to callAI instead.
  */
 
+import { getServiceClient } from './dbClient.ts';
+
 export interface RouteSelection {
-  /** Always 'auto' — the actual provider is picked inside callAIWithRetry. */
-  provider: 'auto';
-  /** Empty — actual model is decided inside callAIWithRetry. */
+  provider: 'auto' | 'openrouter' | 'groq';
   model: string;
 }
 
-const ROUTE: RouteSelection = { provider: 'auto', model: '' };
+/**
+ * Resolve the provider and model for a named AI feature.
+ * Returns `{ provider: 'auto', model: '' }` on any lookup failure so callers
+ * fall back to random pool selection.
+ *
+ * This is the same logic used inside `aiClient.callAI` / `callAIWithRetry` when
+ * `featureName` is provided — exposed here so other code can inspect routing
+ * decisions without making an AI call.
+ */
+export async function resolveFeatureRoute(featureName: string): Promise<RouteSelection> {
+  try {
+    const db = getServiceClient();
+    const { data } = await db
+      .from('ai_routing_config')
+      .select('provider, model, ab_secondary_provider, ab_secondary_model, ab_split_pct')
+      .eq('feature_name', featureName)
+      .maybeSingle();
 
+    if (!data || !data.provider || data.provider === 'auto') {
+      return { provider: 'auto', model: '' };
+    }
+
+    // A/B split: route ab_split_pct% of traffic to secondary provider
+    if (data.ab_secondary_provider && (data.ab_split_pct ?? 0) > 0) {
+      if (Math.random() * 100 < data.ab_split_pct) {
+        return {
+          provider: data.ab_secondary_provider as RouteSelection['provider'],
+          model: (data.ab_secondary_model ?? '') || '',
+        };
+      }
+    }
+
+    return {
+      provider: data.provider as RouteSelection['provider'],
+      model: (data.model ?? '') || '',
+    };
+  } catch {
+    return { provider: 'auto', model: '' };
+  }
+}
+
+/**
+ * Legacy no-op helper kept for backward compatibility.
+ * New code should pass `featureName` to `callAI` / `callAIWithRetry` directly
+ * so routing config is applied at call time with retries and fallbacks intact.
+ *
+ * @deprecated Use `featureName` on `AICallOptions` instead.
+ */
+const LEGACY_ROUTE: RouteSelection = { provider: 'auto', model: '' };
 export function selectProviderForTool(_toolName: string): RouteSelection {
-  return ROUTE;
+  return LEGACY_ROUTE;
 }

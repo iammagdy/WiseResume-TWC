@@ -49,7 +49,7 @@ Users authenticate via Kinde, receiving an access token. The client exchanges th
 
 **Core Features & Implementations:**
 - **AI Career Management**: AI-powered resume building, tailoring for job listings, public portfolios, interview practice, job tracking, and career goal management.
-- **AI System**: Centralized AI client (`supabase/functions/_shared/aiClient.ts`) dispatches calls to OpenRouter and Groq (primary providers). Supports "Bring Your Own Key" (BYOK) for various providers (OpenAI, Anthropic, Gemini, Groq). Per-feature routing config stored in `ai_routing_config` table; pass `featureName` to `callAI`/`callAIWithRetry` to activate routing. Supports A/B splits via `ab_secondary_provider`+`ab_split_pct` fields.
+- **AI System**: Centralized AI client (`supabase/functions/_shared/aiClient.ts`) dispatches calls to OpenRouter and Groq (primary providers). Supports "Bring Your Own Key" (BYOK). Per-feature routing config in `ai_routing_config` table; pass `featureName` to `callAI`/`callAIWithRetry` to activate. `_shared/modelRouter.ts` is the canonical routing helper — exports `resolveFeatureRoute(featureName)` which aiClient imports. A/B splits via `ab_secondary_provider`+`ab_split_pct`. Forced routing disables cross-provider fallback to preserve A/B integrity.
 - **AI Error Handling**: Structured error chain from Supabase Edge Functions to user-facing toasts, with utilities for parsing `AIError` types.
 - **Agentic Chat**: Multi-turn AI assistant with persistent sessions and tool-calling capabilities (e.g., `update_summary`, `get_company_briefing`, `open_job_tracker`). Uses a `tool_cache` DB table for output caching.
 - **Subscription & Credits**: `free`, `pro`, `premium` plans with dynamic daily AI credit limits.

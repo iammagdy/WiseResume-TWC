@@ -82,16 +82,56 @@ export async function checkAndDeductCredit(
     sub?.trial_plan as string | null,
     sub?.trial_expires_at as string | null,
   );
+  // ── Global aggregate cap check ───────────────────────────────────────────
+  // `global_daily_limit` in app_settings is a PLATFORM-WIDE total daily credit
+  // budget across all users. When set, check today's aggregate usage first and
+  // reject early if the platform has exhausted its daily budget.
+  // This is a soft limit (read committed, no advisory lock) — adequate for a
+  // cost guardrail; exact atomicity would require a dedicated global RPC.
+  try {
+    const { data: globalRow } = await supabase
+      .from('app_settings')
+      .select('value')
+      .eq('key', 'global_daily_limit')
+      .maybeSingle();
+
+    if (globalRow?.value != null && globalRow.value !== '') {
+      const globalLimit = Number(globalRow.value);
+      if (!isNaN(globalLimit) && globalLimit >= 0) {
+        const { data: usageRow } = await supabase
+          .from('ai_credits')
+          .select('daily_usage')
+          .eq('usage_date', new Date().toISOString().slice(0, 10));
+
+        const totalUsage = (usageRow ?? []).reduce((sum: number, r: { daily_usage: number }) => sum + (r.daily_usage ?? 0), 0);
+
+        if (totalUsage + amount > globalLimit) {
+          log.warn('global daily cap exhausted — rejecting request', {
+            globalLimit,
+            totalUsage,
+            userId,
+            amount,
+          });
+          return {
+            hasCredits:    false,
+            remaining:     Math.max(globalLimit - totalUsage, 0),
+            isByok:        false,
+            effectivePlan,
+          };
+        }
+        log.info('global cap check passed', { globalLimit, totalUsage });
+      }
+    }
+  } catch (globalCapErr) {
+    // Non-fatal: if the aggregate check fails, proceed without the global guard.
+    log.warn('global cap check failed — proceeding without global guard', { error: String(globalCapErr) });
+  }
+
+  // ── Per-user limit resolution ─────────────────────────────────────────────
+  // Priority (highest wins): user override > plan cap > plan default.
+  // Batch-fetch plan and user cap overrides from app_settings in one query.
   let authoritativeLimit = planDailyLimit(effectivePlan);
 
-  // Batch-fetch all spend cap overrides from app_settings in a single query.
-  // Priority (highest wins): user override > plan cap > global cap > plan default.
-  // All overrides are non-fatal: a lookup failure falls back to the next lower priority.
-  //
-  //   global_daily_limit       — platform-wide override for all users (lowest override)
-  //   daily_cap_free|trial|pro — per-plan cap override
-  //   user_limit_<userId>      — per-user override (set via DevKit → Spend Caps → Per-user)
-  //
   try {
     const capPlan = effectivePlan === 'premium' ? 'pro' : effectivePlan;
     const planCapKey = `daily_cap_${capPlan}`;
@@ -100,7 +140,7 @@ export async function checkAndDeductCredit(
     const { data: capRows } = await supabase
       .from('app_settings')
       .select('key, value')
-      .in('key', ['global_daily_limit', planCapKey, userCapKey]);
+      .in('key', [planCapKey, userCapKey]);
 
     if (capRows && capRows.length > 0) {
       const byKey: Record<string, string> = {};
@@ -109,13 +149,6 @@ export async function checkAndDeductCredit(
       }
 
       // Apply in ascending priority order — each overrides the previous.
-      if (byKey['global_daily_limit'] !== undefined) {
-        const v = Number(byKey['global_daily_limit']);
-        if (!isNaN(v) && v >= -1) {
-          authoritativeLimit = v;
-          log.info('global spend cap applied from app_settings', { v });
-        }
-      }
       if (byKey[planCapKey] !== undefined) {
         const v = Number(byKey[planCapKey]);
         if (!isNaN(v) && v >= -1) {

@@ -16,6 +16,7 @@
 import { getServiceClient } from './dbClient.ts';
 import { decrypt } from './encryption.ts';
 import { getProvider, buildAuthHeaders, extractResponseContent } from './providers.ts';
+import { resolveFeatureRoute, type RouteSelection as ForcedRoute } from './modelRouter.ts';
 
 // ── Public types ──────────────────────────────────────────────────────────────
 export interface AIMessage {
@@ -136,43 +137,8 @@ interface PickedKey extends KeyEntry {
   modelOverride?: string;
 }
 
-interface ForcedRoute {
-  provider?: Provider;
-  model?: string;
-}
-
-/**
- * Look up the `ai_routing_config` table for the given feature name.
- * Applies A/B split if configured. Falls back to {} on any error so
- * the normal random pool selection is used.
- */
-async function resolveRoutingForFeature(featureName: string): Promise<ForcedRoute> {
-  try {
-    const db = getServiceClient();
-    const { data } = await db
-      .from('ai_routing_config')
-      .select('provider, model, ab_secondary_provider, ab_secondary_model, ab_split_pct')
-      .eq('feature_name', featureName)
-      .maybeSingle();
-
-    if (!data || !data.provider || data.provider === 'auto') return {};
-
-    // A/B split: route ab_split_pct% of traffic to the secondary provider
-    if (data.ab_secondary_provider && (data.ab_split_pct ?? 0) > 0) {
-      if (Math.random() * 100 < data.ab_split_pct) {
-        const secProvider = data.ab_secondary_provider as Provider;
-        return { provider: secProvider, model: (data.ab_secondary_model ?? '') || undefined };
-      }
-    }
-
-    return {
-      provider: data.provider as Provider,
-      model: (data.model ?? '') || undefined,
-    };
-  } catch {
-    return {};
-  }
-}
+// ForcedRoute = RouteSelection from modelRouter.ts (imported at top).
+// provider === 'auto' means no forced route — normal random pool selection applies.
 
 /**
  * Pick a provider first (uniform 50/50 between providers that have keys),
@@ -198,7 +164,8 @@ function pickKey(opts: AICallOptions, forced?: ForcedRoute): PickedKey {
   const groq = pool.filter(k => k.provider === 'groq');
 
   // Honor forced provider from routing config when that provider has keys.
-  if (forced?.provider) {
+  // provider === 'auto' means no forced route — use random pool selection.
+  if (forced?.provider && forced.provider !== 'auto') {
     const forcedPool = forced.provider === 'openrouter' ? openrouter : groq;
     if (forcedPool.length > 0) {
       const picked = pickRandom(forcedPool);
@@ -491,7 +458,7 @@ export async function callAI(opts: AICallOptions): Promise<AIResponse> {
     const byok = await resolveByok(opts.userId);
     if (byok) return callBYOK(opts, byok.provider, byok.key);
   }
-  const forced = opts.featureName ? await resolveRoutingForFeature(opts.featureName) : undefined;
+  const forced = opts.featureName ? await resolveFeatureRoute(opts.featureName) : undefined;
   const picked = pickKey(opts, forced);
   return callOnce(picked, opts);
 }
@@ -510,7 +477,7 @@ export async function callAIWithRetry(opts: AICallOptions): Promise<AIResponse> 
     const byok = await resolveByok(opts.userId);
     if (byok) return callBYOK(opts, byok.provider, byok.key);
   }
-  const forced = opts.featureName ? await resolveRoutingForFeature(opts.featureName) : undefined;
+  const forced = opts.featureName ? await resolveFeatureRoute(opts.featureName) : undefined;
   const picked = pickKey(opts, forced);
 
   // Attempt 1: chosen key
@@ -545,7 +512,7 @@ export async function callAIWithRetry(opts: AICallOptions): Promise<AIResponse> 
   // Attempt 3: cross-provider fallback.
   // Skipped when a provider was explicitly forced via routing config so that
   // traffic split / A-B assignments are not silently distorted by retries.
-  if (forced?.provider) {
+  if (forced?.provider && forced.provider !== 'auto') {
     throw lastErr ?? new Error('[aiClient] all forced-provider attempts exhausted');
   }
   const otherProvider: Provider = picked.provider === 'openrouter' ? 'groq' : 'openrouter';
