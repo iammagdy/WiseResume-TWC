@@ -23,6 +23,7 @@ import {
   ScanFace,
   ShieldCheck,
   Radio,
+  Flag,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -41,6 +42,7 @@ import { WiseHireWaitlistPanel } from '@/components/dev-kit/WiseHireWaitlistPane
 import { PortfolioUsernamesPanel } from '@/components/dev-kit/PortfolioUsernamesPanel';
 import { OpenRouterPanel, GroqPanel } from '@/components/dev-kit/AIKeySlotPanels';
 import { MissionControlPanel } from '@/components/dev-kit/MissionControlPanel';
+import { FeatureFlagsPanel } from '@/components/dev-kit/FeatureFlagsPanel';
 import { DEV_KIT_VERSION } from '@/components/dev-kit/config';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { apiFnUrl } from '@/lib/apiFnUrl';
@@ -52,7 +54,7 @@ import { DevKitPanelBoundary } from '@/components/dev-kit/DevKitPanelBoundary';
 import { NativeBiometric } from '@capgo/capacitor-native-biometric';
 import { Capacitor } from '@capacitor/core';
 
-type Tab = 'mission' | 'overview' | 'analytics' | 'onboarding' | 'live' | 'deployment' | 'users' | 'coupons' | 'settings' | 'activity' | 'email' | 'wisehire' | 'portfolio' | 'openrouter' | 'groq';
+type Tab = 'mission' | 'overview' | 'analytics' | 'onboarding' | 'live' | 'deployment' | 'users' | 'coupons' | 'settings' | 'activity' | 'email' | 'wisehire' | 'portfolio' | 'openrouter' | 'groq' | 'flags';
 
 interface NavItem {
   id: Tab;
@@ -89,6 +91,7 @@ const NAV_SECTIONS: NavSection[] = [
   {
     title: 'System',
     items: [
+      { id: 'flags', label: 'Feature Flags', icon: Flag },
       { id: 'deployment', label: 'Deployment', icon: Rocket },
       { id: 'openrouter', label: 'OpenRouter', icon: BrainCircuit },
       { id: 'groq', label: 'Groq', icon: BrainCircuit },
@@ -114,6 +117,7 @@ const TAB_LABELS: Record<Tab, string> = {
   portfolio: 'Portfolio',
   openrouter: 'OpenRouter',
   groq: 'Groq',
+  flags: 'Feature Flags',
 };
 
 type ConnectionStatus = 'checking' | 'connected' | 'degraded' | 'disconnected';
@@ -1051,6 +1055,21 @@ function DevToolsInner() {
                     </p>
                   </div>
                   <GroqPanel />
+                </div>
+              )}
+
+              {activeTab === 'flags' && (
+                <div className="space-y-4">
+                  <div>
+                    <h2 className="text-lg font-semibold flex items-center gap-2">
+                      <Flag className="w-5 h-5 text-primary" />
+                      Feature Flags
+                    </h2>
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                      Toggle features on/off for specific plans, individual users, or a percentage rollout — no code deploy needed. Enable a kill switch to instantly disable a broken edge function.
+                    </p>
+                  </div>
+                  <FeatureFlagsPanel />
                 </div>
               )}
 

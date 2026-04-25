@@ -20,17 +20,9 @@ import { toast } from 'sonner';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { getDevKitToken } from '@/contexts/DevKitSessionContext';
 import { useIsMounted } from '@/lib/devkit/hooks';
-import { unwrapAdminResponse, formatEdgeError, EdgeFunctionError } from '@/lib/devkit/edgeResponse';
+import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
 
-const FEATURE_FLAGS: { key: string; label: string; description: string }[] = [
-  { key: 'feature_cover_letters', label: 'Cover Letters', description: 'Enable cover letter generation feature' },
-  { key: 'feature_applications', label: 'Application Tracker', description: 'Enable job application tracking' },
-  { key: 'feature_ai_studio', label: 'AI Studio', description: 'Enable AI studio tools' },
-  { key: 'feature_portfolio', label: 'Portfolio', description: 'Enable public portfolio pages' },
-  { key: 'feature_interview_coach', label: 'Interview Coach', description: 'Enable interview preparation tools' },
-  { key: 'feature_career_advisor', label: 'Career Advisor', description: 'Enable career path advisory tools' },
-];
 
 export function AppSettingsPanel() {
   const [settings, setSettings] = useState<Record<string, boolean | string | null>>({});
@@ -208,37 +200,6 @@ export function AppSettingsPanel() {
           <Save className="w-3.5 h-3.5" />
           {saving === 'announcement_banner' ? 'Saving…' : 'Save announcement'}
         </Button>
-      </div>
-
-      {/* Feature Flags */}
-      <div className="rounded-xl border border-border p-4 space-y-3">
-        <h3 className="text-sm font-semibold">Feature Flags</h3>
-        <p className="text-xs text-muted-foreground">Toggle app features on/off for all users. Changes take effect within 5 minutes.</p>
-        <div className="space-y-3">
-          {FEATURE_FLAGS.map((flag) => {
-            const isLoaded = flag.key in settings;
-            const isOn = isLoaded ? settings[flag.key] !== false : false;
-            return (
-              <div key={flag.key} className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm">{flag.label}</p>
-                  <p className="text-xs text-muted-foreground">{flag.description}</p>
-                </div>
-                {loading && !isLoaded ? (
-                  <div className="w-11 h-6 rounded-full bg-muted/60 animate-pulse" />
-                ) : (
-                  <button
-                    onClick={() => updateSetting(flag.key, !isOn)}
-                    disabled={saving === flag.key || loading}
-                    className={`relative w-11 h-6 rounded-full transition-colors ${isOn ? 'bg-primary' : 'bg-muted'}`}
-                  >
-                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${isOn ? 'translate-x-5' : 'translate-x-0'}`} />
-                  </button>
-                )}
-              </div>
-            );
-          })}
-        </div>
       </div>
 
       {/* WiseResume AI Engine */}
