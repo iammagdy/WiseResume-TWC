@@ -32,10 +32,11 @@ Deno.serve(async (req) => {
 
     const supabase = getServiceClient();
     const body = req.method === 'GET' ? {} : await req.json();
-    const action: string = body.action ?? 'get_all';
+    const action: string = body.action ?? 'get_config';
 
-    // ── GET_ALL ──────────────────────────────────────────────────────────────
-    if (action === 'get_all') {
+    // ── GET_CONFIG ───────────────────────────────────────────────────────────
+    // Also accepts legacy 'get_all' action name for backward compat.
+    if (action === 'get_config' || action === 'get_all') {
       const { data, error } = await supabase
         .from('ai_routing_config')
         .select('*')

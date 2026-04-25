@@ -79,7 +79,7 @@ export function AIRoutingPanel() {
     try {
       const tuple = await edgeFunctions.functions.invoke('admin-ai-routing', {
         headers: devKitAuthHeaders(),
-        body: { action: 'get_all' },
+        body: { action: 'get_config' },
       });
       const result = unwrapAdminResponse<{ configs: RoutingConfig[] }>(tuple, 'admin-ai-routing');
       if (!isMounted()) return;
@@ -533,6 +533,12 @@ export function AIRoutingPanel() {
                     </div>
                   </div>
 
+                  {hasAB && (resolved.ab_split_pct ?? 0) > 0 && resolved.provider === 'auto' && (
+                    <div className="rounded-md bg-amber-500/5 border border-amber-500/20 p-2 text-[11px] text-amber-600 dark:text-amber-400">
+                      Primary provider is "Auto" — the split will not produce deterministic routing. Set an explicit primary provider in the Routing Config tab for A/B to work as expected.
+                    </div>
+                  )}
+
                   {cfg.updated_at && (
                     <p className="text-[10px] text-muted-foreground">
                       Last updated {new Date(cfg.updated_at).toLocaleString()}
@@ -579,9 +585,9 @@ export function AIRoutingPanel() {
             </div>
             <div className="rounded-xl border border-border bg-card p-4 space-y-3">
               <div>
-                <h3 className="text-sm font-medium">Platform-wide daily limit</h3>
+                <h3 className="text-sm font-medium">Platform-wide aggregate daily limit</h3>
                 <p className="text-xs text-muted-foreground">
-                  When set, applies to ALL users regardless of plan. Overrides per-plan caps. Clear to disable.
+                  Total credits consumed across <em>all users combined</em> per day. When the platform total reaches this limit, all AI requests are rejected until midnight UTC regardless of individual plan limits. Use -1 for unlimited.
                 </p>
               </div>
               <div className="flex items-center gap-2">
