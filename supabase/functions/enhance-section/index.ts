@@ -11,6 +11,7 @@ import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
 import { logger } from "../_shared/logger.ts";
+import { wrapHandler } from "../_shared/fnLogger.ts";
 import {
   detectEchoIssues,
   validateEntryCount,
@@ -711,7 +712,7 @@ Full response structure:
 }`;
 }
 
-serve(async (req) => {
+serve(wrapHandler('enhance-section', async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
 
   if (req.method === 'OPTIONS') {
@@ -1094,4 +1095,4 @@ serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
-});
+}));

@@ -14,6 +14,7 @@ import { getServiceClient } from '../_shared/dbClient.ts';
 import { logger } from '../_shared/logger.ts';
 import { provisionUser, kindeSubToUserId, ProvisionError } from '../_shared/provisionUser.ts';
 import * as jose from 'https://deno.land/x/jose@v5.2.2/index.ts';
+import { wrapHandler } from '../_shared/fnLogger.ts';
 
 const log = logger('token-exchange');
 
@@ -79,7 +80,7 @@ async function logExchange(
   }
 }
 
-serve(async (req) => {
+serve(wrapHandler('token-exchange', async (req) => {
   const origin = req.headers.get('origin');
   const corsHeaders = getCorsHeaders(origin);
 
@@ -252,4 +253,4 @@ serve(async (req) => {
     } catch { /* ignore audit failure */ }
     return errorResponse('INTERNAL_ERROR', 'Internal server error', 500, corsHeaders);
   }
-});
+}));

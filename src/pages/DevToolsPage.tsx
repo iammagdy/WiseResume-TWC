@@ -25,6 +25,7 @@ import {
   Radio,
   Flag,
   Megaphone,
+  Telescope,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -46,6 +47,7 @@ import { MissionControlPanel } from '@/components/dev-kit/MissionControlPanel';
 import { FeatureFlagsPanel } from '@/components/dev-kit/FeatureFlagsPanel';
 import { OwnerOpsPanel } from '@/components/dev-kit/OwnerOpsPanel';
 import { AIRoutingPanel } from '@/components/dev-kit/AIRoutingPanel';
+import { ObservabilityPanel } from '@/components/dev-kit/ObservabilityPanel';
 import { DEV_KIT_VERSION } from '@/components/dev-kit/config';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { apiFnUrl } from '@/lib/apiFnUrl';
@@ -57,7 +59,7 @@ import { DevKitPanelBoundary } from '@/components/dev-kit/DevKitPanelBoundary';
 import { NativeBiometric } from '@capgo/capacitor-native-biometric';
 import { Capacitor } from '@capacitor/core';
 
-type Tab = 'mission' | 'overview' | 'analytics' | 'onboarding' | 'live' | 'deployment' | 'users' | 'coupons' | 'settings' | 'activity' | 'email' | 'wisehire' | 'portfolio' | 'openrouter' | 'groq' | 'flags' | 'owner-ops' | 'ai-routing';
+type Tab = 'mission' | 'overview' | 'analytics' | 'onboarding' | 'live' | 'deployment' | 'users' | 'coupons' | 'settings' | 'activity' | 'email' | 'wisehire' | 'portfolio' | 'openrouter' | 'groq' | 'flags' | 'owner-ops' | 'ai-routing' | 'observability';
 
 interface NavItem {
   id: Tab;
@@ -97,6 +99,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { id: 'flags', label: 'Feature Flags', icon: Flag },
       { id: 'ai-routing', label: 'AI Routing', icon: BrainCircuit },
+      { id: 'observability', label: 'Observability', icon: Telescope },
       { id: 'deployment', label: 'Deployment', icon: Rocket },
       { id: 'openrouter', label: 'OpenRouter', icon: BrainCircuit },
       { id: 'groq', label: 'Groq', icon: BrainCircuit },
@@ -125,6 +128,7 @@ const TAB_LABELS: Record<Tab, string> = {
   flags: 'Feature Flags',
   'owner-ops': 'Owner Ops',
   'ai-routing': 'AI Routing',
+  observability: 'Observability',
 };
 
 type ConnectionStatus = 'checking' | 'connected' | 'degraded' | 'disconnected';
@@ -1107,6 +1111,21 @@ function DevToolsInner() {
                     </p>
                   </div>
                   <AIRoutingPanel />
+                </div>
+              )}
+
+              {activeTab === 'observability' && (
+                <div className="space-y-4">
+                  <div>
+                    <h2 className="text-lg font-semibold flex items-center gap-2">
+                      <Telescope className="w-5 h-5 text-primary" />
+                      Observability
+                    </h2>
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                      Real-time latency, error rates, and request volume for every edge function — plus a live error stream with full context and review workflow.
+                    </p>
+                  </div>
+                  <ObservabilityPanel />
                 </div>
               )}
 

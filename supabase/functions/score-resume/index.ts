@@ -5,6 +5,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { isKillSwitchActive } from "../_shared/featureFlags.ts";
 import { requireAuth } from "../_shared/authMiddleware.ts";
 import { toUserError } from "../_shared/aiClient.ts";
+import { wrapHandler } from "../_shared/fnLogger.ts";
 import {
   scoreContactCompleteness,
   scoreSectionStructure,
@@ -20,7 +21,7 @@ const MAX_RESUME_SIZE = 100 * 1024;
 
 // ── Main Handler ─────────────────────────────────────────────────────
 
-serve(async (req) => {
+serve(wrapHandler('score-resume', async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
 
   if (req.method === 'OPTIONS') {
@@ -138,4 +139,4 @@ serve(async (req) => {
       { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
-});
+}));

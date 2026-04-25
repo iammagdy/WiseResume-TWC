@@ -12,6 +12,7 @@ import { getServiceClient } from "../_shared/dbClient.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
 import { logger } from "../_shared/logger.ts";
 const log = logger('agentic-chat');
+import { wrapHandler } from "../_shared/fnLogger.ts";
 
 
 const MAX_MESSAGE_SIZE = 10 * 1024;
@@ -346,7 +347,7 @@ The user may have multiple resumes — their list is provided. When they ask gen
 - Never give generic advice — always reference the user's actual data
 - When discussing features outside of resume editing (cover letters, portfolio, applications), give helpful guidance even though you can't directly modify those sections`;
 
-Deno.serve(async (req: Request) => {
+Deno.serve(wrapHandler('agentic-chat', async (req: Request) => {
   const corsHeaders = getCorsHeaders(req.headers.get("origin"));
 
   if (req.method === "OPTIONS") {
@@ -627,4 +628,4 @@ Deno.serve(async (req: Request) => {
       { status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
-});
+}));

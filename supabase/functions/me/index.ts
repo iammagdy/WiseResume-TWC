@@ -2,8 +2,9 @@ import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { requireAuth, authErrorResponse } from '../_shared/authMiddleware.ts';
 import { planDailyLimit } from '../_shared/planLimits.ts';
+import { wrapHandler } from '../_shared/fnLogger.ts';
 
-serve(async (req) => {
+serve(wrapHandler('me', async (req) => {
   const origin = req.headers.get('origin');
   const corsHeaders = getCorsHeaders(origin);
 
@@ -120,4 +121,4 @@ serve(async (req) => {
   } catch (err) {
     return authErrorResponse(err, origin);
   }
-});
+}));

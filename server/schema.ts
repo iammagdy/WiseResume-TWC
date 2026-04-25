@@ -315,6 +315,7 @@ export const errorLog = pgTable(
     source: text('source'),
     userId: uuid('user_id').references(() => profiles.userId, { onDelete: 'cascade' }),
     resolved: boolean('resolved').default(false),
+    reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
   },
   (t) => ({
     userCreatedIdx: index('idx_error_log_user_created').on(t.userId, t.createdAt.desc()),

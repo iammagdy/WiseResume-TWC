@@ -24,6 +24,7 @@ import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2.49.1";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
 import { requireAuth } from "../_shared/authMiddleware.ts";
+import { wrapHandler } from "../_shared/fnLogger.ts";
 
 const MAX_PAYLOAD_BYTES = 200 * 1024;
 
@@ -189,7 +190,7 @@ Return ONLY the letter text with no JSON, no markdown, no code blocks.`;
   }
 }
 
-serve(async (req: Request) => {
+serve(wrapHandler('wise-ai-chat', async (req: Request) => {
   const origin = req.headers.get("origin");
   const corsHeaders = getCorsHeaders(origin);
 
@@ -342,4 +343,4 @@ serve(async (req: Request) => {
       { status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
-});
+}));

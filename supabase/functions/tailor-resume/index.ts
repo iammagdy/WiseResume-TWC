@@ -12,6 +12,7 @@ import { getProfileContext } from "../_shared/profileContext.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
 import { logger } from "../_shared/logger.ts";
 const log = logger('tailor-resume');
+import { wrapHandler } from "../_shared/fnLogger.ts";
 
 
 /** Safely extract skills as a comma-separated string */
@@ -314,7 +315,7 @@ const intensityInstructions: Record<string, string> = {
 - Position every piece of experience to directly map to job requirements.`,
 };
 
-serve(async (req) => {
+serve(wrapHandler('tailor-resume', async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
 
   if (req.method === 'OPTIONS') {
@@ -942,4 +943,4 @@ Generate 3-5 talking points and 3 strengths. Be specific to this candidate and r
       { status: userError.status, headers: { ...getCorsHeaders(req.headers.get('origin')), "Content-Type": "application/json" } }
     );
   }
-});
+}));
