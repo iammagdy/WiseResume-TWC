@@ -182,23 +182,47 @@ serve(wrapHandler('token-exchange', async (req) => {
     supabaseUserId = await kindeSubToUserId(kindeSub);
 
     // 4b. Check blocklist — reject suspended accounts before provisioning.
-    try {
+    // Checks both email (type='email') and computed UUID (type='user_id').
+    // Fails CLOSED on any error except table-not-found (pre-migration state).
+    {
       const blocklistClient = getServiceClient();
-      const { data: blockEntry } = await blocklistClient
-        .from('blocklist')
-        .select('id, reason')
-        .in('value', [email, kindeSub].filter(Boolean))
-        .limit(1)
-        .maybeSingle();
+      let blocklistError: unknown = null;
+      let blockEntry: { id: string } | null = null;
 
-      if (blockEntry) {
-        log.warn('account_suspended', { kindeSub, email });
+      try {
+        // Run both checks in parallel: one for email, one for UUID.
+        const [emailCheck, uuidCheck] = await Promise.all([
+          email
+            ? blocklistClient.from('blocklist').select('id').eq('type', 'email').eq('value', email).limit(1).maybeSingle()
+            : Promise.resolve({ data: null, error: null }),
+          supabaseUserId
+            ? blocklistClient.from('blocklist').select('id').eq('type', 'user_id').eq('value', supabaseUserId).limit(1).maybeSingle()
+            : Promise.resolve({ data: null, error: null }),
+        ]);
+
+        // Propagate the first non-null error for fail-closed logic below.
+        blocklistError = emailCheck.error ?? uuidCheck.error;
+        blockEntry = (emailCheck.data ?? uuidCheck.data) as { id: string } | null;
+      } catch (blErr) {
+        blocklistError = blErr;
+      }
+
+      if (blocklistError) {
+        const code = (blocklistError as { code?: string }).code;
+        if (code === '42P01') {
+          // Table does not exist yet — pre-migration; allow login.
+          log.warn('blocklist_table_missing', {});
+        } else {
+          // Unknown error: fail closed to prevent bypassing suspension checks.
+          log.error('blocklist_check_error', { error: String(blocklistError) });
+          await logExchange(blocklistClient, kindeSub, supabaseUserId, 'error', 'BLOCKLIST_CHECK_FAILED');
+          return errorResponse('BLOCKLIST_CHECK_FAILED', 'Authentication temporarily unavailable', 503, corsHeaders);
+        }
+      } else if (blockEntry) {
+        log.warn('account_suspended', { kindeSub, email, supabaseUserId });
         await logExchange(blocklistClient, kindeSub, supabaseUserId, 'error', 'ACCOUNT_SUSPENDED');
         return errorResponse('ACCOUNT_SUSPENDED', 'This account has been suspended', 403, corsHeaders);
       }
-    } catch (blErr) {
-      // Non-fatal: if the blocklist table doesn't exist yet, proceed normally.
-      log.warn('blocklist_check_failed', { error: String(blErr) });
     }
 
     // 5. Provision all required DB rows via shared helper.

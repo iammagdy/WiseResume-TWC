@@ -47,8 +47,9 @@ interface QueueItem {
   content_type: string;
   content_id: string | null;
   snippet: string | null;
+  reporter_user_id: string | null;
   status: string;
-  reviewer: string | null;
+  reviewed_by: string | null;
   reviewed_at: string | null;
   created_at: string;
 }
@@ -88,7 +89,7 @@ function statusBadge(status: string) {
 
 // ── Bug Inbox ────────────────────────────────────────────────────────────────
 
-function BugInboxTab() {
+function BugInboxTab({ onCountChange }: { onCountChange?: (n: number) => void }) {
   const isMounted = useIsMounted();
   const [bugs, setBugs] = useState<BugReport[]>([]);
   const [total, setTotal] = useState(0);
@@ -112,13 +113,15 @@ function BugInboxTab() {
       if (!isMounted()) return;
       setBugs(data.bug_reports ?? []);
       setTotal(data.total ?? 0);
+      // Update the parent badge count when showing open bugs.
+      if (statusFilter === 'open' && onCountChange) onCountChange(data.total ?? 0);
     } catch (err) {
       if (!isMounted()) return;
       setError(formatEdgeError(err));
     } finally {
       if (isMounted()) setLoading(false);
     }
-  }, [isMounted, statusFilter]);
+  }, [isMounted, statusFilter, onCountChange]);
 
   useEffect(() => { fetchBugs(); }, [fetchBugs]);
 
@@ -498,6 +501,11 @@ function ModerationQueueTab() {
             <div className="flex items-center gap-2 flex-wrap">
               {statusBadge(item.status)}
               <Badge variant="outline" className="text-[11px]">{item.content_type}</Badge>
+              {item.reporter_user_id && (
+                <span className="text-[11px] text-muted-foreground font-mono bg-muted px-1.5 py-0.5 rounded">
+                  reporter: {item.reporter_user_id.slice(0, 8)}…
+                </span>
+              )}
               <span className="text-xs text-muted-foreground ml-auto">{fmtDate(item.created_at)}</span>
             </div>
             {item.snippet && (
@@ -557,19 +565,37 @@ function ModerationQueueTab() {
 
 // ── Main Component ───────────────────────────────────────────────────────────
 
-const TABS: { id: InternalTab; label: string; icon: React.ElementType }[] = [
-  { id: 'bugs', label: 'Bug Inbox', icon: Bug },
-  { id: 'blocklist', label: 'Blocklist', icon: ShieldBan },
-  { id: 'queue', label: 'Moderation Queue', icon: AlertTriangle },
-];
-
 export function ModerationPanel() {
+  const isMounted = useIsMounted();
   const [activeTab, setActiveTab] = useState<InternalTab>('bugs');
+  const [openBugCount, setOpenBugCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    async function fetchOpenCount() {
+      try {
+        const tuple = await edgeFunctions.functions.invoke(
+          'admin-moderation',
+          devKitInvokeOptions({ action: 'list_bug_reports', status_filter: 'open', per_page: 1 }),
+        );
+        const data = unwrapAdminResponse<{ total: number }>(tuple);
+        if (active && isMounted()) setOpenBugCount(data.total ?? 0);
+      } catch { /* ignore — badge is non-critical */ }
+    }
+    fetchOpenCount();
+    return () => { active = false; };
+  }, [isMounted]);
+
+  const TABS: { id: InternalTab; label: string; icon: React.ElementType; badge?: number | null }[] = [
+    { id: 'bugs', label: 'Bug Inbox', icon: Bug, badge: openBugCount },
+    { id: 'blocklist', label: 'Blocklist', icon: ShieldBan },
+    { id: 'queue', label: 'Moderation Queue', icon: AlertTriangle },
+  ];
 
   return (
     <div className="space-y-4">
       <div className="flex gap-1 border-b border-border pb-1">
-        {TABS.map(({ id, label, icon: Icon }) => (
+        {TABS.map(({ id, label, icon: Icon, badge }) => (
           <button
             key={id}
             onClick={() => setActiveTab(id)}
@@ -582,11 +608,16 @@ export function ModerationPanel() {
           >
             <Icon className="w-3.5 h-3.5" />
             {label}
+            {badge != null && badge > 0 && (
+              <span className="ml-0.5 inline-flex items-center justify-center w-4 h-4 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold leading-none">
+                {badge > 99 ? '99+' : badge}
+              </span>
+            )}
           </button>
         ))}
       </div>
 
-      {activeTab === 'bugs' && <BugInboxTab />}
+      {activeTab === 'bugs' && <BugInboxTab onCountChange={setOpenBugCount} />}
       {activeTab === 'blocklist' && <BlocklistTab />}
       {activeTab === 'queue' && <ModerationQueueTab />}
     </div>

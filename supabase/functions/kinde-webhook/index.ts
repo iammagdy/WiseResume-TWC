@@ -141,7 +141,12 @@ Deno.serve(async (req) => {
   // Only process user.created; acknowledge everything else immediately.
   if (eventType !== 'user.created') {
     console.log(`[kinde-webhook] Ignoring event type: ${eventType ?? '(unknown)'}`);
-    logKindeEvent(eventType ?? 'unknown', '', '', payload, null);
+    // Best-effort: extract user identifiers from common Kinde payload shapes.
+    const data = (payload.data ?? {}) as Record<string, unknown>;
+    const user = (data.user ?? data) as Record<string, unknown>;
+    const nonCreatedKindeSub = String(user.id ?? data.user_id ?? '');
+    const nonCreatedEmail = String(user.email ?? data.email ?? '');
+    logKindeEvent(eventType ?? 'unknown', nonCreatedKindeSub, nonCreatedEmail, payload, null);
     return json({ received: true, processed: false }, 200, corsHeaders);
   }
 

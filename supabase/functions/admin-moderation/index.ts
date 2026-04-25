@@ -207,6 +207,28 @@ Deno.serve(async (req) => {
 
     if (error) return json({ success: false, error: error.message }, 500, cors);
 
+    // For "removed" decisions, attempt to delete the underlying content by type.
+    let contentDeleted = false;
+    if (decision === 'removed' && item?.content_id) {
+      const contentType = item.content_type?.toLowerCase() ?? '';
+      const contentId = item.content_id;
+
+      // Map known content types to their tables and PK columns.
+      const contentTypeMap: Record<string, string> = {
+        bug_report: 'bug_reports',
+        portfolio_item: 'portfolio_projects',
+        portfolio_project: 'portfolio_projects',
+        comment: 'comments',
+        message: 'messages',
+      };
+
+      const table = contentTypeMap[contentType];
+      if (table) {
+        const { error: deleteError } = await supabase.from(table).delete().eq('id', contentId);
+        contentDeleted = !deleteError;
+      }
+    }
+
     if (suspend_user && item?.reporter_user_id) {
       await supabase.rpc('admin_suspend_user', {
         p_target_user_id: item.reporter_user_id,
@@ -219,10 +241,48 @@ Deno.serve(async (req) => {
       user_id: null,
       category: 'admin_moderation',
       action: 'queue_item_reviewed',
-      metadata: { item_id, decision, suspend_user, performed_by: callerEmail },
+      metadata: { item_id, decision, suspend_user, content_deleted: contentDeleted, performed_by: callerEmail },
     }).catch(() => {});
 
-    return json({ success: true }, 200, cors);
+    return json({ success: true, content_deleted: contentDeleted }, 200, cors);
+  }
+
+  // ── SUPPRESS EMAIL ─────────────────────────────────────────────────────
+  // Shortcut: add a bounced/complained email address to the blocklist.
+  if (action === 'suppress_email') {
+    const { email: emailToSuppress, reason } = body as { email?: string; reason?: string };
+    if (!emailToSuppress) return json({ success: false, error: 'email is required' }, 400, cors);
+
+    const normalized = emailToSuppress.trim().toLowerCase();
+
+    // Check if already blocked to avoid duplicates.
+    const { data: existing } = await supabase
+      .from('blocklist')
+      .select('id')
+      .eq('type', 'email')
+      .eq('value', normalized)
+      .maybeSingle();
+
+    if (existing) {
+      return json({ success: true, already_blocked: true }, 200, cors);
+    }
+
+    const { data, error } = await supabase
+      .from('blocklist')
+      .insert({ type: 'email', value: normalized, reason: reason ?? 'Email suppressed due to bounce/complaint', added_by: callerEmail })
+      .select()
+      .single();
+
+    if (error) return json({ success: false, error: error.message }, 500, cors);
+
+    await supabase.from('audit_logs').insert({
+      user_id: null,
+      category: 'admin_moderation',
+      action: 'email_suppressed',
+      metadata: { email: emailToSuppress, performed_by: callerEmail },
+    }).catch(() => {});
+
+    return json({ success: true, entry: data }, 200, cors);
   }
 
   // ── LIST KINDE EVENTS ──────────────────────────────────────────────────

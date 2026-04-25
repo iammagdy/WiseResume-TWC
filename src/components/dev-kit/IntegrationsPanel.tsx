@@ -176,6 +176,7 @@ function ResendBouncesTab() {
   const [totalChecked, setTotalChecked] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [suppressing, setSuppressing] = useState<string | null>(null);
 
   const fetchBounces = useCallback(async () => {
     if (!isMounted()) return;
@@ -199,6 +200,22 @@ function ResendBouncesTab() {
   }, [isMounted]);
 
   useEffect(() => { fetchBounces(); }, [fetchBounces]);
+
+  const suppressEmail = useCallback(async (email: string) => {
+    setSuppressing(email);
+    try {
+      const tuple = await edgeFunctions.functions.invoke(
+        'admin-moderation',
+        devKitInvokeOptions({ action: 'suppress_email', email }),
+      );
+      const data = unwrapAdminResponse<{ already_blocked?: boolean }>(tuple);
+      toast.success(data.already_blocked ? `${email} already in blocklist` : `${email} suppressed`);
+    } catch (err) {
+      toast.error(formatEdgeError(err));
+    } finally {
+      setSuppressing(null);
+    }
+  }, []);
 
   const statusColor = (s: string) => {
     if (s === 'bounced') return 'text-destructive';
@@ -244,6 +261,16 @@ function ResendBouncesTab() {
               <span className="text-sm font-medium truncate flex-1">{b.to}</span>
               <span className={cn('text-xs font-medium', statusColor(b.status))}>{b.status}</span>
               <span className="text-xs text-muted-foreground">{fmtDate(b.created_at)}</span>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-6 text-[11px] px-2 text-destructive border-destructive/30 hover:bg-destructive/10 shrink-0"
+                disabled={suppressing === b.to}
+                onClick={() => suppressEmail(b.to)}
+                title="Add to blocklist to prevent future sends"
+              >
+                Suppress
+              </Button>
             </div>
             {b.subject && (
               <p className="text-xs text-muted-foreground mt-0.5 truncate ml-5">{b.subject}</p>
