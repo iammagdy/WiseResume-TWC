@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { isKillSwitchActive } from "../_shared/featureFlags.ts";
+import { isKillSwitchActive, isFeatureEnabled } from "../_shared/featureFlags.ts";
 import { callAIWithRetry, parseAIJSONWithRetry, sanitizeInputText, toUserError } from "../_shared/aiClient.ts";
 import { selectProviderForTool } from "../_shared/modelRouter.ts";
 const __ROUTE = selectProviderForTool('analyze-resume');
@@ -48,6 +48,14 @@ serve(async (req) => {
     console.log('Authenticated user:', userId);
 
     const userPlan = await getUserPlan(userId);
+
+    if (!(await isFeatureEnabled('ai_studio', userId, userPlan))) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'This feature is not available on your current plan' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
     const rateCheck = await checkRateLimit(userId, { maxRequests: 10, proMaxRequests: 50, windowSeconds: 60, actionType: 'analyze', plan: userPlan });
     if (!rateCheck.allowed) {
       return new Response(

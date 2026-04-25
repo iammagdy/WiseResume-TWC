@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { isKillSwitchActive } from "../_shared/featureFlags.ts";
+import { isKillSwitchActive, isFeatureEnabled } from "../_shared/featureFlags.ts";
 import { callAI, isAIError, parseAIJSON, toUserError } from "../_shared/aiClient.ts";
 import { selectProviderForTool } from "../_shared/modelRouter.ts";
 const __ROUTE = selectProviderForTool('agentic-chat');
@@ -372,6 +372,14 @@ Deno.serve(async (req: Request) => {
     // window covers everyone, but tiering applies before BYOK upgrade
     // since this guard runs before provider routing).
     const userPlan = await getUserPlan(userId);
+
+    if (!(await isFeatureEnabled('ai_studio', userId, userPlan))) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'This feature is not available on your current plan' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
     const planLimits: Record<string, number> = {
       free: 30,
       pro: 90,

@@ -6,7 +6,7 @@ const __ROUTE = selectProviderForTool('enhance-section');
 import { checkRateLimit, recordUsage, getUserPlan } from "../_shared/rateLimiter.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { isKillSwitchActive } from "../_shared/featureFlags.ts";
+import { isKillSwitchActive, isFeatureEnabled } from "../_shared/featureFlags.ts";
 import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
@@ -741,6 +741,14 @@ serve(async (req) => {
 
     // Server-side rate limiting
     const userPlan = await getUserPlan(userId);
+
+    if (!(await isFeatureEnabled('ai_studio', userId, userPlan))) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'This feature is not available on your current plan' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
     const rateCheck = await checkRateLimit(userId, { maxRequests: 30, proMaxRequests: 150, windowSeconds: 60, actionType: 'enhance', plan: userPlan });
     if (!rateCheck.allowed) {
       return new Response(

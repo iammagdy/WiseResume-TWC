@@ -1,10 +1,10 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { isKillSwitchActive } from "../_shared/featureFlags.ts";
+import { isKillSwitchActive, isFeatureEnabled } from "../_shared/featureFlags.ts";
 import { callAIWithRetry, isAIError, sanitizeInputText, toUserError } from "../_shared/aiClient.ts";
 import { selectProviderForTool } from "../_shared/modelRouter.ts";
 const __ROUTE = selectProviderForTool('generate-cover-letter');
-import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
+import { checkRateLimit, recordUsage, getUserPlan } from "../_shared/rateLimiter.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
@@ -41,6 +41,15 @@ serve(async (req) => {
 
   try {
     const { userId, client } = await requireAuth(req);
+
+    const userPlan = await getUserPlan(userId);
+
+    if (!(await isFeatureEnabled('cover_letters', userId, userPlan))) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'This feature is not available on your current plan' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
 
     const rateCheck = await checkRateLimit(userId, { maxRequests: 10, windowSeconds: 60, actionType: 'cover_letter' });
     if (!rateCheck.allowed) {
