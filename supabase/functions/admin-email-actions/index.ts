@@ -121,34 +121,51 @@ Deno.serve(async (req) => {
         broadcast_body?: string
       }
 
-      // Build audience filter on profiles
-      let profileQuery = supabase.from('profiles').select('id, email')
-      if (audience === 'pro') {
-        profileQuery = profileQuery.in('plan_name', ['pro', 'enterprise', 'pro_annual'])
-      } else if (audience === 'free') {
-        profileQuery = profileQuery.eq('plan_name', 'free')
-      }
-      // 'trial' is filtered below via subscriptions
-
       let recipientEmails: string[] = []
 
-      if (audience === 'trial') {
-        // Query active trial users
-        const now = new Date().toISOString()
-        const { data: trialProfiles, error: trialErr } = await supabase
-          .from('profiles')
-          .select('id, email')
-          .gt('trial_expires_at', now)
-        if (trialErr) throw trialErr
-        recipientEmails = (trialProfiles ?? [])
-          .map((p: { email?: string | null }) => p.email ?? '')
-          .filter(Boolean)
+      if (audience === 'all') {
+        // Page through all auth users
+        let page = 1
+        const perPage = 1000
+        while (true) {
+          const { data: listData, error: listErr } = await supabase.auth.admin.listUsers({ page, perPage })
+          if (listErr) throw listErr
+          const emails = (listData?.users ?? []).map((u) => u.email ?? '').filter(Boolean)
+          recipientEmails.push(...emails)
+          if ((listData?.users ?? []).length < perPage) break
+          page++
+        }
       } else {
-        const { data: profiles, error: profileErr } = await profileQuery
-        if (profileErr) throw profileErr
-        recipientEmails = (profiles ?? [])
-          .map((p: { email?: string | null }) => p.email ?? '')
-          .filter(Boolean)
+        // Query subscriptions for the target segment, then resolve emails
+        let subQuery = supabase.from('subscriptions').select('user_id')
+        if (audience === 'pro') {
+          subQuery = subQuery.in('plan_name', ['pro', 'premium', 'pro_annual', 'enterprise'])
+        } else if (audience === 'free') {
+          subQuery = subQuery.eq('plan_name', 'free')
+        } else if (audience === 'trial') {
+          subQuery = subQuery.eq('status', 'trial')
+        }
+        const { data: subs, error: subErr } = await subQuery
+        if (subErr) throw subErr
+
+        const targetIds = new Set((subs ?? []).map((s: { user_id: string }) => s.user_id))
+        if (targetIds.size > 0) {
+          // Resolve emails by paging through auth users and filtering by user_id
+          let page = 1
+          const perPage = 1000
+          while (true) {
+            const { data: listData, error: listErr } = await supabase.auth.admin.listUsers({ page, perPage })
+            if (listErr) throw listErr
+            const users = listData?.users ?? []
+            const emails = users
+              .filter((u) => targetIds.has(u.id))
+              .map((u) => u.email ?? '')
+              .filter(Boolean)
+            recipientEmails.push(...emails)
+            if (users.length < perPage) break
+            page++
+          }
+        }
       }
 
       // Deduplicate
