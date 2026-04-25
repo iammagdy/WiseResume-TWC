@@ -174,6 +174,94 @@ Deno.serve(async (req) => {
       );
     }
 
+    // ── GET_USER_CAP ─────────────────────────────────────────────────────────
+    // Returns the per-user cap override for a given user_id (if any).
+    if (action === 'get_user_cap') {
+      const { user_id } = body;
+      if (!user_id || typeof user_id !== 'string' || user_id.trim() === '') {
+        return new Response(
+          JSON.stringify({ success: false, error: 'user_id is required' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
+      const capKey = `user_limit_${user_id.trim()}`;
+      const { data, error } = await supabase.from('app_settings').select('value').eq('key', capKey).maybeSingle();
+      if (error) {
+        return new Response(
+          JSON.stringify({ success: false, error: error.message }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
+      return new Response(
+        JSON.stringify({ success: true, user_id: user_id.trim(), cap_key: capKey, value: data?.value ?? null }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
+    // ── SET_USER_CAP ─────────────────────────────────────────────────────────
+    // Writes a per-user cap override to app_settings as `user_limit_<user_id>`.
+    // Null/empty clears the override (user falls back to plan/global/default caps).
+    if (action === 'set_user_cap') {
+      const { user_id, value } = body;
+
+      if (!user_id || typeof user_id !== 'string' || user_id.trim() === '') {
+        return new Response(
+          JSON.stringify({ success: false, error: 'user_id is required' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
+
+      const capKey = `user_limit_${user_id.trim()}`;
+
+      let resolvedValue: string | null = null;
+      if (value !== null && value !== undefined && value !== '') {
+        const n = Number(value);
+        if (isNaN(n) || n < -1) {
+          return new Response(
+            JSON.stringify({ success: false, error: 'value must be a number >= -1, or null to clear the user cap' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+          );
+        }
+        resolvedValue = String(n);
+      }
+
+      const now = new Date().toISOString();
+      if (resolvedValue === null) {
+        const { error } = await supabase.from('app_settings').delete().eq('key', capKey);
+        if (error) {
+          return new Response(
+            JSON.stringify({ success: false, error: error.message }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+          );
+        }
+      } else {
+        const { error } = await supabase
+          .from('app_settings')
+          .upsert({ key: capKey, value: resolvedValue }, { onConflict: 'key' });
+        if (error) {
+          return new Response(
+            JSON.stringify({ success: false, error: error.message }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+          );
+        }
+      }
+
+      // Audit log — non-fatal
+      await supabase.from('audit_logs').insert({
+        action: 'ai_user_cap_update',
+        category: 'ai_caps',
+        metadata: { cap_key: capKey, user_id: user_id.trim(), value: resolvedValue, updated_by: 'dev-kit', updated_at: now },
+        created_at: now,
+      }).then(({ error: auditErr }) => {
+        if (auditErr) console.warn('[admin-ai-caps] audit log error (non-fatal):', auditErr);
+      });
+
+      return new Response(
+        JSON.stringify({ success: true, user_id: user_id.trim(), cap_key: capKey, value: resolvedValue }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
     return new Response(
       JSON.stringify({ success: false, error: `Unknown action: ${action}` }),
       { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },

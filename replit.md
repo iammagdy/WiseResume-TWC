@@ -13,7 +13,7 @@ WiseResume is an AI-powered web application for comprehensive career management.
 - **Never change primary key column types** — destructive and breaks existing data.
 - **Never invent marketing stats** — always source from `src/pages/Index.tsx`.
 - **`user.id` = bridge UUID only** — never raw Kinde `kp_xxx` ID.
-- **`creditUtils.ts`**: Derive daily limit from plan at runtime. Priority chain (highest wins): (1) global cap `global_daily_limit` in `app_settings`, (2) per-user override in `ai_credits.daily_limit`, (3) plan-level cap override `daily_cap_free|trial|pro` in `app_settings`, (4) per-plan default from `planLimits.ts`. All override lookups are non-fatal fail-open.
+- **`creditUtils.ts`**: Derive daily limit from plan at runtime via single batched `app_settings` query. Priority chain (highest wins): (1) per-user override `user_limit_<uuid>` in `app_settings`, (2) per-plan cap override `daily_cap_free|trial|pro` in `app_settings`, (3) global cap `global_daily_limit` in `app_settings`, (4) per-plan default from `planLimits.ts`. All override lookups are non-fatal fail-open.
 - **`useMe` is canonical** for plan/credits — queryKey: `['me', user?.id]`.
 - **All edge functions** need `verify_jwt = false` in `supabase/config.toml`.
 - **Pricing CTAs** on landing → `/auth?plan=free|pro|premium` (not direct `kindeRegister` calls).

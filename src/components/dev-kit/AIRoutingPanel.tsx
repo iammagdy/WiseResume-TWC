@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { RefreshCw, Save, RotateCcw, SplitSquareVertical, Zap, Route, Globe } from 'lucide-react';
+import { RefreshCw, Save, RotateCcw, SplitSquareVertical, Zap, Route, Globe, User, Search, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -66,6 +66,12 @@ export function AIRoutingPanel() {
   const [loadingCaps, setLoadingCaps] = useState(false);
   const [capsError, setCapsError] = useState<string | null>(null);
   const [savingCap, setSavingCap] = useState<string | null>(null);
+
+  const [userCapUserId, setUserCapUserId] = useState('');
+  const [userCapInput, setUserCapInput] = useState('');
+  const [userCapLookup, setUserCapLookup] = useState<{ user_id: string; value: string | null } | null>(null);
+  const [lookingUpUserCap, setLookingUpUserCap] = useState(false);
+  const [savingUserCap, setSavingUserCap] = useState(false);
 
   const fetchRouting = useCallback(async () => {
     setLoadingRouting(true);
@@ -216,6 +222,68 @@ export function AIRoutingPanel() {
       toast.error(formatEdgeError(e, 'Failed to save global cap'));
     } finally {
       if (isMounted()) setSavingCap(null);
+    }
+  };
+
+  const lookupUserCap = async () => {
+    const uid = userCapUserId.trim();
+    if (!uid) return;
+    setLookingUpUserCap(true);
+    try {
+      const tuple = await edgeFunctions.functions.invoke('admin-ai-caps', {
+        headers: devKitAuthHeaders(),
+        body: { action: 'get_user_cap', user_id: uid },
+      });
+      const result = unwrapAdminResponse<{ user_id: string; value: string | null }>(tuple, 'admin-ai-caps');
+      if (!isMounted()) return;
+      setUserCapLookup({ user_id: result.user_id, value: result.value });
+      setUserCapInput(result.value ?? '');
+    } catch (e) {
+      toast.error(formatEdgeError(e, 'Failed to look up user cap'));
+    } finally {
+      if (isMounted()) setLookingUpUserCap(false);
+    }
+  };
+
+  const saveUserCap = async () => {
+    const uid = userCapUserId.trim();
+    if (!uid) return;
+    const rawVal = userCapInput.trim();
+    setSavingUserCap(true);
+    try {
+      const tuple = await edgeFunctions.functions.invoke('admin-ai-caps', {
+        headers: devKitAuthHeaders(),
+        body: { action: 'set_user_cap', user_id: uid, value: rawVal === '' ? null : rawVal },
+      });
+      unwrapAdminResponse(tuple, 'admin-ai-caps');
+      if (!isMounted()) return;
+      setUserCapLookup({ user_id: uid, value: rawVal === '' ? null : rawVal });
+      toast.success(`User cap saved`);
+    } catch (e) {
+      toast.error(formatEdgeError(e, 'Failed to save user cap'));
+    } finally {
+      if (isMounted()) setSavingUserCap(false);
+    }
+  };
+
+  const clearUserCap = async () => {
+    const uid = userCapUserId.trim();
+    if (!uid) return;
+    setSavingUserCap(true);
+    try {
+      const tuple = await edgeFunctions.functions.invoke('admin-ai-caps', {
+        headers: devKitAuthHeaders(),
+        body: { action: 'set_user_cap', user_id: uid, value: null },
+      });
+      unwrapAdminResponse(tuple, 'admin-ai-caps');
+      if (!isMounted()) return;
+      setUserCapLookup({ user_id: uid, value: null });
+      setUserCapInput('');
+      toast.success('User cap cleared');
+    } catch (e) {
+      toast.error(formatEdgeError(e, 'Failed to clear user cap'));
+    } finally {
+      if (isMounted()) setSavingUserCap(false);
     }
   };
 
@@ -598,12 +666,87 @@ export function AIRoutingPanel() {
             </div>
           </div>
 
+          {/* Per-user override */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+              <User className="w-3.5 h-3.5 text-muted-foreground" />
+              Per-user override
+            </div>
+            <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+              <div>
+                <h3 className="text-sm font-medium">Individual user cap</h3>
+                <p className="text-xs text-muted-foreground">
+                  Overrides all other caps for a specific user. Enter a user UUID to look up or set their limit.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Input
+                  placeholder="User UUID (e.g. a1b2c3d4-…)"
+                  value={userCapUserId}
+                  onChange={(e) => { setUserCapUserId(e.target.value); setUserCapLookup(null); }}
+                  className="h-8 text-xs font-mono flex-1"
+                />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={lookupUserCap}
+                  disabled={lookingUpUserCap || !userCapUserId.trim()}
+                  className="shrink-0 h-8 flex items-center gap-1.5"
+                >
+                  <Search className="w-3 h-3" />
+                  {lookingUpUserCap ? 'Looking…' : 'Look up'}
+                </Button>
+              </div>
+              {userCapLookup && (
+                <div className="space-y-2 pt-1 border-t border-border/60">
+                  {userCapLookup.value != null ? (
+                    <p className="text-xs text-muted-foreground">
+                      Current override: <strong>{userCapLookup.value === '-1' ? 'Unlimited' : `${userCapLookup.value} credits/day`}</strong>
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground italic">No override set for this user</p>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      min={-1}
+                      placeholder="blank = clear override, -1 = unlimited"
+                      value={userCapInput}
+                      onChange={(e) => setUserCapInput(e.target.value)}
+                      className="h-8 text-sm flex-1"
+                    />
+                    <Button
+                      size="sm"
+                      onClick={saveUserCap}
+                      disabled={savingUserCap}
+                      className="shrink-0 h-8 flex items-center gap-1.5"
+                    >
+                      <Save className="w-3 h-3" />
+                      {savingUserCap ? 'Saving…' : 'Set'}
+                    </Button>
+                    {userCapLookup.value != null && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={clearUserCap}
+                        disabled={savingUserCap}
+                        className="shrink-0 h-8 text-muted-foreground hover:text-destructive"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
           <div className="rounded-xl border border-border/50 bg-muted/20 p-4 text-xs text-muted-foreground space-y-1">
             <p className="font-medium text-foreground">Priority order (highest wins)</p>
             <ol className="list-decimal list-inside space-y-0.5">
-              <li>Global daily cap (this panel — applies to all users)</li>
-              <li>Per-user override (set via Users panel → Set Credits)</li>
+              <li>Per-user override (this panel — takes precedence over everything)</li>
               <li>Per-plan cap override (this panel)</li>
+              <li>Global daily cap (this panel — platform-wide default)</li>
               <li>Built-in plan default from planLimits.ts</li>
             </ol>
           </div>

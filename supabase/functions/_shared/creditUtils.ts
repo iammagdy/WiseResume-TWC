@@ -84,47 +84,55 @@ export async function checkAndDeductCredit(
   );
   let authoritativeLimit = planDailyLimit(effectivePlan);
 
-  // Check for a per-plan spend cap override set via DevKit → AI Routing → Spend Caps.
-  // Keys: daily_cap_free | daily_cap_trial | daily_cap_pro stored in app_settings.
-  // A missing or null value means "use per-plan default", so this is non-fatal.
-  if (authoritativeLimit !== UNLIMITED_SENTINEL) {
-    try {
-      const capPlan = effectivePlan === 'premium' ? 'pro' : effectivePlan; // premium = unlimited
-      const capKey = `daily_cap_${capPlan}`;
-      const { data: capRow } = await supabase
-        .from('app_settings')
-        .select('value')
-        .eq('key', capKey)
-        .maybeSingle();
-      if (capRow?.value != null && capRow.value !== '') {
-        const capVal = Number(capRow.value);
-        if (!isNaN(capVal) && capVal >= -1) {
-          authoritativeLimit = capVal;
-          log.info('plan-level spend cap applied from app_settings', { capKey, capVal, effectivePlan });
+  // Batch-fetch all spend cap overrides from app_settings in a single query.
+  // Priority (highest wins): user override > plan cap > global cap > plan default.
+  // All overrides are non-fatal: a lookup failure falls back to the next lower priority.
+  //
+  //   global_daily_limit       — platform-wide override for all users (lowest override)
+  //   daily_cap_free|trial|pro — per-plan cap override
+  //   user_limit_<userId>      — per-user override (set via DevKit → Spend Caps → Per-user)
+  //
+  try {
+    const capPlan = effectivePlan === 'premium' ? 'pro' : effectivePlan;
+    const planCapKey = `daily_cap_${capPlan}`;
+    const userCapKey = `user_limit_${userId}`;
+
+    const { data: capRows } = await supabase
+      .from('app_settings')
+      .select('key, value')
+      .in('key', ['global_daily_limit', planCapKey, userCapKey]);
+
+    if (capRows && capRows.length > 0) {
+      const byKey: Record<string, string> = {};
+      for (const row of capRows) {
+        if (row.value != null && row.value !== '') byKey[row.key] = row.value;
+      }
+
+      // Apply in ascending priority order — each overrides the previous.
+      if (byKey['global_daily_limit'] !== undefined) {
+        const v = Number(byKey['global_daily_limit']);
+        if (!isNaN(v) && v >= -1) {
+          authoritativeLimit = v;
+          log.info('global spend cap applied from app_settings', { v });
         }
       }
-    } catch (capErr) {
-      log.warn('plan-level cap lookup failed — using per-plan default', { error: String(capErr), effectivePlan });
-    }
-  }
-
-  // Check for platform-wide global_daily_limit override (highest priority, overrides per-plan caps).
-  // Set via DevKit → AI Routing → Spend Caps → Global cap. Non-fatal if missing.
-  try {
-    const { data: globalRow } = await supabase
-      .from('app_settings')
-      .select('value')
-      .eq('key', 'global_daily_limit')
-      .maybeSingle();
-    if (globalRow?.value != null && globalRow.value !== '') {
-      const globalVal = Number(globalRow.value);
-      if (!isNaN(globalVal) && globalVal >= -1) {
-        authoritativeLimit = globalVal;
-        log.info('global spend cap applied from app_settings', { globalVal });
+      if (byKey[planCapKey] !== undefined) {
+        const v = Number(byKey[planCapKey]);
+        if (!isNaN(v) && v >= -1) {
+          authoritativeLimit = v;
+          log.info('plan-level spend cap applied from app_settings', { planCapKey, v, effectivePlan });
+        }
+      }
+      if (byKey[userCapKey] !== undefined) {
+        const v = Number(byKey[userCapKey]);
+        if (!isNaN(v) && v >= -1) {
+          authoritativeLimit = v;
+          log.info('per-user spend cap applied from app_settings', { userCapKey, v });
+        }
       }
     }
-  } catch (globalCapErr) {
-    log.warn('global cap lookup failed — using lower-priority cap', { error: String(globalCapErr) });
+  } catch (capErr) {
+    log.warn('spend cap lookup failed — using plan default', { error: String(capErr), effectivePlan });
   }
 
   // Diagnostic log — surfaces the exact billing identity resolved for this
