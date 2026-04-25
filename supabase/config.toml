@@ -177,8 +177,7 @@ project_id = "jnsfmkzgxsviuthaqlyy"
     verify_jwt = false
   [functions.admin-kinde-reconcile]
     verify_jwt = false
-  [functions.admin-rotate-totp]
-    verify_jwt = false
+
   [functions.admin-wisehire-reset-user]
     verify_jwt = false
   [functions.admin-wisehire-revoke-invite]
