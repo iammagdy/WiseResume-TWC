@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { isKillSwitchActive } from "../_shared/featureFlags.ts";
 import { callAIWithRetry, isAIError, sanitizeInputText, toUserError } from "../_shared/aiClient.ts";
 import { selectProviderForTool } from "../_shared/modelRouter.ts";
 const __ROUTE = selectProviderForTool('generate-cover-letter');
@@ -26,6 +27,13 @@ serve(async (req) => {
 
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
+  }
+
+  if (await isKillSwitchActive('generate-cover-letter')) {
+    return new Response(
+      JSON.stringify({ success: false, error: 'Feature temporarily unavailable' }),
+      { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    );
   }
 
   const sizeError = checkPayloadSize(req, 500 * 1024);

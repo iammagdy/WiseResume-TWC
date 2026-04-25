@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { isKillSwitchActive } from "../_shared/featureFlags.ts";
 import { callAI, isAIError, parseAIJSON, toUserError } from "../_shared/aiClient.ts";
 import { selectProviderForTool } from "../_shared/modelRouter.ts";
 const __ROUTE = selectProviderForTool('agentic-chat');
@@ -350,6 +351,13 @@ Deno.serve(async (req: Request) => {
 
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });
+  }
+
+  if (await isKillSwitchActive('agentic-chat')) {
+    return new Response(
+      JSON.stringify({ success: false, error: 'Feature temporarily unavailable' }),
+      { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    );
   }
 
   const sizeError = checkPayloadSize(req, 500 * 1024);

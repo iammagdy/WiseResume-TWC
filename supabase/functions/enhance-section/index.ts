@@ -6,6 +6,7 @@ const __ROUTE = selectProviderForTool('enhance-section');
 import { checkRateLimit, recordUsage, getUserPlan } from "../_shared/rateLimiter.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { isKillSwitchActive } from "../_shared/featureFlags.ts";
 import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
@@ -715,6 +716,13 @@ serve(async (req) => {
 
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
+  }
+
+  if (await isKillSwitchActive('enhance-section')) {
+    return new Response(
+      JSON.stringify({ success: false, error: 'Feature temporarily unavailable' }),
+      { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    );
   }
 
   const sizeError = checkPayloadSize(req, 500 * 1024);

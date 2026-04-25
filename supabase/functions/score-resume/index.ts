@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { recordUsage } from "../_shared/rateLimiter.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { isKillSwitchActive } from "../_shared/featureFlags.ts";
 import { requireAuth } from "../_shared/authMiddleware.ts";
 import { toUserError } from "../_shared/aiClient.ts";
 import {
@@ -24,6 +25,13 @@ serve(async (req) => {
 
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
+  }
+
+  if (await isKillSwitchActive('score-resume')) {
+    return new Response(
+      JSON.stringify({ success: false, error: 'Feature temporarily unavailable' }),
+      { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    );
   }
 
   try {
