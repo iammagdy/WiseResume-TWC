@@ -2,6 +2,7 @@ import { getToken, refreshTokenIfNeeded } from '@/lib/supabaseBridge';
 import { dispatchSessionExpiredOnce } from './sessionExpired';
 import { parseAIErrorBody, aiErrorToastMessage, type AIErrorCode } from '@/lib/aiErrorParser';
 import { apiFnUrl } from '@/lib/apiFnUrl';
+import { EDGE_FUNCTIONS_ANON_KEY } from '@/lib/supabaseConstants';
 
 /**
  * Classify an edge-function error response. Prefers the structured `error`
@@ -64,6 +65,14 @@ export const edgeFunctions = {
           'Authorization' in userHeaders || 'authorization' in userHeaders;
         if (token && !hasUserAuth) {
           headers['Authorization'] = `Bearer ${token}`;
+        } else if (!token && !hasUserAuth && EDGE_FUNCTIONS_ANON_KEY) {
+          // No user session — send the anon key so the Supabase gateway
+          // accepts the request. verify_jwt=false skips JWT verification but
+          // the gateway still requires some form of auth header; without it
+          // every unauthenticated call (e.g. bootstrap wizard, public
+          // endpoints) returns 401 "Missing authorization header".
+          headers['Authorization'] = `Bearer ${EDGE_FUNCTIONS_ANON_KEY}`;
+          headers['apikey'] = EDGE_FUNCTIONS_ANON_KEY;
         }
 
         const url = apiFnUrl(fnName);
