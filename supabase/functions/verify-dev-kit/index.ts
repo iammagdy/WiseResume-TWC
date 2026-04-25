@@ -239,7 +239,10 @@ Deno.serve(async (req) => {
         );
       }
       return new Response(
-        JSON.stringify({ success: false }),
+        JSON.stringify({
+          success: false,
+          _dbg: { sl: password.trim().length, kl: SECRET_PASSWORD.length },
+        }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -253,7 +256,9 @@ Deno.serve(async (req) => {
       );
     }
 
+    console.log('[verify-dev-kit] password ok — checking TOTP, totp_len:', totp.trim().length, 'secret_b32_len:', ADMIN_TOTP_SECRET.length);
     const isTotpValid = await verifyTotp(ADMIN_TOTP_SECRET, totp.trim());
+    console.log('[verify-dev-kit] totp valid:', isTotpValid);
     if (!isTotpValid) {
       await recordFailedAttempt(lockKey);
       const newLockoutStatus = await getLockoutStatus(lockKey);
