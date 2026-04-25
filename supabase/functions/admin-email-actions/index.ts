@@ -122,50 +122,64 @@ Deno.serve(async (req) => {
       }
 
       let recipientEmails: string[] = []
+      const PER_PAGE = 1000
+      const PAID_PLANS = ['pro', 'premium', 'enterprise', 'pro_annual']
 
-      if (audience === 'all') {
-        // Page through all auth users
+      // Helper: page all auth users and collect matching emails
+      const collectEmails = async (filter?: (uid: string) => boolean): Promise<string[]> => {
+        const emails: string[] = []
         let page = 1
-        const perPage = 1000
         while (true) {
-          const { data: listData, error: listErr } = await supabase.auth.admin.listUsers({ page, perPage })
+          const { data: listData, error: listErr } = await supabase.auth.admin.listUsers({ page, perPage: PER_PAGE })
           if (listErr) throw listErr
-          const emails = (listData?.users ?? []).map((u) => u.email ?? '').filter(Boolean)
-          recipientEmails.push(...emails)
-          if ((listData?.users ?? []).length < perPage) break
+          const users = listData?.users ?? []
+          for (const u of users) {
+            if (u.email && (!filter || filter(u.id))) emails.push(u.email)
+          }
+          if (users.length < PER_PAGE) break
           page++
         }
-      } else {
-        // Query subscriptions for the target segment, then resolve emails
-        let subQuery = supabase.from('subscriptions').select('user_id')
-        if (audience === 'pro') {
-          subQuery = subQuery.in('plan_name', ['pro', 'premium', 'pro_annual', 'enterprise'])
-        } else if (audience === 'free') {
-          subQuery = subQuery.eq('plan_name', 'free')
-        } else if (audience === 'trial') {
-          subQuery = subQuery.eq('status', 'trial')
-        }
-        const { data: subs, error: subErr } = await subQuery
-        if (subErr) throw subErr
+        return emails
+      }
 
+      if (audience === 'all') {
+        recipientEmails = await collectEmails()
+
+      } else if (audience === 'pro') {
+        // Users with a paid plan (plan_name in paid set)
+        const { data: subs, error: subErr } = await supabase
+          .from('subscriptions').select('user_id').in('plan_name', PAID_PLANS)
+        if (subErr) throw subErr
         const targetIds = new Set((subs ?? []).map((s: { user_id: string }) => s.user_id))
-        if (targetIds.size > 0) {
-          // Resolve emails by paging through auth users and filtering by user_id
-          let page = 1
-          const perPage = 1000
-          while (true) {
-            const { data: listData, error: listErr } = await supabase.auth.admin.listUsers({ page, perPage })
-            if (listErr) throw listErr
-            const users = listData?.users ?? []
-            const emails = users
-              .filter((u) => targetIds.has(u.id))
-              .map((u) => u.email ?? '')
-              .filter(Boolean)
-            recipientEmails.push(...emails)
-            if (users.length < perPage) break
-            page++
-          }
-        }
+        recipientEmails = await collectEmails((uid) => targetIds.has(uid))
+
+      } else if (audience === 'trial') {
+        // Users with an active trial (trial_plan IS NOT NULL AND trial_expires_at > now)
+        const now = new Date().toISOString()
+        const { data: subs, error: subErr } = await supabase
+          .from('subscriptions').select('user_id')
+          .not('trial_plan', 'is', null)
+          .gt('trial_expires_at', now)
+        if (subErr) throw subErr
+        const targetIds = new Set((subs ?? []).map((s: { user_id: string }) => s.user_id))
+        recipientEmails = await collectEmails((uid) => targetIds.has(uid))
+
+      } else if (audience === 'free') {
+        // Free = not on a paid plan AND not on an active trial
+        // Includes users with no subscription row at all (implicit free)
+        const now = new Date().toISOString()
+        const { data: allSubs, error: subErr } = await supabase
+          .from('subscriptions').select('user_id, plan_name, trial_plan, trial_expires_at')
+        if (subErr) throw subErr
+        const excludedIds = new Set(
+          (allSubs ?? [])
+            .filter((s: { user_id: string; plan_name: string; trial_plan: string | null; trial_expires_at: string | null }) =>
+              PAID_PLANS.includes(s.plan_name) ||
+              (s.trial_plan != null && s.trial_expires_at != null && s.trial_expires_at > now)
+            )
+            .map((s: { user_id: string }) => s.user_id)
+        )
+        recipientEmails = await collectEmails((uid) => !excludedIds.has(uid))
       }
 
       // Deduplicate

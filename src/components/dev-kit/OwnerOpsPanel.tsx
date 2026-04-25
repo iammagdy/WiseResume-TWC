@@ -82,7 +82,7 @@ export function OwnerOpsPanel() {
     }
     setPublishing(true);
     try {
-      await edgeFunctions.functions.invoke('admin-broadcast', {
+      const tuple = await edgeFunctions.functions.invoke('admin-broadcast', {
         headers: devKitAuthHeaders(),
         body: {
           action: 'publish',
@@ -92,6 +92,7 @@ export function OwnerOpsPanel() {
           expires_at: newExpiresAt || null,
         },
       });
+      unwrapAdminResponse(tuple, 'admin-broadcast');
       toast.success('Broadcast published — users will see it on next load');
       setNewTitle('');
       setNewBody('');
@@ -108,10 +109,11 @@ export function OwnerOpsPanel() {
   const handleExpire = async (id: string) => {
     setExpiringId(id);
     try {
-      await edgeFunctions.functions.invoke('admin-broadcast', {
+      const tuple = await edgeFunctions.functions.invoke('admin-broadcast', {
         headers: devKitAuthHeaders(),
         body: { action: 'expire', id },
       });
+      unwrapAdminResponse(tuple, 'admin-broadcast');
       toast.success('Broadcast removed');
       await fetchBroadcasts();
     } catch (e) {
@@ -234,7 +236,7 @@ export function OwnerOpsPanel() {
     }
     setSavingMaint(true);
     try {
-      await Promise.all([
+      const [tupleStart, tupleEnd] = await Promise.all([
         edgeFunctions.functions.invoke('admin-update-settings', {
           headers: devKitAuthHeaders(),
           body: { key: 'maintenance_window_start', value: maintWindowStart },
@@ -244,6 +246,8 @@ export function OwnerOpsPanel() {
           body: { key: 'maintenance_window_end', value: maintWindowEnd },
         }),
       ]);
+      unwrapAdminResponse(tupleStart, 'admin-update-settings');
+      unwrapAdminResponse(tupleEnd, 'admin-update-settings');
       toast.success('Maintenance window saved');
       await fetchMaintSettings();
     } catch (e) {
@@ -256,7 +260,7 @@ export function OwnerOpsPanel() {
   const clearMaintWindow = async () => {
     setClearingMaint(true);
     try {
-      await Promise.all([
+      const [tStart, tEnd] = await Promise.all([
         edgeFunctions.functions.invoke('admin-update-settings', {
           headers: devKitAuthHeaders(),
           body: { key: 'maintenance_window_start', value: null },
@@ -266,6 +270,8 @@ export function OwnerOpsPanel() {
           body: { key: 'maintenance_window_end', value: null },
         }),
       ]);
+      unwrapAdminResponse(tStart, 'admin-update-settings');
+      unwrapAdminResponse(tEnd, 'admin-update-settings');
       setMaintWindowStart('');
       setMaintWindowEnd('');
       toast.success('Maintenance window cleared');
