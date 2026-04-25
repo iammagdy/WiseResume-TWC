@@ -2,7 +2,8 @@
  * admin-feature-flags — DevKit edge function for managing feature flags.
  *
  * Protected by requireAdminAuth (DevKit session token).
- * All mutations are audit-logged.
+ * All mutations are audit-logged to the audit_logs table using the
+ * correct schema: user_id (null for admin-only ops), category, action, metadata.
  *
  * Actions:
  *   list   — return all flags ordered by name
@@ -13,6 +14,23 @@
 import { getServiceClient } from '../_shared/dbClient.ts';
 import { requireAdminAuth } from '../_shared/adminAuth.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
+
+async function writeAuditLog(
+  supabase: ReturnType<typeof getServiceClient>,
+  action: string,
+  callerEmail: string,
+  metadata: Record<string, unknown>,
+): Promise<void> {
+  const { error } = await supabase.from('audit_logs').insert({
+    user_id: null,
+    category: 'admin_feature_flag',
+    action,
+    metadata: { ...metadata, performed_by: callerEmail },
+  });
+  if (error) {
+    console.error('[admin-feature-flags] audit log write failed:', error);
+  }
+}
 
 Deno.serve(async (req) => {
   const origin = req.headers.get('origin');
@@ -102,14 +120,14 @@ Deno.serve(async (req) => {
 
       if (error) throw error;
 
-      // Audit log
-      await supabase.from('audit_logs').insert({
-        action: 'admin_feature_flag_upsert',
-        resource_type: 'feature_flag',
-        resource_id: cleanName,
-        actor: callerEmail,
-        details: row,
-      }).then(() => {});
+      await writeAuditLog(supabase, 'upsert', callerEmail, {
+        flag_name: cleanName,
+        enabled_globally,
+        enabled_plans,
+        enabled_user_ids_count: enabled_user_ids.length,
+        percentage_rollout: row.percentage_rollout,
+        kill_switch_function: row.kill_switch_function,
+      });
 
       return new Response(
         JSON.stringify({ success: true, flag: data }),
@@ -136,13 +154,7 @@ Deno.serve(async (req) => {
 
       if (error) throw error;
 
-      await supabase.from('audit_logs').insert({
-        action: 'admin_feature_flag_delete',
-        resource_type: 'feature_flag',
-        resource_id: name,
-        actor: callerEmail,
-        details: { name },
-      }).then(() => {});
+      await writeAuditLog(supabase, 'delete', callerEmail, { flag_name: name });
 
       return new Response(
         JSON.stringify({ success: true }),

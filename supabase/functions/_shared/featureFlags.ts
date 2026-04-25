@@ -48,6 +48,14 @@ async function userBucket(userId: string): Promise<number> {
 /**
  * Returns whether the named feature is enabled for the given user/plan.
  * Returns false if the flag does not exist (fail-closed).
+ *
+ * Precedence (highest → lowest):
+ *   1. Kill switch — if kill_switch_function is set AND enabled_globally is true,
+ *      the feature is actively killed: return false regardless of any other rule.
+ *   2. Per-user override — if userId is in enabled_user_ids, return true.
+ *   3. Per-plan — if plan is in enabled_plans, return true.
+ *   4. Percentage rollout — deterministic hash of userId vs percentage_rollout.
+ *   5. Global default — return enabled_globally.
  */
 export async function isFeatureEnabled(
   flagName: string,
@@ -65,23 +73,24 @@ export async function isFeatureEnabled(
     if (error || !data) return false;
     const flag = data as FeatureFlag;
 
-    // Kill switch: if this flag is wired to kill a function, it must NOT
-    // be the feature check for that function itself (that is handled by
-    // isKillSwitchActive). Here we just check the flag normally.
+    // 1. Kill switch — highest priority: if this flag has a kill switch target
+    // and it is armed (enabled_globally = true), the feature is killed.
+    // No user-level or plan-level override can bypass a live kill switch.
+    if (flag.kill_switch_function && flag.enabled_globally) return false;
 
-    // Per-user override
+    // 2. Per-user override
     if (userId && flag.enabled_user_ids?.includes(userId)) return true;
 
-    // Per-plan
+    // 3. Per-plan
     if (plan && flag.enabled_plans?.includes(plan)) return true;
 
-    // Percentage rollout
+    // 4. Percentage rollout
     if (flag.percentage_rollout > 0 && userId) {
       const bucket = await userBucket(userId);
       if (bucket < flag.percentage_rollout) return true;
     }
 
-    // Global default
+    // 5. Global default
     return flag.enabled_globally;
   } catch {
     return false;
