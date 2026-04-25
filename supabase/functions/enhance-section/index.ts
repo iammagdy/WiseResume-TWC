@@ -853,6 +853,7 @@ serve(async (req) => {
       const variantResponses = await Promise.allSettled(
         styleSuffixes.map(suffix =>
           callAIWithRetry({
+            featureName: 'enhance-section',
             model: __ROUTE.model, wiseresumeSubProvider: __ROUTE.provider,
             messages: [{ role: 'user', content: prompt + suffix }],
             temperature,
@@ -910,6 +911,7 @@ serve(async (req) => {
     let aiResponse;
     try {
       aiResponse = await callAIWithRetry({
+        featureName: 'enhance-section',
         model: __ROUTE.model, wiseresumeSubProvider: __ROUTE.provider,
         messages: [{ role: 'user', content: prompt }],
         temperature,
@@ -978,6 +980,7 @@ serve(async (req) => {
         );
         try {
           const retryResp = await callAIWithRetry({
+            featureName: 'enhance-section',
             model: __ROUTE.model, wiseresumeSubProvider: __ROUTE.provider,
             messages: [{ role: 'user', content: prompt + addendum }],
             // Lower temperature on the retry: we want a deterministic fix,

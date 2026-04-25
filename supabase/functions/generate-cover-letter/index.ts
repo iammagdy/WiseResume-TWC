@@ -174,6 +174,7 @@ ${jobDescription}
     let aiResponse;
     try {
       aiResponse = await callAIWithRetry({
+        featureName: 'generate-cover-letter',
         model: __ROUTE.model, wiseresumeSubProvider: __ROUTE.provider,
         messages: [
           { role: "system", content: systemPrompt },

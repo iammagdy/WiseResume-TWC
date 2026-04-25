@@ -187,6 +187,7 @@ Provide analysis in this exact JSON format:
     let aiResponse;
     try {
       aiResponse = await callAIWithRetry({
+        featureName: 'analyze-resume',
         model: analysisModel,
         wiseresumeSubProvider: __ROUTE.provider,
         messages: [

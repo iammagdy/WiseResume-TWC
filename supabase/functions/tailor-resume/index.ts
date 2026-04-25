@@ -79,6 +79,7 @@ For mustHaveKeywords: include 10-20 specific, searchable terms (technologies, me
 
   try {
     const response = await callAIWithRetry({
+      featureName: 'tailor-resume',
       model: __ROUTE.model, wiseresumeSubProvider: __ROUTE.provider,
       messages: [
         { role: 'system', content: systemPrompt },
@@ -734,6 +735,7 @@ Analyze deeply, then return this exact JSON structure:
     let aiResponse;
     try {
       aiResponse = await callAIWithRetry({
+        featureName: 'tailor-resume',
         model: selectedModel,
         wiseresumeSubProvider: __ROUTE.provider,
         messages: [
@@ -811,6 +813,7 @@ Return this exact JSON:
 Generate 3-5 talking points and 3 strengths. Be specific to this candidate and role.`;
 
       const stage3Response = await callAIWithRetry({
+        featureName: 'tailor-resume',
         model: __ROUTE.model, wiseresumeSubProvider: __ROUTE.provider,
         messages: [
           { role: 'system', content: stage3SystemPrompt },

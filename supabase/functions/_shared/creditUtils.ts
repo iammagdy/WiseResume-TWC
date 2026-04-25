@@ -82,7 +82,31 @@ export async function checkAndDeductCredit(
     sub?.trial_plan as string | null,
     sub?.trial_expires_at as string | null,
   );
-  const authoritativeLimit = planDailyLimit(effectivePlan);
+  let authoritativeLimit = planDailyLimit(effectivePlan);
+
+  // Check for a per-plan spend cap override set via DevKit → AI Routing → Spend Caps.
+  // Keys: daily_cap_free | daily_cap_trial | daily_cap_pro stored in app_settings.
+  // A missing or null value means "use per-plan default", so this is non-fatal.
+  if (authoritativeLimit !== UNLIMITED_SENTINEL) {
+    try {
+      const capPlan = effectivePlan === 'premium' ? 'pro' : effectivePlan; // premium = unlimited
+      const capKey = `daily_cap_${capPlan}`;
+      const { data: capRow } = await supabase
+        .from('app_settings')
+        .select('value')
+        .eq('key', capKey)
+        .maybeSingle();
+      if (capRow?.value != null && capRow.value !== '') {
+        const capVal = Number(capRow.value);
+        if (!isNaN(capVal) && capVal >= -1) {
+          authoritativeLimit = capVal;
+          log.info('plan-level spend cap applied from app_settings', { capKey, capVal, effectivePlan });
+        }
+      }
+    } catch (capErr) {
+      log.warn('plan-level cap lookup failed — using per-plan default', { error: String(capErr), effectivePlan });
+    }
+  }
 
   // Diagnostic log — surfaces the exact billing identity resolved for this
   // request so we can diff what the server saw vs what the UI ('me' endpoint)

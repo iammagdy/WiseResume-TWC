@@ -45,6 +45,7 @@ import { OpenRouterPanel, GroqPanel } from '@/components/dev-kit/AIKeySlotPanels
 import { MissionControlPanel } from '@/components/dev-kit/MissionControlPanel';
 import { FeatureFlagsPanel } from '@/components/dev-kit/FeatureFlagsPanel';
 import { OwnerOpsPanel } from '@/components/dev-kit/OwnerOpsPanel';
+import { AIRoutingPanel } from '@/components/dev-kit/AIRoutingPanel';
 import { DEV_KIT_VERSION } from '@/components/dev-kit/config';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { apiFnUrl } from '@/lib/apiFnUrl';
@@ -56,7 +57,7 @@ import { DevKitPanelBoundary } from '@/components/dev-kit/DevKitPanelBoundary';
 import { NativeBiometric } from '@capgo/capacitor-native-biometric';
 import { Capacitor } from '@capacitor/core';
 
-type Tab = 'mission' | 'overview' | 'analytics' | 'onboarding' | 'live' | 'deployment' | 'users' | 'coupons' | 'settings' | 'activity' | 'email' | 'wisehire' | 'portfolio' | 'openrouter' | 'groq' | 'flags' | 'owner-ops';
+type Tab = 'mission' | 'overview' | 'analytics' | 'onboarding' | 'live' | 'deployment' | 'users' | 'coupons' | 'settings' | 'activity' | 'email' | 'wisehire' | 'portfolio' | 'openrouter' | 'groq' | 'flags' | 'owner-ops' | 'ai-routing';
 
 interface NavItem {
   id: Tab;
@@ -95,6 +96,7 @@ const NAV_SECTIONS: NavSection[] = [
     title: 'System',
     items: [
       { id: 'flags', label: 'Feature Flags', icon: Flag },
+      { id: 'ai-routing', label: 'AI Routing', icon: BrainCircuit },
       { id: 'deployment', label: 'Deployment', icon: Rocket },
       { id: 'openrouter', label: 'OpenRouter', icon: BrainCircuit },
       { id: 'groq', label: 'Groq', icon: BrainCircuit },
@@ -122,6 +124,7 @@ const TAB_LABELS: Record<Tab, string> = {
   groq: 'Groq',
   flags: 'Feature Flags',
   'owner-ops': 'Owner Ops',
+  'ai-routing': 'AI Routing',
 };
 
 type ConnectionStatus = 'checking' | 'connected' | 'degraded' | 'disconnected';
@@ -1089,6 +1092,21 @@ function DevToolsInner() {
                     </p>
                   </div>
                   <FeatureFlagsPanel />
+                </div>
+              )}
+
+              {activeTab === 'ai-routing' && (
+                <div className="space-y-4">
+                  <div>
+                    <h2 className="text-lg font-semibold flex items-center gap-2">
+                      <BrainCircuit className="w-5 h-5 text-primary" />
+                      AI Routing
+                    </h2>
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                      Control which AI provider handles each feature, configure per-plan daily credit caps, and set up A/B splits to test providers against each other — all without a code deploy.
+                    </p>
+                  </div>
+                  <AIRoutingPanel />
                 </div>
               )}
 

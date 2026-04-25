@@ -262,6 +262,7 @@ serve(async (req: Request) => {
     let aiResponse;
     try {
       aiResponse = await callAI({
+        featureName: 'wise-ai-chat',
         model: __ROUTE.model,
         wiseresumeSubProvider: __ROUTE.provider,
         messages: [{ role: "user", content: prompt }],

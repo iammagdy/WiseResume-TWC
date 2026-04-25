@@ -44,6 +44,13 @@ export interface AICallOptions {
   userId?: string;
   /** Ignored. */
   byokProvider?: string;
+  /**
+   * Feature name used to look up per-feature routing config from the
+   * `ai_routing_config` DB table. When set, the resolved provider (and
+   * optional model override) is preferred over random pool selection.
+   * Falls back to random pool if DB lookup fails or config is 'auto'.
+   */
+  featureName?: string;
 
   messages: AIMessage[];
   tools?: AITool[];
@@ -125,6 +132,46 @@ function pickRandom<T>(arr: T[]): T {
 interface PickedKey extends KeyEntry {
   /** All other keys in the same provider's pool, used for the retry. */
   siblings: KeyEntry[];
+  /** When routing config overrides the model, this is set. */
+  modelOverride?: string;
+}
+
+interface ForcedRoute {
+  provider?: Provider;
+  model?: string;
+}
+
+/**
+ * Look up the `ai_routing_config` table for the given feature name.
+ * Applies A/B split if configured. Falls back to {} on any error so
+ * the normal random pool selection is used.
+ */
+async function resolveRoutingForFeature(featureName: string): Promise<ForcedRoute> {
+  try {
+    const db = getServiceClient();
+    const { data } = await db
+      .from('ai_routing_config')
+      .select('provider, model, ab_secondary_provider, ab_secondary_model, ab_split_pct')
+      .eq('feature_name', featureName)
+      .maybeSingle();
+
+    if (!data || !data.provider || data.provider === 'auto') return {};
+
+    // A/B split: route ab_split_pct% of traffic to the secondary provider
+    if (data.ab_secondary_provider && (data.ab_split_pct ?? 0) > 0) {
+      if (Math.random() * 100 < data.ab_split_pct) {
+        const secProvider = data.ab_secondary_provider as Provider;
+        return { provider: secProvider, model: (data.ab_secondary_model ?? '') || undefined };
+      }
+    }
+
+    return {
+      provider: data.provider as Provider,
+      model: (data.model ?? '') || undefined,
+    };
+  } catch {
+    return {};
+  }
 }
 
 /**
@@ -132,8 +179,11 @@ interface PickedKey extends KeyEntry {
  * then pick a random key inside that provider. Returns the chosen key plus
  * the *other* keys in the same provider so the retry path can pick a
  * different sibling.
+ *
+ * When `forced.provider` is set, only keys for that provider are considered.
+ * Falls back to random selection if the forced provider has no keys.
  */
-function pickKey(opts: AICallOptions): PickedKey {
+function pickKey(opts: AICallOptions, forced?: ForcedRoute): PickedKey {
   const pool = loadPool();
   if (pool.length === 0) {
     const err: AIError = {
@@ -146,6 +196,21 @@ function pickKey(opts: AICallOptions): PickedKey {
 
   const openrouter = pool.filter(k => k.provider === 'openrouter');
   const groq = pool.filter(k => k.provider === 'groq');
+
+  // Honor forced provider from routing config when that provider has keys.
+  if (forced?.provider) {
+    const forcedPool = forced.provider === 'openrouter' ? openrouter : groq;
+    if (forcedPool.length > 0) {
+      const picked = pickRandom(forcedPool);
+      return {
+        ...picked,
+        siblings: forcedPool.filter(k => k.index !== picked.index),
+        modelOverride: forced.model,
+      };
+    }
+    // Forced provider has no keys — fall through to random selection.
+    console.warn(`[aiClient] forced provider '${forced.provider}' has no keys, falling back to random pool`);
+  }
 
   // JSON-strict requests prefer Groq (its response_format=json_object is more reliable).
   let chosenProvider: Provider;
@@ -163,10 +228,12 @@ function pickKey(opts: AICallOptions): PickedKey {
 }
 
 // ── Core HTTP call ────────────────────────────────────────────────────────────
-async function callOnce(entry: KeyEntry, opts: AICallOptions): Promise<AIResponse> {
+async function callOnce(entry: PickedKey | KeyEntry, opts: AICallOptions): Promise<AIResponse> {
   const isOpenRouter = entry.provider === 'openrouter';
   const url = isOpenRouter ? OPENROUTER_BASE : GROQ_BASE;
-  const model = isOpenRouter ? OPENROUTER_FREE_MODEL : GROQ_FREE_MODEL;
+  const defaultModel = isOpenRouter ? OPENROUTER_FREE_MODEL : GROQ_FREE_MODEL;
+  const pickedEntry = entry as PickedKey;
+  const model = (pickedEntry.modelOverride && pickedEntry.modelOverride !== '') ? pickedEntry.modelOverride : defaultModel;
 
   const body: Record<string, unknown> = {
     model,
@@ -424,7 +491,8 @@ export async function callAI(opts: AICallOptions): Promise<AIResponse> {
     const byok = await resolveByok(opts.userId);
     if (byok) return callBYOK(opts, byok.provider, byok.key);
   }
-  const picked = pickKey(opts);
+  const forced = opts.featureName ? await resolveRoutingForFeature(opts.featureName) : undefined;
+  const picked = pickKey(opts, forced);
   return callOnce(picked, opts);
 }
 
@@ -442,7 +510,8 @@ export async function callAIWithRetry(opts: AICallOptions): Promise<AIResponse> 
     const byok = await resolveByok(opts.userId);
     if (byok) return callBYOK(opts, byok.provider, byok.key);
   }
-  const picked = pickKey(opts);
+  const forced = opts.featureName ? await resolveRoutingForFeature(opts.featureName) : undefined;
+  const picked = pickKey(opts, forced);
 
   // Attempt 1: chosen key
   let lastErr: unknown;

@@ -13,7 +13,7 @@ WiseResume is an AI-powered web application for comprehensive career management.
 - **Never change primary key column types** — destructive and breaks existing data.
 - **Never invent marketing stats** — always source from `src/pages/Index.tsx`.
 - **`user.id` = bridge UUID only** — never raw Kinde `kp_xxx` ID.
-- **`creditUtils.ts`**: Derive daily limit from plan at runtime — never trust `ai_credits.daily_limit` column.
+- **`creditUtils.ts`**: Derive daily limit from plan at runtime. Priority: (1) per-user override in `ai_credits.daily_limit`, (2) plan-level cap override from `app_settings` keys `daily_cap_free|trial|pro`, (3) per-plan default from `planLimits.ts`.
 - **`useMe` is canonical** for plan/credits — queryKey: `['me', user?.id]`.
 - **All edge functions** need `verify_jwt = false` in `supabase/config.toml`.
 - **Pricing CTAs** on landing → `/auth?plan=free|pro|premium` (not direct `kindeRegister` calls).
@@ -49,13 +49,13 @@ Users authenticate via Kinde, receiving an access token. The client exchanges th
 
 **Core Features & Implementations:**
 - **AI Career Management**: AI-powered resume building, tailoring for job listings, public portfolios, interview practice, job tracking, and career goal management.
-- **AI System**: Centralized AI client (`supabase/functions/_shared/aiClient.ts`) dispatches calls to OpenRouter and Groq (primary providers). Supports "Bring Your Own Key" (BYOK) for various providers (OpenAI, Anthropic, Gemini, Groq).
+- **AI System**: Centralized AI client (`supabase/functions/_shared/aiClient.ts`) dispatches calls to OpenRouter and Groq (primary providers). Supports "Bring Your Own Key" (BYOK) for various providers (OpenAI, Anthropic, Gemini, Groq). Per-feature routing config stored in `ai_routing_config` table; pass `featureName` to `callAI`/`callAIWithRetry` to activate routing. Supports A/B splits via `ab_secondary_provider`+`ab_split_pct` fields.
 - **AI Error Handling**: Structured error chain from Supabase Edge Functions to user-facing toasts, with utilities for parsing `AIError` types.
 - **Agentic Chat**: Multi-turn AI assistant with persistent sessions and tool-calling capabilities (e.g., `update_summary`, `get_company_briefing`, `open_job_tracker`). Uses a `tool_cache` DB table for output caching.
 - **Subscription & Credits**: `free`, `pro`, `premium` plans with dynamic daily AI credit limits.
 - **Design System**: Consistent UI with Deep Indigo primary, Warm Amber accent colors, Inter typography, custom shadow scales, and light/dark/system themes.
 - **Navigation**: `DesktopNav` and `BottomTabBar` for intuitive feature access; locked tabs guide users to subscription page for upgrades.
-- **Admin DevKit**: Password-protected admin panel with Mission Control (single-screen status board), Analytics, Live Activity, Deployment, Audit Log, AI Provider panels, and User management. User Detail Drawer includes a lazy-loaded Activity tab.
+- **Admin DevKit**: Password-protected admin panel with Mission Control, Analytics, Live Activity, Deployment, Audit Log, AI Provider panels (OpenRouter/Groq key slots), AI Routing (per-feature provider config, A/B splits, plan spend caps), Feature Flags, Owner Ops (broadcasts, maintenance), and User management. New edge functions: `admin-ai-routing` (CRUD on `ai_routing_config`) and `admin-ai-caps` (get/set `daily_cap_*` keys in `app_settings`).
 - **Server-side LinkedIn Importer**: `POST /api/linkedin-profile` endpoint uses Proxycurl for structured profile data import with rate limiting.
 - **Kanban Job Tracker**: Board view for job applications with draggable cards, inline quick add, and optimistic updates.
 - **WiseHire (HR SaaS Platform)**: Integrated HR product with AI JD Writer, AI Brief Generator, and Candidate Pipeline Board.
