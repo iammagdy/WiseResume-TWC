@@ -33,14 +33,22 @@ export function ActingAsBanner() {
       exitImpersonation();
       return;
     }
-    const timer = setTimeout(() => {
+    const timer = setTimeout(async () => {
+      try {
+        await edgeFunctions.functions.invoke('admin-impersonate', {
+          headers: devKitAuthHeaders(),
+          body: { action: 'exit', target_user_id: state.userId },
+        });
+      } catch {
+        // Non-fatal — still clear locally
+      }
       toast.warning('Impersonation session expired', {
         description: 'The 30-minute impersonation session has ended.',
       });
       exitImpersonation();
     }, msLeft);
     return () => clearTimeout(timer);
-  }, [state.active, state.expiresAt]);
+  }, [state.active, state.expiresAt, state.userId]);
 
   const handleExit = useCallback(async () => {
     setExiting(true);

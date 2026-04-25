@@ -37,19 +37,18 @@ serve(async (req) => {
 
   if (action === 'exit') {
     const { target_user_id } = body;
-    try {
-      await supabase.from('audit_logs').insert({
-        user_id: null,
-        category: 'admin_impersonation',
-        action: 'impersonation_exit',
-        metadata: {
-          performed_by: adminEmail,
-          target_user_id: target_user_id ?? null,
-          exited_at: new Date().toISOString(),
-        },
-      });
-    } catch {
-      // Exit audit failure is non-fatal — session is already cleared client-side
+    const { error: auditExitErr } = await supabase.from('audit_logs').insert({
+      user_id: null,
+      category: 'admin_impersonation',
+      action: 'impersonation_exit',
+      metadata: {
+        performed_by: adminEmail,
+        target_user_id: target_user_id ?? null,
+        exited_at: new Date().toISOString(),
+      },
+    });
+    if (auditExitErr) {
+      console.error('[admin-impersonate] exit audit insert failed:', auditExitErr);
     }
     return new Response(JSON.stringify({ success: true }), {
       status: 200,
