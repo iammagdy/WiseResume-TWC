@@ -12,6 +12,7 @@ import { getServiceClient } from "../_shared/dbClient.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
 import { logger } from "../_shared/logger.ts";
 import { wrapHandler } from "../_shared/fnLogger.ts";
+import { screenContent } from "../_shared/contentModeration.ts";
 import {
   detectEchoIssues,
   validateEntryCount,
@@ -1055,6 +1056,11 @@ serve(wrapHandler('enhance-section', async (req) => {
     // Record usage for rate limiting — include which provider handled the request
     await recordUsage(userId, 'enhance', { section, action, provider: aiResponse.providerUsed || 'unknown' });
 
+    // Screen AI output against pattern blocklist — fire-and-forget, never blocks user.
+    const outputText = typeof finalContent.improved === 'string'
+      ? finalContent.improved
+      : JSON.stringify(finalContent.improved ?? '');
+    screenContent(getServiceClient(), outputText, 'ai_enhance_section', undefined, userId).catch(() => {});
 
     // IMPORTANT: serialise `finalContent` (the post-validation, post-retry,
     // post-strip payload) — NOT the raw parsed `enhancedContent` — so that

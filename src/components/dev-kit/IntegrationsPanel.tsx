@@ -34,6 +34,7 @@ interface BounceEntry {
   to: string;
   subject: string;
   status: string;
+  reason: string | null;
   created_at: string;
 }
 
@@ -274,6 +275,11 @@ function ResendBouncesTab() {
             </div>
             {b.subject && (
               <p className="text-xs text-muted-foreground mt-0.5 truncate ml-5">{b.subject}</p>
+            )}
+            {b.reason && (
+              <p className="text-xs text-destructive/80 mt-0.5 ml-5 truncate">
+                Reason: {b.reason}
+              </p>
             )}
           </div>
         ))}

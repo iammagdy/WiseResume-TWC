@@ -26,6 +26,11 @@ interface BugReport {
   id: string;
   user_email: string;
   error_message: string;
+  error_stack: string | null;
+  component_stack: string | null;
+  additional_context: string | null;
+  session_id: string | null;
+  user_agent: string | null;
   route: string | null;
   status: string;
   private_note: string | null;
@@ -204,6 +209,34 @@ function BugInboxTab({ onCountChange }: { onCountChange?: (n: number) => void })
 
             {expanded === bug.id && (
               <div className="px-4 pb-4 border-t border-border bg-muted/20 space-y-3 pt-3">
+                {/* Full report metadata */}
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                  {bug.app_version && <span><span className="font-medium text-foreground/70">Version:</span> {bug.app_version}</span>}
+                  {bug.session_id && <span className="truncate"><span className="font-medium text-foreground/70">Session:</span> {bug.session_id}</span>}
+                  {bug.user_agent && <span className="col-span-2 truncate"><span className="font-medium text-foreground/70">UA:</span> {bug.user_agent}</span>}
+                </div>
+
+                {bug.additional_context && (
+                  <div>
+                    <p className="text-[11px] font-medium text-foreground/60 uppercase tracking-wide mb-1">Additional Context</p>
+                    <pre className="text-xs bg-muted rounded px-2 py-1.5 whitespace-pre-wrap break-words max-h-24 overflow-y-auto">{bug.additional_context}</pre>
+                  </div>
+                )}
+
+                {bug.error_stack && (
+                  <div>
+                    <p className="text-[11px] font-medium text-foreground/60 uppercase tracking-wide mb-1">Error Stack</p>
+                    <pre className="text-xs bg-muted rounded px-2 py-1.5 whitespace-pre-wrap break-words max-h-32 overflow-y-auto font-mono text-destructive/80">{bug.error_stack}</pre>
+                  </div>
+                )}
+
+                {bug.component_stack && (
+                  <div>
+                    <p className="text-[11px] font-medium text-foreground/60 uppercase tracking-wide mb-1">Component Stack</p>
+                    <pre className="text-xs bg-muted rounded px-2 py-1.5 whitespace-pre-wrap break-words max-h-24 overflow-y-auto font-mono">{bug.component_stack}</pre>
+                  </div>
+                )}
+
                 {bug.private_note && (
                   <div className="text-xs bg-amber-500/10 border border-amber-500/20 rounded px-3 py-2 text-amber-700 dark:text-amber-400">
                     <span className="font-medium">Note:</span> {bug.private_note}

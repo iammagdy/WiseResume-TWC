@@ -47,13 +47,20 @@ Deno.serve(async (req) => {
       const bounced = emails.filter((e) => {
         const status = ((e.last_event ?? e.status) as string | undefined)?.toLowerCase() ?? '';
         return status === 'bounced' || status === 'failed' || status === 'complained';
-      }).map((e) => ({
-        id: e.id,
-        to: Array.isArray(e.to) ? (e.to as string[]).join(', ') : String(e.to ?? ''),
-        subject: String(e.subject ?? ''),
-        status: String(e.last_event ?? e.status ?? ''),
-        created_at: String(e.created_at ?? ''),
-      }));
+      }).map((e) => {
+        // Extract bounce reason from any known field in the Resend email object.
+        const details = (e.last_event_details ?? e.bounce ?? e.click ?? {}) as Record<string, unknown>;
+        const reason: string =
+          String(e.bounce_reason ?? e.error_message ?? details.status_message ?? details.reason ?? '');
+        return {
+          id: e.id,
+          to: Array.isArray(e.to) ? (e.to as string[]).join(', ') : String(e.to ?? ''),
+          subject: String(e.subject ?? ''),
+          status: String(e.last_event ?? e.status ?? ''),
+          reason: reason || null,
+          created_at: String(e.created_at ?? ''),
+        };
+      });
 
       return json({ success: true, bounces: bounced, total_emails_checked: emails.length }, 200, cors);
     } catch (err) {
