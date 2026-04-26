@@ -32,6 +32,14 @@ export interface ParseResult {
   pageCount: number;
   parseStatus: 'success' | 'partial' | 'failed';
   parseWarnings: string[];
+  /**
+   * When the text path failed, why. Forwarded from the extractor so the
+   * upload UI can show the right recovery (scanned PDF vs iOS-WebKit
+   * font/asset decode failure). See ExtractionFailureReason.
+   */
+  failureReason?: import('./pdf/textExtractor').ExtractionFailureReason;
+  /** True when the user is on iOS Safari/WebKit (incl. iOS Chrome). */
+  isIOS?: boolean;
 }
 
 /**
@@ -508,6 +516,12 @@ export async function parseResumePDF(file: File): Promise<ParseResult> {
   // Extract text with layout preservation
   const extraction = await extractTextFromPDF(file);
   
+  // Empty extraction can mean two very different things now:
+  //  1. needsOCR=true with failureReason 'NO_ITEMS' → real scanned PDF, OCR is right
+  //  2. needsOCR=false with failureReason 'EMPTY_STRINGS' / 'PAGE_ERRORS' /
+  //     'TOO_FEW_WORDS' → text extraction broke (often iOS WebKit) and OCR
+  //     on the same broken page is unlikely to help. Surface a clear failure
+  //     instead of silently steering users into a doomed OCR path.
   if (extraction.needsOCR) {
     return {
       success: false,
@@ -515,6 +529,31 @@ export async function parseResumePDF(file: File): Promise<ParseResult> {
       pageCount: extraction.pageCount,
       parseStatus: 'failed',
       parseWarnings: ['PDF contains no selectable text — OCR is required to read this file.'],
+      failureReason: extraction.failureReason,
+      isIOS: extraction.isIOS,
+    };
+  }
+
+  if (extraction.failureReason) {
+    // We have an empty result but OCR is NOT the right answer.
+    const iosNote = extraction.isIOS
+      ? ' This commonly happens on iPhone Safari with PDFs that use embedded fonts. ' +
+        'Try uploading from a desktop browser, or convert your CV to Word/JSON first.'
+      : '';
+    const reasonNote =
+      extraction.failureReason === 'EMPTY_STRINGS'
+        ? "We could see text in your PDF but couldn't decode the font."
+        : extraction.failureReason === 'PAGE_ERRORS'
+          ? 'Every page in this PDF errored while we tried to read it.'
+          : "We couldn't extract enough readable text from this PDF.";
+    return {
+      success: false,
+      needsOCR: false,
+      pageCount: extraction.pageCount,
+      parseStatus: 'failed',
+      parseWarnings: [reasonNote + iosNote],
+      failureReason: extraction.failureReason,
+      isIOS: extraction.isIOS,
     };
   }
   

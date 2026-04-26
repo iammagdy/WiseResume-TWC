@@ -11,9 +11,42 @@ import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { createWorker, Worker } from 'tesseract.js';
 
 import { preprocessResumeText } from './textPreprocessor';
+import { isIOSWebKit } from './textExtractor';
 
 // pdfjs-dist v4: configure worker via GlobalWorkerOptions (disableWorker was removed).
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+
+/**
+ * Categorised OCR failure. Lets the UI show a real cause instead of the
+ * old hard-coded "check your internet connection" message that misled
+ * iPhone users (Task #25).
+ */
+export type OCRErrorCode =
+  | 'WORKER_INIT_FAILED'   // createWorker rejected (worker.min.js fetch / WASM init / langdata fetch)
+  | 'PDF_LOAD_FAILED'      // getDocument failed before OCR even started
+  | 'PAGE_RENDER_FAILED'   // page.render or canvas.toDataURL failed (often iOS canvas memory)
+  | 'RECOGNITION_FAILED'   // worker.recognize threw on a page
+  | 'LOW_QUALITY'          // OCR ran but output was empty/unreadable
+  | 'UNKNOWN';
+
+export class OCRError extends Error {
+  constructor(
+    message: string,
+    public readonly code: OCRErrorCode,
+    public readonly cause?: unknown,
+  ) {
+    super(message);
+    this.name = 'OCRError';
+  }
+}
+
+function describeCause(err: unknown): string {
+  if (err instanceof Error) {
+    return err.message || err.name || String(err);
+  }
+  if (typeof err === 'string') return err;
+  try { return JSON.stringify(err); } catch { return String(err); }
+}
 
 /**
  * Yield to the browser's event loop so it can paint and process input
@@ -85,21 +118,32 @@ export async function extractTextWithOCR(
   file: File,
   onProgress?: OCRProgressCallback
 ): Promise<string> {
+  const isIOS = isIOSWebKit();
   const arrayBuffer = await file.arrayBuffer();
-  
+
   // Load PDF document with locally-bundled cmaps and standard fonts so iOS
   // WebKit can decode embedded-font PDFs without falling back to OCR.
-  const pdf = await pdfjsLib.getDocument({
-    data: arrayBuffer,
-    cMapUrl: '/pdfjs/cmaps/',
-    cMapPacked: true,
-    standardFontDataUrl: '/pdfjs/standard_fonts/',
-  }).promise;
+  let pdf: pdfjsLib.PDFDocumentProxy;
+  try {
+    pdf = await pdfjsLib.getDocument({
+      data: arrayBuffer,
+      cMapUrl: '/pdfjs/cmaps/',
+      cMapPacked: true,
+      standardFontDataUrl: '/pdfjs/standard_fonts/',
+    }).promise;
+  } catch (error) {
+    console.error('[ocrExtractor] PDF load failed before OCR', { isIOS, error });
+    throw new OCRError(
+      'We couldn\'t open this PDF for scanning. The file may be damaged or in an unsupported format.',
+      'PDF_LOAD_FAILED',
+      error,
+    );
+  }
   const numPages = pdf.numPages;
-  
+
   // Initialize Tesseract worker once for all pages (more efficient)
   onProgress?.({ page: 0, total: numPages, status: 'Initializing OCR engine...' });
-  
+
   let worker: Worker;
   try {
     worker = await createWorker('eng', undefined, {
@@ -108,12 +152,22 @@ export async function extractTextWithOCR(
       langPath: '/tesseract/lang',
     });
   } catch (error) {
-    console.error('Failed to initialize Tesseract worker:', error);
-    throw new Error(
-      'Failed to initialize OCR engine. Please check your internet connection and try again.'
+    console.error('[ocrExtractor] Tesseract worker init failed', {
+      isIOS,
+      ua: typeof navigator !== 'undefined' ? navigator.userAgent : 'n/a',
+      error,
+    });
+    // Surface the actual failure cause rather than the old hard-coded
+    // "check your internet connection" message — most iPhone failures
+    // here are WASM/SharedArrayBuffer related, not network.
+    throw new OCRError(
+      `Couldn't start the text-scanning engine in this browser (${describeCause(error)}). ` +
+      'Try uploading from a desktop browser, or convert your CV to Word/JSON.',
+      'WORKER_INIT_FAILED',
+      error,
     );
   }
-  
+
   const pageTexts: string[] = [];
 
   try {
@@ -132,40 +186,64 @@ export async function extractTextWithOCR(
       if (pageNum > 1) await yieldToMain();
 
       // First attempt at standard scale (2x)
-      const { text, confidence } = await extractPageWithOCR(pdf, pageNum, worker, 2);
-      
+      let first: { text: string; confidence: number };
+      try {
+        first = await extractPageWithOCR(pdf, pageNum, worker, 2);
+      } catch (pageErr) {
+        console.error('[ocrExtractor] Page OCR failed', { pageNum, isIOS, pageErr });
+        // Differentiate render-time failures (canvas/memory) from
+        // recognition-time failures so the toast can be honest.
+        const msg = describeCause(pageErr);
+        const code: OCRErrorCode = /canvas|render|memory|context lost/i.test(msg)
+          ? 'PAGE_RENDER_FAILED'
+          : 'RECOGNITION_FAILED';
+        throw new OCRError(
+          `OCR failed on page ${pageNum} (${msg}).`,
+          code,
+          pageErr,
+        );
+      }
+
       // If confidence is very low, retry at higher DPI (3x)
-      if (confidence < MIN_PAGE_CONFIDENCE && numPages <= 5) {
+      if (first.confidence < MIN_PAGE_CONFIDENCE && numPages <= 5) {
         onProgress?.({
           page: pageNum,
           total: numPages,
           status: `Re-processing page ${pageNum} at higher quality...`,
         });
-        const retry = await extractPageWithOCR(pdf, pageNum, worker, 3);
-        if (retry.confidence > confidence) {
-          pageTexts.push(retry.text);
-          continue;
+        try {
+          const retry = await extractPageWithOCR(pdf, pageNum, worker, 3);
+          if (retry.confidence > first.confidence) {
+            pageTexts.push(retry.text);
+            continue;
+          }
+        } catch (retryErr) {
+          // Retry failure is non-fatal — fall through with the
+          // first-pass text instead of erroring the whole upload.
+          console.warn('[ocrExtractor] High-DPI retry failed, keeping first pass', { pageNum, retryErr });
         }
       }
-      
-      pageTexts.push(text);
+
+      pageTexts.push(first.text);
     }
   } finally {
     // Always terminate worker to free memory
-    await worker.terminate();
+    try { await worker.terminate(); } catch { /* swallow */ }
   }
-  
+
   const fullText = pageTexts.join('\n\n');
-  
+
   // Check if OCR produced meaningful content
   const cleanedText = fullText.replace(/\s+/g, ' ').trim();
   const wordCount = cleanedText.split(/\s+/).filter(Boolean).length;
   if (cleanedText.length < 100 || wordCount < 5) {
-    throw new Error(
-      'OCR could not extract readable text. The PDF may be too low quality or contain no recognizable text.'
+    throw new OCRError(
+      'OCR couldn\'t read enough text from this PDF. The image may be too low quality, ' +
+      'or the file may not contain real text. Try a clearer scan or upload a Word/JSON copy.',
+      'LOW_QUALITY',
     );
   }
-  
+
   // Apply text preprocessing to clean OCR artifacts
   return preprocessResumeText(fullText, pageTexts);
 }
@@ -272,39 +350,40 @@ export async function extractTextFromImage(
   file: File,
   onProgress?: OCRProgressCallback
 ): Promise<string> {
+  const isIOS = isIOSWebKit();
   onProgress?.({ page: 1, total: 1, status: 'Loading image...' });
-  
+
   // Load image
   const img = await loadImage(file);
-  
+
   // Create canvas at image dimensions (cap at 4000px for performance)
   const maxDim = 4000;
   let width = img.width;
   let height = img.height;
-  
+
   if (width > maxDim || height > maxDim) {
     const scale = maxDim / Math.max(width, height);
     width = Math.round(width * scale);
     height = Math.round(height * scale);
   }
-  
+
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
-  
+
   const ctx = canvas.getContext('2d');
   if (!ctx) {
-    throw new Error('Failed to create canvas context for OCR');
+    throw new OCRError('Failed to create canvas context for OCR.', 'PAGE_RENDER_FAILED');
   }
-  
+
   // Draw image to canvas
   ctx.drawImage(img, 0, 0, width, height);
-  
+
   // Clean up object URL
   URL.revokeObjectURL(img.src);
-  
+
   onProgress?.({ page: 1, total: 1, status: 'Initializing OCR engine...' });
-  
+
   // Initialize Tesseract worker
   let worker: Worker;
   try {
@@ -314,34 +393,56 @@ export async function extractTextFromImage(
       langPath: '/tesseract/lang',
     });
   } catch (error) {
-    console.error('Failed to initialize Tesseract worker:', error);
-    throw new Error(
-      'Failed to initialize OCR engine. Please check your internet connection and try again.'
+    console.error('[ocrExtractor] Tesseract worker init failed (image)', {
+      isIOS,
+      ua: typeof navigator !== 'undefined' ? navigator.userAgent : 'n/a',
+      error,
+    });
+    // Surface the real cause instead of the old hard-coded
+    // "check your internet connection" message (Task #25).
+    throw new OCRError(
+      `Couldn't start the text-scanning engine in this browser (${describeCause(error)}). ` +
+      'Try uploading from a desktop browser, or convert your CV to Word/JSON.',
+      'WORKER_INIT_FAILED',
+      error,
     );
   }
-  
+
   try {
     onProgress?.({ page: 1, total: 1, status: 'Extracting text...' });
-    
+
     // Convert canvas to image data for Tesseract
     const imageData = canvas.toDataURL('image/png');
-    
+
     // Run OCR
-    const { data: { text } } = await worker.recognize(imageData);
-    
+    let recognized: { data: { text: string } };
+    try {
+      recognized = await worker.recognize(imageData);
+    } catch (recogErr) {
+      console.error('[ocrExtractor] worker.recognize failed (image)', { isIOS, recogErr });
+      throw new OCRError(
+        `OCR couldn't read this image (${describeCause(recogErr)}).`,
+        'RECOGNITION_FAILED',
+        recogErr,
+      );
+    }
+    const text = recognized.data.text;
+
     // Clean up
     canvas.width = 0;
     canvas.height = 0;
-    
+
     const cleanedText = text.replace(/\s+/g, ' ').trim();
     if (cleanedText.length < 20) {
-      throw new Error(
-        'OCR could not extract readable text. The image may be too low quality or contain no recognizable text.'
+      throw new OCRError(
+        'OCR couldn\'t read enough text from this image. The picture may be too low quality, ' +
+        'or it may not contain real text. Try a clearer photo or upload a Word/JSON copy.',
+        'LOW_QUALITY',
       );
     }
-    
+
     return text.trim();
   } finally {
-    await worker.terminate();
+    try { await worker.terminate(); } catch { /* swallow */ }
   }
 }

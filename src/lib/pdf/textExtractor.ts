@@ -69,6 +69,18 @@ export class PDFParseError extends Error {
 }
 
 /**
+ * Why text extraction came back empty. Helps the UI distinguish
+ * a true scanned/image PDF (where OCR is the right answer) from
+ * an iOS-WebKit font/asset decode failure (where OCR will likely
+ * also fail and the user should be steered to desktop or Word).
+ */
+export type ExtractionFailureReason =
+  | 'NO_ITEMS'           // Every page returned an empty items[] — likely scanned PDF
+  | 'EMPTY_STRINGS'      // Items present but every str was empty — likely font/cmap decode failed
+  | 'TOO_FEW_WORDS'      // Got some text but below the resume-content threshold
+  | 'PAGE_ERRORS';       // getTextContent threw on every page
+
+/**
  * Result from text extraction, including metadata about extraction quality.
  */
 export interface ExtractionResult {
@@ -79,6 +91,31 @@ export interface ExtractionResult {
   confidence: number; // 0-1 quality score
   qualityIssues: string[]; // e.g. ["low word count", "possible multi-column"]
   pageTexts?: string[]; // Per-page text for header/footer removal
+  /**
+   * Set when the text path failed to produce a usable result. Lets the UI
+   * pick a better recovery message than the generic "scanned PDF" prompt
+   * (e.g. iOS Safari font decode failures look identical to scanned PDFs
+   * to the existing logic but won't be solved by OCR either).
+   */
+  failureReason?: ExtractionFailureReason;
+  /** True when running in iOS Safari/WebKit (incl. iOS Chrome). */
+  isIOS?: boolean;
+}
+
+/**
+ * Detect iOS / iPadOS WebKit. iOS Chrome/Edge/Firefox all use WebKit
+ * under the hood (App Store policy), so a UA-based check covers all
+ * iPhone browsers. Returns false on the server.
+ */
+export function isIOSWebKit(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent || '';
+  // iPhone / iPod / iPad classic
+  if (/iPhone|iPod|iPad/i.test(ua)) return true;
+  // iPadOS 13+ identifies as Mac but exposes touch points
+  const isMacLike = /Macintosh/i.test(ua);
+  const hasTouch = (navigator as any).maxTouchPoints > 1;
+  return isMacLike && hasTouch;
 }
 
 /**
@@ -90,6 +127,7 @@ export interface ExtractionResult {
  */
 export async function extractTextFromPDF(file: File): Promise<ExtractionResult> {
   const arrayBuffer = await file.arrayBuffer();
+  const isIOS = isIOSWebKit();
 
   let pdf;
   try {
@@ -110,7 +148,13 @@ export async function extractTextFromPDF(file: File): Promise<ExtractionResult> 
       );
     }
     // Any other load failure means the file itself is unreadable.
-    console.error('[textExtractor] getDocument failed:', errorName || errorMessage);
+    // Include UA so iOS-specific failures are visible in any captured logs.
+    console.error('[textExtractor] getDocument failed', {
+      errorName,
+      errorMessage,
+      isIOS,
+      ua: typeof navigator !== 'undefined' ? navigator.userAgent : 'n/a',
+    });
     throw new PDFParseError(
       'This PDF appears to be corrupted or invalid.',
       'CORRUPTED'
@@ -118,8 +162,9 @@ export async function extractTextFromPDF(file: File): Promise<ExtractionResult> 
   }
 
   const pageTexts: string[] = [];
-  const debugPages: Array<{ page: number; rawItems: number; extractedChars: number }> = [];
+  const debugPages: Array<{ page: number; rawItems: number; nonEmptyItems: number; extractedChars: number; pageError?: string }> = [];
   const pageCount = pdf.numPages;
+  let pageErrorCount = 0;
 
   // Process pages individually so a single bad page doesn't abort the whole extraction.
   for (let i = 1; i <= pageCount; i++) {
@@ -129,28 +174,78 @@ export async function extractTextFromPDF(file: File): Promise<ExtractionResult> 
       const page = await pdf.getPage(i);
       // getTextContent options vary across pdfjs versions — use a plain object and cast
       const textContent = await page.getTextContent({ includeMarkedContent: false } as Parameters<typeof page.getTextContent>[0]);
-      const rawItems = Array.isArray((textContent as any)?.items) ? (textContent as any).items.length : 0;
-      const pageText = reconstructPageText((textContent as any).items as any[]);
-      debugPages.push({ page: i, rawItems, extractedChars: pageText.length });
+      const itemsArr: any[] = Array.isArray((textContent as any)?.items) ? (textContent as any).items : [];
+      const rawItems = itemsArr.length;
+      // Count items that actually carry non-empty text — distinguishes a
+      // scanned PDF (rawItems = 0) from an iOS font/cmap decode failure
+      // (rawItems > 0 but every str is "").
+      const nonEmptyItems = itemsArr.reduce((n, it) => n + (typeof it?.str === 'string' && it.str.trim() ? 1 : 0), 0);
+      const pageText = reconstructPageText(itemsArr);
+      debugPages.push({ page: i, rawItems, nonEmptyItems, extractedChars: pageText.length });
       pageTexts.push(pageText);
     } catch (pageError: unknown) {
       console.warn(`[textExtractor] Page ${i} text extraction failed:`, pageError);
       pageTexts.push('');
-      debugPages.push({ page: i, rawItems: 0, extractedChars: 0 });
+      pageErrorCount++;
+      debugPages.push({
+        page: i,
+        rawItems: 0,
+        nonEmptyItems: 0,
+        extractedChars: 0,
+        pageError: pageError instanceof Error ? pageError.message : String(pageError),
+      });
     }
   }
 
-  // If every page failed text extraction, route to OCR instead of showing an error.
-  // The PDF loaded successfully so pdfjs can likely still render it for OCR.
+  // If every page failed text extraction, decide whether OCR is the right
+  // recovery path or whether we hit an iOS-WebKit font/asset decode bug.
   if (pageTexts.every(t => !t.trim())) {
-    console.warn('[textExtractor] All pages failed text extraction — routing to OCR', { pageCount, debugPages });
+    const totalRawItems = debugPages.reduce((n, d) => n + d.rawItems, 0);
+    const totalNonEmpty = debugPages.reduce((n, d) => n + d.nonEmptyItems, 0);
+
+    let failureReason: ExtractionFailureReason;
+    if (pageErrorCount === pageCount) {
+      failureReason = 'PAGE_ERRORS';
+    } else if (totalRawItems > 0 && totalNonEmpty === 0) {
+      // pdfjs returned text items but their .str was always blank — the
+      // glyph-to-unicode mapping failed (subset font + missing cmap, or
+      // standardFontData failed to load). OCR will likely also fail
+      // because the raster is sharp text rendered with the same broken
+      // font, so the right answer is to tell the user.
+      failureReason = 'EMPTY_STRINGS';
+    } else {
+      failureReason = 'NO_ITEMS';
+    }
+
+    console.warn('[textExtractor] All pages failed text extraction', {
+      pageCount,
+      failureReason,
+      isIOS,
+      pageErrorCount,
+      totalRawItems,
+      totalNonEmpty,
+      debugPages,
+      ua: typeof navigator !== 'undefined' ? navigator.userAgent : 'n/a',
+    });
+
+    // Only *suppress* OCR on iOS, where EMPTY_STRINGS/PAGE_ERRORS are
+    // overwhelmingly caused by WebKit asset/font decode failures that
+    // OCR-on-the-same-rendered-page also can't fix. On other platforms
+    // EMPTY_STRINGS/PAGE_ERRORS may still benefit from OCR (e.g., PDFs
+    // with custom encodings on desktop), so preserve the original
+    // "always offer OCR when text path is empty" behaviour there.
+    const ocrUnlikelyToHelp =
+      isIOS && (failureReason === 'EMPTY_STRINGS' || failureReason === 'PAGE_ERRORS');
+
     return {
       text: '',
       method: 'text',
       pageCount,
-      needsOCR: true,
+      needsOCR: !ocrUnlikelyToHelp,
       confidence: 0,
       qualityIssues: ['text extraction failed for all pages'],
+      failureReason,
+      isIOS,
     };
   }
 
@@ -183,19 +278,37 @@ export async function extractTextFromPDF(file: File): Promise<ExtractionResult> 
       }
     }
 
-    console.warn('PDF extraction produced too little text - OCR may be needed', {
+    console.warn('PDF extraction produced too little text', {
       pages: pageCount,
       cleanedChars: cleanedText.length,
+      isIOS,
       debugPages,
     });
+
+    // If we got *some* items but their text was tiny, the file might
+    // still be a real text PDF that pdfjs decoded poorly (common on
+    // iOS for embedded subset fonts). Distinguish that case from an
+    // honestly-sparse scanned PDF so the UI can offer the right recovery.
+    const totalRawItems = debugPages.reduce((n, d) => n + d.rawItems, 0);
+    const totalNonEmpty = debugPages.reduce((n, d) => n + d.nonEmptyItems, 0);
+    let failureReason: ExtractionFailureReason = 'TOO_FEW_WORDS';
+    if (totalRawItems > 0 && totalNonEmpty === 0) failureReason = 'EMPTY_STRINGS';
+
+    // Mirror the all-pages-empty branch: only suppress OCR on iOS for
+    // EMPTY_STRINGS (font/cmap decode failure) where OCR is unlikely
+    // to help. Non-iOS users keep the legacy "always offer OCR when
+    // text is too sparse" behaviour.
+    const ocrUnlikelyToHelp = isIOS && failureReason === 'EMPTY_STRINGS';
 
     return {
       text: '',
       method: 'text',
       pageCount,
-      needsOCR: true,
+      needsOCR: !ocrUnlikelyToHelp,
       confidence: 0,
       qualityIssues: ['no extractable text'],
+      failureReason,
+      isIOS,
     };
   }
 

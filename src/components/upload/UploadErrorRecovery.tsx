@@ -15,6 +15,8 @@ export type UploadErrorType =
   | 'PASSWORD_PROTECTED' 
   | 'PARTIAL_EXTRACTION'
   | 'AI_UNREACHABLE'
+  | 'IOS_BROWSER_INCOMPATIBLE'
+  | 'OCR_ENGINE_FAILED'
   | 'UNKNOWN';
 
 interface ExtractedSections {
@@ -81,6 +83,22 @@ export function UploadErrorRecovery({
           icon: <FileWarning className="w-8 h-8 text-warning" />,
           title: "Couldn't reach the AI parser",
           description: "There was a connectivity issue. Your file is fine — please retry in a moment.",
+        };
+      case 'IOS_BROWSER_INCOMPATIBLE':
+        return {
+          icon: <FileWarning className="w-8 h-8 text-warning" />,
+          title: "iPhone couldn't read this PDF",
+          description:
+            "Your file looks fine, but iPhone Safari struggles with some PDF fonts. " +
+            "Try uploading from a desktop browser, or convert your CV to a Word (.docx) or JSON file first.",
+        };
+      case 'OCR_ENGINE_FAILED':
+        return {
+          icon: <FileWarning className="w-8 h-8 text-destructive" />,
+          title: "Text scanning isn't supported on this browser",
+          description:
+            "We couldn't start the OCR engine in this browser. " +
+            "Try uploading from a desktop browser, or upload a Word (.docx) or JSON file instead.",
         };
       default:
         return {

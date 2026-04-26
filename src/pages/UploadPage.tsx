@@ -19,7 +19,7 @@ import {
   estimateOCRTime,
   OCRProgressCallback,
 } from '@/lib/pdfParser';
-import { extractTextFromImage } from '@/lib/pdf/ocrExtractor';
+import { extractTextFromImage, OCRError } from '@/lib/pdf/ocrExtractor';
 import { preprocessResumeText, extractContactHints } from '@/lib/pdf/textPreprocessor';
 import { validateAndCleanResumeData, extractTextFromHTML } from '@/lib/jsonResumeValidator';
 import { OCRPromptDialog } from '@/components/upload/OCRPromptDialog';
@@ -154,6 +154,21 @@ export default function UploadPage() {
       if (error instanceof Error && error.message === 'AI_UNREACHABLE') {
         setErrorType('AI_UNREACHABLE');
         setShowErrorRecovery(true);
+      } else if (error instanceof OCRError) {
+        // Surface real Tesseract errors with a categorised recovery
+        // instead of the old hard-coded "check your internet" toast.
+        if (error.code === 'WORKER_INIT_FAILED' || error.code === 'PAGE_RENDER_FAILED') {
+          setErrorType('OCR_ENGINE_FAILED');
+          setParseRecoveryWarnings([error.message]);
+          setShowParseRecoveryBanner(true);
+          setShowErrorRecovery(true);
+        } else {
+          // LOW_QUALITY / RECOGNITION_FAILED / PDF_LOAD_FAILED — show
+          // the real cause to the user via toast + NO_TEXT recovery.
+          toast.error(error.message, { duration: 6000 });
+          setErrorType('NO_TEXT');
+          setShowErrorRecovery(true);
+        }
       } else {
         toast.error(
           error instanceof Error 
@@ -645,6 +660,19 @@ export default function UploadPage() {
       const msg = error instanceof Error ? error.message : 'Failed to extract text from image.';
       if (msg === 'AI_UNREACHABLE') {
         setErrorType('AI_UNREACHABLE');
+      } else if (error instanceof OCRError) {
+        // Mirror the PDF OCR path so image-OCR users get the same
+        // semantically-correct recovery state instead of a generic UNKNOWN.
+        if (error.code === 'WORKER_INIT_FAILED' || error.code === 'PAGE_RENDER_FAILED') {
+          setErrorType('OCR_ENGINE_FAILED');
+          setParseRecoveryWarnings([error.message]);
+          setShowParseRecoveryBanner(true);
+        } else {
+          // LOW_QUALITY / RECOGNITION_FAILED / PDF_LOAD_FAILED — show
+          // the real cause to the user via toast + NO_TEXT recovery.
+          toast.error(error.message, { duration: 6000 });
+          setErrorType('NO_TEXT');
+        }
       } else {
         toast.error(msg, { duration: 5000 });
         setErrorType('UNKNOWN');
@@ -719,7 +747,15 @@ export default function UploadPage() {
       // Early failure: text extracted but too short to be a real resume.
       // Show a clear error instead of sending blank content to the AI.
       if (!result.success && !result.needsOCR) {
-        setErrorType('NO_TEXT');
+        // iOS-specific font/asset decode failure: don't push the user
+        // into a doomed OCR path — show a clear "try desktop / Word"
+        // message and surface the diagnostic warnings (Task #25).
+        const isIOSFontFailure =
+          result.isIOS &&
+          (result.failureReason === 'EMPTY_STRINGS' ||
+           result.failureReason === 'PAGE_ERRORS' ||
+           result.failureReason === 'TOO_FEW_WORDS');
+        setErrorType(isIOSFontFailure ? 'IOS_BROWSER_INCOMPATIBLE' : 'NO_TEXT');
         if (result.parseWarnings.length > 0) {
           setParseRecoveryWarnings(result.parseWarnings);
           setShowParseRecoveryBanner(true);
