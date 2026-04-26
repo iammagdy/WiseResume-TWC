@@ -28,7 +28,19 @@ const AgenticChatSheet = lazyWithRetry(() => import('@/components/editor/Agentic
 
 const TAB_ROUTES = ['/dashboard', '/upload', '/settings', '/interview', '/editor', '/preview', '/applications', '/onboarding', '/profile', '/templates', '/resume', '/job', '/application', '/notifications', '/cover-letters', '/cover-letter', '/examples', '/career', '/resignation-letter', '/guides', '/ai-studio', '/portfolio', '/qr-code', '/qr-batch', '/qr-scan'];
 
+/**
+ * AppShell — thin provider wrapper so that AppShellInner and all its hooks
+ * (including useKeyboardAwareScroll) run inside KeyboardProvider scope.
+ */
 export function AppShell() {
+  return (
+    <KeyboardProvider>
+      <AppShellInner />
+    </KeyboardProvider>
+  );
+}
+
+function AppShellInner() {
   const location = useLocation();
   const currentOutlet = useOutlet();
   const { isDark, toggleTheme } = useTheme();
@@ -72,6 +84,7 @@ export function AppShell() {
     }
   }, [location.pathname, supabaseSettled]);
 
+  // Now inside KeyboardProvider — dispatch reaches context correctly
   useKeyboardAwareScroll();
 
   useEffect(() => {
@@ -79,7 +92,6 @@ export function AppShell() {
   }, [location.pathname]);
 
   return (
-    <KeyboardProvider>
     <div className="app-theme h-[100dvh] overflow-hidden flex flex-col bg-background relative">
       <a
         href="#main-content"
@@ -256,6 +268,5 @@ export function AppShell() {
         </Suspense>
       )}
     </div>
-    </KeyboardProvider>
   );
 }
