@@ -1433,7 +1433,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
 
                   <Button
                     onClick={handleSaveProfile}
-                    disabled={savingProfile || checkingUsername}
+                    disabled={savingProfile}
                     size="sm"
                     className="w-full mt-1"
                   >
