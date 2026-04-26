@@ -2160,23 +2160,25 @@ app.all('/api/fn/admin-manage-coupons', async (req, res) => {
       return res.json({ success: true, coupons: data });
     }
     if (action === 'create') {
-      const { code, discount_type, discount_value, max_uses, expires_at, plan_restriction, description } = body as Record<string, unknown>;
-      if (!code || !discount_type || discount_value === undefined) return res.status(400).json({ success: false, error: 'code, discount_type, discount_value required' });
-      const data = await supabaseInsert('discount_codes', { code: String(code).toUpperCase().trim(), discount_type, discount_value: Number(discount_value), max_uses: max_uses ?? null, expires_at: expires_at ?? null, plan_restriction: plan_restriction ?? null, description: description ?? null, is_active: true, times_used: 0, created_by: callerEmail });
+      const { code, discount_type, discount_value, max_uses, expires_at, plan_override, plan_days, target_plan } = body as Record<string, unknown>;
+      if (!code || !discount_type) return res.status(400).json({ success: false, error: 'code and discount_type are required' });
+      const data = await supabaseInsert('discount_codes', { code: String(code).toUpperCase().trim(), discount_type, discount_value: Number(discount_value) || 0, max_uses: max_uses ?? 0, expires_at: expires_at ?? null, plan_override: plan_override ?? null, plan_days: plan_days ? Number(plan_days) : null, target_plan: target_plan ?? null, is_active: true });
       supabaseInsert('audit_logs', { user_id: null, category: 'coupons', action: 'create_coupon', metadata: { code, performed_by: callerEmail } }).catch(() => {});
       return res.json({ success: true, coupon: data[0] });
     }
     if (action === 'toggle') {
-      const { id, is_active } = body as { id?: string; is_active?: boolean };
-      if (!id) return res.status(400).json({ success: false, error: 'id required' });
-      await supabasePatch('discount_codes', `id=eq.${encodeURIComponent(id)}`, { is_active: Boolean(is_active) });
+      const { coupon_id, id, is_active } = body as { coupon_id?: string; id?: string; is_active?: boolean };
+      const targetId = coupon_id ?? id;
+      if (!targetId) return res.status(400).json({ success: false, error: 'coupon_id required' });
+      await supabasePatch('discount_codes', `id=eq.${encodeURIComponent(targetId)}`, { is_active: Boolean(is_active) });
       return res.json({ success: true });
     }
     if (action === 'delete') {
-      const { id } = body as { id?: string };
-      if (!id) return res.status(400).json({ success: false, error: 'id required' });
-      await supabaseDelete('discount_codes', `id=eq.${encodeURIComponent(id)}`);
-      supabaseInsert('audit_logs', { user_id: null, category: 'coupons', action: 'delete_coupon', metadata: { id, performed_by: callerEmail } }).catch(() => {});
+      const { coupon_id, id } = body as { coupon_id?: string; id?: string };
+      const targetId = coupon_id ?? id;
+      if (!targetId) return res.status(400).json({ success: false, error: 'coupon_id required' });
+      await supabaseDelete('discount_codes', `id=eq.${encodeURIComponent(targetId)}`);
+      supabaseInsert('audit_logs', { user_id: null, category: 'coupons', action: 'delete_coupon', metadata: { id: targetId, performed_by: callerEmail } }).catch(() => {});
       return res.json({ success: true });
     }
     res.status(400).json({ success: false, error: `Unknown action: ${action}` });
