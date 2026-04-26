@@ -362,6 +362,7 @@ export function GapFillerSheet({ isOpen, onClose, gap, experiences, onAddExperie
                               <div>
                                 <Label htmlFor="gap-filler-description" className="text-xs text-muted-foreground">Description</Label>
                                 <Textarea
+                                  id="gap-filler-description"
                                   value={editedSuggestion.description}
                                   onChange={(e) => setEditedSuggestion({ ...editedSuggestion, description: e.target.value })}
                                   className="mt-1 min-h-[60px] resize-none"

@@ -142,7 +142,7 @@ export default function EditorPage() {
   // dashboard visit that would normally call setCurrentResumeId.
   useEffect(() => {
     const urlId = searchParams.get('id') ?? searchParams.get('resumeId');
-    if (urlId && !currentResumeId) {
+    if (urlId && urlId !== currentResumeId) {
       setCurrentResumeId(urlId);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1192,6 +1192,7 @@ export default function EditorPage() {
           </span>
           <button
             onClick={() => navigate('/settings/plan')}
+            aria-label="Upgrade your plan to keep this resume forever"
             className="text-[11px] font-semibold text-amber-700 dark:text-amber-300 hover:underline shrink-0 active:scale-95 transition-transform touch-manipulation min-h-[44px] flex items-center"
           >
             Upgrade to keep forever →
@@ -1208,6 +1209,7 @@ export default function EditorPage() {
           </span>
           <button
             onClick={() => navigate('/settings/plan')}
+            aria-label="Upgrade to Pro to continue editing"
             className="text-[11px] font-semibold text-destructive hover:underline shrink-0 active:scale-95 transition-transform touch-manipulation min-h-[44px] flex items-center"
           >
             Upgrade →

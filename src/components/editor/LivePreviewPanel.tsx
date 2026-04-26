@@ -82,6 +82,7 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
   // content from the previous resume during the debounce window.
   const [debouncedResume, setDebouncedResume] = useState(currentResume);
   const lastIdRef = useRef(currentResume?.id);
+  const lastPointerTypeRef = useRef<string>('mouse');
   useEffect(() => {
     if (currentResume?.id !== lastIdRef.current) {
       lastIdRef.current = currentResume?.id;
@@ -212,7 +213,8 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
     const rect = resumeRef.current.getBoundingClientRect();
     const cssY = Math.round((e.clientY - rect.top) / zoom);
     const totalH = resumeRef.current.scrollHeight;
-    if (cssY <= 14 || cssY >= totalH - 14) return;
+    const edgeGuard = lastPointerTypeRef.current === 'touch' ? 14 : 5;
+    if (cssY <= edgeGuard || cssY >= totalH - edgeGuard) return;
     const existing = currentResume?.customization?.customBreakPositions ?? [];
     if (existing.some(b => Math.abs(b - cssY) < 30)) return;
     setCustomBreaks([...existing, cssY]);
@@ -229,7 +231,8 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
     if (!draggingBreak || draggingBreak.index !== index || !resumeRef.current) return;
     const delta = (e.clientY - draggingBreak.startClientY) / zoom;
     const totalH = resumeRef.current.scrollHeight;
-    const newY = Math.round(Math.max(14, Math.min(totalH - 14, draggingBreak.startBreakY + delta)));
+    const edgeGuard = e.pointerType === 'touch' ? 14 : 5;
+    const newY = Math.round(Math.max(edgeGuard, Math.min(totalH - edgeGuard, draggingBreak.startBreakY + delta)));
     setDraggingBreak(prev => prev ? { ...prev, currentY: newY } : null);
   }, [draggingBreak, zoom]);
 
@@ -489,6 +492,7 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
               maxWidth: `${previewDims.pageWidth}px`,
               minWidth: `${previewDims.pageWidth}px`,
             } as CSSProperties}
+            onPointerDown={(e) => { lastPointerTypeRef.current = e.pointerType; }}
             onClick={handleResumeClick}
           >
             {currentResume.customization && (

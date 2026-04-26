@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { toast } from 'sonner';
+import editorLogger from '@/lib/editorLogger';
 import { GapInfo, formatDuration } from '@/lib/dateUtils';
 import { Experience } from '@/types/resume';
 import { useAIAction } from '@/hooks/useAIAction';
@@ -120,7 +121,7 @@ export function GapExplainerSheet({ isOpen, onClose, gap, experiences, onAddToSu
       setTips(result.tips || []);
       setIsEdited(false);
     } catch (err) {
-      console.error('Error generating explanation:', err);
+      editorLogger.error('Error generating explanation:', err);
       toast.error('Failed to generate explanation', {
         description: 'Please try again in a moment.',
       });
