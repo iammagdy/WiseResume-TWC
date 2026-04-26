@@ -10,6 +10,7 @@ import { useBottomSheetOpen } from '@/context/BottomSheetContext';
 import { BottomTabBar } from './BottomTabBar';
 import { DesktopNav } from './DesktopNav';
 import { ScrollProgressBar } from './ScrollProgressBar';
+import { KeyboardProvider } from '@/context/KeyboardContext';
 
 const GuestSaveBanner = lazy(() => import('./GuestSaveBanner').then((m) => ({ default: m.GuestSaveBanner })));
 const OfflineBanner = lazy(() => import('./OfflineBanner').then((m) => ({ default: m.OfflineBanner })));
@@ -78,6 +79,7 @@ export function AppShell() {
   }, [location.pathname]);
 
   return (
+    <KeyboardProvider>
     <div className="app-theme h-[100dvh] overflow-hidden flex flex-col bg-background relative">
       <a
         href="#main-content"
@@ -254,5 +256,6 @@ export function AppShell() {
         </Suspense>
       )}
     </div>
+    </KeyboardProvider>
   );
 }

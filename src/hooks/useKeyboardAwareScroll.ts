@@ -1,7 +1,9 @@
 import { useEffect, useRef } from 'react';
+import { useKeyboardDispatch } from '@/context/KeyboardContext';
 
 export function useKeyboardAwareScroll() {
   const prevOpen = useRef(false);
+  const dispatch = useKeyboardDispatch();
 
   useEffect(() => {
     const vv = window.visualViewport;
@@ -20,8 +22,7 @@ export function useKeyboardAwareScroll() {
         `${vv.height}px`
       );
 
-      // Toggle class on document for CSS-driven hiding
-      document.documentElement.classList.toggle('keyboard-open', isOpen);
+      dispatch(isOpen, keyboardHeight);
 
       // Detect keyboard close for draft save
       if (!isOpen && prevOpen.current) {
@@ -47,7 +48,7 @@ export function useKeyboardAwareScroll() {
       vv.removeEventListener('scroll', handleResize);
       document.documentElement.style.removeProperty('--keyboard-height');
       document.documentElement.style.removeProperty('--viewport-height');
-      document.documentElement.classList.remove('keyboard-open');
+      dispatch(false, 0);
     };
-  }, []);
+  }, [dispatch]);
 }

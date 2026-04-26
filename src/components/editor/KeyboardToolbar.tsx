@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ChevronUp, ChevronDown, Undo2, Redo2 } from 'lucide-react';
 import { haptics } from '@/lib/haptics';
+import { useKeyboard } from '@/context/KeyboardContext';
 
 /** Context-aware action words for experience/summary sections */
 const ACTION_WORDS: Record<string, string[]> = {
@@ -45,28 +46,22 @@ export function KeyboardToolbar({
   onUndo,
   onRedo,
 }: KeyboardToolbarProps) {
-  const [visible, setVisible] = useState(false);
+  const { isOpen } = useKeyboard();
   const [activeSection, setActiveSection] = useState('default');
 
   useEffect(() => {
-    const observer = new MutationObserver(() => {
-      const open = document.documentElement.classList.contains('keyboard-open');
-      setVisible(open);
-      if (open) setActiveSection(getActiveSection());
-    });
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
-    return () => observer.disconnect();
-  }, []);
+    if (isOpen) setActiveSection(getActiveSection());
+  }, [isOpen]);
 
-  // Update section when focus changes
+  // Update section when focus changes while keyboard is open
   useEffect(() => {
-    if (!visible) return;
+    if (!isOpen) return;
     const onFocus = () => setActiveSection(getActiveSection());
     document.addEventListener('focusin', onFocus);
     return () => document.removeEventListener('focusin', onFocus);
-  }, [visible]);
+  }, [isOpen]);
 
-  if (!visible) return null;
+  if (!isOpen) return null;
 
   const getFocusables = () =>
     Array.from(
