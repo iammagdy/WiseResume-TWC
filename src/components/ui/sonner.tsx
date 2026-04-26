@@ -1,4 +1,5 @@
 import { Toaster as Sonner, toast } from "sonner";
+import { CheckCircle2, XCircle, AlertTriangle, Info } from "lucide-react";
 import { useSettingsStore } from "@/store/settingsStore";
 
 type ToasterProps = React.ComponentProps<typeof Sonner>;
@@ -21,16 +22,21 @@ const Toaster = ({ ...props }: ToasterProps) => {
       duration={3000}
       gap={8}
       icons={{
-        success: <span className="toast-dot toast-dot-success" />,
-        error: <span className="toast-dot toast-dot-error" />,
-        warning: <span className="toast-dot toast-dot-warning" />,
-        info: <span className="toast-dot toast-dot-info" />,
+        success: <CheckCircle2 className="w-[18px] h-[18px] text-success shrink-0" />,
+        error: <XCircle className="w-[18px] h-[18px] text-destructive shrink-0" />,
+        warning: <AlertTriangle className="w-[18px] h-[18px] text-warning shrink-0" />,
+        info: <Info className="w-[18px] h-[18px] text-primary shrink-0" />,
       }}
       toastOptions={{
         classNames: {
-          toast: "toast-pill bg-card border-border shadow-soft-lg text-foreground",
-          title: "text-foreground font-medium",
-          description: "text-muted-foreground",
+          toast: "toast-card",
+          title: "toast-card-title",
+          description: "toast-card-description",
+          success: "toast-card--success",
+          error: "toast-card--error",
+          warning: "toast-card--warning",
+          info: "toast-card--info",
+          icon: "toast-card-icon",
         },
         duration: 3000,
       }}
