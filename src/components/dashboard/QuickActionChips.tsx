@@ -14,13 +14,13 @@ export const QuickActionChips = memo(function QuickActionChips({ onCreateNew, on
   const navigate = useNavigate();
 
   return (
-    <div className="px-4 pb-3">
-      <div className="flex gap-2">
+    <div className="pb-3">
+      <div className="flex gap-2 overflow-x-auto snap-x snap-mandatory scrollbar-hide px-4 -mx-0">
         <button
           onPointerEnter={preloadLazy(() => import('@/components/dashboard/CreateResumeDialog'))}
           onClick={() => { haptics.light(); onCreateNew(); }}
           className={cn(
-            'flex items-center gap-2 py-2.5 px-4 rounded-2xl flex-1',
+            'flex items-center gap-2 py-2.5 px-4 rounded-2xl shrink-0 snap-start',
             'bg-card border border-border',
             'touch-manipulation active:scale-95 transition-all',
             'min-h-[48px] hover:shadow-soft-sm hover:border-primary/20',
@@ -35,7 +35,7 @@ export const QuickActionChips = memo(function QuickActionChips({ onCreateNew, on
         <button
           onClick={() => { haptics.light(); navigate('/upload'); }}
           className={cn(
-            'flex items-center gap-2 py-2.5 px-4 rounded-2xl flex-1',
+            'flex items-center gap-2 py-2.5 px-4 rounded-2xl shrink-0 snap-start',
             'bg-card border border-border',
             'touch-manipulation active:scale-95 transition-all',
             'min-h-[48px] hover:shadow-soft-sm hover:border-primary/20',
@@ -52,7 +52,7 @@ export const QuickActionChips = memo(function QuickActionChips({ onCreateNew, on
             onPointerEnter={preloadLazy(() => import('@/components/settings/LinkedInImportSheet'))}
             onClick={() => { haptics.light(); onImportProfile(); }}
             className={cn(
-              'flex items-center gap-2 py-2.5 px-4 rounded-2xl flex-1',
+              'flex items-center gap-2 py-2.5 px-4 rounded-2xl shrink-0 snap-start',
               'bg-card border border-border',
               'touch-manipulation active:scale-95 transition-all',
               'min-h-[48px] hover:shadow-soft-sm hover:border-primary/20',

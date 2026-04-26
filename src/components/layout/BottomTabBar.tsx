@@ -149,7 +149,6 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
       toast.info('Upgrade to Pro to unlock this feature', {
         action: { label: 'Upgrade', onClick: () => navigate('/subscription') }
       });
-      navigate('/subscription');
       return;
     }
     if (tab.path === '/ai-studio') {
@@ -191,12 +190,12 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
   return (
     <nav
       className={cn(
-        "fixed bottom-0 left-0 right-0 z-50 bottom-tab-bar relative border-t border-border pb-safe rounded-t-2xl shadow-[0_-1px_3px_rgb(0_0_0/0.05)]",
+        "fixed bottom-0 left-0 right-0 z-50 bottom-tab-bar border-t border-border pb-safe rounded-t-2xl shadow-[0_-1px_3px_rgb(0_0_0/0.05)]",
         className
       )}
       aria-label="Main navigation"
     >
-      <GlassSurface className="absolute inset-0 rounded-t-2xl" />
+      <GlassSurface className="absolute inset-0 rounded-t-2xl pointer-events-none" />
       <div className="relative z-[1]">
       <LayoutGroup>
         <div

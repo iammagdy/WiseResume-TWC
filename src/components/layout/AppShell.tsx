@@ -215,7 +215,7 @@ function AppShellInner() {
         id="main-content"
         className={cn(
           "flex-1 flex flex-col min-h-0 overflow-hidden",
-          showBottomNav && !isEditorRoute && "pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-0"
+          showBottomNav && !isEditorRoute && "pb-[4.5rem] lg:pb-0"
         )}
       >
         <div
@@ -244,21 +244,29 @@ function AppShellInner() {
 
       {showBottomNav && !isEditorRoute && (
         <button
-          onPointerEnter={preloadLazy(() => import('@/components/editor/AgenticChatSheet'))}
-          onClick={() => setWiseAIOpen(true)}
+          onPointerEnter={!wiseAIOpen ? preloadLazy(() => import('@/components/editor/AgenticChatSheet')) : undefined}
+          onClick={() => setWiseAIOpen(v => !v)}
           className={cn(
-            'fixed right-4 z-50 lg:hidden flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-primary text-primary-foreground shadow-soft-lg active:scale-95 transition-all touch-manipulation',
+            'fixed right-4 z-50 lg:hidden flex items-center gap-1.5 px-4 py-2.5 rounded-full shadow-soft-lg active:scale-95 transition-all touch-manipulation',
+            wiseAIOpen
+              ? 'bg-muted text-foreground border border-border'
+              : 'bg-primary text-primary-foreground',
             isPortfolioEditorRoute
               ? 'bottom-[calc(9rem+env(safe-area-inset-bottom))]'
               : 'bottom-[calc(5.5rem+env(safe-area-inset-bottom))]',
-            isAnySheetOpen && 'pointer-events-none opacity-0'
+            isAnySheetOpen && !wiseAIOpen && 'pointer-events-none opacity-0'
           )}
-          aria-label="Ask Wise AI"
-          aria-hidden={isAnySheetOpen}
-          tabIndex={isAnySheetOpen ? -1 : undefined}
+          aria-label={wiseAIOpen ? 'Close Wise AI' : 'Ask Wise AI'}
+          aria-expanded={wiseAIOpen}
+          aria-hidden={isAnySheetOpen && !wiseAIOpen}
+          tabIndex={isAnySheetOpen && !wiseAIOpen ? -1 : undefined}
         >
-          <MessageCircle className="w-4 h-4" />
-          <span className="text-sm font-medium">Ask</span>
+          {wiseAIOpen ? (
+            <X className="w-4 h-4" />
+          ) : (
+            <MessageCircle className="w-4 h-4" />
+          )}
+          <span className="text-sm font-medium">{wiseAIOpen ? 'Close' : 'Ask'}</span>
         </button>
       )}
 
