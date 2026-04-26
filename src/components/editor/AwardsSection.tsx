@@ -94,8 +94,8 @@ export const AwardsSection = memo(function AwardsSection() {
                       <Input id={`award-${award.id}-date`} value={award.date} onChange={e => updateAward(award.id, { date: e.target.value })} placeholder="2024" className="h-12" />
                     </div>
                     <div>
-                      <Label className="text-sm mb-2">Description (optional)</Label>
-                      <Textarea value={award.description || ''} onChange={e => updateAward(award.id, { description: e.target.value })} placeholder="Brief description of the award..." className="min-h-[80px] resize-none text-base" />
+                      <Label htmlFor={`award-${award.id}-desc`} className="text-sm mb-2">Description (optional)</Label>
+                      <Textarea id={`award-${award.id}-desc`} value={award.description || ''} onChange={e => updateAward(award.id, { description: e.target.value })} placeholder="Brief description of the award..." className="min-h-[80px] resize-none text-base" />
                     </div>
                     <div className="flex justify-end pt-2">
                       <Button variant="ghost" size="sm" onClick={() => deleteAward(award.id)} className="gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10">

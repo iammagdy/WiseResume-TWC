@@ -396,7 +396,7 @@ export const ProjectsSection = memo(function ProjectsSection() {
                     {/* Technologies with AI */}
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <Label className="text-sm">Technologies</Label>
+                        <Label htmlFor={`proj-${proj.id}-tech-input`} className="text-sm">Technologies</Label>
                         <InlineAIButton
                           section="projects"
                           onAction={(actionId) => handleAIAction(actionId, proj)}
@@ -414,7 +414,7 @@ export const ProjectsSection = memo(function ProjectsSection() {
                         ))}
                       </div>
                       <div className="flex gap-2">
-                        <Input value={techInput} onChange={e => setTechInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTech(proj.id); } }} placeholder="Add technology..." className="h-12 flex-1" />
+                        <Input id={`proj-${proj.id}-tech-input`} value={techInput} onChange={e => setTechInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTech(proj.id); } }} placeholder="Add technology..." className="h-12 flex-1" />
                         <Button variant="outline" size="sm" onClick={() => addTech(proj.id)} className="h-12 active:scale-95">Add</Button>
                       </div>
                     </div>
@@ -422,7 +422,7 @@ export const ProjectsSection = memo(function ProjectsSection() {
                     {/* Description with AI */}
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <Label className="text-sm">Description</Label>
+                        <Label htmlFor={`proj-${proj.id}-desc`} className="text-sm">Description</Label>
                         <InlineAIButton
                           section="projects"
                           onAction={(actionId) => handleAIAction(actionId, proj)}
@@ -431,7 +431,7 @@ export const ProjectsSection = memo(function ProjectsSection() {
                           hasContent={!!proj.description}
                         />
                       </div>
-                      <Textarea value={proj.description} onChange={e => updateProject(proj.id, { description: e.target.value })} placeholder="Describe the project..." className="min-h-[100px] resize-none text-base" />
+                      <Textarea id={`proj-${proj.id}-desc`} value={proj.description} onChange={e => updateProject(proj.id, { description: e.target.value })} placeholder="Describe the project..." className="min-h-[100px] resize-none text-base" />
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
