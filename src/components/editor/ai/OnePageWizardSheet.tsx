@@ -50,7 +50,10 @@ import { useAIApplyEffects } from '@/hooks/useAIApplyEffects';
 interface OnePageWizardSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** @deprecated kept so older callers still compile — sheet now exports its own PDF. */
+  /**
+   * @deprecated This prop is no longer used. The sheet exports its own PDF internally.
+   * @see OnePageWizardSheet — no replacement prop needed; simply remove any `onExportOnePage` pass-through.
+   */
   onExportOnePage?: () => void;
 }
 

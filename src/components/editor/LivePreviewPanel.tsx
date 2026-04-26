@@ -605,7 +605,7 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
             {(isBreakEditMode || sortedCustomBreaks.length > 0) && (
               <div
                 data-html2canvas-ignore="true"
-                className="sticky bottom-0 left-0 w-full z-40 flex flex-col"
+                className="sticky bottom-0 left-0 w-full z-editor-shell flex flex-col"
               >
                 {isBreakEditMode && (
                   <div className="w-full bg-primary/90 text-primary-foreground text-[10px] text-center py-1 pointer-events-none select-none">

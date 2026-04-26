@@ -249,7 +249,7 @@ export function EditorHeader({
   onImportProfile,
 }: EditorHeaderProps) {
   return (
-    <header className="editor-header shrink-0 sticky top-0 z-50 relative border-b border-border px-4 py-3 pt-safe transition-all duration-200">
+    <header className="editor-header shrink-0 sticky top-0 z-editor-header relative border-b border-border px-4 py-3 pt-safe transition-all duration-200">
       <GlassSurface className="absolute inset-0" />
       <div className="relative z-[1] flex items-center justify-between">
         <div className="flex items-center gap-1 sm:gap-2 min-w-0 flex-1">

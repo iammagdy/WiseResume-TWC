@@ -125,7 +125,7 @@ export function AIEnhanceDialog({
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in-0 duration-200"
+      className="fixed inset-0 z-ai-dialog flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in-0 duration-200"
       onClick={isEnhancing ? undefined : onDiscard}
     >
       <div

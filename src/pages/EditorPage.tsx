@@ -11,7 +11,7 @@ import {
 import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
 import { Sparkles, BarChart3, Scissors, ArrowLeft, Clock, AlertTriangle, Loader2 } from 'lucide-react';
 import { useAIEnhancingStore } from '@/store/aiEnhancingStore';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { useIsMobile, EDITOR_MOBILE_BREAKPOINT } from '@/hooks/use-mobile';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { StepperNav } from '@/components/editor/StepperNav';
@@ -187,7 +187,7 @@ export default function EditorPage() {
   const [showAIIntro, setShowAIIntro] = useState(false);
   const [moreSubSection, setMoreSubSection] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(() => {
-    if (typeof window !== 'undefined' && window.innerWidth >= 900) {
+    if (typeof window !== 'undefined' && window.innerWidth >= EDITOR_MOBILE_BREAKPOINT) {
       const stored = localStorage.getItem('wr-live-preview');
       return stored === null ? true : stored === 'true';
     }
@@ -392,7 +392,7 @@ export default function EditorPage() {
   const [desktopPreviewMode, setDesktopPreviewMode] = useState<'visual' | 'ats'>('visual');
   // Desktop scrollspy: track which section is currently visible
   const [activeSection, setActiveSection] = useState('contact');
-  const isMobile = useIsMobile();
+  const isMobile = useIsMobile(EDITOR_MOBILE_BREAKPOINT);
   // Track any in-flight AI enhance operations so we can block section switches
   const aiEnhancingCount = useAIEnhancingStore((s) => s.count);
   // Auto-open Tailor sheet if navigated with ?openTailor=1 or ?tailor=true.
@@ -1172,6 +1172,7 @@ export default function EditorPage() {
               {(['editor', 'preview', 'ats'] as const).map((tab) => (
                 <button
                   key={tab}
+                  disabled={aiEnhancingCount > 0 && tab !== 'editor'}
                   onClick={() => {
                     if (aiEnhancingCount > 0 && tab !== 'editor') {
                       toast.info('AI is still working — please wait.', { duration: 2000, id: 'ai-section-lock' });
@@ -1184,7 +1185,8 @@ export default function EditorPage() {
                     'px-2.5 min-h-[44px] rounded-full text-xs font-medium border transition-colors whitespace-nowrap touch-manipulation active:scale-95',
                     mobileEditorTab === tab
                       ? 'bg-primary/15 border-primary/40 text-primary'
-                      : 'border-border text-muted-foreground hover:bg-muted'
+                      : 'border-border text-muted-foreground hover:bg-muted',
+                    aiEnhancingCount > 0 && tab !== 'editor' && 'opacity-40 cursor-not-allowed'
                   )}
                 >
                   {tab === 'editor' ? 'Edit' : tab === 'preview' ? 'Preview' : 'ATS'}
@@ -1350,9 +1352,6 @@ export default function EditorPage() {
           </div>
         </div>
       )}
-
-
-
 
       {/* Keyboard Toolbar - floats above keyboard */}
       <KeyboardToolbar
@@ -1605,9 +1604,6 @@ export default function EditorPage() {
         onDiscard={unsavedGuard.proceed}
         onCancel={unsavedGuard.cancel}
       />
-
-
-
     </main>
     </TooltipProvider>
   );

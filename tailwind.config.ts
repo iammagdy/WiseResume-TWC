@@ -120,6 +120,12 @@ export default {
         md: "calc(var(--radius) - 4px)",
         sm: "calc(var(--radius) - 8px)",
       },
+      zIndex: {
+        'editor-shell': '40',
+        'editor-header': '50',
+        'keyboard-toolbar': '60',
+        'ai-dialog': '65',
+      },
       boxShadow: {
         "soft-sm": "0 1px 2px 0 rgb(0 0 0 / 0.04)",
         "soft": "0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.06)",

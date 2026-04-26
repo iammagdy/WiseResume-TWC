@@ -42,7 +42,7 @@ export function AIFloatingButton({
   ].filter(a => a.action);
 
   return (
-    <div className={cn('fixed bottom-[calc(6rem+env(safe-area-inset-bottom))] right-4 z-40', className)}>
+    <div className={cn('fixed bottom-[calc(6rem+env(safe-area-inset-bottom))] right-4 z-editor-shell', className)}>
       {/* Quick action buttons */}
       <AnimatePresence>
         {isExpanded && showQuickActions && (
