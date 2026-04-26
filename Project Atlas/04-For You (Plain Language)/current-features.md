@@ -2,6 +2,14 @@
 
 **Last verified:** 2026-04-20 (Task #17)
 
+## Admin tools: better user identity + force-set usernames (2026-04-26)
+**What was the situation:** When you opened any user in the Admin desk and looked at their Identity section, it showed a scrambled placeholder email like `kp_448838b3...@kinde.placeholder` instead of who the person actually is. There was no sign-up date, no last sign-in, and nothing that helped you tell users apart. Also, trying to assign a short portfolio username (like a single letter or number) triggered a confusing "AI is temporarily unavailable" error that had nothing to do with AI at all.
+**What changed:** Three things were fixed:
+1. You can now type any portfolio username in the admin panel — one letter, a number, a symbol — and save it without errors. The system only blocks you if another user already owns that exact username. The user automatically receives an in-app notification when you change their username.
+2. The Identity card now shows the real Kinde email (when available), the user's contact email, when they signed up ("Joined"), and when they last signed in — making it much easier to identify users who haven't added their name.
+3. The user list now shows the real email for all users, not just the special collision accounts — so users without a name are still identifiable by email.
+**What you'll notice:** Users in the admin desk now have meaningful identity information. Short or custom usernames can be assigned freely. The old "AI" error is gone — admin errors now show plain, accurate messages.
+
 ## One-click demo resume for admins (2026-04-20)
 **What was the situation:** When testing AI Studio with a brand-new admin account, there were no resumes attached, and the AI chat tool stays inactive until you pick one. That made it hard to verify chat, tailoring, cover letters, or interview prep without first manually filling in a resume.
 **What changed:** The admin Settings area now has a "Create sample resume" button that instantly seeds a realistic demo resume — three jobs, an education entry, a dozen skills, a certification, a project, and a volunteering line — into the admin account.

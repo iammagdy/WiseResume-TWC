@@ -208,7 +208,10 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     auth_email: string | null;
     contact_email: string | null;
     kinde_sub: string | null;
+    kinde_email: string | null;
     last_exchange_at: string | null;
+    signed_up_at: string | null;
+    last_sign_in_at: string | null;
     is_collision: boolean;
   } | null>(null);
   const [identityLoading, setIdentityLoading] = useState(false);
@@ -397,14 +400,20 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
           auth_email?: string | null;
           contact_email?: string | null;
           kinde_sub?: string | null;
+          kinde_email?: string | null;
           last_exchange_at?: string | null;
+          signed_up_at?: string | null;
+          last_sign_in_at?: string | null;
           is_collision?: boolean;
         }>(tuple, 'admin-get-identity');
         setIdentityData({
           auth_email: result.auth_email ?? null,
           contact_email: result.contact_email ?? null,
           kinde_sub: result.kinde_sub ?? null,
+          kinde_email: result.kinde_email ?? null,
           last_exchange_at: result.last_exchange_at ?? null,
+          signed_up_at: result.signed_up_at ?? null,
+          last_sign_in_at: result.last_sign_in_at ?? null,
           is_collision: result.is_collision ?? false,
         });
       } catch (e) {
@@ -442,25 +451,29 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     }
   };
 
-  // Debounced username availability check
+  // Debounced username uniqueness check (admin mode: only checks if slug is taken,
+  // never blocks on length/character rules since admin can force any value)
   const handleUsernameChange = (val: string) => {
     setProfileUsername(val);
     setUsernameAvailable(null);
     if (usernameCheckRef.current) clearTimeout(usernameCheckRef.current);
-    if (!val.trim() || val.trim().length < 3) {
+    if (!val.trim()) {
       setCheckingUsername(false);
       return;
     }
     setCheckingUsername(true);
     usernameCheckRef.current = setTimeout(async () => {
       try {
-        const { data, error } = await supabase.rpc('check_username_available', {
-          p_username: val.trim().toLowerCase(),
-          p_user_id: user.user_id,
-        });
+        // Use a direct profiles lookup instead of the full check_username_available
+        // RPC so length/character rules never block the admin's input.
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('user_id')
+          .eq('username', val.trim().toLowerCase())
+          .neq('user_id', user.user_id)
+          .maybeSingle();
         if (error) throw error;
-        const status = (data as { status?: string } | null)?.status ?? 'invalid';
-        setUsernameAvailable(status === 'available');
+        setUsernameAvailable(data === null);
       } catch {
         setUsernameAvailable(null);
       } finally {
@@ -482,6 +495,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
           full_name: trimmedName || null,
           username: trimmedUsername || undefined,
           actor_email: authUser?.email ?? 'admin (dev-kit)',
+          admin_bypass_validation: true,
         },
       });
       const result = unwrapAdminResponse<{ changed_fields?: Record<string, { old: unknown; new: unknown }> }>(tuple, 'admin-update-profile');
@@ -1176,21 +1190,50 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
                 )}
 
                 <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="text-xs text-muted-foreground font-medium shrink-0">Auth email</span>
-                    <span className="font-mono text-[10px] text-right break-all">
-                      {identityLoading ? '…' : (identityData?.auth_email ?? user.email ?? '—')}
-                      {(identityData?.auth_email ?? user.email ?? '').endsWith('@collision.kinde.placeholder') && (
-                        <span className="ml-1 text-amber-600">(placeholder)</span>
-                      )}
-                    </span>
-                  </div>
+                  {/* Real Kinde email — shown first when available */}
+                  {(identityLoading || identityData?.kinde_email) && (
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="text-xs text-muted-foreground font-medium shrink-0">Kinde email</span>
+                      <span className="font-mono text-[10px] text-right break-all">
+                        {identityLoading ? '…' : (identityData?.kinde_email ?? '—')}
+                      </span>
+                    </div>
+                  )}
+                  {/* Contact email (from profiles.contact_email) */}
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-xs text-muted-foreground font-medium shrink-0">Contact email</span>
                     <span className="font-mono text-[10px] text-right break-all">
                       {identityLoading ? '…' : (identityData?.contact_email ?? user.contact_email ?? '—')}
                     </span>
                   </div>
+                  {/* Auth email (internal Supabase record — may be a placeholder) */}
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="text-xs text-muted-foreground font-medium shrink-0">Auth email (internal)</span>
+                    <span className="font-mono text-[10px] text-right break-all">
+                      {identityLoading ? '…' : (identityData?.auth_email ?? user.email ?? '—')}
+                      {(identityData?.auth_email ?? user.email ?? '').endsWith('@kinde.placeholder') && (
+                        <span className="ml-1 text-amber-600">(placeholder)</span>
+                      )}
+                    </span>
+                  </div>
+                  {/* Sign-up date */}
+                  {(identityLoading || identityData?.signed_up_at) && (
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs text-muted-foreground font-medium shrink-0">Joined</span>
+                      <span className="text-[10px] text-muted-foreground">
+                        {identityLoading ? '…' : (identityData?.signed_up_at ? formatDate(identityData.signed_up_at) : '—')}
+                      </span>
+                    </div>
+                  )}
+                  {/* Last sign-in */}
+                  {(identityLoading || identityData?.last_sign_in_at) && (
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs text-muted-foreground font-medium shrink-0">Last sign-in</span>
+                      <span className="text-[10px] text-muted-foreground">
+                        {identityLoading ? '…' : (identityData?.last_sign_in_at ? formatDate(identityData.last_sign_in_at) : '—')}
+                      </span>
+                    </div>
+                  )}
                   <div className="flex items-start justify-between gap-2">
                     <span className="text-xs text-muted-foreground font-medium shrink-0">Kinde sub</span>
                     <span className="font-mono text-[10px] text-right break-all max-w-[200px] truncate" title={identityData?.kinde_sub ?? ''}>
@@ -1325,7 +1368,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
                   <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-start gap-2 text-xs text-amber-700 dark:text-amber-400">
                     <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
                     <span>
-                      The old portfolio URL <span className="font-mono">resume.thewise.cloud/p/{usernameChangedOldValue}</span> will no longer work. The user should be notified.
+                      The old portfolio URL <span className="font-mono">resume.thewise.cloud/p/{usernameChangedOldValue}</span> will no longer work. The user has been sent an in-app notification about this change.
                     </span>
                   </div>
                 )}
@@ -1390,7 +1433,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
 
                   <Button
                     onClick={handleSaveProfile}
-                    disabled={savingProfile || usernameAvailable === false || checkingUsername}
+                    disabled={savingProfile || checkingUsername}
                     size="sm"
                     className="w-full mt-1"
                   >

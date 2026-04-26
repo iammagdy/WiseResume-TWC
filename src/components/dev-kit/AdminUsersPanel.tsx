@@ -768,13 +768,12 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
                               })()}
                               <div className="min-w-0 space-y-0.5">
                               {(() => {
-                                const isKindeShadow = (user.email ?? '').endsWith('@collision.kinde.placeholder');
-                                // For shadow/collision rows, show the real contact_email as primary.
-                                // For normal rows, always show the auth email as primary.
-                                // For shadow users with no contact_email, hide the garbled shadow address.
-                                const displayEmail = isKindeShadow
-                                  ? (user.contact_email || null)
-                                  : user.email;
+                                const isKindeShadow = (user.email ?? '').endsWith('@kinde.placeholder');
+                                // Prefer real contact_email over the Supabase auth email for all
+                                // users, not just shadow accounts. Most Kinde SSO users have a
+                                // kp_XXXX@kinde.placeholder auth email, so contact_email is the
+                                // only way to identify them when they haven't set a full name.
+                                const displayEmail = user.contact_email || (isKindeShadow ? null : user.email);
                                 // When full_name is known, show it as the primary identifier so
                                 // admins can recognise Apple relay-email users at a glance.
                                 const primaryLabel = user.full_name || displayEmail;

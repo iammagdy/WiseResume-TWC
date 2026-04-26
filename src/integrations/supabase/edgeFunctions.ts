@@ -122,17 +122,31 @@ export const edgeFunctions = {
         }
 
         if (!result.response.ok) {
+          // Admin/DevKit functions have nothing to do with AI — bypass the AI
+          // error parser entirely and surface the raw `error` field from the
+          // response body (or an HTTP-status fallback). This prevents
+          // validation errors (e.g. { success:false, error:"...", status:"invalid" })
+          // from being misread by parseAIErrorBody and turned into misleading
+          // "AI is temporarily unavailable" messages.
+          if (fnName.startsWith('admin-')) {
+            let rawError: string | null = null;
+            try {
+              const parsed = JSON.parse(result.text);
+              if (typeof parsed?.error === 'string') rawError = parsed.error;
+              else if (typeof parsed?.message === 'string') rawError = parsed.message;
+            } catch {
+              // fall through
+            }
+            const finalMessage = rawError ?? `Server error (HTTP ${result.response.status}) — please try again.`;
+            return {
+              data: null,
+              error: { message: finalMessage, status: result.response.status },
+            };
+          }
           const { code, message } = classifyEdgeError(result.response.status, result.text);
-          // Admin/DevKit functions have nothing to do with AI — replace the
-          // AI-provider–specific 5xx message with a generic server error so
-          // the DevKit doesn't mislead the user into thinking an AI call failed.
-          const finalMessage =
-            code === 'upstream_5xx' && fnName.startsWith('admin-')
-              ? 'Server error — please try again in a moment. If it keeps failing, contact support.'
-              : message;
           return {
             data: null,
-            error: { message: finalMessage, code, status: result.response.status },
+            error: { message, code, status: result.response.status },
           };
         }
 

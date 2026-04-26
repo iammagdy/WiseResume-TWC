@@ -2,6 +2,58 @@ import { getServiceClient } from '../_shared/dbClient.ts';
 import { requireAdminAuth } from '../_shared/adminAuth.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 
+/**
+ * Fetch a Kinde Management API access token using the M2M client credentials.
+ * Returns null (does not throw) when credentials are missing or the request fails,
+ * so the caller can degrade gracefully.
+ */
+async function getKindeM2MToken(
+  kindeDomain: string,
+  clientId: string,
+  clientSecret: string,
+): Promise<string | null> {
+  try {
+    const base = kindeDomain.startsWith('http') ? kindeDomain : `https://${kindeDomain}.kinde.com`;
+    const res = await fetch(`${base}/oauth2/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'client_credentials',
+        client_id: clientId,
+        client_secret: clientSecret,
+        audience: `${base}/api`,
+      }).toString(),
+    });
+    if (!res.ok) return null;
+    const json = await res.json() as { access_token?: string };
+    return json.access_token ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Fetch a single Kinde user's real email via the Management API.
+ * Returns null on any failure so the identity section degrades gracefully.
+ */
+async function fetchKindeUserEmail(
+  kindeDomain: string,
+  accessToken: string,
+  kindeSub: string,
+): Promise<string | null> {
+  try {
+    const base = kindeDomain.startsWith('http') ? kindeDomain : `https://${kindeDomain}.kinde.com`;
+    const res = await fetch(`${base}/api/v1/user?id=${encodeURIComponent(kindeSub)}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!res.ok) return null;
+    const json = await res.json() as { preferred_email?: string; email?: string };
+    return json.preferred_email ?? json.email ?? null;
+  } catch {
+    return null;
+  }
+}
+
 Deno.serve(async (req) => {
   const origin = req.headers.get('origin');
   const corsHeaders = getCorsHeaders(origin);
@@ -29,10 +81,13 @@ Deno.serve(async (req) => {
 
     const supabase = getServiceClient();
 
-    // Fetch auth.users record
-    const { data: authData, error: authErr } = await supabase.auth.admin.getUserById(target_user_id);
+    // Fetch auth.users record — includes email, created_at, last_sign_in_at
+    const { data: authData } = await supabase.auth.admin.getUserById(target_user_id);
     const authEmail = authData?.user?.email ?? null;
-    const isCollision = (authEmail ?? '').endsWith('@collision.kinde.placeholder');
+    const isCollision = (authEmail ?? '').endsWith('@collision.kinde.placeholder') ||
+                        (authEmail ?? '').endsWith('@kinde.placeholder');
+    const signedUpAt = authData?.user?.created_at ?? null;
+    const lastSignInAt = authData?.user?.last_sign_in_at ?? null;
 
     // Fetch profile contact_email
     const { data: profileData } = await supabase
@@ -56,6 +111,24 @@ Deno.serve(async (req) => {
     const kindeSub = (exchangeData as Record<string, unknown> | null)?.kinde_sub as string | null ?? null;
     const lastExchangeAt = (exchangeData as Record<string, unknown> | null)?.created_at as string | null ?? null;
 
+    // Attempt Kinde Management API email lookup when:
+    //   • the auth email is a placeholder (most common case), OR contact_email is blank
+    //   • AND we have a kinde_sub to query with
+    //   • AND all three M2M env vars are present
+    let kindeEmail: string | null = null;
+    const needsKindeLookup = kindeSub && (isCollision || !contactEmail);
+    if (needsKindeLookup) {
+      const kindeDomain = Deno.env.get('KINDE_DOMAIN')?.trim();
+      const m2mClientId = Deno.env.get('KINDE_M2M_CLIENT_ID')?.trim();
+      const m2mClientSecret = Deno.env.get('KINDE_M2M_CLIENT_SECRET')?.trim();
+      if (kindeDomain && m2mClientId && m2mClientSecret) {
+        const token = await getKindeM2MToken(kindeDomain, m2mClientId, m2mClientSecret);
+        if (token) {
+          kindeEmail = await fetchKindeUserEmail(kindeDomain, token, kindeSub);
+        }
+      }
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
@@ -63,7 +136,10 @@ Deno.serve(async (req) => {
         auth_email: authEmail,
         contact_email: contactEmail,
         kinde_sub: kindeSub,
+        kinde_email: kindeEmail,
         last_exchange_at: lastExchangeAt,
+        signed_up_at: signedUpAt,
+        last_sign_in_at: lastSignInAt,
         is_collision: isCollision,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

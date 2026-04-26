@@ -115,8 +115,51 @@ Added to `server/index.ts`, all behind `requireAuthHeader + requireAdminEmail`:
 
 All routes respond with `{ configured: false }` (or `{ configured: true, error }`) when the env var is absent — safe to call even in environments where the key is not yet set.
 
+## Admin username bypass (Task #11, 2026-04-26)
+
+Admins can now force-assign any portfolio username from the Users panel — any length, any characters, no user-facing validation rules.
+
+### How it works
+- The Save button in `UserDetailDrawer.tsx` now passes `admin_bypass_validation: true` to `admin-update-profile`.
+- With that flag, the edge function skips `check_username_available` (which enforces min-length, character set, reserved list, exclusive assignments) and runs only a direct uniqueness check (`profiles WHERE username = X AND user_id != target`).
+- Saving still rejects if another active user owns the slug.
+- After a successful username change, a row is inserted into `notifications` (`type: 'admin_action'`) so the user sees an in-app notification: "Your portfolio username has been updated to [slug]."
+
+### What else changed
+- The availability indicator while typing now uses a direct `profiles` SELECT instead of the `check_username_available` RPC, so it shows ✓/✗ based on uniqueness only.
+- The Save button is no longer blocked by the ✗ indicator — admin can override taken/invalid states.
+
+## Identity panel improvements (Task #11, 2026-04-26)
+
+The Identity section in `UserDetailDrawer.tsx` now surfaces more useful information for identifying users.
+
+### New fields returned by `admin-get-identity`
+| Field | Source | Notes |
+|---|---|---|
+| `signed_up_at` | `auth.users.created_at` | When the Supabase shadow account was first created |
+| `last_sign_in_at` | `auth.users.last_sign_in_at` | Most recent Supabase auth event |
+| `kinde_email` | Kinde Management API (`GET /api/v1/user?id={kinde_sub}`) | Real user email; only fetched when auth email is a `@kinde.placeholder` OR contact_email is blank, AND KINDE_M2M_CLIENT_ID/SECRET/DOMAIN are all configured. Returns `null` otherwise. |
+
+### Display order in Identity card
+1. **Kinde email** (only visible when returned) — real identity, shown first
+2. **Contact email** (from `profiles.contact_email`)
+3. **Auth email (internal)** — may be `kp_XXX@kinde.placeholder`, labelled "(placeholder)"
+4. **Joined** — sign-up date
+5. **Last sign-in**
+6. **Kinde sub**
+7. **Last token exchange**
+
+## User list email display (Task #11, 2026-04-26)
+
+`AdminUsersPanel.tsx` now prefers `contact_email` over the auth email for **all** users, not just collision/shadow accounts. The `isKindeShadow` check now matches the broader `@kinde.placeholder` suffix (not just `@collision.kinde.placeholder`).
+
+## AI error parser bleed-through fix (Task #11, 2026-04-26)
+
+`edgeFunctions.ts` now short-circuits the AI error parser entirely for any `admin-*` function that returns a non-ok HTTP response. Instead of routing through `parseAIErrorBody` (which was mapping `status:"invalid"` in validation error bodies to "AI is temporarily unavailable"), the wrapper now reads the `error` or `message` field from the JSON body directly and surfaces it as-is. This prevents any admin validation error from being displayed as an AI failure.
+
 ## Known gotchas
 
 - `db-migration.yml` GitHub Action is **broken** (duplicate-key conflict in `supabase_migrations`). Use `apply-rpc-migration.yml` instead. → `replit.md`.
 - `admin-github-status` requires `GITHUB_TOKEN`, `GITHUB_OWNER`, `GITHUB_REPO` secrets in Supabase. The token recently went stale and was rotated — refresh via `refresh-devkit-secrets.sh`. → `replit.md`.
 - `app_settings` table feeds `<FeatureGate>` wrappers around feature-flagged routes (e.g. `/interview`, `/applications`, `/portfolio`, `/cover-letters`). → `src/AppInterior.tsx`.
+- Kinde email lookup in `admin-get-identity` requires `KINDE_DOMAIN`, `KINDE_M2M_CLIENT_ID`, and `KINDE_M2M_CLIENT_SECRET` to be configured in Supabase secrets. Without these, `kinde_email` is always `null` and the "Kinde email" row does not appear in the Identity card.

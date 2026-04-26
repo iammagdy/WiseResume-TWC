@@ -2,6 +2,23 @@
 
 Local changelog tracking WiseResume changes.
 
+## 2026-04-26 (Task #11 — Dev Kit: admin username bypass + user identity fixes)
+
+### Added
+- **Admin portfolio username bypass** (`supabase/functions/admin-update-profile/index.ts`): new `admin_bypass_validation: boolean` request field. When `true`, the `check_username_available` RPC is skipped entirely; only a direct `profiles` uniqueness check is run so the admin can assign any slug (1 char, symbols, etc.) without hitting user-facing length/character rules. Still rejects if another active user owns the exact slug.
+- **In-app notification on username change** (`supabase/functions/admin-update-profile/index.ts`): inserts a `notifications` row (`type: 'admin_action'`) for the affected user after every successful admin-initiated username change, so the user is informed of the new slug.
+- **Enriched identity endpoint** (`supabase/functions/admin-get-identity/index.ts`): now returns `signed_up_at` and `last_sign_in_at` from `auth.users`, and conditionally returns `kinde_email` via Kinde Management API when M2M credentials (`KINDE_DOMAIN`, `KINDE_M2M_CLIENT_ID`, `KINDE_M2M_CLIENT_SECRET`) are present and the auth email is a placeholder.
+- **Identity card improvements** (`src/components/dev-kit/UserDetailDrawer.tsx`): shows Kinde email (when available, at top), Contact email, Auth email (internal, with placeholder label), Joined date, Last sign-in date, Kinde sub, Last token exchange.
+
+### Changed
+- **AI error parser bleed-through fixed** (`src/integrations/supabase/edgeFunctions.ts`): for any `admin-*` function that returns a non-ok response, the wrapper now reads the raw `error` / `message` field from the JSON body instead of routing through `parseAIErrorBody`. This prevents validation error bodies (e.g. `{ status: "invalid" }`) from being misread as AI failure codes and showing "AI is temporarily unavailable."
+- **Admin username field — uniqueness-only check** (`src/components/dev-kit/UserDetailDrawer.tsx`): the debounced availability indicator now uses a direct `profiles` SELECT (not `check_username_available` RPC), shows ✓/✗ based on uniqueness only. The Save button is no longer disabled by the ✗ indicator — admin can override.
+- **Old-URL warning updated** (`src/components/dev-kit/UserDetailDrawer.tsx`): notice now reads "The user has been sent an in-app notification about this change."
+- **User list email display** (`src/components/dev-kit/AdminUsersPanel.tsx`): `contact_email` is now preferred over auth email for all users (not just collision/shadow accounts); `isKindeShadow` check updated to match the broader `@kinde.placeholder` suffix.
+- **Admin update-profile** (`supabase/functions/admin-update-profile/index.ts`): removed the `status: availStatus` field from validation error response bodies (was colliding with AI error parser's `status` field).
+
+---
+
 ## 2026-04-26 (Stability — Phase 12 editor audit + CI verification fix + v3.6.3 release)
 
 ### STABILITY — Phase 12: Editor audit Phase 2 (Tasks #1, #4–#8)

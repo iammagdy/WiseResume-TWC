@@ -11,12 +11,13 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { target_user_id, full_name, username, actor_email, action } = body as {
+    const { target_user_id, full_name, username, actor_email, action, admin_bypass_validation } = body as {
       target_user_id: string;
       full_name?: string;
       username?: string;
       actor_email?: string;
       action?: string;
+      admin_bypass_validation?: boolean;
     };
 
     try {
@@ -80,7 +81,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // If username is being changed, check uniqueness
+    // If username is being changed, validate it
     if (username !== undefined && username !== currentProfile?.username) {
       const cleanUsername = username.toLowerCase().trim();
       if (!cleanUsername) {
@@ -90,34 +91,61 @@ Deno.serve(async (req) => {
         );
       }
 
-      const { data: available, error: rpcError } = await supabase.rpc('check_username_available', {
-        p_username: cleanUsername,
-        p_user_id: target_user_id,
-      });
+      if (admin_bypass_validation) {
+        // Admin mode: skip all user-facing validation rules (length, characters,
+        // reserved list, exclusive assignments). Only block if another active
+        // user already owns this exact slug.
+        const { data: clash, error: clashErr } = await supabase
+          .from('profiles')
+          .select('user_id')
+          .eq('username', cleanUsername)
+          .neq('user_id', target_user_id)
+          .maybeSingle();
 
-      if (rpcError) {
-        console.error('[admin-update-profile] Username check error:', rpcError);
-        return new Response(
-          JSON.stringify({ success: false, error: 'Failed to check username availability: ' + rpcError.message }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
+        if (clashErr) {
+          console.error('[admin-update-profile] Uniqueness check error:', clashErr);
+          return new Response(
+            JSON.stringify({ success: false, error: 'Failed to check username uniqueness: ' + clashErr.message }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        if (clash) {
+          return new Response(
+            JSON.stringify({ success: false, error: 'Username is already taken by another user' }),
+            { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      } else {
+        // Standard mode: run the full check_username_available RPC
+        const { data: available, error: rpcError } = await supabase.rpc('check_username_available', {
+          p_username: cleanUsername,
+          p_user_id: target_user_id,
+        });
 
-      const availStatus = (available as { status?: string; reason?: string } | null)?.status ?? 'invalid';
-      if (availStatus !== 'available') {
-        const reason = (available as { reason?: string } | null)?.reason;
-        const errorMsg =
-          availStatus === 'reserved'
-            ? (reason || 'This username is reserved')
-            : availStatus === 'exclusive'
-              ? (reason || 'This username is exclusive to another account')
-              : availStatus === 'invalid'
-                ? (reason || 'Invalid username')
-                : 'Username is already taken';
-        return new Response(
-          JSON.stringify({ success: false, error: errorMsg, status: availStatus }),
-          { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        if (rpcError) {
+          console.error('[admin-update-profile] Username check error:', rpcError);
+          return new Response(
+            JSON.stringify({ success: false, error: 'Failed to check username availability: ' + rpcError.message }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        const availStatus = (available as { status?: string; reason?: string } | null)?.status ?? 'invalid';
+        if (availStatus !== 'available') {
+          const reason = (available as { reason?: string } | null)?.reason;
+          const errorMsg =
+            availStatus === 'reserved'
+              ? (reason || 'This username is reserved')
+              : availStatus === 'exclusive'
+                ? (reason || 'This username is exclusive to another account')
+                : availStatus === 'invalid'
+                  ? (reason || 'Invalid username')
+                  : 'Username is already taken';
+          return new Response(
+            JSON.stringify({ success: false, error: errorMsg }),
+            { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
       }
     }
 
@@ -172,6 +200,22 @@ Deno.serve(async (req) => {
       });
     } catch (auditErr) {
       console.warn('[admin-update-profile] Audit log failed:', auditErr);
+    }
+
+    // Send in-app notification when the username changes
+    if (changedFields.username) {
+      const newSlug = changedFields.username.new as string;
+      try {
+        await supabase.from('notifications').insert({
+          user_id: target_user_id,
+          type: 'admin_action',
+          title: 'Portfolio username updated',
+          message: `Your portfolio username has been updated to "${newSlug}" by an admin. Your portfolio is now available at resume.thewise.cloud/p/${newSlug}`,
+          link: `/p/${newSlug}`,
+        });
+      } catch (notifErr) {
+        console.warn('[admin-update-profile] Notification insert failed:', notifErr);
+      }
     }
 
     // Server-side portfolio cache invalidation when username changes.
