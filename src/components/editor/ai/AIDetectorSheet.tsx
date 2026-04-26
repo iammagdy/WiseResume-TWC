@@ -27,6 +27,7 @@ import { useResumeStore } from '@/store/resumeStore';
 import { useShallow } from 'zustand/react/shallow';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { toast } from 'sonner';
+import editorLogger from '@/lib/editorLogger';
 import { haptics } from '@/lib/haptics';
 import { useAIAction } from '@/hooks/useAIAction';
 import { activityTracker } from '@/lib/activityTracker';
@@ -283,7 +284,7 @@ export function AIDetectorSheet({ open, onOpenChange }: AIDetectorSheetProps) {
       setDetection(result.detection);
       setViewState('results');
     } catch (err) {
-      console.error('AI detection error:', err);
+      editorLogger.error('AI detection error:', err);
       toast.error('Failed to analyze text. Please try again.');
       setViewState('input');
     }
@@ -310,7 +311,7 @@ export function AIDetectorSheet({ open, onOpenChange }: AIDetectorSheetProps) {
       setHumanized(data.humanized);
       toast.success('Text humanized successfully!');
     } catch (err) {
-      console.error('Humanization error:', err);
+      editorLogger.error('Humanization error:', err);
       toast.error('Failed to humanize text. Please try again.');
     } finally {
       setIsHumanizing(false);

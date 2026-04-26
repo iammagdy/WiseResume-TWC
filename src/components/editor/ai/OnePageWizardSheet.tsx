@@ -34,6 +34,7 @@ import { useResumeStore } from '@/store/resumeStore';
 import { useShallow } from 'zustand/react/shallow';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { toast } from 'sonner';
+import editorLogger from '@/lib/editorLogger';
 import haptics from '@/lib/haptics';
 import { useAIAction } from '@/hooks/useAIAction';
 import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
@@ -263,7 +264,7 @@ export function OnePageWizardSheet({ open, onOpenChange }: OnePageWizardSheetPro
       });
       setView('results');
     } catch (err: unknown) {
-      console.error('One-page optimization error:', err);
+      editorLogger.error('One-page optimization error:', err);
       const msg = (err instanceof Error && err.message) ? err.message : 'Failed to analyze. Please try again.';
       toast.error(msg);
       setView('levers');
@@ -312,7 +313,7 @@ export function OnePageWizardSheet({ open, onOpenChange }: OnePageWizardSheetPro
       });
     } catch (e) {
       // telemetry is best-effort; never let it block UX
-      console.warn('[OnePageWizard] telemetry post failed', e);
+      editorLogger.warn('[OnePageWizard] telemetry post failed', e);
     }
   }, [currentResume?.templateId, selectedTemplate, result?.provider]);
 
@@ -333,7 +334,7 @@ export function OnePageWizardSheet({ open, onOpenChange }: OnePageWizardSheetPro
             changeSummary: 'Auto-snapshot before One-Page Wizard apply',
           });
         } catch (e) {
-          console.warn('[OnePageWizard] snapshot failed (non-blocking)', e);
+          editorLogger.warn('[OnePageWizard] snapshot failed (non-blocking)', e);
         }
       }
 
@@ -358,7 +359,7 @@ export function OnePageWizardSheet({ open, onOpenChange }: OnePageWizardSheetPro
           const baseName = (merged.contactInfo.fullName || 'Resume').replace(/\s+/g, '_');
           await downloadFile({ blob, fileName: `${baseName}_OnePage.pdf` });
         } catch (e) {
-          console.error('[OnePageWizard] one-page export failed', e);
+          editorLogger.error('[OnePageWizard] one-page export failed', e);
           toast.error('Apply succeeded but PDF export failed. Try Download from the Export menu.');
         }
       }

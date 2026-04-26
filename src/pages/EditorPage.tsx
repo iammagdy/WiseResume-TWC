@@ -12,7 +12,12 @@ import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
 import { Sparkles, BarChart3, Scissors, ArrowLeft, Clock, AlertTriangle, Loader2 } from 'lucide-react';
 import { useAIEnhancingStore } from '@/store/aiEnhancingStore';
 import { useIsMobile } from '@/hooks/use-mobile';
-// Tooltip removed – Radix Popper causes infinite setRef loop on this page
+// Tooltip removed – a Tooltip rendered inside the sheet portal tree caused an
+// infinite Radix Popper setRef loop. Reproducer: any <Tooltip> whose trigger
+// lives inside a Sheet or Dialog that re-mounts on editor re-renders. Fix path:
+// wrap EditorPage in a single root <TooltipProvider delayDuration={300}
+// disableHoverableContent> and move Tooltip content *outside* the portalled
+// subtree. Investigate which sheet triggers the loop before re-enabling.
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { StepperNav } from '@/components/editor/StepperNav';
 import { SectionSidebar } from '@/components/editor/SectionSidebar';
@@ -165,7 +170,7 @@ export default function EditorPage() {
     const timer = setTimeout(() => {
       if (!useResumeStore.getState().currentResume) {
         useResumeStore.getState().setCurrentResumeId(null);
-        toast.error('Resume could not be loaded.');
+        toast.error('Could not load resume — please try again.', { duration: 4000 });
         navigate('/dashboard', { replace: true });
       }
     }, 8000);

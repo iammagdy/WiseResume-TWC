@@ -228,8 +228,8 @@ export const ExperienceItem = memo(function ExperienceItem({
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor={`exp-${exp.id}-start`} className="text-sm flex items-center gap-1.5 mb-2">
+              <div role="group" aria-labelledby={`exp-${exp.id}-start-label`}>
+                <Label id={`exp-${exp.id}-start-label`} className="text-sm flex items-center gap-1.5 mb-2">
                   <Calendar className="w-4 h-4" />
                   Start Date
                 </Label>
@@ -238,8 +238,8 @@ export const ExperienceItem = memo(function ExperienceItem({
                   onChange={handleStartDateChange}
                 />
               </div>
-              <div>
-                <Label htmlFor={`exp-${exp.id}-end`} className="text-sm flex items-center gap-1.5 mb-2">
+              <div role="group" aria-labelledby={`exp-${exp.id}-end-label`}>
+                <Label id={`exp-${exp.id}-end-label`} className="text-sm flex items-center gap-1.5 mb-2">
                   <Calendar className="w-4 h-4" />
                   End Date
                 </Label>

@@ -28,6 +28,7 @@ import { useResumeStore } from '@/store/resumeStore';
 import { useShallow } from 'zustand/react/shallow';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { toast } from 'sonner';
+import editorLogger from '@/lib/editorLogger';
 import { haptics } from '@/lib/haptics';
 import { useAIAction } from '@/hooks/useAIAction';
 import { activityTracker } from '@/lib/activityTracker';
@@ -150,7 +151,7 @@ export function LinkedInOptimizerSheet({ open, onOpenChange }: LinkedInOptimizer
       if (!data) return;
       setResult(data);
     } catch (err) {
-      console.error('LinkedIn optimization error:', err);
+      editorLogger.error('LinkedIn optimization error:', err);
       toast.error('Failed to optimize. Please try again.');
     } finally {
       setIsLoading(false);
@@ -276,7 +277,7 @@ export function LinkedInOptimizerSheet({ open, onOpenChange }: LinkedInOptimizer
       });
       toast.success('Downloaded LinkedIn content as Word!');
     } catch (err) {
-      console.error('DOCX generation error:', err);
+      editorLogger.error('DOCX generation error:', err);
       toast.error('Failed to generate Word file.');
     } finally {
       setIsDownloading(false);

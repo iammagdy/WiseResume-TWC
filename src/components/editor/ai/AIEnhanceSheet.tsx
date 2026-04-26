@@ -10,6 +10,7 @@ import { useResumeStore } from '@/store/resumeStore';
 import { getSupabaseToken } from '@/lib/supabaseAuth';
 import { useAICreditsMutations } from '@/hooks/useAICredits';
 import { toast } from 'sonner';
+import editorLogger from '@/lib/editorLogger';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { sanitizeAIContent } from '@/lib/ai/sanitizeContent';
@@ -446,7 +447,7 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
         newResults.push(buildResultFromData(sectionInfo, content, outcome.data));
         successCount++;
       } else {
-        console.error(`Enhancement error for ${sectionInfo.id}:`, outcome.errMsg);
+        editorLogger.error(`Enhancement error for ${sectionInfo.id}:`, outcome.errMsg);
         if (outcome.classification.fatal) {
           // Show a single fatal toast and stop the batch
           toast.error(outcome.classification.userMsg);
