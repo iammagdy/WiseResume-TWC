@@ -12,9 +12,8 @@ import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
 import { Sparkles, BarChart3, Scissors, ArrowLeft, Clock, AlertTriangle, Loader2 } from 'lucide-react';
 import { useAIEnhancingStore } from '@/store/aiEnhancingStore';
 import { useIsMobile } from '@/hooks/use-mobile';
-// Tooltip removed – Radix Popper infinite setRef loop.
-// Reproducer: <Tooltip> inside any Sheet/portal whose trigger re-mounts on editor re-renders.
-// Fix: add single root <TooltipProvider disableHoverableContent> to EditorPage and audit which sheet causes the loop.
+// Tooltip removed – Radix Popper setRef infinite loop observed at runtime.
+// Confirmed reproducer: <Tooltip> trigger inside a Sheet portal that re-mounts on every editor render cycle.
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { StepperNav } from '@/components/editor/StepperNav';
 import { SectionSidebar } from '@/components/editor/SectionSidebar';
