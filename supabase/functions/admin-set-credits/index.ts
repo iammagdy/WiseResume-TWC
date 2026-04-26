@@ -121,7 +121,7 @@ Deno.serve(async (req) => {
         // Look up user email from auth.users
         const { data: authUser } = await supabase.auth.admin.getUserById(target_user_id);
         const userEmail = authUser?.user?.email;
-        if (userEmail && !userEmail.endsWith('@kinde.placeholder') && !userEmail.endsWith('@kinde.placeholder')) {
+        if (userEmail && !userEmail.endsWith('@kinde.placeholder')) {
           if (effectiveRemaining < LOW_CREDIT_THRESHOLD) {
             addContact(lowCreditAudienceId, { email: userEmail }).catch(() => {});
           } else {

@@ -461,10 +461,10 @@ export function EmailAutomationsPanel() {
             <div>
               <h3 className="text-sm font-semibold flex items-center gap-2">
                 <BarChart2 className="w-4 h-4 text-primary" />
-                Recent Send Stats
+                Recent Broadcast Send Stats
               </h3>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Broadcast campaign stats from Resend API.{' '}
+                One-off broadcast campaign stats from Resend API.{' '}
                 <span className="text-muted-foreground/70">
                   Note: automation-triggered emails are tracked separately in the{' '}
                   <a
