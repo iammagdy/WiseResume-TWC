@@ -1,6 +1,8 @@
 import { getServiceClient } from '../_shared/dbClient.ts';
 import { requireAdminAuth } from '../_shared/adminAuth.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
+import { addContact, removeContact } from '../_shared/resendAudiences.ts';
+import { getAudienceId, AUDIENCE_KEYS } from '../_shared/resendConfig.ts';
 
 Deno.serve(async (req) => {
   const origin = req.headers.get('origin');
@@ -106,6 +108,29 @@ Deno.serve(async (req) => {
         JSON.stringify({ success: false, error: upsertError.message }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // Low Credits audience: add when effective credits < 10, remove when >= 10.
+    // "Effective credits" = daily_limit - newUsage (remaining for today).
+    // We do this fire-and-forget so it never blocks the admin response.
+    try {
+      const effectiveRemaining = newLimit >= 0 ? newLimit - newUsage : Infinity;
+      const LOW_CREDIT_THRESHOLD = 10;
+      const lowCreditAudienceId = getAudienceId(AUDIENCE_KEYS.LOW_CREDITS);
+      if (lowCreditAudienceId) {
+        // Look up user email from auth.users
+        const { data: authUser } = await supabase.auth.admin.getUserById(target_user_id);
+        const userEmail = authUser?.user?.email;
+        if (userEmail && !userEmail.endsWith('@kinde.placeholder') && !userEmail.endsWith('@kinde.placeholder')) {
+          if (effectiveRemaining < LOW_CREDIT_THRESHOLD) {
+            addContact(lowCreditAudienceId, { email: userEmail }).catch(() => {});
+          } else {
+            removeContact(lowCreditAudienceId, userEmail).catch(() => {});
+          }
+        }
+      }
+    } catch (audienceErr) {
+      console.warn('[admin-set-credits] audience update error (non-fatal):', audienceErr);
     }
 
     // Write audit log — non-fatal

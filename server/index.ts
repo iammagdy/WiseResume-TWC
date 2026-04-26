@@ -467,6 +467,48 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// ── Premium handle interest tracking (authenticated) ──────────────────────────
+// Called by the frontend when a user views a premium handle listing page but
+// does not purchase. Adds the user to the "Premium Handle Interest" Resend
+// Audience so a follow-up automation email is sent the next day.
+// No-ops silently when RESEND_AUDIENCE_HANDLE_INTEREST is not configured.
+app.post('/api/track-handle-interest', requireAuthHeader, async (req: AuthedRequest, res) => {
+  try {
+    const userId = req.verifiedUserId;
+    const userEmail = req.verifiedEmail;
+    if (!userId || !userEmail) return res.json({ success: true });
+    if (userEmail.endsWith('@kinde.placeholder')) return res.json({ success: true });
+
+    const RESEND_API_KEY = process.env.RESEND_API_KEY;
+    const audienceId = process.env.RESEND_AUDIENCE_HANDLE_INTEREST;
+    if (!RESEND_API_KEY || !audienceId) return res.json({ success: true });
+
+    // Skip if the user already owns a premium handle (check profiles.handle_type).
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('handle_type')
+      .eq('user_id', userId)
+      .maybeSingle();
+    const handleType = (profile as { handle_type?: string } | null)?.handle_type;
+    if (handleType && handleType !== 'free') return res.json({ success: true });
+
+    // Fire-and-forget — add to audience
+    fetch(`https://api.resend.com/audiences/${audienceId}/contacts`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email: userEmail, unsubscribed: false }),
+    }).catch((err) => console.warn('[track-handle-interest] audience add failed:', err));
+
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('[track-handle-interest] error:', err);
+    return res.json({ success: true }); // always succeed — non-critical
+  }
+});
+
 // ── Password reset (public — no auth required) ────────────────────────────────
 // Proxies to the send-password-reset Supabase edge function so the branded
 // password reset email can be triggered from the frontend in both dev and prod.

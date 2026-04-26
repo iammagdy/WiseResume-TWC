@@ -210,3 +210,7 @@ project_id = "jnsfmkzgxsviuthaqlyy"
     verify_jwt = false
   [functions.send-password-reset]
     verify_jwt = false
+  [functions.admin-resend-sync]
+    verify_jwt = false
+  [functions.admin-resend-stats]
+    verify_jwt = false

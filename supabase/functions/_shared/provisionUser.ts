@@ -15,6 +15,8 @@
  */
 
 import { getServiceClient } from './dbClient.ts';
+import { addContact } from './resendAudiences.ts';
+import { getAudienceId, AUDIENCE_KEYS } from './resendConfig.ts';
 
 /** DNS namespace UUID used for deterministic v5 generation (RFC 4122). */
 export const KINDE_UUID_NAMESPACE = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
@@ -257,6 +259,19 @@ export async function provisionUser(
       500,
       'Could not create user subscription record',
     );
+  }
+
+  // ── Step 5: add to "All Users" Resend Audience (new users only) ─────────────
+  // Existing users are backfilled separately via the admin-resend-sync function.
+  if (!alreadyExisted && email && !email.endsWith('@kinde.placeholder')) {
+    const allUsersAudienceId = getAudienceId(AUDIENCE_KEYS.ALL_USERS);
+    if (allUsersAudienceId) {
+      addContact(allUsersAudienceId, {
+        email,
+        firstName: firstName?.trim() || undefined,
+        lastName: lastName?.trim() || undefined,
+      }).catch((err) => console.warn('[provisionUser] all-users audience add failed (non-fatal):', err));
+    }
   }
 
   return { userId, alreadyExisted };

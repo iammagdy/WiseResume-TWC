@@ -28,6 +28,7 @@ import {
   Flag,
   Megaphone,
   Telescope,
+  Zap,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -42,6 +43,7 @@ import { OnboardingFunnelPanel } from '@/components/dev-kit/OnboardingFunnelPane
 import { LiveActivityPanel } from '@/components/dev-kit/LiveActivityPanel';
 import { DeploymentPanel } from '@/components/dev-kit/DeploymentPanel';
 import { EmailManagementPanel } from '@/components/dev-kit/EmailManagementPanel';
+import { EmailAutomationsPanel } from '@/components/dev-kit/EmailAutomationsPanel';
 import { WiseHireWaitlistPanel } from '@/components/dev-kit/WiseHireWaitlistPanel';
 import { PortfolioUsernamesPanel } from '@/components/dev-kit/PortfolioUsernamesPanel';
 import { OpenRouterPanel, GroqPanel } from '@/components/dev-kit/AIKeySlotPanels';
@@ -63,7 +65,7 @@ import { DevKitPanelBoundary } from '@/components/dev-kit/DevKitPanelBoundary';
 import { NativeBiometric } from '@capgo/capacitor-native-biometric';
 import { Capacitor } from '@capacitor/core';
 
-type Tab = 'mission' | 'overview' | 'analytics' | 'onboarding' | 'live' | 'deployment' | 'users' | 'coupons' | 'settings' | 'activity' | 'email' | 'wisehire' | 'portfolio' | 'openrouter' | 'groq' | 'flags' | 'owner-ops' | 'ai-routing' | 'observability' | 'moderation' | 'integrations';
+type Tab = 'mission' | 'overview' | 'analytics' | 'onboarding' | 'live' | 'deployment' | 'users' | 'coupons' | 'settings' | 'activity' | 'email' | 'automations' | 'wisehire' | 'portfolio' | 'openrouter' | 'groq' | 'flags' | 'owner-ops' | 'ai-routing' | 'observability' | 'moderation' | 'integrations';
 
 interface NavItem {
   id: Tab;
@@ -92,6 +94,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { id: 'users', label: 'Users', icon: Users },
       { id: 'email', label: 'Email', icon: Mail },
+      { id: 'automations', label: 'Email Automations', icon: Zap },
       { id: 'owner-ops', label: 'Owner Ops', icon: Megaphone },
       { id: 'coupons', label: 'Coupons', icon: Tag },
       { id: 'wisehire', label: 'WiseHire', icon: Briefcase },
@@ -127,6 +130,7 @@ const TAB_LABELS: Record<Tab, string> = {
   settings: 'Settings',
   activity: 'Audit Log',
   email: 'Email',
+  automations: 'Email Automations',
   wisehire: 'WiseHire',
   portfolio: 'Portfolio',
   openrouter: 'OpenRouter',
@@ -1002,6 +1006,21 @@ function DevToolsInner() {
                     </p>
                   </div>
                   <EmailManagementPanel />
+                </div>
+              )}
+
+              {activeTab === 'automations' && (
+                <div className="space-y-4">
+                  <div>
+                    <h2 className="text-lg font-semibold flex items-center gap-2">
+                      <Zap className="w-5 h-5 text-primary" />
+                      Email Automations
+                    </h2>
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                      Monitor Resend Audience sizes, look up contacts, manually add or remove them, sync all existing users, and review the automation checklist.
+                    </p>
+                  </div>
+                  <EmailAutomationsPanel />
                 </div>
               )}
 

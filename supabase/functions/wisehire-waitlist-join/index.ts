@@ -2,6 +2,8 @@ import { createClient } from "npm:@supabase/supabase-js@2.49.1";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { isMaliciousBot, botBlockedResponse } from "../_shared/botGuard.ts";
 import { escapeHtml } from "../_shared/htmlEscape.ts";
+import { addContact } from "../_shared/resendAudiences.ts";
+import { getAudienceId, AUDIENCE_KEYS } from "../_shared/resendConfig.ts";
 
 const ADMIN_EMAIL = "contact@thewise.cloud";
 const WISEHIRE_BLUE = "#1D4ED8";
@@ -419,6 +421,17 @@ Deno.serve(async (req) => {
       ]);
     } else {
       console.warn("RESEND_API_KEY not configured — row inserted but no emails sent.");
+    }
+
+    // Add to WiseHire Waitlist Resend Audience — triggers drip automation.
+    const wisehireAudienceId = getAudienceId(AUDIENCE_KEYS.WISEHIRE);
+    if (wisehireAudienceId) {
+      const [firstName, ...rest] = name.trim().split(' ');
+      addContact(wisehireAudienceId, {
+        email: email.trim().toLowerCase(),
+        firstName,
+        lastName: rest.join(' ') || undefined,
+      }).catch((e) => console.warn("[wisehire-waitlist-join] audience add failed (non-fatal):", e));
     }
 
     return new Response(

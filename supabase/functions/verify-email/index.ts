@@ -29,6 +29,8 @@ import * as React from 'npm:react@18.3.1'
 import { renderAsync } from 'npm:@react-email/components@0.0.22'
 import { getCorsHeaders } from '../_shared/cors.ts'
 import { getServiceClient } from '../_shared/dbClient.ts'
+import { addContact } from '../_shared/resendAudiences.ts'
+import { getAudienceId, AUDIENCE_KEYS } from '../_shared/resendConfig.ts'
 
 const SITE_NAME = 'WiseResume'
 const SITE_URL = 'https://resume.thewise.cloud'
@@ -295,23 +297,33 @@ Deno.serve(async (req) => {
     const email = profile?.contact_email || profile?.email
     const firstName = profile?.full_name?.split(' ')[0] || undefined
 
-    // Send welcome email (fire-and-forget — don't fail confirmation if email fails).
-    if (email && !email.endsWith('@kinde.placeholder') && RESEND_API_KEY) {
-      try {
-        const { WelcomeEmail } = await import('../_shared/email-templates/welcome.tsx')
-        const props = { siteName: SITE_NAME, siteUrl, firstName }
-        const html = await renderAsync(React.createElement(WelcomeEmail, props))
-        const text = await renderAsync(React.createElement(WelcomeEmail, props), { plainText: true })
-        await sendResendEmail({
-          to: email,
-          subject: `Welcome to WiseResume, ${firstName || 'there'}! 🎉`,
-          html,
-          text,
-          apiKey: RESEND_API_KEY,
-        })
-        console.log(`[verify-email] confirm: welcome email sent to ${email}`)
-      } catch (welcErr) {
-        console.error('[verify-email] confirm: welcome email failed (non-fatal):', welcErr)
+    // Fire-and-forget: welcome email + add to Onboarding audience
+    if (email && !email.endsWith('@kinde.placeholder')) {
+      if (RESEND_API_KEY) {
+        try {
+          const { WelcomeEmail } = await import('../_shared/email-templates/welcome.tsx')
+          const props = { siteName: SITE_NAME, siteUrl, firstName }
+          const html = await renderAsync(React.createElement(WelcomeEmail, props))
+          const text = await renderAsync(React.createElement(WelcomeEmail, props), { plainText: true })
+          await sendResendEmail({
+            to: email,
+            subject: `Welcome to WiseResume, ${firstName || 'there'}! 🎉`,
+            html,
+            text,
+            apiKey: RESEND_API_KEY,
+          })
+          console.log(`[verify-email] confirm: welcome email sent to ${email}`)
+        } catch (welcErr) {
+          console.error('[verify-email] confirm: welcome email failed (non-fatal):', welcErr)
+        }
+      }
+      // Add to Onboarding Resend Audience — triggers day-3/7/14 automation drip.
+      const onboardingAudienceId = getAudienceId(AUDIENCE_KEYS.ONBOARDING)
+      if (onboardingAudienceId) {
+        addContact(onboardingAudienceId, {
+          email,
+          firstName: firstName || undefined,
+        }).catch((err) => console.error('[verify-email] confirm: onboarding audience add failed (non-fatal):', err))
       }
     }
 
