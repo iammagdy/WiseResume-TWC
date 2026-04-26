@@ -561,12 +561,12 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
           summary={
             data
               ? secretsMissingCount > 0
-                ? `${secretsMissingCount} Replit secret${secretsMissingCount !== 1 ? 's' : ''} missing`
+                ? `${secretsMissingCount} required secret${secretsMissingCount !== 1 ? 's' : ''} missing`
                 : secretsStaleCount > 0
                 ? `${secretsStaleCount} secret${secretsStaleCount !== 1 ? 's' : ''} not rotated in 90+ days`
-                : isDevEnv
-                ? `Replit secrets OK · ${vaultCount} in Supabase vault`
-                : `All ${data.secrets.items.length} secrets present`
+                : isDevEnv && vaultCount > 0
+                ? `All core secrets configured · ${vaultCount} in Supabase vault`
+                : `All ${data.secrets.items.length} secrets configured`
               : 'Loading…'
           }
           onDeepLink={() => onNavigate('deployment')}

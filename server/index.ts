@@ -1124,23 +1124,28 @@ function resolveSecretPresent(key: string, aliases?: string[]): boolean {
 }
 
 /**
- * Derives { owner, repo } from the git remote URL when GITHUB_OWNER / GITHUB_REPO
- * env vars are not explicitly set.  Supports both HTTPS and SSH remote formats.
- *   https://github.com/owner/repo.git  → { owner: 'owner', repo: 'repo' }
- *   git@github.com:owner/repo.git      → { owner: 'owner', repo: 'repo' }
+ * Reads .git/config directly (no child process spawn) to find the origin remote URL,
+ * then parses owner/repo from it. Returns null if not found.
  */
 function deriveGithubOwnerRepo(): { owner: string; repo: string } | null {
   try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { execSync } = require('child_process') as typeof import('child_process');
-    const remoteUrl = execSync('git remote get-url origin 2>/dev/null', { encoding: 'utf8', timeout: 3000 }).trim();
+    const fs = require('fs') as typeof import('fs');
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const path = require('path') as typeof import('path');
+    const gitConfigPath = path.join(process.cwd(), '.git', 'config');
+    const gitConfig = fs.readFileSync(gitConfigPath, 'utf8');
+    // Find the [remote "origin"] section and extract its url line
+    const match = gitConfig.match(/\[remote\s+"origin"\][^[]*\burl\s*=\s*([^\n\r]+)/);
+    if (!match) return null;
+    const remoteUrl = match[1].trim();
     // HTTPS: https://github.com/owner/repo or https://token@github.com/owner/repo
     const httpsMatch = remoteUrl.match(/github\.com[/:]([^/]+)\/([^/\s.]+?)(?:\.git)?$/);
     if (httpsMatch) return { owner: httpsMatch[1], repo: httpsMatch[2] };
     // SSH: git@github.com:owner/repo.git
     const sshMatch = remoteUrl.match(/github\.com:([^/]+)\/([^/\s.]+?)(?:\.git)?$/);
     if (sshMatch) return { owner: sshMatch[1], repo: sshMatch[2] };
-  } catch { /* git not available or no remote */ }
+  } catch { /* .git/config unreadable or remote not found */ }
   return null;
 }
 

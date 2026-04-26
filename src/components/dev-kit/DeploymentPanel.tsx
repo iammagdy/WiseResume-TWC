@@ -193,19 +193,10 @@ export function DeploymentPanel() {
               <p className="text-sm font-semibold text-destructive">Failed to load deployment data</p>
               <p className="text-xs text-destructive/70">{fetchError}</p>
               <p className="text-xs text-muted-foreground">
-                The following secrets must be added to <strong>Supabase → Edge Functions → Secrets</strong> (not the Vault).
-                These are read via <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">Deno.env.get()</code> and must be set as Edge Function environment secrets:
-              </p>
-              <div className="grid grid-cols-1 gap-1.5 pt-1">
-                {(['DEV_KIT_PASSWORD', 'GITHUB_TOKEN', 'GITHUB_OWNER', 'GITHUB_REPO'] as const).map(k => (
-                  <div key={k} className="flex items-center gap-2 rounded-md bg-muted/60 px-2.5 py-1.5">
-                    <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                    <code className="font-mono text-xs text-foreground">{k}</code>
-                  </div>
-                ))}
-              </div>
-              <p className="text-[10px] text-amber-600 dark:text-amber-400 bg-amber-500/10 rounded px-2 py-1.5">
-                Note: The Supabase <strong>Vault</strong> is different — secrets stored there are NOT available as environment variables in edge functions.
+                Check that the DevKit session is valid and the server is reachable. In production, secrets like
+                <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded mx-1">GITHUB_TOKEN</code> and
+                <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded mx-1">DEV_KIT_PASSWORD</code>
+                must be set in <strong>Supabase → Edge Functions → Secrets</strong>.
               </p>
               <a
                 href={SUPABASE_SECRETS_URL}
@@ -296,10 +287,8 @@ export function DeploymentPanel() {
                   <p className="font-medium">GitHub API unavailable</p>
                   <p className="text-xs text-destructive/70">{data.githubError}</p>
                   <p className="text-xs text-muted-foreground">
-                    Set <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">GITHUB_TOKEN</code>,{' '}
-                    <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">GITHUB_OWNER</code>, and{' '}
-                    <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">GITHUB_REPO</code> in{' '}
-                    <strong>Edge Functions → Secrets</strong> (not the Vault).
+                    Ensure <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">GITHUB_TOKEN</code> (or <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">GITHUB_ACCESS_TOKEN</code>) is configured.
+                    In production, these are read from Supabase Edge Functions → Secrets.
                   </p>
                   <a
                     href={SUPABASE_SECRETS_URL}
