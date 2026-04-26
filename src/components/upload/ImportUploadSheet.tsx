@@ -1,17 +1,21 @@
 /**
  * Import Resume Sheet
- * 
- * Redesigned import UI with megZone-inspired dark glassmorphism aesthetic.
- * Features inline format pills, AI branding, and privacy trust section.
+ *
+ * Single-step upload sheet (Task #26). One sheet, one explicit
+ * "Browse device" button that opens the native file picker accepting
+ * every supported format in a single call — the user no longer has to
+ * pre-select PDF / Word / Image / JSON / HTML before browsing. The
+ * picked file's type is detected after selection and routed through
+ * the existing per-type parsers in UploadPage.
+ *
+ * Drag-and-drop on the sheet body remains as a secondary affordance
+ * for desktop users.
  */
 
 import { useState, useRef, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Upload, 
-  FileText, 
-  FileCode, 
-  Image as ImageIcon, 
+import {
+  Upload,
+  FolderOpen,
   Shield,
   Sparkles,
 } from 'lucide-react';
@@ -20,40 +24,10 @@ import {
   SheetContent,
 } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 export type FileType = 'pdf' | 'word' | 'image' | 'json' | 'html';
-
-interface FormatPillProps {
-  type: FileType;
-  icon: React.ReactNode;
-  label: string;
-  sublabel: string;
-  isActive: boolean;
-  onClick: () => void;
-}
-
-function FormatPill({ type, icon, label, sublabel, isActive, onClick }: FormatPillProps) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "flex flex-col items-center gap-1 p-3 rounded-xl border transition-all touch-manipulation min-w-[70px]",
-        "active:scale-95",
-        isActive 
-          ? "border-primary/60 bg-primary/10 text-primary" 
-          : "border-border bg-card text-muted-foreground hover:border-primary/30"
-      )}
-    >
-      <div className="w-8 h-8 flex items-center justify-center">
-        {icon}
-      </div>
-      <span className="text-xs font-medium">{label}</span>
-      <span className="text-[10px] text-muted-foreground/80">{sublabel}</span>
-    </button>
-  );
-}
 
 interface ImportUploadSheetProps {
   open: boolean;
@@ -62,50 +36,52 @@ interface ImportUploadSheetProps {
   isProcessing?: boolean;
 }
 
-export function ImportUploadSheet({ 
-  open, 
-  onClose, 
-  onFileSelect, 
-  isProcessing = false 
+// One accept string covering every supported format. We list both
+// extensions and MIME types so iOS Safari, Android Chrome, and desktop
+// pickers all show the user's full library and accept any choice.
+const ALL_ACCEPT =
+  '.pdf,application/pdf,' +
+  '.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,' +
+  '.jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp,' +
+  '.json,application/json,' +
+  '.html,.htm,text/html';
+
+export function ImportUploadSheet({
+  open,
+  onClose,
+  onFileSelect,
+  isProcessing = false,
 }: ImportUploadSheetProps) {
   const [isDragging, setIsDragging] = useState(false);
-  const [selectedType, setSelectedType] = useState<FileType>('pdf');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Get accept string based on file type
-  const getAcceptString = (type: FileType): string => {
-    switch (type) {
-      case 'pdf': return '.pdf,application/pdf';
-      case 'word': return '.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-      case 'image': return '.jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp';
-      case 'json': return '.json,application/json';
-      case 'html': return '.html,.htm,text/html';
-    }
-  };
-
-  const handleUploadClick = useCallback(() => {
+  const handleBrowseClick = useCallback(() => {
     if (isProcessing || !fileInputRef.current) return;
-    fileInputRef.current.accept = getAcceptString(selectedType);
     fileInputRef.current.click();
-  }, [selectedType, isProcessing]);
+  }, [isProcessing]);
 
-  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    e.target.value = '';
-    onFileSelect(file, selectedType);
-  }, [selectedType, onFileSelect]);
+  const handleFileChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      // Reset so re-selecting the same file still fires onChange.
+      e.target.value = '';
+      onFileSelect(file, detectFileType(file));
+    },
+    [onFileSelect]
+  );
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const file = e.dataTransfer.files[0];
-    if (file) {
-      // Detect type from file
-      const detectedType = detectFileType(file);
-      onFileSelect(file, detectedType);
-    }
-  }, [onFileSelect]);
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      setIsDragging(false);
+      const file = e.dataTransfer.files[0];
+      if (file) {
+        onFileSelect(file, detectFileType(file));
+      }
+    },
+    [onFileSelect]
+  );
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -118,14 +94,18 @@ export function ImportUploadSheet({
 
   return (
     <Sheet open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <SheetContent 
-        side="bottom" 
+      <SheetContent
+        side="bottom"
         className="h-auto max-h-[90vh] flex flex-col rounded-t-3xl border-t border-border bg-gradient-to-b from-card to-background"
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
       >
-        {/* Hidden file input */}
+        {/* Hidden file input — one accept string covers every supported format */}
         <input
           ref={fileInputRef}
           type="file"
+          accept={ALL_ACCEPT}
           onChange={handleFileChange}
           className="hidden"
           disabled={isProcessing}
@@ -133,8 +113,8 @@ export function ImportUploadSheet({
 
         {/* Header with AI Badge */}
         <div className="pb-4">
-          <Badge 
-            variant="outline" 
+          <Badge
+            variant="outline"
             className="border-primary/40 bg-primary/10 text-primary px-3 py-1"
           >
             <Sparkles className="w-3 h-3 mr-1.5" />
@@ -149,109 +129,44 @@ export function ImportUploadSheet({
             Import Resume
           </h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Upload your existing CV and let our AI parse, organize, and optimize it for the editor.
+            Pick your CV from your device — we'll detect the format and parse it for you.
           </p>
         </div>
 
-        {/* Drop Zone */}
-        <motion.div
-          role="button"
-          tabIndex={isProcessing ? -1 : 0}
-          onClick={handleUploadClick}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              handleUploadClick();
-            }
-          }}
-          onDrop={handleDrop}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
+        {/* Accepted formats — informational only. Highlights when the
+            user is dragging a file over the sheet on desktop. */}
+        <div
           className={cn(
-            "relative rounded-2xl border-2 border-dashed p-8 flex flex-col items-center justify-center gap-3 cursor-pointer transition-all outline-none focus-visible:ring-2 focus-visible:ring-primary",
-            isDragging
-              ? "border-primary bg-primary/10"
-              : "border-border hover:border-primary/50 bg-card",
-            isProcessing && "pointer-events-none opacity-60"
+            'rounded-2xl border bg-card p-4 mb-4 transition-colors',
+            isDragging ? 'border-primary bg-primary/5' : 'border-border'
           )}
-          animate={isDragging ? { scale: 1.02 } : { scale: 1 }}
         >
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={isDragging ? 'drop' : 'upload'}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="flex flex-col items-center gap-2"
-            >
-              <div className={cn(
-                "w-14 h-14 rounded-2xl flex items-center justify-center",
-                "bg-gradient-to-br from-primary/20 to-accent/20 border border-primary/30"
-              )}>
-                {isDragging ? (
-                  <FileText className="w-7 h-7 text-primary" />
-                ) : (
-                  <Upload className="w-7 h-7 text-primary" />
-                )}
-              </div>
-              <p className="text-sm font-medium">
-                {isDragging ? 'Drop to upload' : 'Click to upload'}
-              </p>
-              <p className="text-xs text-muted-foreground">or drag and drop</p>
-            </motion.div>
-          </AnimatePresence>
-          
-          {/* File types hint */}
-          <div className="text-xs text-muted-foreground/70 mt-2">
-            .JSON, .PDF, .DOCX, .PNG, .HTML
-          </div>
-        </motion.div>
-
-        {/* Format Pills */}
-        <div className="pt-5 pb-4">
-          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-            <FormatPill
-              type="pdf"
-              icon={<FileText className="w-5 h-5" />}
-              label="PDF"
-              sublabel="Auto Parse"
-              isActive={selectedType === 'pdf'}
-              onClick={() => setSelectedType('pdf')}
-            />
-            <FormatPill
-              type="word"
-              icon={<FileText className="w-5 h-5" />}
-              label="DOCX"
-              sublabel="Word Docs"
-              isActive={selectedType === 'word'}
-              onClick={() => setSelectedType('word')}
-            />
-            <FormatPill
-              type="image"
-              icon={<ImageIcon className="w-5 h-5" />}
-              label="IMG"
-              sublabel="OCR Vision"
-              isActive={selectedType === 'image'}
-              onClick={() => setSelectedType('image')}
-            />
-            <FormatPill
-              type="json"
-              icon={<FileCode className="w-5 h-5" />}
-              label="JSON"
-              sublabel="Direct Data"
-              isActive={selectedType === 'json'}
-              onClick={() => setSelectedType('json')}
-            />
-            <FormatPill
-              type="html"
-              icon={<FileCode className="w-5 h-5" />}
-              label="HTML"
-              sublabel="Web Export"
-              isActive={selectedType === 'html'}
-              onClick={() => setSelectedType('html')}
-            />
-          </div>
+          <p className="text-xs font-medium text-muted-foreground mb-1">
+            Accepted formats
+          </p>
+          <p className="text-sm">
+            PDF · Word (.doc / .docx) · Image · JSON · HTML
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Up to 10MB.{' '}
+            {isDragging
+              ? 'Drop your file to upload.'
+              : 'Drag and drop also works on desktop.'}
+          </p>
         </div>
+
+        {/* Single primary CTA — opens the device picker with all types at once */}
+        <Button
+          type="button"
+          size="lg"
+          onClick={handleBrowseClick}
+          disabled={isProcessing}
+          className="w-full h-14 gap-2 mb-4 text-base"
+          aria-label="Browse device for resume"
+        >
+          <FolderOpen className="w-5 h-5" />
+          Browse device
+        </Button>
 
         {/* Privacy Badge */}
         <div className="rounded-xl border border-border bg-muted p-4 mb-safe">
@@ -273,22 +188,28 @@ export function ImportUploadSheet({
 }
 
 /**
- * Detect file type from MIME type or extension
+ * Detect file type from MIME type or extension. Mirrors the detection
+ * already used by UploadPage's drag-and-drop path so both entry points
+ * stay in lock-step.
  */
 function detectFileType(file: File): FileType {
   const mime = file.type.toLowerCase();
   const ext = file.name.split('.').pop()?.toLowerCase();
-  
+
   if (mime === 'application/pdf' || ext === 'pdf') return 'pdf';
   if (mime === 'application/json' || ext === 'json') return 'json';
   if (mime === 'text/html' || ext === 'html' || ext === 'htm') return 'html';
-  if (mime.startsWith('image/') || ['jpg', 'jpeg', 'png', 'webp'].includes(ext || '')) return 'image';
+  if (mime.startsWith('image/') || ['jpg', 'jpeg', 'png', 'webp'].includes(ext || '')) {
+    return 'image';
+  }
   if (
     mime === 'application/msword' ||
     mime === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
     ext === 'doc' ||
     ext === 'docx'
-  ) return 'word';
-  
+  ) {
+    return 'word';
+  }
+
   return 'pdf'; // Default fallback
 }

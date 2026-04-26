@@ -110,17 +110,6 @@ export default function UploadPage() {
       .finally(() => setIsImportScoring(false));
   }, [scoreResume]);
 
-  // Get accept string based on file type
-  function getAcceptString(type: FileType): string {
-    switch (type) {
-      case 'pdf': return '.pdf,application/pdf';
-      case 'word': return '.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-      case 'image': return '.jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp';
-      case 'json': return '.json,application/json';
-      case 'html': return '.html,.htm,text/html';
-    }
-  }
-
   const handleOCRConfirm = useCallback(async () => {
     if (!pendingFile) return;
     
@@ -1049,7 +1038,7 @@ export default function UploadPage() {
                     </h2>
                     
                     <p className="text-muted-foreground text-center text-sm mb-4 max-w-[260px]">
-                      Tap to choose file type, or drag and drop
+                      Tap to pick your CV — we'll detect the format
                     </p>
 
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
