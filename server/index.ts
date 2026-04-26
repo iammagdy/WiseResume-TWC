@@ -1200,6 +1200,98 @@ app.all('/api/fn/admin-mission-control', async (req, res) => {
   }
 });
 
+// ── verify-dev-kit (DevKit login — issues a session token) ───────────────────
+const DEVKIT_LOCKOUT_WINDOW_SECONDS = 10 * 60;
+const DEVKIT_MAX_FAILURES = 5;
+const DEVKIT_LOCKOUT_DURATION_SECONDS = 10 * 60;
+const DEVKIT_SESSION_TTL_HOURS = 8;
+const DEVKIT_SESSION_TTL_REMEMBER_DAYS = 30;
+
+async function hmacHex(key: string, message: string): Promise<string> {
+  const { createHmac } = await import('crypto');
+  return createHmac('sha256', key).update(message).digest('hex');
+}
+
+async function devkitSignToken(email: string, sessionId: string, expiresAt: number, secret: string): Promise<string> {
+  const payload = `${email}:${sessionId}:${expiresAt}`;
+  const sig = await hmacHex(secret, payload);
+  return `${Buffer.from(payload).toString('base64')}.${sig}`;
+}
+
+async function devkitPasswordsMatch(input: string, stored: string): Promise<boolean> {
+  const FIXED_MSG = 'wiseresume-devkit-auth';
+  const [macA, macB] = await Promise.all([hmacHex(input, FIXED_MSG), hmacHex(stored, FIXED_MSG)]);
+  return macA === macB;
+}
+
+async function devkitGetLockoutStatus(lockKey: string): Promise<{ locked: boolean; retry_after_seconds?: number; locked_until?: string }> {
+  try {
+    const windowStart = new Date(Date.now() - DEVKIT_LOCKOUT_WINDOW_SECONDS * 1000).toISOString();
+    const rows = await supabaseGet<{ created_at: string }>('rpc_rate_limits', `select=created_at&ip_address=eq.${encodeURIComponent(lockKey)}&endpoint=eq.devkit-login-fail&created_at=gte.${encodeURIComponent(windowStart)}&order=created_at.desc`);
+    if (rows.length >= DEVKIT_MAX_FAILURES) {
+      const oldest = rows[rows.length - 1].created_at;
+      const lockedUntil = new Date(new Date(oldest).getTime() + DEVKIT_LOCKOUT_DURATION_SECONDS * 1000);
+      const retryAfter = Math.max(0, Math.ceil((lockedUntil.getTime() - Date.now()) / 1000));
+      if (retryAfter > 0) return { locked: true, retry_after_seconds: retryAfter, locked_until: lockedUntil.toISOString() };
+    }
+    return { locked: false };
+  } catch { return { locked: false }; }
+}
+
+app.all('/api/fn/verify-dev-kit', async (req, res) => {
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  try {
+    const { email, password, rememberMe } = req.body ?? {};
+    if (!email || !password) return res.status(400).json({ error: 'Email and password are required' });
+
+    const SECRET_PASSWORD = (process.env.DEV_KIT_PASSWORD ?? '').trim();
+    if (!SECRET_PASSWORD) return res.status(500).json({ error: 'DEV_KIT_PASSWORD secret is not configured.' });
+
+    const ADMIN_EMAILS = process.env.ADMIN_EMAILS ?? '';
+    const allowed = ADMIN_EMAILS.split(',').map((e: string) => e.trim().toLowerCase()).filter(Boolean);
+    if (!allowed.length) return res.status(500).json({ error: 'ADMIN_EMAILS secret is not configured.' });
+
+    const callerEmail = email.trim().toLowerCase();
+    const lockKey = callerEmail.replace(/[^a-z0-9]/g, '_');
+
+    const lockoutStatus = await devkitGetLockoutStatus(lockKey);
+    if (lockoutStatus.locked) {
+      return res.status(429).json({ success: false, locked: true, retry_after_seconds: lockoutStatus.retry_after_seconds, locked_until: lockoutStatus.locked_until, error: 'Too many failed attempts. Please wait before trying again.' });
+    }
+
+    if (!allowed.includes(callerEmail)) {
+      return res.status(200).json({ success: false, authorized: false, reason: 'email_not_allowed' });
+    }
+
+    const isPasswordValid = await devkitPasswordsMatch(password.trim(), SECRET_PASSWORD);
+    if (!isPasswordValid) {
+      supabaseInsert('rpc_rate_limits', { user_id: null, endpoint: 'devkit-login-fail', ip_address: lockKey }).catch(() => {});
+      await new Promise(r => setTimeout(r, 50));
+      const newLock = await devkitGetLockoutStatus(lockKey);
+      if (newLock.locked) {
+        return res.status(429).json({ success: false, locked: true, retry_after_seconds: newLock.retry_after_seconds, locked_until: newLock.locked_until, error: 'Too many failed attempts. Please wait before trying again.' });
+      }
+      return res.status(200).json({ success: false });
+    }
+
+    const ttlMs = rememberMe ? DEVKIT_SESSION_TTL_REMEMBER_DAYS * 24 * 60 * 60 * 1000 : DEVKIT_SESSION_TTL_HOURS * 60 * 60 * 1000;
+    const expiresAtMs = Date.now() + ttlMs;
+    const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ?? req.headers['x-real-ip'] as string ?? null;
+
+    const inserted = await supabaseInsert<{ id: string }>('admin_sessions', {
+      email: callerEmail, expires_at: new Date(expiresAtMs).toISOString(), ip: ip ?? null, user_agent: req.headers['user-agent'] ?? null,
+    });
+    if (!inserted[0]?.id) return res.status(500).json({ success: false, error: 'Failed to issue session' });
+
+    const sessionToken = await devkitSignToken(callerEmail, inserted[0].id, expiresAtMs, SECRET_PASSWORD);
+    return res.status(200).json({ success: true, token: sessionToken, session_id: inserted[0].id, expires_at: expiresAtMs });
+
+  } catch (err) {
+    console.error('[verify-dev-kit] error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // ── admin-broadcast ───────────────────────────────────────────────────────────
 app.all('/api/fn/admin-broadcast', async (req, res) => {
   const callerEmail = await requireDevKitAuth(req, res);
