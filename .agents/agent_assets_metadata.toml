@@ -24,3 +24,9 @@ id = "xTs21psbC5fZ3QSed8yFy"
 uri = "file://wallpaper-kinde.png"
 type = "image"
 title = "Kinde Sign-In Background Wallpaper (1920×1080)"
+
+[[outputs]]
+id = "EUJQCIjV6nNJ0iW2A_yNz"
+uri = "file://.local/editor_audit_report.md"
+type = "text"
+title = "Resume Editor (/editor) — Evidence-Based Audit Report"
