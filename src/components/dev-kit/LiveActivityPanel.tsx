@@ -362,11 +362,15 @@ export function LiveActivityPanel() {
     const newErrors: RecentError[] = [];
 
     for (const def of defs) {
-      // The `me` probe is user-scoped: it requires an active Kinde/Supabase
-      // session. When the admin opens the Dev Kit without signing in to the
-      // main app, calling it would always come back as "Session expired" and
-      // pollute the health card with a fake amber warn. Skip it cleanly.
-      if (def.name === 'me' && !isAuthenticated) {
+      // Some probes are user-scoped and require an active Kinde/Supabase session.
+      // • `me` — obvious user-identity call.
+      // • `agentic-chat` / `analyze-resume` — their outer catch converts AuthError
+      //   → toUserError() which maps any Error to status 500 (unlike tailor-resume /
+      //   enhance-section which have a dedicated catch for authErr → authErrorResponse
+      //   → 401). Without a session they always come back 500 and pollute the health
+      //   card with a false "error". Skip all three cleanly when not authenticated.
+      const requiresUserSession = def.name === 'me' || def.name === 'agentic-chat' || def.name === 'analyze-resume';
+      if (requiresUserSession && !isAuthenticated) {
         checkedResults.push({
           name: def.name,
           label: def.label,

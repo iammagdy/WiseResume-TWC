@@ -580,7 +580,22 @@ export function DevKitRunner() {
                   : `❌ ${smokeSummary.failed} failed: ${smokeSummary.failedIds.join(', ')}`
                 }
               </span>
-              {smokeSummary.failed === 0 && smokeSummary.passed > 0 && (
+              {smokeSummary.failed === 0 && smokeSummary.skipped > 0 && (
+                <p className="text-xs text-muted-foreground font-normal mt-0.5">
+                  {smokeSummary.skipped} check{smokeSummary.skipped !== 1 ? 's' : ''} require a user session —{' '}
+                  <a
+                    href="/sign-in?mode=login"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline hover:text-foreground transition-colors"
+                  >
+                    sign in to the main app
+                  </a>
+                  {' '}in a separate tab, then re-run.
+                  {smokeSummary.passed > 0 && ' Email Service Test ran in dry-run mode — no real email was sent.'}
+                </p>
+              )}
+              {smokeSummary.failed === 0 && smokeSummary.skipped === 0 && smokeSummary.passed > 0 && (
                 <p className="text-xs text-muted-foreground font-normal mt-0.5">
                   Email Service Test ran in dry-run mode — no real email was sent.
                 </p>
