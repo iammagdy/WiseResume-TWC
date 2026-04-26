@@ -9,7 +9,7 @@ import {
   isValidEditorSheetId,
 } from '@/lib/editorSession';
 import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
-import { Sparkles, BarChart3, Scissors, ArrowLeft, Clock, AlertTriangle, Loader2 } from 'lucide-react';
+import { Sparkles, BarChart3, Scissors, ArrowLeft, Clock, AlertTriangle, Loader2, Undo2, Redo2, FileDown } from 'lucide-react';
 import { useAIEnhancingStore } from '@/store/aiEnhancingStore';
 import { useIsMobile, EDITOR_MOBILE_BREAKPOINT } from '@/hooks/use-mobile';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -1189,7 +1189,9 @@ export default function EditorPage() {
                     aiEnhancingCount > 0 && tab !== 'editor' && 'opacity-40 cursor-not-allowed'
                   )}
                 >
-                  {tab === 'editor' ? 'Edit' : tab === 'preview' ? 'Preview' : 'ATS'}
+                  {tab === 'editor' ? 'Edit' : tab === 'preview' ? 'Preview' : (
+                    <span className="flex items-center gap-1"><BarChart3 className="w-3 h-3" />Score</span>
+                  )}
                 </button>
               ))}
             </div>
@@ -1224,8 +1226,36 @@ export default function EditorPage() {
               <EditorSectionContent {...editorSectionProps} />
             </div>
             {/* Pinned nav — always visible above bottom tab bar */}
-            <div className="shrink-0 px-4 pb-[calc(5rem+env(safe-area-inset-bottom))] border-t border-border bg-background">
-              <SectionNavButtons steps={steps} activeTab={activeTab} handleTabChange={handleTabChange} navigate={navigate} />
+            <div className="shrink-0 border-t border-border bg-background">
+              {/* Undo / Redo row */}
+              <div className="flex items-center gap-0.5 px-3 pt-2 pb-0">
+                <button
+                  onClick={() => { haptics.light(); handleUndo(); }}
+                  disabled={!canUndo}
+                  aria-label={canUndo ? `Undo: ${undoDescription}` : 'Nothing to undo'}
+                  className={cn(
+                    'p-2 rounded-lg transition-all touch-manipulation active:scale-95 min-w-[44px] min-h-[36px] flex items-center justify-center',
+                    canUndo ? 'text-foreground hover:bg-muted' : 'text-muted-foreground/30 cursor-not-allowed'
+                  )}
+                >
+                  <Undo2 className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => { haptics.light(); handleRedo(); }}
+                  disabled={!canRedo}
+                  aria-label={canRedo ? `Redo: ${redoDescription}` : 'Nothing to redo'}
+                  className={cn(
+                    'p-2 rounded-lg transition-all touch-manipulation active:scale-95 min-w-[44px] min-h-[36px] flex items-center justify-center',
+                    canRedo ? 'text-foreground hover:bg-muted' : 'text-muted-foreground/30 cursor-not-allowed'
+                  )}
+                >
+                  <Redo2 className="w-4 h-4" />
+                </button>
+                <span className="text-[10px] text-muted-foreground ml-0.5 select-none">Undo / Redo</span>
+              </div>
+              <div className="px-4 pb-[calc(5rem+env(safe-area-inset-bottom))]">
+                <SectionNavButtons steps={steps} activeTab={activeTab} handleTabChange={handleTabChange} navigate={navigate} />
+              </div>
             </div>
           </TabsContent>
           <TabsContent value="preview" className="flex-1 min-h-0 overflow-hidden mt-0 flex flex-col">
@@ -1509,6 +1539,27 @@ export default function EditorPage() {
                       <div className="text-left min-w-0">
                         <p className="text-sm font-medium">Keyword Matcher</p>
                         <p className="text-xs text-muted-foreground">Match job description keywords</p>
+                      </div>
+                    </button>
+                    <div className="h-px bg-border my-1" />
+                    <button
+                      onClick={() => { haptics.light(); setShowToolsSheet(false); sheets.open('versionHistory'); }}
+                      className="flex items-center gap-3 w-full rounded-xl border border-border bg-card hover:bg-muted active:scale-[0.98] transition-transform touch-manipulation min-h-[56px] px-4"
+                    >
+                      <Clock className="w-5 h-5 text-slate-500 shrink-0" />
+                      <div className="text-left min-w-0">
+                        <p className="text-sm font-medium">Version History</p>
+                        <p className="text-xs text-muted-foreground">View and restore past versions</p>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => { haptics.light(); setShowToolsSheet(false); sheets.open('profileImport'); }}
+                      className="flex items-center gap-3 w-full rounded-xl border border-border bg-card hover:bg-muted active:scale-[0.98] transition-transform touch-manipulation min-h-[56px] px-4"
+                    >
+                      <FileDown className="w-5 h-5 text-indigo-500 shrink-0" />
+                      <div className="text-left min-w-0">
+                        <p className="text-sm font-medium">Import Profile</p>
+                        <p className="text-xs text-muted-foreground">Import data from LinkedIn or PDF</p>
                       </div>
                     </button>
                   </div>

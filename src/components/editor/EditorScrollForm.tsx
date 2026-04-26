@@ -128,8 +128,14 @@ export function EditorScrollForm({
   // by resumeId in EditorPage, so switching resumes forces a clean remount and recomputation.
   const initialOpenSections = useMemo<Record<string, boolean>>(() => {
     const result: Record<string, boolean> = {};
+    let foundFirst = false;
     for (const id of CORE_SECTION_IDS) {
-      result[id] = (sectionScores[id] ?? 0) === 0;
+      if (!foundFirst && (sectionScores[id] ?? 0) === 0) {
+        result[id] = true;
+        foundFirst = true;
+      } else {
+        result[id] = false;
+      }
     }
     return result;
     // eslint-disable-next-line react-hooks/exhaustive-deps
