@@ -328,12 +328,13 @@ export function AnalyticsPanel() {
 
             <SectionCard
               title="Device breakdown"
-              description="Portfolio visits by device class (mobile / desktop / tablet)."
+              description="Portfolio visits by device class (mobile / desktop / tablet). Populated from portfolio visitor user-agents."
               icon={Smartphone}
             >
-              {data.deviceBreakdown.length === 0 ? <EmptyState message="No device data in this window" /> : (
-                <Donut items={data.deviceBreakdown} />
-              )}
+              {data.deviceBreakdown.length === 0
+                ? <EmptyState message="No device data yet — this populates once portfolio pages receive visitors with tracked user-agents" />
+                : <Donut items={data.deviceBreakdown} />
+              }
             </SectionCard>
           </div>
 
@@ -341,10 +342,10 @@ export function AnalyticsPanel() {
           <div className="grid grid-cols-1 gap-4">
             <SectionCard
               title="Top Countries"
-              description="Countries ranked by registered user count (all-time, from profile data — not affected by the time-range selector above)."
+              description="Countries ranked by registered user count (all-time, from profile data). Requires users to have a country set in their profile."
               icon={Globe}
             >
-              {data.countryRanking.length === 0 ? <EmptyState /> : (
+              {data.countryRanking.length === 0 ? <EmptyState message="No country data yet — populates once users set a country in their profile" /> : (
                 <RankedList items={data.countryRanking.map(c => ({ name: c.country, count: c.count }))} maxItems={8} />
               )}
             </SectionCard>

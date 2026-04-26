@@ -771,13 +771,17 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
                                 const isKindeShadow = (user.email ?? '').endsWith('@collision.kinde.placeholder');
                                 // For shadow/collision rows, show the real contact_email as primary.
                                 // For normal rows, always show the auth email as primary.
+                                // For shadow users with no contact_email, hide the garbled shadow address.
                                 const displayEmail = isKindeShadow
-                                  ? (user.contact_email || user.email)
+                                  ? (user.contact_email || null)
                                   : user.email;
                                 return (
                                   <>
                                     <div className="flex items-center gap-1.5 flex-wrap">
-                                      <p className="font-mono text-xs truncate max-w-[160px]">{displayEmail}</p>
+                                      {displayEmail
+                                        ? <p className="font-mono text-xs truncate max-w-[160px]">{displayEmail}</p>
+                                        : <p className="text-xs italic text-muted-foreground">No email on record</p>
+                                      }
                                       {user.has_id_conflict && !user.contact_email && (
                                         <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-600 border-amber-500/30 dark:text-amber-400 shrink-0">
                                           ID conflict

@@ -364,7 +364,20 @@ export function WiseHireWaitlistPanel() {
                             Activity
                           </Button>
                           {isActive ? (
-                            <span className="text-xs text-muted-foreground">Signed up</span>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-xs gap-1.5 text-destructive hover:text-destructive border-destructive/30 hover:bg-destructive/10"
+                              onClick={() => setDeleteTarget(entry)}
+                              disabled={isBusy}
+                              title="Remove from waitlist"
+                            >
+                              {deleting === entry.id
+                                ? <Loader2 className="w-3 h-3 animate-spin" />
+                                : <Trash2 className="w-3 h-3" />
+                              }
+                              Delete
+                            </Button>
                           ) : isInvited ? (
                             <>
                               <Button
