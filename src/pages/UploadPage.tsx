@@ -262,8 +262,11 @@ export default function UploadPage() {
     setIsImportScoring(false);
   }, []);
 
-  // Detect file type from MIME type or extension
-  function detectFileType(file: File): FileType {
+  // Detect file type from MIME type or extension. Returns null when the
+  // file isn't one of the supported formats — handleFile then surfaces
+  // the existing "Unsupported file type" toast instead of silently
+  // routing it into the PDF parser.
+  function detectFileType(file: File): FileType | null {
     const mime = file.type.toLowerCase();
     const ext = file.name.split('.').pop()?.toLowerCase();
     
@@ -278,7 +281,7 @@ export default function UploadPage() {
       ext === 'docx'
     ) return 'word';
     
-    return 'pdf'; // Default fallback
+    return null;
   }
 
   // Handle JSON file (direct import, skips AI)
@@ -917,9 +920,12 @@ export default function UploadPage() {
     }
   }, [handleFile]);
 
-  // Handle file selection from the new ImportUploadSheet
-  const handleFileFromSheet = useCallback((file: File, type: FileType) => {
-    handleFile(file, type);
+  // Handle file selection from the new ImportUploadSheet. `type` may be
+  // null when the picked/dropped file isn't one of the supported formats;
+  // we forward `undefined` so handleFile re-runs detection and surfaces
+  // the unsupported-type toast through its existing branch.
+  const handleFileFromSheet = useCallback((file: File, type: FileType | null) => {
+    handleFile(file, type ?? undefined);
   }, [handleFile]);
 
   return (

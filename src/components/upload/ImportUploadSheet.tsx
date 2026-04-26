@@ -32,7 +32,13 @@ export type FileType = 'pdf' | 'word' | 'image' | 'json' | 'html';
 interface ImportUploadSheetProps {
   open: boolean;
   onClose: () => void;
-  onFileSelect: (file: File, type: FileType) => void;
+  /**
+   * Called when the user picks (or drops) a file. `type` is `null` when
+   * the file's extension/MIME doesn't match any supported format — the
+   * caller should reject it with the standard unsupported-type toast
+   * rather than guess a parser.
+   */
+  onFileSelect: (file: File, type: FileType | null) => void;
   isProcessing?: boolean;
 }
 
@@ -191,8 +197,13 @@ export function ImportUploadSheet({
  * Detect file type from MIME type or extension. Mirrors the detection
  * already used by UploadPage's drag-and-drop path so both entry points
  * stay in lock-step.
+ *
+ * Returns `null` when the file isn't one of the supported formats so
+ * the caller can show a clear "unsupported type" message rather than
+ * silently routing it into the PDF parser (which would fail with a
+ * confusing error downstream).
  */
-function detectFileType(file: File): FileType {
+function detectFileType(file: File): FileType | null {
   const mime = file.type.toLowerCase();
   const ext = file.name.split('.').pop()?.toLowerCase();
 
@@ -211,5 +222,5 @@ function detectFileType(file: File): FileType {
     return 'word';
   }
 
-  return 'pdf'; // Default fallback
+  return null;
 }
