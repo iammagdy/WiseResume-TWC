@@ -471,6 +471,74 @@ async function supabaseRpc<T = unknown>(fnName: string, params: Record<string, u
   return (await r.json()) as T;
 }
 
+// Supabase Auth Admin REST helper
+async function supabaseAuthAdmin<T = unknown>(method: string, path: string, body?: unknown): Promise<T> {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) throw new Error('Supabase not configured');
+  const r = await fetch(`${SUPABASE_URL}/auth/v1/admin/${path}`, {
+    method,
+    headers: { apikey: SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`, 'Content-Type': 'application/json' },
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+  if (!r.ok && r.status !== 204) { const t = await r.text().catch(() => ''); throw new Error(`Supabase Auth Admin ${method} /${path} ${r.status}: ${t.slice(0, 300)}`); }
+  if (method === 'DELETE' || r.status === 204) return {} as T;
+  return (await r.json()) as T;
+}
+
+// Kinde M2M helpers
+let _kindeM2MCache: { token: string; expiresAt: number } | null = null;
+async function getKindeM2MToken(): Promise<string> {
+  const clientId = process.env.KINDE_M2M_CLIENT_ID?.trim();
+  const clientSecret = process.env.KINDE_M2M_CLIENT_SECRET?.trim();
+  const domain = process.env.KINDE_DOMAIN?.trim();
+  if (!clientId || !clientSecret || !domain) throw new Error('Kinde M2M credentials not configured (KINDE_M2M_CLIENT_ID / KINDE_M2M_CLIENT_SECRET / KINDE_DOMAIN)');
+  if (_kindeM2MCache && _kindeM2MCache.expiresAt > Date.now() + 60_000) return _kindeM2MCache.token;
+  const r = await fetch(`https://${domain}/oauth2/token`, {
+    method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ grant_type: 'client_credentials', client_id: clientId, client_secret: clientSecret }),
+  });
+  if (!r.ok) throw new Error(`Kinde M2M token failed: ${r.status}`);
+  const data = await r.json() as { access_token: string; expires_in: number };
+  _kindeM2MCache = { token: data.access_token, expiresAt: Date.now() + (data.expires_in - 60) * 1000 };
+  return _kindeM2MCache.token;
+}
+async function kindeGet<T = unknown>(path: string): Promise<T> {
+  const domain = process.env.KINDE_DOMAIN?.trim();
+  if (!domain) throw new Error('KINDE_DOMAIN not configured');
+  const token = await getKindeM2MToken();
+  const r = await fetch(`https://${domain}${path}`, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } });
+  if (!r.ok) throw new Error(`Kinde API GET ${path} ${r.status}`);
+  return (await r.json()) as T;
+}
+async function kindeDelete(path: string): Promise<void> {
+  const domain = process.env.KINDE_DOMAIN?.trim();
+  if (!domain) throw new Error('KINDE_DOMAIN not configured');
+  const token = await getKindeM2MToken();
+  const r = await fetch(`https://${domain}${path}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+  if (!r.ok) throw new Error(`Kinde API DELETE ${path} ${r.status}`);
+}
+
+// Resend API helper (fire-and-forget safe)
+async function resendPost<T = unknown>(path: string, body: unknown): Promise<T | null> {
+  const apiKey = process.env.RESEND_API_KEY?.trim();
+  if (!apiKey) return null;
+  try {
+    const r = await fetch(`https://api.resend.com${path}`, {
+      method: 'POST', headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(8000),
+    });
+    if (!r.ok) return null;
+    return (await r.json()) as T;
+  } catch { return null; }
+}
+async function resendGet<T = unknown>(path: string): Promise<T | null> {
+  const apiKey = process.env.RESEND_API_KEY?.trim();
+  if (!apiKey) return null;
+  try {
+    const r = await fetch(`https://api.resend.com${path}`, { headers: { Authorization: `Bearer ${apiKey}` }, signal: AbortSignal.timeout(8000) });
+    if (!r.ok) return null;
+    return (await r.json()) as T;
+  } catch { return null; }
+}
+
 // ── Kinde JWKS cache ──────────────────────────────────────────────────────────
 let _kindeJWKS: jose.JSONWebKeySet | null = null;
 let _kindejwksCachedAt = 0;
@@ -1991,6 +2059,793 @@ app.all('/api/fn/admin-resend-sync', async (req, res) => {
     }
 
     return res.json({ success: true, total: unique.length, added, failed });
+  } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
+});
+
+// ── admin-env-check ───────────────────────────────────────────────────────────
+const ENV_CHECK_KEYS = [
+  { key: 'SUPABASE_URL', label: 'Supabase URL' }, { key: 'SUPABASE_ANON_KEY', label: 'Supabase Anon Key' },
+  { key: 'SUPABASE_SERVICE_ROLE_KEY', label: 'Supabase Service Role Key' }, { key: 'DEV_KIT_PASSWORD', label: 'DevKit Password' },
+  { key: 'KINDE_DOMAIN', label: 'Kinde Domain' }, { key: 'OPENROUTER_KEY_1', label: 'OpenRouter Key 1' },
+  { key: 'OPENROUTER_KEY_2', label: 'OpenRouter Key 2' }, { key: 'OPENROUTER_KEY_3', label: 'OpenRouter Key 3' },
+  { key: 'GROQ_KEY_1', label: 'Groq Key 1' }, { key: 'GROQ_KEY_2', label: 'Groq Key 2' }, { key: 'GROQ_KEY_3', label: 'Groq Key 3' },
+  { key: 'GITHUB_TOKEN', label: 'GitHub Token' }, { key: 'GITHUB_OWNER', label: 'GitHub Owner' }, { key: 'GITHUB_REPO', label: 'GitHub Repo' },
+  { key: 'RESEND_API_KEY', label: 'Resend API Key' }, { key: 'KINDE_WEBHOOK_SECRET', label: 'Kinde Webhook Secret' },
+  { key: 'KINDE_M2M_CLIENT_ID', label: 'Kinde M2M Client ID' }, { key: 'KINDE_M2M_CLIENT_SECRET', label: 'Kinde M2M Client Secret' },
+];
+app.all('/api/fn/admin-env-check', async (req, res) => {
+  const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
+  const checks = ENV_CHECK_KEYS.map(({ key, label }) => ({ key, label, present: !!process.env[key] }));
+  const supabaseProjectRef = SUPABASE_URL?.match(/https:\/\/([^.]+)/)?.[1];
+  const supabaseUrl = supabaseProjectRef ? `https://supabase.com/dashboard/project/${supabaseProjectRef}` : null;
+  res.json({ success: true, checks, supabaseUrl });
+});
+
+// ── admin-get-settings ────────────────────────────────────────────────────────
+app.all('/api/fn/admin-get-settings', async (req, res) => {
+  const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
+  try {
+    const rows = await supabaseGet<{ key: string; value: unknown }>('app_settings', 'select=key,value&order=key.asc');
+    const settings = Object.fromEntries(rows.map(r => [r.key, r.value]));
+    res.json({ success: true, settings });
+  } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
+});
+
+// ── admin-update-settings ─────────────────────────────────────────────────────
+app.all('/api/fn/admin-update-settings', async (req, res) => {
+  const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
+  try {
+    const { key, value } = req.body ?? {};
+    if (!key) return res.status(400).json({ success: false, error: 'key required' });
+    await supabaseUpsert('app_settings', { key, value: value ?? null, updated_at: new Date().toISOString(), updated_by: callerEmail }, 'key');
+    supabaseInsert('audit_logs', { user_id: null, category: 'admin_settings', action: 'update_setting', metadata: { key, performed_by: callerEmail } }).catch(() => {});
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
+});
+
+// ── admin-ai-caps ─────────────────────────────────────────────────────────────
+app.all('/api/fn/admin-ai-caps', async (req, res) => {
+  const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
+  try {
+    const body = req.body ?? {}; const action: string = body.action ?? 'get_caps';
+    if (action === 'get_caps') {
+      const rows = await supabaseGet<{ key: string; value: unknown }>('app_settings', 'select=key,value&key=like.daily_cap_*,key=like.global_daily_limit*,key=like.user_limit_*');
+      const settings = Object.fromEntries(rows.map(r => [r.key, r.value]));
+      return res.json({ success: true, settings });
+    }
+    if (action === 'set_plan_cap') {
+      const { plan, daily_limit } = body as { plan?: string; daily_limit?: number };
+      if (!plan || daily_limit === undefined) return res.status(400).json({ success: false, error: 'plan and daily_limit required' });
+      const key = `daily_cap_${plan}`;
+      await supabaseUpsert('app_settings', { key, value: daily_limit, updated_at: new Date().toISOString(), updated_by: callerEmail }, 'key');
+      supabaseInsert('audit_logs', { user_id: null, category: 'ai_caps', action: 'set_plan_cap', metadata: { plan, daily_limit, performed_by: callerEmail } }).catch(() => {});
+      return res.json({ success: true, key, daily_limit });
+    }
+    if (action === 'set_global_cap') {
+      const { daily_limit } = body as { daily_limit?: number };
+      if (daily_limit === undefined) return res.status(400).json({ success: false, error: 'daily_limit required' });
+      await supabaseUpsert('app_settings', { key: 'global_daily_limit', value: daily_limit, updated_at: new Date().toISOString(), updated_by: callerEmail }, 'key');
+      supabaseInsert('audit_logs', { user_id: null, category: 'ai_caps', action: 'set_global_cap', metadata: { daily_limit, performed_by: callerEmail } }).catch(() => {});
+      return res.json({ success: true, daily_limit });
+    }
+    if (action === 'set_user_cap') {
+      const { user_id, daily_limit } = body as { user_id?: string; daily_limit?: number | null };
+      if (!user_id) return res.status(400).json({ success: false, error: 'user_id required' });
+      const key = `user_limit_${user_id}`;
+      if (daily_limit === null || daily_limit === undefined) {
+        await supabaseDelete('app_settings', `key=eq.${encodeURIComponent(key)}`);
+      } else {
+        await supabaseUpsert('app_settings', { key, value: daily_limit, updated_at: new Date().toISOString(), updated_by: callerEmail }, 'key');
+      }
+      supabaseInsert('audit_logs', { user_id, category: 'ai_caps', action: 'set_user_cap', metadata: { daily_limit, performed_by: callerEmail } }).catch(() => {});
+      return res.json({ success: true, user_id, daily_limit: daily_limit ?? null });
+    }
+    if (action === 'get_user_cap') {
+      const { user_id } = body as { user_id?: string };
+      if (!user_id) return res.status(400).json({ success: false, error: 'user_id required' });
+      const rows = await supabaseGet<{ value: unknown }>('app_settings', `select=value&key=eq.${encodeURIComponent(`user_limit_${user_id}`)}&limit=1`);
+      return res.json({ success: true, daily_limit: rows[0]?.value ?? null });
+    }
+    res.status(400).json({ success: false, error: `Unknown action: ${action}` });
+  } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
+});
+
+// ── admin-manage-coupons ──────────────────────────────────────────────────────
+app.all('/api/fn/admin-manage-coupons', async (req, res) => {
+  const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
+  try {
+    const body = req.body ?? {}; const action: string = body.action ?? 'list';
+    if (action === 'list') {
+      const data = await supabaseGet('discount_codes', 'select=*&order=created_at.desc');
+      return res.json({ success: true, coupons: data });
+    }
+    if (action === 'create') {
+      const { code, discount_type, discount_value, max_uses, expires_at, plan_restriction, description } = body as Record<string, unknown>;
+      if (!code || !discount_type || discount_value === undefined) return res.status(400).json({ success: false, error: 'code, discount_type, discount_value required' });
+      const data = await supabaseInsert('discount_codes', { code: String(code).toUpperCase().trim(), discount_type, discount_value: Number(discount_value), max_uses: max_uses ?? null, expires_at: expires_at ?? null, plan_restriction: plan_restriction ?? null, description: description ?? null, is_active: true, times_used: 0, created_by: callerEmail });
+      supabaseInsert('audit_logs', { user_id: null, category: 'coupons', action: 'create_coupon', metadata: { code, performed_by: callerEmail } }).catch(() => {});
+      return res.json({ success: true, coupon: data[0] });
+    }
+    if (action === 'toggle') {
+      const { id, is_active } = body as { id?: string; is_active?: boolean };
+      if (!id) return res.status(400).json({ success: false, error: 'id required' });
+      await supabasePatch('discount_codes', `id=eq.${encodeURIComponent(id)}`, { is_active: Boolean(is_active) });
+      return res.json({ success: true });
+    }
+    if (action === 'delete') {
+      const { id } = body as { id?: string };
+      if (!id) return res.status(400).json({ success: false, error: 'id required' });
+      await supabaseDelete('discount_codes', `id=eq.${encodeURIComponent(id)}`);
+      supabaseInsert('audit_logs', { user_id: null, category: 'coupons', action: 'delete_coupon', metadata: { id, performed_by: callerEmail } }).catch(() => {});
+      return res.json({ success: true });
+    }
+    res.status(400).json({ success: false, error: `Unknown action: ${action}` });
+  } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
+});
+
+// ── admin-audit-logs ──────────────────────────────────────────────────────────
+app.all('/api/fn/admin-audit-logs', async (req, res) => {
+  const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
+  try {
+    const body = req.body ?? {}; const mode: string = body.mode ?? 'read';
+    if (mode === 'write') {
+      const { user_id, category, action } = body as { user_id?: string; category?: string; action?: string };
+      if (!category || !action) return res.status(400).json({ success: false, error: 'category and action required' });
+      await supabaseInsert('audit_logs', { user_id: user_id ?? null, category, action, metadata: body.metadata ?? {} });
+      return res.json({ success: true });
+    }
+    // read mode
+    const { page = 1, per_page = 50, user_id, action, category, search } = body as { page?: number; per_page?: number; user_id?: string; action?: string; category?: string; search?: string };
+    const limit = Math.min(200, Math.max(1, Number(per_page)));
+    const offset = Math.max(0, (Number(page) - 1) * limit);
+    let q = `select=*&order=created_at.desc&offset=${offset}&limit=${limit}`;
+    if (user_id) q += `&user_id=eq.${encodeURIComponent(user_id)}`;
+    if (action) q += `&action=eq.${encodeURIComponent(action)}`;
+    if (category) q += `&category=eq.${encodeURIComponent(category)}`;
+    const logs = await supabaseGet<Record<string, unknown>>('audit_logs', q);
+    // Enrich with profile email
+    const userIds = [...new Set(logs.map(l => l.user_id as string).filter(Boolean))];
+    let emailMap: Record<string, string> = {};
+    if (userIds.length) {
+      const profs = await supabaseGet<{ user_id: string; contact_email: string | null }>('profiles', `select=user_id,contact_email&user_id=in.(${userIds.map(encodeURIComponent).join(',')})`).catch(() => []);
+      emailMap = Object.fromEntries(profs.map(p => [p.user_id, p.contact_email ?? '']));
+    }
+    const enriched = logs.map(l => ({ ...l, user_email: l.user_id ? (emailMap[l.user_id as string] ?? null) : null }));
+    res.json({ success: true, logs: enriched, total: enriched.length });
+  } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
+});
+
+// ── admin-live-activity ───────────────────────────────────────────────────────
+app.all('/api/fn/admin-live-activity', async (req, res) => {
+  const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
+  try {
+    const { resource, user_id } = req.body ?? {} as { resource?: string; user_id?: string };
+    if (resource === 'usage_events') {
+      const data = await supabaseGet('usage_events', 'select=*&order=created_at.desc&limit=100');
+      return res.json({ success: true, events: data });
+    }
+    if (resource === 'error_log') {
+      const data = await supabaseGet('error_log', 'select=*&order=created_at.desc&limit=100').catch(() => []);
+      return res.json({ success: true, errors: data });
+    }
+    if (resource === 'user_content_stats') {
+      if (!user_id) return res.status(400).json({ success: false, error: 'user_id required' });
+      const [resumes, coverLetters, auditLogs] = await Promise.all([
+        supabaseGet<{ id: string }>('resumes', `select=id&user_id=eq.${encodeURIComponent(user_id)}`).catch(() => [] as { id: string }[]),
+        supabaseGet<{ id: string }>('cover_letters', `select=id&user_id=eq.${encodeURIComponent(user_id)}`).catch(() => [] as { id: string }[]),
+        supabaseGet<{ id: string }>('audit_logs', `select=id&user_id=eq.${encodeURIComponent(user_id)}&limit=1000`).catch(() => [] as { id: string }[]),
+      ]);
+      return res.json({ success: true, stats: { resume_count: resumes.length, cover_letter_count: coverLetters.length, audit_log_count: auditLogs.length } });
+    }
+    if (resource === 'contact_requests') {
+      const data = await supabaseGet('contact_requests', 'select=*&order=created_at.desc&limit=50').catch(() => []);
+      return res.json({ success: true, requests: data });
+    }
+    res.status(400).json({ success: false, error: `Unknown resource: ${resource}` });
+  } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
+});
+
+// ── admin-onboarding-funnel ───────────────────────────────────────────────────
+app.all('/api/fn/admin-onboarding-funnel', async (req, res) => {
+  const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
+  try {
+    const { since } = req.body ?? {} as { since?: string };
+    const cutoff = since ?? new Date(Date.now() - 30 * 86400000).toISOString();
+    const logs = await supabaseGet<{ user_id: string; action: string; metadata: Record<string, unknown>; created_at: string }>('audit_logs', `select=user_id,action,metadata,created_at&category=eq.onboarding&created_at=gte.${encodeURIComponent(cutoff)}&order=created_at.asc&limit=50000`);
+    const byUser = new Map<string, Set<string>>();
+    for (const log of logs) {
+      if (!byUser.has(log.user_id)) byUser.set(log.user_id, new Set());
+      byUser.get(log.user_id)!.add(log.action);
+    }
+    const steps = ['onboarding_start', 'onboarding_step_1', 'onboarding_step_2', 'onboarding_step_3', 'onboarding_complete'];
+    const funnel = steps.map(step => {
+      const count = [...byUser.values()].filter(actions => actions.has(step)).length;
+      return { step, count };
+    });
+    res.json({ success: true, funnel, total_users: byUser.size });
+  } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
+});
+
+// ── admin-analytics ───────────────────────────────────────────────────────────
+app.all('/api/fn/admin-analytics', async (req, res) => {
+  const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
+  try {
+    const { range = '30d' } = req.body ?? {} as { range?: string };
+    const daysMap: Record<string, number> = { today: 1, '7d': 7, '30d': 30, '90d': 90, all: 9999 };
+    const days = daysMap[range] ?? 30;
+    const since = days >= 9999 ? new Date(0).toISOString() : new Date(Date.now() - days * 86400000).toISOString();
+    const [signups, events, portfolioVisits, credits] = await Promise.all([
+      supabaseGet<{ created_at: string }>('profiles', `select=created_at&created_at=gte.${encodeURIComponent(since)}&order=created_at.desc&limit=10000`).catch(() => []),
+      supabaseGet<{ user_id: string; event_type: string; created_at: string }>('usage_events', `select=user_id,event_type,created_at&created_at=gte.${encodeURIComponent(since)}&order=created_at.desc&limit=50000`).catch(() => []),
+      supabaseGet<{ visited_at: string }>('portfolio_visits', `select=visited_at&visited_at=gte.${encodeURIComponent(since)}&limit=50000`).catch(() => []),
+      supabaseGet<{ daily_usage: number; usage_date: string }>('ai_credits', `select=daily_usage,usage_date&usage_date=gte.${encodeURIComponent(since.slice(0, 10))}&limit=50000`).catch(() => []),
+    ]);
+    const activeUsers = new Set(events.map(e => e.user_id)).size;
+    const totalCredits = credits.reduce((s, c) => s + (c.daily_usage || 0), 0);
+    const featureCounts: Record<string, number> = {};
+    for (const e of events) featureCounts[e.event_type] = (featureCounts[e.event_type] ?? 0) + 1;
+    const topFeatures = Object.entries(featureCounts).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([event_type, count]) => ({ event_type, count }));
+    // Build daily series for last 30 buckets
+    const nowMs = Date.now(); const MS = 86400000;
+    const series = Array.from({ length: Math.min(days, 30) }, (_, i) => {
+      const dayMs = nowMs - (Math.min(days, 30) - 1 - i) * MS;
+      const dateStr = new Date(dayMs).toISOString().slice(0, 10);
+      return {
+        date: dateStr,
+        signups: signups.filter(s => s.created_at.startsWith(dateStr)).length,
+        events: events.filter(e => e.created_at.startsWith(dateStr)).length,
+        portfolio_views: portfolioVisits.filter(p => p.visited_at.startsWith(dateStr)).length,
+      };
+    });
+    res.json({ success: true, kpis: { total_signups: signups.length, active_users: activeUsers, total_ai_credits: totalCredits, total_portfolio_views: portfolioVisits.length }, daily_series: series, top_features: topFeatures, range });
+  } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
+});
+
+// ── admin-save-note ───────────────────────────────────────────────────────────
+app.all('/api/fn/admin-save-note', async (req, res) => {
+  const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
+  try {
+    const body = req.body ?? {}; const { action, user_id, note, note_id } = body as { action?: string; user_id?: string; note?: string; note_id?: string };
+    if (action === 'list') {
+      if (!user_id) return res.status(400).json({ success: false, error: 'user_id required' });
+      const data = await supabaseGet('admin_user_notes', `select=*&user_id=eq.${encodeURIComponent(user_id)}&order=created_at.desc`).catch(() => []);
+      return res.json({ success: true, notes: data });
+    }
+    if (action === 'save') {
+      if (!user_id || !note?.trim()) return res.status(400).json({ success: false, error: 'user_id and note required' });
+      const data = await supabaseInsert('admin_user_notes', { user_id, note: note.trim(), created_by: callerEmail });
+      supabaseInsert('audit_logs', { user_id, category: 'admin_note', action: 'note_added', metadata: { performed_by: callerEmail } }).catch(() => {});
+      return res.json({ success: true, note: data[0] });
+    }
+    if (action === 'delete') {
+      if (!note_id) return res.status(400).json({ success: false, error: 'note_id required' });
+      await supabaseDelete('admin_user_notes', `id=eq.${encodeURIComponent(note_id)}`);
+      supabaseInsert('audit_logs', { user_id: user_id ?? null, category: 'admin_note', action: 'note_deleted', metadata: { note_id, performed_by: callerEmail } }).catch(() => {});
+      return res.json({ success: true });
+    }
+    res.status(400).json({ success: false, error: `Unknown action: ${action}` });
+  } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
+});
+
+// ── admin-list-user-content ───────────────────────────────────────────────────
+app.all('/api/fn/admin-list-user-content', async (req, res) => {
+  const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
+  try {
+    const { user_id, resume_id } = req.body ?? {} as { user_id?: string; resume_id?: string };
+    if (!user_id) return res.status(400).json({ success: false, error: 'user_id required' });
+    if (resume_id) {
+      const data = await supabaseGet('resumes', `select=*&id=eq.${encodeURIComponent(resume_id)}&user_id=eq.${encodeURIComponent(user_id)}&limit=1`);
+      return res.json({ success: true, resume: data[0] ?? null });
+    }
+    const resumes = await supabaseGet('resumes', `select=id,title,updated_at,created_at&user_id=eq.${encodeURIComponent(user_id)}&order=updated_at.desc`);
+    res.json({ success: true, resumes });
+  } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
+});
+
+// ── admin-grant-trial ─────────────────────────────────────────────────────────
+app.all('/api/fn/admin-grant-trial', async (req, res) => {
+  const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
+  try {
+    const { user_id, plan, days } = req.body ?? {} as { user_id?: string; plan?: string; days?: number };
+    if (!user_id || !plan) return res.status(400).json({ success: false, error: 'user_id and plan required' });
+    const result = await supabaseRpc('admin_grant_trial', { p_user_id: user_id, p_plan: plan, p_days: days ?? 14 });
+    supabaseInsert('audit_logs', { user_id, category: 'billing', action: 'grant_trial', metadata: { plan, days, performed_by: callerEmail } }).catch(() => {});
+    res.json({ success: true, result });
+  } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
+});
+
+// ── admin-revoke-trial ────────────────────────────────────────────────────────
+app.all('/api/fn/admin-revoke-trial', async (req, res) => {
+  const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
+  try {
+    const { user_id } = req.body ?? {} as { user_id?: string };
+    if (!user_id) return res.status(400).json({ success: false, error: 'user_id required' });
+    await supabaseRpc('admin_revoke_trial', { p_user_id: user_id });
+    supabaseInsert('audit_logs', { user_id, category: 'billing', action: 'revoke_trial', metadata: { performed_by: callerEmail } }).catch(() => {});
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
+});
+
+// ── admin-suspend-user ────────────────────────────────────────────────────────
+app.all('/api/fn/admin-suspend-user', async (req, res) => {
+  const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
+  try {
+    const { user_id, suspend, reason } = req.body ?? {} as { user_id?: string; suspend?: boolean; reason?: string };
+    if (!user_id) return res.status(400).json({ success: false, error: 'user_id required' });
+    const result = await supabaseRpc('admin_suspend_user', { p_user_id: user_id, p_suspend: Boolean(suspend), p_reason: reason ?? null });
+    supabaseInsert('audit_logs', { user_id, category: 'user_management', action: suspend ? 'suspend_user' : 'unsuspend_user', metadata: { reason, performed_by: callerEmail } }).catch(() => {});
+    res.json({ success: true, result });
+  } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
+});
+
+// ── admin-revoke-sessions ─────────────────────────────────────────────────────
+app.all('/api/fn/admin-revoke-sessions', async (req, res) => {
+  const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
+  try {
+    const { user_id } = req.body ?? {} as { user_id?: string };
+    if (!user_id) return res.status(400).json({ success: false, error: 'user_id required' });
+    await supabaseAuthAdmin('DELETE', `users/${encodeURIComponent(user_id)}/sessions`);
+    supabaseInsert('audit_logs', { user_id, category: 'user_management', action: 'user_sessions_revoked', metadata: { performed_by: callerEmail } }).catch(() => {});
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
+});
+
+// ── admin-delete-user ─────────────────────────────────────────────────────────
+app.all('/api/fn/admin-delete-user', async (req, res) => {
+  const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
+  try {
+    const { user_id } = req.body ?? {} as { user_id?: string };
+    if (!user_id) return res.status(400).json({ success: false, error: 'user_id required' });
+    const profile = await supabaseGet<{ contact_email: string | null }>('profiles', `select=contact_email&user_id=eq.${encodeURIComponent(user_id)}&limit=1`).catch(() => []);
+    const email = profile[0]?.contact_email ?? null;
+    await supabaseAuthAdmin('DELETE', `users/${encodeURIComponent(user_id)}`);
+    supabaseInsert('audit_logs', { user_id: null, category: 'user_management', action: 'account_deleted', metadata: { deleted_user_id: user_id, email, performed_by: callerEmail } }).catch(() => {});
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
+});
+
+// ── admin-impersonate ─────────────────────────────────────────────────────────
+app.all('/api/fn/admin-impersonate', async (req, res) => {
+  const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
+  try {
+    const { user_id, action: impAction = 'start' } = req.body ?? {} as { user_id?: string; action?: string };
+    if (impAction === 'exit') {
+      supabaseInsert('audit_logs', { user_id: null, category: 'user_management', action: 'impersonation_exit', metadata: { performed_by: callerEmail } }).catch(() => {});
+      return res.json({ success: true });
+    }
+    if (!user_id) return res.status(400).json({ success: false, error: 'user_id required' });
+    const authUser = await supabaseAuthAdmin<{ id: string; email?: string; user_metadata?: Record<string, unknown> }>('GET', `users/${encodeURIComponent(user_id)}`);
+    const linkResp = await supabaseAuthAdmin<{ action_link?: string; properties?: { action_link: string } }>('POST', 'generate_link', { type: 'magiclink', email: authUser.email });
+    const link = (linkResp as Record<string, unknown>).action_link ?? (linkResp as Record<string, unknown>).properties?.action_link ?? null;
+    supabaseInsert('audit_logs', { user_id, category: 'user_management', action: 'impersonation_start', metadata: { impersonated_email: authUser.email, performed_by: callerEmail } }).catch(() => {});
+    res.json({ success: true, access_token: null, magic_link: link, email: authUser.email, user_metadata: authUser.user_metadata ?? {} });
+  } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
+});
+
+// ── admin-get-identity ────────────────────────────────────────────────────────
+app.all('/api/fn/admin-get-identity', async (req, res) => {
+  const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
+  try {
+    const { user_id } = req.body ?? {} as { user_id?: string };
+    if (!user_id) return res.status(400).json({ success: false, error: 'user_id required' });
+    const [authUser, profile, tokenExchange] = await Promise.all([
+      supabaseAuthAdmin<{ id: string; email?: string; created_at: string; confirmed_at?: string }>('GET', `users/${encodeURIComponent(user_id)}`).catch(() => null),
+      supabaseGet<{ contact_email: string | null; full_name: string | null }>('profiles', `select=contact_email,full_name&user_id=eq.${encodeURIComponent(user_id)}&limit=1`).then(r => r[0] ?? null).catch(() => null),
+      supabaseGet<{ kinde_sub: string | null }>('token_exchanges', `select=kinde_sub&user_id=eq.${encodeURIComponent(user_id)}&limit=1`).then(r => r[0] ?? null).catch(() => null),
+    ]);
+    let kindeEmail: string | null = null;
+    let kindeError: string | null = null;
+    const kindeSub = tokenExchange?.kinde_sub ?? null;
+    if (kindeSub) {
+      try {
+        const ku = await kindeGet<{ email?: string }>(`/api/v1/user?id=${encodeURIComponent(kindeSub)}`);
+        kindeEmail = ku.email ?? null;
+      } catch (e) { kindeError = String(e); }
+    }
+    res.json({ success: true, user_id, auth_email: authUser?.email ?? null, contact_email: profile?.contact_email ?? null, full_name: profile?.full_name ?? null, kinde_sub: kindeSub, kinde_email: kindeEmail, kinde_error: kindeError, auth_created_at: authUser?.created_at ?? null, email_confirmed: !!authUser?.confirmed_at });
+  } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
+});
+
+// ── admin-merge-identity ──────────────────────────────────────────────────────
+app.all('/api/fn/admin-merge-identity', async (req, res) => {
+  const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
+  try {
+    const { orphan_id, shadow_id } = req.body ?? {} as { orphan_id?: string; shadow_id?: string };
+    if (!orphan_id || !shadow_id) return res.status(400).json({ success: false, error: 'orphan_id and shadow_id required' });
+    const [orphanSubs, shadowSubs, orphanProfile, shadowProfile] = await Promise.all([
+      supabaseGet<{ plan_name: string; status: string; plan_updated_at: string }>('subscriptions', `select=plan_name,status,plan_updated_at&user_id=eq.${encodeURIComponent(orphan_id)}&limit=1`).then(r => r[0] ?? null),
+      supabaseGet<{ plan_name: string; status: string; plan_updated_at: string }>('subscriptions', `select=plan_name,status,plan_updated_at&user_id=eq.${encodeURIComponent(shadow_id)}&limit=1`).then(r => r[0] ?? null),
+      supabaseGet<{ full_name: string | null; avatar_url: string | null }>('profiles', `select=full_name,avatar_url&user_id=eq.${encodeURIComponent(orphan_id)}&limit=1`).then(r => r[0] ?? null),
+      supabaseGet<{ full_name: string | null }>('profiles', `select=full_name&user_id=eq.${encodeURIComponent(shadow_id)}&limit=1`).then(r => r[0] ?? null),
+    ]);
+    const mergeLog: string[] = [];
+    const planRank = (p: string | undefined) => ['premium', 'pro', 'free'].indexOf(p ?? 'free');
+    if (orphanSubs && (!shadowSubs || planRank(orphanSubs.plan_name) < planRank(shadowSubs?.plan_name))) {
+      await supabaseUpsert('subscriptions', { user_id: shadow_id, plan_name: orphanSubs.plan_name, status: orphanSubs.status, plan_updated_at: new Date().toISOString() }, 'user_id');
+      mergeLog.push(`Transferred plan ${orphanSubs.plan_name} from orphan to shadow`);
+    }
+    if (orphanProfile?.full_name && !shadowProfile?.full_name) {
+      await supabasePatch('profiles', `user_id=eq.${encodeURIComponent(shadow_id)}`, { full_name: orphanProfile.full_name, avatar_url: orphanProfile.avatar_url ?? null });
+      mergeLog.push('Copied full_name from orphan to shadow');
+    }
+    await supabasePatch('profiles', `user_id=eq.${encodeURIComponent(orphan_id)}`, { is_suspended: true, suspension_reason: `merged_into:${shadow_id}` });
+    mergeLog.push('Suspended orphan account');
+    supabaseInsert('audit_logs', { user_id: shadow_id, category: 'identity', action: 'identity_merged', metadata: { orphan_id, shadow_id, merge_log: mergeLog, performed_by: callerEmail } }).catch(() => {});
+    res.json({ success: true, merge_log: mergeLog });
+  } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
+});
+
+// ── admin-update-profile ──────────────────────────────────────────────────────
+app.all('/api/fn/admin-update-profile', async (req, res) => {
+  const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
+  try {
+    const { action = 'get', user_id, full_name, username } = req.body ?? {} as { action?: string; user_id?: string; full_name?: string; username?: string };
+    if (!user_id) return res.status(400).json({ success: false, error: 'user_id required' });
+    if (action === 'get') {
+      const profile = await supabaseGet('profiles', `select=user_id,full_name,username,contact_email,avatar_url&user_id=eq.${encodeURIComponent(user_id)}&limit=1`);
+      return res.json({ success: true, profile: profile[0] ?? null });
+    }
+    if (action === 'update') {
+      const updates: Record<string, unknown> = {};
+      const changedFields: Record<string, unknown> = {};
+      if (full_name !== undefined) { updates.full_name = full_name; changedFields.full_name = full_name; }
+      if (username !== undefined) {
+        const cleanUsername = username.trim().toLowerCase();
+        if (cleanUsername) {
+          const avail = await supabaseRpc<{ status?: string } | null>('check_username_available', { p_username: cleanUsername, p_user_id: user_id });
+          const status = avail?.status ?? 'invalid';
+          if (status !== 'available') return res.status(409).json({ success: false, error: `Username not available (${status})`, status });
+        }
+        updates.username = cleanUsername || null;
+        changedFields.username = cleanUsername || null;
+      }
+      if (!Object.keys(updates).length) return res.status(400).json({ success: false, error: 'No fields to update' });
+      updates.updated_at = new Date().toISOString();
+      await supabasePatch('profiles', `user_id=eq.${encodeURIComponent(user_id)}`, updates);
+      supabaseInsert('audit_logs', { user_id, category: 'user_management', action: 'profile_updated', metadata: { changed_fields: changedFields, performed_by: callerEmail } }).catch(() => {});
+      return res.json({ success: true, changed_fields: changedFields });
+    }
+    res.status(400).json({ success: false, error: `Unknown action: ${action}` });
+  } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
+});
+
+// ── admin-list-users ──────────────────────────────────────────────────────────
+app.all('/api/fn/admin-list-users', async (req, res) => {
+  const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
+  try {
+    const { page = 1, per_page = 50, filter_plan, filter_status, sort = 'newest', search } = req.body ?? {} as {
+      page?: number; per_page?: number; filter_plan?: string; filter_status?: string; sort?: string; search?: string;
+    };
+    const limit = Math.min(200, Math.max(1, Number(per_page)));
+    const offset = Math.max(0, (Number(page) - 1) * limit);
+    const sortParam = { newest: 'created_at.desc', oldest: 'created_at.asc', name: 'full_name.asc' }[sort as string] ?? 'created_at.desc';
+    let profQ = `select=user_id,full_name,contact_email,avatar_url,is_suspended,suspension_reason,account_type,created_at&order=${sortParam}&offset=${offset}&limit=${limit}`;
+    if (search) profQ += `&or=(full_name.ilike.*${encodeURIComponent(search)}*,contact_email.ilike.*${encodeURIComponent(search)}*)`;
+    const profiles = await supabaseGet<{ user_id: string; full_name: string | null; contact_email: string | null; avatar_url: string | null; is_suspended: boolean; suspension_reason: string | null; account_type: string; created_at: string }>('profiles', profQ);
+    const userIds = profiles.map(p => p.user_id);
+    let subscriptions: Record<string, { plan_name: string; plan_status: string; plan_updated_at: string | null; trial_plan: string | null; trial_expires_at: string | null }> = {};
+    if (userIds.length) {
+      const subs = await supabaseGet<{ user_id: string; plan_name: string; status: string; plan_updated_at: string | null; trial_plan: string | null; trial_expires_at: string | null }>('subscriptions', `select=user_id,plan_name,status,plan_updated_at,trial_plan,trial_expires_at&user_id=in.(${userIds.map(encodeURIComponent).join(',')})`).catch(() => []);
+      subscriptions = Object.fromEntries(subs.map(s => [s.user_id, { plan_name: s.plan_name, plan_status: s.status, plan_updated_at: s.plan_updated_at, trial_plan: s.trial_plan, trial_expires_at: s.trial_expires_at }]));
+    }
+    let users = profiles.map(p => {
+      const sub = subscriptions[p.user_id] ?? { plan_name: 'free', plan_status: 'active', plan_updated_at: null, trial_plan: null, trial_expires_at: null };
+      return { user_id: p.user_id, full_name: p.full_name, email: p.contact_email, contact_email: p.contact_email, avatar_url: p.avatar_url, is_suspended: p.is_suspended ?? false, suspension_reason: p.suspension_reason, account_type: p.account_type ?? 'user', created_at: p.created_at, ...sub };
+    });
+    if (filter_plan) users = users.filter(u => u.plan_name === filter_plan);
+    if (filter_status === 'suspended') users = users.filter(u => u.is_suspended);
+    else if (filter_status === 'active') users = users.filter(u => !u.is_suspended);
+    res.json({ success: true, users, total: users.length, page: Number(page), per_page: limit });
+  } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
+});
+
+// ── admin-set-plan ────────────────────────────────────────────────────────────
+const PLAN_CREDIT_LIMITS: Record<string, number> = { free: 10, pro: 50, premium: 200 };
+app.all('/api/fn/admin-set-plan', async (req, res) => {
+  const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
+  try {
+    const { user_id, plan } = req.body ?? {} as { user_id?: string; plan?: string };
+    if (!user_id || !plan) return res.status(400).json({ success: false, error: 'user_id and plan required' });
+    const validPlans = ['free', 'pro', 'premium'];
+    if (!validPlans.includes(plan)) return res.status(400).json({ success: false, error: `plan must be one of: ${validPlans.join(', ')}` });
+    const dailyLimit = PLAN_CREDIT_LIMITS[plan] ?? 10;
+    const now = new Date().toISOString();
+    await supabaseUpsert('subscriptions', { user_id, plan_name: plan, status: 'active', plan_updated_at: now, trial_plan: null, trial_expires_at: null }, 'user_id');
+    const today = now.slice(0, 10);
+    const existing = await supabaseGet<{ id: string }>('ai_credits', `select=id&user_id=eq.${encodeURIComponent(user_id)}&usage_date=eq.${today}&limit=1`).catch(() => []);
+    if (existing.length) {
+      await supabasePatch('ai_credits', `user_id=eq.${encodeURIComponent(user_id)}&usage_date=eq.${today}`, { daily_limit: dailyLimit });
+    } else {
+      await supabaseInsert('ai_credits', { user_id, daily_limit: dailyLimit, daily_usage: 0, usage_date: today }).catch(() => {});
+    }
+    supabaseInsert('audit_logs', { user_id, category: 'billing', action: 'plan_changed', metadata: { plan, daily_limit: dailyLimit, performed_by: callerEmail } }).catch(() => {});
+    res.json({ success: true, plan, daily_limit: dailyLimit });
+  } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
+});
+
+// ── admin-set-credits ─────────────────────────────────────────────────────────
+app.all('/api/fn/admin-set-credits', async (req, res) => {
+  const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
+  try {
+    const { user_id, daily_limit, bonus_credits } = req.body ?? {} as { user_id?: string; daily_limit?: number; bonus_credits?: number };
+    if (!user_id) return res.status(400).json({ success: false, error: 'user_id required' });
+    const today = new Date().toISOString().slice(0, 10);
+    const existing = await supabaseGet<{ id: string; daily_limit: number; daily_usage: number }>('ai_credits', `select=id,daily_limit,daily_usage&user_id=eq.${encodeURIComponent(user_id)}&usage_date=eq.${today}&limit=1`).catch(() => []);
+    const updates: Record<string, unknown> = {};
+    if (daily_limit !== undefined) updates.daily_limit = Math.max(0, Number(daily_limit));
+    if (bonus_credits !== undefined) updates.bonus_credits = Math.max(0, Number(bonus_credits));
+    if (existing.length) {
+      if (Object.keys(updates).length) await supabasePatch('ai_credits', `user_id=eq.${encodeURIComponent(user_id)}&usage_date=eq.${today}`, updates);
+    } else {
+      await supabaseInsert('ai_credits', { user_id, daily_limit: daily_limit ?? 10, daily_usage: 0, bonus_credits: bonus_credits ?? 0, usage_date: today }).catch(() => {});
+    }
+    supabaseInsert('audit_logs', { user_id, category: 'billing', action: 'credits_set', metadata: { daily_limit, bonus_credits, performed_by: callerEmail } }).catch(() => {});
+    res.json({ success: true, daily_limit: updates.daily_limit ?? null, bonus_credits: updates.bonus_credits ?? null });
+  } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
+});
+
+// ── admin-kinde-reconcile ─────────────────────────────────────────────────────
+app.all('/api/fn/admin-kinde-reconcile', async (req, res) => {
+  const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
+  try {
+    const { dry_run = false } = req.body ?? {} as { dry_run?: boolean };
+    let kindeUsers: Array<{ id: string; email?: string; first_name?: string; last_name?: string }> = [];
+    try {
+      const ku = await kindeGet<{ users?: typeof kindeUsers }>('/api/v1/users?page_size=200');
+      kindeUsers = ku.users ?? [];
+    } catch (e) {
+      return res.json({ success: false, error: `Kinde M2M not configured or failed: ${String(e)}`, kinde_configured: false });
+    }
+    let found = 0, provisioned = 0, backfilled = 0;
+    for (const ku of kindeUsers) {
+      if (!ku.id || !ku.email) continue;
+      found++;
+      if (dry_run) continue;
+      const existing = await supabaseGet('profiles', `select=user_id,contact_email&user_id=eq.${encodeURIComponent(ku.id)}&limit=1`).catch(() => []);
+      if (!existing.length) {
+        await supabaseInsert('profiles', { user_id: ku.id, contact_email: ku.email, full_name: [ku.first_name, ku.last_name].filter(Boolean).join(' ') || null, account_type: 'user' }).catch(() => {});
+        provisioned++;
+      } else if (existing[0] && !(existing[0] as Record<string, unknown>).contact_email && ku.email) {
+        await supabasePatch('profiles', `user_id=eq.${encodeURIComponent(ku.id)}`, { contact_email: ku.email });
+        backfilled++;
+      }
+    }
+    res.json({ success: true, dry_run, kinde_configured: true, total_kinde_users: kindeUsers.length, found, provisioned, backfilled });
+  } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
+});
+
+// ── admin-email-actions ───────────────────────────────────────────────────────
+app.all('/api/fn/admin-email-actions', async (req, res) => {
+  const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
+  try {
+    const body = req.body ?? {}; const { action, email, subject, html, user_id } = body as { action?: string; email?: string; subject?: string; html?: string; user_id?: string };
+    if (action === 'diagnose') {
+      const apiKey = process.env.RESEND_API_KEY?.trim();
+      return res.json({ success: true, resend_configured: !!apiKey, supabase_auth_configured: !!(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) });
+    }
+    if (action === 'send_magic_link') {
+      if (!email) return res.status(400).json({ success: false, error: 'email required' });
+      const linkResp = await supabaseAuthAdmin<Record<string, unknown>>('POST', 'generate_link', { type: 'magiclink', email });
+      supabaseInsert('audit_logs', { user_id: user_id ?? null, category: 'email_actions', action: 'send_magic_link', metadata: { email, performed_by: callerEmail } }).catch(() => {});
+      return res.json({ success: true, action_link: linkResp.action_link ?? (linkResp.properties as Record<string, unknown>)?.action_link ?? null });
+    }
+    if (action === 'resend_confirmation') {
+      if (!email) return res.status(400).json({ success: false, error: 'email required' });
+      await supabaseAuthAdmin('POST', 'generate_link', { type: 'signup', email });
+      supabaseInsert('audit_logs', { user_id: user_id ?? null, category: 'email_actions', action: 'resend_confirmation', metadata: { email, performed_by: callerEmail } }).catch(() => {});
+      return res.json({ success: true });
+    }
+    if (action === 'send_password_reset') {
+      if (!email) return res.status(400).json({ success: false, error: 'email required' });
+      await supabaseAuthAdmin('POST', 'generate_link', { type: 'recovery', email });
+      supabaseInsert('audit_logs', { user_id: user_id ?? null, category: 'email_actions', action: 'send_password_reset', metadata: { email, performed_by: callerEmail } }).catch(() => {});
+      return res.json({ success: true });
+    }
+    if (action === 'send_custom') {
+      if (!email || !subject || !html) return res.status(400).json({ success: false, error: 'email, subject, html required' });
+      const from = process.env.RESEND_FROM_EMAIL || 'noreply@wiseresume.io';
+      const result = await resendPost<{ id?: string }>('/emails', { from, to: [email], subject, html });
+      if (!result) return res.status(503).json({ success: false, error: 'RESEND_API_KEY not configured or Resend request failed' });
+      supabaseInsert('audit_logs', { user_id: user_id ?? null, category: 'email_actions', action: 'send_custom_email', metadata: { email, subject, message_id: result.id, performed_by: callerEmail } }).catch(() => {});
+      return res.json({ success: true, message_id: result.id });
+    }
+    if (action === 'estimate_broadcast_recipients') {
+      const { plan_filter } = body as { plan_filter?: string };
+      let q = 'select=user_id&limit=100000';
+      if (plan_filter) q = `select=user_id&plan_name=eq.${encodeURIComponent(plan_filter)}&limit=100000`;
+      const rows = await supabaseGet('subscriptions', q).catch(() => []);
+      return res.json({ success: true, estimated_count: rows.length, plan_filter: plan_filter ?? 'all' });
+    }
+    res.status(400).json({ success: false, error: `Unknown action: ${action}` });
+  } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
+});
+
+// ── admin-github-status ───────────────────────────────────────────────────────
+app.all('/api/fn/admin-github-status', async (req, res) => {
+  const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
+  try {
+    const token = process.env.GITHUB_TOKEN?.trim();
+    const owner = process.env.GITHUB_OWNER?.trim();
+    const repo = process.env.GITHUB_REPO?.trim();
+    if (!token || !owner || !repo) return res.json({ success: false, error: 'GitHub credentials not configured (GITHUB_TOKEN / GITHUB_OWNER / GITHUB_REPO)', configured: false });
+    const r = await fetch(`https://api.github.com/repos/${owner}/${repo}/commits?per_page=5`, {
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' }, signal: AbortSignal.timeout(8000),
+    });
+    if (!r.ok) return res.status(r.status).json({ success: false, error: `GitHub API returned ${r.status}` });
+    const commits = await r.json() as Array<{ sha: string; commit: { message: string; author: { name: string; date: string } } }>;
+    res.json({ success: true, configured: true, commits: commits.map(c => ({ sha: c.sha.slice(0, 7), message: c.commit.message.split('\n')[0], author: c.commit.author.name, date: c.commit.author.date })) });
+  } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
+});
+
+// ── admin-integrations ────────────────────────────────────────────────────────
+app.all('/api/fn/admin-integrations', async (req, res) => {
+  const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
+  try {
+    const { action } = req.body ?? {} as { action?: string };
+    const ghToken = process.env.GITHUB_TOKEN?.trim();
+    const ghOwner = process.env.GITHUB_OWNER?.trim();
+    const ghRepo = process.env.GITHUB_REPO?.trim();
+    if (action === 'get_resend_bounces') {
+      const data = await resendGet<{ data?: unknown[] }>('/emails?limit=100');
+      return res.json({ success: true, bounces: data?.data ?? [], resend_configured: !!process.env.RESEND_API_KEY });
+    }
+    if (action === 'get_deploy_status') {
+      if (!ghToken || !ghOwner || !ghRepo) return res.json({ success: true, configured: false, runs: [] });
+      const r = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/actions/runs?per_page=5`, {
+        headers: { Authorization: `Bearer ${ghToken}`, Accept: 'application/vnd.github+json' }, signal: AbortSignal.timeout(8000),
+      });
+      if (!r.ok) return res.status(r.status).json({ success: false, error: `GitHub API ${r.status}` });
+      const data = await r.json() as { workflow_runs?: Array<{ id: number; name: string; status: string; conclusion: string | null; created_at: string; html_url: string }> };
+      return res.json({ success: true, configured: true, runs: (data.workflow_runs ?? []).map(w => ({ id: w.id, name: w.name, status: w.status, conclusion: w.conclusion, created_at: w.created_at, url: w.html_url })) });
+    }
+    if (action === 'trigger_deploy') {
+      if (!ghToken || !ghOwner || !ghRepo) return res.status(503).json({ success: false, error: 'GitHub credentials not configured' });
+      const { workflow_id = 'deploy.yml', ref = 'main' } = req.body as { workflow_id?: string; ref?: string };
+      const r = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/actions/workflows/${workflow_id}/dispatches`, {
+        method: 'POST', headers: { Authorization: `Bearer ${ghToken}`, Accept: 'application/vnd.github+json', 'Content-Type': 'application/json' }, body: JSON.stringify({ ref }), signal: AbortSignal.timeout(8000),
+      });
+      if (!r.ok && r.status !== 204) return res.status(r.status).json({ success: false, error: `GitHub API ${r.status}` });
+      supabaseInsert('audit_logs', { user_id: null, category: 'integrations', action: 'trigger_deploy', metadata: { workflow_id, ref, performed_by: callerEmail } }).catch(() => {});
+      return res.json({ success: true });
+    }
+    res.status(400).json({ success: false, error: `Unknown action: ${action}` });
+  } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
+});
+
+// ── admin-owner-ops ───────────────────────────────────────────────────────────
+app.all('/api/fn/admin-owner-ops', async (req, res) => {
+  const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
+  try {
+    const { action } = req.body ?? {} as { action?: string };
+    const accessToken = process.env.SUPABASE_ACCESS_TOKEN?.trim();
+    const projectRef = SUPABASE_URL?.match(/https:\/\/([^.]+)/)?.[1];
+    if (action === 'trigger_backup') {
+      if (!accessToken || !projectRef) {
+        supabaseInsert('audit_logs', { user_id: null, category: 'owner_ops', action: 'backup_trigger_failed', metadata: { reason: 'SUPABASE_ACCESS_TOKEN not configured', performed_by: callerEmail } }).catch(() => {});
+        return res.status(503).json({ success: false, error: 'SUPABASE_ACCESS_TOKEN not configured — cannot call Supabase Management API' });
+      }
+      const r = await fetch(`https://api.supabase.com/v1/projects/${projectRef}/database/backups`, {
+        method: 'POST', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(15000),
+      });
+      const ok = r.ok || r.status === 202;
+      supabaseInsert('audit_logs', { user_id: null, category: 'owner_ops', action: ok ? 'backup_triggered' : 'backup_trigger_failed', metadata: { status: r.status, performed_by: callerEmail } }).catch(() => {});
+      return res.json({ success: ok, status: r.status });
+    }
+    if (action === 'get_backup_status') {
+      if (!accessToken || !projectRef) return res.json({ success: true, backups: [], configured: false });
+      const r = await fetch(`https://api.supabase.com/v1/projects/${projectRef}/database/backups`, {
+        headers: { Authorization: `Bearer ${accessToken}` }, signal: AbortSignal.timeout(8000),
+      });
+      if (!r.ok) return res.json({ success: false, error: `Supabase Management API ${r.status}`, backups: [] });
+      const data = await r.json() as { backups?: unknown[] };
+      return res.json({ success: true, configured: true, backups: data.backups ?? data ?? [] });
+    }
+    res.status(400).json({ success: false, error: `Unknown action: ${action}` });
+  } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
+});
+
+// ── admin-wisehire-waitlist ───────────────────────────────────────────────────
+app.all('/api/fn/admin-wisehire-waitlist', async (req, res) => {
+  const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
+  try {
+    const body = req.body ?? {}; const { action = 'list', delete_entry_id, history_email, page = 1, per_page = 50, search } = body as { action?: string; delete_entry_id?: string; history_email?: string; page?: number; per_page?: number; search?: string };
+    if (action === 'history_email') {
+      if (!history_email) return res.status(400).json({ success: false, error: 'history_email required' });
+      const invites = await supabaseGet('wisehire_invites', `select=*&recipient_email=eq.${encodeURIComponent(history_email)}&order=created_at.desc`).catch(() => []);
+      return res.json({ success: true, invites });
+    }
+    if (action === 'delete_entry_id') {
+      if (!delete_entry_id) return res.status(400).json({ success: false, error: 'delete_entry_id required' });
+      await supabaseDelete('wisehire_waitlist', `id=eq.${encodeURIComponent(delete_entry_id)}`);
+      return res.json({ success: true });
+    }
+    // list (default)
+    const limit = Math.min(200, Math.max(1, Number(per_page)));
+    const offset = Math.max(0, (Number(page) - 1) * limit);
+    let q = `select=*&order=created_at.desc&offset=${offset}&limit=${limit}`;
+    if (search) q += `&or=(email.ilike.*${encodeURIComponent(search)}*,company.ilike.*${encodeURIComponent(search)}*)`;
+    const entries = await supabaseGet<{ id: string; email: string }>('wisehire_waitlist', q).catch(() => []);
+    const emails = entries.map(e => e.email);
+    let inviteMap: Record<string, { used_at: string | null; is_revoked: boolean; expires_at: string | null }[]> = {};
+    if (emails.length) {
+      const invites = await supabaseGet<{ recipient_email: string; used_at: string | null; is_revoked: boolean; expires_at: string | null }>('wisehire_invites', `select=recipient_email,used_at,is_revoked,expires_at&recipient_email=in.(${emails.map(encodeURIComponent).join(',')})`).catch(() => []);
+      for (const inv of invites) { if (!inviteMap[inv.recipient_email]) inviteMap[inv.recipient_email] = []; inviteMap[inv.recipient_email].push(inv); }
+    }
+    res.json({ success: true, entries: entries.map(e => ({ ...e, invites: inviteMap[e.email] ?? [] })), total: entries.length });
+  } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
+});
+
+// ── admin-wisehire-invite ─────────────────────────────────────────────────────
+app.all('/api/fn/admin-wisehire-invite', async (req, res) => {
+  const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
+  try {
+    const { email, note } = req.body ?? {} as { email?: string; note?: string };
+    if (!email?.trim()) return res.status(400).json({ success: false, error: 'email required' });
+    const recipient = email.trim().toLowerCase();
+    const { createHmac, randomBytes } = await import('crypto');
+    const token = randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 7 * 86400000).toISOString();
+    // Revoke old unused invites for this email
+    await supabasePatch('wisehire_invites', `recipient_email=eq.${encodeURIComponent(recipient)}&used_at=is.null&is_revoked=eq.false`, { is_revoked: true }).catch(() => {});
+    const inserted = await supabaseInsert<{ id: string }>('wisehire_invites', { recipient_email: recipient, token, expires_at: expiresAt, is_revoked: false, created_by: callerEmail, note: note ?? null });
+    await supabasePatch('wisehire_waitlist', `email=eq.${encodeURIComponent(recipient)}`, { invited_at: new Date().toISOString() }).catch(() => {});
+    const appUrl = process.env.APP_URL || `https://${process.env.REPLIT_DEV_DOMAIN || 'wiseresume.io'}`;
+    const inviteUrl = `${appUrl}/wisehire/join?token=${token}`;
+    // Send email via Resend if configured
+    let messageId: string | null = null;
+    const resendResult = await resendPost<{ id?: string }>('/emails', {
+      from: process.env.RESEND_FROM_EMAIL || 'noreply@wiseresume.io', to: [recipient],
+      subject: 'You\'re invited to WiseHire Early Access',
+      html: `<p>Hi there,</p><p>You've been invited to join WiseHire early access.</p><p><a href="${inviteUrl}">Accept your invitation</a></p><p>This invite expires on ${new Date(expiresAt).toLocaleDateString()}.</p>`,
+    });
+    messageId = resendResult?.id ?? null;
+    supabaseInsert('audit_logs', { user_id: null, category: 'wisehire', action: 'wisehire_invite', metadata: { recipient, message_id: messageId, performed_by: callerEmail } }).catch(() => {});
+    res.json({ success: true, invite_url: inviteUrl, expires_at: expiresAt, message_id: messageId, resend_configured: !!process.env.RESEND_API_KEY });
+  } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
+});
+
+// ── admin-wisehire-revoke-invite ──────────────────────────────────────────────
+app.all('/api/fn/admin-wisehire-revoke-invite', async (req, res) => {
+  const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
+  try {
+    const { email } = req.body ?? {} as { email?: string };
+    if (!email?.trim()) return res.status(400).json({ success: false, error: 'email required' });
+    const recipient = email.trim().toLowerCase();
+    // Count unused invites first
+    const unused = await supabaseGet<{ id: string }>('wisehire_invites', `select=id&recipient_email=eq.${encodeURIComponent(recipient)}&used_at=is.null&is_revoked=eq.false`).catch(() => []);
+    if (unused.length) await supabasePatch('wisehire_invites', `recipient_email=eq.${encodeURIComponent(recipient)}&used_at=is.null&is_revoked=eq.false`, { is_revoked: true });
+    supabaseInsert('audit_logs', { user_id: null, category: 'wisehire', action: 'wisehire_invite_revoked', metadata: { recipient, revoked_count: unused.length, performed_by: callerEmail } }).catch(() => {});
+    res.json({ success: true, revoked_count: unused.length });
+  } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
+});
+
+// ── admin-wisehire-reset-user ─────────────────────────────────────────────────
+app.all('/api/fn/admin-wisehire-reset-user', async (req, res) => {
+  const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
+  try {
+    const { email } = req.body ?? {} as { email?: string };
+    if (!email?.trim()) return res.status(400).json({ success: false, error: 'email required' });
+    const targetEmail = email.trim().toLowerCase();
+    // Find user in profiles
+    const profiles = await supabaseGet<{ user_id: string; contact_email: string | null; account_type: string }>('profiles', `select=user_id,contact_email,account_type&contact_email=eq.${encodeURIComponent(targetEmail)}&limit=1`);
+    if (!profiles.length) return res.status(404).json({ success: false, error: 'User not found in profiles' });
+    const { user_id } = profiles[0];
+    // Find Kinde sub
+    const tokenExchanges = await supabaseGet<{ kinde_sub: string | null }>('token_exchanges', `select=kinde_sub&user_id=eq.${encodeURIComponent(user_id)}&limit=1`).catch(() => []);
+    const kindeSub = tokenExchanges[0]?.kinde_sub ?? null;
+    // Reset invite tokens
+    const resetResult = await supabasePatch('wisehire_invites', `recipient_email=eq.${encodeURIComponent(targetEmail)}`, { is_revoked: true, used_at: null }).catch(() => null);
+    // Delete from Kinde if configured
+    let kindeDeleted = false;
+    let kindeError: string | null = null;
+    if (kindeSub) {
+      try { await kindeDelete(`/api/v1/user?id=${encodeURIComponent(kindeSub)}`); kindeDeleted = true; }
+      catch (e) { kindeError = String(e); }
+    }
+    // Delete from Supabase auth (cascades DB data)
+    await supabaseAuthAdmin('DELETE', `users/${encodeURIComponent(user_id)}`).catch(() => {});
+    supabaseInsert('audit_logs', { user_id: null, category: 'wisehire', action: 'wisehire_test_reset', metadata: { email: targetEmail, user_id, kinde_sub: kindeSub, kinde_deleted: kindeDeleted, kinde_error: kindeError, performed_by: callerEmail } }).catch(() => {});
+    res.json({ success: true, user_id, kinde_deleted: kindeDeleted, kinde_error: kindeError, kinde_configured: !!process.env.KINDE_M2M_CLIENT_ID });
   } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
 });
 
