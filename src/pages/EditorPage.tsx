@@ -1329,7 +1329,7 @@ export default function EditorPage() {
         </ResizablePanelGroup>
       ) : (
         <div className="flex-1 flex min-h-0 overflow-hidden">
-          {/* Section sidebar — visible on desktop (≥900px) when preview is hidden */}
+          {/* Section sidebar — visible on desktop (≥1024px) when preview is hidden */}
           {!isMobile && (
             <SectionSidebar
               steps={steps}
