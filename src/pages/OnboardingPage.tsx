@@ -38,7 +38,14 @@ const ProfileImportSheet = lazy(() =>
   import('@/components/settings/ProfileImportSheet').then((m) => ({ default: m.ProfileImportSheet })),
 );
 
-const ONBOARDING_KEY = 'wr-onboarding-completed';
+/**
+ * Per-user onboarding-complete key. Scoped by Kinde user id so a shared
+ * browser doesn't carry one account's "completed" flag into another
+ * account's session (architect feedback on Task #24).
+ */
+function onboardingKey(userId: string): string {
+  return `wr-onboarding-completed-${userId}`;
+}
 
 interface AcceptanceCounts {
   experienceKept: number; experienceTotal: number;
@@ -154,12 +161,12 @@ export default function OnboardingPage() {
   // resume insert) but the user already has a resume, flip the DB flag
   // and redirect — don't make them redo onboarding.
   useEffect(() => {
-    if (localStorage.getItem(ONBOARDING_KEY) === 'true') {
+    const userId = user?.id;
+    if (!userId) return;
+    if (localStorage.getItem(onboardingKey(userId)) === 'true') {
       navigate('/dashboard', { replace: true });
       return;
     }
-    const userId = user?.id;
-    if (!userId) return;
     let cancelled = false;
     (async () => {
       try {
@@ -169,14 +176,14 @@ export default function OnboardingPage() {
         );
         if (cancelled) return;
         if (profile?.onboarding_completed) {
-          localStorage.setItem(ONBOARDING_KEY, 'true');
+          localStorage.setItem(onboardingKey(userId), 'true');
           navigate('/dashboard', { replace: true });
           return;
         }
         const fixed = await reconcileOnboardingCompletion(userId);
         if (cancelled) return;
         if (fixed) {
-          localStorage.setItem(ONBOARDING_KEY, 'true');
+          localStorage.setItem(onboardingKey(userId), 'true');
           navigate('/dashboard', { replace: true });
         }
       } catch {
@@ -198,7 +205,11 @@ export default function OnboardingPage() {
         resumeTitle: filtered.fullName ? `${filtered.fullName} – Resume` : 'My Resume',
       });
       // Only mark complete and advance after a confirmed save.
-      localStorage.setItem(ONBOARDING_KEY, 'true');
+      // Per-user key prevents shared-browser bleed across accounts.
+      const completedUserId = user?.id;
+      if (completedUserId) {
+        localStorage.setItem(onboardingKey(completedUserId), 'true');
+      }
       queryClient.invalidateQueries({ queryKey: ['profile'] });
       queryClient.invalidateQueries({ queryKey: ['me'] });
       queryClient.invalidateQueries({ queryKey: ['resumes'] });
@@ -417,8 +428,14 @@ export default function OnboardingPage() {
   // ─── Skip ───────────────────────────────────────────────────────────────
   const handleSkip = useCallback(async () => {
     logAudit('onboarding', 'skipped', { step, method: methodRef.current });
-    const userId = getUserId() || user?.id;
-    if (userId) {
+    // For the API call we accept either id source — the server-side
+    // PATCH only needs *some* authenticated identity. But the local
+    // completion flag MUST use the Kinde user.id to stay consistent
+    // with the reads in DashboardPage and the redirect probe above
+    // (which both use user.id). getUserId() returns the deterministic
+    // Supabase UUID, which is a different value.
+    const apiUserId = getUserId() || user?.id;
+    if (apiUserId) {
       try {
         const { apiFetch } = await import('@/lib/apiFetch');
         await apiFetch('/api/data/profile', {
@@ -430,7 +447,9 @@ export default function OnboardingPage() {
         // non-critical
       }
     }
-    localStorage.setItem(ONBOARDING_KEY, 'true');
+    if (user?.id) {
+      localStorage.setItem(onboardingKey(user.id), 'true');
+    }
     navigate('/dashboard', { replace: true });
   }, [navigate, user, queryClient]);
 

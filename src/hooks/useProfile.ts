@@ -211,14 +211,11 @@ async function fetchProfile(_effectiveId: string): Promise<Profile> {
   const { profile } = await apiFetch<{ profile: ProfileRow }>('/api/data/profile');
   if (profile) return rowToProfile(profile);
 
-  // Create a default row server-side so subsequent reads return data.
-  // We do NOT write user.name here to avoid the Kinde token value being
-  // persisted as full_name — it should only be used as a UI display fallback.
-  await apiFetch('/api/data/profile', {
-    method: 'PATCH',
-    body: { full_name: null },
-  });
-
+  // Row will be created lazily on the first save — the production PATCH
+  // route is now an UPSERT (POST + on_conflict=user_id) and the dev/Express
+  // PATCH path already calls supabaseUpsert, so no client-side seeding is
+  // needed. The previous dead `PATCH { full_name: null }` call here was a
+  // no-op against the old PostgREST UPDATE-only PATCH and has been removed.
   return rowToProfile(null);
 }
 

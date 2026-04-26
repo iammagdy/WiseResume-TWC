@@ -42,7 +42,6 @@ const LinkedInImportSheet = lazy(() => import('@/components/settings/LinkedInImp
 const AnalyzeJobSheet = lazy(() => import('@/components/dashboard/AnalyzeJobSheet').then(m => ({ default: m.AnalyzeJobSheet })));
 
 import { useAuth } from '@/hooks/useAuth';
-import { getToken } from '@/lib/supabaseBridge';
 import { useGuestMigration } from '@/hooks/useGuestMigration';
 import { useResumes, useResumeMutations, dbToResumeData } from '@/hooks/useResumes';
 
@@ -120,6 +119,11 @@ function DashboardPageContent() {
     return true;
   });
   const [showQuickStartBanner, setShowQuickStartBanner] = useState(() => {
+    // Note: this initial check uses the legacy global key because `user` is
+    // not yet available in the useState initializer. The QuickStart banner
+    // is visual-only (hides when a resume exists), so a brief mis-show on
+    // shared browsers is acceptable — the per-user gating below handles
+    // the authoritative onboarding redirect/banner decisions.
     const onboardingCompleted = localStorage.getItem('wr-onboarding-completed') === 'true';
     const dismissed = localStorage.getItem('wr-quickstart-dismissed') === 'true';
     const hadResume = localStorage.getItem('wr-quickstart-had-resume') === 'true';
@@ -177,62 +181,89 @@ function DashboardPageContent() {
   // half-completed save (network drop between resume insert and the
   // onboarding_completed flip). Reconcile it transparently so the user
   // isn't pushed back through onboarding on next login.
+  //
+  // First-time users (no profile row, or onboarding_completed=false with no
+  // existing resume) are auto-redirected to /onboarding once per browser
+  // session. The per-user `wr-onboarding-redirect-attempted-<uid>` flag
+  // prevents loops if the user navigates back here without finishing
+  // onboarding — in that case the legacy "complete profile" banner is
+  // shown so they can dismiss it and stay on the dashboard.
   useEffect(() => {
     if (!user) return;
     const run = async () => {
       try {
-        if (localStorage.getItem('wr-onboarding-completed') === 'true') return;
-        // Gate the DB query to once per browser session — avoids a fresh
-        // Supabase SELECT on every dashboard mount for returning users.
-        // The session flag is set AFTER a successful read so a transient
-        // failure preserves one retry opportunity without causing mount spam.
-        const sessionKey = `wr-onboarding-checked-${user.id}`;
-        if (sessionStorage.getItem(sessionKey)) return;
+        // Per-user completion key — avoids shared-browser bleed where User A
+        // finishing onboarding would silently skip the probe for User B
+        // after a sign-out / sign-in on the same device.
+        const completedKey = `wr-onboarding-completed-${user.id}`;
+        if (localStorage.getItem(completedKey) === 'true') return;
 
-        // Use the server API (Neon DB) instead of Supabase directly to avoid
-        // JWT validation issues. The /api/data/profile route validates the bridge
-        // token and queries the Neon database with no RLS concerns.
-        const token = getToken();
-        const profileRes = await fetch('/api/data/profile', {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
-
-        if (!profileRes.ok) {
-          // Server-side error — log for diagnostics, don't mark as checked so we retry next mount.
-          console.warn('[DashboardPage] Onboarding profile check HTTP error:', profileRes.status);
+        // Use the production-aware apiFetch wrapper rather than a raw
+        // `fetch('/api/data/profile')`. In production (static hosting) the
+        // raw path resolves to the SPA HTML via the .htaccess rewrite,
+        // which would silently break this onboarding probe.
+        const { apiFetch, ApiFetchError } = await import('@/lib/apiFetch');
+        let data: Record<string, unknown> | null = null;
+        try {
+          const profileJson = await apiFetch<{ profile: Record<string, unknown> | null }>(
+            '/api/data/profile',
+          );
+          data = profileJson.profile;
+        } catch (apiErr) {
+          // Server-side / network error — show the banner as a fallback so
+          // the user can still get to onboarding manually. Do NOT cache the
+          // outcome so the next mount retries.
+          const status = apiErr instanceof ApiFetchError ? apiErr.status : 0;
+          console.warn('[DashboardPage] Onboarding profile check error:', status, apiErr);
           if (!sessionStorage.getItem('wr-dismissed-profile-banner')) {
             setShowProfileBanner(true);
           }
           return;
         }
 
-        const profileJson = await profileRes.json() as { profile: Record<string, unknown> | null };
-        const data = profileJson.profile;
-
-        // Mark checked only after we have a successful response.
-        sessionStorage.setItem(sessionKey, '1');
-
         if (data?.onboarding_completed) {
-          localStorage.setItem('wr-onboarding-completed', 'true');
+          localStorage.setItem(completedKey, 'true');
+          // Clean up the per-user redirect flag so a future signed-out /
+          // signed-in cycle on the same browser starts clean.
+          try { sessionStorage.removeItem(`wr-onboarding-redirect-attempted-${user.id}`); } catch { /* ignore */ }
           return;
         }
 
+        // Decide whether onboarding still needs to run.
+        let needsOnboarding = false;
         if (data && !data.onboarding_completed) {
           // Try to reconcile: if a resume row already exists, the earlier
           // writes succeeded — flip the flag and treat as completed.
           const { reconcileOnboardingCompletion } = await import('@/lib/onboardingProfile');
           const fixed = await reconcileOnboardingCompletion(user.id);
           if (fixed) {
-            localStorage.setItem('wr-onboarding-completed', 'true');
+            localStorage.setItem(completedKey, 'true');
+            try { sessionStorage.removeItem(`wr-onboarding-redirect-attempted-${user.id}`); } catch { /* ignore */ }
+            return;
+          }
+          needsOnboarding = true;
+        }
+        // data === null means brand-new user with no profile row yet — treat as onboarding needed.
+        if (!data) {
+          needsOnboarding = true;
+        }
+
+        if (needsOnboarding) {
+          // First time we hit this branch in the session: send the user to
+          // /onboarding so they actually see the flow. If they navigate back
+          // here without completing it, fall through to the dismissable banner.
+          const redirectFlag = `wr-onboarding-redirect-attempted-${user.id}`;
+          if (
+            !sessionStorage.getItem(redirectFlag) &&
+            !sessionStorage.getItem('wr-dismissed-profile-banner')
+          ) {
+            sessionStorage.setItem(redirectFlag, '1');
+            navigate('/onboarding', { replace: true });
             return;
           }
           if (!sessionStorage.getItem('wr-dismissed-profile-banner')) {
             setShowProfileBanner(true);
           }
-        }
-        // data === null means new user with no profile row yet — treat as onboarding needed.
-        if (!data && !sessionStorage.getItem('wr-dismissed-profile-banner')) {
-          setShowProfileBanner(true);
         }
       } catch (err) {
         console.warn('[DashboardPage] Onboarding check unexpected exception:', err);
@@ -242,7 +273,7 @@ function DashboardPageContent() {
       }
     };
     run();
-  }, [user]);
+  }, [user, navigate]);
 
   // Persist flag when user has at least one resume so Quick Start banner never reappears
   useEffect(() => {

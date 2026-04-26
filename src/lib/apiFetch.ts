@@ -180,11 +180,18 @@ function resolveProdRoute(path: string, method: string, body: unknown): ProdRout
       };
     }
     if (method === 'PATCH') {
-      // Server returns `{ profile: row }` — preserve the same shape so any
-      // future caller that destructures `.profile` keeps working.
+      // Use POST with on_conflict to UPSERT the row. PostgREST PATCH is
+      // UPDATE-only — `Prefer: resolution=merge-duplicates` is silently
+      // ignored on PATCH, so when no profile row exists yet (e.g. legacy
+      // users created before the server-side provisioning helper, or any
+      // case where the JIT bridge upsert failed) every save returned 200
+      // with `[]` and the user's name was lost. Routing through POST with
+      // on_conflict=user_id makes the call insert-or-update atomically and
+      // always returns the persisted row. Server returns `{ profile: row }`
+      // — preserve the same shape so call sites stay unchanged.
       return {
-        url: `${base}/rest/v1/profiles?user_id=eq.${u}&select=*`,
-        method: 'PATCH',
+        url: `${base}/rest/v1/profiles?on_conflict=user_id&select=*`,
+        method: 'POST',
         body: { ...(body as Record<string, unknown> || {}), user_id: userId },
         extraHeaders: { Prefer: 'return=representation,resolution=merge-duplicates' },
         transform: (raw) => {
