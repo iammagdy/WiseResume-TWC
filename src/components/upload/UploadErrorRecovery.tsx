@@ -218,7 +218,7 @@ export function UploadErrorRecovery({
         )}
 
         {/* Start with blank resume — for unreadable file error states */}
-        {onStartBlankResume && (errorType === 'CORRUPTED' || errorType === 'PASSWORD_PROTECTED' || errorType === 'NO_TEXT' || errorType === 'UNKNOWN') && (
+        {onStartBlankResume && (errorType === 'CORRUPTED' || errorType === 'PASSWORD_PROTECTED' || errorType === 'NO_TEXT' || errorType === 'UNKNOWN' || errorType === 'IOS_BROWSER_INCOMPATIBLE' || errorType === 'OCR_ENGINE_FAILED') && (
           <Button
             variant="outline"
             size="lg"

@@ -750,11 +750,14 @@ export default function UploadPage() {
         // iOS-specific font/asset decode failure: don't push the user
         // into a doomed OCR path — show a clear "try desktop / Word"
         // message and surface the diagnostic warnings (Task #25).
+        // Only the failure modes the extractor *suppresses* OCR for
+        // are listed here; TOO_FEW_WORDS is intentionally routed to
+        // the OCR prompt instead via the earlier `needsOCR` return,
+        // so listing it here would be unreachable and inconsistent.
         const isIOSFontFailure =
           result.isIOS &&
           (result.failureReason === 'EMPTY_STRINGS' ||
-           result.failureReason === 'PAGE_ERRORS' ||
-           result.failureReason === 'TOO_FEW_WORDS');
+           result.failureReason === 'PAGE_ERRORS');
         setErrorType(isIOSFontFailure ? 'IOS_BROWSER_INCOMPATIBLE' : 'NO_TEXT');
         if (result.parseWarnings.length > 0) {
           setParseRecoveryWarnings(result.parseWarnings);
