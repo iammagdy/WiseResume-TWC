@@ -32,7 +32,8 @@ export function ProtectedRoute() {
   const [showSlowHint, setShowSlowHint] = useState(false);
 
   // Load user profile data — used for email-verified gate.
-  const { data: meData } = useMe();
+  // isLoading is true only on the initial fetch (not on background refetches).
+  const { data: meData, isLoading: meLoading } = useMe();
 
   useEffect(() => {
     isAuthenticatedRef.current = isAuthenticated;
@@ -104,18 +105,33 @@ export function ProtectedRoute() {
     );
   }
 
-  // Email verification gate — only applies to authenticated users who:
-  //   1. have a real email address (not a @kinde.placeholder SSO address)
-  //   2. have explicitly email_verified = false in their profile
-  // We only enforce this after meData has loaded (profile is non-null) to
-  // avoid a flash redirect on the very first render.
+  // Email verification gate — only applies to authenticated, session-ready users.
+  // Fail closed: hold the Outlet behind the loading skeleton until meData has
+  // loaded so the verified/unverified state is always known before content renders.
   const alreadyOnVerifyPage = location.pathname === '/auth/verify-email';
-  if (
-    !alreadyOnVerifyPage &&
-    meData?.profile &&
-    !isEmailVerifiedOrExempt(meData.profile)
-  ) {
-    return <Navigate to="/auth/verify-email" replace />;
+  if (!alreadyOnVerifyPage) {
+    // If meData hasn't arrived yet (initial load only), show the skeleton (fail closed).
+    if ((meLoading || !meData?.profile) && !loadingTimedOut) {
+      return (
+        <div className="min-h-[100dvh] bg-background p-4 space-y-4 animate-pulse">
+          <div className="h-10 w-32 rounded-lg bg-muted" />
+          <div className="h-6 w-48 rounded bg-muted" />
+          <div className="space-y-3 mt-6">
+            <div className="h-24 rounded-xl bg-muted" />
+            <div className="h-24 rounded-xl bg-muted" />
+          </div>
+          {showSlowHint && (
+            <p className="text-xs text-muted-foreground text-center pt-2 animate-in fade-in duration-500">
+              Still setting up your session…
+            </p>
+          )}
+        </div>
+      );
+    }
+    // Profile loaded — enforce email verification.
+    if (meData?.profile && !isEmailVerifiedOrExempt(meData.profile)) {
+      return <Navigate to="/auth/verify-email" replace />;
+    }
   }
 
   return <Outlet />;

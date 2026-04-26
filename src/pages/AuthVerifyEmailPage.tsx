@@ -153,10 +153,22 @@ export default function AuthVerifyEmailPage() {
               </div>
               <div className="space-y-2">
                 <h1 className="text-xl font-semibold text-white">Check your inbox</h1>
-                <p className="text-sm" style={{ color: 'rgba(255,255,255,0.55)' }}>
-                  We sent a verification link to your email address.
-                  Click it to activate your account.
-                </p>
+                {(() => {
+                  const userEmail =
+                    (meData?.profile as Record<string, unknown> | undefined)?.contact_email as string | undefined ||
+                    (meData?.profile as Record<string, unknown> | undefined)?.email as string | undefined;
+                  return (
+                    <p className="text-sm" style={{ color: 'rgba(255,255,255,0.55)' }}>
+                      We sent a verification link to{' '}
+                      {userEmail ? (
+                        <span className="font-medium" style={{ color: 'rgba(255,255,255,0.80)' }}>{userEmail}</span>
+                      ) : (
+                        'your email address'
+                      )}
+                      . Click it to activate your account.
+                    </p>
+                  );
+                })()}
               </div>
               <div className="w-full space-y-3">
                 <Button
