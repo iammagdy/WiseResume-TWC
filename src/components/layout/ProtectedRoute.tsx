@@ -1,10 +1,27 @@
 import { useEffect, useRef, useState } from 'react';
 import { Navigate, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useMe } from '@/hooks/useMe';
 import { AlertTriangle } from 'lucide-react';
 
 const LOADING_TIMEOUT_MS = 6_000;
 const SLOW_HINT_MS = 3_000;
+
+/**
+ * Returns true when a profile row indicates the user's email does NOT need
+ * verification — i.e., they are already verified, use SSO (placeholder email),
+ * or email_verified has not been provisioned yet (null/undefined guard).
+ */
+function isEmailVerifiedOrExempt(profile: Record<string, unknown> | null | undefined): boolean {
+  if (!profile) return true; // profile not loaded yet — don't block
+  if (profile.email_verified === true) return true;
+  // SSO users have a @kinde.placeholder auth email — they never need email verification.
+  const email = (profile.contact_email as string | undefined) || (profile.email as string | undefined) || '';
+  if (email.endsWith('@kinde.placeholder')) return true;
+  if (!email) return true; // no email on file — can't verify
+  // email_verified is explicitly false and email is a real address → needs verification
+  return profile.email_verified !== false;
+}
 
 export function ProtectedRoute() {
   const { isAuthenticated, loading, supabaseSettled, supabaseReady, signOut } = useAuth();
@@ -14,13 +31,13 @@ export function ProtectedRoute() {
   const [loadingTimedOut, setLoadingTimedOut] = useState(false);
   const [showSlowHint, setShowSlowHint] = useState(false);
 
+  // Load user profile data — used for email-verified gate.
+  const { data: meData } = useMe();
+
   useEffect(() => {
     isAuthenticatedRef.current = isAuthenticated;
   }, [isAuthenticated]);
 
-  // Safety net: if loading/supabaseSettled haven't resolved within LOADING_TIMEOUT_MS,
-  // stop blocking the UI. Resets on every navigation so each page gets a fresh timer.
-  // Also show a "still loading" hint after SLOW_HINT_MS so users know the app is working.
   useEffect(() => {
     setLoadingTimedOut(false);
     setShowSlowHint(false);
@@ -29,8 +46,6 @@ export function ProtectedRoute() {
     return () => { clearTimeout(hintTimer); clearTimeout(timeoutTimer); };
   }, [location.key]);
 
-  // Listen for unexpected session expiry and redirect with reason param
-  // Skip navigation if the user is already not-authenticated (signing out)
   useEffect(() => {
     const handleSessionExpired = () => {
       if (!isAuthenticatedRef.current) return;
@@ -40,8 +55,6 @@ export function ProtectedRoute() {
     return () => window.removeEventListener('app:session-expired', handleSessionExpired);
   }, [navigate]);
 
-  // Always wait for Kinde auth loading (never redirect prematurely).
-  // Only time-box the Supabase bridge wait so a hanging bridge doesn't block forever.
   if (loading || (!loadingTimedOut && isAuthenticated && !supabaseSettled)) return (
     <div className="min-h-[100dvh] bg-background p-4 space-y-4 animate-pulse">
       <div className="h-10 w-32 rounded-lg bg-muted" />
@@ -57,6 +70,7 @@ export function ProtectedRoute() {
       )}
     </div>
   );
+
   if (!isAuthenticated) {
     const intendedPath = location.pathname + location.search;
     const redirectParam = intendedPath !== '/' && intendedPath !== '/dashboard'
@@ -64,10 +78,7 @@ export function ProtectedRoute() {
       : '';
     return <Navigate to={`/auth?mode=login${redirectParam}`} replace />;
   }
-  // The user is authenticated via Kinde but the bridge exchange definitively
-  // failed (supabaseSettled=true, supabaseReady=false). Rendering the protected
-  // page in this state causes "Welcome, Guest" and empty data since the bridge
-  // token is missing. Show a clear error card instead so the user can recover.
+
   if (supabaseSettled && !supabaseReady) {
     return (
       <div className="min-h-[100dvh] flex items-center justify-center p-6 bg-background">
@@ -92,5 +103,20 @@ export function ProtectedRoute() {
       </div>
     );
   }
+
+  // Email verification gate — only applies to authenticated users who:
+  //   1. have a real email address (not a @kinde.placeholder SSO address)
+  //   2. have explicitly email_verified = false in their profile
+  // We only enforce this after meData has loaded (profile is non-null) to
+  // avoid a flash redirect on the very first render.
+  const alreadyOnVerifyPage = location.pathname === '/auth/verify-email';
+  if (
+    !alreadyOnVerifyPage &&
+    meData?.profile &&
+    !isEmailVerifiedOrExempt(meData.profile)
+  ) {
+    return <Navigate to="/auth/verify-email" replace />;
+  }
+
   return <Outlet />;
 }

@@ -1,14 +1,16 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { motion, useReducedMotion } from 'framer-motion';
-import { Lock, CheckCircle, ShieldCheck } from 'lucide-react';
+import { Lock, CheckCircle, ShieldCheck, ArrowLeft, Loader2 } from 'lucide-react';
 
 import { useAuth } from '@/hooks/useAuth';
 import { OfflineBanner } from '@/components/layout/OfflineBanner';
 import { AppIcon } from '@/components/brand/AppIcon';
 import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 
 type FromContext = 'verify-email' | 'reset-password' | null;
 
@@ -170,12 +172,15 @@ export default function AuthPage() {
   const { login: kindeLogin, register: kindeRegister } = useKindeAuth();
   const triggered = useRef(false);
   const [popupBlocked, setPopupBlocked] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
 
   const redirectTo = searchParams.get('redirect') || '/dashboard';
   const mode = searchParams.get('mode');
   const plan = searchParams.get('plan');
   const fromParam = searchParams.get('from') as FromContext;
   const fromConfig = fromParam && FROM_CONFIG[fromParam] ? FROM_CONFIG[fromParam] : null;
+  const isForgotPassword = mode === 'forgot-password';
 
   useEffect(() => {
     if (searchParams.get('reason') === 'session_expired') {
@@ -189,14 +194,14 @@ export default function AuthPage() {
   }, [isAuthenticated, authLoading, navigate, redirectTo]);
 
   useEffect(() => {
-    // When a ?from= context is present, don't auto-trigger Kinde — show the
-    // contextual message card and let the user choose to sign in manually.
-    if (fromConfig) return;
+    // When a ?from= context is present or mode=forgot-password, don't
+    // auto-trigger Kinde — show the contextual UI instead.
+    if (fromConfig || isForgotPassword) return;
     if (authLoading || isAuthenticated || triggered.current) return;
     triggered.current = true;
 
     if (plan) {
-      try { sessionStorage.setItem('wr-intent-plan', plan); } catch { }
+      try { sessionStorage.setItem('wr-intent-plan', plan); } catch { /* ignore */ }
     }
 
     void (async () => {
@@ -218,7 +223,7 @@ export default function AuthPage() {
         }
       }
     })();
-  }, [authLoading, isAuthenticated, mode, plan, kindeLogin, kindeRegister, fromConfig]);
+  }, [authLoading, isAuthenticated, mode, plan, kindeLogin, kindeRegister, fromConfig, isForgotPassword]);
 
   // ── Contextual post-action card (verify-email / reset-password) ──────────
   if (fromConfig) {
@@ -272,6 +277,92 @@ export default function AuthPage() {
             >
               {fromConfig.cta}
             </Button>
+          </motion.div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Forgot password form ──────────────────────────────────────────────────
+  if (isForgotPassword) {
+    const handleForgotSubmit = async (e: FormEvent<HTMLFormElement>) => {
+      e.preventDefault();
+      const trimmed = forgotEmail.trim();
+      if (!trimmed) return;
+      setForgotLoading(true);
+      try {
+        await edgeFunctions.functions.invoke('send-password-reset', {
+          body: { email: trimmed },
+        });
+        navigate('/auth?from=reset-password', { replace: true });
+      } catch {
+        toast.error('Something went wrong. Please try again.');
+      } finally {
+        setForgotLoading(false);
+      }
+    };
+
+    return (
+      <div
+        className="relative isolate min-h-[100dvh] flex flex-col overflow-hidden"
+        style={{ background: HERO_GRADIENT }}
+      >
+        <div
+          className="pointer-events-none absolute"
+          style={{
+            width: 500, height: 500, borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(239,68,68,0.07) 0%, transparent 70%)',
+            top: '30%', left: '50%', transform: 'translate(-50%, -50%)',
+          }}
+        />
+        <OfflineBanner />
+        <div className="flex-1 flex flex-col items-center justify-center px-6 relative z-10">
+          <motion.div
+            className="flex flex-col gap-6 px-8 py-10 rounded-2xl max-w-sm w-full"
+            style={{
+              background: 'rgba(255,255,255,0.04)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              backdropFilter: 'blur(12px)',
+            }}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, ease: 'easeOut' }}
+          >
+            <button
+              onClick={() => navigate('/auth?mode=login', { replace: true })}
+              className="flex items-center gap-1.5 text-xs self-start"
+              style={{ color: 'rgba(255,255,255,0.4)' }}
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              Back to sign in
+            </button>
+            <div className="space-y-1">
+              <h1 className="text-xl font-semibold text-white">Reset your password</h1>
+              <p className="text-sm" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                Enter your email and we'll send you a reset link.
+              </p>
+            </div>
+            <form onSubmit={handleForgotSubmit} className="space-y-3">
+              <Input
+                type="email"
+                placeholder="you@example.com"
+                value={forgotEmail}
+                onChange={(e) => setForgotEmail(e.target.value)}
+                required
+                autoFocus
+                className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-red-500/50"
+              />
+              <Button type="submit" className="w-full" disabled={forgotLoading}>
+                {forgotLoading ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Sending…
+                  </span>
+                ) : (
+                  'Send reset link'
+                )}
+              </Button>
+            </form>
           </motion.div>
         </div>
       </div>

@@ -180,6 +180,31 @@ Deno.serve(async (req) => {
       `[kinde-webhook] Provisioned user — userId=${result.userId}, alreadyExisted=${result.alreadyExisted}`,
     );
 
+    // For brand-new email/password users (not SSO), send a verification email.
+    // SSO users (Google, Apple) already have emailVerified=true from Kinde.
+    // Placeholder emails (@kinde.placeholder) belong to SSO users — skip them.
+    if (!result.alreadyExisted && !emailVerified && email && !email.endsWith('@kinde.placeholder')) {
+      const supabaseUrl = (Deno.env.get('EXT_SUPABASE_URL') || Deno.env.get('SUPABASE_URL') || '').trim();
+      const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')?.trim() || '';
+      const verifyUrl = `${supabaseUrl}/functions/v1/verify-email`;
+      // Fire-and-forget — don't let email failure block the webhook response.
+      fetch(verifyUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${serviceKey}`,
+        },
+        body: JSON.stringify({
+          action: 'send',
+          user_id: result.userId,
+          email,
+          first_name: firstName,
+        }),
+      })
+        .then((r) => { if (!r.ok) console.warn(`[kinde-webhook] verify-email send returned ${r.status}`); })
+        .catch((e) => console.warn('[kinde-webhook] verify-email send failed (non-fatal):', e));
+    }
+
     logKindeEvent('user.created', kindeSub, email, payload, true);
 
     return json(

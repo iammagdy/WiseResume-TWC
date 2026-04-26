@@ -467,6 +467,33 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// ── Password reset (public — no auth required) ────────────────────────────────
+// Proxies to the send-password-reset Supabase edge function so the branded
+// password reset email can be triggered from the frontend in both dev and prod.
+// Always returns { success: true } to avoid email enumeration.
+app.post('/api/auth/reset-password', async (req, res) => {
+  const email = (req.body?.email as string | undefined)?.trim().toLowerCase();
+  if (!email) return res.status(400).json({ error: 'email is required' });
+
+  try {
+    const fnUrl = `${SUPABASE_URL}/functions/v1/send-password-reset`;
+    const fnRes = await fetch(fnUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+      },
+      body: JSON.stringify({ email }),
+    });
+    const data = await fnRes.json().catch(() => ({ success: true }));
+    return res.json(data);
+  } catch (err) {
+    console.error('[/api/auth/reset-password] edge function call failed:', err);
+    // Always return success to avoid enumeration.
+    return res.json({ success: true });
+  }
+});
+
 // ── AI health ─────────────────────────────────────────────────────────────────
 // Lightweight health check used by the AIHealthBadge in the client.
 // Does NOT require authentication.

@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-04-26 — Branded email verification, welcome email & password reset flow (Task #22)
+
+- **Why** — Email/password sign-ups were granted full platform access with no identity confirmation step. There was no branded verification email, no way for users to reset passwords via a styled email, and no welcome email to greet new users.
+- **DB migration `supabase/migrations/20260515000001_email_verification.sql`** — adds `email_verified BOOLEAN NOT NULL DEFAULT false` to `public.profiles`; backfills all pre-existing rows to `true`; creates `public.email_verification_tokens(id uuid PK, user_id uuid FK→profiles, token text UNIQUE, expires_at timestamptz, used_at timestamptz, created_at timestamptz)` with RLS enabled (service-role bypass).
+- **`server/schema.ts`** — added `emailVerified` boolean field on `profiles` table; added `emailVerificationTokens` table; `npm run db:push --force` applied changes to dev DB.
+- **`supabase/functions/_shared/email-templates/welcome.tsx`** — new React Email template: navy/red brand, feature grid (4 icons), "Go to dashboard" CTA button, warm onboarding tone.
+- **`supabase/functions/verify-email/index.ts`** — new edge function (public, `verify_jwt=false`). Three actions: `send` (generates UUID token, writes to `email_verification_tokens` with 24h TTL, sends branded verification email via Resend); `resend` (requires Supabase bearer token, invalidates old token, sends a fresh one); `confirm` (validates token not expired/used, sets `profiles.email_verified=true`, marks token `used_at`).
+- **`supabase/functions/send-password-reset/index.ts`** — new edge function (public). Calls `supabase.auth.admin.generateLink({ type: 'recovery', email })`, sends branded `recovery.tsx` email via Resend containing the Supabase recovery link.
+- **`supabase/functions/_shared/provisionUser.ts`** — upsert now writes `email_verified` from Kinde payload on first provision. For existing users: only writes `true` (never downgrades a verified account). SSO users (Google/Apple) arrive with `emailVerified=true`; `@kinde.placeholder` emails are treated as SSO and skip verification.
+- **`supabase/functions/kinde-webhook/index.ts`** — fires `verify-email` edge function (action=`send`) as fire-and-forget for newly created non-SSO users (real email address, `emailVerified=false`).
+- **`src/components/layout/ProtectedRoute.tsx`** — gates unverified users (`profile.email_verified === false` AND real email) to `/auth/verify-email`; SSO/placeholder emails bypass the gate.
+- **`src/pages/AuthVerifyEmailPage.tsx`** — rebuilt with four states: `pending` (check inbox + resend), `confirming` (token being validated), `confirmed` (success, auto-redirect to `/`), `error` (token invalid/expired, offer resend). Calls `edgeFunctions.functions.invoke('verify-email', { body })` for both `confirm` and `resend` actions.
+- **`src/pages/AuthPage.tsx`** — new `?mode=forgot-password` branch renders an email-entry form. Submits via `edgeFunctions.functions.invoke('send-password-reset', { body })` (works in dev via Express proxy and in production via direct Supabase URL — no Express dependency). Fixed `FormEvent` import to avoid namespace error.
+- **No change to** Kinde password management (Kinde still owns the credential; Supabase recovery link resets the shadow-auth password only), token-exchange flow, or existing credit/plan logic.
+
+---
+
 ## 2026-04-25 — DevKit login recovery: rotate password, redeploy verify-dev-kit, surface diagnosable errors (Task #25)
 
 - **Why** — After back-to-back DevKit auth changes (password rotation, TOTP removal, `verify-dev-kit` redeploy), the admin (`Magdy.saber@outlook.com`) could no longer sign in at `/devkit`. Every attempt returned the catch-all "Incorrect email or password — try again." string regardless of the actual failure cause, so it was impossible to tell from the UI whether the password was wrong, the `DEV_KIT_PASSWORD` Supabase secret was stale, the lockout cooldown was active, or the function itself was undeployed. Underlying cause turned out to be a stale `DEV_KIT_PASSWORD` Supabase secret on the project — the function on production was rejecting every guess as a wrong password — but the UI gave us no way to confirm that without reading edge logs.

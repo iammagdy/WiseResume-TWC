@@ -178,6 +178,15 @@ export async function provisionUser(
   const profileRow: Record<string, unknown> = { user_id: userId };
   if (email) profileRow.contact_email = email;
 
+  // email_verified:
+  //   • New user: write whatever Kinde reports (true for SSO, false for email/pass).
+  //   • Existing user: only write true (never downgrade a previously-verified account).
+  if (!alreadyExisted) {
+    profileRow.email_verified = emailVerified;
+  } else if (emailVerified) {
+    profileRow.email_verified = true;
+  }
+
   const derivedFullName = [firstName, lastName].filter(Boolean).join(' ').trim() || null;
 
   if (derivedFullName) {

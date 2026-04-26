@@ -1,6 +1,14 @@
 # What Wise Cloud Can Do Today
 
-**Last verified:** 2026-04-20 (Task #17)
+**Last verified:** 2026-04-26 (Task #22)
+
+## Email verification, welcome email & password reset (2026-04-26)
+**What was the situation:** Anyone who signed up with an email and password could immediately use the platform with zero confirmation that the email address was real. There was no welcome message when someone joined, and there was no "forgot my password" option that sent a branded email.
+**What changed:** Three things now happen for new email/password sign-ups:
+1. A branded verification email lands in their inbox the moment they register. Until they click the link, they see a "Check your inbox" screen and cannot access the platform. They can request another email from that same screen if the first one goes missing.
+2. A welcome email is sent after they verify, introducing the platform features.
+3. A "Forgot password?" link on the sign-in page sends a branded reset email with a secure one-click link. Google and Apple sign-in users are unaffected — they skip verification entirely since their identity is already confirmed.
+**What you'll notice:** The user list will only contain people with confirmed email addresses going forward. Existing users are not affected — everyone already signed up is treated as verified.
 
 ## Admin tools: better user identity + force-set usernames (2026-04-26)
 **What was the situation:** When you opened any user in the Admin desk and looked at their Identity section, it showed a scrambled placeholder email like `kp_448838b3...@kinde.placeholder` instead of who the person actually is. There was no sign-up date, no last sign-in, and nothing that helped you tell users apart. Also, trying to assign a short portfolio username (like a single letter or number) triggered a confusing "AI is temporarily unavailable" error that had nothing to do with AI at all.
