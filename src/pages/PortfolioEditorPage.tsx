@@ -22,6 +22,7 @@ import { UnsavedChangesDialog } from '@/components/editor/UnsavedChangesDialog';
 import { UsernameRequestDialog } from '@/components/settings/UsernameRequestDialog';
 import { usePortfolioUsernameRules } from '@/hooks/usePortfolioUsernameRules';
 import { getPortfolioUrl, getPortfolioDisplayUrl } from '@/lib/portfolioUrl';
+import { getToken } from '@/lib/supabaseBridge';
 import { openExternal } from '@/lib/openExternal';
 import { getSafeMatchMedia } from '@/lib/envUtils';
 import { normalizeUrl } from '@/lib/urlUtils';
@@ -302,6 +303,26 @@ export default function PortfolioEditorPage() {
       });
     return () => { cancelled = true; };
   }, []);
+
+  // Track premium handle interest — fire once per session when available
+  // handles are shown to a logged-in user. Fire-and-forget; never surfaces
+  // errors to the user.
+  useEffect(() => {
+    if (!premiumHandles || premiumHandles.length === 0) return;
+    const DEDUP_KEY = 'handle-interest-tracked';
+    if (sessionStorage.getItem(DEDUP_KEY)) return;
+    sessionStorage.setItem(DEDUP_KEY, '1');
+    const token = getToken();
+    if (!token) return;
+    fetch('/api/track-handle-interest', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({}),
+    }).catch(() => { /* fire-and-forget — ignore errors */ });
+  }, [premiumHandles]);
 
   // Capture snapshot after profile syncs to local state
   useEffect(() => {

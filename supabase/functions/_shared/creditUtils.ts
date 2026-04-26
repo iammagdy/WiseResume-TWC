@@ -1,6 +1,8 @@
 import { getServiceClient } from './dbClient.ts';
 import { planDailyLimit, UNLIMITED_SENTINEL } from './planLimits.ts';
 import { logger } from './logger.ts';
+import { addContact, removeContact } from './resendAudiences.ts';
+import { getAudienceId } from './resendConfig.ts';
 // BYOK has been removed. Every authenticated AI request now runs through
 // the managed flat 6-key pool, so credit deduction always applies and the
 // `isByok` field is permanently false. The field is retained on
@@ -199,6 +201,34 @@ export async function checkAndDeductCredit(
 
   const result = rpcResult as { allowed: boolean; remaining: number; usage_date?: string };
 
+  // ── Low Credits audience side-effect ─────────────────────────────────────
+  // Fire-and-forget: add the user to the Low Credits Resend Audience when
+  // their remaining daily credits fall to the threshold. Remove them when
+  // they refill (handled by admin-set-credits; this path only adds).
+  // Threshold of 10 mirrors the admin-set-credits wiring.
+  const LOW_CREDITS_THRESHOLD = 10;
+  if (result.allowed && result.remaining <= LOW_CREDITS_THRESHOLD) {
+    const audienceId = getAudienceId('RESEND_AUDIENCE_LOW_CREDITS');
+    if (audienceId) {
+      ;(async () => {
+        try {
+          const supabase = getServiceClient();
+          const { data: profileRow } = await supabase
+            .from('profiles')
+            .select('contact_email, email')
+            .eq('user_id', userId)
+            .maybeSingle();
+          const email = (profileRow?.contact_email || profileRow?.email || '') as string;
+          if (email && !email.endsWith('@kinde.placeholder')) {
+            await addContact(audienceId, { email });
+          }
+        } catch (e) {
+          log.warn('low-credits audience add failed', { error: String(e), userId });
+        }
+      })();
+    }
+  }
+
   return {
     hasCredits:    result.allowed,
     remaining:     result.remaining,
@@ -207,6 +237,12 @@ export async function checkAndDeductCredit(
     usageDate:     result.usage_date,
   };
 }
+
+/**
+ * Exported for use in admin-set-credits and other places that need to
+ * explicitly manage Low Credits audience membership.
+ */
+export { addContact, removeContact };
 
 /**
  * Reverses a previously-deducted credit debit. Call this from the catch

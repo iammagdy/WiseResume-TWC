@@ -165,7 +165,6 @@ export function EmailAutomationsPanel() {
   const [lookupLoading, setLookupLoading] = useState(false);
   const [lookupResult, setLookupResult] = useState<string[] | null>(null);
 
-  const [actionTarget, setActionTarget] = useState('');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const [syncLoading, setSyncLoading] = useState(false);
@@ -218,7 +217,6 @@ export function EmailAutomationsPanel() {
   };
 
   const handleManualAdd = (audienceKey: string, audienceLabel: string) => {
-    setActionTarget('');
     const email = window.prompt(`Email to add to "${audienceLabel}" audience:`);
     if (!email?.trim()) return;
     void doAction('add', audienceKey, audienceLabel, email.trim().toLowerCase());
@@ -258,7 +256,6 @@ export function EmailAutomationsPanel() {
       if (isMounted()) setActionLoading(null);
     }
   };
-  void actionTarget; // suppress unused warning
 
   const handleSyncAllUsers = async () => {
     if (!confirm('Sync all existing users into the "All Users" Resend Audience? This may take a few seconds for large user bases.')) return;
@@ -297,7 +294,19 @@ export function EmailAutomationsPanel() {
             </span>
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Resend Audiences drive email automations without additional edge functions.
+            Resend Audiences drive email automations without additional edge functions.{' '}
+            <span className="text-muted-foreground/70">
+              Note: Resend&apos;s REST API does not expose per-automation send metrics — view email send stats in the{' '}
+              <a
+                href="https://resend.com/automations"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary hover:underline"
+              >
+                Resend dashboard
+              </a>
+              .
+            </span>
           </p>
         </div>
         <Button
