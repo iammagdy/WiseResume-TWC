@@ -71,14 +71,14 @@ export function DevKitRunner() {
   const [results, setResults] = useState<Record<string, TestResult>>({});
   const [expandedJson, setExpandedJson] = useState<Record<string, boolean>>({});
   const [sectionRunning, setSectionRunning] = useState<Record<string, boolean>>({});
-  const [sectionSummary, setSectionSummary] = useState<Record<string, { passed: number; failed: number }>>({});
+  const [sectionSummary, setSectionSummary] = useState<Record<string, { passed: number; skipped: number; failed: number }>>({});
   const [globalRunning, setGlobalRunning] = useState(false);
   // C1: non-critical sections collapsed by default (FR-DK-007)
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({
     routing: true, settings: true, credits: true, db: true, errors: true, usage: true,
   });
   // C3: smoke run summary (FR-DK-011)
-  const [smokeSummary, setSmokeSummary] = useState<{ passed: number; failed: number; failedIds: string[] } | null>(null);
+  const [smokeSummary, setSmokeSummary] = useState<{ passed: number; skipped: number; failed: number; failedIds: string[] } | null>(null);
 
   const setResult = useCallback((id: string, r: TestResult) => {
     setResults(prev => ({ ...prev, [id]: r }));
@@ -419,16 +419,18 @@ export function DevKitRunner() {
     setCollapsed(prev => ({ ...prev, [sectionId]: false }));
     setSectionRunning(prev => ({ ...prev, [sectionId]: true }));
     let passed = 0;
+    let skipped = 0;
     let failed = 0;
 
     // Run sequentially per section
     for (const test of sectionTests) {
       const status = await runTest(test);
-      if (status === 'success' || status === 'warn') passed++;
+      if (status === 'success') passed++;
+      else if (status === 'warn') skipped++;
       else failed++;
     }
 
-    setSectionSummary(prev => ({ ...prev, [sectionId]: { passed, failed } }));
+    setSectionSummary(prev => ({ ...prev, [sectionId]: { passed, skipped, failed } }));
     setSectionRunning(prev => ({ ...prev, [sectionId]: false }));
   }, [tests, runTest]);
 
@@ -456,22 +458,26 @@ export function DevKitRunner() {
 
       // Run every test in this section one by one
       let passed = 0;
+      let skipped = 0;
       let failed = 0;
       for (const test of sectionTests) {
         const status = await runTest(test);
         allStatuses.push({ id: test.id, status });
-        if (status === 'success' || status === 'warn') passed++;
+        if (status === 'success') passed++;
+        else if (status === 'warn') skipped++;
         else failed++;
         // Add a micro-delay to make the UI feel responsive
         await new Promise(r => setTimeout(r, 50));
       }
 
-      setSectionSummary(prev => ({ ...prev, [section.id]: { passed, failed } }));
+      setSectionSummary(prev => ({ ...prev, [section.id]: { passed, skipped, failed } }));
       setSectionRunning(prev => ({ ...prev, [section.id]: false }));
     }
 
     const failedIds = allStatuses.filter(s => s.status !== 'success' && s.status !== 'warn').map(s => s.id);
-    setSmokeSummary({ passed: allStatuses.length - failedIds.length, failed: failedIds.length, failedIds });
+    const totalPassed = allStatuses.filter(s => s.status === 'success').length;
+    const totalSkipped = allStatuses.filter(s => s.status === 'warn').length;
+    setSmokeSummary({ passed: totalPassed, skipped: totalSkipped, failed: failedIds.length, failedIds });
     setGlobalRunning(false);
   }, [tests, runTest]);
 
@@ -496,7 +502,7 @@ export function DevKitRunner() {
             <h2 className="text-lg font-bold text-foreground group-hover:text-primary transition-colors truncate">
               {section.emoji} {section.title}
             </h2>
-            {summary && <SectionSummaryBadge passed={summary.passed} failed={summary.failed} />}
+            {summary && <SectionSummaryBadge passed={summary.passed} skipped={summary.skipped} failed={summary.failed} />}
           </button>
           <Button
             size="sm"
@@ -566,11 +572,15 @@ export function DevKitRunner() {
             <div>
               <span>
                 {smokeSummary.failed === 0
-                  ? `✅ All ${smokeSummary.passed} smoke checks passed`
+                  ? smokeSummary.passed === 0
+                    ? `⏭ All ${smokeSummary.skipped} checks skipped — sign in to the main app and re-run`
+                    : smokeSummary.skipped > 0
+                      ? `✅ ${smokeSummary.passed} passed · ${smokeSummary.skipped} skipped`
+                      : `✅ All ${smokeSummary.passed} smoke checks passed`
                   : `❌ ${smokeSummary.failed} failed: ${smokeSummary.failedIds.join(', ')}`
                 }
               </span>
-              {smokeSummary.failed === 0 && (
+              {smokeSummary.failed === 0 && smokeSummary.passed > 0 && (
                 <p className="text-xs text-muted-foreground font-normal mt-0.5">
                   Email Service Test ran in dry-run mode — no real email was sent.
                 </p>
@@ -584,9 +594,11 @@ export function DevKitRunner() {
       {(() => {
         const total = tests.length;
         const passed = smokeSummary ? smokeSummary.passed : 0;
+        const skipped = smokeSummary ? smokeSummary.skipped : 0;
         const failed = smokeSummary ? smokeSummary.failed : 0;
+        // Health % is based only on tests that actually ran (not skipped)
         const ran = passed + failed;
-        const healthPct = smokeSummary ? Math.round((passed / Math.max(ran, 1)) * 100) : null;
+        const healthPct = smokeSummary ? (ran === 0 ? null : Math.round((passed / ran) * 100)) : null;
         const isHealthy = healthPct !== null && healthPct === 100;
         const isPartial = healthPct !== null && healthPct >= 50 && healthPct < 100;
         const isUnhealthy = healthPct !== null && healthPct < 50;
@@ -633,9 +645,13 @@ export function DevKitRunner() {
                 )}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                {ran === 0
+                {smokeSummary === null
                   ? `${total} checks available — run smoke test to evaluate health`
-                  : `${passed} of ${ran} checks passing`}
+                  : ran === 0
+                    ? `${skipped} checks skipped — sign in to the main app to run session-dependent checks`
+                    : skipped > 0
+                      ? `${passed} of ${ran} checks passing · ${skipped} skipped (sign in to run session checks)`
+                      : `${passed} of ${ran} checks passing`}
               </p>
             </div>
           </div>

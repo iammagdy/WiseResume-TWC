@@ -169,8 +169,8 @@ export function AnalyticsPanel() {
           {/* KPI hero strip */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <KpiCard
-              label="Views" value={data.rangeKpis.views.current.toLocaleString()}
-              sub={`vs previous ${rangeLabel[range]}`}
+              label="Feature events" value={data.rangeKpis.views.current.toLocaleString()}
+              sub="AI & app usage events (not page views)"
               icon={Eye} accent="primary"
               current={data.rangeKpis.views.current} previous={data.rangeKpis.views.previous}
               trend={viewsSpark} hideDelta={!showDelta}
@@ -340,8 +340,8 @@ export function AnalyticsPanel() {
           {/* Geo ranking — all-time profile geography (intentionally not range-scoped) */}
           <div className="grid grid-cols-1 gap-4">
             <SectionCard
-              title="Geographic distribution"
-              description="Top countries by registered profile count (all-time, not affected by the time-range selector)."
+              title="Top Countries"
+              description="Countries ranked by registered user count (all-time, from profile data — not affected by the time-range selector above)."
               icon={Globe}
             >
               {data.countryRanking.length === 0 ? <EmptyState /> : (

@@ -125,6 +125,24 @@ export function OnboardingFunnelPanel() {
 
   return (
     <div className="space-y-6">
+      {/* Context banner — explains what this panel measures */}
+      <div className="rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground space-y-1">
+        <p className="font-medium text-foreground">What is this?</p>
+        <p>
+          Tracks how many users complete each step of the <strong>profile creation onboarding</strong> — from
+          landing on the welcome screen to finishing their resume/profile. Data is sourced from{' '}
+          <code className="text-xs bg-muted px-1 py-0.5 rounded">audit_logs</code> events with{' '}
+          <code className="text-xs bg-muted px-1 py-0.5 rounded">category = &apos;onboarding&apos;</code>.
+        </p>
+        <p className="text-xs">
+          <strong>Steps:</strong>{' '}
+          <span className="font-medium text-foreground">Started</span> → user hit the onboarding screen ·{' '}
+          <span className="font-medium text-foreground">Path picked</span> → chose CV upload, LinkedIn, or manual ·{' '}
+          <span className="font-medium text-foreground">Review opened</span> → reached the profile review step ·{' '}
+          <span className="font-medium text-foreground">Completed</span> → finished and saved their profile
+        </p>
+      </div>
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold text-foreground">Onboarding Funnel</h2>

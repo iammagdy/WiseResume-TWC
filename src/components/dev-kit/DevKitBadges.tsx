@@ -33,13 +33,27 @@ export function AccountTypeBadge({ accountType }: { accountType: string | null |
   );
 }
 
-export function SectionSummaryBadge({ passed, failed }: { passed: number; failed: number }) {
-  const total = passed + failed;
+export function SectionSummaryBadge({ passed, skipped = 0, failed }: { passed: number; skipped?: number; failed: number }) {
+  const total = passed + skipped + failed;
   if (total === 0) return null;
-  const allPassed = failed === 0;
+
+  if (failed > 0) {
+    return (
+      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-destructive/20 text-destructive">
+        {`${failed}/${total} failed`}
+      </span>
+    );
+  }
+  if (passed === 0 && skipped > 0) {
+    return (
+      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-500/20 text-amber-600 dark:text-amber-400">
+        {`${skipped} skipped`}
+      </span>
+    );
+  }
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${allPassed ? 'bg-green-500/20 text-green-600 dark:text-green-400' : 'bg-destructive/20 text-destructive'}`}>
-      {allPassed ? `${passed}/${total} passed` : `${failed}/${total} failed`}
+    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-500/20 text-green-600 dark:text-green-400">
+      {skipped > 0 ? `${passed}/${passed + failed} passed` : `${passed}/${total} passed`}
     </span>
   );
 }
