@@ -58,7 +58,8 @@ import { useUndoRedo } from '@/hooks/useUndoRedo';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useExportProgress } from '@/hooks/useExportProgress';
 import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
-import type { ExportType } from '@/types/resume';
+import type { ExportType, SectionId } from '@/types/resume';
+import { sanitizeFileName } from '@/lib/sanitizeFileName';
 import { getBackRoute } from '@/lib/navigation';
 import { UnsavedChangesDialog } from '@/components/editor/UnsavedChangesDialog';
 import { useBackButton } from '@/hooks/useBackButton';
@@ -135,6 +136,17 @@ export default function EditorPage() {
   const isSavingRef = useRef(false);
   // Track AI loading state to coordinate with autosave
   const isAILoadingRef = useRef(false);
+
+  // Read ?id= or ?resumeId= from the URL and seed the store on first mount.
+  // This lets users deep-link directly to /editor?id=<uuid> without a prior
+  // dashboard visit that would normally call setCurrentResumeId.
+  useEffect(() => {
+    const urlId = searchParams.get('id') ?? searchParams.get('resumeId');
+    if (urlId && !currentResumeId) {
+      setCurrentResumeId(urlId);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Hook 1: DB→Zustand hydration, ownership check, stale-resume detection
   const { localLoadedAtRef } = useEditorHydration({
@@ -226,7 +238,7 @@ export default function EditorPage() {
         showBranding: true,
         ...(customBreakPositions?.length ? { customBreakPositions } : {}),
       });
-      const fileName = `${currentResume.contactInfo?.fullName?.replace(/\s+/g, '_') || 'Resume'}_Resume.pdf`;
+      const fileName = `${sanitizeFileName(currentResume.contactInfo?.fullName ?? '')}_Resume.pdf`;
       await downloadFile({ blob: pdfBlob, fileName, mimeType: 'application/pdf' });
       haptics.success();
       toast.success('PDF downloaded');
@@ -252,8 +264,9 @@ export default function EditorPage() {
 
     const tryExport = async (): Promise<void> => {
       try {
-        const sanitized = customFileName ? customFileName.replace(/[/\\:*?"<>|]/g, '').trim().slice(0, 100) : '';
-        const baseName = (sanitized.length >= 3 ? sanitized : null) || currentResume.contactInfo?.fullName?.replace(/\s+/g, '_') || 'Resume';
+        const baseName = customFileName?.trim()
+          ? sanitizeFileName(customFileName)
+          : sanitizeFileName(currentResume.contactInfo?.fullName ?? '');
         const pdfOptions = { showPageNumbers, pageNumberFormat: 'full' as const, showBranding };
         const { downloadFile } = await import('@/lib/downloadUtils');
 
@@ -711,6 +724,8 @@ export default function EditorPage() {
     const timer = setTimeout(() => {
       const container = scrollContainerRef.current;
       if (!container) return;
+      // Skip if the user already focused a field (e.g. tapped before this fires).
+      if (container.contains(document.activeElement) && document.activeElement !== container) return;
       const firstInput = container.querySelector('input, textarea');
       if (firstInput) {
         firstInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -974,7 +989,7 @@ export default function EditorPage() {
   const { getSuggestions: getATSSuggestions, isAnalyzingSection, fetchDeepSuggestions, scanSummary, deepResults, clearDeepResult } = useATSSuggestions(currentResume, jobDescription);
 
   // Apply deep analysis result to the resume store
-  const handleApplyDeep = useCallback((section: string, improved: unknown) => {
+  const handleApplyDeep = useCallback((section: SectionId, improved: unknown) => {
     const store = useResumeStore.getState();
     const applyMap: Record<string, () => void> = {
       summary: () => { if (typeof improved === 'string') store.updateResume({ summary: improved }); },
@@ -989,7 +1004,7 @@ export default function EditorPage() {
       languages: () => { if (Array.isArray(improved)) store.updateResume({ languages: improved }); },
     };
     applyMap[section]?.();
-    clearDeepResult(section as any);
+    clearDeepResult(section);
     toast.success('AI improvements applied!');
   }, [clearDeepResult]);
 
@@ -1177,7 +1192,7 @@ export default function EditorPage() {
           </span>
           <button
             onClick={() => navigate('/settings/plan')}
-            className="text-[11px] font-semibold text-amber-700 dark:text-amber-300 hover:underline shrink-0 active:scale-95 transition-transform touch-manipulation"
+            className="text-[11px] font-semibold text-amber-700 dark:text-amber-300 hover:underline shrink-0 active:scale-95 transition-transform touch-manipulation min-h-[44px] flex items-center"
           >
             Upgrade to keep forever →
           </button>
@@ -1193,7 +1208,7 @@ export default function EditorPage() {
           </span>
           <button
             onClick={() => navigate('/settings/plan')}
-            className="text-[11px] font-semibold text-destructive hover:underline shrink-0 active:scale-95 transition-transform touch-manipulation"
+            className="text-[11px] font-semibold text-destructive hover:underline shrink-0 active:scale-95 transition-transform touch-manipulation min-h-[44px] flex items-center"
           >
             Upgrade →
           </button>
@@ -1227,7 +1242,7 @@ export default function EditorPage() {
                     haptics.light();
                   }}
                   className={cn(
-                    'px-2.5 h-7 rounded-full text-xs font-medium border transition-colors whitespace-nowrap touch-manipulation active:scale-95',
+                    'px-2.5 min-h-[44px] rounded-full text-xs font-medium border transition-colors whitespace-nowrap touch-manipulation active:scale-95',
                     mobileEditorTab === tab
                       ? 'bg-primary/15 border-primary/40 text-primary'
                       : 'border-border text-muted-foreground hover:bg-muted'
@@ -1538,6 +1553,7 @@ export default function EditorPage() {
                       </div>
                     </button>
                     <button
+                      onPointerEnter={preloadLazy(() => import('@/components/editor/ResumeSnapshotsSheet').then(m => ({ default: m.ResumeSnapshotsSheet })))}
                       onClick={() => { haptics.light(); setShowToolsSheet(false); setShowSnapshots(true); }}
                       className="flex items-center gap-3 w-full rounded-xl border border-border bg-card hover:bg-muted active:scale-[0.98] transition-transform touch-manipulation min-h-[56px] px-4"
                     >
@@ -1548,6 +1564,7 @@ export default function EditorPage() {
                       </div>
                     </button>
                     <button
+                      onPointerEnter={preloadLazy(() => import('@/components/editor/KeywordHighlighterSheet').then(m => ({ default: m.KeywordHighlighterSheet })))}
                       onClick={() => { haptics.light(); setShowToolsSheet(false); setShowKeywordHighlighter(true); }}
                       className="flex items-center gap-3 w-full rounded-xl border border-border bg-card hover:bg-muted active:scale-[0.98] transition-transform touch-manipulation min-h-[56px] px-4"
                     >

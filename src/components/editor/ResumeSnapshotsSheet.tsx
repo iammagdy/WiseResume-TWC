@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import editorLogger from '@/lib/editorLogger';
 import { format } from 'date-fns';
 import { Camera, Clock, RotateCcw, Trash2, Plus, X, ChevronDown, ChevronUp, FileText } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -173,7 +174,7 @@ export function ResumeSnapshotsSheet({
       await onRestoreAsNew(parsed);
       onOpenChange(false);
     } catch (err) {
-      console.error('[ResumeSnapshots] restore failed:', err);
+      editorLogger.error('[ResumeSnapshots] restore failed:', err);
       toast.error('Failed to restore snapshot — please try again');
     } finally {
       setRestoringId(null);
@@ -199,6 +200,7 @@ export function ResumeSnapshotsSheet({
             <div className="bg-card border border-primary/30 rounded-xl p-4 space-y-3">
               <p className="text-sm font-medium text-foreground">Name this snapshot</p>
               <Input
+                aria-label="Snapshot name"
                 value={saveName}
                 onChange={(e) => setSaveName(e.target.value)}
                 placeholder='e.g. "Before Tailor" or "Google v2"'

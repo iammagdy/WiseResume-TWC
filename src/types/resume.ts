@@ -274,6 +274,9 @@ export interface SectionScores {
   skills: { before: number; after: number };
   experience: { before: number; after: number };
   education: { before: number; after: number };
+  projects?: { before: number; after: number };
+  certifications?: { before: number; after: number };
+  awards?: { before: number; after: number };
 }
 
 export interface JobParsed {

@@ -38,7 +38,7 @@ export const HobbiesSection = memo(function HobbiesSection() {
                   <button onClick={() => moveDown(index)} disabled={index === hobbies.length - 1} className="p-2 rounded hover:bg-muted disabled:opacity-30 min-w-[44px] min-h-[44px] flex items-center justify-center active:scale-95 touch-manipulation" aria-label="Move down"><ArrowDown className="w-4 h-4" /></button>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <Input value={hobby.name} onChange={e => updateHobby(hobby.id, { name: e.target.value })} placeholder="Photography, Hiking, etc." className="h-12" />
+                  <Input aria-label="Hobby name" value={hobby.name} onChange={e => updateHobby(hobby.id, { name: e.target.value })} placeholder="Photography, Hiking, etc." className="h-12" />
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <button onClick={() => updateHobby(hobby.id, { visible: !hobby.visible })} className="p-2 rounded-lg hover:bg-muted active:scale-95 transition-all touch-manipulation min-w-[44px] min-h-[44px] flex items-center justify-center" aria-label={hobby.visible ? 'Hide' : 'Show'}>

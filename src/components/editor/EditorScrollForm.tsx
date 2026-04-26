@@ -81,7 +81,7 @@ export interface EditorScrollFormProps {
   isAnalyzingSection: (section: string) => boolean;
   fetchDeepSuggestions: (section: SectionId) => Promise<void>;
   deepResults: Record<string, DeepResult | undefined>;
-  handleApplyDeep: (section: string, improved: unknown) => void;
+  handleApplyDeep: (section: SectionId, improved: unknown) => void;
   clearDeepResult: (section: SectionId) => void;
   onRequestJobDescription: () => void;
   onActiveSectionChange: (sectionId: string) => void;

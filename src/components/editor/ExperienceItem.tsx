@@ -182,11 +182,12 @@ export const ExperienceItem = memo(function ExperienceItem({
             )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <Label className="text-sm flex items-center gap-1.5 mb-2">
+                <Label htmlFor={`exp-${exp.id}-position`} className="text-sm flex items-center gap-1.5 mb-2">
                   <Briefcase className="w-4 h-4" />
                   Position
                 </Label>
                 <Input
+                  id={`exp-${exp.id}-position`}
                   value={exp.position}
                   onChange={handlePositionChange}
                   onBlur={handleFieldBlur}
@@ -196,11 +197,12 @@ export const ExperienceItem = memo(function ExperienceItem({
                 />
               </div>
               <div>
-                <Label className="text-sm flex items-center gap-1.5 mb-2">
+                <Label htmlFor={`exp-${exp.id}-company`} className="text-sm flex items-center gap-1.5 mb-2">
                   <Building2 className="w-4 h-4" />
                   Company
                 </Label>
                 <Input
+                  id={`exp-${exp.id}-company`}
                   value={exp.company}
                   onChange={handleCompanyChange}
                   placeholder="Company Name"
@@ -211,11 +213,12 @@ export const ExperienceItem = memo(function ExperienceItem({
             </div>
 
             <div>
-              <Label className="text-sm flex items-center gap-1.5 mb-2">
+              <Label htmlFor={`exp-${exp.id}-account`} className="text-sm flex items-center gap-1.5 mb-2">
                 <Building2 className="w-4 h-4 text-muted-foreground" />
                 Account / Client (optional)
               </Label>
               <Input
+                id={`exp-${exp.id}-account`}
                 value={exp.account || ''}
                 onChange={handleAccountChange}
                 placeholder="e.g., Verizon, AT&T — the client you served at this company"
@@ -226,7 +229,7 @@ export const ExperienceItem = memo(function ExperienceItem({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <Label className="text-sm flex items-center gap-1.5 mb-2">
+                <Label htmlFor={`exp-${exp.id}-start`} className="text-sm flex items-center gap-1.5 mb-2">
                   <Calendar className="w-4 h-4" />
                   Start Date
                 </Label>
@@ -236,7 +239,7 @@ export const ExperienceItem = memo(function ExperienceItem({
                 />
               </div>
               <div>
-                <Label className="text-sm flex items-center gap-1.5 mb-2">
+                <Label htmlFor={`exp-${exp.id}-end`} className="text-sm flex items-center gap-1.5 mb-2">
                   <Calendar className="w-4 h-4" />
                   End Date
                 </Label>

@@ -43,16 +43,16 @@ export const ReferencesSection = memo(function ReferencesSection() {
               </button>
               {expandedId === ref.id && (
                 <div className="animate-in fade-in-0 duration-200"><div className="p-4 pt-0 space-y-4 border-t border-border">
-                  <div><Label className="text-sm flex items-center gap-1.5 mb-2"><Users className="w-4 h-4" />Full Name</Label><Input value={ref.name} onChange={e => updateRef(ref.id, { name: e.target.value })} placeholder="John Doe" className="h-12" /></div>
+                  <div><Label htmlFor={`ref-${ref.id}-name`} className="text-sm flex items-center gap-1.5 mb-2"><Users className="w-4 h-4" />Full Name</Label><Input id={`ref-${ref.id}-name`} value={ref.name} onChange={e => updateRef(ref.id, { name: e.target.value })} placeholder="John Doe" className="h-12" /></div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div><Label className="text-sm mb-2">Title</Label><Input value={ref.title} onChange={e => updateRef(ref.id, { title: e.target.value })} placeholder="Senior Manager" className="h-12" /></div>
-                    <div><Label className="text-sm flex items-center gap-1.5 mb-2"><Building2 className="w-4 h-4" />Company</Label><Input value={ref.company} onChange={e => updateRef(ref.id, { company: e.target.value })} placeholder="Company Name" className="h-12" /></div>
+                    <div><Label htmlFor={`ref-${ref.id}-title`} className="text-sm mb-2">Title</Label><Input id={`ref-${ref.id}-title`} value={ref.title} onChange={e => updateRef(ref.id, { title: e.target.value })} placeholder="Senior Manager" className="h-12" /></div>
+                    <div><Label htmlFor={`ref-${ref.id}-company`} className="text-sm flex items-center gap-1.5 mb-2"><Building2 className="w-4 h-4" />Company</Label><Input id={`ref-${ref.id}-company`} value={ref.company} onChange={e => updateRef(ref.id, { company: e.target.value })} placeholder="Company Name" className="h-12" /></div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div><Label className="text-sm flex items-center gap-1.5 mb-2"><Mail className="w-4 h-4" />Email</Label><Input value={ref.email} onChange={e => updateRef(ref.id, { email: e.target.value })} placeholder="john@company.com" className="h-12" type="email" /></div>
-                    <div><Label className="text-sm flex items-center gap-1.5 mb-2"><Phone className="w-4 h-4" />Phone</Label><Input value={ref.phone} onChange={e => updateRef(ref.id, { phone: e.target.value })} placeholder="+1 234 567 890" className="h-12" type="tel" /></div>
+                    <div><Label htmlFor={`ref-${ref.id}-email`} className="text-sm flex items-center gap-1.5 mb-2"><Mail className="w-4 h-4" />Email</Label><Input id={`ref-${ref.id}-email`} value={ref.email} onChange={e => updateRef(ref.id, { email: e.target.value })} placeholder="john@company.com" className="h-12" type="email" /></div>
+                    <div><Label htmlFor={`ref-${ref.id}-phone`} className="text-sm flex items-center gap-1.5 mb-2"><Phone className="w-4 h-4" />Phone</Label><Input id={`ref-${ref.id}-phone`} value={ref.phone} onChange={e => updateRef(ref.id, { phone: e.target.value })} placeholder="+1 234 567 890" className="h-12" type="tel" /></div>
                   </div>
-                  <div><Label className="text-sm mb-2">Relationship</Label><Input value={ref.relationship} onChange={e => updateRef(ref.id, { relationship: e.target.value })} placeholder="Direct Supervisor" className="h-12" /></div>
+                  <div><Label htmlFor={`ref-${ref.id}-relationship`} className="text-sm mb-2">Relationship</Label><Input id={`ref-${ref.id}-relationship`} value={ref.relationship} onChange={e => updateRef(ref.id, { relationship: e.target.value })} placeholder="Direct Supervisor" className="h-12" /></div>
                   <div className="flex items-center gap-3 py-1"><Switch checked={ref.availableOnRequest || false} onCheckedChange={checked => updateRef(ref.id, { availableOnRequest: checked })} /><Label className="text-sm">Available upon request</Label></div>
                   <div className="flex justify-end pt-2"><Button variant="ghost" size="sm" onClick={() => deleteRef(ref.id)} className="gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10"><Trash2 className="w-4 h-4" />Remove</Button></div>
                 </div></div>

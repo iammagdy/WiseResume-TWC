@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import editorLogger from '@/lib/editorLogger';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -153,7 +154,7 @@ export function GapFillerSheet({ isOpen, onClose, gap, experiences, onAddExperie
         toast.error('Unexpected AI response. Please try again.');
       }
     } catch (err) {
-      console.error('fill-gap error:', err);
+      editorLogger.error('fill-gap error:', err);
       toast.error('Something went wrong. Please try again.');
     } finally {
       setIsGenerating(false);
@@ -341,23 +342,25 @@ export function GapFillerSheet({ isOpen, onClose, gap, experiences, onAddExperie
                           >
                             <div className="mt-2 p-4 rounded-xl border border-primary/20 bg-card space-y-4">
                               <div>
-                                <Label className="text-xs text-muted-foreground">Job Title</Label>
+                                <Label htmlFor="gap-filler-title" className="text-xs text-muted-foreground">Job Title</Label>
                                 <Input
+                                  id="gap-filler-title"
                                   value={editedSuggestion.title}
                                   onChange={(e) => setEditedSuggestion({ ...editedSuggestion, title: e.target.value })}
                                   className="mt-1"
                                 />
                               </div>
                               <div>
-                                <Label className="text-xs text-muted-foreground">Company</Label>
+                                <Label htmlFor="gap-filler-company" className="text-xs text-muted-foreground">Company</Label>
                                 <Input
+                                  id="gap-filler-company"
                                   value={editedSuggestion.company}
                                   onChange={(e) => setEditedSuggestion({ ...editedSuggestion, company: e.target.value })}
                                   className="mt-1"
                                 />
                               </div>
                               <div>
-                                <Label className="text-xs text-muted-foreground">Description</Label>
+                                <Label htmlFor="gap-filler-description" className="text-xs text-muted-foreground">Description</Label>
                                 <Textarea
                                   value={editedSuggestion.description}
                                   onChange={(e) => setEditedSuggestion({ ...editedSuggestion, description: e.target.value })}

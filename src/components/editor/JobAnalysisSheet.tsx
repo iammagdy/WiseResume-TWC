@@ -13,6 +13,7 @@ import { useResumeStore } from '@/store/resumeStore';
 import { analyzeResume } from '@/lib/aiAnalysis';
 import { useAIAction } from '@/hooks/useAIAction';
 import { toast } from 'sonner';
+import editorLogger from '@/lib/editorLogger';
 import { activityTracker } from '@/lib/activityTracker';
 import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
 
@@ -90,7 +91,7 @@ export function JobAnalysisSheet({ open, onOpenChange }: JobAnalysisSheetProps) 
         toast.success('Analysis complete!');
       }
     } catch (error) {
-      console.error('Analysis error:', error);
+      editorLogger.error('Analysis error:', error);
       toast.error('Failed to analyze. Please try again.');
     } finally {
       setIsAnalyzing(false);

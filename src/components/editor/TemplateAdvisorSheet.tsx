@@ -43,9 +43,7 @@ export function TemplateAdvisorSheet({ open, onOpenChange, onApply }: TemplateAd
       const token = await getSupabaseToken();
       if (!token) throw new Error('Not authenticated');
 
-      const skills = currentResume.skills?.map(s =>
-        typeof s === 'string' ? s : (s as any).name || String(s)
-      ) || [];
+      const skills = currentResume.skills?.map(s => String(s)) || [];
 
       const latestExp = currentResume.experience?.[0];
       const jobTitle = latestExp?.position || '';

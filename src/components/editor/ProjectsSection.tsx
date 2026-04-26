@@ -385,12 +385,12 @@ export const ProjectsSection = memo(function ProjectsSection() {
                 <div className="animate-in fade-in-0 duration-200">
                   <div className="p-4 pt-0 space-y-4 border-t border-border">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div><Label className="text-sm flex items-center gap-1.5 mb-2"><Rocket className="w-4 h-4" />Project Name</Label><Input value={proj.name} onChange={e => updateProject(proj.id, { name: e.target.value })} placeholder="My Awesome Project" className="h-12" /></div>
-                      <div><Label className="text-sm mb-2">Role</Label><Input value={proj.role} onChange={e => updateProject(proj.id, { role: e.target.value })} placeholder="Lead Developer" className="h-12" /></div>
+                      <div><Label htmlFor={`proj-${proj.id}-name`} className="text-sm flex items-center gap-1.5 mb-2"><Rocket className="w-4 h-4" />Project Name</Label><Input id={`proj-${proj.id}-name`} value={proj.name} onChange={e => updateProject(proj.id, { name: e.target.value })} placeholder="My Awesome Project" className="h-12" /></div>
+                      <div><Label htmlFor={`proj-${proj.id}-role`} className="text-sm mb-2">Role</Label><Input id={`proj-${proj.id}-role`} value={proj.role} onChange={e => updateProject(proj.id, { role: e.target.value })} placeholder="Lead Developer" className="h-12" /></div>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div><Label className="text-sm flex items-center gap-1.5 mb-2"><Calendar className="w-4 h-4" />Start Date</Label><Input value={proj.startDate} onChange={e => updateProject(proj.id, { startDate: e.target.value })} placeholder="Jan 2024" className="h-12" /></div>
-                      <div><Label className="text-sm flex items-center gap-1.5 mb-2"><Calendar className="w-4 h-4" />End Date</Label><Input value={proj.endDate} onChange={e => updateProject(proj.id, { endDate: e.target.value })} placeholder="Present" className="h-12" /></div>
+                      <div><Label htmlFor={`proj-${proj.id}-start`} className="text-sm flex items-center gap-1.5 mb-2"><Calendar className="w-4 h-4" />Start Date</Label><Input id={`proj-${proj.id}-start`} value={proj.startDate} onChange={e => updateProject(proj.id, { startDate: e.target.value })} placeholder="Jan 2024" className="h-12" /></div>
+                      <div><Label htmlFor={`proj-${proj.id}-end`} className="text-sm flex items-center gap-1.5 mb-2"><Calendar className="w-4 h-4" />End Date</Label><Input id={`proj-${proj.id}-end`} value={proj.endDate} onChange={e => updateProject(proj.id, { endDate: e.target.value })} placeholder="Present" className="h-12" /></div>
                     </div>
 
                     {/* Technologies with AI */}
@@ -435,8 +435,8 @@ export const ProjectsSection = memo(function ProjectsSection() {
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div><Label className="text-sm flex items-center gap-1.5 mb-2"><Link className="w-4 h-4" />Project URL</Label><Input value={proj.url || ''} onChange={e => updateProject(proj.id, { url: e.target.value })} placeholder="https://..." className="h-12" type="url" /></div>
-                      <div><Label className="text-sm flex items-center gap-1.5 mb-2"><Github className="w-4 h-4" />GitHub</Label><Input value={proj.githubUrl || ''} onChange={e => updateProject(proj.id, { githubUrl: e.target.value })} placeholder="https://github.com/..." className="h-12" type="url" /></div>
+                      <div><Label htmlFor={`proj-${proj.id}-url`} className="text-sm flex items-center gap-1.5 mb-2"><Link className="w-4 h-4" />Project URL</Label><Input id={`proj-${proj.id}-url`} value={proj.url || ''} onChange={e => updateProject(proj.id, { url: e.target.value })} placeholder="https://..." className="h-12" type="url" /></div>
+                      <div><Label htmlFor={`proj-${proj.id}-github`} className="text-sm flex items-center gap-1.5 mb-2"><Github className="w-4 h-4" />GitHub</Label><Input id={`proj-${proj.id}-github`} value={proj.githubUrl || ''} onChange={e => updateProject(proj.id, { githubUrl: e.target.value })} placeholder="https://github.com/..." className="h-12" type="url" /></div>
                     </div>
                     <div className="flex justify-end pt-2"><Button variant="ghost" size="sm" onClick={() => deleteProject(proj.id)} className="gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10"><Trash2 className="w-4 h-4" />Remove</Button></div>
                   </div>

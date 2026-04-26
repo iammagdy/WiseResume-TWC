@@ -29,6 +29,7 @@ import { useResumeStore } from '@/store/resumeStore';
 import { useShallow } from 'zustand/react/shallow';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { toast } from 'sonner';
+import editorLogger from '@/lib/editorLogger';
 import {
   RecruiterPersonaInfo,
   RECRUITER_PERSONAS,
@@ -108,7 +109,7 @@ export function RecruiterSimSheet({ open, onOpenChange }: RecruiterSimSheetProps
       setViewState('results');
       saveDraft({ analysis: result.analysis, personaId: persona.id });
     } catch (err) {
-      console.error('Recruiter simulation error:', err);
+      editorLogger.error('Recruiter simulation error:', err);
       // Bounce back to the persona picker but keep `selectedPersona` so the
       // user can hit "Run again" without re-picking their persona on every
       // transient failure (rate limit, blip, etc.). The picker's "Run"
@@ -212,7 +213,7 @@ export function RecruiterSimSheet({ open, onOpenChange }: RecruiterSimSheetProps
       });
 
     } catch (err) {
-      console.error('Apply fix error:', err);
+      editorLogger.error('Apply fix error:', err);
       toast.error('Failed to apply fix automatically.', {
         description: 'Please try editing manually.',
       });

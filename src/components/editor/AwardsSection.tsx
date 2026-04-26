@@ -82,16 +82,16 @@ export const AwardsSection = memo(function AwardsSection() {
                 <div className="animate-in fade-in-0 duration-200">
                   <div className="p-4 pt-0 space-y-4 border-t border-border">
                     <div>
-                      <Label className="text-sm flex items-center gap-1.5 mb-2"><Trophy className="w-4 h-4" />Award Title</Label>
-                      <Input value={award.title} onChange={e => updateAward(award.id, { title: e.target.value })} placeholder="Best Innovation Award" className="h-12" />
+                      <Label htmlFor={`award-${award.id}-title`} className="text-sm flex items-center gap-1.5 mb-2"><Trophy className="w-4 h-4" />Award Title</Label>
+                      <Input id={`award-${award.id}-title`} value={award.title} onChange={e => updateAward(award.id, { title: e.target.value })} placeholder="Best Innovation Award" className="h-12" />
                     </div>
                     <div>
-                      <Label className="text-sm flex items-center gap-1.5 mb-2"><Building2 className="w-4 h-4" />Issuing Organization</Label>
-                      <Input value={award.issuer} onChange={e => updateAward(award.id, { issuer: e.target.value })} placeholder="Company or Organization" className="h-12" />
+                      <Label htmlFor={`award-${award.id}-issuer`} className="text-sm flex items-center gap-1.5 mb-2"><Building2 className="w-4 h-4" />Issuing Organization</Label>
+                      <Input id={`award-${award.id}-issuer`} value={award.issuer} onChange={e => updateAward(award.id, { issuer: e.target.value })} placeholder="Company or Organization" className="h-12" />
                     </div>
                     <div>
-                      <Label className="text-sm flex items-center gap-1.5 mb-2"><Calendar className="w-4 h-4" />Date Received</Label>
-                      <Input value={award.date} onChange={e => updateAward(award.id, { date: e.target.value })} placeholder="2024" className="h-12" />
+                      <Label htmlFor={`award-${award.id}-date`} className="text-sm flex items-center gap-1.5 mb-2"><Calendar className="w-4 h-4" />Date Received</Label>
+                      <Input id={`award-${award.id}-date`} value={award.date} onChange={e => updateAward(award.id, { date: e.target.value })} placeholder="2024" className="h-12" />
                     </div>
                     <div>
                       <Label className="text-sm mb-2">Description (optional)</Label>

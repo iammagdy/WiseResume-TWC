@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useRef, useEffect, memo, Suspense } from 'react';
+import editorLogger from '@/lib/editorLogger';
 import { formatDegreeAndField } from '@/lib/educationFormat';
 import { 
   Wand2, Loader2, CheckCircle, ArrowRight, Undo2, GitCompare, 
@@ -429,7 +430,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
       });
 
     } catch (error) {
-      console.error('Tailor error:', error);
+      editorLogger.error('Tailor error:', error);
       const err = error as TailorError;
       const code = err.code || 'generic';
       // Coerce to a safe string FIRST — some callers surface an error whose
@@ -668,7 +669,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
       clearCache(currentResumeId);
       setShowAppliedCTA(true);
     } catch (error) {
-      console.error('Apply error:', error);
+      editorLogger.error('Apply error:', error);
       toast.error('Failed to create tailored resume');
     } finally {
       setIsApplying(false);
@@ -722,7 +723,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
       await downloadFile({ blob, fileName });
       toast.success('PDF downloaded!');
     } catch (err) {
-      console.error('[TailorSheet] PDF download failed:', err);
+      editorLogger.error('[TailorSheet] PDF download failed:', err);
       toast.error('Failed to download PDF');
     } finally {
       setIsDownloadingPdf(false);
@@ -1329,7 +1330,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
                         title={SECTION_LABELS.projects}
                         enabled={enabledSections.includes('projects')}
                         onToggle={() => toggleSection('projects')}
-                        impactScore={tailorResult.sectionScores && (tailorResult.sectionScores as any).projects ? (tailorResult.sectionScores as any).projects.after - (tailorResult.sectionScores as any).projects.before : 5}
+                        impactScore={tailorResult.sectionScores?.projects ? tailorResult.sectionScores.projects.after - tailorResult.sectionScores.projects.before : 5}
                         changesSummary={`${tailorResult.projects.length} projects optimized`}
                         onRegenerate={handleRegenerateSection}
                         preview={
@@ -1352,7 +1353,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
                         title={SECTION_LABELS.certifications}
                         enabled={enabledSections.includes('certifications')}
                         onToggle={() => toggleSection('certifications')}
-                        impactScore={tailorResult.sectionScores && (tailorResult.sectionScores as any).certifications ? (tailorResult.sectionScores as any).certifications.after - (tailorResult.sectionScores as any).certifications.before : 3}
+                        impactScore={tailorResult.sectionScores?.certifications ? tailorResult.sectionScores.certifications.after - tailorResult.sectionScores.certifications.before : 3}
                         changesSummary={`${tailorResult.certifications.length} certifications refined`}
                         onRegenerate={handleRegenerateSection}
                         preview={
@@ -1374,7 +1375,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
                         title={SECTION_LABELS.awards}
                         enabled={enabledSections.includes('awards')}
                         onToggle={() => toggleSection('awards')}
-                        impactScore={tailorResult.sectionScores && (tailorResult.sectionScores as any).awards ? (tailorResult.sectionScores as any).awards.after - (tailorResult.sectionScores as any).awards.before : 2}
+                        impactScore={tailorResult.sectionScores?.awards ? tailorResult.sectionScores.awards.after - tailorResult.sectionScores.awards.before : 2}
                         changesSummary={`${tailorResult.awards.length} awards enhanced`}
                         preview={
                           <ul className="space-y-1">

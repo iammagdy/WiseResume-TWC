@@ -212,7 +212,7 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
     const rect = resumeRef.current.getBoundingClientRect();
     const cssY = Math.round((e.clientY - rect.top) / zoom);
     const totalH = resumeRef.current.scrollHeight;
-    if (cssY <= 5 || cssY >= totalH - 5) return;
+    if (cssY <= 14 || cssY >= totalH - 14) return;
     const existing = currentResume?.customization?.customBreakPositions ?? [];
     if (existing.some(b => Math.abs(b - cssY) < 30)) return;
     setCustomBreaks([...existing, cssY]);
@@ -229,7 +229,7 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
     if (!draggingBreak || draggingBreak.index !== index || !resumeRef.current) return;
     const delta = (e.clientY - draggingBreak.startClientY) / zoom;
     const totalH = resumeRef.current.scrollHeight;
-    const newY = Math.round(Math.max(5, Math.min(totalH - 5, draggingBreak.startBreakY + delta)));
+    const newY = Math.round(Math.max(14, Math.min(totalH - 14, draggingBreak.startBreakY + delta)));
     setDraggingBreak(prev => prev ? { ...prev, currentY: newY } : null);
   }, [draggingBreak, zoom]);
 
@@ -306,7 +306,7 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
   const activeSections = domSections.length > 0
     ? domSections
     : Object.keys(SECTION_LABELS).filter(key => {
-        const val = (currentResume as any)[key];
+        const val = (currentResume as Record<string, unknown>)[key];
         if (typeof val === 'string') return val.length > 0;
         if (Array.isArray(val)) return val.length > 0;
         return false;

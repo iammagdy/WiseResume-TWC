@@ -45,6 +45,7 @@ import { convergeSmartFitPlan, runLayoutOnlyFit, type ConvergeProgress } from '@
 import { buildDiffHighlight, type HighlightSegment } from '@/lib/smartFit/diffHighlight';
 import type { SmartFitPlan, SmartFitSelection, LayoutFitProposal, RewriteFailureInfo } from '@/lib/smartFit/types';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import editorLogger from '@/lib/editorLogger';
 
 interface SmartFitWizardSheetProps {
   open: boolean;
@@ -193,7 +194,7 @@ export function SmartFitWizardSheet({
       const pages = mod.estimatePageCount(el, dims.width, dims.height - mod.FOOTER_RESERVED_PT);
       return Math.max(1, pages);
     } catch (e) {
-      console.warn('[SmartFit] measureScratch failed', e);
+      editorLogger.warn('[SmartFit] measureScratch failed', e);
       return estimatePagesFromContent(alt);
     }
   }, []);
@@ -232,7 +233,7 @@ export function SmartFitWizardSheet({
           onProgress: setConvergeProgress,
         });
       } catch (e) {
-        console.warn('[SmartFit] layout-only fit failed, continuing', e);
+        editorLogger.warn('[SmartFit] layout-only fit failed, continuing', e);
       }
       const pagesAfterLayout = layoutOnly?.pagesAfter ?? currentPages;
 
@@ -303,7 +304,7 @@ export function SmartFitWizardSheet({
           onProgress: setConvergeProgress,
         });
       } catch (e) {
-        console.warn('[SmartFit] convergence failed, falling back to default selection', e);
+        editorLogger.warn('[SmartFit] convergence failed, falling back to default selection', e);
         convResult = null;
       }
 
@@ -343,7 +344,7 @@ export function SmartFitWizardSheet({
         convergedMs: Math.round(performance.now() - analyzeStart),
       });
     } catch (err: unknown) {
-      console.error('[SmartFit] analyze error', err);
+      editorLogger.error('[SmartFit] analyze error', err);
       toast.error(err instanceof Error ? err.message : 'Failed to analyze. Please try again.');
       setView('intro');
     }
@@ -373,7 +374,7 @@ export function SmartFitWizardSheet({
             changeSummary: `Auto-snapshot before Smart Fit (target ${targetPages}p)`,
           });
         } catch (e) {
-          console.warn('[SmartFit] snapshot failed (non-blocking)', e);
+          editorLogger.warn('[SmartFit] snapshot failed (non-blocking)', e);
         }
       }
       let merged = applySmartFitPlan(currentResume, plan, selection);
@@ -415,7 +416,7 @@ export function SmartFitWizardSheet({
       // Backward-compat: PreviewPage passes onExportOnePage to chain its
       // export-to-PDF flow after a successful single-page apply.
       if (onExportOnePage && targetPages === 1 && finalPages <= 1) {
-        try { onExportOnePage(); } catch (e) { console.warn('[SmartFit] onExportOnePage failed', e); }
+        try { onExportOnePage(); } catch (e) { editorLogger.warn('[SmartFit] onExportOnePage failed', e); }
       }
     } finally {
       setIsApplying(false);
@@ -455,7 +456,7 @@ export function SmartFitWizardSheet({
         rewrites: new Set(rewrites.filter(r => r.validated).map(r => r.id)),
       }));
     } catch (err) {
-      console.warn('[SmartFit] retry rewrites failed', err);
+      editorLogger.warn('[SmartFit] retry rewrites failed', err);
     } finally {
       setIsRetryingRewrites(false);
     }
@@ -731,7 +732,7 @@ async function postTelemetry(payload: TelemetryPayload): Promise<void> {
       body: { mode: 'telemetry', telemetry: payload },
     });
   } catch (e) {
-    console.warn('[SmartFit] telemetry failed (non-blocking)', e);
+    editorLogger.warn('[SmartFit] telemetry failed (non-blocking)', e);
   }
 }
 

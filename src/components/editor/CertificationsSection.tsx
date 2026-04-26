@@ -86,26 +86,26 @@ export const CertificationsSection = memo(function CertificationsSection() {
                 <div className="animate-in fade-in-0 duration-200">
                   <div className="p-4 pt-0 space-y-4 border-t border-border">
                     <div>
-                      <Label className="text-sm flex items-center gap-1.5 mb-2"><Award className="w-4 h-4" />Certification Name</Label>
-                      <Input value={cert.name} onChange={e => updateCert(cert.id, { name: e.target.value })} placeholder="AWS Solutions Architect" className="h-12" />
+                      <Label htmlFor={`cert-${cert.id}-name`} className="text-sm flex items-center gap-1.5 mb-2"><Award className="w-4 h-4" />Certification Name</Label>
+                      <Input id={`cert-${cert.id}-name`} value={cert.name} onChange={e => updateCert(cert.id, { name: e.target.value })} placeholder="AWS Solutions Architect" className="h-12" />
                     </div>
                     <div>
-                      <Label className="text-sm flex items-center gap-1.5 mb-2"><Building2 className="w-4 h-4" />Issuing Organization</Label>
-                      <Input value={cert.issuer} onChange={e => updateCert(cert.id, { issuer: e.target.value })} placeholder="Amazon Web Services" className="h-12" />
+                      <Label htmlFor={`cert-${cert.id}-issuer`} className="text-sm flex items-center gap-1.5 mb-2"><Building2 className="w-4 h-4" />Issuing Organization</Label>
+                      <Input id={`cert-${cert.id}-issuer`} value={cert.issuer} onChange={e => updateCert(cert.id, { issuer: e.target.value })} placeholder="Amazon Web Services" className="h-12" />
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <Label className="text-sm flex items-center gap-1.5 mb-2"><Calendar className="w-4 h-4" />Date Issued</Label>
-                        <Input value={cert.date} onChange={e => updateCert(cert.id, { date: e.target.value })} placeholder="Jan 2024" className="h-12" />
+                        <Label htmlFor={`cert-${cert.id}-date`} className="text-sm flex items-center gap-1.5 mb-2"><Calendar className="w-4 h-4" />Date Issued</Label>
+                        <Input id={`cert-${cert.id}-date`} value={cert.date} onChange={e => updateCert(cert.id, { date: e.target.value })} placeholder="Jan 2024" className="h-12" />
                       </div>
                       <div>
-                        <Label className="text-sm flex items-center gap-1.5 mb-2"><Calendar className="w-4 h-4" />Expiry Date (optional)</Label>
-                        <Input value={cert.expiryDate || ''} onChange={e => updateCert(cert.id, { expiryDate: e.target.value })} placeholder="Jan 2027" className="h-12" />
+                        <Label htmlFor={`cert-${cert.id}-expiry`} className="text-sm flex items-center gap-1.5 mb-2"><Calendar className="w-4 h-4" />Expiry Date (optional)</Label>
+                        <Input id={`cert-${cert.id}-expiry`} value={cert.expiryDate || ''} onChange={e => updateCert(cert.id, { expiryDate: e.target.value })} placeholder="Jan 2027" className="h-12" />
                       </div>
                     </div>
                     <div>
-                      <Label className="text-sm mb-2">Credential ID (optional)</Label>
-                      <Input value={cert.credentialId || ''} onChange={e => updateCert(cert.id, { credentialId: e.target.value })} placeholder="ABC123XYZ" className="h-12" />
+                      <Label htmlFor={`cert-${cert.id}-cred`} className="text-sm mb-2">Credential ID (optional)</Label>
+                      <Input id={`cert-${cert.id}-cred`} value={cert.credentialId || ''} onChange={e => updateCert(cert.id, { credentialId: e.target.value })} placeholder="ABC123XYZ" className="h-12" />
                     </div>
                     <div className="flex justify-end pt-2">
                       <Button variant="ghost" size="sm" onClick={() => deleteCert(cert.id)} className="gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10">

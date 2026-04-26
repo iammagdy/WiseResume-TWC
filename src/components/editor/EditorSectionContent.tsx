@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { SectionCard } from '@/components/editor/SectionCard';
 import { SectionAIAction } from '@/components/editor/SectionAIAction';
+import type { SectionType } from '@/components/editor/InlineAIButton';
 import { ATSInlineSuggestions } from '@/components/editor/ATSInlineSuggestions';
 import { AddSectionSheet } from '@/components/editor/AddSectionSheet';
 import { getSectionStatus } from '@/lib/resumeCompletionRules';
@@ -52,7 +53,7 @@ export interface EditorSectionContentProps {
   isAnalyzingSection: (section: string) => boolean;
   fetchDeepSuggestions: (section: SectionId) => Promise<void>;
   deepResults: Record<string, DeepResult | undefined>;
-  handleApplyDeep: (section: string, improved: unknown) => void;
+  handleApplyDeep: (section: SectionId, improved: unknown) => void;
   clearDeepResult: (section: SectionId) => void;
   onRequestJobDescription: () => void;
 }
@@ -223,7 +224,7 @@ export function EditorSectionContent({
                   }
                   const { icon, title, hasAI, Component } = config;
                   return (
-                    <SectionCard icon={icon} title={title} action={hasAI ? <SectionAIAction section={moreSubSection! as any} /> : undefined}>
+                    <SectionCard icon={icon} title={title} action={hasAI ? <SectionAIAction section={moreSubSection! as SectionType} /> : undefined}>
                       <Component />
                     </SectionCard>
                   );
