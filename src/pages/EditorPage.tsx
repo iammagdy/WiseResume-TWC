@@ -9,12 +9,11 @@ import {
   isValidEditorSheetId,
 } from '@/lib/editorSession';
 import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
-import { Sparkles, BarChart3, Scissors, ArrowLeft, Clock, AlertTriangle, Loader2, Undo2, Redo2, FileDown, Palette } from 'lucide-react';
+import { Sparkles, BarChart3, Scissors, ArrowLeft, Clock, AlertTriangle, Loader2, Undo2, Redo2, FileDown, Palette, ChevronLeft, ChevronRight, Download, LayoutGrid } from 'lucide-react';
 import { useAIEnhancingStore } from '@/store/aiEnhancingStore';
 import { useIsMobile, EDITOR_MOBILE_BREAKPOINT } from '@/hooks/use-mobile';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { StepperNav } from '@/components/editor/StepperNav';
 import { SectionSidebar } from '@/components/editor/SectionSidebar';
 import { LivePreviewPanel } from '@/components/editor/LivePreviewPanel';
 import { useResumeStore, useResumeStoreHydration } from '@/store/resumeStore';
@@ -1195,26 +1194,48 @@ export default function EditorPage() {
                 </button>
               ))}
             </div>
-            {/* Divider — only visible in edit mode when section pills follow */}
+            {/* Current-section navigator: ‹ Name › — only in edit mode */}
             {mobileEditorTab === 'editor' && (
-              <div className="w-px h-5 bg-border shrink-0" />
-            )}
-            {/* Section pills — only in edit mode */}
-            {mobileEditorTab === 'editor' && (
-              <div className="flex-1 min-w-0 overflow-hidden">
-                <StepperNav
-                  steps={steps}
-                  activeStep={activeTab}
-                  completedSteps={sectionStatus}
-                  sectionScores={sectionScores}
-                  onStepClick={handleTabChange}
-                  justCompletedStep={justCompletedStep}
-                  onMoreSectionSelect={handleMoreSectionSelect}
-                  activeMoreSection={moreSubSection}
-                  availableMoreCount={availableMoreCount}
-                  hideStepCounter
-                />
-              </div>
+              <>
+                <div className="w-px h-5 bg-border shrink-0" />
+                <div className="flex-1 min-w-0 flex items-center gap-0.5 px-1">
+                  <button
+                    onClick={() => {
+                      const idx = steps.findIndex(s => s.id === activeTab);
+                      if (idx > 0) { handleTabChange(steps[idx - 1].id); haptics.light(); }
+                    }}
+                    disabled={steps.findIndex(s => s.id === activeTab) === 0}
+                    aria-label="Previous section"
+                    className={cn(
+                      'p-1.5 rounded-lg transition-all touch-manipulation active:scale-95 shrink-0 min-w-[36px] min-h-[36px] flex items-center justify-center',
+                      steps.findIndex(s => s.id === activeTab) === 0
+                        ? 'text-muted-foreground/25 cursor-not-allowed'
+                        : 'text-muted-foreground hover:bg-muted'
+                    )}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <span className="flex-1 text-center text-sm font-medium text-foreground truncate select-none">
+                    {steps.find(s => s.id === activeTab)?.label ?? 'Section'}
+                  </span>
+                  <button
+                    onClick={() => {
+                      const idx = steps.findIndex(s => s.id === activeTab);
+                      if (idx < steps.length - 1) { handleTabChange(steps[idx + 1].id); haptics.light(); }
+                    }}
+                    disabled={steps.findIndex(s => s.id === activeTab) === steps.length - 1}
+                    aria-label="Next section"
+                    className={cn(
+                      'p-1.5 rounded-lg transition-all touch-manipulation active:scale-95 shrink-0 min-w-[36px] min-h-[36px] flex items-center justify-center',
+                      steps.findIndex(s => s.id === activeTab) === steps.length - 1
+                        ? 'text-muted-foreground/25 cursor-not-allowed'
+                        : 'text-muted-foreground hover:bg-muted'
+                    )}
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </>
             )}
           </div>
 
@@ -1225,17 +1246,16 @@ export default function EditorPage() {
             >
               <EditorSectionContent {...editorSectionProps} />
             </div>
-            {/* Pinned nav — always visible above bottom tab bar */}
+            {/* Pinned nav — undo/redo + prev/next in a single row */}
             <div className="shrink-0 border-t border-border bg-background">
-              {/* Undo / Redo row */}
-              <div className="flex items-center gap-0.5 px-3 pt-2 pb-0">
+              <div className="flex items-center gap-1.5 px-3 pt-2 pb-[calc(5rem+env(safe-area-inset-bottom))]">
                 <button
                   onClick={() => { haptics.light(); handleUndo(); }}
                   disabled={!canUndo}
                   aria-label={canUndo ? `Undo: ${undoDescription}` : 'Nothing to undo'}
                   className={cn(
-                    'p-2 rounded-lg transition-all touch-manipulation active:scale-95 min-w-[44px] min-h-[36px] flex items-center justify-center',
-                    canUndo ? 'text-foreground hover:bg-muted' : 'text-muted-foreground/30 cursor-not-allowed'
+                    'p-2 rounded-lg transition-all touch-manipulation active:scale-95 w-9 h-9 flex items-center justify-center shrink-0',
+                    canUndo ? 'text-foreground hover:bg-muted' : 'text-muted-foreground/25 cursor-not-allowed'
                   )}
                 >
                   <Undo2 className="w-4 h-4" />
@@ -1245,16 +1265,14 @@ export default function EditorPage() {
                   disabled={!canRedo}
                   aria-label={canRedo ? `Redo: ${redoDescription}` : 'Nothing to redo'}
                   className={cn(
-                    'p-2 rounded-lg transition-all touch-manipulation active:scale-95 min-w-[44px] min-h-[36px] flex items-center justify-center',
-                    canRedo ? 'text-foreground hover:bg-muted' : 'text-muted-foreground/30 cursor-not-allowed'
+                    'p-2 rounded-lg transition-all touch-manipulation active:scale-95 w-9 h-9 flex items-center justify-center shrink-0',
+                    canRedo ? 'text-foreground hover:bg-muted' : 'text-muted-foreground/25 cursor-not-allowed'
                   )}
                 >
                   <Redo2 className="w-4 h-4" />
                 </button>
-                <span className="text-[10px] text-muted-foreground ml-0.5 select-none">Undo / Redo</span>
-              </div>
-              <div className="px-4 pb-[calc(5rem+env(safe-area-inset-bottom))]">
-                <SectionNavButtons steps={steps} activeTab={activeTab} handleTabChange={handleTabChange} navigate={navigate} />
+                <div className="w-px h-5 bg-border shrink-0" />
+                <SectionNavButtons steps={steps} activeTab={activeTab} handleTabChange={handleTabChange} navigate={navigate} noPadding />
               </div>
             </div>
           </TabsContent>
@@ -1486,6 +1504,28 @@ export default function EditorPage() {
                     <SheetTitle className="text-base">AI Tools</SheetTitle>
                   </SheetHeader>
                   <div className="overflow-y-auto flex-1 px-4 pb-4 space-y-2">
+                    <button
+                      onPointerEnter={preloadLazy(() => import('@/components/editor/TemplateSelector'))}
+                      onClick={() => { haptics.light(); setShowToolsSheet(false); handleChangeTemplate(); }}
+                      className="flex items-center gap-3 w-full rounded-xl border border-border bg-card hover:bg-muted active:scale-[0.98] transition-transform touch-manipulation min-h-[56px] px-4"
+                    >
+                      <LayoutGrid className="w-5 h-5 text-violet-500 shrink-0" />
+                      <div className="text-left min-w-0">
+                        <p className="text-sm font-medium">Change Template</p>
+                        <p className="text-xs text-muted-foreground">Browse and apply a new resume style</p>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => { haptics.light(); setShowToolsSheet(false); setShowExport(true); }}
+                      className="flex items-center gap-3 w-full rounded-xl border border-border bg-card hover:bg-muted active:scale-[0.98] transition-transform touch-manipulation min-h-[56px] px-4"
+                    >
+                      <Download className="w-5 h-5 text-green-600 shrink-0" />
+                      <div className="text-left min-w-0">
+                        <p className="text-sm font-medium">Download / Export</p>
+                        <p className="text-xs text-muted-foreground">Save as PDF, Word, image, or share link</p>
+                      </div>
+                    </button>
+                    <div className="h-px bg-border my-1" />
                     <button
                       onPointerEnter={preloadLazy(() => import('@/components/editor/TailorSheet'))}
                       onClick={() => { haptics.light(); setShowToolsSheet(false); handleTailor(); }}

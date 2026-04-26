@@ -1,5 +1,6 @@
 import { lazy, Suspense, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { cn } from '@/lib/utils';
 import type { LucideIcon } from 'lucide-react';
 import { ChevronLeft, ChevronRight, Eye, Plus, Trophy, Rocket, Award, BookOpen, Heart, Palette, Globe, Users, X } from 'lucide-react';
 import { User, AlignLeft, Briefcase, GraduationCap, Wrench } from 'lucide-react';
@@ -244,16 +245,18 @@ export function SectionNavButtons({
   activeTab,
   handleTabChange,
   navigate,
+  noPadding = false,
 }: {
   steps: { id: string; label: string }[];
   activeTab: string;
   handleTabChange: (tab: string) => void;
   navigate: ReturnType<typeof useNavigate>;
+  noPadding?: boolean;
 }) {
   const [isNavigating, setIsNavigating] = useState(false);
 
   return (
-    <div className="flex flex-row items-center gap-2 sm:gap-3 py-3 overflow-hidden">
+    <div className={cn('flex flex-row items-center gap-2 sm:gap-3 overflow-hidden flex-1', !noPadding && 'py-3')}>
       <Button
         variant="outline"
         size="lg"

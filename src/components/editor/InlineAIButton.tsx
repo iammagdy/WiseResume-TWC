@@ -165,7 +165,7 @@ export const InlineAIButton = memo(function InlineAIButton({
         ) : (
           <Sparkles className="w-3.5 h-3.5" />
         )}
-        <span className="text-xs font-medium">{sectionButtonLabels[section] ?? 'AI Assist'}</span>
+        <span className="text-xs font-medium hidden sm:inline">{sectionButtonLabels[section] ?? 'AI Assist'}</span>
       </Button>
 
       {/* Desktop dropdown */}
