@@ -8,6 +8,10 @@
  * When SENTRY_DSN is set, ERROR-level events are also forwarded to Sentry via
  * their envelope REST API — no Deno SDK import required.
  *
+ * WARN and ERROR level events are also persisted to the `error_log` Postgres
+ * table so the Admin Dev Kit Observability panel can surface them.
+ * Writes are fire-and-forget — failures are silently swallowed.
+ *
  * Usage:
  *   import { logger } from '../_shared/logger.ts';
  *   const log = logger('my-function');
@@ -16,6 +20,8 @@
  *   log.warn('BYOK key missing', { userId, provider: 'openai' });
  *   log.error('AI call failed', error, { userId, endpoint: 'generate-summary' });
  */
+
+import { getServiceClient } from './dbClient.ts';
 
 type LogLevel = 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
 
@@ -47,6 +53,42 @@ function serializeError(err: unknown): Record<string, unknown> {
     };
   }
   return { rawError: String(err) };
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Fire-and-forget write to the `error_log` table.
+ * Never throws — instrumentation must not affect the primary function path.
+ */
+function writeToErrorLog(
+  functionName: string,
+  level: 'warn' | 'error',
+  msg: string,
+  context?: Record<string, unknown>,
+): void {
+  try {
+    const db = getServiceClient();
+    const userId = context?.userId ?? context?.user_id;
+    const validUserId = typeof userId === 'string' && UUID_RE.test(userId) ? userId : null;
+
+    db.from('error_log')
+      .insert({
+        level,
+        message: msg,
+        source: functionName,
+        context: context ?? null,
+        user_id: validUserId,
+      })
+      .then(({ error }) => {
+        if (error) {
+          console.warn(`[logger] error_log insert failed (non-fatal): ${error.message}`);
+        }
+      })
+      .catch(() => { /* swallow */ });
+  } catch {
+    /* swallow — never let logging break the caller */
+  }
 }
 
 /**
@@ -139,10 +181,13 @@ export function logger(functionName: string): Logger {
     },
     warn(msg, extra) {
       emit('WARN', functionName, msg, extra);
+      writeToErrorLog(functionName, 'warn', msg, extra);
     },
     error(msg, err, extra) {
       const errorFields = err !== undefined ? serializeError(err) : {};
-      emit('ERROR', functionName, msg, { ...errorFields, ...extra });
+      const fullContext = { ...errorFields, ...extra };
+      emit('ERROR', functionName, msg, fullContext);
+      writeToErrorLog(functionName, 'error', err instanceof Error ? `${msg}: ${err.message}` : msg, fullContext);
       if (err !== undefined) {
         sendToSentry(functionName, msg, err, extra).catch(() => {});
       }
