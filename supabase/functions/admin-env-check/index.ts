@@ -18,8 +18,8 @@ const REQUIRED_ENV_VARS: { key: string; label: string }[] = [
   { key: 'GITHUB_REPO', label: 'GitHub Repo' },
   { key: 'RESEND_API_KEY', label: 'Resend API Key' },
   { key: 'KINDE_WEBHOOK_SECRET', label: 'Kinde Webhook Secret (kinde-webhook instant provisioning)' },
-  { key: 'KINDE_M2M_CLIENT_ID', label: 'Kinde M2M Client ID (admin-kinde-reconcile + wisehire-reset-user)' },
-  { key: 'KINDE_M2M_CLIENT_SECRET', label: 'Kinde M2M Client Secret (admin-kinde-reconcile + wisehire-reset-user)' },
+  { key: 'KINDE_M2M_CLIENT_ID', label: 'Kinde M2M Client ID (admin-get-identity email lookup + admin-kinde-reconcile + wisehire-reset-user)' },
+  { key: 'KINDE_M2M_CLIENT_SECRET', label: 'Kinde M2M Client Secret (admin-get-identity email lookup + admin-kinde-reconcile + wisehire-reset-user)' },
 ];
 
 Deno.serve(async (req) => {
