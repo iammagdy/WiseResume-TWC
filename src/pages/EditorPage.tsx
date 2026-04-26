@@ -6,7 +6,6 @@ import {
   readEditorSession,
   writeEditorSession,
   clearEditorSession,
-  type EditorSheetId,
 } from '@/lib/editorSession';
 import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
 import { Sparkles, BarChart3, Scissors, ArrowLeft, Clock, AlertTriangle, Loader2 } from 'lucide-react';
@@ -66,6 +65,7 @@ import { useBackButton } from '@/hooks/useBackButton';
 import { useEditorHydration } from '@/hooks/useEditorHydration';
 import { useEditorAutosave } from '@/hooks/useEditorAutosave';
 import { useEditorSectionScores } from '@/hooks/useEditorSectionScores';
+import { useEditorSheets } from '@/hooks/useEditorSheets';
 import { useATSSuggestions } from '@/hooks/useATSSuggestions';
 import { AIIntroTooltip } from '@/components/editor/AIIntroTooltip';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
@@ -178,20 +178,8 @@ export default function EditorPage() {
     s => s.pendingChanges.filter(c => c.resumeId === currentResumeId).length
   );
 
-  const [showJobSheet, setShowJobSheet] = useState(false);
-  const [showTemplates, setShowTemplates] = useState(false);
-  const [showTailor, setShowTailor] = useState(false);
-  const [showRecruiterSim, setShowRecruiterSim] = useState(false);
-  const [showAIDetector, setShowAIDetector] = useState(false);
-  const [showLinkedIn, setShowLinkedIn] = useState(false);
-  const [showProfileImport, setShowProfileImport] = useState(false);
-  const [showOnePage, setShowOnePage] = useState(false);
-  const [showChat, setShowChat] = useState(false);
+  const sheets = useEditorSheets();
   const [chatInitialMessage, setChatInitialMessage] = useState<string | undefined>(undefined);
-  const [showCareerPath, setShowCareerPath] = useState(false);
-  const [showVersionHistory, setShowVersionHistory] = useState(false);
-  const [showContentLibrary, setShowContentLibrary] = useState(false);
-  const [showCustomize, setShowCustomize] = useState(false);
   const [activeTab, setActiveTab] = useState('contact');
   // experience level determines section order: 'student' puts education before experience
   const [educationFirst, setEducationFirst] = useState(false);
@@ -207,20 +195,16 @@ export default function EditorPage() {
   const [showATSBadge, setShowATSBadge] = useState(false);
   const [showToolsSheet, setShowToolsSheet] = useState(false);
   const [toolsSubView, setToolsSubView] = useState<'list' | 'ats-scan'>('list');
-  const [showATSScan, setShowATSScan] = useState(false);
-  const [showShareSheet, setShowShareSheet] = useState(false);
   const [isQuickDownloading, setIsQuickDownloading] = useState(false);
-  const [showSnapshots, setShowSnapshots] = useState(false);
-  const [showKeywordHighlighter, setShowKeywordHighlighter] = useState(false);
 
   // Chat trigger store — ExperienceSection (and other deep components) write here to open chat
   const { pendingPrompt, clearPendingPrompt } = useChatTriggerStore();
   useEffect(() => {
     if (!pendingPrompt) return;
     setChatInitialMessage(pendingPrompt);
-    setShowChat(true);
+    sheets.open('chat');
     clearPendingPrompt();
-  }, [pendingPrompt, clearPendingPrompt]);
+  }, [pendingPrompt, clearPendingPrompt, sheets.open]);
 
   const handleQuickDownload = useCallback(async () => {
     if (!currentResume) return;
@@ -430,7 +414,7 @@ export default function EditorPage() {
     if (!planLoading && autoOpenTailorRef.current) {
       autoOpenTailorRef.current = false;
       if (isPro) {
-        setShowTailor(true);
+        sheets.open('tailor');
       } else {
         triggerGate({
           requiredPlan: 'pro',
@@ -511,55 +495,6 @@ export default function EditorPage() {
     lastScrollKeyRef.current = scrollKey;
   }, [scrollKey]);
 
-  // Sheet-id ↔ open-flag wiring. Keep in sync with the sheet renderers below.
-  const sheetSetters = useMemo<Record<EditorSheetId, (open: boolean) => void>>(
-    () => ({
-      tailor: setShowTailor,
-      recruiterSim: setShowRecruiterSim,
-      aiDetector: setShowAIDetector,
-      linkedIn: setShowLinkedIn,
-      onePage: setShowOnePage,
-      chat: setShowChat,
-      careerPath: setShowCareerPath,
-      versionHistory: setShowVersionHistory,
-      contentLibrary: setShowContentLibrary,
-      customize: setShowCustomize,
-      jobAnalysis: setShowJobSheet,
-      templates: setShowTemplates,
-      profileImport: setShowProfileImport,
-      atsScan: setShowATSScan,
-      snapshots: setShowSnapshots,
-      keywordHighlighter: setShowKeywordHighlighter,
-      shareSheet: setShowShareSheet,
-    }),
-    [],
-  );
-
-  const openSheetId = useMemo<EditorSheetId | null>(() => {
-    if (showTailor) return 'tailor';
-    if (showRecruiterSim) return 'recruiterSim';
-    if (showAIDetector) return 'aiDetector';
-    if (showLinkedIn) return 'linkedIn';
-    if (showOnePage) return 'onePage';
-    if (showChat) return 'chat';
-    if (showCareerPath) return 'careerPath';
-    if (showVersionHistory) return 'versionHistory';
-    if (showContentLibrary) return 'contentLibrary';
-    if (showCustomize) return 'customize';
-    if (showJobSheet) return 'jobAnalysis';
-    if (showTemplates) return 'templates';
-    if (showProfileImport) return 'profileImport';
-    if (showATSScan) return 'atsScan';
-    if (showSnapshots) return 'snapshots';
-    if (showKeywordHighlighter) return 'keywordHighlighter';
-    if (showShareSheet) return 'shareSheet';
-    return null;
-  }, [
-    showTailor, showRecruiterSim, showAIDetector, showLinkedIn, showOnePage,
-    showChat, showCareerPath, showVersionHistory, showContentLibrary, showCustomize,
-    showJobSheet, showTemplates, showProfileImport, showATSScan, showSnapshots,
-    showKeywordHighlighter, showShareSheet,
-  ]);
 
   // Restore once per resume id, after the resume has been hydrated and the
   // section nodes exist in the DOM. Skipped when ?fresh=1 cleared the session.
@@ -577,8 +512,8 @@ export default function EditorPage() {
     if (saved.activeTab === 'more' && saved.moreSubSection) {
       setMoreSubSection(saved.moreSubSection);
     }
-    if (saved.openSheet && sheetSetters[saved.openSheet]) {
-      sheetSetters[saved.openSheet](true);
+    if (saved.openSheet) {
+      sheets.open(saved.openSheet);
     }
     // Restore scroll on the next paint, after the lazy section has mounted.
     const targetKey = saved.activeTab === 'more' && saved.moreSubSection
@@ -605,7 +540,7 @@ export default function EditorPage() {
         hasAutoScrolled.current = true;
       }
     }
-  }, [currentResumeId, currentResume, freshLoad, sheetSetters, activeTab]);
+  }, [currentResumeId, currentResume, freshLoad, sheets.open, activeTab]);
 
   // Persist activeTab / moreSubSection / open sheet whenever they change.
   useEffect(() => {
@@ -614,9 +549,9 @@ export default function EditorPage() {
     writeEditorSession(currentResumeId, {
       activeTab,
       moreSubSection,
-      openSheet: openSheetId,
+      openSheet: sheets.current,
     });
-  }, [currentResumeId, activeTab, moreSubSection, openSheetId]);
+  }, [currentResumeId, activeTab, moreSubSection, sheets.current]);
 
   // Throttled scroll listener — capture scrollTop per active tab/sub-section.
   useEffect(() => {
@@ -944,35 +879,35 @@ export default function EditorPage() {
   ];
 
   const handleImproveSection = useCallback(
-    gate('pro', () => setShowTailor(true), {
+    gate('pro', () => sheets.open('tailor'), {
       featureName: 'Smart Tailoring',
       description: 'Paste a job description and AI rewrites your resume to match it perfectly.',
       features: TAILOR_FEATURES,
     }),
-    [gate]
+    [gate, sheets.open]
   );
 
   const handleBack = useCallback(() => {
     unsavedGuard.interceptNavigate(getBackRoute('/editor'));
   }, [unsavedGuard]);
 
-  const handleChangeTemplate = useCallback(() => setShowTemplates(true), []);
+  const handleChangeTemplate = useCallback(() => sheets.open('templates'), [sheets.open]);
   const handleTailor = useCallback(
-    gate('pro', () => setShowTailor(true), {
+    gate('pro', () => sheets.open('tailor'), {
       featureName: 'Smart Tailoring',
       description: 'Paste a job description and AI rewrites your resume to match it perfectly.',
       features: TAILOR_FEATURES,
     }),
-    [gate]
+    [gate, sheets.open]
   );
-  const handleAnalyze = useCallback(() => setShowJobSheet(true), []);
-  const handleRecruiterSim = useCallback(() => setShowRecruiterSim(true), []);
-  const handleAIDetector = useCallback(() => setShowAIDetector(true), []);
-  const handleLinkedIn = useCallback(() => setShowLinkedIn(true), []);
-  const handleOnePage = useCallback(() => setShowOnePage(true), []);
-  const handleCareerPath = useCallback(() => setShowCareerPath(true), []);
-  const handleGetIdeas = useCallback(() => setShowContentLibrary(true), []);
-  const handleCustomize = useCallback(() => setShowCustomize(true), []);
+  const handleAnalyze = useCallback(() => sheets.open('jobAnalysis'), [sheets.open]);
+  const handleRecruiterSim = useCallback(() => sheets.open('recruiterSim'), [sheets.open]);
+  const handleAIDetector = useCallback(() => sheets.open('aiDetector'), [sheets.open]);
+  const handleLinkedIn = useCallback(() => sheets.open('linkedIn'), [sheets.open]);
+  const handleOnePage = useCallback(() => sheets.open('onePage'), [sheets.open]);
+  const handleCareerPath = useCallback(() => sheets.open('careerPath'), [sheets.open]);
+  const handleGetIdeas = useCallback(() => sheets.open('contentLibrary'), [sheets.open]);
+  const handleCustomize = useCallback(() => sheets.open('customize'), [sheets.open]);
 
   const handleMoreSectionSelect = useCallback((sectionId: string) => {
     if (useAIEnhancingStore.getState().count > 0) {
@@ -1086,8 +1021,8 @@ export default function EditorPage() {
       updates.languages = [...(currentResume.languages ?? []), ...data.languages];
     }
     setCurrentResume({ ...currentResume, ...updates } as typeof currentResume);
-    setShowProfileImport(false);
-  }, [currentResume]);
+    sheets.close();
+  }, [currentResume, sheets.close]);
 
   const handleContentInsert = useCallback((text: string) => {
     if (!currentResume) return;
@@ -1151,15 +1086,15 @@ export default function EditorPage() {
         onTitleClick={() => navigate('/dashboard')}
         onUndo={handleUndo}
         onRedo={handleRedo}
-        onVersionHistory={() => setShowVersionHistory(true)}
+        onVersionHistory={() => sheets.open('versionHistory')}
         onChangeTemplate={handleChangeTemplate}
         onCustomize={handleCustomize}
         onTogglePreview={() => setShowPreview(v => { const next = !v; localStorage.setItem('wr-live-preview', String(next)); return next; })}
-        onOpenChat={() => setShowChat(true)}
-        onTemplateBtnSeen={() => { if (!templateBtnSeen) { localStorage.setItem('template_btn_seen', 'true'); setTemplateBtnSeen(true); } setShowTemplates(true); }}
+        onOpenChat={() => sheets.open('chat')}
+        onTemplateBtnSeen={() => { if (!templateBtnSeen) { localStorage.setItem('template_btn_seen', 'true'); setTemplateBtnSeen(true); } sheets.open('templates'); }}
         onDownload={() => setShowExport(true)}
         isQuickDownloading={isQuickDownloading}
-        onImportProfile={() => setShowProfileImport(true)}
+        onImportProfile={() => sheets.open('profileImport')}
       />
 
       {/* Tailored Resume Indicator Banner */}
@@ -1438,36 +1373,35 @@ export default function EditorPage() {
       <ErrorBoundary>
         <Suspense fallback={null}>
           {/* LivePreviewSheet removed — mobile now uses inline Tabs */}
-          {showJobSheet && <JobAnalysisSheet open={showJobSheet} onOpenChange={setShowJobSheet} />}
-          {showTemplates && <TemplateSelector open={showTemplates} onOpenChange={setShowTemplates} onTemplateApplied={() => setTimeout(() => saveToCloud(), 0)} />}
-          {showTailor && <TailorSheet open={showTailor} onOpenChange={setShowTailor} />}
-          {showRecruiterSim && <RecruiterSimSheet open={showRecruiterSim} onOpenChange={setShowRecruiterSim} />}
-          {showAIDetector && <AIDetectorSheet open={showAIDetector} onOpenChange={setShowAIDetector} />}
-          {showLinkedIn && <LinkedInOptimizerSheet open={showLinkedIn} onOpenChange={setShowLinkedIn} />}
-          {showOnePage && <OnePageWizardSheet open={showOnePage} onOpenChange={setShowOnePage} />}
-          {showChat && (
+          {sheets.is('jobAnalysis') && <JobAnalysisSheet open onOpenChange={(open) => open ? sheets.open('jobAnalysis') : sheets.close()} />}
+          {sheets.is('templates') && <TemplateSelector open onOpenChange={(open) => open ? sheets.open('templates') : sheets.close()} onTemplateApplied={() => setTimeout(() => saveToCloud(), 0)} />}
+          {sheets.is('tailor') && <TailorSheet open onOpenChange={(open) => open ? sheets.open('tailor') : sheets.close()} />}
+          {sheets.is('recruiterSim') && <RecruiterSimSheet open onOpenChange={(open) => open ? sheets.open('recruiterSim') : sheets.close()} />}
+          {sheets.is('aiDetector') && <AIDetectorSheet open onOpenChange={(open) => open ? sheets.open('aiDetector') : sheets.close()} />}
+          {sheets.is('linkedIn') && <LinkedInOptimizerSheet open onOpenChange={(open) => open ? sheets.open('linkedIn') : sheets.close()} />}
+          {sheets.is('onePage') && <OnePageWizardSheet open onOpenChange={(open) => open ? sheets.open('onePage') : sheets.close()} />}
+          {sheets.is('chat') && (
             <AgenticChatSheet
-              open={showChat}
+              open
               onOpenChange={(open) => {
-                setShowChat(open);
-                if (!open) setChatInitialMessage(undefined);
+                if (!open) { sheets.close(); setChatInitialMessage(undefined); }
               }}
               initialMessage={chatInitialMessage}
             />
           )}
-          {showCareerPath && <CareerPathSheet open={showCareerPath} onOpenChange={setShowCareerPath} />}
-          {showVersionHistory && <VersionHistorySheet open={showVersionHistory} onOpenChange={setShowVersionHistory} resumeId={currentResumeId} />}
-          {showProfileImport && (
+          {sheets.is('careerPath') && <CareerPathSheet open onOpenChange={(open) => open ? sheets.open('careerPath') : sheets.close()} />}
+          {sheets.is('versionHistory') && <VersionHistorySheet open onOpenChange={(open) => open ? sheets.open('versionHistory') : sheets.close()} resumeId={currentResumeId} />}
+          {sheets.is('profileImport') && (
             <ProfileImportSheet
-              open={showProfileImport}
-              onOpenChange={setShowProfileImport}
+              open
+              onOpenChange={(open) => open ? sheets.open('profileImport') : sheets.close()}
               onImport={handleProfileImport}
               existingExperience={currentResume?.experience}
               existingSkills={currentResume?.skills}
             />
           )}
-          {showContentLibrary && <ContentLibrarySheet open={showContentLibrary} onOpenChange={setShowContentLibrary} onInsert={handleContentInsert} />}
-          {showCustomize && (() => {
+          {sheets.is('contentLibrary') && <ContentLibrarySheet open onOpenChange={(open) => open ? sheets.open('contentLibrary') : sheets.close()} onInsert={handleContentInsert} />}
+          {sheets.is('customize') && (() => {
             const rd = currentResume ? (() => {
               const name = currentResume.contactInfo?.fullName || '';
               const latestJob = currentResume.experience?.[0];
@@ -1475,13 +1409,13 @@ export default function EditorPage() {
               const skills = currentResume.skills?.slice(0, 3) || [];
               return name ? { name, subtitle, skills } : undefined;
             })() : undefined;
-            return <CustomizeSheet open={showCustomize} onOpenChange={setShowCustomize} customization={currentResume?.customization} onApply={handleCustomizeApply} resumeData={rd} />;
+            return <CustomizeSheet open onOpenChange={(open) => open ? sheets.open('customize') : sheets.close()} customization={currentResume?.customization} onApply={handleCustomizeApply} resumeData={rd} />;
           })()}
-          {showATSScan && <ATSScanSheet open={showATSScan} onOpenChange={setShowATSScan} summary={scanSummary} onJumpToSection={handleTabChange} />}
-          {showSnapshots && (
+          {sheets.is('atsScan') && <ATSScanSheet open onOpenChange={(open) => open ? sheets.open('atsScan') : sheets.close()} summary={scanSummary} onJumpToSection={handleTabChange} />}
+          {sheets.is('snapshots') && (
             <ResumeSnapshotsSheet
-              open={showSnapshots}
-              onOpenChange={setShowSnapshots}
+              open
+              onOpenChange={(open) => open ? sheets.open('snapshots') : sheets.close()}
               currentResume={currentResume}
               currentResumeId={currentResumeId}
               currentAtsScore={matchScore?.overallScore ?? undefined}
@@ -1495,10 +1429,10 @@ export default function EditorPage() {
               }}
             />
           )}
-          {showKeywordHighlighter && (
+          {sheets.is('keywordHighlighter') && (
             <KeywordHighlighterSheet
-              open={showKeywordHighlighter}
-              onOpenChange={setShowKeywordHighlighter}
+              open
+              onOpenChange={(open) => open ? sheets.open('keywordHighlighter') : sheets.close()}
               currentResume={currentResume}
             />
           )}
@@ -1535,7 +1469,7 @@ export default function EditorPage() {
                     </button>
                     <button
                       onPointerEnter={preloadLazy(() => import('@/components/editor/JobAnalysisSheet'))}
-                      onClick={() => { haptics.light(); setShowToolsSheet(false); setShowJobSheet(true); }}
+                      onClick={() => { haptics.light(); setShowToolsSheet(false); sheets.open('jobAnalysis'); }}
                       className="flex items-center gap-3 w-full rounded-xl border border-border bg-card hover:bg-muted active:scale-[0.98] transition-transform touch-manipulation min-h-[56px] px-4"
                     >
                       <BarChart3 className="w-5 h-5 text-emerald-500 shrink-0" />
@@ -1557,7 +1491,7 @@ export default function EditorPage() {
                     </button>
                     <button
                       onPointerEnter={preloadLazy(() => import('@/components/editor/ResumeSnapshotsSheet').then(m => ({ default: m.ResumeSnapshotsSheet })))}
-                      onClick={() => { haptics.light(); setShowToolsSheet(false); setShowSnapshots(true); }}
+                      onClick={() => { haptics.light(); setShowToolsSheet(false); sheets.open('snapshots'); }}
                       className="flex items-center gap-3 w-full rounded-xl border border-border bg-card hover:bg-muted active:scale-[0.98] transition-transform touch-manipulation min-h-[56px] px-4"
                     >
                       <Scissors className="w-5 h-5 text-violet-500 shrink-0" />
@@ -1568,7 +1502,7 @@ export default function EditorPage() {
                     </button>
                     <button
                       onPointerEnter={preloadLazy(() => import('@/components/editor/KeywordHighlighterSheet').then(m => ({ default: m.KeywordHighlighterSheet })))}
-                      onClick={() => { haptics.light(); setShowToolsSheet(false); setShowKeywordHighlighter(true); }}
+                      onClick={() => { haptics.light(); setShowToolsSheet(false); sheets.open('keywordHighlighter'); }}
                       className="flex items-center gap-3 w-full rounded-xl border border-border bg-card hover:bg-muted active:scale-[0.98] transition-transform touch-manipulation min-h-[56px] px-4"
                     >
                       <BarChart3 className="w-5 h-5 text-teal-500 shrink-0" />
@@ -1637,10 +1571,10 @@ export default function EditorPage() {
               )}
             </SheetContent>
           </Sheet>
-          {showShareSheet && currentResume && (
+          {sheets.is('shareSheet') && currentResume && (
             <ShareSheet
-              open={showShareSheet}
-              onOpenChange={setShowShareSheet}
+              open
+              onOpenChange={(open) => open ? sheets.open('shareSheet') : sheets.close()}
               resume={currentResume}
               templateId={selectedTemplate}
               templateName={selectedTemplate}
