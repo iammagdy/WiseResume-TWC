@@ -274,17 +274,20 @@ export function EditorHeader({
           <div className="hidden sm:flex items-center gap-0.5">
             <Tooltip>
               <TooltipTrigger asChild>
-                <button
-                  onClick={onUndo}
-                  disabled={!canUndo}
-                  className={cn(
-                    'p-2 rounded-lg transition-all touch-manipulation active:scale-95 min-w-[44px] min-h-[44px] flex items-center justify-center',
-                    canUndo ? 'hover:bg-muted text-foreground' : 'text-muted-foreground/30 cursor-not-allowed'
-                  )}
-                  aria-label={canUndo ? `Undo: ${undoDescription}` : 'Nothing to undo'}
-                >
-                  <Undo2 className="w-4 h-4" />
-                </button>
+                {/* span wrapper lets the tooltip fire even when the button is disabled */}
+                <span className="inline-flex">
+                  <button
+                    onClick={onUndo}
+                    disabled={!canUndo}
+                    className={cn(
+                      'p-2 rounded-lg transition-all touch-manipulation active:scale-95 min-w-[44px] min-h-[44px] flex items-center justify-center',
+                      canUndo ? 'hover:bg-muted text-foreground' : 'text-muted-foreground/30 cursor-not-allowed'
+                    )}
+                    aria-label={canUndo ? `Undo: ${undoDescription}` : 'Nothing to undo'}
+                  >
+                    <Undo2 className="w-4 h-4" />
+                  </button>
+                </span>
               </TooltipTrigger>
               <TooltipContent side="bottom">
                 {canUndo ? `Undo: ${undoDescription}` : 'Nothing to undo'}
@@ -292,17 +295,20 @@ export function EditorHeader({
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <button
-                  onClick={onRedo}
-                  disabled={!canRedo}
-                  className={cn(
-                    'p-2 rounded-lg transition-all touch-manipulation active:scale-95 min-w-[44px] min-h-[44px] flex items-center justify-center',
-                    canRedo ? 'hover:bg-muted text-foreground' : 'text-muted-foreground/30 cursor-not-allowed'
-                  )}
-                  aria-label={canRedo ? `Redo: ${redoDescription}` : 'Nothing to redo'}
-                >
-                  <Redo2 className="w-4 h-4" />
-                </button>
+                {/* span wrapper lets the tooltip fire even when the button is disabled */}
+                <span className="inline-flex">
+                  <button
+                    onClick={onRedo}
+                    disabled={!canRedo}
+                    className={cn(
+                      'p-2 rounded-lg transition-all touch-manipulation active:scale-95 min-w-[44px] min-h-[44px] flex items-center justify-center',
+                      canRedo ? 'hover:bg-muted text-foreground' : 'text-muted-foreground/30 cursor-not-allowed'
+                    )}
+                    aria-label={canRedo ? `Redo: ${redoDescription}` : 'Nothing to redo'}
+                  >
+                    <Redo2 className="w-4 h-4" />
+                  </button>
+                </span>
               </TooltipTrigger>
               <TooltipContent side="bottom">
                 {canRedo ? `Redo: ${redoDescription}` : 'Nothing to redo'}
