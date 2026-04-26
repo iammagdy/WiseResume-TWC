@@ -209,6 +209,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     contact_email: string | null;
     kinde_sub: string | null;
     kinde_email: string | null;
+    kinde_email_status: 'found' | 'lookup_failed' | 'not_needed' | 'credentials_missing';
     last_exchange_at: string | null;
     signed_up_at: string | null;
     last_sign_in_at: string | null;
@@ -401,6 +402,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
           contact_email?: string | null;
           kinde_sub?: string | null;
           kinde_email?: string | null;
+          kinde_email_status?: 'found' | 'lookup_failed' | 'not_needed' | 'credentials_missing';
           last_exchange_at?: string | null;
           signed_up_at?: string | null;
           last_sign_in_at?: string | null;
@@ -411,6 +413,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
           contact_email: result.contact_email ?? null,
           kinde_sub: result.kinde_sub ?? null,
           kinde_email: result.kinde_email ?? null,
+          kinde_email_status: result.kinde_email_status ?? 'not_needed',
           last_exchange_at: result.last_exchange_at ?? null,
           signed_up_at: result.signed_up_at ?? null,
           last_sign_in_at: result.last_sign_in_at ?? null,
@@ -1190,13 +1193,19 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
                 )}
 
                 <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-2">
-                  {/* Real Kinde email — shown first when available */}
-                  {(identityLoading || identityData?.kinde_email) && (
+                  {/* Real Kinde email — shown when available or when lookup was attempted */}
+                  {(identityLoading || identityData?.kinde_email || (identityData?.kinde_email_status && identityData.kinde_email_status !== 'not_needed')) && (
                     <div className="flex items-start justify-between gap-2">
                       <span className="text-xs text-muted-foreground font-medium shrink-0">Kinde email</span>
-                      <span className="font-mono text-[10px] text-right break-all">
-                        {identityLoading ? '…' : (identityData?.kinde_email ?? '—')}
-                      </span>
+                      {identityLoading ? (
+                        <span className="font-mono text-[10px] text-right break-all">…</span>
+                      ) : identityData?.kinde_email ? (
+                        <span className="font-mono text-[10px] text-right break-all">{identityData.kinde_email}</span>
+                      ) : identityData?.kinde_email_status === 'lookup_failed' ? (
+                        <span className="text-[10px] text-right text-destructive italic">Lookup failed — check M2M credentials</span>
+                      ) : identityData?.kinde_email_status === 'credentials_missing' ? (
+                        <span className="text-[10px] text-right text-muted-foreground italic">M2M credentials not configured</span>
+                      ) : null}
                     </div>
                   )}
                   {/* Contact email (from profiles.contact_email) */}

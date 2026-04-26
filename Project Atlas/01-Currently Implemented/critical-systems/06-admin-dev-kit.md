@@ -139,9 +139,10 @@ The Identity section in `UserDetailDrawer.tsx` now surfaces more useful informat
 | `signed_up_at` | `auth.users.created_at` | When the Supabase shadow account was first created |
 | `last_sign_in_at` | `auth.users.last_sign_in_at` | Most recent Supabase auth event |
 | `kinde_email` | Kinde Management API (`GET /api/v1/user?id={kinde_sub}`) | Real user email; only fetched when auth email is a `@kinde.placeholder` OR contact_email is blank, AND KINDE_M2M_CLIENT_ID/SECRET/DOMAIN are all configured. Returns `null` otherwise. |
+| `kinde_email_status` | Computed by edge function | `"found"` · `"lookup_failed"` · `"not_needed"` · `"credentials_missing"` — disambiguates why `kinde_email` may be null |
 
 ### Display order in Identity card
-1. **Kinde email** (only visible when returned) — real identity, shown first
+1. **Kinde email** (shown when lookup was attempted, even on failure) — real identity, shown first; status shown as inline text when email is null
 2. **Contact email** (from `profiles.contact_email`)
 3. **Auth email (internal)** — may be `kp_XXX@kinde.placeholder`, labelled "(placeholder)"
 4. **Joined** — sign-up date
@@ -162,4 +163,4 @@ The Identity section in `UserDetailDrawer.tsx` now surfaces more useful informat
 - `db-migration.yml` GitHub Action is **broken** (duplicate-key conflict in `supabase_migrations`). Use `apply-rpc-migration.yml` instead. → `replit.md`.
 - `admin-github-status` requires `GITHUB_TOKEN`, `GITHUB_OWNER`, `GITHUB_REPO` secrets in Supabase. The token recently went stale and was rotated — refresh via `refresh-devkit-secrets.sh`. → `replit.md`.
 - `app_settings` table feeds `<FeatureGate>` wrappers around feature-flagged routes (e.g. `/interview`, `/applications`, `/portfolio`, `/cover-letters`). → `src/AppInterior.tsx`.
-- Kinde email lookup in `admin-get-identity` requires `KINDE_DOMAIN`, `KINDE_M2M_CLIENT_ID`, and `KINDE_M2M_CLIENT_SECRET` to be configured in Supabase secrets. Without these, `kinde_email` is always `null` and the "Kinde email" row does not appear in the Identity card.
+- Kinde email lookup in `admin-get-identity` requires `KINDE_DOMAIN`, `KINDE_M2M_CLIENT_ID`, and `KINDE_M2M_CLIENT_SECRET` to be configured in Supabase secrets. Without these, `kinde_email_status` is `"credentials_missing"` and the Identity card shows "M2M credentials not configured". If credentials are set but the API call fails (network error, token expiry, user not found), `kinde_email_status` is `"lookup_failed"` and the card shows "Lookup failed — check M2M credentials".

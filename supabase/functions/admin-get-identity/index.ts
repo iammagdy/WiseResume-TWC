@@ -116,6 +116,7 @@ Deno.serve(async (req) => {
     //   • AND we have a kinde_sub to query with
     //   • AND all three M2M env vars are present
     let kindeEmail: string | null = null;
+    let kindeEmailStatus: 'found' | 'lookup_failed' | 'not_needed' | 'credentials_missing' = 'not_needed';
     const needsKindeLookup = kindeSub && (isCollision || !contactEmail);
     if (needsKindeLookup) {
       const kindeDomain = Deno.env.get('KINDE_DOMAIN')?.trim();
@@ -125,7 +126,12 @@ Deno.serve(async (req) => {
         const token = await getKindeM2MToken(kindeDomain, m2mClientId, m2mClientSecret);
         if (token) {
           kindeEmail = await fetchKindeUserEmail(kindeDomain, token, kindeSub);
+          kindeEmailStatus = kindeEmail !== null ? 'found' : 'lookup_failed';
+        } else {
+          kindeEmailStatus = 'lookup_failed';
         }
+      } else {
+        kindeEmailStatus = 'credentials_missing';
       }
     }
 
@@ -137,6 +143,7 @@ Deno.serve(async (req) => {
         contact_email: contactEmail,
         kinde_sub: kindeSub,
         kinde_email: kindeEmail,
+        kinde_email_status: kindeEmailStatus,
         last_exchange_at: lastExchangeAt,
         signed_up_at: signedUpAt,
         last_sign_in_at: lastSignInAt,
