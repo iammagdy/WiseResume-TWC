@@ -124,8 +124,55 @@ export function isIOSWebKit(): boolean {
  * 
  * Returns an ExtractionResult with metadata about extraction quality.
  * If needsOCR is true, the caller should offer OCR as a fallback.
+ *
+ * On iOS, when the first pass produces "items but all str empty"
+ * (EMPTY_STRINGS — typically caused by WebKit failing to decode the
+ * embedded subset font's cmap), we retry once with `useSystemFonts:true`
+ * and `disableFontFace:true` so pdfjs falls back to system-installed
+ * fonts. This recovers most "selectable text PDF that worked on Android
+ * but not iPhone" cases without OCR.
  */
 export async function extractTextFromPDF(file: File): Promise<ExtractionResult> {
+  // First pass: standard extraction.
+  const first = await extractOnce(file, /*forceSystemFonts*/ false);
+
+  // iOS recovery pass: only when the text path failed in a way that's
+  // consistent with a font/cmap decode bug rather than a true scan.
+  // Skipped on non-iOS where the standard path is already reliable.
+  if (
+    first.isIOS &&
+    !first.text &&
+    (first.failureReason === 'EMPTY_STRINGS' || first.failureReason === 'PAGE_ERRORS')
+  ) {
+    console.warn('[textExtractor] iOS first pass empty — retrying with system fonts', {
+      failureReason: first.failureReason,
+    });
+    try {
+      const retry = await extractOnce(file, /*forceSystemFonts*/ true);
+      if (retry.text && !retry.needsOCR) {
+        console.info('[textExtractor] iOS system-font retry succeeded', {
+          chars: retry.text.length,
+          confidence: retry.confidence,
+        });
+        return retry;
+      }
+      // Retry also empty — return retry result so failureReason reflects
+      // the second attempt (which used the more permissive font path).
+      return retry;
+    } catch (retryErr) {
+      console.warn('[textExtractor] iOS system-font retry threw', retryErr);
+      // Fall through to the original first-pass result below.
+    }
+  }
+
+  return first;
+}
+
+/**
+ * Single extraction attempt. Factored out so we can run it twice on
+ * iOS with different font-loading options.
+ */
+async function extractOnce(file: File, forceSystemFonts: boolean): Promise<ExtractionResult> {
   const arrayBuffer = await file.arrayBuffer();
   const isIOS = isIOSWebKit();
 
@@ -136,6 +183,18 @@ export async function extractTextFromPDF(file: File): Promise<ExtractionResult> 
       cMapUrl: '/pdfjs/cmaps/',
       cMapPacked: true,
       standardFontDataUrl: '/pdfjs/standard_fonts/',
+      // System fonts: on the retry pass (and always on iOS), let pdfjs
+      // fall back to system-installed fonts when an embedded font can't
+      // be decoded. This is the fix for the iPhone "selectable PDF
+      // returns blank strings" failure mode.
+      useSystemFonts: isIOS || forceSystemFonts,
+      // Disabling @font-face on the retry pass forces pdfjs to use the
+      // system font path for *all* glyphs, which side-steps the broken
+      // cmap entirely.
+      disableFontFace: forceSystemFonts,
+      // iOS Safari with strict CSP can't eval; safe to leave off
+      // unconditionally — pdfjs only uses eval for a small perf win.
+      isEvalSupported: false,
     }).promise;
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : '';
