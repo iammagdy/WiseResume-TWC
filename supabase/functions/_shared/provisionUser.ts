@@ -69,6 +69,8 @@ export class ProvisionError extends Error {
  * @param kindeSub       Kinde `sub` claim (e.g. "kp_...").
  * @param email          User's email address, or empty string if unknown.
  * @param emailVerified  Whether Kinde has verified the email address.
+ * @param firstName      Optional first name (e.g. from Apple Sign-in via webhook).
+ * @param lastName       Optional last name (e.g. from Apple Sign-in via webhook).
  *
  * @throws ProvisionError on non-recoverable failures.
  */
@@ -77,6 +79,8 @@ export async function provisionUser(
   kindeSub: string,
   email: string,
   emailVerified: boolean,
+  firstName?: string,
+  lastName?: string,
 ): Promise<ProvisionResult> {
   const userId = await kindeSubToUserId(kindeSub);
   const targetEmail = email || `${kindeSub}@kinde.placeholder`;
@@ -168,8 +172,30 @@ export async function provisionUser(
   }
 
   // ── Step 2: upsert public.profiles ───────────────────────────────────────
+  // Combine first + last name into full_name when provided (e.g. Apple Sign-in).
+  // Only set full_name during initial provisioning (alreadyExisted = false) or
+  // backfill an existing row that has no full_name yet.
   const profileRow: Record<string, unknown> = { user_id: userId };
   if (email) profileRow.contact_email = email;
+
+  const derivedFullName = [firstName, lastName].filter(Boolean).join(' ').trim() || null;
+
+  if (derivedFullName) {
+    if (!alreadyExisted) {
+      // Fresh user: always set the name.
+      profileRow.full_name = derivedFullName;
+    } else {
+      // Existing user: only backfill if full_name is currently null.
+      const { data: existingProfile } = await serviceClient
+        .from('profiles')
+        .select('full_name')
+        .eq('user_id', userId)
+        .maybeSingle();
+      if (!existingProfile?.full_name) {
+        profileRow.full_name = derivedFullName;
+      }
+    }
+  }
 
   const { error: profileError } = await serviceClient
     .from('profiles')

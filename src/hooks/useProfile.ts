@@ -148,10 +148,10 @@ function resolveEffectiveId(userId: string | undefined): string | null {
 
 type ProfileRow = Record<string, unknown> | null;
 
-function rowToProfile(d: Record<string, unknown> | null, user?: KindeAppUser | null): Profile {
+function rowToProfile(d: Record<string, unknown> | null): Profile {
   if (!d) {
     return {
-      fullName: user?.name || null,
+      fullName: null,
       avatarUrl: null,
       jobTitle: null, industry: null, careerLevel: null, location: null,
       linkedinUrl: null, profileCompleted: false, username: null,
@@ -207,18 +207,19 @@ function rowToProfile(d: Record<string, unknown> | null, user?: KindeAppUser | n
   };
 }
 
-async function fetchProfile(_effectiveId: string, user?: KindeAppUser | null): Promise<Profile> {
+async function fetchProfile(_effectiveId: string): Promise<Profile> {
   const { profile } = await apiFetch<{ profile: ProfileRow }>('/api/data/profile');
-  if (profile) return rowToProfile(profile, user);
+  if (profile) return rowToProfile(profile);
 
   // Create a default row server-side so subsequent reads return data.
-  const defaultFullName = user?.name || null;
+  // We do NOT write user.name here to avoid the Kinde token value being
+  // persisted as full_name — it should only be used as a UI display fallback.
   await apiFetch('/api/data/profile', {
     method: 'PATCH',
-    body: { full_name: defaultFullName },
+    body: { full_name: null },
   });
 
-  return rowToProfile(null, user);
+  return rowToProfile(null);
 }
 
 export function useProfile(userId: string | undefined, user?: KindeAppUser | null) {
@@ -226,9 +227,9 @@ export function useProfile(userId: string | undefined, user?: KindeAppUser | nul
 
   const effectiveId = resolveEffectiveId(userId);
 
-  const { data: profile = null, isLoading: loading } = useQuery({
+  const { data: dbProfile = null, isLoading: loading } = useQuery({
     queryKey: ['profile', effectiveId],
-    queryFn: () => fetchProfile(effectiveId!, user),
+    queryFn: () => fetchProfile(effectiveId!),
     enabled: !!effectiveId,
     staleTime: 30 * 1000,
     gcTime: 10 * 60 * 1000,
@@ -236,6 +237,13 @@ export function useProfile(userId: string | undefined, user?: KindeAppUser | nul
     retry: 2,
     retryDelay: (attemptIndex: number) => Math.min(1000 * 2 ** attemptIndex, 5000),
   });
+
+  // Apply Kinde name as a UI-only fallback: only used when the DB has no
+  // full_name yet. This is not persisted to the cache so it can never
+  // overwrite a user-saved name after navigating away and back.
+  const profile: Profile | null = dbProfile
+    ? (dbProfile.fullName ? dbProfile : { ...dbProfile, fullName: user?.name ?? null })
+    : null;
 
   const updateMutation = useMutation({
     mutationFn: async (updates: Partial<Profile>) => {
@@ -273,10 +281,14 @@ export function useProfile(userId: string | undefined, user?: KindeAppUser | nul
       return updates;
     },
     onSuccess: (updates) => {
-      queryClient.setQueriesData<Profile | null>({ queryKey: ['profile'] }, (old) =>
-        old ? { ...old, ...updates } : old
-      );
-      queryClient.invalidateQueries({ queryKey: ['profile'] });
+      // Use the exact stable cache key so we update only this user's profile
+      // and never trigger a refetch that could race with the saved value.
+      const id = resolveEffectiveId(userId);
+      if (id) {
+        queryClient.setQueryData<Profile | null>(['profile', id], (old) =>
+          old ? { ...old, ...updates } : old
+        );
+      }
     },
     onError: () => {
       // Let callers handle error display

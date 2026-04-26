@@ -160,16 +160,21 @@ Deno.serve(async (req) => {
   const emailVerified = (user.email_verified as boolean) === true;
   const eventId = (payload.event_id as string) ?? '(unknown)';
 
+  // Apple provides first_name and last_name on first sign-in via Kinde.
+  // Extract them so new Apple users get their real name stored immediately.
+  const firstName = (user.first_name as string | undefined)?.trim() || undefined;
+  const lastName = (user.last_name as string | undefined)?.trim() || undefined;
+
   if (!kindeSub) {
     console.error('[kinde-webhook] user.created event missing user.id', { eventId });
     return json({ error: 'Missing user id in payload' }, 400, corsHeaders);
   }
 
-  console.log(`[kinde-webhook] Processing user.created — kindeSub=${kindeSub}, eventId=${eventId}`);
+  console.log(`[kinde-webhook] Processing user.created — kindeSub=${kindeSub}, eventId=${eventId}, hasName=${!!(firstName || lastName)}`);
 
   try {
     const serviceClient = getServiceClient();
-    const result = await provisionUser(serviceClient, kindeSub, email, emailVerified);
+    const result = await provisionUser(serviceClient, kindeSub, email, emailVerified, firstName, lastName);
 
     console.log(
       `[kinde-webhook] Provisioned user — userId=${result.userId}, alreadyExisted=${result.alreadyExisted}`,

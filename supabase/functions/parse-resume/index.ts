@@ -479,6 +479,19 @@ serve(async (req) => {
       );
     }
 
+    // Reject suspiciously short text — it can't contain a real resume.
+    // This protects against iOS clients that extract empty/near-empty text
+    // and send it to the AI, wasting credits and returning confusing results.
+    const MIN_RESUME_TEXT = 50;
+    if (text.trim().length < MIN_RESUME_TEXT) {
+      return new Response(
+        JSON.stringify({
+          error: "We couldn't read your file. The document appears to have no readable text. Try a different format or take a photo of your CV.",
+        }),
+        { status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     if (text.length > MAX_TEXT_LENGTH) {
       return new Response(
         JSON.stringify({ error: `Resume text too large. Maximum ${MAX_TEXT_LENGTH / 1024}KB.` }),

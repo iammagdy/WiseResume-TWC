@@ -715,6 +715,19 @@ export default function UploadPage() {
         setIsProcessing(false);
         return;
       }
+
+      // Early failure: text extracted but too short to be a real resume.
+      // Show a clear error instead of sending blank content to the AI.
+      if (!result.success && !result.needsOCR) {
+        setErrorType('NO_TEXT');
+        if (result.parseWarnings.length > 0) {
+          setParseRecoveryWarnings(result.parseWarnings);
+          setShowParseRecoveryBanner(true);
+        }
+        setShowErrorRecovery(true);
+        setIsProcessing(false);
+        return;
+      }
       
       setParseStep('extracting');
       await new Promise(resolve => setTimeout(resolve, 200));

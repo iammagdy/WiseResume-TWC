@@ -775,11 +775,15 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
                                 const displayEmail = isKindeShadow
                                   ? (user.contact_email || null)
                                   : user.email;
+                                // When full_name is known, show it as the primary identifier so
+                                // admins can recognise Apple relay-email users at a glance.
+                                const primaryLabel = user.full_name || displayEmail;
+                                const secondaryLabel = user.full_name ? displayEmail : null;
                                 return (
                                   <>
                                     <div className="flex items-center gap-1.5 flex-wrap">
-                                      {displayEmail
-                                        ? <p className="font-mono text-xs truncate max-w-[160px]">{displayEmail}</p>
+                                      {primaryLabel
+                                        ? <p className={`text-xs truncate max-w-[160px] ${user.full_name ? 'font-medium' : 'font-mono'}`}>{primaryLabel}</p>
                                         : <p className="text-xs italic text-muted-foreground">No email on record</p>
                                       }
                                       {user.has_id_conflict && !user.contact_email && (
@@ -793,8 +797,8 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
                                         </Badge>
                                       )}
                                     </div>
-                                    {user.full_name && (
-                                      <p className="text-xs text-muted-foreground truncate max-w-[160px]">{user.full_name}</p>
+                                    {secondaryLabel && (
+                                      <p className="text-[10px] text-muted-foreground font-mono truncate max-w-[160px]">{secondaryLabel}</p>
                                     )}
                                     {isKindeShadow && user.contact_email && (
                                       <p className="text-[10px] text-muted-foreground font-mono truncate max-w-[160px]">

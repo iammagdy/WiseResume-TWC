@@ -178,6 +178,13 @@ serve(wrapHandler('token-exchange', async (req) => {
       '';
     const emailVerified = (payload as Record<string, unknown>).email_verified === true;
 
+    // Extract name claims from the Kinde access token (OIDC standard claims).
+    // Apple provides these on first sign-in; they're preserved in the Kinde token
+    // so we can backfill full_name for existing Apple users who signed up before
+    // the kinde-webhook name extraction fix was deployed.
+    const jwtGivenName = ((payload as Record<string, unknown>).given_name as string | undefined)?.trim() || undefined;
+    const jwtFamilyName = ((payload as Record<string, unknown>).family_name as string | undefined)?.trim() || undefined;
+
     // 4. Compute deterministic UUID (needed for audit log even before provisioning)
     supabaseUserId = await kindeSubToUserId(kindeSub);
 
@@ -237,7 +244,7 @@ serve(wrapHandler('token-exchange', async (req) => {
     console.log(`[token-exchange] provisioning user — id=${supabaseUserId}, target=${extUrl}`);
 
     try {
-      const result = await provisionUser(serviceClient, kindeSub, email, emailVerified);
+      const result = await provisionUser(serviceClient, kindeSub, email, emailVerified, jwtGivenName, jwtFamilyName);
       supabaseUserId = result.userId;
     } catch (provErr) {
       if (provErr instanceof ProvisionError) {

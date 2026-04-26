@@ -527,6 +527,22 @@ export async function parseResumePDF(file: File): Promise<ParseResult> {
     cleanedText = extraction.text;
   }
 
+  // Early exit: if extracted text is too short to be a real resume, don't waste
+  // an AI call and instead surface a clear error to the user.
+  const MIN_TEXT_LENGTH = 50;
+  if (cleanedText.trim().length < MIN_TEXT_LENGTH) {
+    return {
+      success: false,
+      needsOCR: false,
+      pageCount: extraction.pageCount,
+      parseStatus: 'failed',
+      parseWarnings: [
+        "We couldn't read your file. The document appears to have no readable text. " +
+        'Try a different format or take a photo of your CV.',
+      ],
+    };
+  }
+
   // Append contact info hints to help AI
   let textWithHints: string;
   try {
