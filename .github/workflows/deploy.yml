@@ -268,3 +268,18 @@ jobs:
           done
           echo "::error::Live site verification failed after 18 attempts (~6 min). The upload may have completed but the live site is not serving the new build. See logs above."
           exit 1
+
+      - name: Tag and upload build artifact for rollback
+        # Upload the verified dist/ as a named artifact so rollback-frontend.yml
+        # can redeploy it instantly without rebuilding from source.
+        # Artifact name format: frontend-v<version>-<short-sha>
+        # Retention: 90 days (GitHub's Actions maximum for public repos).
+        # This step runs ONLY after the live-site verification passes, so every
+        # tagged artifact is guaranteed to have been successfully verified on the
+        # live site — making it safe to roll back to.
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-v${{ github.run_number }}-${{ github.sha }}
+          path: dist/
+          retention-days: 90
+          if-no-files-found: error
