@@ -1105,8 +1105,9 @@ const MISSION_CONTROL_SECRETS: { key: string; label: string; source: 'replit_env
   { key: 'GROQ_API_KEY',              label: 'Groq API Key',              source: 'supabase_vault' },
   // GitHub token: Replit names it GITHUB_ACCESS_TOKEN; the Supabase env names it GITHUB_TOKEN
   { key: 'GITHUB_TOKEN',              label: 'GitHub Token',              source: 'replit_env', aliases: ['GITHUB_ACCESS_TOKEN'] },
-  { key: 'GITHUB_OWNER',              label: 'GitHub Owner',              source: 'replit_env' },
-  { key: 'GITHUB_REPO',               label: 'GitHub Repo',               source: 'replit_env' },
+  // GITHUB_OWNER and GITHUB_REPO can be auto-derived from the git remote URL — marked optional
+  { key: 'GITHUB_OWNER',              label: 'GitHub Owner',              source: 'optional' },
+  { key: 'GITHUB_REPO',               label: 'GitHub Repo',               source: 'optional' },
   { key: 'RESEND_API_KEY',            label: 'Resend API Key',            source: 'supabase_vault' },
   { key: 'GEMINI_API_KEY',            label: 'Gemini API Key',            source: 'optional' },
   { key: 'ELEVENLABS_API_KEY',        label: 'ElevenLabs API Key',        source: 'optional' },
@@ -1120,6 +1121,27 @@ const MISSION_CONTROL_SECRETS: { key: string; label: string; source: 'replit_env
 function resolveSecretPresent(key: string, aliases?: string[]): boolean {
   if (process.env[key]) return true;
   return (aliases ?? []).some(a => !!process.env[a]);
+}
+
+/**
+ * Derives { owner, repo } from the git remote URL when GITHUB_OWNER / GITHUB_REPO
+ * env vars are not explicitly set.  Supports both HTTPS and SSH remote formats.
+ *   https://github.com/owner/repo.git  → { owner: 'owner', repo: 'repo' }
+ *   git@github.com:owner/repo.git      → { owner: 'owner', repo: 'repo' }
+ */
+function deriveGithubOwnerRepo(): { owner: string; repo: string } | null {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { execSync } = require('child_process') as typeof import('child_process');
+    const remoteUrl = execSync('git remote get-url origin 2>/dev/null', { encoding: 'utf8', timeout: 3000 }).trim();
+    // HTTPS: https://github.com/owner/repo or https://token@github.com/owner/repo
+    const httpsMatch = remoteUrl.match(/github\.com[/:]([^/]+)\/([^/\s.]+?)(?:\.git)?$/);
+    if (httpsMatch) return { owner: httpsMatch[1], repo: httpsMatch[2] };
+    // SSH: git@github.com:owner/repo.git
+    const sshMatch = remoteUrl.match(/github\.com:([^/]+)\/([^/\s.]+?)(?:\.git)?$/);
+    if (sshMatch) return { owner: sshMatch[1], repo: sshMatch[2] };
+  } catch { /* git not available or no remote */ }
+  return null;
 }
 
 async function mcCheckGitHub(owner: string, repo: string, token: string) {
@@ -1170,8 +1192,10 @@ app.all('/api/fn/admin-mission-control', async (req, res) => {
   try {
     // GITHUB_TOKEN may be named GITHUB_ACCESS_TOKEN in the Replit secrets panel
     const githubToken  = process.env.GITHUB_TOKEN || process.env.GITHUB_ACCESS_TOKEN || '';
-    const githubOwner  = process.env.GITHUB_OWNER || '';
-    const githubRepo   = process.env.GITHUB_REPO  || '';
+    // GITHUB_OWNER / GITHUB_REPO: prefer explicit env vars, fall back to parsing the git remote URL
+    const gitRemoteDerived = deriveGithubOwnerRepo();
+    const githubOwner  = process.env.GITHUB_OWNER || gitRemoteDerived?.owner || '';
+    const githubRepo   = process.env.GITHUB_REPO  || gitRemoteDerived?.repo  || '';
     const resendKey    = process.env.RESEND_API_KEY || '';
     const orKey        = process.env.OPENROUTER_API_KEY  || '';
     const or2Key       = process.env.OPENROUTER2_API_KEY || '';
@@ -2720,9 +2744,10 @@ app.all('/api/fn/admin-email-actions', async (req, res) => {
 app.all('/api/fn/admin-github-status', async (req, res) => {
   const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
   try {
-    const token = process.env.GITHUB_TOKEN?.trim();
-    const owner = process.env.GITHUB_OWNER?.trim();
-    const repo = process.env.GITHUB_REPO?.trim();
+    const token = (process.env.GITHUB_TOKEN || process.env.GITHUB_ACCESS_TOKEN)?.trim();
+    const derived = deriveGithubOwnerRepo();
+    const owner = (process.env.GITHUB_OWNER?.trim()) || derived?.owner || '';
+    const repo  = (process.env.GITHUB_REPO?.trim())  || derived?.repo  || '';
     if (!token || !owner || !repo) return res.json({ success: false, error: 'GitHub credentials not configured (GITHUB_TOKEN / GITHUB_OWNER / GITHUB_REPO)', configured: false });
     const r = await fetch(`https://api.github.com/repos/${owner}/${repo}/commits?per_page=5`, {
       headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' }, signal: AbortSignal.timeout(8000),
@@ -2738,9 +2763,10 @@ app.all('/api/fn/admin-integrations', async (req, res) => {
   const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
   try {
     const { action } = req.body ?? {} as { action?: string };
-    const ghToken = process.env.GITHUB_TOKEN?.trim();
-    const ghOwner = process.env.GITHUB_OWNER?.trim();
-    const ghRepo = process.env.GITHUB_REPO?.trim();
+    const ghToken = (process.env.GITHUB_TOKEN || process.env.GITHUB_ACCESS_TOKEN)?.trim();
+    const _ghDerived = deriveGithubOwnerRepo();
+    const ghOwner = (process.env.GITHUB_OWNER?.trim()) || _ghDerived?.owner || '';
+    const ghRepo  = (process.env.GITHUB_REPO?.trim())  || _ghDerived?.repo  || '';
     if (action === 'get_resend_bounces') {
       const data = await resendGet<{ data?: unknown[] }>('/emails?limit=100');
       return res.json({ success: true, bounces: data?.data ?? [], resend_configured: !!process.env.RESEND_API_KEY });
