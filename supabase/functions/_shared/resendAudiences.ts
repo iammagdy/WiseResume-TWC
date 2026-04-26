@@ -167,32 +167,127 @@ export async function getAudienceStats(
   }
 }
 
+type ResendContact = { id: string; email: string; first_name?: string; last_name?: string; unsubscribed?: boolean }
+
 /**
- * List contacts in a Resend audience (up to the first page, max 100).
+ * List ALL contacts in a Resend audience, paginating until exhausted.
+ *
+ * Resend's contact list endpoint (`GET /audiences/{id}/contacts`) returns
+ * `{ object: "list", data: [...] }`. The API does not document a pagination
+ * cursor or `page` parameter — the response contains all contacts in one
+ * payload (subject to Resend's internal limits, typically up to 50 000).
+ * We request once and return the full set; if Resend ever adds cursor-based
+ * pagination the `next` field will be present and we follow it here.
+ *
  * Returns an empty array on any error.
  */
 export async function listContacts(
   audienceId: string | null | undefined,
-): Promise<Array<{ id: string; email: string; first_name?: string; last_name?: string; unsubscribed?: boolean }>> {
+): Promise<ResendContact[]> {
   if (!audienceId) return [];
   const apiKey = getApiKey();
   if (!apiKey) return [];
 
+  const allContacts: ResendContact[] = [];
+  let url: string | null = `${RESEND_API_BASE}/audiences/${audienceId}/contacts`;
+
+  while (url) {
+    try {
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${apiKey}` },
+      })
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => '')
+        console.warn(`[resendAudiences] listContacts ${audienceId} → ${res.status}: ${text}`)
+        break
+      }
+
+      const data = await res.json() as { data?: ResendContact[]; next?: string | null }
+      const page = data.data ?? []
+      allContacts.push(...page)
+
+      // Follow cursor-based pagination if Resend ever exposes it.
+      url = data.next ?? null
+    } catch (err) {
+      console.error(`[resendAudiences] listContacts threw:`, err)
+      break
+    }
+  }
+
+  return allContacts
+}
+
+export interface BroadcastStats {
+  id: string;
+  name: string;
+  status: string;
+  sentAt: string | null;
+  recipients: number | null;
+  openRate: number | null;
+  clickRate: number | null;
+}
+
+/**
+ * Fetch recent email broadcasts from Resend with send metrics.
+ *
+ * Resend exposes broadcast-level stats (open rate, click rate, recipients, etc.)
+ * via `GET /broadcasts`. Automation-triggered emails do NOT appear here —
+ * those metrics are only available in the Resend dashboard UI.
+ *
+ * This function surfaces the closest available send data from the Resend API.
+ * Returns the most recent `limit` broadcasts (default 5), sorted by sent date.
+ * Returns an empty array on any error or when RESEND_API_KEY is not set.
+ */
+export async function listRecentBroadcasts(limit = 5): Promise<BroadcastStats[]> {
+  const apiKey = getApiKey();
+  if (!apiKey) return [];
+
   try {
-    const res = await fetch(`${RESEND_API_BASE}/audiences/${audienceId}/contacts`, {
+    const res = await fetch(`${RESEND_API_BASE}/broadcasts`, {
       headers: { Authorization: `Bearer ${apiKey}` },
-    })
+    });
 
     if (!res.ok) {
-      const text = await res.text().catch(() => '')
-      console.warn(`[resendAudiences] listContacts ${audienceId} → ${res.status}: ${text}`)
-      return []
+      const text = await res.text().catch(() => '');
+      console.warn(`[resendAudiences] listRecentBroadcasts → ${res.status}: ${text}`);
+      return [];
     }
 
-    const data = await res.json() as { data?: unknown[] }
-    return (data.data ?? []) as ReturnType<typeof listContacts> extends Promise<infer T> ? T : never
+    const data = await res.json() as {
+      data?: Array<{
+        id: string;
+        name?: string;
+        status?: string;
+        sent_at?: string | null;
+        stats?: {
+          recipients?: number;
+          open_rate?: number;
+          click_rate?: number;
+        };
+      }>;
+    };
+
+    const broadcasts = (data.data ?? [])
+      .filter((b) => b.status === 'sent' || b.sent_at)
+      .sort((a, b) => {
+        const ta = a.sent_at ? new Date(a.sent_at).getTime() : 0;
+        const tb = b.sent_at ? new Date(b.sent_at).getTime() : 0;
+        return tb - ta; // newest first
+      })
+      .slice(0, limit);
+
+    return broadcasts.map((b) => ({
+      id: b.id,
+      name: b.name ?? 'Broadcast',
+      status: b.status ?? 'unknown',
+      sentAt: b.sent_at ?? null,
+      recipients: b.stats?.recipients ?? null,
+      openRate: b.stats?.open_rate ?? null,
+      clickRate: b.stats?.click_rate ?? null,
+    }));
   } catch (err) {
-    console.error(`[resendAudiences] listContacts threw:`, err)
-    return []
+    console.error('[resendAudiences] listRecentBroadcasts threw:', err);
+    return [];
   }
 }

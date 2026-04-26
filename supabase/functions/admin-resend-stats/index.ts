@@ -42,7 +42,7 @@
 
 import { requireAdminAuth } from '../_shared/adminAuth.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
-import { addContact, removeContact, getAudienceStats, listContacts } from '../_shared/resendAudiences.ts'
+import { addContact, removeContact, getAudienceStats, listContacts, listRecentBroadcasts } from '../_shared/resendAudiences.ts'
 import { getAudienceId, AUDIENCE_KEYS, AUDIENCE_LABELS, AUTOMATION_CHECKLIST } from '../_shared/resendConfig.ts'
 
 type AudienceKey = keyof typeof AUDIENCE_KEYS
@@ -74,28 +74,42 @@ Deno.serve(async (req) => {
 
   // ── action: stats ─────────────────────────────────────────────────────────
   if (action === 'stats') {
-    const statsResults = await Promise.all(
-      ALL_AUDIENCE_KEYS.map(async (key) => {
-        const envKey = AUDIENCE_KEYS[key]
-        const audienceId = getAudienceId(envKey)
-        const label = AUDIENCE_LABELS[envKey] ?? key
-        if (!audienceId) {
-          return { key, label, configured: false, id: null, contactCount: null }
-        }
-        const stats = await getAudienceStats(audienceId)
-        return {
-          key,
-          label,
-          configured: true,
-          id: audienceId,
-          contactCount: stats?.contactCount ?? null,
-          name: stats?.name ?? label,
-        }
-      }),
-    )
+    // Fetch audience stats and recent broadcasts in parallel.
+    // NOTE: Resend's REST API does not expose per-automation send metrics.
+    // `recentBroadcasts` surfaces send stats for one-off broadcast campaigns
+    // (the closest available API data). Automation email stats are only
+    // accessible in the Resend dashboard (https://resend.com/automations).
+    const [statsResults, recentBroadcasts] = await Promise.all([
+      Promise.all(
+        ALL_AUDIENCE_KEYS.map(async (key) => {
+          const envKey = AUDIENCE_KEYS[key]
+          const audienceId = getAudienceId(envKey)
+          const label = AUDIENCE_LABELS[envKey] ?? key
+          if (!audienceId) {
+            return { key, label, configured: false, id: null, contactCount: null }
+          }
+          const stats = await getAudienceStats(audienceId)
+          return {
+            key,
+            label,
+            configured: true,
+            id: audienceId,
+            contactCount: stats?.contactCount ?? null,
+            name: stats?.name ?? label,
+          }
+        }),
+      ),
+      listRecentBroadcasts(5),
+    ])
 
     return new Response(
-      JSON.stringify({ success: true, audiences: statsResults, checklist: AUTOMATION_CHECKLIST }),
+      JSON.stringify({
+        success: true,
+        audiences: statsResults,
+        checklist: AUTOMATION_CHECKLIST,
+        recentBroadcasts,
+        broadcastsNote: 'Resend API does not expose per-automation send metrics. recentBroadcasts shows one-off campaign stats only. View automation email stats at https://resend.com/automations.',
+      }),
       { status: 200, headers: { ...cors, 'Content-Type': 'application/json' } },
     )
   }

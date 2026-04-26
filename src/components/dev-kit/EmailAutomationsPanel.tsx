@@ -11,6 +11,7 @@ import {
   Loader2,
   Users,
   Zap,
+  BarChart2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -37,9 +38,21 @@ interface ChecklistItem {
   emails: readonly string[];
 }
 
+interface BroadcastStat {
+  id: string;
+  name: string;
+  status: string;
+  sentAt: string | null;
+  recipients: number | null;
+  openRate: number | null;
+  clickRate: number | null;
+}
+
 interface StatsResponse {
   audiences: AudienceStat[];
   checklist: ChecklistItem[];
+  recentBroadcasts?: BroadcastStat[];
+  broadcastsNote?: string;
 }
 
 function ContactCountBadge({ count }: { count: number | null }) {
@@ -157,6 +170,7 @@ function AudienceCard({
 export function EmailAutomationsPanel() {
   const [stats, setStats] = useState<AudienceStat[]>([]);
   const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
+  const [broadcasts, setBroadcasts] = useState<BroadcastStat[]>([]);
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -184,6 +198,7 @@ export function EmailAutomationsPanel() {
       if (!isMounted()) return;
       setStats(result.audiences ?? []);
       setChecklist(result.checklist ?? []);
+      setBroadcasts(result.recentBroadcasts ?? []);
       setLoaded(true);
     } catch (e) {
       if (!isMounted()) return;
@@ -438,6 +453,76 @@ export function EmailAutomationsPanel() {
           </div>
         )}
       </div>
+
+      {/* Recent Broadcast Send Stats */}
+      {loaded && (
+        <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-semibold flex items-center gap-2">
+                <BarChart2 className="w-4 h-4 text-primary" />
+                Recent Send Stats
+              </h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Broadcast campaign stats from Resend API.{' '}
+                <span className="text-muted-foreground/70">
+                  Note: automation-triggered emails are tracked separately in the{' '}
+                  <a
+                    href="https://resend.com/automations"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline"
+                  >
+                    Resend dashboard
+                  </a>
+                  {' '}— Resend&apos;s REST API does not expose per-automation send metrics.
+                </span>
+              </p>
+            </div>
+          </div>
+          {broadcasts.length === 0 ? (
+            <p className="text-xs text-muted-foreground italic">
+              No sent broadcasts found. Once you send a broadcast campaign in Resend, stats will appear here.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-border text-muted-foreground">
+                    <th className="text-left py-1.5 pr-3 font-medium">Name</th>
+                    <th className="text-right py-1.5 pr-3 font-medium">Recipients</th>
+                    <th className="text-right py-1.5 pr-3 font-medium">Open rate</th>
+                    <th className="text-right py-1.5 font-medium">Click rate</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {broadcasts.map((b) => (
+                    <tr key={b.id} className="border-b border-border/50 last:border-0">
+                      <td className="py-1.5 pr-3">
+                        <div className="font-medium text-foreground truncate max-w-[180px]">{b.name}</div>
+                        {b.sentAt && (
+                          <div className="text-[10px] text-muted-foreground">
+                            {new Date(b.sentAt).toLocaleDateString()}
+                          </div>
+                        )}
+                      </td>
+                      <td className="text-right py-1.5 pr-3 tabular-nums">
+                        {b.recipients?.toLocaleString() ?? '—'}
+                      </td>
+                      <td className="text-right py-1.5 pr-3 tabular-nums">
+                        {b.openRate !== null ? `${(b.openRate * 100).toFixed(1)}%` : '—'}
+                      </td>
+                      <td className="text-right py-1.5 tabular-nums">
+                        {b.clickRate !== null ? `${(b.clickRate * 100).toFixed(1)}%` : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Automation Checklist */}
       {loaded && checklist.length > 0 && (

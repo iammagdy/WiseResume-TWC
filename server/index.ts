@@ -467,6 +467,36 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+/**
+ * Server-side Resend audience helper — add a contact to an audience by ID.
+ * Mirrors the fire-and-forget safety of the shared Deno `addContact` helper
+ * (supabase/functions/_shared/resendAudiences.ts) for use in Express routes.
+ * Returns true on success, false on any error. Never throws.
+ */
+async function addResendContact(audienceId: string, email: string): Promise<boolean> {
+  const apiKey = process.env.RESEND_API_KEY?.trim();
+  if (!apiKey || !audienceId) return false;
+  try {
+    const res = await fetch(`https://api.resend.com/audiences/${audienceId}/contacts`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, unsubscribed: false }),
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      console.warn(`[resend] addContact ${audienceId} → ${res.status}: ${text}`);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.warn('[resend] addContact threw:', err);
+    return false;
+  }
+}
+
 // ── Premium handle interest tracking (authenticated) ──────────────────────────
 // Called by the frontend when a user views a premium handle listing page but
 // does not purchase. Adds the user to the "Premium Handle Interest" Resend
@@ -479,9 +509,8 @@ app.post('/api/track-handle-interest', requireAuthHeader, async (req: AuthedRequ
     if (!userId || !userEmail) return res.json({ success: true });
     if (userEmail.endsWith('@kinde.placeholder')) return res.json({ success: true });
 
-    const RESEND_API_KEY = process.env.RESEND_API_KEY;
-    const audienceId = process.env.RESEND_AUDIENCE_HANDLE_INTEREST;
-    if (!RESEND_API_KEY || !audienceId) return res.json({ success: true });
+    const audienceId = process.env.RESEND_AUDIENCE_HANDLE_INTEREST?.trim();
+    if (!audienceId) return res.json({ success: true });
 
     // Skip if the user already owns a premium handle (check profiles.handle_type).
     const { data: profile } = await supabaseAdmin
@@ -492,15 +521,10 @@ app.post('/api/track-handle-interest', requireAuthHeader, async (req: AuthedRequ
     const handleType = (profile as { handle_type?: string } | null)?.handle_type;
     if (handleType && handleType !== 'free') return res.json({ success: true });
 
-    // Fire-and-forget — add to audience
-    fetch(`https://api.resend.com/audiences/${audienceId}/contacts`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${RESEND_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ email: userEmail, unsubscribed: false }),
-    }).catch((err) => console.warn('[track-handle-interest] audience add failed:', err));
+    // Fire-and-forget via the shared server-side Resend helper.
+    addResendContact(audienceId, userEmail).catch((err) =>
+      console.warn('[track-handle-interest] audience add failed:', err),
+    );
 
     return res.json({ success: true });
   } catch (err) {
