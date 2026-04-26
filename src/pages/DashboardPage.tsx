@@ -811,12 +811,12 @@ function DashboardPageContent() {
                 <button
                   key={item.path}
                   onClick={() => { haptics.light(); navigate(item.path); }}
-                  className="flex flex-col gap-3 p-4 rounded-2xl bg-card border border-border hover:border-primary/20 active:scale-[0.97] transition-all touch-manipulation text-left"
+                  className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-2.5 p-4 sm:px-4 sm:py-3 rounded-2xl bg-card border border-border hover:border-primary/20 active:scale-[0.97] transition-all touch-manipulation text-left"
                 >
                   <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${item.iconBg}`}>
                     <item.icon className={`w-[18px] h-[18px] ${item.iconColor}`} />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-sm font-semibold leading-tight">{item.label}</p>
                     <p className="text-[11px] text-muted-foreground leading-snug mt-0.5">{item.desc}</p>
                   </div>

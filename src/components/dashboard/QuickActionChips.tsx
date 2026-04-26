@@ -63,12 +63,12 @@ export const QuickActionChips = memo(function QuickActionChips({ onCreateNew, on
                 : undefined
             }
             onClick={() => handleAction(action.key)}
-            className="flex flex-col items-center gap-2 py-4 px-2 rounded-2xl bg-card border border-border hover:border-primary/20 active:scale-95 transition-all touch-manipulation"
+            className="flex flex-col items-center gap-2 sm:flex-row sm:items-center sm:gap-2.5 py-4 px-2 sm:px-4 sm:py-3 rounded-2xl bg-card border border-border hover:border-primary/20 active:scale-95 transition-all touch-manipulation text-left"
           >
-            <div className={`w-10 h-10 rounded-xl ${action.iconBg} flex items-center justify-center shrink-0`}>
-              <action.icon className={`w-5 h-5 ${action.iconColor}`} />
+            <div className={`w-9 h-9 rounded-xl ${action.iconBg} flex items-center justify-center shrink-0`}>
+              <action.icon className={`w-[18px] h-[18px] ${action.iconColor}`} />
             </div>
-            <span className="text-[12px] font-medium text-foreground text-center leading-tight">{action.label}</span>
+            <span className="text-[12px] sm:text-sm font-medium text-foreground leading-tight">{action.label}</span>
           </button>
         ))}
       </div>
