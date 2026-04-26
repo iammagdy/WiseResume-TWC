@@ -1,8 +1,32 @@
 [
   {
-    "version": "v3.6.3",
+    "version": "v3.6.4",
     "date": "Apr 26, 2026",
     "latest": true,
+    "summary": "Mobile UX improvements: fixed bottom spacing, scrollable action buttons, and a closeable AI chat button.",
+    "items": [
+      {
+        "title": "Bottom of the page no longer has an extra black bar on mobile",
+        "description": "A double safe-area calculation was adding unnecessary blank space at the bottom of every page on iPhone. The padding is now accurate, so content fills the screen correctly on all devices."
+      },
+      {
+        "title": "Import button is now always reachable on narrow phones",
+        "description": "The three quick-action buttons (New Resume, Upload PDF, Import) were squishing together and cutting off the Import button on smaller screens. They now scroll horizontally so all three are always accessible."
+      },
+      {
+        "title": "Wise AI chat button now closes the panel",
+        "description": "Tapping 'Ask' opened the AI chat but there was no visible way to dismiss it from the floating button. The button now toggles — tap it again to close, showing a clear 'Close' label."
+      },
+      {
+        "title": "AI Tools and Activity tabs stay put when tapped by free users",
+        "description": "Previously, tapping a Pro-only tab would silently redirect you to the subscription page with no explanation. Now a clear message appears with an upgrade option, and you stay on your current screen."
+      }
+    ]
+  },
+  {
+    "version": "v3.6.3",
+    "date": "Apr 26, 2026",
+    "latest": false,
     "summary": "Editor polish: smarter keyboard handling, cleaner layout, and fully accessible form labels throughout.",
     "items": [
       {
