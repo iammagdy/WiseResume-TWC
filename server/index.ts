@@ -422,6 +422,55 @@ async function supabaseUpsert<T = Record<string, unknown>>(
   return (await r.json()) as T[];
 }
 
+// Generic Supabase REST helpers for DevKit handlers
+async function supabaseInsert<T = Record<string, unknown>>(
+  table: string,
+  body: Record<string, unknown> | Record<string, unknown>[],
+): Promise<T[]> {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) throw new Error('Supabase not configured');
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+    method: 'POST',
+    headers: { apikey: SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=representation' },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) { const t = await r.text().catch(() => ''); throw new Error(`Supabase insert ${table} ${r.status}: ${t.slice(0, 300)}`); }
+  return (await r.json()) as T[];
+}
+
+async function supabasePatch(
+  table: string,
+  query: string,
+  body: Record<string, unknown>,
+): Promise<void> {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) throw new Error('Supabase not configured');
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${query}`, {
+    method: 'PATCH',
+    headers: { apikey: SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) { const t = await r.text().catch(() => ''); throw new Error(`Supabase patch ${table} ${r.status}: ${t.slice(0, 300)}`); }
+}
+
+async function supabaseDelete(table: string, query: string): Promise<void> {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) throw new Error('Supabase not configured');
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${query}`, {
+    method: 'DELETE',
+    headers: { apikey: SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`, Prefer: 'return=minimal' },
+  });
+  if (!r.ok) { const t = await r.text().catch(() => ''); throw new Error(`Supabase delete ${table} ${r.status}: ${t.slice(0, 300)}`); }
+}
+
+async function supabaseRpc<T = unknown>(fnName: string, params: Record<string, unknown>): Promise<T> {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) throw new Error('Supabase not configured');
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fnName}`, {
+    method: 'POST',
+    headers: { apikey: SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  });
+  if (!r.ok) { const t = await r.text().catch(() => ''); throw new Error(`Supabase RPC ${fnName} ${r.status}: ${t.slice(0, 300)}`); }
+  return (await r.json()) as T;
+}
+
 // ── Kinde JWKS cache ──────────────────────────────────────────────────────────
 let _kindeJWKS: jose.JSONWebKeySet | null = null;
 let _kindejwksCachedAt = 0;
@@ -1149,6 +1198,705 @@ app.all('/api/fn/admin-mission-control', async (req, res) => {
   } catch (err) {
     res.status(500).json({ success: false, error: String(err) });
   }
+});
+
+// ── admin-broadcast ───────────────────────────────────────────────────────────
+app.all('/api/fn/admin-broadcast', async (req, res) => {
+  const callerEmail = await requireDevKitAuth(req, res);
+  if (!callerEmail) return;
+  try {
+    const body = req.body ?? {};
+    const { action, id, title, body: msgBody, severity, expires_at, active_only } = body as {
+      action: string; id?: string; title?: string; body?: string; severity?: string; expires_at?: string | null; active_only?: boolean;
+    };
+
+    if (action === 'list') {
+      let q = `select=*&order=created_at.desc&limit=100`;
+      if (active_only === true) q += `&active=eq.true`;
+      const data = await supabaseGet('broadcasts', q);
+      return res.json({ success: true, broadcasts: data });
+    }
+
+    if (action === 'publish') {
+      if (!title?.trim() || !msgBody?.trim()) return res.status(400).json({ success: false, error: 'title and body are required' });
+      const validSeverities = ['info', 'warning', 'critical'];
+      const resolvedSeverity = validSeverities.includes(severity ?? '') ? severity : 'info';
+      const inserted = await supabaseInsert('broadcasts', {
+        title: title.trim(), body: msgBody.trim(), severity: resolvedSeverity,
+        active: true, created_by: callerEmail, expires_at: expires_at ?? null,
+      });
+      supabaseInsert('audit_logs', { user_id: null, category: 'admin_broadcast', action: 'broadcast_published', metadata: { broadcast_id: inserted[0]?.id, title, severity: resolvedSeverity, performed_by: callerEmail } }).catch(() => {});
+      return res.json({ success: true, broadcast: inserted[0] });
+    }
+
+    if (action === 'expire') {
+      if (!id) return res.status(400).json({ success: false, error: 'id is required' });
+      await supabasePatch('broadcasts', `id=eq.${encodeURIComponent(id)}`, { active: false });
+      supabaseInsert('audit_logs', { user_id: null, category: 'admin_broadcast', action: 'broadcast_expired', metadata: { broadcast_id: id, performed_by: callerEmail } }).catch(() => {});
+      return res.json({ success: true });
+    }
+
+    return res.status(400).json({ success: false, error: `Unknown action: ${action}` });
+  } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
+});
+
+// ── admin-moderation ──────────────────────────────────────────────────────────
+app.all('/api/fn/admin-moderation', async (req, res) => {
+  const callerEmail = await requireDevKitAuth(req, res);
+  if (!callerEmail) return;
+  try {
+    const body = req.body ?? {};
+    const action: string = body.action ?? '';
+
+    if (action === 'list_bug_reports') {
+      const { status_filter, page = 1, per_page = 50 } = body as { status_filter?: string; page?: number; per_page?: number };
+      const offset = (page - 1) * per_page;
+      let q = `select=*&order=created_at.desc&offset=${offset}&limit=${per_page}`;
+      if (status_filter && status_filter !== 'all') q += `&status=eq.${encodeURIComponent(status_filter)}`;
+      const data = await supabaseGet('bug_reports', q);
+      return res.json({ success: true, bug_reports: data, total: data.length });
+    }
+
+    if (action === 'update_bug_report') {
+      const { report_id, status, private_note } = body as { report_id?: string; status?: string; private_note?: string };
+      if (!report_id) return res.status(400).json({ success: false, error: 'report_id is required' });
+      const updates: Record<string, unknown> = {};
+      if (status !== undefined) updates.status = status;
+      if (private_note !== undefined) updates.private_note = private_note;
+      if (!Object.keys(updates).length) return res.status(400).json({ success: false, error: 'No fields to update' });
+      await supabasePatch('bug_reports', `id=eq.${encodeURIComponent(report_id)}`, updates);
+      supabaseInsert('audit_logs', { user_id: null, category: 'admin_moderation', action: 'bug_report_updated', metadata: { report_id, updates, performed_by: callerEmail } }).catch(() => {});
+      return res.json({ success: true });
+    }
+
+    if (action === 'list_blocklist') {
+      try {
+        const data = await supabaseGet('blocklist', 'select=*&order=added_at.desc');
+        return res.json({ success: true, entries: data });
+      } catch (e) {
+        if (String(e).includes('42P01')) return res.json({ success: true, entries: [], missing_table: true });
+        throw e;
+      }
+    }
+
+    if (action === 'add_blocklist') {
+      const { type, value, reason } = body as { type?: string; value?: string; reason?: string };
+      if (!type || !value) return res.status(400).json({ success: false, error: 'type and value are required' });
+      if (!['email', 'user_id', 'pattern'].includes(type)) return res.status(400).json({ success: false, error: 'type must be email, user_id, or pattern' });
+      const normalizedValue = type === 'email' ? value.trim().toLowerCase() : value.trim();
+      const data = await supabaseInsert('blocklist', { type, value: normalizedValue, reason: reason ?? null, added_by: callerEmail });
+      supabaseInsert('audit_logs', { user_id: null, category: 'admin_moderation', action: 'blocklist_entry_added', metadata: { type, value, reason, performed_by: callerEmail } }).catch(() => {});
+      return res.json({ success: true, entry: data[0] });
+    }
+
+    if (action === 'remove_blocklist') {
+      const { entry_id } = body as { entry_id?: string };
+      if (!entry_id) return res.status(400).json({ success: false, error: 'entry_id is required' });
+      await supabaseDelete('blocklist', `id=eq.${encodeURIComponent(entry_id)}`);
+      supabaseInsert('audit_logs', { user_id: null, category: 'admin_moderation', action: 'blocklist_entry_removed', metadata: { entry_id, performed_by: callerEmail } }).catch(() => {});
+      return res.json({ success: true });
+    }
+
+    if (action === 'list_moderation_queue') {
+      const { status_filter } = body as { status_filter?: string };
+      try {
+        let q = 'select=*&order=created_at.desc&limit=100';
+        if (status_filter && status_filter !== 'all') q += `&status=eq.${encodeURIComponent(status_filter)}`;
+        const data = await supabaseGet('moderation_queue', q);
+        return res.json({ success: true, items: data, total: data.length });
+      } catch (e) {
+        if (String(e).includes('42P01')) return res.json({ success: true, items: [], total: 0, missing_table: true });
+        throw e;
+      }
+    }
+
+    if (action === 'review_queue_item') {
+      const { item_id, decision, suspend_user } = body as { item_id?: string; decision?: string; suspend_user?: boolean };
+      if (!item_id) return res.status(400).json({ success: false, error: 'item_id is required' });
+      if (!decision || !['approved', 'removed'].includes(decision)) return res.status(400).json({ success: false, error: 'decision must be approved or removed' });
+      await supabasePatch('moderation_queue', `id=eq.${encodeURIComponent(item_id)}`, { status: decision, reviewed_by: callerEmail, reviewed_at: new Date().toISOString() });
+      supabaseInsert('audit_logs', { user_id: null, category: 'admin_moderation', action: 'queue_item_reviewed', metadata: { item_id, decision, suspend_user, performed_by: callerEmail } }).catch(() => {});
+      return res.json({ success: true, content_deleted: false });
+    }
+
+    if (action === 'suppress_email') {
+      const { email: emailToSuppress, reason } = body as { email?: string; reason?: string };
+      if (!emailToSuppress) return res.status(400).json({ success: false, error: 'email is required' });
+      const normalized = emailToSuppress.trim().toLowerCase();
+      const existing = await supabaseGet('blocklist', `type=eq.email&value=eq.${encodeURIComponent(normalized)}&select=id&limit=1`);
+      if (existing.length) return res.json({ success: true, already_blocked: true });
+      const data = await supabaseInsert('blocklist', { type: 'email', value: normalized, reason: reason ?? 'Email suppressed due to bounce/complaint', added_by: callerEmail });
+      supabaseInsert('audit_logs', { user_id: null, category: 'admin_moderation', action: 'email_suppressed', metadata: { email: emailToSuppress, performed_by: callerEmail } }).catch(() => {});
+      return res.json({ success: true, entry: data[0] });
+    }
+
+    if (action === 'list_kinde_events') {
+      const { event_type, limit = 100 } = body as { event_type?: string; limit?: number };
+      try {
+        let q = `select=*&order=created_at.desc&limit=${Math.min(limit, 200)}`;
+        if (event_type && event_type !== 'all') q += `&event_type=eq.${encodeURIComponent(event_type)}`;
+        const data = await supabaseGet('kinde_events', q);
+        return res.json({ success: true, events: data, total: data.length });
+      } catch (e) {
+        if (String(e).includes('42P01')) return res.json({ success: true, events: [], total: 0, missing_table: true });
+        throw e;
+      }
+    }
+
+    return res.status(400).json({ success: false, error: `Unknown action: ${action}` });
+  } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
+});
+
+// ── admin-feature-flags ───────────────────────────────────────────────────────
+app.all('/api/fn/admin-feature-flags', async (req, res) => {
+  const callerEmail = await requireDevKitAuth(req, res);
+  if (!callerEmail) return;
+  try {
+    const body = req.body ?? {};
+    const { action } = body as { action: string };
+
+    if (action === 'list') {
+      const data = await supabaseGet('feature_flags', 'select=*&order=name.asc');
+      return res.json({ success: true, flags: data });
+    }
+
+    if (action === 'upsert') {
+      const { name, description = '', enabled_globally = false, enabled_plans = [], enabled_user_ids = [], percentage_rollout = 0, kill_switch_function = null } = body as {
+        name: string; description?: string; enabled_globally?: boolean; enabled_plans?: string[]; enabled_user_ids?: string[]; percentage_rollout?: number; kill_switch_function?: string | null;
+      };
+      if (!name || typeof name !== 'string') return res.status(400).json({ success: false, error: 'name is required' });
+      const cleanName = name.trim().toLowerCase().replace(/[^a-z0-9_]/g, '_');
+      const row = { name: cleanName, description: description.trim(), enabled_globally, enabled_plans, enabled_user_ids, percentage_rollout: Math.max(0, Math.min(100, Number(percentage_rollout) || 0)), kill_switch_function: (kill_switch_function as string | null)?.trim() || null, updated_by: callerEmail, updated_at: new Date().toISOString() };
+      const data = await supabaseUpsert('feature_flags', row, 'name');
+      supabaseInsert('audit_logs', { user_id: null, category: 'admin_feature_flag', action: 'upsert', metadata: { flag_name: cleanName, enabled_globally, performed_by: callerEmail } }).catch(() => {});
+      return res.json({ success: true, flag: data[0] });
+    }
+
+    if (action === 'delete') {
+      const { name } = body as { name: string };
+      if (!name) return res.status(400).json({ success: false, error: 'name is required' });
+      await supabaseDelete('feature_flags', `name=eq.${encodeURIComponent(name)}`);
+      supabaseInsert('audit_logs', { user_id: null, category: 'admin_feature_flag', action: 'delete', metadata: { flag_name: name, performed_by: callerEmail } }).catch(() => {});
+      return res.json({ success: true });
+    }
+
+    return res.status(400).json({ success: false, error: `Unknown action: ${action}` });
+  } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
+});
+
+// ── admin-ai-routing ──────────────────────────────────────────────────────────
+const AI_ROUTING_FEATURES = ['tailor-resume','enhance-section','analyze-resume','generate-cover-letter','agentic-chat','wise-ai-chat'] as const;
+const AI_ROUTING_PROVIDERS = ['auto', 'openrouter', 'groq'];
+
+app.all('/api/fn/admin-ai-routing', async (req, res) => {
+  const callerEmail = await requireDevKitAuth(req, res);
+  if (!callerEmail) return;
+  try {
+    const body = req.body ?? {};
+    const action: string = body.action ?? 'get_config';
+
+    if (action === 'get_config' || action === 'get_all') {
+      const data = await supabaseGet<Record<string, unknown>>('ai_routing_config', 'select=*&order=feature_name.asc').catch(() => []);
+      const byName = new Map(data.map(r => [r.feature_name, r]));
+      const configs = AI_ROUTING_FEATURES.map(f => byName.get(f) ?? { feature_name: f, provider: 'auto', model: '', ab_secondary_provider: null, ab_secondary_model: '', ab_split_pct: 0, updated_by: null, updated_at: null });
+      return res.json({ success: true, configs });
+    }
+
+    if (action === 'update_feature') {
+      const { feature_name, provider, model, ab_secondary_provider, ab_secondary_model, ab_split_pct } = body as { feature_name?: string; provider?: string; model?: string; ab_secondary_provider?: string | null; ab_secondary_model?: string; ab_split_pct?: number };
+      if (!feature_name || !AI_ROUTING_FEATURES.includes(feature_name as typeof AI_ROUTING_FEATURES[number])) return res.status(400).json({ success: false, error: `Invalid feature_name` });
+      const resolvedProvider = provider ?? 'auto';
+      if (!AI_ROUTING_PROVIDERS.includes(resolvedProvider)) return res.status(400).json({ success: false, error: 'Invalid provider' });
+      const splitPct = typeof ab_split_pct === 'number' ? Math.min(100, Math.max(0, Math.round(ab_split_pct))) : 0;
+      const now = new Date().toISOString();
+      await supabaseUpsert('ai_routing_config', { feature_name, provider: resolvedProvider, model: model ?? '', ab_secondary_provider: ab_secondary_provider || null, ab_secondary_model: ab_secondary_model ?? '', ab_split_pct: splitPct, updated_by: 'dev-kit', updated_at: now }, 'feature_name');
+      supabaseInsert('audit_logs', { action: 'ai_routing_update', category: 'ai_routing', metadata: { feature_name, provider: resolvedProvider, model: model ?? '', ab_split_pct: splitPct, updated_by: 'dev-kit', updated_at: now }, created_at: now }).catch(() => {});
+      return res.json({ success: true, feature_name, provider: resolvedProvider });
+    }
+
+    if (action === 'reset_feature') {
+      const { feature_name } = body as { feature_name?: string };
+      if (!feature_name || !AI_ROUTING_FEATURES.includes(feature_name as typeof AI_ROUTING_FEATURES[number])) return res.status(400).json({ success: false, error: 'Invalid feature_name' });
+      const now = new Date().toISOString();
+      await supabaseDelete('ai_routing_config', `feature_name=eq.${encodeURIComponent(feature_name)}`);
+      supabaseInsert('audit_logs', { action: 'ai_routing_reset', category: 'ai_routing', metadata: { feature_name, reset_to: 'auto', updated_by: 'dev-kit', updated_at: now }, created_at: now }).catch(() => {});
+      return res.json({ success: true, feature_name, reset: true });
+    }
+
+    return res.status(400).json({ success: false, error: `Unknown action: ${action}` });
+  } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
+});
+
+// ── admin-observability ───────────────────────────────────────────────────────
+function obsPercentile(sorted: number[], p: number): number {
+  if (!sorted.length) return 0;
+  const idx = Math.ceil((p / 100) * sorted.length) - 1;
+  return sorted[Math.max(0, Math.min(idx, sorted.length - 1))];
+}
+
+app.all('/api/fn/admin-observability', async (req, res) => {
+  const callerEmail = await requireDevKitAuth(req, res);
+  if (!callerEmail) return;
+  try {
+    const body = req.body ?? {};
+    const action: string = body.action ?? 'get_telemetry';
+
+    if (action === 'get_telemetry') {
+      const since = new Date(Date.now() - 86400000).toISOString();
+      try {
+        const rows = await supabaseGet<{ function_name: string; latency_ms: number; error: boolean; created_at: string; status_code: number }>(
+          'edge_function_logs', `select=function_name,latency_ms,error,created_at,status_code&created_at=gte.${encodeURIComponent(since)}&order=created_at.desc&limit=50000`,
+        );
+        const nowMs = Date.now();
+        const oneHourAgo = nowMs - 3600000;
+        const hourMs = 3600000;
+        const byFn = new Map<string, typeof rows>();
+        for (const row of rows) {
+          const arr = byFn.get(row.function_name) ?? [];
+          arr.push(row);
+          byFn.set(row.function_name, arr);
+        }
+        const telemetry = [...byFn.entries()].map(([fnName, fnRows]) => {
+          const latencies = fnRows.map(r => r.latency_ms).sort((a, b) => a - b);
+          const errorCount = fnRows.filter(r => r.error).length;
+          const last1hCount = fnRows.filter(r => new Date(r.created_at).getTime() >= oneHourAgo).length;
+          const cutoff = nowMs - 24 * hourMs;
+          const buckets = new Array(24).fill(0) as number[];
+          for (const row of fnRows) {
+            const ts = new Date(row.created_at).getTime();
+            if (ts < cutoff) continue;
+            const hoursAgo = Math.floor((nowMs - ts) / hourMs);
+            const slot = 23 - hoursAgo;
+            if (slot >= 0 && slot < 24) buckets[slot]++;
+          }
+          return { function_name: fnName, total_count: fnRows.length, last_1h_count: last1hCount, error_count: errorCount, error_rate: fnRows.length > 0 ? Math.round((errorCount / fnRows.length) * 100) : 0, p50_ms: obsPercentile(latencies, 50), p95_ms: obsPercentile(latencies, 95), sparkline: buckets };
+        }).sort((a, b) => b.total_count - a.total_count);
+        return res.json({ success: true, telemetry, generated_at: new Date().toISOString() });
+      } catch (e) {
+        if (String(e).includes('42P01')) return res.json({ success: true, telemetry: [], missing_table: true });
+        throw e;
+      }
+    }
+
+    if (action === 'get_error_stream') {
+      const { function_name, severity, since } = body as { function_name?: string; severity?: string; since?: string };
+      try {
+        let q = 'select=id,message,context,source,level,user_id,resolved,reviewed_at,created_at&order=created_at.desc&limit=100';
+        if (function_name) q += `&source=eq.${encodeURIComponent(function_name)}`;
+        if (severity && severity !== 'all') {
+          const levels = (severity === 'warn' || severity === 'warning') ? 'warn,warning' : 'error,fatal';
+          q += `&level=in.(${levels})`;
+        }
+        if (since) q += `&created_at=gte.${encodeURIComponent(since)}`;
+        const data = await supabaseGet('error_log', q);
+        return res.json({ success: true, errors: data });
+      } catch (e) {
+        if (String(e).includes('42P01')) return res.json({ success: true, errors: [], missing_table: true });
+        throw e;
+      }
+    }
+
+    if (action === 'mark_reviewed') {
+      const { error_id } = body as { error_id?: string };
+      if (!error_id) return res.status(400).json({ success: false, error: 'error_id is required' });
+      await supabasePatch('error_log', `id=eq.${encodeURIComponent(error_id)}`, { reviewed_at: new Date().toISOString(), resolved: true });
+      return res.json({ success: true, error_id });
+    }
+
+    return res.status(400).json({ success: false, error: `Unknown action: ${action}` });
+  } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
+});
+
+// ── admin-portfolio-usernames ─────────────────────────────────────────────────
+// NOTE: The `profiles` table does NOT have an `email` column (email lives on
+// auth.users). All profile selects below omit `email`; `contact_email` is used
+// where available. The frontend shows '—' for missing email values.
+app.all('/api/fn/admin-portfolio-usernames', async (req, res) => {
+  const callerEmail = await requireDevKitAuth(req, res);
+  if (!callerEmail) return;
+  try {
+    const body = req.body ?? {};
+    const { action, ...rest } = body as { action: string } & Record<string, unknown>;
+
+    function cleanUsername(s: unknown) { return String(s ?? '').trim().toLowerCase(); }
+
+    if (action === 'directory_list') {
+      const search = String(rest.search ?? '').trim();
+      const sort = String(rest.sort ?? 'newest');
+      const page = Math.max(1, Number(rest.page ?? 1));
+      const perPage = Math.min(200, Math.max(1, Number(rest.per_page ?? 50)));
+      const offset = (page - 1) * perPage;
+      const sortParam = { oldest: 'created_at.asc', username_asc: 'username.asc', username_desc: 'username.desc', newest: 'created_at.desc' }[sort] ?? 'created_at.desc';
+      let q = `select=user_id,username,full_name,contact_email,portfolio_enabled,updated_at,created_at&username=not.is.null&order=${sortParam}&offset=${offset}&limit=${perPage}`;
+      if (search) q += `&or=(username.ilike.*${encodeURIComponent(search)}*,full_name.ilike.*${encodeURIComponent(search)}*,contact_email.ilike.*${encodeURIComponent(search)}*)`;
+      const data = await supabaseGet<Record<string, unknown>>('profiles', q);
+      const rows = data.map(r => ({ ...r, email: (r.contact_email as string | null) ?? null }));
+      return res.json({ success: true, rows, total: rows.length });
+    }
+
+    if (action === 'directory_rename') {
+      const userId = String(rest.user_id ?? '');
+      const newUsername = cleanUsername(rest.new_username);
+      if (!userId || !newUsername) return res.status(400).json({ success: false, error: 'user_id and new_username required' });
+      const avail = await supabaseRpc<{ status?: string } | null>('check_username_available', { p_username: newUsername, p_user_id: userId });
+      const status = avail?.status ?? 'invalid';
+      if (status !== 'available') return res.status(409).json({ success: false, error: `Username not available (${status})`, status });
+      await supabasePatch('profiles', `user_id=eq.${encodeURIComponent(userId)}`, { username: newUsername });
+      supabaseInsert('audit_logs', { user_id: userId, category: 'portfolio_username', action: 'rename_username', metadata: { new_username: newUsername, admin_email: callerEmail } }).catch(() => {});
+      return res.json({ success: true });
+    }
+
+    if (action === 'directory_toggle_enabled') {
+      const userId = String(rest.user_id ?? '');
+      const enabled = Boolean(rest.enabled);
+      if (!userId) return res.status(400).json({ success: false, error: 'user_id required' });
+      await supabasePatch('profiles', `user_id=eq.${encodeURIComponent(userId)}`, { portfolio_enabled: enabled });
+      supabaseInsert('audit_logs', { user_id: userId, category: 'portfolio_username', action: enabled ? 'enable_portfolio' : 'disable_portfolio', metadata: { portfolio_enabled: enabled, admin_email: callerEmail } }).catch(() => {});
+      return res.json({ success: true });
+    }
+
+    if (action === 'directory_release') {
+      const userIds: string[] = Array.isArray(rest.user_ids) && (rest.user_ids as unknown[]).length ? (rest.user_ids as unknown[]).map(String) : rest.user_id ? [String(rest.user_id)] : [];
+      if (!userIds.length) return res.status(400).json({ success: false, error: 'user_id or user_ids required' });
+      await supabasePatch('profiles', `user_id=in.(${userIds.map(encodeURIComponent).join(',')})`, { username: null, portfolio_enabled: false });
+      supabaseInsert('audit_logs', { user_id: null, category: 'portfolio_username', action: 'release_username', metadata: { user_ids: userIds, admin_email: callerEmail } }).catch(() => {});
+      return res.json({ success: true, released: userIds.length });
+    }
+
+    if (action === 'directory_bulk_disable') {
+      const userIds = ((rest.user_ids as unknown[]) ?? []).map(String);
+      if (!userIds.length) return res.status(400).json({ success: false, error: 'user_ids required' });
+      await supabasePatch('profiles', `user_id=in.(${userIds.map(encodeURIComponent).join(',')})`, { portfolio_enabled: false });
+      supabaseInsert('audit_logs', { user_id: null, category: 'portfolio_username', action: 'disable_portfolio', metadata: { user_ids: userIds, bulk: true, admin_email: callerEmail } }).catch(() => {});
+      return res.json({ success: true, disabled: userIds.length });
+    }
+
+    if (action === 'rules_get') {
+      const rules = await supabaseGet('portfolio_username_rules', 'id=eq.1&select=*&limit=1').then(d => d[0]).catch(() => null);
+      const overrides = await supabaseGet<{ user_id: string; [k: string]: unknown }>('portfolio_user_overrides', 'select=user_id,min_length,max_length,allow_hyphens,note,updated_at').catch(() => []);
+      const userIds = overrides.map(o => o.user_id);
+      let profileMap: Record<string, { email: string | null; full_name: string | null; username: string | null }> = {};
+      if (userIds.length) {
+        const profs = await supabaseGet<{ user_id: string; contact_email: string | null; full_name: string | null; username: string | null }>('profiles', `user_id=in.(${userIds.map(encodeURIComponent).join(',')})&select=user_id,contact_email,full_name,username`).catch(() => []);
+        profileMap = Object.fromEntries(profs.map(p => [p.user_id, { email: p.contact_email ?? null, full_name: p.full_name, username: p.username }]));
+      }
+      return res.json({ success: true, rules: rules ?? { id: 1, min_length: 3, max_length: 30, allow_hyphens: true }, overrides: overrides.map(o => ({ ...o, profile: profileMap[o.user_id] ?? null })) });
+    }
+
+    if (action === 'rules_update') {
+      const min_length = Number(rest.min_length ?? 3), max_length = Number(rest.max_length ?? 30), allow_hyphens = Boolean(rest.allow_hyphens ?? true);
+      if (!(min_length >= 1 && min_length <= 100 && max_length >= min_length && max_length <= 100)) return res.status(400).json({ success: false, error: 'Invalid length bounds' });
+      await supabasePatch('portfolio_username_rules', 'id=eq.1', { min_length, max_length, allow_hyphens, updated_at: new Date().toISOString() });
+      supabaseInsert('audit_logs', { user_id: null, category: 'portfolio_username', action: 'update_rules', metadata: { min_length, max_length, allow_hyphens, admin_email: callerEmail } }).catch(() => {});
+      return res.json({ success: true });
+    }
+
+    if (action === 'rules_override_upsert') {
+      const userId = String(rest.user_id ?? '');
+      if (!userId) return res.status(400).json({ success: false, error: 'user_id required' });
+      const min_length = rest.min_length == null || rest.min_length === '' ? null : Number(rest.min_length);
+      const max_length = rest.max_length == null || rest.max_length === '' ? null : Number(rest.max_length);
+      const allow_hyphens = rest.allow_hyphens == null ? null : Boolean(rest.allow_hyphens);
+      const note = String(rest.note ?? '');
+      await supabaseUpsert('portfolio_user_overrides', { user_id: userId, min_length, max_length, allow_hyphens, note, updated_at: new Date().toISOString() }, 'user_id');
+      supabaseInsert('audit_logs', { user_id: userId, category: 'portfolio_username', action: 'upsert_user_override', metadata: { min_length, max_length, allow_hyphens, note, admin_email: callerEmail } }).catch(() => {});
+      return res.json({ success: true });
+    }
+
+    if (action === 'rules_override_delete') {
+      const userId = String(rest.user_id ?? '');
+      if (!userId) return res.status(400).json({ success: false, error: 'user_id required' });
+      await supabaseDelete('portfolio_user_overrides', `user_id=eq.${encodeURIComponent(userId)}`);
+      supabaseInsert('audit_logs', { user_id: userId, category: 'portfolio_username', action: 'delete_user_override', metadata: { admin_email: callerEmail } }).catch(() => {});
+      return res.json({ success: true });
+    }
+
+    if (action === 'reserved_list') {
+      const data = await supabaseGet('portfolio_reserved_usernames', 'select=*&order=username.asc');
+      return res.json({ success: true, rows: data });
+    }
+    if (action === 'reserved_add') {
+      const username = cleanUsername(rest.username);
+      const reason = String(rest.reason ?? '');
+      if (!username) return res.status(400).json({ success: false, error: 'username required' });
+      await supabaseUpsert('portfolio_reserved_usernames', { username, reason }, 'username');
+      supabaseInsert('audit_logs', { user_id: null, category: 'portfolio_username', action: 'add_reserved', metadata: { username, reason, admin_email: callerEmail } }).catch(() => {});
+      return res.json({ success: true });
+    }
+    if (action === 'reserved_delete') {
+      const username = cleanUsername(rest.username);
+      if (!username) return res.status(400).json({ success: false, error: 'username required' });
+      await supabaseDelete('portfolio_reserved_usernames', `username=eq.${encodeURIComponent(username)}`);
+      supabaseInsert('audit_logs', { user_id: null, category: 'portfolio_username', action: 'delete_reserved', metadata: { username, admin_email: callerEmail } }).catch(() => {});
+      return res.json({ success: true });
+    }
+
+    if (action === 'exclusive_list') {
+      const data = await supabaseGet<{ user_id: string; [k: string]: unknown }>('portfolio_exclusive_assignments', 'select=*&order=username.asc');
+      const userIds = [...new Set(data.map(r => r.user_id))];
+      let profileMap: Record<string, { email: string | null; full_name: string | null; username: string | null }> = {};
+      if (userIds.length) {
+        const profs = await supabaseGet<{ user_id: string; contact_email: string | null; full_name: string | null; username: string | null }>('profiles', `user_id=in.(${userIds.map(encodeURIComponent).join(',')})&select=user_id,contact_email,full_name,username`).catch(() => []);
+        profileMap = Object.fromEntries(profs.map(p => [p.user_id, { email: p.contact_email ?? null, full_name: p.full_name, username: p.username }]));
+      }
+      return res.json({ success: true, rows: data.map(r => ({ ...r, profile: profileMap[r.user_id] ?? null })) });
+    }
+    if (action === 'exclusive_add') {
+      const username = cleanUsername(rest.username);
+      const userId = String(rest.user_id ?? '');
+      const note = String(rest.note ?? '');
+      if (!username) return res.status(400).json({ success: false, error: 'username required' });
+      if (!userId) return res.status(400).json({ success: false, error: 'user_id required' });
+      await supabaseUpsert('portfolio_exclusive_assignments', { username, user_id: userId, note }, 'username');
+      supabaseInsert('audit_logs', { user_id: userId, category: 'portfolio_username', action: 'add_exclusive', metadata: { username, note, admin_email: callerEmail } }).catch(() => {});
+      return res.json({ success: true });
+    }
+    if (action === 'exclusive_delete') {
+      const username = cleanUsername(rest.username);
+      if (!username) return res.status(400).json({ success: false, error: 'username required' });
+      await supabaseDelete('portfolio_exclusive_assignments', `username=eq.${encodeURIComponent(username)}`);
+      supabaseInsert('audit_logs', { user_id: null, category: 'portfolio_username', action: 'delete_exclusive', metadata: { username, admin_email: callerEmail } }).catch(() => {});
+      return res.json({ success: true });
+    }
+
+    if (action === 'premium_list') {
+      const data = await supabaseGet<{ assigned_to_user_id: string | null; [k: string]: unknown }>('portfolio_premium_usernames', 'select=*&order=created_at.desc');
+      const userIds = data.map(r => r.assigned_to_user_id).filter(Boolean) as string[];
+      let profileMap: Record<string, { email: string | null; full_name: string | null; username: string | null }> = {};
+      if (userIds.length) {
+        const profs = await supabaseGet<{ user_id: string; contact_email: string | null; full_name: string | null; username: string | null }>('profiles', `user_id=in.(${userIds.map(encodeURIComponent).join(',')})&select=user_id,contact_email,full_name,username`).catch(() => []);
+        profileMap = Object.fromEntries(profs.map(p => [p.user_id, { email: p.contact_email ?? null, full_name: p.full_name, username: p.username }]));
+      }
+      return res.json({ success: true, rows: data.map(r => ({ ...r, profile: r.assigned_to_user_id ? (profileMap[r.assigned_to_user_id] ?? null) : null })) });
+    }
+    if (action === 'premium_add') {
+      const username = cleanUsername(rest.username);
+      if (!username) return res.status(400).json({ success: false, error: 'username required' });
+      const price_cents = Math.max(0, Number(rest.price_cents ?? 0));
+      const currency = String(rest.currency ?? 'usd').toLowerCase();
+      const note = String(rest.note ?? '');
+      await supabaseUpsert('portfolio_premium_usernames', { username, price_cents, currency, note, updated_at: new Date().toISOString() }, 'username');
+      supabaseInsert('audit_logs', { user_id: null, category: 'portfolio_username', action: 'add_premium_handle', metadata: { username, price_cents, currency, note, admin_email: callerEmail } }).catch(() => {});
+      return res.json({ success: true });
+    }
+    if (action === 'premium_delete') {
+      const username = cleanUsername(rest.username);
+      if (!username) return res.status(400).json({ success: false, error: 'username required' });
+      await supabaseDelete('portfolio_premium_usernames', `username=eq.${encodeURIComponent(username)}`);
+      supabaseInsert('audit_logs', { user_id: null, category: 'portfolio_username', action: 'delete_premium_handle', metadata: { username, admin_email: callerEmail } }).catch(() => {});
+      return res.json({ success: true });
+    }
+    if (action === 'premium_assign') {
+      const username = cleanUsername(rest.username);
+      const userId = String(rest.user_id ?? '');
+      const note = String(rest.note ?? '');
+      if (!username || !userId) return res.status(400).json({ success: false, error: 'username and user_id required' });
+      const rpcResult = await supabaseRpc<{ success: boolean; error?: string; price_cents?: number; currency?: string }>('assign_premium_handle', { p_username: username, p_target_user_id: userId, p_admin_note: note || null });
+      if (!rpcResult.success) return res.status(rpcResult.error?.includes('already assigned') ? 409 : 404).json({ success: false, error: rpcResult.error ?? 'Assignment failed' });
+      supabaseInsert('audit_logs', { user_id: userId, category: 'portfolio_username', action: 'assign_premium_handle', metadata: { username, admin_note: note, admin_email: callerEmail } }).catch(() => {});
+      return res.json({ success: true });
+    }
+    if (action === 'premium_mark_pending') {
+      const username = cleanUsername(rest.username);
+      const userId = String(rest.user_id ?? '');
+      if (!username || !userId) return res.status(400).json({ success: false, error: 'username and user_id required' });
+      await supabasePatch('portfolio_premium_usernames', `username=eq.${encodeURIComponent(username)}&status=eq.available`, { status: 'pending', assigned_to_user_id: userId, updated_at: new Date().toISOString() });
+      supabaseInsert('audit_logs', { user_id: userId, category: 'portfolio_username', action: 'pending_premium_handle', metadata: { username, admin_email: callerEmail } }).catch(() => {});
+      return res.json({ success: true });
+    }
+
+    if (action === 'user_search') {
+      const q = String(rest.q ?? '').trim();
+      if (!q) return res.json({ success: true, results: [] });
+      const data = await supabaseGet<{ user_id: string; full_name: string | null; username: string | null; contact_email: string | null }>('profiles', `select=user_id,full_name,username,contact_email&or=(full_name.ilike.*${encodeURIComponent(q)}*,username.ilike.*${encodeURIComponent(q)}*,contact_email.ilike.*${encodeURIComponent(q)}*)&limit=20`);
+      return res.json({ success: true, results: data.map(r => ({ ...r, email: r.contact_email ?? null })) });
+    }
+
+    return res.status(400).json({ success: false, error: `Unknown action: ${action}` });
+  } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
+});
+
+// ── admin-resend-stats ────────────────────────────────────────────────────────
+// Resend Audience helpers for Node.js (mirrors _shared/resendAudiences.ts)
+const RESEND_API = 'https://api.resend.com';
+const AUDIENCE_KEYS_NODE = {
+  ONBOARDING:      'RESEND_AUDIENCE_ONBOARDING',
+  LOW_CREDITS:     'RESEND_AUDIENCE_LOW_CREDITS',
+  HANDLE_INTEREST: 'RESEND_AUDIENCE_HANDLE_INTEREST',
+  WISEHIRE:        'RESEND_AUDIENCE_WISEHIRE',
+  ALL_USERS:       'RESEND_AUDIENCE_ALL_USERS',
+} as const;
+const AUDIENCE_LABELS_NODE: Record<string, string> = {
+  RESEND_AUDIENCE_ONBOARDING: 'Onboarding', RESEND_AUDIENCE_LOW_CREDITS: 'Low Credits',
+  RESEND_AUDIENCE_HANDLE_INTEREST: 'Premium Handle Interest', RESEND_AUDIENCE_WISEHIRE: 'WiseHire Waitlist',
+  RESEND_AUDIENCE_ALL_USERS: 'All Users',
+};
+
+async function nodeResendGet<T>(path: string, apiKey: string): Promise<T | null> {
+  try {
+    const r = await fetch(`${RESEND_API}${path}`, { headers: { Authorization: `Bearer ${apiKey}` }, signal: AbortSignal.timeout(8000) });
+    if (!r.ok) return null;
+    return (await r.json()) as T;
+  } catch { return null; }
+}
+
+async function nodeResendAudienceStats(audienceId: string, apiKey: string) {
+  const data = await nodeResendGet<{ id: string; name: string; created_at: string }>(`/audiences/${audienceId}`, apiKey);
+  if (!data) return null;
+  const contacts = await nodeResendGet<{ data?: Array<unknown> }>(`/audiences/${audienceId}/contacts`, apiKey);
+  return { name: data.name, contactCount: contacts?.data?.length ?? null };
+}
+
+async function nodeResendListContacts(audienceId: string, apiKey: string): Promise<Array<{ id: string; email: string }>> {
+  const result: Array<{ id: string; email: string }> = [];
+  let url: string | null = `/audiences/${audienceId}/contacts`;
+  while (url) {
+    const page = await nodeResendGet<{ data?: Array<{ id: string; email: string }>; next?: string | null }>(url, apiKey);
+    if (!page?.data) break;
+    result.push(...page.data);
+    url = page.next ?? null;
+  }
+  return result;
+}
+
+async function nodeResendAddContact(audienceId: string, email: string, firstName?: string, apiKey?: string): Promise<boolean> {
+  if (!apiKey) return false;
+  try {
+    const body: Record<string, unknown> = { email };
+    if (firstName) body.first_name = firstName;
+    const r = await fetch(`${RESEND_API}/audiences/${audienceId}/contacts`, {
+      method: 'POST', headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body), signal: AbortSignal.timeout(5000),
+    });
+    return r.ok;
+  } catch { return false; }
+}
+
+async function nodeResendRemoveContact(audienceId: string, email: string, apiKey: string): Promise<boolean> {
+  try {
+    const contacts = await nodeResendListContacts(audienceId, apiKey);
+    const match = contacts.find(c => c.email.toLowerCase() === email.toLowerCase());
+    if (!match) return true;
+    const r = await fetch(`${RESEND_API}/audiences/${audienceId}/contacts/${match.id}`, {
+      method: 'DELETE', headers: { Authorization: `Bearer ${apiKey}` }, signal: AbortSignal.timeout(5000),
+    });
+    return r.ok;
+  } catch { return false; }
+}
+
+app.all('/api/fn/admin-resend-stats', async (req, res) => {
+  const callerEmail = await requireDevKitAuth(req, res);
+  if (!callerEmail) return;
+  try {
+    const body = req.body ?? {};
+    const action = (body.action as string | undefined) ?? 'stats';
+    const apiKey = process.env.RESEND_API_KEY || '';
+
+    if (action === 'stats') {
+      const allKeys = Object.keys(AUDIENCE_KEYS_NODE) as Array<keyof typeof AUDIENCE_KEYS_NODE>;
+      const [statsResults, broadcasts] = await Promise.all([
+        Promise.all(allKeys.map(async (key) => {
+          const envKey = AUDIENCE_KEYS_NODE[key];
+          const audienceId = (process.env[envKey] || '').trim();
+          const label = AUDIENCE_LABELS_NODE[envKey] ?? key;
+          if (!audienceId || !apiKey) return { key, label, configured: !!audienceId, id: audienceId || null, contactCount: null };
+          const stats = await nodeResendAudienceStats(audienceId, apiKey);
+          return { key, label, configured: true, id: audienceId, contactCount: stats?.contactCount ?? null, name: stats?.name ?? label };
+        })),
+        (apiKey ? nodeResendGet<{ data?: Array<{ id: string; name: string; status: string; metrics?: { open_rate?: number; click_rate?: number; recipients?: number } }> }>('/broadcasts', apiKey) : Promise.resolve(null)),
+      ]);
+      const recentBroadcasts = (broadcasts?.data ?? []).filter(b => b.status === 'sent').slice(0, 5).map(b => ({ id: b.id, name: b.name, status: b.status, openRate: b.metrics?.open_rate ?? null, clickRate: b.metrics?.click_rate ?? null, recipients: b.metrics?.recipients ?? null }));
+      const AUTOMATION_CHECKLIST = [
+        { key: 'onboarding', name: 'Onboarding Drip', audienceKey: 'RESEND_AUDIENCE_ONBOARDING', trigger: 'Contact added to "Onboarding" audience', emails: ['Day 0: Welcome + getting started', 'Day 3: AI assistant tip', 'Day 7: Premium templates', 'Day 14: Performance check-in'] },
+        { key: 'low_credits', name: 'Low Credits Nudge', audienceKey: 'RESEND_AUDIENCE_LOW_CREDITS', trigger: 'Contact added to "Low Credits" audience', emails: ['Immediate: Low credits — top up here'] },
+        { key: 'handle_interest', name: 'Premium Handle Follow-up', audienceKey: 'RESEND_AUDIENCE_HANDLE_INTEREST', trigger: 'Contact added to "Premium Handle Interest" audience (delay 1 day)', emails: ['Day 1: Still thinking about that premium handle?'] },
+        { key: 'wisehire', name: 'WiseHire Waitlist Drip', audienceKey: 'RESEND_AUDIENCE_WISEHIRE', trigger: 'Contact added to "WiseHire Waitlist" audience', emails: ['Day 0: You\'re on the waitlist! (auto-sent)', 'Day 7: What WiseHire can do for your team', 'Day 30: Launch update'] },
+        { key: 're_engagement', name: 'Re-engagement', audienceKey: 'RESEND_AUDIENCE_ALL_USERS', trigger: 'Date-based / 30 days since last login (configure in Resend dashboard)', emails: ['We miss you — here\'s what\'s new on WiseResume'] },
+      ];
+      return res.json({ success: true, audiences: statsResults, checklist: AUTOMATION_CHECKLIST, recentBroadcasts, broadcastsNote: 'Resend API does not expose per-automation send metrics. recentBroadcasts shows one-off campaign stats only.' });
+    }
+
+    if (action === 'lookup') {
+      const email = (body.email as string | undefined)?.trim().toLowerCase();
+      if (!email) return res.status(400).json({ error: 'email is required' });
+      const allKeys = Object.keys(AUDIENCE_KEYS_NODE) as Array<keyof typeof AUDIENCE_KEYS_NODE>;
+      const foundIn: string[] = [];
+      await Promise.all(allKeys.map(async (key) => {
+        const envKey = AUDIENCE_KEYS_NODE[key];
+        const audienceId = (process.env[envKey] || '').trim();
+        if (!audienceId || !apiKey) return;
+        const contacts = await nodeResendListContacts(audienceId, apiKey);
+        if (contacts.find(c => c.email.toLowerCase() === email)) foundIn.push(AUDIENCE_LABELS_NODE[envKey] ?? key);
+      }));
+      return res.json({ success: true, email, foundIn });
+    }
+
+    if (action === 'add') {
+      const audienceKey = (body.audienceKey as string | undefined)?.trim();
+      const email = (body.email as string | undefined)?.trim().toLowerCase();
+      const firstName = (body.firstName as string | undefined)?.trim() || undefined;
+      if (!audienceKey || !email) return res.status(400).json({ error: 'audienceKey and email are required' });
+      const audienceId = (process.env[audienceKey] || '').trim();
+      if (!audienceId) return res.status(400).json({ error: `Audience ${audienceKey} not configured` });
+      const ok = await nodeResendAddContact(audienceId, email, firstName, apiKey);
+      return res.status(ok ? 200 : 502).json({ success: ok });
+    }
+
+    if (action === 'remove') {
+      const audienceKey = (body.audienceKey as string | undefined)?.trim();
+      const email = (body.email as string | undefined)?.trim().toLowerCase();
+      if (!audienceKey || !email) return res.status(400).json({ error: 'audienceKey and email are required' });
+      const audienceId = (process.env[audienceKey] || '').trim();
+      if (!audienceId) return res.status(400).json({ error: `Audience ${audienceKey} not configured` });
+      const ok = await nodeResendRemoveContact(audienceId, email, apiKey);
+      return res.status(ok ? 200 : 502).json({ success: ok });
+    }
+
+    return res.status(400).json({ error: 'Unknown action' });
+  } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
+});
+
+// ── admin-resend-sync ─────────────────────────────────────────────────────────
+app.all('/api/fn/admin-resend-sync', async (req, res) => {
+  const callerEmail = await requireDevKitAuth(req, res);
+  if (!callerEmail) return;
+  try {
+    const apiKey = process.env.RESEND_API_KEY || '';
+    const audienceId = (process.env.RESEND_AUDIENCE_ALL_USERS || '').trim();
+    if (!audienceId) return res.status(503).json({ error: 'RESEND_AUDIENCE_ALL_USERS secret not configured' });
+    if (!apiKey)     return res.status(503).json({ error: 'RESEND_API_KEY not configured' });
+
+    const emails: Array<{ email: string; firstName?: string; lastName?: string }> = [];
+    let from = 0;
+    const PAGE = 1000;
+    while (true) {
+      const data = await supabaseGet<{ contact_email: string | null; full_name: string | null }>('profiles', `select=contact_email,full_name&offset=${from}&limit=${PAGE}`);
+      if (!data.length) break;
+      for (const row of data) {
+        const email = row.contact_email || '';
+        if (!email || email.endsWith('@kinde.placeholder')) continue;
+        const parts = (row.full_name || '').trim().split(' ');
+        emails.push({ email, firstName: parts[0] || undefined, lastName: parts.slice(1).join(' ') || undefined });
+      }
+      if (data.length < PAGE) break;
+      from += PAGE;
+    }
+
+    const seen = new Set<string>();
+    const unique = emails.filter(({ email }) => { if (seen.has(email)) return false; seen.add(email); return true; });
+
+    let added = 0; let failed = 0;
+    const BATCH = 50; const DELAY = 300;
+    for (let i = 0; i < unique.length; i += BATCH) {
+      await Promise.all(unique.slice(i, i + BATCH).map(async (c) => {
+        const ok = await nodeResendAddContact(audienceId, c.email, c.firstName, apiKey);
+        if (ok) added++; else failed++;
+      }));
+      if (i + BATCH < unique.length) await new Promise(r => setTimeout(r, DELAY));
+    }
+
+    return res.json({ success: true, total: unique.length, added, failed });
+  } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
 });
 
 /**
