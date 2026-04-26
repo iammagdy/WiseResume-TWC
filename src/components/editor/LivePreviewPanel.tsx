@@ -1,4 +1,5 @@
 import { memo, useState, useCallback, Suspense, useRef, CSSProperties, useEffect } from 'react';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { ZoomIn, ZoomOut, Eye, EyeOff, X, Scissors, SeparatorHorizontal, Sliders, GripVertical, Download, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useResumeStore } from '@/store/resumeStore';
@@ -337,30 +338,42 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
 
         <div className="flex items-center gap-1.5">
           {/* Page break toggle */}
-          <button
-            onClick={() => { setShowPageBreaks(v => !v); haptics.light(); }}
-            className={cn(
-              'p-2 rounded-lg transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center touch-manipulation active:scale-95',
-              showPageBreaks ? 'bg-destructive/10 text-destructive' : 'text-muted-foreground hover:bg-muted'
-            )}
-            aria-label="Toggle page break indicators"
-            title="Show/hide auto page break lines"
-          >
-            <Scissors className="w-4 h-4" />
-          </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => { setShowPageBreaks(v => !v); haptics.light(); }}
+                className={cn(
+                  'p-2 rounded-lg transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center touch-manipulation active:scale-95',
+                  showPageBreaks ? 'bg-destructive/10 text-destructive' : 'text-muted-foreground hover:bg-muted'
+                )}
+                aria-label="Toggle page break indicators"
+              >
+                <Scissors className="w-4 h-4" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              {showPageBreaks ? 'Hide auto page break lines' : 'Show auto page break lines'}
+            </TooltipContent>
+          </Tooltip>
 
           {/* Custom break edit mode */}
-          <button
-            onClick={() => { setIsBreakEditMode(v => !v); haptics.light(); }}
-            className={cn(
-              'p-2 rounded-lg transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center touch-manipulation active:scale-95',
-              isBreakEditMode ? 'bg-primary/10 text-primary ring-1 ring-primary/30' : 'text-muted-foreground hover:bg-muted'
-            )}
-            aria-label="Edit custom page breaks"
-            title={isBreakEditMode ? 'Click resume to add breaks · drag handles to move · click ✕ to delete' : 'Place custom page breaks (overrides auto-pagination on export)'}
-          >
-            <GripVertical className="w-4 h-4" />
-          </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => { setIsBreakEditMode(v => !v); haptics.light(); }}
+                className={cn(
+                  'p-2 rounded-lg transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center touch-manipulation active:scale-95',
+                  isBreakEditMode ? 'bg-primary/10 text-primary ring-1 ring-primary/30' : 'text-muted-foreground hover:bg-muted'
+                )}
+                aria-label="Edit custom page breaks"
+              >
+                <GripVertical className="w-4 h-4" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              {isBreakEditMode ? 'Click resume to add breaks · drag to move · × to delete' : 'Place custom page breaks'}
+            </TooltipContent>
+          </Tooltip>
 
           {/* Clear custom breaks */}
           {sortedCustomBreaks.length > 0 && (
@@ -374,26 +387,37 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
           )}
 
           {/* Section toggle button */}
-          <button
-            onClick={() => { setShowSectionToggles(v => !v); haptics.light(); }}
-            className={cn(
-              'p-2 rounded-lg transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center touch-manipulation active:scale-95',
-              showSectionToggles ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted'
-            )}
-            aria-label="Toggle section visibility"
-          >
-            {showSectionToggles ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-          </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => { setShowSectionToggles(v => !v); haptics.light(); }}
+                className={cn(
+                  'p-2 rounded-lg transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center touch-manipulation active:scale-95',
+                  showSectionToggles ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted'
+                )}
+                aria-label="Toggle section visibility"
+              >
+                {showSectionToggles ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              {showSectionToggles ? 'Hide section toggles' : 'Show/hide sections'}
+            </TooltipContent>
+          </Tooltip>
 
           {/* Customize style button */}
-          <button
-            onClick={() => { setShowStylePanel(true); haptics.light(); }}
-            className="p-2 rounded-lg transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center touch-manipulation active:scale-95 text-muted-foreground hover:bg-muted"
-            aria-label="Customize style"
-            title="Customize style"
-          >
-            <Sliders className="w-4 h-4" />
-          </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => { setShowStylePanel(true); haptics.light(); }}
+                className="p-2 rounded-lg transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center touch-manipulation active:scale-95 text-muted-foreground hover:bg-muted"
+                aria-label="Customize style"
+              >
+                <Sliders className="w-4 h-4" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">Customize style</TooltipContent>
+          </Tooltip>
 
           {/* Live page count badge — green ≤2 / amber 3-4 / red ≥5 */}
           <span className={cn(
@@ -409,13 +433,18 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
 
           {/* Close (desktop) */}
           {onClose && (
-            <button
-              onClick={() => { onClose(); haptics.light(); }}
-              className="p-2 rounded-lg hover:bg-muted text-muted-foreground transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center touch-manipulation active:scale-95"
-              aria-label="Close preview"
-            >
-              <X className="w-4 h-4" />
-            </button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => { onClose(); haptics.light(); }}
+                  className="p-2 rounded-lg hover:bg-muted text-muted-foreground transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center touch-manipulation active:scale-95"
+                  aria-label="Close preview"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Close preview</TooltipContent>
+            </Tooltip>
           )}
         </div>
       </div>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { GlassSurface } from '@/components/ui/GlassSurface';
 import { ArrowLeft, MessageSquare, LayoutGrid, Palette, PanelLeftClose, PanelLeft, Clock, Undo2, Redo2, Download, Loader2, Cloud, CloudOff, Check, Save, BarChart3, ChevronDown, FileDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -271,39 +272,56 @@ export function EditorHeader({
           </button>
           {/* Undo/Redo buttons */}
           <div className="hidden sm:flex items-center gap-0.5">
-            <button
-              onClick={onUndo}
-              disabled={!canUndo}
-              className={cn(
-                'p-2 rounded-lg transition-all touch-manipulation active:scale-95 min-w-[44px] min-h-[44px] flex items-center justify-center',
-                canUndo ? 'hover:bg-muted text-foreground' : 'text-muted-foreground/30 cursor-not-allowed'
-              )}
-              aria-label={canUndo ? `Undo: ${undoDescription}` : 'Nothing to undo'}
-              title={canUndo ? `Undo: ${undoDescription}` : 'Nothing to undo'}
-            >
-              <Undo2 className="w-4 h-4" />
-            </button>
-            <button
-              onClick={onRedo}
-              disabled={!canRedo}
-              className={cn(
-                'p-2 rounded-lg transition-all touch-manipulation active:scale-95 min-w-[44px] min-h-[44px] flex items-center justify-center',
-                canRedo ? 'hover:bg-muted text-foreground' : 'text-muted-foreground/30 cursor-not-allowed'
-              )}
-              aria-label={canRedo ? `Redo: ${redoDescription}` : 'Nothing to redo'}
-              title={canRedo ? `Redo: ${redoDescription}` : 'Nothing to redo'}
-            >
-              <Redo2 className="w-4 h-4" />
-            </button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={onUndo}
+                  disabled={!canUndo}
+                  className={cn(
+                    'p-2 rounded-lg transition-all touch-manipulation active:scale-95 min-w-[44px] min-h-[44px] flex items-center justify-center',
+                    canUndo ? 'hover:bg-muted text-foreground' : 'text-muted-foreground/30 cursor-not-allowed'
+                  )}
+                  aria-label={canUndo ? `Undo: ${undoDescription}` : 'Nothing to undo'}
+                >
+                  <Undo2 className="w-4 h-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                {canUndo ? `Undo: ${undoDescription}` : 'Nothing to undo'}
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={onRedo}
+                  disabled={!canRedo}
+                  className={cn(
+                    'p-2 rounded-lg transition-all touch-manipulation active:scale-95 min-w-[44px] min-h-[44px] flex items-center justify-center',
+                    canRedo ? 'hover:bg-muted text-foreground' : 'text-muted-foreground/30 cursor-not-allowed'
+                  )}
+                  aria-label={canRedo ? `Redo: ${redoDescription}` : 'Nothing to redo'}
+                >
+                  <Redo2 className="w-4 h-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                {canRedo ? `Redo: ${redoDescription}` : 'Nothing to redo'}
+              </TooltipContent>
+            </Tooltip>
           </div>
           {isAuthenticated && currentResumeId && (
-            <button
-              onClick={onVersionHistory}
-              className="keyboard-hide p-2 rounded-lg hover:bg-muted active:scale-95 transition-all touch-manipulation hidden sm:inline-flex min-w-[44px] min-h-[44px] items-center justify-center"
-              aria-label="Version history"
-            >
-              <Clock className="w-4 h-4 text-muted-foreground" />
-            </button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={onVersionHistory}
+                  className="keyboard-hide p-2 rounded-lg hover:bg-muted active:scale-95 transition-all touch-manipulation hidden sm:inline-flex min-w-[44px] min-h-[44px] items-center justify-center"
+                  aria-label="Version history"
+                >
+                  <Clock className="w-4 h-4 text-muted-foreground" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Version history</TooltipContent>
+            </Tooltip>
           )}
           {/* Compact progress chip — always visible */}
           <ProgressChip
