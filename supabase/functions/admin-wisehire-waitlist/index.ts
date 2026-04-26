@@ -16,11 +16,12 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { page = 1, per_page = 25, search = '', history_email } = body as {
+    const { page = 1, per_page = 25, search = '', history_email, delete_entry_id } = body as {
       page?: number;
       per_page?: number;
       search?: string;
       history_email?: string;
+      delete_entry_id?: string;
     };
 
     try {
@@ -31,6 +32,16 @@ Deno.serve(async (req) => {
     }
 
     const supabase = getServiceClient();
+
+    if (delete_entry_id) {
+      const { error: delError } = await supabase
+        .from('wisehire_waitlist')
+        .delete()
+        .eq('id', delete_entry_id);
+
+      if (delError) throw delError;
+      return json({ success: true }, 200, corsHeaders);
+    }
 
     if (history_email) {
       const normalizedEmail = history_email.toLowerCase().trim();

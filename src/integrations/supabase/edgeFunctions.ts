@@ -123,9 +123,16 @@ export const edgeFunctions = {
 
         if (!result.response.ok) {
           const { code, message } = classifyEdgeError(result.response.status, result.text);
+          // Admin/DevKit functions have nothing to do with AI — replace the
+          // AI-provider–specific 5xx message with a generic server error so
+          // the DevKit doesn't mislead the user into thinking an AI call failed.
+          const finalMessage =
+            code === 'upstream_5xx' && fnName.startsWith('admin-')
+              ? 'Server error — please try again in a moment. If it keeps failing, contact support.'
+              : message;
           return {
             data: null,
-            error: { message, code, status: result.response.status },
+            error: { message: finalMessage, code, status: result.response.status },
           };
         }
 

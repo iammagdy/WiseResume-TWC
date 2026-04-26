@@ -13,6 +13,7 @@ import {
   XCircle,
   UserCheck,
   History,
+  Trash2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,6 +24,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
@@ -97,6 +99,9 @@ export function WiseHireWaitlistPanel() {
 
   const [revoking, setRevoking] = useState<string | null>(null);
   const [revokeTarget, setRevokeTarget] = useState<WaitlistEntry | null>(null);
+
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<WaitlistEntry | null>(null);
 
   const [historyTarget, setHistoryTarget] = useState<WaitlistEntry | null>(null);
   const [historyRows, setHistoryRows] = useState<InviteHistoryRow[]>([]);
@@ -212,6 +217,26 @@ export function WiseHireWaitlistPanel() {
     }
   };
 
+  const handleDelete = async (entry: WaitlistEntry) => {
+    setDeleteTarget(null);
+    setDeleting(entry.id);
+    try {
+      const tuple = await edgeFunctions.functions.invoke('admin-wisehire-waitlist', {
+        headers: devKitAuthHeaders(),
+        body: { delete_entry_id: entry.id },
+      });
+      unwrapAdminResponse(tuple, 'admin-wisehire-waitlist');
+      if (!isMounted()) return;
+      toast.success(`Removed ${entry.email} from the waitlist`);
+      setEntries(prev => prev.filter(e => e.id !== entry.id));
+      setTotal(prev => Math.max(0, prev - 1));
+    } catch (e) {
+      if (isMounted()) toast.error(formatEdgeError(e, 'Failed to remove entry'));
+    } finally {
+      if (isMounted()) setDeleting(null);
+    }
+  };
+
   const totalPages = Math.ceil(total / PER_PAGE);
 
   return (
@@ -282,7 +307,7 @@ export function WiseHireWaitlistPanel() {
                   const isRevoked = entry.invite_status === 'revoked';
                   const isActive = !!entry.invite_used_at;
                   const isInvited = !!entry.invited_at && entry.invite_status === 'active' && !isActive;
-                  const isBusy = inviting === entry.id || revoking === entry.id;
+                  const isBusy = inviting === entry.id || revoking === entry.id || deleting === entry.id;
 
                   return (
                     <tr key={entry.id} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
@@ -370,19 +395,37 @@ export function WiseHireWaitlistPanel() {
                               </Button>
                             </>
                           ) : (
-                            <Button
-                              size="sm"
-                              variant="default"
-                              className="h-7 text-xs gap-1.5"
-                              onClick={() => handleInvite(entry)}
-                              disabled={isBusy}
-                            >
-                              {inviting === entry.id
-                                ? <Loader2 className="w-3 h-3 animate-spin" />
-                                : <Send className="w-3 h-3" />
-                              }
-                              Invite
-                            </Button>
+                            <>
+                              {!isRevoked && (
+                                <Button
+                                  size="sm"
+                                  variant="default"
+                                  className="h-7 text-xs gap-1.5"
+                                  onClick={() => handleInvite(entry)}
+                                  disabled={isBusy}
+                                >
+                                  {inviting === entry.id
+                                    ? <Loader2 className="w-3 h-3 animate-spin" />
+                                    : <Send className="w-3 h-3" />
+                                  }
+                                  Invite
+                                </Button>
+                              )}
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-xs gap-1.5 text-destructive hover:text-destructive border-destructive/30 hover:bg-destructive/10"
+                                onClick={() => setDeleteTarget(entry)}
+                                disabled={isBusy}
+                                title="Remove from waitlist"
+                              >
+                                {deleting === entry.id
+                                  ? <Loader2 className="w-3 h-3 animate-spin" />
+                                  : <Trash2 className="w-3 h-3" />
+                                }
+                                Delete
+                              </Button>
+                            </>
                           )}
                         </div>
                       </td>
@@ -477,6 +520,36 @@ export function WiseHireWaitlistPanel() {
               Revoke invite
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deleteTarget !== null} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Trash2 className="w-5 h-5 text-destructive" />
+              Remove from waitlist?
+            </DialogTitle>
+            <DialogDescription>
+              This will permanently remove{' '}
+              <strong className="text-foreground">{deleteTarget?.email}</strong> from the WiseHire
+              waitlist. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" size="sm" onClick={() => setDeleteTarget(null)} disabled={deleting !== null}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              disabled={deleting !== null}
+              onClick={() => deleteTarget && handleDelete(deleteTarget)}
+            >
+              {deleting !== null ? <Loader2 className="w-3 h-3 animate-spin mr-1.5" /> : null}
+              Remove entry
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

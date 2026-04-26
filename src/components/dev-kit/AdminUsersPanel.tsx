@@ -10,7 +10,7 @@ import { getDevKitToken } from '@/contexts/DevKitSessionContext';
 import { UserDetailDrawer } from './UserDetailDrawer';
 import { toast } from 'sonner';
 import { useIsMounted } from '@/lib/devkit/hooks';
-import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
+import { unwrapAdminResponse, formatEdgeError, EdgeFunctionError } from '@/lib/devkit/edgeResponse';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
 import { startImpersonation } from '@/lib/impersonationStore';
 import {
@@ -91,7 +91,8 @@ function formatDate(iso: string | null): string {
 
 function CopyableId({ id }: { id: string }) {
   const [copied, setCopied] = useState(false);
-  const short = id.slice(0, 8) + '…';
+  // Show first 6 + "…" + last 4 so it reads as a truncated identifier, not random hex
+  const short = id.length > 12 ? `${id.slice(0, 6)}…${id.slice(-4)}` : id;
 
   const handleCopy = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -104,7 +105,7 @@ function CopyableId({ id }: { id: string }) {
   return (
     <button
       onClick={handleCopy}
-      title={id}
+      title={`UUID: ${id}\n(click to copy)`}
       className="font-mono text-[10px] text-muted-foreground hover:text-foreground transition-colors"
     >
       {copied ? '✓ copied' : short}
@@ -417,7 +418,11 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
         duration: 6000,
       });
     } catch (err) {
-      toast.error('Impersonation failed', { description: formatEdgeError(err, 'Could not start session') });
+      const isNotDeployed = err instanceof EdgeFunctionError && err.notDeployed;
+      const description = isNotDeployed
+        ? 'The "Act As" feature is not yet deployed on this environment.'
+        : formatEdgeError(err, 'Could not start session');
+      toast.error('Could not start Act As session', { description });
     } finally {
       if (isMounted()) setImpersonatingId(null);
     }
