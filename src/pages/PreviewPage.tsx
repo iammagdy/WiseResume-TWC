@@ -562,7 +562,7 @@ export default function PreviewPage() {
 
         {/* Bottom actions */}
         <motion.div
-        className="shrink-0 px-3 py-2 sm:p-4 bg-background/95 backdrop-blur-sm border-t border-border space-y-1.5 sm:space-y-2 pl-[10px] pr-[10px] pb-[max(64px,env(safe-area-inset-bottom))] pt-1 mb-0 mt-0"
+        className="shrink-0 px-3 py-2 sm:p-4 bg-background/95 backdrop-blur-sm border-t border-border space-y-1.5 sm:space-y-2 pl-[10px] pr-[10px] pb-[calc(4rem+max(1rem,env(safe-area-inset-bottom)))] pt-1 mb-0 mt-0"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}>
 
