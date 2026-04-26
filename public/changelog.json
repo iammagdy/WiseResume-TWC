@@ -1,8 +1,32 @@
 [
   {
+    "version": "v3.6.3",
+    "date": "Apr 26, 2026",
+    "latest": true,
+    "summary": "Editor polish: smarter keyboard handling, cleaner layout, and fully accessible form labels throughout.",
+    "items": [
+      {
+        "title": "Keyboard shortcuts now work reliably across all editor panels",
+        "description": "Keyboard shortcuts (Undo, Redo, Save, and section navigation) were occasionally ignored when focus moved between editor panels. A new shared keyboard context ensures the correct handler always responds, regardless of which panel is active — no more shortcuts silently doing nothing mid-edit."
+      },
+      {
+        "title": "Mobile editor layout simplified",
+        "description": "Removed a redundant mobile layout wrapper that was causing occasional flicker and double-scroll on smaller screens. The editor now uses a single, consistent layout on all screen sizes."
+      },
+      {
+        "title": "All form fields in Awards and Projects now have proper labels",
+        "description": "Screen readers and browser auto-fill were skipping several input fields in the Awards and Projects sections because their labels were not correctly linked. Every field now has a properly associated label, making the editor fully accessible and auto-fill-friendly."
+      },
+      {
+        "title": "Development logging cleaned up",
+        "description": "Internal debug messages no longer appear in the browser console on the live site. Logging is now restricted to local development builds only."
+      }
+    ]
+  },
+  {
     "version": "v3.6.1",
     "date": "Apr 24, 2026",
-    "latest": true,
+    "latest": false,
     "summary": "Fixed PDF upload on iPhone and made OCR work fully offline.",
     "items": [
       {

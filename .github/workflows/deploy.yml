@@ -246,17 +246,25 @@ jobs:
         # Polls https://resume.thewise.cloud and asserts changelog.json
         # version matches package.json, plus the no-cache + Task #26
         # security headers are live. Uses `node` directly so it works
-        # even if `npm ci` cached an old node_modules. Retries for up
-        # to ~60s to allow Hostinger's edge / origin to settle.
+        # even if `npm ci` cached an old node_modules.
+        #
+        # WHY 18 ATTEMPTS × 20s (6 minutes total):
+        # Hostinger's origin server typically takes 2-4 minutes after
+        # the lftp mirror completes before newly-uploaded static files
+        # are served by the web frontend. This was observed empirically
+        # on runs 24959568755 and 24959697031: lftp reported success but
+        # the verify step saw the old version for ~3 minutes before the
+        # new files became visible. 18 × 20s gives a 6-minute window
+        # which safely covers the observed propagation delay.
         run: |
           set -e
-          for attempt in 1 2 3 4 5 6; do
+          for attempt in $(seq 1 18); do
             echo "Verification attempt $attempt..."
             if node scripts/verify-live-deploy.mjs; then
               echo "✅ Live site verified."
               exit 0
             fi
-            sleep 10
+            sleep 20
           done
-          echo "::error::Live site verification failed after 6 attempts (~60s). The upload may have completed but the live site is not serving the new build. See logs above."
+          echo "::error::Live site verification failed after 18 attempts (~6 min). The upload may have completed but the live site is not serving the new build. See logs above."
           exit 1
