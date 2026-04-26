@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Navigate, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useMe } from '@/hooks/useMe';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, RefreshCw } from 'lucide-react';
 
 const LOADING_TIMEOUT_MS = 6_000;
 const SLOW_HINT_MS = 3_000;
@@ -110,7 +110,7 @@ export function ProtectedRoute() {
   // loaded so the verified/unverified state is always known before content renders.
   const alreadyOnVerifyPage = location.pathname === '/auth/verify-email';
   if (!alreadyOnVerifyPage) {
-    // If meData hasn't arrived yet (initial load only), show the skeleton (fail closed).
+    // Fail closed: hold behind skeleton while profile is loading (initial fetch only).
     if ((meLoading || !meData?.profile) && !loadingTimedOut) {
       return (
         <div className="min-h-[100dvh] bg-background p-4 space-y-4 animate-pulse">
@@ -128,8 +128,37 @@ export function ProtectedRoute() {
         </div>
       );
     }
+
+    // After timeout with still no profile: the verification state cannot be determined.
+    // Block access with a recoverable error rather than failing open to protected content.
+    if (loadingTimedOut && !meData?.profile) {
+      return (
+        <div className="min-h-[100dvh] flex items-center justify-center p-6 bg-background">
+          <div className="max-w-sm w-full rounded-2xl border border-border bg-card p-6 space-y-4 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="rounded-full bg-amber-500/10 p-2">
+                <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+              </div>
+              <h2 className="text-base font-semibold text-foreground">Profile unavailable</h2>
+            </div>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              We couldn't load your account details. This is usually a temporary
+              network issue — please refresh to try again.
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="w-full flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors active:scale-95"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Refresh
+            </button>
+          </div>
+        </div>
+      );
+    }
+
     // Profile loaded — enforce email verification.
-    if (meData?.profile && !isEmailVerifiedOrExempt(meData.profile)) {
+    if (!isEmailVerifiedOrExempt(meData?.profile)) {
       return <Navigate to="/auth/verify-email" replace />;
     }
   }

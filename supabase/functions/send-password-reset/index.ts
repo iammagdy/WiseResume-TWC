@@ -4,18 +4,23 @@
  * POST body: { email: string }
  *
  * Flow:
- *   1. Look up the user's kinde_sub via token_exchanges (joined with profiles).
- *   2. Verify the user exists in Kinde via Management API M2M token.
- *   3. Construct a Kinde-hosted login URL with login_hint so the user lands
- *      on Kinde's own reset flow — this resets the REAL Kinde credential, not
- *      the Supabase shadow-user password.
- *   4. Send the branded recovery.tsx email via Resend.
- *   5. Always return { success: true } to avoid email enumeration.
+ *   1. Look up the user's kinde_sub via token_exchanges (joined with profiles
+ *      by contact_email / email).
+ *   2. Obtain a Kinde Management API M2M token (client_credentials).
+ *   3. Verify the user exists in Kinde (GET /api/v1/users/{kinde_sub}).
+ *   4. Flag the account for reset via Kinde Management API:
+ *        PATCH /api/v1/users/{kinde_sub}  { is_password_reset_requested: true }
+ *      This marks the Kinde credential for mandatory password reset on next login.
+ *   5. Construct a Kinde-hosted login URL (login_hint pre-filled) so the
+ *      user lands on Kinde's login page where they are forced to reset their
+ *      real Kinde password before gaining access.
+ *   6. Send the branded recovery.tsx email via Resend with this reset URL.
+ *   7. Always return { success: true } — prevents email enumeration.
  *
  * Required env vars:
  *   SUPABASE_URL / EXT_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
  *   KINDE_DOMAIN          — e.g. https://thewisecloud.kinde.com
- *   KINDE_M2M_CLIENT_ID   — M2M app client ID with read:users scope
+ *   KINDE_M2M_CLIENT_ID   — M2M app client ID with read:users + update:users scope
  *   KINDE_M2M_CLIENT_SECRET
  *   RESEND_API_KEY
  *   SITE_URL (optional)
@@ -67,14 +72,19 @@ async function getKindeM2MToken(
   }
 }
 
-/** Verify a Kinde user exists by kinde_sub via the Management API. */
-async function verifyKindeUser(
+/**
+ * Verify a Kinde user exists by kinde_sub, then flag them for mandatory
+ * password reset via PATCH /api/v1/users/{kinde_sub}.
+ * Returns true if the user was found and flagged; false otherwise.
+ */
+async function flagKindeUserForReset(
   kindeDomain: string,
   m2mToken: string,
   kindeSub: string,
 ): Promise<boolean> {
+  // Step A: verify the user exists
   try {
-    const res = await fetch(
+    const getRes = await fetch(
       `${kindeDomain}/api/v1/users/${encodeURIComponent(kindeSub)}`,
       {
         headers: {
@@ -83,9 +93,40 @@ async function verifyKindeUser(
         },
       },
     )
-    return res.ok
-  } catch {
+    if (!getRes.ok) {
+      console.warn(`[send-password-reset] Kinde GET user ${kindeSub} returned ${getRes.status}`)
+      return false
+    }
+  } catch (err) {
+    console.error('[send-password-reset] Kinde GET user failed:', err)
     return false
+  }
+
+  // Step B: flag for mandatory password reset
+  try {
+    const patchRes = await fetch(
+      `${kindeDomain}/api/v1/users/${encodeURIComponent(kindeSub)}`,
+      {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${m2mToken}`,
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({ is_password_reset_requested: true }),
+      },
+    )
+    if (!patchRes.ok) {
+      const text = await patchRes.text().catch(() => patchRes.status.toString())
+      console.warn(`[send-password-reset] Kinde PATCH user ${kindeSub} returned ${patchRes.status}: ${text}`)
+      // Non-fatal — user still gets the reset email even if the flag couldn't be set
+    } else {
+      console.log(`[send-password-reset] Kinde user ${kindeSub} flagged is_password_reset_requested=true`)
+    }
+    return true // user exists; send the email regardless of PATCH outcome
+  } catch (err) {
+    console.error('[send-password-reset] Kinde PATCH user failed:', err)
+    return true // non-fatal; user exists
   }
 }
 
@@ -124,8 +165,7 @@ Deno.serve(async (req) => {
     const serviceClient = getServiceClient()
 
     // ── Step 1: Look up user in DB and retrieve their kinde_sub ──────────────
-    // Profiles stores contact_email; token_exchanges stores the kinde_sub keyed
-    // by user_id. We join them to get the Kinde identity.
+    // Profiles has contact_email and email; token_exchanges holds the kinde_sub.
     const { data: profileRow } = await serviceClient
       .from('profiles')
       .select('user_id')
@@ -150,31 +190,32 @@ Deno.serve(async (req) => {
 
     const kindeSub = tokenRow?.kinde_sub as string | undefined
 
-    // ── Step 2: Verify user in Kinde via Management API ───────────────────────
-    // This ensures the password reset link targets a real Kinde credential.
+    // ── Step 2: Kinde Management API — verify user + flag for reset ───────────
+    let kindeVerified = false
     if (kindeSub && KINDE_DOMAIN && KINDE_M2M_CLIENT_ID && KINDE_M2M_CLIENT_SECRET) {
       const m2mToken = await getKindeM2MToken(KINDE_DOMAIN, KINDE_M2M_CLIENT_ID, KINDE_M2M_CLIENT_SECRET)
       if (m2mToken) {
-        const exists = await verifyKindeUser(KINDE_DOMAIN, m2mToken, kindeSub)
-        if (!exists) {
-          console.warn(`[send-password-reset] Kinde user not found for sub=${kindeSub}`)
-          return safeSuccess()
-        }
-        console.log(`[send-password-reset] Kinde user verified for sub=${kindeSub}`)
+        kindeVerified = await flagKindeUserForReset(KINDE_DOMAIN, m2mToken, kindeSub)
       } else {
-        console.warn('[send-password-reset] Could not get Kinde M2M token — proceeding without Kinde verification')
+        console.warn('[send-password-reset] Could not get Kinde M2M token — proceeding with email send')
+        kindeVerified = true // fail open: still send email so user is not silently blocked
       }
     } else if (!kindeSub) {
-      console.warn('[send-password-reset] No kinde_sub found in token_exchanges — proceeding without Kinde verification')
+      console.warn('[send-password-reset] No kinde_sub found — proceeding with email send')
+      kindeVerified = true // fail open for accounts that predate token_exchanges
     } else {
-      console.warn('[send-password-reset] Kinde M2M env vars missing — skipping Kinde verification')
+      console.warn('[send-password-reset] Kinde M2M env vars not configured — skipping Kinde API')
+      kindeVerified = true
     }
 
-    // ── Step 3: Construct Kinde-hosted reset URL ──────────────────────────────
-    // Direct the user to Kinde's own login/reset flow so they reset their
-    // actual Kinde credential (not a Supabase shadow-user password).
-    // The login_hint pre-fills their email on Kinde's hosted login page where
-    // they can use the "Forgot Password" option.
+    if (!kindeVerified) {
+      // User doesn't exist in Kinde — return success silently (enumeration guard).
+      return safeSuccess()
+    }
+
+    // ── Step 3: Build the Kinde reset URL ─────────────────────────────────────
+    // With is_password_reset_requested=true set on the Kinde user, Kinde will
+    // force the user to set a new password when they log in via this URL.
     let confirmationUrl: string
     if (KINDE_DOMAIN) {
       const params = new URLSearchParams({
