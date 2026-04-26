@@ -42,10 +42,11 @@ WiseResume is an AI-powered web application for comprehensive career management.
 **Authentication Flow:**
 Users authenticate via Kinde, receiving an access token. The client exchanges this token with the Express server at `POST /api/fn/token-exchange`. The server validates the Kinde JWT, generates a deterministic UUID for the user, upserts profile data in the Supabase database, and issues a short-lived session JWT. This session JWT is then used for all subsequent `/api/*` calls and validated server-side.
 
-**Replit Deployment:**
-- **Development**: Vite dev server (port 5000) for frontend, `tsx` server (port 5001) for Express API. Vite proxies `/api/*` to port 5001.
-- **Production**: Frontend built into `dist/`, Express server bundled to `dist/server.mjs`. Production server runs on `NODE_ENV=production API_PORT=5000 node dist/server.mjs`, serving static SPA files and Express `/api/*` routes on the same port.
-- `src/lib/apiFnUrl.ts` handles environment-specific routing: `/api/fn/<name>` in dev (Vite → Express) and `${VITE_SUPABASE_URL}/functions/v1/<name>` in production (Hostinger static deploy → Supabase Edge Functions directly).
+**Replit Role:**
+- Replit is the **coding/development environment only** — it is NOT used for production hosting or deployment.
+- **Production** runs on **SuperPace** with Supabase Edge Functions. Deployment requires a GitHub access token and a SuperPace access token.
+- In Replit dev: Vite dev server (port 5000) for frontend, `tsx` server (port 5001) for Express API. Vite proxies `/api/*` to port 5001.
+- `src/lib/apiFnUrl.ts` handles environment-specific routing: `/api/fn/<name>` in dev (Vite → Express) and `${VITE_SUPABASE_URL}/functions/v1/<name>` in production (SuperPace static deploy → Supabase Edge Functions directly).
 
 **Core Features & Implementations:**
 - **AI Career Management**: AI-powered resume building, tailoring for job listings, public portfolios, interview practice, job tracking, and career goal management.
