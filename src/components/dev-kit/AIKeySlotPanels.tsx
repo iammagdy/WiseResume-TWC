@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, XCircle, Loader2, RefreshCw, Send, AlertTriangle } from 'lucide-react';
+import { CheckCircle2, XCircle, Loader2, RefreshCw, Send, AlertTriangle, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
 import { unwrapAdminResponse, formatEdgeError, EdgeFunctionError } from '@/lib/devkit/edgeResponse';
 import { useIsMounted } from '@/lib/devkit/hooks';
+import { useDevKitSession } from '@/contexts/DevKitSessionContext';
 import { cn } from '@/lib/utils';
 
 type Provider = 'openrouter' | 'groq';
@@ -156,18 +157,22 @@ interface ProviderPanelProps {
 
 function ProviderPanel({ provider }: ProviderPanelProps) {
   const isMounted = useIsMounted();
+  const { isUnlocked, lock } = useDevKitSession();
   const [activeSlot, setActiveSlot] = useState<Slot>(1);
   const [keys, setKeys] = useState<KeyEntry[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [sessionExpired, setSessionExpired] = useState(false);
+  const [serverErrorDetail, setServerErrorDetail] = useState<string | null>(null);
   const [results, setResults] = useState<Record<string, TestResult>>({});
   const [testingKey, setTestingKey] = useState<string | null>(null);
 
   const fetchKeys = useCallback(async () => {
+    if (!isUnlocked) return;
     setLoading(true);
     setLoadError(null);
     setSessionExpired(false);
+    setServerErrorDetail(null);
     try {
       const tuple = await edgeFunctions.functions.invoke('inspect-ai-keys', {
         headers: devKitAuthHeaders(),
@@ -179,16 +184,26 @@ function ProviderPanel({ provider }: ProviderPanelProps) {
       if (!isMounted()) return;
       if (e instanceof EdgeFunctionError && e.status === 401) {
         setSessionExpired(true);
-        setLoadError('DevKit session expired — sign in to DevKit again to load key status.');
+        setServerErrorDetail(e.message || 'Unauthorized');
+        setLoadError('Your DevKit session is no longer valid on the server. Sign in again with your full credentials to issue a new session token.');
       } else {
         setLoadError(formatEdgeError(e, 'Failed to load AI key status'));
       }
     } finally {
       if (isMounted()) setLoading(false);
     }
-  }, [isMounted]);
+  }, [isMounted, isUnlocked]);
 
   useEffect(() => { fetchKeys(); }, [fetchKeys]);
+
+  const handleResignIn = useCallback(() => {
+    // lock() clears the in-memory token AND the remembered token in
+    // localStorage, then sets isUnlocked=false so the DevKit lock screen
+    // re-appears with the full email/password/TOTP form. This is the only
+    // way to recover from a server-side 401: the existing token is bad and
+    // a brand-new one must be issued by verify-dev-kit.
+    lock();
+  }, [lock]);
 
   const providerKeys = useMemo(
     () => (keys ?? []).filter(k => k.provider === provider).sort((a, b) => a.slot - b.slot),
@@ -292,13 +307,22 @@ function ProviderPanel({ provider }: ProviderPanelProps) {
       {loadError && (
         <div className="rounded-md bg-red-500/5 border border-red-500/20 p-3 text-xs text-red-600 dark:text-red-400 space-y-2">
           <p>{loadError}</p>
+          {sessionExpired && serverErrorDetail && (
+            <p className="font-mono text-[11px] opacity-70">
+              Server response: {serverErrorDetail}
+            </p>
+          )}
           {sessionExpired && (
-            <a
-              href="/devkit"
-              className="inline-flex items-center gap-1 underline underline-offset-2 hover:opacity-80 font-medium"
+            <Button
+              type="button"
+              size="sm"
+              variant="destructive"
+              onClick={handleResignIn}
+              className="gap-1.5"
             >
-              Sign in to DevKit →
-            </a>
+              <LogIn className="w-3.5 h-3.5" />
+              Sign in again
+            </Button>
           )}
         </div>
       )}

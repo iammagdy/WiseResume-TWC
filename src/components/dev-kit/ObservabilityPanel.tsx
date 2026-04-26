@@ -1,10 +1,10 @@
 import { useState, useCallback, useEffect } from 'react';
-import { RefreshCw, Activity, AlertCircle, AlertTriangle, ChevronDown, ChevronRight, CheckCircle2, Clock, Loader2, Lock, Filter, TrendingUp } from 'lucide-react';
+import { RefreshCw, Activity, AlertCircle, AlertTriangle, ChevronDown, ChevronRight, CheckCircle2, Clock, Loader2, Lock, Filter, TrendingUp, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
-import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
+import { unwrapAdminResponse, formatEdgeError, EdgeFunctionError } from '@/lib/devkit/edgeResponse';
 import { useIsMounted, useVisibleInterval } from '@/lib/devkit/hooks';
 import { useDevKitSession } from '@/contexts/DevKitSessionContext';
 import { cn } from '@/lib/utils';
@@ -85,8 +85,26 @@ const TIME_RANGE_MS: Record<TimeRange, number> = {
 };
 
 export function ObservabilityPanel() {
-  const { isUnlocked } = useDevKitSession();
+  const { isUnlocked, lock } = useDevKitSession();
   const isMounted = useIsMounted();
+  const [sessionExpired, setSessionExpired] = useState(false);
+  const [sessionExpiredDetail, setSessionExpiredDetail] = useState<string | null>(null);
+
+  const handleResignIn = useCallback(() => {
+    // Force a full re-login. The current session token has been rejected by
+    // the server (HTTP 401), so we clear remembered state and surface the
+    // unlock screen with the email/password/TOTP form.
+    lock();
+  }, [lock]);
+
+  const detect401 = useCallback((e: unknown): boolean => {
+    if (e instanceof EdgeFunctionError && e.status === 401) {
+      setSessionExpired(true);
+      setSessionExpiredDetail(e.message || 'Unauthorized');
+      return true;
+    }
+    return false;
+  }, []);
 
   const [activeTab, setActiveTab] = useState<InternalTab>('telemetry');
 
@@ -133,11 +151,15 @@ export function ObservabilityPanel() {
       }
     } catch (e) {
       if (!isMounted()) return;
-      setTelemetryError(formatEdgeError(e, 'Failed to load telemetry'));
+      if (detect401(e)) {
+        setTelemetryError('DevKit session was rejected by the server (401).');
+      } else {
+        setTelemetryError(formatEdgeError(e, 'Failed to load telemetry'));
+      }
     } finally {
       if (isMounted()) setTelemetryLoading(false);
     }
-  }, [isUnlocked, isMounted]);
+  }, [isUnlocked, isMounted, detect401]);
 
   const fetchErrors = useCallback(async () => {
     if (!isUnlocked) return;
@@ -166,11 +188,15 @@ export function ObservabilityPanel() {
       }
     } catch (e) {
       if (!isMounted()) return;
-      setErrorsError(formatEdgeError(e, 'Failed to load error stream'));
+      if (detect401(e)) {
+        setErrorsError('DevKit session was rejected by the server (401).');
+      } else {
+        setErrorsError(formatEdgeError(e, 'Failed to load error stream'));
+      }
     } finally {
       if (isMounted()) setErrorsLoading(false);
     }
-  }, [isUnlocked, isMounted, fnFilter, severityFilter, timeRange]);
+  }, [isUnlocked, isMounted, fnFilter, severityFilter, timeRange, detect401]);
 
   useEffect(() => {
     if (isUnlocked) { fetchTelemetry(); }
@@ -262,6 +288,32 @@ export function ObservabilityPanel() {
 
   return (
     <div className="space-y-4">
+      {sessionExpired && (
+        <div className="rounded-md bg-red-500/5 border border-red-500/20 p-3 text-xs text-red-600 dark:text-red-400 space-y-2">
+          <p className="font-medium">
+            Your DevKit session is no longer valid on the server.
+          </p>
+          <p>
+            Sign in again with your full credentials to issue a new session token. This panel will reload automatically once you unlock.
+          </p>
+          {sessionExpiredDetail && (
+            <p className="font-mono text-[11px] opacity-70">
+              Server response: {sessionExpiredDetail}
+            </p>
+          )}
+          <Button
+            type="button"
+            size="sm"
+            variant="destructive"
+            onClick={handleResignIn}
+            className="gap-1.5"
+          >
+            <LogIn className="w-3.5 h-3.5" />
+            Sign in again
+          </Button>
+        </div>
+      )}
+
       {/* Tab bar + shared function filter */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex gap-1 p-1 rounded-lg bg-muted/50 border border-border">
