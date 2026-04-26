@@ -250,13 +250,16 @@ function DashboardPageContent() {
 
         if (needsOnboarding) {
           // First time we hit this branch in the session: send the user to
-          // /onboarding so they actually see the flow. If they navigate back
-          // here without completing it, fall through to the dismissable banner.
+          // /onboarding so they actually see the flow. The redirect is
+          // intentionally NOT gated on the dismissed-profile-banner flag —
+          // a brand-new user must always be taken to onboarding, even if a
+          // previous tab in the same session dismissed the banner. The
+          // per-user redirect-attempted session flag self-throttles to one
+          // attempt per user per session, so loops are not possible. If
+          // they navigate back here without completing onboarding, fall
+          // through to the dismissable banner instead.
           const redirectFlag = `wr-onboarding-redirect-attempted-${user.id}`;
-          if (
-            !sessionStorage.getItem(redirectFlag) &&
-            !sessionStorage.getItem('wr-dismissed-profile-banner')
-          ) {
+          if (!sessionStorage.getItem(redirectFlag)) {
             sessionStorage.setItem(redirectFlag, '1');
             navigate('/onboarding', { replace: true });
             return;
