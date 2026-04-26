@@ -259,7 +259,7 @@ export const ResumeListCard = memo(function ResumeListCard({
           }
         }}
         className={cn(
-          'relative bg-card border border-border shadow-soft p-4 touch-manipulation cursor-pointer min-h-[180px] sm:min-h-[120px]',
+          'relative bg-card border border-border shadow-soft p-3 sm:p-4 touch-manipulation cursor-pointer',
           'active:bg-muted transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50'
         )}
         style={{ x, touchAction: 'pan-y' }}
@@ -321,12 +321,12 @@ export const ResumeListCard = memo(function ResumeListCard({
           )}
         </AnimatePresence>
 
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center justify-between gap-3">
           {/* Left: Icon and Content */}
-          <div className="flex items-start gap-3 flex-1 min-w-0">
+          <div className="flex items-center gap-3 flex-1 min-w-0">
             {/* Selection checkbox */}
             {selectionMode && (
-              <div className="flex items-center justify-center pt-3" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
                 <Checkbox
                   checked={selected}
                   onCheckedChange={() => onToggleSelect?.(resume.id)}
@@ -334,12 +334,12 @@ export const ResumeListCard = memo(function ResumeListCard({
                 />
               </div>
             )}
-            {/* Resume Health Score Ring + Sparkline */}
-            <div className="flex flex-col items-center gap-1">
+            {/* Resume Health Score Ring */}
+            <div className="shrink-0">
               {healthScore ? (
-                <ScoreRing score={healthScore.overallScore} size={48} isLoading={isScoring} />
+                <ScoreRing score={healthScore.overallScore} size={44} isLoading={isScoring} />
               ) : (
-                <ScoreRing score={0} size={48} isLoading />
+                <ScoreRing score={0} size={44} isLoading />
               )}
             </div>
 
@@ -382,7 +382,7 @@ export const ResumeListCard = memo(function ResumeListCard({
                     {isSavingRename && <MiniSpinner size={14} className="shrink-0 text-muted-foreground" />}
                   </div>
                 ) : (
-                  <h3 className="font-semibold text-foreground truncate text-lg sm:text-base flex-1 min-w-0" title={resume.title}>
+                  <h3 className="font-semibold text-foreground truncate text-base flex-1 min-w-0" title={resume.title}>
                     {resume.title}
                   </h3>
                 )}
