@@ -19,8 +19,10 @@
  * What it does:
  *   Pages through all users in the Kinde Management API, computes the
  *   deterministic Supabase UUID for each, checks whether a public.profiles
- *   row exists, and calls provisionUser() for any that are missing. Returns
- *   a JSON summary: { found, already_provisioned, newly_provisioned, errors }.
+ *   row exists, and calls provisionUser() for any that are missing.
+ *   Additionally, for existing profiles where contact_email is NULL, it
+ *   backfills the email from Kinde. Returns a JSON summary:
+ *   { found, already_provisioned, newly_provisioned, email_backfilled, errors }.
  *
  * Usage (one-time backfill):
  *   POST /functions/v1/admin-kinde-reconcile
@@ -155,6 +157,7 @@ Deno.serve(async (req) => {
     found: 0,
     already_provisioned: 0,
     newly_provisioned: 0,
+    email_backfilled: 0,
     errors: 0,
     error_details: [] as Array<{ kindeSub: string; code: string; message: string }>,
     dry_run: dryRun,
@@ -187,39 +190,70 @@ Deno.serve(async (req) => {
       })),
     );
 
-    // Batch-check which UUIDs already have profile rows.
+    // Batch-check which UUIDs already have profile rows (and whether contact_email is set).
     const uuids = uuidEntries.map((e) => e.userId);
     const { data: existingProfiles } = await serviceClient
       .from('profiles')
-      .select('user_id')
+      .select('user_id, contact_email')
       .in('user_id', uuids);
 
-    const existingSet = new Set((existingProfiles ?? []).map((p: { user_id: string }) => p.user_id));
+    // Map from user_id → contact_email (null means missing or blank)
+    const existingMap = new Map<string, string | null>(
+      (existingProfiles ?? []).map((p: { user_id: string; contact_email: string | null }) => [p.user_id, p.contact_email ?? null]),
+    );
 
-    // Provision missing users (skip if dry_run).
+    // Provision missing users or backfill contact_email for existing ones (skip if dry_run).
     for (const entry of uuidEntries) {
-      if (existingSet.has(entry.userId)) {
+      const profileExists = existingMap.has(entry.userId);
+      const existingEmail = profileExists ? existingMap.get(entry.userId) : undefined;
+
+      if (!profileExists) {
+        // User has no profile row at all — provision from scratch.
+        if (dryRun) {
+          summary.newly_provisioned++;
+          console.log(`[admin-kinde-reconcile] DRY RUN — would provision ${entry.kindeSub} → ${entry.userId}`);
+          continue;
+        }
+        try {
+          await provisionUser(serviceClient, entry.kindeSub, entry.email, entry.emailVerified);
+          summary.newly_provisioned++;
+          console.log(`[admin-kinde-reconcile] Provisioned ${entry.kindeSub} → ${entry.userId}`);
+        } catch (err) {
+          summary.errors++;
+          const code = err instanceof ProvisionError ? err.code : 'UNKNOWN';
+          const message = err instanceof Error ? err.message : String(err);
+          console.error(`[admin-kinde-reconcile] Failed to provision ${entry.kindeSub}: ${code} — ${message}`);
+          summary.error_details.push({ kindeSub: entry.kindeSub, code, message });
+        }
+        continue;
+      }
+
+      // Profile exists. Check whether contact_email needs backfilling.
+      if (!existingEmail && entry.email) {
+        if (dryRun) {
+          summary.email_backfilled++;
+          console.log(`[admin-kinde-reconcile] DRY RUN — would backfill email for ${entry.kindeSub} → ${entry.userId}: ${entry.email}`);
+          summary.already_provisioned++;
+          continue;
+        }
+        const { error: updateError } = await serviceClient
+          .from('profiles')
+          .update({ contact_email: entry.email })
+          .eq('user_id', entry.userId);
+        if (updateError) {
+          summary.errors++;
+          console.error(`[admin-kinde-reconcile] Failed to backfill email for ${entry.kindeSub}: ${updateError.message}`);
+          summary.error_details.push({ kindeSub: entry.kindeSub, code: 'EMAIL_BACKFILL_FAILED', message: updateError.message });
+        } else {
+          summary.email_backfilled++;
+          console.log(`[admin-kinde-reconcile] Backfilled email for ${entry.kindeSub} → ${entry.userId}: ${entry.email}`);
+        }
         summary.already_provisioned++;
         continue;
       }
 
-      if (dryRun) {
-        summary.newly_provisioned++;
-        console.log(`[admin-kinde-reconcile] DRY RUN — would provision ${entry.kindeSub} → ${entry.userId}`);
-        continue;
-      }
-
-      try {
-        await provisionUser(serviceClient, entry.kindeSub, entry.email, entry.emailVerified);
-        summary.newly_provisioned++;
-        console.log(`[admin-kinde-reconcile] Provisioned ${entry.kindeSub} → ${entry.userId}`);
-      } catch (err) {
-        summary.errors++;
-        const code = err instanceof ProvisionError ? err.code : 'UNKNOWN';
-        const message = err instanceof Error ? err.message : String(err);
-        console.error(`[admin-kinde-reconcile] Failed to provision ${entry.kindeSub}: ${code} — ${message}`);
-        summary.error_details.push({ kindeSub: entry.kindeSub, code, message });
-      }
+      // Profile exists with email already set — nothing to do.
+      summary.already_provisioned++;
     }
   } while (nextToken);
 

@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { RefreshCw, Search, Users, Download, Filter, ChevronDown, CheckSquare, Square, X, Crown, ShieldOff, Shield, Zap, AlertTriangle, CheckCircle2, XCircle, UserCog } from 'lucide-react';
+import { RefreshCw, Search, Users, Download, Filter, ChevronDown, CheckSquare, Square, X, Crown, ShieldOff, Shield, Zap, AlertTriangle, CheckCircle2, XCircle, UserCog, Mail } from 'lucide-react';
 import { AccountTypeBadge } from './DevKitBadges';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -429,6 +429,58 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
   }, [isMounted]);
 
   const [exportingCSV, setExportingCSV] = useState(false);
+  const [backfillingEmails, setBackfillingEmails] = useState(false);
+
+  const handleBackfillEmails = async () => {
+    setBackfillingEmails(true);
+    try {
+      const tuple = await edgeFunctions.functions.invoke('admin-kinde-reconcile', {
+        headers: devKitAuthHeaders(),
+        body: {},
+      });
+      const result = unwrapAdminResponse<{
+        summary?: {
+          found?: number;
+          already_provisioned?: number;
+          newly_provisioned?: number;
+          email_backfilled?: number;
+          errors?: number;
+        };
+      }>(tuple, 'admin-kinde-reconcile');
+      const s = result.summary ?? {};
+      const backfilled = s.email_backfilled ?? 0;
+      const provisioned = s.newly_provisioned ?? 0;
+      const errors = s.errors ?? 0;
+      if (errors > 0) {
+        toast.warning(
+          `Email backfill complete with errors`,
+          { description: `${backfilled} emails backfilled, ${provisioned} new profiles, ${errors} errors.` },
+        );
+      } else if (backfilled > 0 || provisioned > 0) {
+        toast.success(
+          `Email backfill complete`,
+          { description: `${backfilled} emails backfilled, ${provisioned} new profiles created.` },
+        );
+      } else {
+        toast.success(
+          `Email backfill complete — no gaps found`,
+          { description: `All ${s.found ?? 0} Kinde users already have a contact email on record.` },
+        );
+      }
+      if (backfilled > 0 || provisioned > 0) {
+        handleUserUpdated();
+      }
+    } catch (e) {
+      const isNotDeployed = e instanceof EdgeFunctionError && e.notDeployed;
+      toast.error('Email backfill failed', {
+        description: isNotDeployed
+          ? 'The admin-kinde-reconcile function is not deployed. Deploy it first via Supabase.'
+          : formatEdgeError(e, 'Could not run reconcile'),
+      });
+    } finally {
+      if (isMounted()) setBackfillingEmails(false);
+    }
+  };
 
   const handleExportCSV = async () => {
     setExportingCSV(true);
@@ -546,6 +598,17 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
         <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={!loaded || !users.length || exportingCSV} className="flex items-center gap-2 shrink-0">
           {exportingCSV ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
           {exportingCSV ? 'Exporting…' : 'Export CSV'}
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleBackfillEmails}
+          disabled={backfillingEmails}
+          title="Fetch emails from Kinde and write them into any profiles where contact_email is missing"
+          className="flex items-center gap-2 shrink-0"
+        >
+          {backfillingEmails ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+          {backfillingEmails ? 'Backfilling…' : 'Backfill emails'}
         </Button>
       </div>
 
