@@ -656,13 +656,7 @@ export default function PreviewPage() {
         <OnePageWizardSheet
           open={showOnePageWizard}
           onOpenChange={setShowOnePageWizard}
-          onExportOnePage={() => {
-            requestAnimationFrame(() => {
-              requestAnimationFrame(() => {
-                handleExport('one-page', true, true);
-              });
-            });
-          }} />
+        />
 
         }
         {showPhotoSheet &&

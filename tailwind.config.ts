@@ -125,6 +125,7 @@ export default {
         'editor-header': '50',
         'keyboard-toolbar': '60',
         'ai-dialog': '65',
+        'toast': '70',
       },
       boxShadow: {
         "soft-sm": "0 1px 2px 0 rgb(0 0 0 / 0.04)",

@@ -50,11 +50,6 @@ import { useAIApplyEffects } from '@/hooks/useAIApplyEffects';
 interface OnePageWizardSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /**
-   * @deprecated This prop is no longer used. The sheet exports its own PDF internally.
-   * @see OnePageWizardSheet — no replacement prop needed; simply remove any `onExportOnePage` pass-through.
-   */
-  onExportOnePage?: () => void;
 }
 
 interface ContentReduction { section: string; original: string; condensed: string; wordsRemoved: number; strategy: string; }
