@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { parseJobUrl } from '@/lib/aiTailor';
 import { toast } from 'sonner';
+import editorLogger from '@/lib/editorLogger';
 import { cn } from '@/lib/utils';
 
 interface JobUrlParserProps {
@@ -59,7 +60,7 @@ export function JobUrlParser({ value, onChange, onParsed }: JobUrlParserProps) {
       onParsed?.({ title: data.title, company: data.company, url });
       toast.success('Job posting parsed successfully!');
     } catch (error) {
-      console.error('Parse error:', error);
+      editorLogger.error('Parse error:', error);
       toast.error('Failed to parse job URL. Try pasting the description manually.');
       setShowManual(true);
     } finally {

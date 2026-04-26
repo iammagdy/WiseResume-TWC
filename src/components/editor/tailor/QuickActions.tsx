@@ -6,6 +6,7 @@ import { getSupabaseToken } from '@/lib/supabaseAuth';
 import { useAIAction } from '@/hooks/useAIAction';
 import { showErrorToast } from '@/lib/errorToast';
 import { toast } from 'sonner';
+import editorLogger from '@/lib/editorLogger';
 import { parseAIErrorResponse, parseAIErrorBody, aiErrorToastMessage, AIError } from '@/lib/aiErrorParser';
 import { ResumeData, SuperTailorResult } from '@/types/resume';
 import { apiFnUrl } from '@/lib/apiFnUrl';
@@ -124,7 +125,7 @@ Return JSON: { "recommendedOrder": ["section1", "section2", ...], "reasoning": "
 
       setCompleted(prev => [...prev, actionId]);
     } catch (err) {
-      console.error('Quick action error:', err);
+      editorLogger.error('Quick action error:', err);
       if (err instanceof AIError) {
         toast.error(aiErrorToastMessage({ code: err.code, message: err.message, status: err.status }));
       } else {

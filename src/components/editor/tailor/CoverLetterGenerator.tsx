@@ -13,6 +13,7 @@ import { useResumeStore } from '@/store/resumeStore';
 import { generateCoverLetterNativePDF } from '@/lib/nativePdfGenerator';
 import { downloadFile } from '@/lib/downloadUtils';
 import { toast } from 'sonner';
+import editorLogger from '@/lib/editorLogger';
 import { CoverLetterHistorySheet } from './CoverLetterHistorySheet';
 import { AICostBadge } from '@/components/ai/AICostBadge';
 import { useAIAction } from '@/hooks/useAIAction';
@@ -187,7 +188,7 @@ export function CoverLetterGenerator({
         coverLetter: letter,
       });
     } catch (error) {
-      console.error('Cover letter error:', error);
+      editorLogger.error('Cover letter error:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to generate cover letter');
     } finally {
       setIsGenerating(false);
@@ -214,7 +215,7 @@ export function CoverLetterGenerator({
       });
       toast.success('PDF downloaded!');
     } catch (error) {
-      console.error('PDF download error:', error);
+      editorLogger.error('PDF download error:', error);
       toast.error('Failed to download PDF');
     } finally {
       setIsDownloading(false);
