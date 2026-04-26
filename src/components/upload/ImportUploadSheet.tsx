@@ -26,8 +26,15 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import {
+  detectFileType,
+  ALL_ACCEPT_STRING,
+  type FileType,
+} from '@/lib/detectFileType';
 
-export type FileType = 'pdf' | 'word' | 'image' | 'json' | 'html';
+// Re-export so existing consumers that import FileType from this module
+// keep working unchanged.
+export type { FileType };
 
 interface ImportUploadSheetProps {
   open: boolean;
@@ -41,16 +48,6 @@ interface ImportUploadSheetProps {
   onFileSelect: (file: File, type: FileType | null) => void;
   isProcessing?: boolean;
 }
-
-// One accept string covering every supported format. We list both
-// extensions and MIME types so iOS Safari, Android Chrome, and desktop
-// pickers all show the user's full library and accept any choice.
-const ALL_ACCEPT =
-  '.pdf,application/pdf,' +
-  '.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,' +
-  '.jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp,' +
-  '.json,application/json,' +
-  '.html,.htm,text/html';
 
 export function ImportUploadSheet({
   open,
@@ -111,7 +108,7 @@ export function ImportUploadSheet({
         <input
           ref={fileInputRef}
           type="file"
-          accept={ALL_ACCEPT}
+          accept={ALL_ACCEPT_STRING}
           onChange={handleFileChange}
           className="hidden"
           disabled={isProcessing}
@@ -193,34 +190,3 @@ export function ImportUploadSheet({
   );
 }
 
-/**
- * Detect file type from MIME type or extension. Mirrors the detection
- * already used by UploadPage's drag-and-drop path so both entry points
- * stay in lock-step.
- *
- * Returns `null` when the file isn't one of the supported formats so
- * the caller can show a clear "unsupported type" message rather than
- * silently routing it into the PDF parser (which would fail with a
- * confusing error downstream).
- */
-function detectFileType(file: File): FileType | null {
-  const mime = file.type.toLowerCase();
-  const ext = file.name.split('.').pop()?.toLowerCase();
-
-  if (mime === 'application/pdf' || ext === 'pdf') return 'pdf';
-  if (mime === 'application/json' || ext === 'json') return 'json';
-  if (mime === 'text/html' || ext === 'html' || ext === 'htm') return 'html';
-  if (mime.startsWith('image/') || ['jpg', 'jpeg', 'png', 'webp'].includes(ext || '')) {
-    return 'image';
-  }
-  if (
-    mime === 'application/msword' ||
-    mime === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
-    ext === 'doc' ||
-    ext === 'docx'
-  ) {
-    return 'word';
-  }
-
-  return null;
-}

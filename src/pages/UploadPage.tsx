@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Upload, FileText, AlertTriangle, Link as LinkIcon, Loader2 } from 'lucide-react';
@@ -27,7 +27,8 @@ import { UploadErrorRecovery, UploadErrorType } from '@/components/upload/Upload
 import { UploadProgressSteps, ParseStep } from '@/components/upload/UploadProgressSteps';
 import { ImportReviewSheet, SelectedSections } from '@/components/upload/ImportReviewSheet';
 import { ATSValidationChecklist } from '@/components/upload/ATSValidationChecklist';
-import { ImportUploadSheet, FileType } from '@/components/upload/ImportUploadSheet';
+import { ImportUploadSheet } from '@/components/upload/ImportUploadSheet';
+import { detectFileType, type FileType } from '@/lib/detectFileType';
 import { UploadZone } from '@/components/upload/UploadZone';
 import { toast } from 'sonner';
 import type { ResumeData } from '@/types/resume';
@@ -46,7 +47,6 @@ export default function UploadPage() {
   
   // File type selector state
   const [showImportSheet, setShowImportSheet] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Error recovery state
   const [showErrorRecovery, setShowErrorRecovery] = useState(false);
@@ -261,28 +261,6 @@ export default function UploadPage() {
     setImportATSScore(null);
     setIsImportScoring(false);
   }, []);
-
-  // Detect file type from MIME type or extension. Returns null when the
-  // file isn't one of the supported formats — handleFile then surfaces
-  // the existing "Unsupported file type" toast instead of silently
-  // routing it into the PDF parser.
-  function detectFileType(file: File): FileType | null {
-    const mime = file.type.toLowerCase();
-    const ext = file.name.split('.').pop()?.toLowerCase();
-    
-    if (mime === 'application/pdf' || ext === 'pdf') return 'pdf';
-    if (mime === 'application/json' || ext === 'json') return 'json';
-    if (mime === 'text/html' || ext === 'html' || ext === 'htm') return 'html';
-    if (mime.startsWith('image/') || ['jpg', 'jpeg', 'png', 'webp'].includes(ext || '')) return 'image';
-    if (
-      mime === 'application/msword' ||
-      mime === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
-      ext === 'doc' ||
-      ext === 'docx'
-    ) return 'word';
-    
-    return null;
-  }
 
   // Handle JSON file (direct import, skips AI)
   const handleJSONFile = useCallback(async (file: File) => {
@@ -905,21 +883,6 @@ export default function UploadPage() {
     setIsDragging(false);
   }, []);
 
-  const handleInputChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    
-    // Reset input value to allow re-selecting same file
-    e.target.value = '';
-    
-    try {
-      await handleFile(file);
-    } catch {
-      toast.error('Something went wrong. Please try again.');
-      setIsProcessing(false);
-    }
-  }, [handleFile]);
-
   // Handle file selection from the new ImportUploadSheet. `type` may be
   // null when the picked/dropped file isn't one of the supported formats;
   // we forward `undefined` so handleFile re-runs detection and surfaces
@@ -1012,15 +975,6 @@ export default function UploadPage() {
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
               >
-                {/* Hidden file input controlled by ref */}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  onChange={handleInputChange}
-                  className="hidden"
-                  disabled={isProcessing}
-                />
-                
                 {isProcessing ? (
                   <UploadProgressSteps currentStep={parseStep} fileName={fileName ?? undefined} />
                 ) : (
