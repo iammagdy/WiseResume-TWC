@@ -1,14 +1,21 @@
 import {
-  Sparkles, Loader2, CheckCircle2, XCircle, Eye, Zap, Video, ScanSearch,
+  Sparkles, Loader2, CheckCircle2, XCircle, Eye, Zap, Video, ScanSearch, Crown,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { CollapsibleCard } from './shared';
 import type { PortfolioSections } from './ContentVisibilitySection';
 import { SECTION_LABELS } from './ContentVisibilitySection';
 import { Switch } from '@/components/ui/switch';
+
+export type PremiumHandle = {
+  username: string;
+  price_cents: number;
+  currency: string;
+};
 
 export type AvailabilityStatus = 'actively-looking' | 'open-to-offers' | 'not-looking';
 
@@ -22,6 +29,7 @@ export interface SetupTabProps {
   checkingUsername: boolean;
   usernameMinLength?: number;
   usernameMaxLength?: number;
+  premiumHandles?: PremiumHandle[];
   resumes: Array<{ id: string; title: string; is_primary?: boolean }>;
   selectedResumeId: string;
   onSelectedResumeIdChange: (id: string) => void;
@@ -56,6 +64,7 @@ const AVAILABILITY_OPTIONS: { value: AvailabilityStatus; label: string; color: s
 export function SetupTab(props: SetupTabProps) {
   const {
     username, onUsernameChange, usernameError, usernameAvailable, usernameCheckStatus, onRequestUsername, checkingUsername, usernameMinLength = 3, usernameMaxLength = 30,
+    premiumHandles,
     resumes, selectedResumeId, onSelectedResumeIdChange,
     bio, onBioChange, onGenerateBio, generatingBio,
     sections, onToggleSectionVisibility,
@@ -152,6 +161,44 @@ export function SetupTab(props: SetupTabProps) {
             <p className="text-[11px] text-muted-foreground mt-0.5">{usernameCheckStatus.reason}</p>
           )}
       </div>
+
+      {/* Premium handles */}
+      {premiumHandles && premiumHandles.length > 0 && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <Crown className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+            <span className="text-xs font-semibold text-amber-700 dark:text-amber-400">Premium handles available</span>
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            Claim a unique, short handle that stands out.{' '}
+            {onRequestUsername && (
+              <button
+                type="button"
+                onClick={onRequestUsername}
+                className="font-semibold text-primary underline underline-offset-2 hover:opacity-80"
+              >
+                Contact us
+              </button>
+            )}{onRequestUsername ? ' to inquire about pricing and availability.' : 'Contact the team to purchase.'}
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {premiumHandles.map((h) => (
+              <Badge
+                key={h.username}
+                variant="outline"
+                className="border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300 font-mono text-[11px] gap-1 cursor-default"
+              >
+                @{h.username}
+                <span className="text-[10px] font-sans font-semibold">
+                  {h.price_cents === 0
+                    ? '(gift)'
+                    : new Intl.NumberFormat('en-US', { style: 'currency', currency: h.currency.toUpperCase(), minimumFractionDigits: 0 }).format(h.price_cents / 100)}
+                </span>
+              </Badge>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Resume to display */}
       {resumes.length > 0 && (

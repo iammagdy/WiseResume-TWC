@@ -405,6 +405,149 @@ Deno.serve(async (req) => {
     }
 
     // ============================================================
+    // PREMIUM HANDLES MARKETPLACE
+    // ============================================================
+    if (action === 'premium_list') {
+      const { data, error } = await supabase
+        .from('portfolio_premium_usernames')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) return json({ success: false, error: error.message }, 500, corsHeaders);
+
+      const userIds = (data ?? [])
+        .map((r: { assigned_to_user_id: string | null }) => r.assigned_to_user_id)
+        .filter(Boolean) as string[];
+
+      let profileMap: Record<string, { email: string | null; full_name: string | null; username: string | null }> = {};
+      if (userIds.length) {
+        const { data: profs } = await supabase
+          .from('profiles')
+          .select('user_id, email, full_name, username')
+          .in('user_id', userIds);
+        profileMap = Object.fromEntries(
+          (profs ?? []).map((p: { user_id: string; email: string | null; full_name: string | null; username: string | null }) =>
+            [p.user_id, { email: p.email, full_name: p.full_name, username: p.username }],
+          ),
+        );
+      }
+
+      return json({
+        success: true,
+        rows: (data ?? []).map((r: { assigned_to_user_id: string | null; [k: string]: unknown }) => ({
+          ...r,
+          profile: r.assigned_to_user_id ? (profileMap[r.assigned_to_user_id] ?? null) : null,
+        })),
+      }, 200, corsHeaders);
+    }
+
+    if (action === 'premium_add') {
+      const username = cleanUsername(rest.username);
+      if (!username) return json({ success: false, error: 'username required' }, 400, corsHeaders);
+      const price_cents = Math.max(0, Number(rest.price_cents ?? 0));
+      const currency = String(rest.currency ?? 'usd').toLowerCase();
+      const note = String(rest.note ?? '');
+
+      const { error: upsertErr } = await supabase
+        .from('portfolio_premium_usernames')
+        .upsert(
+          { username, price_cents, currency, note, updated_at: new Date().toISOString() },
+          { onConflict: 'username' },
+        );
+      if (upsertErr) return json({ success: false, error: upsertErr.message }, 500, corsHeaders);
+
+      await writeAudit(supabase, adminEmail, 'add_premium_handle', null, { username, price_cents, currency, note });
+      return json({ success: true }, 200, corsHeaders);
+    }
+
+    if (action === 'premium_delete') {
+      const username = cleanUsername(rest.username);
+      if (!username) return json({ success: false, error: 'username required' }, 400, corsHeaders);
+
+      const { error: delErr } = await supabase
+        .from('portfolio_premium_usernames')
+        .delete()
+        .eq('username', username);
+      if (delErr) return json({ success: false, error: delErr.message }, 500, corsHeaders);
+
+      await writeAudit(supabase, adminEmail, 'delete_premium_handle', null, { username });
+      return json({ success: true }, 200, corsHeaders);
+    }
+
+    if (action === 'premium_assign') {
+      // Manually complete an assignment after payment is confirmed outside the system.
+      // Uses an atomic SQL function so that the profiles.username update and the
+      // premium record status update happen in a single transaction — no partial state.
+      const username = cleanUsername(rest.username);
+      const userId = String(rest.user_id ?? '');
+      const email = String(rest.email ?? '').trim().toLowerCase();
+      const note = String(rest.note ?? '');
+      if (!username) return json({ success: false, error: 'username required' }, 400, corsHeaders);
+
+      let targetUserId = userId;
+      if (!targetUserId && email) {
+        const { data: prof } = await supabase
+          .from('profiles')
+          .select('user_id')
+          .eq('email', email)
+          .maybeSingle();
+        if (!prof?.user_id) return json({ success: false, error: `No user with email ${email}` }, 404, corsHeaders);
+        targetUserId = prof.user_id;
+      }
+      if (!targetUserId) return json({ success: false, error: 'user_id or email required' }, 400, corsHeaders);
+
+      // Fetch old username for audit log before the atomic update
+      const { data: oldRow } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('user_id', targetUserId)
+        .maybeSingle();
+
+      // Single transaction: validates handle state, updates profiles.username, marks assigned
+      const { data: rpcResult, error: rpcErr } = await supabase.rpc('assign_premium_handle', {
+        p_username: username,
+        p_target_user_id: targetUserId,
+        p_admin_note: note || null,
+      });
+      if (rpcErr) return json({ success: false, error: rpcErr.message }, 500, corsHeaders);
+
+      const result = rpcResult as { success: boolean; error?: string; price_cents?: number; currency?: string };
+      if (!result.success) {
+        const status = result.error?.includes('already assigned') ? 409 : 404;
+        return json({ success: false, error: result.error ?? 'Assignment failed' }, status, corsHeaders);
+      }
+
+      await writeAudit(supabase, adminEmail, 'assign_premium_handle', targetUserId, {
+        username,
+        old_username: oldRow?.username ?? null,
+        price_cents: result.price_cents,
+        currency: result.currency,
+        admin_note: note,
+      });
+      return json({ success: true }, 200, corsHeaders);
+    }
+
+    if (action === 'premium_mark_pending') {
+      // Mark a handle as pending while waiting for payment confirmation.
+      const username = cleanUsername(rest.username);
+      const userId = String(rest.user_id ?? '');
+      if (!username || !userId) return json({ success: false, error: 'username and user_id required' }, 400, corsHeaders);
+
+      const { error: upErr } = await supabase
+        .from('portfolio_premium_usernames')
+        .update({
+          status: 'pending',
+          assigned_to_user_id: userId,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('username', username)
+        .eq('status', 'available');
+      if (upErr) return json({ success: false, error: upErr.message }, 500, corsHeaders);
+
+      await writeAudit(supabase, adminEmail, 'pending_premium_handle', userId, { username });
+      return json({ success: true }, 200, corsHeaders);
+    }
+
+    // ============================================================
     // USER LOOKUP (for override + exclusive forms)
     // ============================================================
     if (action === 'user_search') {

@@ -30,7 +30,7 @@ import type { PortfolioStyle, PortfolioLayout, PortfolioFont } from '@/component
 import { type PortfolioSections, DEFAULT_SECTIONS } from '@/components/portfolio/editor/ContentVisibilitySection';
 import { LivePreviewCard } from '@/components/portfolio/editor/LivePreviewCard';
 import { StatusBar } from '@/components/portfolio/editor/StatusBar';
-import { SetupTab } from '@/components/portfolio/editor/SetupTab';
+import { SetupTab, type PremiumHandle } from '@/components/portfolio/editor/SetupTab';
 import { ContentTab } from '@/components/portfolio/editor/ContentTab';
 import { DesignTab } from '@/components/portfolio/editor/DesignTab';
 import { MoreTab } from '@/components/portfolio/editor/MoreTab';
@@ -79,6 +79,7 @@ export default function PortfolioEditorPage() {
   const [usernameCheckStatus, setUsernameCheckStatus] = useState<{ status: string; reason?: string } | null>(null);
   const [checkingUsername, setCheckingUsername] = useState(false);
   const [requestDialogOpen, setRequestDialogOpen] = useState(false);
+  const [premiumHandles, setPremiumHandles] = useState<PremiumHandle[]>([]);
   const [bio, setBio] = useState('');
   const [portfolioEnabled, setPortfolioEnabled] = useState(false);
   const [githubUrl, setGithubUrl] = useState('');
@@ -287,6 +288,20 @@ export default function PortfolioEditorPage() {
       }
     }
   }, [profile]);
+
+  // Fetch available premium handles for the user-facing upgrade card
+  useEffect(() => {
+    let cancelled = false;
+    supabase
+      .from('portfolio_premium_usernames')
+      .select('username, price_cents, currency')
+      .eq('status', 'available')
+      .order('price_cents', { ascending: true })
+      .then(({ data }) => {
+        if (!cancelled) setPremiumHandles((data ?? []) as PremiumHandle[]);
+      });
+    return () => { cancelled = true; };
+  }, []);
 
   // Capture snapshot after profile syncs to local state
   useEffect(() => {
@@ -1055,6 +1070,7 @@ export default function PortfolioEditorPage() {
               checkingUsername={checkingUsername}
               usernameMinLength={usernameRules.min_length}
               usernameMaxLength={usernameRules.max_length}
+              premiumHandles={premiumHandles}
               resumes={resumes}
               selectedResumeId={selectedResumeId}
               onSelectedResumeIdChange={setSelectedResumeId}

@@ -13,6 +13,9 @@ import {
   ChevronLeft,
   ChevronRight,
   ExternalLink,
+  Crown,
+  CheckCircle2,
+  Clock,
 } from 'lucide-react';
 import { getPortfolioUrl } from '@/lib/portfolioUrl';
 import { Button } from '@/components/ui/button';
@@ -95,6 +98,19 @@ type ExclusiveRow = {
   user_id: string;
   note: string | null;
   created_at: string | null;
+  profile: { email: string | null; full_name: string | null; username: string | null } | null;
+};
+
+type PremiumRow = {
+  username: string;
+  price_cents: number;
+  currency: string;
+  status: 'available' | 'pending' | 'assigned';
+  assigned_to_user_id: string | null;
+  assigned_at: string | null;
+  note: string | null;
+  created_at: string | null;
+  updated_at: string | null;
   profile: { email: string | null; full_name: string | null; username: string | null } | null;
 };
 
@@ -1082,21 +1098,329 @@ function ExclusiveSection() {
 }
 
 // ============================================================
+// PREMIUM HANDLES MARKETPLACE
+// ============================================================
+function formatPrice(cents: number, currency: string): string {
+  if (cents === 0) return 'Free';
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: currency.toUpperCase(),
+    minimumFractionDigits: 0,
+  }).format(cents / 100);
+}
+
+function PremiumSection() {
+  const [rows, setRows] = useState<PremiumRow[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [newUsername, setNewUsername] = useState('');
+  const [newPriceCents, setNewPriceCents] = useState('');
+  const [newNote, setNewNote] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<PremiumRow | null>(null);
+  const [assignTarget, setAssignTarget] = useState<PremiumRow | null>(null);
+  const [assignPick, setAssignPick] = useState<UserSearchResult | null>(null);
+  const [assignNote, setAssignNote] = useState('');
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const { data, error } = await invoke<{ rows: PremiumRow[] }>('premium_list');
+    setLoading(false);
+    if (error) return toast.error(error);
+    setRows(data?.rows ?? []);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const doAdd = async () => {
+    const username = newUsername.trim().toLowerCase();
+    if (!username) return toast.error('Username is required');
+    const priceCents = newPriceCents === '' ? 0 : Math.round(Number(newPriceCents) * 100);
+    if (isNaN(priceCents) || priceCents < 0) return toast.error('Enter a valid price (e.g. 49.99)');
+
+    const { error } = await invoke('premium_add', {
+      username,
+      price_cents: priceCents,
+      currency: 'usd',
+      note: newNote,
+    });
+    if (error) return toast.error(error);
+    toast.success(`@${username} added to premium marketplace`);
+    setAdding(false);
+    setNewUsername(''); setNewPriceCents(''); setNewNote('');
+    load();
+  };
+
+  const doDelete = async () => {
+    if (!deleteTarget) return;
+    const { error } = await invoke('premium_delete', { username: deleteTarget.username });
+    if (error) return toast.error(error);
+    toast.success(`@${deleteTarget.username} removed`);
+    setDeleteTarget(null);
+    load();
+  };
+
+  const doAssign = async () => {
+    if (!assignTarget || !assignPick) return toast.error('Select a user first');
+    const { error } = await invoke('premium_assign', {
+      username: assignTarget.username,
+      user_id: assignPick.user_id,
+      note: assignNote,
+    });
+    if (error) return toast.error(error);
+    toast.success(`@${assignTarget.username} assigned to ${assignPick.email ?? assignPick.full_name}`);
+    setAssignTarget(null);
+    setAssignPick(null);
+    setAssignNote('');
+    load();
+  };
+
+  const statusBadge = (status: PremiumRow['status']) => {
+    if (status === 'assigned') return <Badge className="text-[10px] bg-green-500/15 text-green-600 border-green-500/30"><CheckCircle2 className="w-3 h-3 mr-1" />Assigned</Badge>;
+    if (status === 'pending') return <Badge className="text-[10px] bg-amber-500/15 text-amber-600 border-amber-500/30"><Clock className="w-3 h-3 mr-1" />Pending</Badge>;
+    return <Badge variant="secondary" className="text-[10px]">Available</Badge>;
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-semibold flex items-center gap-1.5">
+            <Crown className="w-4 h-4 text-amber-500" />
+            Premium handles
+          </h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Mark usernames as premium with a price. Manually assign after payment is confirmed.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" size="icon" onClick={load} disabled={loading} aria-label="Refresh">
+            <RefreshCw className={cn('w-4 h-4', loading && 'animate-spin')} />
+          </Button>
+          <Button size="sm" onClick={() => setAdding(true)}>
+            <Plus className="w-4 h-4 mr-1" />
+            Add handle
+          </Button>
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-border overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/40">
+              <tr className="text-left text-xs text-muted-foreground">
+                <th className="p-2 font-medium">Username</th>
+                <th className="p-2 font-medium">Price</th>
+                <th className="p-2 font-medium">Status</th>
+                <th className="p-2 font-medium">Assigned to</th>
+                <th className="p-2 font-medium">Note</th>
+                <th className="p-2 font-medium w-28 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading && rows.length === 0 && (
+                <tr><td colSpan={6} className="p-6 text-center text-muted-foreground text-sm">Loading…</td></tr>
+              )}
+              {!loading && rows.length === 0 && (
+                <tr><td colSpan={6} className="p-6 text-center text-muted-foreground text-sm">No premium handles yet. Add one to get started.</td></tr>
+              )}
+              {rows.map((r) => (
+                <tr key={r.username} className="border-t border-border hover:bg-muted/30">
+                  <td className="p-2 font-mono text-xs font-semibold">@{r.username}</td>
+                  <td className="p-2 text-xs font-medium text-amber-600">
+                    {formatPrice(r.price_cents, r.currency)}
+                  </td>
+                  <td className="p-2">{statusBadge(r.status)}</td>
+                  <td className="p-2">
+                    {r.profile ? (
+                      <div className="text-xs">
+                        <div className="font-medium">{r.profile.full_name || '—'}</div>
+                        <div className="text-muted-foreground">{r.profile.email}</div>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
+                  </td>
+                  <td className="p-2 text-xs text-muted-foreground max-w-[160px] truncate" title={r.note ?? ''}>{r.note || '—'}</td>
+                  <td className="p-2">
+                    <div className="flex justify-end gap-1">
+                      {r.status !== 'assigned' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs px-2"
+                          onClick={() => { setAssignTarget(r); setAssignPick(null); setAssignNote(''); }}
+                        >
+                          Assign
+                        </Button>
+                      )}
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7 text-destructive hover:text-destructive"
+                        onClick={() => setDeleteTarget(r)}
+                        aria-label="Delete"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Add handle dialog */}
+      <Dialog open={adding} onOpenChange={(o) => {
+        setAdding(o);
+        if (!o) { setNewUsername(''); setNewPriceCents(''); setNewNote(''); }
+      }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Crown className="w-4 h-4 text-amber-500" />
+              Add premium handle
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs font-medium">Username</label>
+              <Input
+                value={newUsername}
+                onChange={(e) => setNewUsername(e.target.value)}
+                placeholder="brand-name"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium">Price (USD)</label>
+              <p className="text-[11px] text-muted-foreground mb-1">Enter 0 for free / gifted assignment.</p>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={newPriceCents}
+                onChange={(e) => setNewPriceCents(e.target.value)}
+                placeholder="49.99"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium">Note (optional)</label>
+              <Textarea value={newNote} onChange={(e) => setNewNote(e.target.value)} rows={2} placeholder="Internal note about this handle…" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setAdding(false)}>Cancel</Button>
+            <Button onClick={doAdd} disabled={!newUsername.trim()}>
+              <Save className="w-4 h-4 mr-1" />
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Assign dialog */}
+      <Dialog open={!!assignTarget} onOpenChange={(o) => { if (!o) { setAssignTarget(null); setAssignPick(null); setAssignNote(''); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Assign <span className="font-mono">@{assignTarget?.username}</span></DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="rounded-md bg-muted/40 border border-border p-3 text-xs space-y-1">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Handle</span>
+                <span className="font-mono font-semibold">@{assignTarget?.username}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Price</span>
+                <span className="font-medium text-amber-600">
+                  {assignTarget ? formatPrice(assignTarget.price_cents, assignTarget.currency) : '—'}
+                </span>
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-medium mb-1 block">Assign to user</label>
+              {assignPick ? (
+                <div className="flex items-center justify-between p-2 rounded-md border border-border">
+                  <div className="text-xs">
+                    <div className="font-medium">{assignPick.full_name || '—'}</div>
+                    <div className="text-muted-foreground">{assignPick.email}</div>
+                  </div>
+                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setAssignPick(null)}>
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              ) : (
+                <UserSearchInput onPick={setAssignPick} />
+              )}
+            </div>
+            <div>
+              <label className="text-xs font-medium">Payment note (optional)</label>
+              <Textarea
+                value={assignNote}
+                onChange={(e) => setAssignNote(e.target.value)}
+                rows={2}
+                placeholder="e.g. Paid via bank transfer on 2026-05-14"
+              />
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              This will immediately set <span className="font-mono">@{assignTarget?.username}</span> as the user's portfolio username.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => { setAssignTarget(null); setAssignPick(null); }}>Cancel</Button>
+            <Button onClick={doAssign} disabled={!assignPick}>
+              <CheckCircle2 className="w-4 h-4 mr-1" />
+              Confirm assignment
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirm */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove premium handle?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <span className="font-mono">@{deleteTarget?.username}</span> will be removed from the premium marketplace.
+              {deleteTarget?.status === 'assigned' && ' This handle has already been assigned — removing it here will NOT reclaim the username from the user.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={doDelete} className="bg-destructive hover:bg-destructive/90">Remove</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
+// ============================================================
 // ROOT
 // ============================================================
 export function PortfolioUsernamesPanel() {
   return (
     <Tabs defaultValue="directory" className="space-y-4">
-      <TabsList className="grid grid-cols-4 w-full sm:w-auto">
+      <TabsList className="grid grid-cols-5 w-full sm:w-auto">
         <TabsTrigger value="directory">Directory</TabsTrigger>
         <TabsTrigger value="rules">Rules</TabsTrigger>
         <TabsTrigger value="reserved">Reserved</TabsTrigger>
         <TabsTrigger value="exclusive">Exclusive</TabsTrigger>
+        <TabsTrigger value="premium" className="flex items-center gap-1">
+          <Crown className="w-3.5 h-3.5 text-amber-500" />
+          Premium
+        </TabsTrigger>
       </TabsList>
       <TabsContent value="directory"><DirectorySection /></TabsContent>
       <TabsContent value="rules"><RulesSection /></TabsContent>
       <TabsContent value="reserved"><ReservedSection /></TabsContent>
       <TabsContent value="exclusive"><ExclusiveSection /></TabsContent>
+      <TabsContent value="premium"><PremiumSection /></TabsContent>
     </Tabs>
   );
 }
