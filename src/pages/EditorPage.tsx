@@ -1190,7 +1190,7 @@ export default function EditorPage() {
                   )}
                 >
                   {tab === 'editor' ? 'Edit' : tab === 'preview' ? 'Preview' : (
-                    <span className="flex items-center gap-1"><BarChart3 className="w-3 h-3" />Score</span>
+                    <span className="flex items-center gap-1"><BarChart3 className="w-3 h-3" />ATS</span>
                   )}
                 </button>
               ))}
