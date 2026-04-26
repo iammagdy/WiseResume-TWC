@@ -2,6 +2,33 @@
 
 Local changelog tracking WiseResume changes.
 
+## 2026-04-26 (Stability — Phase 12 editor audit + CI verification fix + v3.6.3 release)
+
+### STABILITY — Phase 12: Editor audit Phase 2 (Tasks #1, #4–#8)
+
+Four categories of editor issues addressed:
+
+- **`src/context/KeyboardContext.tsx`** — Single combined context split into `KeyboardStateContext` (state + `_hasProvider` sentinel) and `KeyboardDispatchContext` (setter only). Components that only update keyboard state no longer subscribe to state changes, eliminating spurious re-renders. The `_hasProvider: false` default allows consumers outside the provider to detect the missing-provider case rather than silently using stale defaults.
+
+- **`src/pages/EditorPage.tsx`** — `MobileLayout` wrapper component removed. The component had become a no-op shell after earlier refactors; it added a DOM node and reconciliation boundary while applying no layout logic, causing occasional flicker and double-scroll on small screens.
+
+- **`src/components/editor/AwardsSection.tsx`**, **`src/components/editor/ProjectsSection.tsx`** — All `<Label>` elements now carry `htmlFor` attributes paired to the matching `<Input>` / `<Textarea>` `id`. Instance-scoped IDs (`award-${id}-title`, `proj-${id}-name`, etc.) ensure uniqueness. Screen readers and browser auto-fill now work correctly across both sections.
+
+- **`src/lib/editorLogger.ts`** (new) — Thin DEV-only wrapper around `console.warn` / `console.error`. Guarded by `import.meta.env.DEV`; tree-shaken from production builds by Vite. All internal editor debug calls now route through this module.
+
+### STABILITY — CI: deploy verification window extended
+
+- **`.github/workflows/deploy.yml`** — "Verify live site reflects the new build" step extended from 6 attempts × 10 s (60 s) to 18 attempts × 20 s (6 min). Empirical observation on runs 24959568755 and 24959697031: Hostinger's origin server took ~3 min after the lftp mirror to serve newly-uploaded static files, causing false-fail on otherwise-successful deploys. Reason documented inline in the workflow.
+
+### RELEASE — v3.6.3 shipped to resume.thewise.cloud
+
+- **`public/changelog.json`** — v3.6.3 entry prepended (`latest: true`); v3.6.1 entry flipped to `latest: false`. Covers the four Phase 12 items above (keyboard context, mobile layout, label fixes, DEV logger). GitHub Actions run 24959807509: `completed / success`. All 7 live-site checks pass (`node scripts/verify-live-deploy.mjs`).
+- **`package.json`** — version `3.6.3`.
+
+**Files changed:** `src/context/KeyboardContext.tsx`, `src/pages/EditorPage.tsx`, `src/components/editor/AwardsSection.tsx`, `src/components/editor/ProjectsSection.tsx`, `src/lib/editorLogger.ts` (new), `.github/workflows/deploy.yml`, `public/changelog.json`, `Project Atlas/01-Currently Implemented/stability-fixes/phase-12-editor-audit-phase-2.md` (new), `Project Atlas/01-Currently Implemented/stability-fixes/README.md`, `Project Atlas/01-Currently Implemented/critical-systems/08-deployment.md`, `project-governance/CHANGELOG.md`.
+
+---
+
 ## 2026-04-23 (Stability — Task #30: PDF export migration to Puppeteer for the dashboard list row)
 
 ### STABILITY — Last legacy `html2canvas` PDF caller migrated to the native Puppeteer pipeline

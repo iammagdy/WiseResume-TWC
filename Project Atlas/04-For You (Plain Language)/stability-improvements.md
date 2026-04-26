@@ -1,6 +1,34 @@
 # Stability Improvements — What's Getting Better Behind the Scenes
 
-**Last verified:** 2026-04-23 (PDF exports text-selectable everywhere; ATS score honestly relabelled)
+**Last verified:** 2026-04-26 (Phase 12 editor audit shipped in v3.6.3; CI deploy verification fixed)
+
+## Editor polish and accessibility improvements — now live as v3.6.3 (2026-04-26)
+
+**What was the situation:** Four small but real issues had been sitting in the editor since earlier phases of development.
+
+The first was about how the editor responds to keyboard shortcuts. Internally, the code that tracks whether a software keyboard is open on mobile was set up in a way that made every component using it re-render more than necessary — even components that didn't care about keyboard state. This had the potential to cause sluggishness on low-end devices and made the codebase harder to reason about.
+
+The second was a leftover mobile-layout wrapper in the editor that wasn't doing anything useful anymore. After earlier improvements to how the editor adapts to small screens, this wrapper became empty scaffolding. It was still there in the code, creating an extra layer in the page structure that occasionally caused a flicker or a double-scroll effect on phones.
+
+The third and fourth were accessibility issues in two editor sections: Awards and Projects. The text labels sitting above each input field — "Award Title", "Issuing Organization", "Project Name", "Role", and so on — were visually present but not technically linked to their fields. Screen readers couldn't tell which label belonged to which box, so they would skip the label or announce the field with no description. Browser auto-fill had the same problem: it saw a text box but didn't know what the label said, so it couldn't suggest anything.
+
+There was also a minor internal issue: some internal diagnostic messages were printing in the browser's developer-tools console on the live site — not a user-visible problem, but it made the console noisier and made it harder to spot genuine errors.
+
+**What changed:** Each issue was resolved in v3.6.3. The keyboard-state code was split so each part of the app subscribes only to what it actually needs, reducing unnecessary work. The empty mobile-layout wrapper was removed. Every label in the Awards section and every label in the Projects section is now formally linked to its input, so screen readers announce them correctly and browsers can suggest auto-fill values where appropriate. The internal diagnostic messages are now restricted to local development builds and never appear on the live site.
+
+**What you'll notice:** The Awards and Projects sections in the editor now work correctly with screen readers and browser auto-fill. On low-end phones the editor should feel a little snappier. The flicker/double-scroll on the mobile editor layout is gone. For everyone else nothing looks different — these were polish and correctness fixes, not visual changes.
+
+---
+
+## The deploy no longer shows a false failure when the upload actually worked (2026-04-26)
+
+**What was the situation:** After uploading a new version of the site to Hostinger, the deploy process was checking whether the live site actually served the new version. It was doing this check for about 60 seconds and then giving up with a red failure if the new files weren't visible yet. The upload itself was always succeeding — Hostinger just took longer than 60 seconds to make newly-uploaded files available on the web. So two deploys in a row (runs for v3.6.1 and the initial v3.6.3 attempt) reported failure in CI even though the site was actually updating correctly — just on a slightly longer timeline.
+
+**What changed:** The check now runs for up to 6 minutes (18 attempts, 20 seconds apart) instead of 60 seconds. The reason for the longer window, and the specific evidence from those two deploys, is recorded in the deploy workflow file so the next person investigating a "why did this fail?" question has the answer immediately.
+
+**What you'll notice:** Deploys should no longer show red failures when the upload worked. The workflow takes slightly longer on the verification step, but the extra time is just waiting for Hostinger to finish propagating the files rather than doing unnecessary work.
+
+---
 
 ## Every PDF download is now text-selectable, no matter where you start it (2026-04-23)
 

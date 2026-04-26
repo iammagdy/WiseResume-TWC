@@ -1,6 +1,6 @@
 # Deployment
 
-**Last verified:** 2026-04-17
+**Last verified:** 2026-04-26
 **Type:** deep dive
 **Sources:**
 - `.github/workflows/deploy.yml`
@@ -22,14 +22,14 @@
 
 ## Hosting
 
-- **Frontend:** Hostinger via FTP, deployed by `deploy.yml` GitHub Action. Production URL: https://resume.thewise.cloud.
+- **Frontend:** Hostinger via FTPS (explicit TLS, port 21; implicit FTPS port 990 fallback), deployed by `deploy.yml` GitHub Action. FTP server IP `82.29.154.120` (hardcoded — hostname resolves to CDN IPs that do not run vsftpd). Production URL: https://resume.thewise.cloud.
 - **Backend:** Supabase project `jnsfmkzgxsviuthaqlyy` — Edge Functions, Postgres, Storage.
 
 ## CI/CD workflows
 
 | Workflow | Purpose |
 |---|---|
-| `deploy.yml` | Build frontend, upload to Hostinger via FTP. Inlines all `VITE_*` vars at build time and uploads Sentry source maps if `SENTRY_AUTH_TOKEN` is present. |
+| `deploy.yml` | Build frontend, upload to Hostinger via FTPS (explicit TLS port 21; implicit FTPS port 990 fallback). Inlines all `VITE_*` vars at build time, uploads Sentry source maps if `SENTRY_AUTH_TOKEN` is present, then verifies via `scripts/verify-live-deploy.mjs` (18 attempts × 20 s = up to 6 min — Hostinger's origin takes 2–4 min post-upload to serve new files). → `.github/workflows/deploy.yml` step "Verify live site reflects the new build". |
 | `deploy-edge-functions.yml` | Deploys all Supabase Edge Functions. Final step re-runs the deployed-drift check (see below) to catch a partial deploy immediately. |
 | `check-edge-functions-deployed.yml` | Compares `supabase/functions/` against the live deployment on every push to `main` and on PRs that touch `supabase/functions/**`. Fails when a function exists in source but is not deployed. |
 | `set-supabase-secrets.yml` | Pushes secrets to Supabase. **Hard-fails** if `GITHUB_PAT` is missing. |
