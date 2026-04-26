@@ -256,11 +256,11 @@ export function SectionNavButtons({
   const [isNavigating, setIsNavigating] = useState(false);
 
   return (
-    <div className={cn('flex flex-row items-center gap-2 sm:gap-3 overflow-hidden flex-1', !noPadding && 'py-3')}>
+    <div className={cn('flex flex-row items-center gap-2 overflow-hidden flex-1', !noPadding && 'py-3')}>
       <Button
         variant="outline"
-        size="lg"
-        className="flex-1 min-w-0 min-h-[48px]"
+        size="sm"
+        className="flex-1 min-w-0 h-8 text-xs px-2.5"
         onClick={() => {
           haptics.light();
           const currentIndex = steps.findIndex(s => s.id === activeTab);
@@ -268,13 +268,13 @@ export function SectionNavButtons({
         }}
         disabled={activeTab === steps[0].id}
       >
-        <ChevronLeft className="w-4 h-4 mr-1.5" />
-        Previous
+        <ChevronLeft className="w-3.5 h-3.5 mr-1" />
+        Prev
       </Button>
       {activeTab === steps[steps.length - 1].id ? (
         <Button
-          size="lg"
-          className="flex-1 min-w-0 min-h-[48px] text-sm gradient-primary shadow-[0_8px_32px_-8px_hsl(var(--primary)/0.5)]"
+          size="sm"
+          className="flex-1 min-w-0 h-8 text-xs px-2.5 gradient-primary shadow-[0_4px_12px_-4px_hsl(var(--primary)/0.5)]"
           disabled={isNavigating}
           onClick={() => {
             if (isNavigating) return;
@@ -284,16 +284,16 @@ export function SectionNavButtons({
           }}
         >
           {isNavigating ? (
-            <MiniSpinner size={16} className="mr-1.5" />
+            <MiniSpinner size={12} className="mr-1" />
           ) : (
-            <Eye className="w-4 h-4 mr-1.5" />
+            <Eye className="w-3.5 h-3.5 mr-1" />
           )}
-          {isNavigating ? 'Loading…' : 'Preview & Export'}
+          {isNavigating ? 'Loading…' : 'Preview'}
         </Button>
       ) : (
         <Button
-          size="lg"
-          className="flex-1 min-w-0 min-h-[48px]"
+          size="sm"
+          className="flex-1 min-w-0 h-8 text-xs px-2.5"
           onClick={() => {
             haptics.medium();
             const currentIndex = steps.findIndex(s => s.id === activeTab);
@@ -301,7 +301,7 @@ export function SectionNavButtons({
           }}
         >
           Next
-          <ChevronRight className="w-4 h-4 ml-1.5" />
+          <ChevronRight className="w-3.5 h-3.5 ml-1" />
         </Button>
       )}
     </div>
