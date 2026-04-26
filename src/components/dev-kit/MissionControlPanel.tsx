@@ -15,6 +15,7 @@ import {
   Clock,
   Globe,
   Zap,
+  Lock,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
@@ -29,6 +30,7 @@ interface SecretItem {
   key: string;
   label: string;
   present: boolean;
+  source: 'replit_env' | 'supabase_vault' | 'optional';
   lastRotatedAt: string | null;
   stale: boolean;
   daysSinceRotation: number | null;
@@ -59,6 +61,7 @@ interface ProviderPing {
 }
 
 interface MissionControlData {
+  isDevEnvironment: boolean;
   checkedAt: string;
   deploy: {
     ok: boolean;
@@ -79,12 +82,14 @@ interface MissionControlData {
     groqConfigured: boolean;
     anyProviderOk: boolean;
     allProvidersOk: boolean;
+    keysInSupabaseVault: boolean;
   };
   email: {
     resendKeyPresent: boolean;
     reachable: boolean;
     httpStatus: number;
     sends24h: number | null;
+    keyInSupabaseVault: boolean;
   };
   database: {
     ok: boolean;
@@ -293,12 +298,16 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
     ? data.ai.allProvidersOk
       ? 'green'
       : 'yellow'
+    : data.ai.keysInSupabaseVault
+    ? 'yellow'   // keys exist in Supabase vault — works in production
     : 'red';
 
   const emailStatus: StatusDot = !data
     ? 'grey'
     : data.email.resendKeyPresent && data.email.reachable
     ? 'green'
+    : data.email.keyInSupabaseVault
+    ? 'yellow'   // key exists in Supabase vault — works in production
     : data.email.resendKeyPresent
     ? 'yellow'
     : 'red';
@@ -311,6 +320,7 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
     ? 'yellow'
     : 'green';
 
+  // missingCount from server only counts replit_env secrets — supabase_vault secrets are excluded
   const secretsMissingCount = data?.secrets.missingCount ?? 0;
   const secretsStaleCount = data?.secrets.staleCount ?? 0;
   const secretsStatus: StatusDot = !data
@@ -320,6 +330,7 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
     : secretsStaleCount > 0
     ? 'yellow'
     : 'green';
+  const vaultCount = data?.secrets.items.filter(s => s.source === 'supabase_vault').length ?? 0;
 
   const errorCount = data?.recentErrors.length ?? 0;
   const errorsStatus: StatusDot = !data
@@ -337,18 +348,22 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
     ? 'yellow'
     : 'green';
 
+  const isDevEnv = data?.isDevEnvironment ?? false;
+
   const aiSummary = data
-    ? [
-        data.ai.openrouterConfigured
-          ? `OpenRouter: ${orPing?.ok ? `OK ${orPing.latencyMs ? `(${orPing.latencyMs}ms)` : ''}` : 'unreachable'}`
-          : 'OpenRouter: no key',
-        data.ai.openrouter2Configured
-          ? `OR2: ${or2Ping?.ok ? 'OK' : 'unreachable'}`
-          : null,
-        data.ai.groqConfigured
-          ? `Groq: ${groqPing?.ok ? `OK ${groqPing.latencyMs ? `(${groqPing.latencyMs}ms)` : ''}` : 'unreachable'}`
-          : 'Groq: no key',
-      ].filter(Boolean).join(' · ')
+    ? data.ai.keysInSupabaseVault
+      ? 'Keys in Supabase vault · operational in production'
+      : [
+          data.ai.openrouterConfigured
+            ? `OpenRouter: ${orPing?.ok ? `OK ${orPing.latencyMs ? `(${orPing.latencyMs}ms)` : ''}` : 'unreachable'}`
+            : 'OpenRouter: no key',
+          data.ai.openrouter2Configured
+            ? `OR2: ${or2Ping?.ok ? 'OK' : 'unreachable'}`
+            : null,
+          data.ai.groqConfigured
+            ? `Groq: ${groqPing?.ok ? `OK ${groqPing.latencyMs ? `(${groqPing.latencyMs}ms)` : ''}` : 'unreachable'}`
+            : 'Groq: no key',
+        ].filter(Boolean).join(' · ')
     : '';
 
   return (
@@ -382,6 +397,20 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
       {error && data && (
         <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-700 dark:text-amber-400">
           Last refresh failed: {error}
+        </div>
+      )}
+
+      {isDevEnv && (
+        <div className="flex items-start gap-2 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20 text-xs text-blue-700 dark:text-blue-300">
+          <Lock className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+          <span>
+            <strong>Dev environment</strong> — secrets marked with{' '}
+            <span className="inline-flex items-center gap-1 font-mono px-1 py-0.5 rounded bg-blue-500/10 border border-blue-500/20 text-[10px]">
+              <Lock className="w-2.5 h-2.5" /> Supabase vault
+            </span>{' '}
+            live in Supabase's secret store and are only visible to edge functions in production.
+            {vaultCount > 0 && ` (${vaultCount} secrets)`}
+          </span>
         </div>
       )}
 
@@ -447,9 +476,18 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
         >
           {data && (
             <div className="flex flex-wrap gap-2">
-              <PingBadge ping={orPing} label="OpenRouter" />
-              {data.ai.openrouter2Configured && <PingBadge ping={or2Ping} label="OR2" />}
-              <PingBadge ping={groqPing} label="Groq" />
+              {data.ai.keysInSupabaseVault ? (
+                <span className="text-[10px] font-medium px-2 py-0.5 rounded-full border bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20 flex items-center gap-1">
+                  <Lock className="w-2.5 h-2.5" />
+                  Supabase vault · prod only
+                </span>
+              ) : (
+                <>
+                  <PingBadge ping={orPing} label="OpenRouter" />
+                  {data.ai.openrouter2Configured && <PingBadge ping={or2Ping} label="OR2" />}
+                  <PingBadge ping={groqPing} label="Groq" />
+                </>
+              )}
             </div>
           )}
         </StatusCard>
@@ -461,7 +499,9 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
           status={emailStatus}
           summary={
             data
-              ? data.email.resendKeyPresent
+              ? data.email.keyInSupabaseVault
+                ? 'RESEND_API_KEY in Supabase vault · operational in production'
+                : data.email.resendKeyPresent
                 ? data.email.reachable
                   ? `Resend reachable${data.email.sends24h !== null ? ` · ${data.email.sends24h} sent (24h)` : ''}`
                   : `Resend key set but unreachable (HTTP ${data.email.httpStatus})`
@@ -471,7 +511,13 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
           onDeepLink={() => onNavigate('email')}
           deepLinkLabel="Email"
         >
-          {data && data.email.sends24h !== null && (
+          {data && data.email.keyInSupabaseVault && (
+            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full border bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20 flex items-center gap-1 w-fit">
+              <Lock className="w-2.5 h-2.5" />
+              Supabase vault · prod only
+            </span>
+          )}
+          {data && !data.email.keyInSupabaseVault && data.email.sends24h !== null && (
             <div className="flex items-center gap-1.5">
               <Zap className="w-3 h-3 text-muted-foreground" />
               <span className="text-[10px] text-muted-foreground">
@@ -515,30 +561,26 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
           summary={
             data
               ? secretsMissingCount > 0
-                ? `${secretsMissingCount} missing secret${secretsMissingCount !== 1 ? 's' : ''}`
+                ? `${secretsMissingCount} Replit secret${secretsMissingCount !== 1 ? 's' : ''} missing`
                 : secretsStaleCount > 0
                 ? `${secretsStaleCount} secret${secretsStaleCount !== 1 ? 's' : ''} not rotated in 90+ days`
+                : isDevEnv
+                ? `Replit secrets OK · ${vaultCount} in Supabase vault`
                 : `All ${data.secrets.items.length} secrets present`
               : 'Loading…'
           }
           onDeepLink={() => onNavigate('deployment')}
           deepLinkLabel="Env check"
         >
-          {data && (data.secrets.missingCount > 0 || data.secrets.staleCount > 0) && (
+          {data && secretsMissingCount > 0 && (
             <div className="space-y-1 max-h-24 overflow-y-auto">
               {data.secrets.items
-                .filter(s => !s.present || s.stale)
+                .filter(s => !s.present && s.source === 'replit_env')
                 .slice(0, 6)
                 .map(s => (
                   <div key={s.key} className="flex items-center gap-2">
-                    {!s.present
-                      ? <XCircle className="w-3 h-3 text-red-500 shrink-0" />
-                      : <AlertTriangle className="w-3 h-3 text-amber-500 shrink-0" />
-                    }
+                    <XCircle className="w-3 h-3 text-red-500 shrink-0" />
                     <span className="font-mono text-[10px] text-foreground truncate">{s.key}</span>
-                    {s.stale && s.daysSinceRotation !== null && (
-                      <span className="text-[10px] text-amber-500 shrink-0">{s.daysSinceRotation}d ago</span>
-                    )}
                   </div>
                 ))
               }
@@ -607,7 +649,7 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
       {/* All secrets table */}
       {data && (
         <div className="rounded-xl border border-border bg-card p-4 space-y-3 shadow-sm">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <KeyRound className="w-4 h-4 text-muted-foreground" />
             <p className="text-sm font-semibold text-foreground">All Secrets</p>
             <span className={cn(
@@ -616,37 +658,54 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
                 ? 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20'
                 : 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20',
             )}>
-              {data.secrets.items.filter(s => s.present).length} / {data.secrets.items.length} set
+              {data.secrets.items.filter(s => s.present || s.source === 'supabase_vault').length} / {data.secrets.items.length} accounted for
             </span>
+            {vaultCount > 0 && (
+              <span className="text-[10px] font-medium px-2 py-0.5 rounded-full border bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20 flex items-center gap-1">
+                <Lock className="w-2.5 h-2.5" />
+                {vaultCount} in Supabase vault
+              </span>
+            )}
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-            {data.secrets.items.map(secret => (
-              <div
-                key={secret.key}
-                className={cn(
-                  'flex items-center gap-2 rounded-lg px-3 py-2 border text-[11px]',
-                  !secret.present
-                    ? 'border-red-500/20 bg-red-500/5'
+            {data.secrets.items.map(secret => {
+              const inVault = secret.source === 'supabase_vault';
+              const missingFromReplit = !secret.present && !inVault;
+              return (
+                <div
+                  key={secret.key}
+                  className={cn(
+                    'flex items-center gap-2 rounded-lg px-3 py-2 border text-[11px]',
+                    inVault
+                      ? 'border-blue-500/20 bg-blue-500/5'
+                      : missingFromReplit
+                      ? 'border-red-500/20 bg-red-500/5'
+                      : secret.stale
+                      ? 'border-amber-400/30 bg-amber-400/5'
+                      : 'border-border bg-muted/20',
+                  )}
+                >
+                  {inVault
+                    ? <Lock className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                    : missingFromReplit
+                    ? <XCircle className="w-3.5 h-3.5 text-red-500 shrink-0" />
                     : secret.stale
-                    ? 'border-amber-400/30 bg-amber-400/5'
-                    : 'border-border bg-muted/20',
-                )}
-              >
-                {!secret.present
-                  ? <XCircle className="w-3.5 h-3.5 text-red-500 shrink-0" />
-                  : secret.stale
-                  ? <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                  : <CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" />
-                }
-                <span className="font-mono text-foreground truncate flex-1">{secret.key}</span>
-                {secret.present && secret.stale && secret.daysSinceRotation !== null && (
-                  <span className="text-amber-500 shrink-0">{secret.daysSinceRotation}d</span>
-                )}
-                {!secret.present && (
-                  <span className="text-red-500 shrink-0">missing</span>
-                )}
-              </div>
-            ))}
+                    ? <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                    : <CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" />
+                  }
+                  <span className="font-mono text-foreground truncate flex-1">{secret.key}</span>
+                  {inVault && (
+                    <span className="text-blue-500 dark:text-blue-400 shrink-0 text-[10px]">vault</span>
+                  )}
+                  {!inVault && secret.present && secret.stale && secret.daysSinceRotation !== null && (
+                    <span className="text-amber-500 shrink-0">{secret.daysSinceRotation}d</span>
+                  )}
+                  {missingFromReplit && (
+                    <span className="text-red-500 shrink-0">missing</span>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

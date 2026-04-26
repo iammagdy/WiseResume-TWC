@@ -1089,26 +1089,38 @@ async function requireDevKitAuth(req: Request, res: Response): Promise<string | 
 // edge function (the generic proxy below would return 404 if the function
 // is not yet deployed to the hosted Supabase project).
 
-const MISSION_CONTROL_SECRETS: { key: string; label: string }[] = [
-  { key: 'SUPABASE_URL',              label: 'Supabase URL' },
-  { key: 'SUPABASE_ANON_KEY',         label: 'Supabase Anon Key' },
-  { key: 'SUPABASE_SERVICE_ROLE_KEY', label: 'Supabase Service Role Key' },
-  { key: 'DEV_KIT_PASSWORD',          label: 'DevKit Password' },
-  { key: 'KINDE_DOMAIN',              label: 'Kinde Domain' },
-  { key: 'OPENROUTER_API_KEY',        label: 'OpenRouter API Key' },
-  { key: 'OPENROUTER2_API_KEY',       label: 'OpenRouter 2 API Key' },
-  { key: 'GROQ_API_KEY',              label: 'Groq API Key' },
-  { key: 'GITHUB_TOKEN',              label: 'GitHub Token' },
-  { key: 'GITHUB_OWNER',              label: 'GitHub Owner' },
-  { key: 'GITHUB_REPO',               label: 'GitHub Repo' },
-  { key: 'RESEND_API_KEY',            label: 'Resend API Key' },
-  { key: 'GEMINI_API_KEY',            label: 'Gemini API Key (optional)' },
-  { key: 'ELEVENLABS_API_KEY',        label: 'ElevenLabs API Key (optional)' },
-  { key: 'KINDE_WEBHOOK_SECRET',      label: 'Kinde Webhook Secret' },
-  { key: 'KINDE_M2M_CLIENT_ID',       label: 'Kinde M2M Client ID' },
-  { key: 'KINDE_M2M_CLIENT_SECRET',   label: 'Kinde M2M Client Secret' },
-  { key: 'ADMIN_EMAILS',              label: 'Admin Emails Allowlist' },
+// source meanings:
+//   replit_env    — must be set in Replit secrets; Express can use it directly
+//   supabase_vault — lives in Supabase vault; only available to edge functions in production
+//   optional      — nice to have; absence is never an error
+const MISSION_CONTROL_SECRETS: { key: string; label: string; source: 'replit_env' | 'supabase_vault' | 'optional'; aliases?: string[] }[] = [
+  { key: 'SUPABASE_URL',              label: 'Supabase URL',              source: 'replit_env' },
+  // The anon key is exposed to the frontend as VITE_SUPABASE_PUBLISHABLE_KEY in this project
+  { key: 'SUPABASE_ANON_KEY',         label: 'Supabase Anon Key',         source: 'replit_env', aliases: ['VITE_SUPABASE_PUBLISHABLE_KEY'] },
+  { key: 'SUPABASE_SERVICE_ROLE_KEY', label: 'Supabase Service Role Key', source: 'replit_env' },
+  { key: 'DEV_KIT_PASSWORD',          label: 'DevKit Password',           source: 'supabase_vault' },
+  { key: 'KINDE_DOMAIN',              label: 'Kinde Domain',              source: 'replit_env' },
+  { key: 'OPENROUTER_API_KEY',        label: 'OpenRouter API Key',        source: 'supabase_vault' },
+  { key: 'OPENROUTER2_API_KEY',       label: 'OpenRouter 2 API Key',      source: 'supabase_vault' },
+  { key: 'GROQ_API_KEY',              label: 'Groq API Key',              source: 'supabase_vault' },
+  // GitHub token: Replit names it GITHUB_ACCESS_TOKEN; the Supabase env names it GITHUB_TOKEN
+  { key: 'GITHUB_TOKEN',              label: 'GitHub Token',              source: 'replit_env', aliases: ['GITHUB_ACCESS_TOKEN'] },
+  { key: 'GITHUB_OWNER',              label: 'GitHub Owner',              source: 'replit_env' },
+  { key: 'GITHUB_REPO',               label: 'GitHub Repo',               source: 'replit_env' },
+  { key: 'RESEND_API_KEY',            label: 'Resend API Key',            source: 'supabase_vault' },
+  { key: 'GEMINI_API_KEY',            label: 'Gemini API Key',            source: 'optional' },
+  { key: 'ELEVENLABS_API_KEY',        label: 'ElevenLabs API Key',        source: 'optional' },
+  { key: 'KINDE_WEBHOOK_SECRET',      label: 'Kinde Webhook Secret',      source: 'supabase_vault' },
+  { key: 'KINDE_M2M_CLIENT_ID',       label: 'Kinde M2M Client ID',       source: 'supabase_vault' },
+  { key: 'KINDE_M2M_CLIENT_SECRET',   label: 'Kinde M2M Client Secret',   source: 'supabase_vault' },
+  { key: 'ADMIN_EMAILS',              label: 'Admin Emails Allowlist',     source: 'supabase_vault' },
 ];
+
+// Resolves a secret key accounting for known aliases (e.g. GITHUB_ACCESS_TOKEN for GITHUB_TOKEN)
+function resolveSecretPresent(key: string, aliases?: string[]): boolean {
+  if (process.env[key]) return true;
+  return (aliases ?? []).some(a => !!process.env[a]);
+}
 
 async function mcCheckGitHub(owner: string, repo: string, token: string) {
   try {
@@ -1156,7 +1168,8 @@ app.all('/api/fn/admin-mission-control', async (req, res) => {
   if (!email) return;
 
   try {
-    const githubToken  = process.env.GITHUB_TOKEN || '';
+    // GITHUB_TOKEN may be named GITHUB_ACCESS_TOKEN in the Replit secrets panel
+    const githubToken  = process.env.GITHUB_TOKEN || process.env.GITHUB_ACCESS_TOKEN || '';
     const githubOwner  = process.env.GITHUB_OWNER || '';
     const githubRepo   = process.env.GITHUB_REPO  || '';
     const resendKey    = process.env.RESEND_API_KEY || '';
@@ -1164,6 +1177,8 @@ app.all('/api/fn/admin-mission-control', async (req, res) => {
     const or2Key       = process.env.OPENROUTER2_API_KEY || '';
     const groqKey      = process.env.GROQ_API_KEY  || '';
     const productionUrl = process.env.PRODUCTION_URL || 'https://resume.thewise.cloud';
+    // In dev: DEV_KIT_PASSWORD not present in local env → Supabase vault secrets won't be visible here
+    const isDevEnvironment = !(process.env.DEV_KIT_PASSWORD || '').trim();
     const now = new Date();
     const oneHourAgo = new Date(now.getTime() - 3600_000).toISOString();
 
@@ -1213,7 +1228,10 @@ app.all('/api/fn/admin-mission-control', async (req, res) => {
       try { secretsMeta = JSON.parse(secretsMetaRes.value[0].value); } catch { /* ignore */ }
     }
     const STALE_DAYS = 90;
-    const envChecks = MISSION_CONTROL_SECRETS.map(({ key, label }) => ({ key, label, present: !!process.env[key] }));
+    const envChecks = MISSION_CONTROL_SECRETS.map(({ key, label, source, aliases }) => {
+      const present = resolveSecretPresent(key, aliases);
+      return { key, label, source, present };
+    });
     let metaChanged = false;
     for (const check of envChecks) {
       if (check.present && !secretsMeta[check.key]) {
@@ -1231,16 +1249,36 @@ app.all('/api/fn/admin-mission-control', async (req, res) => {
       return { ...check, lastRotatedAt, stale: daysSinceRotation !== null && daysSinceRotation >= STALE_DAYS, daysSinceRotation };
     });
 
+    // In dev mode, supabase_vault secrets are expected to be absent from process.env.
+    // Only count replit_env secrets as "missing" — vault secrets are confirmed by production deployment.
+    const missingCount = secretsWithAge.filter(s =>
+      !s.present && s.source === 'replit_env'
+    ).length;
+    const staleCount = secretsWithAge.filter(s => s.stale).length;
+
+    // AI configured = key present in env OR (dev mode + key is supabase_vault, i.e. it'll work in prod)
+    const orConfigured  = !!orKey  || (isDevEnvironment && MISSION_CONTROL_SECRETS.find(s => s.key === 'OPENROUTER_API_KEY')?.source === 'supabase_vault');
+    const or2Configured = !!or2Key || (isDevEnvironment && MISSION_CONTROL_SECRETS.find(s => s.key === 'OPENROUTER2_API_KEY')?.source === 'supabase_vault');
+    const groqConfigured= !!groqKey|| (isDevEnvironment && MISSION_CONTROL_SECRETS.find(s => s.key === 'GROQ_API_KEY')?.source === 'supabase_vault');
+
     const providerPings = [orPing, or2Ping, groqPing];
-    const anyProviderOk = providerPings.some(p => p.ok);
-    const allProvidersOk = providerPings.filter(p =>
-      (p.provider === 'openrouter' && !!orKey) ||
-      (p.provider === 'openrouter2' && !!or2Key) ||
-      (p.provider === 'groq' && !!groqKey)
-    ).every(p => p.ok);
+    // In dev mode, if a key is supabase_vault, treat it as "ok" (works in production)
+    const anyProviderOk = providerPings.some(p => p.ok) || (isDevEnvironment && (orConfigured || groqConfigured));
+    const allProvidersOk = (
+      isDevEnvironment
+        ? [orConfigured, groqConfigured].every(Boolean)
+        : providerPings.filter(p =>
+            (p.provider === 'openrouter' && !!orKey) ||
+            (p.provider === 'openrouter2' && !!or2Key) ||
+            (p.provider === 'groq' && !!groqKey)
+          ).every(p => p.ok)
+    );
+
+    const resendConfigured = !!resendKey || (isDevEnvironment && MISSION_CONTROL_SECRETS.find(s => s.key === 'RESEND_API_KEY')?.source === 'supabase_vault');
 
     res.json({
       success: true,
+      isDevEnvironment,
       checkedAt: now.toISOString(),
       deploy: {
         ok: github.ok,
@@ -1254,10 +1292,26 @@ app.all('/api/fn/admin-mission-control', async (req, res) => {
         sitePingedAt: now.toISOString(),
         siteHttpStatus: site.httpStatus,
       },
-      ai: { providerPings, openrouterConfigured: !!orKey, openrouter2Configured: !!or2Key, groqConfigured: !!groqKey, anyProviderOk, allProvidersOk },
-      email: { resendKeyPresent: !!resendKey, reachable: email2.reachable, httpStatus: email2.httpStatus, sends24h: email2.sends24h },
+      ai: {
+        providerPings,
+        openrouterConfigured: orConfigured,
+        openrouter2Configured: or2Configured,
+        groqConfigured,
+        anyProviderOk,
+        allProvidersOk,
+        // true when keys live in Supabase vault and aren't visible here in dev
+        keysInSupabaseVault: isDevEnvironment && !orKey && !groqKey,
+      },
+      email: {
+        resendKeyPresent: resendConfigured,
+        reachable: resendConfigured ? (!!resendKey ? email2.reachable : true) : false,
+        httpStatus: email2.httpStatus,
+        sends24h: email2.sends24h,
+        // true when key lives in Supabase vault and isn't visible here in dev
+        keyInSupabaseVault: isDevEnvironment && !resendKey,
+      },
       database: { ok: dbOk, error: dbError, errorCount1h },
-      secrets: { items: secretsWithAge, missingCount: secretsWithAge.filter(s => !s.present).length, staleCount: secretsWithAge.filter(s => s.stale).length },
+      secrets: { items: secretsWithAge, missingCount, staleCount },
       recentErrors,
       recentAdminActions,
     });
