@@ -9,7 +9,7 @@ import {
   isValidEditorSheetId,
 } from '@/lib/editorSession';
 import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
-import { Sparkles, BarChart3, Scissors, ArrowLeft, Clock, AlertTriangle, Loader2, Undo2, Redo2, FileDown } from 'lucide-react';
+import { Sparkles, BarChart3, Scissors, ArrowLeft, Clock, AlertTriangle, Loader2, Undo2, Redo2, FileDown, Palette } from 'lucide-react';
 import { useAIEnhancingStore } from '@/store/aiEnhancingStore';
 import { useIsMobile, EDITOR_MOBILE_BREAKPOINT } from '@/hooks/use-mobile';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -1539,6 +1539,17 @@ export default function EditorPage() {
                       <div className="text-left min-w-0">
                         <p className="text-sm font-medium">Keyword Matcher</p>
                         <p className="text-xs text-muted-foreground">Match job description keywords</p>
+                      </div>
+                    </button>
+                    <button
+                      onPointerEnter={preloadLazy(() => import('@/components/editor/CustomizeSheet'))}
+                      onClick={() => { haptics.light(); setShowToolsSheet(false); handleCustomize(); }}
+                      className="flex items-center gap-3 w-full rounded-xl border border-border bg-card hover:bg-muted active:scale-[0.98] transition-transform touch-manipulation min-h-[56px] px-4"
+                    >
+                      <Palette className="w-5 h-5 text-pink-500 shrink-0" />
+                      <div className="text-left min-w-0">
+                        <p className="text-sm font-medium">Customize Design</p>
+                        <p className="text-xs text-muted-foreground">Change colors, fonts & layout</p>
                       </div>
                     </button>
                     <div className="h-px bg-border my-1" />
