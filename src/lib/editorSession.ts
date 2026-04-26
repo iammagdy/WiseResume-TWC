@@ -38,6 +38,17 @@ export type EditorSheetId =
   | 'keywordHighlighter'
   | 'shareSheet';
 
+export const VALID_EDITOR_SHEET_IDS = new Set<EditorSheetId>([
+  'tailor', 'recruiterSim', 'aiDetector', 'linkedIn', 'onePage',
+  'chat', 'careerPath', 'versionHistory', 'contentLibrary', 'customize',
+  'jobAnalysis', 'templates', 'profileImport', 'atsScan', 'snapshots',
+  'keywordHighlighter', 'shareSheet',
+]);
+
+export function isValidEditorSheetId(id: unknown): id is EditorSheetId {
+  return typeof id === 'string' && VALID_EDITOR_SHEET_IDS.has(id as EditorSheetId);
+}
+
 export interface EditorSession {
   activeTab: string;
   scrollByTab: Record<string, number>;

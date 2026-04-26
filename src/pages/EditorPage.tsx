@@ -6,6 +6,7 @@ import {
   readEditorSession,
   writeEditorSession,
   clearEditorSession,
+  isValidEditorSheetId,
 } from '@/lib/editorSession';
 import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
 import { Sparkles, BarChart3, Scissors, ArrowLeft, Clock, AlertTriangle, Loader2 } from 'lucide-react';
@@ -512,7 +513,7 @@ export default function EditorPage() {
     if (saved.activeTab === 'more' && saved.moreSubSection) {
       setMoreSubSection(saved.moreSubSection);
     }
-    if (saved.openSheet) {
+    if (saved.openSheet && isValidEditorSheetId(saved.openSheet)) {
       sheets.open(saved.openSheet);
     }
     // Restore scroll on the next paint, after the lazy section has mounted.
