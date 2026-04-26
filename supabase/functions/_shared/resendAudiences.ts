@@ -10,11 +10,24 @@
  *   GET    /audiences/{id}                  — audience metadata + contact count
  */
 
+/**
+ * Optional metadata for a Resend audience contact.
+ * Mapped to Resend's supported contact fields (first_name, last_name, unsubscribed).
+ * Reserved for future Resend API extensions (e.g. custom attributes) when supported.
+ */
+export interface AudienceContactMetadata {
+  firstName?: string;
+  lastName?: string;
+  unsubscribed?: boolean;
+}
+
 export interface AudienceContactOptions {
   email: string;
   firstName?: string;
   lastName?: string;
   unsubscribed?: boolean;
+  /** Additional typed metadata forwarded to Resend (firstName/lastName/unsubscribed). */
+  metadata?: AudienceContactMetadata;
 }
 
 export interface AudienceStats {
@@ -43,12 +56,18 @@ export async function addContact(
   if (!apiKey) return false;
 
   try {
+    // Merge top-level fields with metadata (top-level takes precedence).
+    const meta = opts.metadata ?? {};
+    const firstName = opts.firstName ?? meta.firstName;
+    const lastName  = opts.lastName  ?? meta.lastName;
+    const unsubscribed = opts.unsubscribed ?? meta.unsubscribed ?? false;
+
     const body: Record<string, unknown> = {
       email: opts.email,
-      unsubscribed: opts.unsubscribed ?? false,
+      unsubscribed,
     };
-    if (opts.firstName) body.first_name = opts.firstName;
-    if (opts.lastName) body.last_name = opts.lastName;
+    if (firstName) body.first_name = firstName;
+    if (lastName)  body.last_name  = lastName;
 
     const res = await fetch(`${RESEND_API_BASE}/audiences/${audienceId}/contacts`, {
       method: 'POST',

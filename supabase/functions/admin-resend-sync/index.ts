@@ -29,9 +29,8 @@ Deno.serve(async (req) => {
 
   if (req.method === 'OPTIONS') return new Response(null, { headers: cors })
 
-  try {
-    try { await req.json().catch(() => {}) } catch { /* body may be absent */ }
-  } catch { /* ignore */ }
+  // Body is optional for this endpoint; discard without error.
+  await req.json().catch(() => null);
 
   try {
     await requireAdminAuth(req)

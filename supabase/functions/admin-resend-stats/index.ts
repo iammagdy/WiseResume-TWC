@@ -6,6 +6,7 @@
  *
  *   { action: 'stats' }
  *     — Returns audience name + contact count for all configured audiences.
+ *       Also returns `checklist` for the automation setup guide.
  *
  *   { action: 'lookup', email: string }
  *     — Returns which audiences the given email appears in (by scanning the
@@ -22,6 +23,21 @@
  * Required env vars:
  *   RESEND_API_KEY, RESEND_AUDIENCE_* (see resendConfig.ts)
  *   DEV_KIT_PASSWORD
+ *
+ * ── CONFIRMED API LIMITATION — per-automation send metrics ──────────────────
+ * Resend's REST API (as of 2024-Q4) does NOT expose per-automation send
+ * statistics (open rates, click rates, delivery counts, etc.) for Automation
+ * workflows. The available `GET /audiences/{id}` endpoint returns only the
+ * audience name and total contact count.
+ *
+ * Resend does expose send stats for one-off Broadcasts via `GET /broadcasts`,
+ * but Automation workflows have no equivalent API surface.
+ *
+ * Resolution: email send metrics for Automation workflows must be viewed
+ * directly in the Resend dashboard at https://resend.com/automations.
+ * The DevKit panel links directly to that URL. This is an upstream API
+ * limitation, not an implementation gap.
+ * ────────────────────────────────────────────────────────────────────────────
  */
 
 import { requireAdminAuth } from '../_shared/adminAuth.ts'
