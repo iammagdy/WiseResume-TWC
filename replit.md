@@ -44,9 +44,9 @@ Users authenticate via Kinde, receiving an access token. The client exchanges th
 
 **Replit Role:**
 - Replit is the **coding/development environment only** — it is NOT used for production hosting or deployment.
-- **Production** runs on **SuperPace** with Supabase Edge Functions. Deployment requires a GitHub access token and a SuperPace access token.
+- **Production** runs on **Supabase** (Edge Functions + Postgres). Deployment requires a GitHub access token and a Supabase access token.
 - In Replit dev: Vite dev server (port 5000) for frontend, `tsx` server (port 5001) for Express API. Vite proxies `/api/*` to port 5001.
-- `src/lib/apiFnUrl.ts` handles environment-specific routing: `/api/fn/<name>` in dev (Vite → Express) and `${VITE_SUPABASE_URL}/functions/v1/<name>` in production (SuperPace static deploy → Supabase Edge Functions directly).
+- `src/lib/apiFnUrl.ts` handles environment-specific routing: `/api/fn/<name>` in dev (Vite → Express) and `${VITE_SUPABASE_URL}/functions/v1/<name>` in production (Supabase Edge Functions directly).
 
 **Core Features & Implementations:**
 - **AI Career Management**: AI-powered resume building, tailoring for job listings, public portfolios, interview practice, job tracking, and career goal management.
