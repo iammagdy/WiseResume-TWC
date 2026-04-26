@@ -770,10 +770,10 @@ function DashboardPageContent() {
           {/* What's Next Card — shown after greeting for better context flow */}
           <WhatsNextCard />
 
-          {/* Explore — single compact section replacing "Get inspired" + "Discover" */}
+          {/* Explore */}
           <div className="px-4 pt-2 pb-1">
-            <p className="text-xs font-medium text-muted-foreground mb-2 px-1">Explore</p>
-            <div className="grid grid-cols-2 gap-3">
+            <p className="text-xs font-medium text-muted-foreground mb-2.5 px-1">Explore</p>
+            <div className="grid grid-cols-2 gap-2.5">
               {[
                 {
                   icon: LayoutTemplate,
@@ -786,7 +786,7 @@ function DashboardPageContent() {
                 {
                   icon: BookOpen,
                   iconBg: 'bg-amber-500/10',
-                  iconColor: 'text-amber-600 dark:text-amber-400',
+                  iconColor: 'text-amber-500 dark:text-amber-400',
                   label: 'Examples',
                   desc: 'See real resumes',
                   path: '/examples',
@@ -794,15 +794,15 @@ function DashboardPageContent() {
                 {
                   icon: Users,
                   iconBg: 'bg-emerald-500/10',
-                  iconColor: 'text-emerald-600 dark:text-emerald-400',
+                  iconColor: 'text-emerald-500 dark:text-emerald-400',
                   label: 'Referral',
-                  desc: 'Invite friends & earn rewards',
+                  desc: 'Invite & earn rewards',
                   path: '/referral',
                 },
                 {
                   icon: Map,
                   iconBg: 'bg-violet-500/10',
-                  iconColor: 'text-violet-600 dark:text-violet-400',
+                  iconColor: 'text-violet-500 dark:text-violet-400',
                   label: 'Guides',
                   desc: 'Tips & best practices',
                   path: '/guides',
@@ -811,14 +811,14 @@ function DashboardPageContent() {
                 <button
                   key={item.path}
                   onClick={() => { haptics.light(); navigate(item.path); }}
-                  className="flex items-center gap-2.5 px-3 py-3 rounded-xl bg-card border border-border hover:border-primary/20 active:scale-95 transition-all touch-manipulation text-left"
+                  className="flex flex-col gap-3 p-4 rounded-2xl bg-card border border-border hover:border-primary/20 active:scale-[0.97] transition-all touch-manipulation text-left"
                 >
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${item.iconBg}`}>
-                    <item.icon className={`w-4 h-4 ${item.iconColor}`} />
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${item.iconBg}`}>
+                    <item.icon className={`w-[18px] h-[18px] ${item.iconColor}`} />
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium leading-tight">{item.label}</p>
-                    <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">{item.desc}</p>
+                  <div>
+                    <p className="text-sm font-semibold leading-tight">{item.label}</p>
+                    <p className="text-[11px] text-muted-foreground leading-snug mt-0.5">{item.desc}</p>
                   </div>
                 </button>
               ))}

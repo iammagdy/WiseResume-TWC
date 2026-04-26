@@ -2,7 +2,6 @@ import { memo } from 'react';
 import { Upload, FileText, Download } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { haptics } from '@/lib/haptics';
-import { cn } from '@/lib/utils';
 import { preloadLazy } from '@/lib/preloadLazy';
 
 interface QuickActionChipsProps {
@@ -10,60 +9,68 @@ interface QuickActionChipsProps {
   onImportProfile?: () => void;
 }
 
+const actions = [
+  {
+    icon: FileText,
+    iconBg: 'bg-primary/10',
+    iconColor: 'text-primary',
+    label: 'New Resume',
+    key: 'new',
+  },
+  {
+    icon: Upload,
+    iconBg: 'bg-secondary/10',
+    iconColor: 'text-secondary',
+    label: 'Upload PDF',
+    key: 'upload',
+  },
+  {
+    icon: Download,
+    iconBg: 'bg-[#0A66C2]/10',
+    iconColor: 'text-[#0A66C2]',
+    label: 'Import',
+    key: 'import',
+  },
+];
+
 export const QuickActionChips = memo(function QuickActionChips({ onCreateNew, onImportProfile }: QuickActionChipsProps) {
   const navigate = useNavigate();
 
+  const handleAction = (key: string) => {
+    haptics.light();
+    if (key === 'new') {
+      onCreateNew();
+    } else if (key === 'upload') {
+      navigate('/upload');
+    } else if (key === 'import') {
+      onImportProfile?.();
+    }
+  };
+
+  const visibleActions = onImportProfile ? actions : actions.filter(a => a.key !== 'import');
+
   return (
-    <div className="pb-3">
-      <div className="flex gap-2 overflow-x-auto snap-x snap-mandatory scrollbar-hide px-4 -mx-0">
-        <button
-          onPointerEnter={preloadLazy(() => import('@/components/dashboard/CreateResumeDialog'))}
-          onClick={() => { haptics.light(); onCreateNew(); }}
-          className={cn(
-            'flex items-center gap-2 py-2.5 px-4 rounded-2xl shrink-0 snap-start',
-            'bg-card border border-border',
-            'touch-manipulation active:scale-95 transition-all',
-            'min-h-[48px] hover:shadow-soft-sm hover:border-primary/20',
-          )}
-        >
-          <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-            <FileText className="w-3.5 h-3.5 text-primary" />
-          </div>
-          <span className="text-sm font-medium text-foreground whitespace-nowrap">New Resume</span>
-        </button>
-
-        <button
-          onClick={() => { haptics.light(); navigate('/upload'); }}
-          className={cn(
-            'flex items-center gap-2 py-2.5 px-4 rounded-2xl shrink-0 snap-start',
-            'bg-card border border-border',
-            'touch-manipulation active:scale-95 transition-all',
-            'min-h-[48px] hover:shadow-soft-sm hover:border-primary/20',
-          )}
-        >
-          <div className="w-7 h-7 rounded-lg bg-secondary/10 flex items-center justify-center shrink-0">
-            <Upload className="w-3.5 h-3.5 text-secondary" />
-          </div>
-          <span className="text-sm font-medium text-foreground whitespace-nowrap">Upload PDF</span>
-        </button>
-
-        {onImportProfile && (
+    <div className="px-4 pb-3">
+      <div className={`grid gap-2.5 ${visibleActions.length === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
+        {visibleActions.map((action) => (
           <button
-            onPointerEnter={preloadLazy(() => import('@/components/settings/LinkedInImportSheet'))}
-            onClick={() => { haptics.light(); onImportProfile(); }}
-            className={cn(
-              'flex items-center gap-2 py-2.5 px-4 rounded-2xl shrink-0 snap-start',
-              'bg-card border border-border',
-              'touch-manipulation active:scale-95 transition-all',
-              'min-h-[48px] hover:shadow-soft-sm hover:border-primary/20',
-            )}
+            key={action.key}
+            onPointerEnter={
+              action.key === 'new'
+                ? preloadLazy(() => import('@/components/dashboard/CreateResumeDialog'))
+                : action.key === 'import'
+                ? preloadLazy(() => import('@/components/settings/LinkedInImportSheet'))
+                : undefined
+            }
+            onClick={() => handleAction(action.key)}
+            className="flex flex-col items-center gap-2 py-4 px-2 rounded-2xl bg-card border border-border hover:border-primary/20 active:scale-95 transition-all touch-manipulation"
           >
-            <div className="w-7 h-7 rounded-lg bg-[#0A66C2]/10 flex items-center justify-center shrink-0">
-              <Download className="w-3.5 h-3.5 text-[#0A66C2]" />
+            <div className={`w-10 h-10 rounded-xl ${action.iconBg} flex items-center justify-center shrink-0`}>
+              <action.icon className={`w-5 h-5 ${action.iconColor}`} />
             </div>
-            <span className="text-sm font-medium text-foreground whitespace-nowrap">Import</span>
+            <span className="text-[12px] font-medium text-foreground text-center leading-tight">{action.label}</span>
           </button>
-        )}
+        ))}
       </div>
     </div>
   );
