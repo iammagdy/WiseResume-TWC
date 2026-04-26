@@ -78,12 +78,16 @@ export function ImportUploadSheet({
     (e: React.DragEvent) => {
       e.preventDefault();
       setIsDragging(false);
+      // Mirror the picker/button guard: ignore drops while a file is
+      // still being parsed so a stray drop can't kick off a second
+      // upload mid-flight.
+      if (isProcessing) return;
       const file = e.dataTransfer.files[0];
       if (file) {
         onFileSelect(file, detectFileType(file));
       }
     },
-    [onFileSelect]
+    [onFileSelect, isProcessing]
   );
 
   const handleDragOver = useCallback((e: React.DragEvent) => {

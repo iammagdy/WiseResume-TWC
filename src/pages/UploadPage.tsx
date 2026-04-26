@@ -656,14 +656,29 @@ export default function UploadPage() {
 
   const handleFile = useCallback(async (file: File, fileType?: FileType) => {
     const detectedType = fileType || detectFileType(file);
-    
-    // Size check
+
+    // Size check — surface before closing the import sheet so the user
+    // can immediately retry with another file from the same place.
     if (file.size > 10 * 1024 * 1024) {
       toast.error('File size must be under 10MB');
       return;
     }
 
-    // Close the import sheet when processing starts
+    // Reject unsupported types before closing the sheet for the same
+    // reason — keeps the user in-context to pick a valid file.
+    if (
+      detectedType !== 'pdf' &&
+      detectedType !== 'json' &&
+      detectedType !== 'html' &&
+      detectedType !== 'word' &&
+      detectedType !== 'image'
+    ) {
+      toast.error('Unsupported file type. Please use PDF, Word, Image, JSON, or HTML files.');
+      return;
+    }
+
+    // Validations passed — close the sheet so the upload progress UI
+    // becomes visible behind it.
     setShowImportSheet(false);
 
     // Route to appropriate handler
@@ -687,12 +702,8 @@ export default function UploadPage() {
       return;
     }
 
-    if (detectedType !== 'pdf') {
-      toast.error('Unsupported file type. Please use PDF, Word, Image, JSON, or HTML files.');
-      return;
-    }
-
-    // Existing PDF handling
+    // Existing PDF handling — unsupported types are already rejected
+    // by the early-return guard above, so detectedType is 'pdf' here.
     setFileName(file.name);
     setIsProcessing(true);
     setShowErrorRecovery(false);
