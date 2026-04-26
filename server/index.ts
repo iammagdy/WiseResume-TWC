@@ -885,6 +885,272 @@ app.get('/api/data/resumes/:id', requireAuthHeader, async (req: AuthedRequest, r
   }
 });
 
+// ── DevKit session-token verifier (Node.js port of _shared/adminAuth.ts) ──────
+// Used by the admin-mission-control handler below so the DevKit panel works in
+// this dev environment without needing the Supabase edge function deployed.
+
+async function verifyDevKitSessionToken(
+  token: string,
+  secretKey: string,
+): Promise<{ email: string; sessionId: string } | null> {
+  try {
+    const dotIdx = token.lastIndexOf('.');
+    if (dotIdx === -1) return null;
+    const payloadB64 = token.slice(0, dotIdx);
+    const sigHex = token.slice(dotIdx + 1);
+    if (!sigHex || sigHex.length % 2 !== 0 || !/^[0-9a-f]+$/i.test(sigHex)) return null;
+    let payload: string;
+    try { payload = Buffer.from(payloadB64, 'base64').toString('utf8'); } catch { return null; }
+    const lastColon = payload.lastIndexOf(':');
+    if (lastColon === -1) return null;
+    const expiresAt = parseInt(payload.slice(lastColon + 1), 10);
+    if (!Number.isFinite(expiresAt) || Date.now() > expiresAt) return null;
+    const rest = payload.slice(0, lastColon);
+    const sessionColon = rest.lastIndexOf(':');
+    if (sessionColon === -1) return null;
+    const email = rest.slice(0, sessionColon);
+    const sessionId = rest.slice(sessionColon + 1);
+    if (!email || !sessionId) return null;
+    const cryptoKey = await crypto.subtle.importKey(
+      'raw', Buffer.from(secretKey, 'utf8'),
+      { name: 'HMAC', hash: 'SHA-256' }, false, ['verify'],
+    );
+    const sigBytes = new Uint8Array(
+      (sigHex.match(/.{2}/g) ?? []).map((h: string) => parseInt(h, 16)),
+    );
+    const valid = await crypto.subtle.verify(
+      'HMAC', cryptoKey, sigBytes, Buffer.from(payload, 'utf8'),
+    );
+    if (!valid) return null;
+    return { email, sessionId };
+  } catch { return null; }
+}
+
+async function requireDevKitAuth(req: Request, res: Response): Promise<string | null> {
+  const password = (process.env.DEV_KIT_PASSWORD || '').trim();
+  if (!password) {
+    res.status(503).json({ success: false, error: 'Admin functions are not configured' });
+    return null;
+  }
+  const m = (req.headers.authorization || '').match(/^Bearer\s+(.+)$/i);
+  if (!m) { res.status(401).json({ success: false, error: 'Unauthorized' }); return null; }
+  const verified = await verifyDevKitSessionToken(m[1].trim(), password);
+  if (!verified) { res.status(401).json({ success: false, error: 'Unauthorized' }); return null; }
+  const email = verified.email.toLowerCase();
+  const allowed = (process.env.ADMIN_EMAILS || '')
+    .split(',').map((s: string) => s.trim().toLowerCase()).filter(Boolean);
+  if (allowed.length > 0 && !allowed.includes(email)) {
+    res.status(403).json({ success: false, error: 'Forbidden: email not in admin allowlist' });
+    return null;
+  }
+  try {
+    const rows = await supabaseGet<{
+      id: string; expires_at: string; revoked_at: string | null;
+    }>('admin_sessions', `id=eq.${encodeURIComponent(verified.sessionId)}&select=id,expires_at,revoked_at&limit=1`);
+    const session = rows[0];
+    if (!session) { res.status(401).json({ success: false, error: 'Unauthorized' }); return null; }
+    if (session.revoked_at) { res.status(401).json({ success: false, error: 'Session revoked' }); return null; }
+    if (new Date(session.expires_at).getTime() < Date.now()) {
+      res.status(401).json({ success: false, error: 'Session expired' });
+      return null;
+    }
+    fetch(`${SUPABASE_URL}/rest/v1/admin_sessions?id=eq.${encodeURIComponent(verified.sessionId)}`, {
+      method: 'PATCH',
+      headers: {
+        apikey: SUPABASE_SERVICE_ROLE_KEY,
+        Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+        'Content-Type': 'application/json',
+        Prefer: 'return=minimal',
+      },
+      body: JSON.stringify({ last_used_at: new Date().toISOString() }),
+    }).catch(() => {});
+    return email;
+  } catch { res.status(401).json({ success: false, error: 'Unauthorized' }); return null; }
+}
+
+// ── Admin Mission Control — dev-environment handler ───────────────────────────
+// Mirrors supabase/functions/admin-mission-control/index.ts in Node.js so that
+// the DevKit "Mission Control" panel works without deploying the Supabase
+// edge function (the generic proxy below would return 404 if the function
+// is not yet deployed to the hosted Supabase project).
+
+const MISSION_CONTROL_SECRETS: { key: string; label: string }[] = [
+  { key: 'SUPABASE_URL',              label: 'Supabase URL' },
+  { key: 'SUPABASE_ANON_KEY',         label: 'Supabase Anon Key' },
+  { key: 'SUPABASE_SERVICE_ROLE_KEY', label: 'Supabase Service Role Key' },
+  { key: 'DEV_KIT_PASSWORD',          label: 'DevKit Password' },
+  { key: 'KINDE_DOMAIN',              label: 'Kinde Domain' },
+  { key: 'OPENROUTER_API_KEY',        label: 'OpenRouter API Key' },
+  { key: 'OPENROUTER2_API_KEY',       label: 'OpenRouter 2 API Key' },
+  { key: 'GROQ_API_KEY',              label: 'Groq API Key' },
+  { key: 'GITHUB_TOKEN',              label: 'GitHub Token' },
+  { key: 'GITHUB_OWNER',              label: 'GitHub Owner' },
+  { key: 'GITHUB_REPO',               label: 'GitHub Repo' },
+  { key: 'RESEND_API_KEY',            label: 'Resend API Key' },
+  { key: 'GEMINI_API_KEY',            label: 'Gemini API Key (optional)' },
+  { key: 'ELEVENLABS_API_KEY',        label: 'ElevenLabs API Key (optional)' },
+  { key: 'KINDE_WEBHOOK_SECRET',      label: 'Kinde Webhook Secret' },
+  { key: 'KINDE_M2M_CLIENT_ID',       label: 'Kinde M2M Client ID' },
+  { key: 'KINDE_M2M_CLIENT_SECRET',   label: 'Kinde M2M Client Secret' },
+  { key: 'ADMIN_EMAILS',              label: 'Admin Emails Allowlist' },
+];
+
+async function mcCheckGitHub(owner: string, repo: string, token: string) {
+  try {
+    const resp = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/commits?per_page=1`,
+      { headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json', 'User-Agent': 'WiseResume-DevKit/1.0' }, signal: AbortSignal.timeout(5000) },
+    );
+    if (!resp.ok) return { ok: false, lastCommitAt: null, sha: null, branch: 'main' };
+    const commits = await resp.json() as Array<{ sha: string; commit: { author: { date: string } } }>;
+    const first = commits[0];
+    return { ok: true, lastCommitAt: first?.commit?.author?.date ?? null, sha: first?.sha?.slice(0, 7) ?? null, branch: 'main' };
+  } catch { return { ok: false, lastCommitAt: null, sha: null, branch: 'main' }; }
+}
+
+async function mcCheckSite(url: string) {
+  try {
+    const resp = await fetch(url, { method: 'HEAD', signal: AbortSignal.timeout(5000) });
+    return { up: resp.ok || resp.status < 500, httpStatus: resp.status };
+  } catch { return { up: false, httpStatus: 0 }; }
+}
+
+async function mcCheckAI(name: string, modelsUrl: string, apiKey: string) {
+  if (!apiKey) return { provider: name, ok: false, latencyMs: null, httpStatus: 0 };
+  const start = Date.now();
+  try {
+    const resp = await fetch(modelsUrl, { headers: { Authorization: `Bearer ${apiKey}` }, signal: AbortSignal.timeout(6000) });
+    return { provider: name, ok: resp.ok, latencyMs: Date.now() - start, httpStatus: resp.status };
+  } catch { return { provider: name, ok: false, latencyMs: null, httpStatus: 0 }; }
+}
+
+async function mcCheckResend(apiKey: string) {
+  if (!apiKey) return { reachable: false, httpStatus: 0, sends24h: null as number | null };
+  try {
+    const resp = await fetch('https://api.resend.com/emails?limit=100', { headers: { Authorization: `Bearer ${apiKey}` }, signal: AbortSignal.timeout(5000) });
+    if (!resp.ok) return { reachable: false, httpStatus: resp.status, sends24h: null };
+    const body = await resp.json() as { data?: Array<{ created_at: string }> };
+    const cutoff = Date.now() - 86400_000;
+    const sends24h = (body.data ?? []).filter((e) => new Date(e.created_at).getTime() > cutoff).length;
+    return { reachable: true, httpStatus: resp.status, sends24h };
+  } catch { return { reachable: false, httpStatus: 0, sends24h: null }; }
+}
+
+app.all('/api/fn/admin-mission-control', async (req, res) => {
+  const email = await requireDevKitAuth(req, res);
+  if (!email) return;
+
+  try {
+    const githubToken  = process.env.GITHUB_TOKEN || '';
+    const githubOwner  = process.env.GITHUB_OWNER || '';
+    const githubRepo   = process.env.GITHUB_REPO  || '';
+    const resendKey    = process.env.RESEND_API_KEY || '';
+    const orKey        = process.env.OPENROUTER_API_KEY  || '';
+    const or2Key       = process.env.OPENROUTER2_API_KEY || '';
+    const groqKey      = process.env.GROQ_API_KEY  || '';
+    const productionUrl = process.env.PRODUCTION_URL || 'https://resume.thewise.cloud';
+    const now = new Date();
+    const oneHourAgo = new Date(now.getTime() - 3600_000).toISOString();
+
+    const [
+      githubRes, siteRes,
+      orRes, or2Res, groqRes, emailRes,
+      dbRes, dbErrCountRes, recentErrRes, auditRes, secretsMetaRes,
+    ] = await Promise.allSettled([
+      (githubToken && githubOwner && githubRepo)
+        ? mcCheckGitHub(githubOwner, githubRepo, githubToken)
+        : Promise.resolve({ ok: false, lastCommitAt: null, sha: null, branch: 'main' }),
+      mcCheckSite(productionUrl),
+      mcCheckAI('openrouter',  'https://openrouter.ai/api/v1/models?limit=1', orKey),
+      mcCheckAI('openrouter2', 'https://openrouter.ai/api/v1/models?limit=1', or2Key),
+      mcCheckAI('groq',        'https://api.groq.com/openai/v1/models',       groqKey),
+      mcCheckResend(resendKey),
+      supabaseGet('profiles', 'select=id&limit=1'),
+      supabaseGet('error_log', `select=id&created_at=gte.${encodeURIComponent(oneHourAgo)}&limit=1000`),
+      supabaseGet<{ id: string; message: string; context?: string | null; created_at: string; level?: string }>(
+        'error_log',
+        `select=id,message,context,created_at,level&level=in.(error,fatal)&order=created_at.desc&limit=10`,
+      ),
+      supabaseGet<{ id: string; action: string; category?: string; metadata?: Record<string, unknown>; created_at: string; user_id?: string }>(
+        'audit_logs',
+        `select=id,action,category,metadata,created_at,user_id&action=in.(suspend,unsuspend,delete_user,merge_identity,credits_override,plan_change,trial_grant,trial_revoke)&order=created_at.desc&limit=10`,
+      ),
+      supabaseGet<{ value: string }>(
+        'app_settings',
+        `key=eq.secret_rotation_metadata&select=value&limit=1`,
+      ),
+    ]);
+
+    const github  = githubRes.status  === 'fulfilled' ? githubRes.value  : { ok: false, lastCommitAt: null, sha: null, branch: 'main' };
+    const site    = siteRes.status    === 'fulfilled' ? siteRes.value    : { up: false, httpStatus: 0 };
+    const orPing  = orRes.status      === 'fulfilled' ? orRes.value      : { provider: 'openrouter',  ok: false, latencyMs: null, httpStatus: 0 };
+    const or2Ping = or2Res.status     === 'fulfilled' ? or2Res.value     : { provider: 'openrouter2', ok: false, latencyMs: null, httpStatus: 0 };
+    const groqPing= groqRes.status    === 'fulfilled' ? groqRes.value    : { provider: 'groq',         ok: false, latencyMs: null, httpStatus: 0 };
+    const email2  = emailRes.status   === 'fulfilled' ? emailRes.value   : { reachable: false, httpStatus: 0, sends24h: null };
+    const dbOk    = dbRes.status      === 'fulfilled';
+    const dbError = dbRes.status      === 'fulfilled' ? null : 'Check failed';
+    const errorCount1h = dbErrCountRes.status === 'fulfilled' ? (dbErrCountRes.value as unknown[]).length : null;
+    const recentErrors = recentErrRes.status === 'fulfilled' ? recentErrRes.value : [];
+    const recentAdminActions = auditRes.status === 'fulfilled' ? auditRes.value : [];
+
+    let secretsMeta: Record<string, { first_seen_at: string; last_rotated_at: string }> = {};
+    if (secretsMetaRes.status === 'fulfilled' && secretsMetaRes.value[0]?.value) {
+      try { secretsMeta = JSON.parse(secretsMetaRes.value[0].value); } catch { /* ignore */ }
+    }
+    const STALE_DAYS = 90;
+    const envChecks = MISSION_CONTROL_SECRETS.map(({ key, label }) => ({ key, label, present: !!process.env[key] }));
+    let metaChanged = false;
+    for (const check of envChecks) {
+      if (check.present && !secretsMeta[check.key]) {
+        secretsMeta[check.key] = { first_seen_at: now.toISOString(), last_rotated_at: now.toISOString() };
+        metaChanged = true;
+      }
+    }
+    if (metaChanged) {
+      supabaseUpsert('app_settings', { key: 'secret_rotation_metadata', value: JSON.stringify(secretsMeta) }, 'key').catch(() => {});
+    }
+    const secretsWithAge = envChecks.map((check) => {
+      const meta = secretsMeta[check.key];
+      const lastRotatedAt = meta?.last_rotated_at ?? meta?.first_seen_at ?? null;
+      const daysSinceRotation = lastRotatedAt ? Math.floor((now.getTime() - new Date(lastRotatedAt).getTime()) / 86400000) : null;
+      return { ...check, lastRotatedAt, stale: daysSinceRotation !== null && daysSinceRotation >= STALE_DAYS, daysSinceRotation };
+    });
+
+    const providerPings = [orPing, or2Ping, groqPing];
+    const anyProviderOk = providerPings.some(p => p.ok);
+    const allProvidersOk = providerPings.filter(p =>
+      (p.provider === 'openrouter' && !!orKey) ||
+      (p.provider === 'openrouter2' && !!or2Key) ||
+      (p.provider === 'groq' && !!groqKey)
+    ).every(p => p.ok);
+
+    res.json({
+      success: true,
+      checkedAt: now.toISOString(),
+      deploy: {
+        ok: github.ok,
+        lastCommitAt: github.lastCommitAt,
+        sha: github.sha,
+        branch: github.branch,
+        repoConfigured: !!(githubToken && githubOwner && githubRepo),
+        repoUrl: (githubOwner && githubRepo) ? `https://github.com/${githubOwner}/${githubRepo}` : null,
+        productionUrl,
+        siteUp: site.up,
+        sitePingedAt: now.toISOString(),
+        siteHttpStatus: site.httpStatus,
+      },
+      ai: { providerPings, openrouterConfigured: !!orKey, openrouter2Configured: !!or2Key, groqConfigured: !!groqKey, anyProviderOk, allProvidersOk },
+      email: { resendKeyPresent: !!resendKey, reachable: email2.reachable, httpStatus: email2.httpStatus, sends24h: email2.sends24h },
+      database: { ok: dbOk, error: dbError, errorCount1h },
+      secrets: { items: secretsWithAge, missingCount: secretsWithAge.filter(s => !s.present).length, staleCount: secretsWithAge.filter(s => s.stale).length },
+      recentErrors,
+      recentAdminActions,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: String(err) });
+  }
+});
+
 /**
  * Edge function proxy — forwards all /api/fn/* calls to Supabase Edge Functions.
  * The client's Authorization (Kinde JWT) is forwarded as-is.
