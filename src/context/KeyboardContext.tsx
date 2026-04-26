@@ -7,7 +7,13 @@ interface KeyboardState {
 
 type KeyboardDispatch = (isOpen: boolean, height: number) => void;
 
-const KeyboardStateContext = createContext<KeyboardState>({ isOpen: false, height: 0 });
+interface KeyboardStateContextValue extends KeyboardState {
+  _hasProvider: boolean;
+}
+
+const DEFAULT_STATE: KeyboardStateContextValue = { isOpen: false, height: 0, _hasProvider: false };
+
+const KeyboardStateContext = createContext<KeyboardStateContextValue>(DEFAULT_STATE);
 const KeyboardDispatchContext = createContext<KeyboardDispatch>(() => {});
 
 export function KeyboardProvider({ children }: { children: ReactNode }) {
@@ -18,8 +24,10 @@ export function KeyboardProvider({ children }: { children: ReactNode }) {
     document.documentElement.classList.toggle('keyboard-open', isOpen);
   }, []);
 
+  const stateValue: KeyboardStateContextValue = { ...state, _hasProvider: true };
+
   return (
-    <KeyboardStateContext.Provider value={state}>
+    <KeyboardStateContext.Provider value={stateValue}>
       <KeyboardDispatchContext.Provider value={dispatch}>
         {children}
       </KeyboardDispatchContext.Provider>
@@ -27,10 +35,27 @@ export function KeyboardProvider({ children }: { children: ReactNode }) {
   );
 }
 
+/**
+ * Read current keyboard state: `{ isOpen, height }`.
+ * Must be used inside a KeyboardProvider.
+ */
 export function useKeyboard(): KeyboardState {
-  return useContext(KeyboardStateContext);
+  const { _hasProvider, isOpen, height } = useContext(KeyboardStateContext);
+  if (import.meta.env.DEV && !_hasProvider) {
+    console.warn('[KeyboardContext] useKeyboard() called outside <KeyboardProvider>. State will always be { isOpen: false, height: 0 }.');
+  }
+  return { isOpen, height };
 }
 
+/**
+ * Write keyboard state from within a KeyboardProvider subtree.
+ * Used internally by useKeyboardAwareScroll.
+ */
 export function useKeyboardDispatch(): KeyboardDispatch {
-  return useContext(KeyboardDispatchContext);
+  const dispatch = useContext(KeyboardDispatchContext);
+  const { _hasProvider } = useContext(KeyboardStateContext);
+  if (import.meta.env.DEV && !_hasProvider) {
+    console.warn('[KeyboardContext] useKeyboardDispatch() called outside <KeyboardProvider>. Keyboard state will not be tracked.');
+  }
+  return dispatch;
 }
