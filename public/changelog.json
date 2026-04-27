@@ -1,8 +1,24 @@
 [
   {
-    "version": "v3.6.9",
+    "version": "v3.7.0",
     "date": "Apr 27, 2026",
     "latest": true,
+    "summary": "Fixed PDF export failing with \"Export failed. Please try again.\"",
+    "items": [
+      {
+        "title": "PDF export now works in the editor",
+        "description": "The PDF rendering server was not finding its browser binary, causing every export to fail. The server now correctly locates the available browser and generates PDFs as expected."
+      },
+      {
+        "title": "Better error message when export is unavailable",
+        "description": "In environments where the PDF rendering server cannot be reached (e.g. certain network configurations), the app now opens your browser's print dialog automatically and guides you to save as PDF, instead of showing a generic \"Export failed\" error."
+      }
+    ]
+  },
+  {
+    "version": "v3.6.9",
+    "date": "Apr 27, 2026",
+    "latest": false,
     "summary": "Fixed the \"View Resume\" button after tailoring — it now opens the tailored resume correctly instead of showing a 404 page.",
     "items": [
       {

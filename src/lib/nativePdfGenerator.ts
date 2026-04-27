@@ -7,6 +7,19 @@ import { PDFDocument } from 'pdf-lib';
 import { getToken } from '@/lib/supabaseBridge';
 import type { OnProgressCallback } from '@/hooks/useExportProgress';
 
+/**
+ * Thrown when the PDF rendering server returns a non-PDF response (e.g. the
+ * static hosting SPA fallback). Callers should catch this and offer a
+ * browser-print fallback instead of showing a generic "Export failed" error.
+ */
+export class PDFServerUnavailableError extends Error {
+  readonly code = 'PDF_SERVER_UNAVAILABLE';
+  constructor() {
+    super('PDF_SERVER_UNAVAILABLE');
+    this.name = 'PDFServerUnavailableError';
+  }
+}
+
 export interface NativePdfOptions {
   pageFormat?: 'letter' | 'a4';
   onePage?: boolean;
@@ -275,7 +288,9 @@ ${clone.outerHTML}
     }),
   });
 
-  if (!response.ok) {
+  const contentType = response.headers.get('content-type') ?? '';
+  if (!response.ok || contentType.includes('text/html')) {
+    if (contentType.includes('text/html')) throw new PDFServerUnavailableError();
     let errMsg = `Server error ${response.status}`;
     try {
       const errBody = await response.json() as { error?: string };
@@ -420,7 +435,9 @@ export async function generateCoverLetterNativePDF(
     }),
   });
 
-  if (!response.ok) {
+  const coverLetterContentType = response.headers.get('content-type') ?? '';
+  if (!response.ok || coverLetterContentType.includes('text/html')) {
+    if (coverLetterContentType.includes('text/html')) throw new PDFServerUnavailableError();
     let errMsg = `Server error ${response.status}`;
     try {
       const errBody = await response.json() as { error?: string };

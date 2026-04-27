@@ -5422,7 +5422,7 @@ async function getSharedBrowser(): Promise<import('puppeteer').Browser> {
   // of the one Puppeteer downloads to ~/.cache/puppeteer. Useful on hosts
   // where the cache directory is ephemeral or where chromium is provided by
   // the OS package manager (NixOS, Docker images, etc.).
-  const explicitChromePath = process.env.PUPPETEER_EXECUTABLE_PATH || undefined;
+  const explicitChromePath = process.env.PUPPETEER_EXECUTABLE_PATH || process.env.REPLIT_PLAYWRIGHT_CHROMIUM_EXECUTABLE || undefined;
   _browserLaunching = puppeteer
     .launch({
       headless: true,

@@ -370,6 +370,16 @@ export default function EditorPage() {
         onProgress('downloading', 100);
         setShowExport(false);
       } catch (error) {
+        // PDF server unavailable (production static hosting returns HTML, not PDF).
+        // Offer the browser's built-in print-to-PDF as an immediate fallback.
+        if ((error as { code?: string })?.code === 'PDF_SERVER_UNAVAILABLE') {
+          toast.info(
+            'PDF download is not available in this environment. Opening print dialog — choose "Save as PDF" to download your resume.',
+            { duration: 8000 },
+          );
+          window.print();
+          return;
+        }
         attempt++;
         const errMsg = error instanceof Error ? error.message : '';
         const is401 = errMsg.includes('401') || errMsg.toLowerCase().includes('unauthorized') || errMsg.toLowerCase().includes('jwt expired');
