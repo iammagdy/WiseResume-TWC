@@ -1,8 +1,20 @@
 [
   {
-    "version": "v3.7.0",
+    "version": "v3.7.1",
     "date": "Apr 27, 2026",
     "latest": true,
+    "summary": "Fixed manual page-break PDF — content now lands exactly where the break was placed",
+    "items": [
+      {
+        "title": "Manual page breaks now land exactly where you placed them",
+        "description": "PDF pages generated with the manual breaker now respect the break position precisely. Previously the break would land 33% further into the resume than intended because of a coordinate-space mismatch between the zoom layer and CSS pixel values. Content no longer appears truncated or misaligned on the second page."
+      }
+    ]
+  },
+  {
+    "version": "v3.7.0",
+    "date": "Apr 27, 2026",
+    "latest": false,
     "summary": "Fixed PDF export failing with \"Export failed. Please try again.\"",
     "items": [
       {

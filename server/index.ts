@@ -5733,7 +5733,7 @@ app.post('/api/export/pdf-native', requireAuthHeader, async (req: AuthedRequest,
       for (let si = 0; si < breakpoints.length - 1; si++) {
         const yStart = breakpoints[si];
         const yEnd   = breakpoints[si + 1];
-        const segH   = yEnd - yStart; // CSS px = PDF pt at 612 pt design width
+        const segH   = yEnd - yStart; // in scrollHeight-space (zoom-scaled)
 
         // Guard against degenerate segments that would cause Puppeteer to throw.
         if (segH <= 0) {
@@ -5742,15 +5742,26 @@ app.post('/api/export/pdf-native', requireAuthHeader, async (req: AuthedRequest,
         }
 
         try {
-          const segViewportH = Math.max(1, Math.round(segH * pageZoom));
+          // Chrome's scrollHeight inside a page with `html { zoom: N }` returns
+          // values in the zoomed coordinate space (natural CSS px × N). The
+          // safeBreaks/breakpoints were computed from that scrollHeight, so they
+          // are also in zoom-scaled space. CSS style properties (height, margin)
+          // operate in natural (unzoomed) CSS px, so we must divide by pageZoom
+          // before using these values as DOM or PDF measurements.
+          const clipH   = Math.round(segH   / pageZoom); // natural CSS px
+          const clipOff = Math.round(yStart / pageZoom); // natural CSS px
+
+          // The viewport height must accommodate the clip's visual size
+          // (clipH natural px × pageZoom zoom = segH visual px).
+          const segViewportH = Math.max(1, segH);
           await page.setViewport({ width: viewportWidthPx, height: segViewportH });
 
           // Slice the document via LAYOUT properties — set the clip
-          // wrapper's height to segH and the inner shifter's negative
-          // top margin to -yStart. Chromium's print engine respects
-          // overflow:hidden + margin (which are layout, not paint), so
-          // body's effective height becomes exactly segH and only the
-          // requested [yStart, yStart+segH] slice is visible.
+          // wrapper's height to clipH (natural CSS px) and the inner
+          // shifter's negative top margin to -clipOff (natural CSS px).
+          // Chromium's print engine respects overflow:hidden + margin
+          // (which are layout, not paint), so body's effective height
+          // becomes exactly clipH and only the requested slice is visible.
           //
           // NOTE: `page.evaluate(fn)` serialises the function and runs
           // it in the browser context. Any nested function declarations
@@ -5764,25 +5775,21 @@ app.post('/api/export/pdf-native', requireAuthHeader, async (req: AuthedRequest,
               const clip  = document.getElementById('__seg_clip__');
               const shift = document.getElementById('__seg_shift__');
               if (clip && shift) {
-                clip.style.height    = '${segH}px';
+                clip.style.height    = '${clipH}px';
                 clip.style.overflow  = 'hidden';
-                shift.style.marginTop = '-${yStart}px';
+                shift.style.marginTop = '-${clipOff}px';
               }
             })()`
           );
 
-          // Puppeteer's `page.pdf()` does NOT accept `pt` as a unit
-          // (`convertPrintParameterToInches` only handles px/in/cm/mm). The
-          // values here are in PT (1 CSS px === 1 PDF pt at the 612pt design
-          // width), so convert to inches: 1 pt = 1/72 in. This keeps the
-          // page exactly the size of its content slice — including a short
-          // last page that holds only one section, which must NOT be padded
-          // up to A4/Letter height. `pageRanges: '1'` is a defensive cap so
-          // even if the body still overflows after clipping, we never emit
-          // more than one physical page per segment.
+          // PDF height: clipH natural CSS px maps directly to clipH PDF pt
+          // at the 612pt design width (1 natural CSS px = 1 PDF pt). This
+          // keeps the page exactly the size of its content slice.
+          // `pageRanges: '1'` caps to one physical page per segment even
+          // if the body still overflows after clipping.
           const segPdf = await page.pdf({
             width:           `${resumeWidthPx / 72}in`,
-            height:          `${segH / 72}in`,
+            height:          `${clipH / 72}in`,
             printBackground: true,
             margin: { top: '0', right: '0', bottom: '0', left: '0' },
             displayHeaderFooter: false,
