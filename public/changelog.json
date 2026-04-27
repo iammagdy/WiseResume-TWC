@@ -1,8 +1,24 @@
 [
   {
-    "version": "v3.8.1",
+    "version": "v3.8.2",
     "date": "Apr 27, 2026",
     "latest": true,
+    "summary": "Fixed iOS PDF uploads, profile save errors now visible, .mjs MIME type fix",
+    "items": [
+      {
+        "title": "Fixed iOS PDF upload failure",
+        "description": "Added the missing AddType directive for .mjs files in the Apache server config so the pdfjs-dist web worker is now served with the correct Content-Type on Hostinger. Without this, iOS Safari rejected the module worker script entirely, causing every PDF upload to fail with an empty-text error. Also included .mjs in the long-cache immutable header rule for consistent performance."
+      },
+      {
+        "title": "Profile save errors are now visible",
+        "description": "When saving profile information failed (e.g. if the app was still establishing its session on startup, or a network error occurred), the Save sheet would silently do nothing. A clear error toast is now shown so users know to retry."
+      }
+    ]
+  },
+  {
+    "version": "v3.8.1",
+    "date": "Apr 27, 2026",
+    "latest": false,
     "summary": "Fixed 'Profile unavailable' flash on every login",
     "items": [
       {
