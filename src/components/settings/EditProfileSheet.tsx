@@ -270,6 +270,7 @@ export function EditProfileSheet({
       onOpenChange(false);
     } catch (error) {
       haptics.error();
+      toast.error('Failed to save profile. Please check your connection and try again.');
     } finally {
       setIsSaving(false);
     }
