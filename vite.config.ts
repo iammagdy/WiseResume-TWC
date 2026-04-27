@@ -12,6 +12,16 @@ const CSP_BASE = [
   "font-src 'self' data:",
   "img-src 'self' data: blob: https:",
   "connect-src 'self' https://*.supabase.co https://*.supabase.in wss://*.supabase.co https://*.kinde.com https://api.openrouter.ai https://api.groq.com https://generativelanguage.googleapis.com https://api.elevenlabs.io",
+  // Web Workers must be allowed from the same origin AND blob: URLs.
+  // Tesseract.js v7 (and many other libs) wrap their worker script in
+  // a Blob and call `new Worker(URL.createObjectURL(blob))`. Without
+  // this directive iOS WebKit rejects worker spawn with
+  // "SecurityError: The operation is insecure" — which is what broke
+  // iPhone CV uploads (PDF / image OCR). We have also set
+  // `workerBlobURL: false` in src/lib/pdf/ocrExtractor.ts so the
+  // Tesseract worker loads as a same-origin script, but this directive
+  // protects any other future blob: worker we (or a dep) might add.
+  "worker-src 'self' blob:",
   "frame-src 'none'",
   "object-src 'none'",
   "base-uri 'self'",

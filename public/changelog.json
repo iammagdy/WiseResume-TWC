@@ -1,8 +1,20 @@
 [
   {
-    "version": "v3.6.5",
+    "version": "v3.6.6",
     "date": "Apr 27, 2026",
     "latest": true,
+    "summary": "Fixed CV uploads (PDF and images) failing on iPhone with the 'text-scanning engine' error. PDF, image, Word, and JSON uploads now all work on iOS Safari and Chrome.",
+    "items": [
+      {
+        "title": "iPhone CV upload now works for PDF and image files",
+        "description": "Uploading a PDF or photo of a CV on iPhone (Safari or Chrome) was failing with 'Couldn't start the text-scanning engine in this browser (The operation is insecure.)'. The text-scanning engine (used for scanned PDFs and image CVs) was being blocked by the site's security policy because of how it loaded its background worker. The engine now loads its worker directly as a same-origin script, and the security policy was widened to permit worker scripts. iPhone users can now upload any supported CV format the same way desktop users do."
+      }
+    ]
+  },
+  {
+    "version": "v3.6.5",
+    "date": "Apr 27, 2026",
+    "latest": false,
     "summary": "Dashboard Explore section redesigned with a unified compact grid, preview page action buttons no longer hidden behind the nav bar.",
     "items": [
       {

@@ -150,6 +150,17 @@ export async function extractTextWithOCR(
       workerPath: '/tesseract/worker.min.js',
       corePath: '/tesseract/core',
       langPath: '/tesseract/lang',
+      // Tesseract.js v7 defaults `workerBlobURL: true`, which fetches
+      // worker.min.js, wraps it in a Blob, and does
+      // `new Worker(URL.createObjectURL(blob))`. iOS WebKit (Safari and
+      // iOS Chrome) refuses to spawn a Worker from a blob: URL when the
+      // page CSP only has `script-src 'self'` (no worker-src blob:),
+      // throwing "SecurityError: The operation is insecure" — which is
+      // why PDF/image uploads fail on iPhone but Word/JSON (no worker)
+      // work fine. Disabling the blob URL makes Tesseract use
+      // `new Worker(workerPath)` directly, which is same-origin and
+      // CSP-safe.
+      workerBlobURL: false,
     });
   } catch (error) {
     console.error('[ocrExtractor] Tesseract worker init failed', {
@@ -391,6 +402,10 @@ export async function extractTextFromImage(
       workerPath: '/tesseract/worker.min.js',
       corePath: '/tesseract/core',
       langPath: '/tesseract/lang',
+      // See PDF path above: disable blob: URL worker to avoid iOS WebKit
+      // "SecurityError: The operation is insecure" under our production
+      // CSP (script-src 'self', no worker-src blob:).
+      workerBlobURL: false,
     });
   } catch (error) {
     console.error('[ocrExtractor] Tesseract worker init failed (image)', {
