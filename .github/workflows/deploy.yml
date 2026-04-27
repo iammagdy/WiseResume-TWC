@@ -270,6 +270,7 @@ jobs:
           exit 1
 
       - name: Tag and upload build artifact for rollback
+        continue-on-error: true
         # Upload the verified dist/ as a named artifact so rollback-frontend.yml
         # can redeploy it instantly without rebuilding from source.
         # Artifact name format: frontend-v<version>-<short-sha>
@@ -281,5 +282,5 @@ jobs:
         with:
           name: frontend-v${{ github.run_number }}-${{ github.sha }}
           path: dist/
-          retention-days: 90
+          retention-days: 14
           if-no-files-found: error
