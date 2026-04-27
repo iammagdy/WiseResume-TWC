@@ -1,4 +1,13 @@
 Options -MultiViews
+
+# ── MIME types ──────────────────────────────────────────────────────────────
+# ES module scripts (.mjs) must be served as application/javascript so
+# browsers (especially iOS Safari) accept them as valid module worker
+# scripts. Without this declaration Apache falls back to
+# application/octet-stream and WebKit refuses to spawn the worker,
+# causing the pdfjs-dist PDF parser to fail on every iOS device.
+AddType application/javascript .mjs
+
 RewriteEngine On
 
 # ── Block sourcemap requests (Task #26) ──
@@ -48,7 +57,9 @@ RewriteRule ^ index.html [QSA,L]
   </FilesMatch>
 
   # ── Long-cache hashed build assets (safe — filenames change on rebuild) ──
-  <FilesMatch "\.(js|css|woff2?|ttf|otf|png|jpg|jpeg|webp|avif|svg|gif|ico)$">
+  # Include .mjs so the pdfjs-dist module worker gets the same immutable
+  # caching as all other Vite-hashed assets.
+  <FilesMatch "\.(js|mjs|css|woff2?|ttf|otf|png|jpg|jpeg|webp|avif|svg|gif|ico)$">
     Header set Cache-Control "public, max-age=31536000, immutable"
   </FilesMatch>
 
