@@ -1,8 +1,32 @@
 [
   {
-    "version": "v3.7.1",
+    "version": "v3.8.0",
     "date": "Apr 27, 2026",
     "latest": true,
+    "summary": "DevKit fully operational — all panels restored, missing DB tables created, GitHub connected",
+    "items": [
+      {
+        "title": "All DevKit panels restored and operational",
+        "description": "14 edge functions that were missing from the Supabase deployment have been deployed, including Mission Control, Feature Flags, Observability, Integrations, AI Routing, AI Caps, Broadcast, Impersonate, Owner Ops, Resend Stats/Sync, and more."
+      },
+      {
+        "title": "Missing database tables created",
+        "description": "Seven new tables are now live in the database: feature_flags, edge_function_logs, kinde_events, portfolio_premium_usernames, broadcasts, ai_routing_config, and email_verification_tokens, along with supporting RPCs and indexes."
+      },
+      {
+        "title": "GitHub integration connected in Mission Control",
+        "description": "GitHub credentials (token, owner, repo) are now configured in Supabase secrets. Mission Control will now show live commit history and deployment status instead of the 'GitHub not configured' warning."
+      },
+      {
+        "title": "Email verification and password reset flows enabled",
+        "description": "The send-password-reset and verify-email edge functions are now deployed and the supporting email_verification_tokens table has been created."
+      }
+    ]
+  },
+  {
+    "version": "v3.7.1",
+    "date": "Apr 27, 2026",
+    "latest": false,
     "summary": "Fixed manual page-break PDF — content now lands exactly where the break was placed",
     "items": [
       {
