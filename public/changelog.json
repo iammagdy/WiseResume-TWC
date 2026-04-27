@@ -1,8 +1,24 @@
 [
   {
+    "version": "v3.6.5",
+    "date": "Apr 27, 2026",
+    "latest": true,
+    "summary": "Dashboard Explore section redesigned with a unified compact grid, preview page action buttons no longer hidden behind the nav bar.",
+    "items": [
+      {
+        "title": "Preview page Edit/Interview/Share buttons now always visible",
+        "description": "The action buttons at the bottom of the preview page were hidden behind the bottom navigation bar on mobile. The spacing now correctly accounts for the full nav bar height including safe-area insets."
+      },
+      {
+        "title": "Explore section redesigned as a unified compact grid",
+        "description": "Templates, Examples, Referral, Guides, New Resume, Upload PDF, and Import are now in a single consistent grid — 3 columns on mobile, 4 on desktop — with centered icons and labels, replacing the previous inconsistent two-section layout."
+      }
+    ]
+  },
+  {
     "version": "v3.6.4",
     "date": "Apr 26, 2026",
-    "latest": true,
+    "latest": false,
     "summary": "Mobile UX improvements: fixed bottom spacing, scrollable action buttons, and a closeable AI chat button.",
     "items": [
       {
