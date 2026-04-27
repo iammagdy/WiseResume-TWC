@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo, useDeferredValue, lazy, Suspense,
 import { preloadLazy } from '@/lib/preloadLazy';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { LazyMotion, domAnimation, m as motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, User, Settings, LogOut, FileText as FileTextIcon, Upload, Briefcase, Sparkles, Linkedin, CheckSquare, X, Trash2, WifiOff, ShieldCheck, ExternalLink, HelpCircle, AlertCircle, RefreshCw, LayoutTemplate, BookOpen, Users, Map, Sun, Moon } from 'lucide-react';
+import { Plus, Search, User, Settings, LogOut, FileText as FileTextIcon, Upload, Download, Briefcase, Sparkles, Linkedin, CheckSquare, X, Trash2, WifiOff, ShieldCheck, ExternalLink, HelpCircle, AlertCircle, RefreshCw, LayoutTemplate, BookOpen, Users, Map, Sun, Moon } from 'lucide-react';
 import { DashboardSkeleton } from '@/components/layout/PageSkeletons';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { SortOption, CategoryFilter, ScoreFilter } from '@/components/dashboard/ResumeFilters';
@@ -18,7 +18,6 @@ import { ResumeGroup, organizeResumeHierarchy } from '@/components/dashboard/Res
 import { EmptyState } from '@/components/dashboard/EmptyState';
 import { SkeletonCardList } from '@/components/ui/skeleton-card';
 import { DashboardStats } from '@/components/dashboard/DashboardStats';
-import { QuickActionChips } from '@/components/dashboard/QuickActionChips';
 // DailyTipCard removed - tip merged into DashboardStats
 import { FloatingCreateButton } from '@/components/dashboard/FloatingCreateButton';
 import { WhatsNextCard } from '@/components/dashboard/WhatsNextCard';
@@ -770,65 +769,74 @@ function DashboardPageContent() {
           {/* What's Next Card — shown after greeting for better context flow */}
           <WhatsNextCard />
 
-          {/* Explore */}
+          {/* Explore + Quick Actions — unified grid */}
           <div className="px-4 pt-2 pb-1">
             <p className="text-xs font-medium text-muted-foreground mb-2.5 px-1">Explore</p>
-            <div className="grid grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
               {[
                 {
                   icon: LayoutTemplate,
                   iconBg: 'bg-primary/10',
                   iconColor: 'text-primary',
                   label: 'Templates',
-                  desc: 'Start from a design',
-                  path: '/templates',
+                  action: () => navigate('/templates'),
                 },
                 {
                   icon: BookOpen,
                   iconBg: 'bg-amber-500/10',
                   iconColor: 'text-amber-500 dark:text-amber-400',
                   label: 'Examples',
-                  desc: 'See real resumes',
-                  path: '/examples',
+                  action: () => navigate('/examples'),
                 },
                 {
                   icon: Users,
                   iconBg: 'bg-emerald-500/10',
                   iconColor: 'text-emerald-500 dark:text-emerald-400',
                   label: 'Referral',
-                  desc: 'Invite & earn rewards',
-                  path: '/referral',
+                  action: () => navigate('/referral'),
                 },
                 {
                   icon: Map,
                   iconBg: 'bg-violet-500/10',
                   iconColor: 'text-violet-500 dark:text-violet-400',
                   label: 'Guides',
-                  desc: 'Tips & best practices',
-                  path: '/guides',
+                  action: () => navigate('/guides'),
+                },
+                {
+                  icon: FileTextIcon,
+                  iconBg: 'bg-primary/10',
+                  iconColor: 'text-primary',
+                  label: 'New Resume',
+                  action: handleCreateNew,
+                },
+                {
+                  icon: Upload,
+                  iconBg: 'bg-secondary/10',
+                  iconColor: 'text-secondary',
+                  label: 'Upload PDF',
+                  action: () => navigate('/upload'),
+                },
+                {
+                  icon: Download,
+                  iconBg: 'bg-[#0A66C2]/10',
+                  iconColor: 'text-[#0A66C2]',
+                  label: 'Import',
+                  action: () => setShowLinkedInImport(true),
                 },
               ].map((item) => (
                 <button
-                  key={item.path}
-                  onClick={() => { haptics.light(); navigate(item.path); }}
-                  className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-2.5 p-4 sm:px-4 sm:py-3 rounded-2xl bg-card border border-border hover:border-primary/20 active:scale-[0.97] transition-all touch-manipulation text-left"
+                  key={item.label}
+                  onClick={() => { haptics.light(); item.action(); }}
+                  className="flex flex-col items-center gap-2 py-3 px-2 rounded-2xl bg-card border border-border hover:border-primary/20 active:scale-[0.97] transition-all touch-manipulation"
                 >
                   <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${item.iconBg}`}>
                     <item.icon className={`w-[18px] h-[18px] ${item.iconColor}`} />
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold leading-tight">{item.label}</p>
-                    <p className="text-[11px] text-muted-foreground leading-snug mt-0.5">{item.desc}</p>
-                  </div>
+                  <span className="text-[12px] font-medium text-foreground text-center leading-tight">{item.label}</span>
                 </button>
               ))}
             </div>
           </div>
-
-          {/* Quick Action Chips */}
-          {resumes && resumes.length > 0 && (
-            <QuickActionChips onCreateNew={handleCreateNew} onImportProfile={() => setShowLinkedInImport(true)} />
-          )}
 
           {/* Quick Start Banner — shown after onboarding skip when user has no resumes */}
           {showQuickStartBanner && resumes && resumes.length === 0 && (
