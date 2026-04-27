@@ -61,7 +61,7 @@ const REALTIME_BACKOFF_MS = [500, 1500];
  * edge function, which became unavailable (404).
  */
 export function useMe() {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, supabaseReady } = useAuth();
   const queryClient = useQueryClient();
 
   // Track which supabaseUserId the active channels were created for, so we only
@@ -216,7 +216,7 @@ export function useMe() {
       const data = await apiFetch<MeData>('/api/data/me');
       return data;
     },
-    enabled: !!user && isAuthenticated,
+    enabled: !!user && isAuthenticated && supabaseReady,
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
     refetchOnWindowFocus: false,

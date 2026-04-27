@@ -1,8 +1,20 @@
 [
   {
-    "version": "v3.8.0",
+    "version": "v3.8.1",
     "date": "Apr 27, 2026",
     "latest": true,
+    "summary": "Fixed 'Profile unavailable' flash on every login",
+    "items": [
+      {
+        "title": "Fixed post-login 'Profile unavailable' error",
+        "description": "After Kinde authentication, the app was trying to fetch the user profile before the Supabase session bridge finished establishing — causing a 401 error and eventually the 'Profile unavailable' screen. The profile query now waits for the bridge to be ready before firing, so the error no longer appears on login."
+      }
+    ]
+  },
+  {
+    "version": "v3.8.0",
+    "date": "Apr 27, 2026",
+    "latest": false,
     "summary": "DevKit fully operational — all panels restored, missing DB tables created, GitHub connected",
     "items": [
       {
