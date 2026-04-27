@@ -1093,7 +1093,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
               </div>
               <div className="flex flex-col gap-3 w-full max-w-xs">
                 {appliedResumeId && (
-                  <Button className="gradient-primary min-h-[44px]" onClick={() => { navigate(`/editor/${appliedResumeId}`); onOpenChange(false); }}>
+                  <Button className="gradient-primary min-h-[44px]" onClick={() => { navigate(`/editor?id=${appliedResumeId}`); onOpenChange(false); }}>
                     <ExternalLink className="w-4 h-4 mr-2" />
                     View Resume
                   </Button>

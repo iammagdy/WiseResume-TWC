@@ -1,8 +1,20 @@
 [
   {
-    "version": "v3.6.8",
+    "version": "v3.6.9",
     "date": "Apr 27, 2026",
     "latest": true,
+    "summary": "Fixed the \"View Resume\" button after tailoring — it now opens the tailored resume correctly instead of showing a 404 page.",
+    "items": [
+      {
+        "title": "\"View Resume\" no longer shows a 404 after tailoring",
+        "description": "After the AI finished tailoring a resume, clicking \"View Resume\" was navigating to a URL pattern (/editor/{id}) that does not exist in the router, resulting in a 404 page. The tailored resume was created and saved successfully in the database — it just could not be reached. Both the in-editor Tailor sheet and the full Tailor page now navigate to the correct URL (/editor?id={id}), which opens the tailored resume in the editor as expected."
+      }
+    ]
+  },
+  {
+    "version": "v3.6.8",
+    "date": "Apr 27, 2026",
+    "latest": false,
     "summary": "Fixed the Set Target Job analyzer getting stuck on \"Generating interview talking points...\" forever.",
     "items": [
       {

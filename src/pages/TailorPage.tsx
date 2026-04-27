@@ -543,7 +543,7 @@ export default function TailorPage() {
   }, [navigate, parsedJobInfo, tailorResult, appliedResumeId, appliedJobInfo]);
 
   const handleViewResume = useCallback(() => {
-    if (appliedResumeId) navigate(`/editor/${appliedResumeId}`);
+    if (appliedResumeId) navigate(`/editor?id=${appliedResumeId}`);
   }, [navigate, appliedResumeId]);
 
   const handleCloseSuccess = useCallback(() => {
