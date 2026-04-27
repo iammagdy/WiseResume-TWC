@@ -1,8 +1,20 @@
 [
   {
-    "version": "v3.6.7",
+    "version": "v3.6.8",
     "date": "Apr 27, 2026",
     "latest": true,
+    "summary": "Fixed the Set Target Job analyzer getting stuck on \"Generating interview talking points...\" forever.",
+    "items": [
+      {
+        "title": "Set Target Job no longer hangs on the loading screen",
+        "description": "The mobile Set Target Job sheet would appear to load forever after the AI finished analyzing. The result view was crashing while trying to render the list of suggested improvements (the data shape from the server is an object, not a plain string), which left the sheet visually frozen on the progress screen. Both the mobile Set Target Job sheet and the landing page Quick Tailor sheet now display the description text from each improvement, matching the editor view that was already correct. Analyses now complete and show the match score, missing skills, and improvement list as intended."
+      }
+    ]
+  },
+  {
+    "version": "v3.6.7",
+    "date": "Apr 27, 2026",
+    "latest": false,
     "summary": "On mobile, tapping the WiseResume logo at the top of the dashboard now takes you back to the landing page.",
     "items": [
       {

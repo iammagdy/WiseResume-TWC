@@ -304,7 +304,7 @@ export function SetTargetJobSheet({ open, onOpenChange, resume }: SetTargetJobSh
                   {tailorResult.keyChanges.slice(0, 5).map((change, i) => (
                     <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
                       <Sparkles className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
-                      {change}
+                      <span>{typeof change === 'string' ? change : change.description}</span>
                     </li>
                   ))}
                 </ul>

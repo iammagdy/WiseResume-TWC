@@ -499,7 +499,7 @@ export function QuickTailorSheet({ open, onOpenChange }: QuickTailorSheetProps) 
                     {keyChanges.map((change, i) => (
                       <div key={i} className="flex items-start gap-2 text-xs text-muted-foreground">
                         <CheckCircle2 className="w-3.5 h-3.5 text-success shrink-0 mt-0.5" />
-                        <span>{change}</span>
+                        <span>{typeof change === 'string' ? change : change.description}</span>
                       </div>
                     ))}
                   </div>
