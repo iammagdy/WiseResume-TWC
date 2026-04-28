@@ -134,7 +134,7 @@ The following plain-language disclosure is appropriate for your privacy policy /
 >
 > **Bring-your-own-key (BYOK):** If you have provided your own API key for an AI provider, your requests go directly to that provider under your account. WiseResume only stores the same metadata described above.
 >
-> **Your choices:** You can request deletion of your cached AI data at any time by contacting support@wiseresume.com. You can also use BYOK to send your data only to a provider you have a direct relationship with.
+> **Your choices:** You can request deletion of your cached AI data at any time by contacting contact@thewise.cloud. You can also use BYOK to send your data only to a provider you have a direct relationship with.
 
 ---
 
