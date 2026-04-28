@@ -2728,7 +2728,7 @@ app.all('/api/fn/admin-email-actions', async (req, res) => {
     }
     if (action === 'send_custom') {
       if (!email || !subject || !html) return res.status(400).json({ success: false, error: 'email, subject, html required' });
-      const from = process.env.RESEND_FROM_EMAIL || 'noreply@wiseresume.io';
+      const from = process.env.RESEND_FROM_EMAIL || 'contact@thewise.cloud';
       const result = await resendPost<{ id?: string }>('/emails', { from, to: [email], subject, html });
       if (!result) return res.status(503).json({ success: false, error: 'RESEND_API_KEY not configured or Resend request failed' });
       supabaseInsert('audit_logs', { user_id: user_id ?? null, category: 'email_actions', action: 'send_custom_email', metadata: { email, subject, message_id: result.id, performed_by: callerEmail } }).catch(() => {});
@@ -2876,12 +2876,12 @@ app.all('/api/fn/admin-wisehire-invite', async (req, res) => {
     await supabasePatch('wisehire_invites', `recipient_email=eq.${encodeURIComponent(recipient)}&used_at=is.null&is_revoked=eq.false`, { is_revoked: true }).catch(() => {});
     const inserted = await supabaseInsert<{ id: string }>('wisehire_invites', { recipient_email: recipient, token, expires_at: expiresAt, is_revoked: false, created_by: callerEmail, note: note ?? null });
     await supabasePatch('wisehire_waitlist', `email=eq.${encodeURIComponent(recipient)}`, { invited_at: new Date().toISOString() }).catch(() => {});
-    const appUrl = process.env.APP_URL || `https://${process.env.REPLIT_DEV_DOMAIN || 'wiseresume.io'}`;
+    const appUrl = process.env.APP_URL || `https://${process.env.REPLIT_DEV_DOMAIN || 'resume.thewise.cloud'}`;
     const inviteUrl = `${appUrl}/wisehire/join?token=${token}`;
     // Send email via Resend if configured
     let messageId: string | null = null;
     const resendResult = await resendPost<{ id?: string }>('/emails', {
-      from: process.env.RESEND_FROM_EMAIL || 'noreply@wiseresume.io', to: [recipient],
+      from: process.env.RESEND_FROM_EMAIL || 'contact@thewise.cloud', to: [recipient],
       subject: 'You\'re invited to WiseHire Early Access',
       html: `<p>Hi there,</p><p>You've been invited to join WiseHire early access.</p><p><a href="${inviteUrl}">Accept your invitation</a></p><p>This invite expires on ${new Date(expiresAt).toLocaleDateString()}.</p>`,
     });
