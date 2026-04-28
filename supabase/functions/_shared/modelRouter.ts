@@ -16,7 +16,7 @@
 import { getServiceClient } from './dbClient.ts';
 
 export interface RouteSelection {
-  provider: 'auto' | 'openrouter' | 'groq';
+  provider: 'auto' | 'openrouter' | 'groq' | 'deepseek';
   model: string;
 }
 

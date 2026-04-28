@@ -136,6 +136,7 @@ const TAB_LABELS: Record<Tab, string> = {
   portfolio: 'Portfolio',
   openrouter: 'OpenRouter',
   groq: 'Groq',
+  deepseek: 'DeepSeek',
   flags: 'Feature Flags',
   'owner-ops': 'Owner Ops',
   'ai-routing': 'AI Routing',

@@ -70,7 +70,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    // DeepSeek: slot 1 checks DEEPSEEK_KEY first, then DEEPSEEK_KEY_1
+    // DeepSeek: slot 1 checks DEEPSEEK_KEY first, then DEEPSEEK_KEY_1.
+    // Always display "DEEPSEEK_KEY" for slot 1 regardless of which env var
+    // is actually set, since that is the canonical name shown in docs.
     for (const slot of [1, 2, 3] as const) {
       let raw: string | undefined;
       let envName: string;
@@ -78,7 +80,7 @@ Deno.serve(async (req) => {
         const primary = Deno.env.get('DEEPSEEK_KEY')?.trim();
         const fallback = Deno.env.get('DEEPSEEK_KEY_1')?.trim();
         raw = primary || fallback;
-        envName = primary ? 'DEEPSEEK_KEY' : 'DEEPSEEK_KEY_1';
+        envName = 'DEEPSEEK_KEY';
       } else {
         raw = Deno.env.get(`DEEPSEEK_KEY_${slot}`)?.trim();
         envName = `DEEPSEEK_KEY_${slot}`;
