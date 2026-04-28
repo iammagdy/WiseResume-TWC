@@ -35,7 +35,7 @@ import { getAudienceId, AUDIENCE_KEYS } from '../_shared/resendConfig.ts'
 const SITE_NAME = 'WiseResume'
 const SITE_URL = 'https://resume.thewise.cloud'
 const TOKEN_TTL_HOURS = 24
-const RESEND_FROM = 'WiseResume <contact@thewise.cloud>'
+const RESEND_FROM = 'WiseResume <noreply@thewise.cloud>'
 
 function json(data: unknown, status = 200, cors: Record<string, string> = {}) {
   return new Response(JSON.stringify(data), {
