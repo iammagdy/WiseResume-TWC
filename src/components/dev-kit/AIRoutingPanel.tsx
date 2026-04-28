@@ -10,8 +10,8 @@ import { useIsMounted } from '@/lib/devkit/hooks';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
-type Provider = 'auto' | 'openrouter' | 'groq';
-type SecondaryProvider = 'openrouter' | 'groq';
+type Provider = 'auto' | 'openrouter' | 'groq' | 'deepseek';
+type SecondaryProvider = 'openrouter' | 'groq' | 'deepseek';
 
 interface RoutingConfig {
   feature_name: string;
@@ -45,6 +45,7 @@ const PROVIDER_OPTIONS: { value: Provider; label: string }[] = [
   { value: 'auto', label: 'Auto (random pool)' },
   { value: 'openrouter', label: 'OpenRouter' },
   { value: 'groq', label: 'Groq' },
+  { value: 'deepseek', label: 'DeepSeek' },
 ];
 
 type InternalTab = 'routing' | 'ab' | 'caps';
@@ -496,6 +497,7 @@ export function AIRoutingPanel() {
                         <option value="">None — A/B disabled</option>
                         <option value="openrouter">OpenRouter</option>
                         <option value="groq">Groq</option>
+                        <option value="deepseek">DeepSeek</option>
                       </select>
                     </div>
 

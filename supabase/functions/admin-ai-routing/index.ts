@@ -13,7 +13,7 @@ const SUPPORTED_FEATURES = [
   'wise-ai-chat',
 ] as const;
 
-const VALID_PROVIDERS = ['auto', 'openrouter', 'groq'];
+const VALID_PROVIDERS = ['auto', 'openrouter', 'groq', 'deepseek'];
 
 Deno.serve(async (req) => {
   const origin = req.headers.get('origin');
@@ -91,7 +91,7 @@ Deno.serve(async (req) => {
 
       if (ab_secondary_provider && !VALID_PROVIDERS.filter(p => p !== 'auto').includes(ab_secondary_provider)) {
         return new Response(
-          JSON.stringify({ success: false, error: 'Invalid ab_secondary_provider. Must be openrouter or groq.' }),
+          JSON.stringify({ success: false, error: 'Invalid ab_secondary_provider. Must be openrouter, groq, or deepseek.' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
         );
       }

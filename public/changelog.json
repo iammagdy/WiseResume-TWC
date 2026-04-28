@@ -1,8 +1,28 @@
 [
   {
+    "version": "v3.9.0",
+    "date": "Apr 28, 2026",
+    "latest": true,
+    "summary": "DeepSeek added as a third AI provider — more resilience, smarter routing",
+    "items": [
+      {
+        "title": "DeepSeek is now a third AI provider in the engine",
+        "description": "The AI engine now draws from up to 9 keys across three providers — OpenRouter, Groq, and DeepSeek. Keys are picked uniformly at random so load is balanced automatically. When one provider is rate-limited, the engine retries on a sibling key and then spills over to any other available provider. DeepSeek uses the deepseek-chat model and is fully OpenAI-compatible."
+      },
+      {
+        "title": "Admins can now pin features to DeepSeek in AI Routing",
+        "description": "The AI Routing panel in the DevKit now lists DeepSeek alongside OpenRouter and Groq as a selectable provider for per-feature routing rules. Admins can force any feature (enhance-section, tailor-resume, etc.) to route through DeepSeek, or use it as a secondary provider in A/B traffic splits."
+      },
+      {
+        "title": "DeepSeek tab in DevKit for key inspection and live tests",
+        "description": "A new DeepSeek tab appears in the DevKit alongside OpenRouter and Groq. It shows which of the three key slots are configured (reading DEEPSEEK_KEY for slot 1), displays the last-4-character mask, and lets admins send a live test request to verify each key is working."
+      }
+    ]
+  },
+  {
     "version": "v3.8.2",
     "date": "Apr 27, 2026",
-    "latest": true,
+    "latest": false,
     "summary": "Fixed iOS PDF uploads, profile save errors now visible, .mjs MIME type fix",
     "items": [
       {
