@@ -60,7 +60,7 @@ agencies.
 - [/docs/api](https://resume.thewise.cloud/docs/api) — service documentation
 
 ## Contact
-support@thewise.cloud
+contact@thewise.cloud
 `;
 
 function wantsMarkdown(req: Request): boolean {
