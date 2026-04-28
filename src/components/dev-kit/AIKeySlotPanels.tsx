@@ -9,7 +9,7 @@ import { useIsMounted } from '@/lib/devkit/hooks';
 import { useDevKitSession } from '@/contexts/DevKitSessionContext';
 import { cn } from '@/lib/utils';
 
-type Provider = 'openrouter' | 'groq';
+type Provider = 'openrouter' | 'groq' | 'deepseek';
 type Slot = 1 | 2 | 3;
 
 interface KeyEntry {
@@ -18,6 +18,8 @@ interface KeyEntry {
   configured: boolean;
   masked: string | null;
   model: string;
+  /** The actual env-var name for this slot (may differ for DeepSeek slot 1). */
+  envName?: string;
 }
 
 interface InspectResponse {
@@ -41,9 +43,27 @@ interface KeySlotViewProps {
   onTest: () => void;
 }
 
+function defaultEnvName(provider: Provider, slot: Slot): string {
+  if (provider === 'openrouter') return `OPENROUTER_KEY_${slot}`;
+  if (provider === 'groq') return `GROQ_KEY_${slot}`;
+  return slot === 1 ? 'DEEPSEEK_KEY' : `DEEPSEEK_KEY_${slot}`;
+}
+
+function providerDisplayName(provider: Provider): string {
+  if (provider === 'openrouter') return 'OpenRouter';
+  if (provider === 'groq') return 'Groq';
+  return 'DeepSeek';
+}
+
+function defaultModelForProvider(provider: Provider): string {
+  if (provider === 'openrouter') return 'meta-llama/llama-3.3-70b-instruct:free';
+  if (provider === 'groq') return 'llama-3.3-70b-versatile';
+  return 'deepseek-chat';
+}
+
 function KeySlotView({ entry, result, testing, onTest }: KeySlotViewProps) {
-  const providerLabel = entry.provider === 'openrouter' ? 'OpenRouter' : 'Groq';
-  const envName = `${entry.provider === 'openrouter' ? 'OPENROUTER' : 'GROQ'}_KEY_${entry.slot}`;
+  const providerLabel = providerDisplayName(entry.provider);
+  const envName = entry.envName ?? defaultEnvName(entry.provider, entry.slot);
 
   return (
     <div className="space-y-4">
@@ -81,7 +101,7 @@ function KeySlotView({ entry, result, testing, onTest }: KeySlotViewProps) {
             </dd>
           </div>
           <div>
-            <dt className="text-muted-foreground mb-0.5">Free model</dt>
+            <dt className="text-muted-foreground mb-0.5">Model</dt>
             <dd className="font-mono text-foreground break-all">{entry.model}</dd>
           </div>
         </dl>
@@ -197,11 +217,6 @@ function ProviderPanel({ provider }: ProviderPanelProps) {
   useEffect(() => { fetchKeys(); }, [fetchKeys]);
 
   const handleResignIn = useCallback(() => {
-    // lock() clears the in-memory token AND the remembered token in
-    // localStorage, then sets isUnlocked=false so the DevKit lock screen
-    // re-appears with the full email/password/TOTP form. This is the only
-    // way to recover from a server-side 401: the existing token is bad and
-    // a brand-new one must be issued by verify-dev-kit.
     lock();
   }, [lock]);
 
@@ -211,7 +226,14 @@ function ProviderPanel({ provider }: ProviderPanelProps) {
   );
 
   const activeEntry = providerKeys.find(k => k.slot === activeSlot)
-    ?? { provider, slot: activeSlot, configured: false, masked: null, model: provider === 'openrouter' ? 'meta-llama/llama-3.3-70b-instruct:free' : 'llama-3.3-70b-versatile' };
+    ?? {
+      provider,
+      slot: activeSlot,
+      configured: false,
+      masked: null,
+      model: defaultModelForProvider(provider),
+      envName: defaultEnvName(provider, activeSlot),
+    };
 
   const resultKey = `${provider}:${activeSlot}`;
 
@@ -223,11 +245,6 @@ function ProviderPanel({ provider }: ProviderPanelProps) {
         headers: devKitAuthHeaders(),
         body: { provider, keyIndex: activeSlot, prompt: 'Say hello in one short sentence.' },
       });
-      // ai-test returns { success, providerUsed, model, latencyMs, response } on
-      // success or { success: false, error, latencyMs } on failure. The latter
-      // can come back via the tuple's `data` payload (transport ok, app failure)
-      // or the `error` field when the function returned a non-2xx. We surface
-      // both as a Failed result without throwing.
       if (tuple.error) {
         if (!isMounted()) return;
         setResults(prev => ({
@@ -372,4 +389,8 @@ export function OpenRouterPanel() {
 
 export function GroqPanel() {
   return <ProviderPanel provider="groq" />;
+}
+
+export function DeepSeekPanel() {
+  return <ProviderPanel provider="deepseek" />;
 }

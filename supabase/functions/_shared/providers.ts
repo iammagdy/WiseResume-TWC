@@ -79,6 +79,13 @@ export const PROVIDERS: Record<string, ProviderConfig> = {
     defaultModel: 'grok-beta',
     authStyle: 'bearer',
   },
+  deepseek: {
+    displayName: 'DeepSeek',
+    baseUrl: 'https://api.deepseek.com',
+    chatEndpoint: 'https://api.deepseek.com/v1/chat/completions',
+    defaultModel: 'deepseek-chat',
+    authStyle: 'bearer',
+  },
 };
 
 export const SUPPORTED_PROVIDERS = Object.keys(PROVIDERS);

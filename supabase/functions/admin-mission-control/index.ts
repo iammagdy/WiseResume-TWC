@@ -8,9 +8,15 @@ const REQUIRED_ENV_VARS: { key: string; label: string }[] = [
   { key: 'SUPABASE_SERVICE_ROLE_KEY', label: 'Supabase Service Role Key' },
   { key: 'DEV_KIT_PASSWORD', label: 'DevKit Password' },
   { key: 'KINDE_DOMAIN', label: 'Kinde Domain' },
-  { key: 'OPENROUTER_API_KEY', label: 'OpenRouter API Key' },
-  { key: 'OPENROUTER2_API_KEY', label: 'OpenRouter 2 API Key' },
-  { key: 'GROQ_API_KEY', label: 'Groq API Key' },
+  { key: 'OPENROUTER_KEY_1', label: 'OpenRouter Key 1' },
+  { key: 'OPENROUTER_KEY_2', label: 'OpenRouter Key 2' },
+  { key: 'OPENROUTER_KEY_3', label: 'OpenRouter Key 3' },
+  { key: 'GROQ_KEY_1', label: 'Groq Key 1' },
+  { key: 'GROQ_KEY_2', label: 'Groq Key 2' },
+  { key: 'GROQ_KEY_3', label: 'Groq Key 3' },
+  { key: 'DEEPSEEK_KEY', label: 'DeepSeek Key 1' },
+  { key: 'DEEPSEEK_KEY_2', label: 'DeepSeek Key 2' },
+  { key: 'DEEPSEEK_KEY_3', label: 'DeepSeek Key 3' },
   { key: 'GITHUB_TOKEN', label: 'GitHub Token' },
   { key: 'GITHUB_OWNER', label: 'GitHub Owner' },
   { key: 'GITHUB_REPO', label: 'GitHub Repo' },
@@ -131,9 +137,17 @@ Deno.serve(async (req) => {
     const githubOwner = Deno.env.get('GITHUB_OWNER') ?? '';
     const githubRepo = Deno.env.get('GITHUB_REPO') ?? '';
     const resendKey = Deno.env.get('RESEND_API_KEY') ?? '';
-    const openrouterKey = Deno.env.get('OPENROUTER_API_KEY') ?? '';
-    const openrouter2Key = Deno.env.get('OPENROUTER2_API_KEY') ?? '';
-    const groqKey = Deno.env.get('GROQ_API_KEY') ?? '';
+    // Keys stored in pool format: OPENROUTER_KEY_1/2/3, GROQ_KEY_1/2/3, DEEPSEEK_KEY / DEEPSEEK_KEY_1..3
+    const openrouterKey = Deno.env.get('OPENROUTER_KEY_1') ?? Deno.env.get('OPENROUTER_KEY_2') ?? Deno.env.get('OPENROUTER_KEY_3') ?? '';
+    const groqKey = Deno.env.get('GROQ_KEY_1') ?? Deno.env.get('GROQ_KEY_2') ?? Deno.env.get('GROQ_KEY_3') ?? '';
+    const deepseekKey = Deno.env.get('DEEPSEEK_KEY') ?? Deno.env.get('DEEPSEEK_KEY_1') ?? Deno.env.get('DEEPSEEK_KEY_2') ?? Deno.env.get('DEEPSEEK_KEY_3') ?? '';
+    const openrouterSlotsConfigured = [1, 2, 3].filter(n => !!Deno.env.get(`OPENROUTER_KEY_${n}`)?.trim()).length;
+    const groqSlotsConfigured = [1, 2, 3].filter(n => !!Deno.env.get(`GROQ_KEY_${n}`)?.trim()).length;
+    const deepseekSlotsConfigured = [
+      !!(Deno.env.get('DEEPSEEK_KEY') ?? Deno.env.get('DEEPSEEK_KEY_1'))?.trim(),
+      !!Deno.env.get('DEEPSEEK_KEY_2')?.trim(),
+      !!Deno.env.get('DEEPSEEK_KEY_3')?.trim(),
+    ].filter(Boolean).length;
     const productionUrl = Deno.env.get('PRODUCTION_URL') ?? 'https://resume.thewise.cloud';
 
     const now = new Date();
@@ -143,8 +157,8 @@ Deno.serve(async (req) => {
       githubResult,
       productionSiteResult,
       openrouterPingResult,
-      openrouter2PingResult,
       groqPingResult,
+      deepseekPingResult,
       resendResult,
       dbResult,
       errorCountResult,
@@ -158,12 +172,12 @@ Deno.serve(async (req) => {
         : Promise.resolve({ ok: false, lastCommitAt: null, sha: null, branch: 'main' }),
       // Deploy: production site liveness
       checkProductionSite(productionUrl),
-      // AI: OpenRouter ping
+      // AI: OpenRouter ping (use first available key from pool)
       checkAIProvider('openrouter', 'https://openrouter.ai/api/v1/models?limit=1', openrouterKey),
-      // AI: OpenRouter 2 ping
-      checkAIProvider('openrouter2', 'https://openrouter.ai/api/v1/models?limit=1', openrouter2Key),
-      // AI: Groq ping
+      // AI: Groq ping (use first available key from pool)
       checkAIProvider('groq', 'https://api.groq.com/openai/v1/models', groqKey),
+      // AI: DeepSeek ping (use first available key)
+      checkAIProvider('deepseek', 'https://api.deepseek.com/v1/models', deepseekKey),
       // Email: Resend reachability + sends24h
       checkResend(resendKey),
       // DB: basic reachability
@@ -242,8 +256,8 @@ Deno.serve(async (req) => {
     const github = githubResult.status === 'fulfilled' ? githubResult.value : { ok: false, lastCommitAt: null, sha: null, branch: 'main' };
     const prodSite = productionSiteResult.status === 'fulfilled' ? productionSiteResult.value : { up: false, httpStatus: 0 };
     const orPing = openrouterPingResult.status === 'fulfilled' ? openrouterPingResult.value : { provider: 'openrouter', ok: false, latencyMs: null, httpStatus: 0 };
-    const or2Ping = openrouter2PingResult.status === 'fulfilled' ? openrouter2PingResult.value : { provider: 'openrouter2', ok: false, latencyMs: null, httpStatus: 0 };
     const groqPing = groqPingResult.status === 'fulfilled' ? groqPingResult.value : { provider: 'groq', ok: false, latencyMs: null, httpStatus: 0 };
+    const deepseekPing = deepseekPingResult.status === 'fulfilled' ? deepseekPingResult.value : { provider: 'deepseek', ok: false, latencyMs: null, httpStatus: 0 };
     const emailStatus = resendResult.status === 'fulfilled' ? resendResult.value : { reachable: false, httpStatus: 0, sends24h: null };
     const dbOk = dbResult.status === 'fulfilled' && !dbResult.value.error;
     const dbError = dbResult.status === 'fulfilled' ? (dbResult.value.error?.message ?? null) : 'Check failed';
@@ -261,12 +275,12 @@ Deno.serve(async (req) => {
       recentAdminActions = auditActionsResult.value.data ?? [];
     }
 
-    const providerPings = [orPing, or2Ping, groqPing];
+    const providerPings = [orPing, groqPing, deepseekPing];
     const anyProviderOk = providerPings.some(p => p.ok);
-    const allProvidersOk = [orPing, or2Ping, groqPing].filter(p =>
+    const allProvidersOk = providerPings.filter(p =>
       (p.provider === 'openrouter' && !!openrouterKey) ||
-      (p.provider === 'openrouter2' && !!openrouter2Key) ||
-      (p.provider === 'groq' && !!groqKey)
+      (p.provider === 'groq' && !!groqKey) ||
+      (p.provider === 'deepseek' && !!deepseekKey)
     ).every(p => p.ok);
 
     const payload = {
@@ -288,9 +302,12 @@ Deno.serve(async (req) => {
       },
       ai: {
         providerPings,
-        openrouterConfigured: !!openrouterKey,
-        openrouter2Configured: !!openrouter2Key,
-        groqConfigured: !!groqKey,
+        openrouterConfigured: openrouterSlotsConfigured > 0,
+        openrouterSlotsConfigured,
+        groqConfigured: groqSlotsConfigured > 0,
+        groqSlotsConfigured,
+        deepseekConfigured: deepseekSlotsConfigured > 0,
+        deepseekSlotsConfigured,
         anyProviderOk,
         allProvidersOk,
       },

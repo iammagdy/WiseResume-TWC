@@ -98,13 +98,15 @@ export class LegacyKeyVersionError extends Error {
 }
 
 // ── Provider pool ─────────────────────────────────────────────────────────────
-type Provider = 'openrouter' | 'groq';
+type Provider = 'openrouter' | 'groq' | 'deepseek';
 
 const OPENROUTER_FREE_MODEL = 'meta-llama/llama-3.3-70b-instruct:free';
 const GROQ_FREE_MODEL = 'llama-3.3-70b-versatile';
+const DEEPSEEK_MODEL = 'deepseek-chat';
 
 const OPENROUTER_BASE = 'https://openrouter.ai/api/v1/chat/completions';
 const GROQ_BASE = 'https://api.groq.com/openai/v1/chat/completions';
+const DEEPSEEK_BASE = 'https://api.deepseek.com/v1/chat/completions';
 
 interface KeyEntry {
   provider: Provider;
@@ -122,6 +124,13 @@ function loadPool(): KeyEntry[] {
   for (let i = 1; i <= 3; i++) {
     const k = (Deno.env.get(`GROQ_KEY_${i}`) || '').trim();
     if (k) out.push({ provider: 'groq', index: i, key: k });
+  }
+  // DeepSeek: slot 1 reads DEEPSEEK_KEY (no suffix) OR DEEPSEEK_KEY_1
+  for (let i = 1; i <= 3; i++) {
+    const raw = i === 1
+      ? ((Deno.env.get('DEEPSEEK_KEY') || Deno.env.get('DEEPSEEK_KEY_1') || '').trim())
+      : (Deno.env.get(`DEEPSEEK_KEY_${i}`) || '').trim();
+    if (raw) out.push({ provider: 'deepseek', index: i, key: raw });
   }
   return out;
 }
@@ -166,7 +175,7 @@ function pickKey(opts: AICallOptions, forced?: ForcedRoute): PickedKey {
   // Honor forced provider from routing config when that provider has keys.
   // provider === 'auto' means no forced route — use random pool selection.
   if (forced?.provider && forced.provider !== 'auto') {
-    const forcedPool = forced.provider === 'openrouter' ? openrouter : groq;
+    const forcedPool = forced.provider === 'openrouter' ? openrouter : forced.provider === 'deepseek' ? pool.filter(k => k.provider === 'deepseek') : groq;
     if (forcedPool.length > 0) {
       const picked = pickRandom(forcedPool);
       return {
@@ -179,17 +188,33 @@ function pickKey(opts: AICallOptions, forced?: ForcedRoute): PickedKey {
     console.warn(`[aiClient] forced provider '${forced.provider}' has no keys, falling back to random pool`);
   }
 
+  const deepseek = pool.filter(k => k.provider === 'deepseek');
+
   // JSON-strict requests prefer Groq (its response_format=json_object is more reliable).
   let chosenProvider: Provider;
   if (opts.jsonMode && groq.length > 0) {
     chosenProvider = 'groq';
-  } else if (openrouter.length > 0 && groq.length > 0) {
-    chosenProvider = Math.random() < 0.5 ? 'openrouter' : 'groq';
   } else {
-    chosenProvider = openrouter.length > 0 ? 'openrouter' : 'groq';
+    // Uniform random selection across providers that have at least one key.
+    const available = (
+      [
+        openrouter.length > 0 ? 'openrouter' : null,
+        groq.length > 0 ? 'groq' : null,
+        deepseek.length > 0 ? 'deepseek' : null,
+      ] as (Provider | null)[]
+    ).filter((p): p is Provider => p !== null);
+    if (available.length === 0) {
+      const err: AIError = {
+        message: 'No AI keys configured.',
+        status: 503,
+        code: 'no_keys',
+      };
+      throw err;
+    }
+    chosenProvider = available[Math.floor(Math.random() * available.length)];
   }
 
-  const providerPool = chosenProvider === 'openrouter' ? openrouter : groq;
+  const providerPool = chosenProvider === 'openrouter' ? openrouter : chosenProvider === 'deepseek' ? deepseek : groq;
   const picked = pickRandom(providerPool);
   return { ...picked, siblings: providerPool.filter(k => k.index !== picked.index) };
 }
@@ -197,8 +222,9 @@ function pickKey(opts: AICallOptions, forced?: ForcedRoute): PickedKey {
 // ── Core HTTP call ────────────────────────────────────────────────────────────
 async function callOnce(entry: PickedKey | KeyEntry, opts: AICallOptions): Promise<AIResponse> {
   const isOpenRouter = entry.provider === 'openrouter';
-  const url = isOpenRouter ? OPENROUTER_BASE : GROQ_BASE;
-  const defaultModel = isOpenRouter ? OPENROUTER_FREE_MODEL : GROQ_FREE_MODEL;
+  const isDeepSeek = entry.provider === 'deepseek';
+  const url = isOpenRouter ? OPENROUTER_BASE : isDeepSeek ? DEEPSEEK_BASE : GROQ_BASE;
+  const defaultModel = isOpenRouter ? OPENROUTER_FREE_MODEL : isDeepSeek ? DEEPSEEK_MODEL : GROQ_FREE_MODEL;
   const pickedEntry = entry as PickedKey;
   const model = (pickedEntry.modelOverride && pickedEntry.modelOverride !== '') ? pickedEntry.modelOverride : defaultModel;
 
@@ -509,15 +535,14 @@ export async function callAIWithRetry(opts: AICallOptions): Promise<AIResponse> 
     }
   }
 
-  // Attempt 3: cross-provider fallback.
+  // Attempt 3: cross-provider fallback — try any key from a different provider.
   // Skipped when a provider was explicitly forced via routing config so that
   // traffic split / A-B assignments are not silently distorted by retries.
   if (forced?.provider && forced.provider !== 'auto') {
     throw lastErr ?? new Error('[aiClient] all forced-provider attempts exhausted');
   }
-  const otherProvider: Provider = picked.provider === 'openrouter' ? 'groq' : 'openrouter';
   const allKeys = loadPool();
-  const crossPool = allKeys.filter(k => k.provider === otherProvider);
+  const crossPool = allKeys.filter(k => k.provider !== picked.provider);
   if (crossPool.length > 0) {
     const crossEntry = pickRandom(crossPool);
     console.warn(

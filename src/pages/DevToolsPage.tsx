@@ -46,7 +46,7 @@ import { EmailManagementPanel } from '@/components/dev-kit/EmailManagementPanel'
 import { EmailAutomationsPanel } from '@/components/dev-kit/EmailAutomationsPanel';
 import { WiseHireWaitlistPanel } from '@/components/dev-kit/WiseHireWaitlistPanel';
 import { PortfolioUsernamesPanel } from '@/components/dev-kit/PortfolioUsernamesPanel';
-import { OpenRouterPanel, GroqPanel } from '@/components/dev-kit/AIKeySlotPanels';
+import { OpenRouterPanel, GroqPanel, DeepSeekPanel } from '@/components/dev-kit/AIKeySlotPanels';
 import { MissionControlPanel } from '@/components/dev-kit/MissionControlPanel';
 import { FeatureFlagsPanel } from '@/components/dev-kit/FeatureFlagsPanel';
 import { OwnerOpsPanel } from '@/components/dev-kit/OwnerOpsPanel';
@@ -65,7 +65,7 @@ import { DevKitPanelBoundary } from '@/components/dev-kit/DevKitPanelBoundary';
 import { NativeBiometric } from '@capgo/capacitor-native-biometric';
 import { Capacitor } from '@capacitor/core';
 
-type Tab = 'mission' | 'overview' | 'analytics' | 'onboarding' | 'live' | 'deployment' | 'users' | 'coupons' | 'settings' | 'activity' | 'email' | 'automations' | 'wisehire' | 'portfolio' | 'openrouter' | 'groq' | 'flags' | 'owner-ops' | 'ai-routing' | 'observability' | 'moderation' | 'integrations';
+type Tab = 'mission' | 'overview' | 'analytics' | 'onboarding' | 'live' | 'deployment' | 'users' | 'coupons' | 'settings' | 'activity' | 'email' | 'automations' | 'wisehire' | 'portfolio' | 'openrouter' | 'groq' | 'deepseek' | 'flags' | 'owner-ops' | 'ai-routing' | 'observability' | 'moderation' | 'integrations';
 
 interface NavItem {
   id: Tab;
@@ -112,6 +112,7 @@ const NAV_SECTIONS: NavSection[] = [
       { id: 'deployment', label: 'Deployment', icon: Rocket },
       { id: 'openrouter', label: 'OpenRouter', icon: BrainCircuit },
       { id: 'groq', label: 'Groq', icon: BrainCircuit },
+      { id: 'deepseek', label: 'DeepSeek', icon: BrainCircuit },
       { id: 'settings', label: 'Settings', icon: Settings },
       { id: 'activity', label: 'Audit Log', icon: Clock },
     ],
@@ -1108,6 +1109,21 @@ function DevToolsInner() {
                     </p>
                   </div>
                   <GroqPanel />
+                </div>
+              )}
+
+              {activeTab === 'deepseek' && (
+                <div className="space-y-4">
+                  <div>
+                    <h2 className="text-lg font-semibold flex items-center gap-2">
+                      <BrainCircuit className="w-5 h-5 text-primary" />
+                      DeepSeek
+                    </h2>
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                      Inspect and smoke-test the DeepSeek keys backing the AI engine. Slot 1 reads <code className="font-mono text-xs">DEEPSEEK_KEY</code>. Raw key values stay on the server — only the last 4 characters are shown.
+                    </p>
+                  </div>
+                  <DeepSeekPanel />
                 </div>
               )}
 
