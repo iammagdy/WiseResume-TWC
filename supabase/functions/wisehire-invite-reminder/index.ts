@@ -231,7 +231,7 @@ Deno.serve(async (req) => {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            from: 'WiseHire <notifications@thewise.cloud>',
+            from: 'WiseHire <contact@thewise.cloud>',
             to: [invite.recipient_email],
             subject: "⏰ Your WiseHire invite expires in less than 24 hours",
             html,
