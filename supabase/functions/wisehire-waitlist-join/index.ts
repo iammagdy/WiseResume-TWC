@@ -386,7 +386,7 @@ Deno.serve(async (req) => {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              from: "WiseHire <contact@thewise.cloud>",
+              from: "WiseHire <notifications@thewise.cloud>",
               to: [to],
               subject,
               html,
