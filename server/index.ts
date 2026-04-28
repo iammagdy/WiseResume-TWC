@@ -2881,7 +2881,7 @@ app.all('/api/fn/admin-wisehire-invite', async (req, res) => {
     // Send email via Resend if configured
     let messageId: string | null = null;
     const resendResult = await resendPost<{ id?: string }>('/emails', {
-      from: process.env.RESEND_FROM_EMAIL || 'contact@thewise.cloud', to: [recipient],
+      from: process.env.RESEND_FROM_EMAIL || 'noreply@thewise.cloud', to: [recipient],
       subject: 'You\'re invited to WiseHire Early Access',
       html: `<p>Hi there,</p><p>You've been invited to join WiseHire early access.</p><p><a href="${inviteUrl}">Accept your invitation</a></p><p>This invite expires on ${new Date(expiresAt).toLocaleDateString()}.</p>`,
     });
