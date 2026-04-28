@@ -2,8 +2,10 @@
  * Flat-pool + BYOK AI client.
  *
  * Default path (pool):
- *   6 keys: 3 OpenRouter + 3 Groq. Randomly picked, with one retry on
- *   a sibling key. Free models only.
+ *   Up to 9 keys: 3 OpenRouter + 3 Groq + 3 DeepSeek. Provider is chosen
+ *   uniformly at random among those with at least one key configured;
+ *   then a random key within that provider is used. One sibling-key retry,
+ *   then a cross-provider fallback to any key from a different provider.
  *
  * BYOK path (when opts.userId is provided and user has byok_enabled=true):
  *   Resolves the user's saved key from user_api_keys, decrypts it, and

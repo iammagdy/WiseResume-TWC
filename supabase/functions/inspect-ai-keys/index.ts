@@ -6,8 +6,9 @@ import { getCorsHeaders } from '../_shared/cors.ts';
  * the server (3 OpenRouter + 3 Groq + 3 DeepSeek), with a tail-only mask
  * preview. The raw key value is NEVER returned.
  *
- * DeepSeek slot 1 reads DEEPSEEK_KEY first, then DEEPSEEK_KEY_1.
- * The envName returned for slot 1 reflects which var is actually set.
+ * DeepSeek slot 1 resolves from DEEPSEEK_KEY first, then DEEPSEEK_KEY_1.
+ * The envName returned for slot 1 is always "DEEPSEEK_KEY" (canonical name)
+ * regardless of which env var is actually populated.
  *
  * Response shape:
  *   { success: true, keys: [{ provider, slot, configured, masked, model, envName }] }
