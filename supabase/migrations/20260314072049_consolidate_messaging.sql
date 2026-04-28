@@ -24,7 +24,7 @@ ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can manage own messages" ON public.messages 
     FOR ALL USING (auth.uid() = user_id AND is_deleted = false);
 CREATE POLICY "Admins can view all messages" ON public.messages 
-    FOR SELECT USING (auth.jwt() ->> 'email' = 'admin@thewise.cloud');
+    FOR SELECT USING (auth.jwt() ->> 'email' = 'contact@thewise.cloud');
 
 -- 3. Data Migration Logic
 -- 3. Data Migration Logic skipped to prevent schema errors.
