@@ -145,7 +145,7 @@ Deno.serve(async (req) => {
         'Authorization': `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: `${fromLabel} <contact@thewise.cloud>`,
+        from: `${fromLabel} <noreply@thewise.cloud>`,
         to: [to_email],
         subject,
         text: body,
