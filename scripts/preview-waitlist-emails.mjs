@@ -54,7 +54,7 @@ import { exec } from "node:child_process";
 const RESEND_API_KEY = process.env.RESEND_API_KEY ?? "";
 // Both preview emails go here — never to a hardcoded production address.
 const PREVIEW_TO     = process.env.PREVIEW_TO ?? "";
-const FROM_ADDRESS   = "WiseHire <notifications@thewise.cloud>";
+const FROM_ADDRESS   = "WiseHire <contact@thewise.cloud>";
 const WISEHIRE_BLUE  = "#1D4ED8";
 const OUT_DIR        = path.resolve("email-previews");
 
