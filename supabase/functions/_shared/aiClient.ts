@@ -104,7 +104,13 @@ type Provider = 'openrouter' | 'groq' | 'deepseek';
 
 const OPENROUTER_FREE_MODEL = 'meta-llama/llama-3.3-70b-instruct:free';
 const GROQ_FREE_MODEL = 'llama-3.3-70b-versatile';
-const DEEPSEEK_MODEL = 'deepseek-chat';
+// DeepSeek deprecates `deepseek-chat` and `deepseek-reasoner` on 2026/07/24.
+// `deepseek-v4-flash` is the same engine as `deepseek-chat` with thinking mode
+// disabled — identical response shape and pricing. Admins can override per
+// feature in the routing panel to `deepseek-v4-pro` for higher-quality calls;
+// `body.thinking = { type: 'disabled' }` is forced below so the override never
+// silently inherits thinking-enabled defaults from a future DeepSeek release.
+const DEEPSEEK_MODEL = 'deepseek-v4-flash';
 
 const OPENROUTER_BASE = 'https://openrouter.ai/api/v1/chat/completions';
 const GROQ_BASE = 'https://api.groq.com/openai/v1/chat/completions';
@@ -245,6 +251,14 @@ async function callOnce(entry: PickedKey | KeyEntry, opts: AICallOptions): Promi
     body.response_format = { type: 'json_object' };
   }
 
+  // DeepSeek's v4 family enables thinking mode by default. We explicitly
+  // disable it on every DeepSeek call so behaviour matches the legacy
+  // `deepseek-chat` model — same fast latency, no extra thinking tokens on
+  // the bill — even when an admin overrides `model` to `deepseek-v4-pro`.
+  if (isDeepSeek) {
+    body.thinking = { type: 'disabled' };
+  }
+
   const headers: Record<string, string> = {
     Authorization: `Bearer ${entry.key}`,
     'Content-Type': 'application/json',
@@ -254,19 +268,64 @@ async function callOnce(entry: PickedKey | KeyEntry, opts: AICallOptions): Promi
     headers['X-Title'] = 'WiseResume';
   }
 
-  const res = await fetch(url, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(body),
-    signal: opts.signal,
-  });
+  // DeepSeek may queue a request for up to ~10 minutes before starting
+  // inference. Without a fetch-level abort, a stuck DeepSeek call would tie
+  // up the Edge Function until its platform wall-clock kills it. When the
+  // caller hasn't supplied their own AbortSignal we attach a 60-second
+  // default for DeepSeek only — the retry path then falls over to a sibling
+  // key (or, if routing isn't pinned, to another provider entirely).
+  let signal = opts.signal;
+  let timeoutHandle: number | undefined;
+  let timedOut = false;
+  if (!signal && isDeepSeek) {
+    const ctrl = new AbortController();
+    signal = ctrl.signal;
+    timeoutHandle = setTimeout(() => {
+      timedOut = true;
+      ctrl.abort();
+    }, 60_000);
+  }
+
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
+      signal,
+    });
+  } catch (fetchErr) {
+    if (timedOut) {
+      const err: AIError = {
+        message: `${entry.provider}:${entry.index} aborted after 60s (DeepSeek inference queue stall)`,
+        status: 504,
+        code: 'upstream_timeout',
+        provider: `${entry.provider}:${entry.index}`,
+      };
+      throw err;
+    }
+    throw fetchErr;
+  } finally {
+    if (timeoutHandle !== undefined) clearTimeout(timeoutHandle);
+  }
 
   const rawText = await res.text();
   if (!res.ok) {
     const err: AIError = {
       message: `${entry.provider}:${entry.index} ${res.status}: ${rawText.slice(0, 400)}`,
       status: res.status,
-      code: res.status === 429 ? 'rate_limit' : res.status >= 500 ? 'upstream_error' : 'bad_request',
+      // 402 = "insufficient balance" on DeepSeek (and a handful of other
+      // OpenAI-compatible providers). Surface it as a distinct code so the
+      // admin inspector can show "top up your account" instead of a generic
+      // 4xx bad-request bucket.
+      code:
+        res.status === 429
+          ? 'rate_limit'
+          : res.status === 402
+            ? 'insufficient_balance'
+            : res.status >= 500
+              ? 'upstream_error'
+              : 'bad_request',
       provider: `${entry.provider}:${entry.index}`,
     };
     throw err;
@@ -423,6 +482,13 @@ async function callBYOK(opts: AICallOptions, provider: string, key: string): Pro
   }
 
   if (typeof opts.topP === 'number') body.top_p = opts.topP;
+
+  // Mirror the pool path: when a BYOK user routes through DeepSeek we lock
+  // thinking mode off so their bill matches the legacy `deepseek-chat`
+  // behaviour, regardless of which DeepSeek model their key resolves to.
+  if (provider === 'deepseek') {
+    body.thinking = { type: 'disabled' };
+  }
 
   let res: Response;
   try {

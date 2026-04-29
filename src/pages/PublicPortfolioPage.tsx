@@ -1,5 +1,5 @@
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
-import { usePublicPortfolio, usePortfolioGate } from '@/hooks/usePublicPortfolio';
+import { usePublicPortfolio, usePortfolioGate, type PortfolioSections } from '@/hooks/usePublicPortfolio';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowLeft, SearchX, Languages, Heart, Check, Printer, Lock } from 'lucide-react';
@@ -125,6 +125,13 @@ function NotFound() {
 // ─── Password Gate ────────────────────────────────────────────────────────────
 // Password verification is fully server-side. The gate component collects the
 // raw password and passes it to the parent; no hashing occurs in the browser.
+//
+// IMPORTANT: do NOT enforce a minimum length here.  The 8-char minimum applies
+// only to passwords being SET (editor + server RPC).  Existing portfolios may
+// have been protected with shorter passwords before that rule existed; refusing
+// to submit them client-side would lock owners out of their own gate.  We also
+// pass the raw value through (no trim) so passwords with intentional leading/
+// trailing whitespace round-trip correctly to the server's exact-match check.
 function PasswordGate({
   accentColor,
   onSubmit,
@@ -137,12 +144,13 @@ function PasswordGate({
   isChecking: boolean;
 }) {
   const [value, setValue] = useState('');
+  const canSubmit = value.length > 0 && !isChecking;
 
   const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
-    if (!value.trim() || isChecking) return;
-    onSubmit(value.trim());
-  }, [value, isChecking, onSubmit]);
+    if (!canSubmit) return;
+    onSubmit(value);
+  }, [canSubmit, value, onSubmit]);
 
   return (
     <div className="relative z-[1] min-h-screen bg-[#0a0a0f] flex items-center justify-center p-6">
@@ -174,7 +182,7 @@ function PasswordGate({
           {hasError && <p className="text-sm text-red-400">Incorrect password. Please try again.</p>}
           <button
             type="submit"
-            disabled={isChecking || !value.trim()}
+            disabled={!canSubmit}
             className="w-full py-3 rounded-xl text-sm font-semibold text-white transition-all active:scale-95 disabled:opacity-50"
             style={{ background: accentColor }}
           >
@@ -329,14 +337,44 @@ function PublicPortfolioContent({ usernameOverride }: { usernameOverride?: strin
     portfolio?.profile?.lastActiveAt ?? null,
   );
 
+  // When the browser blocks `window.open`, we surface a persistent inline
+  // panel (instead of a transient toast) that hands the user a real escape
+  // hatch: a Blob-URL anchor they can click to open the print page in a new
+  // tab manually, plus short instructions for unblocking pop-ups for this
+  // site.  The panel lives directly under the Print button so it's discovered
+  // exactly where the user just looked.
+  const [printBlockedUrl, setPrintBlockedUrl] = useState<string | null>(null);
+
+  // Revoke any stale Blob URL on unmount or when a new attempt replaces it,
+  // so we don't leak document-scoped object URLs.
+  useEffect(() => {
+    return () => {
+      if (printBlockedUrl) URL.revokeObjectURL(printBlockedUrl);
+    };
+  }, [printBlockedUrl]);
+
   const handleDownload = async () => {
     if (!portfolio) return;
     const { generatePortfolioPrintHTML } = await import('@/lib/portfolioPrintLayout');
     const html = generatePortfolioPrintHTML(portfolio.profile, portfolio.resume);
     const printWindow = window.open('', '_blank', 'width=900,height=700');
     if (!printWindow) {
-      toast.error('Pop-up blocked — please allow pop-ups for this site, then try again.');
+      // Build a Blob URL the user can click manually — modern browsers allow
+      // user-initiated anchor clicks even when pop-ups are blocked, so this
+      // gives them a guaranteed path to the print page.
+      const blob = new Blob([html], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      setPrintBlockedUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return url;
+      });
+      toast.error('Pop-up blocked — see the panel below for how to print.');
       return;
+    }
+    // Successful open clears any prior fallback panel.
+    if (printBlockedUrl) {
+      URL.revokeObjectURL(printBlockedUrl);
+      setPrintBlockedUrl(null);
     }
     printWindow.document.open();
     printWindow.document.write(html);
@@ -380,7 +418,7 @@ function PublicPortfolioContent({ usernameOverride }: { usernameOverride?: strin
   const pFont = profile.portfolioFont || 'inter';
   const sections = profile.portfolioSections;
   
-  const show = (key: string) => !sections || (sections as unknown as Record<string, boolean>)[key] !== false;
+  const show = (key: keyof PortfolioSections) => !sections || sections[key] !== false;
 
   const validExperience = resume.experience?.filter(e => (e.position?.trim() || e.company?.trim())) || [];
   const validEducation = resume.education?.filter(e => (e.institution?.trim() || e.degree?.trim())) || [];
@@ -596,6 +634,40 @@ function PublicPortfolioContent({ usernameOverride }: { usernameOverride?: strin
             <Printer className="w-3.5 h-3.5" />
             Print / Save as PDF
           </button>
+
+          {printBlockedUrl && (
+            <div
+              role="alert"
+              data-pdf-exclude
+              className="mx-auto max-w-md text-left rounded-xl border p-4 space-y-2"
+              style={{
+                background: 'var(--pf-card, rgba(255,255,255,0.04))',
+                borderColor: 'var(--pf-border, rgba(255,255,255,0.12))',
+              }}
+            >
+              <p className="text-xs font-semibold" style={{ color: 'var(--pf-fg, #f5f5ff)' }}>
+                Pop-ups are blocked
+              </p>
+              <p className="text-[11px]" style={{ color: 'var(--pf-muted, #9ca3af)' }}>
+                Your browser blocked the print window. You can either allow pop-ups for this
+                site (look for a small icon at the right edge of the address bar) and click
+                Print again, or open the print page directly with this link:
+              </p>
+              <a
+                href={printBlockedUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs underline decoration-1 underline-offset-2"
+                style={{ color: accentColor }}
+              >
+                <Printer className="w-3.5 h-3.5" />
+                Open print page in new tab
+              </a>
+              <p className="text-[10px]" style={{ color: 'var(--pf-muted, #9ca3af)' }}>
+                Then choose <em>Print → Save as PDF</em> in your browser's print dialog.
+              </p>
+            </div>
+          )}
           <div>
             <a
               href="https://resume.thewise.cloud/"

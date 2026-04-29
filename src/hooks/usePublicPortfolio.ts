@@ -5,10 +5,14 @@ import type { Experience, Education, Project, Certification, Award, Publication,
 import type { CaseStudy, PortfolioService } from '@/hooks/useProfile';
 
 export interface PortfolioSections {
+  about: boolean;
   experience: boolean;
   education: boolean;
   skills: boolean;
   projects: boolean;
+  caseStudies: boolean;
+  services: boolean;
+  testimonials: boolean;
   certifications: boolean;
   awards: boolean;
   publications: boolean;
@@ -287,6 +291,25 @@ const KNOWN_APP_SUFFIXES = [
 export function isAppHostname(hostname: string): boolean {
   if (hostname === 'localhost' || hostname === '127.0.0.1') return true;
   return KNOWN_APP_SUFFIXES.some((suffix) => hostname.endsWith(suffix));
+}
+
+// Single source of truth for "is this customDomain value acceptable?".
+// Returns null when valid (or empty — empty means "no custom domain set").
+// Returns a user-facing error message when invalid. Used by both the inline
+// editor field validator and the save-time guard so the two stay in lockstep.
+const HOSTNAME_RE = /^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/;
+const RESERVED_BARE_DOMAINS = new Set(['thewise.cloud', 'replit.dev', 'replit.app']);
+
+export function validateCustomDomain(value: string): string | null {
+  const trimmed = value.trim().toLowerCase();
+  if (!trimmed) return null;
+  if (!HOSTNAME_RE.test(trimmed)) {
+    return 'Enter a valid domain (e.g. portfolio.yourdomain.com).';
+  }
+  if (RESERVED_BARE_DOMAINS.has(trimmed) || isAppHostname(trimmed)) {
+    return 'This domain is reserved by the platform. Use a domain you own.';
+  }
+  return null;
 }
 
 async function fetchPublicPortfolioByDomain(domain: string): Promise<PublicPortfolioData | null> {

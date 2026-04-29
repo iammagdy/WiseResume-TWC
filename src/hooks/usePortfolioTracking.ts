@@ -7,19 +7,48 @@ interface UsePortfolioTrackingProps {
   abVariant?: 'a' | 'b' | null;
 }
 
+interface BeaconSnapshot {
+  username: string;
+  refParam?: string;
+  abVariant?: 'a' | 'b' | null;
+}
+
 export function usePortfolioTracking({ username, refParam, abVariant }: UsePortfolioTrackingProps) {
   const [stickyVisible, setStickyVisible] = useState(false);
-  const heroRef = useRef<HTMLDivElement>(null);
 
-  // Track visited sections (presence set)
+  // Hero element tracked via a state-backed ref callback rather than a
+  // plain RefObject. The previous RefObject implementation attached the
+  // sticky-header IntersectionObserver in a `[]`-deps effect that ran
+  // exactly once on mount — when the hero was not yet rendered (the
+  // skeleton was still up), `heroRef.current` was null and the effect
+  // bailed without re-attaching. State-backed refs re-trigger the
+  // dependent effect the moment the hero element actually appears (or
+  // changes), so the sticky header now reliably activates after the
+  // skeleton is replaced by the real hero.
+  const [heroEl, setHeroEl] = useState<HTMLDivElement | null>(null);
+  const heroRef = useCallback((node: HTMLDivElement | null) => {
+    setHeroEl(node);
+  }, []);
+
+  // Per-view state. Reset every time the portfolio `username` changes
+  // (i.e. on navigation between portfolios within the same hook
+  // instance) so timing, viewed sections, and the "already sent" guard
+  // never leak from one portfolio's session into another's.
   const sectionsViewedRef = useRef<Set<string>>(new Set());
-  // Per-section dwell time: Map<sectionId, {accumulatedMs, enterTime | null}>
   const sectionTimingRef = useRef<Map<string, { accMs: number; enterTime: number | null }>>(new Map());
   const mountTimeRef = useRef<number>(Date.now());
   const trackSentRef = useRef(false);
+  // Sentinel used to detect a real portfolio change (vs. a refParam /
+  // abVariant tweak). Initialised to `undefined` so the very first
+  // username sighting triggers a per-view reset, which is harmless.
+  const lastUsernameRef = useRef<string | null | undefined>(undefined);
 
-  // Keep mutable refs for values that change after mount so sendTrackingBeacon
-  // stays stable (never triggers effect cleanup / re-run on data load).
+  // Live-value refs — only used by the public-API `sendTrackingBeacon`
+  // wrapper so external callers (currently only test mocks; the real
+  // page consumes only `stickyVisible` and `heroRef`) always fire
+  // against the currently displayed portfolio. The effect-based
+  // visibility/pagehide/unmount paths use a per-effect SNAPSHOT
+  // instead — see `sendForView` below.
   const usernameRef = useRef(username);
   const refParamRef = useRef(refParam);
   const abVariantRef = useRef(abVariant);
@@ -27,10 +56,13 @@ export function usePortfolioTracking({ username, refParam, abVariant }: UsePortf
   useEffect(() => { refParamRef.current = refParam; }, [refParam]);
   useEffect(() => { abVariantRef.current = abVariant; }, [abVariant]);
 
-  // Stable beacon function — reads from refs, never re-creates
-  const sendTrackingBeacon = useCallback(() => {
+  // Stable beacon body builder. Accepts an explicit snapshot so the
+  // unmount/visibility paths can pass the username/ref/abVariant they
+  // were attached for, while the public-API wrapper passes live ref
+  // values.
+  const sendBeaconCore = useCallback((snap: BeaconSnapshot) => {
     if (trackSentRef.current) return;
-    if (!usernameRef.current) return;
+    if (!snap.username) return;
     trackSentRef.current = true;
 
     // Flush any sections still in view (observer hasn't fired "exit" yet)
@@ -56,34 +88,104 @@ export function usePortfolioTracking({ username, refParam, abVariant }: UsePortf
       : 'desktop';
 
     const body = JSON.stringify({
-      username: usernameRef.current,
-      ref: refParamRef.current,
+      username: snap.username,
+      ref: snap.refParam,
       sectionsViewed: [...sectionsViewedRef.current],
       sectionsTiming,
       timeSpentSeconds,
       device,
-      abVariant: abVariantRef.current ?? undefined,
+      abVariant: snap.abVariant ?? undefined,
     });
 
     const url = apiFnUrl(`track-portfolio-view`);
-    if (navigator.sendBeacon) {
+    // sendBeacon returns false when the browser refuses to enqueue the
+    // payload — most commonly because it exceeds the per-origin queue
+    // cap (~64 KB total for sendBeacon in Chromium/Firefox). Long
+    // visitor sessions with many sections viewed CAN exceed that, so a
+    // `false` return must fall through to the fetch keepalive path
+    // exactly the same as a missing-API path.
+    const enqueued =
+      typeof navigator.sendBeacon === 'function' &&
       navigator.sendBeacon(url, new Blob([body], { type: 'application/json' }));
-    } else {
-      fetch(url, { method: 'POST', body, keepalive: true, headers: { 'Content-Type': 'application/json' } }).catch(() => {});
+    if (!enqueued) {
+      fetch(url, {
+        method: 'POST',
+        body,
+        keepalive: true,
+        headers: { 'Content-Type': 'application/json' },
+      }).catch(() => {});
     }
-  }, []); // ← intentionally empty: all state read from refs at call-time
+  }, []);
 
-  // Send beacon on page hide / visibility change — effect never re-runs
+  // Public-API beacon — wraps sendBeaconCore with live ref values so
+  // external callers always fire against the currently displayed
+  // portfolio.  Kept for backward compatibility with the hook's
+  // declared return shape; the real page does not consume it.
+  const sendTrackingBeacon = useCallback(() => {
+    sendBeaconCore({
+      username: usernameRef.current ?? '',
+      refParam: refParamRef.current,
+      abVariant: abVariantRef.current,
+    });
+  }, [sendBeaconCore]);
+
+  // Visibility / pagehide handlers + unmount beacon.
+  //
+  // `username` is PINNED at effect-bind time (`capturedUsername`) and
+  // re-bound only when the username itself changes — this is the core
+  // Phase 3 fix. A fast /p/alice → /p/bob navigation with a reused
+  // hook instance can never misattribute alice's view to bob, because
+  // by the time the cleanup beacon fires the closure already holds
+  // alice's name regardless of what `usernameRef.current` has since
+  // become.
+  //
+  // `refParam` and `abVariant` are read from their live refs at FIRE
+  // time, NOT pinned at bind time. Rationale:
+  //   * `abVariant` is commonly resolved AFTER the initial render
+  //     (e.g. assigned post profile-load). Pinning it at bind would
+  //     attribute every late-resolving experiment session to `null`.
+  //   * The `useEffect` cleanup-then-body ordering guarantees that
+  //     during this effect's cleanup, refParamRef / abVariantRef
+  //     still hold the OLD view's values: cleanup runs in reverse
+  //     declaration order, so this effect's cleanup runs BEFORE the
+  //     ref-update effects' bodies (declared above) re-run for the
+  //     new view. Reading the refs in cleanup is therefore safe.
+  //   * Visibility / pagehide events that fire mid-view see the
+  //     latest refs, which is exactly what we want for late-resolved
+  //     experiment attribution.
+  //
+  // Deps: ONLY `username` (and the stable sendBeaconCore). refParam /
+  // abVariant changes do NOT re-bind — that would re-fire the cleanup
+  // beacon every URL-hash tweak and break the "one beacon per
+  // portfolio view" guarantee enforced by `trackSentRef`.
   useEffect(() => {
-    const onHide = () => sendTrackingBeacon();
+    if (!username) return;
+    // Reset per-view state when the portfolio actually changes.
+    // refParam / abVariant changes are explicitly NOT a portfolio
+    // change, so the sentinel ref guards against false resets.
+    if (lastUsernameRef.current !== username) {
+      trackSentRef.current = false;
+      mountTimeRef.current = Date.now();
+      sectionsViewedRef.current = new Set();
+      sectionTimingRef.current = new Map();
+      lastUsernameRef.current = username;
+    }
+
+    const capturedUsername = username; // pin — see header comment
+    const buildSnap = (): BeaconSnapshot => ({
+      username: capturedUsername,
+      refParam: refParamRef.current,
+      abVariant: abVariantRef.current,
+    });
+    const onHide = () => sendBeaconCore(buildSnap());
     document.addEventListener('visibilitychange', onHide);
     window.addEventListener('pagehide', onHide);
     return () => {
       document.removeEventListener('visibilitychange', onHide);
       window.removeEventListener('pagehide', onHide);
-      sendTrackingBeacon(); // send on unmount
+      sendBeaconCore(buildSnap()); // username pinned, refs read live
     };
-  }, [sendTrackingBeacon]); // stable ref — fires once
+  }, [username, sendBeaconCore]);
 
   // Section scroll tracking: IntersectionObserver with dwell-time accumulation
   useEffect(() => {
@@ -117,16 +219,20 @@ export function usePortfolioTracking({ username, refParam, abVariant }: UsePortf
     return () => observer.disconnect();
   }, [username]); // re-attach only on username change (page switch)
 
-  // Sticky header observer
+  // Sticky header observer — depends on the hero element NODE so the
+  // observer re-attaches the moment PublicHero mounts (or remounts)
+  // after the initial paint. Previously the effect ran once with `[]`
+  // deps, observed `null`, and never recovered when the hero appeared
+  // later, breaking the sticky header on slow first paints.
   useEffect(() => {
-    if (!heroRef.current) return;
+    if (!heroEl) return;
     const observer = new IntersectionObserver(
       ([entry]) => setStickyVisible(!entry.isIntersecting),
       { threshold: 0.1, rootMargin: '-80px 0px 0px 0px' }
     );
-    observer.observe(heroRef.current);
+    observer.observe(heroEl);
     return () => observer.disconnect();
-  }, []);
+  }, [heroEl]);
 
   return { stickyVisible, heroRef, sendTrackingBeacon };
 }

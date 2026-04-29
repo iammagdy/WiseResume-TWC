@@ -83,7 +83,10 @@ export const PROVIDERS: Record<string, ProviderConfig> = {
     displayName: 'DeepSeek',
     baseUrl: 'https://api.deepseek.com',
     chatEndpoint: 'https://api.deepseek.com/v1/chat/completions',
-    defaultModel: 'deepseek-chat',
+    // `deepseek-chat` is deprecated 2026/07/24. `deepseek-v4-flash` is the
+    // same engine with thinking disabled (matched by aiClient.callBYOK,
+    // which forces `thinking: { type: 'disabled' }` on every DeepSeek call).
+    defaultModel: 'deepseek-v4-flash',
     authStyle: 'bearer',
   },
 };

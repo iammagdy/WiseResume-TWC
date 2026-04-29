@@ -38,6 +38,7 @@ import { MoreTab } from '@/components/portfolio/editor/MoreTab';
 import { SaveBar } from '@/components/portfolio/editor/SaveBar';
 import { PortfolioHistorySheet } from '@/components/portfolio/PortfolioHistorySheet';
 import { usePortfolioHistory } from '@/hooks/usePortfolioHistory';
+import { validateCustomDomain } from '@/hooks/usePublicPortfolio';
 import { VisitorsTab } from '@/components/portfolio/editor/VisitorsTab';
 import type { ScrollEffect } from '@/components/portfolio/editor/ScrollEffectPicker';
 import { AICritiqueSheet, type CritiqueItem } from '@/components/portfolio/editor/AICritiqueSheet';
@@ -45,11 +46,20 @@ import { CompletionScoreBar, buildCompletionItems } from '@/components/portfolio
 import { Monitor, Smartphone } from 'lucide-react';
 
 
-async function sha256hex(message: string): Promise<string> {
-  const msgBuf = new TextEncoder().encode(message);
-  const hashBuf = await crypto.subtle.digest('SHA-256', msgBuf);
-  return Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, '0')).join('');
-}
+// Minimum portfolio-password length enforced both client- and server-side.
+// The server (set_portfolio_password RPC) rejects anything shorter; this
+// constant keeps the editor and the public unlock gate consistent.
+const PORTFOLIO_PASSWORD_MIN_LENGTH = 8;
+
+// Hard byte budget for the portfolio_extras JSONB column at publish time AND
+// for the portfolio_draft JSONB column at autosave time.  Hoisted to module
+// scope so the two enforcement points (handleSave below + the autosave
+// useEffect) cannot drift — Phase 4 introduced the publish-side cap; Phase
+// 5 / Task #20 extends the same budget to the autosave path so a runaway
+// translations / case-studies blob can't silently spam multi-megabyte
+// writes to portfolio_draft on every keystroke (and then ambush the user
+// at publish time, far from where the bloat was introduced).
+const PORTFOLIO_EXTRAS_MAX_BYTES = 200_000;
 
 export default function PortfolioEditorPage() {
   const { user } = useAuth();
@@ -337,6 +347,11 @@ export default function PortfolioEditorPage() {
   // Separate from lastSavedSnapshot (which is advanced only on explicit Publish).
   const lastDraftPersistedSnapshotRef = useRef<string>('');
 
+  // Fires the over-budget toast at most once per editor session so a user who
+  // is actively editing a too-large draft doesn't get a spam-storm of warnings
+  // every 3 s.  Resets only on full unmount (i.e. leaving the editor page).
+  const draftOverflowToastedRef = useRef(false);
+
   // Debounced autosave to portfolio_draft — persists working copy to DB so
   // drafts survive page closes.
   // IMPORTANT: writes directly to Supabase (bypassing the mutation that would
@@ -357,6 +372,31 @@ export default function PortfolioEditorPage() {
         const currentSnapshot = getCurrentSnapshot();
         // Re-check dedup inside the async callback (snapshot may have changed)
         if (currentSnapshot === lastDraftPersistedSnapshotRef.current) return;
+        // ── Draft size guard (mirrors the publish-side cap) ──
+        // Skip the network write if the serialized draft would balloon the
+        // portfolio_draft JSONB column past the same ~200 KB budget that
+        // publish enforces on portfolio_extras.  We measure the whole
+        // snapshot string (which is already JSON.stringified by
+        // getCurrentSnapshot) because the runaway-blob-prone fields
+        // (caseStudies, services, testimonials, highlights, translations,
+        // certifications) all live inside it and dominate the byte count.
+        // Uses string `.length` to match the publish-side measurement
+        // exactly — same yardstick, no drift between the two guards.
+        // Critically: we do NOT touch in-memory editor state — the user
+        // keeps their work, they just don't get cross-session draft
+        // restoration until they trim the payload back under the cap.
+        // The toast is gated to one fire per editor session via the ref so
+        // continued typing doesn't trigger a spam-storm every 3 s.
+        if (currentSnapshot.length > PORTFOLIO_EXTRAS_MAX_BYTES) {
+          if (!draftOverflowToastedRef.current) {
+            draftOverflowToastedRef.current = true;
+            toast.warning(
+              `Draft is too large to autosave (${Math.round(currentSnapshot.length / 1024)} KB / ${Math.round(PORTFOLIO_EXTRAS_MAX_BYTES / 1024)} KB max). Your edits are still here, but they won't be restored after a refresh until you trim some services, case studies, testimonials, or translations.`,
+              { duration: 8000 }
+            );
+          }
+          return;
+        }
         const parsed = JSON.parse(currentSnapshot) as Record<string, unknown>;
         const now = new Date().toISOString();
         const { error } = await supabase
@@ -494,7 +534,7 @@ export default function PortfolioEditorPage() {
     
     const selectedResume = resumes.find((r) => r.id === targetId);
 
-    if (!selectedResume && action === 'bio') {
+    if (!selectedResume) {
       throw new Error("Resume data not available yet. Please wait a moment.");
     }
 
@@ -519,8 +559,20 @@ export default function PortfolioEditorPage() {
     // Capture the resume ID at the moment the button is clicked to avoid stale closures
     const currentResumeId = selectedResumeId;
     const currentResume = resumes.find((r) => r.id === currentResumeId) || resumes[0];
-    if (!currentResume?.summary && !profile?.jobTitle && (!currentResume?.experience || (currentResume.experience as unknown[]).length === 0)) {
-      toast.error('Selected resume has no data for bio generation.');
+    // Differentiate the two failure modes so the user knows what to fix:
+    //   1. No resume on the account at all → tell them to create one first.
+    //   2. A resume exists but every signal we'd feed the model is blank →
+    //      tell them to fill in the resume so AI has something to work with.
+    if (!currentResume) {
+      toast.error('Create a resume first — bio generation needs work history or a job title to draw from.');
+      return;
+    }
+    const hasUsableSignal =
+      !!currentResume.summary?.trim() ||
+      !!profile?.jobTitle?.trim() ||
+      (Array.isArray(currentResume.experience) && (currentResume.experience as unknown[]).length > 0);
+    if (!hasUsableSignal) {
+      toast.error('Selected resume is empty — add a summary, job title, or work history before generating a bio.');
       return;
     }
     setGeneratingBio(true);
@@ -529,8 +581,11 @@ export default function PortfolioEditorPage() {
       const { bio: generatedBio } = await callPortfolioAI('bio', currentResumeId);
       setBio(generatedBio);
       toast.success('Bio generated!');
-    } catch {
-      toast.error('Failed to generate bio. Please try again later.');
+    } catch (err) {
+      const msg = err instanceof Error && err.message.startsWith('Resume data not available')
+        ? err.message
+        : 'Failed to generate bio. Please try again later.';
+      toast.error(msg);
     } finally {
       setGeneratingBio(false);
     }
@@ -544,8 +599,11 @@ export default function PortfolioEditorPage() {
       if (t) setMetaTitle(t);
       if (d) setMetaDescription(d);
       toast.success('SEO meta generated!');
-    } catch {
-      toast.error('Failed to generate SEO meta. Please try again later.');
+    } catch (err) {
+      const msg = err instanceof Error && err.message.startsWith('Resume data not available')
+        ? err.message
+        : 'Failed to generate SEO meta. Please try again later.';
+      toast.error(msg);
     } finally {
       setGeneratingSEO(false);
     }
@@ -598,8 +656,11 @@ export default function PortfolioEditorPage() {
       const { headline } = await callPortfolioAI('availability');
       if (headline) setAvailabilityHeadline(headline);
       toast.success('Availability headline generated!');
-    } catch {
-      toast.error('Failed to generate headline. Please try again later.');
+    } catch (err) {
+      const msg = err instanceof Error && err.message.startsWith('Resume data not available')
+        ? err.message
+        : 'Failed to generate headline. Please try again later.';
+      toast.error(msg);
     } finally {
       setGeneratingAvailability(false);
     }
@@ -621,8 +682,11 @@ export default function PortfolioEditorPage() {
       });
       setCritiqueItems(Array.isArray(suggestions) ? suggestions : []);
       setCritiqueHasRun(true);
-    } catch {
-      toast.error('Failed to run critique. Please try again.');
+    } catch (err) {
+      const msg = err instanceof Error && err.message.startsWith('Resume data not available')
+        ? err.message
+        : 'Failed to run critique. Please try again.';
+      toast.error(msg);
       setCritiqueHasRun(true);
       setCritiqueError(true);
     } finally {
@@ -674,9 +738,93 @@ export default function PortfolioEditorPage() {
       return;
     }
     if (usernameError) return;
+
+    // ── Portfolio password validation (Phase 1: server-side bcrypt) ──
+    // Hashing happens entirely on the server (set_portfolio_password RPC).
+    // Block save here so the user gets immediate feedback rather than a
+    // generic backend error after a network round-trip.  We read the
+    // CURRENT state from the live profile cache only as a fast-path hint;
+    // the authoritative read happens below before we compose the payload,
+    // so a stale cache cannot cause us to write `passwordHash: null` over
+    // a real hash that exists in the DB.
+    const cachedPasswordEnabled = !!profile?.portfolioExtras?.passwordEnabled;
+    const cachedPasswordHash = (profile?.portfolioExtras?.passwordHash as string | undefined) || '';
+    const hasNewPassword = portfolioPassword.length > 0;
+    const isEnablingPassword =
+      overrides?.portfolioEnabled !== false && passwordEnabled;
+
+    // Only enforce the 8-char rule when the user is actually trying to set
+    // a password.  If protection is disabled, any leftover characters in
+    // the (now-hidden) input must not block the publish — the RPC call
+    // below is gated on pwdStateChanged + isEnablingPassword anyway, so a
+    // stale value cannot reach the server.  This check is purely on
+    // user-typed input and does not depend on cached/DB state, so it can
+    // safely fire before the authoritative DB read below.
+    if (isEnablingPassword && hasNewPassword && portfolioPassword.length < PORTFOLIO_PASSWORD_MIN_LENGTH) {
+      toast.error(`Password must be at least ${PORTFOLIO_PASSWORD_MIN_LENGTH} characters.`);
+      return;
+    }
+
+    // ── Custom domain validation ──
+    // Only paid users can set a custom domain; reject obviously invalid hostnames
+    // and any host that resolves to our own app/preview infrastructure (a CNAME
+    // pointing those at us would create a routing loop). The same validator is
+    // used inline in MoreTab so the field shows an error the moment the user
+    // types something wrong, without waiting for save.
+    if (isPaidUser) {
+      const domainError = validateCustomDomain(customDomain);
+      if (domainError) {
+        toast.error(domainError);
+        return;
+      }
+    }
+    // The "enable without new password requires existing hash" guard is
+    // deliberately deferred until AFTER the authoritative DB read inside
+    // the try block — a stale React Query cache that shows no hash while
+    // the DB still has one would otherwise produce a false negative and
+    // block a legitimate save.
+
     setSavingPortfolio(true);
     haptics.light();
     try {
+      // Authoritative read of the password-protection state straight from
+      // the DB.  The editor never touches passwordHash anywhere else, but
+      // our updateProfile call below performs a full overwrite of
+      // portfolio_extras — if we copied a stale `null`/`false` from the
+      // React Query cache, that would silently disable the gate.  Reading
+      // here closes that common case.  The two extra columns are tiny so
+      // the round-trip cost is negligible compared to the safety win.
+      //
+      // Known residual race (Phase 2 follow-up): a concurrent tab that
+      // mutates the password between this read and the updateProfile call
+      // below can still have its change overwritten.  The proper fix is
+      // an optimistic concurrency guard on profile updates or moving the
+      // entire portfolio_extras merge server-side; both are out of scope
+      // for the current task.  The window is one network round-trip wide
+      // and requires two tabs actively editing the password simultaneously.
+      const supabaseUserIdForPwd = await getUserId();
+      let dbPasswordEnabled = cachedPasswordEnabled;
+      let dbPasswordHash = cachedPasswordHash;
+      if (supabaseUserIdForPwd) {
+        const { data: freshExtras } = await supabase
+          .from('profiles')
+          .select('portfolio_extras')
+          .eq('user_id', supabaseUserIdForPwd)
+          .maybeSingle();
+        const fe = (freshExtras?.portfolio_extras as Record<string, unknown> | null) ?? {};
+        dbPasswordEnabled = !!fe.passwordEnabled;
+        dbPasswordHash = typeof fe.passwordHash === 'string' ? fe.passwordHash : '';
+      }
+
+      // Deferred guard: enabling password protection without a stored hash
+      // and without a new password is invalid.  Run this AFTER the fresh DB
+      // read so a stale React Query cache cannot block a legitimate save.
+      if (isEnablingPassword && !dbPasswordHash && !hasNewPassword) {
+        toast.error('Set a password before enabling password protection.');
+        setSavingPortfolio(false);
+        return;
+      }
+
       if (username && username.length >= usernameRules.min_length && profile?.username !== username) {
         const { data: available } = await supabase.rpc('check_username_available', {
           p_username: username,
@@ -715,37 +863,50 @@ export default function PortfolioEditorPage() {
         openToWork: availabilityStatus !== 'not-looking',
         availabilityHeadline: availabilityHeadline || null,
         portfolioSyncMode: syncMode,
-        portfolioExtras: await (async () => {
-          let finalPasswordHash = passwordHash;
-          if (passwordEnabled && portfolioPassword) {
-            finalPasswordHash = await sha256hex(portfolioPassword);
-            setPasswordHash(finalPasswordHash);
-            setPortfolioPassword('');
-          }
-          const effectivePasswordEnabled = passwordEnabled && !!finalPasswordHash;
-          return {
-            caseStudies, services, testimonials, highlights, portfolioSummary,
-            sectionOrder,
-            pinnedProject: pinnedProject || null,
-            availabilityStatus,
-            scrollEffect,
-            videoIntroUrl: videoIntroUrl || null,
-            schedulingUrl: normalizeUrl(schedulingUrl) || null,
-            abChallengerTheme: overrides?.abChallengerThemeOverride !== undefined ? (overrides.abChallengerThemeOverride || null) : (abChallengerTheme || null),
-            portfolioCertifications,
-            portfolioPrimaryLanguage: portfolioPrimaryLanguage || 'English',
-            portfolioSecondaryLanguage: portfolioSecondaryLanguage || null,
-            portfolioTranslations: Object.keys(portfolioTranslations).length > 0 ? portfolioTranslations : null,
-            lastSyncedFromResumeAt: syncMode === 'auto' ? new Date().toISOString() : (
-              profile?.portfolioExtras?.lastSyncedFromResumeAt ?? null
-            ),
-            passwordEnabled: effectivePasswordEnabled,
-            passwordHash: effectivePasswordEnabled ? finalPasswordHash : null,
-            customDomain: isPaidUser ? (customDomain.trim() || null) : null,
-            contactFormEnabled,
-          };
-        })()
+        portfolioExtras: {
+          caseStudies, services, testimonials, highlights, portfolioSummary,
+          sectionOrder,
+          pinnedProject: pinnedProject || null,
+          availabilityStatus,
+          scrollEffect,
+          videoIntroUrl: videoIntroUrl || null,
+          schedulingUrl: normalizeUrl(schedulingUrl) || null,
+          abChallengerTheme: overrides?.abChallengerThemeOverride !== undefined ? (overrides.abChallengerThemeOverride || null) : (abChallengerTheme || null),
+          portfolioCertifications,
+          portfolioPrimaryLanguage: portfolioPrimaryLanguage || 'English',
+          portfolioSecondaryLanguage: portfolioSecondaryLanguage || null,
+          portfolioTranslations: Object.keys(portfolioTranslations).length > 0 ? portfolioTranslations : null,
+          lastSyncedFromResumeAt: syncMode === 'auto' ? new Date().toISOString() : (
+            profile?.portfolioExtras?.lastSyncedFromResumeAt ?? null
+          ),
+          // Preserve existing password fields untouched — set_portfolio_password
+          // (called after updateProfile below) is the SOLE writer of these two
+          // keys.  We use the FRESH DB read above (not the React Query cache)
+          // so a stale snapshot can never overwrite a real hash with null.
+          passwordEnabled: dbPasswordEnabled,
+          passwordHash: dbPasswordHash || null,
+          customDomain: isPaidUser ? (customDomain.trim() || null) : null,
+          contactFormEnabled,
+        }
       };
+
+      // ── portfolio_extras size guard ──
+      // Reject saves that would balloon the JSONB column past ~200 KB.  A run-away
+      // extras blob bloats every profile read (and every public portfolio fetch)
+      // for that user, and we don't want a single huge translations / case-studies
+      // payload to silently degrade the API.  The cap is generous enough for
+      // dozens of services + multi-language translations.  Uses the shared
+      // module-scope PORTFOLIO_EXTRAS_MAX_BYTES so the publish-side limit and
+      // the autosave-side limit (in the autosave useEffect above) can never
+      // drift apart.
+      const extrasBytes = JSON.stringify(updates.portfolioExtras ?? {}).length;
+      if (extrasBytes > PORTFOLIO_EXTRAS_MAX_BYTES) {
+        toast.error(
+          `Portfolio content is too large (${Math.round(extrasBytes / 1024)} KB / ${Math.round(PORTFOLIO_EXTRAS_MAX_BYTES / 1024)} KB max). Remove some services, case studies, testimonials, or translations.`
+        );
+        setSavingPortfolio(false);
+        return;
+      }
 
       // Clear the persisted draft in the same write as the live-column promotion
       // so publish is atomic — no fire-and-forget second mutation that could fail silently.
@@ -753,37 +914,95 @@ export default function PortfolioEditorPage() {
       (updates as Record<string, unknown>).portfolioDraftSavedAt = null;
 
       await updateProfile(updates as Parameters<typeof updateProfile>[0]);
-      
+
+      // ── Apply password changes via the dedicated server-side RPC ──
+      // The RPC bcrypts the raw password on the server (no client hashing)
+      // and merges only the passwordEnabled / passwordHash keys, leaving the
+      // portfolio_extras JSONB column we just wrote untouched in every other
+      // respect.  Called only when the password state actually changed so a
+      // routine save never bumps the bcrypt hash.
+      const pwdStateChanged = passwordEnabled !== dbPasswordEnabled || hasNewPassword;
+      let pwdRpcFailed = false;
+      if (pwdStateChanged) {
+        try {
+          const { error: rpcError } = await supabase.rpc('set_portfolio_password', {
+            p_password: hasNewPassword ? portfolioPassword : null,
+            p_enabled: passwordEnabled,
+          });
+          if (rpcError) throw rpcError;
+          // Reflect the new server state locally:
+          //  - on enable+new pwd: we now have a stored hash (sentinel value;
+          //    the actual hash never returns to the browser)
+          //  - on disable: the hash was cleared
+          //  - on enable without new pwd (toggle on existing): hash unchanged
+          if (passwordEnabled && hasNewPassword) {
+            setPasswordHash('set');
+          } else if (!passwordEnabled) {
+            setPasswordHash('');
+          }
+          setPortfolioPassword('');
+          // Refresh the profile cache so next render reads back the merged extras.
+          queryClient.invalidateQueries({ queryKey: ['profile'] });
+        } catch (rpcErr) {
+          console.error('set_portfolio_password failed', rpcErr);
+          pwdRpcFailed = true;
+          toast.error('Portfolio saved, but the password update failed. Please try again.');
+        }
+      }
+
       // Save history snapshot (fire and forget to not block UI)
       if (overrides?.portfolioEnabled === undefined) {
         saveSnapshot(updates as Record<string, unknown>).catch(() => {});
       }
 
-      setLastSavedSnapshot(getCurrentSnapshot());
+      const newSnapshot = getCurrentSnapshot();
+      setLastSavedSnapshot(newSnapshot);
+      // After publish the persisted draft column was cleared above.  Reset the
+      // dedup ref so the next divergence from the just-published snapshot
+      // triggers a fresh autosave (otherwise a coincidental match against a
+      // stale pre-publish ref value would suppress the first draft write).
+      lastDraftPersistedSnapshotRef.current = newSnapshot;
 
       // Invalidate public portfolio cache to reflect changes immediately
       queryClient.invalidateQueries({ queryKey: ['public-portfolio'] });
       if (overrides?.portfolioEnabled !== undefined) {
         setPortfolioEnabled(overrides.portfolioEnabled);
       }
-      toast.success('Published! Your portfolio is now live.');
+      // Suppress the generic success toast when the password RPC failed —
+      // the error toast emitted above is the authoritative outcome and a
+      // contradictory "Published!" alongside it would confuse the user
+      // about whether protection is actually in effect.
+      if (!pwdRpcFailed) {
+        toast.success('Published! Your portfolio is now live.');
+      }
 
       // Auto-translate all sections on save when secondary language is configured.
       // Use the already-committed extras (updates.portfolioExtras) as the base
       // so the second patch never overwrites freshly saved fields with stale values.
+      // The same PORTFOLIO_EXTRAS_MAX_BYTES cap as the primary publish write
+      // applies here — adding a fresh language entry can push a near-full
+      // payload over the limit, and silently dropping the write would leave
+      // the user staring at a stale translation. We skip the write and toast
+      // in that case so they can trim something else first.
       if (portfolioSecondaryLanguage) {
         const savedExtras = updates.portfolioExtras as Record<string, unknown>;
         runTranslation(portfolioSecondaryLanguage, true).then((newTranslations) => {
           if (newTranslations) {
-            updateProfile({
-              portfolioExtras: {
-                ...savedExtras,
-                portfolioTranslations: {
-                  ...(savedExtras.portfolioTranslations as Record<string, unknown> || {}),
-                  [portfolioSecondaryLanguage]: newTranslations,
-                },
-              }
-            } as Parameters<typeof updateProfile>[0]).catch(() => {});
+            const nextExtras = {
+              ...savedExtras,
+              portfolioTranslations: {
+                ...(savedExtras.portfolioTranslations as Record<string, unknown> || {}),
+                [portfolioSecondaryLanguage]: newTranslations,
+              },
+            };
+            const nextBytes = new Blob([JSON.stringify(nextExtras)]).size;
+            if (nextBytes > PORTFOLIO_EXTRAS_MAX_BYTES) {
+              toast.error(
+                `Translation skipped: payload would exceed ${Math.round(PORTFOLIO_EXTRAS_MAX_BYTES / 1024)} KB (${Math.round(nextBytes / 1024)} KB). Trim some sections and republish.`
+              );
+              return;
+            }
+            updateProfile({ portfolioExtras: nextExtras } as Parameters<typeof updateProfile>[0]).catch(() => {});
           }
         }).catch(() => {});
       }
@@ -842,7 +1061,34 @@ export default function PortfolioEditorPage() {
     if (navigator.share) {
       try {
         await navigator.share({ title: `${profile?.fullName || 'My'} Portfolio`, url: portfolioCanonicalUrl });
-      } catch {/* cancelled */}
+        // Match the clipboard fallback's UX: confirm to the user that the
+        // share sheet's chosen target accepted the URL (the Web Share API
+        // resolves on success, rejects on cancel/abort).
+        toast.success('Shared!');
+      } catch (err) {
+        // AbortError = user dismissed the share sheet — gentle info toast,
+        // not an error, since "I changed my mind" isn't a failure state.
+        // Some engines (Safari, older WebViews) reject with a plain Error
+        // whose `.name` is still 'AbortError', so a permissive duck-typed
+        // check is more reliable than `instanceof DOMException`.
+        const isAbort =
+          !!err &&
+          typeof err === 'object' &&
+          (err as { name?: unknown }).name === 'AbortError';
+        if (isAbort) {
+          toast('Share cancelled.');
+        } else {
+          // Anything else (permission denied, no targets, etc.) is a real
+          // failure — fall back to the clipboard so the user still gets the
+          // URL without having to retry.
+          try {
+            await navigator.clipboard.writeText(portfolioCanonicalUrl);
+            toast.success('Link copied to clipboard instead.');
+          } catch {
+            toast.error('Could not share or copy the link. Please try again.');
+          }
+        }
+      }
     } else {
       await navigator.clipboard.writeText(portfolioCanonicalUrl);
       toast.success('Link copied!');
@@ -872,6 +1118,18 @@ export default function PortfolioEditorPage() {
 
   // ── Portfolio Strength ────────────────────────────────────────────────────
   const selectedResume = resumes.find((r) => r.id === selectedResumeId) || resumes[0];
+  // Live skill count (capped at the threshold for messaging clarity).  Driving
+  // the tip text from this lets the strength card show "1 more skill needed"
+  // immediately as the user edits, instead of only after they save.
+  const skillsCount = Array.isArray(selectedResume?.skills)
+    ? (selectedResume?.skills as unknown[]).length
+    : 0;
+  const SKILL_THRESHOLD = 3;
+  const skillsRemaining = Math.max(0, SKILL_THRESHOLD - skillsCount);
+  const skillsTip =
+    skillsRemaining > 0
+      ? `${skillsRemaining} more skill${skillsRemaining === 1 ? '' : 's'} needed for full strength (${skillsCount}/${SKILL_THRESHOLD})`
+      : `Add at least ${SKILL_THRESHOLD} skills to your resume`;
   const strengthChecks = [
     { ok: !!profile?.avatarUrl, tip: 'Add a profile photo in Settings → Profile' },
     { ok: bio.length >= 50, tip: 'Write a bio (at least 50 characters)' },
@@ -881,7 +1139,7 @@ export default function PortfolioEditorPage() {
     { ok: metaTitle.length > 0, tip: 'Add a custom page title for SEO' },
     { ok: metaDescription.length > 0, tip: 'Add a meta description for SEO' },
     { ok: Array.isArray(selectedResume?.experience) && (selectedResume?.experience as unknown[]).length >= 1, tip: 'Add work experience to your resume' },
-    { ok: Array.isArray(selectedResume?.skills) && (selectedResume?.skills as unknown[]).length >= 3, tip: 'Add at least 3 skills to your resume' },
+    { ok: skillsCount >= SKILL_THRESHOLD, tip: skillsTip },
     { ok: services.length > 0, tip: 'Add services to showcase what you offer' },
     { ok: testimonials.length > 0, tip: 'Add testimonials to build credibility' },
   ];
@@ -902,10 +1160,16 @@ export default function PortfolioEditorPage() {
 
   const strengthScore = Math.round(strengthChecks.filter((c) => c.ok).length / strengthChecks.length * 100);
   const strengthMissing = strengthChecks.filter((c) => !c.ok).slice(0, 3);
-  const strengthLabel = portfolioEnabled && strengthScore === 100
-    ? 'Ready to Publish'
-    : !portfolioEnabled && strengthScore >= 70
-    ? 'Publish to go live'
+  // Decoupled labels: "Live" reflects the publish state; "Ready to publish"
+  // reflects content completeness while still in draft.  Previously these were
+  // conflated ("Publish to go live" appeared even when score was 100), which
+  // confused users into thinking they still had unfinished work.
+  const strengthLabel = portfolioEnabled
+    ? 'Live'
+    : strengthScore === 100
+    ? 'Ready to publish'
+    : strengthScore >= 70
+    ? 'Almost ready'
     : strengthScore < 40
     ? 'Needs work'
     : strengthScore < 70
@@ -1002,7 +1266,11 @@ export default function PortfolioEditorPage() {
                 ) : (
                   <div className="h-full flex flex-col items-center justify-center gap-2 px-4 text-center">
                     <Smartphone className="w-8 h-8 text-muted-foreground/50" />
-                    <p className="text-xs text-muted-foreground">Publish your portfolio to see a mobile preview</p>
+                    <p className="text-xs text-muted-foreground">
+                      {!username
+                        ? 'Set a username to see a mobile preview'
+                        : 'Publish your portfolio to preview on mobile'}
+                    </p>
                   </div>
                 )}
               </div>
@@ -1217,11 +1485,19 @@ export default function PortfolioEditorPage() {
               onTranslate={handleTranslate}
               translating={translating}
               passwordEnabled={passwordEnabled}
-              onPasswordEnabledChange={setPasswordEnabled}
+              onPasswordEnabledChange={(checked) => {
+                setPasswordEnabled(checked);
+                // Disabling protection? Drop any password the user had typed
+                // but not yet saved.  Otherwise that stale value would still
+                // be tracked as an "unsaved change" and could leak into the
+                // next enable cycle.
+                if (!checked) setPortfolioPassword('');
+              }}
               portfolioPasswordSet={!!passwordHash}
               onPortfolioPasswordChange={setPortfolioPassword}
               customDomain={customDomain}
               onCustomDomainChange={setCustomDomain}
+              customDomainError={isPaidUser ? validateCustomDomain(customDomain) : null}
               isPaidUser={isPaidUser}
               contactFormEnabled={contactFormEnabled}
               onContactFormEnabledChange={setContactFormEnabled} />

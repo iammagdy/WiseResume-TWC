@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { motion, useScroll, useTransform, useSpring } from 'framer-motion';
 import { Briefcase, Layers, FolderOpen, Github, Wrench, Sparkles, Award, GraduationCap, Trophy, BookOpen, Heart, ExternalLink, Pin } from 'lucide-react';
 
-import type { PublicProfile, PublicResume } from '@/hooks/usePublicPortfolio';
+import type { PublicProfile, PublicResume, PortfolioSections } from '@/hooks/usePublicPortfolio';
 import { StatsStrip } from '@/components/portfolio/public/StatsStrip';
 import { HighlightsStrip } from '@/components/portfolio/public/HighlightsStrip';
 import { SectionNav } from '@/components/portfolio/public/SectionNav';
@@ -136,10 +136,17 @@ function SectionWrapper({
   pStyle: string;
   index: number;
 }) {
-  if (scrollEffect === 'parallax' && !prefersReducedMotion()) {
+  // Fast path: 'fade' (and no-effect / reduced-motion) renders a plain
+  // `motion.section` with no scroll subscription.  This explicit short-circuit
+  // guarantees we never instantiate a per-card `useScroll` listener for the
+  // common case — keeping scroll-thread cost flat on low-end mobile.
+  const useScrollEffect =
+    !!scrollEffect && scrollEffect !== 'fade' && !prefersReducedMotion();
+
+  if (useScrollEffect && scrollEffect === 'parallax') {
     return <ParallaxSection id={id} className={className}>{children}</ParallaxSection>;
   }
-  if (scrollEffect === 'tilt-3d' && !prefersReducedMotion()) {
+  if (useScrollEffect && scrollEffect === 'tilt-3d') {
     return <Tilt3DSection id={id} className={className}>{children}</Tilt3DSection>;
   }
   return (
@@ -241,7 +248,7 @@ export const PublicSections = ({
     : profile.portfolioCertifications;
 
   const sections = profile.portfolioSections;
-  const show = (key: string) => !sections || (sections as unknown as Record<string, boolean>)[key] !== false;
+  const show = (key: keyof PortfolioSections) => !sections || sections[key] !== false;
 
   const hasAbout = show('about') && !!profile.portfolioBio;
   const hasExperience = show('experience') && validExperience.length > 0;

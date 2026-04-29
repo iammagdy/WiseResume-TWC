@@ -164,26 +164,37 @@ serve(async (req) => {
               }
             }
           } catch {
-            // PTR lookup failed — fall through to ip-api.com
+            // PTR lookup failed — fall through to ipwho.is geo lookup below
           }
         }
 
-        // ── 2b. Fallback: ip-api.com org field ───────────────────────────────
+        // ── 2b. Fallback: ipwho.is over HTTPS (no plaintext visitor IP) ─────
+        // Switched from ip-api.com (HTTP-only on the free tier) to ipwho.is
+        // so visitor IP addresses are never transmitted in the clear over
+        // the public internet. Field shape mapping:
+        //   ip-api.com         → ipwho.is
+        //   geo.status==="ok"  → geo.success === true
+        //   geo.country        → geo.country
+        //   geo.city           → geo.city
+        //   geo.org            → geo.connection?.org (no AS-prefix; the
+        //                        regex strip below is therefore a no-op
+        //                        for ipwho.is responses but kept for
+        //                        defensive parity with future providers)
         if (!companyName) {
           const geoRes = await Promise.race([
-            fetch(`http://ip-api.com/json/${ip}?fields=country,city,org,status`),
+            fetch(`https://ipwho.is/${ip}?fields=success,country,city,connection`),
             new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500)),
           ]);
 
           if (geoRes instanceof Response && geoRes.ok) {
             const geo = await geoRes.json();
-            if (geo.status === "success") {
+            if (geo.success === true) {
               if (!country) country = geo.country || null;
               city = geo.city || null;
 
-              // Strip ASN prefix (e.g. "AS15169 Google LLC" → "Google LLC")
-              if (geo.org && typeof geo.org === "string") {
-                const cleaned = geo.org.replace(/^AS\d+\s+/i, "").trim();
+              const orgRaw = geo.connection?.org;
+              if (orgRaw && typeof orgRaw === "string") {
+                const cleaned = orgRaw.replace(/^AS\d+\s+/i, "").trim();
                 if (cleaned && !GENERIC_ISP_RE.test(cleaned)) {
                   companyName = cleaned;
                 }
@@ -193,12 +204,12 @@ serve(async (req) => {
         } else {
           // We have company from PTR — still fetch geo for country/city
           const geoRes = await Promise.race([
-            fetch(`http://ip-api.com/json/${ip}?fields=country,city,status`),
+            fetch(`https://ipwho.is/${ip}?fields=success,country,city`),
             new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500)),
           ]);
           if (geoRes instanceof Response && geoRes.ok) {
             const geo = await geoRes.json();
-            if (geo.status === "success") {
+            if (geo.success === true) {
               if (!country) country = geo.country || null;
               city = geo.city || null;
             }

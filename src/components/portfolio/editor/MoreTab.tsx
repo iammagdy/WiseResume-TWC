@@ -57,6 +57,7 @@ export interface MoreTabProps {
   // Custom domain (paid users only)
   customDomain: string;
   onCustomDomainChange: (val: string) => void;
+  customDomainError?: string | null;
   isPaidUser?: boolean;
   // Contact form
   contactFormEnabled: boolean;
@@ -84,7 +85,7 @@ export function MoreTab(props: MoreTabProps) {
     portfolioSecondaryLanguage, onPortfolioSecondaryLanguageChange,
     onTranslate, translating,
     passwordEnabled, onPasswordEnabledChange, portfolioPasswordSet, onPortfolioPasswordChange,
-    customDomain, onCustomDomainChange,
+    customDomain, onCustomDomainChange, customDomainError = null,
     isPaidUser = false,
     contactFormEnabled, onContactFormEnabledChange,
   } = props;
@@ -396,10 +397,17 @@ export function MoreTab(props: MoreTabProps) {
                     onPortfolioPasswordChange(e.target.value);
                   }}
                   autoComplete="new-password"
+                  aria-invalid={newPassword.length > 0 && newPassword.length < 8}
                 />
-                <p className="text-[10px] text-muted-foreground">
-                  Save your portfolio to activate the password gate.
-                </p>
+                {newPassword.length > 0 && newPassword.length < 8 ? (
+                  <p className="text-[10px] text-destructive">
+                    Password must be at least 8 characters.
+                  </p>
+                ) : (
+                  <p className="text-[10px] text-muted-foreground">
+                    Minimum 8 characters. Save your portfolio to activate the password gate.
+                  </p>
+                )}
               </div>
             )}
           </div>
@@ -430,9 +438,18 @@ export function MoreTab(props: MoreTabProps) {
               autoCorrect="off"
               spellCheck={false}
               inputMode="url"
+              className={customDomainError ? 'border-red-500 focus-visible:ring-red-500' : ''}
+              aria-invalid={!!customDomainError}
+              aria-describedby={customDomainError ? 'custom-domain-error' : undefined}
             />
+            {customDomainError && (
+              <p id="custom-domain-error" className="text-[11px] text-red-500 flex items-center gap-1">
+                <AlertCircle className="w-3 h-3 shrink-0" />
+                {customDomainError}
+              </p>
+            )}
           </div>
-          {customDomain && (
+          {customDomain && !customDomainError && (
             <div className="mt-3 p-3 rounded-lg bg-muted/40 border border-border space-y-1.5">
               <p className="text-xs font-semibold text-foreground">CNAME Setup Instructions</p>
               <p className="text-[11px] text-muted-foreground">

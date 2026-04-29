@@ -58,7 +58,8 @@ function providerDisplayName(provider: Provider): string {
 function defaultModelForProvider(provider: Provider): string {
   if (provider === 'openrouter') return 'meta-llama/llama-3.3-70b-instruct:free';
   if (provider === 'groq') return 'llama-3.3-70b-versatile';
-  return 'deepseek-chat';
+  // `deepseek-chat` is deprecated 2026/07/24 — switched to the v4-flash alias.
+  return 'deepseek-v4-flash';
 }
 
 function KeySlotView({ entry, result, testing, onTest }: KeySlotViewProps) {

@@ -16,7 +16,8 @@ import { getCorsHeaders } from '../_shared/cors.ts';
 
 const OPENROUTER_FREE_MODEL = 'meta-llama/llama-3.3-70b-instruct:free';
 const GROQ_FREE_MODEL = 'llama-3.3-70b-versatile';
-const DEEPSEEK_MODEL = 'deepseek-chat';
+// `deepseek-chat` is deprecated 2026/07/24 — switched to the v4-flash alias.
+const DEEPSEEK_MODEL = 'deepseek-v4-flash';
 
 function mask(value: string | undefined): string | null {
   if (!value) return null;

@@ -35,13 +35,26 @@ Deno.serve(async (req) => {
       subject,
       message,
       metadata = {},
+      website,
     } = body as {
       type: string;
       email: string;
       subject?: string;
       message: string;
       metadata?: Record<string, unknown>;
+      website?: string;
     };
+
+    // Honeypot: a legitimate user never sees the visually-hidden `website`
+    // field, so any non-empty value indicates an automated bot.  Return a
+    // fake-success response (200 + success body) so the spammer cannot
+    // distinguish detection from acceptance and won't retry with variations.
+    if (typeof website === "string" && website.trim().length > 0) {
+      return new Response(
+        JSON.stringify({ success: true, id: null }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     if (!type || !email || !message) {
       return new Response(

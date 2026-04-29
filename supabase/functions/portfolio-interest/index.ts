@@ -83,19 +83,14 @@ Deno.serve(async (req: Request) => {
         },
       });
     }
-    // 1 per IP per portfolio per hour — silently absorbs duplicate clicks.
-    const perPortfolio = await checkIpRateLimit(
-      clientIp,
-      `portfolio-interest:${username.toLowerCase()}`,
-      1,
-      3600,
-    );
-    if (!perPortfolio.allowed) {
-      return new Response(JSON.stringify({ ok: true, alreadySent: true }), {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+    // Per-IP-per-portfolio dedup is now handled by the unique `token`
+    // constraint on `portfolio_interactions` (see DB insert below). The
+    // previous 1-per-IP-per-hour gate ran BEFORE the DB lookup, so a
+    // legitimate second click within the hour was silently swallowed
+    // without ever giving the database (and therefore the dedup
+    // response) a chance to answer. The minute/day caps above still
+    // bound abuse cheaply; per-portfolio dedup is now exact rather than
+    // approximate.
   }
 
   try {

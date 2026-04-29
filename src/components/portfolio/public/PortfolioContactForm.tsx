@@ -18,6 +18,10 @@ export function PortfolioContactForm({ username, accentColor, ownerName }: Portf
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
+  // Honeypot trap — visually hidden, never focused/seen by sighted users or
+  // assistive tech.  Bots that fill every text input will populate this and
+  // their submission will be silently discarded server-side.
+  const [website, setWebsite] = useState('');
   const [status, setStatus] = useState<FormStatus>('idle');
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -39,6 +43,7 @@ export function PortfolioContactForm({ username, accentColor, ownerName }: Portf
           email: email.trim(),
           subject: `Portfolio message from ${name.trim()}`,
           message: message.trim(),
+          website,
           metadata: {
             portfolio_username: username,
             visitor_name: name.trim(),
@@ -63,7 +68,7 @@ export function PortfolioContactForm({ username, accentColor, ownerName }: Portf
       setStatus('error');
       toast.error(netMsg);
     }
-  }, [isValid, status, email, name, message, username]);
+  }, [isValid, status, email, name, message, username, website]);
 
   if (status === 'success') {
     return (
@@ -104,6 +109,33 @@ export function PortfolioContactForm({ username, accentColor, ownerName }: Portf
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-3" noValidate>
+        {/* Honeypot — visually hidden from sighted users and assistive tech.
+            Bots that fill every text input will populate this and be silently
+            rejected server-side.  `aria-hidden` + `tabIndex={-1}` keep it out
+            of the keyboard tab order and the accessibility tree. */}
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            left: '-10000px',
+            top: 'auto',
+            width: '1px',
+            height: '1px',
+            overflow: 'hidden',
+          }}
+        >
+          <label htmlFor="pf-contact-website">Website (leave blank)</label>
+          <input
+            id="pf-contact-website"
+            type="text"
+            name="website"
+            value={website}
+            onChange={(e) => setWebsite(e.target.value)}
+            tabIndex={-1}
+            autoComplete="off"
+          />
+        </div>
+
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1">
             <label className="text-xs font-medium" style={{ color: 'var(--pf-fg, #f5f5ff)' }}>

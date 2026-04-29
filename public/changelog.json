@@ -1,8 +1,28 @@
 [
   {
+    "version": "v3.10.0",
+    "date": "Apr 29, 2026",
+    "latest": true,
+    "summary": "DeepSeek is faster and more resilient, autosave warns when your portfolio is too large to save, and a batch of public-page polish.",
+    "items": [
+      {
+        "title": "DeepSeek is now faster and more resilient",
+        "description": "We upgraded our DeepSeek connection to a faster model, so AI features that use DeepSeek now reply more quickly. We also added a 60-second safety net so a stuck DeepSeek call no longer holds up your AI request — it quietly retries and, if needed, falls back to another AI provider. And if our DeepSeek account ever runs out of credit, the team now gets a clear alert and can top it up right away, instead of you seeing a vague AI error."
+      },
+      {
+        "title": "Autosave now warns once if your portfolio is too large to save",
+        "description": "If your portfolio content (services, case studies, testimonials, translations) grows past the size we can safely save between sessions, you'll see a one-time, friendly warning telling you exactly how much to trim before publishing — instead of silently failing later. Your edits stay in the editor and are still visible in the live preview; only the auto-recovery after a page refresh is paused until you trim back below the limit."
+      },
+      {
+        "title": "Polish on your public portfolio page",
+        "description": "A handful of small improvements to the public-page experience: when a browser blocks the print pop-up, you now get an inline link to open the print page in a new tab so you can still save your portfolio as a PDF; the resume-strength tooltip now shows live progress (for example, '1 more skill needed for full strength') as you edit, instead of waiting for a save; and the share button now tells you whether your share went through, you cancelled it, or the link was copied to your clipboard instead, so you're never left guessing what happened."
+      }
+    ]
+  },
+  {
     "version": "v3.9.0",
     "date": "Apr 28, 2026",
-    "latest": true,
+    "latest": false,
     "summary": "DeepSeek added as a third AI provider — more resilience, smarter routing",
     "items": [
       {

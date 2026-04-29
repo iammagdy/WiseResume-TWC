@@ -3,7 +3,7 @@ import { selectProviderForTool } from "../_shared/modelRouter.ts";
 const __ROUTE = selectProviderForTool('generate-portfolio-bio');
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { requireAuth, authErrorResponse } from '../_shared/authMiddleware.ts';
-import { checkRateLimit, recordUsage } from '../_shared/rateLimiter.ts';
+import { recordUsage } from '../_shared/rateLimiter.ts';
 import { checkUserRateLimit } from '../_shared/userRateLimiter.ts';
 import { checkAndDeductCredit, refundCredit } from '../_shared/creditUtils.ts';
 import { getServiceClient } from '../_shared/dbClient.ts';
@@ -30,14 +30,12 @@ Deno.serve(async (req) => {
       return authErrorResponse(authErr, req.headers.get('origin'));
     }
 
-    const { allowed } = await checkRateLimit(userId, { actionType: 'portfolio_bio', maxRequests: 20, windowSeconds: 60 });
-    if (!allowed) {
-      return new Response(
-        JSON.stringify({ error: 'Rate limit exceeded. Please wait before generating more bio content.' }),
-        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
+    // Single rate-limit gate against the authoritative `rpc_rate_limits`
+    // table (see _shared/userRateLimiter.ts module header). The previous
+    // duplicate `checkRateLimit` call against `ai_usage_logs` enforced the
+    // exact same 20-per-60s window using a different table and is now
+    // removed — `recordUsage` still writes to `ai_usage_logs` below for
+    // analytics, just no longer for enforcement.
     const serverRateCheck = await checkUserRateLimit(userId, 'portfolio_bio', 20, 60);
     if (!serverRateCheck.allowed) {
       return new Response(

@@ -1,7 +1,33 @@
 # 11 — Portfolio Password Security (Server-Side Enforcement)
 
 ## Status
-Partially deployed — code changes live, database migration pending (see note below).
+Phase 1 (server-side bcrypt of raw passwords + 8-char minimum) implemented on 2026-04-29 — code changes live, **migration `20260516000000_portfolio_password_raw.sql` pending deployment via the `db-migration.yml` GitHub Actions workflow**. Phase 0 (April 2026) work, described below, remains in place unchanged.
+
+## Phase 1 (Task #10, 2026-04-29) — eliminate client-side SHA-256
+Phase 0 verified passwords server-side but kept the editor's client-side `sha256(raw)` step on the WRITE path. Identical user passwords produced identical hashes on the wire and underneath the bcrypt wrapper, defeating bcrypt's per-password salt. Phase 1 removes that hash entirely.
+
+### Migration `supabase/migrations/20260516000000_portfolio_password_raw.sql`
+1. **`set_portfolio_password(p_password text, p_enabled boolean)`** — new SECURITY DEFINER RPC that becomes the **sole writer** of `portfolio_extras.passwordHash` and `portfolio_extras.passwordEnabled`. It bcrypts the raw password directly (no SHA-256 wrapping), enforces the 8-character minimum, and uses the `||` JSONB merge operator so unrelated extras keys are preserved. Granted to `authenticated`. Disable path clears the hash; enable-without-new-password path keeps the existing hash but flips the flag (rejects when no hash is set).
+2. **`get_public_portfolio` verify path updated** — now attempts `bcrypt(raw)` FIRST (Phase 1 format), then falls back to `bcrypt(sha256(raw))` (Phase 0 backfilled format), then to direct SHA-256 comparison (pre-Phase-0 legacy). All other body lines (rate limiting, sanitisation, return shape) preserved byte-for-byte from migration `20260426000000`.
+
+### `src/pages/PortfolioEditorPage.tsx`
+- `sha256hex()` helper deleted.
+- New `PORTFOLIO_PASSWORD_MIN_LENGTH = 8` constant.
+- `handleSave`: pre-flight validation rejects enabling protection without an existing hash + no new password, and rejects new passwords shorter than 8 chars (toast + early return).
+- Inside the try block, an authoritative `SELECT portfolio_extras` runs against the DB before composing the payload — this defeats stale React Query caches that would otherwise overwrite a real `passwordHash` with `null`. (Known residual: a one-round-trip-wide concurrent-tab race remains; Phase 2 will add optimistic concurrency or move the merge server-side.)
+- The `portfolioExtras` payload passes the freshly-read `passwordEnabled` / `passwordHash` straight through — `updateProfile` no longer authors them.
+- Immediately after `updateProfile`, when `pwdStateChanged` is true (toggle flipped or a new password was entered), the editor calls `set_portfolio_password({ p_password, p_enabled })` and updates a sentinel `passwordHash` state (`'set'` / `''`) so the "password is set" UI hint stays correct without leaking the actual hash.
+
+### `src/pages/PublicPortfolioPage.tsx`
+- `PasswordGate` no longer enforces a min length on submit, no longer trims, and no longer carries the `tooShort` helper. Submit is enabled whenever `value.length > 0 && !isChecking`. This (a) keeps legacy short-password portfolios unlockable and (b) preserves whitespace-edge passwords for exact-match comparison server-side.
+
+### `src/components/portfolio/editor/MoreTab.tsx`
+- Password input gains `aria-invalid` when `< 8` chars; inline destructive helper appears below the input when too short; baseline helper text now reads "Minimum 8 characters. Save your portfolio to activate the password gate."
+
+## Phase 0 — earlier work retained
+Sections below this point describe the original April 2026 verification migration; Phase 1 builds on it without changing those behaviours.
+
+---
 
 ## What changed
 

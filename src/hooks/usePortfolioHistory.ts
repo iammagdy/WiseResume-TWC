@@ -36,6 +36,23 @@ export function usePortfolioHistory(userId: string | undefined) {
     mutationFn: async (portfolioData: Record<string, unknown>) => {
       if (!userId) throw new Error('No user ID');
 
+      // Dedup: skip the insert when the payload is byte-identical to the most
+      // recent snapshot.  Repeated saves with no real change would otherwise
+      // pollute the history list with duplicate entries the user can't tell
+      // apart, push older meaningful snapshots off any retention window, and
+      // waste storage on the JSONB column.  Comparison is done over the full
+      // serialized payload so a key-order shuffle is treated as a no-op.
+      const { data: latestRows } = await supabase
+        .from('portfolio_history')
+        .select('portfolio_data')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      const latest = latestRows?.[0]?.portfolio_data as Record<string, unknown> | undefined;
+      if (latest && JSON.stringify(latest) === JSON.stringify(portfolioData)) {
+        return null;
+      }
+
       const { data, error } = await supabase
         .from('portfolio_history')
         .insert({

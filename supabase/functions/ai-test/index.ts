@@ -97,7 +97,8 @@ serve(async (req) => {
         model = 'llama-3.3-70b-versatile';
       } else {
         url = 'https://api.deepseek.com/v1/chat/completions';
-        model = 'deepseek-chat';
+        // `deepseek-chat` is deprecated 2026/07/24 — switched to v4-flash.
+        model = 'deepseek-v4-flash';
       }
 
       const headers: Record<string, string> = {
@@ -109,22 +110,41 @@ serve(async (req) => {
         headers['X-Title'] = 'WiseResume';
       }
 
+      // Lock thinking mode off for DeepSeek so the admin "Send test request"
+      // button reproduces real production behaviour (fast, non-thinking).
+      const requestBody: Record<string, unknown> = {
+        model,
+        messages: [{ role: 'user', content: body.prompt || 'Say hello in one short sentence.' }],
+        max_tokens: 60,
+        temperature: 0,
+      };
+      if (provider === 'deepseek') {
+        requestBody.thinking = { type: 'disabled' };
+      }
+
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 20_000);
       try {
         const res = await fetch(url, {
           method: 'POST',
           headers,
-          body: JSON.stringify({
-            model,
-            messages: [{ role: 'user', content: body.prompt || 'Say hello in one short sentence.' }],
-            max_tokens: 60,
-            temperature: 0,
-          }),
+          body: JSON.stringify(requestBody),
           signal: controller.signal,
         });
         const txt = await res.text();
         if (!res.ok) {
+          // Surface DeepSeek's "out of credit" 402 with a clear admin-facing
+          // message instead of dumping the raw upstream HTML/error blob.
+          if (res.status === 402 && provider === 'deepseek') {
+            return new Response(JSON.stringify({
+              success: false,
+              providerUsed: `${provider}:${idx}`,
+              model,
+              error: 'DeepSeek account balance is depleted. Top up at platform.deepseek.com to restore service.',
+              reason: 'insufficient_balance',
+              latencyMs: Date.now() - startTime,
+            }), { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+          }
           return new Response(JSON.stringify({
             success: false,
             providerUsed: `${provider}:${idx}`,

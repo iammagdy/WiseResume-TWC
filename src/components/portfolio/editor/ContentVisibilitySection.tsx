@@ -4,10 +4,14 @@ import { Switch } from '@/components/ui/switch';
 import { CollapsibleCard, SubSectionHeading } from './shared';
 
 export interface PortfolioSections {
+  about: boolean;
   experience: boolean;
   education: boolean;
   skills: boolean;
   projects: boolean;
+  caseStudies: boolean;
+  services: boolean;
+  testimonials: boolean;
   certifications: boolean;
   awards: boolean;
   publications: boolean;
@@ -16,14 +20,16 @@ export interface PortfolioSections {
 }
 
 export const DEFAULT_SECTIONS: PortfolioSections = {
-  experience: true, education: true, skills: true, projects: true,
+  about: true, experience: true, education: true, skills: true, projects: true,
+  caseStudies: true, services: true, testimonials: true,
   certifications: true, awards: true, publications: true, volunteering: true,
   githubProjects: true,
 };
 
 export const SECTION_LABELS: Record<keyof PortfolioSections, string> = {
-  experience: 'Experience', education: 'Education', skills: 'Skills',
-  projects: 'Projects', certifications: 'Certifications', awards: 'Awards',
+  about: 'About', experience: 'Experience', education: 'Education', skills: 'Skills',
+  projects: 'Projects', caseStudies: 'Case Studies', services: 'Services',
+  testimonials: 'Testimonials', certifications: 'Certifications', awards: 'Awards',
   publications: 'Publications', volunteering: 'Volunteering', githubProjects: 'GitHub Projects',
 };
 
