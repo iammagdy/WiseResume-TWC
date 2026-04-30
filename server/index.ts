@@ -502,7 +502,7 @@ async function getKindeM2MToken(): Promise<string> {
   if (_kindeM2MCache && _kindeM2MCache.expiresAt > Date.now() + 60_000) return _kindeM2MCache.token;
   const r = await fetch(`https://${domain}/oauth2/token`, {
     method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ grant_type: 'client_credentials', client_id: clientId, client_secret: clientSecret }),
+    body: new URLSearchParams({ grant_type: 'client_credentials', client_id: clientId, client_secret: clientSecret, audience: `https://${domain}/api` }),
   });
   if (!r.ok) throw new Error(`Kinde M2M token failed: ${r.status} ${await r.text().catch(() => '')}`);
   const data = await r.json() as { access_token: string; expires_in: number };
