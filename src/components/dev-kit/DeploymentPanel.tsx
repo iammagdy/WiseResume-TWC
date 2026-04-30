@@ -77,9 +77,9 @@ export function DeploymentPanel() {
     setFetchError(null);
     try {
       const [githubResult, envResult] = await Promise.all([
-        edgeFunctions.functions.invoke('admin-github-status', {
+        edgeFunctions.functions.invoke('admin-devkit-data', {
           headers: devKitAuthHeaders(),
-          body: {},
+          body: { action: 'github-status' },
         }),
         edgeFunctions.functions.invoke('admin-env-check', {
           headers: devKitAuthHeaders(),
@@ -97,7 +97,7 @@ export function DeploymentPanel() {
       let githubRepoUrl: string | null = null;
       let githubError: string | null = null;
       try {
-        const githubData = unwrapAdminResponse<GithubStatusResponse>(githubResult, 'admin-github-status');
+        const githubData = unwrapAdminResponse<GithubStatusResponse>(githubResult, 'admin-devkit-data');
         commits = githubData.commits ?? [];
         lastDeployedAt = commits[0]?.timestamp ?? null;
         githubRepoUrl = githubData.repoUrl ?? null;

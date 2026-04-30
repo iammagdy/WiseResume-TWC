@@ -394,8 +394,8 @@ export function CreateResumeDialog({
     setIsCreating(true);
     setPasteError(null);
     try {
-      const { data, error: fnError } = await edgeFunctions.functions.invoke('parse-linkedin', {
-        body: { profileText: pasteText.trim(), platform: 'generic' },
+      const { data, error: fnError } = await edgeFunctions.functions.invoke('parse-job', {
+        body: { action: 'linkedin', profileText: pasteText.trim(), platform: 'generic' },
       });
       if (fnError) throw fnError;
       if (data?.error) throw new Error(data.message || data.error);

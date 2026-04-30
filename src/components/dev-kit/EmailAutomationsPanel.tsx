@@ -190,11 +190,11 @@ export function EmailAutomationsPanel() {
     setLoading(true);
     setError(null);
     try {
-      const tuple = await edgeFunctions.functions.invoke('admin-resend-stats', {
+      const tuple = await edgeFunctions.functions.invoke('admin-email', {
         headers: devKitAuthHeaders(),
-        body: { action: 'stats' },
+        body: { module: 'resend-stats', action: 'stats' },
       });
-      const result = unwrapAdminResponse<StatsResponse>(tuple, 'admin-resend-stats');
+      const result = unwrapAdminResponse<StatsResponse>(tuple, 'admin-email');
       if (!isMounted()) return;
       setStats(result.audiences ?? []);
       setChecklist(result.checklist ?? []);
@@ -216,11 +216,11 @@ export function EmailAutomationsPanel() {
     setLookupLoading(true);
     setLookupResult(null);
     try {
-      const tuple = await edgeFunctions.functions.invoke('admin-resend-stats', {
+      const tuple = await edgeFunctions.functions.invoke('admin-email', {
         headers: devKitAuthHeaders(),
-        body: { action: 'lookup', email },
+        body: { module: 'resend-stats', action: 'lookup', email },
       });
-      const result = unwrapAdminResponse<{ foundIn: string[] }>(tuple, 'admin-resend-stats');
+      const result = unwrapAdminResponse<{ foundIn: string[] }>(tuple, 'admin-email');
       if (!isMounted()) return;
       setLookupResult(result.foundIn ?? []);
     } catch (e) {
@@ -252,11 +252,11 @@ export function EmailAutomationsPanel() {
     const loadingKey = audienceKey.replace('RESEND_AUDIENCE_', '') + '_' + action;
     setActionLoading(loadingKey);
     try {
-      const tuple = await edgeFunctions.functions.invoke('admin-resend-stats', {
+      const tuple = await edgeFunctions.functions.invoke('admin-email', {
         headers: devKitAuthHeaders(),
-        body: { action, audienceKey, email },
+        body: { module: 'resend-stats', action, audienceKey, email },
       });
-      unwrapAdminResponse(tuple, 'admin-resend-stats');
+      unwrapAdminResponse(tuple, 'admin-email');
       if (!isMounted()) return;
       toast.success(
         action === 'add'
@@ -277,11 +277,11 @@ export function EmailAutomationsPanel() {
     setSyncLoading(true);
     setSyncResult(null);
     try {
-      const tuple = await edgeFunctions.functions.invoke('admin-resend-sync', {
+      const tuple = await edgeFunctions.functions.invoke('admin-email', {
         headers: devKitAuthHeaders(),
-        body: {},
+        body: { module: 'resend-sync' },
       });
-      const result = unwrapAdminResponse<{ total: number; added: number; failed: number }>(tuple, 'admin-resend-sync');
+      const result = unwrapAdminResponse<{ total: number; added: number; failed: number }>(tuple, 'admin-email');
       if (!isMounted()) return;
       setSyncResult(result);
       toast.success(`Sync complete: ${result.added} of ${result.total} contacts upserted`);
@@ -342,7 +342,7 @@ export function EmailAutomationsPanel() {
           <div>
             <p className="font-medium">{error}</p>
             <p className="text-xs text-destructive/70 mt-1">
-              Deploy <code className="font-mono text-xs bg-destructive/10 px-1 py-0.5 rounded">admin-resend-stats</code> to your Supabase project and ensure DEV_KIT_PASSWORD is configured.
+              Deploy <code className="font-mono text-xs bg-destructive/10 px-1 py-0.5 rounded">admin-email</code> to your Supabase project and ensure DEV_KIT_PASSWORD is configured.
             </p>
           </div>
         </div>

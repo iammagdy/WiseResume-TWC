@@ -220,13 +220,13 @@ export function OverviewPanel() {
       let aiCreditsYesterday: number | null = null;
       try {
         if (!isMounted()) return;
-        const tuple = await edgeFunctions.functions.invoke('admin-analytics', {
+        const tuple = await edgeFunctions.functions.invoke('admin-devkit-data', {
           headers: devKitAuthHeaders(),
-          
+          body: { action: 'analytics' },
         });
         const analyticsResult = unwrapAdminResponse<{ data?: { aiCreditsToday?: number; aiCreditsYesterday?: number } }>(
           tuple,
-          'admin-analytics',
+          'admin-devkit-data',
         );
         if (analyticsResult.data) {
           aiCreditsToday = analyticsResult.data.aiCreditsToday ?? null;

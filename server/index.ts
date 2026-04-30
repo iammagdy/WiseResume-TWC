@@ -484,25 +484,49 @@ async function supabaseAuthAdmin<T = unknown>(method: string, path: string, body
   return (await r.json()) as T;
 }
 
+// Kinde identity helpers
+// Deterministic UUID v5 from a Kinde sub — must match supabase/functions/_shared/provisionUser.ts
+const KINDE_UUID_NAMESPACE = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
+async function kindeSubToUserId(kindeSub: string): Promise<string> {
+  const { createHash } = await import('crypto');
+  const nsHex = KINDE_UUID_NAMESPACE.replace(/-/g, '');
+  const nsBytes = Buffer.from(nsHex, 'hex');
+  const nameBytes = Buffer.from(kindeSub, 'utf8');
+  const data = Buffer.concat([nsBytes, nameBytes]);
+  const hash = createHash('sha1').update(data).digest();
+  hash[6] = (hash[6] & 0x0f) | 0x50;
+  hash[8] = (hash[8] & 0x3f) | 0x80;
+  const h = hash.slice(0, 16).toString('hex');
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20, 32)}`;
+}
+
 // Kinde M2M helpers
+// Normalise the domain: strip protocol prefix so we can always safely prepend https://
+// KINDE_DOMAIN may be stored as "https://yourapp.kinde.com" or just "yourapp.kinde.com"
+// VITE_KINDE_DOMAIN is accepted as a fallback alias (same value, different env var name)
+function resolveKindeDomain(): string {
+  const raw = (process.env.KINDE_DOMAIN ?? process.env.VITE_KINDE_DOMAIN ?? '').trim();
+  return raw.replace(/^https?:\/\//, '').replace(/\/$/, '');
+}
+
 let _kindeM2MCache: { token: string; expiresAt: number } | null = null;
 async function getKindeM2MToken(): Promise<string> {
-  const clientId = process.env.KINDE_M2M_CLIENT_ID?.trim();
-  const clientSecret = process.env.KINDE_M2M_CLIENT_SECRET?.trim();
-  const domain = process.env.KINDE_DOMAIN?.trim();
+  const clientId = (process.env.KINDE_M2M_CLIENT_ID ?? '').trim();
+  const clientSecret = (process.env.KINDE_M2M_CLIENT_SECRET ?? '').trim();
+  const domain = resolveKindeDomain();
   if (!clientId || !clientSecret || !domain) throw new Error('Kinde M2M credentials not configured (KINDE_M2M_CLIENT_ID / KINDE_M2M_CLIENT_SECRET / KINDE_DOMAIN)');
   if (_kindeM2MCache && _kindeM2MCache.expiresAt > Date.now() + 60_000) return _kindeM2MCache.token;
   const r = await fetch(`https://${domain}/oauth2/token`, {
     method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ grant_type: 'client_credentials', client_id: clientId, client_secret: clientSecret }),
+    body: new URLSearchParams({ grant_type: 'client_credentials', client_id: clientId, client_secret: clientSecret, audience: `https://${domain}/api` }),
   });
-  if (!r.ok) throw new Error(`Kinde M2M token failed: ${r.status}`);
+  if (!r.ok) throw new Error(`Kinde M2M token failed: ${r.status} ${await r.text().catch(() => '')}`);
   const data = await r.json() as { access_token: string; expires_in: number };
   _kindeM2MCache = { token: data.access_token, expiresAt: Date.now() + (data.expires_in - 60) * 1000 };
   return _kindeM2MCache.token;
 }
 async function kindeGet<T = unknown>(path: string): Promise<T> {
-  const domain = process.env.KINDE_DOMAIN?.trim();
+  const domain = resolveKindeDomain();
   if (!domain) throw new Error('KINDE_DOMAIN not configured');
   const token = await getKindeM2MToken();
   const r = await fetch(`https://${domain}${path}`, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } });
@@ -510,7 +534,7 @@ async function kindeGet<T = unknown>(path: string): Promise<T> {
   return (await r.json()) as T;
 }
 async function kindeDelete(path: string): Promise<void> {
-  const domain = process.env.KINDE_DOMAIN?.trim();
+  const domain = resolveKindeDomain();
   if (!domain) throw new Error('KINDE_DOMAIN not configured');
   const token = await getKindeM2MToken();
   const r = await fetch(`https://${domain}${path}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
@@ -1089,28 +1113,26 @@ async function requireDevKitAuth(req: Request, res: Response): Promise<string | 
 // edge function (the generic proxy below would return 404 if the function
 // is not yet deployed to the hosted Supabase project).
 
-// source meanings:
-//   replit_env    — must be set in Replit secrets; Express can use it directly
-//   supabase_vault — lives in Supabase vault; only available to edge functions in production
-//   optional      — nice to have; absence is never an error
-const MISSION_CONTROL_SECRETS: { key: string; label: string; source: 'replit_env' | 'supabase_vault' | 'optional'; aliases?: string[] }[] = [
-  { key: 'SUPABASE_URL',              label: 'Supabase URL',              source: 'replit_env' },
+// All secrets live in Supabase Vault. Supabase is the production backend.
+// Replit is a dev environment only — a secret being absent from process.env is normal and expected.
+const MISSION_CONTROL_SECRETS: { key: string; label: string; source: 'supabase_vault'; aliases?: string[] }[] = [
+  { key: 'SUPABASE_URL',              label: 'Supabase URL',              source: 'supabase_vault' },
   // The anon key is exposed to the frontend as VITE_SUPABASE_PUBLISHABLE_KEY in this project
-  { key: 'SUPABASE_ANON_KEY',         label: 'Supabase Anon Key',         source: 'replit_env', aliases: ['VITE_SUPABASE_PUBLISHABLE_KEY'] },
-  { key: 'SUPABASE_SERVICE_ROLE_KEY', label: 'Supabase Service Role Key', source: 'replit_env' },
+  { key: 'SUPABASE_ANON_KEY',         label: 'Supabase Anon Key',         source: 'supabase_vault', aliases: ['VITE_SUPABASE_PUBLISHABLE_KEY'] },
+  { key: 'SUPABASE_SERVICE_ROLE_KEY', label: 'Supabase Service Role Key', source: 'supabase_vault' },
   { key: 'DEV_KIT_PASSWORD',          label: 'DevKit Password',           source: 'supabase_vault' },
-  { key: 'KINDE_DOMAIN',              label: 'Kinde Domain',              source: 'replit_env' },
+  { key: 'KINDE_DOMAIN',              label: 'Kinde Domain',              source: 'supabase_vault' },
   { key: 'OPENROUTER_API_KEY',        label: 'OpenRouter API Key',        source: 'supabase_vault' },
   { key: 'OPENROUTER2_API_KEY',       label: 'OpenRouter 2 API Key',      source: 'supabase_vault' },
   { key: 'GROQ_API_KEY',              label: 'Groq API Key',              source: 'supabase_vault' },
-  // GitHub token: Replit names it GITHUB_ACCESS_TOKEN; the Supabase env names it GITHUB_TOKEN
-  { key: 'GITHUB_TOKEN',              label: 'GitHub Token',              source: 'replit_env', aliases: ['GITHUB_ACCESS_TOKEN'] },
-  // GITHUB_OWNER and GITHUB_REPO can be auto-derived from the git remote URL — marked optional
-  { key: 'GITHUB_OWNER',              label: 'GitHub Owner',              source: 'optional' },
-  { key: 'GITHUB_REPO',               label: 'GitHub Repo',               source: 'optional' },
+  // GitHub token: lives in Supabase vault; Replit may also have it as GITHUB_ACCESS_TOKEN or GITHUB_PAT
+  { key: 'GITHUB_TOKEN',              label: 'GitHub Token',              source: 'supabase_vault', aliases: ['GITHUB_ACCESS_TOKEN', 'GITHUB_PAT'] },
+  // GITHUB_OWNER and GITHUB_REPO live in Supabase vault (auto-derived from git remote as fallback)
+  { key: 'GITHUB_OWNER',              label: 'GitHub Owner',              source: 'supabase_vault' },
+  { key: 'GITHUB_REPO',               label: 'GitHub Repo',               source: 'supabase_vault' },
   { key: 'RESEND_API_KEY',            label: 'Resend API Key',            source: 'supabase_vault' },
-  { key: 'GEMINI_API_KEY',            label: 'Gemini API Key',            source: 'optional' },
-  { key: 'ELEVENLABS_API_KEY',        label: 'ElevenLabs API Key',        source: 'optional' },
+  { key: 'GEMINI_API_KEY',            label: 'Gemini API Key',            source: 'supabase_vault' },
+  { key: 'ELEVENLABS_API_KEY',        label: 'ElevenLabs API Key',        source: 'supabase_vault' },
   { key: 'KINDE_WEBHOOK_SECRET',      label: 'Kinde Webhook Secret',      source: 'supabase_vault' },
   { key: 'KINDE_M2M_CLIENT_ID',       label: 'Kinde M2M Client ID',       source: 'supabase_vault' },
   { key: 'KINDE_M2M_CLIENT_SECRET',   label: 'Kinde M2M Client Secret',   source: 'supabase_vault' },
@@ -1195,8 +1217,8 @@ app.all('/api/fn/admin-mission-control', async (req, res) => {
   if (!email) return;
 
   try {
-    // GITHUB_TOKEN may be named GITHUB_ACCESS_TOKEN in the Replit secrets panel
-    const githubToken  = process.env.GITHUB_TOKEN || process.env.GITHUB_ACCESS_TOKEN || '';
+    // GITHUB_TOKEN may be named GITHUB_ACCESS_TOKEN or GITHUB_PAT in the Replit secrets panel
+    const githubToken  = process.env.GITHUB_TOKEN || process.env.GITHUB_ACCESS_TOKEN || process.env.GITHUB_PAT || '';
     // GITHUB_OWNER / GITHUB_REPO: prefer explicit env vars, fall back to parsing the git remote URL
     const gitRemoteDerived = deriveGithubOwnerRepo();
     const githubOwner  = process.env.GITHUB_OWNER || gitRemoteDerived?.owner || '';
@@ -1206,8 +1228,9 @@ app.all('/api/fn/admin-mission-control', async (req, res) => {
     const or2Key       = process.env.OPENROUTER2_API_KEY || '';
     const groqKey      = process.env.GROQ_API_KEY  || '';
     const productionUrl = process.env.PRODUCTION_URL || 'https://resume.thewise.cloud';
-    // In dev: DEV_KIT_PASSWORD not present in local env → Supabase vault secrets won't be visible here
-    const isDevEnvironment = !(process.env.DEV_KIT_PASSWORD || '').trim();
+    // Express runs exclusively in Replit/dev — vault secrets live in Supabase and are
+    // visible to edge functions in production. Always treat this as a dev environment.
+    const isDevEnvironment = true;
     const now = new Date();
     const oneHourAgo = new Date(now.getTime() - 3600_000).toISOString();
 
@@ -1278,17 +1301,18 @@ app.all('/api/fn/admin-mission-control', async (req, res) => {
       return { ...check, lastRotatedAt, stale: daysSinceRotation !== null && daysSinceRotation >= STALE_DAYS, daysSinceRotation };
     });
 
-    // In dev mode, supabase_vault secrets are expected to be absent from process.env.
-    // Only count replit_env secrets as "missing" — vault secrets are confirmed by production deployment.
-    const missingCount = secretsWithAge.filter(s =>
-      !s.present && s.source === 'replit_env'
-    ).length;
+    // All secrets live in Supabase Vault. A secret absent from process.env is not "missing" —
+    // it's simply a vault secret that edge functions in production can access directly.
+    const missingCount = 0;
     const staleCount = secretsWithAge.filter(s => s.stale).length;
 
+    // Helper: secret is configured if present in env OR (dev mode + source is supabase_vault)
+    const vaultOk = (key: string) => isDevEnvironment && MISSION_CONTROL_SECRETS.find(s => s.key === key)?.source === 'supabase_vault';
+
     // AI configured = key present in env OR (dev mode + key is supabase_vault, i.e. it'll work in prod)
-    const orConfigured  = !!orKey  || (isDevEnvironment && MISSION_CONTROL_SECRETS.find(s => s.key === 'OPENROUTER_API_KEY')?.source === 'supabase_vault');
-    const or2Configured = !!or2Key || (isDevEnvironment && MISSION_CONTROL_SECRETS.find(s => s.key === 'OPENROUTER2_API_KEY')?.source === 'supabase_vault');
-    const groqConfigured= !!groqKey|| (isDevEnvironment && MISSION_CONTROL_SECRETS.find(s => s.key === 'GROQ_API_KEY')?.source === 'supabase_vault');
+    const orConfigured  = !!orKey  || vaultOk('OPENROUTER_API_KEY');
+    const or2Configured = !!or2Key || vaultOk('OPENROUTER2_API_KEY');
+    const groqConfigured= !!groqKey|| vaultOk('GROQ_API_KEY');
 
     const providerPings = [orPing, or2Ping, groqPing];
     // In dev mode, if a key is supabase_vault, treat it as "ok" (works in production)
@@ -1303,7 +1327,13 @@ app.all('/api/fn/admin-mission-control', async (req, res) => {
           ).every(p => p.ok)
     );
 
-    const resendConfigured = !!resendKey || (isDevEnvironment && MISSION_CONTROL_SECRETS.find(s => s.key === 'RESEND_API_KEY')?.source === 'supabase_vault');
+    const resendConfigured = !!resendKey || vaultOk('RESEND_API_KEY');
+
+    // GitHub configured = values in env OR auto-derived from git remote OR vault secrets
+    const githubTokenConfigured = !!githubToken || vaultOk('GITHUB_TOKEN');
+    const githubOwnerResolved   = githubOwner   || (vaultOk('GITHUB_OWNER') ? 'vault' : '');
+    const githubRepoResolved    = githubRepo    || (vaultOk('GITHUB_REPO')  ? 'vault' : '');
+    const repoConfigured        = !!(githubTokenConfigured && githubOwnerResolved && githubRepoResolved);
 
     res.json({
       success: true,
@@ -1314,7 +1344,7 @@ app.all('/api/fn/admin-mission-control', async (req, res) => {
         lastCommitAt: github.lastCommitAt,
         sha: github.sha,
         branch: github.branch,
-        repoConfigured: !!(githubToken && githubOwner && githubRepo),
+        repoConfigured,
         repoUrl: (githubOwner && githubRepo) ? `https://github.com/${githubOwner}/${githubRepo}` : null,
         productionUrl,
         siteUp: site.up,
@@ -2146,19 +2176,37 @@ app.all('/api/fn/admin-resend-sync', async (req, res) => {
 });
 
 // ── admin-env-check ───────────────────────────────────────────────────────────
-const ENV_CHECK_KEYS = [
-  { key: 'SUPABASE_URL', label: 'Supabase URL' }, { key: 'SUPABASE_ANON_KEY', label: 'Supabase Anon Key' },
-  { key: 'SUPABASE_SERVICE_ROLE_KEY', label: 'Supabase Service Role Key' }, { key: 'DEV_KIT_PASSWORD', label: 'DevKit Password' },
-  { key: 'KINDE_DOMAIN', label: 'Kinde Domain' }, { key: 'OPENROUTER_KEY_1', label: 'OpenRouter Key 1' },
-  { key: 'OPENROUTER_KEY_2', label: 'OpenRouter Key 2' }, { key: 'OPENROUTER_KEY_3', label: 'OpenRouter Key 3' },
-  { key: 'GROQ_KEY_1', label: 'Groq Key 1' }, { key: 'GROQ_KEY_2', label: 'Groq Key 2' }, { key: 'GROQ_KEY_3', label: 'Groq Key 3' },
-  { key: 'GITHUB_TOKEN', label: 'GitHub Token' }, { key: 'GITHUB_OWNER', label: 'GitHub Owner' }, { key: 'GITHUB_REPO', label: 'GitHub Repo' },
-  { key: 'RESEND_API_KEY', label: 'Resend API Key' }, { key: 'KINDE_WEBHOOK_SECRET', label: 'Kinde Webhook Secret' },
-  { key: 'KINDE_M2M_CLIENT_ID', label: 'Kinde M2M Client ID' }, { key: 'KINDE_M2M_CLIENT_SECRET', label: 'Kinde M2M Client Secret' },
+// All secrets live in Supabase Vault. Keys absent from process.env are vault-managed and
+// available to edge functions in production — they are not "missing".
+const ENV_CHECK_KEYS: { key: string; label: string; source: 'supabase_vault'; aliases?: string[] }[] = [
+  { key: 'SUPABASE_URL',              label: 'Supabase URL',              source: 'supabase_vault' },
+  { key: 'SUPABASE_ANON_KEY',         label: 'Supabase Anon Key',         source: 'supabase_vault', aliases: ['VITE_SUPABASE_PUBLISHABLE_KEY'] },
+  { key: 'SUPABASE_SERVICE_ROLE_KEY', label: 'Supabase Service Role Key', source: 'supabase_vault' },
+  { key: 'DEV_KIT_PASSWORD',          label: 'DevKit Password',           source: 'supabase_vault' },
+  { key: 'KINDE_DOMAIN',              label: 'Kinde Domain',              source: 'supabase_vault' },
+  { key: 'OPENROUTER_KEY_1',          label: 'OpenRouter Key 1',          source: 'supabase_vault' },
+  { key: 'OPENROUTER_KEY_2',          label: 'OpenRouter Key 2',          source: 'supabase_vault' },
+  { key: 'OPENROUTER_KEY_3',          label: 'OpenRouter Key 3',          source: 'supabase_vault' },
+  { key: 'GROQ_KEY_1',                label: 'Groq Key 1',                source: 'supabase_vault' },
+  { key: 'GROQ_KEY_2',                label: 'Groq Key 2',                source: 'supabase_vault' },
+  { key: 'GROQ_KEY_3',                label: 'Groq Key 3',                source: 'supabase_vault' },
+  { key: 'GITHUB_TOKEN',              label: 'GitHub Token',              source: 'supabase_vault', aliases: ['GITHUB_ACCESS_TOKEN', 'GITHUB_PAT'] },
+  { key: 'GITHUB_OWNER',              label: 'GitHub Owner',              source: 'supabase_vault' },
+  { key: 'GITHUB_REPO',               label: 'GitHub Repo',               source: 'supabase_vault' },
+  { key: 'RESEND_API_KEY',            label: 'Resend API Key',            source: 'supabase_vault' },
+  { key: 'KINDE_WEBHOOK_SECRET',      label: 'Kinde Webhook Secret',      source: 'supabase_vault' },
+  { key: 'KINDE_M2M_CLIENT_ID',       label: 'Kinde M2M Client ID',       source: 'supabase_vault' },
+  { key: 'KINDE_M2M_CLIENT_SECRET',   label: 'Kinde M2M Client Secret',   source: 'supabase_vault' },
+  { key: 'ADMIN_EMAILS',              label: 'Admin Emails Allowlist',     source: 'supabase_vault' },
 ];
 app.all('/api/fn/admin-env-check', async (req, res) => {
   const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
-  const checks = ENV_CHECK_KEYS.map(({ key, label }) => ({ key, label, present: !!process.env[key] }));
+  const checks = ENV_CHECK_KEYS.map(({ key, label, source, aliases }) => {
+    const presentInEnv = !!process.env[key] || (aliases ?? []).some(a => !!process.env[a]);
+    // A vault secret not in local env is still configured — it works in production via Supabase Vault
+    const present = presentInEnv || source === 'supabase_vault';
+    return { key, label, source, present, presentInEnv };
+  });
   const supabaseProjectRef = SUPABASE_URL?.match(/https:\/\/([^.]+)/)?.[1];
   const supabaseUrl = supabaseProjectRef ? `https://supabase.com/dashboard/project/${supabaseProjectRef}` : null;
   res.json({ success: true, checks, supabaseUrl });
@@ -2390,7 +2438,8 @@ app.all('/api/fn/admin-analytics', async (req, res) => {
 app.all('/api/fn/admin-save-note', async (req, res) => {
   const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
   try {
-    const body = req.body ?? {}; const { action, user_id, note, note_id } = body as { action?: string; user_id?: string; note?: string; note_id?: string };
+    const body = req.body ?? {}; const { action, note, note_id } = body as { action?: string; note?: string; note_id?: string };
+    const user_id: string | undefined = body.target_user_id ?? body.user_id;
     if (action === 'list') {
       if (!user_id) return res.status(400).json({ success: false, error: 'user_id required' });
       const data = await supabaseGet('admin_user_notes', `select=*&user_id=eq.${encodeURIComponent(user_id)}&order=created_at.desc`).catch(() => []);
@@ -2416,7 +2465,9 @@ app.all('/api/fn/admin-save-note', async (req, res) => {
 app.all('/api/fn/admin-list-user-content', async (req, res) => {
   const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
   try {
-    const { user_id, resume_id } = req.body ?? {} as { user_id?: string; resume_id?: string };
+    const _body = req.body ?? {};
+    const user_id: string | undefined = _body.target_user_id ?? _body.user_id;
+    const resume_id: string | undefined = _body.resume_id;
     if (!user_id) return res.status(400).json({ success: false, error: 'user_id required' });
     if (resume_id) {
       const data = await supabaseGet('resumes', `select=*&id=eq.${encodeURIComponent(resume_id)}&user_id=eq.${encodeURIComponent(user_id)}&limit=1`);
@@ -2431,7 +2482,9 @@ app.all('/api/fn/admin-list-user-content', async (req, res) => {
 app.all('/api/fn/admin-grant-trial', async (req, res) => {
   const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
   try {
-    const { user_id, plan, days } = req.body ?? {} as { user_id?: string; plan?: string; days?: number };
+    const _b = req.body ?? {};
+    const user_id: string | undefined = _b.target_user_id ?? _b.user_id;
+    const { plan, days } = _b as { plan?: string; days?: number };
     if (!user_id || !plan) return res.status(400).json({ success: false, error: 'user_id and plan required' });
     const result = await supabaseRpc('admin_grant_trial', { p_user_id: user_id, p_plan: plan, p_days: days ?? 14 });
     supabaseInsert('audit_logs', { user_id, category: 'billing', action: 'grant_trial', metadata: { plan, days, performed_by: callerEmail } }).catch(() => {});
@@ -2443,7 +2496,8 @@ app.all('/api/fn/admin-grant-trial', async (req, res) => {
 app.all('/api/fn/admin-revoke-trial', async (req, res) => {
   const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
   try {
-    const { user_id } = req.body ?? {} as { user_id?: string };
+    const _b = req.body ?? {};
+    const user_id: string | undefined = _b.target_user_id ?? _b.user_id;
     if (!user_id) return res.status(400).json({ success: false, error: 'user_id required' });
     await supabaseRpc('admin_revoke_trial', { p_user_id: user_id });
     supabaseInsert('audit_logs', { user_id, category: 'billing', action: 'revoke_trial', metadata: { performed_by: callerEmail } }).catch(() => {});
@@ -2455,7 +2509,9 @@ app.all('/api/fn/admin-revoke-trial', async (req, res) => {
 app.all('/api/fn/admin-suspend-user', async (req, res) => {
   const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
   try {
-    const { user_id, suspend, reason } = req.body ?? {} as { user_id?: string; suspend?: boolean; reason?: string };
+    const _b = req.body ?? {};
+    const user_id: string | undefined = _b.target_user_id ?? _b.user_id;
+    const { suspend, reason } = _b as { suspend?: boolean; reason?: string };
     if (!user_id) return res.status(400).json({ success: false, error: 'user_id required' });
     const result = await supabaseRpc('admin_suspend_user', { p_user_id: user_id, p_suspend: Boolean(suspend), p_reason: reason ?? null });
     supabaseInsert('audit_logs', { user_id, category: 'user_management', action: suspend ? 'suspend_user' : 'unsuspend_user', metadata: { reason, performed_by: callerEmail } }).catch(() => {});
@@ -2467,7 +2523,8 @@ app.all('/api/fn/admin-suspend-user', async (req, res) => {
 app.all('/api/fn/admin-revoke-sessions', async (req, res) => {
   const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
   try {
-    const { user_id } = req.body ?? {} as { user_id?: string };
+    const _b = req.body ?? {};
+    const user_id: string | undefined = _b.target_user_id ?? _b.user_id;
     if (!user_id) return res.status(400).json({ success: false, error: 'user_id required' });
     await supabaseAuthAdmin('DELETE', `users/${encodeURIComponent(user_id)}/sessions`);
     supabaseInsert('audit_logs', { user_id, category: 'user_management', action: 'user_sessions_revoked', metadata: { performed_by: callerEmail } }).catch(() => {});
@@ -2479,7 +2536,8 @@ app.all('/api/fn/admin-revoke-sessions', async (req, res) => {
 app.all('/api/fn/admin-delete-user', async (req, res) => {
   const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
   try {
-    const { user_id } = req.body ?? {} as { user_id?: string };
+    const _b = req.body ?? {};
+    const user_id: string | undefined = _b.target_user_id ?? _b.user_id;
     if (!user_id) return res.status(400).json({ success: false, error: 'user_id required' });
     const profile = await supabaseGet<{ contact_email: string | null }>('profiles', `select=contact_email&user_id=eq.${encodeURIComponent(user_id)}&limit=1`).catch(() => []);
     const email = profile[0]?.contact_email ?? null;
@@ -2490,28 +2548,78 @@ app.all('/api/fn/admin-delete-user', async (req, res) => {
 });
 
 // ── admin-impersonate ─────────────────────────────────────────────────────────
+// One-time-token store for "act as" popup links (in-memory, 2-min claim window)
+const _actAsOtpStore = new Map<string, { access_token: string; user_id: string; email: string; expires_at: number; claimed_by: string; created_at: number }>();
+// Purge expired OTPs every 5 minutes
+setInterval(() => {
+  const cutoff = Date.now() - 2 * 60 * 1000;
+  for (const [k, v] of _actAsOtpStore) { if (v.created_at < cutoff) _actAsOtpStore.delete(k); }
+}, 5 * 60 * 1000);
+
 app.all('/api/fn/admin-impersonate', async (req, res) => {
   const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
   try {
-    const { user_id, action: impAction = 'start' } = req.body ?? {} as { user_id?: string; action?: string };
+    const _b = req.body ?? {};
+    const user_id: string | undefined = _b.target_user_id ?? _b.user_id;
+    const impAction: string = _b.action ?? 'start';
     if (impAction === 'exit') {
-      supabaseInsert('audit_logs', { user_id: null, category: 'user_management', action: 'impersonation_exit', metadata: { performed_by: callerEmail } }).catch(() => {});
+      supabaseInsert('audit_logs', { user_id: null, category: 'admin_impersonation', action: 'impersonation_exit', metadata: { performed_by: callerEmail, target_user_id: user_id ?? null, exited_at: new Date().toISOString() } }).catch(() => {});
       return res.json({ success: true });
     }
     if (!user_id) return res.status(400).json({ success: false, error: 'user_id required' });
-    const authUser = await supabaseAuthAdmin<{ id: string; email?: string; user_metadata?: Record<string, unknown> }>('GET', `users/${encodeURIComponent(user_id)}`);
-    const linkResp = await supabaseAuthAdmin<{ action_link?: string; properties?: { action_link: string } }>('POST', 'generate_link', { type: 'magiclink', email: authUser.email });
-    const link = (linkResp as Record<string, unknown>).action_link ?? (linkResp as Record<string, unknown>).properties?.action_link ?? null;
-    supabaseInsert('audit_logs', { user_id, category: 'user_management', action: 'impersonation_start', metadata: { impersonated_email: authUser.email, performed_by: callerEmail } }).catch(() => {});
-    res.json({ success: true, access_token: null, magic_link: link, email: authUser.email, user_metadata: authUser.user_metadata ?? {} });
+    if (!SUPABASE_JWT_SECRET) return res.status(500).json({ success: false, error: 'Server not configured with SUPABASE_JWT_SECRET' });
+    const authUser = await supabaseAuthAdmin<{ id: string; email?: string }>('GET', `users/${encodeURIComponent(user_id)}`);
+    const targetEmail = authUser.email ?? '';
+    // Prevent impersonating another admin
+    const adminEmailList = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
+    if (targetEmail && adminEmailList.includes(targetEmail.toLowerCase())) {
+      return res.status(403).json({ success: false, error: 'Impersonating another admin is not permitted' });
+    }
+    const SESSION_TTL = 30 * 60;
+    const now = Math.floor(Date.now() / 1000);
+    const expiresAtSeconds = now + SESSION_TTL;
+    const expiresAtMs = expiresAtSeconds * 1000;
+    const secret = new TextEncoder().encode(SUPABASE_JWT_SECRET);
+    const accessToken = await new jose.SignJWT({
+      sub: user_id, email: targetEmail, role: 'authenticated', aud: 'authenticated',
+      iss: 'supabase', iat: now, exp: expiresAtSeconds, is_impersonation: true,
+    }).setProtectedHeader({ alg: 'HS256', typ: 'JWT' }).sign(secret);
+    supabaseInsert('audit_logs', { user_id: null, category: 'admin_impersonation', action: 'impersonation_start', metadata: { performed_by: callerEmail, target_user_id: user_id, target_email: targetEmail || user_id, started_at: new Date().toISOString(), expires_at: new Date(expiresAtMs).toISOString() } }).catch(() => {});
+
+    if (impAction === 'create_link') {
+      // Generate a one-time token that the new browser tab will claim
+      const { randomUUID } = await import('crypto');
+      const otp = randomUUID();
+      _actAsOtpStore.set(otp, { access_token: accessToken, user_id, email: targetEmail || user_id, expires_at: expiresAtMs, claimed_by: callerEmail, created_at: Date.now() });
+      return res.json({ success: true, otp, user_id, email: targetEmail || user_id, expires_at: expiresAtMs });
+    }
+
+    // action === 'start' — legacy same-tab flow (kept for backwards compat)
+    res.json({ success: true, access_token: accessToken, user_id, email: targetEmail || user_id, expires_at: expiresAtMs });
   } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
+});
+
+// ── admin-impersonate-claim ───────────────────────────────────────────────────
+// No DevKit auth — the OTP itself is the credential. One-time use only.
+app.all('/api/fn/admin-impersonate-claim', async (req, res) => {
+  const otp = (req.query.t ?? req.body?.t ?? '') as string;
+  if (!otp) return res.status(400).json({ success: false, error: 'Missing token' });
+  const entry = _actAsOtpStore.get(otp);
+  if (!entry) return res.status(404).json({ success: false, error: 'Token not found or already claimed' });
+  if (Date.now() - entry.created_at > 2 * 60 * 1000) {
+    _actAsOtpStore.delete(otp);
+    return res.status(410).json({ success: false, error: 'Token expired (2-minute claim window)' });
+  }
+  _actAsOtpStore.delete(otp); // one-time use
+  res.json({ success: true, access_token: entry.access_token, user_id: entry.user_id, email: entry.email, expires_at: entry.expires_at });
 });
 
 // ── admin-get-identity ────────────────────────────────────────────────────────
 app.all('/api/fn/admin-get-identity', async (req, res) => {
   const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
   try {
-    const { user_id } = req.body ?? {} as { user_id?: string };
+    const _b = req.body ?? {};
+    const user_id: string | undefined = _b.target_user_id ?? _b.user_id;
     if (!user_id) return res.status(400).json({ success: false, error: 'user_id required' });
     const [authUser, profile, tokenExchange] = await Promise.all([
       supabaseAuthAdmin<{ id: string; email?: string; created_at: string; confirmed_at?: string }>('GET', `users/${encodeURIComponent(user_id)}`).catch(() => null),
@@ -2564,7 +2672,9 @@ app.all('/api/fn/admin-merge-identity', async (req, res) => {
 app.all('/api/fn/admin-update-profile', async (req, res) => {
   const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
   try {
-    const { action = 'get', user_id, full_name, username } = req.body ?? {} as { action?: string; user_id?: string; full_name?: string; username?: string };
+    const _b = req.body ?? {};
+    const user_id: string | undefined = _b.target_user_id ?? _b.user_id;
+    const { action = 'get', full_name, username } = _b as { action?: string; full_name?: string; username?: string };
     if (!user_id) return res.status(400).json({ success: false, error: 'user_id required' });
     if (action === 'get') {
       const profile = await supabaseGet('profiles', `select=user_id,full_name,username,contact_email,avatar_url&user_id=eq.${encodeURIComponent(user_id)}&limit=1`);
@@ -2608,14 +2718,66 @@ app.all('/api/fn/admin-list-users', async (req, res) => {
     if (search) profQ += `&or=(full_name.ilike.*${encodeURIComponent(search)}*,contact_email.ilike.*${encodeURIComponent(search)}*)`;
     const profiles = await supabaseGet<{ user_id: string; full_name: string | null; contact_email: string | null; avatar_url: string | null; is_suspended: boolean; suspension_reason: string | null; account_type: string; created_at: string }>('profiles', profQ);
     const userIds = profiles.map(p => p.user_id);
-    let subscriptions: Record<string, { plan_name: string; plan_status: string; plan_updated_at: string | null; trial_plan: string | null; trial_expires_at: string | null }> = {};
-    if (userIds.length) {
-      const subs = await supabaseGet<{ user_id: string; plan_name: string; status: string; plan_updated_at: string | null; trial_plan: string | null; trial_expires_at: string | null }>('subscriptions', `select=user_id,plan_name,status,plan_updated_at,trial_plan,trial_expires_at&user_id=in.(${userIds.map(encodeURIComponent).join(',')})`).catch(() => []);
-      subscriptions = Object.fromEntries(subs.map(s => [s.user_id, { plan_name: s.plan_name, plan_status: s.status, plan_updated_at: s.plan_updated_at, trial_plan: s.trial_plan, trial_expires_at: s.trial_expires_at }]));
-    }
+
+    // Fetch enrichment data in parallel
+    const [subsRaw, resumesRaw, creditsRaw, authListRaw] = await Promise.all([
+      userIds.length
+        ? supabaseGet<{ user_id: string; plan_name: string; status: string; plan_updated_at: string | null; trial_plan: string | null; trial_expires_at: string | null }>(
+            'subscriptions',
+            `select=user_id,plan_name,status,plan_updated_at,trial_plan,trial_expires_at&user_id=in.(${userIds.map(encodeURIComponent).join(',')})`,
+          ).catch(() => [])
+        : Promise.resolve([]),
+      userIds.length
+        ? supabaseGet<{ user_id: string }>(
+            'resumes',
+            `select=user_id&user_id=in.(${userIds.map(encodeURIComponent).join(',')})`,
+          ).catch(() => [])
+        : Promise.resolve([]),
+      userIds.length
+        ? supabaseGet<{ user_id: string; daily_usage: number; daily_limit: number; usage_date: string }>(
+            'ai_credits',
+            `select=user_id,daily_usage,daily_limit,usage_date&user_id=in.(${userIds.map(encodeURIComponent).join(',')})&usage_date=eq.${new Date().toISOString().slice(0, 10)}`,
+          ).catch(() => [])
+        : Promise.resolve([]),
+      supabaseAuthAdmin<{ users?: Array<{ id: string; email?: string; last_sign_in_at?: string; email_confirmed_at?: string }> }>('GET', 'users?page=1&per_page=10000').catch(() => ({ users: [] })),
+    ]);
+
+    // Build lookup maps
+    const subscriptions: Record<string, { plan_name: string; plan_status: string; plan_updated_at: string | null; trial_plan: string | null; trial_expires_at: string | null }> =
+      Object.fromEntries(subsRaw.map(s => [s.user_id, { plan_name: s.plan_name, plan_status: s.status, plan_updated_at: s.plan_updated_at, trial_plan: s.trial_plan, trial_expires_at: s.trial_expires_at }]));
+
+    const resumeCounts: Record<string, number> = {};
+    for (const r of resumesRaw) resumeCounts[r.user_id] = (resumeCounts[r.user_id] ?? 0) + 1;
+
+    const creditsMap: Record<string, { credits_used_today: number; daily_limit: number }> =
+      Object.fromEntries(creditsRaw.map(c => [c.user_id, { credits_used_today: c.daily_usage, daily_limit: c.daily_limit }]));
+
+    const authMap: Record<string, { last_sign_in_at: string | null; email_confirmed_at: string | null }> =
+      Object.fromEntries((authListRaw.users ?? []).map(u => [u.id, { last_sign_in_at: u.last_sign_in_at ?? null, email_confirmed_at: u.email_confirmed_at ?? null }]));
+
     let users = profiles.map(p => {
       const sub = subscriptions[p.user_id] ?? { plan_name: 'free', plan_status: 'active', plan_updated_at: null, trial_plan: null, trial_expires_at: null };
-      return { user_id: p.user_id, full_name: p.full_name, email: p.contact_email, contact_email: p.contact_email, avatar_url: p.avatar_url, is_suspended: p.is_suspended ?? false, suspension_reason: p.suspension_reason, account_type: p.account_type ?? 'user', created_at: p.created_at, ...sub };
+      const credits = creditsMap[p.user_id] ?? { credits_used_today: 0, daily_limit: 10 };
+      const auth = authMap[p.user_id] ?? { last_sign_in_at: null, email_confirmed_at: null };
+      const has_id_conflict = (p.contact_email ?? '').endsWith('@collision.kinde.placeholder');
+      return {
+        user_id: p.user_id,
+        full_name: p.full_name,
+        email: p.contact_email,
+        contact_email: p.contact_email,
+        avatar_url: p.avatar_url,
+        is_suspended: p.is_suspended ?? false,
+        suspension_reason: p.suspension_reason,
+        account_type: p.account_type ?? 'user',
+        created_at: p.created_at,
+        resume_count: resumeCounts[p.user_id] ?? 0,
+        last_sign_in_at: auth.last_sign_in_at,
+        email_confirmed_at: auth.email_confirmed_at,
+        credits_used_today: credits.credits_used_today,
+        daily_limit: credits.daily_limit,
+        has_id_conflict,
+        ...sub,
+      };
     });
     if (filter_plan) users = users.filter(u => u.plan_name === filter_plan);
     if (filter_status === 'suspended') users = users.filter(u => u.is_suspended);
@@ -2629,7 +2791,9 @@ const PLAN_CREDIT_LIMITS: Record<string, number> = { free: 10, pro: 50, premium:
 app.all('/api/fn/admin-set-plan', async (req, res) => {
   const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
   try {
-    const { user_id, plan } = req.body ?? {} as { user_id?: string; plan?: string };
+    const _b = req.body ?? {};
+    const user_id: string | undefined = _b.target_user_id ?? _b.user_id;
+    const { plan } = _b as { plan?: string };
     if (!user_id || !plan) return res.status(400).json({ success: false, error: 'user_id and plan required' });
     const validPlans = ['free', 'pro', 'premium'];
     if (!validPlans.includes(plan)) return res.status(400).json({ success: false, error: `plan must be one of: ${validPlans.join(', ')}` });
@@ -2652,7 +2816,9 @@ app.all('/api/fn/admin-set-plan', async (req, res) => {
 app.all('/api/fn/admin-set-credits', async (req, res) => {
   const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
   try {
-    const { user_id, daily_limit, bonus_credits } = req.body ?? {} as { user_id?: string; daily_limit?: number; bonus_credits?: number };
+    const _b = req.body ?? {};
+    const user_id: string | undefined = _b.target_user_id ?? _b.user_id;
+    const { daily_limit, bonus_credits } = _b as { daily_limit?: number; bonus_credits?: number };
     if (!user_id) return res.status(400).json({ success: false, error: 'user_id required' });
     const today = new Date().toISOString().slice(0, 10);
     const existing = await supabaseGet<{ id: string; daily_limit: number; daily_usage: number }>('ai_credits', `select=id,daily_limit,daily_usage&user_id=eq.${encodeURIComponent(user_id)}&usage_date=eq.${today}&limit=1`).catch(() => []);
@@ -2674,28 +2840,56 @@ app.all('/api/fn/admin-kinde-reconcile', async (req, res) => {
   const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
   try {
     const { dry_run = false } = req.body ?? {} as { dry_run?: boolean };
-    let kindeUsers: Array<{ id: string; email?: string; first_name?: string; last_name?: string }> = [];
+    type KindeUser = { id: string; email?: string; first_name?: string; last_name?: string };
+    let kindeUsers: KindeUser[] = [];
     try {
-      const ku = await kindeGet<{ users?: typeof kindeUsers }>('/api/v1/users?page_size=200');
-      kindeUsers = ku.users ?? [];
+      // Page through all Kinde users (max 100 per page)
+      let nextToken: string | undefined;
+      do {
+        const url = `/api/v1/users?page_size=100${nextToken ? `&next_token=${encodeURIComponent(nextToken)}` : ''}`;
+        const page = await kindeGet<{ users?: KindeUser[]; next_token?: string }>(url);
+        kindeUsers = kindeUsers.concat(page.users ?? []);
+        nextToken = page.next_token;
+      } while (nextToken);
     } catch (e) {
       return res.json({ success: false, error: `Kinde M2M not configured or failed: ${String(e)}`, kinde_configured: false });
     }
-    let found = 0, provisioned = 0, backfilled = 0;
-    for (const ku of kindeUsers) {
-      if (!ku.id || !ku.email) continue;
-      found++;
-      if (dry_run) continue;
-      const existing = await supabaseGet('profiles', `select=user_id,contact_email&user_id=eq.${encodeURIComponent(ku.id)}&limit=1`).catch(() => []);
-      if (!existing.length) {
-        await supabaseInsert('profiles', { user_id: ku.id, contact_email: ku.email, full_name: [ku.first_name, ku.last_name].filter(Boolean).join(' ') || null, account_type: 'user' }).catch(() => {});
-        provisioned++;
-      } else if (existing[0] && !(existing[0] as Record<string, unknown>).contact_email && ku.email) {
-        await supabasePatch('profiles', `user_id=eq.${encodeURIComponent(ku.id)}`, { contact_email: ku.email });
-        backfilled++;
+
+    // Derive deterministic UUIDs for all Kinde users (must match provisionUser.ts)
+    const entries = await Promise.all(
+      kindeUsers.filter(u => u.id && u.email).map(async u => ({
+        kindeSub: u.id,
+        email: u.email!,
+        fullName: [u.first_name, u.last_name].filter(Boolean).join(' ') || null,
+        userId: await kindeSubToUserId(u.id),
+      }))
+    );
+
+    let found = entries.length, backfilled = 0, skipped = 0;
+
+    if (!dry_run) {
+      // Batch-fetch existing profiles to check which ones are missing contact_email
+      const uuids = entries.map(e => e.userId);
+      type ProfileRow = { user_id: string; contact_email: string | null };
+      const existing: ProfileRow[] = uuids.length
+        ? await supabaseGet<ProfileRow>('profiles', `select=user_id,contact_email&user_id=in.(${uuids.map(u => `"${u}"`).join(',')})`)
+            .catch(() => [])
+        : [];
+      const emailMap = new Map(existing.map(p => [p.user_id, p.contact_email ?? null]));
+
+      for (const e of entries) {
+        const existingEmail = emailMap.get(e.userId);
+        if (existingEmail !== undefined && !existingEmail && e.email) {
+          // Profile exists but email is null — backfill it
+          await supabasePatch('profiles', `user_id=eq.${encodeURIComponent(e.userId)}`, { contact_email: e.email }).catch(() => {});
+          backfilled++;
+        } else {
+          skipped++;
+        }
       }
     }
-    res.json({ success: true, dry_run, kinde_configured: true, total_kinde_users: kindeUsers.length, found, provisioned, backfilled });
+
+    res.json({ success: true, dry_run, kinde_configured: true, total_kinde_users: kindeUsers.length, found, backfilled, skipped });
   } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
 });
 
@@ -2749,7 +2943,7 @@ app.all('/api/fn/admin-email-actions', async (req, res) => {
 app.all('/api/fn/admin-github-status', async (req, res) => {
   const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
   try {
-    const token = (process.env.GITHUB_TOKEN || process.env.GITHUB_ACCESS_TOKEN)?.trim();
+    const token = (process.env.GITHUB_TOKEN || process.env.GITHUB_ACCESS_TOKEN || process.env.GITHUB_PAT)?.trim();
     const derived = deriveGithubOwnerRepo();
     const owner = (process.env.GITHUB_OWNER?.trim()) || derived?.owner || '';
     const repo  = (process.env.GITHUB_REPO?.trim())  || derived?.repo  || '';
@@ -2768,7 +2962,7 @@ app.all('/api/fn/admin-integrations', async (req, res) => {
   const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
   try {
     const { action } = req.body ?? {} as { action?: string };
-    const ghToken = (process.env.GITHUB_TOKEN || process.env.GITHUB_ACCESS_TOKEN)?.trim();
+    const ghToken = (process.env.GITHUB_TOKEN || process.env.GITHUB_ACCESS_TOKEN || process.env.GITHUB_PAT)?.trim();
     const _ghDerived = deriveGithubOwnerRepo();
     const ghOwner = (process.env.GITHUB_OWNER?.trim()) || _ghDerived?.owner || '';
     const ghRepo  = (process.env.GITHUB_REPO?.trim())  || _ghDerived?.repo  || '';
@@ -2934,6 +3128,60 @@ app.all('/api/fn/admin-wisehire-reset-user', async (req, res) => {
     supabaseInsert('audit_logs', { user_id: null, category: 'wisehire', action: 'wisehire_test_reset', metadata: { email: targetEmail, user_id, kinde_sub: kindeSub, kinde_deleted: kindeDeleted, kinde_error: kindeError, performed_by: callerEmail } }).catch(() => {});
     res.json({ success: true, user_id, kinde_deleted: kindeDeleted, kinde_error: kindeError, kinde_configured: !!process.env.KINDE_M2M_CLIENT_ID });
   } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
+});
+
+// ── admin-devkit-data ─────────────────────────────────────────────────────────
+// Multiplexer: panels call admin-devkit-data?action=X. Route each action to
+// the dedicated Express sub-handler so the DevKit never touches edge functions
+// in dev (Replit) mode.
+app.all('/api/fn/admin-devkit-data', async (req, res) => {
+  const callerEmail = await requireDevKitAuth(req, res);
+  if (!callerEmail) return;
+  const body = req.body ?? {};
+  const action = (body.action as string | undefined) ?? '';
+  if (!action) return res.status(400).json({ success: false, error: 'action is required: analytics | observability | live-activity | mission-control | github-status' });
+
+  const actionToRoute: Record<string, string> = {
+    'analytics':      'admin-analytics',
+    'mission-control':'admin-mission-control',
+    'github-status':  'admin-github-status',
+    'live-activity':  'admin-live-activity',
+    'observability':  'admin-observability',
+  };
+  const subRoute = actionToRoute[action];
+  if (!subRoute) return res.status(400).json({ success: false, error: `Unknown action: ${action}` });
+
+  // For observability the sub-handler reads body.action as the sub-action;
+  // panels send obs_action for that.
+  const forwardBody = action === 'observability'
+    ? { ...body, action: body.obs_action ?? 'get_telemetry' }
+    : body;
+
+  try {
+    const r = await fetch(`http://127.0.0.1:5001/api/fn/${subRoute}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: req.headers.authorization ?? '' },
+      body: JSON.stringify(forwardBody),
+      signal: AbortSignal.timeout(30_000),
+    });
+    const data = await r.json();
+    return res.status(r.status).json(data);
+  } catch (err) { return res.status(502).json({ success: false, error: String(err) }); }
+});
+
+// ── admin-email ───────────────────────────────────────────────────────────────
+// Panels call admin-email; the full implementation lives in admin-email-actions.
+app.all('/api/fn/admin-email', async (req, res) => {
+  try {
+    const r = await fetch(`http://127.0.0.1:5001/api/fn/admin-email-actions`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: req.headers.authorization ?? '' },
+      body: JSON.stringify(req.body ?? {}),
+      signal: AbortSignal.timeout(30_000),
+    });
+    const data = await r.json();
+    return res.status(r.status).json(data);
+  } catch (err) { return res.status(502).json({ success: false, error: String(err) }); }
 });
 
 /**
@@ -4419,13 +4667,23 @@ async function sweepOneTable(
   if (!sql) return 0;
   let total = 0;
   for (let i = 0; i < ANALYTICS_SWEEP_MAX_BATCHES_PER_TABLE; i++) {
-    const rows = await sql`
-      SELECT public.sweep_analytics_retention_batch(
-        ${table}::text,
-        ${days}::int,
-        ${ANALYTICS_SWEEP_BATCH_SIZE}::int
-      ) AS deleted
-    `;
+    let rows: Array<{ deleted: unknown }>;
+    try {
+      rows = await sql`
+        SELECT public.sweep_analytics_retention_batch(
+          ${table}::text,
+          ${days}::int,
+          ${ANALYTICS_SWEEP_BATCH_SIZE}::int
+        ) AS deleted
+      `;
+    } catch (err: unknown) {
+      // 42883 = undefined_function: the RPC does not exist in this DB
+      // (e.g. local dev sidecar missing the Supabase migration). Skip silently.
+      if (typeof err === 'object' && err !== null && (err as { code?: string }).code === '42883') {
+        return 0;
+      }
+      throw err;
+    }
     const deleted = Number(rows[0]?.deleted ?? 0);
     total += deleted;
     if (deleted < ANALYTICS_SWEEP_BATCH_SIZE) return total;

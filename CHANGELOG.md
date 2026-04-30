@@ -1,5 +1,32 @@
 # Changelog
 
+## 2026-04-30 — Edge function slot consolidation: 12 → 3 (Task #5)
+
+- **Why** — The Supabase free plan enforces a hard 100-function cap. The project had hit the ceiling, blocking any new deployments. 12 functions across three logical groups were individually deployed but shared identical auth, shared utility code, and differed only in the action they performed — a natural fit for router consolidation.
+- **`supabase/functions/parse-job/index.ts`** — new merged function. Routes on `body.action: 'url' | 'text' | 'linkedin'`. Replaces `parse-job-url`, `parse-job-text`, `parse-linkedin`. All per-action rate-limit, credit-check, AI-routing, and SSRF-protection logic copied verbatim into separate handler blocks.
+- **`supabase/functions/admin-devkit-data/index.ts`** — new merged function. Routes on `body.action: 'analytics' | 'observability' | 'live-activity' | 'mission-control' | 'github-status'`. Observability sub-routing uses `body.obs_action` to avoid conflict with the outer discriminator. Replaces `admin-analytics`, `admin-observability`, `admin-live-activity`, `admin-mission-control`, `admin-github-status`.
+- **`supabase/functions/admin-email/index.ts`** — new merged function. Routes on `body.module: 'resend-stats' | 'resend-sync' | 'email-actions' | 'broadcast'`. Internal `action` fields per module are preserved unchanged. Audit log for email-actions preserved: `action = the_action_name` (e.g. `resend_confirmation`), metadata includes `admin_email`, `audit_user_id_source`, `target_email`, `custom_subject` (send_custom only), `message_id`, `sent_at`. Replaces `admin-resend-stats`, `admin-resend-sync`, `admin-email-actions`, `admin-broadcast`.
+- **12 old function directories deleted** from `supabase/functions/`: `parse-job-url`, `parse-job-text`, `parse-linkedin`, `admin-analytics`, `admin-observability`, `admin-live-activity`, `admin-mission-control`, `admin-github-status`, `admin-resend-stats`, `admin-resend-sync`, `admin-email-actions`, `admin-broadcast`.
+- **`supabase/config.toml`** — replaced 12 old `[functions.*] verify_jwt = false` entries with 3 new ones: `[functions.parse-job]`, `[functions.admin-devkit-data]`, `[functions.admin-email]`.
+- **Frontend call sites updated (15 files):**
+  - `src/components/applications/AddApplicationSheet.tsx` — `apiFnUrl('parse-job-url')` + `{ url }` → `apiFnUrl('parse-job')` + `{ action: 'url', url }`
+  - `src/lib/aiTailor.ts` — `parse-job-url` (action:url) + `parse-job-text` (action:text)
+  - `src/components/dashboard/CreateResumeDialog.tsx`, `src/components/settings/ProfileImportSheet.tsx`, `src/pages/OnboardingPage.tsx` — `parse-linkedin` → `parse-job` with `action: 'linkedin'`
+  - `src/components/dev-kit/AnalyticsPanel.tsx`, `OverviewPanel.tsx` → `admin-devkit-data` (action: analytics)
+  - `src/components/dev-kit/ObservabilityPanel.tsx` → `admin-devkit-data` with `obs_action` for sub-routing (3 invocations)
+  - `src/components/dev-kit/LiveActivityPanel.tsx`, `UserDetailDrawer.tsx` → `admin-devkit-data` (action: live-activity)
+  - `src/components/dev-kit/MissionControlPanel.tsx`, `DeploymentPanel.tsx` → `admin-devkit-data` (action: mission-control / github-status)
+  - `src/components/dev-kit/EmailAutomationsPanel.tsx` → `admin-email` (module: resend-stats / resend-sync, 4 invocations)
+  - `src/components/dev-kit/EmailManagementPanel.tsx` → `admin-email` (module: email-actions, 3 invocations)
+  - `src/components/dev-kit/OwnerOpsPanel.tsx` → `admin-email` (module: broadcast / email-actions, 5 invocations)
+- **DevKit error messages** in `MissionControlPanel.tsx`, `EmailAutomationsPanel.tsx`, `EmailManagementPanel.tsx` updated to reference new function names.
+- **Type fixes in `parse-job/index.ts`** — removed unnecessary `as any` on `validation.errorCode` (field already in declared return type); typed `extractedData` as `Record<string, unknown> | null` instead of `any`.
+- **Deployment** — 12 old functions deleted via Supabase Management API (`DELETE /v1/projects/{ref}/functions/{slug}`, HTTP 200 for all 12). 3 merged functions deployed via `npx supabase functions deploy`. Slot count: 100 → 91.
+- **Bonus: 8 previously-never-deployed functions brought live** — with 9 newly freed slots, `admin-check-access`, `admin-onboarding-funnel`, `admin-rotate-totp`, `hard-purge`, `send-resume-reminder`, `wisehire-bulk-screen`, `wisehire-invite-reminder`, `wisehire-mask-cvs` were deployed for the first time. Slot count: 91 → 99. Free slots remaining: 1.
+- **`node scripts/check-edge-functions-deployed.mjs`** exits 0 post-deployment (99 local / 99 deployed).
+
+---
+
 ## 2026-04-26 — Branded email verification, welcome email & password reset flow (Task #22)
 
 - **Why** — Email/password sign-ups were granted full platform access with no identity confirmation step. There was no branded verification email, no way for users to reset passwords via a styled email, and no welcome email to greet new users.

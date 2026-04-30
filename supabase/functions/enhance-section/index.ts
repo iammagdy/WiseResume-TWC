@@ -839,7 +839,9 @@ serve(wrapHandler('enhance-section', async (req) => {
       );
     }
 
-    // === VARIANTS MODE: return 3 parallel rewrites (concise / balanced / expanded) ===
+    // === VARIANTS MODE: return 3 sequential rewrites (concise / balanced / expanded) ===
+    // Sequential (not parallel) to avoid hitting provider rate limits when multiple
+    // sections are enhanced in the same session.
     const VARIANT_COMPATIBLE_ACTIONS = ['improve', 'add_metrics', 'generate_bullets', 'expand', 'shorten', 'generate'];
     if (variantsMode && VARIANT_COMPATIBLE_ACTIONS.includes(action)) {
       const temperature = 0.8;
@@ -850,40 +852,38 @@ serve(wrapHandler('enhance-section', async (req) => {
       ];
       const styleLabels = ['Concise', 'Balanced', 'Expanded'];
 
-      console.log(`Variants mode: running 3 parallel enhance calls for ${section}/${action}`);
-
-      const variantResponses = await Promise.allSettled(
-        styleSuffixes.map(suffix =>
-          callAIWithRetry({
-            featureName: 'enhance-section',
-            model: __ROUTE.model, wiseresumeSubProvider: __ROUTE.provider,
-            messages: [{ role: 'user', content: prompt + suffix }],
-            temperature,
-            userId,
-          })
-        )
-      );
+      console.log(`Variants mode: running 3 sequential enhance calls for ${section}/${action}`);
 
       const variants: Array<{ improved: unknown; label: string }> = [];
       let representativeChanges: string[] = [];
       let representativeSuggestions: string[] = [];
       let providerUsed = 'unknown';
 
-      for (let i = 0; i < variantResponses.length; i++) {
-        const result = variantResponses[i];
-        if (result.status === 'fulfilled' && result.value.content) {
-          const parsed = await parseAIJSONWithRetry<Record<string, unknown>>(result.value.content, {
+      for (let i = 0; i < styleSuffixes.length; i++) {
+        try {
+          const aiResp = await callAIWithRetry({
+            featureName: 'enhance-section',
             model: __ROUTE.model, wiseresumeSubProvider: __ROUTE.provider,
+            messages: [{ role: 'user', content: prompt + styleSuffixes[i] }],
+            temperature,
             userId,
           });
-          if (parsed && parsed.improved !== undefined) {
-            variants.push({ improved: parsed.improved, label: styleLabels[i] });
-            if (i === 1 && Array.isArray(parsed.changes)) {
-              representativeChanges = parsed.changes as string[];
-              representativeSuggestions = Array.isArray(parsed.suggestions) ? parsed.suggestions as string[] : [];
+          if (aiResp.content) {
+            const parsed = await parseAIJSONWithRetry<Record<string, unknown>>(aiResp.content, {
+              model: __ROUTE.model, wiseresumeSubProvider: __ROUTE.provider,
+              userId,
+            });
+            if (parsed && parsed.improved !== undefined) {
+              variants.push({ improved: parsed.improved, label: styleLabels[i] });
+              if (i === 1 && Array.isArray(parsed.changes)) {
+                representativeChanges = parsed.changes as string[];
+                representativeSuggestions = Array.isArray(parsed.suggestions) ? parsed.suggestions as string[] : [];
+              }
+              providerUsed = aiResp.providerUsed || 'unknown';
             }
-            providerUsed = result.value.providerUsed || 'unknown';
           }
+        } catch (variantErr) {
+          console.error(`Variants mode: call ${i + 1}/3 (${styleLabels[i]}) failed:`, variantErr);
         }
       }
 

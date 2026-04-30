@@ -224,8 +224,8 @@ export interface ParsedJobData {
 }
 
 export async function parseJobUrl(url: string): Promise<ParsedJobData> {
-  const { data, error } = await edgeFunctions.functions.invoke('parse-job-url', {
-    body: { url },
+  const { data, error } = await edgeFunctions.functions.invoke('parse-job', {
+    body: { action: 'url', url },
   });
   if (error) throw new Error(extractErrorMessage(error, data, 'Failed to parse job URL'));
   if (data?.error) throw new Error(data.error || 'Failed to parse job URL');
@@ -233,8 +233,8 @@ export async function parseJobUrl(url: string): Promise<ParsedJobData> {
 }
 
 export async function parseJobText(text: string): Promise<ParsedJobData> {
-  const { data, error } = await edgeFunctions.functions.invoke('parse-job-text', {
-    body: { text },
+  const { data, error } = await edgeFunctions.functions.invoke('parse-job', {
+    body: { action: 'text', text },
   });
   if (error) {
     console.error('Parse job text error:', error);

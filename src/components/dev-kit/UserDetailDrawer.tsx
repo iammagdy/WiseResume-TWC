@@ -278,13 +278,13 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     setActivityLoading(true);
     setActivityError(null);
 
-    const eventsPromise = edgeFunctions.functions.invoke('admin-live-activity', {
+    const eventsPromise = edgeFunctions.functions.invoke('admin-devkit-data', {
       headers: devKitAuthHeaders(),
-      body: { resource: 'usage_events', user_id: user.user_id },
+      body: { action: 'live-activity', resource: 'usage_events', user_id: user.user_id },
     }).then((tuple) => {
       if (cancelled) return;
       try {
-        const result = unwrapAdminResponse<{ data?: UsageEvent[] }>(tuple, 'admin-live-activity');
+        const result = unwrapAdminResponse<{ data?: UsageEvent[] }>(tuple, 'admin-devkit-data');
         setActivityEvents(result.data ?? []);
       } catch (e) {
         setActivityError(formatEdgeError(e, 'Failed to load activity'));
@@ -292,9 +292,9 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
       }
     });
 
-    const statsPromise = edgeFunctions.functions.invoke('admin-live-activity', {
+    const statsPromise = edgeFunctions.functions.invoke('admin-devkit-data', {
       headers: devKitAuthHeaders(),
-      body: { resource: 'user_content_stats', user_id: user.user_id },
+      body: { action: 'live-activity', resource: 'user_content_stats', user_id: user.user_id },
     }).then((tuple) => {
       if (cancelled) return;
       try {
@@ -306,7 +306,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
           portfolioUsername: string | null;
           aiCredits30d: number | null;
           planHistory: Array<{ action: string; metadata: Record<string, unknown>; created_at: string }>;
-        }>(tuple, 'admin-live-activity (stats)');
+        }>(tuple, 'admin-devkit-data (stats)');
         setContentStats(result);
       } catch {
         // stats are non-critical; silently skip

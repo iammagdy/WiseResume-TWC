@@ -71,14 +71,14 @@ export function AddApplicationSheet({ open, onOpenChange, defaultValues }: AddAp
     try {
       const token = await getSupabaseToken();
       const res = await fetch(
-        apiFnUrl(`parse-job-url`),
+        apiFnUrl(`parse-job`),
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
           },
-          body: JSON.stringify({ url: trimmed }),
+          body: JSON.stringify({ action: 'url', url: trimmed }),
           signal,
         }
       );

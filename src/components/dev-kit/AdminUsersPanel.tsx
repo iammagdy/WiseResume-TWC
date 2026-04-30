@@ -12,7 +12,6 @@ import { toast } from 'sonner';
 import { useIsMounted } from '@/lib/devkit/hooks';
 import { unwrapAdminResponse, formatEdgeError, EdgeFunctionError } from '@/lib/devkit/edgeResponse';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
-import { startImpersonation } from '@/lib/impersonationStore';
 import {
   Dialog,
   DialogContent,
@@ -406,17 +405,34 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
         headers: devKitAuthHeaders(),
         body: { action: 'start', target_user_id: user.user_id },
       });
-      const result = unwrapAdminResponse<{
-        access_token: string;
-        user_id: string;
-        email: string;
-        expires_at: number;
-      }>(tuple, 'admin-impersonate');
-      startImpersonation(result.access_token, result.user_id, result.email, result.expires_at);
-      toast.success(`Now acting as ${result.email}`, {
-        description: 'Impersonation session starts. Click "Exit" in the top banner to end it.',
-        duration: 6000,
+      const result = unwrapAdminResponse<{ access_token: string; email: string; user_id: string; expires_at: number }>(tuple, 'admin-impersonate');
+      // Pass credentials in the URL hash (never sent to servers, not in server logs).
+      const payload = btoa(JSON.stringify({ t: result.access_token, u: result.user_id, e: result.email, x: result.expires_at }));
+      const url = `/act-as#${payload}`;
+      const popup = window.open(url, '_blank');
+      if (!popup) {
+        toast.error('Popup blocked', { description: 'Allow popups for this site, then try again.' });
+        return;
+      }
+      toast.success(`Opened Act As session for ${result.email}`, {
+        description: 'A new tab has opened. Close that tab to end the session.',
+        duration: 5000,
       });
+      // BroadcastChannel is reliable cross-origin; popup.closed is not
+      // trustworthy from inside an iframe (Replit workspace sandboxing).
+      try {
+        const channel = new BroadcastChannel('wr_act_as');
+        channel.onmessage = (ev: MessageEvent<{ type: string; email: string | null; userId: string | null }>) => {
+          if (ev.data?.type === 'session_ended' && ev.data?.userId === result.user_id) {
+            toast.info(`Act As session for ${result.email} ended`, {
+              description: 'The Act As tab was closed.',
+            });
+            channel.close();
+          }
+        };
+      } catch {
+        // BroadcastChannel not available — notifications simply won't appear
+      }
     } catch (err) {
       const isNotDeployed = err instanceof EdgeFunctionError && err.notDeployed;
       const description = isNotDeployed
