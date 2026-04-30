@@ -4,6 +4,7 @@
 WiseResume is an AI-powered web application for comprehensive career management. It assists users in creating and tailoring resumes for specific job listings, publishing public portfolios, practicing interview questions, tracking job applications, and managing career goals. The project's vision is to establish a robust, AI-driven platform for job seekers, with future expansion into an HR SaaS product called WiseHire. The application focuses on providing an efficient and intelligent solution for career advancement.
 
 ### User Preferences
+- **Supabase is the sole production source of truth** — Replit is a development/coding environment ONLY. Never treat Replit secrets, Replit environment variables, or the Express server as production infrastructure. All production secrets live in Supabase Vault. All production API traffic is served by Supabase Edge Functions. If a secret is absent from `process.env` in Replit, that is expected and normal — it is vault-managed and available to edge functions in production. Never add `replit_env` or `optional` secret sources; every secret is `supabase_vault`. Never suggest storing secrets in Replit as a production solution.
 - **Documentation Rules**: After every completed task, bug fix, or feature, the following documentation updates are mandatory:
     - Add an entry to `CHANGELOG.md` detailing technical changes (files, functions, DB migrations, behavior) in English, without plain-language explanations.
     - Add a plain-language entry to `Project Atlas/04-For You (Plain Language)/` in the appropriate file (`current-features.md`, `stability-improvements.md`, or `coming-soon.md`), focusing on user benefits without jargon or file names. Update the "Last verified" timestamp.
@@ -42,11 +43,13 @@ WiseResume is an AI-powered web application for comprehensive career management.
 **Authentication Flow:**
 Users authenticate via Kinde, receiving an access token. The client exchanges this token with the Express server at `POST /api/fn/token-exchange`. The server validates the Kinde JWT, generates a deterministic UUID for the user, upserts profile data in the Supabase database, and issues a short-lived session JWT. This session JWT is then used for all subsequent `/api/*` calls and validated server-side.
 
-**Replit Role:**
-- Replit is the **coding/development environment only** — it is NOT used for production hosting or deployment.
-- **Production** runs on **Supabase** (Edge Functions + Postgres). Deployment requires a GitHub access token and a Supabase access token.
+**Replit Role (dev environment ONLY — never production):**
+- Replit is the **coding/development environment only** — it is NOT used for production hosting, deployment, or secret storage.
+- **Production** runs entirely on **Supabase**: Edge Functions serve all API traffic; Supabase Vault holds all secrets; Postgres stores all data. Replit has zero involvement in the production path.
+- All secrets are stored in **Supabase Vault**. Secrets that also appear in Replit's environment are there solely to allow the local Express proxy to connect to Supabase during development — they are not the source of truth.
 - In Replit dev: Vite dev server (port 5000) for frontend, `tsx` server (port 5001) for Express API. Vite proxies `/api/*` to port 5001.
-- `src/lib/apiFnUrl.ts` handles environment-specific routing: `/api/fn/<name>` in dev (Vite → Express) and `${VITE_SUPABASE_URL}/functions/v1/<name>` in production (Supabase Edge Functions directly).
+- `src/lib/apiFnUrl.ts` handles environment-specific routing: `/api/fn/<name>` in dev (Vite → Express proxy) and `${VITE_SUPABASE_URL}/functions/v1/<name>` in production (Supabase Edge Functions directly).
+- The Express server (`server/index.ts`) is a **dev proxy only** — it mimics edge functions for local testing. It is never deployed and has no production role. Every secret it checks is tagged `supabase_vault`; a secret absent from `process.env` means it lives in Vault and is accessible to production edge functions — it is never "missing".
 
 **Core Features & Implementations:**
 - **AI Career Management**: AI-powered resume building, tailoring for job listings, public portfolios, interview practice, job tracking, and career goal management.
