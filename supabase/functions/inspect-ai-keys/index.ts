@@ -126,6 +126,12 @@ Deno.serve(async (req) => {
     }
 
     // ── POST: persist a single slot's selected model ──────────────────────
+    // The supabase-js `functions.invoke()` helper defaults to POST even when
+    // the caller doesn't pass a body — so the existing "fetch all keys"
+    // call from AIKeySlotPanels.fetchKeys() arrives here as POST with an
+    // empty body. We only treat a POST as a save when ALL save fields are
+    // present; otherwise we fall through to the read/inspect path so old
+    // callers keep working without a frontend change.
     if (req.method === 'POST') {
       const body = await req.json().catch(() => ({}));
       const { provider, slot, model } = body as {
@@ -133,42 +139,47 @@ Deno.serve(async (req) => {
         slot?: number;
         model?: string;
       };
-      if (!isAITestProvider(provider)) {
-        return json({ success: false, error: 'invalid provider' }, 400);
-      }
-      const slotNum = Number(slot);
-      if (![1, 2, 3].includes(slotNum)) {
-        return json({ success: false, error: 'invalid slot' }, 400);
-      }
-      const trimmed = typeof model === 'string' ? model.trim() : '';
-      if (!trimmed || !isAllowedAITestModel(provider, trimmed)) {
+      const looksLikeSave =
+        provider !== undefined || slot !== undefined || model !== undefined;
+      if (looksLikeSave) {
+        if (!isAITestProvider(provider)) {
+          return json({ success: false, error: 'invalid provider' }, 400);
+        }
+        const slotNum = Number(slot);
+        if (![1, 2, 3].includes(slotNum)) {
+          return json({ success: false, error: 'invalid slot' }, 400);
+        }
+        const trimmed = typeof model === 'string' ? model.trim() : '';
+        if (!trimmed || !isAllowedAITestModel(provider, trimmed)) {
+          return json({
+            success: false,
+            error: 'model is not in the allow-list for this provider',
+            allowed: AI_TEST_MODEL_ALLOWLIST[provider],
+          }, 400);
+        }
+        let merged: Record<string, string>;
+        try {
+          merged = await saveSlotModel(provider, slotNum as 1 | 2 | 3, trimmed);
+        } catch (err) {
+          return json({
+            success: false,
+            error: err instanceof Error ? err.message : String(err),
+          }, 500);
+        }
+        // Echo the canonical post-merge map so the UI can reconcile against
+        // any concurrent edits to other slots that landed between fetches.
         return json({
-          success: false,
-          error: 'model is not in the allow-list for this provider',
-          allowed: AI_TEST_MODEL_ALLOWLIST[provider],
-        }, 400);
+          success: true,
+          provider,
+          slot: slotNum,
+          model: trimmed,
+          slotModels: merged,
+        });
       }
-      let merged: Record<string, string>;
-      try {
-        merged = await saveSlotModel(provider, slotNum as 1 | 2 | 3, trimmed);
-      } catch (err) {
-        return json({
-          success: false,
-          error: err instanceof Error ? err.message : String(err),
-        }, 500);
-      }
-      // Echo the canonical post-merge map so the UI can reconcile against
-      // any concurrent edits to other slots that landed between fetches.
-      return json({
-        success: true,
-        provider,
-        slot: slotNum,
-        model: trimmed,
-        slotModels: merged,
-      });
+      // empty POST → fall through to GET-style inspect response.
     }
 
-    // ── GET (default): inspect all 9 slots + return allow-list ────────────
+    // ── GET (default) / empty POST: inspect all 9 slots + return allow-list ─
     const saved = await loadSavedSlotModels();
     const modelFor = (provider: AITestProvider, slot: 1 | 2 | 3): string => {
       const v = saved[slotKey(provider, slot)];

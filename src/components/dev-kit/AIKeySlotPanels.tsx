@@ -211,6 +211,14 @@ function KeySlotView({
               {result.providerUsed && (
                 <span className="text-[11px] font-mono text-muted-foreground">{result.providerUsed}</span>
               )}
+              {result.model && (
+                <span
+                  className="text-[11px] font-mono text-muted-foreground break-all"
+                  title="Model the function actually called"
+                >
+                  → {result.model}
+                </span>
+              )}
             </div>
 
             {result.ok && result.response && (
