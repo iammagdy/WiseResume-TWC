@@ -5,6 +5,59 @@ import { requireAuth, authErrorResponse } from '../_shared/authMiddleware.ts';
 import { requireAdminAuth } from '../_shared/adminAuth.ts';
 import { checkRateLimit } from '../_shared/rateLimiter.ts';
 import { logger } from '../_shared/logger.ts';
+import { getServiceClient } from '../_shared/dbClient.ts';
+import {
+  AI_TEST_DEFAULT_MODELS,
+  isAITestProvider,
+  isAllowedAITestModel,
+  type AITestProvider,
+} from '../_shared/modelDefaults.ts';
+
+const SLOT_MODELS_KEY = 'ai_test_slot_models';
+
+/**
+ * Resolve which model to call for a given admin slot test.
+ *
+ * Precedence (first match wins):
+ *   1. `requestedModel` from the request body, if it's in the provider's allow-list.
+ *   2. The slot's persisted choice in `app_settings.ai_test_slot_models`,
+ *      if it's still in the allow-list.
+ *   3. `AI_TEST_DEFAULT_MODELS[provider]` — the backward-compatible hardcoded
+ *      default that ai-test used before this feature shipped.
+ *
+ * Invalid or unknown models are silently ignored (we fall through to the next
+ * tier) so a stale persisted slug or a malicious body cannot drive the test
+ * to an arbitrary upstream model.
+ */
+async function resolveSlotTestModel(
+  provider: AITestProvider,
+  slot: 1 | 2 | 3,
+  requestedModel: string | undefined,
+): Promise<string> {
+  const requested = typeof requestedModel === 'string' ? requestedModel.trim() : '';
+  if (requested && isAllowedAITestModel(provider, requested)) return requested;
+
+  try {
+    const db = getServiceClient();
+    const { data } = await db
+      .from('app_settings')
+      .select('value')
+      .eq('key', SLOT_MODELS_KEY)
+      .maybeSingle();
+    const v = data?.value;
+    if (v && typeof v === 'object' && !Array.isArray(v)) {
+      const saved = (v as Record<string, unknown>)[`${provider}:${slot}`];
+      if (typeof saved === 'string' && isAllowedAITestModel(provider, saved)) {
+        return saved;
+      }
+    }
+  } catch {
+    // Silently fall back to the default — never let app_settings lookup
+    // failure break the smoke test path.
+  }
+
+  return AI_TEST_DEFAULT_MODELS[provider];
+}
 
 const log = logger('ai-test');
 
@@ -27,7 +80,7 @@ serve(async (req) => {
   const startTime = Date.now();
 
   try {
-    let body: { provider?: string; keyIndex?: number; prompt?: string } = {};
+    let body: { provider?: string; keyIndex?: number; prompt?: string; model?: string } = {};
     try {
       const text = await req.text();
       if (text) body = JSON.parse(text);
@@ -91,15 +144,23 @@ serve(async (req) => {
       let url: string;
       if (provider === 'openrouter') {
         url = 'https://openrouter.ai/api/v1/chat/completions';
-        model = 'meta-llama/llama-3.3-70b-instruct:free';
       } else if (provider === 'groq') {
         url = 'https://api.groq.com/openai/v1/chat/completions';
-        model = 'llama-3.3-70b-versatile';
       } else {
         url = 'https://api.deepseek.com/v1/chat/completions';
-        // `deepseek-chat` is deprecated 2026/07/24 — switched to v4-flash.
-        model = 'deepseek-v4-flash';
       }
+
+      // Resolve the model via: body.model (validated) → app_settings persisted
+      // choice (validated) → AI_TEST_DEFAULT_MODELS[provider]. Validation
+      // ensures the test only ever calls a slug from the curated allow-list.
+      if (!isAITestProvider(provider)) {
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'invalid provider',
+          latencyMs: Date.now() - startTime,
+        }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      model = await resolveSlotTestModel(provider, idx as 1 | 2 | 3, body.model);
 
       const headers: Record<string, string> = {
         Authorization: `Bearer ${apiKey}`,

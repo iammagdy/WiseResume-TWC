@@ -61,3 +61,61 @@ export const BYOK_DEFAULT_MODELS: Record<string, string> = {
   openrouter: '',
   ollama: '',
 };
+
+// ── DevKit AI-Test Slot Model Allow-Lists ────────────────────────────────────
+// Curated per-provider model choices the admin can pick for each AI key slot
+// in the DevKit "Send test request" panel. Frontend dropdown options and
+// backend body validation are driven from the same source so they cannot
+// drift. Anything outside the list is rejected and the request falls back to
+// AI_TEST_DEFAULT_MODELS for that provider.
+
+export type AITestProvider = 'openrouter' | 'groq' | 'deepseek';
+
+/** Backward-compatible default per provider — matches the previous hardcoded
+ *  ai-test values so behaviour is unchanged when no model is selected. */
+export const AI_TEST_DEFAULT_MODELS: Record<AITestProvider, string> = {
+  openrouter: 'meta-llama/llama-3.3-70b-instruct:free',
+  groq: 'llama-3.3-70b-versatile',
+  deepseek: 'deepseek-v4-flash',
+};
+
+export const AI_TEST_MODEL_ALLOWLIST: Record<AITestProvider, readonly string[]> = {
+  openrouter: [
+    'meta-llama/llama-3.3-70b-instruct:free',
+    'google/gemma-2-9b-it:free',
+    'mistralai/mistral-7b-instruct:free',
+    'openai/gpt-oss-120b:free',
+    'meta-llama/llama-3.1-8b-instruct',
+    'openai/gpt-4o-mini',
+  ],
+  groq: [
+    'llama-3.3-70b-versatile',
+    'llama-3.1-8b-instant',
+    'mixtral-8x7b-32768',
+    'gemma2-9b-it',
+    'qwen/qwen3-32b',
+  ],
+  deepseek: [
+    'deepseek-v4-flash',
+    'deepseek-chat',
+    'deepseek-reasoner',
+  ],
+};
+
+export function isAITestProvider(value: unknown): value is AITestProvider {
+  return value === 'openrouter' || value === 'groq' || value === 'deepseek';
+}
+
+export function isAllowedAITestModel(provider: string, model: string): boolean {
+  if (!isAITestProvider(provider)) return false;
+  return AI_TEST_MODEL_ALLOWLIST[provider].includes(model);
+}
+
+/** Resolve the model to use for an ai-test call: validated requested model →
+ *  AI_TEST_DEFAULT_MODELS[provider]. Caller is responsible for layering in
+ *  any persisted per-slot choice before calling this. */
+export function resolveAITestModel(provider: AITestProvider, requested: string | undefined | null): string {
+  const trimmed = typeof requested === 'string' ? requested.trim() : '';
+  if (trimmed && isAllowedAITestModel(provider, trimmed)) return trimmed;
+  return AI_TEST_DEFAULT_MODELS[provider];
+}

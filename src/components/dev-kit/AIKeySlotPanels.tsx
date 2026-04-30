@@ -2,6 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, XCircle, Loader2, RefreshCw, Send, AlertTriangle, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
 import { unwrapAdminResponse, formatEdgeError, EdgeFunctionError } from '@/lib/devkit/edgeResponse';
@@ -24,6 +31,8 @@ interface KeyEntry {
 
 interface InspectResponse {
   keys?: KeyEntry[];
+  modelOptions?: Partial<Record<Provider, string[]>>;
+  defaultModels?: Partial<Record<Provider, string>>;
 }
 
 interface TestResult {
@@ -40,7 +49,11 @@ interface KeySlotViewProps {
   entry: KeyEntry;
   result: TestResult | null;
   testing: boolean;
+  modelOptions: string[];
+  saving: boolean;
+  saveError: string | null;
   onTest: () => void;
+  onModelChange: (model: string) => void;
 }
 
 function defaultEnvName(provider: Provider, slot: Slot): string {
@@ -62,9 +75,29 @@ function defaultModelForProvider(provider: Provider): string {
   return 'deepseek-v4-flash';
 }
 
-function KeySlotView({ entry, result, testing, onTest }: KeySlotViewProps) {
+function KeySlotView({
+  entry,
+  result,
+  testing,
+  modelOptions,
+  saving,
+  saveError,
+  onTest,
+  onModelChange,
+}: KeySlotViewProps) {
   const providerLabel = providerDisplayName(entry.provider);
   const envName = entry.envName ?? defaultEnvName(entry.provider, entry.slot);
+
+  // Always include the current model in the options list so a previously-saved
+  // value that's no longer in the curated allow-list still renders correctly.
+  const dropdownOptions = useMemo(() => {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const m of [entry.model, ...modelOptions]) {
+      if (m && !seen.has(m)) { seen.add(m); out.push(m); }
+    }
+    return out;
+  }, [entry.model, modelOptions]);
 
   return (
     <div className="space-y-4">
@@ -102,8 +135,34 @@ function KeySlotView({ entry, result, testing, onTest }: KeySlotViewProps) {
             </dd>
           </div>
           <div>
-            <dt className="text-muted-foreground mb-0.5">Model</dt>
-            <dd className="font-mono text-foreground break-all">{entry.model}</dd>
+            <dt className="text-muted-foreground mb-0.5 flex items-center gap-1.5">
+              Model
+              {saving && <Loader2 className="w-3 h-3 animate-spin" />}
+            </dt>
+            <dd>
+              <Select
+                value={entry.model}
+                onValueChange={onModelChange}
+                disabled={saving || dropdownOptions.length === 0}
+              >
+                <SelectTrigger className="h-8 text-xs font-mono">
+                  <SelectValue placeholder="Select a model…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {dropdownOptions.map((m) => (
+                    <SelectItem key={m} value={m} className="text-xs font-mono">
+                      {m}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {saveError && (
+                <p className="mt-1 text-[11px] text-red-600 dark:text-red-400">{saveError}</p>
+              )}
+              <p className="mt-1 text-[10px] text-muted-foreground">
+                Used for the test request; saved per slot in Supabase.
+              </p>
+            </dd>
           </div>
         </dl>
 
@@ -181,12 +240,16 @@ function ProviderPanel({ provider }: ProviderPanelProps) {
   const { isUnlocked, lock } = useDevKitSession();
   const [activeSlot, setActiveSlot] = useState<Slot>(1);
   const [keys, setKeys] = useState<KeyEntry[] | null>(null);
+  const [modelOptionsByProvider, setModelOptionsByProvider] =
+    useState<Partial<Record<Provider, string[]>>>({});
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [sessionExpired, setSessionExpired] = useState(false);
   const [serverErrorDetail, setServerErrorDetail] = useState<string | null>(null);
   const [results, setResults] = useState<Record<string, TestResult>>({});
   const [testingKey, setTestingKey] = useState<string | null>(null);
+  const [savingSlotKey, setSavingSlotKey] = useState<string | null>(null);
+  const [saveErrors, setSaveErrors] = useState<Record<string, string>>({});
 
   const fetchKeys = useCallback(async () => {
     if (!isUnlocked) return;
@@ -201,6 +264,7 @@ function ProviderPanel({ provider }: ProviderPanelProps) {
       const result = unwrapAdminResponse<InspectResponse>(tuple, 'inspect-ai-keys');
       if (!isMounted()) return;
       setKeys(result.keys ?? []);
+      if (result.modelOptions) setModelOptionsByProvider(result.modelOptions);
     } catch (e) {
       if (!isMounted()) return;
       if (e instanceof EdgeFunctionError && e.status === 401) {
@@ -244,7 +308,15 @@ function ProviderPanel({ provider }: ProviderPanelProps) {
     try {
       const tuple = await edgeFunctions.functions.invoke('ai-test', {
         headers: devKitAuthHeaders(),
-        body: { provider, keyIndex: activeSlot, prompt: 'Say hello in one short sentence.' },
+        body: {
+          provider,
+          keyIndex: activeSlot,
+          prompt: 'Say hello in one short sentence.',
+          // Per-slot model is stored on the entry; the edge function validates
+          // it against the curated allow-list and falls back to the default
+          // when missing or unknown.
+          model: activeEntry.model,
+        },
       });
       if (tuple.error) {
         if (!isMounted()) return;
@@ -306,9 +378,56 @@ function ProviderPanel({ provider }: ProviderPanelProps) {
     } finally {
       if (isMounted()) setTestingKey(null);
     }
-  }, [provider, activeSlot, resultKey, isMounted]);
+  }, [provider, activeSlot, resultKey, isMounted, activeEntry.model]);
+
+  const handleModelChange = useCallback(async (newModel: string) => {
+    if (!newModel || newModel === activeEntry.model) return;
+    const slotKey = `${provider}:${activeSlot}`;
+    const previous = activeEntry.model;
+
+    // Optimistic update so the dropdown reflects the new value immediately.
+    setKeys(prev => (prev ?? []).map(k =>
+      k.provider === provider && k.slot === activeSlot ? { ...k, model: newModel } : k
+    ));
+    setSavingSlotKey(slotKey);
+    setSaveErrors(prev => {
+      const next = { ...prev };
+      delete next[slotKey];
+      return next;
+    });
+
+    try {
+      const tuple = await edgeFunctions.functions.invoke('inspect-ai-keys', {
+        headers: devKitAuthHeaders(),
+        body: { provider, slot: activeSlot, model: newModel },
+      });
+      const data = unwrapAdminResponse<{ slotModels?: Record<string, string> }>(tuple, 'inspect-ai-keys');
+      // Reconcile against canonical server state — picks up concurrent edits
+      // to OTHER slots that landed between our last fetch and this save.
+      if (data?.slotModels && isMounted()) {
+        setKeys(prev => (prev ?? []).map(k => {
+          const saved = data.slotModels?.[`${k.provider}:${k.slot}`];
+          return saved ? { ...k, model: saved } : k;
+        }));
+      }
+    } catch (e) {
+      if (!isMounted()) return;
+      // Roll back the optimistic update and surface the error inline.
+      setKeys(prev => (prev ?? []).map(k =>
+        k.provider === provider && k.slot === activeSlot ? { ...k, model: previous } : k
+      ));
+      setSaveErrors(prev => ({
+        ...prev,
+        [slotKey]: formatEdgeError(e, 'Failed to save model selection'),
+      }));
+    } finally {
+      if (isMounted()) setSavingSlotKey(curr => (curr === slotKey ? null : curr));
+    }
+  }, [provider, activeSlot, activeEntry.model, isMounted]);
 
   const configuredCount = providerKeys.filter(k => k.configured).length;
+  const slotKeyForActive = `${provider}:${activeSlot}`;
+  const modelOptionsForProvider = modelOptionsByProvider[provider] ?? [];
 
   return (
     <div className="space-y-4">
@@ -378,7 +497,11 @@ function ProviderPanel({ provider }: ProviderPanelProps) {
         entry={activeEntry}
         result={results[resultKey] ?? null}
         testing={testingKey === resultKey}
+        modelOptions={modelOptionsForProvider}
+        saving={savingSlotKey === slotKeyForActive}
+        saveError={saveErrors[slotKeyForActive] ?? null}
         onTest={runTest}
+        onModelChange={handleModelChange}
       />
     </div>
   );
