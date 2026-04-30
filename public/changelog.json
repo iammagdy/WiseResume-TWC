@@ -1,8 +1,20 @@
 [
   {
+    "version": "v3.10.1",
+    "date": "Apr 30, 2026",
+    "latest": true,
+    "summary": "Act As now works reliably in any browser tab — no more phantom session-ended toasts.",
+    "items": [
+      {
+        "title": "Admin Act As session no longer closes immediately",
+        "description": "Fixed three bugs that caused the Act As tab to appear to close right after opening: credentials are now passed securely via the URL fragment (no server round-trip needed, works in both dev and production), the session-end notification uses a reliable cross-tab channel instead of a browser API that misbehaves inside iframes, and a React development-mode quirk that could attempt to start the session twice has been guarded against."
+      }
+    ]
+  },
+  {
     "version": "v3.10.0",
     "date": "Apr 29, 2026",
-    "latest": true,
+    "latest": false,
     "summary": "DeepSeek is faster and more resilient, autosave warns when your portfolio is too large to save, and a batch of public-page polish.",
     "items": [
       {
