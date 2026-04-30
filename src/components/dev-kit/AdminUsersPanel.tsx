@@ -20,6 +20,7 @@ import {
   DialogFooter,
   DialogDescription,
 } from '@/components/ui/dialog';
+import { ActAsDialog, type ActAsSession } from './ActAsDialog';
 
 interface BulkActionResult {
   user_id: string;
@@ -396,6 +397,10 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
   };
 
   const [impersonatingId, setImpersonatingId] = useState<string | null>(null);
+  // Active "Act As" dialog session — null means dialog is closed.
+  // Replaces the previous auto-popup behavior with an explicit user-driven flow
+  // (copyable link + countdown + Open button). See ActAsDialog for the UX rationale.
+  const [actAsSession, setActAsSession] = useState<ActAsSession | null>(null);
 
   const handleImpersonate = useCallback(async (user: AdminUser, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -409,29 +414,17 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
       // Pass credentials in the URL hash (never sent to servers, not in server logs).
       const payload = btoa(JSON.stringify({ t: result.access_token, u: result.user_id, e: result.email, x: result.expires_at }));
       const url = `/act-as#${payload}`;
-      const popup = window.open(url, '_blank');
-      if (!popup) {
-        toast.error('Popup blocked', { description: 'Allow popups for this site, then try again.' });
-        return;
-      }
-      toast.success(`Opened Act As session for ${result.email}`, {
-        description: 'A new tab has opened. Close that tab to end the session.',
-        duration: 5000,
-      });
-      // BroadcastChannel is reliable cross-origin; popup.closed is not
-      // trustworthy from inside an iframe (Replit workspace sandboxing).
-      try {
-        const channel = new BroadcastChannel('wr_act_as');
-        channel.onmessage = (ev: MessageEvent<{ type: string; email: string | null; userId: string | null }>) => {
-          if (ev.data?.type === 'session_ended' && ev.data?.userId === result.user_id) {
-            toast.info(`Act As session for ${result.email} ended`, {
-              description: 'The Act As tab was closed.',
-            });
-            channel.close();
-          }
-        };
-      } catch {
-        // BroadcastChannel not available — notifications simply won't appear
+      // Open the dialog instead of immediately popping a tab. The admin
+      // gets a copyable link, a countdown, and an explicit "Open" button.
+      // BroadcastChannel listening lives inside the dialog so it's tied
+      // to dialog lifetime (no leaked channels).
+      if (isMounted()) {
+        setActAsSession({
+          url,
+          email: result.email,
+          userId: result.user_id,
+          expiresAt: result.expires_at,
+        });
       }
     } catch (err) {
       const isNotDeployed = err instanceof EdgeFunctionError && err.notDeployed;
@@ -1099,6 +1092,12 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
           onUserDeleted={handleUserDeleted}
         />
       )}
+
+      {/* Act As session dialog — copyable link, countdown, explicit Open button */}
+      <ActAsDialog
+        session={actAsSession}
+        onClose={() => setActAsSession(null)}
+      />
     </div>
   );
 }
