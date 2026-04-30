@@ -15,7 +15,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "server": "tsx server/index.ts",
-    "server:dev": "tsx --watch server/index.ts",
+    "server:dev": "tsx --env-file=.env.local --watch server/index.ts",
     "build:server": "esbuild server/index.ts --bundle --platform=node --format=esm --outfile=dist/server.mjs --packages=external",
     "build:all": "npm run build && npm run build:server",
     "db:push": "node_modules/.bin/drizzle-kit push",
