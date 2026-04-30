@@ -403,10 +403,12 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
     try {
       const tuple = await edgeFunctions.functions.invoke('admin-impersonate', {
         headers: devKitAuthHeaders(),
-        body: { action: 'create_link', target_user_id: user.user_id },
+        body: { action: 'start', target_user_id: user.user_id },
       });
-      const result = unwrapAdminResponse<{ otp: string; email: string; user_id: string }>(tuple, 'admin-impersonate');
-      const url = `/act-as?t=${encodeURIComponent(result.otp)}`;
+      const result = unwrapAdminResponse<{ access_token: string; email: string; user_id: string; expires_at: number }>(tuple, 'admin-impersonate');
+      // Pass credentials in the URL hash (never sent to servers, not in server logs).
+      const payload = btoa(JSON.stringify({ t: result.access_token, u: result.user_id, e: result.email, x: result.expires_at }));
+      const url = `/act-as#${payload}`;
       const popup = window.open(url, '_blank');
       if (!popup) {
         toast.error('Popup blocked', { description: 'Allow popups for this site, then try again.' });
