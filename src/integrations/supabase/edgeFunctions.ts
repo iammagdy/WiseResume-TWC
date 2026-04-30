@@ -75,6 +75,17 @@ export const edgeFunctions = {
           headers['Authorization'] = `Bearer ${EDGE_FUNCTIONS_ANON_KEY}`;
           headers['apikey'] = EDGE_FUNCTIONS_ANON_KEY;
         }
+        // Defence-in-depth (Bug #5): always attach the anon `apikey` header
+        // when we have it, even if the caller already supplied an
+        // Authorization header (e.g. DevKit's HMAC bearer). The Supabase
+        // gateway uses `apikey` as its platform credential anchor; if a
+        // function ever drifts to verify_jwt=true at the gateway layer,
+        // having a valid apikey alongside lets the request still reach the
+        // function code instead of being rejected with the misleading
+        // "Invalid or expired auth token" gateway error.
+        if (EDGE_FUNCTIONS_ANON_KEY && !('apikey' in headers)) {
+          headers['apikey'] = EDGE_FUNCTIONS_ANON_KEY;
+        }
 
         const url = apiFnUrl(fnName);
 
@@ -128,7 +139,16 @@ export const edgeFunctions = {
           // validation errors (e.g. { success:false, error:"...", status:"invalid" })
           // from being misread by parseAIErrorBody and turned into misleading
           // "AI is temporarily unavailable" messages.
-          if (fnName.startsWith('admin-')) {
+          //
+          // DEVKIT_BYPASS_FUNCTIONS: admin-only functions whose name does NOT
+          // start with `admin-` and which therefore need explicit listing
+          // here. `ai-test` is the DevKit AI key smoke-test endpoint — its
+          // 401s should surface the real error string (e.g. "Unauthorized"
+          // or a future gateway error) rather than the misleading
+          // "Session expired — please sign in again to use AI features."
+          // toast that the AI parser would otherwise produce. (Bug #5.)
+          const DEVKIT_BYPASS_FUNCTIONS = new Set(['ai-test']);
+          if (fnName.startsWith('admin-') || DEVKIT_BYPASS_FUNCTIONS.has(fnName)) {
             let rawError: string | null = null;
             try {
               const parsed = JSON.parse(result.text);
