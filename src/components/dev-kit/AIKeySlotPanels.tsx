@@ -367,6 +367,9 @@ function ProviderPanel({ provider }: ProviderPanelProps) {
             ok: false,
             latencyMs: data.latencyMs ?? (Date.now() - startedAt),
             providerUsed: data.providerUsed,
+            // Surface the model in failure cases too — lets the admin see
+            // exactly which slug was attempted when an upstream error fires.
+            model: data.model,
             error: data.error || 'Unknown failure',
             testedAt: Date.now(),
           },
