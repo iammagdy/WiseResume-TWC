@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-04-30 — v3.10.1: Act As tab flow rewrite
+
+- **`src/components/dev-kit/AdminUsersPanel.tsx`** — `handleImpersonate`: changed `action: 'create_link'` → `action: 'start'`; response type changed from `{ otp, email, user_id }` to `{ access_token, email, user_id, expires_at }`; URL changed from `/act-as?t=<otp>` to `/act-as#<btoa(JSON({t,u,e,x}))>`; removed `popup.closed` polling; added `BroadcastChannel('wr_act_as')` listener for `session_ended` event keyed on `userId`.
+- **`src/pages/ActAs.tsx`** — complete rewrite: no longer calls `/api/fn/admin-impersonate-claim` (Express-only endpoint that doesn't exist in production); instead reads credentials from `window.location.hash` via `atob()` + `JSON.parse()`; `useRef` guard prevents StrictMode double-execution; `history.replaceState` strips hash before navigating; navigates to `/dashboard` (not `/`) so `ActingAsBanner` renders immediately in `AppShell`.
+- **`src/components/layout/ActingAsBanner.tsx`** — added `broadcastSessionEnd()` helper that posts `{ type: 'session_ended', email, userId }` on `BroadcastChannel('wr_act_as')`; called on explicit exit (`handleExit`), on session expiry (timeout callback), and via `beforeunload` listener in new-tab mode; all `window.close()` calls preserved for new-tab exit paths.
+- **Root cause of old flow breaking in production**: `apiFnUrl('admin-impersonate-claim')` in production resolves to `${SUPABASE_URL}/functions/v1/admin-impersonate-claim` — an edge function that does not exist. The old OTP store (`_actAsOtpStore`) was Express server memory, which is dev-only. The `create_link` action on the production `admin-impersonate` edge function fell through to the `start` path, returning `access_token` (not `otp`), making the URL `/act-as?t=undefined`.
+- **Root cause of `popup.closed` false positive**: Replit workspace preview runs inside a sandboxed `workspace_iframe.html`. When code inside a sandboxed iframe opens a popup via `window.open()`, the `.closed` property can return `true` immediately due to cross-origin sandbox restrictions on the window reference.
+- **`public/changelog.json`** — added v3.10.1 entry; v3.10.0 `latest` set to `false`.
+- **`package.json`** — version bumped `3.10.0` → `3.10.1`.
+
 ## 2026-04-30 — Edge function slot consolidation: 12 → 3 (Task #5)
 
 - **Why** — The Supabase free plan enforces a hard 100-function cap. The project had hit the ceiling, blocking any new deployments. 12 functions across three logical groups were individually deployed but shared identical auth, shared utility code, and differed only in the action they performed — a natural fit for router consolidation.
