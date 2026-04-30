@@ -135,7 +135,7 @@ serve(async (req) => {
         console.log('URL validation failed:', validation.error, 'URL:', url.substring(0, 100));
         return new Response(
           JSON.stringify({
-            error: (validation as any).errorCode ?? 'INVALID_URL',
+            error: validation.errorCode ?? 'INVALID_URL',
             message: validation.error,
           }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
@@ -569,7 +569,7 @@ serve(async (req) => {
       }
 
       const toolCall = aiResponse.toolCalls?.[0];
-      let extractedData: any = null;
+      let extractedData: Record<string, unknown> | null = null;
       if (toolCall?.function?.arguments) {
         try { extractedData = JSON.parse(toolCall.function.arguments); } catch {}
       }

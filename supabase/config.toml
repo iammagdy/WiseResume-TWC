@@ -7,7 +7,7 @@ project_id = "jnsfmkzgxsviuthaqlyy"
     verify_jwt = false
   [functions.admin-get-settings]
     verify_jwt = false
-  [functions.admin-github-status]
+  [functions.admin-devkit-data]
     verify_jwt = false
   [functions.admin-grant-trial]
     verify_jwt = false
@@ -77,11 +77,7 @@ project_id = "jnsfmkzgxsviuthaqlyy"
     verify_jwt = false
   [functions.optimize-for-linkedin]
     verify_jwt = false
-  [functions.parse-job-text]
-    verify_jwt = false
-  [functions.parse-job-url]
-    verify_jwt = false
-  [functions.parse-linkedin]
+  [functions.parse-job]
     verify_jwt = false
   [functions.parse-resume]
     verify_jwt = false
@@ -117,19 +113,15 @@ project_id = "jnsfmkzgxsviuthaqlyy"
     verify_jwt = false
   [functions.wise-ai-chat]
     verify_jwt = false
-  [functions.admin-analytics]
-    verify_jwt = false
   [functions.admin-check-access]
     verify_jwt = false
   [functions.admin-delete-user]
     verify_jwt = false
-  [functions.admin-email-actions]
+  [functions.admin-email]
     verify_jwt = false
   [functions.admin-get-identity]
     verify_jwt = false
   [functions.admin-list-user-content]
-    verify_jwt = false
-  [functions.admin-live-activity]
     verify_jwt = false
   [functions.admin-merge-identity]
     verify_jwt = false
@@ -192,15 +184,11 @@ project_id = "jnsfmkzgxsviuthaqlyy"
     verify_jwt = false
   [functions.admin-impersonate]
     verify_jwt = false
-  [functions.admin-broadcast]
-    verify_jwt = false
   [functions.admin-owner-ops]
     verify_jwt = false
   [functions.admin-ai-routing]
     verify_jwt = false
   [functions.admin-ai-caps]
-    verify_jwt = false
-  [functions.admin-observability]
     verify_jwt = false
   [functions.admin-moderation]
     verify_jwt = false
@@ -209,8 +197,4 @@ project_id = "jnsfmkzgxsviuthaqlyy"
   [functions.verify-email]
     verify_jwt = false
   [functions.send-password-reset]
-    verify_jwt = false
-  [functions.admin-resend-sync]
-    verify_jwt = false
-  [functions.admin-resend-stats]
     verify_jwt = false
