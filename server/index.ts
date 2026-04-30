@@ -2390,7 +2390,8 @@ app.all('/api/fn/admin-analytics', async (req, res) => {
 app.all('/api/fn/admin-save-note', async (req, res) => {
   const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
   try {
-    const body = req.body ?? {}; const { action, user_id, note, note_id } = body as { action?: string; user_id?: string; note?: string; note_id?: string };
+    const body = req.body ?? {}; const { action, note, note_id } = body as { action?: string; note?: string; note_id?: string };
+    const user_id: string | undefined = body.target_user_id ?? body.user_id;
     if (action === 'list') {
       if (!user_id) return res.status(400).json({ success: false, error: 'user_id required' });
       const data = await supabaseGet('admin_user_notes', `select=*&user_id=eq.${encodeURIComponent(user_id)}&order=created_at.desc`).catch(() => []);
@@ -2416,7 +2417,9 @@ app.all('/api/fn/admin-save-note', async (req, res) => {
 app.all('/api/fn/admin-list-user-content', async (req, res) => {
   const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
   try {
-    const { user_id, resume_id } = req.body ?? {} as { user_id?: string; resume_id?: string };
+    const _body = req.body ?? {};
+    const user_id: string | undefined = _body.target_user_id ?? _body.user_id;
+    const resume_id: string | undefined = _body.resume_id;
     if (!user_id) return res.status(400).json({ success: false, error: 'user_id required' });
     if (resume_id) {
       const data = await supabaseGet('resumes', `select=*&id=eq.${encodeURIComponent(resume_id)}&user_id=eq.${encodeURIComponent(user_id)}&limit=1`);
@@ -2431,7 +2434,9 @@ app.all('/api/fn/admin-list-user-content', async (req, res) => {
 app.all('/api/fn/admin-grant-trial', async (req, res) => {
   const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
   try {
-    const { user_id, plan, days } = req.body ?? {} as { user_id?: string; plan?: string; days?: number };
+    const _b = req.body ?? {};
+    const user_id: string | undefined = _b.target_user_id ?? _b.user_id;
+    const { plan, days } = _b as { plan?: string; days?: number };
     if (!user_id || !plan) return res.status(400).json({ success: false, error: 'user_id and plan required' });
     const result = await supabaseRpc('admin_grant_trial', { p_user_id: user_id, p_plan: plan, p_days: days ?? 14 });
     supabaseInsert('audit_logs', { user_id, category: 'billing', action: 'grant_trial', metadata: { plan, days, performed_by: callerEmail } }).catch(() => {});
@@ -2443,7 +2448,8 @@ app.all('/api/fn/admin-grant-trial', async (req, res) => {
 app.all('/api/fn/admin-revoke-trial', async (req, res) => {
   const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
   try {
-    const { user_id } = req.body ?? {} as { user_id?: string };
+    const _b = req.body ?? {};
+    const user_id: string | undefined = _b.target_user_id ?? _b.user_id;
     if (!user_id) return res.status(400).json({ success: false, error: 'user_id required' });
     await supabaseRpc('admin_revoke_trial', { p_user_id: user_id });
     supabaseInsert('audit_logs', { user_id, category: 'billing', action: 'revoke_trial', metadata: { performed_by: callerEmail } }).catch(() => {});
@@ -2455,7 +2461,9 @@ app.all('/api/fn/admin-revoke-trial', async (req, res) => {
 app.all('/api/fn/admin-suspend-user', async (req, res) => {
   const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
   try {
-    const { user_id, suspend, reason } = req.body ?? {} as { user_id?: string; suspend?: boolean; reason?: string };
+    const _b = req.body ?? {};
+    const user_id: string | undefined = _b.target_user_id ?? _b.user_id;
+    const { suspend, reason } = _b as { suspend?: boolean; reason?: string };
     if (!user_id) return res.status(400).json({ success: false, error: 'user_id required' });
     const result = await supabaseRpc('admin_suspend_user', { p_user_id: user_id, p_suspend: Boolean(suspend), p_reason: reason ?? null });
     supabaseInsert('audit_logs', { user_id, category: 'user_management', action: suspend ? 'suspend_user' : 'unsuspend_user', metadata: { reason, performed_by: callerEmail } }).catch(() => {});
@@ -2467,7 +2475,8 @@ app.all('/api/fn/admin-suspend-user', async (req, res) => {
 app.all('/api/fn/admin-revoke-sessions', async (req, res) => {
   const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
   try {
-    const { user_id } = req.body ?? {} as { user_id?: string };
+    const _b = req.body ?? {};
+    const user_id: string | undefined = _b.target_user_id ?? _b.user_id;
     if (!user_id) return res.status(400).json({ success: false, error: 'user_id required' });
     await supabaseAuthAdmin('DELETE', `users/${encodeURIComponent(user_id)}/sessions`);
     supabaseInsert('audit_logs', { user_id, category: 'user_management', action: 'user_sessions_revoked', metadata: { performed_by: callerEmail } }).catch(() => {});
@@ -2479,7 +2488,8 @@ app.all('/api/fn/admin-revoke-sessions', async (req, res) => {
 app.all('/api/fn/admin-delete-user', async (req, res) => {
   const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
   try {
-    const { user_id } = req.body ?? {} as { user_id?: string };
+    const _b = req.body ?? {};
+    const user_id: string | undefined = _b.target_user_id ?? _b.user_id;
     if (!user_id) return res.status(400).json({ success: false, error: 'user_id required' });
     const profile = await supabaseGet<{ contact_email: string | null }>('profiles', `select=contact_email&user_id=eq.${encodeURIComponent(user_id)}&limit=1`).catch(() => []);
     const email = profile[0]?.contact_email ?? null;
@@ -2493,7 +2503,9 @@ app.all('/api/fn/admin-delete-user', async (req, res) => {
 app.all('/api/fn/admin-impersonate', async (req, res) => {
   const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
   try {
-    const { user_id, action: impAction = 'start' } = req.body ?? {} as { user_id?: string; action?: string };
+    const _b = req.body ?? {};
+    const user_id: string | undefined = _b.target_user_id ?? _b.user_id;
+    const impAction: string = _b.action ?? 'start';
     if (impAction === 'exit') {
       supabaseInsert('audit_logs', { user_id: null, category: 'user_management', action: 'impersonation_exit', metadata: { performed_by: callerEmail } }).catch(() => {});
       return res.json({ success: true });
@@ -2511,7 +2523,8 @@ app.all('/api/fn/admin-impersonate', async (req, res) => {
 app.all('/api/fn/admin-get-identity', async (req, res) => {
   const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
   try {
-    const { user_id } = req.body ?? {} as { user_id?: string };
+    const _b = req.body ?? {};
+    const user_id: string | undefined = _b.target_user_id ?? _b.user_id;
     if (!user_id) return res.status(400).json({ success: false, error: 'user_id required' });
     const [authUser, profile, tokenExchange] = await Promise.all([
       supabaseAuthAdmin<{ id: string; email?: string; created_at: string; confirmed_at?: string }>('GET', `users/${encodeURIComponent(user_id)}`).catch(() => null),
@@ -2564,7 +2577,9 @@ app.all('/api/fn/admin-merge-identity', async (req, res) => {
 app.all('/api/fn/admin-update-profile', async (req, res) => {
   const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
   try {
-    const { action = 'get', user_id, full_name, username } = req.body ?? {} as { action?: string; user_id?: string; full_name?: string; username?: string };
+    const _b = req.body ?? {};
+    const user_id: string | undefined = _b.target_user_id ?? _b.user_id;
+    const { action = 'get', full_name, username } = _b as { action?: string; full_name?: string; username?: string };
     if (!user_id) return res.status(400).json({ success: false, error: 'user_id required' });
     if (action === 'get') {
       const profile = await supabaseGet('profiles', `select=user_id,full_name,username,contact_email,avatar_url&user_id=eq.${encodeURIComponent(user_id)}&limit=1`);
@@ -2608,14 +2623,66 @@ app.all('/api/fn/admin-list-users', async (req, res) => {
     if (search) profQ += `&or=(full_name.ilike.*${encodeURIComponent(search)}*,contact_email.ilike.*${encodeURIComponent(search)}*)`;
     const profiles = await supabaseGet<{ user_id: string; full_name: string | null; contact_email: string | null; avatar_url: string | null; is_suspended: boolean; suspension_reason: string | null; account_type: string; created_at: string }>('profiles', profQ);
     const userIds = profiles.map(p => p.user_id);
-    let subscriptions: Record<string, { plan_name: string; plan_status: string; plan_updated_at: string | null; trial_plan: string | null; trial_expires_at: string | null }> = {};
-    if (userIds.length) {
-      const subs = await supabaseGet<{ user_id: string; plan_name: string; status: string; plan_updated_at: string | null; trial_plan: string | null; trial_expires_at: string | null }>('subscriptions', `select=user_id,plan_name,status,plan_updated_at,trial_plan,trial_expires_at&user_id=in.(${userIds.map(encodeURIComponent).join(',')})`).catch(() => []);
-      subscriptions = Object.fromEntries(subs.map(s => [s.user_id, { plan_name: s.plan_name, plan_status: s.status, plan_updated_at: s.plan_updated_at, trial_plan: s.trial_plan, trial_expires_at: s.trial_expires_at }]));
-    }
+
+    // Fetch enrichment data in parallel
+    const [subsRaw, resumesRaw, creditsRaw, authListRaw] = await Promise.all([
+      userIds.length
+        ? supabaseGet<{ user_id: string; plan_name: string; status: string; plan_updated_at: string | null; trial_plan: string | null; trial_expires_at: string | null }>(
+            'subscriptions',
+            `select=user_id,plan_name,status,plan_updated_at,trial_plan,trial_expires_at&user_id=in.(${userIds.map(encodeURIComponent).join(',')})`,
+          ).catch(() => [])
+        : Promise.resolve([]),
+      userIds.length
+        ? supabaseGet<{ user_id: string }>(
+            'resumes',
+            `select=user_id&user_id=in.(${userIds.map(encodeURIComponent).join(',')})`,
+          ).catch(() => [])
+        : Promise.resolve([]),
+      userIds.length
+        ? supabaseGet<{ user_id: string; daily_usage: number; daily_limit: number; usage_date: string }>(
+            'ai_credits',
+            `select=user_id,daily_usage,daily_limit,usage_date&user_id=in.(${userIds.map(encodeURIComponent).join(',')})&usage_date=eq.${new Date().toISOString().slice(0, 10)}`,
+          ).catch(() => [])
+        : Promise.resolve([]),
+      supabaseAuthAdmin<{ users?: Array<{ id: string; email?: string; last_sign_in_at?: string; email_confirmed_at?: string }> }>('GET', 'users?page=1&per_page=10000').catch(() => ({ users: [] })),
+    ]);
+
+    // Build lookup maps
+    const subscriptions: Record<string, { plan_name: string; plan_status: string; plan_updated_at: string | null; trial_plan: string | null; trial_expires_at: string | null }> =
+      Object.fromEntries(subsRaw.map(s => [s.user_id, { plan_name: s.plan_name, plan_status: s.status, plan_updated_at: s.plan_updated_at, trial_plan: s.trial_plan, trial_expires_at: s.trial_expires_at }]));
+
+    const resumeCounts: Record<string, number> = {};
+    for (const r of resumesRaw) resumeCounts[r.user_id] = (resumeCounts[r.user_id] ?? 0) + 1;
+
+    const creditsMap: Record<string, { credits_used_today: number; daily_limit: number }> =
+      Object.fromEntries(creditsRaw.map(c => [c.user_id, { credits_used_today: c.daily_usage, daily_limit: c.daily_limit }]));
+
+    const authMap: Record<string, { last_sign_in_at: string | null; email_confirmed_at: string | null }> =
+      Object.fromEntries((authListRaw.users ?? []).map(u => [u.id, { last_sign_in_at: u.last_sign_in_at ?? null, email_confirmed_at: u.email_confirmed_at ?? null }]));
+
     let users = profiles.map(p => {
       const sub = subscriptions[p.user_id] ?? { plan_name: 'free', plan_status: 'active', plan_updated_at: null, trial_plan: null, trial_expires_at: null };
-      return { user_id: p.user_id, full_name: p.full_name, email: p.contact_email, contact_email: p.contact_email, avatar_url: p.avatar_url, is_suspended: p.is_suspended ?? false, suspension_reason: p.suspension_reason, account_type: p.account_type ?? 'user', created_at: p.created_at, ...sub };
+      const credits = creditsMap[p.user_id] ?? { credits_used_today: 0, daily_limit: 10 };
+      const auth = authMap[p.user_id] ?? { last_sign_in_at: null, email_confirmed_at: null };
+      const has_id_conflict = (p.contact_email ?? '').endsWith('@collision.kinde.placeholder');
+      return {
+        user_id: p.user_id,
+        full_name: p.full_name,
+        email: p.contact_email,
+        contact_email: p.contact_email,
+        avatar_url: p.avatar_url,
+        is_suspended: p.is_suspended ?? false,
+        suspension_reason: p.suspension_reason,
+        account_type: p.account_type ?? 'user',
+        created_at: p.created_at,
+        resume_count: resumeCounts[p.user_id] ?? 0,
+        last_sign_in_at: auth.last_sign_in_at,
+        email_confirmed_at: auth.email_confirmed_at,
+        credits_used_today: credits.credits_used_today,
+        daily_limit: credits.daily_limit,
+        has_id_conflict,
+        ...sub,
+      };
     });
     if (filter_plan) users = users.filter(u => u.plan_name === filter_plan);
     if (filter_status === 'suspended') users = users.filter(u => u.is_suspended);
@@ -2629,7 +2696,9 @@ const PLAN_CREDIT_LIMITS: Record<string, number> = { free: 10, pro: 50, premium:
 app.all('/api/fn/admin-set-plan', async (req, res) => {
   const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
   try {
-    const { user_id, plan } = req.body ?? {} as { user_id?: string; plan?: string };
+    const _b = req.body ?? {};
+    const user_id: string | undefined = _b.target_user_id ?? _b.user_id;
+    const { plan } = _b as { plan?: string };
     if (!user_id || !plan) return res.status(400).json({ success: false, error: 'user_id and plan required' });
     const validPlans = ['free', 'pro', 'premium'];
     if (!validPlans.includes(plan)) return res.status(400).json({ success: false, error: `plan must be one of: ${validPlans.join(', ')}` });
@@ -2652,7 +2721,9 @@ app.all('/api/fn/admin-set-plan', async (req, res) => {
 app.all('/api/fn/admin-set-credits', async (req, res) => {
   const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
   try {
-    const { user_id, daily_limit, bonus_credits } = req.body ?? {} as { user_id?: string; daily_limit?: number; bonus_credits?: number };
+    const _b = req.body ?? {};
+    const user_id: string | undefined = _b.target_user_id ?? _b.user_id;
+    const { daily_limit, bonus_credits } = _b as { daily_limit?: number; bonus_credits?: number };
     if (!user_id) return res.status(400).json({ success: false, error: 'user_id required' });
     const today = new Date().toISOString().slice(0, 10);
     const existing = await supabaseGet<{ id: string; daily_limit: number; daily_usage: number }>('ai_credits', `select=id,daily_limit,daily_usage&user_id=eq.${encodeURIComponent(user_id)}&usage_date=eq.${today}&limit=1`).catch(() => []);
