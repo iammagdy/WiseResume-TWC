@@ -134,7 +134,15 @@ export const edgeFunctions = {
         // (invalid_key / not_configured) must NOT consume a refresh.
         // Skip refresh entirely when impersonating — the impersonation token
         // cannot be refreshed via the standard bridge.
-        if (result.response.status === 401) {
+        // Skip refresh + session-expired dispatch entirely for admin/DevKit
+        // functions (Bug #5): they authenticate with the HMAC DevKit token,
+        // not the user's Supabase JWT, so refreshing the bridge token would
+        // be useless and the "session expired" dispatch would surface the
+        // misleading toast we explicitly guard against in the bypass branch
+        // below.
+        const isAdminOrDevkitFn =
+          fnName.startsWith('admin-') || DEVKIT_BYPASS_FUNCTIONS.has(fnName);
+        if (result.response.status === 401 && !isAdminOrDevkitFn) {
           const { isSessionAuthFailure } = classifyEdgeError(401, result.text);
           if (isSessionAuthFailure && !getImpersonationToken()) {
             const refreshed = await refreshTokenIfNeeded();
