@@ -37,6 +37,20 @@ function classifyEdgeError(status: number, text: string): {
 }
 
 /**
+ * DevKit-only edge functions whose name does NOT start with `admin-` and
+ * which therefore would otherwise be misclassified by the AI error parser.
+ * Listing them here makes their 401/non-2xx responses surface the raw
+ * `error` string from the function body instead of the misleading
+ * "Session expired — please sign in again to use AI features." toast.
+ *
+ * `ai-test` (Bug #5): the DevKit AI key smoke-test endpoint. Its 401s are
+ * either function-level `Unauthorized` (DevKit token bad) or platform
+ * gateway errors (verify_jwt drift). Either way the user shouldn't be
+ * told their session expired.
+ */
+const DEVKIT_BYPASS_FUNCTIONS: ReadonlySet<string> = new Set(['ai-test']);
+
+/**
  * Authenticated edge function client.
  * Routes via apiFnUrl(): in dev, through the Express proxy at
  * /api/fn/:fnName; in production (Hostinger static), directly to the
@@ -138,16 +152,9 @@ export const edgeFunctions = {
           // response body (or an HTTP-status fallback). This prevents
           // validation errors (e.g. { success:false, error:"...", status:"invalid" })
           // from being misread by parseAIErrorBody and turned into misleading
-          // "AI is temporarily unavailable" messages.
-          //
-          // DEVKIT_BYPASS_FUNCTIONS: admin-only functions whose name does NOT
-          // start with `admin-` and which therefore need explicit listing
-          // here. `ai-test` is the DevKit AI key smoke-test endpoint — its
-          // 401s should surface the real error string (e.g. "Unauthorized"
-          // or a future gateway error) rather than the misleading
-          // "Session expired — please sign in again to use AI features."
-          // toast that the AI parser would otherwise produce. (Bug #5.)
-          const DEVKIT_BYPASS_FUNCTIONS = new Set(['ai-test']);
+          // "AI is temporarily unavailable" messages. Functions covered:
+          // every `admin-*` function plus the DEVKIT_BYPASS_FUNCTIONS set
+          // (module-level constant, currently `ai-test` for Bug #5).
           if (fnName.startsWith('admin-') || DEVKIT_BYPASS_FUNCTIONS.has(fnName)) {
             let rawError: string | null = null;
             try {
