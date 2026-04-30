@@ -302,11 +302,11 @@ export function LiveActivityPanel() {
     setEventsLoading(true);
     setEventsError(null);
     try {
-      const tuple = await edgeFunctions.functions.invoke('admin-live-activity', {
+      const tuple = await edgeFunctions.functions.invoke('admin-devkit-data', {
         headers: devKitAuthHeaders(),
-        body: { resource: 'usage_events' },
+        body: { action: 'live-activity', resource: 'usage_events' },
       });
-      const result = unwrapAdminResponse<{ data?: UsageEvent[] }>(tuple, 'admin-live-activity (usage_events)');
+      const result = unwrapAdminResponse<{ data?: UsageEvent[] }>(tuple, 'admin-devkit-data (usage_events)');
       if (!isMounted()) return;
       setEvents(result.data ?? []);
       setFeedSecondsAgo(0);
@@ -321,11 +321,11 @@ export function LiveActivityPanel() {
   const fetchErrorLogs = useCallback(async () => {
     const token = getDevKitToken();
     if (!token) return;
-    const tuple = await edgeFunctions.functions.invoke('admin-live-activity', {
+    const tuple = await edgeFunctions.functions.invoke('admin-devkit-data', {
       headers: devKitAuthHeaders(),
-      body: { resource: 'error_log' },
+      body: { action: 'live-activity', resource: 'error_log' },
     });
-    const result = tryUnwrapAdminResponse<{ missing?: boolean; data?: ErrorLogRow[] }>(tuple, 'admin-live-activity (error_log)');
+    const result = tryUnwrapAdminResponse<{ missing?: boolean; data?: ErrorLogRow[] }>(tuple, 'admin-devkit-data (error_log)');
     if (!isMounted()) return;
     if (!result) return;
     if (result.missing) {
@@ -341,11 +341,11 @@ export function LiveActivityPanel() {
     if (!token) return;
     setContactRequestsLoading(true);
     try {
-      const tuple = await edgeFunctions.functions.invoke('admin-live-activity', {
+      const tuple = await edgeFunctions.functions.invoke('admin-devkit-data', {
         headers: devKitAuthHeaders(),
-        body: { resource: 'contact_requests' },
+        body: { action: 'live-activity', resource: 'contact_requests' },
       });
-      const result = tryUnwrapAdminResponse<{ data?: ContactRequest[] }>(tuple, 'admin-live-activity (contact_requests)');
+      const result = tryUnwrapAdminResponse<{ data?: ContactRequest[] }>(tuple, 'admin-devkit-data (contact_requests)');
       if (!isMounted()) return;
       if (result) setContactRequests(result.data ?? []);
     } finally {

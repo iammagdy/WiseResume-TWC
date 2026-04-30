@@ -233,8 +233,8 @@ export function ProfileImportSheet({
   const platformLabel = PLATFORMS.find((p) => p.id === platform)?.label ?? 'LinkedIn';
 
   const callParseApi = useCallback(async (text: string): Promise<Partial<ProfileData>> => {
-    const { data, error: fnError } = await edgeFunctions.functions.invoke('parse-linkedin', {
-      body: { profileText: text.trim(), platform },
+    const { data, error: fnError } = await edgeFunctions.functions.invoke('parse-job', {
+      body: { action: 'linkedin', profileText: text.trim(), platform },
     });
     if (fnError) throw fnError;
     if (data?.error === 'URL_ONLY_REJECTED') throw new Error(data.message);

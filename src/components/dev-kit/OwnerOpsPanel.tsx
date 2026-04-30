@@ -60,11 +60,11 @@ export function OwnerOpsPanel() {
   const fetchBroadcasts = useCallback(async () => {
     setBroadcastsLoading(true);
     try {
-      const tuple = await edgeFunctions.functions.invoke('admin-broadcast', {
+      const tuple = await edgeFunctions.functions.invoke('admin-email', {
         headers: devKitAuthHeaders(),
-        body: { action: 'list' },
+        body: { module: 'broadcast', action: 'list' },
       });
-      const res = unwrapAdminResponse<{ broadcasts: Broadcast[] }>(tuple, 'admin-broadcast');
+      const res = unwrapAdminResponse<{ broadcasts: Broadcast[] }>(tuple, 'admin-email');
       if (isMounted()) setBroadcasts(res.broadcasts ?? []);
     } catch (e) {
       if (isMounted()) toast.error(formatEdgeError(e, 'Failed to load broadcasts'));
@@ -82,9 +82,10 @@ export function OwnerOpsPanel() {
     }
     setPublishing(true);
     try {
-      const tuple = await edgeFunctions.functions.invoke('admin-broadcast', {
+      const tuple = await edgeFunctions.functions.invoke('admin-email', {
         headers: devKitAuthHeaders(),
         body: {
+          module: 'broadcast',
           action: 'publish',
           title: newTitle.trim(),
           body: newBody.trim(),
@@ -92,7 +93,7 @@ export function OwnerOpsPanel() {
           expires_at: newExpiresAt || null,
         },
       });
-      unwrapAdminResponse(tuple, 'admin-broadcast');
+      unwrapAdminResponse(tuple, 'admin-email');
       toast.success('Broadcast published — users will see it on next load');
       setNewTitle('');
       setNewBody('');
@@ -109,11 +110,11 @@ export function OwnerOpsPanel() {
   const handleExpire = async (id: string) => {
     setExpiringId(id);
     try {
-      const tuple = await edgeFunctions.functions.invoke('admin-broadcast', {
+      const tuple = await edgeFunctions.functions.invoke('admin-email', {
         headers: devKitAuthHeaders(),
-        body: { action: 'expire', id },
+        body: { module: 'broadcast', action: 'expire', id },
       });
-      unwrapAdminResponse(tuple, 'admin-broadcast');
+      unwrapAdminResponse(tuple, 'admin-email');
       toast.success('Broadcast removed');
       await fetchBroadcasts();
     } catch (e) {
@@ -136,11 +137,11 @@ export function OwnerOpsPanel() {
     setEstimating(true);
     setRecipientCount(null);
     try {
-      const tuple = await edgeFunctions.functions.invoke('admin-email-actions', {
+      const tuple = await edgeFunctions.functions.invoke('admin-email', {
         headers: devKitAuthHeaders(),
-        body: { action: 'estimate_broadcast_recipients', audience: emailAudience },
+        body: { module: 'email-actions', action: 'estimate_broadcast_recipients', audience: emailAudience },
       });
-      const res = unwrapAdminResponse<{ count: number }>(tuple, 'admin-email-actions');
+      const res = unwrapAdminResponse<{ count: number }>(tuple, 'admin-email');
       if (isMounted()) setRecipientCount(res.count ?? 0);
     } catch (e) {
       toast.error(formatEdgeError(e, 'Failed to estimate recipients'));
@@ -157,16 +158,17 @@ export function OwnerOpsPanel() {
     setSending(true);
     setConfirmSend(false);
     try {
-      const tuple = await edgeFunctions.functions.invoke('admin-email-actions', {
+      const tuple = await edgeFunctions.functions.invoke('admin-email', {
         headers: devKitAuthHeaders(),
         body: {
+          module: 'email-actions',
           action: 'send_email_broadcast',
           audience: emailAudience,
           broadcast_subject: emailSubject.trim(),
           broadcast_body: emailBody.trim(),
         },
       });
-      const res = unwrapAdminResponse<{ sent: number; failed: number; total: number }>(tuple, 'admin-email-actions');
+      const res = unwrapAdminResponse<{ sent: number; failed: number; total: number }>(tuple, 'admin-email');
       toast.success(`Sent to ${res.sent} recipients${res.failed > 0 ? ` (${res.failed} failed)` : ''}`);
       setEmailSubject('');
       setEmailBody('');

@@ -135,11 +135,11 @@ export function ObservabilityPanel() {
     setTelemetryLoading(true);
     setTelemetryError(null);
     try {
-      const tuple = await edgeFunctions.functions.invoke('admin-observability', {
+      const tuple = await edgeFunctions.functions.invoke('admin-devkit-data', {
         headers: devKitAuthHeaders(),
-        body: { action: 'get_telemetry' },
+        body: { action: 'observability', obs_action: 'get_telemetry' },
       });
-      const result = unwrapAdminResponse<{ telemetry?: TelemetryRow[]; missing_table?: boolean }>(tuple, 'admin-observability');
+      const result = unwrapAdminResponse<{ telemetry?: TelemetryRow[]; missing_table?: boolean }>(tuple, 'admin-devkit-data');
       if (!isMounted()) return;
       if (result.missing_table) {
         setTelemetryMissing(true);
@@ -167,16 +167,17 @@ export function ObservabilityPanel() {
     setErrorsError(null);
     try {
       const since = new Date(Date.now() - TIME_RANGE_MS[timeRange]).toISOString();
-      const tuple = await edgeFunctions.functions.invoke('admin-observability', {
+      const tuple = await edgeFunctions.functions.invoke('admin-devkit-data', {
         headers: devKitAuthHeaders(),
         body: {
-          action: 'get_error_stream',
+          action: 'observability',
+          obs_action: 'get_error_stream',
           function_name: fnFilter.trim() || undefined,
           severity: severityFilter === 'all' ? undefined : severityFilter,
           since,
         },
       });
-      const result = unwrapAdminResponse<{ errors?: ErrorRow[]; missing_table?: boolean }>(tuple, 'admin-observability');
+      const result = unwrapAdminResponse<{ errors?: ErrorRow[]; missing_table?: boolean }>(tuple, 'admin-devkit-data');
       if (!isMounted()) return;
       if (result.missing_table) {
         setErrorsMissing(true);
@@ -212,11 +213,11 @@ export function ObservabilityPanel() {
   const markReviewed = useCallback(async (errorId: string) => {
     setReviewingId(errorId);
     try {
-      const tuple = await edgeFunctions.functions.invoke('admin-observability', {
+      const tuple = await edgeFunctions.functions.invoke('admin-devkit-data', {
         headers: devKitAuthHeaders(),
-        body: { action: 'mark_reviewed', error_id: errorId },
+        body: { action: 'observability', obs_action: 'mark_reviewed', error_id: errorId },
       });
-      unwrapAdminResponse(tuple, 'admin-observability (mark_reviewed)');
+      unwrapAdminResponse(tuple, 'admin-devkit-data (mark_reviewed)');
       setErrors(prev => prev.map(e => e.id === errorId ? { ...e, resolved: true, reviewed_at: new Date().toISOString() } : e));
       toast.success('Error marked as reviewed');
     } catch (e) {

@@ -57,11 +57,11 @@ export function AnalyticsPanel() {
     setLoading(true);
     setError(null);
     try {
-      const tuple = await edgeFunctions.functions.invoke('admin-analytics', {
+      const tuple = await edgeFunctions.functions.invoke('admin-devkit-data', {
         headers: devKitAuthHeaders(),
-        body: { range: r },
+        body: { action: 'analytics', range: r },
       });
-      const result = unwrapAdminResponse<{ data?: PremiumAnalyticsData }>(tuple, 'admin-analytics');
+      const result = unwrapAdminResponse<{ data?: PremiumAnalyticsData }>(tuple, 'admin-devkit-data');
       const raw = result.data;
       if (!raw) throw new Error('No data returned');
       if (!isMounted()) return;

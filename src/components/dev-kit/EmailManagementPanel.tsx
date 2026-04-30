@@ -115,14 +115,14 @@ function UnconfirmedUsersSection({ onSendToUser }: UnconfirmedUsersProps) {
       ? (user.contact_email ?? user.email)
       : user.email;
     try {
-      const tuple = await edgeFunctions.functions.invoke('admin-email-actions', {
+      const tuple = await edgeFunctions.functions.invoke('admin-email', {
         headers: devKitAuthHeaders(),
-        body: { action: 'resend_confirmation',
+        body: { module: 'email-actions', action: 'resend_confirmation',
           target_user_id: user.user_id,
           target_email: resolvedEmail,
         },
       });
-      const result = unwrapAdminResponse<{ message_id?: string }>(tuple, 'admin-email-actions');
+      const result = unwrapAdminResponse<{ message_id?: string }>(tuple, 'admin-email');
       if (result.message_id) {
         toast.success('Confirmation email accepted by Resend', {
           description: `ID: ${result.message_id} → ${resolvedEmail}. Delivery requires thewise.cloud to be verified in Resend.`,
@@ -431,6 +431,7 @@ function ComposeEmailForm({
       }
 
       const body: Record<string, unknown> = {
+        module: 'email-actions',
         action,
         ...(selectedUser
           ? { target_user_id: selectedUser.user_id, target_email: recipientEmail }
@@ -441,8 +442,8 @@ function ComposeEmailForm({
         body.custom_body = customBody.trim();
       }
 
-      const tuple = await edgeFunctions.functions.invoke('admin-email-actions', { headers: devKitAuthHeaders(), body });
-      const result = unwrapAdminResponse<{ email?: string; message_id?: string }>(tuple, 'admin-email-actions');
+      const tuple = await edgeFunctions.functions.invoke('admin-email', { headers: devKitAuthHeaders(), body });
+      const result = unwrapAdminResponse<{ email?: string; message_id?: string }>(tuple, 'admin-email');
       if (!isMounted()) return;
 
       const toEmail = result.email ?? selectedUser?.email ?? emailSearch.trim();
@@ -725,11 +726,11 @@ export function EmailManagementPanel() {
     let cancelled = false;
     (async () => {
       try {
-        const tuple = await edgeFunctions.functions.invoke('admin-email-actions', {
+        const tuple = await edgeFunctions.functions.invoke('admin-email', {
           headers: devKitAuthHeaders(),
-          body: { action: 'diagnose' },
+          body: { module: 'email-actions', action: 'diagnose' },
         });
-        const result = tryUnwrapAdminResponse<NonNullable<DiagnoseResult>>(tuple, 'admin-email-actions');
+        const result = tryUnwrapAdminResponse<NonNullable<DiagnoseResult>>(tuple, 'admin-email');
         if (!cancelled) setDiagnose(result ?? null);
       } catch {
         if (!cancelled) setDiagnose(null);

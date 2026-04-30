@@ -347,8 +347,8 @@ export default function OnboardingPage() {
         }
       } else if (probe.profileText.trim().length > 50) {
         try {
-          const { data, error: fnError } = await edgeFunctions.functions.invoke('parse-linkedin', {
-            body: { profileText: probe.profileText, platform: 'linkedin' },
+          const { data, error: fnError } = await edgeFunctions.functions.invoke('parse-job', {
+            body: { action: 'linkedin', profileText: probe.profileText, platform: 'linkedin' },
           });
           if (fnError) throw fnError;
           if (data?.error) throw new Error(data.message || data.error);

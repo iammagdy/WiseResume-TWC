@@ -217,11 +217,11 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
     setLoading(true);
     setError(null);
     try {
-      const tuple = await edgeFunctions.functions.invoke('admin-mission-control', {
+      const tuple = await edgeFunctions.functions.invoke('admin-devkit-data', {
         headers: devKitAuthHeaders(),
-        body: {},
+        body: { action: 'mission-control' },
       });
-      const result = unwrapAdminResponse<MissionControlData>(tuple, 'admin-mission-control');
+      const result = unwrapAdminResponse<MissionControlData>(tuple, 'admin-devkit-data');
       if (!isMounted()) return;
       setData(result);
       setLastRefreshed(new Date());
