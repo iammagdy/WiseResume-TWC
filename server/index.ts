@@ -4419,13 +4419,23 @@ async function sweepOneTable(
   if (!sql) return 0;
   let total = 0;
   for (let i = 0; i < ANALYTICS_SWEEP_MAX_BATCHES_PER_TABLE; i++) {
-    const rows = await sql`
-      SELECT public.sweep_analytics_retention_batch(
-        ${table}::text,
-        ${days}::int,
-        ${ANALYTICS_SWEEP_BATCH_SIZE}::int
-      ) AS deleted
-    `;
+    let rows: Array<{ deleted: unknown }>;
+    try {
+      rows = await sql`
+        SELECT public.sweep_analytics_retention_batch(
+          ${table}::text,
+          ${days}::int,
+          ${ANALYTICS_SWEEP_BATCH_SIZE}::int
+        ) AS deleted
+      `;
+    } catch (err: unknown) {
+      // 42883 = undefined_function: the RPC does not exist in this DB
+      // (e.g. local dev sidecar missing the Supabase migration). Skip silently.
+      if (typeof err === 'object' && err !== null && (err as { code?: string }).code === '42883') {
+        return 0;
+      }
+      throw err;
+    }
     const deleted = Number(rows[0]?.deleted ?? 0);
     total += deleted;
     if (deleted < ANALYTICS_SWEEP_BATCH_SIZE) return total;
