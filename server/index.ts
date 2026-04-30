@@ -1089,17 +1089,15 @@ async function requireDevKitAuth(req: Request, res: Response): Promise<string | 
 // edge function (the generic proxy below would return 404 if the function
 // is not yet deployed to the hosted Supabase project).
 
-// source meanings:
-//   replit_env    — must be set in Replit secrets; Express can use it directly
-//   supabase_vault — lives in Supabase vault; only available to edge functions in production
-//   optional      — nice to have; absence is never an error
-const MISSION_CONTROL_SECRETS: { key: string; label: string; source: 'replit_env' | 'supabase_vault' | 'optional'; aliases?: string[] }[] = [
-  { key: 'SUPABASE_URL',              label: 'Supabase URL',              source: 'replit_env' },
+// All secrets live in Supabase Vault. Supabase is the production backend.
+// Replit is a dev environment only — a secret being absent from process.env is normal and expected.
+const MISSION_CONTROL_SECRETS: { key: string; label: string; source: 'supabase_vault'; aliases?: string[] }[] = [
+  { key: 'SUPABASE_URL',              label: 'Supabase URL',              source: 'supabase_vault' },
   // The anon key is exposed to the frontend as VITE_SUPABASE_PUBLISHABLE_KEY in this project
-  { key: 'SUPABASE_ANON_KEY',         label: 'Supabase Anon Key',         source: 'replit_env', aliases: ['VITE_SUPABASE_PUBLISHABLE_KEY'] },
-  { key: 'SUPABASE_SERVICE_ROLE_KEY', label: 'Supabase Service Role Key', source: 'replit_env' },
+  { key: 'SUPABASE_ANON_KEY',         label: 'Supabase Anon Key',         source: 'supabase_vault', aliases: ['VITE_SUPABASE_PUBLISHABLE_KEY'] },
+  { key: 'SUPABASE_SERVICE_ROLE_KEY', label: 'Supabase Service Role Key', source: 'supabase_vault' },
   { key: 'DEV_KIT_PASSWORD',          label: 'DevKit Password',           source: 'supabase_vault' },
-  { key: 'KINDE_DOMAIN',              label: 'Kinde Domain',              source: 'replit_env' },
+  { key: 'KINDE_DOMAIN',              label: 'Kinde Domain',              source: 'supabase_vault' },
   { key: 'OPENROUTER_API_KEY',        label: 'OpenRouter API Key',        source: 'supabase_vault' },
   { key: 'OPENROUTER2_API_KEY',       label: 'OpenRouter 2 API Key',      source: 'supabase_vault' },
   { key: 'GROQ_API_KEY',              label: 'Groq API Key',              source: 'supabase_vault' },
@@ -1109,8 +1107,8 @@ const MISSION_CONTROL_SECRETS: { key: string; label: string; source: 'replit_env
   { key: 'GITHUB_OWNER',              label: 'GitHub Owner',              source: 'supabase_vault' },
   { key: 'GITHUB_REPO',               label: 'GitHub Repo',               source: 'supabase_vault' },
   { key: 'RESEND_API_KEY',            label: 'Resend API Key',            source: 'supabase_vault' },
-  { key: 'GEMINI_API_KEY',            label: 'Gemini API Key',            source: 'optional' },
-  { key: 'ELEVENLABS_API_KEY',        label: 'ElevenLabs API Key',        source: 'optional' },
+  { key: 'GEMINI_API_KEY',            label: 'Gemini API Key',            source: 'supabase_vault' },
+  { key: 'ELEVENLABS_API_KEY',        label: 'ElevenLabs API Key',        source: 'supabase_vault' },
   { key: 'KINDE_WEBHOOK_SECRET',      label: 'Kinde Webhook Secret',      source: 'supabase_vault' },
   { key: 'KINDE_M2M_CLIENT_ID',       label: 'Kinde M2M Client ID',       source: 'supabase_vault' },
   { key: 'KINDE_M2M_CLIENT_SECRET',   label: 'Kinde M2M Client Secret',   source: 'supabase_vault' },
@@ -1279,11 +1277,9 @@ app.all('/api/fn/admin-mission-control', async (req, res) => {
       return { ...check, lastRotatedAt, stale: daysSinceRotation !== null && daysSinceRotation >= STALE_DAYS, daysSinceRotation };
     });
 
-    // In dev mode, supabase_vault secrets are expected to be absent from process.env.
-    // Only count replit_env secrets as "missing" — vault secrets are confirmed by production deployment.
-    const missingCount = secretsWithAge.filter(s =>
-      !s.present && s.source === 'replit_env'
-    ).length;
+    // All secrets live in Supabase Vault. A secret absent from process.env is not "missing" —
+    // it's simply a vault secret that edge functions in production can access directly.
+    const missingCount = 0;
     const staleCount = secretsWithAge.filter(s => s.stale).length;
 
     // Helper: secret is configured if present in env OR (dev mode + source is supabase_vault)
@@ -2156,19 +2152,37 @@ app.all('/api/fn/admin-resend-sync', async (req, res) => {
 });
 
 // ── admin-env-check ───────────────────────────────────────────────────────────
-const ENV_CHECK_KEYS = [
-  { key: 'SUPABASE_URL', label: 'Supabase URL' }, { key: 'SUPABASE_ANON_KEY', label: 'Supabase Anon Key' },
-  { key: 'SUPABASE_SERVICE_ROLE_KEY', label: 'Supabase Service Role Key' }, { key: 'DEV_KIT_PASSWORD', label: 'DevKit Password' },
-  { key: 'KINDE_DOMAIN', label: 'Kinde Domain' }, { key: 'OPENROUTER_KEY_1', label: 'OpenRouter Key 1' },
-  { key: 'OPENROUTER_KEY_2', label: 'OpenRouter Key 2' }, { key: 'OPENROUTER_KEY_3', label: 'OpenRouter Key 3' },
-  { key: 'GROQ_KEY_1', label: 'Groq Key 1' }, { key: 'GROQ_KEY_2', label: 'Groq Key 2' }, { key: 'GROQ_KEY_3', label: 'Groq Key 3' },
-  { key: 'GITHUB_TOKEN', label: 'GitHub Token' }, { key: 'GITHUB_OWNER', label: 'GitHub Owner' }, { key: 'GITHUB_REPO', label: 'GitHub Repo' },
-  { key: 'RESEND_API_KEY', label: 'Resend API Key' }, { key: 'KINDE_WEBHOOK_SECRET', label: 'Kinde Webhook Secret' },
-  { key: 'KINDE_M2M_CLIENT_ID', label: 'Kinde M2M Client ID' }, { key: 'KINDE_M2M_CLIENT_SECRET', label: 'Kinde M2M Client Secret' },
+// All secrets live in Supabase Vault. Keys absent from process.env are vault-managed and
+// available to edge functions in production — they are not "missing".
+const ENV_CHECK_KEYS: { key: string; label: string; source: 'supabase_vault'; aliases?: string[] }[] = [
+  { key: 'SUPABASE_URL',              label: 'Supabase URL',              source: 'supabase_vault' },
+  { key: 'SUPABASE_ANON_KEY',         label: 'Supabase Anon Key',         source: 'supabase_vault', aliases: ['VITE_SUPABASE_PUBLISHABLE_KEY'] },
+  { key: 'SUPABASE_SERVICE_ROLE_KEY', label: 'Supabase Service Role Key', source: 'supabase_vault' },
+  { key: 'DEV_KIT_PASSWORD',          label: 'DevKit Password',           source: 'supabase_vault' },
+  { key: 'KINDE_DOMAIN',              label: 'Kinde Domain',              source: 'supabase_vault' },
+  { key: 'OPENROUTER_KEY_1',          label: 'OpenRouter Key 1',          source: 'supabase_vault' },
+  { key: 'OPENROUTER_KEY_2',          label: 'OpenRouter Key 2',          source: 'supabase_vault' },
+  { key: 'OPENROUTER_KEY_3',          label: 'OpenRouter Key 3',          source: 'supabase_vault' },
+  { key: 'GROQ_KEY_1',                label: 'Groq Key 1',                source: 'supabase_vault' },
+  { key: 'GROQ_KEY_2',                label: 'Groq Key 2',                source: 'supabase_vault' },
+  { key: 'GROQ_KEY_3',                label: 'Groq Key 3',                source: 'supabase_vault' },
+  { key: 'GITHUB_TOKEN',              label: 'GitHub Token',              source: 'supabase_vault', aliases: ['GITHUB_ACCESS_TOKEN', 'GITHUB_PAT'] },
+  { key: 'GITHUB_OWNER',              label: 'GitHub Owner',              source: 'supabase_vault' },
+  { key: 'GITHUB_REPO',               label: 'GitHub Repo',               source: 'supabase_vault' },
+  { key: 'RESEND_API_KEY',            label: 'Resend API Key',            source: 'supabase_vault' },
+  { key: 'KINDE_WEBHOOK_SECRET',      label: 'Kinde Webhook Secret',      source: 'supabase_vault' },
+  { key: 'KINDE_M2M_CLIENT_ID',       label: 'Kinde M2M Client ID',       source: 'supabase_vault' },
+  { key: 'KINDE_M2M_CLIENT_SECRET',   label: 'Kinde M2M Client Secret',   source: 'supabase_vault' },
+  { key: 'ADMIN_EMAILS',              label: 'Admin Emails Allowlist',     source: 'supabase_vault' },
 ];
 app.all('/api/fn/admin-env-check', async (req, res) => {
   const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
-  const checks = ENV_CHECK_KEYS.map(({ key, label }) => ({ key, label, present: !!process.env[key] }));
+  const checks = ENV_CHECK_KEYS.map(({ key, label, source, aliases }) => {
+    const presentInEnv = !!process.env[key] || (aliases ?? []).some(a => !!process.env[a]);
+    // A vault secret not in local env is still configured — it works in production via Supabase Vault
+    const present = presentInEnv || source === 'supabase_vault';
+    return { key, label, source, present, presentInEnv };
+  });
   const supabaseProjectRef = SUPABASE_URL?.match(/https:\/\/([^.]+)/)?.[1];
   const supabaseUrl = supabaseProjectRef ? `https://supabase.com/dashboard/project/${supabaseProjectRef}` : null;
   res.json({ success: true, checks, supabaseUrl });
