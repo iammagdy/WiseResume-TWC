@@ -1103,8 +1103,8 @@ const MISSION_CONTROL_SECRETS: { key: string; label: string; source: 'replit_env
   { key: 'OPENROUTER_API_KEY',        label: 'OpenRouter API Key',        source: 'supabase_vault' },
   { key: 'OPENROUTER2_API_KEY',       label: 'OpenRouter 2 API Key',      source: 'supabase_vault' },
   { key: 'GROQ_API_KEY',              label: 'Groq API Key',              source: 'supabase_vault' },
-  // GitHub token: Replit names it GITHUB_ACCESS_TOKEN; the Supabase env names it GITHUB_TOKEN
-  { key: 'GITHUB_TOKEN',              label: 'GitHub Token',              source: 'replit_env', aliases: ['GITHUB_ACCESS_TOKEN'] },
+  // GitHub token: Replit may name it GITHUB_ACCESS_TOKEN or GITHUB_PAT; Supabase env names it GITHUB_TOKEN
+  { key: 'GITHUB_TOKEN',              label: 'GitHub Token',              source: 'replit_env', aliases: ['GITHUB_ACCESS_TOKEN', 'GITHUB_PAT'] },
   // GITHUB_OWNER and GITHUB_REPO can be auto-derived from the git remote URL — marked optional
   { key: 'GITHUB_OWNER',              label: 'GitHub Owner',              source: 'optional' },
   { key: 'GITHUB_REPO',               label: 'GitHub Repo',               source: 'optional' },
@@ -1195,8 +1195,8 @@ app.all('/api/fn/admin-mission-control', async (req, res) => {
   if (!email) return;
 
   try {
-    // GITHUB_TOKEN may be named GITHUB_ACCESS_TOKEN in the Replit secrets panel
-    const githubToken  = process.env.GITHUB_TOKEN || process.env.GITHUB_ACCESS_TOKEN || '';
+    // GITHUB_TOKEN may be named GITHUB_ACCESS_TOKEN or GITHUB_PAT in the Replit secrets panel
+    const githubToken  = process.env.GITHUB_TOKEN || process.env.GITHUB_ACCESS_TOKEN || process.env.GITHUB_PAT || '';
     // GITHUB_OWNER / GITHUB_REPO: prefer explicit env vars, fall back to parsing the git remote URL
     const gitRemoteDerived = deriveGithubOwnerRepo();
     const githubOwner  = process.env.GITHUB_OWNER || gitRemoteDerived?.owner || '';
@@ -1206,8 +1206,9 @@ app.all('/api/fn/admin-mission-control', async (req, res) => {
     const or2Key       = process.env.OPENROUTER2_API_KEY || '';
     const groqKey      = process.env.GROQ_API_KEY  || '';
     const productionUrl = process.env.PRODUCTION_URL || 'https://resume.thewise.cloud';
-    // In dev: DEV_KIT_PASSWORD not present in local env → Supabase vault secrets won't be visible here
-    const isDevEnvironment = !(process.env.DEV_KIT_PASSWORD || '').trim();
+    // Express runs exclusively in Replit/dev — vault secrets live in Supabase and are
+    // visible to edge functions in production. Always treat this as a dev environment.
+    const isDevEnvironment = true;
     const now = new Date();
     const oneHourAgo = new Date(now.getTime() - 3600_000).toISOString();
 
@@ -2840,7 +2841,7 @@ app.all('/api/fn/admin-email-actions', async (req, res) => {
 app.all('/api/fn/admin-github-status', async (req, res) => {
   const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
   try {
-    const token = (process.env.GITHUB_TOKEN || process.env.GITHUB_ACCESS_TOKEN)?.trim();
+    const token = (process.env.GITHUB_TOKEN || process.env.GITHUB_ACCESS_TOKEN || process.env.GITHUB_PAT)?.trim();
     const derived = deriveGithubOwnerRepo();
     const owner = (process.env.GITHUB_OWNER?.trim()) || derived?.owner || '';
     const repo  = (process.env.GITHUB_REPO?.trim())  || derived?.repo  || '';
@@ -2859,7 +2860,7 @@ app.all('/api/fn/admin-integrations', async (req, res) => {
   const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
   try {
     const { action } = req.body ?? {} as { action?: string };
-    const ghToken = (process.env.GITHUB_TOKEN || process.env.GITHUB_ACCESS_TOKEN)?.trim();
+    const ghToken = (process.env.GITHUB_TOKEN || process.env.GITHUB_ACCESS_TOKEN || process.env.GITHUB_PAT)?.trim();
     const _ghDerived = deriveGithubOwnerRepo();
     const ghOwner = (process.env.GITHUB_OWNER?.trim()) || _ghDerived?.owner || '';
     const ghRepo  = (process.env.GITHUB_REPO?.trim())  || _ghDerived?.repo  || '';
