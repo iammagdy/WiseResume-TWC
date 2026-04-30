@@ -485,24 +485,32 @@ async function supabaseAuthAdmin<T = unknown>(method: string, path: string, body
 }
 
 // Kinde M2M helpers
+// Normalise the domain: strip protocol prefix so we can always safely prepend https://
+// KINDE_DOMAIN may be stored as "https://yourapp.kinde.com" or just "yourapp.kinde.com"
+// VITE_KINDE_DOMAIN is accepted as a fallback alias (same value, different env var name)
+function resolveKindeDomain(): string {
+  const raw = (process.env.KINDE_DOMAIN ?? process.env.VITE_KINDE_DOMAIN ?? '').trim();
+  return raw.replace(/^https?:\/\//, '').replace(/\/$/, '');
+}
+
 let _kindeM2MCache: { token: string; expiresAt: number } | null = null;
 async function getKindeM2MToken(): Promise<string> {
-  const clientId = process.env.KINDE_M2M_CLIENT_ID?.trim();
-  const clientSecret = process.env.KINDE_M2M_CLIENT_SECRET?.trim();
-  const domain = process.env.KINDE_DOMAIN?.trim();
+  const clientId = (process.env.KINDE_M2M_CLIENT_ID ?? '').trim();
+  const clientSecret = (process.env.KINDE_M2M_CLIENT_SECRET ?? '').trim();
+  const domain = resolveKindeDomain();
   if (!clientId || !clientSecret || !domain) throw new Error('Kinde M2M credentials not configured (KINDE_M2M_CLIENT_ID / KINDE_M2M_CLIENT_SECRET / KINDE_DOMAIN)');
   if (_kindeM2MCache && _kindeM2MCache.expiresAt > Date.now() + 60_000) return _kindeM2MCache.token;
   const r = await fetch(`https://${domain}/oauth2/token`, {
     method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({ grant_type: 'client_credentials', client_id: clientId, client_secret: clientSecret }),
   });
-  if (!r.ok) throw new Error(`Kinde M2M token failed: ${r.status}`);
+  if (!r.ok) throw new Error(`Kinde M2M token failed: ${r.status} ${await r.text().catch(() => '')}`);
   const data = await r.json() as { access_token: string; expires_in: number };
   _kindeM2MCache = { token: data.access_token, expiresAt: Date.now() + (data.expires_in - 60) * 1000 };
   return _kindeM2MCache.token;
 }
 async function kindeGet<T = unknown>(path: string): Promise<T> {
-  const domain = process.env.KINDE_DOMAIN?.trim();
+  const domain = resolveKindeDomain();
   if (!domain) throw new Error('KINDE_DOMAIN not configured');
   const token = await getKindeM2MToken();
   const r = await fetch(`https://${domain}${path}`, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } });
@@ -510,7 +518,7 @@ async function kindeGet<T = unknown>(path: string): Promise<T> {
   return (await r.json()) as T;
 }
 async function kindeDelete(path: string): Promise<void> {
-  const domain = process.env.KINDE_DOMAIN?.trim();
+  const domain = resolveKindeDomain();
   if (!domain) throw new Error('KINDE_DOMAIN not configured');
   const token = await getKindeM2MToken();
   const r = await fetch(`https://${domain}${path}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
