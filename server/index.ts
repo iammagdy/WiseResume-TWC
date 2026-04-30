@@ -484,6 +484,22 @@ async function supabaseAuthAdmin<T = unknown>(method: string, path: string, body
   return (await r.json()) as T;
 }
 
+// Kinde identity helpers
+// Deterministic UUID v5 from a Kinde sub — must match supabase/functions/_shared/provisionUser.ts
+const KINDE_UUID_NAMESPACE = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
+async function kindeSubToUserId(kindeSub: string): Promise<string> {
+  const { createHash } = await import('crypto');
+  const nsHex = KINDE_UUID_NAMESPACE.replace(/-/g, '');
+  const nsBytes = Buffer.from(nsHex, 'hex');
+  const nameBytes = Buffer.from(kindeSub, 'utf8');
+  const data = Buffer.concat([nsBytes, nameBytes]);
+  const hash = createHash('sha1').update(data).digest();
+  hash[6] = (hash[6] & 0x0f) | 0x50;
+  hash[8] = (hash[8] & 0x3f) | 0x80;
+  const h = hash.slice(0, 16).toString('hex');
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20, 32)}`;
+}
+
 // Kinde M2M helpers
 // Normalise the domain: strip protocol prefix so we can always safely prepend https://
 // KINDE_DOMAIN may be stored as "https://yourapp.kinde.com" or just "yourapp.kinde.com"
@@ -2797,28 +2813,56 @@ app.all('/api/fn/admin-kinde-reconcile', async (req, res) => {
   const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
   try {
     const { dry_run = false } = req.body ?? {} as { dry_run?: boolean };
-    let kindeUsers: Array<{ id: string; email?: string; first_name?: string; last_name?: string }> = [];
+    type KindeUser = { id: string; email?: string; first_name?: string; last_name?: string };
+    let kindeUsers: KindeUser[] = [];
     try {
-      const ku = await kindeGet<{ users?: typeof kindeUsers }>('/api/v1/users?page_size=200');
-      kindeUsers = ku.users ?? [];
+      // Page through all Kinde users (max 100 per page)
+      let nextToken: string | undefined;
+      do {
+        const url = `/api/v1/users?page_size=100${nextToken ? `&next_token=${encodeURIComponent(nextToken)}` : ''}`;
+        const page = await kindeGet<{ users?: KindeUser[]; next_token?: string }>(url);
+        kindeUsers = kindeUsers.concat(page.users ?? []);
+        nextToken = page.next_token;
+      } while (nextToken);
     } catch (e) {
       return res.json({ success: false, error: `Kinde M2M not configured or failed: ${String(e)}`, kinde_configured: false });
     }
-    let found = 0, provisioned = 0, backfilled = 0;
-    for (const ku of kindeUsers) {
-      if (!ku.id || !ku.email) continue;
-      found++;
-      if (dry_run) continue;
-      const existing = await supabaseGet('profiles', `select=user_id,contact_email&user_id=eq.${encodeURIComponent(ku.id)}&limit=1`).catch(() => []);
-      if (!existing.length) {
-        await supabaseInsert('profiles', { user_id: ku.id, contact_email: ku.email, full_name: [ku.first_name, ku.last_name].filter(Boolean).join(' ') || null, account_type: 'user' }).catch(() => {});
-        provisioned++;
-      } else if (existing[0] && !(existing[0] as Record<string, unknown>).contact_email && ku.email) {
-        await supabasePatch('profiles', `user_id=eq.${encodeURIComponent(ku.id)}`, { contact_email: ku.email });
-        backfilled++;
+
+    // Derive deterministic UUIDs for all Kinde users (must match provisionUser.ts)
+    const entries = await Promise.all(
+      kindeUsers.filter(u => u.id && u.email).map(async u => ({
+        kindeSub: u.id,
+        email: u.email!,
+        fullName: [u.first_name, u.last_name].filter(Boolean).join(' ') || null,
+        userId: await kindeSubToUserId(u.id),
+      }))
+    );
+
+    let found = entries.length, backfilled = 0, skipped = 0;
+
+    if (!dry_run) {
+      // Batch-fetch existing profiles to check which ones are missing contact_email
+      const uuids = entries.map(e => e.userId);
+      type ProfileRow = { user_id: string; contact_email: string | null };
+      const existing: ProfileRow[] = uuids.length
+        ? await supabaseGet<ProfileRow>('profiles', `select=user_id,contact_email&user_id=in.(${uuids.map(u => `"${u}"`).join(',')})`)
+            .catch(() => [])
+        : [];
+      const emailMap = new Map(existing.map(p => [p.user_id, p.contact_email ?? null]));
+
+      for (const e of entries) {
+        const existingEmail = emailMap.get(e.userId);
+        if (existingEmail !== undefined && !existingEmail && e.email) {
+          // Profile exists but email is null — backfill it
+          await supabasePatch('profiles', `user_id=eq.${encodeURIComponent(e.userId)}`, { contact_email: e.email }).catch(() => {});
+          backfilled++;
+        } else {
+          skipped++;
+        }
       }
     }
-    res.json({ success: true, dry_run, kinde_configured: true, total_kinde_users: kindeUsers.length, found, provisioned, backfilled });
+
+    res.json({ success: true, dry_run, kinde_configured: true, total_kinde_users: kindeUsers.length, found, backfilled, skipped });
   } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
 });
 
