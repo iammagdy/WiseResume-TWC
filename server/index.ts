@@ -3027,6 +3027,60 @@ app.all('/api/fn/admin-wisehire-reset-user', async (req, res) => {
   } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
 });
 
+// ── admin-devkit-data ─────────────────────────────────────────────────────────
+// Multiplexer: panels call admin-devkit-data?action=X. Route each action to
+// the dedicated Express sub-handler so the DevKit never touches edge functions
+// in dev (Replit) mode.
+app.all('/api/fn/admin-devkit-data', async (req, res) => {
+  const callerEmail = await requireDevKitAuth(req, res);
+  if (!callerEmail) return;
+  const body = req.body ?? {};
+  const action = (body.action as string | undefined) ?? '';
+  if (!action) return res.status(400).json({ success: false, error: 'action is required: analytics | observability | live-activity | mission-control | github-status' });
+
+  const actionToRoute: Record<string, string> = {
+    'analytics':      'admin-analytics',
+    'mission-control':'admin-mission-control',
+    'github-status':  'admin-github-status',
+    'live-activity':  'admin-live-activity',
+    'observability':  'admin-observability',
+  };
+  const subRoute = actionToRoute[action];
+  if (!subRoute) return res.status(400).json({ success: false, error: `Unknown action: ${action}` });
+
+  // For observability the sub-handler reads body.action as the sub-action;
+  // panels send obs_action for that.
+  const forwardBody = action === 'observability'
+    ? { ...body, action: body.obs_action ?? 'get_telemetry' }
+    : body;
+
+  try {
+    const r = await fetch(`http://127.0.0.1:5001/api/fn/${subRoute}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: req.headers.authorization ?? '' },
+      body: JSON.stringify(forwardBody),
+      signal: AbortSignal.timeout(30_000),
+    });
+    const data = await r.json();
+    return res.status(r.status).json(data);
+  } catch (err) { return res.status(502).json({ success: false, error: String(err) }); }
+});
+
+// ── admin-email ───────────────────────────────────────────────────────────────
+// Panels call admin-email; the full implementation lives in admin-email-actions.
+app.all('/api/fn/admin-email', async (req, res) => {
+  try {
+    const r = await fetch(`http://127.0.0.1:5001/api/fn/admin-email-actions`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: req.headers.authorization ?? '' },
+      body: JSON.stringify(req.body ?? {}),
+      signal: AbortSignal.timeout(30_000),
+    });
+    const data = await r.json();
+    return res.status(r.status).json(data);
+  } catch (err) { return res.status(502).json({ success: false, error: String(err) }); }
+});
+
 /**
  * Edge function proxy — forwards all /api/fn/* calls to Supabase Edge Functions.
  * The client's Authorization (Kinde JWT) is forwarded as-is.
