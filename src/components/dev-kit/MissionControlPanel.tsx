@@ -271,7 +271,7 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
         <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-sm text-destructive">
           {error}
           <p className="text-xs mt-1 opacity-70">
-            Deploy the <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">admin-mission-control</code> edge function and ensure DEV_KIT_PASSWORD is set.
+            Deploy the <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">admin-devkit-data</code> edge function and ensure DEV_KIT_PASSWORD is set.
           </p>
         </div>
       </div>

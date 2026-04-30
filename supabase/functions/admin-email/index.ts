@@ -612,12 +612,14 @@ Deno.serve(async (req) => {
       await supabase.from('audit_logs').insert({
         user_id: targetFound ? resolvedUserId : null,
         category: 'admin_email',
-        action: `email_${action}`,
+        action: action,
         metadata: {
-          performed_by: callerEmail,
+          admin_email: callerEmail,
+          audit_user_id_source: targetFound ? 'found' : 'not_found',
           target_email: resolvedEmail,
-          intended_target_email: targetFound ? undefined : resolvedEmail,
+          ...(action === 'send_custom' && custom_subject ? { custom_subject } : {}),
           message_id: resultMessageId,
+          sent_at: new Date().toISOString(),
         },
       }).catch((e: Error) => console.error('[admin-email/email-actions] Audit log failed:', e.message))
 

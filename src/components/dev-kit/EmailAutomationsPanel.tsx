@@ -342,7 +342,7 @@ export function EmailAutomationsPanel() {
           <div>
             <p className="font-medium">{error}</p>
             <p className="text-xs text-destructive/70 mt-1">
-              Deploy <code className="font-mono text-xs bg-destructive/10 px-1 py-0.5 rounded">admin-resend-stats</code> to your Supabase project and ensure DEV_KIT_PASSWORD is configured.
+              Deploy <code className="font-mono text-xs bg-destructive/10 px-1 py-0.5 rounded">admin-email</code> to your Supabase project and ensure DEV_KIT_PASSWORD is configured.
             </p>
           </div>
         </div>

@@ -763,7 +763,7 @@ export function EmailManagementPanel() {
         <div className="flex items-start gap-2.5 rounded-lg border border-red-400/50 bg-red-50 dark:bg-red-950/30 px-3.5 py-3 text-red-800 dark:text-red-300">
           <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
           <div className="text-xs leading-relaxed">
-            <strong>RESEND_API_KEY is not configured.</strong> Emails will fail to send. Set the <code className="font-mono">RESEND_API_KEY</code> secret in your Supabase project dashboard (Settings → Edge Functions → Secrets), then redeploy <code className="font-mono">admin-email-actions</code>.
+            <strong>RESEND_API_KEY is not configured.</strong> Emails will fail to send. Set the <code className="font-mono">RESEND_API_KEY</code> secret in your Supabase project dashboard (Settings → Edge Functions → Secrets), then redeploy <code className="font-mono">admin-email</code>.
           </div>
         </div>
       ) : (
