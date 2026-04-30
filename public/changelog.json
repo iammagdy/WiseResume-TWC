@@ -1,8 +1,24 @@
 [
   {
-    "version": "v3.10.1",
+    "version": "v3.10.2",
     "date": "Apr 30, 2026",
     "latest": true,
+    "summary": "DevKit polish: pick a model per AI test slot, and a proper Act As dialog with copyable link and live countdown.",
+    "items": [
+      {
+        "title": "Per-slot model selection for AI key tests",
+        "description": "Each OpenRouter / Groq / DeepSeek key in DevKit now has its own model dropdown. Pick a different model per slot, save once, and the test button uses it from then on. Solves the OpenRouter free-tier rate-limit that hit when all keys shared the same model, and shows the model that was actually called in the test result line."
+      },
+      {
+        "title": "Act As opens a dialog with a copyable link and live countdown",
+        "description": "Clicking 'Act As' on a user no longer auto-pops a tab. You get a small dialog showing the impersonation link in a read-only field with a Copy button, an explicit 'Open in new tab' button, and a live mm:ss countdown driven by the session's expiry — neutral above 2 min, amber under 2 min, red under 30 sec, auto-closes at 0:00 with an 'expired' notice."
+      }
+    ]
+  },
+  {
+    "version": "v3.10.1",
+    "date": "Apr 30, 2026",
+    "latest": false,
     "summary": "Act As now works reliably in any browser tab — no more phantom session-ended toasts.",
     "items": [
       {

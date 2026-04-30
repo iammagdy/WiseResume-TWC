@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-04-30 — v3.10.2: DevKit per-slot AI model selection + Act As dialog upgrade
+
+- **Per-slot AI test model selection (Bugs #6 + #7)**:
+  - **`supabase/functions/_shared/modelDefaults.ts`** — new shared module exporting `AI_TEST_MODEL_ALLOWLIST` (curated allow-list per provider — 6 OpenRouter models, 5 Groq, 3 DeepSeek), `AI_TEST_DEFAULT_MODELS` (provider → default), and `resolveAITestModel()` helper.
+  - **`supabase/functions/ai-test/index.ts`** — accepts optional `model` body field. Resolution precedence: validated request model → validated persisted per-slot model → provider default. Returns the resolved model in the response so the UI can display what was actually called.
+  - **`supabase/functions/inspect-ai-keys/index.ts`** — GET returns saved per-slot models + `modelOptions` + `defaults`. New POST `{provider, slot, model}` persists the choice via the atomic RPC. Empty POST falls through to GET so `supabase-js`'s default POST `functions.invoke()` works without forcing method.
+  - **`supabase/migrations/20260517000001_ai_test_slot_models_rpc.sql`** — `set_ai_test_slot_model(slot_key, model)` SECURITY DEFINER RPC with atomic JSONB merge (`INSERT ... ON CONFLICT DO UPDATE ... ||`), preventing lost updates across concurrent admin edits to different slots. Granted to `service_role` only.
+  - **`src/components/dev-kit/AIKeySlotPanels.tsx`** — added shadcn `Select` dropdown per slot, optimistic update + rollback on persistence failure, hydration from `slotModels`, and `result.model` rendering in the "Last test result" line for both success and failure paths.
+
+- **Act As dialog with copyable link, Open button, and live countdown (Bug #3)**:
+  - **`src/components/dev-kit/ActAsDialog.tsx`** — new dialog component. Read-only `Input` + Copy button (with brief inline "Copied" indicator), explicit "Open in new tab" button (predictable popup-blocker behavior), live mm:ss countdown recomputed every 1s from `expires_at` (drift-free across tab sleep), tone shifts neutral → amber ≤2min → destructive ≤30s, auto-close + expired toast at 0:00. `BroadcastChannel('wr_act_as')` listener moved here, scoped to dialog open lifetime so channels don't leak.
+  - **`src/components/dev-kit/AdminUsersPanel.tsx`** — `handleImpersonate` no longer calls `window.open` or registers a BroadcastChannel directly; it just sets `actAsSession` state and lets the new dialog drive the flow. Backend (`admin-impersonate`, `/act-as` route, `startImpersonation`) unchanged.
+
+- **`package.json`** — version bumped `3.10.1` → `3.10.2`. **`package-lock.json`** — version field synced from out-of-date `3.10.0` → `3.10.2` (root `version` only; dependency `version` lines untouched).
+- **`public/changelog.json`** — added v3.10.2 entry with two-item summary (model selection + Act As dialog); v3.10.1 `latest` set to `false`.
+
 ## 2026-04-30 — v3.10.1: Act As tab flow rewrite
 
 - **`src/components/dev-kit/AdminUsersPanel.tsx`** — `handleImpersonate`: changed `action: 'create_link'` → `action: 'start'`; response type changed from `{ otp, email, user_id }` to `{ access_token, email, user_id, expires_at }`; URL changed from `/act-as?t=<otp>` to `/act-as#<btoa(JSON({t,u,e,x}))>`; removed `popup.closed` polling; added `BroadcastChannel('wr_act_as')` listener for `session_ended` event keyed on `userId`.
