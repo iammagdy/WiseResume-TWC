@@ -15,7 +15,7 @@ set -e
 
 PROJECT_REF="jnsfmkzgxsviuthaqlyy"
 GITHUB_OWNER="iammagdy"
-GITHUB_REPO="wiseresume-74945019"
+GITHUB_REPO="wiseresume-twc"
 
 if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
   echo "Error: SUPABASE_ACCESS_TOKEN is not set."
