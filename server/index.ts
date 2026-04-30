@@ -2548,6 +2548,14 @@ app.all('/api/fn/admin-delete-user', async (req, res) => {
 });
 
 // ── admin-impersonate ─────────────────────────────────────────────────────────
+// One-time-token store for "act as" popup links (in-memory, 2-min claim window)
+const _actAsOtpStore = new Map<string, { access_token: string; user_id: string; email: string; expires_at: number; claimed_by: string; created_at: number }>();
+// Purge expired OTPs every 5 minutes
+setInterval(() => {
+  const cutoff = Date.now() - 2 * 60 * 1000;
+  for (const [k, v] of _actAsOtpStore) { if (v.created_at < cutoff) _actAsOtpStore.delete(k); }
+}, 5 * 60 * 1000);
+
 app.all('/api/fn/admin-impersonate', async (req, res) => {
   const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
   try {
@@ -2573,18 +2581,37 @@ app.all('/api/fn/admin-impersonate', async (req, res) => {
     const expiresAtMs = expiresAtSeconds * 1000;
     const secret = new TextEncoder().encode(SUPABASE_JWT_SECRET);
     const accessToken = await new jose.SignJWT({
-      sub: user_id,
-      email: targetEmail,
-      role: 'authenticated',
-      aud: 'authenticated',
-      iss: 'supabase',
-      iat: now,
-      exp: expiresAtSeconds,
-      is_impersonation: true,
+      sub: user_id, email: targetEmail, role: 'authenticated', aud: 'authenticated',
+      iss: 'supabase', iat: now, exp: expiresAtSeconds, is_impersonation: true,
     }).setProtectedHeader({ alg: 'HS256', typ: 'JWT' }).sign(secret);
     supabaseInsert('audit_logs', { user_id: null, category: 'admin_impersonation', action: 'impersonation_start', metadata: { performed_by: callerEmail, target_user_id: user_id, target_email: targetEmail || user_id, started_at: new Date().toISOString(), expires_at: new Date(expiresAtMs).toISOString() } }).catch(() => {});
+
+    if (impAction === 'create_link') {
+      // Generate a one-time token that the new browser tab will claim
+      const { randomUUID } = await import('crypto');
+      const otp = randomUUID();
+      _actAsOtpStore.set(otp, { access_token: accessToken, user_id, email: targetEmail || user_id, expires_at: expiresAtMs, claimed_by: callerEmail, created_at: Date.now() });
+      return res.json({ success: true, otp, user_id, email: targetEmail || user_id, expires_at: expiresAtMs });
+    }
+
+    // action === 'start' — legacy same-tab flow (kept for backwards compat)
     res.json({ success: true, access_token: accessToken, user_id, email: targetEmail || user_id, expires_at: expiresAtMs });
   } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
+});
+
+// ── admin-impersonate-claim ───────────────────────────────────────────────────
+// No DevKit auth — the OTP itself is the credential. One-time use only.
+app.all('/api/fn/admin-impersonate-claim', async (req, res) => {
+  const otp = (req.query.t ?? req.body?.t ?? '') as string;
+  if (!otp) return res.status(400).json({ success: false, error: 'Missing token' });
+  const entry = _actAsOtpStore.get(otp);
+  if (!entry) return res.status(404).json({ success: false, error: 'Token not found or already claimed' });
+  if (Date.now() - entry.created_at > 2 * 60 * 1000) {
+    _actAsOtpStore.delete(otp);
+    return res.status(410).json({ success: false, error: 'Token expired (2-minute claim window)' });
+  }
+  _actAsOtpStore.delete(otp); // one-time use
+  res.json({ success: true, access_token: entry.access_token, user_id: entry.user_id, email: entry.email, expires_at: entry.expires_at });
 });
 
 // ── admin-get-identity ────────────────────────────────────────────────────────

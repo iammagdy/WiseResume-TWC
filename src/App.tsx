@@ -9,6 +9,7 @@ import { lazyWithRetry } from "@/lib/lazyWithRetry";
 import { isAppHostname } from "@/hooks/usePublicPortfolio";
 
 const WallpaperPage = lazy(() => import("./pages/WallpaperPage"));
+const ActAs = lazy(() => import("./pages/ActAs"));
 
 const AnimatedSplash = lazyWithRetry(() =>
   import("@/components/AnimatedSplash").then((m) => ({ default: m.AnimatedSplash }))
@@ -76,6 +77,14 @@ function InteriorMount({ onReady }: { onReady: () => void }) {
         element={
           <Suspense fallback={null}>
             <WallpaperPage />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/act-as"
+        element={
+          <Suspense fallback={null}>
+            <ActAs />
           </Suspense>
         }
       />

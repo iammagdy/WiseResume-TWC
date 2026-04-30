@@ -12,7 +12,6 @@ import { toast } from 'sonner';
 import { useIsMounted } from '@/lib/devkit/hooks';
 import { unwrapAdminResponse, formatEdgeError, EdgeFunctionError } from '@/lib/devkit/edgeResponse';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
-import { startImpersonation } from '@/lib/impersonationStore';
 import {
   Dialog,
   DialogContent,
@@ -404,19 +403,28 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
     try {
       const tuple = await edgeFunctions.functions.invoke('admin-impersonate', {
         headers: devKitAuthHeaders(),
-        body: { action: 'start', target_user_id: user.user_id },
+        body: { action: 'create_link', target_user_id: user.user_id },
       });
-      const result = unwrapAdminResponse<{
-        access_token: string;
-        user_id: string;
-        email: string;
-        expires_at: number;
-      }>(tuple, 'admin-impersonate');
-      startImpersonation(result.access_token, result.user_id, result.email, result.expires_at);
-      toast.success(`Now acting as ${result.email}`, {
-        description: 'Impersonation session starts. Click "Exit" in the top banner to end it.',
-        duration: 6000,
+      const result = unwrapAdminResponse<{ otp: string; email: string; user_id: string }>(tuple, 'admin-impersonate');
+      const url = `/act-as?t=${encodeURIComponent(result.otp)}`;
+      const popup = window.open(url, '_blank');
+      if (!popup) {
+        toast.error('Popup blocked', { description: 'Allow popups for this site, then try again.' });
+        return;
+      }
+      toast.success(`Opened Act As session for ${result.email}`, {
+        description: 'A new tab has opened. Close that tab to end the session.',
+        duration: 5000,
       });
+      // Watch for the tab being closed and notify the admin
+      const watchTimer = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(watchTimer);
+          toast.info(`Act As session for ${result.email} ended`, {
+            description: 'The Act As tab was closed.',
+          });
+        }
+      }, 800);
     } catch (err) {
       const isNotDeployed = err instanceof EdgeFunctionError && err.notDeployed;
       const description = isNotDeployed

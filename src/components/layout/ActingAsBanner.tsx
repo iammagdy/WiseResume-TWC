@@ -1,20 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
 import { UserX, X, Loader2 } from 'lucide-react';
-import { getImpersonationState, exitImpersonation, subscribe, isImpersonating } from '@/lib/impersonationStore';
+import { getImpersonationState, exitImpersonation, subscribe, isImpersonating, isNewTabSession } from '@/lib/impersonationStore';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
 import { toast } from 'sonner';
 
 async function callExit(userId: string | null): Promise<void> {
-  const { data, error } = await edgeFunctions.functions.invoke('admin-impersonate', {
-    headers: devKitAuthHeaders(),
-    body: { action: 'exit', target_user_id: userId },
-  });
-  if (error || (data && !data.success)) {
-    console.warn('[ActingAsBanner] exit audit log failed:', error ?? data);
-    toast.warning('Impersonation exited but audit log failed', {
-      description: 'The session was cleared locally. The exit may not be recorded server-side.',
+  try {
+    await edgeFunctions.functions.invoke('admin-impersonate', {
+      headers: devKitAuthHeaders(),
+      body: { action: 'exit', target_user_id: userId },
     });
+  } catch {
+    // non-fatal — banner clears locally regardless
   }
 }
 
@@ -24,6 +22,7 @@ export function ActingAsBanner() {
     email: getImpersonationState().email,
     userId: getImpersonationState().userId,
     expiresAt: getImpersonationState().expiresAt,
+    newTab: isNewTabSession(),
   }));
   const [exiting, setExiting] = useState(false);
 
@@ -34,11 +33,13 @@ export function ActingAsBanner() {
         email: getImpersonationState().email,
         userId: getImpersonationState().userId,
         expiresAt: getImpersonationState().expiresAt,
+        newTab: isNewTabSession(),
       });
     });
     return unsub;
   }, []);
 
+  // Auto-exit when JWT expires
   useEffect(() => {
     if (!state.active || !state.expiresAt) return;
     const msLeft = state.expiresAt - Date.now();
@@ -48,23 +49,23 @@ export function ActingAsBanner() {
     }
     const timer = setTimeout(async () => {
       await callExit(state.userId);
-      toast.warning('Impersonation session expired', {
-        description: 'The 30-minute impersonation session has ended.',
+      toast.warning('Act As session expired', {
+        description: 'The 30-minute session has ended.',
       });
       exitImpersonation();
+      if (state.newTab) window.close();
     }, msLeft);
     return () => clearTimeout(timer);
-  }, [state.active, state.expiresAt, state.userId]);
+  }, [state.active, state.expiresAt, state.userId, state.newTab]);
 
   const handleExit = useCallback(async () => {
     setExiting(true);
-    try {
-      await callExit(state.userId);
-    } finally {
+    try { await callExit(state.userId); } finally {
       setExiting(false);
       exitImpersonation();
+      if (state.newTab) window.close();
     }
-  }, [state.userId]);
+  }, [state.userId, state.newTab]);
 
   if (!state.active) return null;
 
@@ -76,14 +77,18 @@ export function ActingAsBanner() {
           Acting as <span className="font-mono font-bold">{state.email ?? state.userId}</span>
         </span>
       </div>
-      <button
-        onClick={handleExit}
-        disabled={exiting}
-        className="flex items-center gap-1.5 shrink-0 rounded-md bg-white/20 hover:bg-white/30 px-3 py-1 text-xs font-semibold transition-colors disabled:opacity-60"
-      >
-        {exiting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />}
-        Exit
-      </button>
+      {state.newTab ? (
+        <span className="shrink-0 text-xs text-white/80">Close this tab to end session</span>
+      ) : (
+        <button
+          onClick={handleExit}
+          disabled={exiting}
+          className="flex items-center gap-1.5 shrink-0 rounded-md bg-white/20 hover:bg-white/30 px-3 py-1 text-xs font-semibold transition-colors disabled:opacity-60"
+        >
+          {exiting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />}
+          Exit
+        </button>
+      )}
     </div>
   );
 }
