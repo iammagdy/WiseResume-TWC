@@ -1103,11 +1103,11 @@ const MISSION_CONTROL_SECRETS: { key: string; label: string; source: 'replit_env
   { key: 'OPENROUTER_API_KEY',        label: 'OpenRouter API Key',        source: 'supabase_vault' },
   { key: 'OPENROUTER2_API_KEY',       label: 'OpenRouter 2 API Key',      source: 'supabase_vault' },
   { key: 'GROQ_API_KEY',              label: 'Groq API Key',              source: 'supabase_vault' },
-  // GitHub token: Replit may name it GITHUB_ACCESS_TOKEN or GITHUB_PAT; Supabase env names it GITHUB_TOKEN
-  { key: 'GITHUB_TOKEN',              label: 'GitHub Token',              source: 'replit_env', aliases: ['GITHUB_ACCESS_TOKEN', 'GITHUB_PAT'] },
-  // GITHUB_OWNER and GITHUB_REPO can be auto-derived from the git remote URL — marked optional
-  { key: 'GITHUB_OWNER',              label: 'GitHub Owner',              source: 'optional' },
-  { key: 'GITHUB_REPO',               label: 'GitHub Repo',               source: 'optional' },
+  // GitHub token: lives in Supabase vault; Replit may also have it as GITHUB_ACCESS_TOKEN or GITHUB_PAT
+  { key: 'GITHUB_TOKEN',              label: 'GitHub Token',              source: 'supabase_vault', aliases: ['GITHUB_ACCESS_TOKEN', 'GITHUB_PAT'] },
+  // GITHUB_OWNER and GITHUB_REPO live in Supabase vault (auto-derived from git remote as fallback)
+  { key: 'GITHUB_OWNER',              label: 'GitHub Owner',              source: 'supabase_vault' },
+  { key: 'GITHUB_REPO',               label: 'GitHub Repo',               source: 'supabase_vault' },
   { key: 'RESEND_API_KEY',            label: 'Resend API Key',            source: 'supabase_vault' },
   { key: 'GEMINI_API_KEY',            label: 'Gemini API Key',            source: 'optional' },
   { key: 'ELEVENLABS_API_KEY',        label: 'ElevenLabs API Key',        source: 'optional' },
@@ -1286,10 +1286,13 @@ app.all('/api/fn/admin-mission-control', async (req, res) => {
     ).length;
     const staleCount = secretsWithAge.filter(s => s.stale).length;
 
+    // Helper: secret is configured if present in env OR (dev mode + source is supabase_vault)
+    const vaultOk = (key: string) => isDevEnvironment && MISSION_CONTROL_SECRETS.find(s => s.key === key)?.source === 'supabase_vault';
+
     // AI configured = key present in env OR (dev mode + key is supabase_vault, i.e. it'll work in prod)
-    const orConfigured  = !!orKey  || (isDevEnvironment && MISSION_CONTROL_SECRETS.find(s => s.key === 'OPENROUTER_API_KEY')?.source === 'supabase_vault');
-    const or2Configured = !!or2Key || (isDevEnvironment && MISSION_CONTROL_SECRETS.find(s => s.key === 'OPENROUTER2_API_KEY')?.source === 'supabase_vault');
-    const groqConfigured= !!groqKey|| (isDevEnvironment && MISSION_CONTROL_SECRETS.find(s => s.key === 'GROQ_API_KEY')?.source === 'supabase_vault');
+    const orConfigured  = !!orKey  || vaultOk('OPENROUTER_API_KEY');
+    const or2Configured = !!or2Key || vaultOk('OPENROUTER2_API_KEY');
+    const groqConfigured= !!groqKey|| vaultOk('GROQ_API_KEY');
 
     const providerPings = [orPing, or2Ping, groqPing];
     // In dev mode, if a key is supabase_vault, treat it as "ok" (works in production)
@@ -1304,7 +1307,13 @@ app.all('/api/fn/admin-mission-control', async (req, res) => {
           ).every(p => p.ok)
     );
 
-    const resendConfigured = !!resendKey || (isDevEnvironment && MISSION_CONTROL_SECRETS.find(s => s.key === 'RESEND_API_KEY')?.source === 'supabase_vault');
+    const resendConfigured = !!resendKey || vaultOk('RESEND_API_KEY');
+
+    // GitHub configured = values in env OR auto-derived from git remote OR vault secrets
+    const githubTokenConfigured = !!githubToken || vaultOk('GITHUB_TOKEN');
+    const githubOwnerResolved   = githubOwner   || (vaultOk('GITHUB_OWNER') ? 'vault' : '');
+    const githubRepoResolved    = githubRepo    || (vaultOk('GITHUB_REPO')  ? 'vault' : '');
+    const repoConfigured        = !!(githubTokenConfigured && githubOwnerResolved && githubRepoResolved);
 
     res.json({
       success: true,
@@ -1315,7 +1324,7 @@ app.all('/api/fn/admin-mission-control', async (req, res) => {
         lastCommitAt: github.lastCommitAt,
         sha: github.sha,
         branch: github.branch,
-        repoConfigured: !!(githubToken && githubOwner && githubRepo),
+        repoConfigured,
         repoUrl: (githubOwner && githubRepo) ? `https://github.com/${githubOwner}/${githubRepo}` : null,
         productionUrl,
         siteUp: site.up,
