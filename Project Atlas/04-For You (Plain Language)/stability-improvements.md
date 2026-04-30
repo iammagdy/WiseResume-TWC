@@ -1,6 +1,21 @@
 # Stability Improvements — What's Getting Better Behind the Scenes
 
-**Last verified:** 2026-04-26 (Phase 12 editor audit shipped in v3.6.3; CI deploy verification fixed)
+**Last verified:** 2026-04-30 (Edge function slot consolidation — 9 slots freed, 8 previously unreachable features activated)
+
+## The platform just got room to breathe — and 8 hidden features are now live (2026-04-30)
+
+**What was the situation:** The platform runs on a backend service with a hard limit of 100 deployable features ("edge functions"). We had hit the ceiling exactly — 100 out of 100 slots used. Any new feature, fix, or experiment that needed a new backend endpoint was completely blocked. Nothing new could go live until something was removed.
+
+**What changed:** Twelve separate backend functions that had been running independently were consolidated into three — grouped by what they do together. Nothing was removed or simplified: every feature those twelve functions delivered still works exactly the same way. The code was restructured so they share a single deployment slot each, controlled by a simple instruction like "run the analytics task" or "send the email actions task."
+
+This freed 9 slots. Those 9 newly available slots were immediately put to use: 8 backend functions that had been written and sitting in the codebase but never actually deployed (meaning users couldn't reach them) were finally activated. These include features like bulk candidate screening in WiseHire, CV anonymisation for blind hiring, resume reminder emails, and the admin hard-purge tool.
+
+**What you'll notice:**
+- Everything continues to work exactly as before — no features were changed or removed.
+- WiseHire users can now use bulk candidate screening and CV masking features if they were previously hitting errors.
+- The platform now has 1 free slot, meaning the next new backend feature can go live without any cleanup needed first.
+
+---
 
 ## Editor polish and accessibility improvements — now live as v3.6.3 (2026-04-26)
 
