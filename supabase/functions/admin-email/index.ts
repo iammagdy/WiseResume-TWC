@@ -456,15 +456,19 @@ Deno.serve(async (req) => {
           }
         }
 
-        await supabase.from('audit_logs').insert({
-          user_id: null, category: 'admin_email', action: 'email_broadcast_sent',
-          metadata: {
-            performed_by: callerEmail, audience,
-            total_recipients: recipientEmails.length, sent, failed,
-            broadcast_subject, broadcast_body_preview: broadcast_body.slice(0, 200),
-            sent_at: new Date().toISOString(),
-          },
-        }).catch((e: Error) => console.error('[admin-email/email-actions] Broadcast audit failed:', e.message))
+        try {
+          await supabase.from('audit_logs').insert({
+            user_id: null, category: 'admin_email', action: 'email_broadcast_sent',
+            metadata: {
+              performed_by: callerEmail, audience,
+              total_recipients: recipientEmails.length, sent, failed,
+              broadcast_subject, broadcast_body_preview: broadcast_body.slice(0, 200),
+              sent_at: new Date().toISOString(),
+            },
+          })
+        } catch (e) {
+          console.error('[admin-email/email-actions] Broadcast audit failed:', (e as Error).message)
+        }
 
         return new Response(
           JSON.stringify({ success: true, sent, failed, audience, total: recipientEmails.length }),
@@ -609,19 +613,23 @@ Deno.serve(async (req) => {
           )
       }
 
-      await supabase.from('audit_logs').insert({
-        user_id: targetFound ? resolvedUserId : null,
-        category: 'admin_email',
-        action: action,
-        metadata: {
-          admin_email: callerEmail,
-          audit_user_id_source: targetFound ? 'found' : 'not_found',
-          target_email: resolvedEmail,
-          ...(action === 'send_custom' && custom_subject ? { custom_subject } : {}),
-          message_id: resultMessageId,
-          sent_at: new Date().toISOString(),
-        },
-      }).catch((e: Error) => console.error('[admin-email/email-actions] Audit log failed:', e.message))
+      try {
+        await supabase.from('audit_logs').insert({
+          user_id: targetFound ? resolvedUserId : null,
+          category: 'admin_email',
+          action: action,
+          metadata: {
+            admin_email: callerEmail,
+            audit_user_id_source: targetFound ? 'found' : 'not_found',
+            target_email: resolvedEmail,
+            ...(action === 'send_custom' && custom_subject ? { custom_subject } : {}),
+            message_id: resultMessageId,
+            sent_at: new Date().toISOString(),
+          },
+        })
+      } catch (e) {
+        console.error('[admin-email/email-actions] Audit log failed:', (e as Error).message)
+      }
 
       return new Response(
         JSON.stringify({ success: true, message_id: resultMessageId, email: resolvedEmail }),

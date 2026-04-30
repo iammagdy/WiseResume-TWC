@@ -1,45 +1,18 @@
-name: Unit Tests
+name: Unit Tests (disabled)
+
+# This workflow has been disabled per Task #11. It used to run Vitest on every
+# push and PR, but the suite is no longer maintained and was failing on every
+# commit (run #90 etc.). The triggers are intentionally limited to manual
+# `workflow_dispatch` so the file stays in git history without polluting the
+# Actions tab on routine pushes.
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
   workflow_dispatch:
-    inputs:
-      confirm:
-        description: >
-          🧪 UNIT TESTS — Runs the full Vitest suite including visual-regression
-          guards for the PDF export pipeline (page-break overlay exclusion and
-          contact-icon alignment). Takes about 30 seconds.
-        type: string
-        required: false
-        default: 'Yes, run unit tests'
 
 jobs:
-  test:
-    name: Vitest unit tests
+  noop:
+    name: Disabled
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run unit tests
-        run: npm run test
-        env:
-          CI: true
-
-      - name: Report results
-        if: always()
-        run: |
-          echo "Unit test run complete."
+      - name: Notice
+        run: echo "Unit Tests workflow is disabled."
