@@ -416,15 +416,21 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
         description: 'A new tab has opened. Close that tab to end the session.',
         duration: 5000,
       });
-      // Watch for the tab being closed and notify the admin
-      const watchTimer = setInterval(() => {
-        if (popup.closed) {
-          clearInterval(watchTimer);
-          toast.info(`Act As session for ${result.email} ended`, {
-            description: 'The Act As tab was closed.',
-          });
-        }
-      }, 800);
+      // BroadcastChannel is reliable cross-origin; popup.closed is not
+      // trustworthy from inside an iframe (Replit workspace sandboxing).
+      try {
+        const channel = new BroadcastChannel('wr_act_as');
+        channel.onmessage = (ev: MessageEvent<{ type: string; email: string | null; userId: string | null }>) => {
+          if (ev.data?.type === 'session_ended' && ev.data?.userId === result.user_id) {
+            toast.info(`Act As session for ${result.email} ended`, {
+              description: 'The Act As tab was closed.',
+            });
+            channel.close();
+          }
+        };
+      } catch {
+        // BroadcastChannel not available — notifications simply won't appear
+      }
     } catch (err) {
       const isNotDeployed = err instanceof EdgeFunctionError && err.notDeployed;
       const description = isNotDeployed

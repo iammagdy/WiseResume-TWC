@@ -5,6 +5,8 @@ import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
 import { toast } from 'sonner';
 
+const ACT_AS_CHANNEL = 'wr_act_as';
+
 async function callExit(userId: string | null): Promise<void> {
   try {
     await edgeFunctions.functions.invoke('admin-impersonate', {
@@ -13,6 +15,16 @@ async function callExit(userId: string | null): Promise<void> {
     });
   } catch {
     // non-fatal — banner clears locally regardless
+  }
+}
+
+function broadcastSessionEnd(email: string | null, userId: string | null) {
+  try {
+    const ch = new BroadcastChannel(ACT_AS_CHANNEL);
+    ch.postMessage({ type: 'session_ended', email, userId });
+    ch.close();
+  } catch {
+    // BroadcastChannel not available (e.g. private browsing — non-fatal)
   }
 }
 
@@ -39,12 +51,24 @@ export function ActingAsBanner() {
     return unsub;
   }, []);
 
+  // In new-tab mode: broadcast session_ended when this tab is closed/unloaded
+  useEffect(() => {
+    if (!state.newTab || !state.active) return;
+    const { email, userId } = state;
+    const handleUnload = () => broadcastSessionEnd(email, userId);
+    window.addEventListener('beforeunload', handleUnload);
+    return () => window.removeEventListener('beforeunload', handleUnload);
+  }, [state.newTab, state.active, state.email, state.userId]);
+
   // Auto-exit when JWT expires
   useEffect(() => {
     if (!state.active || !state.expiresAt) return;
     const msLeft = state.expiresAt - Date.now();
     if (msLeft <= 0) {
-      void callExit(state.userId).finally(() => exitImpersonation());
+      void callExit(state.userId).finally(() => {
+        broadcastSessionEnd(state.email, state.userId);
+        exitImpersonation();
+      });
       return;
     }
     const timer = setTimeout(async () => {
@@ -52,6 +76,7 @@ export function ActingAsBanner() {
       toast.warning('Act As session expired', {
         description: 'The 30-minute session has ended.',
       });
+      broadcastSessionEnd(state.email, state.userId);
       exitImpersonation();
       if (state.newTab) window.close();
     }, msLeft);
@@ -61,11 +86,12 @@ export function ActingAsBanner() {
   const handleExit = useCallback(async () => {
     setExiting(true);
     try { await callExit(state.userId); } finally {
+      broadcastSessionEnd(state.email, state.userId);
       setExiting(false);
       exitImpersonation();
       if (state.newTab) window.close();
     }
-  }, [state.userId, state.newTab]);
+  }, [state.userId, state.newTab, state.email]);
 
   if (!state.active) return null;
 
