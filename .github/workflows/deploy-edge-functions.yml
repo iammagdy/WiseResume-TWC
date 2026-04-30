@@ -47,6 +47,37 @@ jobs:
               | python3 -c "import json,sys; d=json.load(sys.stdin); print(f'  → verify_jwt={d.get(\"verify_jwt\")} version={d.get(\"version\")}')"
           done
 
+      # Bug #5 smoke verification: probe the live function with an obviously
+      # invalid bearer and assert the response shape is function-level
+      # ({"success":false,"error":"..."}) NOT gateway-level
+      # ({"error":"Invalid or expired auth token"}). If the response wrong-
+      # shapes, the gateway is still rejecting before function code and the
+      # deploy must be rolled back / investigated.
+      - name: Smoke-test ai-test reaches function code (Bug #5 guard)
+        run: |
+          set -e
+          for fn in ai-test; do
+            echo "Probing $fn with fake bearer (a 401 is expected)..."
+            # NOTE: no -f flag — we expect HTTP 401 and want the body anyway.
+            HTTP=$(curl -sS -X POST \
+              -H "Authorization: Bearer aaa.bbb.ccc" \
+              -H "Content-Type: application/json" \
+              -d '{"provider":"openrouter","keyIndex":1}' \
+              "https://jnsfmkzgxsviuthaqlyy.supabase.co/functions/v1/$fn" \
+              -o /tmp/probe.json -w "%{http_code}")
+            echo "  HTTP=$HTTP"
+            echo "  body: $(cat /tmp/probe.json)"
+            if grep -q '"Invalid or expired auth token"' /tmp/probe.json; then
+              echo "::error::$fn is still being rejected at the Supabase gateway. verify_jwt drift not fixed."
+              exit 1
+            fi
+            if ! grep -q '"success":false' /tmp/probe.json; then
+              echo "::error::$fn did not return the expected function-level error shape."
+              exit 1
+            fi
+            echo "  ✓ $fn reaches function code (function-level Unauthorized)."
+          done
+
       - name: Verify every local function is now deployed
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
