@@ -2507,15 +2507,35 @@ app.all('/api/fn/admin-impersonate', async (req, res) => {
     const user_id: string | undefined = _b.target_user_id ?? _b.user_id;
     const impAction: string = _b.action ?? 'start';
     if (impAction === 'exit') {
-      supabaseInsert('audit_logs', { user_id: null, category: 'user_management', action: 'impersonation_exit', metadata: { performed_by: callerEmail } }).catch(() => {});
+      supabaseInsert('audit_logs', { user_id: null, category: 'admin_impersonation', action: 'impersonation_exit', metadata: { performed_by: callerEmail, target_user_id: user_id ?? null, exited_at: new Date().toISOString() } }).catch(() => {});
       return res.json({ success: true });
     }
     if (!user_id) return res.status(400).json({ success: false, error: 'user_id required' });
-    const authUser = await supabaseAuthAdmin<{ id: string; email?: string; user_metadata?: Record<string, unknown> }>('GET', `users/${encodeURIComponent(user_id)}`);
-    const linkResp = await supabaseAuthAdmin<{ action_link?: string; properties?: { action_link: string } }>('POST', 'generate_link', { type: 'magiclink', email: authUser.email });
-    const link = (linkResp as Record<string, unknown>).action_link ?? (linkResp as Record<string, unknown>).properties?.action_link ?? null;
-    supabaseInsert('audit_logs', { user_id, category: 'user_management', action: 'impersonation_start', metadata: { impersonated_email: authUser.email, performed_by: callerEmail } }).catch(() => {});
-    res.json({ success: true, access_token: null, magic_link: link, email: authUser.email, user_metadata: authUser.user_metadata ?? {} });
+    if (!SUPABASE_JWT_SECRET) return res.status(500).json({ success: false, error: 'Server not configured with SUPABASE_JWT_SECRET' });
+    const authUser = await supabaseAuthAdmin<{ id: string; email?: string }>('GET', `users/${encodeURIComponent(user_id)}`);
+    const targetEmail = authUser.email ?? '';
+    // Prevent impersonating another admin
+    const adminEmailList = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
+    if (targetEmail && adminEmailList.includes(targetEmail.toLowerCase())) {
+      return res.status(403).json({ success: false, error: 'Impersonating another admin is not permitted' });
+    }
+    const SESSION_TTL = 30 * 60;
+    const now = Math.floor(Date.now() / 1000);
+    const expiresAtSeconds = now + SESSION_TTL;
+    const expiresAtMs = expiresAtSeconds * 1000;
+    const secret = new TextEncoder().encode(SUPABASE_JWT_SECRET);
+    const accessToken = await new jose.SignJWT({
+      sub: user_id,
+      email: targetEmail,
+      role: 'authenticated',
+      aud: 'authenticated',
+      iss: 'supabase',
+      iat: now,
+      exp: expiresAtSeconds,
+      is_impersonation: true,
+    }).setProtectedHeader({ alg: 'HS256', typ: 'JWT' }).sign(secret);
+    supabaseInsert('audit_logs', { user_id: null, category: 'admin_impersonation', action: 'impersonation_start', metadata: { performed_by: callerEmail, target_user_id: user_id, target_email: targetEmail || user_id, started_at: new Date().toISOString(), expires_at: new Date(expiresAtMs).toISOString() } }).catch(() => {});
+    res.json({ success: true, access_token: accessToken, user_id, email: targetEmail || user_id, expires_at: expiresAtMs });
   } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
 });
 
