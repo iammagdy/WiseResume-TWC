@@ -376,6 +376,10 @@ function ComposeEmailForm({
         if (isMounted()) setSearching(false);
       }
     }, 350);
+    // The debounced callback intentionally captures only the stable refs
+    // (searchDebounceRef + isMounted); widening the dep array would
+    // recreate the callback — and reset the debounce timer — on every
+    // unrelated render that flips a piece of parent state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
