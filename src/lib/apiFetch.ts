@@ -349,20 +349,63 @@ function resolveProdRoute(
   }
 
   // ── /api/data/hr-analytics ──────────────────────────────────────────────
-  // Express aggregator that reads wisehire_candidates / wisehire_pipeline_events
-  // / wisehire_companies (Neon-only tables not exposed via PostgREST/RLS).
-  // Until those tables exist in Supabase, return an empty-but-typed payload
-  // so the HR analytics page renders the empty state instead of throwing.
+  // The Express dev handler aggregates wisehire_candidates,
+  // wisehire_pipeline_events, and wisehire_companies. Those tables exist
+  // in Neon today and are being mirrored into Supabase as the WiseHire
+  // feature graduates to the prod tier. We attempt the PostgREST queries
+  // here so prod sees real data the moment the tables land in Supabase
+  // (no client redeploy needed); any individual table that 404s falls
+  // back to an empty array so a partial migration doesn't break the page.
+  // The auxiliary collections (bulkJobs/briefs/roles/talentViews) are
+  // hardcoded empty in dev too — they have no backing tables yet.
   if (path === '/api/data/hr-analytics' && method === 'GET') {
+    const rangeRaw = query && typeof query.range === 'string' ? query.range : 'all';
+    let sinceFilter = '';
+    if (rangeRaw !== 'all') {
+      const d = new Date();
+      if (rangeRaw === 'week') d.setDate(d.getDate() - 7);
+      else if (rangeRaw === 'month') d.setDate(d.getDate() - 30);
+      else if (rangeRaw === 'quarter') d.setDate(d.getDate() - 90);
+      sinceFilter = encodeURIComponent(d.toISOString());
+    }
+    const candFilter = sinceFilter
+      ? `owner_id=eq.${u}&created_at=gte.${sinceFilter}`
+      : `owner_id=eq.${u}`;
+    const evtFilter = sinceFilter
+      ? `owner_id=eq.${u}&moved_at=gte.${sinceFilter}`
+      : `owner_id=eq.${u}`;
+    const safe = async <X>(p: Promise<X>): Promise<X | null> => {
+      try { return await p; } catch { return null; }
+    };
     return {
-      synthetic: {
-        candidates: [],
-        pipelineEvents: [],
-        companyId: null,
-        bulkJobs: [],
-        briefs: [],
-        roles: [],
-        talentViews: [],
+      synthetic: async () => {
+        const [candidatesRaw, eventsRaw, companyRowsRaw] = await Promise.all([
+          safe(pgGet<Record<string, unknown>>(
+            `wisehire_candidates?${candFilter}&select=id,pipeline_stage,resume_text,created_at`,
+          )),
+          safe(pgGet<Record<string, unknown>>(
+            `wisehire_pipeline_events?${evtFilter}&select=candidate_id,from_stage,to_stage,moved_at&order=moved_at.asc`,
+          )),
+          safe(pgGet<Record<string, unknown>>(`wisehire_companies?owner_id=eq.${u}&select=id&limit=1`)),
+        ]);
+        // Map moved_at → created_at to keep parity with the dev handler's
+        // SELECT alias (`moved_at AS created_at`) so useHRAnalytics's
+        // hire-time math reads the right field name.
+        const pipelineEvents = (eventsRaw ?? []).map((e) => ({
+          candidate_id: e.candidate_id,
+          from_stage: e.from_stage,
+          to_stage: e.to_stage,
+          created_at: e.moved_at,
+        }));
+        return {
+          candidates: candidatesRaw ?? [],
+          pipelineEvents,
+          companyId: (companyRowsRaw && companyRowsRaw[0]?.id) ?? null,
+          bulkJobs: [],
+          briefs: [],
+          roles: [],
+          talentViews: [],
+        };
       },
     };
   }
