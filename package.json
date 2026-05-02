@@ -24,6 +24,7 @@
     "preview:emails": "node scripts/preview-waitlist-emails.mjs",
     "db:check-drift": "node scripts/check-supabase-migration-drift.mjs",
     "check:functions:deployed": "node scripts/check-edge-functions-deployed.mjs",
+    "smoke:functions": "node scripts/smoke-test-edge-functions.mjs",
     "postinstall": "node scripts/ensure-puppeteer-chrome.mjs",
     "test:e2e": "playwright test --project=chromium",
     "test:e2e:headed": "E2E_HEADED=1 playwright test --project=chromium --headed",
