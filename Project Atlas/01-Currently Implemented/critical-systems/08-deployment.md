@@ -24,7 +24,7 @@
 
 - **Frontend:** Hostinger via FTPS (explicit TLS, port 21; implicit FTPS port 990 fallback), deployed by `deploy.yml` GitHub Action. FTP server IP `82.29.154.120` (hardcoded — hostname resolves to CDN IPs that do not run vsftpd). Production URL: https://resume.thewise.cloud.
 - **Backend:** Supabase project `jnsfmkzgxsviuthaqlyy` — Edge Functions, Postgres, Storage.
-- **Mobile:** Capacitor 8 native shell built via `npm run mobile:sync` (NOT `npm run build` — see `09-mobile-capacitor.md`). Native scaffolds (`ios/`, `android/`) are gitignored and regenerated via `npx cap add <platform>`. The mobile build pipeline strips the admin DevKit out of the bundle (`vite build --mode mobile` + `scripts/check-mobile-bundle.mjs`). Final binary production happens in Xcode (TestFlight) or Android Studio (Play Console internal testing) — see `docs/mobile.md`.
+- **Mobile:** Capacitor 8 native shell built via `npm run mobile:sync` (NOT `npm run build` — see `13-mobile-capacitor.md`). Native scaffolds (`ios/`, `android/`) are gitignored and regenerated via `npx cap add <platform>`. The mobile build pipeline strips the admin DevKit out of the bundle (`vite build --mode mobile` + `scripts/check-mobile-bundle.mjs`). Final binary production happens in Xcode (TestFlight) or Android Studio (Play Console internal testing) — see `docs/mobile.md`.
 
 ## CI/CD workflows
 

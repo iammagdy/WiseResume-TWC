@@ -41,7 +41,7 @@ The landing page (`/`) shows both via a "For Job Seekers" / "For Companies" togg
 | Backend | Supabase Edge Functions (Deno) — 93 functions | `supabase/functions/` |
 | AI | 8-step routing chain across 9 providers w/ BYOK | `supabase/functions/_shared/aiClient.ts` |
 | Voice | _Removed_ — Interview Coach voice path retired; `useVoiceInterview.ts` is a stub. The `elevenlabs-scribe-token` edge function was deleted 2026-04-24 (Task #21). | `src/hooks/useVoiceInterview.ts` |
-| Mobile | Capacitor 8 PWA wrapper | `capacitor.config.ts` |
+| Mobile | Capacitor 8 native shell (no PWA — loads a Vite-built `dist/` payload via WebView) | `capacitor.config.ts`, `critical-systems/13-mobile-capacitor.md` |
 | Hosting | Hostinger (frontend) + Supabase (backend) | `.github/workflows/deploy.yml` |
 
 ## Inventory at a glance (live today)
@@ -65,7 +65,7 @@ The landing page (`/`) shows both via a "For Job Seekers" / "For Companies" togg
 
 ## Critical-system index
 
-The 10 deep-dive docs in `critical-systems/` cover every system that touches more than one feature:
+The 13 deep-dive docs in `critical-systems/` cover every system that touches more than one feature:
 
 1. Auth bridge (Kinde → Supabase)
 2. AI routing 8-step chain

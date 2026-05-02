@@ -19,7 +19,7 @@ If a feature is committed to but not yet built, it lives in `../02-Planned/`. If
 ## Contents
 
 - [`platform-overview.md`](./platform-overview.md) — one-page summary of WiseResume + WiseHire and the shared infrastructure
-- [`critical-systems/`](./critical-systems/) — 10 deep-dive docs for the systems every agent needs to understand
+- [`critical-systems/`](./critical-systems/) — 13 deep-dive docs for the systems every agent needs to understand
   - [01 — Auth bridge (Kinde → Supabase)](./critical-systems/01-auth-bridge.md)
   - [02 — AI routing 8-step chain](./critical-systems/02-ai-routing-chain.md)
   - [03 — Credits + BYOK](./critical-systems/03-credits-and-byok.md)
@@ -30,6 +30,7 @@ If a feature is committed to but not yet built, it lives in `../02-Planned/`. If
   - [08 — Deployment](./critical-systems/08-deployment.md)
   - [09 — Security model (4-layer invariant)](./critical-systems/09-security-model.md)
   - [10 — WiseResume AI Studio + agentic chat](./critical-systems/10-ai-studio-and-agentic-chat.md)
+  - [13 — Mobile (Capacitor)](./critical-systems/13-mobile-capacitor.md)
 - [`pages/`](./pages/) — one reference card per route
 - [`edge-functions/`](./edge-functions/) — one reference card per Supabase Edge Function
 - [`database-tables/`](./database-tables/) — one reference card per Postgres table
