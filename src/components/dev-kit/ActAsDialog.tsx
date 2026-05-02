@@ -19,7 +19,7 @@
  * leak channels when the dialog isn't open.
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Copy, Check, ExternalLink, Clock } from 'lucide-react';
+import { Copy, Check, ExternalLink, Clock, Loader2, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   Dialog,
@@ -32,6 +32,9 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
+import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
 
 export interface ActAsSession {
   /** Path-relative URL e.g. `/act-as#<payload>` (no origin). */
@@ -57,6 +60,7 @@ function formatMmSs(totalSeconds: number): string {
 export function ActAsDialog({ session, onClose }: Props) {
   const [secondsLeft, setSecondsLeft] = useState(0);
   const [copied, setCopied] = useState(false);
+  const [revoking, setRevoking] = useState(false);
   // Track last-rendered session id so the "copied" indicator and countdown
   // reset cleanly when the admin opens a different user's session.
   const lastSessionKey = useRef<string | null>(null);
@@ -151,6 +155,34 @@ export function ActAsDialog({ session, onClose }: Props) {
     }
   }, [session]);
 
+  // Task #18: "End session now" — calls admin-impersonate { action: 'revoke' }
+  // which marks every impersonation token issued for this user invalid.
+  // Any open /act-as tab will fall back to the login screen on its next
+  // API call (existing 401 handling). On failure we keep the dialog open
+  // and surface a toast so the admin can retry; we only close on success
+  // so a successful revoke is always followed by the dialog disappearing.
+  const handleRevoke = useCallback(async () => {
+    if (!session) return;
+    setRevoking(true);
+    try {
+      const tuple = await edgeFunctions.functions.invoke('admin-impersonate', {
+        headers: devKitAuthHeaders(),
+        body: { action: 'revoke', target_user_id: session.userId },
+      });
+      unwrapAdminResponse(tuple, 'admin-impersonate');
+      toast.success(`Act As session for ${session.email} ended`, {
+        description: 'The impersonation link is no longer valid.',
+      });
+      onClose();
+    } catch (err) {
+      toast.error('Could not end Act As session', {
+        description: formatEdgeError(err, 'Revoke failed'),
+      });
+    } finally {
+      setRevoking(false);
+    }
+  }, [session, onClose]);
+
   if (!session) return null;
 
   // Tone matches the spec: neutral above 2 min, warning ≤2 min, destructive ≤30s.
@@ -236,18 +268,34 @@ export function ActAsDialog({ session, onClose }: Props) {
           </div>
         </div>
 
-        <DialogFooter className="gap-2 sm:gap-0">
-          <Button type="button" variant="outline" onClick={onClose}>
-            Close
-          </Button>
+        <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-between sm:gap-0">
           <Button
             type="button"
-            onClick={handleOpen}
-            disabled={secondsLeft <= 0}
+            variant="destructive"
+            onClick={handleRevoke}
+            disabled={revoking || secondsLeft <= 0}
+            className="sm:mr-auto"
           >
-            <ExternalLink className="mr-2 h-4 w-4" />
-            Open in new tab
+            {revoking ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <XCircle className="mr-2 h-4 w-4" />
+            )}
+            End session now
           </Button>
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" onClick={onClose} disabled={revoking}>
+              Close
+            </Button>
+            <Button
+              type="button"
+              onClick={handleOpen}
+              disabled={secondsLeft <= 0 || revoking}
+            >
+              <ExternalLink className="mr-2 h-4 w-4" />
+              Open in new tab
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

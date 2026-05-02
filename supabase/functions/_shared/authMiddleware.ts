@@ -3,6 +3,7 @@ import { getServiceClient } from './dbClient.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { logger } from './logger.ts';
+import { decodeJwtPayloadUnsafe } from './jwtUtils.ts';
 
 const log = logger('authMiddleware');
 
@@ -64,6 +65,43 @@ export async function requireAuth(req: Request): Promise<AuthResult> {
   }
 
   const client = getServiceClient();
+
+  // Task #18: enforce admin "End session now" revocation. Impersonation tokens
+  // carry `is_impersonation: true`. We peek at the (already signature-verified
+  // by Supabase Auth) payload and reject if a revocation row exists with
+  // revoked_at >= the token's iat. Re-issuing impersonation for the same user
+  // produces a newer iat and starts working again without clearing the row.
+  let claims: Record<string, unknown> = {};
+  try {
+    claims = decodeJwtPayloadUnsafe(token);
+  } catch {
+    // Malformed payload would have failed getUser above — just skip the
+    // denylist check rather than 500.
+  }
+  if (claims.is_impersonation === true) {
+    const iat = typeof claims.iat === 'number' ? claims.iat : null;
+    if (iat !== null) {
+      const { data: revocation, error: revErr } = await client
+        .from('impersonation_revocations')
+        .select('revoked_at')
+        .eq('target_user_id', user.id)
+        .maybeSingle();
+      // Fail closed when the lookup itself errors — an admin pressing
+      // "End session now" must not be silently ignored if the table is
+      // unreachable. The cost is a 401 the admin can resolve by retrying.
+      if (revErr) {
+        log.warn('Impersonation revocation lookup failed', { reason: revErr.message });
+        throw new AuthError('Could not verify impersonation session', 401);
+      }
+      if (revocation?.revoked_at) {
+        const revokedSec = Math.floor(new Date(revocation.revoked_at).getTime() / 1000);
+        if (revokedSec >= iat) {
+          log.warn('Impersonation token revoked', { target_user_id: user.id });
+          throw new AuthError('Impersonation session revoked', 401);
+        }
+      }
+    }
+  }
 
   return { userId: user.id, client };
 }

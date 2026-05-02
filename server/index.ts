@@ -2566,6 +2566,24 @@ app.all('/api/fn/admin-impersonate', async (req, res) => {
       supabaseInsert('audit_logs', { user_id: null, category: 'admin_impersonation', action: 'impersonation_exit', metadata: { performed_by: callerEmail, target_user_id: user_id ?? null, exited_at: new Date().toISOString() } }).catch(() => {});
       return res.json({ success: true });
     }
+    if (impAction === 'revoke') {
+      // Task #18: same revoke action as the edge function. Upsert the
+      // denylist row and audit-log it. validateSupabaseToken consults the
+      // table on the next API call from the impersonated tab and returns
+      // null (-> 401), which the client's existing 401 handling turns into
+      // a logout.
+      if (!user_id) return res.status(400).json({ success: false, error: 'user_id required' });
+      const revokedAtIso = new Date().toISOString();
+      try {
+        await supabaseUpsert('impersonation_revocations',
+          { target_user_id: user_id, revoked_at: revokedAtIso, revoked_by: callerEmail },
+          'target_user_id');
+      } catch (e) {
+        return res.status(500).json({ success: false, error: 'Could not revoke impersonation', details: String(e) });
+      }
+      supabaseInsert('audit_logs', { user_id: null, category: 'admin_impersonation', action: 'impersonation_revoke', metadata: { performed_by: callerEmail, target_user_id: user_id, revoked_at: revokedAtIso } }).catch(() => {});
+      return res.json({ success: true, revoked_at: revokedAtIso });
+    }
     if (!user_id) return res.status(400).json({ success: false, error: 'user_id required' });
     if (!SUPABASE_JWT_SECRET) return res.status(500).json({ success: false, error: 'Server not configured with SUPABASE_JWT_SECRET' });
     const authUser = await supabaseAuthAdmin<{ id: string; email?: string }>('GET', `users/${encodeURIComponent(user_id)}`);
@@ -3324,6 +3342,52 @@ interface AuthCacheEntry { userId: string; email: string | null; expiresAt: numb
 const authCache = new Map<string, AuthCacheEntry>();
 const AUTH_CACHE_TTL_MS = 60_000; // 1 minute
 
+/**
+ * Task #18: peek at a JWT payload without verifying its signature, just to
+ * pull out the impersonation marker and iat for denylist lookup. The caller
+ * is responsible for validating the signature first; this only runs after
+ * we've already accepted the token.
+ */
+function peekJwtClaims(token: string): Record<string, unknown> {
+  const parts = token.split('.');
+  if (parts.length !== 3) return {};
+  const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+  try {
+    const json = Buffer.from(
+      b64.padEnd(b64.length + (4 - b64.length % 4) % 4, '='),
+      'base64',
+    ).toString('utf8');
+    return JSON.parse(json);
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Task #18: returns true when an impersonation token issued at `iat` (epoch
+ * seconds) for `userId` has been admin-revoked. Looked up directly in
+ * `impersonation_revocations`; we deliberately do not cache the result so
+ * "End session now" takes effect on the very next API call from the
+ * impersonated tab. Failure to query the table is fail-closed (returns
+ * true) so a transient DB blip cannot silently let a revoked session keep
+ * working.
+ */
+async function isImpersonationRevoked(userId: string, iat: number): Promise<boolean> {
+  try {
+    const rows = await supabaseGet<{ revoked_at: string }>(
+      'impersonation_revocations',
+      `select=revoked_at&target_user_id=eq.${encodeURIComponent(userId)}&limit=1`,
+    );
+    const row = rows[0];
+    if (!row?.revoked_at) return false;
+    const revokedSec = Math.floor(new Date(row.revoked_at).getTime() / 1000);
+    return revokedSec >= iat;
+  } catch (err) {
+    console.warn('[server] impersonation revocation lookup failed (fail-closed):', err);
+    return true;
+  }
+}
+
 async function validateSupabaseToken(
   token: string,
 ): Promise<{ userId: string; email: string | null } | null> {
@@ -3358,6 +3422,18 @@ async function validateSupabaseToken(
         ? ((payload as Record<string, unknown>).email as string).toLowerCase()
         : null;
       if (userId) {
+        // Task #18: enforce admin "End session now" before issuing a cache
+        // entry. Impersonation tokens are intentionally NOT cached so a
+        // revoke takes effect on the very next request — the cache TTL would
+        // otherwise let an in-flight session keep working for up to a minute.
+        const isImpersonation = (payload as Record<string, unknown>).is_impersonation === true;
+        if (isImpersonation) {
+          const iat = typeof payload.iat === 'number' ? payload.iat : null;
+          if (iat !== null && await isImpersonationRevoked(userId, iat)) {
+            return null;
+          }
+          return { userId, email };
+        }
         authCache.set(token, { userId, email, expiresAt: now + AUTH_CACHE_TTL_MS });
         if (authCache.size > 2000) {
           for (const [k, v] of authCache) if (v.expiresAt <= now) authCache.delete(k);
@@ -3388,6 +3464,18 @@ async function validateSupabaseToken(
       ? body.email.toLowerCase()
       : null;
     if (userId) {
+      // Task #18: same denylist enforcement on the Supabase-validated path.
+      // We can't trust the JWT signature here ourselves but we already know
+      // Supabase verified it, so peeking at the payload is safe.
+      const claims = peekJwtClaims(token);
+      const isImpersonation = claims.is_impersonation === true;
+      if (isImpersonation) {
+        const iat = typeof claims.iat === 'number' ? claims.iat : null;
+        if (iat !== null && await isImpersonationRevoked(userId, iat)) {
+          return null;
+        }
+        return { userId, email };
+      }
       authCache.set(token, { userId, email, expiresAt: now + AUTH_CACHE_TTL_MS });
       if (authCache.size > 2000) {
         for (const [k, v] of authCache) if (v.expiresAt <= now) authCache.delete(k);

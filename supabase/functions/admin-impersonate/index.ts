@@ -66,6 +66,59 @@ serve(wrapHandler("admin-impersonate", async (req) => {
     });
   }
 
+  if (action === 'revoke') {
+    // Task #18: admin-driven "End session now". Marks every impersonation
+    // token issued for `target_user_id` at or before now() as invalid. The
+    // denylist check in requireAuth / validateSupabaseToken consults this
+    // table on the next API call from the impersonated tab and returns 401,
+    // which the client's existing 401 handling turns into a logout.
+    const { target_user_id } = body;
+    if (!target_user_id) {
+      return new Response(JSON.stringify({ error: 'target_user_id is required' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const revokedAtIso = new Date().toISOString();
+    const { error: revokeErr } = await supabase
+      .from('impersonation_revocations')
+      .upsert(
+        { target_user_id, revoked_at: revokedAtIso, revoked_by: adminEmail },
+        { onConflict: 'target_user_id' },
+      );
+
+    if (revokeErr) {
+      console.error('[admin-impersonate] revoke upsert failed:', revokeErr);
+      return new Response(
+        JSON.stringify({ error: 'Could not revoke impersonation', details: revokeErr.message }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
+    // Audit-log failure is non-fatal here — the revocation itself already
+    // landed and is what stops the session. We still surface it in logs so
+    // operators notice silent audit drift.
+    const { error: auditErr } = await supabase.from('audit_logs').insert({
+      user_id: null,
+      category: 'admin_impersonation',
+      action: 'impersonation_revoke',
+      metadata: {
+        performed_by: adminEmail,
+        target_user_id,
+        revoked_at: revokedAtIso,
+      },
+    });
+    if (auditErr) {
+      console.error('[admin-impersonate] revoke audit insert failed:', auditErr);
+    }
+
+    return new Response(JSON.stringify({ success: true, revoked_at: revokedAtIso }), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
   const { target_user_id } = body;
   if (!target_user_id) {
     return new Response(JSON.stringify({ error: 'target_user_id is required' }), {
