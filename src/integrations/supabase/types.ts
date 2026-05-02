@@ -219,6 +219,7 @@ export type Database = {
           quiz_answers: Json
           result: Json
           resume_id: string | null
+          resume_title: string | null
           updated_at: string | null
           user_id: string
         }
@@ -229,6 +230,7 @@ export type Database = {
           quiz_answers?: Json
           result?: Json
           resume_id?: string | null
+          resume_title?: string | null
           updated_at?: string | null
           user_id: string
         }
@@ -239,6 +241,7 @@ export type Database = {
           quiz_answers?: Json
           result?: Json
           resume_id?: string | null
+          resume_title?: string | null
           updated_at?: string | null
           user_id?: string
         }
@@ -364,6 +367,7 @@ export type Database = {
           id: string
           job_title: string
           resume_id: string | null
+          resume_title: string | null
           template_style: string | null
           title: string | null
           tone: string | null
@@ -377,6 +381,7 @@ export type Database = {
           id?: string
           job_title: string
           resume_id?: string | null
+          resume_title?: string | null
           template_style?: string | null
           title?: string | null
           tone?: string | null
@@ -390,6 +395,7 @@ export type Database = {
           id?: string
           job_title?: string
           resume_id?: string | null
+          resume_title?: string | null
           template_style?: string | null
           title?: string | null
           tone?: string | null
@@ -540,6 +546,7 @@ export type Database = {
           messages: Json | null
           overall_score: number | null
           resume_id: string | null
+          resume_title: string | null
           status: string | null
           strengths: Json | null
           updated_at: string | null
@@ -556,6 +563,7 @@ export type Database = {
           messages?: Json | null
           overall_score?: number | null
           resume_id?: string | null
+          resume_title?: string | null
           status?: string | null
           strengths?: Json | null
           updated_at?: string | null
@@ -572,6 +580,7 @@ export type Database = {
           messages?: Json | null
           overall_score?: number | null
           resume_id?: string | null
+          resume_title?: string | null
           status?: string | null
           strengths?: Json | null
           updated_at?: string | null

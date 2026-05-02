@@ -13,6 +13,14 @@ export interface CoverLetterRecord {
   tone: string | null;
   template_style: string | null;
   resume_id: string | null;
+  /**
+   * Snapshot of the source resume's title at the time this letter was
+   * generated. Persisted server-side via a BEFORE-trigger so the row
+   * keeps a meaningful "from" label even if the resume is later
+   * deleted (FK is ON DELETE SET NULL). See migration
+   * 20260522000000_snapshot_resume_title_on_artifacts.sql.
+   */
+  resume_title: string | null;
   created_at: string | null;
   updated_at: string | null;
 }
@@ -135,6 +143,11 @@ export function useCoverLetterMutations() {
         .single();
       if (original.error) throw original.error;
       const orig = original.data as unknown as CoverLetterRecord;
+      // Carry the snapshotted resume title forward. The trigger only
+      // refreshes resume_title when resume_id is set on the new row;
+      // for an orphan duplicate (resume_id IS NULL) we explicitly
+      // preserve the original snapshot so the duplicate still shows
+      // "From: …".
       const { data, error } = await supabase
         .from('cover_letters')
         .insert({
@@ -145,6 +158,7 @@ export function useCoverLetterMutations() {
           content: orig.content,
           tone: orig.tone,
           resume_id: orig.resume_id,
+          resume_title: orig.resume_title,
         })
         .select()
         .single();

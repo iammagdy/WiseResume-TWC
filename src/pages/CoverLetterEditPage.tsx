@@ -154,6 +154,14 @@ export default function CoverLetterEditPage() {
               <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 capitalize">{letter.tone}</Badge>
               {hasUnsavedChanges && <span className="text-[10px] text-warning">Unsaved</span>}
             </div>
+            {letter.resume_title && (
+              <p className="text-[10px] text-muted-foreground/80 truncate mt-0.5">
+                From: {letter.resume_title}
+                {letter.resume_id === null && (
+                  <span className="ml-1 italic opacity-75">(deleted)</span>
+                )}
+              </p>
+            )}
           </div>
           <Button variant="ghost" size="sm" onClick={() => setIsEditing(!isEditing)} className="touch-manipulation">
             {isEditing ? 'Preview' : 'Edit'}

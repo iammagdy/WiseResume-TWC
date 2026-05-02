@@ -100,6 +100,14 @@ export const CoverLetterCard = memo(function CoverLetterCard({
             <p className="text-sm text-muted-foreground truncate">
               {letter.company || 'No company'} · {letter.created_at ? formatDistanceToNow(new Date(letter.created_at), { addSuffix: true }) : ''}
             </p>
+            {letter.resume_title && (
+              <p className="text-[11px] text-muted-foreground/80 truncate mt-0.5">
+                From: {letter.resume_title}
+                {letter.resume_id === null && (
+                  <span className="ml-1 italic opacity-75">(deleted)</span>
+                )}
+              </p>
+            )}
             <div className="flex items-center gap-2 mt-1.5">
               <Badge variant="secondary" className={cn('text-[10px] px-1.5 py-0 h-5 capitalize', toneColors[letter.tone || 'professional'])}>
                 {letter.tone || 'professional'}

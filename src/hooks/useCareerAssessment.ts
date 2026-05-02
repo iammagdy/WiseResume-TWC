@@ -9,6 +9,12 @@ export interface CareerAssessment {
   id: string;
   user_id: string;
   resume_id: string | null;
+  /**
+   * Snapshot of the source resume's title at assessment time. Trigger-
+   * maintained so the row survives a resume delete with a meaningful
+   * label. See migration 20260522000000_snapshot_resume_title_on_artifacts.sql.
+   */
+  resume_title: string | null;
   result: CareerPathResult;
   quiz_answers: Record<string, unknown>;
   completed_milestones: string[];
@@ -37,6 +43,7 @@ export function useCareerAssessment() {
         id: data.id,
         user_id: data.user_id,
         resume_id: data.resume_id,
+        resume_title: data.resume_title ?? null,
         result: data.result as unknown as CareerPathResult,
         quiz_answers: (data.quiz_answers as Record<string, unknown>) || {},
         completed_milestones: (data.completed_milestones as string[]) || [],

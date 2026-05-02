@@ -8,6 +8,12 @@ export interface InterviewSessionRecord {
   id: string;
   user_id: string;
   resume_id: string | null;
+  /**
+   * Snapshot of the source resume's title at session start. Trigger-
+   * maintained so the row survives a resume delete with a meaningful
+   * label. See migration 20260522000000_snapshot_resume_title_on_artifacts.sql.
+   */
+  resume_title: string | null;
   interview_type: string | null;
   job_title: string | null;
   job_description: string | null;

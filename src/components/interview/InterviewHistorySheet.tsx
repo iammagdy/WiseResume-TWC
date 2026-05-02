@@ -70,6 +70,14 @@ export function InterviewHistorySheet({ open, onOpenChange }: InterviewHistorySh
                           {mins}m {secs.toString().padStart(2, '0')}s
                         </span>
                       </div>
+                      {session.resume_title && (
+                        <p className="text-[11px] text-muted-foreground/80 truncate mt-0.5">
+                          From: {session.resume_title}
+                          {session.resume_id === null && (
+                            <span className="ml-1 italic opacity-75">(deleted)</span>
+                          )}
+                        </p>
+                      )}
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       {session.overall_score != null && (
