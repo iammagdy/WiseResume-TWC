@@ -1,8 +1,28 @@
 [
   {
+    "version": "v3.11.0",
+    "date": "May 2, 2026",
+    "latest": true,
+    "summary": "Mobile (Capacitor) is buildable end-to-end and the admin desk now shows AI cost attribution per user, feature, and provider.",
+    "items": [
+      {
+        "title": "AI cost attribution dashboard in the admin desk",
+        "description": "A new panel in the admin Dev Kit breaks down AI credit usage by user, by feature (cover letters, tailoring, interview prep, etc.), and by provider (OpenRouter, Groq, DeepSeek, BYOK). You can finally see *who* is spending and *what* they're spending it on, not just an aggregate total."
+      },
+      {
+        "title": "Mobile (Capacitor) build pipeline ready for iOS / Android",
+        "description": "The repo now ships a working mobile build path: `npm run mobile:sync` produces a stripped-down web bundle (no admin tools), syncs it into the native shells, and is ready to open in Xcode (TestFlight) or Android Studio (Play Console). A post-build verifier guarantees no admin code ever leaks into the public mobile binary. The actual binary still has to be produced on a Mac (iOS) or a machine with Android Studio — that's an IDE step, not a CI step."
+      },
+      {
+        "title": "Project documentation cleanup",
+        "description": "Internal architecture docs (Project Atlas) updated to accurately describe the new mobile pipeline and to clean up a couple of pre-existing factual inaccuracies (the mobile shell was wrongly described as a PWA wrapper)."
+      }
+    ]
+  },
+  {
     "version": "v3.10.2",
     "date": "Apr 30, 2026",
-    "latest": true,
+    "latest": false,
     "summary": "DevKit polish: pick a model per AI test slot, and a proper Act As dialog with copyable link and live countdown.",
     "items": [
       {

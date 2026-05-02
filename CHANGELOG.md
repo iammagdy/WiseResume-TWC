@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-05-02 — v3.11.0: Capacitor mobile pipeline + AI cost attribution
+
+Release rolling up Tasks #29, #30, and #31 since v3.10.2. The two user-visible features are the AI cost attribution panel in the admin Dev Kit (Task #29 — see entry below) and the end-to-end Capacitor mobile build pipeline (Task #30 — see entry below). Task #31 is a docs-only Atlas hygiene cleanup that resolved a `09-*` filename collision created by Task #30 and corrected a stale "PWA wrapper" description in `platform-overview.md`. Files touched in the version-bump commit itself: `package.json` (3.10.2 → 3.11.0), `package-lock.json` (top-level `version` field synced), `public/changelog.json` (new v3.11.0 entry, v3.10.2 `latest` flag flipped to `false`), and this `CHANGELOG.md` heading. No code change; per-task code entries are preserved unchanged below.
+
 ## 2026-05-02 — Task #30: Capacitor mobile finish-up & first usable build
 
 **Honest framing — the build itself cannot be produced in this Replit environment.** Replit is a Linux container with no Xcode, no iOS Simulator, no Android Studio, and no Android Emulator. `npx cap add ios` requires macOS+Xcode and must run on a developer's Mac; `npx cap add android` requires Android Studio + JDK 17 + Android SDK 34. Per the Steps section of the task brief ("Run a release-mode build for iOS and Android and verify the user can sign in and create a resume on each") — the actual binary production and on-device verification are out of scope for what Replit can do. What this task ships is everything that must be in the repo for those steps to succeed in minutes when run on a properly-equipped machine: configuration, build pipeline, DevKit-exclusion guard, and documentation. Node 22 is already enforced via `package.json#engines.node` so the Capacitor CLI engine warning the brief mentioned does not apply to this environment.
