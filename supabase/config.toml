@@ -200,3 +200,25 @@ project_id = "jnsfmkzgxsviuthaqlyy"
     verify_jwt = false
   [functions.send-password-reset]
     verify_jwt = false
+
+  # --- Mobile app (Task #34: Expo SDK 51 native client) ---
+  [functions.register-push-token]
+    verify_jwt = false
+  [functions.send-push]
+    verify_jwt = false
+  [functions.revenuecat-webhook]
+    verify_jwt = false
+  [functions.mobile-config]
+    verify_jwt = false
+  [functions.export-resume-pdf]
+    verify_jwt = false
+  [functions.export-cover-letter-pdf]
+    verify_jwt = false
+  [functions.export-resignation-letter-pdf]
+    verify_jwt = false
+  [functions.export-portfolio-pdf]
+    verify_jwt = false
+  [functions.interview-next-question]
+    verify_jwt = false
+  [functions.interview-grade-answer]
+    verify_jwt = false

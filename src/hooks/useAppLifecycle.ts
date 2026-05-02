@@ -1,19 +1,16 @@
 import { useEffect, useRef } from 'react';
-import { Capacitor } from '@capacitor/core';
 
 interface UseAppLifecycleOptions {
-  /** Called when app moves to background (visibilitychange hidden / Capacitor appStateChange inactive) */
+  /** Called when the page becomes hidden (visibilitychange → hidden). */
   onBackground?: () => void;
-  /** Called when app returns to foreground */
+  /** Called when the page becomes visible again. */
   onForeground?: () => void;
 }
 
 /**
- * Listens for app lifecycle events on both web (visibilitychange) and
- * native (Capacitor appStateChange). Fires callbacks when the app
- * moves to background or returns to foreground.
- *
- * Primary use-case: flush pending cloud saves before the OS can kill the WebView.
+ * Web-only app lifecycle hook listening to `visibilitychange`. The
+ * Capacitor native bridge was removed; native lifecycle events are now
+ * handled by the standalone Expo app (`mobile/`).
  */
 export function useAppLifecycle({ onBackground, onForeground }: UseAppLifecycleOptions) {
   const bgRef = useRef(onBackground);
@@ -22,7 +19,6 @@ export function useAppLifecycle({ onBackground, onForeground }: UseAppLifecycleO
   fgRef.current = onForeground;
 
   useEffect(() => {
-    // --- Web / PWA: visibilitychange ---
     const handleVisibility = () => {
       if (document.visibilityState === 'hidden') {
         bgRef.current?.();
@@ -31,29 +27,6 @@ export function useAppLifecycle({ onBackground, onForeground }: UseAppLifecycleO
       }
     };
     document.addEventListener('visibilitychange', handleVisibility);
-
-    // --- Capacitor native: appStateChange ---
-    let removeNativeListener: (() => void) | undefined;
-
-    if (Capacitor.isNativePlatform()) {
-      import('@capacitor/app').then(({ App }) => {
-        App.addListener('appStateChange', ({ isActive }) => {
-          if (!isActive) {
-            bgRef.current?.();
-          } else {
-            fgRef.current?.();
-          }
-        }).then(handle => {
-          removeNativeListener = () => handle.remove();
-        });
-      }).catch(() => {
-        // @capacitor/app not available — web-only, ignore
-      });
-    }
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibility);
-      removeNativeListener?.();
-    };
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
   }, []);
 }

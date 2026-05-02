@@ -38,7 +38,7 @@ WiseResume is an AI-powered web application for comprehensive career management.
 - **Authentication**: Kinde Auth (JWT verified server-side via JWKS)
 - **Database**: Supabase Postgres via Drizzle ORM (schema: `server/schema.ts`)
 - **Backend**: Supabase Edge Functions for business logic, AI calls, and auth helpers. Express.js server (`server/index.ts`, port 5001) acts as a dev proxy, PDF exporter, and admin bridge.
-- **Mobile**: Capacitor 8 for native mobile builds. See `docs/mobile.md`. Native scaffolds (`ios/`, `android/`) are gitignored and regenerated via `npx cap add <platform>`. Use `npm run mobile:sync` (NOT `npm run build`) so the admin DevKit chunk is dead-code-eliminated from the binary — `vite.config.ts` rewrites `import.meta.env.VITE_DISABLE_DEVKIT` to `"true"` in `--mode mobile`, `AppInterior.tsx` swaps the lazy `DevToolsPage` import to a stub, and `scripts/check-mobile-bundle.mjs` fails the build if any DevKit chunk leaks back in.
+- **Mobile**: Native iOS + Android client lives at `mobile/` and is built with **Expo SDK 51** + **Expo Router**. It talks to the same Supabase project, Kinde tenant, and AI providers as the web app — no second backend. Auth uses Kinde PKCE via `expo-auth-session`, exchanged through the existing `token-exchange` edge function for a bridge JWT stored in `expo-secure-store`. New edge functions for the mobile surface: `register-push-token`, `send-push`, `revenuecat-webhook`, `mobile-config`, and `export-{resume,cover-letter,resignation-letter,portfolio}-pdf` (the latter four delegate to a headless-Chromium renderer at `PDF_RENDERER_URL`). New tables `device_push_tokens` and `mobile_app_versions` ship via migration `20260601000000_*.sql`. See `mobile/README.md` for setup, `mobile/QA.md` for the release checklist, and `Project Atlas/01-Currently Implemented/critical-systems/13-mobile-expo.md` for the full architecture card. **Capacitor is fully removed** from the web repo (Task #34).
 - **Hosting**: Hostinger for static frontend, Replit for development environment.
 
 **Authentication Flow:**
@@ -98,4 +98,4 @@ Users authenticate via Kinde, receiving an access token. The client exchanges th
 - **Framer Motion**: Animation library.
 - **Zustand**: State management library.
 - **TanStack Query (React Query)**: Data fetching and caching library.
-- **Capacitor**: Native shell for mobile builds.
+- **Expo SDK 51**: Native shell for the iOS + Android client at `mobile/`. See `mobile/README.md`.

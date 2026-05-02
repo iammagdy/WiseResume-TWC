@@ -1,6 +1,6 @@
 # What's Coming Soon
 
-**Last verified:** 2026-04-17
+**Last verified:** 2026-05-02
 **Audience:** you (the owner). No code, no jargon, no technical paths.
 **Sources (governance — supreme):**
 - `project-governance/CONSTITUTION.md` § 7 (WiseHire governance)
@@ -13,6 +13,31 @@
 ---
 
 These are things the team has **agreed to build**. They have written specs. They are not built yet.
+
+## WiseResume on your phone — coming to the App Store and Google Play
+
+We rebuilt the mobile app from scratch using a different toolkit (Expo) so it
+feels truly native — fast taps, smooth scrolling, real push notifications, Face
+ID / fingerprint lock, and proper "open in app" links from emails. It uses the
+same login as the website (your Kinde account), the same resumes, the same
+saved jobs, the same AI providers — there is no second version of your data.
+
+**What's in the first release:**
+- Sign in with your existing WiseResume account.
+- Browse and read your resumes, save jobs, draft cover letters and resignation
+  letters, and practice interviews out loud (the AI listens and grades you).
+- Export any document as a PDF straight from your phone.
+- Get push reminders for interview prep and follow-ups, with per-category
+  on/off switches.
+- Subscribe to Pro through Apple or Google (handled by RevenueCat); we keep
+  the website checkout too.
+- Lock the app with Face ID or fingerprint when you step away.
+
+**What's deferred to the next release** (we want the first one in store review
+before we add more): inline section editing on phone, in-app rich PDF preview,
+"Sign in with Apple" / "Sign in with Google" one-tap buttons, and Live
+Activities / Dynamic Island. The previous experimental Capacitor build has
+been removed from the codebase.
 
 ## WiseHire — Phases 2, 3, 4
 

@@ -13,7 +13,6 @@ import "@fontsource/space-grotesk/700.css";
 import "@fontsource/fira-code/400.css";
 import "@fontsource/fira-code/700.css";
 import { createRoot } from "react-dom/client";
-import { Capacitor } from '@capacitor/core';
 import App from "./App.tsx";
 import "./index.css";
 import { reportWebVitals } from "./lib/reportWebVitals";
@@ -30,14 +29,8 @@ console.log('🚀 WiseResume App Starting...', Date.now());
 console.log('Environment:', {
   mode: import.meta.env.MODE,
   supabaseUrl: import.meta.env.VITE_SUPABASE_URL ? 'configured' : 'missing',
-  isNative: Capacitor.isNativePlatform(),
   sentry: import.meta.env.VITE_SENTRY_DSN ? 'configured' : 'disabled',
 });
-
-// Tag body for native-specific CSS overrides (e.g. disable backdrop-blur)
-if (Capacitor.isNativePlatform()) {
-  document.body.classList.add('native-app');
-}
 
 // Global error handler — captured by Sentry in production.
 // Log message + stack explicitly: Error instances serialize to {} in JSON-based
