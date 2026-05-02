@@ -193,11 +193,21 @@ Deno.serve(wrapHandler("admin-update-profile", async (req) => {
       .select('full_name, username')
       .maybeSingle();
 
-    if (updateError || !updatedProfile) {
+    if (updateError) {
       console.error('[admin-update-profile] Update error:', updateError);
       return new Response(
-        JSON.stringify({ success: false, error: updateError?.message ?? 'Failed to update profile' }),
+        JSON.stringify({ success: false, error: updateError.message }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!updatedProfile) {
+      // Row was deleted between the pre-update fetch and the update (or RLS
+      // hid it from the UPDATE). Treat as a clean not-found rather than a
+      // noisy 500 so the DevKit panel can show a sensible message.
+      return new Response(
+        JSON.stringify({ success: false, error: 'not_found' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
