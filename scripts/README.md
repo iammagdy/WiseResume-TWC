@@ -117,9 +117,15 @@ Open `scripts/smoke-test-edge-functions.mjs` and append to `FUNCTIONS`:
 
 If a function's auth gate sometimes returns 500 instead of 401 (because
 `requireAuth` is thrown outside the local try/catch and `wrapHandler`
-re-emits it as 500), set `allowAuthLeakAs500: true` per route — but the
-default is already `true`. A bare 500 with no authorization-related body
-text is always a fail.
+re-emits it as 500), opt that route in explicitly with
+`allowAuthLeakAs500: true`. The default is `false` (strict) — any 500 to
+an unauthenticated POST fails the smoke test unless explicitly opted in,
+and even then the body must mention `authorization`/`unauthorized`. A
+bare 500 with no authorization-related body text is always a fail. Today
+the opted-in routes are: `parse-job/linkedin`, `score-resume`,
+`analyze-resume`, `generate-cover-letter`, and `agentic-chat`. When their
+`requireAuth` calls are eventually moved inside the local try/catch, the
+opt-in becomes a no-op and the smoke test tightens automatically.
 
 ### Out of scope
 

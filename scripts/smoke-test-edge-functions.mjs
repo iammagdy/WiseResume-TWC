@@ -26,9 +26,9 @@
  *
  * Coverage:
  *   - 36 admin-* functions (CORS + 401)
- *   - 5 high-traffic public functions (CORS + 401):
- *       parse-job (multi-action), score-resume, analyze-resume,
- *       tailor-resume, generate-cover-letter, agentic-chat
+ *   - 6 high-traffic public functions (CORS + 401):
+ *       parse-job (multi-action: url/text/linkedin), score-resume,
+ *       analyze-resume, tailor-resume, generate-cover-letter, agentic-chat
  *   - 3 multi-action router dispatch validation suites:
  *       parse-job, admin-devkit-data, admin-email
  *
@@ -61,11 +61,13 @@ const ORIGIN = process.env.SMOKE_TEST_ORIGIN || 'https://resume.thewise.cloud';
 const REQUEST_TIMEOUT_MS = Number(process.env.SMOKE_TEST_TIMEOUT_MS || 15000);
 const CONCURRENCY = Math.max(1, Number(process.env.SMOKE_TEST_CONCURRENCY || 10));
 
-// Default for new entries: tolerate the documented "AuthError leaks past
-// wrapHandler as 500 with the auth message in the body" pattern. We still
-// require the body to mention authorization/unauthorized — a generic 500 is
-// always a fail because that means the function is crashing.
-const ALLOW_AUTH_LEAK_AS_500_DEFAULT = true;
+// Default is STRICT: any 500 to an unauthenticated POST fails the smoke
+// test. Functions whose auth gate is documented to leak `AuthError` past
+// `wrapHandler` as 500 (e.g. parse-job/linkedin, score-resume) opt in
+// per-route via `allowAuthLeakAs500: true`. When that opt-in is set, the
+// 500 still has to carry an authorization-related message in the body —
+// a bare 500 is always a fail because that means the function is crashing.
+const ALLOW_AUTH_LEAK_AS_500_DEFAULT = false;
 
 // ── Function catalogue ──────────────────────────────────────────────────────
 //
@@ -203,14 +205,33 @@ const FUNCTIONS = [
   ...ADMIN_FUNCTIONS.map((name) => ({ name })),
 
   // ── High-traffic public functions ───────────────────────────────────────
-  // All five funnel through requireAuth(); some catch AuthError into a
-  // 401 envelope, others let it leak to wrapHandler as a 500-with-message.
-  // Both shapes are accepted — see ALLOW_AUTH_LEAK_AS_500_DEFAULT.
-  { name: 'score-resume' },
-  { name: 'analyze-resume' },
+  // All five funnel through requireAuth(); tailor-resume catches the
+  // AuthError and returns the documented 401 envelope. The other four
+  // call requireAuth() outside their authErrorResponse() try/catch, so
+  // the AuthError leaks to wrapHandler and surfaces as 500 with
+  // {"error":"internal_error","message":"Missing authorization header"}.
+  // That is a known code-quality issue, not a deploy regression — the
+  // routes ARE live and ARE gating unauthenticated requests. Opt them in
+  // explicitly via allowAuthLeakAs500 so the smoke test stays green today
+  // and tightens automatically if/when the requireAuth call is moved
+  // inside the try/catch.
+  {
+    name: 'score-resume',
+    routes: [{ label: 'score-resume', body: {}, allowAuthLeakAs500: true }],
+  },
+  {
+    name: 'analyze-resume',
+    routes: [{ label: 'analyze-resume', body: {}, allowAuthLeakAs500: true }],
+  },
   { name: 'tailor-resume' },
-  { name: 'generate-cover-letter' },
-  { name: 'agentic-chat' },
+  {
+    name: 'generate-cover-letter',
+    routes: [{ label: 'generate-cover-letter', body: {}, allowAuthLeakAs500: true }],
+  },
+  {
+    name: 'agentic-chat',
+    routes: [{ label: 'agentic-chat', body: {}, allowAuthLeakAs500: true }],
+  },
 ];
 
 // ── HTTP helpers ────────────────────────────────────────────────────────────
