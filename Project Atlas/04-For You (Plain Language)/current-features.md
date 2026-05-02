@@ -1,6 +1,11 @@
 # What Wise Cloud Can Do Today
 
-**Last verified:** 2026-05-02 (Task #29)
+**Last verified:** 2026-05-02 (Task #30)
+
+## Mobile builds are now buildable in minutes (2026-05-02)
+**What was the situation:** Wise Resume had been *partially* configured for mobile (the Capacitor wrap) for some time, but no one had ever produced a working app you could actually install on a phone. There was no recipe, no script, and no safety net — and worse, if anyone *had* built it, the mobile binary would have shipped the admin tools panel inside it (a security and clutter problem on a user's phone).
+**What changed:** The repo now has a one-command path to a usable mobile build (`npm run mobile:sync`) and a short, written guide that walks any developer with a Mac (for iPhone) or Android Studio (for Android) through producing a TestFlight or Play-Console internal-testing build in minutes. The build automatically rips the admin tools panel out of the mobile app — there's now a verifier that fails the build if even one trace of the admin panel sneaks back in. The native iOS and Android project folders are no longer part of the repo (they're regenerated on demand) so we never get tangled in per-developer Xcode/Android Studio quirks.
+**Catch:** The mobile binary itself still has to be produced on a Mac (for iOS) or a machine with Android Studio — no developer environment can build a real iPhone or Android app on its own. What this work delivers is everything that goes *up to* that final IDE step.
 
 ## See where AI calls are coming from (2026-05-02)
 **What was the situation:** When you opened the admin desk, there was no way to see *which users* were spending the most AI credits, *which features* were generating the most AI calls (cover letters? tailoring? interview prep?), or *which AI providers* (OpenRouter, Groq, DeepSeek, or someone using their own key) were doing the work. You could see total credit usage in aggregate but couldn't pin it to a person or a feature.

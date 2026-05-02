@@ -1,12 +1,29 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
- const config: CapacitorConfig = {
-   appId: 'cloud.thewise.resume',
-   appName: 'Wise Resume',
+/*
+ * Capacitor configuration.
+ *
+ * `webDir: 'dist'` — production builds bundle the Vite output natively.
+ * Always run `npm run build:mobile` (NOT `npm run build`) before `cap sync`
+ * so the admin DevKit chunk is dead-code-eliminated from the binary.
+ *
+ * To switch to live-reload during native development, uncomment the dev
+ * override block in `server` below and replace the IP with your machine's
+ * LAN address (the simulator/emulator must be able to reach it). Re-run
+ * `npx cap sync` after toggling. Never ship a build with the override on.
+ *
+ * See `docs/mobile.md` for the full workflow.
+ */
+const config: CapacitorConfig = {
+  appId: 'cloud.thewise.resume',
+  appName: 'Wise Resume',
   webDir: 'dist',
   version: '2.5.4',
   server: {
     androidScheme: 'https',
+    // --- DEV LIVE-RELOAD OVERRIDE (DO NOT COMMIT UNCOMMENTED) ---
+    // url: 'http://192.168.1.100:5000',
+    // cleartext: true,
   },
   android: {
      backgroundColor: '#0a0a14',

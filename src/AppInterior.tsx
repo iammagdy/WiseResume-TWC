@@ -58,7 +58,18 @@ import {
 import { PageLoadingSpinner } from "@/components/ui/PageLoadingSpinner";
 import { lazyWithRetry } from "@/lib/lazyWithRetry";
 
-const DevToolsPage = lazyWithRetry(() => import("./pages/DevToolsPage"));
+// Mobile / restricted builds (`vite build --mode mobile`) statically replace
+// `import.meta.env.VITE_DISABLE_DEVKIT` with the literal string `"true"`,
+// which lets the bundler dead-code-eliminate the heavy DevKit chunk entirely
+// — no `DevToolsPage-*.js` is emitted into `dist/assets/`. The stub keeps the
+// `/devkit` route routable (renders an "unavailable" message) so we don't
+// accidentally hand the SPA a broken Suspense boundary at that path.
+// `scripts/check-mobile-bundle.mjs` enforces the dead-code-elimination after
+// every mobile build and fails CI if a DevTools chunk leaks back in.
+const DevToolsPage =
+  import.meta.env.VITE_DISABLE_DEVKIT === "true"
+    ? lazyWithRetry(() => import("./pages/DevToolsStub"))
+    : lazyWithRetry(() => import("./pages/DevToolsPage"));
 
 const CommandPalette = lazyWithRetry(() => import("@/components/layout/CommandPalette"));
 

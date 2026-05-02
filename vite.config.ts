@@ -139,13 +139,21 @@ function fontPreloadPlugin(): Plugin {
 const APP_VERSION = require('./package.json').version as string;
 
 // https://vitejs.dev/config/
-export default defineConfig(() => ({
+export default defineConfig(({ mode }) => ({
   base: '/',
   define: {
     __APP_VERSION__: JSON.stringify(APP_VERSION),
     // Safety fallback: any leftover __BUILD_COMMIT__ reference will resolve
     // to an empty string instead of throwing a ReferenceError at runtime.
     __BUILD_COMMIT__: JSON.stringify(''),
+    // Mobile / restricted builds (`vite build --mode mobile`) statically
+    // replace `import.meta.env.VITE_DISABLE_DEVKIT` with the literal
+    // string `"true"`. AppInterior's lazy DevToolsPage import branches on
+    // this constant so the heavy DevKit chunk is never emitted into the
+    // bundle. `scripts/check-mobile-bundle.mjs` verifies the elimination.
+    ...(mode === 'mobile'
+      ? { 'import.meta.env.VITE_DISABLE_DEVKIT': JSON.stringify('true') }
+      : {}),
   },
   server: {
     host: "0.0.0.0",

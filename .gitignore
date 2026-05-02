@@ -91,3 +91,10 @@ tests/e2e/.auth/
 tests/e2e/.artifacts/
 reports/e2e-html/
 reports/e2e-results.json
+
+# Capacitor native platform scaffolds — regenerated on demand via
+# `npx cap add ios && npx cap add android`. Treating them as derivative
+# artifacts keeps the repo small and avoids platform-specific lockfile
+# churn (Pods, Gradle wrappers, etc). See docs/mobile.md.
+ios/
+android/

@@ -38,7 +38,7 @@ WiseResume is an AI-powered web application for comprehensive career management.
 - **Authentication**: Kinde Auth (JWT verified server-side via JWKS)
 - **Database**: Supabase Postgres via Drizzle ORM (schema: `server/schema.ts`)
 - **Backend**: Supabase Edge Functions for business logic, AI calls, and auth helpers. Express.js server (`server/index.ts`, port 5001) acts as a dev proxy, PDF exporter, and admin bridge.
-- **Mobile**: Capacitor 8 for native mobile builds.
+- **Mobile**: Capacitor 8 for native mobile builds. See `docs/mobile.md`. Native scaffolds (`ios/`, `android/`) are gitignored and regenerated via `npx cap add <platform>`. Use `npm run mobile:sync` (NOT `npm run build`) so the admin DevKit chunk is dead-code-eliminated from the binary — `vite.config.ts` rewrites `import.meta.env.VITE_DISABLE_DEVKIT` to `"true"` in `--mode mobile`, `AppInterior.tsx` swaps the lazy `DevToolsPage` import to a stub, and `scripts/check-mobile-bundle.mjs` fails the build if any DevKit chunk leaks back in.
 - **Hosting**: Hostinger for static frontend, Replit for development environment.
 
 **Authentication Flow:**
