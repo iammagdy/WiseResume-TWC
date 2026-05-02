@@ -128,6 +128,49 @@ as $$
 $$;
 
 -- ---------------------------------------------------------------------------
+-- 6. Window-level distinct active users (TRUE union, not max-of-day).
+--    The daily-totals RPC reports per-day distincts; that approximation
+--    undercounts true window-level distincts when the same user appears
+--    on multiple days. This RPC is the source of truth for the KPI strip.
+-- ---------------------------------------------------------------------------
+create or replace function get_ai_usage_distinct_users(
+  p_start timestamptz,
+  p_end   timestamptz
+)
+returns bigint
+language sql
+security definer
+set search_path = public
+as $$
+  select count(distinct user_id)::bigint
+  from public.ai_usage_logs
+  where created_at >= p_start and created_at < p_end
+    and user_id is not null;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- 7. Hourly totals (used only for the 'today' range so the sparkline shows
+--    real intra-day fidelity instead of a single-point daily bar).
+-- ---------------------------------------------------------------------------
+create or replace function get_ai_usage_hourly_totals(
+  p_start timestamptz,
+  p_end   timestamptz
+)
+returns table(bucket_hour timestamptz, invocations bigint)
+language sql
+security definer
+set search_path = public
+as $$
+  select
+    date_trunc('hour', created_at) as bucket_hour,
+    count(*)::bigint               as invocations
+  from public.ai_usage_logs
+  where created_at >= p_start and created_at < p_end
+  group by 1
+  order by 1;
+$$;
+
+-- ---------------------------------------------------------------------------
 -- Grants — service_role only (DevKit pattern)
 -- ---------------------------------------------------------------------------
 revoke execute on function get_ai_usage_daily_totals(timestamptz, timestamptz)        from public, anon, authenticated;
@@ -135,9 +178,13 @@ revoke execute on function get_ai_usage_window_total(timestamptz, timestamptz)  
 revoke execute on function get_ai_usage_top_users(timestamptz, timestamptz, int)      from public, anon, authenticated;
 revoke execute on function get_ai_usage_by_feature(timestamptz, timestamptz)          from public, anon, authenticated;
 revoke execute on function get_ai_usage_by_provider(timestamptz, timestamptz)         from public, anon, authenticated;
+revoke execute on function get_ai_usage_distinct_users(timestamptz, timestamptz)      from public, anon, authenticated;
+revoke execute on function get_ai_usage_hourly_totals(timestamptz, timestamptz)       from public, anon, authenticated;
 
 grant  execute on function get_ai_usage_daily_totals(timestamptz, timestamptz)        to service_role;
 grant  execute on function get_ai_usage_window_total(timestamptz, timestamptz)        to service_role;
 grant  execute on function get_ai_usage_top_users(timestamptz, timestamptz, int)      to service_role;
 grant  execute on function get_ai_usage_by_feature(timestamptz, timestamptz)          to service_role;
 grant  execute on function get_ai_usage_by_provider(timestamptz, timestamptz)         to service_role;
+grant  execute on function get_ai_usage_distinct_users(timestamptz, timestamptz)      to service_role;
+grant  execute on function get_ai_usage_hourly_totals(timestamptz, timestamptz)       to service_role;

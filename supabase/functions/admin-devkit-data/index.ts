@@ -304,16 +304,29 @@ Deno.serve(wrapHandler("admin-devkit-data", async (req) => {
       const supabase = getServiceClient();
       const win = computeWindow(range);
 
-      // Run the 5 aggregate RPCs in parallel — each is server-side, returns
+      // Run the aggregate RPCs in parallel — each is server-side, returns
       // already-aggregated rows, so the round-trip stays well under 1.5s.
+      // For 'today' we additionally fetch hourly totals so the sparkline has
+      // real intra-day fidelity instead of a single daily bar.
+      const isToday = range === 'today';
       const [
         dailyTotalsResult,
+        hourlyTotalsResult,
+        distinctUsersResult,
         topUsersResult,
         byFeatureResult,
         byProviderResult,
         prevTotalResult,
       ] = await Promise.all([
         supabase.rpc('get_ai_usage_daily_totals', {
+          p_start: win.start.toISOString(), p_end: win.end.toISOString(),
+        }),
+        isToday
+          ? supabase.rpc('get_ai_usage_hourly_totals', {
+              p_start: win.start.toISOString(), p_end: win.end.toISOString(),
+            })
+          : Promise.resolve({ data: [], error: null }),
+        supabase.rpc('get_ai_usage_distinct_users', {
           p_start: win.start.toISOString(), p_end: win.end.toISOString(),
         }),
         supabase.rpc('get_ai_usage_top_users', {
@@ -332,36 +345,47 @@ Deno.serve(wrapHandler("admin-devkit-data", async (req) => {
           : Promise.resolve({ data: 0, error: null }),
       ]);
 
-      // Build a dense daily series (zero-fills missing days so the sparkline
-      // doesn't lie about gaps).
       type DailyRow = { bucket_date: string; invocations: number; distinct_users: number };
       const dailyRows = (dailyTotalsResult.data ?? []) as DailyRow[];
-      const dailyMap = new Map<string, { invocations: number; distinct_users: number }>();
-      for (const r of dailyRows) {
-        const k = (r.bucket_date ?? '').slice(0, 10);
-        if (k) dailyMap.set(k, {
-          invocations: Number(r.invocations),
-          distinct_users: Number(r.distinct_users),
-        });
+
+      // Build a dense daily series for multi-day ranges (zero-fills missing
+      // days so the sparkline doesn't lie about gaps). For 'today' build a
+      // dense hourly series instead.
+      let dailySeries: { date: string; value: number }[];
+      if (isToday) {
+        type HourlyRow = { bucket_hour: string; invocations: number };
+        const hourlyRows = (hourlyTotalsResult.data ?? []) as HourlyRow[];
+        const hourlyMap = new Map<string, number>();
+        for (const r of hourlyRows) {
+          const k = (r.bucket_hour ?? '').slice(0, 13) + ':00';
+          if (k) hourlyMap.set(k, Number(r.invocations));
+        }
+        dailySeries = buildEmptyHourlySeries(win.start, win.end).map(e => ({
+          date: e.date,
+          value: hourlyMap.get(e.date) ?? 0,
+        }));
+      } else if (win.bucket === 'day') {
+        const dailyMap = new Map<string, number>();
+        for (const r of dailyRows) {
+          const k = (r.bucket_date ?? '').slice(0, 10);
+          if (k) dailyMap.set(k, Number(r.invocations));
+        }
+        dailySeries = buildEmptyDailySeries(win.start, win.end).map(e => ({
+          date: e.date,
+          value: dailyMap.get(e.date) ?? 0,
+        }));
+      } else {
+        dailySeries = dailyRows.map(r => ({
+          date: (r.bucket_date ?? '').slice(0, 10),
+          value: Number(r.invocations),
+        }));
       }
-      const dailySeries = win.bucket === 'day'
-        ? buildEmptyDailySeries(win.start, win.end).map(e => ({
-            date: e.date,
-            value: dailyMap.get(e.date)?.invocations ?? 0,
-          }))
-        : dailyRows.map(r => ({
-            date: (r.bucket_date ?? '').slice(0, 10),
-            value: Number(r.invocations),
-          }));
 
       const currentTotal = dailyRows.reduce((s, r) => s + Number(r.invocations), 0);
-      // Distinct users across the full window — RPC reports per-day distincts,
-      // so we union the contributing user_ids approximately by max-of-day.
-      // For an exact distinct, fetch from a single aggregate; for top-of-list
-      // accuracy this approximation is fine (and matches Analytics' approach).
-      const distinctUsersInWindow = dailyRows.reduce(
-        (m, r) => Math.max(m, Number(r.distinct_users)), 0,
-      );
+      // True window-level distinct (union, not max-of-day) via the dedicated
+      // RPC. Fixes the previous undercount when the same user appeared on
+      // multiple days within the window.
+      const distinctUsersInWindow = Number(distinctUsersResult.data ?? 0);
 
       const prevTotal = Number(prevTotalResult.data ?? 0);
 
