@@ -192,7 +192,7 @@ export function DeploymentPanel() {
             error={fetchError}
             title="Failed to load deployment data"
             onRetry={fetchDeploymentData}
-            context={{ panel: 'Deployment', function: 'admin-github-status / admin-env-check' }}
+            context={{ panel: 'Deployment', function: 'admin-devkit-data + admin-env-check', action: 'github-status / env-check' }}
           />
           <a
             href={SUPABASE_SECRETS_URL}
@@ -275,7 +275,7 @@ export function DeploymentPanel() {
                 <DevKitErrorCard
                   error={data.githubError}
                   title="GitHub API unavailable"
-                  context={{ panel: 'Deployment', function: 'admin-integrations', action: 'github-status' }}
+                  context={{ panel: 'Deployment', function: 'admin-devkit-data', action: 'github-status' }}
                 />
                 <a
                   href={SUPABASE_SECRETS_URL}
@@ -404,7 +404,7 @@ export function DeploymentPanel() {
               <DevKitErrorCard
                 error={data.envError}
                 title="Couldn't load env check"
-                context={{ panel: 'Deployment', function: 'admin-env-check' }}
+                context={{ panel: 'Deployment', function: 'admin-env-check', action: 'check' }}
               />
             )}
 

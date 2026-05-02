@@ -588,10 +588,24 @@ export function LiveActivityPanel() {
                   <p className="text-[10px] text-muted-foreground">Tap "Run health check" to test</p>
                 )}
                 {fn.status === 'error' && fn.errorMsg && (
-                  <p className="text-[10px] text-destructive truncate" title={redactSecrets(fn.errorMsg)}>{redactSecrets(fn.errorMsg)}</p>
+                  <div className="mt-1">
+                    <DevKitErrorCard
+                      error={fn.errorMsg}
+                      title={`${fn.label} health check failed`}
+                      compact
+                      context={{ panel: 'Live Activity · Function Health', function: fn.label, action: 'health-check' }}
+                    />
+                  </div>
                 )}
                 {fn.status === 'warn' && fn.errorMsg && (
-                  <p className="text-[10px] text-amber-600 dark:text-amber-400 truncate" title={redactSecrets(fn.errorMsg)}>{redactSecrets(fn.errorMsg)}</p>
+                  <div className="mt-1">
+                    <DevKitErrorCard
+                      error={fn.errorMsg}
+                      title={`${fn.label} returned a warning`}
+                      compact
+                      context={{ panel: 'Live Activity · Function Health', function: fn.label, action: 'health-check' }}
+                    />
+                  </div>
                 )}
                 <div className="flex items-center gap-2 mt-0.5">
                   {fn.durationMs !== undefined && fn.status !== 'checking' && (

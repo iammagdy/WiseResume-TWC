@@ -307,7 +307,7 @@ export function AuditLogPanel() {
           error={error}
           title="Failed to load audit logs"
           compact
-          context={{ panel: 'Audit Log', function: 'admin-audit-logs' }}
+          context={{ panel: 'Audit Log', function: 'admin-audit-logs', action: 'list' }}
         />
       )}
 
