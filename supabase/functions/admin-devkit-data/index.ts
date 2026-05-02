@@ -1254,7 +1254,7 @@ Deno.serve(wrapHandler("admin-devkit-data", async (req) => {
   }
 
   return new Response(
-    JSON.stringify({ success: false, error: `Unknown action: ${action}. Valid values: analytics | observability | live-activity | mission-control | github-status` }),
+    JSON.stringify({ success: false, error: `Unknown action: ${action}. Valid values: analytics | observability | live-activity | mission-control | github-status | ai-cost` }),
     { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
   );
 }));
