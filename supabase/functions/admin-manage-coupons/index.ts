@@ -69,7 +69,7 @@ Deno.serve(wrapHandler("admin-manage-coupons", async (req) => {
           is_active: true,
         })
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
       return new Response(
@@ -92,7 +92,7 @@ Deno.serve(wrapHandler("admin-manage-coupons", async (req) => {
         .update({ is_active: Boolean(is_active) })
         .eq('id', coupon_id)
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
       return new Response(

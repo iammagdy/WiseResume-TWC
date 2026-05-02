@@ -102,7 +102,7 @@ Deno.serve(wrapHandler("verify-dev-kit", async (req) => {
     const { email, password, rememberMe } = await req.json();
     if (!email || !password) {
       return new Response(
-        JSON.stringify({ error: "Email and password are required" }),
+        JSON.stringify({ success: false, error: "Email and password are required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -110,7 +110,7 @@ Deno.serve(wrapHandler("verify-dev-kit", async (req) => {
     const SECRET_PASSWORD = Deno.env.get("DEV_KIT_PASSWORD")?.trim();
     if (!SECRET_PASSWORD) {
       return new Response(
-        JSON.stringify({ error: "DEV_KIT_PASSWORD secret is not configured." }),
+        JSON.stringify({ success: false, error: "DEV_KIT_PASSWORD secret is not configured." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -123,7 +123,7 @@ Deno.serve(wrapHandler("verify-dev-kit", async (req) => {
 
     if (allowed.length === 0) {
       return new Response(
-        JSON.stringify({ error: "ADMIN_EMAILS secret is not configured." }),
+        JSON.stringify({ success: false, error: "ADMIN_EMAILS secret is not configured." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -221,7 +221,7 @@ Deno.serve(wrapHandler("verify-dev-kit", async (req) => {
   } catch (err) {
     console.error('[verify-dev-kit] error:', err);
     return new Response(
-      JSON.stringify({ error: "Internal server error" }),
+      JSON.stringify({ success: false, error: "Internal server error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

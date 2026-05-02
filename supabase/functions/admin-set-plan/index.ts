@@ -62,13 +62,15 @@ Deno.serve(wrapHandler("admin-set-plan", async (req) => {
     if (!resolvedUserId && email) {
       const cleanEmail = String(email).toLowerCase().trim();
 
-      // 1. Try profiles.contact_email first (Kinde shadow user = the live session)
+      // 1. Try profiles.contact_email first (Kinde shadow user = the live session).
+      // Uses maybeSingle so a no-match doesn't surface as a PGRST116 row-missing
+      // error — we just transparently fall through to the auth.users lookup.
       const { data: profileMatch, error: profileLookupErr } = await supabase
         .from('profiles')
         .select('user_id')
         .ilike('contact_email', cleanEmail)
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (!profileLookupErr && profileMatch) {
         resolvedUserId = profileMatch.user_id as string;

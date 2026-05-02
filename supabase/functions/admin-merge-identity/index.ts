@@ -52,16 +52,18 @@ Deno.serve(wrapHandler("admin-merge-identity", async (req) => {
       );
     }
 
-    // 2. Load the collision user's profile to get contact_email (the real email)
+    // 2. Load the collision user's profile to get contact_email (the real email).
+    // Uses maybeSingle so a missing profile row returns a clean 404 not_found
+    // instead of a PGRST116 noise log.
     const { data: shadowProfile, error: shadowProfileErr } = await supabase
       .from('profiles')
       .select('user_id, full_name, contact_email, avatar_url')
       .eq('user_id', collision_user_id)
-      .single();
+      .maybeSingle();
 
     if (shadowProfileErr || !shadowProfile) {
       return new Response(
-        JSON.stringify({ success: false, error: 'Collision user profile not found' }),
+        JSON.stringify({ success: false, error: 'not_found' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }

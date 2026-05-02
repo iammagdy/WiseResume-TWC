@@ -78,7 +78,7 @@ Deno.serve(wrapHandler("admin-email", async (req) => {
 
   if (!module) {
     return new Response(
-      JSON.stringify({ error: 'module is required: resend-stats | resend-sync | email-actions | broadcast' }),
+      JSON.stringify({ success: false, error: 'module is required: resend-stats | resend-sync | email-actions | broadcast' }),
       { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     )
   }
@@ -89,7 +89,7 @@ Deno.serve(wrapHandler("admin-email", async (req) => {
       await requireAdminAuth(req)
     } catch (authErr) {
       if (authErr instanceof Response) return authErr
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
@@ -126,7 +126,7 @@ Deno.serve(wrapHandler("admin-email", async (req) => {
     if (action === 'lookup') {
       const email = (body.email as string | undefined)?.trim().toLowerCase()
       if (!email) {
-        return new Response(JSON.stringify({ error: 'email is required' }), {
+        return new Response(JSON.stringify({ success: false, error: 'email is required' }), {
           status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
       }
@@ -152,14 +152,14 @@ Deno.serve(wrapHandler("admin-email", async (req) => {
       const email = (body.email as string | undefined)?.trim().toLowerCase()
       const firstName = (body.firstName as string | undefined)?.trim() || undefined
       if (!audienceKey || !email) {
-        return new Response(JSON.stringify({ error: 'audienceKey and email are required' }), {
+        return new Response(JSON.stringify({ success: false, error: 'audienceKey and email are required' }), {
           status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
       }
       const audienceId = getAudienceId(audienceKey as Parameters<typeof getAudienceId>[0])
       if (!audienceId) {
         return new Response(
-          JSON.stringify({ error: `Audience ${audienceKey} not configured` }),
+          JSON.stringify({ success: false, error: `Audience ${audienceKey} not configured` }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
         )
       }
@@ -174,14 +174,14 @@ Deno.serve(wrapHandler("admin-email", async (req) => {
       const audienceKey = (body.audienceKey as string | undefined)?.trim()
       const email = (body.email as string | undefined)?.trim().toLowerCase()
       if (!audienceKey || !email) {
-        return new Response(JSON.stringify({ error: 'audienceKey and email are required' }), {
+        return new Response(JSON.stringify({ success: false, error: 'audienceKey and email are required' }), {
           status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
       }
       const audienceId = getAudienceId(audienceKey as Parameters<typeof getAudienceId>[0])
       if (!audienceId) {
         return new Response(
-          JSON.stringify({ error: `Audience ${audienceKey} not configured` }),
+          JSON.stringify({ success: false, error: `Audience ${audienceKey} not configured` }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
         )
       }
@@ -192,7 +192,7 @@ Deno.serve(wrapHandler("admin-email", async (req) => {
       )
     }
 
-    return new Response(JSON.stringify({ error: 'Unknown action' }), {
+    return new Response(JSON.stringify({ success: false, error: 'Unknown action' }), {
       status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   }
@@ -203,7 +203,7 @@ Deno.serve(wrapHandler("admin-email", async (req) => {
       await requireAdminAuth(req)
     } catch (authErr) {
       if (authErr instanceof Response) return authErr
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), {
         status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
@@ -211,7 +211,7 @@ Deno.serve(wrapHandler("admin-email", async (req) => {
     const audienceId = getAudienceId(AUDIENCE_KEYS.ALL_USERS)
     if (!audienceId) {
       return new Response(
-        JSON.stringify({ error: 'RESEND_AUDIENCE_ALL_USERS secret not configured' }),
+        JSON.stringify({ success: false, error: 'RESEND_AUDIENCE_ALL_USERS secret not configured' }),
         { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       )
     }
@@ -690,8 +690,14 @@ Deno.serve(wrapHandler("admin-email", async (req) => {
         const resolvedSeverity = validSeverities.includes(severity ?? '') ? severity : 'info'
         const { data: inserted, error: insertErr } = await supabase.from('broadcasts')
           .insert({ title: title.trim(), body: msgBody.trim(), severity: resolvedSeverity, active: true, created_by: callerEmail, expires_at: expires_at ?? null })
-          .select().single()
+          .select().maybeSingle()
         if (insertErr) throw insertErr
+        if (!inserted) {
+          return new Response(
+            JSON.stringify({ success: false, error: 'Failed to publish broadcast (no row returned)' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+          )
+        }
         const { error: auditErr } = await supabase.from('audit_logs').insert({
           user_id: null, category: 'admin_broadcast', action: 'broadcast_published',
           metadata: { broadcast_id: inserted.id, title, severity: resolvedSeverity, performed_by: callerEmail },
@@ -737,7 +743,7 @@ Deno.serve(wrapHandler("admin-email", async (req) => {
   }
 
   return new Response(
-    JSON.stringify({ error: `Unknown module: ${module}. Valid values: resend-stats | resend-sync | email-actions | broadcast` }),
+    JSON.stringify({ success: false, error: `Unknown module: ${module}. Valid values: resend-stats | resend-sync | email-actions | broadcast` }),
     { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
   )
 }))

@@ -117,7 +117,7 @@ Deno.serve(wrapHandler("admin-feature-flags", async (req) => {
         .from('feature_flags')
         .upsert(row, { onConflict: 'name' })
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
 

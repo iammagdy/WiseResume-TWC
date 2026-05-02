@@ -19,7 +19,7 @@ serve(wrapHandler("admin-impersonate", async (req) => {
     adminEmail = await requireAdminAuth(req, corsHeaders);
   } catch (err) {
     if (err instanceof Response) return err;
-    return new Response(JSON.stringify({ error: 'Authentication failed' }), {
+    return new Response(JSON.stringify({ success: false, error: 'Authentication failed' }), {
       status: 401,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
@@ -31,7 +31,7 @@ serve(wrapHandler("admin-impersonate", async (req) => {
   try {
     body = await req.json();
   } catch {
-    return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
+    return new Response(JSON.stringify({ success: false, error: 'Invalid JSON body' }), {
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
@@ -55,7 +55,7 @@ serve(wrapHandler("admin-impersonate", async (req) => {
     if (auditErr) {
       console.error('[admin-impersonate] exit audit insert failed:', auditErr);
       return new Response(
-        JSON.stringify({ error: 'Could not write exit audit log', details: auditErr.message }),
+        JSON.stringify({ success: false, error: 'Could not write exit audit log', details: auditErr.message }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
@@ -74,7 +74,7 @@ serve(wrapHandler("admin-impersonate", async (req) => {
     // which the client's existing 401 handling turns into a logout.
     const { target_user_id } = body;
     if (!target_user_id) {
-      return new Response(JSON.stringify({ error: 'target_user_id is required' }), {
+      return new Response(JSON.stringify({ success: false, error: 'target_user_id is required' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -91,7 +91,7 @@ serve(wrapHandler("admin-impersonate", async (req) => {
     if (revokeErr) {
       console.error('[admin-impersonate] revoke upsert failed:', revokeErr);
       return new Response(
-        JSON.stringify({ error: 'Could not revoke impersonation', details: revokeErr.message }),
+        JSON.stringify({ success: false, error: 'Could not revoke impersonation', details: revokeErr.message }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
@@ -121,7 +121,7 @@ serve(wrapHandler("admin-impersonate", async (req) => {
 
   const { target_user_id } = body;
   if (!target_user_id) {
-    return new Response(JSON.stringify({ error: 'target_user_id is required' }), {
+    return new Response(JSON.stringify({ success: false, error: 'target_user_id is required' }), {
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
@@ -129,7 +129,7 @@ serve(wrapHandler("admin-impersonate", async (req) => {
 
   const { data: targetUser, error: userErr } = await supabase.auth.admin.getUserById(target_user_id);
   if (userErr || !targetUser?.user) {
-    return new Response(JSON.stringify({ error: 'Target user not found' }), {
+    return new Response(JSON.stringify({ success: false, error: 'not_found' }), {
       status: 404,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
@@ -145,7 +145,7 @@ serve(wrapHandler("admin-impersonate", async (req) => {
 
   if (targetEmail && adminEmailList.includes(targetEmail.toLowerCase())) {
     return new Response(
-      JSON.stringify({ error: 'Impersonating another admin is not permitted' }),
+      JSON.stringify({ success: false, error: 'Impersonating another admin is not permitted' }),
       { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   }
@@ -196,7 +196,7 @@ serve(wrapHandler("admin-impersonate", async (req) => {
   if (auditErr) {
     console.error('[admin-impersonate] start audit insert failed:', auditErr);
     return new Response(
-      JSON.stringify({ error: 'Could not write audit log — impersonation blocked' }),
+      JSON.stringify({ success: false, error: 'Could not write audit log — impersonation blocked' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   }

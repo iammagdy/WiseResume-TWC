@@ -122,7 +122,7 @@ Deno.serve(wrapHandler("admin-moderation", async (req) => {
       .from('blocklist')
       .insert({ type, value: normalizedValue, reason: reason ?? null, added_by: callerEmail })
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) return json({ success: false, error: error.message }, 500, cors);
 
@@ -275,7 +275,7 @@ Deno.serve(wrapHandler("admin-moderation", async (req) => {
       .from('blocklist')
       .insert({ type: 'email', value: normalized, reason: reason ?? 'Email suppressed due to bounce/complaint', added_by: callerEmail })
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) return json({ success: false, error: error.message }, 500, cors);
 

@@ -33,12 +33,14 @@ Deno.serve(wrapHandler("admin-delete-user", async (req) => {
 
     const supabase = getServiceClient();
 
-    // Fetch user email before deletion for audit log
+    // Fetch user email before deletion for audit log.
+    // Uses maybeSingle so a missing profile row (auth-only user) does not
+    // log a PGRST116 row-not-found error — userEmail simply stays null.
     const { data: profileData } = await supabase
       .from('profiles')
       .select('email, user_id')
       .eq('user_id', target_user_id)
-      .single();
+      .maybeSingle();
 
     const userEmail = (profileData as { email?: string } | null)?.email ?? null;
 

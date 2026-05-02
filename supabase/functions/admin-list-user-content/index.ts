@@ -40,12 +40,19 @@ Deno.serve(wrapHandler("admin-list-user-content", async (req) => {
         .select('id, title, template_id, content, updated_at')
         .eq('id', resume_id)
         .eq('user_id', target_user_id)
-        .single();
+        .maybeSingle();
 
       if (error) {
         return new Response(
           JSON.stringify({ success: false, error: error.message }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if (!data) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'not_found' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
