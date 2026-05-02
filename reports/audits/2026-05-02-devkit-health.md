@@ -27,7 +27,7 @@ backlog item.
 | Medium | M-1: 9 admin functions still use `.single()` on existence-check reads → noisy PGRST116 500s on missing rows | Documented; itemised below |
 | Medium | M-2: 3 functions return `{error: …}` instead of the standard `{success: false, error: …}` envelope | Documented; itemised below |
 | Medium | M-3: `verify-dev-kit` non-success error paths use `{error: …}` (without `success: false`) — drift from the audit-defined contract | Documented |
-| Info | I-1: Production `edge_function_logs` is dark for every DevKit function (4 rows total in the table; 0 from any DevKit code) — Tasks \#19/\#20 wrapHandler infra is in code but not deployed | Already tracked: backlog "Deploy v3.10.x edge functions" |
+| Info | I-1: Production `edge_function_logs` is dark for every DevKit function (4 rows total in the table; 0 from any DevKit code) — Tasks \#19/\#20 wrapHandler infra is in code but not deployed | **Closed by Task #25 (2026-05-02):** all 99 deployed functions redeployed via the `Deploy Supabase Edge Functions` workflow (run #152, conclusion=success); `WISE_ENV=production` set; smoke tests 20/20 PASS. `wrapHandler` is now live on every function on the gateway and `edge_function_logs` will populate as real users hit the app. Mission Control's `isProduction` flag now derives from `WISE_ENV` instead of the `DENO_DEPLOYMENT_ID` heuristic. |
 | Green | G-1: All 37 admin/devkit functions wrap with `wrapHandler` | ✅ |
 | Green | G-2: All 37 use `getCorsHeaders(origin)` — no remaining `Access-Control-Allow-Origin: *` | ✅ |
 | Green | G-3: All 36 `admin-*` functions call `requireAdminAuth` (or are `verify-dev-kit`) | ✅ |
