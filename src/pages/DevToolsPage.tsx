@@ -29,6 +29,7 @@ import {
   Megaphone,
   Telescope,
   Zap,
+  Coins,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -39,6 +40,7 @@ import { AppSettingsPanel } from '@/components/dev-kit/AppSettingsPanel';
 import { AuditLogPanel } from '@/components/dev-kit/AuditLogPanel';
 import { OverviewPanel } from '@/components/dev-kit/OverviewPanel';
 import { AnalyticsPanel } from '@/components/dev-kit/AnalyticsPanel';
+import { AICostPanel } from '@/components/dev-kit/AICostPanel';
 import { OnboardingFunnelPanel } from '@/components/dev-kit/OnboardingFunnelPanel';
 import { LiveActivityPanel } from '@/components/dev-kit/LiveActivityPanel';
 import { DeploymentPanel } from '@/components/dev-kit/DeploymentPanel';
@@ -65,7 +67,7 @@ import { DevKitPanelBoundary } from '@/components/dev-kit/DevKitPanelBoundary';
 import { NativeBiometric } from '@capgo/capacitor-native-biometric';
 import { Capacitor } from '@capacitor/core';
 
-type Tab = 'mission' | 'overview' | 'analytics' | 'onboarding' | 'live' | 'deployment' | 'users' | 'coupons' | 'settings' | 'activity' | 'email' | 'automations' | 'wisehire' | 'portfolio' | 'openrouter' | 'groq' | 'deepseek' | 'flags' | 'owner-ops' | 'ai-routing' | 'observability' | 'moderation' | 'integrations';
+type Tab = 'mission' | 'overview' | 'analytics' | 'ai-cost' | 'onboarding' | 'live' | 'deployment' | 'users' | 'coupons' | 'settings' | 'activity' | 'email' | 'automations' | 'wisehire' | 'portfolio' | 'openrouter' | 'groq' | 'deepseek' | 'flags' | 'owner-ops' | 'ai-routing' | 'observability' | 'moderation' | 'integrations';
 
 interface NavItem {
   id: Tab;
@@ -85,6 +87,7 @@ const NAV_SECTIONS: NavSection[] = [
       { id: 'mission', label: 'Mission Control', icon: Radio },
       { id: 'overview', label: 'Overview', icon: LayoutDashboard },
       { id: 'analytics', label: 'Analytics', icon: BarChart2 },
+      { id: 'ai-cost', label: 'AI Cost', icon: Coins },
       { id: 'onboarding', label: 'Onboarding', icon: Filter },
       { id: 'live', label: 'Live Activity', icon: Activity },
     ],
@@ -123,6 +126,7 @@ const TAB_LABELS: Record<Tab, string> = {
   mission: 'Mission Control',
   overview: 'Overview',
   analytics: 'Analytics',
+  'ai-cost': 'AI Cost',
   onboarding: 'Onboarding Funnel',
   live: 'Live Activity',
   deployment: 'Deployment',
@@ -216,7 +220,9 @@ async function detectBiometricMode(): Promise<BiometricMode> {
         const credId = localStorage.getItem(LS_WEBAUTHN_CRED_KEY);
         return credId ? 'webauthn' : 'unavailable';
       }
-    } catch { }
+    } catch {
+      // WebAuthn probe failed — treat as unavailable rather than throwing.
+    }
   }
   return 'unavailable';
 }
@@ -934,6 +940,10 @@ function DevToolsInner() {
 
               {activeTab === 'analytics' && (
                 <AnalyticsPanel />
+              )}
+
+              {activeTab === 'ai-cost' && (
+                <AICostPanel />
               )}
 
               {activeTab === 'onboarding' && (

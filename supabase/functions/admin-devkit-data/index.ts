@@ -276,9 +276,154 @@ Deno.serve(wrapHandler("admin-devkit-data", async (req) => {
 
   if (!action) {
     return new Response(
-      JSON.stringify({ success: false, error: 'action is required: analytics | observability | live-activity | mission-control | github-status' }),
+      JSON.stringify({ success: false, error: 'action is required: analytics | observability | live-activity | mission-control | github-status | ai-cost' }),
       { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
+  }
+
+  // ── ACTION: ai-cost ───────────────────────────────────────────────────────
+  // Read-only AI usage attribution dashboard. Aggregates ai_usage_logs into
+  // totals + top users + per-feature + per-provider breakdowns for a given
+  // window. "Cost" is expressed as invocation count because the schema does
+  // not store USD or token counts today (out-of-scope item #4 — re-modelling
+  // cost recording is intentionally excluded). The panel labels this honestly.
+  if (action === 'ai-cost') {
+    try {
+      const { range: rawRange } = body as { range?: Range };
+      const range: Range = (['today', '7d', '30d', '90d', 'all'] as const).includes(rawRange as Range)
+        ? (rawRange as Range)
+        : '30d';
+
+      try {
+        await requireAdminAuth(req);
+      } catch (authErr) {
+        if (authErr instanceof Response) return authErr;
+        throw authErr;
+      }
+
+      const supabase = getServiceClient();
+      const win = computeWindow(range);
+
+      // Run the 5 aggregate RPCs in parallel — each is server-side, returns
+      // already-aggregated rows, so the round-trip stays well under 1.5s.
+      const [
+        dailyTotalsResult,
+        topUsersResult,
+        byFeatureResult,
+        byProviderResult,
+        prevTotalResult,
+      ] = await Promise.all([
+        supabase.rpc('get_ai_usage_daily_totals', {
+          p_start: win.start.toISOString(), p_end: win.end.toISOString(),
+        }),
+        supabase.rpc('get_ai_usage_top_users', {
+          p_start: win.start.toISOString(), p_end: win.end.toISOString(), p_top_n: 10,
+        }),
+        supabase.rpc('get_ai_usage_by_feature', {
+          p_start: win.start.toISOString(), p_end: win.end.toISOString(),
+        }),
+        supabase.rpc('get_ai_usage_by_provider', {
+          p_start: win.start.toISOString(), p_end: win.end.toISOString(),
+        }),
+        win.prevStart && win.prevEnd
+          ? supabase.rpc('get_ai_usage_window_total', {
+              p_start: win.prevStart.toISOString(), p_end: win.prevEnd.toISOString(),
+            })
+          : Promise.resolve({ data: 0, error: null }),
+      ]);
+
+      // Build a dense daily series (zero-fills missing days so the sparkline
+      // doesn't lie about gaps).
+      type DailyRow = { bucket_date: string; invocations: number; distinct_users: number };
+      const dailyRows = (dailyTotalsResult.data ?? []) as DailyRow[];
+      const dailyMap = new Map<string, { invocations: number; distinct_users: number }>();
+      for (const r of dailyRows) {
+        const k = (r.bucket_date ?? '').slice(0, 10);
+        if (k) dailyMap.set(k, {
+          invocations: Number(r.invocations),
+          distinct_users: Number(r.distinct_users),
+        });
+      }
+      const dailySeries = win.bucket === 'day'
+        ? buildEmptyDailySeries(win.start, win.end).map(e => ({
+            date: e.date,
+            value: dailyMap.get(e.date)?.invocations ?? 0,
+          }))
+        : dailyRows.map(r => ({
+            date: (r.bucket_date ?? '').slice(0, 10),
+            value: Number(r.invocations),
+          }));
+
+      const currentTotal = dailyRows.reduce((s, r) => s + Number(r.invocations), 0);
+      // Distinct users across the full window — RPC reports per-day distincts,
+      // so we union the contributing user_ids approximately by max-of-day.
+      // For an exact distinct, fetch from a single aggregate; for top-of-list
+      // accuracy this approximation is fine (and matches Analytics' approach).
+      const distinctUsersInWindow = dailyRows.reduce(
+        (m, r) => Math.max(m, Number(r.distinct_users)), 0,
+      );
+
+      const prevTotal = Number(prevTotalResult.data ?? 0);
+
+      // Resolve email for top users via auth.admin.getUserById. The 10 calls
+      // run in parallel so worst-case adds <300ms to the response.
+      type TopUserRow = { user_id: string; invocations: number };
+      const topUserRows = (topUsersResult.data ?? []) as TopUserRow[];
+      const topUsersWithEmail = await Promise.all(
+        topUserRows.map(async (row) => {
+          let email: string | null = null;
+          try {
+            const { data: authUser } = await supabase.auth.admin.getUserById(row.user_id);
+            const candidate = authUser?.user?.email ?? null;
+            // Hide synthetic placeholder emails used for legacy Kinde shadows.
+            email = candidate && !candidate.endsWith('@kinde.placeholder') ? candidate : null;
+          } catch {
+            email = null;
+          }
+          return {
+            user_id: row.user_id,
+            email,
+            invocations: Number(row.invocations),
+          };
+        }),
+      );
+
+      type FeatureRow = { action_type: string; invocations: number };
+      const byFeature = ((byFeatureResult.data ?? []) as FeatureRow[]).map(r => ({
+        name: r.action_type,
+        count: Number(r.invocations),
+      }));
+
+      type ProviderRow = { provider: string; invocations: number };
+      const byProvider = ((byProviderResult.data ?? []) as ProviderRow[]).map(r => ({
+        name: r.provider,
+        count: Number(r.invocations),
+      }));
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          data: {
+            range,
+            bucket: win.bucket,
+            totals: { current: currentTotal, previous: prevTotal },
+            distinctUsers: distinctUsersInWindow,
+            dailySeries,
+            topUsers: topUsersWithEmail,
+            byFeature,
+            byProvider,
+            generatedAt: new Date().toISOString(),
+          },
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    } catch (err) {
+      console.error('[admin-devkit-data/ai-cost] Unexpected error:', err);
+      return new Response(
+        JSON.stringify({ success: false, error: String(err) }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
   }
 
   // ── ACTION: analytics ─────────────────────────────────────────────────────

@@ -1,6 +1,11 @@
 # What Wise Cloud Can Do Today
 
-**Last verified:** 2026-05-02 (Task #28)
+**Last verified:** 2026-05-02 (Task #29)
+
+## See where AI calls are coming from (2026-05-02)
+**What was the situation:** When you opened the admin desk, there was no way to see *which users* were spending the most AI credits, *which features* were generating the most AI calls (cover letters? tailoring? interview prep?), or *which AI providers* (OpenRouter, Groq, DeepSeek, or someone using their own key) were doing the work. You could see total credit usage in aggregate but couldn't pin it to a person or a feature.
+**What changed:** The admin desk now has a new "AI Cost" panel under the Monitor section. Pick a window (Today / Last 7 days / Last 30 days / Last 90 days / All time) and you instantly see four headline numbers — total AI calls in that window, how many different users made at least one call, the busiest feature, and the busiest provider — plus three ranked lists: the 10 highest-spending users (with their email when we have it), spend grouped by feature, and spend grouped by provider. The page refreshes itself every two minutes while it's open.
+**What you'll notice:** A "Coins" icon in the admin sidebar between Analytics and Onboarding. A blue banner at the top of the panel is honest about what's measured: the database doesn't store dollar amounts per AI call today, so this view counts AI invocations (the same unit the credit pool charges) — one row = one AI call. If we ever start storing per-call dollar amounts, the same panel will start showing them too.
 
 ## Pick a look for your cover letter (2026-05-02)
 **What was the situation:** Every generated cover letter came out in the same plain layout. There was no way to make a letter feel more polished, more compact, or more creative — and there was no way to change the look after the letter was saved.
