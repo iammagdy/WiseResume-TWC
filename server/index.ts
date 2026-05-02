@@ -4556,15 +4556,19 @@ app.get('/api/data/portfolio-analytics', requireAuthHeader, async (_req, res) =>
 // ── Analytics retention sweeper (Phase 5) ─────────────────────────────────────
 //
 // Once per day, prune rows older than the per-table retention window from
-// `portfolio_visits`, `error_log`, and `audit_logs`. The actual delete loop
-// lives in the Postgres RPC `sweep_analytics_retention(...)` (see migration
-// 20260425000000_analytics_retention.sql) so the work happens in batches of
-// 10k rows server-side and we never hold a long transaction from Node.
+// `portfolio_visits`, `error_log`, `audit_logs`, and `edge_function_logs`.
+// The actual delete loop lives in the Postgres RPC
+// `sweep_analytics_retention_batch(...)` (see migration
+// 20260425000000_analytics_retention.sql, extended for `edge_function_logs`
+// in 20260518000001_edge_function_logs_retention.sql) so the work happens
+// in batches of 10k rows server-side and we never hold a long transaction
+// from Node.
 //
 // Retention windows are env-tunable:
-//   PORTFOLIO_VISITS_RETENTION_DAYS (default 90)
-//   ERROR_LOG_RETENTION_DAYS        (default 30)
-//   AUDIT_LOGS_RETENTION_DAYS       (default 365)
+//   PORTFOLIO_VISITS_RETENTION_DAYS    (default 90)
+//   ERROR_LOG_RETENTION_DAYS           (default 30)
+//   AUDIT_LOGS_RETENTION_DAYS          (default 365)
+//   EDGE_FUNCTION_LOGS_RETENTION_DAYS  (default 30)
 //
 // Disable entirely by setting ANALYTICS_SWEEP_ENABLED=false (e.g. in CI).
 
@@ -4574,11 +4578,13 @@ interface SweepResult {
   error_log_cutoff: string;
   audit_logs_cutoff: string;
   admin_audit_log_cutoff: string;
+  edge_function_logs_cutoff: string;
   portfolio_visits_deleted: number;
   error_log_deleted: number;
   audit_logs_deleted: number;
   trial_resumes_deleted: number;
   admin_audit_log_deleted: number;
+  edge_function_logs_deleted: number;
 }
 interface SweepStatus {
   lastRanAt: string | null;
@@ -4592,6 +4598,7 @@ interface SweepStatus {
     errorLogRetentionDays: number;
     auditLogsRetentionDays: number;
     adminAuditLogRetentionDays: number;
+    edgeFunctionLogsRetentionDays: number;
     intervalMs: number;
   };
 }
@@ -4621,6 +4628,13 @@ const AUDIT_LOGS_RETENTION_DAYS =
 // the existing `audit_logs` retention. Tunable via env without a migration.
 const ADMIN_AUDIT_LOG_RETENTION_DAYS =
   parseRetentionDays('ADMIN_AUDIT_LOG_RETENTION_DAYS', 365);
+// Task #20: retention for the per-invocation `edge_function_logs` table.
+// After Task #19, every admin and AI edge function writes a row here on
+// every invocation, so the table grows by thousands of rows per day.
+// 30d matches the `error_log` retention and covers the Observability →
+// Telemetry tab's longest sparkline window.
+const EDGE_FUNCTION_LOGS_RETENTION_DAYS =
+  parseRetentionDays('EDGE_FUNCTION_LOGS_RETENTION_DAYS', 30);
 const ANALYTICS_SWEEP_BATCH_SIZE = 10000;
 // Per-table cap on batch iterations so a runaway loop can't dominate
 // the connection forever. 1000 batches × 10k rows = 10M rows/table/run,
@@ -4649,6 +4663,7 @@ const sweepStatus: SweepStatus = {
     errorLogRetentionDays: ERROR_LOG_RETENTION_DAYS,
     auditLogsRetentionDays: AUDIT_LOGS_RETENTION_DAYS,
     adminAuditLogRetentionDays: ADMIN_AUDIT_LOG_RETENTION_DAYS,
+    edgeFunctionLogsRetentionDays: EDGE_FUNCTION_LOGS_RETENTION_DAYS,
     intervalMs: ANALYTICS_SWEEP_INTERVAL_MS,
   },
 };
@@ -4661,7 +4676,7 @@ const sweepStatus: SweepStatus = {
  * than the batch size, we know the backlog is drained.
  */
 async function sweepOneTable(
-  table: 'portfolio_visits' | 'error_log' | 'audit_logs',
+  table: 'portfolio_visits' | 'error_log' | 'audit_logs' | 'edge_function_logs',
   days: number,
 ): Promise<number> {
   if (!sql) return 0;
@@ -4763,6 +4778,9 @@ async function runAnalyticsSweep(): Promise<void> {
     const adminAuditCutoff = new Date(
       startedAt - ADMIN_AUDIT_LOG_RETENTION_DAYS * 86_400_000,
     ).toISOString();
+    const edgeFunctionLogsCutoff = new Date(
+      startedAt - EDGE_FUNCTION_LOGS_RETENTION_DAYS * 86_400_000,
+    ).toISOString();
 
     // Lease heartbeat — extend the TTL between tables so a sweep that
     // runs longer than the initial 30-minute window cannot be preempted.
@@ -4793,7 +4811,16 @@ async function runAnalyticsSweep(): Promise<void> {
     const auditDeleted = await sweepOneTable(
       'audit_logs', AUDIT_LOGS_RETENTION_DAYS);
     if (!(await renewLease())) {
-      throw new Error('lease lost between audit_logs and trial_resumes');
+      throw new Error('lease lost between audit_logs and edge_function_logs');
+    }
+    // Task #20: trim `edge_function_logs` so the per-invocation telemetry
+    // table doesn't grow unbounded and slow down the Observability →
+    // Telemetry tab. Uses the same batched RPC as the other sweep tables
+    // (whitelist branch added in 20260518000001_edge_function_logs_retention.sql).
+    const edgeFunctionLogsDeleted = await sweepOneTable(
+      'edge_function_logs', EDGE_FUNCTION_LOGS_RETENTION_DAYS);
+    if (!(await renewLease())) {
+      throw new Error('lease lost between edge_function_logs and admin_audit_log');
     }
 
     // Task #10 / Step 2: sweep `admin_audit_log` rows older than
@@ -4863,11 +4890,13 @@ async function runAnalyticsSweep(): Promise<void> {
       error_log_cutoff: errorCutoff,
       audit_logs_cutoff: auditCutoff,
       admin_audit_log_cutoff: adminAuditCutoff,
+      edge_function_logs_cutoff: edgeFunctionLogsCutoff,
       portfolio_visits_deleted: visitsDeleted,
       error_log_deleted: errorDeleted,
       audit_logs_deleted: auditDeleted,
       trial_resumes_deleted: trialResumesDeleted,
       admin_audit_log_deleted: adminAuditDeleted,
+      edge_function_logs_deleted: edgeFunctionLogsDeleted,
     };
     sweepStatus.lastRanAt = new Date(startedAt).toISOString();
     sweepStatus.lastDurationMs = durationMs;
@@ -4882,6 +4911,7 @@ async function runAnalyticsSweep(): Promise<void> {
         audit_logs_deleted: auditDeleted,
         trial_resumes_deleted: trialResumesDeleted,
         admin_audit_log_deleted: adminAuditDeleted,
+        edge_function_logs_deleted: edgeFunctionLogsDeleted,
       }),
     );
   } catch (err) {
@@ -4922,6 +4952,8 @@ function scheduleAnalyticsSweep(): void {
       portfolioVisitsRetentionDays: PORTFOLIO_VISITS_RETENTION_DAYS,
       errorLogRetentionDays: ERROR_LOG_RETENTION_DAYS,
       auditLogsRetentionDays: AUDIT_LOGS_RETENTION_DAYS,
+      adminAuditLogRetentionDays: ADMIN_AUDIT_LOG_RETENTION_DAYS,
+      edgeFunctionLogsRetentionDays: EDGE_FUNCTION_LOGS_RETENTION_DAYS,
       initialDelayMs: ANALYTICS_SWEEP_INITIAL_DELAY_MS,
       intervalMs: ANALYTICS_SWEEP_INTERVAL_MS,
     }),
