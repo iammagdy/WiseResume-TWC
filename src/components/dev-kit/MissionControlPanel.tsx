@@ -577,18 +577,35 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
           deepLinkLabel="Env check"
         >
           {data && secretsMissingCount > 0 && (
-            <div className="space-y-1 max-h-24 overflow-y-auto">
+            <div className="space-y-1.5 max-h-32 overflow-y-auto">
               {data.secrets.items
                 .filter(s => !s.present && s.source === 'replit_env')
                 .slice(0, 6)
                 .map(s => (
-                  <div key={s.key} className="flex items-center gap-2">
-                    <XCircle className="w-3 h-3 text-red-500 shrink-0" />
-                    <span className="font-mono text-[10px] text-foreground truncate">{s.key}</span>
+                  <div key={s.key} className="flex items-start gap-2">
+                    <XCircle className="w-3 h-3 text-red-500 shrink-0 mt-0.5" />
+                    <div className="min-w-0">
+                      <p className="font-mono text-[10px] text-foreground truncate">{s.key}</p>
+                      <p className="text-[10px] text-muted-foreground leading-tight">
+                        Set as a Replit secret in dev (Tools → Secrets) and as a Supabase
+                        Edge Function secret in production. Mission Control only flags
+                        secrets that are also listed in REQUIRED_ENV_VARS.
+                      </p>
+                    </div>
                   </div>
                 ))
               }
             </div>
+          )}
+          {/* Defence-in-depth: in production every required secret is classified
+              as 'supabase_vault' so secretsMissingCount is structurally 0. If
+              that invariant ever breaks (e.g. WISE_ENV unset on a deploy),
+              surface a clear note so the operator knows where to look. */}
+          {data && !isDevEnv && secretsMissingCount > 0 && (
+            <p className="text-[10px] text-amber-600 mt-1.5">
+              Production should never report Replit-env secrets — confirm
+              WISE_ENV=production is set on admin-devkit-data and redeploy.
+            </p>
           )}
         </StatusCard>
 
