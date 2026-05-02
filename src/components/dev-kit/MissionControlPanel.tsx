@@ -23,6 +23,7 @@ import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
 import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
 import { useIsMounted, useVisibleInterval } from '@/lib/devkit/hooks';
 import { cn } from '@/lib/utils';
+import { AITestSlotModelsCard } from './AITestSlotModelsCard';
 
 type StatusDot = 'green' | 'yellow' | 'red' | 'grey';
 
@@ -645,6 +646,9 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
           </div>
         </div>
       )}
+
+      {/* AI test slot models — read helper sources from app_settings.ai_test_slot_models */}
+      <AITestSlotModelsCard onNavigateToKeys={onNavigate} />
 
       {/* All secrets table */}
       {data && (

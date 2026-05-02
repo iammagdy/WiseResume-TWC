@@ -34,8 +34,15 @@ import {
  *     success: true,
  *     keys: [{ provider, slot, configured, masked, model, envName }],
  *     modelOptions: { openrouter: [...], groq: [...], deepseek: [...] },
- *     defaultModels: { openrouter: "...", groq: "...", deepseek: "..." }
+ *     defaultModels: { openrouter: "...", groq: "...", deepseek: "..." },
+ *     slotModels: { "openrouter:1": "...", ... }   // raw saved overrides
  *   }
+ *
+ * `slotModels` is the raw `app_settings.ai_test_slot_models` map (keys
+ * present only for slots the admin has explicitly saved). Frontend
+ * helpers use it to distinguish "saved override" from "fell back to
+ * provider default", which the per-slot `model` field alone cannot
+ * convey because it always returns the resolved value.
  */
 
 const SLOT_MODELS_KEY = 'ai_test_slot_models';
@@ -250,6 +257,11 @@ Deno.serve(wrapHandler("inspect-ai-keys", async (req) => {
       keys,
       modelOptions: AI_TEST_MODEL_ALLOWLIST,
       defaultModels: AI_TEST_DEFAULT_MODELS,
+      // Raw saved overrides (keys missing → slot is using provider default).
+      // Lets shared frontend helpers correctly distinguish "saved override"
+      // from "fell back to default" when the saved value happens to equal
+      // the provider default.
+      slotModels: saved,
     });
   } catch (err) {
     return json({

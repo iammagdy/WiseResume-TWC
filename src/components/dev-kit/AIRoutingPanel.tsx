@@ -9,6 +9,7 @@ import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse'
 import { useIsMounted } from '@/lib/devkit/hooks';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { AITestSlotModelsCard } from './AITestSlotModelsCard';
 
 type Provider = 'auto' | 'openrouter' | 'groq' | 'deepseek';
 type SecondaryProvider = 'openrouter' | 'groq' | 'deepseek';
@@ -352,6 +353,14 @@ export function AIRoutingPanel() {
       {/* ── ROUTING TAB ──────────────────────────────────────────────────── */}
       {activeTab === 'routing' && (
         <div className="space-y-4">
+          {/* Surface per-slot test models alongside per-feature routing so an
+              admin doesn't have to open the DevKit AI Keys panel to see what
+              `openrouter:1` etc. test against. Same data source as that panel. */}
+          <AITestSlotModelsCard
+            title="AI test slot models (per-key)"
+            subtitle="What each of the 9 AI key slots tests against. Edit in DevKit › AI Keys."
+          />
+
           <div className="flex items-center justify-between">
             <p className="text-xs text-muted-foreground">
               Select a primary provider and optional model for each AI feature. Changes take effect immediately.
