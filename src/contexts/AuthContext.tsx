@@ -1,4 +1,4 @@
-import React, { createContext, useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import React, { createContext, useEffect, useState, useMemo, useCallback, useRef, useSyncExternalStore } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -8,6 +8,11 @@ import { clearAllPersistedCaches } from '@/lib/persistedQueryCache';
 import { clearAllCachedScores } from '@/hooks/useResumeScore';
 import { clearAllEditorSessions } from '@/lib/editorSession';
 import { exchangeToken, clearBridge, isReady, getUserId, setKindeTokenGetter, setCurrentKindeSub, getCachedKindeSub } from '@/lib/supabaseBridge';
+import {
+  isImpersonating as isImpersonatingFn,
+  getImpersonationState,
+  subscribe as subscribeImpersonation,
+} from '@/lib/impersonationStore';
 
 export interface KindeAppUser {
   id: string;
@@ -20,6 +25,12 @@ export interface AuthContextType {
   loading: boolean;
   signOut: () => Promise<void>;
   isAuthenticated: boolean;
+  /**
+   * True when an admin is currently impersonating another user. The `user`
+   * exposed by this context reflects the impersonated identity in that case;
+   * the admin's underlying Kinde session is still alive in the background.
+   */
+  isImpersonating: boolean;
   /** Whether the Supabase token bridge is ready (data queries will work) */
   supabaseReady: boolean;
   /**
@@ -48,6 +59,7 @@ const DEGRADED_AUTH_VALUE: AuthContextType = {
   loading: false,
   signOut: async () => {},
   isAuthenticated: false,
+  isImpersonating: false,
   supabaseReady: false,
   supabaseSettled: true,
   kindeUser: null,
@@ -95,8 +107,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [bridgeReady, setBridgeReady] = useState(false);
   const [bridgeFailed, setBridgeFailed] = useState(false);
 
+  // Subscribe to the impersonation store so any change (start / exit /
+  // expiry) re-renders the provider and every consumer of useAuth().
+  // useSyncExternalStore guarantees React batches the update correctly.
+  useSyncExternalStore(
+    subscribeImpersonation,
+    () => {
+      const s = getImpersonationState();
+      // Snapshot must be a stable primitive so React can compare it.
+      return `${s.token ?? ''}|${s.userId ?? ''}|${s.expiresAt ?? ''}`;
+    },
+    () => '',
+  );
+
+  const impersonating = isImpersonatingFn();
+  const impersonationState = getImpersonationState();
+
   const loading = kindeLoading;
-  const isAuthenticated = kindeAuthenticated;
+  // Impersonation is a first-class authenticated state. When an admin claims
+  // an impersonation OTP — either same-tab via Act As or via the /act-as
+  // claim flow in a fresh tab where Kinde isn't signed in — they must be
+  // treated as authenticated so ProtectedRoute lets them through.
+  const isAuthenticated = kindeAuthenticated || impersonating;
 
   // Bind the bridge to the currently-signed-in Kinde user on every render.
   // This MUST run before any consumer reads from the bridge so that a stale
@@ -120,6 +152,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // IMPORTANT: user.id MUST be a valid UUID from the bridge, never the raw Kinde ID
   // (kp_xxx format) which causes Postgres "invalid input syntax for type uuid" errors.
   const user: KindeAppUser | null = useMemo(() => {
+    // Impersonation always wins — if an admin has claimed an OTP we must
+    // surface the impersonated identity, even when the admin's own Kinde
+    // session is also active in the background.
+    if (impersonating && impersonationState.userId) {
+      return {
+        id: impersonationState.userId,
+        email: impersonationState.email ?? '',
+        name: undefined,
+      };
+    }
     if (!kindeUser) return null;
     const bridgeUserId = getUserId();
     if (!bridgeUserId) return null;
@@ -135,7 +177,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       name: [kindeUser.givenName, kindeUser.familyName].filter(Boolean).join(' ') || undefined,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kindeUser, bridgeReady]);
+  }, [kindeUser, bridgeReady, impersonating, impersonationState.userId, impersonationState.email]);
 
   // Exchange Kinde token for Supabase JWT when user is authenticated.
   // NOTE: We intentionally do NOT gate on kindeLoading here. In some environments
@@ -309,12 +351,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loading,
     signOut,
     isAuthenticated,
-    supabaseReady: bridgeReady,
-    supabaseSettled: bridgeReady || bridgeFailed,
+    isImpersonating: impersonating,
+    // While impersonating we treat the session as "ready" regardless of the
+    // Kinde→Supabase bridge state — the impersonation token attached by
+    // safeClient/edgeFunctions is the source of truth for those requests.
+    supabaseReady: bridgeReady || impersonating,
+    supabaseSettled: bridgeReady || bridgeFailed || impersonating,
     kindeUser: kindeUser ?? null,
     getKindeToken,
     authAvailable: true,
-  }), [user, loading, signOut, isAuthenticated, bridgeReady, bridgeFailed, kindeUser, getKindeToken]);
+  }), [user, loading, signOut, isAuthenticated, impersonating, bridgeReady, bridgeFailed, kindeUser, getKindeToken]);
 
   return (
     <AuthContext.Provider value={value}>

@@ -24,7 +24,7 @@ function isEmailVerifiedOrExempt(profile: Record<string, unknown> | null | undef
 }
 
 export function ProtectedRoute() {
-  const { isAuthenticated, loading, supabaseSettled, supabaseReady, signOut } = useAuth();
+  const { isAuthenticated, isImpersonating, loading, supabaseSettled, supabaseReady, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const isAuthenticatedRef = useRef(isAuthenticated);
@@ -108,8 +108,11 @@ export function ProtectedRoute() {
   // Email verification gate — only applies to authenticated, session-ready users.
   // Fail closed: hold the Outlet behind the loading skeleton until meData has
   // loaded so the verified/unverified state is always known before content renders.
+  // SKIP entirely while impersonating — the admin operator is responsible for
+  // who they impersonate, and the impersonated user's verification state is
+  // not a meaningful gate for an admin-driven session.
   const alreadyOnVerifyPage = location.pathname === '/auth/verify-email';
-  if (!alreadyOnVerifyPage) {
+  if (!alreadyOnVerifyPage && !isImpersonating) {
     // Fail closed: hold behind skeleton while profile is loading (initial fetch only).
     if ((meLoading || !meData?.profile) && !loadingTimedOut) {
       return (

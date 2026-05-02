@@ -19,6 +19,7 @@ import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse'
 import { useIsMounted } from '@/lib/devkit/hooks';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { DevKitErrorCard } from './DevKitErrorCard';
 
 type InternalTab = 'bugs' | 'blocklist' | 'queue';
 
@@ -169,9 +170,7 @@ function BugInboxTab({ onCountChange }: { onCountChange?: (n: number) => void })
         </Button>
       </div>
 
-      {error && (
-        <p className="text-sm text-destructive bg-destructive/10 rounded px-3 py-2">{error}</p>
-      )}
+      {error && <DevKitErrorCard error={error} title="Couldn't load bug reports" onRetry={fetchBugs} />}
 
       {!loading && bugs.length === 0 && !error && (
         <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
@@ -410,7 +409,7 @@ function BlocklistTab() {
         </Button>
       </div>
 
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {error && <DevKitErrorCard error={error} title="Couldn't load blocklist" onRetry={fetchEntries} />}
 
       {!loading && entries.length === 0 && !error && (
         <p className="text-sm text-center text-muted-foreground py-6">Blocklist is empty</p>
@@ -519,7 +518,7 @@ function ModerationQueueTab() {
         </Button>
       </div>
 
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {error && <DevKitErrorCard error={error} title="Couldn't load moderation queue" onRetry={fetchItems} />}
 
       {!loading && items.length === 0 && !error && (
         <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">

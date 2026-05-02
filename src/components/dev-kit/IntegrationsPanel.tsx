@@ -17,6 +17,7 @@ import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse'
 import { useIsMounted } from '@/lib/devkit/hooks';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { DevKitErrorCard } from './DevKitErrorCard';
 
 type InternalTab = 'kinde' | 'bounces' | 'deploy';
 
@@ -129,7 +130,7 @@ function KindeEventsTab() {
         </Button>
       </div>
 
-      {error && <p className="text-sm text-destructive bg-destructive/10 rounded px-3 py-2">{error}</p>}
+      {error && <DevKitErrorCard error={error} title="Couldn't load Kinde events" onRetry={fetchEvents} />}
 
       {!loading && events.length === 0 && !error && (
         <p className="text-sm text-center text-muted-foreground py-8">No Kinde events recorded yet</p>
@@ -188,6 +189,16 @@ function ResendBouncesTab() {
         'admin-integrations',
         devKitInvokeOptions({ action: 'get_resend_bounces' }),
       );
+      // Resend "restricted" key surfaces as { success:false, reason:'restricted_key' }
+      // — handle ahead of unwrap so we can show a useful message instead of the raw 401.
+      const raw = tuple.data as { reason?: string; error?: string } | null;
+      if (raw && raw.reason === 'restricted_key') {
+        if (!isMounted()) return;
+        setBounces([]);
+        setTotalChecked(0);
+        setError(raw.error ?? 'restricted_api_key: Resend key is send-only.');
+        return;
+      }
       const data = unwrapAdminResponse<{ bounces: BounceEntry[]; total_emails_checked: number }>(tuple, 'admin-integrations');
       if (!isMounted()) return;
       setBounces(data.bounces ?? []);
@@ -245,7 +256,7 @@ function ResendBouncesTab() {
         </div>
       )}
 
-      {error && <p className="text-sm text-destructive bg-destructive/10 rounded px-3 py-2">{error}</p>}
+      {error && <DevKitErrorCard error={error} title="Couldn't load Resend bounces" onRetry={fetchBounces} />}
 
       {!loading && bounces.length === 0 && !error && (
         <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
@@ -383,7 +394,7 @@ function DeployTab() {
         </div>
       </div>
 
-      {error && <p className="text-sm text-destructive bg-destructive/10 rounded px-3 py-2">{error}</p>}
+      {error && <DevKitErrorCard error={error} title="Couldn't load deploy status" onRetry={fetchStatus} />}
 
       {!loading && runs.length === 0 && !error && (
         <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">

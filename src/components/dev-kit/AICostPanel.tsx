@@ -8,6 +8,7 @@ import { getDevKitToken, useDevKitSession } from '@/contexts/DevKitSessionContex
 import { useIsMounted, useVisibleInterval } from '@/lib/devkit/hooks';
 import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
+import { DevKitErrorCard } from './DevKitErrorCard';
 
 import { RangeSwitcher } from './analytics/RangeSwitcher';
 import { KpiCard } from './analytics/KpiCard';
@@ -164,9 +165,11 @@ export function AICostPanel() {
       </div>
 
       {error && (
-        <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-sm text-destructive">
-          {error}
-        </div>
+        <DevKitErrorCard
+          error={error}
+          title="Couldn't load AI cost data"
+          onRetry={() => fetchData(range)}
+        />
       )}
 
       {loading && !data && (

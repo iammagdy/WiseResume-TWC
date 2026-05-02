@@ -24,6 +24,7 @@ import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse'
 import { useIsMounted, useVisibleInterval } from '@/lib/devkit/hooks';
 import { cn } from '@/lib/utils';
 import { AITestSlotModelsCard } from './AITestSlotModelsCard';
+import { DevKitErrorCard } from './DevKitErrorCard';
 
 type StatusDot = 'green' | 'yellow' | 'red' | 'grey';
 
@@ -91,6 +92,8 @@ interface MissionControlData {
     httpStatus: number;
     sends24h: number | null;
     keyInSupabaseVault: boolean;
+    /** Set by edge fn when the upstream returned a recognized failure shape (e.g. 'restricted_key'). */
+    reason?: 'restricted_key' | 'missing_key' | string;
   };
   database: {
     ok: boolean;
@@ -269,12 +272,11 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
             Retry
           </Button>
         </div>
-        <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-sm text-destructive">
-          {error}
-          <p className="text-xs mt-1 opacity-70">
-            Deploy the <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">admin-devkit-data</code> edge function and ensure DEV_KIT_PASSWORD is set.
-          </p>
-        </div>
+        <DevKitErrorCard
+          error={error}
+          title="Couldn't load Mission Control"
+          onRetry={fetchData}
+        />
       </div>
     );
   }
@@ -396,9 +398,7 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
       </div>
 
       {error && data && (
-        <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-700 dark:text-amber-400">
-          Last refresh failed: {error}
-        </div>
+        <DevKitErrorCard error={error} title="Last refresh failed" onRetry={fetchData} compact />
       )}
 
       {isDevEnv && (
@@ -500,7 +500,9 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
           status={emailStatus}
           summary={
             data
-              ? data.email.keyInSupabaseVault
+              ? data.email.reason === 'restricted_key'
+                ? 'RESEND_API_KEY is restricted (send-only) — replace with a full-access key to enable read APIs'
+                : data.email.keyInSupabaseVault
                 ? 'RESEND_API_KEY in Supabase vault · operational in production'
                 : data.email.resendKeyPresent
                 ? data.email.reachable
