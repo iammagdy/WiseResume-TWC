@@ -377,7 +377,7 @@ export function AIRoutingPanel() {
               error={routingError}
               title="Failed to load routing config"
               compact
-              context={{ panel: 'AI Routing', function: 'admin-ai-routing' }}
+              context={{ panel: 'AI Routing', function: 'admin-ai-routing', action: 'get_config' }}
             />
           )}
 
@@ -469,7 +469,7 @@ export function AIRoutingPanel() {
               error={routingError}
               title="Failed to load routing config"
               compact
-              context={{ panel: 'AI Routing', function: 'admin-ai-routing' }}
+              context={{ panel: 'AI Routing', function: 'admin-ai-routing', action: 'get_config' }}
             />
           )}
 
@@ -594,7 +594,7 @@ export function AIRoutingPanel() {
               error={capsError}
               title="Failed to load daily caps"
               compact
-              context={{ panel: 'AI Routing · Caps', function: 'admin-ai-caps' }}
+              context={{ panel: 'AI Routing · Caps', function: 'admin-ai-caps', action: 'get_caps' }}
             />
           )}
 

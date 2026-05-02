@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
  * `***REDACTED***` placeholder while preserving the prefix so an admin
  * can still tell which provider misfired.
  */
-function redactSecrets(input: string): string {
+export function redactSecrets(input: string): string {
   if (!input) return input;
   let out = input;
   // Provider-prefixed keys: re_xxx (Resend), sk_xxx / pk_xxx (Stripe/OpenAI/etc),
