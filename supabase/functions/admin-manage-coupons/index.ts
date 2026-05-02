@@ -69,9 +69,15 @@ Deno.serve(wrapHandler("admin-manage-coupons", async (req) => {
           is_active: true,
         })
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      if (!data) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'not_found' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
       return new Response(
         JSON.stringify({ success: true, coupon: data }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

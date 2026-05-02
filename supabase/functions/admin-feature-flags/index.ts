@@ -117,9 +117,15 @@ Deno.serve(wrapHandler("admin-feature-flags", async (req) => {
         .from('feature_flags')
         .upsert(row, { onConflict: 'name' })
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      if (!data) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'not_found' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
 
       await writeAuditLog(supabase, 'upsert', callerEmail, {
         flag_name: cleanName,

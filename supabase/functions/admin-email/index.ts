@@ -690,8 +690,14 @@ Deno.serve(wrapHandler("admin-email", async (req) => {
         const resolvedSeverity = validSeverities.includes(severity ?? '') ? severity : 'info'
         const { data: inserted, error: insertErr } = await supabase.from('broadcasts')
           .insert({ title: title.trim(), body: msgBody.trim(), severity: resolvedSeverity, active: true, created_by: callerEmail, expires_at: expires_at ?? null })
-          .select().single()
+          .select().maybeSingle()
         if (insertErr) throw insertErr
+        if (!inserted) {
+          return new Response(
+            JSON.stringify({ success: false, error: 'not_found' }),
+            { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+          )
+        }
         const { error: auditErr } = await supabase.from('audit_logs').insert({
           user_id: null, category: 'admin_broadcast', action: 'broadcast_published',
           metadata: { broadcast_id: inserted.id, title, severity: resolvedSeverity, performed_by: callerEmail },
