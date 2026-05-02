@@ -23,21 +23,25 @@ import { join } from 'node:path';
 const DIST = 'dist';
 const ASSETS = join(DIST, 'assets');
 
+// Pattern note: each entry uses a permissive suffix `[A-Za-z0-9]*[-.]`
+// so common naming drift (e.g. `MissionControl` → `MissionControlPanel`,
+// `MissionControlCard`) can't sneak past the filter. The trailing `[-.]`
+// matches Rollup's hash separator (`-`) or the `.js`/`.mjs` extension.
 const FORBIDDEN_FILENAMES = [
-  /DevToolsPage[-.]/i,
-  /AICostPanel[-.]/i,
-  /AnalyticsPanel[-.]/i,
-  /MissionControl[-.]/i,
-  /ObservabilityPanel[-.]/i,
-  /ModerationPanel[-.]/i,
-  /IntegrationsPanel[-.]/i,
-  /OwnerOpsPanel[-.]/i,
-  /AIRoutingPanel[-.]/i,
-  /AIKeySlotPanels[-.]/i,
-  /FeatureFlagsPanel[-.]/i,
-  /BroadcastPanel[-.]/i,
-  /AdminUsersPanel[-.]/i,
-  /AuditLogPanel[-.]/i,
+  /DevTools(?!Stub)[A-Za-z0-9]*[-.]/i,
+  /AICost(?!Badge|Estimates)[A-Za-z0-9]*[-.]/i,
+  /Analytics[A-Za-z0-9]*Panel[-.]/i,
+  /MissionControl[A-Za-z0-9]*[-.]/i,
+  /Observability[A-Za-z0-9]*Panel[-.]/i,
+  /Moderation[A-Za-z0-9]*Panel[-.]/i,
+  /Integrations[A-Za-z0-9]*Panel[-.]/i,
+  /OwnerOps[A-Za-z0-9]*[-.]/i,
+  /AIRouting[A-Za-z0-9]*[-.]/i,
+  /AIKeySlot[A-Za-z0-9]*[-.]/i,
+  /FeatureFlags[A-Za-z0-9]*Panel[-.]/i,
+  /Broadcast[A-Za-z0-9]*Panel[-.]/i,
+  /AdminUsers[A-Za-z0-9]*[-.]/i,
+  /AuditLog[A-Za-z0-9]*Panel[-.]/i,
 ];
 
 // Identifier substrings that should never appear inside any chunk that
