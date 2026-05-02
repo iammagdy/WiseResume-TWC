@@ -70,6 +70,20 @@ interface InspectAIKeysResponse {
   }>;
   defaultModels?: Partial<Record<AITestProvider, string>>;
   slotModels?: Record<string, unknown>;
+  modelCatalogRefreshedAt?: string | null;
+}
+
+/**
+ * Detailed per-model entry returned by `inspect-ai-keys.modelOptionsDetailed`.
+ * Mirrors `CuratedModel` in `supabase/functions/_shared/aiTestModelCatalog.ts`.
+ * Only `id` is required — everything else is hint metadata that the UI
+ * surfaces as a badge next to the model name in the dropdown.
+ */
+export interface AITestModelOption {
+  id: string;
+  tier?: 'free' | 'paid' | 'unknown';
+  deprecated?: boolean;
+  hint?: string;
 }
 
 function isProvider(value: unknown): value is AITestProvider {

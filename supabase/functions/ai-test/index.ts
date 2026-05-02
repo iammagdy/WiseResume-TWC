@@ -10,7 +10,8 @@ import { wrapHandler } from '../_shared/fnLogger.ts';
 import {
   AI_TEST_DEFAULT_MODELS,
   isAITestProvider,
-  isAllowedAITestModel,
+  isAllowedAITestModelDynamic,
+  loadAITestModelCatalog,
   type AITestProvider,
 } from '../_shared/modelDefaults.ts';
 
@@ -35,11 +36,16 @@ async function resolveSlotTestModel(
   slot: 1 | 2 | 3,
   requestedModel: string | undefined,
 ): Promise<string> {
+  const db = getServiceClient();
+  // Catalog merges the dynamically-refreshed list with the hardcoded seed
+  // so a freshly-added model upstream is acceptable on the first call,
+  // and an admin's saved choice keeps validating until they pick a new one.
+  const catalog = await loadAITestModelCatalog(db);
+
   const requested = typeof requestedModel === 'string' ? requestedModel.trim() : '';
-  if (requested && isAllowedAITestModel(provider, requested)) return requested;
+  if (requested && isAllowedAITestModelDynamic(provider, requested, catalog)) return requested;
 
   try {
-    const db = getServiceClient();
     const { data } = await db
       .from('app_settings')
       .select('value')
@@ -48,7 +54,7 @@ async function resolveSlotTestModel(
     const v = data?.value;
     if (v && typeof v === 'object' && !Array.isArray(v)) {
       const saved = (v as Record<string, unknown>)[`${provider}:${slot}`];
-      if (typeof saved === 'string' && isAllowedAITestModel(provider, saved)) {
+      if (typeof saved === 'string' && isAllowedAITestModelDynamic(provider, saved, catalog)) {
         return saved;
       }
     }

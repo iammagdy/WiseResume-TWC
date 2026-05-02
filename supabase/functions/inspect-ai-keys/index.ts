@@ -4,9 +4,9 @@ import { getServiceClient } from '../_shared/dbClient.ts';
 import { wrapHandler } from '../_shared/fnLogger.ts';
 import {
   AI_TEST_DEFAULT_MODELS,
-  AI_TEST_MODEL_ALLOWLIST,
   isAITestProvider,
-  isAllowedAITestModel,
+  isAllowedAITestModelDynamic,
+  loadAITestModelCatalog,
   type AITestProvider,
 } from '../_shared/modelDefaults.ts';
 
@@ -158,11 +158,12 @@ Deno.serve(wrapHandler("inspect-ai-keys", async (req) => {
           return json({ success: false, error: 'invalid slot' }, 400);
         }
         const trimmed = typeof model === 'string' ? model.trim() : '';
-        if (!trimmed || !isAllowedAITestModel(provider, trimmed)) {
+        const catalog = await loadAITestModelCatalog(getServiceClient());
+        if (!trimmed || !isAllowedAITestModelDynamic(provider, trimmed, catalog)) {
           return json({
             success: false,
             error: 'model is not in the allow-list for this provider',
-            allowed: AI_TEST_MODEL_ALLOWLIST[provider],
+            allowed: catalog.allowlist[provider],
           }, 400);
         }
         let merged: Record<string, string>;
@@ -188,10 +189,15 @@ Deno.serve(wrapHandler("inspect-ai-keys", async (req) => {
     }
 
     // ── GET (default) / empty POST: inspect all 9 slots + return allow-list ─
-    const saved = await loadSavedSlotModels();
+    const [saved, catalog] = await Promise.all([
+      loadSavedSlotModels(),
+      loadAITestModelCatalog(getServiceClient()),
+    ]);
     const modelFor = (provider: AITestProvider, slot: 1 | 2 | 3): string => {
       const v = saved[slotKey(provider, slot)];
-      return v && isAllowedAITestModel(provider, v) ? v : AI_TEST_DEFAULT_MODELS[provider];
+      return v && isAllowedAITestModelDynamic(provider, v, catalog)
+        ? v
+        : AI_TEST_DEFAULT_MODELS[provider];
     };
 
     const keys: Array<{
@@ -252,10 +258,23 @@ Deno.serve(wrapHandler("inspect-ai-keys", async (req) => {
       });
     }
 
+    // Backward-compatible response: keep `modelOptions` as a flat string[]
+    // per provider so older frontend bundles keep working, AND add the
+    // richer `modelOptionsDetailed` payload (with tier / deprecated /
+    // hint) plus catalog freshness metadata for the new UI.
+    const modelOptions: Record<AITestProvider, string[]> = {
+      openrouter: catalog.allowlist.openrouter,
+      groq: catalog.allowlist.groq,
+      deepseek: catalog.allowlist.deepseek,
+    };
+
     return json({
       success: true,
       keys,
-      modelOptions: AI_TEST_MODEL_ALLOWLIST,
+      modelOptions,
+      modelOptionsDetailed: catalog.detailed,
+      modelCatalogRefreshedAt: catalog.lastRefreshedAt,
+      modelCatalogProviderMeta: catalog.providerMeta,
       defaultModels: AI_TEST_DEFAULT_MODELS,
       // Raw saved overrides (keys missing → slot is using provider default).
       // Lets shared frontend helpers correctly distinguish "saved override"

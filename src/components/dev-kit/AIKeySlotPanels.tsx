@@ -29,9 +29,24 @@ interface KeyEntry {
   envName?: string;
 }
 
+/**
+ * Detailed per-model option returned by `inspect-ai-keys.modelOptionsDetailed`.
+ * Older deployments only return the legacy `modelOptions: string[]`, so this
+ * panel falls back to deriving entries from that flat list when the detailed
+ * payload is absent (every entry just becomes `{ id }` with no badge).
+ */
+interface ModelOption {
+  id: string;
+  tier?: 'free' | 'paid' | 'unknown';
+  deprecated?: boolean;
+  hint?: string;
+}
+
 interface InspectResponse {
   keys?: KeyEntry[];
   modelOptions?: Partial<Record<Provider, string[]>>;
+  modelOptionsDetailed?: Partial<Record<Provider, ModelOption[]>>;
+  modelCatalogRefreshedAt?: string | null;
   defaultModels?: Partial<Record<Provider, string>>;
 }
 
@@ -49,7 +64,7 @@ interface KeySlotViewProps {
   entry: KeyEntry;
   result: TestResult | null;
   testing: boolean;
-  modelOptions: string[];
+  modelOptions: ModelOption[];
   saving: boolean;
   saveError: string | null;
   onTest: () => void;
@@ -90,11 +105,18 @@ function KeySlotView({
 
   // Always include the current model in the options list so a previously-saved
   // value that's no longer in the curated allow-list still renders correctly.
-  const dropdownOptions = useMemo(() => {
+  // Detailed metadata (tier / deprecated / hint) is preserved when present in
+  // `modelOptions`; the synthetic fallback for the current model has none.
+  const dropdownOptions = useMemo<ModelOption[]>(() => {
     const seen = new Set<string>();
-    const out: string[] = [];
-    for (const m of [entry.model, ...modelOptions]) {
-      if (m && !seen.has(m)) { seen.add(m); out.push(m); }
+    const out: ModelOption[] = [];
+    if (entry.model && !seen.has(entry.model)) {
+      seen.add(entry.model);
+      const matching = modelOptions.find(m => m.id === entry.model);
+      out.push(matching ?? { id: entry.model });
+    }
+    for (const m of modelOptions) {
+      if (m.id && !seen.has(m.id)) { seen.add(m.id); out.push(m); }
     }
     return out;
   }, [entry.model, modelOptions]);
@@ -150,8 +172,25 @@ function KeySlotView({
                 </SelectTrigger>
                 <SelectContent>
                   {dropdownOptions.map((m) => (
-                    <SelectItem key={m} value={m} className="text-xs font-mono">
-                      {m}
+                    <SelectItem key={m.id} value={m.id} className="text-xs font-mono">
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className={cn(m.deprecated && 'text-amber-600 dark:text-amber-400')}>
+                          {m.id}
+                        </span>
+                        {m.deprecated ? (
+                          <span className="rounded-sm bg-amber-500/15 text-amber-700 dark:text-amber-300 px-1 py-px text-[9px] font-medium tracking-wide uppercase">
+                            {m.hint || 'Deprecated'}
+                          </span>
+                        ) : m.tier === 'free' ? (
+                          <span className="rounded-sm bg-green-500/15 text-green-700 dark:text-green-300 px-1 py-px text-[9px] font-medium tracking-wide uppercase">
+                            Free
+                          </span>
+                        ) : m.tier === 'paid' ? (
+                          <span className="rounded-sm bg-muted text-muted-foreground px-1 py-px text-[9px] font-medium tracking-wide uppercase">
+                            Paid
+                          </span>
+                        ) : null}
+                      </span>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -249,7 +288,8 @@ function ProviderPanel({ provider }: ProviderPanelProps) {
   const [activeSlot, setActiveSlot] = useState<Slot>(1);
   const [keys, setKeys] = useState<KeyEntry[] | null>(null);
   const [modelOptionsByProvider, setModelOptionsByProvider] =
-    useState<Partial<Record<Provider, string[]>>>({});
+    useState<Partial<Record<Provider, ModelOption[]>>>({});
+  const [catalogRefreshedAt, setCatalogRefreshedAt] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [sessionExpired, setSessionExpired] = useState(false);
@@ -272,7 +312,21 @@ function ProviderPanel({ provider }: ProviderPanelProps) {
       const result = unwrapAdminResponse<InspectResponse>(tuple, 'inspect-ai-keys');
       if (!isMounted()) return;
       setKeys(result.keys ?? []);
-      if (result.modelOptions) setModelOptionsByProvider(result.modelOptions);
+      // Prefer the richer detailed payload (with tier / deprecated / hint).
+      // Fall back to the legacy `modelOptions: string[]` so older deployed
+      // edge bundles keep working — every entry just becomes `{ id }` with
+      // no badge metadata, which renders identically to the previous UI.
+      if (result.modelOptionsDetailed) {
+        setModelOptionsByProvider(result.modelOptionsDetailed);
+      } else if (result.modelOptions) {
+        const fallback: Partial<Record<Provider, ModelOption[]>> = {};
+        for (const [k, v] of Object.entries(result.modelOptions)) {
+          if (!Array.isArray(v)) continue;
+          fallback[k as Provider] = v.map(id => ({ id }));
+        }
+        setModelOptionsByProvider(fallback);
+      }
+      setCatalogRefreshedAt(result.modelCatalogRefreshedAt ?? null);
     } catch (e) {
       if (!isMounted()) return;
       if (e instanceof EdgeFunctionError && e.status === 401) {
@@ -440,6 +494,21 @@ function ProviderPanel({ provider }: ProviderPanelProps) {
   const slotKeyForActive = `${provider}:${activeSlot}`;
   const modelOptionsForProvider = modelOptionsByProvider[provider] ?? [];
 
+  // Format the catalog freshness as a relative phrase. Falls back to the
+  // raw ISO string when Intl.RelativeTimeFormat is unavailable, and shows
+  // a "never refreshed" hint when the scheduled job hasn't run yet.
+  const catalogFreshnessLabel = useMemo(() => {
+    if (!catalogRefreshedAt) return 'Model catalog: never refreshed (using seed list)';
+    const ts = Date.parse(catalogRefreshedAt);
+    if (!Number.isFinite(ts)) return `Model catalog refreshed at ${catalogRefreshedAt}`;
+    const ageMs = Date.now() - ts;
+    const ageHours = Math.floor(ageMs / 3_600_000);
+    if (ageHours < 1) return 'Model catalog refreshed less than an hour ago';
+    if (ageHours < 48) return `Model catalog refreshed ${ageHours}h ago`;
+    const ageDays = Math.floor(ageHours / 24);
+    return `Model catalog refreshed ${ageDays}d ago`;
+  }, [catalogRefreshedAt]);
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -451,6 +520,8 @@ function ProviderPanel({ provider }: ProviderPanelProps) {
           Refresh
         </Button>
       </div>
+
+      <div className="text-[10px] text-muted-foreground -mt-2">{catalogFreshnessLabel}</div>
 
       {loadError && (
         <div className="rounded-md bg-red-500/5 border border-red-500/20 p-3 text-xs text-red-600 dark:text-red-400 space-y-2">
