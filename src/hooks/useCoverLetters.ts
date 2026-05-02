@@ -159,6 +159,12 @@ export function useCoverLetterMutations() {
           tone: orig.tone,
           resume_id: orig.resume_id,
           resume_title: orig.resume_title,
+          // Preserve the chosen template style on the duplicate so the new
+          // row renders with the same look the user picked on the original
+          // (Task #28). Without this the duplicate would silently revert
+          // to the column default ('professional') and confuse users who
+          // had picked Modern / Compact / Creative.
+          ...(orig.template_style ? { template_style: orig.template_style } : {}),
         })
         .select()
         .single();
