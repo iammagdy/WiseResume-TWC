@@ -14,6 +14,9 @@ import { useResumes, dbToResumeData } from '@/hooks/useResumes';
 import { generateCoverLetter } from '@/lib/aiTailor';
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
+import { CoverLetterPreview } from '@/components/cover-letter/CoverLetterPreview';
+import { COVER_LETTER_TEMPLATE_OPTIONS } from '@/components/cover-letter/templates/registry';
+import { cn } from '@/lib/utils';
 
 
 import {
@@ -181,8 +184,84 @@ export default function CoverLetterEditPage() {
               autoFocus
             />
           ) : (
-            <div className="bg-card border border-border shadow-soft rounded-2xl p-5 text-sm whitespace-pre-wrap leading-relaxed min-h-[40vh]">
-              {content}
+            <CoverLetterPreview
+              templateStyle={letter.template_style}
+              title={letter.title || letter.job_title}
+              company={letter.company}
+              content={content}
+              createdAt={letter.created_at}
+              accentHex={
+                resumes && letter.resume_id
+                  ? dbToResumeData(resumes.find(r => r.id === letter.resume_id) || resumes[0]).customization?.accentColor
+                  : undefined
+              }
+            />
+          )}
+
+          {/* Template Style switcher */}
+          {!isEditing && (
+            <div className="mt-4">
+              <label
+                id="cover-letter-edit-style-label"
+                className="text-xs font-medium text-muted-foreground mb-1.5 block"
+              >
+                Style
+              </label>
+              <div
+                role="radiogroup"
+                aria-labelledby="cover-letter-edit-style-label"
+                className="grid grid-cols-2 sm:grid-cols-4 gap-2"
+              >
+                {COVER_LETTER_TEMPLATE_OPTIONS.map((t) => {
+                  // Normalise the persisted value for UI selection:
+                  //  - null / empty (legacy untagged) → Classic (matches the
+                  //    fallback renderer in <CoverLetterPreview>).
+                  //  - 'minimal' (legacy value, no longer in the picker) →
+                  //    Classic (matches the registry alias to ClassicTemplate
+                  //    so one tile is always selected and matches the preview).
+                  const raw = letter.template_style;
+                  const current = !raw || raw === 'minimal' ? 'professional' : raw;
+                  const selected = current === t.value;
+                  // Disable while a write is in flight to make rapid taps
+                  // idempotent even if `current` has not yet refetched.
+                  const writing = updateCoverLetter.isPending;
+                  return (
+                    <button
+                      key={t.value}
+                      type="button"
+                      role="radio"
+                      aria-checked={selected}
+                      aria-label={`Switch to ${t.label} cover letter template — ${t.description}`}
+                      disabled={writing && !selected}
+                      onClick={() => {
+                        // Idempotent: don't write when already on this style
+                        // or when a previous style mutation is still pending.
+                        if (selected || !id || writing) return;
+                        haptics.selection();
+                        updateCoverLetter.mutate({ id, template_style: t.value });
+                      }}
+                      className={cn(
+                        'py-2 px-2 rounded-xl text-xs font-medium transition-colors flex flex-col items-center gap-0.5 min-h-[44px]',
+                        'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                        'disabled:opacity-60 disabled:cursor-not-allowed',
+                        selected
+                          ? 'gradient-primary text-primary-foreground'
+                          : 'bg-card border border-border text-muted-foreground hover:bg-muted',
+                      )}
+                    >
+                      <span>{t.label}</span>
+                      <span
+                        className={cn(
+                          'text-[10px] leading-tight',
+                          selected ? 'text-primary-foreground/75' : 'text-muted-foreground/70',
+                        )}
+                      >
+                        {t.description}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>

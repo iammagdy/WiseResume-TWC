@@ -16,6 +16,8 @@ import { UpgradeWall } from '@/components/plan/UpgradeWall';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { useQueryClient } from '@tanstack/react-query';
 import type { TemplateStyle } from '@/lib/coverLetterPdfGenerator';
+import { COVER_LETTER_TEMPLATE_OPTIONS } from '@/components/cover-letter/templates/registry';
+import { CoverLetterPreview } from '@/components/cover-letter/CoverLetterPreview';
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
 
@@ -161,11 +163,7 @@ export default function CoverLetterNewPage() {
     { value: 'conversational', label: 'Conversational' },
   ];
 
-  const templateOptions: { value: TemplateStyle; label: string; description: string }[] = [
-    { value: 'professional', label: 'Professional', description: 'Blue accent bar, classic layout' },
-    { value: 'modern', label: 'Modern', description: 'Teal sidebar, two-column header' },
-    { value: 'minimal', label: 'Minimal', description: 'Clean whitespace, no decorations' },
-  ];
+  const templateOptions = COVER_LETTER_TEMPLATE_OPTIONS;
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 flex flex-col min-h-0 overflow-hidden">
@@ -242,27 +240,41 @@ export default function CoverLetterNewPage() {
 
           {/* Template Style */}
           <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Style</label>
-            <div className="flex gap-2">
-              {templateOptions.map((t) => (
-                <motion.button
-                  key={t.value}
-                  whileTap={{ scale: 0.93 }}
-                  style={{ touchAction: 'pan-y' }}
-                  onClick={() => { haptics.selection(); setTemplateStyle(t.value); }}
-                  className={cn(
-                    'flex-1 py-2.5 px-2 rounded-xl text-sm font-medium transition-colors active:scale-95 flex flex-col items-center gap-0.5',
-                    templateStyle === t.value
-                      ? 'gradient-primary text-primary-foreground'
-                      : 'bg-card border border-border text-muted-foreground'
-                  )}
-                >
-                  <span>{t.label}</span>
-                  <span className={cn('text-[10px] leading-tight', templateStyle === t.value ? 'text-primary-foreground/75' : 'text-muted-foreground/70')}>
-                    {t.description}
-                  </span>
-                </motion.button>
-              ))}
+            <label id="cover-letter-style-label" className="text-xs font-medium text-muted-foreground mb-1.5 block">
+              Style
+            </label>
+            <div role="radiogroup" aria-labelledby="cover-letter-style-label" className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {templateOptions.map((t) => {
+                const selected = templateStyle === t.value;
+                return (
+                  <motion.button
+                    key={t.value}
+                    whileTap={{ scale: 0.93 }}
+                    style={{ touchAction: 'pan-y' }}
+                    onClick={() => {
+                      // Idempotent: don't reapply when already selected.
+                      if (templateStyle === t.value) return;
+                      haptics.selection();
+                      setTemplateStyle(t.value as TemplateStyle);
+                    }}
+                    role="radio"
+                    aria-checked={selected}
+                    aria-label={`${t.label} cover letter template — ${t.description}`}
+                    className={cn(
+                      'py-2.5 px-2 rounded-xl text-sm font-medium transition-colors active:scale-95 flex flex-col items-center gap-0.5 min-h-[44px]',
+                      'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                      selected
+                        ? 'gradient-primary text-primary-foreground'
+                        : 'bg-card border border-border text-muted-foreground'
+                    )}
+                  >
+                    <span>{t.label}</span>
+                    <span className={cn('text-[10px] leading-tight', selected ? 'text-primary-foreground/75' : 'text-muted-foreground/70')}>
+                      {t.description}
+                    </span>
+                  </motion.button>
+                );
+              })}
             </div>
           </div>
 
@@ -312,8 +324,13 @@ export default function CoverLetterNewPage() {
               {isEditing ? (
                 <Textarea value={result} onChange={(e) => setResult(e.target.value)} rows={14} />
               ) : (
-                <div className="bg-background/50 rounded-xl p-4 text-sm whitespace-pre-wrap max-h-[400px] overflow-y-auto leading-relaxed">
-                  {result}
+                <div className="max-h-[480px] overflow-y-auto -mx-1 px-1">
+                  <CoverLetterPreview
+                    templateStyle={templateStyle}
+                    title={jobTitle || 'Cover Letter'}
+                    company={company || null}
+                    content={result}
+                  />
                 </div>
               )}
             </motion.div>

@@ -51,6 +51,18 @@ export const CoverLetterCard = memo(function CoverLetterCard({
     conversational: 'bg-secondary/10 text-secondary',
   };
 
+  // Map persisted template_style → user-facing label. Legacy 'minimal'
+  // rows are treated as Classic to match the registry alias. Null →
+  // hide the badge entirely so old letters look identical to before.
+  const styleLabels: Record<string, string> = {
+    professional: 'Classic',
+    minimal: 'Classic',
+    modern: 'Modern',
+    compact: 'Compact',
+    creative: 'Creative',
+  };
+  const styleLabel = letter.template_style ? styleLabels[letter.template_style] : null;
+
   return (
     <div className="relative overflow-hidden rounded-2xl">
       {/* Swipe backgrounds */}
@@ -108,10 +120,15 @@ export const CoverLetterCard = memo(function CoverLetterCard({
                 )}
               </p>
             )}
-            <div className="flex items-center gap-2 mt-1.5">
+            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
               <Badge variant="secondary" className={cn('text-[10px] px-1.5 py-0 h-5 capitalize', toneColors[letter.tone || 'professional'])}>
                 {letter.tone || 'professional'}
               </Badge>
+              {styleLabel && (
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 font-normal text-muted-foreground border-border/60">
+                  {styleLabel}
+                </Badge>
+              )}
             </div>
           </div>
           <Button

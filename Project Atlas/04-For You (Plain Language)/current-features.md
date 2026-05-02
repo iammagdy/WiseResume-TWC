@@ -1,6 +1,11 @@
 # What Wise Cloud Can Do Today
 
-**Last verified:** 2026-04-26 (Task #22)
+**Last verified:** 2026-05-02 (Task #28)
+
+## Pick a look for your cover letter (2026-05-02)
+**What was the situation:** Every generated cover letter came out in the same plain layout. There was no way to make a letter feel more polished, more compact, or more creative — and there was no way to change the look after the letter was saved.
+**What changed:** Four cover-letter styles are now available: **Classic** (the familiar plain serif look), **Modern** (sans-serif with a coloured header band), **Compact** (smaller text and tighter spacing for fitting on one page), and **Creative** (a two-column header with the recipient's address sitting beside yours). You pick the style on the "Generate" screen before creating a letter, and you can change it any time afterwards from the letter's edit screen — the preview updates instantly and the PDF download uses the same look. Cover letters created before today still display exactly as they did before; the new style picker only kicks in once you choose one. Each card in your cover letter list now shows a small badge with the chosen style so it's easy to tell them apart at a glance.
+**What you'll notice:** A row of four labelled tiles on both the "New cover letter" and "Edit cover letter" screens. Tapping a tile switches the preview to that style; the chosen style is saved and used for the PDF. Older letters display a no-badge, plain layout — no surprises.
 
 ## Email verification, welcome email & password reset (2026-04-26)
 **What was the situation:** Anyone who signed up with an email and password could immediately use the platform with zero confirmation that the email address was real. There was no welcome message when someone joined, and there was no "forgot my password" option that sent a branded email.
