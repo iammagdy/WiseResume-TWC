@@ -4,6 +4,7 @@ import { requireAdminAuth } from '../_shared/adminAuth.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 
 import { wrapHandler } from '../_shared/fnLogger.ts';
+import { checkResend } from './checkResend.ts';
 // ── admin-analytics types & helpers ──────────────────────────────────────────
 type Range = 'today' | '7d' | '30d' | '90d' | 'all';
 
@@ -226,38 +227,6 @@ async function checkAIProvider(
     return { provider: name, ok: resp.ok, latencyMs, httpStatus: resp.status };
   } catch {
     return { provider: name, ok: false, latencyMs: null, httpStatus: 0 };
-  }
-}
-
-async function checkResend(apiKey: string) {
-  if (!apiKey) return { reachable: false, httpStatus: 0, sends24h: null as number | null, reason: 'missing_key' as const };
-  try {
-    const resp = await fetch('https://api.resend.com/emails?limit=100', {
-      headers: { Authorization: `Bearer ${apiKey}` },
-      signal: AbortSignal.timeout(5000),
-    });
-    if (!resp.ok) {
-      // Detect a restricted (send-only) Resend API key — Mission Control
-      // can then render a friendly explanation instead of a vague 401.
-      if (resp.status === 401) {
-        try {
-          const txt = await resp.text();
-          const parsed = JSON.parse(txt) as { name?: string };
-          if (parsed.name === 'restricted_api_key') {
-            return { reachable: false, httpStatus: 401, sends24h: null, reason: 'restricted_key' as const };
-          }
-        } catch { /* not JSON — fall through */ }
-      }
-      return { reachable: false, httpStatus: resp.status, sends24h: null };
-    }
-    const body = await resp.json() as { data?: Array<{ created_at: string }> };
-    const cutoff = Date.now() - 86400_000;
-    const sends24h = (body.data ?? []).filter(
-      (e) => new Date(e.created_at).getTime() > cutoff,
-    ).length;
-    return { reachable: true, httpStatus: resp.status, sends24h };
-  } catch {
-    return { reachable: false, httpStatus: 0, sends24h: null };
   }
 }
 
