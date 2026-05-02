@@ -10,6 +10,7 @@ import { localParseResume } from "./localParser.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
 import { logger } from "../_shared/logger.ts";
+import { wrapHandler } from "../_shared/fnLogger.ts";
 const log = logger('parse-resume');
 
 
@@ -377,7 +378,7 @@ function computeFieldConfidence(data: any): { completeness: number; fieldConfide
   return { completeness: Math.round(completeness), fieldConfidence: fc };
 }
 
-serve(async (req) => {
+serve(wrapHandler("parse-resume", async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
 
   if (req.method === 'OPTIONS') {
@@ -993,7 +994,7 @@ serve(async (req) => {
       { status: userError.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
-});
+}));
 
 /**
  * Validate and fix misclassified fields (e.g. skills in location).

@@ -9,12 +9,13 @@ import { checkIpRateLimit } from "../_shared/rateLimiter.ts";
 import { logger } from "../_shared/logger.ts";
 import { verifySessionToken } from "../_shared/portfolioSession.ts";
 
+import { wrapHandler } from '../_shared/fnLogger.ts';
 const log = logger('ask-portfolio');
 
 // Public endpoint (no auth). Spend controls: HMAC session token, BYOK-only AI
 // key (no platform fallback), and atomic per-session/daily quota RPC.
 
-serve(async (req) => {
+serve(wrapHandler("ask-portfolio", async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get("origin"));
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -280,4 +281,4 @@ ${context}`;
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
-});
+}));

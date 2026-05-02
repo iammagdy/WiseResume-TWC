@@ -18,6 +18,7 @@ import { getCorsHeaders } from '../_shared/cors.ts';
 import { getServiceClient } from '../_shared/dbClient.ts';
 import { callAI, toUserError } from '../_shared/aiClient.ts';
 import { selectProviderForTool } from "../_shared/modelRouter.ts";
+import { wrapHandler } from '../_shared/fnLogger.ts';
 const __ROUTE = selectProviderForTool('wisehire-mask-cvs');
 
 const WISEHIRE_PAID_PLANS = ['wisehire_starter', 'wisehire_professional', 'wisehire_business', 'wisehire_enterprise'];
@@ -89,7 +90,7 @@ async function checkDailyLimit(
   return { allowed: true };
 }
 
-Deno.serve(async (req) => {
+Deno.serve(wrapHandler("wisehire-mask-cvs", async (req) => {
   const origin = req.headers.get('origin');
   const cors = getCorsHeaders(origin);
 
@@ -259,4 +260,4 @@ ${rawText}`;
     const { status, error: code, message } = toUserError(err);
     return json({ error: code, message }, status, cors);
   }
-});
+}));

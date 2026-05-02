@@ -2,6 +2,7 @@ import { getServiceClient } from '../_shared/dbClient.ts';
 import { requireAdminAuth } from '../_shared/adminAuth.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 
+import { wrapHandler } from '../_shared/fnLogger.ts';
 function json(data: unknown, status = 200, corsHeaders: Record<string, string> = {}) {
   return new Response(JSON.stringify(data), {
     status,
@@ -9,7 +10,7 @@ function json(data: unknown, status = 200, corsHeaders: Record<string, string> =
   });
 }
 
-Deno.serve(async (req) => {
+Deno.serve(wrapHandler("admin-wisehire-revoke-invite", async (req) => {
   const origin = req.headers.get('origin');
   const corsHeaders = getCorsHeaders(origin);
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
@@ -78,4 +79,4 @@ Deno.serve(async (req) => {
       corsHeaders,
     );
   }
-});
+}));

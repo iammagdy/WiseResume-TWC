@@ -2,6 +2,7 @@ import { getServiceClient } from '../_shared/dbClient.ts';
 import { requireAdminAuth } from '../_shared/adminAuth.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 
+import { wrapHandler } from '../_shared/fnLogger.ts';
 /** Per-plan daily AI credit limits.
  *  Free  → 5/day   (matches SetPlanModal description & useAICredits default)
  *  Pro   → 100/day (matches SetPlanModal description)
@@ -13,7 +14,7 @@ const PLAN_DAILY_LIMITS: Record<string, number> = {
   premium: -1,
 };
 
-Deno.serve(async (req) => {
+Deno.serve(wrapHandler("admin-set-plan", async (req) => {
   const origin = req.headers.get('origin');
   const corsHeaders = getCorsHeaders(origin);
   if (req.method === 'OPTIONS') {
@@ -195,4 +196,4 @@ Deno.serve(async (req) => {
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
-});
+}));

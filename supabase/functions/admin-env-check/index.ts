@@ -1,6 +1,7 @@
 import { requireAdminAuth } from '../_shared/adminAuth.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 
+import { wrapHandler } from '../_shared/fnLogger.ts';
 const REQUIRED_ENV_VARS: { key: string; label: string }[] = [
   { key: 'SUPABASE_URL', label: 'Supabase URL' },
   { key: 'SUPABASE_ANON_KEY', label: 'Supabase Anon Key' },
@@ -22,7 +23,7 @@ const REQUIRED_ENV_VARS: { key: string; label: string }[] = [
   { key: 'KINDE_M2M_CLIENT_SECRET', label: 'Kinde M2M Client Secret (admin-get-identity email lookup + admin-kinde-reconcile + wisehire-reset-user)' },
 ];
 
-Deno.serve(async (req) => {
+Deno.serve(wrapHandler("admin-env-check", async (req) => {
   const origin = req.headers.get('origin');
   const corsHeaders = getCorsHeaders(origin);
   if (req.method === 'OPTIONS') {
@@ -58,4 +59,4 @@ Deno.serve(async (req) => {
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   }
-});
+}));

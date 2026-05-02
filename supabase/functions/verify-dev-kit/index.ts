@@ -3,6 +3,7 @@
 // No TOTP / authenticator app required.
 import { getServiceClient } from '../_shared/dbClient.ts';
 
+import { wrapHandler } from '../_shared/fnLogger.ts';
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -95,7 +96,7 @@ function clientIp(req: Request): string | null {
 
 // ---------- Handler ----------
 
-Deno.serve(async (req) => {
+Deno.serve(wrapHandler("verify-dev-kit", async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -221,4 +222,4 @@ Deno.serve(async (req) => {
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
-});
+}));

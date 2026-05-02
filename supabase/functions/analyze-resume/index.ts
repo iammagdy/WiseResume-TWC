@@ -13,6 +13,7 @@ import { INDUSTRY_KEYWORDS, detectIndustryCategory } from "../_shared/industryKe
 import { getProfileContext } from "../_shared/profileContext.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
 import { logger } from "../_shared/logger.ts";
+import { wrapHandler } from '../_shared/fnLogger.ts';
 const log = logger('analyze-resume');
 
 
@@ -26,7 +27,7 @@ function safeSkillsString(skills: unknown): string {
   return skills.map(s => typeof s === 'string' ? s : (s as any)?.name || String(s)).join(', ') || 'Not provided';
 }
 
-serve(async (req) => {
+serve(wrapHandler("analyze-resume", async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
 
   if (req.method === 'OPTIONS') {
@@ -239,4 +240,4 @@ Provide analysis in this exact JSON format:
       { status: userError.status, headers: { ...getCorsHeaders(req.headers.get('origin')), "Content-Type": "application/json" } }
     );
   }
-});
+}));

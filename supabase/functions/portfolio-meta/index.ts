@@ -2,6 +2,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { isMaliciousBot, isKnownCrawler, botBlockedResponse } from '../_shared/botGuard.ts';
 import { checkIpRateLimit } from '../_shared/rateLimiter.ts';
 
+import { wrapHandler } from '../_shared/fnLogger.ts';
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
@@ -16,7 +17,7 @@ function escapeHtml(str: string): string {
     .replace(/'/g, '&#39;');
 }
 
-Deno.serve(async (req: Request) => {
+Deno.serve(wrapHandler("portfolio-meta", async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -181,4 +182,4 @@ Deno.serve(async (req: Request) => {
       headers: corsHeaders,
     });
   }
-});
+}));

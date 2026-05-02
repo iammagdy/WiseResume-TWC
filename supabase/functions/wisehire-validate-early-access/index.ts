@@ -2,6 +2,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.49.1";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { isMaliciousBot, botBlockedResponse } from "../_shared/botGuard.ts";
 
+import { wrapHandler } from '../_shared/fnLogger.ts';
 function json(data: unknown, status = 200, corsHeaders: Record<string, string> = {}) {
   return new Response(JSON.stringify(data), {
     status,
@@ -9,7 +10,7 @@ function json(data: unknown, status = 200, corsHeaders: Record<string, string> =
   });
 }
 
-Deno.serve(async (req) => {
+Deno.serve(wrapHandler("wisehire-validate-early-access", async (req) => {
   const origin = req.headers.get("origin");
   const corsHeaders = getCorsHeaders(origin);
 
@@ -76,4 +77,4 @@ Deno.serve(async (req) => {
     console.error("[wisehire-validate-early-access] unhandled error:", err);
     return json({ valid: false, error: "Internal server error" }, 500, corsHeaders);
   }
-});
+}));

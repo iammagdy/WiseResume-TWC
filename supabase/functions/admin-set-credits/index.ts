@@ -4,7 +4,8 @@ import { getCorsHeaders } from '../_shared/cors.ts';
 import { addContact, removeContact } from '../_shared/resendAudiences.ts';
 import { getAudienceId, AUDIENCE_KEYS } from '../_shared/resendConfig.ts';
 
-Deno.serve(async (req) => {
+import { wrapHandler } from '../_shared/fnLogger.ts';
+Deno.serve(wrapHandler("admin-set-credits", async (req) => {
   const origin = req.headers.get('origin');
   const corsHeaders = getCorsHeaders(origin);
   if (req.method === 'OPTIONS') {
@@ -170,4 +171,4 @@ Deno.serve(async (req) => {
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
-});
+}));

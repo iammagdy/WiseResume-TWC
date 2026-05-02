@@ -13,6 +13,7 @@ import { getCorsHeaders } from '../_shared/cors.ts';
 import { escapeHtml } from '../_shared/htmlEscape.ts';
 import { requireCronSecret } from '../_shared/webhookAuth.ts';
 
+import { wrapHandler } from '../_shared/fnLogger.ts';
 const WISEHIRE_BLUE = '#1D4ED8';
 
 function json(data: unknown, status = 200, corsHeaders: Record<string, string> = {}) {
@@ -136,7 +137,7 @@ function buildReminderEmail(recipientEmail: string, inviteUrl: string, expiresAt
 </html>`;
 }
 
-Deno.serve(async (req) => {
+Deno.serve(wrapHandler("wisehire-invite-reminder", async (req) => {
   const origin = req.headers.get('origin');
   const corsHeaders = getCorsHeaders(origin);
 
@@ -301,4 +302,4 @@ Deno.serve(async (req) => {
       corsHeaders,
     );
   }
-});
+}));

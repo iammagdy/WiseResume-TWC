@@ -10,6 +10,7 @@ import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
 import { logger } from "../_shared/logger.ts";
+import { wrapHandler } from '../_shared/fnLogger.ts';
 const log = logger('explain-gap');
 
 
@@ -35,7 +36,7 @@ const reasonLabels: Record<string, string> = {
 
 const MAX_CONTEXT_LENGTH = 2000;
 
-serve(async (req) => {
+serve(wrapHandler("explain-gap", async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get("origin"));
 
   if (req.method === "OPTIONS") {
@@ -171,4 +172,4 @@ serve(async (req) => {
       { status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
-});
+}));

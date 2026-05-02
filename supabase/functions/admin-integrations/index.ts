@@ -1,6 +1,7 @@
 import { requireAdminAuth } from '../_shared/adminAuth.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 
+import { wrapHandler } from '../_shared/fnLogger.ts';
 function json(data: unknown, status = 200, cors: Record<string, string> = {}) {
   return new Response(JSON.stringify(data), {
     status,
@@ -8,7 +9,7 @@ function json(data: unknown, status = 200, cors: Record<string, string> = {}) {
   });
 }
 
-Deno.serve(async (req) => {
+Deno.serve(wrapHandler("admin-integrations", async (req) => {
   const origin = req.headers.get('origin');
   const cors = getCorsHeaders(origin);
 
@@ -160,4 +161,4 @@ Deno.serve(async (req) => {
   }
 
   return json({ success: false, error: `Unknown action: ${action}` }, 400, cors);
-});
+}));

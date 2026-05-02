@@ -19,6 +19,7 @@ import { selectProviderForTool } from "../_shared/modelRouter.ts";
 const __ROUTE = selectProviderForTool('wisehire-write-jd');
 import { checkRateLimit } from '../_shared/rateLimiter.ts';
 
+import { wrapHandler } from '../_shared/fnLogger.ts';
 const WISEHIRE_PAID_PLANS = ['wisehire_starter', 'wisehire_professional', 'wisehire_business', 'wisehire_enterprise'];
 const STARTER_JD_DAILY_LIMIT = 10;
 
@@ -29,7 +30,7 @@ function json(data: unknown, status = 200, cors: Record<string, string> = {}) {
   });
 }
 
-Deno.serve(async (req) => {
+Deno.serve(wrapHandler("wisehire-write-jd", async (req) => {
   const origin = req.headers.get('origin');
   const cors = getCorsHeaders(origin);
 
@@ -183,4 +184,4 @@ Return a JSON object with exactly these fields:
     const { status, error: code, message } = toUserError(err);
     return json({ error: code, message }, status, getCorsHeaders(origin));
   }
-});
+}));

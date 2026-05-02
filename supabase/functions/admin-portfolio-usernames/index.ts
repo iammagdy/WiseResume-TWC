@@ -2,6 +2,7 @@ import { getServiceClient } from '../_shared/dbClient.ts';
 import { requireAdminAuth } from '../_shared/adminAuth.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 
+import { wrapHandler } from '../_shared/fnLogger.ts';
 type AnyRec = Record<string, unknown>;
 
 function json(body: AnyRec, status: number, corsHeaders: Record<string, string>) {
@@ -34,7 +35,7 @@ async function writeAudit(
   }
 }
 
-Deno.serve(async (req) => {
+Deno.serve(wrapHandler("admin-portfolio-usernames", async (req) => {
   const origin = req.headers.get('origin');
   const corsHeaders = getCorsHeaders(origin);
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
@@ -567,4 +568,4 @@ Deno.serve(async (req) => {
     const message = err instanceof Error ? err.message : String(err);
     return json({ success: false, error: message }, 500, corsHeaders);
   }
-});
+}));

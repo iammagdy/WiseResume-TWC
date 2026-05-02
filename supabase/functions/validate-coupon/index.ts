@@ -2,6 +2,7 @@ import { getCorsHeaders } from '../_shared/cors.ts';
 import { getServiceClient } from '../_shared/dbClient.ts';
 import { requireAuth } from '../_shared/authMiddleware.ts';
 
+import { wrapHandler } from '../_shared/fnLogger.ts';
 const PLAN_TIER: Record<string, number> = { free: 0, pro: 1, premium: 2 };
 
 /** Computes the user's effective plan, accounting for active trials. */
@@ -12,7 +13,7 @@ function effectivePlan(planName: string | null, trialPlan: string | null, trialE
   return planName ?? 'free';
 }
 
-Deno.serve(async (req) => {
+Deno.serve(wrapHandler("validate-coupon", async (req) => {
   const origin = req.headers.get('origin');
   const corsHeaders = getCorsHeaders(origin);
 
@@ -175,4 +176,4 @@ Deno.serve(async (req) => {
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
-});
+}));

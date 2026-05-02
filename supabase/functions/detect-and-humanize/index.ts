@@ -9,6 +9,7 @@ import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
 import { logger } from "../_shared/logger.ts";
+import { wrapHandler } from '../_shared/fnLogger.ts';
 const log = logger('detect-and-humanize');
 
 
@@ -20,7 +21,7 @@ interface DetectAndHumanizeRequest {
 
 const MAX_TEXT_LENGTH = 50000;
 
-Deno.serve(async (req) => {
+Deno.serve(wrapHandler("detect-and-humanize", async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
 
   if (req.method === 'OPTIONS') {
@@ -187,4 +188,4 @@ Return a JSON object:
       { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
-});
+}));

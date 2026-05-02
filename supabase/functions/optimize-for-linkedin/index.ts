@@ -9,6 +9,7 @@ import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
 import { logger } from "../_shared/logger.ts";
+import { wrapHandler } from '../_shared/fnLogger.ts';
 const log = logger('optimize-for-linkedin');
 
 
@@ -66,7 +67,7 @@ function safeSkillsString(skills: unknown): string {
   return skills.map(s => typeof s === 'string' ? s : (s as any)?.name || String(s)).join(', ') || 'Not listed';
 }
 
-Deno.serve(async (req) => {
+Deno.serve(wrapHandler("optimize-for-linkedin", async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
 
   if (req.method === 'OPTIONS') {
@@ -226,4 +227,4 @@ Generate a comprehensive LinkedIn optimization package.`;
       { status: userError.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
-});
+}));

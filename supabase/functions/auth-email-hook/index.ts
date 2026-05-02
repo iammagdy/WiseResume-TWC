@@ -36,6 +36,7 @@ import { MagicLinkEmail } from '../_shared/email-templates/magic-link.tsx'
 import { RecoveryEmail } from '../_shared/email-templates/recovery.tsx'
 import { EmailChangeEmail } from '../_shared/email-templates/email-change.tsx'
 import { ReauthenticationEmail } from '../_shared/email-templates/reauthentication.tsx'
+import { wrapHandler } from '../_shared/fnLogger.ts';
 // This hook is called server-to-server by Supabase Auth internals; CORS is not
 // enforced by browsers for these calls. The restricted origin list below prevents
 // any browser-based cross-origin access to this endpoint.
@@ -323,7 +324,7 @@ async function handleWebhook(req: Request): Promise<Response> {
   }
 }
 
-Deno.serve(async (req) => {
+Deno.serve(wrapHandler("auth-email-hook", async (req) => {
   const url = new URL(req.url)
   const hookCors = getHookCorsHeaders(req.headers.get('origin'))
 
@@ -348,4 +349,4 @@ Deno.serve(async (req) => {
       headers: { ...hookCors, 'Content-Type': 'application/json' },
     })
   }
-})
+}))

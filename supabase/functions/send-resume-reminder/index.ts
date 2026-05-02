@@ -12,7 +12,8 @@ import { getCorsHeaders } from '../_shared/cors.ts';
 import { requireCronSecret } from '../_shared/webhookAuth.ts';
 import { createClient } from "npm:@supabase/supabase-js@2.49.1";
 
-Deno.serve(async (req) => {
+import { wrapHandler } from '../_shared/fnLogger.ts';
+Deno.serve(wrapHandler("send-resume-reminder", async (req) => {
   const origin = req.headers.get('origin');
   const corsHeaders = getCorsHeaders(origin);
 
@@ -91,4 +92,4 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
-});
+}));

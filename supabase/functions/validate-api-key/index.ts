@@ -12,7 +12,8 @@ import { getCorsHeaders } from '../_shared/cors.ts';
 import { requireAuth } from '../_shared/authMiddleware.ts';
 import { pingProvider, SUPPORTED_PROVIDERS } from '../_shared/providers.ts';
 
-serve(async (req) => {
+import { wrapHandler } from '../_shared/fnLogger.ts';
+serve(wrapHandler("validate-api-key", async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -53,4 +54,4 @@ serve(async (req) => {
     console.error('[validate-api-key]', err);
     return json({ ok: false, error: (err as Error).message ?? 'Internal error', latencyMs: 0 }, 500);
   }
-});
+}));

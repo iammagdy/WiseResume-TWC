@@ -10,6 +10,7 @@ import { getServiceClient } from "../_shared/dbClient.ts";
 import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
 import { logger } from "../_shared/logger.ts";
+import { wrapHandler } from '../_shared/fnLogger.ts';
 const log = logger('tailor-section');
 
 
@@ -27,7 +28,7 @@ const VALID_SECTIONS = new Set([
   'summary', 'skills', 'experience', 'education', 'projects', 'certifications', 'awards',
 ]);
 
-serve(async (req) => {
+serve(wrapHandler("tailor-section", async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
 
   if (req.method === 'OPTIONS') {
@@ -236,4 +237,4 @@ Return this exact JSON:
       { status: userError.status, headers: { ...getCorsHeaders(req.headers.get('origin')), 'Content-Type': 'application/json' } }
     );
   }
-});
+}));

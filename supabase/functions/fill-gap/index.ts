@@ -10,6 +10,7 @@ import { checkPayloadSize } from "../_shared/requestUtils.ts";
 import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { logger } from "../_shared/logger.ts";
+import { wrapHandler } from '../_shared/fnLogger.ts';
 const log = logger('fill-gap');
 
 
@@ -30,7 +31,7 @@ const categoryLabels: Record<string, string> = {
   other: "Other",
 };
 
-serve(async (req) => {
+serve(wrapHandler("fill-gap", async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get("origin"));
 
   if (req.method === "OPTIONS") {
@@ -178,4 +179,4 @@ FACTUAL CONSTRAINTS:
       { status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
-});
+}));

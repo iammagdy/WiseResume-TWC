@@ -3,6 +3,7 @@ import { getServiceClient } from '../_shared/dbClient.ts';
 import { requireAdminAuth } from '../_shared/adminAuth.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 
+import { wrapHandler } from '../_shared/fnLogger.ts';
 // ── admin-analytics types & helpers ──────────────────────────────────────────
 type Range = 'today' | '7d' | '30d' | '90d' | 'all';
 
@@ -259,7 +260,7 @@ interface GitHubCommitResponse {
 }
 
 // ── Main handler ──────────────────────────────────────────────────────────────
-Deno.serve(async (req) => {
+Deno.serve(wrapHandler("admin-devkit-data", async (req) => {
   const origin = req.headers.get('origin');
   const corsHeaders = getCorsHeaders(origin);
   if (req.method === 'OPTIONS') {
@@ -811,6 +812,7 @@ Deno.serve(async (req) => {
       const githubRepo = Deno.env.get('GITHUB_REPO') ?? '';
       const resendKey = Deno.env.get('RESEND_API_KEY') ?? '';
       const openrouterKey = Deno.env.get('OPENROUTER_KEY_1') ?? Deno.env.get('OPENROUTER_KEY_2') ?? Deno.env.get('OPENROUTER_KEY_3') ?? '';
+      const openrouterKey2 = Deno.env.get('OPENROUTER_KEY_2') ?? '';
       const groqKey = Deno.env.get('GROQ_KEY_1') ?? Deno.env.get('GROQ_KEY_2') ?? Deno.env.get('GROQ_KEY_3') ?? '';
       const deepseekKey = Deno.env.get('DEEPSEEK_KEY') ?? Deno.env.get('DEEPSEEK_KEY_1') ?? Deno.env.get('DEEPSEEK_KEY_2') ?? Deno.env.get('DEEPSEEK_KEY_3') ?? '';
       const openrouterSlotsConfigured = [1, 2, 3].filter(n => !!Deno.env.get(`OPENROUTER_KEY_${n}`)?.trim()).length;
@@ -822,11 +824,36 @@ Deno.serve(async (req) => {
       ].filter(Boolean).length;
       const productionUrl = Deno.env.get('PRODUCTION_URL') ?? 'https://resume.thewise.cloud';
 
+      // Detect dev environment: deployed Supabase Edge Functions set DENO_DEPLOYMENT_ID.
+      // When absent (e.g. local Supabase CLI / Replit dev), we treat it as dev.
+      const isDevEnvironment = !Deno.env.get('DENO_DEPLOYMENT_ID');
+
+      // Source classifier — matches the frontend SecretItem.source contract.
+      // - Bootstrap secrets (Supabase platform + DevKit gate) live in the Supabase vault in every environment.
+      // - Provider/integration secrets live in the Supabase vault in production but in Replit env in dev.
+      // - Anything else is informational only ('optional') so it doesn't inflate missingCount.
+      const SUPABASE_VAULT_ALWAYS = new Set(['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY', 'DEV_KIT_PASSWORD']);
+      const ENV_DEPENDENT = new Set([
+        'KINDE_DOMAIN',
+        'OPENROUTER_KEY_1', 'OPENROUTER_KEY_2', 'OPENROUTER_KEY_3',
+        'GROQ_KEY_1', 'GROQ_KEY_2', 'GROQ_KEY_3',
+        'DEEPSEEK_KEY', 'DEEPSEEK_KEY_1', 'DEEPSEEK_KEY_2', 'DEEPSEEK_KEY_3',
+        'RESEND_API_KEY',
+        'GITHUB_TOKEN', 'GITHUB_OWNER', 'GITHUB_REPO',
+        'KINDE_WEBHOOK_SECRET', 'KINDE_M2M_CLIENT_ID', 'KINDE_M2M_CLIENT_SECRET',
+        'ADMIN_EMAILS',
+      ]);
+      const classifySecretSource = (key: string): 'replit_env' | 'supabase_vault' | 'optional' => {
+        if (SUPABASE_VAULT_ALWAYS.has(key)) return 'supabase_vault';
+        if (ENV_DEPENDENT.has(key)) return isDevEnvironment ? 'replit_env' : 'supabase_vault';
+        return 'optional';
+      };
+
       const now = new Date();
       const oneHourAgo = new Date(now.getTime() - 3600_000).toISOString();
 
       const [
-        githubResult, productionSiteResult, openrouterPingResult, groqPingResult,
+        githubResult, productionSiteResult, openrouterPingResult, openrouter2PingResult, groqPingResult,
         deepseekPingResult, resendResult, dbResult, errorCountResult,
         errorsResult, auditActionsResult, secretsMetaResult,
       ] = await Promise.allSettled([
@@ -835,6 +862,7 @@ Deno.serve(async (req) => {
           : Promise.resolve({ ok: false, lastCommitAt: null, sha: null, branch: 'main' }),
         checkProductionSite(productionUrl),
         checkAIProvider('openrouter', 'https://openrouter.ai/api/v1/models?limit=1', openrouterKey),
+        checkAIProvider('openrouter2', 'https://openrouter.ai/api/v1/models?limit=1', openrouterKey2),
         checkAIProvider('groq', 'https://api.groq.com/openai/v1/models', groqKey),
         checkAIProvider('deepseek', 'https://api.deepseek.com/v1/models', deepseekKey),
         checkResend(resendKey),
@@ -882,12 +910,14 @@ Deno.serve(async (req) => {
           ...check, lastRotatedAt,
           stale: daysSinceRotation !== null && daysSinceRotation >= STALE_DAYS,
           daysSinceRotation,
+          source: classifySecretSource(check.key),
         };
       });
 
       const github = githubResult.status === 'fulfilled' ? githubResult.value : { ok: false, lastCommitAt: null, sha: null, branch: 'main' };
       const prodSite = productionSiteResult.status === 'fulfilled' ? productionSiteResult.value : { up: false, httpStatus: 0 };
       const orPing = openrouterPingResult.status === 'fulfilled' ? openrouterPingResult.value : { provider: 'openrouter', ok: false, latencyMs: null, httpStatus: 0 };
+      const or2Ping = openrouter2PingResult.status === 'fulfilled' ? openrouter2PingResult.value : { provider: 'openrouter2', ok: false, latencyMs: null, httpStatus: 0 };
       const groqPing = groqPingResult.status === 'fulfilled' ? groqPingResult.value : { provider: 'groq', ok: false, latencyMs: null, httpStatus: 0 };
       const deepseekPing = deepseekPingResult.status === 'fulfilled' ? deepseekPingResult.value : { provider: 'deepseek', ok: false, latencyMs: null, httpStatus: 0 };
       const emailStatus = resendResult.status === 'fulfilled' ? resendResult.value : { reachable: false, httpStatus: 0, sends24h: null };
@@ -900,16 +930,27 @@ Deno.serve(async (req) => {
       let recentAdminActions: unknown[] = [];
       if (auditActionsResult.status === 'fulfilled' && !auditActionsResult.value.error) recentAdminActions = auditActionsResult.value.data ?? [];
 
-      const providerPings = [orPing, groqPing, deepseekPing];
+      // Include OR2 in providerPings only when an OPENROUTER_KEY_2 is actually configured,
+      // so the panel doesn't show a perpetual "OR2: unreachable" badge when the slot is unused.
+      const providerPings = openrouterKey2
+        ? [orPing, or2Ping, groqPing, deepseekPing]
+        : [orPing, groqPing, deepseekPing];
       const anyProviderOk = providerPings.some(p => p.ok);
       const allProvidersOk = providerPings.filter(p =>
         (p.provider === 'openrouter' && !!openrouterKey) ||
+        (p.provider === 'openrouter2' && !!openrouterKey2) ||
         (p.provider === 'groq' && !!groqKey) ||
         (p.provider === 'deepseek' && !!deepseekKey)
       ).every(p => p.ok);
 
+      // Vault-presence flags drive the panel's degraded-but-OK ("yellow") state when
+      // local pings fail but the keys are actually present in the Edge Function env.
+      const aiKeysInVault = !!(openrouterKey || groqKey || deepseekKey);
+      const emailKeyInVault = !!resendKey;
+
       return new Response(JSON.stringify({
         success: true,
+        isDevEnvironment,
         checkedAt: now.toISOString(),
         deploy: {
           ok: github.ok, lastCommitAt: github.lastCommitAt, sha: github.sha, branch: github.branch,
@@ -919,13 +960,26 @@ Deno.serve(async (req) => {
         },
         ai: {
           providerPings, openrouterConfigured: openrouterSlotsConfigured > 0, openrouterSlotsConfigured,
+          openrouter2Configured: !!openrouterKey2,
           groqConfigured: groqSlotsConfigured > 0, groqSlotsConfigured,
           deepseekConfigured: deepseekSlotsConfigured > 0, deepseekSlotsConfigured,
           anyProviderOk, allProvidersOk,
+          keysInSupabaseVault: aiKeysInVault,
         },
-        email: { resendKeyPresent: !!resendKey, reachable: emailStatus.reachable, httpStatus: emailStatus.httpStatus, sends24h: emailStatus.sends24h },
+        email: {
+          resendKeyPresent: !!resendKey, reachable: emailStatus.reachable, httpStatus: emailStatus.httpStatus, sends24h: emailStatus.sends24h,
+          keyInSupabaseVault: emailKeyInVault,
+        },
         database: { ok: dbOk, error: dbError, errorCount1h },
-        secrets: { items: secretsWithAge, missingCount: secretsWithAge.filter(s => !s.present).length, staleCount: secretsWithAge.filter(s => s.stale).length },
+        secrets: {
+          items: secretsWithAge,
+          // Match the panel's visible "missing secrets" list filter exactly
+          // (MissionControlPanel.tsx line 578: !present && source === 'replit_env').
+          // Vault-only secrets are not user-actionable from this UI, and 'optional'
+          // ones are informational, so neither contributes to missingCount.
+          missingCount: secretsWithAge.filter(s => !s.present && s.source === 'replit_env').length,
+          staleCount: secretsWithAge.filter(s => s.stale).length,
+        },
         recentErrors, recentAdminActions,
       }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     } catch (err) {
@@ -1009,4 +1063,4 @@ Deno.serve(async (req) => {
     JSON.stringify({ success: false, error: `Unknown action: ${action}. Valid values: analytics | observability | live-activity | mission-control | github-status` }),
     { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
   );
-});
+}));

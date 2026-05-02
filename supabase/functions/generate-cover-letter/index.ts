@@ -12,6 +12,7 @@ import { getServiceClient } from "../_shared/dbClient.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
 import { insertCoverLetter } from "../_shared/letterPersistence.ts";
 import { logger } from "../_shared/logger.ts";
+import { wrapHandler } from '../_shared/fnLogger.ts';
 const log = logger('generate-cover-letter');
 
 
@@ -22,7 +23,7 @@ const MAX_RESUME_SIZE = 100 * 1024;
 const MAX_JOB_DESCRIPTION_SIZE = 50 * 1024;
 const VALID_TONES = ['professional', 'enthusiastic', 'conversational'];
 
-serve(async (req) => {
+serve(wrapHandler("generate-cover-letter", async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
 
   if (req.method === 'OPTIONS') {
@@ -242,4 +243,4 @@ ${jobDescription}
       { status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
-});
+}));

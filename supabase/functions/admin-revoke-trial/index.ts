@@ -3,7 +3,8 @@ import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { requireAdminAuth } from '../_shared/adminAuth.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 
-serve(async (req) => {
+import { wrapHandler } from '../_shared/fnLogger.ts';
+serve(wrapHandler("admin-revoke-trial", async (req) => {
   const origin = req.headers.get('origin');
   const corsHeaders = getCorsHeaders(origin);
   if (req.method === 'OPTIONS') {
@@ -56,4 +57,4 @@ serve(async (req) => {
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   }
-});
+}));

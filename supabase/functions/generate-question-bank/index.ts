@@ -10,10 +10,11 @@ import { checkAndDeductCredit, refundCredit } from '../_shared/creditUtils.ts';
 import { getServiceClient } from '../_shared/dbClient.ts';
 import { checkPayloadSize } from '../_shared/requestUtils.ts';
 import { logger } from '../_shared/logger.ts';
+import { wrapHandler } from '../_shared/fnLogger.ts';
 const log = logger('generate-question-bank');
 
 
-serve(async (req) => {
+serve(wrapHandler("generate-question-bank", async (req) => {
   const origin = req.headers.get('origin');
   const corsHeaders = getCorsHeaders(origin);
 
@@ -170,4 +171,4 @@ ${resumeSummary ? `Candidate Summary: ${resumeSummary.slice(0, 1000)}` : ''}`;
       { status: userErr.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
-});
+}));

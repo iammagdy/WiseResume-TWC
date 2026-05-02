@@ -8,6 +8,7 @@ import { requireAuth } from "../_shared/authMiddleware.ts";
 import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
 import { logger } from "../_shared/logger.ts";
+import { wrapHandler } from '../_shared/fnLogger.ts';
 const log = logger('one-page-optimizer');
 
 
@@ -183,7 +184,7 @@ function validateOnePageSchema(raw: unknown): { ok: true; value: OnePageResult }
   return { ok: true, value };
 }
 
-Deno.serve(async (req) => {
+Deno.serve(wrapHandler("one-page-optimizer", async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
   const t0 = Date.now();
 
@@ -422,4 +423,4 @@ Return ONLY a JSON object with this EXACT structure (no markdown, no code fences
       { status: userError.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
-});
+}));

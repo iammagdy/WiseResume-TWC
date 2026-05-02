@@ -3,6 +3,7 @@ import { getServiceClient } from '../_shared/dbClient.ts';
 import { requireAuth, AuthError, authErrorResponse } from '../_shared/authMiddleware.ts';
 import { checkRateLimit, getUserPlan } from '../_shared/rateLimiter.ts';
 
+import { wrapHandler } from '../_shared/fnLogger.ts';
 const AI_DRAFT_SYSTEM = `You are a professional recruiter writing a concise outreach email to a candidate.
 Rules: friendly yet professional tone, 3–5 sentences, no generic filler, personalise using the candidate name and role title provided, end with a clear call to action.
 Output ONLY the email body (no subject line, no signature).`;
@@ -14,7 +15,7 @@ function json(data: unknown, status = 200, cors: Record<string, string> = {}) {
   });
 }
 
-Deno.serve(async (req) => {
+Deno.serve(wrapHandler("wisehire-send-outreach", async (req) => {
   const origin = req.headers.get('origin');
   const cors = getCorsHeaders(origin);
 
@@ -184,4 +185,4 @@ Deno.serve(async (req) => {
     console.error('[wisehire-send-outreach]', err);
     return json({ error: 'Internal error' }, 500, getCorsHeaders(origin));
   }
-});
+}));

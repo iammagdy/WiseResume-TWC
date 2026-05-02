@@ -44,6 +44,7 @@ import { getCorsHeaders } from '../_shared/cors.ts';
 import { encrypt, decrypt } from '../_shared/encryption.ts';
 import { escapeHtml } from '../_shared/htmlEscape.ts';
 
+import { wrapHandler } from '../_shared/fnLogger.ts';
 // ---------- TOTP helpers ----------
 
 function base32Encode(bytes: Uint8Array): string {
@@ -355,7 +356,7 @@ const ISSUER = 'WiseResume';
 
 const BOOTSTRAP_ACTIONS = new Set(['bootstrap_status', 'bootstrap_request', 'bootstrap_confirm']);
 
-Deno.serve(async (req) => {
+Deno.serve(wrapHandler("admin-rotate-totp", async (req) => {
   const origin = req.headers.get('origin');
   const corsHeaders = getCorsHeaders(origin);
 
@@ -627,7 +628,7 @@ Deno.serve(async (req) => {
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
-});
+}));
 
 // ---------- Bootstrap handler (no admin session) ----------
 

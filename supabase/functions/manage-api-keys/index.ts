@@ -16,7 +16,8 @@ import { getServiceClient } from '../_shared/dbClient.ts';
 import { encrypt, maskKey } from '../_shared/encryption.ts';
 import { SUPPORTED_PROVIDERS } from '../_shared/providers.ts';
 
-serve(async (req) => {
+import { wrapHandler } from '../_shared/fnLogger.ts';
+serve(wrapHandler("manage-api-keys", async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -143,4 +144,4 @@ serve(async (req) => {
     console.error('[manage-api-keys]', err);
     return json({ error: 'Internal server error', message: (err as Error).message }, 500);
   }
-});
+}));

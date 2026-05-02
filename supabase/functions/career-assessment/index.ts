@@ -10,6 +10,7 @@ import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
 import { logger } from "../_shared/logger.ts";
+import { wrapHandler } from '../_shared/fnLogger.ts';
 const log = logger('career-assessment');
 
 
@@ -18,7 +19,7 @@ const MAX_BODY_SIZE = 150 * 1024;
 const safeSkillsString = (skills: any[] | undefined | null): string =>
   (skills || []).map((s: any) => (typeof s === 'string' ? s : s?.name || '')).filter(Boolean).join(', ');
 
-Deno.serve(async (req: Request) => {
+Deno.serve(wrapHandler("career-assessment", async (req: Request) => {
   const corsHeaders = getCorsHeaders(req.headers.get("origin"));
 
   if (req.method === "OPTIONS") {
@@ -198,4 +199,4 @@ ${resume.certifications?.map((c: any) => `- ${c.name} from ${c.issuer}`).join("\
       { status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
-});
+}));

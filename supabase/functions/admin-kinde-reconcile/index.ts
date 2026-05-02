@@ -38,6 +38,7 @@ import { getServiceClient } from '../_shared/dbClient.ts';
 import { requireAdminAuth } from '../_shared/adminAuth.ts';
 import { provisionUser, kindeSubToUserId, ProvisionError } from '../_shared/provisionUser.ts';
 
+import { wrapHandler } from '../_shared/fnLogger.ts';
 function json(data: unknown, status = 200, corsHeaders: Record<string, string> = {}) {
   return new Response(JSON.stringify(data), {
     status,
@@ -99,7 +100,7 @@ async function fetchKindeUsersPage(
   return res.json() as Promise<{ users: KindeUser[]; next_token?: string; total_count?: number }>;
 }
 
-Deno.serve(async (req) => {
+Deno.serve(wrapHandler("admin-kinde-reconcile", async (req) => {
   const origin = req.headers.get('origin');
   const corsHeaders = getCorsHeaders(origin);
 
@@ -259,4 +260,4 @@ Deno.serve(async (req) => {
 
   console.log('[admin-kinde-reconcile] Complete', summary);
   return json({ success: true, summary }, 200, corsHeaders);
-});
+}));

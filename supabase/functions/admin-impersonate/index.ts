@@ -4,9 +4,10 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { requireAdminAuth } from "../_shared/adminAuth.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 
+import { wrapHandler } from '../_shared/fnLogger.ts';
 const SESSION_TTL_SECONDS = 30 * 60;
 
-serve(async (req) => {
+serve(wrapHandler("admin-impersonate", async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
 
   if (req.method === 'OPTIONS') {
@@ -99,8 +100,11 @@ serve(async (req) => {
   const jwtSecret = Deno.env.get('EXT_SUPABASE_JWT_SECRET') || Deno.env.get('SUPABASE_JWT_SECRET');
   if (!jwtSecret) {
     console.error('[admin-impersonate] SUPABASE_JWT_SECRET not configured');
-    return new Response(JSON.stringify({ error: 'Server configuration error' }), {
-      status: 500,
+    return new Response(JSON.stringify({
+      success: false,
+      error: 'EXT_SUPABASE_JWT_SECRET (or SUPABASE_JWT_SECRET) is not configured in Supabase Edge Function Secrets. Set one of them and redeploy admin-impersonate to enable Act As.',
+    }), {
+      status: 503,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
@@ -154,4 +158,4 @@ serve(async (req) => {
     }),
     { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
   );
-});
+}));

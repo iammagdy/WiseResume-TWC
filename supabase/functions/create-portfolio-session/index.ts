@@ -4,9 +4,10 @@ import { getServiceClient } from "../_shared/dbClient.ts";
 import { logger } from "../_shared/logger.ts";
 import { createSessionToken } from "../_shared/portfolioSession.ts";
 
+import { wrapHandler } from '../_shared/fnLogger.ts';
 const log = logger('create-portfolio-session');
 
-serve(async (req) => {
+serve(wrapHandler("create-portfolio-session", async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
@@ -70,4 +71,4 @@ serve(async (req) => {
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
-});
+}));

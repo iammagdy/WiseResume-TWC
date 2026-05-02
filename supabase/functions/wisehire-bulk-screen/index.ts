@@ -23,6 +23,7 @@ import { selectProviderForTool } from "../_shared/modelRouter.ts";
 const __ROUTE = selectProviderForTool('wisehire-bulk-screen');
 import { checkRateLimit } from '../_shared/rateLimiter.ts';
 
+import { wrapHandler } from '../_shared/fnLogger.ts';
 const WISEHIRE_PAID_PLANS = ['wisehire_starter', 'wisehire_professional', 'wisehire_business', 'wisehire_enterprise'];
 const STARTER_DAILY_LIMIT = 3;
 const PRO_DAILY_LIMIT = 20;
@@ -65,7 +66,7 @@ function nameFromFilename(filename: string): string {
     || 'Unknown Applicant';
 }
 
-Deno.serve(async (req) => {
+Deno.serve(wrapHandler("wisehire-bulk-screen", async (req) => {
   const origin = req.headers.get('origin');
   const cors = getCorsHeaders(origin);
 
@@ -267,4 +268,4 @@ Return exactly this JSON structure:
     const { status, error: code, message } = toUserError(err);
     return json({ error: code, message }, status, getCorsHeaders(origin));
   }
-});
+}));

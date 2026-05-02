@@ -2,6 +2,7 @@ import { getServiceClient } from '../_shared/dbClient.ts';
 import { requireAdminAuth } from '../_shared/adminAuth.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 
+import { wrapHandler } from '../_shared/fnLogger.ts';
 // score-resume is excluded: it is fully deterministic and never calls an LLM,
 // so routing config has no effect on it.
 const SUPPORTED_FEATURES = [
@@ -15,7 +16,7 @@ const SUPPORTED_FEATURES = [
 
 const VALID_PROVIDERS = ['auto', 'openrouter', 'groq', 'deepseek'];
 
-Deno.serve(async (req) => {
+Deno.serve(wrapHandler("admin-ai-routing", async (req) => {
   const origin = req.headers.get('origin');
   const corsHeaders = getCorsHeaders(origin);
   if (req.method === 'OPTIONS') {
@@ -194,4 +195,4 @@ Deno.serve(async (req) => {
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   }
-});
+}));

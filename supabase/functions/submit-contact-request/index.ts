@@ -2,6 +2,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.49.1";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
 
+import { wrapHandler } from '../_shared/fnLogger.ts';
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -14,7 +15,7 @@ const MAX_MESSAGE_LENGTH = 2000;
 const MAX_EMAIL_LENGTH = 254;
 const MAX_SUBJECT_LENGTH = 200;
 
-Deno.serve(async (req) => {
+Deno.serve(wrapHandler("submit-contact-request", async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -193,4 +194,4 @@ Deno.serve(async (req) => {
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
-});
+}));

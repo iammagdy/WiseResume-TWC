@@ -6,6 +6,7 @@ import { requireAdminAuth } from '../_shared/adminAuth.ts';
 import { checkRateLimit } from '../_shared/rateLimiter.ts';
 import { logger } from '../_shared/logger.ts';
 import { getServiceClient } from '../_shared/dbClient.ts';
+import { wrapHandler } from '../_shared/fnLogger.ts';
 import {
   AI_TEST_DEFAULT_MODELS,
   isAITestProvider,
@@ -74,7 +75,7 @@ const log = logger('ai-test');
  *
  * DeepSeek slot 1 reads DEEPSEEK_KEY first, then DEEPSEEK_KEY_1.
  */
-serve(async (req) => {
+serve(wrapHandler("ai-test", async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
   const startTime = Date.now();
@@ -251,4 +252,4 @@ serve(async (req) => {
       latencyMs: Date.now() - startTime,
     }), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
-});
+}));

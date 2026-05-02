@@ -1,6 +1,7 @@
 import { requireAdminAuth } from '../_shared/adminAuth.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { getServiceClient } from '../_shared/dbClient.ts';
+import { wrapHandler } from '../_shared/fnLogger.ts';
 import {
   AI_TEST_DEFAULT_MODELS,
   AI_TEST_MODEL_ALLOWLIST,
@@ -107,7 +108,7 @@ async function saveSlotModel(
   return out;
 }
 
-Deno.serve(async (req) => {
+Deno.serve(wrapHandler("inspect-ai-keys", async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
@@ -256,4 +257,4 @@ Deno.serve(async (req) => {
       error: err instanceof Error ? err.message : String(err),
     }, 500);
   }
-});
+}));

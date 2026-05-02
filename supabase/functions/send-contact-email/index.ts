@@ -2,6 +2,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.49.1";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { escapeHtml } from "../_shared/htmlEscape.ts";
 
+import { wrapHandler } from '../_shared/fnLogger.ts';
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -40,7 +41,7 @@ function buildSubject(type: string, email: string, metadata: Record<string, unkn
   }
 }
 
-Deno.serve(async (req) => {
+Deno.serve(wrapHandler("send-contact-email", async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -279,4 +280,4 @@ Deno.serve(async (req) => {
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
-});
+}));

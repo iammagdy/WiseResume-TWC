@@ -4,6 +4,7 @@ import { getCorsHeaders } from '../_shared/cors.ts';
 import { requireAuth } from '../_shared/authMiddleware.ts';
 import { checkRateLimit } from '../_shared/rateLimiter.ts';
 
+import { wrapHandler } from '../_shared/fnLogger.ts';
 /**
  * AI health probe.
  *
@@ -15,7 +16,7 @@ import { checkRateLimit } from '../_shared/rateLimiter.ts';
  *   - degraded: pool responded OK but slow, or replied 429/402
  *   - down:     anything else (timeout, network error, 5xx, 401, …)
  */
-serve(async (req) => {
+serve(wrapHandler("ai-health", async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -84,4 +85,4 @@ serve(async (req) => {
       errorCode: 500,
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
-});
+}));

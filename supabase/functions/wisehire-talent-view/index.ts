@@ -2,6 +2,7 @@ import { getCorsHeaders } from '../_shared/cors.ts';
 import { getServiceClient } from '../_shared/dbClient.ts';
 import { requireAuth, AuthError, authErrorResponse } from '../_shared/authMiddleware.ts';
 
+import { wrapHandler } from '../_shared/fnLogger.ts';
 function json(data: unknown, status = 200, cors: Record<string, string> = {}) {
   return new Response(JSON.stringify(data), {
     status,
@@ -9,7 +10,7 @@ function json(data: unknown, status = 200, cors: Record<string, string> = {}) {
   });
 }
 
-Deno.serve(async (req) => {
+Deno.serve(wrapHandler("wisehire-talent-view", async (req) => {
   const origin = req.headers.get('origin');
   const cors = getCorsHeaders(origin);
 
@@ -82,4 +83,4 @@ Deno.serve(async (req) => {
     console.error('[wisehire-talent-view]', err);
     return json({ error: 'Internal error' }, 500, getCorsHeaders(origin));
   }
-});
+}));

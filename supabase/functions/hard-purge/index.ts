@@ -3,6 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.49.1"
 import { requireAdminAuth } from "../_shared/adminAuth.ts"
 import { getCorsHeaders } from "../_shared/cors.ts"
 
+import { wrapHandler } from '../_shared/fnLogger.ts';
 /**
  * hard-purge — permanently deletes ALL data for a user across all user-owned tables.
  *
@@ -18,7 +19,7 @@ import { getCorsHeaders } from "../_shared/cors.ts"
  *
  * Finally the Supabase auth user record is deleted, which removes the account.
  */
-serve(async (req) => {
+serve(wrapHandler("hard-purge", async (req) => {
   const origin = req.headers.get('Origin')
   const corsHeaders = getCorsHeaders(origin)
 
@@ -129,4 +130,4 @@ serve(async (req) => {
     JSON.stringify({ success: true, message: `Permanently purged all data for user ${user_id}` }),
     { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
   )
-})
+}))

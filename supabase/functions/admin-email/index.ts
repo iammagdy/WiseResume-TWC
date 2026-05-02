@@ -6,6 +6,7 @@ import { getCorsHeaders } from '../_shared/cors.ts'
 import { addContact, removeContact, getAudienceStats, listContacts, listRecentBroadcasts } from '../_shared/resendAudiences.ts'
 import { getAudienceId, AUDIENCE_KEYS, AUDIENCE_LABELS, AUTOMATION_CHECKLIST } from '../_shared/resendConfig.ts'
 
+import { wrapHandler } from '../_shared/fnLogger.ts';
 // ── admin-resend-stats module-level ───────────────────────────────────────────
 type AudienceKey = keyof typeof AUDIENCE_KEYS
 const ALL_AUDIENCE_KEYS = Object.keys(AUDIENCE_KEYS) as AudienceKey[]
@@ -62,7 +63,7 @@ const EMAIL_BATCH_SIZE = 50
 const EMAIL_BATCH_DELAY_MS = 1100
 
 // ── Main handler ──────────────────────────────────────────────────────────────
-Deno.serve(async (req) => {
+Deno.serve(wrapHandler("admin-email", async (req) => {
   const origin = req.headers.get('origin')
   const corsHeaders = getCorsHeaders(origin)
 
@@ -739,4 +740,4 @@ Deno.serve(async (req) => {
     JSON.stringify({ error: `Unknown module: ${module}. Valid values: resend-stats | resend-sync | email-actions | broadcast` }),
     { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
   )
-})
+}))

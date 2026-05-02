@@ -8,6 +8,7 @@ import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { logger } from "../_shared/logger.ts";
 
+import { wrapHandler } from '../_shared/fnLogger.ts';
 const __ROUTE_URL = selectProviderForTool('parse-job-url');
 const __ROUTE_TEXT = selectProviderForTool('parse-job-text');
 const __ROUTE_LINKEDIN = selectProviderForTool('parse-linkedin');
@@ -76,7 +77,7 @@ function validateJobUrl(urlString: string): { valid: boolean; errorCode?: string
   return { valid: true, url: parsedUrl };
 }
 
-serve(async (req) => {
+serve(wrapHandler("parse-job", async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
 
   if (req.method === 'OPTIONS') {
@@ -600,4 +601,4 @@ serve(async (req) => {
     JSON.stringify({ error: `Unknown action: ${action}. Valid values: url | text | linkedin` }),
     { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
   );
-});
+}));

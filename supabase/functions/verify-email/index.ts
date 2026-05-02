@@ -32,6 +32,7 @@ import { getServiceClient } from '../_shared/dbClient.ts'
 import { addContact } from '../_shared/resendAudiences.ts'
 import { getAudienceId, AUDIENCE_KEYS } from '../_shared/resendConfig.ts'
 
+import { wrapHandler } from '../_shared/fnLogger.ts';
 const SITE_NAME = 'WiseResume'
 const SITE_URL = 'https://resume.thewise.cloud'
 const TOKEN_TTL_HOURS = 24
@@ -102,7 +103,7 @@ async function upsertToken(
   return token
 }
 
-Deno.serve(async (req) => {
+Deno.serve(wrapHandler("verify-email", async (req) => {
   const origin = req.headers.get('origin')
   const cors = getCorsHeaders(origin)
 
@@ -332,4 +333,4 @@ Deno.serve(async (req) => {
   }
 
   return json({ error: 'Unknown action' }, 400, cors)
-})
+}))

@@ -3,6 +3,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { isMaliciousBot, botBlockedResponse } from "../_shared/botGuard.ts";
 import { checkIpRateLimit } from "../_shared/rateLimiter.ts";
 
+import { wrapHandler } from '../_shared/fnLogger.ts';
 const CONSUMER_DOMAINS = new Set([
   "gmail.com","googlemail.com",
   "yahoo.com","yahoo.co.uk","yahoo.co.in","yahoo.fr","yahoo.de","yahoo.es",
@@ -33,7 +34,7 @@ function json(data: unknown, status: number, corsHeaders: Record<string, string>
   });
 }
 
-Deno.serve(async (req) => {
+Deno.serve(wrapHandler("wisehire-waitlist-check-email", async (req) => {
   const origin = req.headers.get("origin");
   const corsHeaders = getCorsHeaders(origin);
 
@@ -153,4 +154,4 @@ Deno.serve(async (req) => {
     console.error("[wisehire-waitlist-check-email] unhandled error:", msg);
     return json({ error: "Internal server error" }, 500, corsHeaders);
   }
-});
+}));

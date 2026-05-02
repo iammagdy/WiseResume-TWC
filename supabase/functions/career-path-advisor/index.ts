@@ -10,6 +10,7 @@ import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
 import { logger } from "../_shared/logger.ts";
+import { wrapHandler } from '../_shared/fnLogger.ts';
 const log = logger('career-path-advisor');
 
 
@@ -18,7 +19,7 @@ const MAX_RESUME_SIZE = 100 * 1024;
 const safeSkillsString = (skills: any[] | undefined | null): string =>
   (skills || []).map((s: any) => (typeof s === 'string' ? s : s?.name || '')).filter(Boolean).join(', ');
 
-Deno.serve(async (req: Request) => {
+Deno.serve(wrapHandler("career-path-advisor", async (req: Request) => {
   const corsHeaders = getCorsHeaders(req.headers.get("origin"));
 
   if (req.method === "OPTIONS") {
@@ -161,4 +162,4 @@ ${resume.education?.map((e: any) => `- ${e.degree} in ${e.field} from ${e.instit
       { status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
-});
+}));

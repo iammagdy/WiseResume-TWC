@@ -8,6 +8,7 @@ import { requireAuth, authErrorResponse } from '../_shared/authMiddleware.ts';
 import { checkAndDeductCredit, refundCredit } from '../_shared/creditUtils.ts';
 import { getServiceClient } from '../_shared/dbClient.ts';
 import { logger } from '../_shared/logger.ts';
+import { wrapHandler } from '../_shared/fnLogger.ts';
 const log = logger('company-briefing');
 
 
@@ -165,7 +166,7 @@ const TOOL_SCHEMA = {
   },
 };
 
-Deno.serve(async (req) => {
+Deno.serve(wrapHandler("company-briefing", async (req) => {
   const origin = req.headers.get('origin');
   const cors = getCorsHeaders(origin);
 
@@ -311,4 +312,4 @@ Deno.serve(async (req) => {
       status: userError.status, headers: { ...cors, 'Content-Type': 'application/json' },
     });
   }
-});
+}));

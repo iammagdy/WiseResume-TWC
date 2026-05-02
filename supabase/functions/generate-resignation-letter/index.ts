@@ -10,6 +10,7 @@ import { getServiceClient } from "../_shared/dbClient.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 import { insertResignationLetter } from "../_shared/letterPersistence.ts";
 import { logger } from "../_shared/logger.ts";
+import { wrapHandler } from '../_shared/fnLogger.ts';
 const log = logger('generate-resignation-letter');
 
 
@@ -20,7 +21,7 @@ const VALID_TEMPLATES = ['standard', 'short', 'grateful', 'career_growth', 'imme
 const VALID_REASONS = ['new_opportunity', 'career_growth', 'relocation', 'personal_reasons', 'back_to_school', 'health_reasons', 'retirement', 'prefer_not_to_say'];
 const VALID_NOTICE_PERIODS = ['2_weeks', '1_month', 'immediate', 'custom'];
 
-serve(async (req) => {
+serve(wrapHandler("generate-resignation-letter", async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
 
   if (req.method === 'OPTIONS') {
@@ -191,4 +192,4 @@ Write the complete letter with proper business letter formatting.`;
       { status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
-});
+}));

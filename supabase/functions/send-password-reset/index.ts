@@ -27,6 +27,7 @@ import { renderAsync } from 'npm:@react-email/components@0.0.22'
 import { getCorsHeaders } from '../_shared/cors.ts'
 import { getServiceClient } from '../_shared/dbClient.ts'
 
+import { wrapHandler } from '../_shared/fnLogger.ts';
 const SITE_NAME = 'WiseResume'
 const SITE_URL = 'https://resume.thewise.cloud'
 const RESEND_FROM = 'WiseResume <noreply@thewise.cloud>'
@@ -133,7 +134,7 @@ async function generateKindeResetLink(
   }
 }
 
-Deno.serve(async (req) => {
+Deno.serve(wrapHandler("send-password-reset", async (req) => {
   const origin = req.headers.get('origin')
   const cors = getCorsHeaders(origin)
 
@@ -252,4 +253,4 @@ Deno.serve(async (req) => {
   }
 
   return safeSuccess()
-})
+}))

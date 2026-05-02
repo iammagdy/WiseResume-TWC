@@ -12,6 +12,7 @@ import { getCorsHeaders } from '../_shared/cors.ts';
 import { requireCronSecret } from '../_shared/webhookAuth.ts';
 import { createClient } from "npm:@supabase/supabase-js@2.49.1";
 
+import { wrapHandler } from '../_shared/fnLogger.ts';
 const TIPS = [
   "Quantify your achievements — numbers make bullets 3x more impactful.",
   "Tailor your resume to each job posting. ATS systems rank keyword matches.",
@@ -22,7 +23,7 @@ const TIPS = [
   "Add a summary section. Recruiters spend only 7 seconds scanning a resume.",
 ];
 
-Deno.serve(async (req) => {
+Deno.serve(wrapHandler("weekly-digest", async (req) => {
   const origin = req.headers.get('origin');
   const corsHeaders = getCorsHeaders(origin);
 
@@ -120,4 +121,4 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
-});
+}));

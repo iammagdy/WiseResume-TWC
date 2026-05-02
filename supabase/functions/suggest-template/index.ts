@@ -9,10 +9,11 @@ import { checkUserRateLimit } from '../_shared/userRateLimiter.ts';
 import { checkPayloadSize } from '../_shared/requestUtils.ts';
 import { checkAndDeductCredit, refundCredit } from '../_shared/creditUtils.ts';
 import { logger } from '../_shared/logger.ts';
+import { wrapHandler } from '../_shared/fnLogger.ts';
 const log = logger('suggest-template');
 
 
-serve(async (req) => {
+serve(wrapHandler("suggest-template", async (req) => {
   const origin = req.headers.get('origin');
   const corsHeaders = getCorsHeaders(origin);
 
@@ -181,4 +182,4 @@ Key Skills: ${skills?.join(', ') || 'Not specified'}`,
       { status: userErr.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
-});
+}));

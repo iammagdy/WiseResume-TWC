@@ -5,6 +5,7 @@ import { escapeHtml } from "../_shared/htmlEscape.ts";
 import { addContact } from "../_shared/resendAudiences.ts";
 import { getAudienceId, AUDIENCE_KEYS } from "../_shared/resendConfig.ts";
 
+import { wrapHandler } from '../_shared/fnLogger.ts';
 const ADMIN_EMAIL = "contact@thewise.cloud";
 const WISEHIRE_BLUE = "#1D4ED8";
 
@@ -239,7 +240,7 @@ function buildNotificationEmail(
 </html>`;
 }
 
-Deno.serve(async (req) => {
+Deno.serve(wrapHandler("wisehire-waitlist-join", async (req) => {
   const origin = req.headers.get("origin");
   const corsHeaders = getCorsHeaders(origin);
 
@@ -449,4 +450,4 @@ Deno.serve(async (req) => {
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
-});
+}));

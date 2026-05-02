@@ -3,6 +3,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { requireAdminAuth } from '../_shared/adminAuth.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 
+import { wrapHandler } from '../_shared/fnLogger.ts';
 interface AuditRow {
   user_id: string | null;
   action: string;
@@ -13,7 +14,7 @@ interface AuditRow {
 const FUNNEL_STEPS = ['started', 'path_selected', 'review_opened', 'completed'] as const;
 type FunnelStep = (typeof FUNNEL_STEPS)[number];
 
-serve(async (req) => {
+serve(wrapHandler("admin-onboarding-funnel", async (req) => {
   const origin = req.headers.get('origin');
   const corsHeaders = getCorsHeaders(origin);
   if (req.method === 'OPTIONS') {
@@ -207,4 +208,4 @@ serve(async (req) => {
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   }
-});
+}));

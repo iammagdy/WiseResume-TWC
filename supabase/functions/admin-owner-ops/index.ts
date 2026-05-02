@@ -9,6 +9,7 @@ import { getServiceClient } from '../_shared/dbClient.ts';
 import { requireAdminAuth } from '../_shared/adminAuth.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 
+import { wrapHandler } from '../_shared/fnLogger.ts';
 const SUPABASE_PROJECT_REF =
   Deno.env.get('SUPABASE_PROJECT_REF') ??
   (Deno.env.get('EXT_SUPABASE_URL') || Deno.env.get('SUPABASE_URL') || '')
@@ -29,7 +30,7 @@ async function mgmtApiFetch(path: string, method: 'GET' | 'POST', token: string)
   return { ok: res.ok, status: res.status, text };
 }
 
-Deno.serve(async (req) => {
+Deno.serve(wrapHandler("admin-owner-ops", async (req) => {
   const origin = req.headers.get('origin');
   const corsHeaders = getCorsHeaders(origin);
   if (req.method === 'OPTIONS') {
@@ -171,4 +172,4 @@ Deno.serve(async (req) => {
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   }
-});
+}));

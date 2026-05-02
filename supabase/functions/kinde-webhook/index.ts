@@ -35,6 +35,7 @@ import { getServiceClient } from '../_shared/dbClient.ts';
 import { timingSafeEqual } from '../_shared/webhookAuth.ts';
 import { provisionUser, ProvisionError } from '../_shared/provisionUser.ts';
 
+import { wrapHandler } from '../_shared/fnLogger.ts';
 /** Fire-and-forget: insert a row into kinde_events (fails silently). */
 function logKindeEvent(
   eventType: string,
@@ -98,7 +99,7 @@ async function verifyKindeSignature(
   return timingSafeEqual(expected, provided);
 }
 
-Deno.serve(async (req) => {
+Deno.serve(wrapHandler("kinde-webhook", async (req) => {
   const origin = req.headers.get('origin');
   const corsHeaders = getCorsHeaders(origin);
 
@@ -236,4 +237,4 @@ Deno.serve(async (req) => {
     console.error('[kinde-webhook] Unexpected error:', err);
     return json({ error: 'Internal server error' }, 500, corsHeaders);
   }
-});
+}));

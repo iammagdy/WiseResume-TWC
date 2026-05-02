@@ -9,6 +9,7 @@ import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
 import { logger } from "../_shared/logger.ts";
 
+import { wrapHandler } from '../_shared/fnLogger.ts';
 const log = logger('smart-fit-rewrite');
 
 interface ProtectedTokenIn { text: string; kind: string }
@@ -240,7 +241,7 @@ function buildOutcomes(
   });
 }
 
-Deno.serve(async (req) => {
+Deno.serve(wrapHandler("smart-fit-rewrite", async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
@@ -379,4 +380,4 @@ Deno.serve(async (req) => {
       { status: userError.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   }
-});
+}));
