@@ -266,6 +266,10 @@ serve(wrapHandler("parse-job", async (req) => {
         throw fetchError;
       }
     } catch (error) {
+      // AuthError from requireAuth — clean 401 without polluting error_log (Task #41).
+      if ((error as { name?: string })?.name === 'AuthError') {
+        return authErrorResponse(error, req.headers.get('origin'));
+      }
       logUrl.error("Unhandled error", error);
       const userError = toUserError(error);
       return new Response(
@@ -376,6 +380,10 @@ serve(wrapHandler("parse-job", async (req) => {
         { headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     } catch (error) {
+      // AuthError from requireAuth — clean 401 without polluting error_log (Task #41).
+      if ((error as { name?: string })?.name === 'AuthError') {
+        return authErrorResponse(error, req.headers.get('origin'));
+      }
       logText.error("Unhandled error", error);
       const userError = toUserError(error);
       return new Response(
@@ -588,6 +596,10 @@ serve(wrapHandler("parse-job", async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     } catch (error) {
+      // AuthError from requireAuth — clean 401 without polluting error_log (Task #41).
+      if ((error as { name?: string })?.name === 'AuthError') {
+        return authErrorResponse(error, req.headers.get('origin'));
+      }
       logLinkedin.error("Unhandled error", error);
       const { status, error: code, message } = toUserError(error);
       return new Response(

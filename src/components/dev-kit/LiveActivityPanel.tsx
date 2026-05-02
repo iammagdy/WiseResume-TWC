@@ -365,12 +365,13 @@ export function LiveActivityPanel() {
     for (const def of defs) {
       // Some probes are user-scoped and require an active Kinde/Supabase session.
       // • `me` — obvious user-identity call.
-      // • `agentic-chat` / `analyze-resume` — their outer catch converts AuthError
-      //   → toUserError() which maps any Error to status 500 (unlike tailor-resume /
-      //   enhance-section which have a dedicated catch for authErr → authErrorResponse
-      //   → 401). Without a session they always come back 500 and pollute the health
-      //   card with a false "error". Skip all three cleanly when not authenticated.
-      const requiresUserSession = def.name === 'me' || def.name === 'agentic-chat' || def.name === 'analyze-resume';
+      // • `agentic-chat` / `analyze-resume` / `generate-cover-letter` / `parse-job`
+      //   all call requireAuth at the top of their handler. Probing without a
+      //   session always returns 401 AND (pre-Task #41) wrote a "Missing
+      //   authorization header" entry into error_log via the outer catch.
+      //   The outer catch is now AuthError-aware, but skipping these probes
+      //   cleanly when unauthenticated keeps the DevKit health card honest.
+      const requiresUserSession = def.name === 'me' || def.name === 'agentic-chat' || def.name === 'analyze-resume' || def.name === 'generate-cover-letter' || def.name === 'parse-job';
       if (requiresUserSession && !isAuthenticated) {
         checkedResults.push({
           name: def.name,

@@ -236,6 +236,12 @@ ${jobDescription}
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
+    // AuthError from requireAuth is an expected 401 — return cleanly without
+    // logging as "Unhandled error" so Mission Control isn't drowned in
+    // "Missing authorization header" noise (Task #41).
+    if ((error as { name?: string })?.name === 'AuthError') {
+      return authErrorResponse(error, req.headers.get('origin'));
+    }
     log.error("Unhandled error", error);
     const { status, error: code, message } = toUserError(error);
     return new Response(

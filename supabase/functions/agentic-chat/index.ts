@@ -617,6 +617,13 @@ Deno.serve(wrapHandler('agentic-chat', async (req: Request) => {
     });
 
   } catch (error) {
+    // AuthError ({ name: 'AuthError' } from requireAuth) represents an expected
+    // 401 client misuse — return it cleanly without polluting error_log with
+    // "Unhandled error: Missing authorization header" entries that drown out
+    // genuine server bugs in Mission Control.
+    if ((error as { name?: string })?.name === 'AuthError') {
+      return authErrorResponse(error, req.headers.get('origin'));
+    }
     log.error("Unhandled error", error);
     const { status, error: code, message } = toUserError(error);
     // Forward attempt telemetry from callWiseresumeAI when present so the

@@ -1,6 +1,6 @@
 import { ResumeData } from '@/types/resume';
 import { Job } from '@/hooks/useJobs';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 
 export interface JobMatchResult {
   overall: number;
@@ -126,7 +126,13 @@ export async function scoreJobMatchAI(
   try {
     const jobDescription = `${job.title}\n${job.company}\n${job.description}\n${job.requirements}`;
 
-    const { data, error } = await supabase.functions.invoke('analyze-resume', {
+    // Use the bridge-aware edgeFunctions wrapper so the user's Kinde-bridged
+    // Supabase JWT is attached. The raw `supabase.functions.invoke` path
+    // omits the Authorization header entirely when no native Supabase
+    // session exists (which is always, in our Kinde flow), causing
+    // analyze-resume's requireAuth to log "Missing authorization header"
+    // into error_log on every background score call (Task #41).
+    const { data, error } = await edgeFunctions.functions.invoke('analyze-resume', {
       body: { resume, jobDescription },
     });
 
