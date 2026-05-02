@@ -16,6 +16,7 @@ import { isImpersonating, subscribe as subscribeImpersonation } from '@/lib/impe
 import { unwrapAdminResponse, tryUnwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
 import type { AdminUser } from './AdminUsersPanel';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
+import { DevKitErrorCard } from './DevKitErrorCard';
 
 // supabase client kept for RPC-only usage (username availability check)
 // Profile data fetch is routed through admin-update-profile edge function to bypass RLS
@@ -1005,9 +1006,12 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
                 )}
 
                 {activityError && (
-                  <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-xs text-destructive">
-                    {activityError}
-                  </div>
+                  <DevKitErrorCard
+                    error={activityError}
+                    title="Failed to load activity"
+                    compact
+                    context={{ panel: 'User Detail · Activity', function: 'admin-user-activity' }}
+                  />
                 )}
 
                 {!activityLoading && !activityError && activityEvents.length === 0 && (

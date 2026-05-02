@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { useIsMounted, useVisibleInterval } from '@/lib/devkit/hooks';
 import { unwrapAdminResponse, formatEdgeError, EdgeFunctionError } from '@/lib/devkit/edgeResponse';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
+import { DevKitErrorCard } from './DevKitErrorCard';
 
 interface AuditLog {
   id: string;
@@ -302,7 +303,12 @@ export function AuditLogPanel() {
       )}
 
       {error && !notDeployed && (
-        <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-sm text-amber-700 dark:text-amber-400">{error}</div>
+        <DevKitErrorCard
+          error={error}
+          title="Failed to load audit logs"
+          compact
+          context={{ panel: 'Audit Log', function: 'admin-audit-logs' }}
+        />
       )}
 
       {loading && !logs.length && !notDeployed && (

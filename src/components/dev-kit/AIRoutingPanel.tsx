@@ -10,6 +10,7 @@ import { useIsMounted } from '@/lib/devkit/hooks';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { AITestSlotModelsCard } from './AITestSlotModelsCard';
+import { DevKitErrorCard } from './DevKitErrorCard';
 
 type Provider = 'auto' | 'openrouter' | 'groq' | 'deepseek';
 type SecondaryProvider = 'openrouter' | 'groq' | 'deepseek';
@@ -372,9 +373,12 @@ export function AIRoutingPanel() {
           </div>
 
           {routingError && (
-            <div className="rounded-md bg-red-500/5 border border-red-500/20 p-3 text-xs text-red-600 dark:text-red-400">
-              {routingError}
-            </div>
+            <DevKitErrorCard
+              error={routingError}
+              title="Failed to load routing config"
+              compact
+              context={{ panel: 'AI Routing', function: 'admin-ai-routing' }}
+            />
           )}
 
           <div className="space-y-3">
@@ -461,9 +465,12 @@ export function AIRoutingPanel() {
           </div>
 
           {routingError && (
-            <div className="rounded-md bg-red-500/5 border border-red-500/20 p-3 text-xs text-red-600 dark:text-red-400">
-              {routingError}
-            </div>
+            <DevKitErrorCard
+              error={routingError}
+              title="Failed to load routing config"
+              compact
+              context={{ panel: 'AI Routing', function: 'admin-ai-routing' }}
+            />
           )}
 
           <div className="space-y-3">
@@ -583,9 +590,12 @@ export function AIRoutingPanel() {
           </div>
 
           {capsError && (
-            <div className="rounded-md bg-red-500/5 border border-red-500/20 p-3 text-xs text-red-600 dark:text-red-400">
-              {capsError}
-            </div>
+            <DevKitErrorCard
+              error={capsError}
+              title="Failed to load daily caps"
+              compact
+              context={{ panel: 'AI Routing · Caps', function: 'admin-ai-caps' }}
+            />
           )}
 
           {/* Global cap */}

@@ -187,33 +187,22 @@ export function DeploymentPanel() {
       </div>
 
       {fetchError && !data && (
-        <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-5 space-y-4">
-          <div className="flex items-start gap-3">
-            <XCircle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
-            <div className="flex-1 min-w-0 space-y-2">
-              <p className="text-sm font-semibold text-destructive">Failed to load deployment data</p>
-              <p className="text-xs text-destructive/70">{fetchError}</p>
-              <p className="text-xs text-muted-foreground">
-                Check that the DevKit session is valid and the server is reachable. In production, secrets like
-                <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded mx-1">GITHUB_TOKEN</code> and
-                <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded mx-1">DEV_KIT_PASSWORD</code>
-                must be set in <strong>Supabase → Edge Functions → Secrets</strong>.
-              </p>
-              <a
-                href={SUPABASE_SECRETS_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline pt-1"
-              >
-                <ExternalLink className="w-3.5 h-3.5" />
-                Open Supabase Edge Functions → manage secrets there
-              </a>
-            </div>
-          </div>
-          <Button variant="outline" size="sm" onClick={fetchDeploymentData} disabled={loading} className="flex items-center gap-2">
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            Retry
-          </Button>
+        <div className="space-y-3">
+          <DevKitErrorCard
+            error={fetchError}
+            title="Failed to load deployment data"
+            onRetry={fetchDeploymentData}
+            context={{ panel: 'Deployment', function: 'admin-github-status / admin-env-check' }}
+          />
+          <a
+            href={SUPABASE_SECRETS_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
+          >
+            <ExternalLink className="w-3.5 h-3.5" />
+            Open Supabase Edge Functions → manage GITHUB_TOKEN / DEV_KIT_PASSWORD secrets
+          </a>
         </div>
       )}
 

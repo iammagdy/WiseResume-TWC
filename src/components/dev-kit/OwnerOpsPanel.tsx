@@ -12,6 +12,7 @@ import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse'
 import { useIsMounted } from '@/lib/devkit/hooks';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { DevKitErrorCard } from './DevKitErrorCard';
 
 interface Broadcast {
   id: string;
@@ -614,10 +615,12 @@ export function OwnerOpsPanel() {
             <p>Set a Supabase Personal Access Token as an edge function secret to enable backup triggers.</p>
           </div>
         ) : backupError ? (
-          <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive">
-            <p className="font-medium">Error loading backups</p>
-            <p className="opacity-80 mt-0.5">{backupError}</p>
-          </div>
+          <DevKitErrorCard
+            error={backupError}
+            title="Error loading backups"
+            compact
+            context={{ panel: 'Owner Ops', function: 'admin-backup-trigger', action: 'list' }}
+          />
         ) : null}
 
         {!backupNotConfigured && (

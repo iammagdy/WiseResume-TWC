@@ -14,6 +14,7 @@ import {
   type AITestSlotMap,
 } from '@/lib/devkit/aiTestSlotModels';
 import { cn } from '@/lib/utils';
+import { DevKitErrorCard } from './DevKitErrorCard';
 
 /**
  * Compact, read-only view of the active model for each AI test slot.
@@ -80,9 +81,13 @@ export function AITestSlotModelsCard({
       <p className="text-xs text-muted-foreground">{subtitle}</p>
 
       {error && (
-        <div className="rounded-md bg-red-500/5 border border-red-500/20 p-2.5 text-xs text-red-600 dark:text-red-400">
-          {error}
-        </div>
+        <DevKitErrorCard
+          error={error}
+          title="Failed to load AI test slot models"
+          onRetry={load}
+          compact
+          context={{ panel: 'AI Test Slot Models', function: 'admin-ai-test-slots', action: 'fetch' }}
+        />
       )}
 
       {!map && loading && !error && (
