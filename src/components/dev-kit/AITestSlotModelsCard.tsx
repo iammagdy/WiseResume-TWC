@@ -86,7 +86,7 @@ export function AITestSlotModelsCard({
           title="Failed to load AI test slot models"
           onRetry={load}
           compact
-          context={{ panel: 'AI Test Slot Models', function: 'admin-ai-test-slots', action: 'fetch' }}
+          context={{ panel: 'AI Test Slot Models', function: 'inspect-ai-keys', action: 'fetch-test-slot-models' }}
         />
       )}
 
