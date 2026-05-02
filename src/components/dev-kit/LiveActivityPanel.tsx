@@ -8,7 +8,7 @@ import { useVisibleInterval, useIsMounted } from '@/lib/devkit/hooks';
 import { unwrapAdminResponse, tryUnwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
 import { DevKitRunner } from './DevKitRunner';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
-import { DevKitErrorCard } from './DevKitErrorCard';
+import { DevKitErrorCard, redactSecrets } from './DevKitErrorCard';
 
 interface UsageEvent {
   id: string;
@@ -582,16 +582,16 @@ export function LiveActivityPanel() {
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-medium text-foreground font-mono">{fn.label}</p>
                 {fn.status === 'unknown' && fn.errorMsg && (
-                  <p className="text-[10px] text-muted-foreground truncate">{fn.errorMsg}</p>
+                  <p className="text-[10px] text-muted-foreground truncate">{redactSecrets(fn.errorMsg)}</p>
                 )}
                 {isAi && fn.status === 'unknown' && !fn.errorMsg && (
                   <p className="text-[10px] text-muted-foreground">Tap "Run health check" to test</p>
                 )}
                 {fn.status === 'error' && fn.errorMsg && (
-                  <p className="text-[10px] text-destructive truncate">{fn.errorMsg}</p>
+                  <p className="text-[10px] text-destructive truncate" title={redactSecrets(fn.errorMsg)}>{redactSecrets(fn.errorMsg)}</p>
                 )}
                 {fn.status === 'warn' && fn.errorMsg && (
-                  <p className="text-[10px] text-amber-600 dark:text-amber-400 truncate">{fn.errorMsg}</p>
+                  <p className="text-[10px] text-amber-600 dark:text-amber-400 truncate" title={redactSecrets(fn.errorMsg)}>{redactSecrets(fn.errorMsg)}</p>
                 )}
                 <div className="flex items-center gap-2 mt-0.5">
                   {fn.durationMs !== undefined && fn.status !== 'checking' && (

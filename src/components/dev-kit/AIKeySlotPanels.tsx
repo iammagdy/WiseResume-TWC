@@ -202,7 +202,7 @@ function KeySlotView({
                     error={saveError}
                     title="Could not save model selection"
                     compact
-                    context={{ panel: 'AI Keys', function: 'admin-ai-keys', action: 'save-model' }}
+                    context={{ panel: 'AI Keys', function: 'inspect-ai-keys', action: 'set-slot-model' }}
                   />
                 </div>
               )}
@@ -275,9 +275,12 @@ function KeySlotView({
             )}
 
             {!result.ok && result.error && (
-              <div className="rounded-md bg-red-500/5 border border-red-500/20 p-3 text-xs text-red-600 dark:text-red-400 font-mono whitespace-pre-wrap break-words">
-                {result.error}
-              </div>
+              <DevKitErrorCard
+                error={result.error}
+                title="Test request failed"
+                compact
+                context={{ panel: 'AI Keys · Test', function: 'ai-test', action: 'test-key' }}
+              />
             )}
           </div>
         )}
@@ -537,7 +540,7 @@ function ProviderPanel({ provider }: ProviderPanelProps) {
             error={sessionExpired && serverErrorDetail ? `${loadError} — Server response: ${serverErrorDetail}` : loadError}
             title="Could not load AI keys"
             onRetry={fetchKeys}
-            context={{ panel: 'AI Keys', function: 'admin-ai-keys', action: 'list' }}
+            context={{ panel: 'AI Keys', function: 'inspect-ai-keys', action: 'list' }}
           />
           {sessionExpired && (
             <Button
