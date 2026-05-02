@@ -1160,6 +1160,9 @@ Deno.serve(wrapHandler("admin-devkit-data", async (req) => {
         email: {
           resendKeyPresent: !!resendKey, reachable: emailStatus.reachable, httpStatus: emailStatus.httpStatus, sends24h: emailStatus.sends24h,
           keyInSupabaseVault: emailKeyInVault,
+          // Surface checkResend's structured reason ('restricted_key' | 'missing_key' | undefined)
+          // so MissionControlPanel can render a friendly explanation instead of a vague HTTP code.
+          reason: (emailStatus as { reason?: string }).reason ?? null,
         },
         database: { ok: dbOk, error: dbError, errorCount1h },
         secrets: {

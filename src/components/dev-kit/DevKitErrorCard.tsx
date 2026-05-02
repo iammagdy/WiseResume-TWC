@@ -3,6 +3,31 @@ import { AlertTriangle, ChevronDown, ChevronRight, Copy, Check, Sparkles } from 
 import { translateError } from '@/lib/devkit/errorTranslate';
 import { Button } from '@/components/ui/button';
 
+/**
+ * Best-effort secret redactor for raw error strings before they hit the
+ * UI or the clipboard. Better-safe-than-sorry: matches common API key
+ * shapes (Resend, Stripe, GitHub, Slack, OpenAI, Bearer headers, JWTs,
+ * long hex/base64 blobs). Replaces the body of the token with a
+ * `***REDACTED***` placeholder while preserving the prefix so an admin
+ * can still tell which provider misfired.
+ */
+function redactSecrets(input: string): string {
+  if (!input) return input;
+  let out = input;
+  // Provider-prefixed keys: re_xxx (Resend), sk_xxx / pk_xxx (Stripe/OpenAI/etc),
+  // rk_xxx (Stripe restricted), ghp_/gho_/ghu_/ghs_/ghr_ (GitHub),
+  // xoxb-/xoxp-/xoxa-/xoxr-/xoxs- (Slack).
+  out = out.replace(/\b(re|sk|pk|rk|ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9_-]{8,}/g, '$1_***REDACTED***');
+  out = out.replace(/\bxox[baprs]-[A-Za-z0-9-]{8,}/g, 'xox*-***REDACTED***');
+  // Authorization: Bearer <token>
+  out = out.replace(/\b(Bearer\s+)[A-Za-z0-9._\-+/=]{12,}/gi, '$1***REDACTED***');
+  // JWTs: header.payload.signature
+  out = out.replace(/\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g, 'eyJ***REDACTED***');
+  // Long hex/base64 blobs (>= 40 chars) that are likely credentials.
+  out = out.replace(/\b[A-Fa-f0-9]{40,}\b/g, '***REDACTED***');
+  return out;
+}
+
 interface DevKitErrorCardProps {
   /** Raw error string from the edge function or fetch call. */
   error: string | null | undefined;
@@ -22,7 +47,9 @@ interface DevKitErrorCardProps {
  * AI fix prompt the admin can paste into Replit Agent / Cursor / etc.
  */
 export function DevKitErrorCard({ error, title, onRetry, compact = false }: DevKitErrorCardProps) {
-  const raw = (error ?? '').toString();
+  // Always redact before render/copy/AI-prompt so secrets in upstream errors
+  // (e.g. an API echo of a Bearer header) never leak via the UI or clipboard.
+  const raw = redactSecrets((error ?? '').toString());
   const t = translateError(raw);
   const [showRaw, setShowRaw] = useState(false);
   const [copied, setCopied] = useState(false);
