@@ -824,9 +824,18 @@ Deno.serve(wrapHandler("admin-devkit-data", async (req) => {
       ].filter(Boolean).length;
       const productionUrl = Deno.env.get('PRODUCTION_URL') ?? 'https://resume.thewise.cloud';
 
-      // Detect dev environment: deployed Supabase Edge Functions set DENO_DEPLOYMENT_ID.
-      // When absent (e.g. local Supabase CLI / Replit dev), we treat it as dev.
-      const isDevEnvironment = !Deno.env.get('DENO_DEPLOYMENT_ID');
+      // Detect dev environment.
+      // Preferred signal: explicit WISE_ENV secret (set to 'production' or 'dev' as
+      // a Supabase Edge Function secret). This is the source of truth and is set
+      // out-of-band per environment.
+      // Fallback (only when WISE_ENV is missing): deployed Supabase Edge Functions
+      // currently set DENO_DEPLOYMENT_ID. This is an undocumented Deno Deploy
+      // implementation detail and may break if Supabase changes runtimes — hence
+      // it is only a backstop for environments where WISE_ENV has not yet been set.
+      const wiseEnv = Deno.env.get('WISE_ENV')?.trim().toLowerCase();
+      const isDevEnvironment = wiseEnv
+        ? wiseEnv !== 'production'
+        : !Deno.env.get('DENO_DEPLOYMENT_ID');
 
       // Source classifier — matches the frontend SecretItem.source contract.
       // - Bootstrap secrets (Supabase platform + DevKit gate) live in the Supabase vault in every environment.

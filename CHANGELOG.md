@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-05-02 — Task #24: Explicit `WISE_ENV` for admin DevKit environment detection
+
+- **`supabase/functions/admin-devkit-data/index.ts`** — `isDevEnvironment` now reads the explicit `WISE_ENV` Supabase Edge Function secret first. Resolution: `WISE_ENV?.trim().toLowerCase() === 'production'` ⇒ production; any other non-empty value ⇒ dev; only when `WISE_ENV` is unset does it fall back to the legacy `!Deno.env.get('DENO_DEPLOYMENT_ID')` heuristic. The fallback is preserved as a backstop so a missed secret on a fresh project does not break the panel, but the heuristic is no longer the source of truth. The downstream `classifySecretSource(...)` and the `isDevEnvironment` field on the JSON envelope returned to `MissionControlPanel.tsx` are unchanged.
+- **`reports/audits/2026-05-02-supabase-backend-audit.md`** — appended a `Status (Task #24, 2026-05-02)` note under M-1 documenting the code change and the out-of-band requirement to set `WISE_ENV=production` in the production Supabase project (and `WISE_ENV=dev` in non-prod projects).
+- **`replit.md`** — added a User Preferences entry naming `WISE_ENV` as the canonical per-environment marker for env-aware Edge Function code, with the dev/prod values and the warning that the `DENO_DEPLOYMENT_ID` fallback is an undocumented Deno Deploy detail and must not be relied on long-term.
+- **`Project Atlas/01-Currently Implemented/edge-functions/admin-devkit-data.md`** — added an Environment-detection section describing the new `WISE_ENV` precedence and the operational requirement; bumped Last verified to 2026-05-02.
+- **Operational follow-up (not a code change):** `WISE_ENV` must be set as a Supabase Edge Function secret in each Supabase project — `production` in prod, `dev` elsewhere. Until set, behaviour is unchanged from before this task.
+
 ## 2026-04-30 — v3.10.2: DevKit per-slot AI model selection + Act As dialog upgrade
 
 - **Per-slot AI test model selection (Bugs #6 + #7)**:

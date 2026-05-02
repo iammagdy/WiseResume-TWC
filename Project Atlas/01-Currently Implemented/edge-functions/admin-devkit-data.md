@@ -1,6 +1,6 @@
 # admin-devkit-data
 
-  **Last verified:** 2026-04-30
+  **Last verified:** 2026-05-02
   **Type:** reference card
   **Sources:**
   - `supabase/functions/admin-devkit-data/index.ts`
@@ -11,6 +11,8 @@
   **Canonical owner:** `project-governance/ARCHITECTURE.md` §7 (Edge Functions)
 
   ---
+
+  **Environment detection (Task #24, 2026-05-02):** `isDevEnvironment` is now driven by the explicit `WISE_ENV` Supabase Edge Function secret (`'production'` ⇒ prod, anything else ⇒ dev). The legacy `!Deno.env.get('DENO_DEPLOYMENT_ID')` heuristic is only consulted when `WISE_ENV` is unset. **Operational requirement:** set `WISE_ENV=production` on the production Supabase project and `WISE_ENV=dev` on any non-prod Supabase projects so the panel never silently falls back to a runtime detail.
 
   **What it does:** Merged Admin DevKit data function. Routes on `body.action`:
   - `'analytics'` — platform analytics aggregates (users, resumes, tailors, revenue).

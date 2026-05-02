@@ -1,6 +1,16 @@
 # Stability Improvements — What's Getting Better Behind the Scenes
 
-**Last verified:** 2026-04-30 (Edge function slot consolidation — 9 slots freed, 8 previously unreachable features activated)
+**Last verified:** 2026-05-02 (Admin panel now knows for certain whether it's in production or development)
+
+## The admin panel no longer guesses whether it's in production (2026-05-02)
+
+**What was the situation:** The internal admin DevKit panel needed to know whether it was running in our live production environment or in a development copy, because it shows different things in each — including a yellow "you're in dev" banner and a slightly more relaxed view of which secret credentials are expected to be present locally. To figure this out, it was relying on the presence of a hidden technical marker that our hosting provider sets behind the scenes. That marker has always been present in production today, so the check has always been correct in practice. But it's an internal implementation detail of the hosting platform — not something the platform officially promises to keep around. If they ever changed how their service is built, the admin panel would silently flip into "development mode" on the live site, with no warning and no obvious failure.
+
+**What changed:** A new explicit setting called `WISE_ENV` is now the panel's primary source of truth for which environment it's in — set to `production` on the live site and `dev` on development copies. The old behind-the-scenes marker is still consulted as a safety net so a fresh deployment that forgot to set the new value doesn't break, but it's no longer the official answer. The change is documented so future deployments remember to set the explicit value.
+
+**What you'll notice:** Nothing visible — this is an internal correctness fix for the admin tools. It removes a quiet long-term risk that the admin panel could one day misidentify the environment without anyone catching it.
+
+---
 
 ## The platform just got room to breathe — and 8 hidden features are now live (2026-04-30)
 
