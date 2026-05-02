@@ -15,6 +15,7 @@ import { unwrapAdminResponse, formatEdgeError, EdgeFunctionError } from '@/lib/d
 import { useIsMounted } from '@/lib/devkit/hooks';
 import { useDevKitSession } from '@/contexts/DevKitSessionContext';
 import { cn } from '@/lib/utils';
+import { DevKitErrorCard } from './DevKitErrorCard';
 
 type Provider = 'openrouter' | 'groq' | 'deepseek';
 type Slot = 1 | 2 | 3;
@@ -196,7 +197,14 @@ function KeySlotView({
                 </SelectContent>
               </Select>
               {saveError && (
-                <p className="mt-1 text-[11px] text-red-600 dark:text-red-400">{saveError}</p>
+                <div className="mt-2">
+                  <DevKitErrorCard
+                    error={saveError}
+                    title="Could not save model selection"
+                    compact
+                    context={{ panel: 'AI Keys', function: 'admin-ai-keys', action: 'save-model' }}
+                  />
+                </div>
               )}
               <p className="mt-1 text-[10px] text-muted-foreground">
                 Used for the test request; saved per slot in Supabase.
@@ -524,13 +532,13 @@ function ProviderPanel({ provider }: ProviderPanelProps) {
       <div className="text-[10px] text-muted-foreground -mt-2">{catalogFreshnessLabel}</div>
 
       {loadError && (
-        <div className="rounded-md bg-red-500/5 border border-red-500/20 p-3 text-xs text-red-600 dark:text-red-400 space-y-2">
-          <p>{loadError}</p>
-          {sessionExpired && serverErrorDetail && (
-            <p className="font-mono text-[11px] opacity-70">
-              Server response: {serverErrorDetail}
-            </p>
-          )}
+        <div className="space-y-2">
+          <DevKitErrorCard
+            error={sessionExpired && serverErrorDetail ? `${loadError} — Server response: ${serverErrorDetail}` : loadError}
+            title="Could not load AI keys"
+            onRetry={fetchKeys}
+            context={{ panel: 'AI Keys', function: 'admin-ai-keys', action: 'list' }}
+          />
           {sessionExpired && (
             <Button
               type="button"
