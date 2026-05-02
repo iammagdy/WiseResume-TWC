@@ -399,7 +399,8 @@ async function runRouteAuthChecks() {
       //     in-function requireAuth/requireAdminAuth);
       //   - status=500 with an authorization-related message in the body
       //     (the documented "AuthError leaked past wrapHandler" pattern,
-      //     when allowAuthLeakAs500 is enabled — true by default).
+      //     when allowAuthLeakAs500 is enabled — opt-in only; default is
+      //     ALLOW_AUTH_LEAK_AS_500_DEFAULT = false).
       // A bare 500, a 404, or any 2xx is always a regression.
       const errorMsg = body?.error || '';
       const errorMsgFull = `${body?.error || ''} ${body?.message || ''}`.toLowerCase();
