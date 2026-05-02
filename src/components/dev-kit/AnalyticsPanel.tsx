@@ -23,6 +23,7 @@ import { RankedList } from './analytics/RankedList';
 import { EmptyState } from './analytics/EmptyState';
 import type { AnalyticsRange, PremiumAnalyticsData } from './analytics/types';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
+import { DevKitErrorCard } from './DevKitErrorCard';
 
 const TOOLTIP_STYLE = {
   backgroundColor: 'hsl(var(--card))',
@@ -148,7 +149,7 @@ export function AnalyticsPanel() {
       </div>
 
       {error && (
-        <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-sm text-destructive">{error}</div>
+        <DevKitErrorCard error={error} title="Couldn't load analytics" context={{ panel: 'Analytics', function: 'admin-devkit-data' }} />
       )}
 
       {loading && !data && (

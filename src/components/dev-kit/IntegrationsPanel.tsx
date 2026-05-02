@@ -130,7 +130,7 @@ function KindeEventsTab() {
         </Button>
       </div>
 
-      {error && <DevKitErrorCard error={error} title="Couldn't load Kinde events" onRetry={fetchEvents} />}
+      {error && <DevKitErrorCard error={error} title="Couldn't load Kinde events" onRetry={fetchEvents} context={{ panel: 'Integrations · Kinde', function: 'admin-moderation', action: 'list_kinde_events', requestBodySanitized: `event_type=${typeFilter}` }} />}
 
       {!loading && events.length === 0 && !error && (
         <p className="text-sm text-center text-muted-foreground py-8">No Kinde events recorded yet</p>
@@ -256,7 +256,7 @@ function ResendBouncesTab() {
         </div>
       )}
 
-      {error && <DevKitErrorCard error={error} title="Couldn't load Resend bounces" onRetry={fetchBounces} />}
+      {error && <DevKitErrorCard error={error} title="Couldn't load Resend bounces" onRetry={fetchBounces} context={{ panel: 'Integrations · Resend', function: 'admin-integrations', action: 'get_resend_bounces' }} />}
 
       {!loading && bounces.length === 0 && !error && (
         <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
@@ -394,7 +394,7 @@ function DeployTab() {
         </div>
       </div>
 
-      {error && <DevKitErrorCard error={error} title="Couldn't load deploy status" onRetry={fetchStatus} />}
+      {error && <DevKitErrorCard error={error} title="Couldn't load deploy status" onRetry={fetchStatus} context={{ panel: 'Integrations · Deploy', function: 'admin-integrations', action: 'get_deploy_status' }} />}
 
       {!loading && runs.length === 0 && !error && (
         <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">

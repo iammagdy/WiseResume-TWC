@@ -187,7 +187,7 @@ export function OnboardingFunnelPanel() {
       </div>
 
       {error && (
-        <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-sm text-destructive">{error}</div>
+        <DevKitErrorCard error={error} title="Couldn't load onboarding funnel" context={{ panel: 'Onboarding Funnel', function: 'admin-devkit-data' }} />
       )}
 
       {loading && !data && (

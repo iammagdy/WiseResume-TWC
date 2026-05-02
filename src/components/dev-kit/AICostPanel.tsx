@@ -169,6 +169,7 @@ export function AICostPanel() {
           error={error}
           title="Couldn't load AI cost data"
           onRetry={() => fetchData(range)}
+          context={{ panel: 'AI Cost', function: 'admin-devkit-data', action: 'ai-cost', requestBodySanitized: `range=${range}` }}
         />
       )}
 

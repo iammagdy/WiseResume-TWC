@@ -170,7 +170,7 @@ function BugInboxTab({ onCountChange }: { onCountChange?: (n: number) => void })
         </Button>
       </div>
 
-      {error && <DevKitErrorCard error={error} title="Couldn't load bug reports" onRetry={fetchBugs} />}
+      {error && <DevKitErrorCard error={error} title="Couldn't load bug reports" onRetry={fetchBugs} context={{ panel: 'Moderation · Bugs', function: 'admin-moderation', action: 'list_bug_reports' }} />}
 
       {!loading && bugs.length === 0 && !error && (
         <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
@@ -409,7 +409,7 @@ function BlocklistTab() {
         </Button>
       </div>
 
-      {error && <DevKitErrorCard error={error} title="Couldn't load blocklist" onRetry={fetchEntries} />}
+      {error && <DevKitErrorCard error={error} title="Couldn't load blocklist" onRetry={fetchEntries} context={{ panel: 'Moderation · Blocklist', function: 'admin-moderation', action: 'list_blocklist' }} />}
 
       {!loading && entries.length === 0 && !error && (
         <p className="text-sm text-center text-muted-foreground py-6">Blocklist is empty</p>
@@ -518,7 +518,7 @@ function ModerationQueueTab() {
         </Button>
       </div>
 
-      {error && <DevKitErrorCard error={error} title="Couldn't load moderation queue" onRetry={fetchItems} />}
+      {error && <DevKitErrorCard error={error} title="Couldn't load moderation queue" onRetry={fetchItems} context={{ panel: 'Moderation · Queue', function: 'admin-moderation', action: 'list_queue' }} />}
 
       {!loading && items.length === 0 && !error && (
         <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">

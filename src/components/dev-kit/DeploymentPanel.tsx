@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/safeClient';
 import { useIsMounted } from '@/lib/devkit/hooks';
 import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
+import { DevKitErrorCard } from './DevKitErrorCard';
 
 interface Commit {
   sha: string;
@@ -281,28 +282,22 @@ export function DeploymentPanel() {
             </div>
 
             {data.githubError && (
-              <div className="p-4 text-sm text-destructive bg-destructive/5 flex items-start gap-2">
-                <XCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                <div className="space-y-1">
-                  <p className="font-medium">GitHub API unavailable</p>
-                  <p className="text-xs text-destructive/70">{data.githubError}</p>
-                  <p className="text-xs text-muted-foreground">
-                    Ensure <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">GITHUB_TOKEN</code> (or <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">GITHUB_ACCESS_TOKEN</code>) is configured.
-                    In production, these are read from Supabase Edge Functions → Secrets.
-                  </p>
-                  <a
-                    href={SUPABASE_SECRETS_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-                  >
-                    <ExternalLink className="w-3 h-3" />
-                    Open Supabase Edge Functions
-                  </a>
-                </div>
+              <div className="space-y-2">
+                <DevKitErrorCard
+                  error={data.githubError}
+                  title="GitHub API unavailable"
+                  context={{ panel: 'Deployment', function: 'admin-integrations', action: 'github-status' }}
+                />
+                <a
+                  href={SUPABASE_SECRETS_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+                >
+                  Open Supabase Edge Function Secrets
+                </a>
               </div>
             )}
-
             {!data.githubError && data.commits.length === 0 && (
               <div className="py-8 text-center text-muted-foreground">
                 <GitCommit className="w-6 h-6 mx-auto mb-2 opacity-40" />
@@ -417,12 +412,11 @@ export function DeploymentPanel() {
             </div>
 
             {data.envError && (
-              <div className="text-sm text-destructive bg-destructive/5 p-3 rounded-lg">
-                {data.envError}
-                <p className="text-xs mt-1 text-muted-foreground">
-                  Deploy the <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">admin-env-check</code> edge function.
-                </p>
-              </div>
+              <DevKitErrorCard
+                error={data.envError}
+                title="Couldn't load env check"
+                context={{ panel: 'Deployment', function: 'admin-env-check' }}
+              />
             )}
 
             {!data.envError && data.envChecks.length === 0 && (

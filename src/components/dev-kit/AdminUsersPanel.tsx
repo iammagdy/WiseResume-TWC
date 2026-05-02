@@ -683,10 +683,11 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
 
       {/* Error */}
       {error && (
-        <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-sm text-destructive">
-          {error}
-          <p className="text-xs mt-1 opacity-70">Check that the admin edge functions are deployed and DEV_KIT_PASSWORD is set in Supabase.</p>
-        </div>
+        <DevKitErrorCard
+          error={error}
+          title="Couldn't load admin users"
+          context={{ panel: 'Admin Users', function: 'admin-users' }}
+        />
       )}
 
       {/* Loading skeleton */}

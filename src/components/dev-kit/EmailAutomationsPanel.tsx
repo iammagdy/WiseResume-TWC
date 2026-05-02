@@ -20,6 +20,7 @@ import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
 import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
 import { useIsMounted } from '@/lib/devkit/hooks';
+import { DevKitErrorCard } from './DevKitErrorCard';
 
 interface AudienceStat {
   key: string;
@@ -337,15 +338,11 @@ export function EmailAutomationsPanel() {
       </div>
 
       {error && (
-        <div className="p-4 rounded-xl border border-destructive/20 bg-destructive/5 text-sm text-destructive flex items-start gap-2">
-          <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-          <div>
-            <p className="font-medium">{error}</p>
-            <p className="text-xs text-destructive/70 mt-1">
-              Deploy <code className="font-mono text-xs bg-destructive/10 px-1 py-0.5 rounded">admin-email</code> to your Supabase project and ensure DEV_KIT_PASSWORD is configured.
-            </p>
-          </div>
-        </div>
+        <DevKitErrorCard
+          error={error}
+          title="Couldn't load email automations"
+          context={{ panel: 'Email Automations', function: 'admin-email-automations' }}
+        />
       )}
 
       {/* Audience Cards */}

@@ -32,6 +32,7 @@ import { getDevKitToken } from '@/contexts/DevKitSessionContext';
 import { useIsMounted } from '@/lib/devkit/hooks';
 import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
+import { DevKitErrorCard } from './DevKitErrorCard';
 
 interface WaitlistEntry {
   id: string;
@@ -272,7 +273,11 @@ export function WiseHireWaitlistPanel() {
       </div>
 
       {error && (
-        <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-sm text-destructive">{error}</div>
+        <DevKitErrorCard
+          error={error}
+          title="Couldn't load WiseHire waitlist"
+          context={{ panel: 'WiseHire Waitlist', function: 'admin-wisehire' }}
+        />
       )}
 
       {loading && entries.length === 0 && (
@@ -585,7 +590,11 @@ export function WiseHireWaitlistPanel() {
               </div>
             )}
             {historyError && !historyLoading && (
-              <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-sm text-destructive">{historyError}</div>
+              <DevKitErrorCard
+                error={historyError}
+                title="Couldn't load invite history"
+                context={{ panel: 'WiseHire Waitlist · History', function: 'admin-wisehire', action: 'invite-history' }}
+              />
             )}
             {!historyLoading && !historyError && historyRows.length === 0 && (
               <div className="text-center py-8 text-muted-foreground">

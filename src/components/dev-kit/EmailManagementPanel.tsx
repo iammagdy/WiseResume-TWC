@@ -19,6 +19,7 @@ import type { AdminUser } from './AdminUsersPanel';
 import { useIsMounted } from '@/lib/devkit/hooks';
 import { unwrapAdminResponse, tryUnwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
+import { DevKitErrorCard } from './DevKitErrorCard';
 
 type EmailAction = 'resend_confirmation' | 'send_magic_link' | 'send_otp' | 'send_password_reset' | 'send_custom' | 'wisehire_invite';
 
@@ -181,9 +182,11 @@ function UnconfirmedUsersSection({ onSendToUser }: UnconfirmedUsersProps) {
       </div>
 
       {error && (
-        <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-sm text-destructive">
-          {error}
-        </div>
+        <DevKitErrorCard
+          error={error}
+          title="Couldn't load email management"
+          context={{ panel: 'Email Management', function: 'admin-email' }}
+        />
       )}
 
       {loading && !loaded && (

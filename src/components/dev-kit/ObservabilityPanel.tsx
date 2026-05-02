@@ -370,7 +370,11 @@ export function ObservabilityPanel() {
           </div>
 
           {telemetryError && (
-            <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-sm text-destructive">{telemetryError}</div>
+            <DevKitErrorCard
+              error={telemetryError}
+              title="Couldn't load telemetry"
+              context={{ panel: 'Observability · Telemetry', function: 'admin-devkit-data', action: 'observability' }}
+            />
           )}
 
           {telemetryMissing && (
@@ -512,7 +516,11 @@ export function ObservabilityPanel() {
           </div>
 
           {errorsError && (
-            <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-sm text-destructive">{errorsError}</div>
+            <DevKitErrorCard
+              error={errorsError}
+              title="Couldn't load error log"
+              context={{ panel: 'Observability · Errors', function: 'admin-devkit-data', action: 'observability' }}
+            />
           )}
 
           {errorsMissing && (

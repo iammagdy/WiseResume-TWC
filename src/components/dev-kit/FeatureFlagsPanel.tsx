@@ -19,6 +19,7 @@ import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { devKitInvokeOptions } from '@/lib/devkit/devKitAuth';
 import { useIsMounted } from '@/lib/devkit/hooks';
 import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
+import { DevKitErrorCard } from './DevKitErrorCard';
 
 interface FeatureFlag {
   id: string;
@@ -499,9 +500,11 @@ export function FeatureFlagsPanel() {
   return (
     <div className="space-y-6">
       {error && (
-        <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-sm text-destructive">
-          {error}
-        </div>
+        <DevKitErrorCard
+          error={error}
+          title="Couldn't load feature flags"
+          context={{ panel: 'Feature Flags', function: 'admin-feature-flags' }}
+        />
       )}
 
       <div className="flex items-center justify-between">
