@@ -191,15 +191,12 @@ export default function CoverLetterEditPage() {
               content={content}
               createdAt={letter.created_at}
               accentHex={(() => {
-                // Only honour the accent of the EXACT linked resume.
-                // Falling back to `resumes[0]` would surface an unrelated
-                // user's-other-resume accent on the cover-letter preview,
-                // which is misleading and can also pass an unexpected
-                // shape to `dbToResumeData` if invariants ever shift.
+                // Only honour the accent of the EXACT linked resume —
+                // never fall back to resumes[0] (would show an unrelated
+                // resume's colour).
                 if (!resumes || !letter.resume_id) return undefined;
                 const linked = resumes.find((r) => r.id === letter.resume_id);
-                if (!linked) return undefined;
-                return dbToResumeData(linked).customization?.accentColor;
+                return linked ? dbToResumeData(linked).customization?.accentColor : undefined;
               })()}
             />
           )}
@@ -226,13 +223,8 @@ export default function CoverLetterEditPage() {
                 className="grid grid-cols-2 sm:grid-cols-4 gap-2"
               >
                 {COVER_LETTER_TEMPLATE_OPTIONS.map((t) => {
-                  // Selection rule chosen so picker state ALWAYS matches the
-                  // rendered preview:
-                  //  - null/empty → NO tile selected (preview is the legacy
-                  //    plain fallback) and a "No style set" hint is shown.
-                  //  - 'minimal'  → Classic tile selected (registry aliases
-                  //    'minimal' → ClassicTemplate so preview is Classic).
-                  //  - known values → matching tile selected.
+                  // Selection mirrors preview: null = no tile selected;
+                  // 'minimal' aliases to Classic; known values = matching tile.
                   const raw = letter.template_style;
                   const selected =
                     (raw === 'minimal' && t.value === 'professional') ||
@@ -248,11 +240,9 @@ export default function CoverLetterEditPage() {
                       disabled={writing && !selected}
                       onClick={() => {
                         if (!id || writing) return;
-                        // Idempotent: only the no-op case where the persisted
-                        // value literally equals the tile's value is skipped.
-                        // For 'minimal' rows clicking Classic still writes
-                        // 'professional' so the row migrates off the legacy
-                        // value.
+                        // Skip only the literal no-op (raw === t.value); a
+                        // 'minimal' row clicking Classic still migrates to
+                        // 'professional'.
                         if (raw === t.value) return;
                         haptics.selection();
                         updateCoverLetter.mutate({ id, template_style: t.value });

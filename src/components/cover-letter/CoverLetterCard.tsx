@@ -51,9 +51,8 @@ export const CoverLetterCard = memo(function CoverLetterCard({
     conversational: 'bg-secondary/10 text-secondary',
   };
 
-  // Map persisted template_style → user-facing label. Legacy 'minimal'
-  // rows are treated as Classic to match the registry alias. Null →
-  // hide the badge entirely so old letters look identical to before.
+  // template_style → user-facing label. Legacy 'minimal' aliases to
+  // Classic; null hides the badge so old cards look identical.
   const styleLabels: Record<string, string> = {
     professional: 'Classic',
     minimal: 'Classic',
@@ -63,22 +62,15 @@ export const CoverLetterCard = memo(function CoverLetterCard({
   };
   const styleLabel = letter.template_style ? styleLabels[letter.template_style] : null;
 
-  // Style-specific mini-thumbnail for the card icon area. Each variant is
-  // a tiny visual signature of the corresponding cover-letter template
-  // (accent stripe, header band, two-column split, etc.) so users can
-  // recognise the chosen look at a glance from the list. Null / unknown
-  // template_style → unchanged legacy icon container so old cards look
-  // exactly as they did before Task #28.
+  // Per-style icon mini-thumbnail. Null/unknown keeps the legacy look.
   const normalisedStyle =
     letter.template_style === 'minimal' ? 'professional' : letter.template_style;
   const styleThumbClass: Record<string, string> = {
     professional:
       'bg-card border border-border before:absolute before:inset-x-0 before:top-0 before:h-1 before:bg-primary before:rounded-t-xl',
     modern: 'bg-primary text-primary-foreground border border-primary',
-    compact:
-      'bg-card border border-border [&>svg]:scale-90 [&>svg]:opacity-80',
-    creative:
-      'border border-border bg-gradient-to-br from-primary/20 via-card to-accent/20',
+    compact: 'bg-card border border-border [&>svg]:scale-90 [&>svg]:opacity-80',
+    creative: 'border border-border bg-gradient-to-br from-primary/20 via-card to-accent/20',
   };
   const thumbExtra = normalisedStyle ? styleThumbClass[normalisedStyle] : null;
 
