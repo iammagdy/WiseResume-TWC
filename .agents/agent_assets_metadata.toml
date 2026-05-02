@@ -30,3 +30,9 @@ id = "EUJQCIjV6nNJ0iW2A_yNz"
 uri = "file://.local/editor_audit_report.md"
 type = "text"
 title = "Resume Editor (/editor) — Evidence-Based Audit Report"
+
+[[outputs]]
+id = "eVe0Dzo9k5Cvcwi-bO-1p"
+uri = "file://reports/audits/2026-05-02-supabase-backend-audit.md"
+type = "text"
+title = "Supabase Backend & Edge Functions Audit (2026-05-02)"
