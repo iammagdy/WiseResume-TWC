@@ -48,6 +48,20 @@ Deno.serve(wrapHandler("admin-delete-user", async (req) => {
     const { error: deleteError } = await supabase.auth.admin.deleteUser(target_user_id);
 
     if (deleteError) {
+      // Surface auth "user not found" as a 404 not_found envelope so admin
+      // UI can distinguish a missing target from a real server error.
+      const msg = (deleteError.message ?? '').toLowerCase();
+      const isMissing =
+        (deleteError as { status?: number }).status === 404 ||
+        msg.includes('not found') ||
+        msg.includes('user_not_found') ||
+        msg.includes('no user');
+      if (isMissing) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'not_found' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
       return new Response(
         JSON.stringify({ success: false, error: deleteError.message }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

@@ -122,10 +122,9 @@ Deno.serve(wrapHandler("admin-moderation", async (req) => {
       .from('blocklist')
       .insert({ type, value: normalizedValue, reason: reason ?? null, added_by: callerEmail })
       .select()
-      .maybeSingle();
+      .single();
 
     if (error) return json({ success: false, error: error.message }, 500, cors);
-    if (!data) return json({ success: false, error: 'Insert returned no row' }, 500, cors);
 
     await supabase.from('audit_logs').insert({
       user_id: null,
@@ -276,10 +275,9 @@ Deno.serve(wrapHandler("admin-moderation", async (req) => {
       .from('blocklist')
       .insert({ type: 'email', value: normalized, reason: reason ?? 'Email suppressed due to bounce/complaint', added_by: callerEmail })
       .select()
-      .maybeSingle();
+      .single();
 
     if (error) return json({ success: false, error: error.message }, 500, cors);
-    if (!data) return json({ success: false, error: 'Insert returned no row' }, 500, cors);
 
     await supabase.from('audit_logs').insert({
       user_id: null,
