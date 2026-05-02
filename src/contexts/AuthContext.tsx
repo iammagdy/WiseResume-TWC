@@ -6,7 +6,8 @@ import { logAudit } from '@/lib/auditLogger';
 import { clearAllPersistedCaches } from '@/lib/persistedQueryCache';
 import { clearAllCachedScores } from '@/hooks/useResumeScore';
 import { clearAllEditorSessions } from '@/lib/editorSession';
-import { exchangeToken, clearBridge, isReady, getUserId, setKindeTokenGetter, setCurrentKindeSub, getCachedKindeSub } from '@/lib/supabaseBridge';
+import { exchangeToken, clearBridge, isReady, getUserId, getToken as getBridgeToken, setKindeTokenGetter, setCurrentKindeSub, getCachedKindeSub } from '@/lib/supabaseBridge';
+import { supabase } from '@/integrations/supabase/safeClient';
 import {
   isImpersonating as isImpersonatingFn,
   getImpersonationState,
@@ -206,13 +207,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     (async () => {
       try {
-        // Apply a short timeout to the Kinde token getter. In some environments
-        // (e.g. Replit dev) the Kinde SDK can hang for 30–60 s while it makes
-        // a background network call to verify the session. If it hangs, we
-        // immediately settle as "failed" so the UI shows instead of blocking.
+        // Apply a generous timeout to the Kinde token getter. In some
+        // environments (e.g. cold tab restore, slow networks) the Kinde SDK
+        // performs a background network call to verify the session that
+        // legitimately takes 5–10 s. The previous 5 s cap fired before that
+        // call settled and dumped the user into degraded mode even though
+        // auth was healthy. 15 s is long enough to cover legitimate Kinde
+        // round-trips while still bailing on a true hang.
         const kindeToken = await Promise.race([
           getKindeToken(),
-          new Promise<null>(resolve => setTimeout(() => resolve(null), 5000)),
+          new Promise<null>(resolve => setTimeout(() => resolve(null), 15000)),
         ]);
         if (cancelled) return;
         if (!kindeToken) {
@@ -250,6 +254,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (kindeToken) {
           await exchangeToken(kindeToken);
           setBridgeReady(isReady());
+          // Push the freshly-minted bridge JWT into the Realtime client so
+          // long-lived WebSocket subscriptions keep authenticating after the
+          // 50-min refresh. Without this the server eventually rejects new
+          // subscribe attempts with the stale token (CHANNEL_ERROR) and
+          // useMe falls back to polling for the rest of the session.
+          const fresh = getBridgeToken();
+          if (fresh) {
+            try { supabase.realtime.setAuth(fresh); } catch { /* WS may not be initialised */ }
+          }
         }
       } catch (err) {
         console.error('[AuthContext] Bridge refresh failed:', err);
@@ -270,7 +283,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const kindeToken = await getKindeToken();
         if (kindeToken) {
           await exchangeToken(kindeToken);
-          if (!bridgeReady) setBridgeReady(isReady());
+          const ready = isReady();
+          // Recover from a previously-failed bridge once Kinde returns a
+          // usable token (e.g. degraded mode set during a transient timeout).
+          if (ready) {
+            if (!bridgeReady) setBridgeReady(true);
+            if (bridgeFailed) setBridgeFailed(false);
+            // Mirror the post-refresh setAuth so Realtime subscriptions
+            // re-initialised after a tab-resume use the fresh token.
+            const fresh = getBridgeToken();
+            if (fresh) {
+              try { supabase.realtime.setAuth(fresh); } catch { /* WS may not be initialised */ }
+            }
+          }
         }
       } catch (err) {
         console.error('[AuthContext] Visibility-triggered bridge refresh failed:', err);
@@ -279,7 +304,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [kindeAuthenticated, bridgeReady, getKindeToken]);
+  }, [kindeAuthenticated, bridgeReady, bridgeFailed, getKindeToken]);
 
   // Hide splash screen when auth is resolved
   useEffect(() => {

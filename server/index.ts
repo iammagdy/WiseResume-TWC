@@ -3188,19 +3188,13 @@ app.all('/api/fn/admin-devkit-data', async (req, res) => {
 });
 
 // ── admin-email ───────────────────────────────────────────────────────────────
-// Panels call admin-email; the full implementation lives in admin-email-actions.
-app.all('/api/fn/admin-email', async (req, res) => {
-  try {
-    const r = await fetch(`http://127.0.0.1:5001/api/fn/admin-email-actions`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: req.headers.authorization ?? '' },
-      body: JSON.stringify(req.body ?? {}),
-      signal: AbortSignal.timeout(30_000),
-    });
-    const data = await r.json();
-    return res.status(r.status).json(data);
-  } catch (err) { return res.status(502).json({ success: false, error: String(err) }); }
-});
+// (Removed) Previously this redirected to the local /api/fn/admin-email-actions
+// Express handler, which has no Supabase Edge Function counterpart. The full
+// implementation now lives in `supabase/functions/admin-email/index.ts` (the
+// admin-email-actions module was merged into it). Letting this path fall
+// through to the generic /api/fn/:fnName proxy below routes both dev and prod
+// to the same real edge function — eliminating the prod 404 and the dev/prod
+// behaviour split. AUDIT (Task #44 P0).
 
 /**
  * Edge function proxy — forwards all /api/fn/* calls to Supabase Edge Functions.
