@@ -63,6 +63,25 @@ export const CoverLetterCard = memo(function CoverLetterCard({
   };
   const styleLabel = letter.template_style ? styleLabels[letter.template_style] : null;
 
+  // Style-specific mini-thumbnail for the card icon area. Each variant is
+  // a tiny visual signature of the corresponding cover-letter template
+  // (accent stripe, header band, two-column split, etc.) so users can
+  // recognise the chosen look at a glance from the list. Null / unknown
+  // template_style → unchanged legacy icon container so old cards look
+  // exactly as they did before Task #28.
+  const normalisedStyle =
+    letter.template_style === 'minimal' ? 'professional' : letter.template_style;
+  const styleThumbClass: Record<string, string> = {
+    professional:
+      'bg-card border border-border before:absolute before:inset-x-0 before:top-0 before:h-1 before:bg-primary before:rounded-t-xl',
+    modern: 'bg-primary text-primary-foreground border border-primary',
+    compact:
+      'bg-card border border-border [&>svg]:scale-90 [&>svg]:opacity-80',
+    creative:
+      'border border-border bg-gradient-to-br from-primary/20 via-card to-accent/20',
+  };
+  const thumbExtra = normalisedStyle ? styleThumbClass[normalisedStyle] : null;
+
   return (
     <div className="relative overflow-hidden rounded-2xl">
       {/* Swipe backgrounds */}
@@ -104,8 +123,21 @@ export const CoverLetterCard = memo(function CoverLetterCard({
         whileTap={{ scale: isDragging ? 1 : 0.98 }}
       >
         <div className="flex items-start gap-3">
-          <div className="w-10 h-10 rounded-xl bg-card border border-border flex items-center justify-center flex-shrink-0">
-            <FileText className="w-5 h-5 text-accent" />
+          <div
+            className={cn(
+              'relative w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden',
+              thumbExtra ?? 'bg-card border border-border',
+            )}
+            aria-hidden
+          >
+            <FileText
+              className={cn(
+                'w-5 h-5',
+                normalisedStyle === 'modern'
+                  ? 'text-primary-foreground'
+                  : 'text-accent',
+              )}
+            />
           </div>
           <div className="flex-1 min-w-0">
             <h3 className="font-semibold text-foreground truncate">{letter.title || letter.job_title}</h3>

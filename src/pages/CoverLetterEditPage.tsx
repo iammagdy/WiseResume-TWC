@@ -190,11 +190,17 @@ export default function CoverLetterEditPage() {
               company={letter.company}
               content={content}
               createdAt={letter.created_at}
-              accentHex={
-                resumes && letter.resume_id
-                  ? dbToResumeData(resumes.find(r => r.id === letter.resume_id) || resumes[0]).customization?.accentColor
-                  : undefined
-              }
+              accentHex={(() => {
+                // Only honour the accent of the EXACT linked resume.
+                // Falling back to `resumes[0]` would surface an unrelated
+                // user's-other-resume accent on the cover-letter preview,
+                // which is misleading and can also pass an unexpected
+                // shape to `dbToResumeData` if invariants ever shift.
+                if (!resumes || !letter.resume_id) return undefined;
+                const linked = resumes.find((r) => r.id === letter.resume_id);
+                if (!linked) return undefined;
+                return dbToResumeData(linked).customization?.accentColor;
+              })()}
             />
           )}
 
