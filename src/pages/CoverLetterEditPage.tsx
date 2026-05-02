@@ -207,39 +207,36 @@ export default function CoverLetterEditPage() {
           {/* Template Style switcher */}
           {!isEditing && (
             <div className="mt-4">
-              <label
-                id="cover-letter-edit-style-label"
-                className="text-xs font-medium text-muted-foreground mb-1.5 block"
-              >
-                Style
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label
+                  id="cover-letter-edit-style-label"
+                  className="text-xs font-medium text-muted-foreground"
+                >
+                  Style
+                </label>
+                {!letter.template_style && (
+                  <span className="text-[10px] text-muted-foreground/70 italic">
+                    No style set — pick one to apply
+                  </span>
+                )}
+              </div>
               <div
                 role="radiogroup"
                 aria-labelledby="cover-letter-edit-style-label"
                 className="grid grid-cols-2 sm:grid-cols-4 gap-2"
               >
                 {COVER_LETTER_TEMPLATE_OPTIONS.map((t) => {
-                  // Normalise the persisted value for UI selection:
-                  //  - null / empty (legacy untagged) → Classic (matches the
-                  //    fallback renderer in <CoverLetterPreview>).
-                  //  - 'minimal' (legacy value, no longer in the picker) →
-                  //    Classic (matches the registry alias to ClassicTemplate
-                  //    so one tile is always selected and matches the preview).
+                  // Selection rule chosen so picker state ALWAYS matches the
+                  // rendered preview:
+                  //  - null/empty → NO tile selected (preview is the legacy
+                  //    plain fallback) and a "No style set" hint is shown.
+                  //  - 'minimal'  → Classic tile selected (registry aliases
+                  //    'minimal' → ClassicTemplate so preview is Classic).
+                  //  - known values → matching tile selected.
                   const raw = letter.template_style;
-                  const current = !raw || raw === 'minimal' ? 'professional' : raw;
-                  const selected = current === t.value;
-                  // "Phantom" selection: the row has no real persisted style
-                  // (null / empty / legacy 'minimal') so Classic appears
-                  // selected, but the preview still renders the legacy plain
-                  // fallback / minimal renderer. In that case clicking Classic
-                  // must still be allowed to write 'professional' so the
-                  // preview converges to ClassicTemplate.
-                  const phantom =
-                    t.value === 'professional' && (!raw || raw === 'minimal');
-                  // Disable while a write is in flight to make rapid taps
-                  // idempotent even if `current` has not yet refetched. Keep
-                  // the (real) selected tile enabled so the radiogroup retains
-                  // a focusable aria-checked element.
+                  const selected =
+                    (raw === 'minimal' && t.value === 'professional') ||
+                    raw === t.value;
                   const writing = updateCoverLetter.isPending;
                   return (
                     <button
@@ -248,14 +245,15 @@ export default function CoverLetterEditPage() {
                       role="radio"
                       aria-checked={selected}
                       aria-label={`Switch to ${t.label} cover letter template — ${t.description}`}
-                      disabled={writing && !(selected && !phantom)}
+                      disabled={writing && !selected}
                       onClick={() => {
                         if (!id || writing) return;
-                        // Idempotent: skip the write only when the persisted
-                        // value already matches the tile (real selection).
-                        // Phantom selections still need the write so the row
-                        // upgrades from legacy/null to the chosen style.
-                        if (selected && !phantom) return;
+                        // Idempotent: only the no-op case where the persisted
+                        // value literally equals the tile's value is skipped.
+                        // For 'minimal' rows clicking Classic still writes
+                        // 'professional' so the row migrates off the legacy
+                        // value.
+                        if (raw === t.value) return;
                         haptics.selection();
                         updateCoverLetter.mutate({ id, template_style: t.value });
                       }}
