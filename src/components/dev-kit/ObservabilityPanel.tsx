@@ -9,6 +9,7 @@ import { useIsMounted, useVisibleInterval } from '@/lib/devkit/hooks';
 import { useDevKitSession } from '@/contexts/DevKitSessionContext';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { DevKitErrorCard } from './DevKitErrorCard';
 
 type InternalTab = 'telemetry' | 'errors';
 type SortKey = 'function_name' | 'total_count' | 'last_1h_count' | 'p50_ms' | 'p95_ms' | 'error_rate';
