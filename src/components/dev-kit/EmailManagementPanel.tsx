@@ -376,6 +376,7 @@ function ComposeEmailForm({
         if (isMounted()) setSearching(false);
       }
     }, 350);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSelectUser = (user: AdminUser) => {

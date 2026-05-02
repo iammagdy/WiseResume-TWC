@@ -131,7 +131,7 @@ export function DevKitRunner() {
    * strictInvoke: Helper to enforce US1-FR-DK-002. Wrapped in useCallback so useMemo
    * dependency on strictInvoke is stable and doesn't cause infinite re-creation of tests[].
    */
-  const strictInvoke = useCallback(async (testId: string, fn: () => Promise<any>): Promise<TestResult> => {
+  const strictInvoke = useCallback(async (testId: string, fn: () => Promise<unknown>): Promise<TestResult> => {
     const start = Date.now();
     try {
       const res = await fn();
@@ -177,8 +177,8 @@ export function DevKitRunner() {
 
       // Handle raw responses or direct DB queries
       return { status: 'success', data: res, durationMs, summary: 'OK' };
-    } catch (err: any) {
-      const rawMsg = err.message || String(err);
+    } catch (err) {
+      const rawMsg = (err instanceof Error ? err.message : String(err)) || String(err);
       const friendly = friendlyAIKeyError(rawMsg);
       return {
         status: 'error',

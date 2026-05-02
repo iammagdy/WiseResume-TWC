@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
  * `***REDACTED***` placeholder while preserving the prefix so an admin
  * can still tell which provider misfired.
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function redactSecrets(input: string): string {
   if (!input) return input;
   let out = input;
