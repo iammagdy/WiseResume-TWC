@@ -1010,7 +1010,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
                     error={activityError}
                     title="Failed to load activity"
                     compact
-                    context={{ panel: 'User Detail · Activity', function: 'admin-user-activity', action: 'list' }}
+                    context={{ panel: 'User Detail · Activity', function: 'admin-devkit-data', action: 'live-activity / usage_events' }}
                   />
                 )}
 
