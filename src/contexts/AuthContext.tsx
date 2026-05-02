@@ -1,5 +1,4 @@
 import React, { createContext, useEffect, useState, useMemo, useCallback, useRef, useSyncExternalStore } from 'react';
-import { Capacitor } from '@capacitor/core';
 import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -78,16 +77,6 @@ export function DegradedAuthProvider({ children }: { children: React.ReactNode }
       {children}
     </AuthContext.Provider>
   );
-}
-
-async function hideSplashScreen() {
-  if (!Capacitor.isNativePlatform()) return;
-  try {
-    const { SplashScreen } = await import('@capacitor/splash-screen');
-    await SplashScreen.hide({ fadeOutDuration: 300 });
-  } catch {
-    // Plugin unavailable on web builds
-  }
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -296,10 +285,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!loading && !splashHidden) {
       setSplashHidden(true);
-      if (Capacitor.isNativePlatform()) {
-        window.dispatchEvent(new CustomEvent('app:auth-ready'));
-        hideSplashScreen();
-      }
     }
   }, [loading, splashHidden]);
 
