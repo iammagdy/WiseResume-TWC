@@ -89,8 +89,10 @@ function buildUrl(path: string, query?: ApiFetchOptions['query']): string {
  */
 type ProdRoute = {
   /** When set, skip the network call and synthesize this response. Used for
-   *  endpoints whose Express handlers are hardcoded stubs. */
-  synthetic?: unknown;
+   *  endpoints whose Express handlers are hardcoded stubs. May also be an
+   *  async fetcher function for routes that need to issue multiple
+   *  PostgREST queries and stitch the results (e.g. activity-rows). */
+  synthetic?: unknown | (() => Promise<unknown>);
   url?: string;
   method?: string;
   body?: unknown;
@@ -101,7 +103,34 @@ type ProdRoute = {
   emptyAs404?: boolean;
 };
 
-function resolveProdRoute(path: string, method: string, body: unknown): ProdRoute | null {
+/**
+ * Issue an authenticated PostgREST GET against the active identity's bridge
+ * token. Used by aggregate routes (activity-rows, job-activity-rows) that
+ * need to fan out across multiple tables in a single client call.
+ */
+async function pgGet<T = unknown>(suffix: string): Promise<T[]> {
+  const base = SUPABASE_URL.replace(/\/+$/, '');
+  const { token } = resolveActiveAuth();
+  const headers: Record<string, string> = {
+    Accept: 'application/json',
+    apikey: SUPABASE_ANON_KEY,
+  };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const res = await fetch(`${base}/rest/v1/${suffix}`, { headers });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new ApiFetchError(res.status, `PostgREST ${suffix} failed (${res.status})`, text);
+  }
+  const json = await res.json().catch(() => []);
+  return (Array.isArray(json) ? json : []) as T[];
+}
+
+function resolveProdRoute(
+  path: string,
+  method: string,
+  body: unknown,
+  query?: ApiFetchOptions['query'],
+): ProdRoute | null {
   const base = SUPABASE_URL.replace(/\/+$/, '');
 
   // ── /api/data/me → me edge function ─────────────────────────────────────
@@ -260,6 +289,150 @@ function resolveProdRoute(path: string, method: string, body: unknown): ProdRout
     return { synthetic: { jobs: [] } };
   }
 
+  // ── /api/data/portfolios/me ─────────────────────────────────────────────
+  // Express returns `{ portfolio: row | null }` from a 1-row PostgREST query
+  // against the user's portfolios. Mirror exactly.
+  if (path === '/api/data/portfolios/me' && method === 'GET') {
+    return {
+      url: `${base}/rest/v1/portfolios?user_id=eq.${u}&select=id,username&limit=1`,
+      method: 'GET',
+      transform: (raw) => ({ portfolio: Array.isArray(raw) && raw.length > 0 ? raw[0] : null }),
+    };
+  }
+
+  // ── /api/data/activity-rows ─────────────────────────────────────────────
+  // Express joins resumes / job_applications / cover_letters into one
+  // payload for useActivityStreak. PostgREST has no multi-table fan-out, so
+  // synthesize the same shape by issuing parallel SELECTs and stitching the
+  // result in `transform`. We use the multi-fetch escape hatch by choosing
+  // `synthetic` and performing the fetches inline before returning.
+  // (Implemented as a thin wrapper so the synthetic path can do real I/O.)
+  if (path === '/api/data/activity-rows' && method === 'GET') {
+    const sinceRaw = query && typeof query.since === 'string' ? query.since : '';
+    const since = sinceRaw && !Number.isNaN(new Date(sinceRaw).getTime())
+      ? new Date(sinceRaw).toISOString()
+      : new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString();
+    const s = encodeURIComponent(since);
+    return {
+      synthetic: async () => {
+        const [resumes, jobApplications, coverLetters] = await Promise.all([
+          pgGet(`resumes?user_id=eq.${u}&created_at=gte.${s}&select=created_at`),
+          pgGet(`job_applications?user_id=eq.${u}&applied_at=gte.${s}&select=applied_at,status`),
+          pgGet(`cover_letters?user_id=eq.${u}&created_at=gte.${s}&select=created_at`),
+        ]);
+        // tailor_history table not present in current schema — match Express stub.
+        return { resumes, jobApplications, coverLetters, tailorHistory: [] };
+      },
+    };
+  }
+
+  // ── /api/data/job-activity-rows ─────────────────────────────────────────
+  // Same fan-out as activity-rows but without a `since` window. Express
+  // also injects `parent_resume_id: null` on each resume row (column not in
+  // current schema) so useJobActivityStats can filter originals vs tailored.
+  if (path === '/api/data/job-activity-rows' && method === 'GET') {
+    return {
+      synthetic: async () => {
+        const [resumes, coverLetters, jobApplications] = await Promise.all([
+          pgGet<Record<string, unknown>>(`resumes?user_id=eq.${u}&select=id`),
+          pgGet(`cover_letters?user_id=eq.${u}&select=id`),
+          pgGet(`job_applications?user_id=eq.${u}&select=status,applied_at`),
+        ]);
+        return {
+          resumes: resumes.map((r) => ({ parent_resume_id: null, ...r })),
+          coverLetters,
+          jobApplications,
+          tailorHistory: [],
+        };
+      },
+    };
+  }
+
+  // ── /api/data/hr-analytics ──────────────────────────────────────────────
+  // Express aggregator that reads wisehire_candidates / wisehire_pipeline_events
+  // / wisehire_companies (Neon-only tables not exposed via PostgREST/RLS).
+  // Until those tables exist in Supabase, return an empty-but-typed payload
+  // so the HR analytics page renders the empty state instead of throwing.
+  if (path === '/api/data/hr-analytics' && method === 'GET') {
+    return {
+      synthetic: {
+        candidates: [],
+        pipelineEvents: [],
+        companyId: null,
+        bulkJobs: [],
+        briefs: [],
+        roles: [],
+        talentViews: [],
+      },
+    };
+  }
+
+  // ── /api/data/portfolio-analytics ───────────────────────────────────────
+  // Express returns an empty-summary stub until the get_portfolio_analytics
+  // RPC is ported. Match exactly.
+  if (path === '/api/data/portfolio-analytics' && method === 'GET') {
+    return {
+      synthetic: {
+        visits: [],
+        summary: {
+          total_visits: 0,
+          unique_countries: 0,
+          avg_time_seconds: null,
+          avg_time_variant_a: null,
+          avg_time_variant_b: null,
+          visits_variant_a: 0,
+          visits_variant_b: 0,
+        },
+      },
+    };
+  }
+
+  // ── /api/data/short-links ───────────────────────────────────────────────
+  // Express stub: GET → `{ links: [] }`, POST → echo body, DELETE → `{ ok }`.
+  if (path === '/api/data/short-links') {
+    if (method === 'GET') return { synthetic: { links: [] } };
+    if (method === 'POST') {
+      const b = (body ?? {}) as Record<string, unknown>;
+      const id = typeof b.id === 'string' ? b.id : Math.random().toString(36).slice(2, 7);
+      return {
+        synthetic: {
+          link: { id, click_count: 0, created_at: new Date().toISOString(), ...b },
+        },
+      };
+    }
+  }
+  if (/^\/api\/data\/short-links\/[^/]+$/.test(path) && method === 'DELETE') {
+    return { synthetic: { ok: true } };
+  }
+
+  // ── /api/data/resume-shares ─────────────────────────────────────────────
+  // Express stub mirrors notifications-style: GET empty, POST/PATCH echo
+  // body with synthesised id where missing, DELETE → `{ ok: true }`.
+  if (path === '/api/data/resume-shares') {
+    if (method === 'GET') return { synthetic: { shares: [] } };
+    if (method === 'POST') {
+      const b = (body ?? {}) as Record<string, unknown>;
+      const id = typeof crypto !== 'undefined' && 'randomUUID' in crypto
+        ? (crypto as { randomUUID: () => string }).randomUUID()
+        : `${Date.now()}-${Math.random()}`;
+      return { synthetic: { share: { id, ...b } } };
+    }
+  }
+  const shareIdMatch = path.match(/^\/api\/data\/resume-shares\/([^/]+)$/);
+  if (shareIdMatch) {
+    if (method === 'PATCH') {
+      const b = (body ?? {}) as Record<string, unknown>;
+      return { synthetic: { share: { id: shareIdMatch[1], ...b } } };
+    }
+    if (method === 'DELETE') return { synthetic: { ok: true } };
+  }
+
+  // ── /api/data/push-subscriptions ────────────────────────────────────────
+  // Express stub returns `{ ok: true }` for both POST and DELETE.
+  if (path === '/api/data/push-subscriptions' && (method === 'POST' || method === 'DELETE')) {
+    return { synthetic: { ok: true } };
+  }
+
   return null;
 }
 
@@ -274,11 +447,17 @@ export async function apiFetch<T = unknown>(
 
   // Production routing: translate /api/data/* to Supabase calls.
   if (!import.meta.env.DEV && path.startsWith('/api/data/')) {
-    const route = resolveProdRoute(path, method, opts.body);
+    const route = resolveProdRoute(path, method, opts.body, opts.query);
     if (route) {
-      // Synthetic response — used for endpoints whose Express handlers
-      // are hardcoded stubs (notifications mark-*, unread-count, jobs list).
+      // Synthetic response — used for endpoints whose Express handlers are
+      // hardcoded stubs (notifications mark-*, unread-count, jobs list) or
+      // multi-table aggregates that need to fan out (activity-rows). When
+      // synthetic is a function it's an async fetcher; otherwise it's a
+      // static value that mirrors the legacy Express shape.
       if (route.synthetic !== undefined) {
+        if (typeof route.synthetic === 'function') {
+          return await (route.synthetic as () => Promise<unknown>)() as T;
+        }
         return route.synthetic as T;
       }
 
