@@ -39,6 +39,23 @@ Deno.serve(wrapHandler("admin-integrations", async (req) => {
 
       if (!resp.ok) {
         const errText = await resp.text();
+        // Detect a Resend "restricted" sending-only API key (401 with
+        // body `{name:"restricted_api_key", ...}`) and surface a structured
+        // reason so the UI can show a friendly card with rotation steps
+        // instead of a raw HTTP 401 string.
+        if (resp.status === 401) {
+          try {
+            const parsed = JSON.parse(errText) as { name?: string; message?: string };
+            if (parsed.name === 'restricted_api_key') {
+              return json({
+                success: false,
+                reason: 'restricted_key',
+                error: 'The configured RESEND_API_KEY is a restricted (send-only) key and cannot list emails. Replace it with a full-access key in Supabase Edge Function secrets.',
+                bounces: [],
+              }, 200, cors);
+            }
+          } catch { /* not JSON — fall through */ }
+        }
         return json({ success: false, error: `Resend API ${resp.status}: ${errText.slice(0, 200)}`, bounces: [] }, 200, cors);
       }
 

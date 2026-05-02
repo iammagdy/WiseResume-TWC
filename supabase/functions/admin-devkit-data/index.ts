@@ -230,13 +230,26 @@ async function checkAIProvider(
 }
 
 async function checkResend(apiKey: string) {
-  if (!apiKey) return { reachable: false, httpStatus: 0, sends24h: null as number | null };
+  if (!apiKey) return { reachable: false, httpStatus: 0, sends24h: null as number | null, reason: 'missing_key' as const };
   try {
     const resp = await fetch('https://api.resend.com/emails?limit=100', {
       headers: { Authorization: `Bearer ${apiKey}` },
       signal: AbortSignal.timeout(5000),
     });
-    if (!resp.ok) return { reachable: false, httpStatus: resp.status, sends24h: null };
+    if (!resp.ok) {
+      // Detect a restricted (send-only) Resend API key — Mission Control
+      // can then render a friendly explanation instead of a vague 401.
+      if (resp.status === 401) {
+        try {
+          const txt = await resp.text();
+          const parsed = JSON.parse(txt) as { name?: string };
+          if (parsed.name === 'restricted_api_key') {
+            return { reachable: false, httpStatus: 401, sends24h: null, reason: 'restricted_key' as const };
+          }
+        } catch { /* not JSON — fall through */ }
+      }
+      return { reachable: false, httpStatus: resp.status, sends24h: null };
+    }
     const body = await resp.json() as { data?: Array<{ created_at: string }> };
     const cutoff = Date.now() - 86400_000;
     const sends24h = (body.data ?? []).filter(
@@ -1147,6 +1160,9 @@ Deno.serve(wrapHandler("admin-devkit-data", async (req) => {
         email: {
           resendKeyPresent: !!resendKey, reachable: emailStatus.reachable, httpStatus: emailStatus.httpStatus, sends24h: emailStatus.sends24h,
           keyInSupabaseVault: emailKeyInVault,
+          // Surface checkResend's structured reason ('restricted_key' | 'missing_key' | undefined)
+          // so MissionControlPanel can render a friendly explanation instead of a vague HTTP code.
+          reason: (emailStatus as { reason?: string }).reason ?? null,
         },
         database: { ok: dbOk, error: dbError, errorCount1h },
         secrets: {
