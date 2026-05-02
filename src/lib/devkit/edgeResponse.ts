@@ -38,9 +38,31 @@ export class EdgeFunctionError extends Error {
 }
 
 function looksLikeNotDeployed(err: InvokeError): boolean {
-  if (err.status === 404) return true;
-  const msg = (err.message ?? '').toLowerCase();
-  return msg.includes('failed to fetch') || msg.includes('not found');
+  const msg = (err.message ?? '').toLowerCase().trim();
+
+  // The classifier is intentionally narrow: it only fires on signatures that
+  // can ONLY come from the network or the Supabase gateway, never from a
+  // function that ran and chose to return 404. If an admin function
+  // intentionally returns 404 with any body — `{success:false,error:'not_found'}`
+  // (Task #21), `{error:'Target user not found'}` (admin-impersonate),
+  // `{error:'User not found'}` (admin-wisehire-reset-user), etc. — we surface
+  // the function's own message rather than a misleading "deploy this"
+  // banner.
+  //
+  // Signatures that DO mean "function/transport unreachable":
+  //   • Browser network failure → "failed to fetch" (Fetch API) or
+  //     edgeFunctions.invoke's friendlier rewrite "cannot reach the server".
+  //   • Gateway 404 with non-JSON body → the admin-invoker's HTTP-status
+  //     fallback "Server error (HTTP 404) — please try again." (the body was
+  //     HTML so no `.error` field was found to override the fallback).
+  //   • Empty / missing message on a 404 → most likely a network-layer
+  //     failure that didn't populate `.message`.
+  if (!msg) return err.status === 404;
+  if (msg.includes('failed to fetch')) return true;
+  if (msg.includes('cannot reach the server')) return true;
+  if (msg.includes('server error (http 404)')) return true;
+
+  return false;
 }
 
 /**
