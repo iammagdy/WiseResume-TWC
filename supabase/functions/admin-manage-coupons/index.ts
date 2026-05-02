@@ -72,6 +72,12 @@ Deno.serve(wrapHandler("admin-manage-coupons", async (req) => {
         .maybeSingle();
 
       if (error) throw error;
+      if (!data) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Insert returned no row' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
       return new Response(
         JSON.stringify({ success: true, coupon: data }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -95,6 +101,14 @@ Deno.serve(wrapHandler("admin-manage-coupons", async (req) => {
         .maybeSingle();
 
       if (error) throw error;
+      // UPDATE with maybeSingle returns null when no row matched coupon_id —
+      // surface a clean 404 not_found instead of a misleading 200 success.
+      if (!data) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'not_found' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
       return new Response(
         JSON.stringify({ success: true, coupon: data }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

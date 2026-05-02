@@ -120,6 +120,14 @@ Deno.serve(wrapHandler("admin-feature-flags", async (req) => {
         .maybeSingle();
 
       if (error) throw error;
+      if (!data) {
+        // UPSERT with .select() should always return a row; null indicates
+        // an unexpected RLS or driver edge case. Surface explicitly.
+        return new Response(
+          JSON.stringify({ success: false, error: 'Upsert returned no row' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
 
       await writeAuditLog(supabase, 'upsert', callerEmail, {
         flag_name: cleanName,

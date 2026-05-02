@@ -125,6 +125,7 @@ Deno.serve(wrapHandler("admin-moderation", async (req) => {
       .maybeSingle();
 
     if (error) return json({ success: false, error: error.message }, 500, cors);
+    if (!data) return json({ success: false, error: 'Insert returned no row' }, 500, cors);
 
     await supabase.from('audit_logs').insert({
       user_id: null,
@@ -278,6 +279,7 @@ Deno.serve(wrapHandler("admin-moderation", async (req) => {
       .maybeSingle();
 
     if (error) return json({ success: false, error: error.message }, 500, cors);
+    if (!data) return json({ success: false, error: 'Insert returned no row' }, 500, cors);
 
     await supabase.from('audit_logs').insert({
       user_id: null,
