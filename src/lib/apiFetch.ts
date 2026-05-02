@@ -24,6 +24,30 @@
  */
 import { getToken, getUserId } from './supabaseBridge';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './supabaseConstants';
+import {
+  isImpersonating,
+  getImpersonationToken,
+  getImpersonationState,
+} from './impersonationStore';
+
+/**
+ * Resolve the active auth identity for `/api/data/*` calls.
+ *
+ * Impersonation always takes precedence — when an admin has claimed an
+ * impersonation OTP (either same-tab via Act As or in a fresh /act-as tab
+ * with no Kinde session), we MUST send the impersonation JWT and address
+ * the impersonated user's row. Otherwise we use the admin's own Kinde→
+ * Supabase bridge identity. Both values are derived together so the token
+ * and userId never disagree mid-request.
+ */
+function resolveActiveAuth(): { token: string | null; userId: string | null } {
+  if (isImpersonating()) {
+    const t = getImpersonationToken();
+    const s = getImpersonationState();
+    return { token: t, userId: s.userId };
+  }
+  return { token: getToken(), userId: getUserId() };
+}
 
 export interface ApiFetchOptions {
   method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
@@ -85,8 +109,8 @@ function resolveProdRoute(path: string, method: string, body: unknown): ProdRout
     return { url: `${base}/functions/v1/me`, method: 'GET' };
   }
 
-  const userId = getUserId();
-  if (!userId) return null; // PostgREST routes need the bridge identity.
+  const { userId } = resolveActiveAuth();
+  if (!userId) return null; // PostgREST routes need an active identity.
 
   const u = encodeURIComponent(userId);
 
@@ -244,7 +268,9 @@ export async function apiFetch<T = unknown>(
   opts: ApiFetchOptions = {},
 ): Promise<T> {
   const method = opts.method ?? 'GET';
-  const token = getToken();
+  // Impersonation takes precedence over the admin's Kinde bridge token,
+  // so requests against /api/data/* address the impersonated user end-to-end.
+  const { token } = resolveActiveAuth();
 
   // Production routing: translate /api/data/* to Supabase calls.
   if (!import.meta.env.DEV && path.startsWith('/api/data/')) {

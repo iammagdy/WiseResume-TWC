@@ -3,7 +3,28 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '@/lib/apiFetch';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { getToken, getUserId } from '@/lib/supabaseBridge';
+import {
+  isImpersonating,
+  getImpersonationToken,
+  getImpersonationState,
+} from '@/lib/impersonationStore';
 import { useAuth } from './useAuth';
+
+/**
+ * Pick the active Supabase userId — impersonation takes precedence so the
+ * Realtime subscription filter watches the impersonated user's rows. When
+ * not impersonating we fall through to the admin's bridge identity.
+ */
+function activeUserId(): string | null {
+  if (isImpersonating()) return getImpersonationState().userId;
+  return getUserId();
+}
+
+/** Same precedence rule for the Realtime auth token. */
+function activeToken(): string | null {
+  if (isImpersonating()) return getImpersonationToken();
+  return getToken();
+}
 
 export interface MeSubscription {
   plan_name: string;
@@ -78,7 +99,7 @@ export function useMe() {
   useEffect(() => {
     if (!user || !isAuthenticated) return;
 
-    const supabaseUserId = getUserId();
+    const supabaseUserId = activeUserId();
     if (!supabaseUserId) return;
 
     // Check durable failure cap — if exhausted for this user this session,
@@ -105,7 +126,7 @@ export function useMe() {
     const doSubscribe = (attempt: number) => {
       if (cancelled) return;
 
-      const token = getToken();
+      const token = activeToken();
       if (token) {
         try {
           supabase.realtime.setAuth(token);
