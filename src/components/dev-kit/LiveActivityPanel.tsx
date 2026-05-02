@@ -8,6 +8,7 @@ import { useVisibleInterval, useIsMounted } from '@/lib/devkit/hooks';
 import { unwrapAdminResponse, tryUnwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
 import { DevKitRunner } from './DevKitRunner';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
+import { DevKitErrorCard } from './DevKitErrorCard';
 
 interface UsageEvent {
   id: string;
@@ -698,7 +699,7 @@ export function LiveActivityPanel() {
         </div>
 
         {eventsError && (
-          <div className="p-4 text-sm text-destructive bg-destructive/5">{eventsError}</div>
+          <DevKitErrorCard error={eventsError} title="Couldn't load live events" context={{ panel: 'Live Activity', function: 'admin-devkit-data', action: 'live-activity' }} />
         )}
 
         {!eventsError && events.length === 0 && !eventsLoading && (

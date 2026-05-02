@@ -276,6 +276,7 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
           error={error}
           title="Couldn't load Mission Control"
           onRetry={fetchData}
+          context={{ panel: 'Mission Control', function: 'admin-devkit-data', action: 'mission-control' }}
         />
       </div>
     );
@@ -398,7 +399,7 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
       </div>
 
       {error && data && (
-        <DevKitErrorCard error={error} title="Last refresh failed" onRetry={fetchData} compact />
+        <DevKitErrorCard error={error} title="Last refresh failed" onRetry={fetchData} compact context={{ panel: 'Mission Control', function: 'admin-devkit-data', action: 'mission-control' }} />
       )}
 
       {isDevEnv && (

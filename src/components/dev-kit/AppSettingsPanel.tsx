@@ -22,6 +22,7 @@ import { getDevKitToken } from '@/contexts/DevKitSessionContext';
 import { useIsMounted } from '@/lib/devkit/hooks';
 import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
+import { DevKitErrorCard } from './DevKitErrorCard';
 
 
 export function AppSettingsPanel() {
@@ -135,7 +136,7 @@ export function AppSettingsPanel() {
   return (
     <div className="space-y-6">
       {error && (
-        <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-sm text-destructive">{error}</div>
+        <DevKitErrorCard error={error} title="Couldn't load app settings" context={{ panel: 'App Settings', function: 'admin-app-settings' }} />
       )}
 
       <div className="flex items-center justify-between">

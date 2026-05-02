@@ -8,6 +8,7 @@ import { useIsMounted, useVisibleInterval } from '@/lib/devkit/hooks';
 import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
 import type { AdminUser } from './AdminUsersPanel';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
+import { DevKitErrorCard } from './DevKitErrorCard';
 
 const MAX_OVERVIEW_PAGES = 50; // hard cap so a runaway upstream `total` can never spin forever
 
@@ -302,10 +303,11 @@ export function OverviewPanel() {
       </div>
 
       {error && (
-        <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-sm text-destructive">
-          {error}
-          <p className="text-xs mt-1 opacity-70">Check that admin edge functions are deployed and DEV_KIT_PASSWORD is set.</p>
-        </div>
+        <DevKitErrorCard
+          error={error}
+          title="Couldn't load overview"
+          context={{ panel: 'Overview', function: 'admin-devkit-data' }}
+        />
       )}
 
       {loading && !stats && (

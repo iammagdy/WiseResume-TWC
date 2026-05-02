@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { AlertTriangle, ChevronDown, ChevronRight, Copy, Check, Sparkles } from 'lucide-react';
-import { translateError } from '@/lib/devkit/errorTranslate';
+import { translateError, type ErrorContext } from '@/lib/devkit/errorTranslate';
 import { Button } from '@/components/ui/button';
 
 /**
@@ -37,6 +37,12 @@ interface DevKitErrorCardProps {
   onRetry?: () => void;
   /** Compact variant — drops the icon header for inline use inside small panels. */
   compact?: boolean;
+  /**
+   * Structured context embedded in the copied AI prompt so the assistant
+   * has the exact panel / edge function / action / HTTP status to reason about.
+   * Pass only sanitized data — never tokens or PII.
+   */
+  context?: ErrorContext;
 }
 
 /**
@@ -46,11 +52,11 @@ interface DevKitErrorCardProps {
  * Translates known error patterns into plain-English explanations + a one-click
  * AI fix prompt the admin can paste into Replit Agent / Cursor / etc.
  */
-export function DevKitErrorCard({ error, title, onRetry, compact = false }: DevKitErrorCardProps) {
+export function DevKitErrorCard({ error, title, onRetry, compact = false, context }: DevKitErrorCardProps) {
   // Always redact before render/copy/AI-prompt so secrets in upstream errors
   // (e.g. an API echo of a Bearer header) never leak via the UI or clipboard.
   const raw = redactSecrets((error ?? '').toString());
-  const t = translateError(raw);
+  const t = translateError(raw, context);
   const [showRaw, setShowRaw] = useState(false);
   const [copied, setCopied] = useState(false);
 
