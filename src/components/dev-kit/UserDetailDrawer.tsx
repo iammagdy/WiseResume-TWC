@@ -319,7 +319,6 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     });
 
     return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drawerTab, open, user.user_id]);
 
   // Load resumes when content tab is opened

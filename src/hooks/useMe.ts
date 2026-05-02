@@ -229,6 +229,9 @@ export function useMe() {
         subscribedUserIdRef.current = null;
       }
     };
+    // user is read via .id below; including the full object would re-run on
+    // every Kinde re-render even when the underlying id is unchanged.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, isAuthenticated, queryClient]);
 
   return useQuery({
