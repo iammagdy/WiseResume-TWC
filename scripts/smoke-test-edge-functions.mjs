@@ -1,27 +1,40 @@
 #!/usr/bin/env node
 /**
- * Smoke-test the three merged edge functions (parse-job, admin-devkit-data,
- * admin-email) and every action they multiplex on. Intended to be run after
- * every deploy of these functions so a regression (missing route, broken
- * router, lost CORS preflight) is caught immediately instead of waiting for
- * a user to hit it.
+ * Smoke-test the production edge functions for the most catastrophic
+ * regressions: a function that didn't deploy, a function that crashes at
+ * startup, a function whose CORS allow-list no longer permits the production
+ * web origin, a router whose dispatch validation broke, or a function whose
+ * auth gate stopped firing. Intended to be run unattended after every deploy
+ * (see .github/workflows/deploy-edge-functions.yml).
  *
  * The script is fully unauthenticated. It only exercises:
- *   1. CORS preflight (OPTIONS) — must return 200 with Access-Control-Allow-Origin.
- *   2. Top-level dispatch validation — POST with no body / unknown action
- *      must return 400 with the documented error message.
- *   3. Per-route auth enforcement — each of the 12 routes must return 401
- *      when no auth header is supplied.
+ *   1. CORS preflight (OPTIONS) — must return 200/204 with
+ *      Access-Control-Allow-Origin echoing the smoke-test origin and
+ *      Access-Control-Allow-Methods containing POST.
+ *   2. Multi-action router dispatch validation — POST with no body / unknown
+ *      action must return 400 with the documented error message. Only
+ *      applied to the three known multi-action routers (parse-job,
+ *      admin-devkit-data, admin-email).
+ *   3. Per-route auth enforcement — every function listed must return 401
+ *      when called without a Bearer token (or, when the function's auth
+ *      throw escapes wrapHandler, a 500 whose body still mentions
+ *      authorization — see ALLOW_AUTH_LEAK_AS_500 below).
  *
- * It deliberately does NOT call any route with valid credentials, so it is
+ * It deliberately does NOT call any function with valid credentials, so it is
  * safe to run from CI / post-deploy hooks without secrets and without
  * burning AI credits or sending real emails.
  *
- * Routes covered (12 total):
- *   parse-job:          url | text | linkedin
- *   admin-devkit-data:  analytics | observability | live-activity |
- *                       mission-control | github-status
- *   admin-email:        resend-stats | resend-sync | email-actions | broadcast
+ * Coverage:
+ *   - 36 admin-* functions (CORS + 401)
+ *   - 5 high-traffic public functions (CORS + 401):
+ *       parse-job (multi-action), score-resume, analyze-resume,
+ *       tailor-resume, generate-cover-letter, agentic-chat
+ *   - 3 multi-action router dispatch validation suites:
+ *       parse-job, admin-devkit-data, admin-email
+ *
+ * Adding a new function: append one entry to FUNCTIONS below. A single-action
+ * function only needs `{ name: 'foo' }`. A multi-action router adds `routes`
+ * and (optionally) `dispatchChecks`.
  *
  * Exit codes:
  *   0 — every check passed
@@ -33,6 +46,7 @@
  *   SUPABASE_PROJECT_REF=<ref> node scripts/smoke-test-edge-functions.mjs
  *   EDGE_FUNCTIONS_BASE=https://<ref>.supabase.co/functions/v1 \
  *     node scripts/smoke-test-edge-functions.mjs
+ *   SMOKE_TEST_CONCURRENCY=20 node scripts/smoke-test-edge-functions.mjs
  */
 
 const PROJECT_REF = process.env.SUPABASE_PROJECT_REF || 'jnsfmkzgxsviuthaqlyy';
@@ -45,76 +59,158 @@ const BASE =
 const ORIGIN = process.env.SMOKE_TEST_ORIGIN || 'https://resume.thewise.cloud';
 
 const REQUEST_TIMEOUT_MS = Number(process.env.SMOKE_TEST_TIMEOUT_MS || 15000);
+const CONCURRENCY = Math.max(1, Number(process.env.SMOKE_TEST_CONCURRENCY || 10));
 
-// ── Test definitions ────────────────────────────────────────────────────────
+// Default for new entries: tolerate the documented "AuthError leaks past
+// wrapHandler as 500 with the auth message in the body" pattern. We still
+// require the body to mention authorization/unauthorized — a generic 500 is
+// always a fail because that means the function is crashing.
+const ALLOW_AUTH_LEAK_AS_500_DEFAULT = true;
 
-const FUNCTIONS = ['parse-job', 'admin-devkit-data', 'admin-email'];
+// ── Function catalogue ──────────────────────────────────────────────────────
+//
+// Each entry shape:
+//   {
+//     name: string,                   // edge function slug
+//     routes?: Array<{                // omit for single-action: defaults to
+//       label?: string,               //   one route with empty body and the
+//       body?: object,                //   function name as label
+//       allowAuthLeakAs500?: boolean, // override default per-route
+//     }>,
+//     dispatchChecks?: Array<{        // multi-action routers only
+//       label: string,
+//       body: object,
+//       expectStatus: number,
+//       expectErrorIncludes: string,
+//     }>,
+//   }
 
-const ROUTES = [
-  // parse-job → user auth required (requireAuth → 401 "Missing authorization header")
-  { fn: 'parse-job', body: { action: 'url' }, label: 'parse-job/url' },
-  { fn: 'parse-job', body: { action: 'text' }, label: 'parse-job/text' },
-  // parse-job/linkedin currently calls requireAuth() outside the
-  // authErrorResponse() try/catch that the url/text branches use, so the
-  // AuthError leaks out to wrapHandler and surfaces as 500 with
-  // {"error":"internal_error","message":"Missing authorization header"}.
-  // That's a separate code-quality issue, not a deploy regression — the
-  // route IS live and IS gating unauthenticated requests. Accept both
-  // shapes so this smoke test stays green today and stays green if/when
-  // the linkedin branch is rewritten to use authErrorResponse.
-  { fn: 'parse-job', body: { action: 'linkedin' }, label: 'parse-job/linkedin', allowAuthLeakAs500: true },
-
-  // admin-devkit-data → admin auth required (requireAdminAuth → 401 "Unauthorized")
-  { fn: 'admin-devkit-data', body: { action: 'analytics' }, label: 'admin-devkit-data/analytics' },
-  { fn: 'admin-devkit-data', body: { action: 'observability' }, label: 'admin-devkit-data/observability' },
-  { fn: 'admin-devkit-data', body: { action: 'live-activity', resource: 'usage_events' }, label: 'admin-devkit-data/live-activity' },
-  { fn: 'admin-devkit-data', body: { action: 'mission-control' }, label: 'admin-devkit-data/mission-control' },
-  { fn: 'admin-devkit-data', body: { action: 'github-status' }, label: 'admin-devkit-data/github-status' },
-
-  // admin-email → admin auth required
-  { fn: 'admin-email', body: { module: 'resend-stats', action: 'stats' }, label: 'admin-email/resend-stats' },
-  { fn: 'admin-email', body: { module: 'resend-sync' }, label: 'admin-email/resend-sync' },
-  { fn: 'admin-email', body: { module: 'email-actions', action: 'diagnose' }, label: 'admin-email/email-actions' },
-  { fn: 'admin-email', body: { module: 'broadcast', action: 'list' }, label: 'admin-email/broadcast' },
+const ADMIN_FUNCTIONS = [
+  'admin-ai-caps',
+  'admin-ai-routing',
+  'admin-audit-logs',
+  'admin-check-access',
+  'admin-delete-user',
+  // admin-devkit-data is multi-action — defined explicitly below.
+  // admin-email is multi-action — defined explicitly below.
+  'admin-env-check',
+  'admin-feature-flags',
+  'admin-get-identity',
+  'admin-get-settings',
+  'admin-grant-trial',
+  'admin-impersonate',
+  'admin-integrations',
+  'admin-kinde-reconcile',
+  'admin-list-user-content',
+  'admin-list-users',
+  'admin-manage-coupons',
+  'admin-merge-identity',
+  'admin-moderation',
+  'admin-onboarding-funnel',
+  'admin-owner-ops',
+  'admin-portfolio-usernames',
+  'admin-revoke-sessions',
+  'admin-revoke-trial',
+  'admin-rotate-totp',
+  'admin-save-note',
+  'admin-set-credits',
+  'admin-set-plan',
+  'admin-suspend-user',
+  'admin-update-profile',
+  'admin-update-settings',
+  'admin-wisehire-invite',
+  'admin-wisehire-reset-user',
+  'admin-wisehire-revoke-invite',
+  'admin-wisehire-waitlist',
 ];
 
-// Top-level dispatch checks (no auth required to fail validation).
-const DISPATCH_CHECKS = [
+const FUNCTIONS = [
+  // ── Multi-action public router ──────────────────────────────────────────
+  // parse-job dispatches on `action` BEFORE running per-branch auth, so the
+  // 400 dispatch checks work without auth. The linkedin branch calls
+  // requireAuth() outside its authErrorResponse() try/catch, so the
+  // AuthError leaks out to wrapHandler and surfaces as 500 with
+  // {"error":"internal_error","message":"Missing authorization header"}.
+  // That is a code-quality issue, not a deploy regression — the route IS
+  // live and IS gating unauthenticated requests. We accept both shapes.
   {
-    fn: 'parse-job',
-    body: {},
-    expectStatus: 400,
-    expectErrorIncludes: 'action is required',
-    label: 'parse-job rejects missing action',
+    name: 'parse-job',
+    routes: [
+      { body: { action: 'url' }, label: 'parse-job/url' },
+      { body: { action: 'text' }, label: 'parse-job/text' },
+      { body: { action: 'linkedin' }, label: 'parse-job/linkedin', allowAuthLeakAs500: true },
+    ],
+    dispatchChecks: [
+      {
+        label: 'parse-job rejects missing action',
+        body: {},
+        expectStatus: 400,
+        expectErrorIncludes: 'action is required',
+      },
+      {
+        label: 'parse-job rejects unknown action',
+        body: { action: 'not-a-real-action' },
+        expectStatus: 400,
+        expectErrorIncludes: 'Unknown action',
+      },
+    ],
+  },
+
+  // ── Multi-action admin routers ──────────────────────────────────────────
+  {
+    name: 'admin-devkit-data',
+    routes: [
+      { body: { action: 'analytics' }, label: 'admin-devkit-data/analytics' },
+      { body: { action: 'observability' }, label: 'admin-devkit-data/observability' },
+      { body: { action: 'live-activity', resource: 'usage_events' }, label: 'admin-devkit-data/live-activity' },
+      { body: { action: 'mission-control' }, label: 'admin-devkit-data/mission-control' },
+      { body: { action: 'github-status' }, label: 'admin-devkit-data/github-status' },
+    ],
+    dispatchChecks: [
+      {
+        label: 'admin-devkit-data rejects missing action',
+        body: {},
+        expectStatus: 400,
+        expectErrorIncludes: 'action is required',
+      },
+    ],
   },
   {
-    fn: 'parse-job',
-    body: { action: 'not-a-real-action' },
-    expectStatus: 400,
-    expectErrorIncludes: 'Unknown action',
-    label: 'parse-job rejects unknown action',
+    name: 'admin-email',
+    routes: [
+      { body: { module: 'resend-stats', action: 'stats' }, label: 'admin-email/resend-stats' },
+      { body: { module: 'resend-sync' }, label: 'admin-email/resend-sync' },
+      { body: { module: 'email-actions', action: 'diagnose' }, label: 'admin-email/email-actions' },
+      { body: { module: 'broadcast', action: 'list' }, label: 'admin-email/broadcast' },
+    ],
+    dispatchChecks: [
+      {
+        label: 'admin-email rejects missing module',
+        body: {},
+        expectStatus: 400,
+        expectErrorIncludes: 'module is required',
+      },
+      {
+        label: 'admin-email rejects unknown module',
+        body: { module: 'not-a-real-module' },
+        expectStatus: 400,
+        expectErrorIncludes: 'Unknown module',
+      },
+    ],
   },
-  {
-    fn: 'admin-devkit-data',
-    body: {},
-    expectStatus: 400,
-    expectErrorIncludes: 'action is required',
-    label: 'admin-devkit-data rejects missing action',
-  },
-  {
-    fn: 'admin-email',
-    body: {},
-    expectStatus: 400,
-    expectErrorIncludes: 'module is required',
-    label: 'admin-email rejects missing module',
-  },
-  {
-    fn: 'admin-email',
-    body: { module: 'not-a-real-module' },
-    expectStatus: 400,
-    expectErrorIncludes: 'Unknown module',
-    label: 'admin-email rejects unknown module',
-  },
+
+  // ── Single-action admin functions (auth-only) ───────────────────────────
+  ...ADMIN_FUNCTIONS.map((name) => ({ name })),
+
+  // ── High-traffic public functions ───────────────────────────────────────
+  // All five funnel through requireAuth(); some catch AuthError into a
+  // 401 envelope, others let it leak to wrapHandler as a 500-with-message.
+  // Both shapes are accepted — see ALLOW_AUTH_LEAK_AS_500_DEFAULT.
+  { name: 'score-resume' },
+  { name: 'analyze-resume' },
+  { name: 'tailor-resume' },
+  { name: 'generate-cover-letter' },
+  { name: 'agentic-chat' },
 ];
 
 // ── HTTP helpers ────────────────────────────────────────────────────────────
@@ -149,7 +245,7 @@ async function postJson(fn, body) {
   const res = await timedFetch(`${BASE}/${fn}`, {
     method: 'POST',
     headers: { Origin: ORIGIN, 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    body: JSON.stringify(body ?? {}),
   });
   let parsed = null;
   const text = await res.text();
@@ -157,21 +253,43 @@ async function postJson(fn, body) {
   return { status: res.status, body: parsed, raw: text };
 }
 
+// Run async tasks with bounded concurrency so we don't open 100 sockets at
+// once but still finish in seconds rather than minutes.
+async function runWithConcurrency(items, fn, limit = CONCURRENCY) {
+  const out = new Array(items.length);
+  let next = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (true) {
+      const i = next++;
+      if (i >= items.length) return;
+      out[i] = await fn(items[i], i);
+    }
+  });
+  await Promise.all(workers);
+  return out;
+}
+
 // ── Result aggregation ──────────────────────────────────────────────────────
 
 const results = [];
 function record(label, ok, detail) {
   results.push({ label, ok, detail });
-  const icon = ok ? 'PASS' : 'FAIL';
-  const line = `  [${icon}] ${label}${detail ? ` — ${detail}` : ''}`;
-  if (ok) console.log(line); else console.error(line);
+}
+function flushSection(title, rows) {
+  console.log(`\n${title}`);
+  for (const r of rows) {
+    const icon = r.ok ? 'PASS' : 'FAIL';
+    const line = `  [${icon}] ${r.label}${r.detail ? ` — ${r.detail}` : ''}`;
+    if (r.ok) console.log(line); else console.error(line);
+  }
 }
 
-// ── Main ────────────────────────────────────────────────────────────────────
+// ── Phase runners ───────────────────────────────────────────────────────────
 
 async function runPreflightChecks() {
-  console.log('\n[1/3] CORS preflight (OPTIONS) — every function must accept ' + ORIGIN);
-  for (const fn of FUNCTIONS) {
+  const items = FUNCTIONS.map((f) => f.name);
+  const rows = await runWithConcurrency(items, async (fn) => {
+    const label = `${fn}: CORS preflight`;
     try {
       const { status, acao, acam } = await preflight(fn);
       const statusOk = status === 200 || status === 204;
@@ -181,40 +299,87 @@ async function runPreflightChecks() {
       const detail = ok
         ? `${status} ${acao}`
         : `status=${status} acao=${acao || '(missing)'} methods=${acam || '(missing)'}`;
-      record(`${fn}: CORS preflight`, ok, detail);
+      const r = { label, ok, detail };
+      record(label, ok, detail);
+      return r;
     } catch (err) {
-      record(`${fn}: CORS preflight`, false, `network error: ${err?.message || err}`);
+      const detail = `network error: ${err?.message || err}`;
+      record(label, false, detail);
+      return { label, ok: false, detail };
     }
-  }
+  });
+  flushSection(
+    `[1/3] CORS preflight (OPTIONS) — ${items.length} functions must accept ${ORIGIN}`,
+    rows,
+  );
 }
 
 async function runDispatchChecks() {
-  console.log('\n[2/3] Top-level dispatch — invalid bodies must produce documented 400s');
-  for (const c of DISPATCH_CHECKS) {
+  const items = [];
+  for (const f of FUNCTIONS) {
+    if (!f.dispatchChecks) continue;
+    for (const c of f.dispatchChecks) items.push({ fn: f.name, ...c });
+  }
+  if (items.length === 0) return;
+
+  const rows = await runWithConcurrency(items, async (c) => {
     try {
       const { status, body } = await postJson(c.fn, c.body);
       const statusOk = status === c.expectStatus;
       const errorMsg = body?.error || body?.message || '';
-      const errorOk = errorMsg.toLowerCase().includes(c.expectErrorIncludes.toLowerCase());
+      const errorOk = String(errorMsg)
+        .toLowerCase()
+        .includes(c.expectErrorIncludes.toLowerCase());
       const ok = statusOk && errorOk;
       const detail = ok
         ? `${status} "${errorMsg}"`
         : `status=${status} expected=${c.expectStatus} error="${errorMsg}" expected~="${c.expectErrorIncludes}"`;
+      const r = { label: c.label, ok, detail };
       record(c.label, ok, detail);
+      return r;
     } catch (err) {
-      record(c.label, false, `network error: ${err?.message || err}`);
+      const detail = `network error: ${err?.message || err}`;
+      record(c.label, false, detail);
+      return { label: c.label, ok: false, detail };
     }
+  });
+  flushSection(
+    `[2/3] Top-level dispatch — ${items.length} multi-action 400-checks`,
+    rows,
+  );
+}
+
+function expandRoutes(f) {
+  if (f.routes && f.routes.length > 0) {
+    return f.routes.map((r) => ({
+      fn: f.name,
+      body: r.body ?? {},
+      label: r.label || `${f.name}${r.body?.action ? `/${r.body.action}` : ''}`,
+      allowAuthLeakAs500:
+        r.allowAuthLeakAs500 ?? ALLOW_AUTH_LEAK_AS_500_DEFAULT,
+    }));
   }
+  return [{
+    fn: f.name,
+    body: {},
+    label: f.name,
+    allowAuthLeakAs500: ALLOW_AUTH_LEAK_AS_500_DEFAULT,
+  }];
 }
 
 async function runRouteAuthChecks() {
-  console.log('\n[3/3] Per-route auth — all 12 routes must return 401 when called without auth');
-  for (const r of ROUTES) {
+  const items = FUNCTIONS.flatMap(expandRoutes);
+  const rows = await runWithConcurrency(items, async (r) => {
     try {
       const { status, body } = await postJson(r.fn, r.body);
       // Each route's auth middleware throws/returns a 401 before doing any
-      // real work. We accept either the JWT-verify path (Supabase platform
-      // gateway) or the in-function requireAuth/requireAdminAuth path.
+      // real work. We accept either:
+      //   - status=401 (the normal path: gateway-level JWT verify, or
+      //     in-function requireAuth/requireAdminAuth);
+      //   - status=500 with an authorization-related message in the body
+      //     (the documented "AuthError leaked past wrapHandler" pattern,
+      //     when allowAuthLeakAs500 is enabled — true by default).
+      // A bare 500, a 404, or any 2xx is always a regression.
       const errorMsg = body?.error || '';
       const errorMsgFull = `${body?.error || ''} ${body?.message || ''}`.toLowerCase();
       const looksLikeAuthLeak =
@@ -223,22 +388,35 @@ async function runRouteAuthChecks() {
         (errorMsgFull.includes('authorization') || errorMsgFull.includes('unauthorized'));
       const ok = status === 401 || looksLikeAuthLeak;
       const visibleMsg = body?.message || errorMsg || '';
+      const bodyExcerpt = JSON.stringify(body)?.slice(0, 160) || '(no body)';
       const detail = ok
         ? (looksLikeAuthLeak
             ? `500 (known auth-leak) "${visibleMsg}"`
             : `401 "${visibleMsg}"`)
-        : `status=${status} expected=401 body=${JSON.stringify(body)?.slice(0, 200)}`;
+        : `status=${status} expected=401 body=${bodyExcerpt}`;
+      const row = { label: r.label, ok, detail };
       record(r.label, ok, detail);
+      return row;
     } catch (err) {
-      record(r.label, false, `network error: ${err?.message || err}`);
+      const detail = `network error: ${err?.message || err}`;
+      record(r.label, false, detail);
+      return { label: r.label, ok: false, detail };
     }
-  }
+  });
+  flushSection(
+    `[3/3] Per-route auth — ${items.length} routes must return 401 (or 500-with-auth-message) when called without auth`,
+    rows,
+  );
 }
+
+// ── Main ────────────────────────────────────────────────────────────────────
 
 async function main() {
   console.log(`[smoke-test-edge-functions] base: ${BASE}`);
   console.log(`[smoke-test-edge-functions] origin: ${ORIGIN}`);
   console.log(`[smoke-test-edge-functions] timeout: ${REQUEST_TIMEOUT_MS}ms`);
+  console.log(`[smoke-test-edge-functions] concurrency: ${CONCURRENCY}`);
+  console.log(`[smoke-test-edge-functions] coverage: ${FUNCTIONS.length} functions`);
 
   await runPreflightChecks();
   await runDispatchChecks();
@@ -249,7 +427,9 @@ async function main() {
   console.log(`\n[smoke-test-edge-functions] ${passed}/${results.length} checks passed`);
 
   if (failed.length === 0) {
-    console.log('[smoke-test-edge-functions] OK — all 3 functions and 12 routes are live.');
+    console.log(
+      `[smoke-test-edge-functions] OK — all ${FUNCTIONS.length} functions responded as expected.`,
+    );
     process.exit(0);
   }
 
@@ -257,11 +437,14 @@ async function main() {
   for (const f of failed) console.error(`  - ${f.label}: ${f.detail || '(no detail)'}`);
   console.error(
     '\nMost likely causes:\n' +
-      '  - The deploy did not roll out one of parse-job / admin-devkit-data / admin-email.\n' +
-      '    Re-run the "Deploy Supabase Edge Functions" GitHub Actions workflow.\n' +
-      '  - A route was renamed or removed without updating this smoke test.\n' +
-      '  - CORS allow-list in supabase/functions/_shared/cors.ts no longer permits the\n' +
-      '    SMOKE_TEST_ORIGIN value (default: https://resume.thewise.cloud).\n',
+      '  - The deploy did not roll out one of the listed functions. Re-run the\n' +
+      '    "Deploy Supabase Edge Functions" GitHub Actions workflow.\n' +
+      '  - A function was renamed, removed, or its router shape changed without\n' +
+      '    updating this smoke test (scripts/smoke-test-edge-functions.mjs).\n' +
+      '  - CORS allow-list in supabase/functions/_shared/cors.ts no longer permits\n' +
+      '    the SMOKE_TEST_ORIGIN value (default: https://resume.thewise.cloud).\n' +
+      '  - A function is crashing at startup (returns 500 with no auth-related\n' +
+      '    message). Check that function\'s logs in Supabase Dashboard.\n',
   );
   process.exit(1);
 }
