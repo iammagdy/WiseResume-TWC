@@ -222,8 +222,18 @@ export default function CoverLetterEditPage() {
                   const raw = letter.template_style;
                   const current = !raw || raw === 'minimal' ? 'professional' : raw;
                   const selected = current === t.value;
+                  // "Phantom" selection: the row has no real persisted style
+                  // (null / empty / legacy 'minimal') so Classic appears
+                  // selected, but the preview still renders the legacy plain
+                  // fallback / minimal renderer. In that case clicking Classic
+                  // must still be allowed to write 'professional' so the
+                  // preview converges to ClassicTemplate.
+                  const phantom =
+                    t.value === 'professional' && (!raw || raw === 'minimal');
                   // Disable while a write is in flight to make rapid taps
-                  // idempotent even if `current` has not yet refetched.
+                  // idempotent even if `current` has not yet refetched. Keep
+                  // the (real) selected tile enabled so the radiogroup retains
+                  // a focusable aria-checked element.
                   const writing = updateCoverLetter.isPending;
                   return (
                     <button
@@ -232,11 +242,14 @@ export default function CoverLetterEditPage() {
                       role="radio"
                       aria-checked={selected}
                       aria-label={`Switch to ${t.label} cover letter template — ${t.description}`}
-                      disabled={writing && !selected}
+                      disabled={writing && !(selected && !phantom)}
                       onClick={() => {
-                        // Idempotent: don't write when already on this style
-                        // or when a previous style mutation is still pending.
-                        if (selected || !id || writing) return;
+                        if (!id || writing) return;
+                        // Idempotent: skip the write only when the persisted
+                        // value already matches the tile (real selection).
+                        // Phantom selections still need the write so the row
+                        // upgrades from legacy/null to the chosen style.
+                        if (selected && !phantom) return;
                         haptics.selection();
                         updateCoverLetter.mutate({ id, template_style: t.value });
                       }}
