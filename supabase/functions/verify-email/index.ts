@@ -22,7 +22,8 @@
  * Required env vars:
  *   SUPABASE_URL / EXT_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
  *   RESEND_API_KEY
- *   SITE_URL (optional, defaults to https://resume.thewise.cloud)
+ *   SITE_URL (REQUIRED — function returns 503 if unset, so misconfigured
+ *     environments fail loudly instead of silently redirecting to the wrong host)
  */
 
 import * as React from 'npm:react@18.3.1'
@@ -111,8 +112,14 @@ Deno.serve(wrapHandler("verify-email", async (req) => {
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405, cors)
 
   const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')?.trim()
-  const siteUrl = Deno.env.get('SITE_URL')?.trim() || SITE_URL
+  const siteUrl = Deno.env.get('SITE_URL')?.trim()
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')?.trim() || ''
+
+  // Refuse to start if SITE_URL is unset — silently falling back to a hard-coded
+  // value could redirect users to the wrong environment in a multi-env deploy.
+  if (!siteUrl) {
+    return json({ success: false, error: 'SITE_URL is not configured' }, 503, cors)
+  }
 
   let body: Record<string, unknown>
   try {

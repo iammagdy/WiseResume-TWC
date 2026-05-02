@@ -102,12 +102,12 @@ Deno.serve(wrapHandler("admin-save-note", async (req) => {
       .from('admin_user_notes')
       .insert({ user_id: target_user_id, note_text: note_text.trim() })
       .select()
-      .single();
+      .maybeSingle();
 
-    if (error) {
+    if (error || !data) {
       console.error('[admin-save-note] DB error:', error);
       return new Response(
-        JSON.stringify({ success: false, error: error.message }),
+        JSON.stringify({ success: false, error: error?.message ?? 'Failed to insert note' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }

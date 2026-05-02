@@ -4,11 +4,7 @@ import { checkIpRateLimit } from "../_shared/rateLimiter.ts";
 import { isMaliciousBot, hasForeignReferer, botBlockedResponse } from "../_shared/botGuard.ts";
 
 import { wrapHandler } from '../_shared/fnLogger.ts';
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
+import { getCorsHeaders } from '../_shared/cors.ts';
 
 /** Convert an IPv4 address to the in-addr.arpa format for PTR lookup */
 function toArpa(ip: string): string | null {
@@ -40,6 +36,10 @@ function parseCompanyFromPtr(ptr: string): string | null {
 const GENERIC_ISP_RE = /\b(telecom|mobile|wireless|broadband|cable|internet|isp|fiber|fios|comcast|verizon|at&t|spectrum|xfinity|tmobile|t-mobile|residential|networks|hosting|cloud|amazonaws|azure|google cloud|digitalocean|linode|vultr|hetzner|ovh)\b/i;
 
 serve(wrapHandler("track-portfolio-view", async (req) => {
+  const corsHeaders = {
+    ...getCorsHeaders(req.headers.get('origin')),
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  };
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }

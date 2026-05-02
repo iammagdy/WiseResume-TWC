@@ -43,13 +43,20 @@ Deno.serve(wrapHandler("admin-update-profile", async (req) => {
         .from('profiles')
         .select('username, portfolio_enabled, full_name')
         .eq('user_id', target_user_id)
-        .single();
+        .maybeSingle();
 
       if (fetchError) {
         console.error('[admin-update-profile] GET fetch error:', fetchError);
         return new Response(
           JSON.stringify({ success: false, error: fetchError.message }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if (!profile) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'not_found' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
@@ -72,13 +79,20 @@ Deno.serve(wrapHandler("admin-update-profile", async (req) => {
       .from('profiles')
       .select('full_name, username')
       .eq('user_id', target_user_id)
-      .single();
+      .maybeSingle();
 
     if (fetchError) {
       console.error('[admin-update-profile] Fetch error:', fetchError);
       return new Response(
         JSON.stringify({ success: false, error: fetchError.message }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!currentProfile) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'not_found' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -177,12 +191,12 @@ Deno.serve(wrapHandler("admin-update-profile", async (req) => {
       .update(updates)
       .eq('user_id', target_user_id)
       .select('full_name, username')
-      .single();
+      .maybeSingle();
 
-    if (updateError) {
+    if (updateError || !updatedProfile) {
       console.error('[admin-update-profile] Update error:', updateError);
       return new Response(
-        JSON.stringify({ success: false, error: updateError.message }),
+        JSON.stringify({ success: false, error: updateError?.message ?? 'Failed to update profile' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }

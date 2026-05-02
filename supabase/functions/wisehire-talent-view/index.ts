@@ -25,7 +25,7 @@ Deno.serve(wrapHandler("wisehire-talent-view", async (req) => {
       .from('profiles')
       .select('account_type')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
 
     if (hrProfile?.account_type !== 'hr') {
       return json({ error: 'WiseHire HR account required' }, 403, cors);
@@ -36,7 +36,7 @@ Deno.serve(wrapHandler("wisehire-talent-view", async (req) => {
       .from('profiles')
       .select('id')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
     const profileId = profileRow?.id ?? userId;
 
     const { profile_id } = await req.json();
@@ -49,7 +49,7 @@ Deno.serve(wrapHandler("wisehire-talent-view", async (req) => {
       .from('talent_pool_profiles')
       .select('id, user_id, opted_in, view_count')
       .eq('id', profile_id)
-      .single();
+      .maybeSingle();
 
     if (tpErr || !tp || !tp.opted_in) {
       return json({ error: 'Profile not found or not discoverable' }, 404, cors);
@@ -60,7 +60,7 @@ Deno.serve(wrapHandler("wisehire-talent-view", async (req) => {
       .from('wisehire_companies')
       .select('id')
       .eq('owner_id', profileId)
-      .single();
+      .maybeSingle();
 
     // Record view
     await supabase.from('talent_pool_views').insert({
@@ -68,13 +68,13 @@ Deno.serve(wrapHandler("wisehire-talent-view", async (req) => {
       viewer_company_id: company?.id ?? null,
     });
 
-    // Increment view_count (try RPC first, fallback to manual increment)
+    // Atomically increment view_count via RPC. If the RPC fails we log it and
+    // continue — the view is still recorded in talent_pool_views above. We
+    // intentionally do NOT fall back to a non-atomic read-modify-write update
+    // here, which would silently lose concurrent increments under load.
     const { error: rpcErr } = await supabase.rpc('increment_talent_view_count', { p_profile_id: profile_id });
     if (rpcErr) {
-      await supabase
-        .from('talent_pool_profiles')
-        .update({ view_count: (tp.view_count ?? 0) + 1, last_viewed_at: new Date().toISOString() })
-        .eq('id', profile_id);
+      console.error('[wisehire-talent-view] increment_talent_view_count RPC failed:', rpcErr.message);
     }
 
     return json({ ok: true }, 200, cors);

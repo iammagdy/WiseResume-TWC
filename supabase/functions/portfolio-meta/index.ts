@@ -3,10 +3,7 @@ import { isMaliciousBot, isKnownCrawler, botBlockedResponse } from '../_shared/b
 import { checkIpRateLimit } from '../_shared/rateLimiter.ts';
 
 import { wrapHandler } from '../_shared/fnLogger.ts';
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
-};
+import { getCorsHeaders } from '../_shared/cors.ts';
 
 function escapeHtml(str: string): string {
   return str
@@ -18,6 +15,7 @@ function escapeHtml(str: string): string {
 }
 
 Deno.serve(wrapHandler("portfolio-meta", async (req: Request) => {
+  const corsHeaders = getCorsHeaders(req.headers.get('origin'));
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }

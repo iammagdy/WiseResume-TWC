@@ -4,11 +4,7 @@
 import { getServiceClient } from '../_shared/dbClient.ts';
 
 import { wrapHandler } from '../_shared/fnLogger.ts';
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+import { getCorsHeaders } from '../_shared/cors.ts';
 
 const LOCKOUT_WINDOW_SECONDS = 10 * 60;
 const MAX_FAILURES = 5;
@@ -97,6 +93,7 @@ function clientIp(req: Request): string | null {
 // ---------- Handler ----------
 
 Deno.serve(wrapHandler("verify-dev-kit", async (req) => {
+  const corsHeaders = getCorsHeaders(req.headers.get('origin'));
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -132,7 +129,13 @@ Deno.serve(wrapHandler("verify-dev-kit", async (req) => {
     }
 
     const callerEmail = email.trim().toLowerCase();
-    const lockKey = callerEmail.replace(/[^a-z0-9]/g, '_');
+    // Key the lockout by (email, ip) so a third-party page in a victim admin's
+    // browser (or a script firing from another machine) cannot lock the real
+    // admin out from a different IP. A real admin who fat-fingers their
+    // password from one machine still gets locked on that machine after
+    // MAX_FAILURES attempts.
+    const ipForLock = clientIp(req) ?? 'unknown';
+    const lockKey = `${callerEmail.replace(/[^a-z0-9]/g, '_')}|${ipForLock}`;
 
     const lockoutStatus = await getLockoutStatus(lockKey);
     if (lockoutStatus.locked) {

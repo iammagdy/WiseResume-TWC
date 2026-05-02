@@ -58,7 +58,10 @@ Deno.serve(wrapHandler("weekly-digest", async (req) => {
 
     if (error) {
       console.error("Error fetching dormant profiles:", error);
-      return new Response(JSON.stringify({ error: 'Internal server error' }), { status: 500, headers: corsHeaders });
+      return new Response(
+        JSON.stringify({ success: false, error: 'Internal server error' }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     const tip = TIPS[new Date().getDay() % TIPS.length];
@@ -111,12 +114,12 @@ Deno.serve(wrapHandler("weekly-digest", async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ ok: true, notified }), {
+    return new Response(JSON.stringify({ success: true, notified }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
     console.error("Weekly digest error:", err);
-    return new Response(JSON.stringify({ error: (err as Error).message }), {
+    return new Response(JSON.stringify({ success: false, error: (err as Error).message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

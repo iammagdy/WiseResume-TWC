@@ -3,11 +3,7 @@ import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
 
 import { wrapHandler } from '../_shared/fnLogger.ts';
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+import { getCorsHeaders } from '../_shared/cors.ts';
 
 const EMAIL_REGEX = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/;
 const MIN_MESSAGE_LENGTH = 10;
@@ -16,6 +12,7 @@ const MAX_EMAIL_LENGTH = 254;
 const MAX_SUBJECT_LENGTH = 200;
 
 Deno.serve(wrapHandler("submit-contact-request", async (req) => {
+  const corsHeaders = getCorsHeaders(req.headers.get('origin'));
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
