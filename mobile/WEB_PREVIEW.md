@@ -19,14 +19,15 @@ Repl. To launch it:
 
 1. Open the **Workflows** panel.
 2. Click **Run** next to *Mobile (Web Preview)*.
-3. When the console prints `Waiting on http://localhost:8080`, switch
-   the preview pane's port selector to **`8080`** (mapped externally
-   via the standard Replit port table).
+3. When the console prints `Waiting on http://localhost:8000`, switch
+   the preview pane's port selector to **`8000`** (mapped externally
+   via the standard Replit port table). Metro binds explicitly to
+   `0.0.0.0` so the Replit proxy can reach it.
 
 Equivalent shell command (from the repo root):
 
 ```bash
-cd mobile && CI=1 EXPO_NO_TELEMETRY=1 npx expo start --web --port 8080
+cd mobile && CI=1 EXPO_NO_TELEMETRY=1 npx expo start --web --host 0.0.0.0 --port 8000
 ```
 
 The first cold start takes ~40 s (Metro bundling 1.4 k modules);
@@ -136,7 +137,7 @@ when the bundle actually executes in a browser. After starting the
 workflow, confirm the page paints:
 
 ```bash
-curl -sS -o /dev/null -w "%{http_code}\n" http://localhost:8080/
+curl -sS -o /dev/null -w "%{http_code}\n" http://localhost:8000/
 # expect: 200
 ```
 
