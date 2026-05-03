@@ -33,7 +33,9 @@ Local changelog tracking WiseResume changes.
 
 ### Triage discipline notes
 - This is a textbook **"DNS says yes, HTTP says no"** failure mode. Network-layer probes (ping, dig, even `curl -I` against the root) all succeed because DNS+TCP+TLS are tolerant; the failure is at the application layer where the vhost router does literal hostname matching. Future verifiers should hit a known OAuth endpoint with bogus params and assert the response is a Kinde-shaped 400 (JSON body), not a generic 200.
-- **Hardening idea for `deploy.yml`:** add a guard step that fails the build if any of `VITE_KINDE_DOMAIN`, `VITE_KINDE_CLIENT_ID`, `VITE_SUPABASE_URL` ends with `.` or `/`, or contains whitespace, or doesn't start with `https://`. These are the most common copy-paste mistakes that DNS will silently tolerate.
+- **Hardening idea for `deploy.yml`:** add a guard step that runs format checks against the build-time secrets before invoking `vite build`. Validator spec:
+  - **URL-shaped vars** (`VITE_KINDE_DOMAIN`, `VITE_SUPABASE_URL`): must start with `https://`, must not end with `.` or `/`, must not contain whitespace, and the hostname between `https://` and the path must be a valid DNS name (no trailing dot). These are the most common copy-paste mistakes that DNS will silently tolerate.
+  - **Opaque-identifier vars** (`VITE_KINDE_CLIENT_ID`, `VITE_SUPABASE_PUBLISHABLE_KEY`): must be non-empty and must not contain whitespace. Do **not** apply URL-format rules to these — `VITE_KINDE_CLIENT_ID` is a 32-char hex string from Kinde, not a URL, and a URL-format check would produce false failures.
 - The Kinde dashboard sometimes displays the custom-domain hostname in two places — the "Custom Domain" field (no trailing dot) and the DNS-records table (with trailing dot, the FQDN form expected by DNS records). Always copy from the "Custom Domain" field when populating `VITE_KINDE_DOMAIN`.
 
 ### Atlas references
