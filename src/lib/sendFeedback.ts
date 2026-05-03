@@ -1,6 +1,7 @@
 import { captureFeedback } from './captureErrorShim';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { supabase } from '@/integrations/supabase/safeClient';
+import { USE_MERGED_TRANSACTIONAL_EMAIL } from '@/integrations/supabase/transactionalEmailFlag';
 
 export type FeedbackType = 'bug' | 'feature' | 'contact' | 'auto-crash-report';
 
@@ -97,8 +98,17 @@ export async function sendFeedback(
     metadata: input.metadata,
   };
 
+  // Task #55: useDirectSupabase path bypasses our rewrite helper, so it
+  // honours the shared `USE_MERGED_TRANSACTIONAL_EMAIL` flag (single
+  // source of truth in
+  // `src/integrations/supabase/transactionalEmailFlag.ts`).
   const invokePrimary = opts.useDirectSupabase
-    ? supabase.functions.invoke<EdgeResponse>('send-contact-email', { body: emailBody })
+    ? (USE_MERGED_TRANSACTIONAL_EMAIL
+        ? supabase.functions.invoke<EdgeResponse>('transactional-email', {
+            body: { ...emailBody, action: 'contact-email' },
+            headers: { 'x-transactional-email-action': 'contact-email' },
+          })
+        : supabase.functions.invoke<EdgeResponse>('send-contact-email', { body: emailBody }))
     : edgeFunctions.functions.invoke('send-contact-email', { body: emailBody });
 
   const emailPromise = (async (): Promise<{
@@ -130,8 +140,14 @@ export async function sendFeedback(
     } catch (err) {
       if (opts.skipFallback) return { ok: false, saved: false, err };
       try {
+        // Task #55: useDirectSupabase fallback respects the same flag.
         const fbInvoke = opts.useDirectSupabase
-          ? supabase.functions.invoke<EdgeResponse>('submit-contact-request', { body: emailBody })
+          ? (USE_MERGED_TRANSACTIONAL_EMAIL
+              ? supabase.functions.invoke<EdgeResponse>('transactional-email', {
+                  body: { ...emailBody, action: 'contact-request' },
+                  headers: { 'x-transactional-email-action': 'contact-request' },
+                })
+              : supabase.functions.invoke<EdgeResponse>('submit-contact-request', { body: emailBody }))
           : edgeFunctions.functions.invoke('submit-contact-request', { body: emailBody });
         const { data: fbData, error: fbErr } = (await fbInvoke) as {
           data: EdgeResponse | null;

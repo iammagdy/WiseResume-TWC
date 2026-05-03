@@ -1,5 +1,161 @@
 # Edge Function Audit — Mobile parity sweep (2026-05-03)
 
+## Transactional email consolidation (Task #55, 2026-05-03)
+
+Three Resend-backed transactional-email edge functions were merged into a
+single `transactional-email` router. All three load templates the same
+way and call the same Resend client (or, in the case of resume-reminder,
+write in-app notification rows triggered by cron). Consolidating frees
+2 deployment slots under the 100-function Supabase limit.
+
+Functions merged (3 → 1):
+
+- `send-contact-email`        → action `contact-email`
+- `submit-contact-request`    → action `contact-request`
+- `send-resume-reminder`      → action `resume-reminder`
+
+**Explicitly excluded** (kept isolated for security / contract reasons):
+
+- `send-password-reset` — auth-flow critical, isolation = security feature.
+- `send-push` — different SDK (FCM/APNs), already covered by `mobile-api`.
+- `auth-email-hook` — Supabase auth posts to a fixed URL with HMAC
+  signature; URL change = silent auth break.
+
+### Dispatch contract
+
+- **PRIMARY:** `body.action` ∈ `{"contact-email","contact-request",
+  "resume-reminder"}`.
+- **FALLBACK:** `x-transactional-email-action` request header. The web
+  helper sets BOTH (header always; body.action only when the caller
+  didn't supply one). The header fallback is also what the re-pointed
+  `send-resume-reminder` pg_cron job uses, since the cron command
+  posts an empty body.
+
+### Auth posture (intentional deviation from prior merges)
+
+Unlike the admin-* mergers in this codebase, **NO single auth gate runs
+at the top of the router**. Each handler keeps its ORIGINAL auth
+posture, and they intentionally differ:
+
+- `contact-email`   → public; optional `Authorization: Bearer <jwt>`
+                      for user attribution; internal IP rate limit
+                      (`RATE_LIMIT_REQUESTS_PER_HOUR=3`) AND per-user/IP
+                      `checkRateLimit` (5 / 5min).
+- `contact-request` → public; honeypot (`website` field); optional
+                      Bearer; per-IP `checkRateLimit` (3 / 5min).
+- `resume-reminder` → CRON-SECRET gated via `requireCronSecret`
+                      (`x-cron-secret` header); fails closed 401
+                      when CRON_SECRET is unset. Service-to-service
+                      only.
+
+Hoisting auth would have broken contact-email's `dry_run` branch and
+its saved-but-not-sent semantics, plus contact-request's anonymous
+public path. Each handler's parse-vs-validation-vs-auth ordering is
+preserved byte-for-byte against its pre-merge function.
+
+### Body buffering / parse parity
+
+`handleContactRequest` calls the shared
+`checkPayloadSize(req, 64 * 1024)` helper at the top of the handler
+— same shared helper, same Content-Length-based check, same 413
+envelope (`{"error":"Request payload too large. Maximum allowed size
+is 500KB."}`) as the original `submit-contact-request` function. The
+guard is scoped to this handler only; `contact-email` and
+`resume-reminder` did not have a payload-size guard pre-merge and
+none is applied to them post-merge. The helper reads only the
+request's Content-Length header (it does not consume the body), so
+running it after the router has already buffered `bodyText` is
+functionally identical to the original "check first, then read"
+ordering.
+
+After the size guard, the router buffers the body ONCE as text, then
+hands the text string (not a parsed object) to each handler. Each
+handler does its OWN `JSON.parse(bodyText)` inside its original
+try/catch wrapper, so parse-vs-validation-vs-throw semantics are
+preserved byte-for-byte against each pre-merge function.
+
+**Documented dispatch boundary:** when both the JSON body fails to
+parse for an `action` field AND the `x-transactional-email-action`
+header is missing, the router returns its own 400 (`Unknown action:
+(missing)`) rather than handing a malformed body to a handler. All
+real callers in this repo (web helper, PortfolioContactForm,
+sendFeedback, the re-pointed pg_cron job) set at least one of the
+two dispatch surfaces, so this is unreachable from any trusted
+caller. A handler-level malformed-body parse error envelope is only
+returned once dispatch succeeds and the handler runs its own
+`JSON.parse(bodyText)`.
+
+Email content (subject, from address, to, html body, text body) for
+each handler is a verbatim port of its original. The
+`buildSubject` mapper, the username-request HTML branch, the IP/
+user-id footer, and the Resend POST body
+(`from: "WiseResume Support <notifications@thewise.cloud>"`,
+`reply_to: <user>`, etc.) are byte-for-byte identical to the
+pre-merge `send-contact-email`.
+
+### Web helper rewrite
+
+`src/integrations/supabase/edgeFunctions.ts` adds
+`rewriteTransactionalEmailInvoke` mirroring the existing rewrite
+helpers. A single-line `USE_MERGED_TRANSACTIONAL_EMAIL = true` flag
+at the top of the helper toggles the rewrite; flipping to `false`
+falls back to the three originals. The rewrite preserves the body
+1:1; only adds a top-level `action` field when the caller didn't
+provide one (none of the three handlers currently read body.action
+for inner sub-routing, so this is purely additive).
+
+`src/components/portfolio/public/PortfolioContactForm.tsx` calls the
+function via direct `fetch()` (it bypasses `edgeFunctions.invoke` to
+avoid the impersonation-token path). It carries its own one-line
+`USE_MERGED_TRANSACTIONAL_EMAIL` flag (kept in lockstep with the
+helper flag) so the same flip flow works there too.
+
+The dev Express proxy (`server/index.ts`) was extended to forward
+both `x-transactional-email-action` and `x-cron-secret` through
+`/api/fn/:fnName`. The legacy per-fn proxy stubs for the three
+originals become dead code (the rewritten name `transactional-email`
+falls through to the generic forwarder) and will be cleaned up in the
+downstream redeploy + cleanup task.
+
+### Cron repoint
+
+Migration `20260503000002_repoint_resume_reminder_cron.sql` rewrites
+any existing pg_cron job that references `send-resume-reminder` so
+the URL points at `transactional-email` and the dispatch action is
+injected as both an `x-transactional-email-action: resume-reminder`
+header and (downstream of `20260506000000_cron_jobs_x_cron_secret_header.sql`)
+the existing `x-cron-secret` header is preserved. The migration is
+defensive: no-op without pg_cron / pg_net / required GUCs and only
+touches commands referencing the old function name.
+
+### Soak / cleanup ownership
+
+The downstream "Full edge-function redeploy + platform verification"
+task owns the prod-side deploy of `transactional-email`, the 24-hour
+soak, and the eventual `DELETE /v1/projects/<ref>/functions/<name>`
+for the three originals. This task ships the source-tree
+consolidation:
+
+- `supabase/functions/transactional-email/index.ts` (new)
+- 3 originals deleted from `supabase/functions/`
+- `supabase/config.toml` updated (3 entries removed, 1 added)
+- `src/integrations/supabase/edgeFunctions.ts` rewrite + flag
+- `src/components/portfolio/public/PortfolioContactForm.tsx` flag
+- `server/index.ts` header forwards (transactional-email + cron-secret)
+- `supabase/migrations/20260503000002_repoint_resume_reminder_cron.sql`
+- `tests/e2e/specs/22-transactional-email-merged.spec.ts`
+
+Net deployed function count drops by 2 once cleanup runs.
+
+DevKit UI (`DevKitRunner.tsx` Email Service Test) and the
+`UsernameRequestDialog` continue to invoke `send-contact-email`; the
+rewrite happens transparently in the helper. `sendFeedback` continues
+to invoke `send-contact-email` with `submit-contact-request` as the
+fallback; both names are rewritten to the merged router. No UI
+changes.
+
+---
+
 ## Admin WiseHire consolidation (Task #54, 2026-05-03)
 
 Four admin-only WiseHire management edge functions were merged into a

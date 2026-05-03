@@ -4,6 +4,7 @@ import { dispatchSessionExpiredOnce } from './sessionExpired';
 import { parseAIErrorBody, aiErrorToastMessage, type AIErrorCode } from '@/lib/aiErrorParser';
 import { apiFnUrl } from '@/lib/apiFnUrl';
 import { EDGE_FUNCTIONS_ANON_KEY } from '@/lib/supabaseConstants';
+import { USE_MERGED_TRANSACTIONAL_EMAIL } from '@/integrations/supabase/transactionalEmailFlag';
 
 /**
  * Classify an edge-function error response. Prefers the structured `error`
@@ -288,6 +289,63 @@ function rewriteAdminWisehireInvoke(
   };
 }
 
+/**
+ * Transactional email consolidation (Task #55).
+ *
+ * Routes the three legacy transactional-email function names to the
+ * merged `transactional-email` router. Dispatch is signalled via
+ * `body.action` (primary, per task spec) AND the
+ * `x-transactional-email-action` request header (fallback). The body
+ * is otherwise forwarded byte-for-byte so each sub-handler sees
+ * exactly what its pre-merge function saw — including the optional
+ * Bearer auth header that contact-email and contact-request both
+ * resolve internally for user attribution.
+ *
+ * The rollout flag (`USE_MERGED_TRANSACTIONAL_EMAIL`) lives in
+ * `./transactionalEmailFlag.ts` as the single source of truth — see
+ * that module for rollback semantics. All three call sites that need
+ * the flag (this file, PortfolioContactForm, sendFeedback) import it
+ * from there.
+ *
+ * Explicitly excluded (kept isolated): send-password-reset (auth-flow
+ * critical), send-push (different SDK, mobile-api owns it),
+ * auth-email-hook (Supabase posts to a fixed URL with HMAC signature).
+ */
+const TRANSACTIONAL_EMAIL_ACTIONS: Record<
+  string,
+  'contact-email' | 'contact-request' | 'resume-reminder'
+> = {
+  'send-contact-email': 'contact-email',
+  'submit-contact-request': 'contact-request',
+  'send-resume-reminder': 'resume-reminder',
+};
+function rewriteTransactionalEmailInvoke(
+  fnName: string,
+  options: { body?: unknown; headers?: Record<string, string>; method?: string } | undefined,
+): { fnName: string; options: { body?: unknown; headers?: Record<string, string>; method?: string } | undefined } {
+  if (!USE_MERGED_TRANSACTIONAL_EMAIL) return { fnName, options };
+  const action = TRANSACTIONAL_EMAIL_ACTIONS[fnName];
+  if (!action) return { fnName, options };
+  const newHeaders: Record<string, string> = {
+    ...(options?.headers ?? {}),
+    'x-transactional-email-action': action,
+  };
+  const origBody = options?.body;
+  let newBody: unknown = origBody;
+  if (origBody && typeof origBody === 'object' && !Array.isArray(origBody)) {
+    const obj = origBody as Record<string, unknown>;
+    if (!('action' in obj)) {
+      newBody = { ...obj, action };
+    }
+  } else if (origBody === undefined) {
+    newBody = { action };
+  }
+  return {
+    fnName: 'transactional-email',
+    options: { ...(options ?? {}), headers: newHeaders, body: newBody },
+  };
+}
+
 function rewriteAdminConfigInvoke(
   fnName: string,
   options: { body?: unknown; headers?: Record<string, string>; method?: string } | undefined,
@@ -346,8 +404,9 @@ export const edgeFunctions = {
       const adminConfigRewritten = rewriteAdminConfigInvoke(adminRewritten.fnName, adminRewritten.options);
       const adminAiOpsRewritten = rewriteAdminAiOpsInvoke(adminConfigRewritten.fnName, adminConfigRewritten.options);
       const adminWisehireRewritten = rewriteAdminWisehireInvoke(adminAiOpsRewritten.fnName, adminAiOpsRewritten.options);
-      const fnName = adminWisehireRewritten.fnName;
-      options = adminWisehireRewritten.options;
+      const transactionalEmailRewritten = rewriteTransactionalEmailInvoke(adminWisehireRewritten.fnName, adminWisehireRewritten.options);
+      const fnName = transactionalEmailRewritten.fnName;
+      options = transactionalEmailRewritten.options;
       const doInvoke = async (token: string | null) => {
         const userHeaders = options?.headers || {};
         const headers: Record<string, string> = {

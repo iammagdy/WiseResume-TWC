@@ -3264,6 +3264,26 @@ app.all('/api/fn/:fnName', async (req, res) => {
       forwardHeaders['x-admin-wisehire-op'] = adminWisehireOp;
     }
 
+    // Task #55: forward the transactional-email dispatch header so the
+    // merged `transactional-email` edge function can route to the
+    // correct sub-handler (contact-email, contact-request,
+    // resume-reminder).
+    const transactionalEmailAction = req.headers['x-transactional-email-action'];
+    if (typeof transactionalEmailAction === 'string' && transactionalEmailAction) {
+      forwardHeaders['x-transactional-email-action'] = transactionalEmailAction;
+    }
+
+    // Task #55: also forward the cron-secret header used by the
+    // resume-reminder action of the merged transactional-email router
+    // (and by the legacy send-resume-reminder/weekly-digest/
+    // wisehire-invite-reminder cron functions). The dev proxy never
+    // originates these, but a service-to-service caller hitting the
+    // proxy needs this to reach the function intact.
+    const cronSecret = req.headers['x-cron-secret'];
+    if (typeof cronSecret === 'string' && cronSecret) {
+      forwardHeaders['x-cron-secret'] = cronSecret;
+    }
+
     const isFormData = (req.headers['content-type'] || '').includes('multipart/form-data');
 
     let bodyToSend: string | Buffer | undefined;

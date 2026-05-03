@@ -69,10 +69,6 @@ project_id = "jnsfmkzgxsviuthaqlyy"
     verify_jwt = false
   [functions.score-resume]
     verify_jwt = false
-  [functions.send-contact-email]
-    verify_jwt = false
-  [functions.send-resume-reminder]
-    verify_jwt = false
   [functions.suggest-template]
     verify_jwt = false
   [functions.tailor-resume]
@@ -100,8 +96,6 @@ project_id = "jnsfmkzgxsviuthaqlyy"
   [functions.admin-merge-identity]
     verify_jwt = false
   [functions.create-portfolio-session]
-    verify_jwt = false
-  [functions.submit-contact-request]
     verify_jwt = false
   [functions.tailor-section]
     verify_jwt = false
@@ -217,6 +211,31 @@ project_id = "jnsfmkzgxsviuthaqlyy"
   # Originals stay deployed alongside for the 24-hour soak; deletion is
   # handled by the downstream platform task.
   [functions.coupons]
+    verify_jwt = false
+
+  # --- Transactional email consolidation (Task #55) ---
+  # send-contact-email, submit-contact-request, and send-resume-reminder
+  # were merged into the `transactional-email` router on 2026-05-03 to
+  # free 2 slots under the 100-function project limit. Dispatch is
+  # body.action ∈ {contact-email, contact-request, resume-reminder}
+  # with an `x-transactional-email-action` header fallback. NO single
+  # auth gate runs at the top — each handler keeps its original auth
+  # posture: contact-email and contact-request stay public (with
+  # internal Bearer-based user resolution + IP/user rate limiting and
+  # honeypot), resume-reminder stays cron-secret-gated via
+  # `requireCronSecret`. Each handler preserves its original
+  # parse-vs-validation semantics, response shape, status codes, and
+  # email content (subject, from, to, html body, text body)
+  # byte-for-byte against its pre-merge function. Originals stay
+  # deployed alongside for the 24-hour soak; deletion is handled by
+  # the downstream platform task. The pg_cron job that calls
+  # send-resume-reminder is re-pointed at transactional-email in
+  # migration 20260503000002_repoint_resume_reminder_cron.sql so cron
+  # parity is preserved across the eventual delete.
+  # Explicitly excluded (kept isolated): send-password-reset (auth
+  # critical), send-push (different SDK / mobile-api), auth-email-hook
+  # (Supabase posts to a fixed URL with HMAC signature).
+  [functions.transactional-email]
     verify_jwt = false
   # NOTE 2026-05-03: send-push, revenuecat-webhook, mobile-config, and
   # export-portfolio-pdf were never deployed to prod (their entries existed
