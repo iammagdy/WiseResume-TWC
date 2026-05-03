@@ -208,11 +208,10 @@ project_id = "jnsfmkzgxsviuthaqlyy"
   # Mobile clients now POST `{action, ...}` to /functions/v1/mobile-api.
   [functions.mobile-api]
     verify_jwt = false
-  [functions.send-push]
-    verify_jwt = false
-  [functions.revenuecat-webhook]
-    verify_jwt = false
-  [functions.mobile-config]
-    verify_jwt = false
-  [functions.export-portfolio-pdf]
-    verify_jwt = false
+  # NOTE 2026-05-03: send-push, revenuecat-webhook, mobile-config, and
+  # export-portfolio-pdf were never deployed to prod (their entries existed
+  # in config.toml but their source dirs were missing from the repo). After
+  # the mobile-api consolidation prod sits at the 100-function ceiling, so
+  # restoring all four would push us over. Mobile does not invoke any of
+  # them directly, so they are intentionally excluded from deploy here. A
+  # follow-up task can re-introduce them once we free up additional slots.
