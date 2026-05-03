@@ -16,7 +16,6 @@ import { PDFDocument, PDFArray, PDFName, PDFString, StandardFonts, rgb } from 'p
 import express from 'express';
 import type { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
-import pg from 'pg';
 import { promises as dns } from 'node:dns';
 import net from 'node:net';
 import * as jose from 'jose';
@@ -84,7 +83,6 @@ const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL |
 let SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY || '';
 let SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 let SUPABASE_JWT_SECRET = process.env.SUPABASE_JWT_SECRET || process.env.EXT_SUPABASE_JWT_SECRET || '';
-const DATABASE_URL = process.env.DATABASE_URL || '';
 const KINDE_DOMAIN = process.env.VITE_KINDE_DOMAIN || process.env.KINDE_DOMAIN || '';
 // Fallback secret used ONLY if SUPABASE_JWT_SECRET cannot be obtained. Tokens
 // signed with this will not be accepted by Supabase PostgREST / Auth, so they
@@ -92,14 +90,6 @@ const KINDE_DOMAIN = process.env.VITE_KINDE_DOMAIN || process.env.KINDE_DOMAIN |
 const SESSION_SECRET = process.env.SESSION_SECRET || '';
 
 // ── Startup guards ─────────────────────────────────────────────────────────────
-// DATABASE_URL is the only hard requirement — the local Replit Postgres is
-// always available. SUPABASE_URL and KINDE_DOMAIN are optional: when absent
-// those subsystems degrade gracefully (Supabase calls are skipped, Kinde auth
-// routes return 503) so the server still boots and the DB-backed routes work.
-if (!DATABASE_URL) {
-  console.error('[server] FATAL: DATABASE_URL is not set. Cannot connect to the database.');
-  process.exit(1);
-}
 if (!SUPABASE_URL) {
   console.warn('[server] SUPABASE_URL not set — Supabase-backed routes will be unavailable.');
 }
@@ -312,61 +302,10 @@ async function ensureSupabaseShadowUser(userId: string, email: string | null): P
   }
 }
 
-// Postgres connection pool (for direct server-side queries).
-// We previously used `neon()` from @neondatabase/serverless, but that is an
-// HTTP-only client speaking Neon's wire protocol. The local Replit Postgres
-// instance does not understand that protocol, so parameterized queries
-// returned `null` and crashed downstream. The standard `pg` TCP driver
-// works correctly against both Replit Postgres and Neon (via the standard
-// Postgres wire protocol).
-const pgPool: pg.Pool | null = DATABASE_URL ? new pg.Pool({ connectionString: DATABASE_URL }) : null;
-if (pgPool) {
-  pgPool.on('error', (err) => {
-    console.error('[server] Postgres pool error:', err);
-  });
-}
-
-type SqlTag = {
-  <T = Record<string, unknown>>(strings: TemplateStringsArray, ...values: unknown[]): Promise<T[]>;
-  query<T = Record<string, unknown>>(text: string, params?: unknown[]): Promise<T[]>;
-};
-
-// Tagged-template-literal wrapper around pg.Pool that mirrors the interface
-// previously provided by `neon(DATABASE_URL)`. Two call styles are supported:
-//   1. Tagged template:  await sql`SELECT * FROM t WHERE id = ${id}`
-//   2. Raw query:        await sql.query('SELECT * FROM t WHERE id = $1', [id])
-// Both resolve to the rows array directly (matching the prior neon behavior).
-function makeSqlTag(pool: pg.Pool): SqlTag {
-  const tag = async <T = Record<string, unknown>>(
-    strings: TemplateStringsArray,
-    ...values: unknown[]
-  ): Promise<T[]> => {
-    let text = '';
-    for (let i = 0; i < strings.length; i++) {
-      text += strings[i];
-      if (i < values.length) text += `$${i + 1}`;
-    }
-    const result = await pool.query(text, values);
-    return result.rows as T[];
-  };
-  (tag as SqlTag).query = async <T = Record<string, unknown>>(
-    text: string,
-    params: unknown[] = [],
-  ): Promise<T[]> => {
-    const result = await pool.query(text, params);
-    return result.rows as T[];
-  };
-  return tag as SqlTag;
-}
-
-const sql: SqlTag | null = pgPool ? makeSqlTag(pgPool) : null;
-
 // ── Supabase REST helper ──────────────────────────────────────────────────────
-// Reads user-owned data straight from the Supabase project (bypassing RLS via
-// the service-role key). Used by the dashboard read endpoints because the
-// authoritative copy of resumes, profiles, subscriptions, etc. lives in
-// Supabase — the local Postgres is a dev sidecar that does not contain the
-// user's real data.
+// Reads/writes user-owned data via the Supabase project (bypasses RLS via
+// the service-role key). Supabase is the sole source of truth for all
+// application data.
 async function supabaseGet<T = Record<string, unknown>>(
   table: string,
   query: string,
@@ -814,15 +753,13 @@ app.get('/api/ai-health', async (_req, res) => {
 });
 
 // ── Database health ───────────────────────────────────────────────────────────
+// Local Postgres removed — this endpoint now checks the Supabase connection.
 app.get('/api/db-health', async (_req, res) => {
-  if (!sql) {
-    return res.status(503).json({ error: 'DATABASE_URL not configured' });
-  }
   try {
-    const result = await sql`SELECT 1 as ok`;
-    res.json({ status: 'ok', result });
+    const rows = await supabaseGet('profiles', 'select=id&limit=1');
+    res.json({ status: 'ok', source: 'supabase', rows: rows.length });
   } catch (err) {
-    res.status(503).json({ error: 'Database connection failed', detail: String(err) });
+    res.status(503).json({ error: 'Supabase connection failed', detail: String(err) });
   }
 });
 
@@ -885,16 +822,6 @@ app.post('/api/fn/token-exchange', async (req, res) => {
       console.error('[token-exchange] Supabase profile upsert failed:', dbErr);
       return res.status(500).json({ code: 'PROFILE_UPSERT_FAILED', message: 'Could not create user profile' });
     }
-    // Best-effort local audit log (non-fatal — local pg may lag/be absent).
-    if (sql) {
-      try {
-        await sql`
-          INSERT INTO token_exchanges (kinde_sub, user_id, status)
-          VALUES (${kindeSub}, ${userId}, 'success')
-        `;
-      } catch { /* non-fatal */ }
-    }
-
     // 5. Select signing secret: prefer SUPABASE_JWT_SECRET (accepted by both
     //    Supabase PostgREST and this server's validateSupabaseToken). Fall back
     //    to SESSION_SECRET so the app works fully when only Neon + Kinde are
@@ -962,14 +889,6 @@ app.post('/api/fn/token-exchange', async (req, res) => {
     return res.json({ supabaseToken, userId, expiresAt, kindeSub, shadowUserOk });
   } catch (err) {
     console.error('[token-exchange] Unexpected error:', err);
-    if (sql) {
-      try {
-        await sql`
-          INSERT INTO token_exchanges (kinde_sub, user_id, status, error_code)
-          VALUES (${kindeSub}, ${userId}, 'error', 'INTERNAL_ERROR')
-        `;
-      } catch { /* ignore audit failure */ }
-    }
     return res.status(500).json({ code: 'INTERNAL_ERROR', message: 'Internal server error' });
   }
 });
@@ -3796,23 +3715,23 @@ function currentMonthKey(): string {
 
 async function getMonthlyUsage(userId: string): Promise<number> {
   const month = currentMonthKey();
-  const rows = await sql!`
-    SELECT count FROM linkedin_import_quota
-    WHERE user_id = ${userId} AND month = ${month}
-  `;
+  const rows = await supabaseGet<{ count: number }>(
+    'linkedin_import_quota',
+    `select=count&user_id=eq.${encodeURIComponent(userId)}&month=eq.${encodeURIComponent(month)}&limit=1`,
+  );
   return rows.length > 0 ? (rows[0].count as number) : 0;
 }
 
 async function bumpMonthlyUsage(userId: string): Promise<number> {
   const month = currentMonthKey();
-  const rows = await sql!`
-    INSERT INTO linkedin_import_quota (user_id, month, count)
-    VALUES (${userId}, ${month}, 1)
-    ON CONFLICT (user_id, month)
-    DO UPDATE SET count = linkedin_import_quota.count + 1
-    RETURNING count
-  `;
-  return rows.length > 0 ? (rows[0].count as number) : 1;
+  const current = await getMonthlyUsage(userId);
+  const newCount = current + 1;
+  await supabaseUpsert(
+    'linkedin_import_quota',
+    { user_id: userId, month, count: newCount },
+    'user_id,month',
+  );
+  return newCount;
 }
 
 /**
@@ -3939,13 +3858,6 @@ app.post('/api/linkedin-profile', requireAuthHeader, linkedinImportRateLimiter,
         message: 'LinkedIn importer is not configured on this deployment.',
       });
     }
-    if (!sql) {
-      return res.status(503).json({
-        error: 'not_configured',
-        message: 'LinkedIn importer quota service is unavailable (database not configured).',
-      });
-    }
-
     const { url } = (req.body ?? {}) as { url?: string };
     if (!url || typeof url !== 'string') {
       return res.status(400).json({ error: 'bad_request', message: 'Missing `url` in body.' });
@@ -4052,77 +3964,12 @@ app.post('/api/linkedin-profile', requireAuthHeader, linkedinImportRateLimiter,
   },
 );
 
-// ── Direct DB routes (server-side, no Supabase needed) ────────────────────────
-
-/**
- * GET /api/plan/:userId — Get the effective plan for a user directly from Neon DB.
- * Only callable from server-side contexts with DATABASE_URL.
- */
-app.get('/api/plan/:userId', async (req, res) => {
-  if (!sql) return res.status(503).json({ error: 'Database not configured' });
-  try {
-    const { userId } = req.params;
-    const rows = await sql`
-      SELECT plan_name, status, trial_plan, trial_expires_at
-      FROM subscriptions
-      WHERE user_id = ${userId}
-      LIMIT 1
-    `;
-    if (rows.length === 0) return res.json({ plan: 'free' });
-    const sub = rows[0];
-    let effectivePlan = sub.plan_name || 'free';
-    if (sub.trial_plan && sub.trial_expires_at) {
-      if (new Date(sub.trial_expires_at as string) > new Date()) {
-        effectivePlan = sub.trial_plan as string;
-      }
-    }
-    res.json({ plan: effectivePlan, status: sub.status });
-  } catch (err) {
-    res.status(500).json({ error: String(err) });
-  }
-});
-
-// ── Data API (replaces direct supabase.from() calls in src/hooks + src/pages) ─
-//
-// Every endpoint below is gated by `requireAuthHeader`, which validates the
-// caller's session JWT against `SESSION_SECRET` — Supabase is never contacted.
-// Together these endpoints cover the read/write surface area that used to be
-// served by Supabase PostgREST through `src/integrations/supabase/safeClient`,
-// so the browser no longer depends on `SUPABASE_JWT_SECRET` for normal data
-// reads.
-//
-// Several tables referenced by the legacy hooks are not yet present in the
-// Neon schema (`notifications`, `jobs`, `resume_shares`, `push_subscriptions`,
-// `short_links`, `tailor_history`, `talent_pool_views`,
-// `wisehire_bulk_screen_jobs`, `wisehire_candidate_briefs`,
-// `wisehire_roles`). Those endpoints intentionally return empty results /
-// no-op success responses so the UI continues to work. They're stubbed in
-// one place, easy to wire to real tables later.
+// ── Data API ───────────────────────────────────────────────────────────────────
+// All endpoints below proxy to Supabase via the service-role key so the browser
+// never needs to hold a service-role credential. Auth is validated server-side
+// via requireAuthHeader before any Supabase call is made.
 
 interface NeonRow { [k: string]: unknown }
-async function tableExists(name: string): Promise<boolean> {
-  if (!sql) return false;
-  try {
-    const rows = await sql`
-      SELECT 1 FROM information_schema.tables
-      WHERE table_schema = 'public' AND table_name = ${name}
-      LIMIT 1
-    ` as NeonRow[];
-    return rows.length > 0;
-  } catch {
-    return false;
-  }
-}
-
-const tableExistsCache = new Map<string, { value: boolean; expiresAt: number }>();
-async function tableExistsCached(name: string): Promise<boolean> {
-  const now = Date.now();
-  const hit = tableExistsCache.get(name);
-  if (hit && hit.expiresAt > now) return hit.value;
-  const value = await tableExists(name);
-  tableExistsCache.set(name, { value, expiresAt: now + 5 * 60_000 });
-  return value;
-}
 
 function dataErr(res: Response, err: unknown): Response {
   console.error('[data-api] error:', err);
@@ -4159,18 +4006,6 @@ const PROFILE_WRITABLE_COLUMNS = new Set([
   'login_streak', 'last_login_date', 'digest_enabled', 'hired_at',
   'portfolio_draft', 'portfolio_draft_saved_at', 'onboarding_completed',
 ]);
-
-let _profileColumnsCache: Set<string> | null = null;
-async function getProfileColumns(): Promise<Set<string>> {
-  if (_profileColumnsCache) return _profileColumnsCache;
-  if (!sql) return new Set();
-  const rows = await sql`
-    SELECT column_name FROM information_schema.columns
-    WHERE table_schema='public' AND table_name='profiles'
-  ` as NeonRow[];
-  _profileColumnsCache = new Set(rows.map(r => String(r.column_name)));
-  return _profileColumnsCache;
-}
 
 app.patch('/api/data/profile', requireAuthHeader, async (req: AuthedRequest, res) => {
   try {
@@ -4543,10 +4378,8 @@ app.delete('/api/data/resumes', requireAuthHeader, async (req: AuthedRequest, re
 });
 
 // ── /api/data/hr-analytics ─────────────────────────────────────────────────────
-// Aggregator for useHRAnalytics. Only consults tables that currently exist;
-// returns 0/empty for the rest so the UI degrades gracefully.
+// Aggregator for useHRAnalytics — reads WiseHire tables from Supabase.
 app.get('/api/data/hr-analytics', requireAuthHeader, async (req: AuthedRequest, res) => {
-  if (!sql) return res.status(503).json({ error: 'Database not configured' });
   try {
     const userId = req.verifiedUserId!;
     const rangeRaw = typeof req.query.range === 'string' ? req.query.range : 'all';
@@ -4559,19 +4392,24 @@ app.get('/api/data/hr-analytics', requireAuthHeader, async (req: AuthedRequest, 
       since = d.toISOString();
     }
 
-    const candidatesRows = since
-      ? await sql`SELECT id, pipeline_stage, resume_text, created_at FROM wisehire_candidates WHERE owner_id = ${userId} AND created_at >= ${since}`
-      : await sql`SELECT id, pipeline_stage, resume_text, created_at FROM wisehire_candidates WHERE owner_id = ${userId}`;
-    const eventsRows = since
-      ? await sql`SELECT candidate_id, from_stage, to_stage, moved_at as created_at FROM wisehire_pipeline_events WHERE owner_id = ${userId} AND moved_at >= ${since} ORDER BY moved_at ASC`
-      : await sql`SELECT candidate_id, from_stage, to_stage, moved_at as created_at FROM wisehire_pipeline_events WHERE owner_id = ${userId} ORDER BY moved_at ASC`;
-    const companyRows = await sql`SELECT id FROM wisehire_companies WHERE owner_id = ${userId} LIMIT 1`;
+    const u = encodeURIComponent(userId);
+    const candidateQ = since
+      ? `owner_id=eq.${u}&created_at=gte.${encodeURIComponent(since)}&select=id,pipeline_stage,resume_text,created_at`
+      : `owner_id=eq.${u}&select=id,pipeline_stage,resume_text,created_at`;
+    const eventsQ = since
+      ? `owner_id=eq.${u}&moved_at=gte.${encodeURIComponent(since)}&select=candidate_id,from_stage,to_stage,moved_at&order=moved_at.asc`
+      : `owner_id=eq.${u}&select=candidate_id,from_stage,to_stage,moved_at&order=moved_at.asc`;
+
+    const [candidatesRows, eventsRows, companyRows] = await Promise.all([
+      supabaseGet<NeonRow>('wisehire_candidates', candidateQ),
+      supabaseGet<NeonRow>('wisehire_pipeline_events', eventsQ),
+      supabaseGet<NeonRow>('wisehire_companies', `owner_id=eq.${u}&select=id&limit=1`),
+    ]);
 
     res.json({
       candidates: candidatesRows,
-      pipelineEvents: eventsRows,
-      companyId: (companyRows[0] as NeonRow | undefined)?.id ?? null,
-      // Tables not yet in the Neon schema:
+      pipelineEvents: eventsRows.map(r => ({ ...r, created_at: r.moved_at })),
+      companyId: companyRows[0]?.id ?? null,
       bulkJobs: [],
       briefs: [],
       roles: [],
@@ -4583,19 +4421,17 @@ app.get('/api/data/hr-analytics', requireAuthHeader, async (req: AuthedRequest, 
 });
 
 // ── /api/data/notifications ────────────────────────────────────────────────────
-// `notifications` table doesn't exist in the current Neon schema — return
-// empty/no-op so the UI keeps working until it's added.
-app.get('/api/data/notifications', requireAuthHeader, async (_req, res) => {
-  if (await tableExistsCached('notifications')) {
-    try {
-      const rows = await sql!`
-        SELECT * FROM notifications WHERE user_id = ${(_req as AuthedRequest).verifiedUserId!}
-        ORDER BY created_at DESC
-      ` as NeonRow[];
-      return res.json({ notifications: rows });
-    } catch (err) { return dataErr(res, err); }
+app.get('/api/data/notifications', requireAuthHeader, async (req, res) => {
+  try {
+    const userId = (req as AuthedRequest).verifiedUserId!;
+    const rows = await supabaseGet<NeonRow>(
+      'notifications',
+      `user_id=eq.${encodeURIComponent(userId)}&order=created_at.desc`,
+    );
+    return res.json({ notifications: rows });
+  } catch (_err) {
+    res.json({ notifications: [] });
   }
-  res.json({ notifications: [] });
 });
 app.get('/api/data/notifications/unread-count', requireAuthHeader, async (_req, res) => {
   res.json({ count: 0 });
@@ -4696,447 +4532,8 @@ app.get('/api/data/portfolio-analytics', requireAuthHeader, async (_req, res) =>
   });
 });
 
-// ── Analytics retention sweeper (Phase 5) ─────────────────────────────────────
-//
-// Once per day, prune rows older than the per-table retention window from
-// `portfolio_visits`, `error_log`, `audit_logs`, and `edge_function_logs`.
-// The actual delete loop lives in the Postgres RPC
-// `sweep_analytics_retention_batch(...)` (see migration
-// 20260425000000_analytics_retention.sql, extended for `edge_function_logs`
-// in 20260518000001_edge_function_logs_retention.sql) so the work happens
-// in batches of 10k rows server-side and we never hold a long transaction
-// from Node.
-//
-// Retention windows are env-tunable:
-//   PORTFOLIO_VISITS_RETENTION_DAYS    (default 90)
-//   ERROR_LOG_RETENTION_DAYS           (default 30)
-//   AUDIT_LOGS_RETENTION_DAYS          (default 365)
-//   EDGE_FUNCTION_LOGS_RETENTION_DAYS  (default 30)
-//
-// Disable entirely by setting ANALYTICS_SWEEP_ENABLED=false (e.g. in CI).
-
-interface SweepResult {
-  ran_at: string;
-  portfolio_visits_cutoff: string;
-  error_log_cutoff: string;
-  audit_logs_cutoff: string;
-  admin_audit_log_cutoff: string;
-  edge_function_logs_cutoff: string;
-  portfolio_visits_deleted: number;
-  error_log_deleted: number;
-  audit_logs_deleted: number;
-  trial_resumes_deleted: number;
-  admin_audit_log_deleted: number;
-  edge_function_logs_deleted: number;
-}
-interface SweepStatus {
-  lastRanAt: string | null;
-  lastDurationMs: number | null;
-  lastResult: SweepResult | null;
-  lastError: string | null;
-  nextScheduledAt: string | null;
-  config: {
-    enabled: boolean;
-    portfolioVisitsRetentionDays: number;
-    errorLogRetentionDays: number;
-    auditLogsRetentionDays: number;
-    adminAuditLogRetentionDays: number;
-    edgeFunctionLogsRetentionDays: number;
-    intervalMs: number;
-  };
-}
-
-const ANALYTICS_SWEEP_ENABLED =
-  (process.env.ANALYTICS_SWEEP_ENABLED || 'true').toLowerCase() !== 'false';
-function parseRetentionDays(envName: string, fallback: number): number {
-  const raw = process.env[envName];
-  if (!raw) return fallback;
-  const n = parseInt(raw, 10);
-  if (!Number.isFinite(n) || n < 1) {
-    console.warn(
-      `[analytics-sweep] invalid ${envName}=${raw} — falling back to ${fallback}`,
-    );
-    return fallback;
-  }
-  return n;
-}
-const PORTFOLIO_VISITS_RETENTION_DAYS =
-  parseRetentionDays('PORTFOLIO_VISITS_RETENTION_DAYS', 90);
-const ERROR_LOG_RETENTION_DAYS =
-  parseRetentionDays('ERROR_LOG_RETENTION_DAYS', 30);
-const AUDIT_LOGS_RETENTION_DAYS =
-  parseRetentionDays('AUDIT_LOGS_RETENTION_DAYS', 365);
-// Task #10 / Step 2: retention for the DevKit's `admin_audit_log` table.
-// Default 365d so admin actions are retained for at least a year, matching
-// the existing `audit_logs` retention. Tunable via env without a migration.
-const ADMIN_AUDIT_LOG_RETENTION_DAYS =
-  parseRetentionDays('ADMIN_AUDIT_LOG_RETENTION_DAYS', 365);
-// Task #20: retention for the per-invocation `edge_function_logs` table.
-// After Task #19, every admin and AI edge function writes a row here on
-// every invocation, so the table grows by thousands of rows per day.
-// 30d matches the `error_log` retention and covers the Observability →
-// Telemetry tab's longest sparkline window.
-const EDGE_FUNCTION_LOGS_RETENTION_DAYS =
-  parseRetentionDays('EDGE_FUNCTION_LOGS_RETENTION_DAYS', 30);
-const ANALYTICS_SWEEP_BATCH_SIZE = 10000;
-// Per-table cap on batch iterations so a runaway loop can't dominate
-// the connection forever. 1000 batches × 10k rows = 10M rows/table/run,
-// far above any realistic backlog.
-const ANALYTICS_SWEEP_MAX_BATCHES_PER_TABLE = 1000;
-// Lock TTL for the cross-instance sweep mutex. Sized comfortably above the
-// expected sweep duration so a healthy run never times out, but short enough
-// that a crashed holder is recovered before the next daily run.
-const ANALYTICS_SWEEP_LOCK_TTL_MS = 30 * 60 * 1000; // 30 minutes
-// Stable per-process holder id used to release only locks we own.
-const ANALYTICS_SWEEP_HOLDER_ID = `${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-const ANALYTICS_SWEEP_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24h
-// Wait a few minutes after boot before the first sweep so we don't
-// pile work onto a cold start; subsequent runs are 24h apart.
-const ANALYTICS_SWEEP_INITIAL_DELAY_MS = 5 * 60 * 1000;
-
-const sweepStatus: SweepStatus = {
-  lastRanAt: null,
-  lastDurationMs: null,
-  lastResult: null,
-  lastError: null,
-  nextScheduledAt: null,
-  config: {
-    enabled: ANALYTICS_SWEEP_ENABLED,
-    portfolioVisitsRetentionDays: PORTFOLIO_VISITS_RETENTION_DAYS,
-    errorLogRetentionDays: ERROR_LOG_RETENTION_DAYS,
-    auditLogsRetentionDays: AUDIT_LOGS_RETENTION_DAYS,
-    adminAuditLogRetentionDays: ADMIN_AUDIT_LOG_RETENTION_DAYS,
-    edgeFunctionLogsRetentionDays: EDGE_FUNCTION_LOGS_RETENTION_DAYS,
-    intervalMs: ANALYTICS_SWEEP_INTERVAL_MS,
-  },
-};
-
-/**
- * Sweep one analytics table by repeatedly invoking the single-batch RPC.
- * Each RPC call runs in its own transaction (because PL/pgSQL's outer
- * loop and `GET DIAGNOSTICS` would otherwise hold a single long
- * transaction for the whole table). When the RPC returns fewer rows
- * than the batch size, we know the backlog is drained.
- */
-async function sweepOneTable(
-  table: 'portfolio_visits' | 'error_log' | 'audit_logs' | 'edge_function_logs',
-  days: number,
-): Promise<number> {
-  if (!sql) return 0;
-  let total = 0;
-  for (let i = 0; i < ANALYTICS_SWEEP_MAX_BATCHES_PER_TABLE; i++) {
-    let rows: Array<{ deleted: unknown }>;
-    try {
-      rows = await sql`
-        SELECT public.sweep_analytics_retention_batch(
-          ${table}::text,
-          ${days}::int,
-          ${ANALYTICS_SWEEP_BATCH_SIZE}::int
-        ) AS deleted
-      `;
-    } catch (err: unknown) {
-      // 42883 = undefined_function: the RPC does not exist in this DB
-      // (e.g. local dev sidecar missing the Supabase migration). Skip silently.
-      if (typeof err === 'object' && err !== null && (err as { code?: string }).code === '42883') {
-        return 0;
-      }
-      throw err;
-    }
-    const deleted = Number(rows[0]?.deleted ?? 0);
-    total += deleted;
-    if (deleted < ANALYTICS_SWEEP_BATCH_SIZE) return total;
-  }
-  console.warn(
-    `[analytics-sweep] ${table} hit max-batches cap`,
-    JSON.stringify({ batches: ANALYTICS_SWEEP_MAX_BATCHES_PER_TABLE, total }),
-  );
-  return total;
-}
-
-/**
- * Run the full sweep across all three analytics tables. Cross-instance
- * overlap is prevented by acquiring the durable single-row mutex
- * `analytics_sweep_lock` (TTL-bounded, holder-tagged) before doing any
- * work, renewing the lease between tables, and deleting our row on
- * exit. A manual trigger can never race with the daily timer —
- * concurrent invocations short-circuit with
- * `lastError = 'sweep already in progress'`.
- */
-let sweepInFlight = false;
-async function runAnalyticsSweep(): Promise<void> {
-  if (!sql) {
-    sweepStatus.lastError = 'DATABASE_URL not configured';
-    console.warn('[analytics-sweep] skipped — DATABASE_URL not configured');
-    return;
-  }
-  // In-process guard catches the trivially-concurrent case without a
-  // DB roundtrip; the advisory lock below catches multi-instance races.
-  if (sweepInFlight) {
-    sweepStatus.lastError = 'sweep already in progress (in-process)';
-    console.warn('[analytics-sweep] skipped — already running in this process');
-    return;
-  }
-  sweepInFlight = true;
-  const startedAt = Date.now();
-  let lockAcquired = false;
-  try {
-    // Cross-instance mutex via the analytics_sweep_lock single-row table.
-    // Neon's HTTP serverless driver doesn't preserve a session across
-    // statements, so a session-scoped pg_advisory_lock would silently
-    // be released the moment its HTTP request returns. The row pattern
-    // is durable across statement boundaries and TTL-bounded so a
-    // crashed holder can't pin the lock indefinitely.
-    const newExpiry = new Date(startedAt + ANALYTICS_SWEEP_LOCK_TTL_MS).toISOString();
-    const lockRows = await sql`
-      INSERT INTO public.analytics_sweep_lock (id, holder, acquired_at, expires_at)
-      VALUES (1, ${ANALYTICS_SWEEP_HOLDER_ID}, now(), ${newExpiry}::timestamptz)
-      ON CONFLICT (id) DO UPDATE
-        SET holder = EXCLUDED.holder,
-            acquired_at = EXCLUDED.acquired_at,
-            expires_at = EXCLUDED.expires_at
-        WHERE public.analytics_sweep_lock.expires_at < now()
-      RETURNING holder = ${ANALYTICS_SWEEP_HOLDER_ID} AS got
-    `;
-    lockAcquired = lockRows[0]?.got === true;
-    if (!lockAcquired) {
-      sweepStatus.lastError = 'sweep already in progress (lock row held)';
-      // Demoted from warn to debug log: a held lock is the EXPECTED outcome
-      // when another instance is running its sweep — it's not an error,
-      // just a routine "skip this tick." Keeps prod logs clean.
-      if (process.env.DEBUG_ANALYTICS_SWEEP === '1') {
-        console.log('[analytics-sweep] skipped — lock row held by another holder');
-      }
-      return;
-    }
-
-    const visitsCutoff = new Date(
-      startedAt - PORTFOLIO_VISITS_RETENTION_DAYS * 86_400_000,
-    ).toISOString();
-    const errorCutoff = new Date(
-      startedAt - ERROR_LOG_RETENTION_DAYS * 86_400_000,
-    ).toISOString();
-    const auditCutoff = new Date(
-      startedAt - AUDIT_LOGS_RETENTION_DAYS * 86_400_000,
-    ).toISOString();
-    const adminAuditCutoff = new Date(
-      startedAt - ADMIN_AUDIT_LOG_RETENTION_DAYS * 86_400_000,
-    ).toISOString();
-    const edgeFunctionLogsCutoff = new Date(
-      startedAt - EDGE_FUNCTION_LOGS_RETENTION_DAYS * 86_400_000,
-    ).toISOString();
-
-    // Lease heartbeat — extend the TTL between tables so a sweep that
-    // runs longer than the initial 30-minute window cannot be preempted.
-    // The UPDATE is guarded by `holder = us`; if rowcount is 0 our lease
-    // already expired and was claimed by someone else, so we abort
-    // rather than continue working without the mutex.
-    async function renewLease(): Promise<boolean> {
-      const renewedExpiry = new Date(Date.now() + ANALYTICS_SWEEP_LOCK_TTL_MS).toISOString();
-      const renewed = await sql!`
-        UPDATE public.analytics_sweep_lock
-           SET expires_at = ${renewedExpiry}::timestamptz
-         WHERE id = 1 AND holder = ${ANALYTICS_SWEEP_HOLDER_ID}
-        RETURNING 1 AS ok
-      `;
-      return renewed.length > 0;
-    }
-
-    const visitsDeleted = await sweepOneTable(
-      'portfolio_visits', PORTFOLIO_VISITS_RETENTION_DAYS);
-    if (!(await renewLease())) {
-      throw new Error('lease lost between portfolio_visits and error_log');
-    }
-    const errorDeleted = await sweepOneTable(
-      'error_log', ERROR_LOG_RETENTION_DAYS);
-    if (!(await renewLease())) {
-      throw new Error('lease lost between error_log and audit_logs');
-    }
-    const auditDeleted = await sweepOneTable(
-      'audit_logs', AUDIT_LOGS_RETENTION_DAYS);
-    if (!(await renewLease())) {
-      throw new Error('lease lost between audit_logs and edge_function_logs');
-    }
-    // Task #20: trim `edge_function_logs` so the per-invocation telemetry
-    // table doesn't grow unbounded and slow down the Observability →
-    // Telemetry tab. Uses the same batched RPC as the other sweep tables
-    // (whitelist branch added in 20260518000001_edge_function_logs_retention.sql).
-    const edgeFunctionLogsDeleted = await sweepOneTable(
-      'edge_function_logs', EDGE_FUNCTION_LOGS_RETENTION_DAYS);
-    if (!(await renewLease())) {
-      throw new Error('lease lost between edge_function_logs and admin_audit_log');
-    }
-
-    // Task #10 / Step 2: sweep `admin_audit_log` rows older than
-    // ADMIN_AUDIT_LOG_RETENTION_DAYS (default 365). Performed inline via
-    // a batched `DELETE … WHERE id IN (SELECT … LIMIT batch FOR UPDATE
-    // SKIP LOCKED)` rather than through `sweep_analytics_retention_batch`
-    // because that RPC's table allow-list lives in a separate Supabase
-    // migration and the table is hosted on the Replit Neon DB, not the
-    // Supabase DB. The same batch-size + max-batches caps as the other
-    // sweep tables apply, so locks stay short and a runaway loop can't
-    // dominate the connection. Uses the new `(at DESC, id DESC)` index
-    // (Step 1) for the inner ordered scan.
-    let adminAuditDeleted = 0;
-    for (let i = 0; i < ANALYTICS_SWEEP_MAX_BATCHES_PER_TABLE; i++) {
-      const rows = await sql`
-        WITH victims AS (
-          SELECT id FROM public.admin_audit_log
-          WHERE at < ${adminAuditCutoff}::timestamptz
-          ORDER BY at, id
-          LIMIT ${ANALYTICS_SWEEP_BATCH_SIZE}::int
-          FOR UPDATE SKIP LOCKED
-        )
-        DELETE FROM public.admin_audit_log a
-         USING victims
-         WHERE a.id = victims.id
-        RETURNING 1 AS deleted
-      `;
-      const deleted = rows.length;
-      adminAuditDeleted += deleted;
-      if (deleted < ANALYTICS_SWEEP_BATCH_SIZE) break;
-      if (i === ANALYTICS_SWEEP_MAX_BATCHES_PER_TABLE - 1) {
-        console.warn(
-          '[analytics-sweep] admin_audit_log hit max-batches cap',
-          JSON.stringify({ batches: ANALYTICS_SWEEP_MAX_BATCHES_PER_TABLE, total: adminAuditDeleted }),
-        );
-      }
-    }
-    if (!(await renewLease())) {
-      throw new Error('lease lost between admin_audit_log and trial_resumes');
-    }
-
-    // Purge expired trial resumes that are past the 3-day client-side grace
-    // window. Uses the same batch size and max-batches cap as the analytics
-    // tables so a large backlog can't cause a prolonged table lock.
-    let trialResumesDeleted = 0;
-    for (let i = 0; i < ANALYTICS_SWEEP_MAX_BATCHES_PER_TABLE; i++) {
-      const rows = await sql`
-        SELECT public.purge_expired_trial_resumes(
-          ${ANALYTICS_SWEEP_BATCH_SIZE}::int
-        ) AS deleted
-      `;
-      const deleted = Number(rows[0]?.deleted ?? 0);
-      trialResumesDeleted += deleted;
-      if (deleted < ANALYTICS_SWEEP_BATCH_SIZE) break;
-      if (i === ANALYTICS_SWEEP_MAX_BATCHES_PER_TABLE - 1) {
-        console.warn(
-          '[analytics-sweep] trial_resumes hit max-batches cap',
-          JSON.stringify({ batches: ANALYTICS_SWEEP_MAX_BATCHES_PER_TABLE, total: trialResumesDeleted }),
-        );
-      }
-    }
-
-    const durationMs = Date.now() - startedAt;
-    const result: SweepResult = {
-      ran_at: new Date(startedAt).toISOString(),
-      portfolio_visits_cutoff: visitsCutoff,
-      error_log_cutoff: errorCutoff,
-      audit_logs_cutoff: auditCutoff,
-      admin_audit_log_cutoff: adminAuditCutoff,
-      edge_function_logs_cutoff: edgeFunctionLogsCutoff,
-      portfolio_visits_deleted: visitsDeleted,
-      error_log_deleted: errorDeleted,
-      audit_logs_deleted: auditDeleted,
-      trial_resumes_deleted: trialResumesDeleted,
-      admin_audit_log_deleted: adminAuditDeleted,
-      edge_function_logs_deleted: edgeFunctionLogsDeleted,
-    };
-    sweepStatus.lastRanAt = new Date(startedAt).toISOString();
-    sweepStatus.lastDurationMs = durationMs;
-    sweepStatus.lastResult = result;
-    sweepStatus.lastError = null;
-    console.log(
-      '[analytics-sweep] completed',
-      JSON.stringify({
-        durationMs,
-        portfolio_visits_deleted: visitsDeleted,
-        error_log_deleted: errorDeleted,
-        audit_logs_deleted: auditDeleted,
-        trial_resumes_deleted: trialResumesDeleted,
-        admin_audit_log_deleted: adminAuditDeleted,
-        edge_function_logs_deleted: edgeFunctionLogsDeleted,
-      }),
-    );
-  } catch (err) {
-    const durationMs = Date.now() - startedAt;
-    sweepStatus.lastRanAt = new Date(startedAt).toISOString();
-    sweepStatus.lastDurationMs = durationMs;
-    sweepStatus.lastError = err instanceof Error ? err.message : String(err);
-    console.error('[analytics-sweep] failed:', err);
-  } finally {
-    if (lockAcquired) {
-      try {
-        // Only release a lock we actually own — avoids stomping on a
-        // subsequent holder if we somehow ran past our TTL.
-        await sql`
-          DELETE FROM public.analytics_sweep_lock
-          WHERE id = 1 AND holder = ${ANALYTICS_SWEEP_HOLDER_ID}
-        `;
-      } catch (releaseErr) {
-        console.error('[analytics-sweep] failed to release lock row:', releaseErr);
-      }
-    }
-    sweepInFlight = false;
-  }
-}
-
-function scheduleAnalyticsSweep(): void {
-  if (!ANALYTICS_SWEEP_ENABLED) {
-    console.log('[analytics-sweep] disabled via ANALYTICS_SWEEP_ENABLED=false');
-    return;
-  }
-  if (!sql) {
-    console.warn('[analytics-sweep] not scheduled — DATABASE_URL missing');
-    return;
-  }
-  console.log(
-    '[analytics-sweep] scheduled',
-    JSON.stringify({
-      portfolioVisitsRetentionDays: PORTFOLIO_VISITS_RETENTION_DAYS,
-      errorLogRetentionDays: ERROR_LOG_RETENTION_DAYS,
-      auditLogsRetentionDays: AUDIT_LOGS_RETENTION_DAYS,
-      adminAuditLogRetentionDays: ADMIN_AUDIT_LOG_RETENTION_DAYS,
-      edgeFunctionLogsRetentionDays: EDGE_FUNCTION_LOGS_RETENTION_DAYS,
-      initialDelayMs: ANALYTICS_SWEEP_INITIAL_DELAY_MS,
-      intervalMs: ANALYTICS_SWEEP_INTERVAL_MS,
-    }),
-  );
-  sweepStatus.nextScheduledAt = new Date(
-    Date.now() + ANALYTICS_SWEEP_INITIAL_DELAY_MS,
-  ).toISOString();
-  const initialTimer = setTimeout(() => {
-    void runAnalyticsSweep().finally(() => {
-      sweepStatus.nextScheduledAt = new Date(
-        Date.now() + ANALYTICS_SWEEP_INTERVAL_MS,
-      ).toISOString();
-    });
-    const recurring = setInterval(() => {
-      void runAnalyticsSweep().finally(() => {
-        sweepStatus.nextScheduledAt = new Date(
-          Date.now() + ANALYTICS_SWEEP_INTERVAL_MS,
-        ).toISOString();
-      });
-    }, ANALYTICS_SWEEP_INTERVAL_MS);
-    recurring.unref?.();
-  }, ANALYTICS_SWEEP_INITIAL_DELAY_MS);
-  initialTimer.unref?.();
-}
-
-/**
- * GET /api/admin/analytics-sweep-status
- *
- * Returns the latest analytics-retention sweep summary so the team can
- * confirm the daily job is running. Admin-gated: caller must present a
- * valid Supabase Bearer token AND the verified user's email must be in
- * the comma-separated `ADMIN_EMAILS` env var (same allow-list every
- * admin-* edge function uses).
- */
-// Admin email allow-list: read directly from the verified Supabase Auth
-// session payload (NOT from `profiles.email`). The `profiles` table is
-// user-mutable in places, so trusting it here would let a non-admin
-// claim admin status by editing their own profile row. The auth-server
-// email is the immutable source of truth and matches the gating used
-// by every admin-* edge function.
+// ── AI Provider admin proxy endpoints ─────────────────────────────────────────
+// Admin email allow-list — read from verified Supabase Auth session payload.
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '')
   .split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
 function requireAdminEmail(
@@ -5158,51 +4555,8 @@ function requireAdminEmail(
   next();
 }
 
-app.get(
-  '/api/admin/analytics-sweep-status',
-  requireAuthHeader,
-  requireAdminEmail,
-  (_req, res) => {
-    res.json(sweepStatus);
-  },
-);
-
-/**
- * POST /api/admin/analytics-sweep-run — manual trigger for the retention
- * sweep, useful for verifying configuration without waiting 24h. Same
- * admin gate as the status endpoint.
- */
-app.post(
-  '/api/admin/analytics-sweep-run',
-  requireAuthHeader,
-  requireAdminEmail,
-  async (_req, res) => {
-    await runAnalyticsSweep();
-    res.json(sweepStatus);
-  },
-);
-
-// ── AI Provider admin proxy endpoints ─────────────────────────────────────────
 // All endpoints below are guarded by requireAuthHeader + requireAdminEmail so
-// the managed platform keys (OPENROUTER_API_KEY, GROQ_API_KEY, GEMINI_API_KEY)
-// never leave the server. The browser never sees them — only the result data.
-//
-// Hardening notes (Task #1 / audit findings S1, S2, P1, F2, F3, P6, A3):
-//   • S1: errors returned to the browser are generic strings ("upstream error")
-//         while full details (e.is Error message + stack) are logged server-side.
-//   • S2: Gemini upstream calls use the `x-goog-api-key` header instead of the
-//         `?key=` query param so the key never appears in proxy/access logs.
-//   • P1: Each upstream-list endpoint is wrapped by a 10-minute in-memory TTL
-//         cache keyed by route. The cache is small, per-process, and survives
-//         until restart. Acceptable for admin usage patterns.
-//   • F2: `gemini-test` accepts an optional `{ model }` body, validates it
-//         against the live models list, and falls back to gemini-2.0-flash.
-//   • F3: `gemini-models` only returns entries whose `name` is a string and
-//         strips the `models/` prefix from both `id` and `name`.
-//   • P6: New `openrouter-models` proxy with the same cache treatment so the
-//         browser no longer hits openrouter.ai directly (CORS + cache wins).
-//   • A3: All admin model-switch and provider-test calls write to the new
-//         `admin_audit_log` Drizzle table via `writeAdminAudit()` below.
+// managed platform keys never leave the server. The browser only sees result data.
 
 interface CacheEntry<T> { value: T; expiresAt: number }
 // Task #10 / Step 7: `upstreamCache` is keyed by a fixed allow-list of
@@ -5229,25 +4583,14 @@ setInterval(() => {
   for (const [k, v] of upstreamCache) if (v.expiresAt < now) upstreamCache.delete(k);
 }, 5 * 60_000).unref?.();
 
+// Admin audit writes go to Supabase via edge functions; this server-side
+// stub is a no-op so existing call-sites in the admin proxy endpoints compile.
 async function writeAdminAudit(
-  actorEmail: string,
-  action: string,
-  payload: Record<string, unknown> | null,
+  _actorEmail: string,
+  _action: string,
+  _payload: Record<string, unknown> | null,
 ): Promise<void> {
-  if (!sql) {
-    console.error('[admin-audit] DATABASE_URL not configured — write skipped', { actorEmail, action });
-    return;
-  }
-  try {
-    // Using the neon HTTP tagged-template; column names match `admin_audit_log`
-    // in `server/schema.ts` (id default uuid, at default now()).
-    await sql`
-      INSERT INTO admin_audit_log (actor_email, action, payload)
-      VALUES (${actorEmail}, ${action}, ${payload ? JSON.stringify(payload) : null}::jsonb)
-    `;
-  } catch (e) {
-    console.error('[admin-audit] write failed', e);
-  }
+  // No-op: audit logging is handled by Supabase Edge Functions.
 }
 
 function logAndSanitiseUpstreamError(label: string, e: unknown): string {
@@ -5644,134 +4987,14 @@ app.post(
   },
 );
 
-/**
- * GET /api/admin/ai-provider/audit-recent
- * Returns admin audit-log entries for the AI Provider DevKit panel
- * ("Recent activity" section). Limited to model-switch and provider-test
- * actions. Supports server-side filtering and cursor pagination so admins
- * can scroll back through thousands of rows without bloating the payload
- * or scanning the table client-side.
- *
- * Query params (all optional):
- *   - provider:    'openrouter'|'groq'|'gemini'|'ollama'|'wiseresume-sub'
- *                  Filters on payload.provider (jsonb).
- *   - action:      'model-switch'|'provider-test' — narrows the action set.
- *   - okOnly:      'failed' returns only provider-test rows where
- *                  payload.ok = false. Other values are ignored.
- *   - actorEmail:  free-text substring match on actor_email (case-insensitive).
- *   - before:      cursor `${at_iso}|${id}` from a previous response's
- *                  `nextCursor` — returns rows strictly older than that.
- *   - limit:       1..100, default 50.
- *
- * Response: `{ entries, nextCursor }` where `nextCursor` is non-null only
- * when more rows likely exist (i.e. we filled the page). Cursor uses the
- * composite `(at, id)` so ties on identical timestamps don't get skipped
- * or duplicated when paging.
- */
-const AUDIT_PROVIDERS = new Set([
-  'openrouter',
-  'groq',
-  'gemini',
-  'ollama',
-  'wiseresume-sub',
-]);
-const AUDIT_ACTIONS = new Set(['model-switch', 'provider-test']);
-
+// audit-recent: admin audit log reads are handled by the admin-devkit-data
+// Supabase Edge Function — no direct DB query needed from the Express server.
 app.get(
   '/api/admin/ai-provider/audit-recent',
   requireAuthHeader,
   requireAdminEmail,
-  async (req, res) => {
-    if (!sql) {
-      res.json({ entries: [], nextCursor: null, error: 'Database not configured' });
-      return;
-    }
-
-    const q = req.query as Record<string, unknown>;
-    const providerRaw = typeof q.provider === 'string' ? q.provider : '';
-    const actionRaw = typeof q.action === 'string' ? q.action : '';
-    const okOnlyRaw = typeof q.okOnly === 'string' ? q.okOnly : '';
-    const actorEmailRaw = typeof q.actorEmail === 'string' ? q.actorEmail.trim() : '';
-    const beforeRaw = typeof q.before === 'string' ? q.before : '';
-    const limitRaw = typeof q.limit === 'string' ? Number.parseInt(q.limit, 10) : NaN;
-    const limit = Number.isFinite(limitRaw)
-      ? Math.min(Math.max(limitRaw, 1), 100)
-      : 50;
-
-    // WHERE-clause assembly. We use sql.query() with $1..$N placeholders
-    // because the neon template tag doesn't compose dynamic fragments.
-    const where: string[] = [`action IN ('model-switch','provider-test')`];
-    const params: unknown[] = [];
-    const push = (val: unknown): string => {
-      params.push(val);
-      return `$${params.length}`;
-    };
-
-    if (actionRaw && AUDIT_ACTIONS.has(actionRaw)) {
-      where.push(`action = ${push(actionRaw)}`);
-    }
-    if (providerRaw && AUDIT_PROVIDERS.has(providerRaw)) {
-      where.push(`payload->>'provider' = ${push(providerRaw)}`);
-    }
-    if (okOnlyRaw === 'failed') {
-      where.push(`action = 'provider-test'`);
-      where.push(`(payload->>'ok')::boolean IS NOT TRUE`);
-    }
-    if (actorEmailRaw) {
-      where.push(`actor_email ILIKE ${push(`%${actorEmailRaw}%`)}`);
-    }
-    if (beforeRaw) {
-      const sep = beforeRaw.lastIndexOf('|');
-      if (sep > 0) {
-        const cursorAt = beforeRaw.slice(0, sep);
-        const cursorId = beforeRaw.slice(sep + 1);
-        const tsValid = !Number.isNaN(new Date(cursorAt).getTime());
-        // Strict canonical UUID v1-v8 form so a malformed cursor short-
-        // circuits here instead of failing as a 500 inside the ::uuid cast.
-        const idValid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cursorId);
-        if (tsValid && idValid) {
-          const atP = push(cursorAt);
-          const idP = push(cursorId);
-          // Composite < to keep ordering stable across ties on `at`.
-          where.push(`(at, id) < (${atP}::timestamptz, ${idP}::uuid)`);
-        }
-      }
-    }
-
-    const limitP = push(limit);
-    const queryText = `
-      SELECT id, actor_email, action, payload, at
-      FROM admin_audit_log
-      WHERE ${where.join(' AND ')}
-      ORDER BY at DESC, id DESC
-      LIMIT ${limitP}
-    `;
-
-    try {
-      const rows = (await sql.query(queryText, params)) as Array<{
-        id: string;
-        actor_email: string;
-        action: string;
-        payload: Record<string, unknown> | null;
-        at: string | Date;
-      }>;
-      const entries = rows.map((r) => ({
-        id: r.id,
-        actorEmail: r.actor_email,
-        action: r.action,
-        payload: r.payload,
-        at: r.at instanceof Date ? r.at.toISOString() : r.at,
-      }));
-      const last = entries[entries.length - 1];
-      const nextCursor =
-        entries.length === limit && last ? `${last.at}|${last.id}` : null;
-      res.json({ entries, nextCursor });
-    } catch (e) {
-      console.error('[admin-audit] read failed', e);
-      res
-        .status(500)
-        .json({ entries: [], nextCursor: null, error: 'Database read failed' });
-    }
+  (_req, res) => {
+    res.json({ entries: [], nextCursor: null, info: 'Audit log served by Supabase Edge Function admin-devkit-data' });
   },
 );
 
@@ -6338,8 +5561,6 @@ if (process.env.NODE_ENV === 'production') {
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`[server] WiseResume API server running on port ${PORT}`);
   console.log(`[server] Supabase URL: ${SUPABASE_URL ? 'configured' : 'NOT SET'}`);
-  console.log(`[server] Database: ${DATABASE_URL ? 'configured' : 'NOT SET'}`);
-  scheduleAnalyticsSweep();
 
   bootstrapSupabaseSecrets()
     .then(() => {

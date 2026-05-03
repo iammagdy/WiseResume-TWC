@@ -1,17 +1,7 @@
 /**
- * Database connection for server-side usage.
- * This project is a frontend-only React SPA that communicates with
- * Supabase Edge Functions for all backend operations.
- * This file provides a Postgres connection if server-side scripts are needed.
+ * Database connection stub.
+ * All data access goes through Supabase REST (supabaseGet / supabaseUpsert helpers
+ * in server/index.ts). This file is kept as a placeholder — it is not imported
+ * anywhere and has no runtime effect.
  */
-import pg from "pg";
-
-const { Pool } = pg;
-
-if (!process.env.DATABASE_URL) {
-  throw new Error(
-    "DATABASE_URL must be set. Did you forget to provision a database?",
-  );
-}
-
-export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+export {};

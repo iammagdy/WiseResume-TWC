@@ -46,9 +46,8 @@ Users authenticate via Kinde, receiving an access token. The client exchanges th
 
 **Replit Environment:**
 - **Frontend**: Vite dev server on port 5000 (proxies `/api/*` to port 5001).
-- **Backend**: Express API server (`server/index.ts`) on port 5001 via `tsx --watch`.
-- **Database**: Replit-managed PostgreSQL 16 (connection via `DATABASE_URL` env var, always set automatically).
-- **Schema**: Managed by Drizzle ORM (`server/schema.ts`). Run `npm run db:push` to apply schema changes to the Replit Postgres.
+- **Backend**: Express API server (`server/index.ts`) on port 5001 via `tsx --watch`. Dev proxy only — never production infrastructure.
+- **Database**: **Supabase is the sole source of truth.** All data operations in `server/index.ts` use `supabaseGet`/`supabaseUpsert`/`supabaseDelete` helpers that call the Supabase REST API directly. The Replit-managed Postgres (`DATABASE_URL`) and all local `sql`/`pgPool` code have been fully removed from the server.
 - **Startup command**: `npm run server:dev & npm run dev` (starts both servers in parallel).
 - **Optional secrets** (add as Replit Secrets to enable full functionality):
   - `VITE_SUPABASE_URL` + `VITE_SUPABASE_PUBLISHABLE_KEY` — enables Supabase-backed features and production data sync.
@@ -58,7 +57,7 @@ Users authenticate via Kinde, receiving an access token. The client exchanges th
   - AI keys: `OPENROUTER_KEY_1`, `GROQ_KEY_1`, `GEMINI_API_KEY` — enables AI features.
   - `RESEND_API_KEY` — enables email sending.
 - `src/lib/apiFnUrl.ts` handles environment routing: `/api/fn/<name>` in dev (Vite → Express proxy) and `${VITE_SUPABASE_URL}/functions/v1/<name>` in production.
-- The Express server gracefully degrades when optional secrets are absent — it boots and serves DB-backed routes even without Supabase/Kinde configured.
+- The Express server gracefully degrades when optional secrets are absent — it boots and serves routes even without Supabase/Kinde configured.
 
 **Core Features & Implementations:**
 - **AI Career Management**: AI-powered resume building, tailoring for job listings, public portfolios, interview practice, job tracking, and career goal management.
