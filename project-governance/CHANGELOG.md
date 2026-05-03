@@ -2,6 +2,43 @@
 
 Local changelog tracking WiseResume changes.
 
+## 2026-05-03 (Kinde custom-domain split incident — release v3.11.2)
+
+### Incident — root cause
+- **Visitors to `https://resume.thewise.cloud` were served the Kinde-hosted custom-themed auth page at every URL**, with the error "Sorry, we don't see a way to authenticate you at the moment" rendered in the auth card and no connection options (Email/Google/etc.) visible. The React SPA was unreachable on that hostname.
+- **Cause:** the Kinde Custom Domain feature was configured to use `resume.thewise.cloud` — the same subdomain that hosted the WiseResume SPA on Hostinger. The required `_acme-challenge.resume → _acme-challenge.<hash>.thewisecloud.kinde.com` and `resume → eu.kinde.com` CNAMEs were published to the `thewise.cloud` zone; from that moment DNS resolved `resume.thewise.cloud` to Kinde's edge (Caddy + AWS WAF in `eu-west-1`) and Hostinger was no longer in the request path. Probe evidence captured during triage: `dig +short resume.thewise.cloud CNAME` → `eu.kinde.com`; `GET https://resume.thewise.cloud/index.html` → `HTTP 404` with body `<html class=kui-no-js>…/kui_assets/Inter-Regular.woff2…/dist/assets/css/authflow.css…<title>404 Not Found Error | WiseResume - The Wise Cloud</title>` (Kinde's branded 404 shell, served by `via: 1.1 Caddy`); `GET /` → `HTTP 202 + x-amzn-waf-action: challenge`. The "no way to authenticate" message is what Kinde renders at the auth-domain root when there are no OAuth `client_id` / `state` / `connection_id` query parameters — i.e. when a browser hits the auth domain directly instead of arriving via the SPA's `login()` redirect.
+
+### Changed (DNS + dashboard + one CI secret — no application code)
+- **Moved Kinde to a dedicated subdomain.** In the Kinde dashboard, the Custom Domain was changed from `resume.thewise.cloud` to `auth.thewise.cloud`. Kinde provisioned a fresh ACME challenge and SSL certificate for the new hostname (status `Provisioned` on 2026-05-03). The new CNAME pair was published to the `thewise.cloud` DNS zone:
+  ```
+  _acme-challenge.auth → _acme-challenge.2639ba62e152dd91a994591bf279338a.thewisecloud.kinde.com
+  auth                 → eu.kinde.com
+  ```
+  The old `_acme-challenge.resume` and `resume → eu.kinde.com` records were removed.
+- **Restored the app subdomain on Hostinger.** `resume.thewise.cloud` was pointed back at Hostinger's web-hosting subnet. Verified by `dns.resolve('resume.thewise.cloud','A')` → `[195.35.60.216, 191.101.104.201]`. `LIVE_SITE_URL=https://resume.thewise.cloud node scripts/verify-live-deploy.mjs` returns all 7 checks ✅; `/changelog.json` reports `v3.11.1` (and now `v3.11.2` after the redeploy below).
+- **Updated `VITE_KINDE_DOMAIN` GitHub Actions Secret** from `https://thewisecloud.kinde.com` (Kinde's default subdomain) to `https://auth.thewise.cloud`. This value is consumed by `.github/workflows/deploy.yml` and inlined at Vite build time into the SPA bundle (read at `src/AppLanding.tsx` line 20 and `src/AppInterior.tsx` line 86), so the change requires a fresh deploy to reach end users.
+- **Re-ran `deploy.yml`** via `workflow_dispatch` against `main` so the new auth domain ships in the bundle. Release tag bumped to `v3.11.2` (`package.json` and `public/changelog.json`).
+
+### Unchanged (intentionally)
+- **No application source code was modified.** No React component, no hook, no edge function, no SQL.
+- **`VITE_KINDE_CLIENT_ID`** — unchanged. Same Kinde Application as before.
+- **Kinde Application Allowed Callback URLs** — unchanged. The `KindeProvider` in `src/AppInterior.tsx` builds `redirectUri = window.location.origin + '/auth/callback'` → `https://resume.thewise.cloud/auth/callback`, which was already whitelisted. The auth-domain change does **not** affect the callback URL: callbacks land on the **app** domain, not the auth domain.
+- **Hostinger `.htaccess` and `dist/` payload contents** — unchanged from `v3.11.1` apart from `VITE_KINDE_DOMAIN` being baked in differently.
+
+### Triage discipline notes
+- The `verify-live-deploy.mjs` GET to `/changelog.json` succeeded earlier the same day because at that moment DNS for `resume.thewise.cloud` had not yet been re-pointed at Kinde (or the resolver was still cached on the Hostinger A record). The verifier only proves the file was reachable at the moment it ran; it does not detect a hostname being silently re-pointed afterwards. **Action item for a future hardening pass:** add a verifier check that asserts `https://resume.thewise.cloud/index.html` returns `HTTP 200` with body containing a known WiseResume marker (e.g. `id="root"` and a `/assets/index-*.js` script tag) — this would have caught the regression in seconds.
+- HEAD vs GET parity drifted under Kinde's Caddy edge: `HEAD /changelog.json` returned `404` while a contemporaneous GET would have returned the same `404` body — both confirming Kinde, not Hostinger, was answering. (The earlier successful GET was before the DNS swap took effect on this resolver.)
+- The `_acme-challenge.<sub> → _acme-challenge.<hash>.thewisecloud.kinde.com` plus `<sub> → eu.kinde.com` CNAME pair is Kinde's standard Custom Domain proof-of-ownership + binding pattern; using it on the **wrong** subdomain is the failure mode this incident documents.
+
+### Atlas + plain-language references
+- `Project Atlas/01-Currently Implemented/stability-fixes/kinde-custom-domain-split.md` (new card with full operational record + lesson note)
+- `Project Atlas/01-Currently Implemented/stability-fixes/README.md` (index entry added)
+- `Project Atlas/04-For You (Plain Language)/stability-improvements.md` (new top entry: "The sign-in page is reachable again — and now lives on its own branded address (2026-05-03)")
+- `package.json` `3.11.1` → `3.11.2`
+- `public/changelog.json` new top entry `v3.11.2`
+
+---
+
 ## 2026-05-03 (Task #70 v2 — Sync Replit local main with GitHub origin/main; release v3.11.1)
 
 ### Changed

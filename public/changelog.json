@@ -1,13 +1,29 @@
 [
   {
-    "version": "v3.11.1",
+    "version": "v3.11.2",
     "date": "May 3, 2026",
     "latest": true,
+    "summary": "Sign-in page restored and moved to its own branded address (auth.thewise.cloud) after a Kinde custom-domain misconfiguration briefly made the site unreachable.",
+    "items": [
+      {
+        "title": "Sign-in flow restored on the live site",
+        "description": "Earlier today, visitors to resume.thewise.cloud were sent straight to the Kinde-hosted sign-in page (with the error \"Sorry, we don't see a way to authenticate you at the moment\" and no sign-in buttons) instead of the landing page. The cause was a DNS configuration: Kinde's Custom Domain feature was pointed at the same subdomain that already hosts the app, which made the React app unreachable on that hostname. The two roles have been split onto separate subdomains \u2014 the app stays on resume.thewise.cloud and the branded sign-in page now lives at the new auth.thewise.cloud \u2014 and a fresh deploy was rolled out so the app knows where to send users when they click Sign in. No accounts were affected and no data was lost."
+      },
+      {
+        "title": "Branded sign-in URL during authentication",
+        "description": "When you click Sign in or Sign up, the browser will briefly show auth.thewise.cloud in the address bar \u2014 that's the same Kinde-themed sign-in card you designed (\"Powered by Kinde\"), now served from your own subdomain instead of the default thewisecloud.kinde.com. After you sign in, you're redirected back to resume.thewise.cloud as before. This is a cosmetic polish; the sign-in flow itself is unchanged."
+      }
+    ]
+  },
+  {
+    "version": "v3.11.1",
+    "date": "May 3, 2026",
+    "latest": false,
     "summary": "Source-control housekeeping: the Replit working copy and the GitHub backup are back in sync after a long drift.",
     "items": [
       {
-        "title": "Replit ↔ GitHub repository reconciled",
-        "description": "The Replit working copy of `main` (which was 161 commits ahead, including the Phase 4 continuous drift-detection scaffolding) and the GitHub `origin/main` (which had Tasks #44–#46 mobile/landing/audit fixes pushed directly) have been merged into a single history. Both sides are preserved as parents of the new merge commit on GitHub — every individual commit from either side is still browseable. Five files conflicted; all resolved in favour of the Replit version, which carried the audit-confirmed truth about which backend functions are deployed. No history was rewritten, no force-push was used. A safety-net branch `sync-from-replit-2026-05-03` was left on GitHub as a parachute and can be deleted from the GitHub UI any time."
+        "title": "Replit \u2194 GitHub repository reconciled",
+        "description": "The Replit working copy of `main` (which was 161 commits ahead, including the Phase 4 continuous drift-detection scaffolding) and the GitHub `origin/main` (which had Tasks #44\u2013#46 mobile/landing/audit fixes pushed directly) have been merged into a single history. Both sides are preserved as parents of the new merge commit on GitHub \u2014 every individual commit from either side is still browseable. Five files conflicted; all resolved in favour of the Replit version, which carried the audit-confirmed truth about which backend functions are deployed. No history was rewritten, no force-push was used. A safety-net branch `sync-from-replit-2026-05-03` was left on GitHub as a parachute and can be deleted from the GitHub UI any time."
       },
       {
         "title": "Internal documentation refreshed",
@@ -27,7 +43,7 @@
       },
       {
         "title": "Mobile (Capacitor) build pipeline ready for iOS / Android",
-        "description": "The repo now ships a working mobile build path: `npm run mobile:sync` produces a stripped-down web bundle (no admin tools), syncs it into the native shells, and is ready to open in Xcode (TestFlight) or Android Studio (Play Console). A post-build verifier guarantees no admin code ever leaks into the public mobile binary. The actual binary still has to be produced on a Mac (iOS) or a machine with Android Studio — that's an IDE step, not a CI step."
+        "description": "The repo now ships a working mobile build path: `npm run mobile:sync` produces a stripped-down web bundle (no admin tools), syncs it into the native shells, and is ready to open in Xcode (TestFlight) or Android Studio (Play Console). A post-build verifier guarantees no admin code ever leaks into the public mobile binary. The actual binary still has to be produced on a Mac (iOS) or a machine with Android Studio \u2014 that's an IDE step, not a CI step."
       },
       {
         "title": "Project documentation cleanup",
@@ -47,7 +63,7 @@
       },
       {
         "title": "Act As opens a dialog with a copyable link and live countdown",
-        "description": "Clicking 'Act As' on a user no longer auto-pops a tab. You get a small dialog showing the impersonation link in a read-only field with a Copy button, an explicit 'Open in new tab' button, and a live mm:ss countdown driven by the session's expiry — neutral above 2 min, amber under 2 min, red under 30 sec, auto-closes at 0:00 with an 'expired' notice."
+        "description": "Clicking 'Act As' on a user no longer auto-pops a tab. You get a small dialog showing the impersonation link in a read-only field with a Copy button, an explicit 'Open in new tab' button, and a live mm:ss countdown driven by the session's expiry \u2014 neutral above 2 min, amber under 2 min, red under 30 sec, auto-closes at 0:00 with an 'expired' notice."
       }
     ]
   },
@@ -55,7 +71,7 @@
     "version": "v3.10.1",
     "date": "Apr 30, 2026",
     "latest": false,
-    "summary": "Act As now works reliably in any browser tab — no more phantom session-ended toasts.",
+    "summary": "Act As now works reliably in any browser tab \u2014 no more phantom session-ended toasts.",
     "items": [
       {
         "title": "Admin Act As session no longer closes immediately",
@@ -71,11 +87,11 @@
     "items": [
       {
         "title": "DeepSeek is now faster and more resilient",
-        "description": "We upgraded our DeepSeek connection to a faster model, so AI features that use DeepSeek now reply more quickly. We also added a 60-second safety net so a stuck DeepSeek call no longer holds up your AI request — it quietly retries and, if needed, falls back to another AI provider. And if our DeepSeek account ever runs out of credit, the team now gets a clear alert and can top it up right away, instead of you seeing a vague AI error."
+        "description": "We upgraded our DeepSeek connection to a faster model, so AI features that use DeepSeek now reply more quickly. We also added a 60-second safety net so a stuck DeepSeek call no longer holds up your AI request \u2014 it quietly retries and, if needed, falls back to another AI provider. And if our DeepSeek account ever runs out of credit, the team now gets a clear alert and can top it up right away, instead of you seeing a vague AI error."
       },
       {
         "title": "Autosave now warns once if your portfolio is too large to save",
-        "description": "If your portfolio content (services, case studies, testimonials, translations) grows past the size we can safely save between sessions, you'll see a one-time, friendly warning telling you exactly how much to trim before publishing — instead of silently failing later. Your edits stay in the editor and are still visible in the live preview; only the auto-recovery after a page refresh is paused until you trim back below the limit."
+        "description": "If your portfolio content (services, case studies, testimonials, translations) grows past the size we can safely save between sessions, you'll see a one-time, friendly warning telling you exactly how much to trim before publishing \u2014 instead of silently failing later. Your edits stay in the editor and are still visible in the live preview; only the auto-recovery after a page refresh is paused until you trim back below the limit."
       },
       {
         "title": "Polish on your public portfolio page",
@@ -87,11 +103,11 @@
     "version": "v3.9.0",
     "date": "Apr 28, 2026",
     "latest": false,
-    "summary": "DeepSeek added as a third AI provider — more resilience, smarter routing",
+    "summary": "DeepSeek added as a third AI provider \u2014 more resilience, smarter routing",
     "items": [
       {
         "title": "DeepSeek is now a third AI provider in the engine",
-        "description": "The AI engine now draws from up to 9 keys across three providers — OpenRouter, Groq, and DeepSeek. Keys are picked uniformly at random so load is balanced automatically. When one provider is rate-limited, the engine retries on a sibling key and then spills over to any other available provider. DeepSeek uses the deepseek-chat model and is fully OpenAI-compatible."
+        "description": "The AI engine now draws from up to 9 keys across three providers \u2014 OpenRouter, Groq, and DeepSeek. Keys are picked uniformly at random so load is balanced automatically. When one provider is rate-limited, the engine retries on a sibling key and then spills over to any other available provider. DeepSeek uses the deepseek-chat model and is fully OpenAI-compatible."
       },
       {
         "title": "Admins can now pin features to DeepSeek in AI Routing",
@@ -127,7 +143,7 @@
     "items": [
       {
         "title": "Fixed post-login 'Profile unavailable' error",
-        "description": "After Kinde authentication, the app was trying to fetch the user profile before the Supabase session bridge finished establishing — causing a 401 error and eventually the 'Profile unavailable' screen. The profile query now waits for the bridge to be ready before firing, so the error no longer appears on login."
+        "description": "After Kinde authentication, the app was trying to fetch the user profile before the Supabase session bridge finished establishing \u2014 causing a 401 error and eventually the 'Profile unavailable' screen. The profile query now waits for the bridge to be ready before firing, so the error no longer appears on login."
       }
     ]
   },
@@ -135,7 +151,7 @@
     "version": "v3.8.0",
     "date": "Apr 27, 2026",
     "latest": false,
-    "summary": "DevKit fully operational — all panels restored, missing DB tables created, GitHub connected",
+    "summary": "DevKit fully operational \u2014 all panels restored, missing DB tables created, GitHub connected",
     "items": [
       {
         "title": "All DevKit panels restored and operational",
@@ -159,7 +175,7 @@
     "version": "v3.7.1",
     "date": "Apr 27, 2026",
     "latest": false,
-    "summary": "Fixed manual page-break PDF — content now lands exactly where the break was placed",
+    "summary": "Fixed manual page-break PDF \u2014 content now lands exactly where the break was placed",
     "items": [
       {
         "title": "Manual page breaks now land exactly where you placed them",
@@ -187,11 +203,11 @@
     "version": "v3.6.9",
     "date": "Apr 27, 2026",
     "latest": false,
-    "summary": "Fixed the \"View Resume\" button after tailoring — it now opens the tailored resume correctly instead of showing a 404 page.",
+    "summary": "Fixed the \"View Resume\" button after tailoring \u2014 it now opens the tailored resume correctly instead of showing a 404 page.",
     "items": [
       {
         "title": "\"View Resume\" no longer shows a 404 after tailoring",
-        "description": "After the AI finished tailoring a resume, clicking \"View Resume\" was navigating to a URL pattern (/editor/{id}) that does not exist in the router, resulting in a 404 page. The tailored resume was created and saved successfully in the database — it just could not be reached. Both the in-editor Tailor sheet and the full Tailor page now navigate to the correct URL (/editor?id={id}), which opens the tailored resume in the editor as expected."
+        "description": "After the AI finished tailoring a resume, clicking \"View Resume\" was navigating to a URL pattern (/editor/{id}) that does not exist in the router, resulting in a 404 page. The tailored resume was created and saved successfully in the database \u2014 it just could not be reached. Both the in-editor Tailor sheet and the full Tailor page now navigate to the correct URL (/editor?id={id}), which opens the tailored resume in the editor as expected."
       }
     ]
   },
@@ -243,7 +259,7 @@
       },
       {
         "title": "Explore section redesigned as a unified compact grid",
-        "description": "Templates, Examples, Referral, Guides, New Resume, Upload PDF, and Import are now in a single consistent grid — 3 columns on mobile, 4 on desktop — with centered icons and labels, replacing the previous inconsistent two-section layout."
+        "description": "Templates, Examples, Referral, Guides, New Resume, Upload PDF, and Import are now in a single consistent grid \u2014 3 columns on mobile, 4 on desktop \u2014 with centered icons and labels, replacing the previous inconsistent two-section layout."
       }
     ]
   },
@@ -263,7 +279,7 @@
       },
       {
         "title": "Wise AI chat button now closes the panel",
-        "description": "Tapping 'Ask' opened the AI chat but there was no visible way to dismiss it from the floating button. The button now toggles — tap it again to close, showing a clear 'Close' label."
+        "description": "Tapping 'Ask' opened the AI chat but there was no visible way to dismiss it from the floating button. The button now toggles \u2014 tap it again to close, showing a clear 'Close' label."
       },
       {
         "title": "AI Tools and Activity tabs stay put when tapped by free users",
@@ -279,7 +295,7 @@
     "items": [
       {
         "title": "Keyboard shortcuts now work reliably across all editor panels",
-        "description": "Keyboard shortcuts (Undo, Redo, Save, and section navigation) were occasionally ignored when focus moved between editor panels. A new shared keyboard context ensures the correct handler always responds, regardless of which panel is active — no more shortcuts silently doing nothing mid-edit."
+        "description": "Keyboard shortcuts (Undo, Redo, Save, and section navigation) were occasionally ignored when focus moved between editor panels. A new shared keyboard context ensures the correct handler always responds, regardless of which panel is active \u2014 no more shortcuts silently doing nothing mid-edit."
       },
       {
         "title": "Mobile editor layout simplified",
@@ -303,7 +319,7 @@
     "items": [
       {
         "title": "PDF upload now works on iPhone Safari and Chrome",
-        "description": "Uploading a resume from an iPhone (Create New Resume → Upload PDF) used to fail with a 'Please check your connection' error and the OCR fallback also failed. WiseResume now bundles the PDF reader's font and character-map files alongside the app, so iOS can read embedded-font PDFs the same way desktop browsers do. Desktop and Android upload flows are unchanged."
+        "description": "Uploading a resume from an iPhone (Create New Resume \u2192 Upload PDF) used to fail with a 'Please check your connection' error and the OCR fallback also failed. WiseResume now bundles the PDF reader's font and character-map files alongside the app, so iOS can read embedded-font PDFs the same way desktop browsers do. Desktop and Android upload flows are unchanged."
       },
       {
         "title": "OCR (image-based PDFs and scans) works without a third-party CDN",
@@ -315,11 +331,11 @@
     "version": "v3.6.0",
     "date": "Apr 24, 2026",
     "latest": false,
-    "summary": "Maintenance release. No user-facing app changes — internal admin tooling and security hardening only.",
+    "summary": "Maintenance release. No user-facing app changes \u2014 internal admin tooling and security hardening only.",
     "items": [
       {
         "title": "Internal hardening and admin tooling",
-        "description": "Behind-the-scenes improvements to admin tooling and operational safety. Nothing changes in how you use WiseResume — your resumes, dashboard, downloads, and AI features all work exactly as they did in v3.5.9."
+        "description": "Behind-the-scenes improvements to admin tooling and operational safety. Nothing changes in how you use WiseResume \u2014 your resumes, dashboard, downloads, and AI features all work exactly as they did in v3.5.9."
       }
     ]
   },
@@ -327,7 +343,7 @@
     "version": "v3.5.9",
     "date": "Apr 24, 2026",
     "latest": false,
-    "summary": "New WiseResume favicon — including a proper multi-resolution .ico so the right icon shows up everywhere, including on raw URLs like the changelog.",
+    "summary": "New WiseResume favicon \u2014 including a proper multi-resolution .ico so the right icon shows up everywhere, including on raw URLs like the changelog.",
     "items": [
       {
         "title": "Refreshed WiseResume tab icon across the app",
@@ -363,7 +379,7 @@
       },
       {
         "title": "Clear errors when something is unmapped",
-        "description": "If any future data call slips through without a production route, the app now throws an explicit error instead of silently treating an HTML page as empty data — making this class of regression impossible to miss again."
+        "description": "If any future data call slips through without a production route, the app now throws an explicit error instead of silently treating an HTML page as empty data \u2014 making this class of regression impossible to miss again."
       }
     ]
   },
@@ -503,7 +519,7 @@
       },
       {
         "title": "Your contact details stay private",
-        "description": "We've made it harder for unwanted bots to collect your contact information from your public portfolio. Real visitors see everything normally — nothing changes for them."
+        "description": "We've made it harder for unwanted bots to collect your contact information from your public portfolio. Real visitors see everything normally \u2014 nothing changes for them."
       },
       {
         "title": "Ongoing improvements and bug fixes",
@@ -519,7 +535,7 @@
     "items": [
       {
         "title": "AI errors are now clear and actionable",
-        "description": "When AI isn't configured yet, you'll see a helpful message explaining exactly what's happening — with a direct 'Open Settings' button to fix it in one tap. No more confusing 'temporarily unavailable' messages."
+        "description": "When AI isn't configured yet, you'll see a helpful message explaining exactly what's happening \u2014 with a direct 'Open Settings' button to fix it in one tap. No more confusing 'temporarily unavailable' messages."
       },
       {
         "title": "PDF exports flow cleanly across pages",
@@ -527,7 +543,7 @@
       },
       {
         "title": "AI keeps working even if your session refreshes",
-        "description": "If your sign-in session expires in the background while you're using an AI feature, WiseResume now recovers automatically and finishes the task — without asking you to sign in again."
+        "description": "If your sign-in session expires in the background while you're using an AI feature, WiseResume now recovers automatically and finishes the task \u2014 without asking you to sign in again."
       }
     ]
   }
