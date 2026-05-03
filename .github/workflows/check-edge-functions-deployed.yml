@@ -24,6 +24,15 @@ on:
       - 'scripts/check-edge-functions-deployed.mjs'
       - 'scripts/edge-fn-drift-allowlist.json'
       - '.github/workflows/check-edge-functions-deployed.yml'
+      # Caller-parity drift can be introduced by any change to the source
+      # trees that may add/remove edge-function callsites. Include the
+      # entire app/server/mobile surfaces so a PR that only touches
+      # callers (not supabase/functions/) still gets the parity check
+      # pre-merge — otherwise drift would only surface on the post-merge
+      # push to main.
+      - 'src/**'
+      - 'mobile/**'
+      - 'server/**'
   schedule:
     # Daily at 06:17 UTC — pick an off-peak time to avoid clashing with
     # business-hours deploy retries. Reschedule freely; the only contract
