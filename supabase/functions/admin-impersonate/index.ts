@@ -1,3 +1,18 @@
+/**
+ * admin-impersonate — Mint a short-lived (30 min) Supabase JWT for a target
+ * user so the operator can reproduce their experience from inside DevKit.
+ *
+ * Trigger: "Impersonate" button on the DevKit user-detail pane. Issued
+ *   tokens are tracked server-side so they can be revoked.
+ * Auth: ADMIN ONLY (`requireAdminAuth` — DevKit session token). The
+ *   issued token then carries the target user's identity (not the
+ *   admin's) — every authed function checks the impersonation registry
+ *   so revocation is immediate.
+ * Dispatch contract: POST `{action:'issue', target_user_id}` returns
+ *   `{success:true, access_token, expires_at}`; POST `{action:'revoke',
+ *   token_id}` revokes a previously issued token. Other actions return
+ *   400.
+ */
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import * as jose from 'https://deno.land/x/jose@v5.2.2/index.ts';
 import { getCorsHeaders } from "../_shared/cors.ts";

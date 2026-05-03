@@ -1,7 +1,16 @@
-// admin-check-access: Verifies that the caller holds a valid DevKit admin
-// session token (Authorization: Bearer <token>). Returns { allowed: true }
-// on success and a 401/403 response on failure. The admin panel calls this to
-// validate its DevKit session before surfacing sensitive UI.
+/**
+ * admin-check-access — Cheap "am I still an admin?" probe used by the DevKit
+ * UI to validate its DevKit session before surfacing sensitive UI.
+ *
+ * Trigger: called from the React DevKit shell on mount and on focus to gate
+ *   admin-only routes; also used by Playwright auth specs as a session check.
+ * Auth: ADMIN ONLY (`requireAdminAuth` — DevKit session token in the
+ *   Authorization header). No body parsing, no DB writes.
+ * Dispatch contract: any HTTP method other than OPTIONS returns
+ *   `{allowed:true}` (200) on a valid admin token, the helper's 401/403
+ *   envelope on a missing/invalid token, or `{allowed:false,reason:'error'}`
+ *   (500) on an unexpected throw.
+ */
 import { requireAdminAuth } from '../_shared/adminAuth.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 

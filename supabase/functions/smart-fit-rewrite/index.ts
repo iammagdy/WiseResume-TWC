@@ -278,8 +278,19 @@ Deno.serve(wrapHandler("smart-fit-rewrite", async (req) => {
 
     const candidates = (parsed.candidates ?? []).slice(0, MAX_CANDIDATES);
     if (candidates.length === 0) {
+      // Empty-candidates branch is intentionally a graceful no-op (HTTP 200,
+      // not 400). Rationale: the resume editor calls this endpoint
+      // optimistically when the user clicks "Apply suggestions" — if the
+      // accept/reject UI has already filtered every candidate out, the array
+      // arrives empty and the right behaviour is "do nothing successfully"
+      // rather than surfacing an error the user did not cause. The explicit
+      // `reason` field lets callers distinguish this no-op from a real
+      // success with rewrites. Any other malformed body (missing
+      // `candidates` field entirely, wrong type) still falls through to the
+      // generic 400 / parse error paths below.
+      // Resolved 2026-05-03 (Task #67, audit H2 — keep 200 with clearer payload).
       return new Response(
-        JSON.stringify({ success: true, outcomes: [] }),
+        JSON.stringify({ success: true, outcomes: [], reason: 'no-op-empty-input' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }

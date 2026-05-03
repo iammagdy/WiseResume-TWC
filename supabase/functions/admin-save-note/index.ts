@@ -1,3 +1,16 @@
+/**
+ * admin-save-note — Append (or replace) a free-form admin note attached
+ * to one user record. Notes are surfaced in the DevKit user-detail pane
+ * and used to capture support context across handoffs.
+ *
+ * Trigger: "Save note" button on the DevKit user-detail pane.
+ * Auth: ADMIN ONLY (`requireAdminAuth` — DevKit session token).
+ * Dispatch contract: POST `{target_user_id, note, actor_email?}`.
+ *   Upserts into `admin_user_notes` (one row per user — replaces prior
+ *   content) and writes one `audit_logs` row
+ *   (`category:'admin', action:'note_saved'`). Returns 200
+ *   `{success:true}`; missing input → 400; unexpected throw → 500.
+ */
 import { getServiceClient } from '../_shared/dbClient.ts';
 import { requireAdminAuth } from '../_shared/adminAuth.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';

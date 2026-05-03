@@ -1,3 +1,19 @@
+/**
+ * admin-devkit-data — Consolidated read-only data router for the DevKit
+ * dashboard panes (analytics, observability, live-activity, mission-control,
+ * github-status, ai-cost). Replaces multiple per-pane functions to free
+ * deployment slots under the 100-function project limit.
+ *
+ * Trigger: every dashboard tab in the DevKit admin panel (`useDevKitData`
+ *   hook + Mission Control polling).
+ * Auth: ADMIN ONLY for every action (`requireAdminAuth` runs inside each
+ *   action branch — DevKit session token).
+ * Dispatch contract: POST `{action, ...args}` with `action` ∈
+ *   `'analytics' | 'observability' | 'live-activity' | 'mission-control'
+ *   | 'github-status' | 'ai-cost'`. Each action returns its own
+ *   `{success, data}` envelope (200) or `{success:false, error}` (4xx/5xx).
+ *   Missing/unknown `action` returns 400.
+ */
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { getServiceClient } from '../_shared/dbClient.ts';
 import { requireAdminAuth } from '../_shared/adminAuth.ts';

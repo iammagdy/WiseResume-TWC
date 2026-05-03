@@ -1,3 +1,15 @@
+/**
+ * admin-onboarding-funnel — Aggregates `audit_logs` + `profiles` events
+ * into a step-by-step onboarding funnel (signup → email-verified →
+ * first-resume → first-export → upgrade) for the DevKit Analytics pane.
+ *
+ * Trigger: DevKit "Onboarding funnel" widget (manual refresh + range
+ *   selector); not called on a schedule.
+ * Auth: ADMIN ONLY (`requireAdminAuth` — DevKit session token).
+ * Dispatch contract: POST `{range?: 'today'|'7d'|'30d'|'90d'|'all'}`
+ *   (defaults to '30d'). Returns 200 `{success:true, funnel:{steps:[...],
+ *   conversion_pct:[...]}, range}`. Unexpected throws → 500.
+ */
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { requireAdminAuth } from '../_shared/adminAuth.ts';

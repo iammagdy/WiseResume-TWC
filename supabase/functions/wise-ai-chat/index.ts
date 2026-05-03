@@ -195,7 +195,10 @@ serve(wrapHandler('wise-ai-chat', async (req: Request) => {
   const corsHeaders = getCorsHeaders(origin);
 
   if (req.method === "OPTIONS") {
-    return new Response(null, { status: 204, headers: corsHeaders });
+    // Parity with the other 73 edge functions: default 200 (not 204) so the
+    // CORS preflight envelope matches the shared `getCorsHeaders` pattern.
+    // Resolved 2026-05-03 (Task #67, audit M1).
+    return new Response(null, { headers: corsHeaders });
   }
 
   const sizeError = checkPayloadSize(req, MAX_PAYLOAD_BYTES);

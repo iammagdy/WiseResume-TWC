@@ -1,3 +1,17 @@
+/**
+ * admin-merge-identity — Consolidate two user records (e.g. duplicate
+ * Kinde shadow + native Supabase signup for the same email) into one
+ * canonical identity, preserving the higher plan/credit balance.
+ *
+ * Trigger: DevKit "Merge identity" workflow, typically initiated after
+ *   `admin-get-identity` surfaces a duplicate.
+ * Auth: ADMIN ONLY (`requireAdminAuth` — DevKit session token).
+ * Dispatch contract: POST `{primary_user_id, secondary_user_id,
+ *   actor_email?}`. Re-points content rows from secondary → primary,
+ *   keeps the better plan tier (PLAN_RANK), sums credits, deletes the
+ *   secondary auth row, and writes one `audit_logs` entry. Returns 200
+ *   `{success:true, merged:{...summary}}` or 4xx with the failure reason.
+ */
 import { getServiceClient } from '../_shared/dbClient.ts';
 import { requireAdminAuth } from '../_shared/adminAuth.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
