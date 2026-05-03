@@ -1,5 +1,57 @@
 # Edge Function Audit — Mobile parity sweep (2026-05-03)
 
+## Full redeploy + platform verification (Task #57, 2026-05-03)
+
+Final gate after Tasks #49–#56 merged 9 routers. Full
+`npx supabase functions deploy` of every source function via
+`scripts/deploy-functions.sh`, plus Management-API delete of every
+deployed-but-no-source orphan from the 9 merges, plus 3-layer
+verification sweep (CORS+dispatch / behavior+auth / CI smoke).
+
+| Metric                              | Value |
+| ----------------------------------- | ----- |
+| Deployed functions (pre-redeploy)   | 99    |
+| Source-tree functions               | 74    |
+| Orphans deleted                     | 38    |
+| Functions redeployed                | 74    |
+| Deployed functions (post-redeploy)  | **74** |
+| Source-vs-deployed diff             | **empty** |
+| Slots freed under 100-fn cap        | 25 (26 free now) |
+| Per-router + per-isolated CORS sweep| 69 / 69 PASS |
+| Behavior + auth sweep (24 checks)   | 24 / 24 PASS |
+| **Authenticated-user 2xx sweep**    | **17 / 17 PASS (4 live 2xx incl. live AI call)** |
+| Per-function secret cross-check     | 100 % critical / AI / github |
+
+Full report: `reports/edge-fn-redeploy-2026-05-03.md`. Verification
+covered: 8 distinct live HTTP 2xx endpoints (`mobile-config`,
+`og-image`, `transactional-email#contact-request`, `me`, `ai-health`
+w/ live Groq call, `coupons#validate`, `wisehire-access#validate-invite`,
+auth-admin user lifecycle); admin-gate 401/403 on every admin router;
+canonical 400 dispatch envelopes on every multi-action router; webhook
+401 on `kinde-webhook` / `revenuecat-webhook` / `auth-email-hook`
+under wrong/missing signature; no secret leakage on
+`admin-ai-ops/inspect-keys`; every authenticated user-facing AI
+function reached past the auth gate (verified with a real
+short-lived test user created via Auth Admin API). Authenticated
+admin 2xx requires the `DEV_KIT_PASSWORD` HMAC secret (not retrievable
+via Management API) — covered by the existing Playwright merged-router
+specs (14–23) which run in CI against the prod URL.
+
+Five anomalies handled in-task: (a) first parallel deploy hit HTTP 402
+"max functions reached" until orphans were deleted; (b) four deploys
+silently dropped under parallel pressure (`admin-config`,
+`admin-user-ops`, `resume-section-ai`, `send-push`) — recovered via
+sequential retry — followed up as #60; (c) smoke-test catalogue is
+stale on the merged-away slugs — followed up as #59;
+(d) `mobile-api` deployed timestamp pre-dates last commit but source
+is byte-identical post-redeploy — informational; (e) initial
+contact-request probe used `type:'feedback'` which fails the table's
+CHECK constraint (allowed: `bug|feature|contact`) — not a regression,
+re-probed with `type:'contact'` returned 200.
+
+---
+
+
 ## Resume-section AI consolidation (Task #56, 2026-05-03)
 
 Four resume-section AI edge functions were merged into a single
