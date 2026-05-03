@@ -32,3 +32,4 @@ Cards in this folder describe shipped or in-flight stability fixes from the 2026
 - [Phase 12 — Editor audit Phase 2: keyboard context split, layout cleanup, label fixes, DEV-only logger](./phase-12-editor-audit-phase-2.md)
 - [Editor ATS panel relabelled as "Job Match Analysis" / "Keyword Match Score"](./ats-keyword-match-clarity.md)
 - [GitHub origin sync — Replit ↔ GitHub reconciled (Task #70 v2)](./github-origin-sync-task-70.md)
+- [Kinde custom domain split — `auth.thewise.cloud` separated from `resume.thewise.cloud`](./kinde-custom-domain-split.md)

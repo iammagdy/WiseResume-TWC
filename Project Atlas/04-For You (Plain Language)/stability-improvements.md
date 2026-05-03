@@ -1,6 +1,16 @@
 # Stability Improvements — What's Getting Better Behind the Scenes
 
-**Last verified:** 2026-05-03 (Replit working copy and GitHub backup are back in sync after a long drift)
+**Last verified:** 2026-05-03 (sign-in flow restored after Kinde custom-domain misconfiguration; Replit working copy and GitHub backup are back in sync after a long drift)
+
+## The sign-in page is reachable again — and now lives on its own branded address (2026-05-03)
+
+**What was the situation:** For a short window today, anyone visiting `resume.thewise.cloud` was sent straight to the Kinde-hosted, custom-themed sign-in page — no landing page, no marketing copy, no way back. Worse, the sign-in page itself showed the message *"Sorry, we don't see a way to authenticate you at the moment"* with no sign-in buttons (no Email, no Google) visible. The site was effectively unusable for new visitors. The reason was a DNS configuration: Kinde's "Custom Domain" feature lets you serve their branded sign-in page from a subdomain of your own domain (so users see your domain in the address bar instead of `kinde.com`), but that subdomain has to be a **dedicated** one used only for sign-in. By accident, the same subdomain that hosted the WiseResume app — `resume.thewise.cloud` — was given to Kinde as that custom domain. From the moment that DNS change went live, every request to `resume.thewise.cloud` was answered by Kinde instead of by Hostinger (where the React app lives), and the React app became unreachable from that address. The "no way to authenticate" message appeared because Kinde was being asked to render its sign-in page at the bare domain root with no application context — Kinde had no way to tell which application's sign-in options it was supposed to show, so it showed none.
+
+**What changed:** The two roles were split onto two separate subdomains, the way Kinde intends. `resume.thewise.cloud` was pointed back at Hostinger so the React app is reachable again, and a **new** dedicated subdomain — `auth.thewise.cloud` — was created and pointed at Kinde. Kinde provisioned a fresh SSL certificate for the new subdomain. The build pipeline was updated to tell the React app that the sign-in page now lives at `auth.thewise.cloud`, and a fresh deploy was rolled out so the change is baked into the version of the app that visitors download.
+
+**What you'll notice:** The site works again exactly as it did before the incident. When you visit `resume.thewise.cloud` you see the landing page. When you click **Sign in** or **Sign up**, the browser briefly takes you to `auth.thewise.cloud` (your branded Kinde sign-in page, "Powered by Kinde", same look you designed), you sign in, and Kinde sends you back to the app. The address bar momentarily showing `auth.thewise.cloud` instead of `resume.thewise.cloud` during the sign-in step is normal and intentional — it's the convention used by Stripe, Slack, Notion, and most other products with branded sign-in pages. No accounts were affected and no data was lost; the only impact was that, for the time the misconfiguration was live, visitors couldn't reach the app or sign in.
+
+---
 
 ## Your code on Replit and your code on GitHub are back in sync (2026-05-03)
 
