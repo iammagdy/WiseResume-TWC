@@ -91,10 +91,9 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
   const textCard = (
     <motion.div
       variants={textSlide}
-      className="lp-stack-pane flex flex-col justify-center gap-5 p-6"
+      className="lp-stack-pane lp-stack-pane-text flex flex-col justify-center gap-5 p-6"
       style={{
         borderRadius: 24,
-        minHeight: 200,
       }}
     >
       {data.categoryLabel && (
@@ -145,10 +144,9 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
   const mediaCard = (
     <motion.div
       variants={mediaSlide}
-      className="lp-stack-pane flex items-center justify-center p-6"
+      className="lp-stack-pane lp-stack-pane-media flex items-center justify-center p-6"
       style={{
         borderRadius: 24,
-        minHeight: 200,
       }}
     >
       {/* Phase 4: parallax wrapper is a plain div so its CSS transform
@@ -193,12 +191,12 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
           Key Benefits
         </p>
       </div>
-      <ul className="flex flex-wrap gap-2">
+      <ul className="lp-stack-bullets flex flex-wrap gap-2">
         {data.bullets.map((bullet) => (
           <li
             key={bullet}
-            className="flex items-start gap-2 text-sm"
-            style={{ color: 'var(--lp-text)', minWidth: '240px', flex: '1 1 240px', transition: 'color 0.3s ease' }}
+            className="lp-stack-bullet flex items-start gap-2 text-sm"
+            style={{ color: 'var(--lp-text)', flex: '1 1 240px', minWidth: 0, transition: 'color 0.3s ease' }}
           >
             <span
               className="w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
@@ -236,6 +234,7 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
             inset:0 and bled past the card's rounded corners. */}
         <span
           aria-hidden="true"
+          className="lp-stack-watermark"
           style={{
             position: 'absolute',
             inset: '0 12px',

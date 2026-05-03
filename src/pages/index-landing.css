@@ -697,6 +697,35 @@ body[data-lp-scheme="light"][data-lp-product="wisehire"] { background-color: #f0
   }
 }
 
+/* ── Phone-viewport tuning (≤480px): keep all 5 feature cards readable
+   inside a phone frame with no clipping or watermark overlap. ────── */
+@media (max-width: 480px) {
+  /* Tighter pane padding so the demo's 260px phone frame plus its
+     surrounding chrome fits inside the card without horizontal clip. */
+  .lp-stack-pane {
+    padding: 16px !important;
+  }
+  .lp-stack-pane-media {
+    padding: 12px !important;
+  }
+  /* Bullets: stack one-per-row instead of forcing a 240px min-width
+     that pushed content past the card edge. */
+  .lp-stack-bullets > .lp-stack-bullet {
+    flex: 1 1 100% !important;
+  }
+  /* Watermark big-label: shrink + drop opacity so it no longer
+     overlaps the title/description on a narrow card. */
+  .lp-stack-watermark {
+    font-size: 3.25rem !important;
+    opacity: 0.22 !important;
+  }
+  /* Step chip: hide the long active-feature title; keep the "01 / 05"
+     counter visible so users still see progress. */
+  .lp-stack-step-chip-label {
+    display: none !important;
+  }
+}
+
 /* ── Phase 4: sticky stack header + step counter chip ──── */
 .lp-stack-sticky-header {
   position: sticky;
