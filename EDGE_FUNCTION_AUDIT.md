@@ -1,5 +1,138 @@
 # Edge Function Audit — Mobile parity sweep (2026-05-03)
 
+## Admin AI control-plane consolidation (Task #53, 2026-05-03)
+
+Four admin AI control-plane edge functions were merged into a single
+`admin-ai-ops` router. All four are admin-only surfaces guarded by
+`requireAdminAuth` (with one dual-mode exception below) and operate on
+the AI configuration / observability surface — caps, routing config,
+key inspection, and the dynamic test-model allow-list. Consolidating
+frees 3 deployment slots under the 100-function Supabase limit.
+
+Functions merged (4 → 1):
+
+- `admin-ai-caps` → action `caps`
+- `admin-ai-routing` → action `routing`
+- `inspect-ai-keys` → action `inspect-keys`
+- `refresh-ai-test-models` → action `refresh-test-models`
+
+Explicitly excluded (kept isolated): `ai-test`, `ai-health`. Both are
+non-admin surfaces with different auth postures and are out of scope
+for this merge.
+
+### Dispatch contract
+
+- **PRIMARY:** `body.action` ∈ `{"caps","routing","inspect-keys",
+  "refresh-test-models"}`.
+- **FALLBACK:** `x-admin-ai-op` request header. Used when the caller's
+  body has its own `action` field for inner sub-routing — needed for
+  two parity surfaces:
+  - `admin-ai-caps` reads `body.action ∈ {"get_caps","set_plan_cap",
+    "set_global_cap","get_user_cap","set_user_cap"}` for its own
+    inner sub-routing.
+  - `admin-ai-routing` reads `body.action ∈ {"get_config",
+    "update_feature","reset_feature"}` for its own inner sub-routing.
+  Clobbering body.action would break those handlers' byte-for-byte
+  parity, so the helper leaves the body untouched and dispatches via
+  the header instead.
+
+The web helper (`rewriteAdminAiOpsInvoke`) sends BOTH (header always;
+body.action only when the caller didn't already supply one), so the
+spec's body.action contract is the user-facing contract for
+`inspect-keys` and `refresh-test-models`. The header is the dispatch
+path for `caps` and `routing`.
+
+The router checks the header first, then falls back to body.action,
+because the web helper sets the header for every call.
+
+### Auth posture
+
+- **caps / routing / inspect-keys:** single `requireAdminAuth` runs at
+  the top of `serve` (per task spec — explicit "single assertAdmin at
+  top of serve").
+- **refresh-test-models:** keeps its original dual-mode auth — if
+  `x-cron-secret` is present the router calls `requireCronSecret`,
+  otherwise it falls through to `requireAdminAuth`. This preserves the
+  nightly pg_cron caller (which has no admin session) while still
+  letting an admin manually trigger a refresh from the DevKit AI Keys
+  panel. The cron job is re-pointed at `admin-ai-ops` in migration
+  `20260503000001_repoint_refresh_ai_test_models_cron.sql` so cron
+  parity is preserved across the eventual deletion of the standalone
+  `refresh-ai-test-models` function.
+
+### Body buffering / parse parity
+
+The router buffers the body ONCE as text at the top, then hands the
+text string (not a parsed object) to each handler. Each handler does
+its OWN `JSON.parse` inside its original try/catch wrapper, so each
+handler's parse-vs-validation-vs-throw semantics are preserved
+byte-for-byte. Audit-log writes preserve the same `category` /
+`action` strings (`ai_caps`, `ai_routing` / `ai_cap_update`,
+`ai_global_cap_update`, `ai_user_cap_update`, `ai_routing_update`,
+`ai_routing_reset`) so existing admin dashboards keep working.
+
+**Single documented router-boundary deviation:** for the 4 originals
+(except refresh-ai-test-models), an unauthenticated call with a
+malformed body would have returned 500 (parse fails inside outer
+try/catch). With auth lifted to the top of the router, that combined
+edge case now returns 401. No real client ever hits this case — every
+caller (web helper, dev proxy, cron job) sends well-formed JSON. The
+Playwright spec asserts the 401 behaviour so the deviation is
+captured in CI.
+
+### Key-masking guarantee
+
+`inspect-ai-keys`'s tail-only mask format (`••••XXXX`) is preserved
+byte-for-byte in the merged handler. The Playwright spec asserts that
+an unauthenticated `inspect-keys` call returns the canonical 401
+envelope and that the response body contains NEITHER `keys`,
+`masked`, env names (`OPENROUTER_KEY`, `GROQ_KEY`, `DEEPSEEK_KEY`),
+nor the mask glyph (`••••`) — proving auth runs strictly before any
+env-var enumeration.
+
+### Web helper rewrite
+
+`src/integrations/supabase/edgeFunctions.ts` adds
+`rewriteAdminAiOpsInvoke` mirroring the existing `rewriteAdminConfig`
+/ `rewriteAdminUserOps` patterns. A single-line
+`USE_MERGED_ADMIN_AI_OPS = true` flag at the top of the helper toggles
+the rewrite; flipping it to `false` falls back to the four originals
+(useful during the soak window if a regression is discovered).
+
+The rewrite preserves the body 1:1 — the only mutation is adding a
+top-level `action` field when the caller's body has no pre-existing
+`action`. This means `caps` and `routing` callers (whose bodies carry
+their own inner action like `{action:'get_caps', ...}`) reach the
+router unchanged.
+
+The dev Express proxy (`server/index.ts`) was extended to forward the
+`x-admin-ai-op` header through `/api/fn/:fnName` — same one-liner
+pattern as the prior `x-admin-config-action` and `x-admin-user-op`
+forwards. The legacy per-fn proxy stubs for `admin-ai-caps` and
+`admin-ai-routing` become dead code (the rewritten name `admin-ai-ops`
+falls through to the generic `/api/fn/:fnName` forwarder) and will be
+cleaned up in the downstream redeploy + cleanup task.
+
+### Soak / cleanup ownership
+
+The downstream "Full edge-function redeploy + platform verification"
+task owns the prod-side deploy of `admin-ai-ops`, the 24-hour soak,
+and the eventual `DELETE /v1/projects/<ref>/functions/<name>` for the
+four originals. This task only ships the source-tree consolidation:
+
+- `supabase/functions/admin-ai-ops/index.ts` (new)
+- 4 originals deleted from `supabase/functions/`
+- `supabase/config.toml` updated (4 entries removed, 1 added)
+- `src/integrations/supabase/edgeFunctions.ts` rewrite + flag
+- `server/index.ts` header forward
+- `supabase/migrations/20260503000001_repoint_refresh_ai_test_models_cron.sql`
+  re-points the cron job at `admin-ai-ops`
+- `tests/e2e/specs/20-admin-ai-ops-merged.spec.ts` parity tests
+
+Net deployed function count drops by 3 once cleanup runs.
+
+---
+
 ## Admin config consolidation (Task #52, 2026-05-03)
 
 Five admin-only configuration edge functions were merged into a single

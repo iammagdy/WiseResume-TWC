@@ -176,6 +176,68 @@ const ADMIN_CONFIG_ACTIONS: Record<
   'admin-integrations': 'integrations',
   'admin-env-check': 'env-check',
 };
+/**
+ * Admin AI control-plane consolidation (Task #53).
+ *
+ * Routes the four legacy admin AI control-plane function names to the
+ * merged `admin-ai-ops` router. Dispatch is signalled via the
+ * `x-admin-ai-op` request header (NOT exclusively the body) because two
+ * of the four sub-handlers — caps and routing — read their OWN inner
+ * `body.action` for sub-routing (get_caps/set_plan_cap/set_global_cap/
+ * get_user_cap/set_user_cap and get_config/update_feature/reset_feature
+ * respectively). Clobbering body.action would break those handlers'
+ * byte-for-byte parity, so we leave the body untouched and dispatch
+ * via the header. For spec compliance the helper ALSO injects
+ * `body.action` set to the router-level action name when the body has
+ * no pre-existing `action` field.
+ *
+ * Set USE_MERGED_ADMIN_AI_OPS=false to fall back to the four originals
+ * while soaking the new router.
+ *
+ * Excluded (kept isolated): `ai-test`, `ai-health` — both are non-admin
+ * surfaces with different auth postures.
+ */
+const USE_MERGED_ADMIN_AI_OPS = true;
+const ADMIN_AI_OPS_ACTIONS: Record<
+  string,
+  'caps' | 'routing' | 'inspect-keys' | 'refresh-test-models'
+> = {
+  'admin-ai-caps': 'caps',
+  'admin-ai-routing': 'routing',
+  'inspect-ai-keys': 'inspect-keys',
+  'refresh-ai-test-models': 'refresh-test-models',
+};
+function rewriteAdminAiOpsInvoke(
+  fnName: string,
+  options: { body?: unknown; headers?: Record<string, string>; method?: string } | undefined,
+): { fnName: string; options: { body?: unknown; headers?: Record<string, string>; method?: string } | undefined } {
+  if (!USE_MERGED_ADMIN_AI_OPS) return { fnName, options };
+  const action = ADMIN_AI_OPS_ACTIONS[fnName];
+  if (!action) return { fnName, options };
+  const newHeaders: Record<string, string> = {
+    ...(options?.headers ?? {}),
+    'x-admin-ai-op': action,
+  };
+  // Preserve the original body 1:1 so each handler sees exactly what its
+  // pre-merge function saw (incl. caps' / routing's inner body.action
+  // sub-routing). Add a top-level `action` field alongside (spec
+  // compliance) ONLY when the caller didn't already set one.
+  const origBody = options?.body;
+  let newBody: unknown = origBody;
+  if (origBody && typeof origBody === 'object' && !Array.isArray(origBody)) {
+    const obj = origBody as Record<string, unknown>;
+    if (!('action' in obj)) {
+      newBody = { ...obj, action };
+    }
+  } else if (origBody === undefined) {
+    newBody = { action };
+  }
+  return {
+    fnName: 'admin-ai-ops',
+    options: { ...(options ?? {}), headers: newHeaders, body: newBody },
+  };
+}
+
 function rewriteAdminConfigInvoke(
   fnName: string,
   options: { body?: unknown; headers?: Record<string, string>; method?: string } | undefined,
@@ -232,8 +294,9 @@ export const edgeFunctions = {
       const couponRewritten = rewriteCouponInvoke(fnNameInput, options);
       const adminRewritten = rewriteAdminUserOpsInvoke(couponRewritten.fnName, couponRewritten.options);
       const adminConfigRewritten = rewriteAdminConfigInvoke(adminRewritten.fnName, adminRewritten.options);
-      const fnName = adminConfigRewritten.fnName;
-      options = adminConfigRewritten.options;
+      const adminAiOpsRewritten = rewriteAdminAiOpsInvoke(adminConfigRewritten.fnName, adminConfigRewritten.options);
+      const fnName = adminAiOpsRewritten.fnName;
+      options = adminAiOpsRewritten.options;
       const doInvoke = async (token: string | null) => {
         const userHeaders = options?.headers || {};
         const headers: Record<string, string> = {

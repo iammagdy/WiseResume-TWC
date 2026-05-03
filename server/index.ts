@@ -3248,6 +3248,14 @@ app.all('/api/fn/:fnName', async (req, res) => {
       forwardHeaders['x-admin-config-action'] = adminConfigAction;
     }
 
+    // Task #53: forward the admin-ai-ops dispatch header so the merged
+    // `admin-ai-ops` edge function can route to the correct sub-handler
+    // (caps, routing, inspect-keys, refresh-test-models).
+    const adminAiOp = req.headers['x-admin-ai-op'];
+    if (typeof adminAiOp === 'string' && adminAiOp) {
+      forwardHeaders['x-admin-ai-op'] = adminAiOp;
+    }
+
     const isFormData = (req.headers['content-type'] || '').includes('multipart/form-data');
 
     let bodyToSend: string | Buffer | undefined;

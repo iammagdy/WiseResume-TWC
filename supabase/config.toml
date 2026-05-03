@@ -136,10 +136,6 @@ project_id = "jnsfmkzgxsviuthaqlyy"
     verify_jwt = false
   [functions.admin-wisehire-revoke-invite]
     verify_jwt = false
-  [functions.inspect-ai-keys]
-    verify_jwt = false
-  [functions.refresh-ai-test-models]
-    verify_jwt = false
   [functions.kinde-webhook]
     verify_jwt = false
   [functions.wisehire-invite-reminder]
@@ -147,10 +143,6 @@ project_id = "jnsfmkzgxsviuthaqlyy"
   [functions.admin-impersonate]
     verify_jwt = false
   [functions.admin-owner-ops]
-    verify_jwt = false
-  [functions.admin-ai-routing]
-    verify_jwt = false
-  [functions.admin-ai-caps]
     verify_jwt = false
   [functions.admin-moderation]
     verify_jwt = false
@@ -185,6 +177,27 @@ project_id = "jnsfmkzgxsviuthaqlyy"
   # security-relevant and must remain byte-for-byte identical to the
   # original — do NOT add or remove keys here.
   [functions.admin-config]
+    verify_jwt = false
+
+  # --- Admin AI control-plane consolidation (Task #53) ---
+  # admin-ai-caps, admin-ai-routing, inspect-ai-keys, and
+  # refresh-ai-test-models were merged into the `admin-ai-ops` router on
+  # 2026-05-03 to free 3 slots under the 100-function project limit.
+  # Dispatch is body.action ∈ {caps, routing, inspect-keys,
+  # refresh-test-models} with an `x-admin-ai-op` header fallback used by
+  # `caps` and `routing` (whose original handlers read body.action for
+  # their own inner sub-routing — get_caps/set_plan_cap/... and
+  # get_config/update_feature/... respectively, so the router cannot
+  # clobber body.action without breaking byte-for-byte parity). Single
+  # `requireAdminAuth` runs at the top of the router for caps / routing
+  # / inspect-keys; refresh-test-models keeps its original dual-mode
+  # auth (x-cron-secret OR admin) so the nightly pg_cron job still
+  # works. Originals stay deployed alongside for the 24-hour soak;
+  # deletion is handled by the downstream platform task. The pg_cron
+  # job that calls refresh-ai-test-models is re-pointed at admin-ai-ops
+  # in migration 20260503000001_repoint_refresh_ai_test_models_cron.sql
+  # so cron parity is preserved across the eventual delete.
+  [functions.admin-ai-ops]
     verify_jwt = false
 
   # --- Coupons consolidation (Task #48) ---
