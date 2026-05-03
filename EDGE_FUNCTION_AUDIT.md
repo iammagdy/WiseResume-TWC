@@ -1,5 +1,100 @@
 # Edge Function Audit — Mobile parity sweep (2026-05-03)
 
+## Admin WiseHire consolidation (Task #54, 2026-05-03)
+
+Four admin-only WiseHire management edge functions were merged into a
+single `admin-wisehire` router. All four shared the same
+`requireAdminAuth` gate and operate on the WiseHire invites/waitlist
+surface (`wisehire_invites`, `wisehire_waitlist`, plus auth.users for
+the test reset). Consolidating frees 3 deployment slots under the
+100-function Supabase limit.
+
+Functions merged (4 → 1):
+
+- `admin-wisehire-invite`        → action `invite`
+- `admin-wisehire-reset-user`    → action `reset-user`
+- `admin-wisehire-revoke-invite` → action `revoke-invite`
+- `admin-wisehire-waitlist`      → action `waitlist`
+
+### Dispatch contract
+
+- **PRIMARY:** `body.action` ∈ `{"invite","reset-user",
+  "revoke-invite","waitlist"}`.
+- **FALLBACK:** `x-admin-wisehire-op` request header. The web helper
+  sets BOTH (header always; body.action only when the caller didn't
+  supply one), matching the pattern from prior admin merges.
+
+### Auth posture
+
+Single `requireAdminAuth` runs at the top of `serve` (per task spec
+— explicit "single assertAdmin at top"). All 4 originals parsed body
+BEFORE auth, so an unauthenticated call with a malformed body would
+have returned 500. With auth lifted to the top, that combined edge
+case now returns 401. **Single documented router-boundary
+deviation.** No real client (web helper, dev proxy) hits this case;
+the Playwright spec asserts the 401 behaviour so the deviation is
+captured in CI.
+
+### Body buffering / parse parity
+
+Router buffers the body ONCE as text at the top, then hands the text
+string (not a parsed object) to each handler. Each handler does its
+OWN `JSON.parse` inside its original try/catch wrapper, preserving
+parse-vs-validation-vs-throw semantics byte-for-byte. Audit-log
+writes preserve the original `category` / `action` strings:
+
+- `invite`        → category `admin_email`, action `wisehire_invite`
+- `reset-user`    → category `admin`,       action `wisehire_test_reset`
+- `revoke-invite` → category `admin_email`, action `wisehire_invite_revoke`
+- `waitlist`      → no audit-log writes (read-only listing + entry delete)
+
+The invite handler's Resend email-send call (template, subject, from
+address, audit-log message_id capture) is preserved byte-for-byte —
+the inline `buildInviteEmail` HTML template, the EMAIL_LOGO_URL, and
+the WISEHIRE_INVITE_SECRET / WISEHIRE_APP_URL env reads are all
+identical to the original.
+
+### Web helper rewrite
+
+`src/integrations/supabase/edgeFunctions.ts` adds
+`rewriteAdminWisehireInvoke` mirroring the existing rewrite helpers.
+A single-line `USE_MERGED_ADMIN_WISEHIRE = true` flag at the top of
+the helper toggles the rewrite; flipping to `false` falls back to
+the four originals. The rewrite preserves the body 1:1; only adds
+a top-level `action` field when the caller didn't provide one.
+
+The dev Express proxy (`server/index.ts`) was extended to forward
+`x-admin-wisehire-op` through `/api/fn/:fnName`. The legacy per-fn
+proxy stubs for `admin-wisehire-invite`, `admin-wisehire-waitlist`,
+`admin-wisehire-revoke-invite`, and `admin-wisehire-reset-user`
+become dead code (the rewritten name `admin-wisehire` falls through
+to the generic forwarder) and will be cleaned up in the downstream
+redeploy + cleanup task.
+
+### Soak / cleanup ownership
+
+The downstream "Full edge-function redeploy + platform verification"
+task owns the prod-side deploy of `admin-wisehire`, the 24-hour
+soak, and the eventual `DELETE /v1/projects/<ref>/functions/<name>`
+for the four originals. This task ships the source-tree
+consolidation:
+
+- `supabase/functions/admin-wisehire/index.ts` (new)
+- 4 originals deleted from `supabase/functions/`
+- `supabase/config.toml` updated (4 entries removed, 1 added)
+- `src/integrations/supabase/edgeFunctions.ts` rewrite + flag
+- `server/index.ts` header forward
+- `tests/e2e/specs/21-admin-wisehire-merged.spec.ts` parity tests
+
+Net deployed function count drops by 3 once cleanup runs.
+
+DevKit UI (`WiseHireWaitlistPanel.tsx`, `UserDetailDrawer.tsx`,
+`EmailManagementPanel.tsx`) continues to invoke the legacy fn names;
+the rewrite happens transparently in the helper. No DevKit UI
+changes.
+
+---
+
 ## Admin AI control-plane consolidation (Task #53, 2026-05-03)
 
 Four admin AI control-plane edge functions were merged into a single

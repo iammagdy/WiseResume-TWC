@@ -238,6 +238,56 @@ function rewriteAdminAiOpsInvoke(
   };
 }
 
+/**
+ * Admin WiseHire consolidation (Task #54).
+ *
+ * Routes the four legacy admin-wisehire function names to the merged
+ * `admin-wisehire` router. Dispatch is signalled via the
+ * `x-admin-wisehire-op` request header AND a top-level `body.action`
+ * field (added only when the caller didn't supply one). The body is
+ * otherwise forwarded byte-for-byte so each sub-handler sees exactly
+ * what its pre-merge function saw.
+ *
+ * Set USE_MERGED_ADMIN_WISEHIRE=false to fall back to the four
+ * originals while soaking the new router.
+ */
+const USE_MERGED_ADMIN_WISEHIRE = true;
+const ADMIN_WISEHIRE_ACTIONS: Record<
+  string,
+  'invite' | 'reset-user' | 'revoke-invite' | 'waitlist'
+> = {
+  'admin-wisehire-invite': 'invite',
+  'admin-wisehire-reset-user': 'reset-user',
+  'admin-wisehire-revoke-invite': 'revoke-invite',
+  'admin-wisehire-waitlist': 'waitlist',
+};
+function rewriteAdminWisehireInvoke(
+  fnName: string,
+  options: { body?: unknown; headers?: Record<string, string>; method?: string } | undefined,
+): { fnName: string; options: { body?: unknown; headers?: Record<string, string>; method?: string } | undefined } {
+  if (!USE_MERGED_ADMIN_WISEHIRE) return { fnName, options };
+  const action = ADMIN_WISEHIRE_ACTIONS[fnName];
+  if (!action) return { fnName, options };
+  const newHeaders: Record<string, string> = {
+    ...(options?.headers ?? {}),
+    'x-admin-wisehire-op': action,
+  };
+  const origBody = options?.body;
+  let newBody: unknown = origBody;
+  if (origBody && typeof origBody === 'object' && !Array.isArray(origBody)) {
+    const obj = origBody as Record<string, unknown>;
+    if (!('action' in obj)) {
+      newBody = { ...obj, action };
+    }
+  } else if (origBody === undefined) {
+    newBody = { action };
+  }
+  return {
+    fnName: 'admin-wisehire',
+    options: { ...(options ?? {}), headers: newHeaders, body: newBody },
+  };
+}
+
 function rewriteAdminConfigInvoke(
   fnName: string,
   options: { body?: unknown; headers?: Record<string, string>; method?: string } | undefined,
@@ -295,8 +345,9 @@ export const edgeFunctions = {
       const adminRewritten = rewriteAdminUserOpsInvoke(couponRewritten.fnName, couponRewritten.options);
       const adminConfigRewritten = rewriteAdminConfigInvoke(adminRewritten.fnName, adminRewritten.options);
       const adminAiOpsRewritten = rewriteAdminAiOpsInvoke(adminConfigRewritten.fnName, adminConfigRewritten.options);
-      const fnName = adminAiOpsRewritten.fnName;
-      options = adminAiOpsRewritten.options;
+      const adminWisehireRewritten = rewriteAdminWisehireInvoke(adminAiOpsRewritten.fnName, adminAiOpsRewritten.options);
+      const fnName = adminWisehireRewritten.fnName;
+      options = adminWisehireRewritten.options;
       const doInvoke = async (token: string | null) => {
         const userHeaders = options?.headers || {};
         const headers: Record<string, string> = {

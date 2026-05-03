@@ -3256,6 +3256,14 @@ app.all('/api/fn/:fnName', async (req, res) => {
       forwardHeaders['x-admin-ai-op'] = adminAiOp;
     }
 
+    // Task #54: forward the admin-wisehire dispatch header so the merged
+    // `admin-wisehire` edge function can route to the correct sub-handler
+    // (invite, reset-user, revoke-invite, waitlist).
+    const adminWisehireOp = req.headers['x-admin-wisehire-op'];
+    if (typeof adminWisehireOp === 'string' && adminWisehireOp) {
+      forwardHeaders['x-admin-wisehire-op'] = adminWisehireOp;
+    }
+
     const isFormData = (req.headers['content-type'] || '').includes('multipart/form-data');
 
     let bodyToSend: string | Buffer | undefined;
