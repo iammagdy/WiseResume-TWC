@@ -10,6 +10,8 @@
 
 **What you'll notice:** The site works again exactly as it did before the incident. When you visit `resume.thewise.cloud` you see the landing page. When you click **Sign in** or **Sign up**, the browser briefly takes you to `auth.thewise.cloud` (your branded Kinde sign-in page, "Powered by Kinde", same look you designed), you sign in, and Kinde sends you back to the app. The address bar momentarily showing `auth.thewise.cloud` instead of `resume.thewise.cloud` during the sign-in step is normal and intentional — it's the convention used by Stripe, Slack, Notion, and most other products with branded sign-in pages. No accounts were affected and no data was lost; the only impact was that, for the time the misconfiguration was live, visitors couldn't reach the app or sign in.
 
+**Follow-up — typo fix (later the same day):** Right after the auth-domain split was rolled out, clicking Sign in started landing visitors on a blank Kinde page. The cause was a one-character typo in the saved auth-domain value: it had been written as `auth.thewise.cloud.` with an extra dot at the end, instead of `auth.thewise.cloud`. The internet's address book (DNS) treats a hostname the same with or without that trailing dot, which is why the browser still reached Kinde's servers — but Kinde's web routing is literal and only recognises the version without the dot, so it fell through to a generic empty page instead of the branded sign-in form. The dot was removed and a fresh deploy was rolled out. Sign-in works end-to-end again.
+
 ---
 
 ## Your code on Replit and your code on GitHub are back in sync (2026-05-03)

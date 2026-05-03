@@ -2,6 +2,48 @@
 
 Local changelog tracking WiseResume changes.
 
+## 2026-05-03 (Kinde auth-domain trailing-dot typo fix — release v3.11.3)
+
+### Incident — root cause
+- **Within ~1 hour of the v3.11.2 cut-over, clicking Sign in on the live site landed visitors on a blank Kinde page.** The browser was being sent to `https://auth.thewise.cloud./oauth2/auth?client_id=629174ac…&response_type=code&redirect_uri=https%3A%2F%2Fresume.thewise.cloud%2Fauth%2Fcallback&…` — note the **trailing dot** after `auth.thewise.cloud`.
+- **Cause:** the `VITE_KINDE_DOMAIN` GitHub Actions Secret had been saved as `https://auth.thewise.cloud.` (trailing FQDN dot) rather than `https://auth.thewise.cloud`. Vite inlined that string into the bundle at build time, so every `useKindeAuth().login()` call constructed an authorize URL with a dotted hostname. Probe evidence captured during triage:
+  ```
+  $ curl -sI https://auth.thewise.cloud./oauth2/auth?client_id=…
+  HTTP/2 200
+  server: Caddy                  ← generic non-routed edge response, no OAuth UI
+
+  $ curl -sI https://auth.thewise.cloud/oauth2/auth?client_id=…
+  HTTP/2 400
+  content-type: application/json ← Kinde's OAuth handler responding
+  ```
+- **Why DNS allowed it:** a trailing dot at the end of a hostname is a valid FQDN-root marker; DNS resolution returns the same IPs (`54.75.36.233`, `54.228.227.152`) with or without it. TLS SNI and HTTP `Host`-header virtual-host routing, however, are literal string matches — Kinde's Caddy edge is configured for the vhost `auth.thewise.cloud` only, so the dotted variant fell through to a generic 200 handler with no OAuth UI.
+- **Bundle confirmation:** `AppInterior-B1k0QGrb.js` and `AppLanding-D9gFr15h.js` (the v3.11.2 chunks) both contained the literal string `auth.thewise.cloud.` (with trailing dot) and no occurrence of the bare `auth.thewise.cloud`.
+
+### Changed (one CI secret edit + redeploy — no application code)
+- **User edited the `VITE_KINDE_DOMAIN` GitHub Actions Secret** to remove the trailing dot. New value: `https://auth.thewise.cloud` (exact, no trailing dot, no trailing slash, no whitespace).
+- **`package.json` 3.11.2 → 3.11.3.**
+- **`public/changelog.json`** new top entry `v3.11.3` (latest:true; previous entries set to latest:false).
+- **Re-ran `deploy.yml`** via `workflow_dispatch` against `main`. Verifier returns 7/7 ✅; bundle scan of `AppInterior-*.js` and `AppLanding-*.js` confirms the dotted form is gone and only the bare `auth.thewise.cloud` remains.
+
+### Unchanged (intentionally)
+- **No application source code modified.** No React component, no hook, no edge function, no SQL.
+- **DNS records** unchanged from the v3.11.2 state (`_acme-challenge.auth` + `auth → eu.kinde.com` for the auth subdomain; `resume → Hostinger A records` for the app subdomain).
+- **Kinde Application** unchanged (same client ID, same Allowed Callback URLs, same custom theme).
+- **`VITE_KINDE_CLIENT_ID`** unchanged.
+
+### Triage discipline notes
+- This is a textbook **"DNS says yes, HTTP says no"** failure mode. Network-layer probes (ping, dig, even `curl -I` against the root) all succeed because DNS+TCP+TLS are tolerant; the failure is at the application layer where the vhost router does literal hostname matching. Future verifiers should hit a known OAuth endpoint with bogus params and assert the response is a Kinde-shaped 400 (JSON body), not a generic 200.
+- **Hardening idea for `deploy.yml`:** add a guard step that fails the build if any of `VITE_KINDE_DOMAIN`, `VITE_KINDE_CLIENT_ID`, `VITE_SUPABASE_URL` ends with `.` or `/`, or contains whitespace, or doesn't start with `https://`. These are the most common copy-paste mistakes that DNS will silently tolerate.
+- The Kinde dashboard sometimes displays the custom-domain hostname in two places — the "Custom Domain" field (no trailing dot) and the DNS-records table (with trailing dot, the FQDN form expected by DNS records). Always copy from the "Custom Domain" field when populating `VITE_KINDE_DOMAIN`.
+
+### Atlas references
+- `Project Atlas/01-Currently Implemented/stability-fixes/kinde-custom-domain-split.md` — appended a new "Follow-up — trailing-dot typo in `VITE_KINDE_DOMAIN` (release `v3.11.3`)" section with the probe outputs and the lesson note.
+- `Project Atlas/04-For You (Plain Language)/stability-improvements.md` — appended a "Follow-up — typo fix (later the same day)" paragraph to the existing entry.
+- `package.json` 3.11.2 → 3.11.3.
+- `public/changelog.json` new top entry `v3.11.3`.
+
+---
+
 ## 2026-05-03 (Kinde custom-domain split incident — release v3.11.2)
 
 ### Incident — root cause

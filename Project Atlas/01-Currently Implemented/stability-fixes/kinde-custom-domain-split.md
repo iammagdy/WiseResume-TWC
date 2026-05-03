@@ -88,3 +88,50 @@ A frequent misunderstanding during the incident triage: the fix is a separate **
 ## Lesson for future Kinde / SSO setups
 
 When wiring Kinde (or any IdP that offers a "Custom Domain" branded auth UI), the custom domain must be a **dedicated** subdomain reserved for the auth service — never the same subdomain that already hosts an unrelated web application. The conventional names are `auth.<domain>`, `login.<domain>`, or `id.<domain>`. The app keeps its own subdomain; the IdP gets its own; both coexist via separate DNS records.
+
+---
+
+## Follow-up — trailing-dot typo in `VITE_KINDE_DOMAIN` (release `v3.11.3`)
+
+Within an hour of the `v3.11.2` cut-over, clicking **Sign in** on the live site started landing visitors on a blank page at:
+
+```
+https://auth.thewise.cloud./oauth2/auth?client_id=629174ac…&response_type=code&redirect_uri=https%3A%2F%2Fresume.thewise.cloud%2Fauth%2Fcallback&…
+                          ^
+                          extra "."
+```
+
+The `VITE_KINDE_DOMAIN` GitHub Actions Secret had been saved as `https://auth.thewise.cloud.` — with a trailing FQDN dot — instead of `https://auth.thewise.cloud`. Vite inlined that string into the bundle at build time, so every `useKindeAuth().login()` call constructed an authorize URL with a dotted hostname.
+
+### Why DNS said yes but Kinde said no
+
+A trailing dot at the end of a hostname is technically a valid Fully Qualified Domain Name in DNS — it explicitly marks the DNS root zone — and DNS resolution returns the same IP with or without it. That is why the browser still reached Kinde's edge IPs (`54.75.36.233`, `54.228.227.152`).
+
+But TLS SNI and HTTP `Host`-header virtual-host routing are **literal string matches**. Kinde's edge (Caddy) is configured for the vhost `auth.thewise.cloud`. Probe captured during triage:
+
+```
+$ curl -sI https://auth.thewise.cloud./oauth2/auth?client_id=…
+HTTP/2 200
+server: Caddy
+                      ← generic non-routed edge response, no OAuth UI
+
+$ curl -sI https://auth.thewise.cloud/oauth2/auth?client_id=…
+HTTP/2 400
+content-type: application/json
+                      ← Kinde's OAuth handler responding (400 because the probe params are bogus)
+```
+
+This is a "DNS says yes, HTTP says no" class of bug — the network layer succeeds and the browser reaches a server, but the application layer (vhost routing) doesn't recognise the host and returns nothing useful.
+
+### Fix
+
+The user removed the trailing dot from the `VITE_KINDE_DOMAIN` GitHub Actions Secret (now `https://auth.thewise.cloud` exactly). `deploy.yml` was re-run and a fresh bundle was published as `v3.11.3`. Bundle scan confirms the dotted form is gone:
+
+```
+AppInterior-*.js : contains "auth.thewise.cloud" (no trailing dot)
+AppLanding-*.js  : contains "auth.thewise.cloud" (no trailing dot)
+```
+
+### Lesson — secret-value hygiene
+
+When a config value is a hostname or URL, copy it from the canonical source (the dashboard's "Custom Domain" field, not the DNS-records table where Kinde sometimes shows the FQDN with the trailing dot) and paste-match it character-for-character. Trim invisible whitespace and trailing punctuation. A future hardening pass could add a step to `deploy.yml` that fails the build if `VITE_KINDE_DOMAIN` ends with `.` or `/`, since both are common copy-paste mistakes that DNS will silently tolerate.
