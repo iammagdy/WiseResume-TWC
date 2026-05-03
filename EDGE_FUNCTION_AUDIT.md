@@ -1,5 +1,104 @@
 # Edge Function Audit — Mobile parity sweep (2026-05-03)
 
+## Wisehire access consolidation (Task #50, 2026-05-03)
+
+Five wisehire onboarding/gating edge functions were merged into a single
+`wisehire-access` router. All five gated the same wisehire onboarding
+funnel against the same tables (`wisehire_waitlist`, `wisehire_invites`),
+so consolidating frees 4 deployment slots under the 100-function Supabase
+limit.
+
+Dispatch: `body.action` ∈ `{ "waitlist-check-email", "waitlist-join",
+"validate-early-access", "validate-invite", "complete-signup" }`. The
+router parses the JSON body once, then forwards the parsed object plus
+the original `Request` to the right sub-handler — preserving every auth
+gate, validation, response shape, status code, and error envelope from
+the pre-merge functions byte-for-byte.
+
+Auth posture per action (unchanged from originals):
+
+- `waitlist-check-email`     — anonymous (botGuard + IP rate-limit `30/60s`).
+- `waitlist-join`            — anonymous (botGuard).
+- `validate-early-access`    — anonymous (botGuard).
+- `validate-invite`          — anonymous.
+- `complete-signup`          — **bearer-required**: caller must supply a
+  valid Supabase session JWT. The router calls
+  `serviceClient.auth.getUser(bridgeToken)` exactly like the original
+  `wisehire-complete-signup` did and returns
+  `{ success:false, error:'unauthorized' }` (401) on failure.
+
+Merged (5 → 1):
+
+- `wisehire-waitlist-check-email`     → `wisehire-access` action `waitlist-check-email`
+- `wisehire-waitlist-join`            → `wisehire-access` action `waitlist-join`
+- `wisehire-validate-early-access`    → `wisehire-access` action `validate-early-access`
+- `wisehire-validate-invite`          → `wisehire-access` action `validate-invite`
+- `wisehire-complete-signup`          → `wisehire-access` action `complete-signup`
+
+Web client routing:
+
+- New helper `src/lib/wisehire/wisehireAccessClient.ts` exposes a single
+  `USE_MERGED_WISEHIRE_ACCESS` constant (default `true`) and an
+  `invokeWisehireAccess(action, body)` wrapper that returns the same
+  `{ data, error }` shape supabase-js produces. Flip the flag to
+  `false` to fall back to the 5 originals if the router isn't deployed
+  yet.
+- All 3 call sites switched: `src/hooks/wisehire/useWaitlistEmailCheck.ts`,
+  `src/hooks/wisehire/useWaitlist.ts`, `src/lib/wisehire/inviteTokenClient.ts`
+  (which has 4 invocations covering validate-invite, validate-early-access,
+  and 2× complete-signup paths).
+- No dev-proxy or supabase-js header tweaks are needed — supabase-js
+  forwards the bearer token used by `complete-signup` automatically, and
+  the other 4 actions are anonymous.
+
+Original sources removed:
+
+- `supabase/functions/wisehire-waitlist-check-email/`
+- `supabase/functions/wisehire-waitlist-join/`
+- `supabase/functions/wisehire-validate-early-access/`
+- `supabase/functions/wisehire-validate-invite/`
+- `supabase/functions/wisehire-complete-signup/`
+- Corresponding `[functions.*]` entries removed from
+  `supabase/config.toml`. New entry `[functions.wisehire-access]` added
+  (`verify_jwt = false`, matching the originals — the bearer check for
+  `complete-signup` is enforced inside the handler, not by the platform).
+
+Tests:
+
+- `tests/e2e/specs/17-wisehire-access-merged.spec.ts` asserts the merged
+  router reproduces the pre-merge response envelopes for the cheapest
+  parity surface of each of the 5 actions plus the unknown-action 400
+  branch. Auto-skips when `SUPABASE_URL` / `SUPABASE_ANON_KEY` are
+  missing.
+
+Accepted parity deviation (router boundary):
+
+- When the router can determine the action (i.e. body parsed enough to
+  read `body.action`), every sub-handler returns its **byte-for-byte
+  original** envelope for: 405-on-non-POST (where the original enforced
+  it), malformed-body 500 (the original `try/catch (await req.json())`
+  branch), validation errors, and the success path. Each handler enforces
+  its own method posture and parses-error posture from a `body` argument
+  that may be `null` to signal a router-level parse failure.
+- When the router **cannot** determine the action (body completely
+  malformed JSON, or no `action` field), it returns a generic
+  `400 { error: "Invalid JSON body" }` or
+  `400 { error: "Unknown action: ..." }` instead of any per-action
+  envelope. This is unavoidable: without an action we cannot pick which
+  of the 5 originals' parse-failure envelopes to return. No real
+  wisehire client (web or mobile) can hit this branch — they all post
+  well-formed JSON via supabase-js. This is the **only** documented
+  drift from the byte-for-byte parity claim.
+
+Soak / cleanup ownership:
+
+- The downstream *Full edge-function redeploy + platform verification*
+  task owns the prod-side deploy of `wisehire-access`, the 24-hour soak,
+  and the eventual `DELETE /v1/projects/<ref>/functions/<name>` for the
+  five originals. Net deployed function count drops by 4.
+
+---
+
 ## Portfolio public consolidation (Task #49, 2026-05-03)
 
 Four anonymous-readable portfolio edge functions were merged into a

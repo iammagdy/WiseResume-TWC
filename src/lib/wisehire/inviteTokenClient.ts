@@ -1,13 +1,11 @@
-import { supabase } from '@/integrations/supabase/safeClient';
+import { invokeWisehireAccess } from '@/lib/wisehire/wisehireAccessClient';
 
 export type ValidateInviteResult =
   | { valid: true; recipient_email: string; expires_at: string }
   | { valid: false; reason: 'not_found' | 'expired' | 'already_used' | 'revoked' | 'invalid_signature' | 'missing_token' | 'server_error' };
 
 export async function validateInviteToken(token: string): Promise<ValidateInviteResult> {
-  const { data, error } = await supabase.functions.invoke('wisehire-validate-invite', {
-    body: { token },
-  });
+  const { data, error } = await invokeWisehireAccess('validate-invite', { token });
 
   if (error) {
     console.error('[inviteTokenClient] wisehire-validate-invite error:', error);
@@ -31,9 +29,7 @@ export type CompleteSignupResult =
 export async function completeWiseHireSignup(
   payload: CompleteSignupPayload,
 ): Promise<CompleteSignupResult> {
-  const { data, error } = await supabase.functions.invoke('wisehire-complete-signup', {
-    body: payload,
-  });
+  const { data, error } = await invokeWisehireAccess('complete-signup', payload as unknown as Record<string, unknown>);
 
   if (error) {
     console.error('[inviteTokenClient] wisehire-complete-signup error:', error);
@@ -55,9 +51,7 @@ export type ValidateEarlyAccessResult =
   | { valid: false; error: string };
 
 export async function validateEarlyAccessCode(code: string): Promise<ValidateEarlyAccessResult> {
-  const { data, error } = await supabase.functions.invoke('wisehire-validate-early-access', {
-    body: { code },
-  });
+  const { data, error } = await invokeWisehireAccess('validate-early-access', { code });
 
   if (error) {
     console.error('[inviteTokenClient] wisehire-validate-early-access error:', error);
@@ -77,9 +71,7 @@ export interface CompleteEarlyAccessPayload {
 export async function completeEarlyAccessSignup(
   payload: CompleteEarlyAccessPayload,
 ): Promise<CompleteSignupResult> {
-  const { data, error } = await supabase.functions.invoke('wisehire-complete-signup', {
-    body: payload,
-  });
+  const { data, error } = await invokeWisehireAccess('complete-signup', payload as unknown as Record<string, unknown>);
 
   if (error) {
     console.error('[inviteTokenClient] wisehire-complete-signup (early access) error:', error);

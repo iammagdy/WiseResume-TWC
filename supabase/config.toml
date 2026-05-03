@@ -127,9 +127,9 @@ project_id = "jnsfmkzgxsviuthaqlyy"
     verify_jwt = false
   [functions.tailor-section]
     verify_jwt = false
-  [functions.wisehire-bulk-screen]
+  [functions.wisehire-access]
     verify_jwt = false
-  [functions.wisehire-complete-signup]
+  [functions.wisehire-bulk-screen]
     verify_jwt = false
   [functions.wisehire-generate-brief]
     verify_jwt = false
@@ -140,14 +140,6 @@ project_id = "jnsfmkzgxsviuthaqlyy"
   [functions.wisehire-talent-search]
     verify_jwt = false
   [functions.wisehire-talent-view]
-    verify_jwt = false
-  [functions.wisehire-validate-early-access]
-    verify_jwt = false
-  [functions.wisehire-validate-invite]
-    verify_jwt = false
-  [functions.wisehire-waitlist-check-email]
-    verify_jwt = false
-  [functions.wisehire-waitlist-join]
     verify_jwt = false
   [functions.wisehire-write-jd]
     verify_jwt = false
