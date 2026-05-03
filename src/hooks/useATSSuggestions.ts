@@ -8,6 +8,10 @@ import { parseAIErrorResponse, aiErrorToastMessage, AIError } from '@/lib/aiErro
 import { hasPassiveVerbs, hasMetrics, hasLongBullets, findPassiveStarter } from '@/lib/contentAnalysis';
 import { useAICreditsMutations } from './useAICredits';
 import { apiFnUrl } from '@/lib/apiFnUrl';
+import {
+  resumeSectionAiFnName,
+  resumeSectionAiHeader,
+} from '@/integrations/supabase/resumeSectionAiFlag';
 
 
 export interface ATSSuggestion {
@@ -271,10 +275,11 @@ export function useATSSuggestions(resume: ResumeData | null, jobDescription: str
       });
 
       const doFetch = async (authToken: string | null) =>
-        fetch(apiFnUrl(`enhance-section`), {
+        fetch(apiFnUrl(resumeSectionAiFnName('enhance-section')), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            ...resumeSectionAiHeader('enhance-section'),
             ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}),
           },
           body: fetchBody,

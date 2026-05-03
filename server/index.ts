@@ -3273,6 +3273,14 @@ app.all('/api/fn/:fnName', async (req, res) => {
       forwardHeaders['x-transactional-email-action'] = transactionalEmailAction;
     }
 
+    // Task #56: forward the resume-section-ai dispatch header so the
+    // merged `resume-section-ai` edge function can route to the correct
+    // sub-handler (enhance, tailor, fill-gap, explain-gap).
+    const resumeSectionAiAction = req.headers['x-resume-section-ai-action'];
+    if (typeof resumeSectionAiAction === 'string' && resumeSectionAiAction) {
+      forwardHeaders['x-resume-section-ai-action'] = resumeSectionAiAction;
+    }
+
     // Task #55: also forward the cron-secret header used by the
     // resume-reminder action of the merged transactional-email router
     // (and by the legacy send-resume-reminder/weekly-digest/

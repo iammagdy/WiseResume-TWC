@@ -10,6 +10,10 @@ import editorLogger from '@/lib/editorLogger';
 import { parseAIErrorResponse, parseAIErrorBody, aiErrorToastMessage, AIError } from '@/lib/aiErrorParser';
 import { ResumeData, SuperTailorResult } from '@/types/resume';
 import { apiFnUrl } from '@/lib/apiFnUrl';
+import {
+  resumeSectionAiFnName,
+  resumeSectionAiHeader,
+} from '@/integrations/supabase/resumeSectionAiFlag';
 
 
 interface QuickActionsProps {
@@ -78,10 +82,11 @@ Return JSON: { "recommendedOrder": ["section1", "section2", ...], "reasoning": "
           });
         }
 
-        const res = await fetch(apiFnUrl(`enhance-section`), {
+        const res = await fetch(apiFnUrl(resumeSectionAiFnName('enhance-section')), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            ...resumeSectionAiHeader('enhance-section'),
             'Authorization': `Bearer ${token}`,
           },
           body: JSON.stringify({

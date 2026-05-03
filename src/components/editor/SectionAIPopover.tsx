@@ -12,6 +12,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useResumeStore } from '@/store/resumeStore';
 import { apiFnUrl } from '@/lib/apiFnUrl';
+import {
+  resumeSectionAiFnName,
+  resumeSectionAiHeader,
+} from '@/integrations/supabase/resumeSectionAiFlag';
 import { getSupabaseToken } from '@/lib/supabaseAuth';
 import { parseAIErrorResponse, aiErrorToastMessage } from '@/lib/aiErrorParser';
 import { SECTION_LABELS } from './LivePreviewPanel';
@@ -138,10 +142,13 @@ export function SectionAIPopover({ open, onOpenChange, sectionName }: SectionAIP
 
     try {
       const token = await getSupabaseToken();
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        ...resumeSectionAiHeader('enhance-section'),
+      };
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
-      const res = await fetch(apiFnUrl('enhance-section'), {
+      const res = await fetch(apiFnUrl(resumeSectionAiFnName('enhance-section')), {
         method: 'POST',
         headers,
         body: JSON.stringify({

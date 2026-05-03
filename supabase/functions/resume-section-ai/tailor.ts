@@ -1,6 +1,15 @@
-import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
-import { getCorsHeaders } from "../_shared/cors.ts";
+// Tailor handler — extracted from supabase/functions/tailor-section/index.ts
+// for the Task #56 resume-section-ai router merge. Behaviour byte-for-byte
+// identical to the pre-merge `tailor-section` function except:
+//   - `serve(wrapHandler('tailor-section', …))` is replaced by the exported
+//     `handleTailor(req, userId, bodyText, corsHeaders)` function. The
+//     router handles CORS preflight, body buffering, dispatch, and
+//     `requireAuth` once at the top.
+//   - `await req.json()` is replaced by `JSON.parse(bodyText)` so the body
+//     is parsed from the router-buffered text.
+// All prompts, validators, error envelopes, status codes, credit
+// deduction and refund paths, model-selection branches, rate-limit keys,
+// and response shapes (including `_providerUsed`) are preserved verbatim.
 import { callAIWithRetry, parseAIJSONWithRetry, sanitizeInputText, toUserError } from "../_shared/aiClient.ts";
 import { selectProviderForTool } from "../_shared/modelRouter.ts";
 const __ROUTE = selectProviderForTool('tailor-section');
@@ -10,7 +19,7 @@ import { getServiceClient } from "../_shared/dbClient.ts";
 import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
 import { logger } from "../_shared/logger.ts";
-import { wrapHandler } from '../_shared/fnLogger.ts';
+import { getCorsHeaders } from "../_shared/cors.ts";
 const log = logger('tailor-section');
 
 
@@ -28,24 +37,16 @@ const VALID_SECTIONS = new Set([
   'summary', 'skills', 'experience', 'education', 'projects', 'certifications', 'awards',
 ]);
 
-serve(wrapHandler("tailor-section", async (req) => {
-  const corsHeaders = getCorsHeaders(req.headers.get('origin'));
-
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
-
+export async function handleTailor(
+  req: Request,
+  userId: string,
+  bodyText: string,
+  corsHeaders: Record<string, string>,
+): Promise<Response> {
   const sizeError = checkPayloadSize(req, 200 * 1024);
   if (sizeError) return sizeError;
 
   try {
-    let userId: string;
-    try {
-      const auth = await requireAuth(req);
-      userId = auth.userId;
-    } catch (authErr) {
-      return authErrorResponse(authErr, req.headers.get('origin'));
-    }
     console.log('[tailor-section] Authenticated user:', userId);
 
     const userPlan = await getUserPlan(userId);
@@ -66,7 +67,7 @@ serve(wrapHandler("tailor-section", async (req) => {
       );
     }
 
-    const body = await req.json();
+    const body = JSON.parse(bodyText);
     const { section, currentContent, jobDescription: rawJobDescription, jobKeywords, userInstructions, intensity, projectItems } = body;
 
     // Validate required fields
@@ -237,4 +238,4 @@ Return this exact JSON:
       { status: userError.status, headers: { ...getCorsHeaders(req.headers.get('origin')), 'Content-Type': 'application/json' } }
     );
   }
-}));
+}

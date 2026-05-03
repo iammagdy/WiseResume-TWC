@@ -4,6 +4,10 @@ import { getSupabaseToken } from '@/lib/supabaseAuth';
 import { extractErrorMessage } from './errorToast';
 import { checkAIFallback } from './aiFallbackToast';
 import { apiFnUrl } from '@/lib/apiFnUrl';
+import {
+  resumeSectionAiFnName,
+  resumeSectionAiHeader,
+} from '@/integrations/supabase/resumeSectionAiFlag';
 
 export interface TailorError extends Error {
   code?: 'rate_limit' | 'credits_exhausted' | 'generic';
@@ -289,10 +293,11 @@ export async function tailorSection(params: {
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
+    ...resumeSectionAiHeader('tailor-section'),
   };
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
-  const res = await fetch(apiFnUrl(`tailor-section`), {
+  const res = await fetch(apiFnUrl(resumeSectionAiFnName('tailor-section')), {
     method: 'POST',
     headers,
     body: JSON.stringify(params),

@@ -1,16 +1,22 @@
-import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { getCorsHeaders } from "../_shared/cors.ts";
-import { callAI, isAIError, toUserError, parseAIJSON } from "../_shared/aiClient.ts";
+// Fill-gap handler — extracted from supabase/functions/fill-gap/index.ts
+// for the Task #56 resume-section-ai router merge. Behaviour byte-for-byte
+// identical to the pre-merge `fill-gap` function except:
+//   - `serve(wrapHandler('fill-gap', …))` is replaced by the exported
+//     `handleFillGap(req, userId, bodyText, corsHeaders)` function. The
+//     router handles CORS preflight, body buffering, dispatch, and
+//     `requireAuth` once at the top.
+//   - `await req.json()` is replaced by `JSON.parse(bodyText)`.
+// All prompts, validators, error envelopes, status codes, credit
+// deduction and refund paths, rate-limit keys, tool/function-call schema,
+// and response shapes are preserved verbatim.
+import { callAI, toUserError, parseAIJSON } from "../_shared/aiClient.ts";
 import { selectProviderForTool } from "../_shared/modelRouter.ts";
 const __ROUTE = selectProviderForTool('fill-gap');
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
-import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
 import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
-import { getServiceClient } from "../_shared/dbClient.ts";
 import { logger } from "../_shared/logger.ts";
-import { wrapHandler } from '../_shared/fnLogger.ts';
 const log = logger('fill-gap');
 
 
@@ -31,19 +37,16 @@ const categoryLabels: Record<string, string> = {
   other: "Other",
 };
 
-serve(wrapHandler("fill-gap", async (req) => {
-  const corsHeaders = getCorsHeaders(req.headers.get("origin"));
-
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
-
+export async function handleFillGap(
+  req: Request,
+  userId: string,
+  bodyText: string,
+  corsHeaders: Record<string, string>,
+): Promise<Response> {
   const sizeError = checkPayloadSize(req, 500 * 1024);
   if (sizeError) return sizeError;
 
   try {
-    const { userId, client } = await requireAuth(req);
-
     const rateCheck = await checkRateLimit(userId, { maxRequests: 20, windowSeconds: 60, actionType: 'fill_gap' });
     if (!rateCheck.allowed) {
       return new Response(
@@ -60,7 +63,7 @@ serve(wrapHandler("fill-gap", async (req) => {
       );
     }
 
-    const { gap, category, userDescription, previousJob, nextJob }: FillGapRequest = await req.json();
+    const { gap, category, userDescription, previousJob, nextJob }: FillGapRequest = JSON.parse(bodyText);
 
     if (!gap || !category) {
       return new Response(
@@ -150,9 +153,10 @@ FACTUAL CONSTRAINTS:
     }
 
     const toolCall = aiResponse.toolCalls?.[0];
+    // deno-lint-ignore no-explicit-any
     let result: any = null;
     if (toolCall?.function?.arguments) {
-      try { result = JSON.parse(toolCall.function.arguments); } catch {}
+      try { result = JSON.parse(toolCall.function.arguments); } catch { /* ignore */ }
     }
     if (!result && aiResponse.content) {
       result = parseAIJSON(aiResponse.content);
@@ -179,4 +183,4 @@ FACTUAL CONSTRAINTS:
       { status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
-}));
+}

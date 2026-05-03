@@ -1,17 +1,25 @@
-import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
+// Enhance handler — extracted from supabase/functions/enhance-section/index.ts
+// for the Task #56 resume-section-ai router merge. Behaviour byte-for-byte
+// identical to the pre-merge `enhance-section` function except:
+//   - `serve(wrapHandler('enhance-section', …))` is replaced by the exported
+//     `handleEnhance(req, userId, bodyText, corsHeaders)` function. The
+//     router (resume-section-ai/index.ts) handles CORS preflight, body
+//     buffering, dispatch, and `requireAuth` once at the top.
+//   - `await req.json()` is replaced by `JSON.parse(bodyText)` so the body
+//     is parsed from the router-buffered text.
+// All prompts, validators, error envelopes, status codes, credit
+// deduction and refund paths, kill-switch / feature-flag / rate-limit
+// keys, and response shapes are preserved verbatim.
 import { callAIWithRetry, isAIError, parseAIJSONWithRetry, sanitizeInputText } from "../_shared/aiClient.ts";
 import { selectProviderForTool } from "../_shared/modelRouter.ts";
 const __ROUTE = selectProviderForTool('enhance-section');
 import { checkRateLimit, recordUsage, getUserPlan } from "../_shared/rateLimiter.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
-import { getCorsHeaders } from "../_shared/cors.ts";
 import { isKillSwitchActive, isFeatureEnabled } from "../_shared/featureFlags.ts";
 import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
 import { logger } from "../_shared/logger.ts";
-import { wrapHandler } from "../_shared/fnLogger.ts";
 import { screenContent } from "../_shared/contentModeration.ts";
 import {
   detectEchoIssues,
@@ -713,13 +721,12 @@ Full response structure:
 }`;
 }
 
-serve(wrapHandler('enhance-section', async (req) => {
-  const corsHeaders = getCorsHeaders(req.headers.get('origin'));
-
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
-
+export async function handleEnhance(
+  req: Request,
+  userId: string,
+  bodyText: string,
+  corsHeaders: Record<string, string>,
+): Promise<Response> {
   if (await isKillSwitchActive('enhance-section')) {
     return new Response(
       JSON.stringify({ success: false, error: 'Feature temporarily unavailable' }),
@@ -731,14 +738,6 @@ serve(wrapHandler('enhance-section', async (req) => {
   if (sizeError) return sizeError;
 
   try {
-    // Authentication via shared middleware (decodes JWT without signature check)
-    let userId: string;
-    try {
-      const auth = await requireAuth(req);
-      userId = auth.userId;
-    } catch (authErr) {
-      return authErrorResponse(authErr, req.headers.get('origin'));
-    }
     console.log('Authenticated user:', userId);
 
     // Server-side rate limiting
@@ -770,7 +769,7 @@ serve(wrapHandler('enhance-section', async (req) => {
 
     // Server-side AI Credits check (Scenario 2.2 Rejection)
 
-    const body = await req.json() as EnhanceRequest & { content?: string; instruction?: string; variants?: boolean };
+    const body = JSON.parse(bodyText) as EnhanceRequest & { content?: string; instruction?: string; variants?: boolean };
     const section = body.section;
     const action = body.action || (section === 'custom' ? 'custom' : undefined);
     const currentContent = body.currentContent ?? body.content;
@@ -1112,4 +1111,4 @@ serve(wrapHandler('enhance-section', async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
-}));
+}

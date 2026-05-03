@@ -1,5 +1,106 @@
 # Edge Function Audit — Mobile parity sweep (2026-05-03)
 
+## Resume-section AI consolidation (Task #56, 2026-05-03)
+
+Four resume-section AI edge functions were merged into a single
+`resume-section-ai` router. All four are user-facing AI helpers wired
+into the resume editor; consolidating frees 3 deployment slots under
+the 100-function Supabase limit.
+
+Functions merged (4 → 1):
+
+- `enhance-section`  → action `enhance`
+- `tailor-section`   → action `tailor`
+- `fill-gap`         → action `fill-gap`
+- `explain-gap`      → action `explain-gap`
+
+### Dispatch contract
+
+- **PRIMARY:** `x-resume-section-ai-action` request header.
+- **FALLBACK:** top-level `body.action` ∈ `{"tailor","fill-gap",
+  "explain-gap"}`.
+
+The header is the primary dispatch path (intentional deviation from
+Task #55) because the `enhance` handler reads its OWN inner
+`body.action` for sub-routing (`generate` / `improve` / `ats_optimize`
+/ `fix_error` / `shorten` / `expand` / `add_metrics` / …). Setting a
+top-level `body.action: 'enhance'` would either clobber that inner
+field or force the router to know about both layers. The header keeps
+the body byte-for-byte identical to what the pre-merge function saw.
+
+The web caller (`rewriteResumeSectionAiInvoke` in
+`src/integrations/supabase/edgeFunctions.ts`, plus the six raw-fetch
+callers — `useAIEnhance`, `useATSSuggestions`, `aiTailor.tailorSection`,
+`SectionAIPopover`, `AIEnhanceSheet`, `tailor/QuickActions`) sets the
+header for ALL four legacy names and never mutates the body.
+
+### Auth posture (intentional deviation from Task #55)
+
+UNLIKE the transactional-email merger, **a single `requireAuth` runs
+once at the top of the router, BEFORE the body is buffered or the
+action is resolved**. This mirrors each pre-merge function which
+called `requireAuth` as the first line of its `serve()` body. The
+router resolves `userId` once and threads it into the per-handler
+function. Failures use the shared `authErrorResponse` envelope, which
+is what every pre-merge function already returned. Consequence:
+unauthenticated callers get `401` regardless of whether the action
+header / body.action is valid — matching pre-merge behaviour rather
+than leaking the action contract via a router-level `400 invalid_action`.
+
+### Router-level payload guard
+
+A `checkPayloadSize(req, 500 * 1024)` Content-Length check runs AFTER
+auth and BEFORE the body is buffered via `req.text()`, using the
+largest per-handler ceiling. This avoids buffering an oversized body
+just to reject it downstream. Per-handler `checkPayloadSize` calls
+still run inside each handler with their original limits (tailor =
+200 KiB; the others = 500 KiB), preserving each handler's pre-merge
+413 envelope exactly.
+
+### Per-handler responsibilities preserved (NOT hoisted)
+
+The router intentionally does **NOT** hoist:
+
+- **kill-switch** (`AI_*_DISABLED` env)
+- **payload-size check** (`checkPayloadSize`, per-handler limit)
+- **rate-limit** (`checkRateLimit`, per-handler key + window)
+- **credit deduction / refund-on-AI-error**
+- **JSON.parse of the body** (each handler parses the buffered
+  `bodyText` itself so a malformed body returns its original
+  per-handler 4xx envelope rather than a router-level 400)
+
+Hoisting any of these would change observable behaviour: the four
+handlers use different credit costs, different refund branches, and
+validate inputs in different order relative to credit deduction. The
+router buffers the body once with `req.text()` and hands the string
+through; each handler then runs its original validate-then-deduct-
+then-call-OpenAI-then-refund-on-error sequence verbatim.
+
+### CORS
+
+CORS preflight is handled at the router boundary BEFORE auth, so
+`OPTIONS` succeeds without a token (parity with every pre-merge
+function).
+
+### Rollout
+
+Flag: `USE_MERGED_RESUME_SECTION_AI` in
+`src/integrations/supabase/resumeSectionAiFlag.ts`. Defaults `true`.
+Originals deleted from `supabase/functions/` in this commit; the
+24-hour soak window is observed against the deployed Supabase
+project (the prior function deployments are still live until the
+next supabase deploy run). Flip the flag to `false` to roll back to
+the legacy function names within that window. After the next deploy
+prunes the originals, this flag has no fallback target and must stay
+`true`.
+
+### Coverage
+
+`tests/e2e/specs/23-resume-section-ai-merged.spec.ts` —
+header dispatch (×4), body.action fallback (×3), unknown-action 400,
+missing-auth 401, CORS preflight (4 + 1 + ancillaries; spec auto-skips
+when `SUPABASE_URL` / `SUPABASE_ANON_KEY` are not configured).
+
 ## Transactional email consolidation (Task #55, 2026-05-03)
 
 Three Resend-backed transactional-email edge functions were merged into a

@@ -1,16 +1,22 @@
-import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { getCorsHeaders } from "../_shared/cors.ts";
-import { callAI, isAIError, toUserError, parseAIJSON } from "../_shared/aiClient.ts";
+// Explain-gap handler — extracted from supabase/functions/explain-gap/index.ts
+// for the Task #56 resume-section-ai router merge. Behaviour byte-for-byte
+// identical to the pre-merge `explain-gap` function except:
+//   - `serve(wrapHandler('explain-gap', …))` is replaced by the exported
+//     `handleExplainGap(req, userId, bodyText, corsHeaders)` function. The
+//     router handles CORS preflight, body buffering, dispatch, and
+//     `requireAuth` once at the top.
+//   - `await req.json()` is replaced by `JSON.parse(bodyText)`.
+// All prompts, validators, error envelopes, status codes, credit
+// deduction and refund paths, rate-limit keys, tool/function-call schema,
+// and response shapes are preserved verbatim.
+import { callAI, toUserError, parseAIJSON } from "../_shared/aiClient.ts";
 import { selectProviderForTool } from "../_shared/modelRouter.ts";
 const __ROUTE = selectProviderForTool('explain-gap');
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
-import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
-import { getServiceClient } from "../_shared/dbClient.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
 import { logger } from "../_shared/logger.ts";
-import { wrapHandler } from '../_shared/fnLogger.ts';
 const log = logger('explain-gap');
 
 
@@ -36,25 +42,16 @@ const reasonLabels: Record<string, string> = {
 
 const MAX_CONTEXT_LENGTH = 2000;
 
-serve(wrapHandler("explain-gap", async (req) => {
-  const corsHeaders = getCorsHeaders(req.headers.get("origin"));
-
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
-
+export async function handleExplainGap(
+  req: Request,
+  userId: string,
+  bodyText: string,
+  corsHeaders: Record<string, string>,
+): Promise<Response> {
   const sizeError = checkPayloadSize(req, 500 * 1024);
   if (sizeError) return sizeError;
 
   try {
-    let userId: string;
-    try {
-      const auth = await requireAuth(req);
-      userId = auth.userId;
-    } catch (authErr) {
-      return authErrorResponse(authErr, req.headers.get("origin"));
-    }
-
     const rateCheck = await checkRateLimit(userId, { maxRequests: 20, windowSeconds: 60, actionType: 'explain_gap' });
     if (!rateCheck.allowed) {
       return new Response(
@@ -71,7 +68,7 @@ serve(wrapHandler("explain-gap", async (req) => {
       );
     }
 
-    const { gap, reason, previousJob, nextJob, additionalContext }: GapRequest = await req.json();
+    const { gap, reason, previousJob, nextJob, additionalContext }: GapRequest = JSON.parse(bodyText);
 
     if (!gap || !reason) {
       return new Response(
@@ -143,9 +140,10 @@ serve(wrapHandler("explain-gap", async (req) => {
     }
 
     const toolCall = aiResponse.toolCalls?.[0];
+    // deno-lint-ignore no-explicit-any
     let result: any = null;
     if (toolCall?.function?.arguments) {
-      try { result = JSON.parse(toolCall.function.arguments); } catch {}
+      try { result = JSON.parse(toolCall.function.arguments); } catch { /* ignore */ }
     }
     if (!result && aiResponse.content) {
       result = parseAIJSON(aiResponse.content);
@@ -172,4 +170,4 @@ serve(wrapHandler("explain-gap", async (req) => {
       { status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
-}));
+}

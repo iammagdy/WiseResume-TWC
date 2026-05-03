@@ -33,12 +33,6 @@ project_id = "jnsfmkzgxsviuthaqlyy"
     verify_jwt = false
   [functions.detect-and-humanize]
     verify_jwt = false
-  [functions.enhance-section]
-    verify_jwt = false
-  [functions.explain-gap]
-    verify_jwt = false
-  [functions.fill-gap]
-    verify_jwt = false
   [functions.generate-cover-letter]
     verify_jwt = false
   [functions.generate-portfolio-bio]
@@ -97,7 +91,7 @@ project_id = "jnsfmkzgxsviuthaqlyy"
     verify_jwt = false
   [functions.create-portfolio-session]
     verify_jwt = false
-  [functions.tailor-section]
+  [functions.resume-section-ai]
     verify_jwt = false
   [functions.wisehire-access]
     verify_jwt = false

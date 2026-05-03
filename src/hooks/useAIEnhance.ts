@@ -10,6 +10,10 @@ import { redactResumeForAI } from '@/lib/piiRedact';
 import { useSettingsStore } from '@/store/settingsStore';
 import { parseAIErrorResponse, parseAIErrorBody, aiErrorToastMessage, AIError } from '@/lib/aiErrorParser';
 import { apiFnUrl } from '@/lib/apiFnUrl';
+import {
+  resumeSectionAiFnName,
+  resumeSectionAiHeader,
+} from '@/integrations/supabase/resumeSectionAiFlag';
 
 
 export type SectionType = 'summary' | 'experience' | 'education' | 'skills' | 'contact' | 'awards' | 'projects' | 'publications' | 'volunteering' | 'certifications' | 'languages';
@@ -134,10 +138,11 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
         });
 
         const doFetch = async (authToken: string | null) =>
-          fetch(apiFnUrl(`enhance-section`), {
+          fetch(apiFnUrl(resumeSectionAiFnName('enhance-section')), {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
+              ...resumeSectionAiHeader('enhance-section'),
               ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}),
             },
             body,

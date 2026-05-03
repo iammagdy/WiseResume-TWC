@@ -5,6 +5,11 @@ import { parseAIErrorBody, aiErrorToastMessage, type AIErrorCode } from '@/lib/a
 import { apiFnUrl } from '@/lib/apiFnUrl';
 import { EDGE_FUNCTIONS_ANON_KEY } from '@/lib/supabaseConstants';
 import { USE_MERGED_TRANSACTIONAL_EMAIL } from '@/integrations/supabase/transactionalEmailFlag';
+import {
+  USE_MERGED_RESUME_SECTION_AI,
+  resumeSectionAiFnName,
+  resumeSectionAiHeader,
+} from '@/integrations/supabase/resumeSectionAiFlag';
 
 /**
  * Classify an edge-function error response. Prefers the structured `error`
@@ -346,6 +351,42 @@ function rewriteTransactionalEmailInvoke(
   };
 }
 
+/**
+ * Resume-section AI consolidation (Task #56).
+ *
+ * Routes the four legacy resume-section AI function names
+ * (`enhance-section`, `tailor-section`, `fill-gap`, `explain-gap`) to
+ * the merged `resume-section-ai` router. Dispatch is signalled via the
+ * `x-resume-section-ai-action` request header (PRIMARY) — header is
+ * preferred because the `enhance` action's body already carries its
+ * own inner `body.action` (generate/improve/ats_optimize/fix_error)
+ * that the original enhance-section function consumes; mutating
+ * `body.action` here would clobber that contract. The router falls
+ * back to `body.action` only when the header is absent.
+ *
+ * Body is forwarded byte-for-byte. Auth header (Bearer) is preserved
+ * so each handler's `requireAuth(req)` call sees exactly what the
+ * pre-merge function saw.
+ *
+ * Flag: `USE_MERGED_RESUME_SECTION_AI` in `./resumeSectionAiFlag.ts`.
+ */
+function rewriteResumeSectionAiInvoke(
+  fnName: string,
+  options: { body?: unknown; headers?: Record<string, string>; method?: string } | undefined,
+): { fnName: string; options: { body?: unknown; headers?: Record<string, string>; method?: string } | undefined } {
+  if (!USE_MERGED_RESUME_SECTION_AI) return { fnName, options };
+  const newFnName = resumeSectionAiFnName(fnName);
+  if (newFnName === fnName) return { fnName, options };
+  const newHeaders: Record<string, string> = {
+    ...(options?.headers ?? {}),
+    ...resumeSectionAiHeader(fnName),
+  };
+  return {
+    fnName: newFnName,
+    options: { ...(options ?? {}), headers: newHeaders },
+  };
+}
+
 function rewriteAdminConfigInvoke(
   fnName: string,
   options: { body?: unknown; headers?: Record<string, string>; method?: string } | undefined,
@@ -405,8 +446,9 @@ export const edgeFunctions = {
       const adminAiOpsRewritten = rewriteAdminAiOpsInvoke(adminConfigRewritten.fnName, adminConfigRewritten.options);
       const adminWisehireRewritten = rewriteAdminWisehireInvoke(adminAiOpsRewritten.fnName, adminAiOpsRewritten.options);
       const transactionalEmailRewritten = rewriteTransactionalEmailInvoke(adminWisehireRewritten.fnName, adminWisehireRewritten.options);
-      const fnName = transactionalEmailRewritten.fnName;
-      options = transactionalEmailRewritten.options;
+      const resumeSectionAiRewritten = rewriteResumeSectionAiInvoke(transactionalEmailRewritten.fnName, transactionalEmailRewritten.options);
+      const fnName = resumeSectionAiRewritten.fnName;
+      options = resumeSectionAiRewritten.options;
       const doInvoke = async (token: string | null) => {
         const userHeaders = options?.headers || {};
         const headers: Record<string, string> = {
