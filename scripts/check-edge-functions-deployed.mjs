@@ -422,17 +422,25 @@ if (orphanedDeployments.length > 0) {
 }
 
 if (possiblyStale.length > 0) {
-  console.log(
-    `WARNING: ${possiblyStale.length} deployed function(s) appear older than the local source:`,
+  // Freshness is one of the five Phase 4 parity rules — under --all (or any
+  // explicit check flag) a stale deployment is a hard failure. Default
+  // invocation (no flags, no --all) treats it as a warning so legacy callers
+  // that just want the inventory check don't suddenly start failing.
+  const stalenessIsBlocking = checkConfig || checkAuth || checkCallers;
+  const label = stalenessIsBlocking ? 'ERROR' : 'WARNING';
+  const sink = stalenessIsBlocking ? console.error : console.log;
+  sink(
+    `${label}: ${possiblyStale.length} deployed function(s) appear older than the local source:`,
   );
   for (const { name, deployedAt, lastCommit } of possiblyStale.sort((a, b) => a.name.localeCompare(b.name))) {
-    console.log(`  - ${name} (deployed ${deployedAt}, last commit ${lastCommit})`);
+    sink(`  - ${name} (deployed ${deployedAt}, last commit ${lastCommit})`);
   }
-  console.log(
+  sink(
     '  (Compared against the last git commit time for the function directory. ' +
       'Re-run the Deploy Supabase Edge Functions workflow to be safe.)',
   );
-  console.log('');
+  sink('');
+  if (stalenessIsBlocking) failed = true;
 }
 
 if (checkConfig) {

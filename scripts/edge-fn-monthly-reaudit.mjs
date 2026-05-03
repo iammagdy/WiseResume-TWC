@@ -2,152 +2,443 @@
 /**
  * Monthly re-audit driver (Task #68, Phase 4 — step 6).
  *
- * Re-runs the standard drift check (inventory + freshness + config + auth +
- * callers) by shelling out to scripts/check-edge-functions-deployed.mjs --all
- * --json=<tmp>, then writes a human-readable monthly snapshot to
- * `reports/edge-fn-drift-<YYYY-MM-DD>.md`.
+ * Re-runs the Task #61 probe-set across every deployed edge function and
+ * writes a human-readable monthly snapshot to
+ * `reports/edge-fn-drift-<YYYY-MM-DD>.md`. Probes per function (4):
  *
- * The intent is NOT to re-implement the full Task #61 probe-set (custom JWT
- * minting, BYOK round-trip, router dispatch byte-counts). That probe-set
- * lived in /tmp/audit/ during the original session and is reproducible from
- * Appendix A/B of reports/edge-fn-full-audit-2026-05-03.md. This driver
- * captures the parity surface that DOES drift between audits — config,
- * inventory, auth posture, freshness — so that the monthly cadence catches
- * regressions without requiring a full audit re-run.
+ *   - CORS preflight  (OPTIONS, expect 200/204 + Access-Control-Allow-*)
+ *   - no-auth         (POST {} with no Authorization header)
+ *   - auth + test JWT (POST {} with HS256 JWT signed by SUPABASE_JWT_SECRET)
+ *   - anon-only       (POST {} with apikey header but no JWT)
  *
- * Exit codes match the underlying drift checker:
- *   0 — all checks passed
- *   1 — at least one check failed (report still written)
- *   2 — configuration / network error
+ * Verdict (matches Task #61 §7 heuristic):
+ *   - RED    : CORS preflight fails OR ≥2 structural drifts
+ *   - YELLOW : exactly 1 structural drift (5xx noauth, 503 auth, etc.)
+ *   - GREEN  : otherwise
+ *
+ * Each run also writes the verdict-per-function to
+ * `reports/.edge-fn-drift-<YYYY-MM-DD>.json` (cleaned up after the markdown
+ * is written) so the script doubles as a JSON producer for downstream
+ * tooling. The diff section of the markdown compares against the most
+ * recent prior `reports/edge-fn-drift-*.md` snapshot — verdict transitions
+ * (e.g. GREEN→YELLOW) and added/removed slugs are called out.
+ *
+ * Required env:
+ *   SUPABASE_ACCESS_TOKEN — Management API (list functions + fetch anon key)
+ *   SUPABASE_JWT_SECRET   — used to mint the HS256 test JWT
+ *   SUPABASE_PROJECT_REF  — defaults to jnsfmkzgxsviuthaqlyy
+ *
+ * Exit codes:
+ *   0 — report written (verdicts may include RED/YELLOW; that's the point)
+ *   2 — env / network / Management API error
  */
-import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { createHmac, randomUUID } from 'node:crypto';
+import {
+  existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync,
+} from 'node:fs';
 import { join } from 'node:path';
 
+// Allow-list (also consumed by scripts/check-edge-functions-deployed.mjs).
+// Used here to (a) skip CORS POST-allow check for GET-only public endpoints
+// like og-image, and (b) reclassify probe drifts that are already tracked
+// under separate fix tasks from RED → YELLOW.
+const ALLOWLIST_PATH = 'scripts/edge-fn-drift-allowlist.json';
+let allowlist = { noAuthExpectedStatus: {}, knownPreExistingDrift: {} };
+try {
+  allowlist = JSON.parse(readFileSync(ALLOWLIST_PATH, 'utf8'));
+} catch (err) {
+  console.error(`WARN: could not read ${ALLOWLIST_PATH} (${err?.message || err}) — proceeding without overrides.`);
+}
+// og-image is the only GET-only function we serve publicly; its OPTIONS
+// preflight legitimately won't list POST. The allow-list signals this via
+// noAuthExpectedStatus[og-image] = 200 (a successful GET-style probe).
+const GET_ONLY_FUNCTIONS = new Set(['og-image']);
+
+const PROJECT_REF = process.env.SUPABASE_PROJECT_REF || 'jnsfmkzgxsviuthaqlyy';
+const ACCESS_TOKEN = process.env.SUPABASE_ACCESS_TOKEN;
+const JWT_SECRET = process.env.SUPABASE_JWT_SECRET;
+const FUNCTIONS_BASE_URL = process.env.SUPABASE_FUNCTIONS_BASE_URL
+  || `https://${PROJECT_REF}.supabase.co/functions/v1`;
+const PROBE_TIMEOUT_MS = Number.parseInt(process.env.EDGE_FN_PROBE_TIMEOUT_MS || '5000', 10);
+const PROBE_CONCURRENCY = Number.parseInt(process.env.EDGE_FN_PROBE_CONCURRENCY || '8', 10);
+const TEST_USER_UUID = '00000000-0000-4000-8000-000000000061';
+const SMOKE_ORIGIN = process.env.EDGE_FN_PROBE_ORIGIN || 'https://wiseresume.com';
+const REPORTS_DIR = 'reports';
 const today = new Date().toISOString().slice(0, 10);
 const reportPath = process.env.EDGE_FN_REAUDIT_REPORT_PATH
-  || join('reports', `edge-fn-drift-${today}.md`);
-const jsonTmpPath = process.env.EDGE_FN_REAUDIT_JSON_PATH
-  || join('reports', `.edge-fn-drift-${today}.json`);
+  || join(REPORTS_DIR, `edge-fn-drift-${today}.md`);
+const jsonOutPath = process.env.EDGE_FN_REAUDIT_JSON_PATH
+  || join(REPORTS_DIR, `.edge-fn-drift-${today}.json`);
 
-mkdirSync('reports', { recursive: true });
+if (!ACCESS_TOKEN) {
+  console.error('SUPABASE_ACCESS_TOKEN is required.');
+  process.exit(2);
+}
+if (!JWT_SECRET) {
+  console.error('SUPABASE_JWT_SECRET is required to mint the test JWT.');
+  process.exit(2);
+}
 
-const child = spawnSync(
-  'node',
-  ['scripts/check-edge-functions-deployed.mjs', '--all', `--json=${jsonTmpPath}`],
-  { stdio: ['ignore', 'pipe', 'pipe'], encoding: 'utf8' },
+mkdirSync(REPORTS_DIR, { recursive: true });
+
+// ── Mint the test JWT (HS256, 1h TTL, role authenticated, no admin claims) ──
+
+function base64url(input) {
+  return Buffer.from(input).toString('base64')
+    .replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_');
+}
+function mintTestJwt() {
+  const header = { alg: 'HS256', typ: 'JWT' };
+  const now = Math.floor(Date.now() / 1000);
+  const payload = {
+    sub: TEST_USER_UUID,
+    role: 'authenticated',
+    aud: 'authenticated',
+    iss: `https://${PROJECT_REF}.supabase.co/auth/v1`,
+    iat: now,
+    exp: now + 3600,
+    session_id: randomUUID(),
+  };
+  const head = base64url(JSON.stringify(header));
+  const body = base64url(JSON.stringify(payload));
+  const sig = createHmac('sha256', JWT_SECRET).update(`${head}.${body}`).digest('base64')
+    .replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_');
+  return `${head}.${body}.${sig}`;
+}
+const TEST_JWT = mintTestJwt();
+
+// ── Fetch the project anon key via Management API ────────────────────────────
+
+async function fetchAnonKey() {
+  const res = await fetch(`https://api.supabase.com/v1/projects/${PROJECT_REF}/api-keys`, {
+    headers: { Authorization: `Bearer ${ACCESS_TOKEN}` },
+  });
+  if (!res.ok) {
+    throw new Error(`Management API ${res.status} fetching api-keys: ${(await res.text()).slice(0, 300)}`);
+  }
+  const keys = await res.json();
+  const anon = Array.isArray(keys) ? keys.find(k => k.name === 'anon') : null;
+  if (!anon?.api_key) throw new Error('No anon key returned by Management API.');
+  return anon.api_key;
+}
+
+// ── List deployed functions ──────────────────────────────────────────────────
+
+async function fetchDeployedFunctions() {
+  const res = await fetch(`https://api.supabase.com/v1/projects/${PROJECT_REF}/functions`, {
+    headers: { Authorization: `Bearer ${ACCESS_TOKEN}` },
+  });
+  if (!res.ok) {
+    throw new Error(`Management API ${res.status} listing functions: ${(await res.text()).slice(0, 300)}`);
+  }
+  const list = await res.json();
+  return list.map(fn => fn.slug || fn.name).filter(Boolean).sort();
+}
+
+// ── Probe a single function ──────────────────────────────────────────────────
+
+async function timedFetch(url, init) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), PROBE_TIMEOUT_MS);
+  try {
+    const r = await fetch(url, { ...init, signal: ctrl.signal });
+    return { ok: true, status: r.status, headers: r.headers };
+  } catch (err) {
+    return { ok: false, status: 0, error: err?.message || String(err), headers: null };
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+async function probeFunction(name, anonKey) {
+  const url = `${FUNCTIONS_BASE_URL}/${name}`;
+
+  // CORS preflight must include the apikey header to clear Supabase's gateway
+  // — without it, the gateway returns a generic 200 with no CORS headers
+  // (the function's own OPTIONS handler never runs). Real browsers send the
+  // apikey via Access-Control-Request-Headers + the actual request includes it.
+  const cors = await timedFetch(url, {
+    method: 'OPTIONS',
+    headers: {
+      'Origin': SMOKE_ORIGIN,
+      'Access-Control-Request-Method': 'POST',
+      'Access-Control-Request-Headers': 'authorization,apikey,content-type',
+      'apikey': anonKey,
+    },
+  });
+  const corsAllowOrigin = cors.headers?.get('access-control-allow-origin') || null;
+  const corsAllowMethods = cors.headers?.get('access-control-allow-methods') || null;
+  const corsAllowHeaders = cors.headers?.get('access-control-allow-headers') || null;
+  // Supabase's edge-functions gateway (Cloudflare-fronted) returns
+  // access-control-allow-{methods,headers} on every successful OPTIONS but
+  // only echoes access-control-allow-origin for origins that match the
+  // gateway's allow-list — so a probe from an arbitrary origin won't see
+  // ACAO even though real browsers from a configured origin do. Treat the
+  // presence of allow-methods (with POST) + allow-headers as the cross-origin
+  // contract; ACAO is *additionally* recorded for the report but does not
+  // gate the verdict. CORS is RED only if the preflight itself fails.
+  const requirePost = !GET_ONLY_FUNCTIONS.has(name);
+  const corsOk = cors.ok
+    && (cors.status === 200 || cors.status === 204)
+    && (!requirePost || (corsAllowMethods?.toUpperCase().includes('POST') ?? false))
+    && (corsAllowMethods?.toUpperCase().match(/GET|POST|PUT|PATCH|DELETE/) !== null);
+
+  const noauth = await timedFetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Origin': SMOKE_ORIGIN },
+    body: '{}',
+  });
+
+  const auth = await timedFetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Origin': SMOKE_ORIGIN,
+      'apikey': anonKey,
+      'Authorization': `Bearer ${TEST_JWT}`,
+    },
+    body: '{}',
+  });
+
+  const anon = await timedFetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Origin': SMOKE_ORIGIN,
+      'apikey': anonKey,
+    },
+    body: '{}',
+  });
+
+  return {
+    name,
+    cors: {
+      ok: corsOk,
+      status: cors.status,
+      allowOrigin: corsAllowOrigin,
+      allowMethods: corsAllowMethods,
+      allowHeaders: corsAllowHeaders,
+    },
+    noauth: { status: noauth.status, ok: noauth.ok },
+    auth:   { status: auth.status,   ok: auth.ok   },
+    anon:   { status: anon.status,   ok: anon.ok   },
+  };
+}
+
+// ── Verdict heuristic (matches Task #61 §7) ──────────────────────────────────
+
+function classifyVerdict(p) {
+  // Structural drift signals:
+  //   - noauth returns 5xx (gateway/handler should 401 first)
+  //   - auth   returns 5xx (handler crashed)
+  //   - auth   returns 503 (service unavailable, e.g. SITE_URL missing)
+  //   - anon   returns 5xx (handler crashed)
+  // CORS preflight failure is treated as a top-level RED regardless.
+  if (!p.cors.ok) {
+    return {
+      verdict: 'RED',
+      reasons: [
+        `CORS preflight failed (status ${p.cors.status}, allow-methods=${p.cors.allowMethods || '<none>'}, allow-headers=${p.cors.allowHeaders ? 'present' : '<none>'})`,
+      ],
+    };
+  }
+  const reasons = [];
+  if (p.noauth.status >= 500) reasons.push(`noauth→${p.noauth.status} (gateway should 401 first)`);
+  if (p.auth.status === 503) reasons.push(`auth→503 (service unavailable)`);
+  else if (p.auth.status >= 500) reasons.push(`auth→${p.auth.status} (handler crashed)`);
+  if (p.anon.status >= 500) reasons.push(`anon→${p.anon.status} (handler crashed)`);
+  if (reasons.length >= 2) return { verdict: 'RED', reasons };
+  if (reasons.length === 1) return { verdict: 'YELLOW', reasons };
+  return { verdict: 'GREEN', reasons: [] };
+}
+
+function applyKnownDriftDowngrade(probe) {
+  // Functions documented in scripts/edge-fn-drift-allowlist.json::
+  // knownPreExistingDrift have an open fix task. We surface them as YELLOW
+  // (so the report still highlights them) but never RED — RED is reserved
+  // for new, undocumented drift.
+  const knownEntry = allowlist?.knownPreExistingDrift?.[probe.name];
+  if (knownEntry && probe.verdict === 'RED') {
+    return {
+      ...probe,
+      verdict: 'YELLOW',
+      reasons: [...probe.reasons, `(known pre-existing drift — ${knownEntry.expectedFix})`],
+    };
+  }
+  return probe;
+}
+
+// ── Diff vs the most recent prior monthly snapshot ───────────────────────────
+
+function loadPriorVerdicts() {
+  if (!existsSync(REPORTS_DIR)) return null;
+  const candidates = readdirSync(REPORTS_DIR)
+    .filter(f => /^edge-fn-drift-\d{4}-\d{2}-\d{2}\.md$/.test(f) && !f.endsWith(`${today}.md`))
+    .sort();
+  if (candidates.length === 0) return null;
+  const prior = candidates[candidates.length - 1];
+  const text = readFileSync(join(REPORTS_DIR, prior), 'utf8');
+  // The verdict-per-function table is written below in serializable form;
+  // parse it back. Lines look like: `| \`<slug>\` | 🟢 GREEN | … |`
+  const verdictRe = /^\|\s*`([^`]+)`\s*\|\s*(?:🟢|🟡|🔴)\s*(GREEN|YELLOW|RED)\s*\|/gm;
+  const map = new Map();
+  let m;
+  while ((m = verdictRe.exec(text)) !== null) {
+    map.set(m[1], m[2]);
+  }
+  return map.size > 0 ? { file: prior, verdicts: map } : null;
+}
+
+// ── Main ────────────────────────────────────────────────────────────────────
+
+const checkedAt = new Date().toISOString();
+let anonKey, deployed;
+try {
+  [anonKey, deployed] = await Promise.all([fetchAnonKey(), fetchDeployedFunctions()]);
+} catch (err) {
+  console.error(err.message);
+  process.exit(2);
+}
+
+console.log(`Probing ${deployed.length} deployed function(s) at ${checkedAt}…`);
+const queue = [...deployed];
+const probes = [];
+await Promise.all(
+  Array.from({ length: Math.max(1, PROBE_CONCURRENCY) }, async () => {
+    while (queue.length) {
+      const name = queue.shift();
+      if (!name) break;
+      const probe = await probeFunction(name, anonKey);
+      probes.push(applyKnownDriftDowngrade({ ...probe, ...classifyVerdict(probe) }));
+    }
+  }),
 );
+probes.sort((a, b) => a.name.localeCompare(b.name));
 
-const stdout = child.stdout || '';
-const stderr = child.stderr || '';
-const exitCode = child.status ?? 2;
+const counts = { GREEN: 0, YELLOW: 0, RED: 0 };
+for (const p of probes) counts[p.verdict]++;
 
-if (!existsSync(jsonTmpPath)) {
-  console.error('Drift checker did not produce a JSON report.');
-  console.error('--- stdout ---\n' + stdout);
-  console.error('--- stderr ---\n' + stderr);
-  process.exit(exitCode || 2);
+const prior = loadPriorVerdicts();
+const transitions = []; // {name, from, to}
+const added = [];
+const removed = [];
+if (prior) {
+  const currentNames = new Set(probes.map(p => p.name));
+  for (const [name, fromVerdict] of prior.verdicts.entries()) {
+    if (!currentNames.has(name)) {
+      removed.push(name);
+      continue;
+    }
+    const cur = probes.find(p => p.name === name);
+    if (cur && cur.verdict !== fromVerdict) {
+      transitions.push({ name, from: fromVerdict, to: cur.verdict });
+    }
+  }
+  const priorNames = new Set(prior.verdicts.keys());
+  for (const p of probes) if (!priorNames.has(p.name)) added.push(p.name);
 }
 
-const report = JSON.parse(readFileSync(jsonTmpPath, 'utf8'));
-const overallEmoji = report.overallPass ? '🟢' : '🔴';
-const overallVerdict = report.overallPass ? 'IN SYNC' : 'DRIFT DETECTED';
+// ── Markdown ────────────────────────────────────────────────────────────────
 
+const emoji = (v) => v === 'GREEN' ? '🟢' : v === 'YELLOW' ? '🟡' : '🔴';
 const lines = [];
-lines.push(`# Edge Functions Monthly Drift Snapshot — ${today}`);
+lines.push(`# Edge Functions Monthly Re-Audit — ${today}`);
 lines.push('');
-lines.push(`**Verdict:** ${overallEmoji} ${overallVerdict}  •  **Project ref:** \`${report.projectRef}\`  •  **Checked at:** ${report.checkedAt}`);
+lines.push(`**Project ref:** \`${PROJECT_REF}\` · **Checked at:** ${checkedAt} · **Functions probed:** ${probes.length}`);
 lines.push('');
-lines.push(`Generated by \`node scripts/edge-fn-monthly-reaudit.mjs\` (Task #68, Phase 4). See ` +
-  `\`scripts/check-edge-functions-deployed.mjs\` for the underlying check logic and ` +
-  `\`scripts/edge-fn-drift-allowlist.json\` for the curated exception set.`);
+lines.push(`**Summary:** 🟢 ${counts.GREEN} GREEN · 🟡 ${counts.YELLOW} YELLOW · 🔴 ${counts.RED} RED`);
 lines.push('');
-lines.push(`## Summary`);
+lines.push(
+  `Generated by \`node scripts/edge-fn-monthly-reaudit.mjs\` (Task #68, Phase 4). Probes per ` +
+  `function: CORS preflight, no-auth POST, auth POST (test JWT signed with SUPABASE_JWT_SECRET, ` +
+  `sub \`${TEST_USER_UUID}\`), anon-only POST. Verdict heuristic matches the Task #61 audit §7 ` +
+  `(RED if CORS fails or ≥2 structural drifts; YELLOW if 1; else GREEN).`,
+);
 lines.push('');
-lines.push(`| Check | Status | Detail |`);
-lines.push(`|---|---|---|`);
-lines.push(`| Inventory parity | ${report.inventory.missingInDeployment.length === 0 && report.inventory.orphanedDeployments.length === 0 ? '🟢' : '🔴'} | ${report.inventory.missingInDeployment.length} missing, ${report.inventory.orphanedDeployments.length} orphan(s) (source: ${report.counts.sourceFunctions}, deployed: ${report.counts.deployedFunctions}) |`);
-lines.push(`| Freshness | ${report.freshness.possiblyStale.length === 0 ? '🟢' : '🟡'} | ${report.freshness.possiblyStale.length} possibly stale (tolerance ${report.freshness.toleranceHours}h) |`);
-if (report.config) {
-  const cfgFail = report.config.missing.length + report.config.mismatches.length;
-  lines.push(`| Config parity (\`verify_jwt\`) | ${cfgFail === 0 ? '🟢' : '🔴'} | ${report.config.missing.length} missing block, ${report.config.mismatches.length} mismatch |`);
+
+if (prior) {
+  lines.push(`## Diff vs ${prior.file}`);
+  lines.push('');
+  if (transitions.length === 0 && added.length === 0 && removed.length === 0) {
+    lines.push('No verdict changes since the prior snapshot. ✅');
+  } else {
+    if (transitions.length > 0) {
+      lines.push('### Verdict transitions');
+      lines.push('');
+      for (const t of transitions) {
+        lines.push(`- \`${t.name}\` — ${emoji(t.from)} ${t.from} → ${emoji(t.to)} ${t.to}`);
+      }
+      lines.push('');
+    }
+    if (added.length > 0) {
+      lines.push('### Added since prior snapshot');
+      lines.push('');
+      for (const n of added) lines.push(`- \`${n}\``);
+      lines.push('');
+    }
+    if (removed.length > 0) {
+      lines.push('### Removed since prior snapshot');
+      lines.push('');
+      for (const n of removed) lines.push(`- \`${n}\``);
+      lines.push('');
+    }
+  }
+} else {
+  lines.push(`## Diff vs prior snapshot`);
+  lines.push('');
+  lines.push('No prior `reports/edge-fn-drift-*.md` found — this is the baseline snapshot.');
+  lines.push('');
 }
-if (report.auth) {
-  const authPass = report.auth.probes.filter(p => p.ok).length;
-  lines.push(`| Auth-posture parity | ${report.auth.failures.length === 0 ? '🟢' : '🔴'} | ${authPass}/${report.auth.probes.length} pass, ${report.auth.failures.length} fail, ${report.auth.knownDrifts.length} known drift |`);
-}
-if (report.callers) {
-  lines.push(`| Caller parity | ${report.callers.orphans.length === 0 ? '🟢' : '🔴'} | ${report.callers.orphans.length} undocumented orphan(s) |`);
+
+lines.push(`## Verdict per function`);
+lines.push('');
+lines.push('| Function | Verdict | CORS | noauth | auth | anon | Reasons |');
+lines.push('|---|---|---|---|---|---|---|');
+for (const p of probes) {
+  const reasons = p.reasons.length ? p.reasons.join('; ') : '';
+  lines.push(
+    `| \`${p.name}\` | ${emoji(p.verdict)} ${p.verdict} | ${p.cors.status}${p.cors.ok ? '' : ' ✗'} ` +
+    `| ${p.noauth.status || '—'} | ${p.auth.status || '—'} | ${p.anon.status || '—'} | ${reasons} |`,
+  );
 }
 lines.push('');
 
-if (report.inventory.missingInDeployment.length > 0) {
-  lines.push(`## Missing in deployment`);
+const yellows = probes.filter(p => p.verdict === 'YELLOW');
+const reds = probes.filter(p => p.verdict === 'RED');
+if (reds.length > 0) {
+  lines.push(`## 🔴 RED (${reds.length})`);
   lines.push('');
-  for (const name of report.inventory.missingInDeployment) lines.push(`- \`${name}\``);
-  lines.push('');
-}
-if (report.inventory.orphanedDeployments.length > 0) {
-  lines.push(`## Orphaned deployments (deployed but no source dir)`);
-  lines.push('');
-  for (const name of report.inventory.orphanedDeployments) lines.push(`- \`${name}\``);
+  for (const p of reds) lines.push(`- \`${p.name}\` — ${p.reasons.join('; ')}`);
   lines.push('');
 }
-if (report.freshness.possiblyStale.length > 0) {
-  lines.push(`## Possibly stale (deployed before last commit)`);
+if (yellows.length > 0) {
+  lines.push(`## 🟡 YELLOW (${yellows.length})`);
   lines.push('');
-  for (const s of report.freshness.possiblyStale) {
-    lines.push(`- \`${s.name}\` — deployed ${s.deployedAt}, last commit ${s.lastCommit}`);
-  }
-  lines.push('');
-}
-if (report.config?.missing?.length) {
-  lines.push(`## Missing config.toml blocks`);
-  lines.push('');
-  for (const c of report.config.missing) lines.push(`- \`${c.name}\` (deployed verify_jwt=${c.deployedValue})`);
-  lines.push('');
-}
-if (report.config?.mismatches?.length) {
-  lines.push(`## verify_jwt mismatches`);
-  lines.push('');
-  for (const c of report.config.mismatches) {
-    lines.push(`- \`${c.name}\` — config=${c.configValue}, deployed=${c.deployedValue}`);
-  }
-  lines.push('');
-}
-if (report.auth?.failures?.length) {
-  lines.push(`## Auth-posture failures (NEW drift)`);
-  lines.push('');
-  for (const c of report.auth.failures) {
-    lines.push(`- \`${c.name}\` — expected ${c.expected}, got ${c.got || '<network error>'}`);
-  }
-  lines.push('');
-}
-if (report.auth?.knownDrifts?.length) {
-  lines.push(`## Auth-posture known drifts (allow-listed, tracked under separate fix tasks)`);
-  lines.push('');
-  for (const c of report.auth.knownDrifts) {
-    lines.push(`- \`${c.name}\` — expected ${c.expected}, got ${c.got}: ${c.knownDrift}`);
-  }
-  lines.push('');
-}
-if (report.callers?.orphans?.length) {
-  lines.push(`## Caller orphans (no source caller AND no allow-list entry)`);
-  lines.push('');
-  for (const o of report.callers.orphans) lines.push(`- \`${o.name}\``);
+  for (const p of yellows) lines.push(`- \`${p.name}\` — ${p.reasons.join('; ')}`);
   lines.push('');
 }
 
 lines.push(`## Reproducing this report`);
 lines.push('');
 lines.push('```bash');
-lines.push('SUPABASE_ACCESS_TOKEN=... node scripts/check-edge-functions-deployed.mjs --all \\');
-lines.push(`  --json=reports/edge-fn-drift-${today}.json`);
-lines.push('node scripts/edge-fn-monthly-reaudit.mjs   # writes the markdown wrapper');
+lines.push('SUPABASE_ACCESS_TOKEN=...   # Management API');
+lines.push('SUPABASE_JWT_SECRET=...     # mints the HS256 test JWT');
+lines.push('node scripts/edge-fn-monthly-reaudit.mjs');
 lines.push('```');
+lines.push('');
+lines.push(
+  `For per-push parity enforcement (inventory, config.toml verify_jwt, no-auth status, callers, ` +
+  `freshness — the 5-rule "Supabase = source of truth" check) see ` +
+  `\`scripts/check-edge-functions-deployed.mjs --all\` and the ` +
+  `\`Check Edge Functions Are Deployed\` GitHub workflow.`,
+);
 lines.push('');
 
 writeFileSync(reportPath, lines.join('\n'));
-rmSync(jsonTmpPath, { force: true });
-console.log(`Monthly re-audit report written to ${reportPath} (verdict: ${overallVerdict})`);
-process.exit(exitCode);
+writeFileSync(jsonOutPath, JSON.stringify({ checkedAt, projectRef: PROJECT_REF, counts, probes }, null, 2));
+// jsonOutPath is intentionally retained alongside the markdown for downstream
+// tooling (e.g. external dashboards). The dotfile prefix keeps it out of
+// glob-based directory listings while still being committed by the workflow.
+console.log(`Monthly re-audit written to ${reportPath} (🟢 ${counts.GREEN} · 🟡 ${counts.YELLOW} · 🔴 ${counts.RED})`);
+console.log(`Verdict snapshot JSON written to ${jsonOutPath}`);
+process.exit(0);
