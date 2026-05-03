@@ -374,19 +374,29 @@ function resolveProdRoute(
     const evtFilter = sinceFilter
       ? `owner_id=eq.${u}&moved_at=gte.${sinceFilter}`
       : `owner_id=eq.${u}`;
-    const safe = async <X>(p: Promise<X>): Promise<X | null> => {
-      try { return await p; } catch { return null; }
+    const safe = async <X>(p: Promise<X>, label: string): Promise<X | null> => {
+      try { return await p; }
+      catch (err) {
+        // Observability: don't silently swallow non-404 failures (auth /
+        // RLS / 5xx). 404 is the expected "table not in Supabase yet"
+        // signal so we keep that quiet to avoid console noise.
+        const status = (err as { status?: number } | null)?.status;
+        if (status !== 404) {
+          console.warn(`[hr-analytics] ${label} fallback to empty:`, status ?? err);
+        }
+        return null;
+      }
     };
     return {
       synthetic: async () => {
         const [candidatesRaw, eventsRaw, companyRowsRaw] = await Promise.all([
           safe(pgGet<Record<string, unknown>>(
             `wisehire_candidates?${candFilter}&select=id,pipeline_stage,resume_text,created_at`,
-          )),
+          ), 'candidates'),
           safe(pgGet<Record<string, unknown>>(
             `wisehire_pipeline_events?${evtFilter}&select=candidate_id,from_stage,to_stage,moved_at&order=moved_at.asc`,
-          )),
-          safe(pgGet<Record<string, unknown>>(`wisehire_companies?owner_id=eq.${u}&select=id&limit=1`)),
+          ), 'pipeline_events'),
+          safe(pgGet<Record<string, unknown>>(`wisehire_companies?owner_id=eq.${u}&select=id&limit=1`), 'companies'),
         ]);
         // Map moved_at → created_at to keep parity with the dev handler's
         // SELECT alias (`moved_at AS created_at`) so useHRAnalytics's
