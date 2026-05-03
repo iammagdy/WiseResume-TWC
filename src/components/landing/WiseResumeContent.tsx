@@ -70,8 +70,8 @@ export function WiseResumeContent({ prefersReducedMotion }: WiseResumeContentPro
               <span>{total.toString().padStart(2, '0')}</span>
               {activeLabel && (
                 <>
-                  <span className="lp-stack-step-chip-sep" aria-hidden="true">·</span>
-                  <span>{activeLabel}</span>
+                  <span className="lp-stack-step-chip-sep lp-stack-step-chip-label" aria-hidden="true">·</span>
+                  <span className="lp-stack-step-chip-label">{activeLabel}</span>
                 </>
               )}
             </div>
