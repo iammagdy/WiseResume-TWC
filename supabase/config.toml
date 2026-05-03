@@ -79,11 +79,9 @@ project_id = "jnsfmkzgxsviuthaqlyy"
     verify_jwt = false
   [functions.parse-resume]
     verify_jwt = false
-  [functions.portfolio-meta]
+  [functions.portfolio-public]
     verify_jwt = false
   [functions.recruiter-simulation]
-    verify_jwt = false
-  [functions.resolve-short-link]
     verify_jwt = false
   [functions.score-resume]
     verify_jwt = false
@@ -96,8 +94,6 @@ project_id = "jnsfmkzgxsviuthaqlyy"
   [functions.tailor-resume]
     verify_jwt = false
   [functions.token-exchange]
-    verify_jwt = false
-  [functions.track-portfolio-view]
     verify_jwt = false
   [functions.validate-api-key]
     verify_jwt = false
@@ -126,8 +122,6 @@ project_id = "jnsfmkzgxsviuthaqlyy"
   [functions.admin-wisehire-waitlist]
     verify_jwt = false
   [functions.create-portfolio-session]
-    verify_jwt = false
-  [functions.portfolio-interest]
     verify_jwt = false
   [functions.submit-contact-request]
     verify_jwt = false

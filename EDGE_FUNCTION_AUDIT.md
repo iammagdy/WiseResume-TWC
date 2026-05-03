@@ -1,5 +1,111 @@
 # Edge Function Audit — Mobile parity sweep (2026-05-03)
 
+## Portfolio public consolidation (Task #49, 2026-05-03)
+
+Four anonymous-readable portfolio edge functions were merged into a
+single `portfolio-public` router. Each sub-handler keeps its
+**original** method (GET/POST), original parse-vs-auth ordering, and
+original CORS headers — preserving byte-for-byte parity with the
+pre-merge functions, including malformed-JSON 400 envelopes.
+
+Dispatch is read in this priority order:
+
+1. **`?action=` query parameter** (preferred). The web helper
+   `apiFnUrl()` always appends this when rewriting legacy fn names,
+   so every real caller (browser fetch, sendBeacon, GET crawlers,
+   short-link redirects) carries the query. When the query is
+   present the router does **not** touch the request body — the
+   original Request is forwarded to the sub-handler unchanged so
+   `await req.json()` runs on the untouched stream and any
+   malformed-JSON 400 envelope (e.g. `portfolio-interest`'s
+   `{ error: 'Invalid JSON' }`) is surfaced by the handler itself,
+   byte-for-byte identical to the pre-merge function.
+2. **`body.action` JSON field** (literal task contract). Used as a
+   fallback for callers that omit the query string. Only consulted
+   when no query action is present, and only on POST/PUT/PATCH;
+   even then the body bytes are rebuilt into a fresh Request before
+   delegating, so handlers see the exact original request shape.
+
+GET endpoints (`meta`, `resolve-short-link`) are GET-only in both the
+pre-merge and merged versions — converting them to POST would break
+crawler / short-link-redirect callers, so the query-string dispatch
+is required.
+
+Merged (4 → 1):
+
+- `portfolio-meta`        → query `?action=meta` (GET). Reads
+  `username` from the URL searchParams; crawler vs. browser branching
+  unchanged; `Cache-Control: public, max-age=300` preserved.
+- `portfolio-interest`    → query `?action=interest` (POST). Body
+  shape unchanged (`{ username, token? }`). Anonymous; bot guard /
+  foreign-referer guard / IP rate limits / unique-token dedup all
+  preserved verbatim.
+- `track-portfolio-view`  → query `?action=track-view` (POST). Body
+  shape unchanged (full beacon payload). Geolocation, PTR lookup,
+  notification, short-link click increment all preserved verbatim.
+- `resolve-short-link`    → query `?action=resolve-short-link` (GET).
+  Slug regex / length checks / 404 lockout / wildcard-CORS shape all
+  preserved verbatim. The merged router does NOT downgrade the
+  wildcard `Access-Control-Allow-Origin: *` for this action — the
+  pre-merge function deliberately served any origin since arbitrary
+  `/l/<slug>` clicks come from any domain.
+
+Web client routing:
+
+- `src/lib/apiFnUrl.ts` adds a single `USE_MERGED_PORTFOLIO_PUBLIC`
+  constant (default `true`). When on, every `apiFnUrl()` call for one
+  of the four legacy fn names is rewritten to
+  `portfolio-public?action=<x>`, with any pre-existing query string
+  (e.g. `resolve-short-link?id=xxx`) appended after the action.
+  Flip to `false` to fall back to the originals if any are still
+  deployed.
+- The same helper bypasses the dev Express proxy for the
+  `portfolio-public` router and calls Supabase directly. The dev
+  proxy at `/api/fn/:fnName` strips query strings before forwarding,
+  which would drop the `?action=` dispatch parameter — going direct
+  in dev avoids that without touching `server/index.ts`. CORS is
+  already allow-listed for `http://localhost:5000` /
+  `http://localhost:5173` in `supabase/functions/_shared/cors.ts`,
+  and the router is anonymous so no token bridging is required.
+- The `admin-update-profile` cache-bust hook continues to call the
+  legacy `portfolio-meta?username=…` URL during the soak window
+  (both endpoints run live in prod). The downstream
+  redeploy + cleanup task owns retargeting that hook to
+  `portfolio-public?action=meta&username=…` at the same time it
+  deletes the four legacy functions.
+
+Original sources removed:
+
+- `supabase/functions/portfolio-meta/`
+- `supabase/functions/portfolio-interest/`
+- `supabase/functions/track-portfolio-view/`
+- `supabase/functions/resolve-short-link/`
+- Corresponding `[functions.*]` entries removed from
+  `supabase/config.toml`. New entry `[functions.portfolio-public]`
+  added (`verify_jwt = false`, matching the originals).
+
+Tests:
+
+- `tests/e2e/specs/16-portfolio-public-merged.spec.ts` asserts the
+  merged router reproduces the pre-merge response envelopes for all
+  four actions on the cheapest parity surfaces (the 400-bad-request
+  branches that don't require a real DB row or a real user). The
+  spec covers BOTH dispatch mechanisms (body.action and ?action=
+  query) and explicitly asserts the CORS `Access-Control-Allow-Origin`
+  header parity — including the deliberate wildcard ACAO on
+  resolve-short-link and the origin-allow-list ACAO on the other
+  three actions. Auto-skips when `SUPABASE_URL` / `SUPABASE_ANON_KEY`
+  are missing.
+
+Soak / cleanup ownership:
+
+- The downstream *Full edge-function redeploy + platform verification*
+  task owns the prod-side deploy of `portfolio-public`, the 24-hour
+  soak, and the eventual `DELETE /v1/projects/<ref>/functions/<name>`
+  for the four originals. Net deployed function count drops by 3.
+
+---
+
 ## Coupons consolidation (Task #48, 2026-05-03)
 
 Three coupon-related functions were merged into a single `coupons`
