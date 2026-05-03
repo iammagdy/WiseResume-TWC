@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Send, CheckCircle2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiFnUrl } from '@/lib/apiFnUrl';
+import { USE_MERGED_TRANSACTIONAL_EMAIL } from '@/integrations/supabase/transactionalEmailFlag';
 
 interface PortfolioContactFormProps {
   username: string;
@@ -35,20 +36,32 @@ export function PortfolioContactForm({ username, accentColor, ownerName }: Portf
     setErrorMsg('');
 
     try {
-      const res = await fetch(apiFnUrl(`submit-contact-request`), {
+      // Task #55: route through the merged `transactional-email` router
+      // when USE_MERGED_TRANSACTIONAL_EMAIL is on. The flag is the
+      // single source of truth in
+      // `src/integrations/supabase/transactionalEmailFlag.ts` and is
+      // shared with the rewrite helper and sendFeedback.
+      const fnName = USE_MERGED_TRANSACTIONAL_EMAIL ? 'transactional-email' : 'submit-contact-request';
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      const body: Record<string, unknown> = {
+        type: 'portfolio_contact',
+        email: email.trim(),
+        subject: `Portfolio message from ${name.trim()}`,
+        message: message.trim(),
+        website,
+        metadata: {
+          portfolio_username: username,
+          visitor_name: name.trim(),
+        },
+      };
+      if (USE_MERGED_TRANSACTIONAL_EMAIL) {
+        body.action = 'contact-request';
+        headers['x-transactional-email-action'] = 'contact-request';
+      }
+      const res = await fetch(apiFnUrl(fnName), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'portfolio_contact',
-          email: email.trim(),
-          subject: `Portfolio message from ${name.trim()}`,
-          message: message.trim(),
-          website,
-          metadata: {
-            portfolio_username: username,
-            visitor_name: name.trim(),
-          },
-        }),
+        headers,
+        body: JSON.stringify(body),
       });
 
       if (res.ok) {

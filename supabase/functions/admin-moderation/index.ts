@@ -1,3 +1,16 @@
+/**
+ * admin-moderation — Review queue + take-down actions for user-generated
+ * content (public portfolios, bios, custom domains) flagged either by
+ * automated rules or by user reports.
+ *
+ * Trigger: DevKit "Moderation" pane (queue list + per-item action) and
+ *   the in-product "Report" button which feeds the same queue.
+ * Auth: ADMIN ONLY (`requireAdminAuth` — DevKit session token).
+ * Dispatch contract: POST `{action, ...args}` where `action` ∈
+ *   `'list-queue' | 'review-item' | 'takedown' | 'restore'`. Mutating
+ *   actions write to `moderation_decisions` + `audit_logs`. Returns
+ *   200 `{success:true, ...}` per branch; unknown action → 400.
+ */
 import { getServiceClient } from '../_shared/dbClient.ts';
 import { requireAdminAuth } from '../_shared/adminAuth.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';

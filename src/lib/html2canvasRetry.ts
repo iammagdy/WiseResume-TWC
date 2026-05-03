@@ -1,5 +1,3 @@
-import { Capacitor } from '@capacitor/core';
-
 /**
  * Pre-tags every SVG in a **live** DOM container with its real rendered
  * dimensions as `data-pdf-w` / `data-pdf-h` attributes.  These survive
@@ -108,8 +106,7 @@ export async function captureWithRetry(
   maxAttempts = 3,
 ): Promise<HTMLCanvasElement> {
   const { default: html2canvasFn } = await import('html2canvas');
-  const isNative = Capacitor.isNativePlatform();
-  const timeouts = isNative ? [10_000, 18_000, 28_000] : [8_000, 15_000, 25_000];
+  const timeouts = [8_000, 15_000, 25_000];
 
   let lastError: Error | null = null;
 

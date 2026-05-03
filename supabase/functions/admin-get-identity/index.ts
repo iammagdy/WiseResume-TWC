@@ -1,3 +1,17 @@
+/**
+ * admin-get-identity — Resolve a Supabase user_id (or email) to a unified
+ * identity record across Supabase Auth + Kinde Management API.
+ *
+ * Trigger: called from the DevKit "User detail" pane and from
+ *   `admin-merge-identity` when the operator needs a side-by-side view of
+ *   the auth/Kinde state for one user.
+ * Auth: ADMIN ONLY (`requireAdminAuth` — DevKit session token).
+ * Dispatch contract: POST `{user_id?, email?}` (one is required). Returns
+ *   `{success:true, identity:{supabase, kinde}}` on success. The Kinde
+ *   lookup degrades gracefully — if `KINDE_M2M_CLIENT_ID/SECRET` are
+ *   unset or the API call fails, `identity.kinde` is `null` and the
+ *   response still succeeds (200) so the UI can render the Supabase side.
+ */
 import { getServiceClient } from '../_shared/dbClient.ts';
 import { requireAdminAuth } from '../_shared/adminAuth.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';

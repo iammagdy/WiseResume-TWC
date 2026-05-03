@@ -11,7 +11,7 @@
  */
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { getCorsHeaders } from '../_shared/cors.ts';
-import { requireAuth } from '../_shared/authMiddleware.ts';
+import { requireAuth, tryAuth } from '../_shared/authMiddleware.ts';
 import { getServiceClient } from '../_shared/dbClient.ts';
 import { encrypt, maskKey } from '../_shared/encryption.ts';
 import { SUPPORTED_PROVIDERS } from '../_shared/providers.ts';
@@ -29,8 +29,11 @@ serve(wrapHandler("manage-api-keys", async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
+  const auth = await tryAuth(req, corsHeaders);
+  if (auth instanceof Response) return auth;
+
   try {
-    const { userId } = await requireAuth(req);
+    const { userId } = auth;
     const db = getServiceClient();
 
     // ── GET — list saved keys (masked) ──────────────────────────────────────
@@ -141,6 +144,17 @@ serve(wrapHandler("manage-api-keys", async (req) => {
 
     return json({ error: 'Method not allowed' }, 405);
   } catch (err) {
+    // AuthError → 401 parity with gateway's verify_jwt path. Duck-typed so
+    // this file does not need to import the AuthError class. Audit #61 (H1).
+    if (
+      typeof err === 'object' && err !== null &&
+      (err as { name?: string }).name === 'AuthError'
+    ) {
+      const status = typeof (err as { status?: unknown }).status === 'number'
+        ? (err as { status: number }).status
+        : 401;
+      return json({ error: 'unauthorized', message: (err as Error).message || 'Unauthorized' }, status);
+    }
     console.error('[manage-api-keys]', err);
     return json({ error: 'Internal server error', message: (err as Error).message }, 500);
   }

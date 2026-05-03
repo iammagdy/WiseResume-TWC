@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { invokeWisehireAccess } from '@/lib/wisehire/wisehireAccessClient';
 
 export type EmailCheckReason =
   | 'invalid_format'
@@ -67,9 +67,9 @@ export function useWaitlistEmailCheck() {
     setState({ status: 'checking', reason: null, alsoExistingUser: false, checkedEmail: trimmed });
 
     try {
-      const { data, error } = await supabase.functions.invoke<CheckResponse>(
-        'wisehire-waitlist-check-email',
-        { body: { email: trimmed } },
+      const { data, error } = await invokeWisehireAccess<CheckResponse>(
+        'waitlist-check-email',
+        { email: trimmed },
       );
 
       if (myId !== requestIdRef.current) {

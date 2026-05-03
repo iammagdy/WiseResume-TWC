@@ -1,5 +1,86 @@
 # Changelog
 
+## 2026-05-02 — Task #34: Native mobile app rebuild (Expo) + Capacitor removal
+
+Rebuilt the WiseResume mobile client from scratch using **Expo SDK 51** + **Expo Router**. The new client lives at the repo root in `mobile/`, talks to the same Supabase project / Kinde tenant / AI providers as the web app (no second backend), and replaces the previous Capacitor scaffold which is fully deleted from the web repo.
+
+**Capacitor removed from web repo (T001):**
+- Deleted `capacitor.config.ts`, `docs/mobile.md`, `scripts/check-mobile-bundle.mjs`, `src/pages/DevToolsStub.tsx`.
+- `package.json`: removed `@capacitor/*`, `@capgo/capacitor-native-biometric`, `@capacitor/cli`, and the `mobile:*` + `build:mobile` scripts.
+- `vite.config.ts`: dropped the `mode === 'mobile'` `VITE_DISABLE_DEVKIT` rewrite block — web is now web-only.
+- `src/AppInterior.tsx`: collapsed the conditional `DevToolsPage` lazy import to its real path; the DevToolsStub branch is gone.
+- Stubbed Capacitor consumers so they compile under web-only assumptions (each was a noop branch under `Capacitor.isNativePlatform()` returning `false`): `src/lib/openExternal.ts`, `src/lib/haptics.ts`, `src/lib/html2canvasRetry.ts`, `src/lib/downloadUtils.ts`, `src/hooks/useDeepLinking.ts`, `src/hooks/useBiometricLock.ts`, `src/hooks/useBackButton.ts`, `src/hooks/useAppLifecycle.ts`, `src/hooks/useStatusBar.ts`. Removed the same conditional branches from `src/main.tsx`, `src/contexts/AuthContext.tsx`, `src/pages/EditorPage.tsx`, `src/pages/DevToolsPage.tsx`, `src/components/career/SkillCourseCard.tsx`. `rg @capacitor|@capgo` returns nothing.
+
+**Expo mobile scaffold (T002):**
+- `mobile/package.json` — Expo SDK 51 deps (expo-router, expo-auth-session, expo-secure-store, expo-notifications, expo-local-authentication, expo-camera, expo-av, expo-print, expo-file-system, react-native-purchases, @sentry/react-native, @supabase/supabase-js, TanStack Query + persist + MMKV, Zustand, react-hook-form, zod). Scripts for `start`, `android`, `ios`, `build:dev|preview|prod`, `submit:ios|android`, `update`, `lint`, `typecheck`, `test`.
+- `mobile/app.config.ts` — env-driven Expo config: bundle id `com.wiseresume.app`, scheme `wiseresume`, associated domains `applinks:resume.thewise.cloud`, full Info.plist usage descriptions (camera, microphone, photo library, Face ID, ATT), Android intent filter for `https://resume.thewise.cloud` with `autoVerify: true`, plugins for `expo-router`, `expo-secure-store`, `expo-local-authentication`, `expo-notifications`, `expo-web-browser`, `expo-image-picker`, `expo-camera`, `expo-av`. `runtimeVersion: { policy: 'appVersion' }` and typed-routes experiment enabled.
+- `mobile/eas.json` — `development` (dev client, simulator), `preview` (internal APK / TestFlight), `production` (auto-incremented build numbers, channel-tagged for OTA).
+- `mobile/tsconfig.json` (strict, `@/*` path alias), `mobile/babel.config.js` (expo preset + module-resolver + reanimated), `mobile/metro.config.js`, `mobile/.env.example`, `mobile/.gitignore`, `mobile/expo-env.d.ts`.
+- Source tree under `mobile/src/`:
+  - `lib/config.ts` — typed reader over `Constants.expoConfig.extra`, throws on missing required keys.
+  - `lib/secureStore.ts` — async key/value adapter on `expo-secure-store` with web localStorage fallback for development.
+  - `lib/supabase.ts` — Supabase client wired to secureStore; `autoRefreshToken: false`, `persistSession: false` (we never hold a Supabase user session — the bridge JWT is the only credential).
+  - `lib/auth.ts` — Kinde PKCE flow via `expo-auth-session`, exchanges the Kinde access token for a WiseResume bridge JWT through the existing `token-exchange` edge function. Stores `wr.kinde.token`, `wr.bridge.token`, `wr.bridge.user` in Keychain / Keystore.
+  - `lib/api.ts` — `callEdgeFunction<T>()` and `rest<T>()` helpers; both attach `apikey` + bearer bridge JWT, throw a typed `ApiError` on non-2xx.
+  - `theme/tokens.ts` — palette + light/dark `ThemeTokens` mirroring the web Tailwind config (Deep Indigo + Warm Amber); spacing, radius, typography scales.
+  - `theme/ThemeProvider.tsx` — context that resolves `system | light | dark` against `useColorScheme()` and the persisted user preference.
+  - `state/queryClient.ts` — TanStack Query client with MMKV-backed persister (`createSyncStoragePersister`) keyed at `wr.tq.cache.v1`, 24h gcTime, 30s staleTime.
+  - `state/settingsStore.ts` — Zustand persisted store for theme, biometric lock, per-category notification prefs, onboarding flag.
+  - `state/authStore.ts` — Zustand store for the resolved bridge identity + bootstrap-ready flag.
+  - `components/ui/{Button,Input,Card,Screen,EmptyState}.tsx` — primitive components; Button fires `Haptics.impactAsync` on press.
+  - `hooks/useMe.ts` (TanStack Query against `me` edge function), `hooks/useResumes.ts` (list + detail + update via PostgREST), `hooks/usePushRegistration.ts` (registers Expo push token with `register-push-token` after sign-in; non-fatal on failure), `hooks/useBiometricGate.ts` (relocks on background after configurable timeout).
+- File-based routes under `mobile/app/`:
+  - `_layout.tsx` bootstraps SplashScreen, GestureHandlerRootView, SafeAreaProvider, PersistQueryClientProvider, ThemeProvider; rehydrates stored bridge identity.
+  - `index.tsx` redirects to `(auth)/onboarding`, `(auth)/sign-in`, or `(tabs)/dashboard` based on identity + onboarding flag.
+  - `(auth)/_layout.tsx`, `(auth)/onboarding.tsx` (3-slide swipeable intro), `(auth)/sign-in.tsx` (Kinde-only).
+  - `(tabs)/_layout.tsx` (Ionicons tab bar, gates tabs on identity, mounts push registration), `(tabs)/{dashboard,resumes,tracker,interview,profile}.tsx`.
+  - Detail screens: `resume/[id].tsx`, `resume/new.tsx`, `job/[id].tsx`, `job/new.tsx`, `interview/[track].tsx` (records voice via `expo-av` and grades via edge fn), `interview/new.tsx`, `cover-letter/{index,new,[id]}.tsx`, `resignation-letter/{index,new,[id]}.tsx`, `settings.tsx`, `paywall.tsx` (lazy-loads `react-native-purchases`, falls back to static pricing in dev), `+not-found.tsx`.
+
+**New backend edge functions (T003):** *(updated post-review: added 2 missing interview endpoints + biometric lock integration + Detox scaffold)*
+
+- `supabase/functions/interview-next-question/index.ts` — auth-required, returns the next question for a track. Pulls from `interview_question_bank` when populated; falls back to a static seed bank per track so a fresh deployment never returns "no questions". Best-effort logs an `interview_attempts` row.
+- `supabase/functions/interview-grade-answer/index.ts` — auth-required, charges 1 credit, routes through the shared `aiClient` + `modelRouter` (so cost attribution + provider failover behave like every other AI call), returns strict-JSON `{score, summary, strengths, improvements}` validated by `parseAIJSON`. Refunds the credit on AI failure. Updates the matching `interview_attempts` row.
+- Both registered in `supabase/config.toml` with `verify_jwt = false`.
+
+**Biometric lock integration:**
+- `mobile/src/components/BiometricLockOverlay.tsx` — full-screen modal that consumes `useBiometricGate` and blocks the entire app when locked. Auto-prompts for Face ID / Touch ID on mount.
+- Mounted once at the root inside `mobile/app/_layout.tsx`'s `ThemedShell`, so it covers every navigator including auth and tabs without per-screen wiring.
+
+**Detox E2E scaffold:**
+- `mobile/.detoxrc.js` — iOS simulator + Android emulator configurations.
+- `mobile/e2e/jest.config.js` and `mobile/e2e/critical-flows.test.ts` covering the six P1 flows from `mobile/QA.md`: cold-start/onboarding, Kinde auth, resumes list+detail, tracker create-job, interview practice, PDF export. Selectors use `testID` props (no copy assertions). Run on a developer workstation with `npx detox test --configuration ios.sim.debug` after `npm install --save-dev detox jest`.
+
+**Original edge function set (T003):**
+- `supabase/functions/register-push-token/index.ts` — auth-required upsert into `device_push_tokens` with `(user_id, token)` conflict key.
+- `supabase/functions/send-push/index.ts` — service-to-service fan-out via the Expo push API; gated on `EDGE_INTERNAL_TOKEN` header; honors per-category `notification_prefs` JSON column so users get only what they opted into.
+- `supabase/functions/revenuecat-webhook/index.ts` — gated on `REVENUECAT_WEBHOOK_AUTH_TOKEN`; maps `INITIAL_PURCHASE` / `RENEWAL` / `CANCELLATION` / `EXPIRATION` / etc. to plan reconciliation in the existing `subscriptions` table; best-effort write to `billing_events` audit table.
+- `supabase/functions/mobile-config/index.ts` — anonymous-read endpoint returning min-supported / latest version, optional banner, feature flags. Compares semver per platform and computes `update_required` / `update_available`.
+- `supabase/functions/export-{resume,cover-letter,resignation-letter,portfolio}-pdf/index.ts` — auth-required PDF export skeletons sharing `_shared/pdfRenderer.ts` (calls `PDF_RENDERER_URL`, uploads bytes to the `exports` Storage bucket, returns a 1h signed URL).
+- All eight functions registered in `supabase/config.toml` with `verify_jwt = false` (each owns its own auth — `requireAuth` middleware or shared-secret header).
+
+**New additive migration (T004):**
+- `supabase/migrations/20260601000000_mobile_device_tokens_and_versions.sql` creates `device_push_tokens` (RLS: self-only) and `mobile_app_versions` (public-read) with seed rows for both platforms at `1.0.0`. Reuses `gen_random_uuid()`, FKs to `profiles(user_id)` with `on delete cascade`, `updated_at` triggers, indexed on `(user_id) where revoked_at is null` and `(platform, updated_at desc)`. Strictly additive — no existing column types touched.
+
+**Universal-link manifests (T005):**
+- `public/.well-known/apple-app-site-association` — declares `TEAMID_PLACEHOLDER.com.wiseresume.app` for `/auth/callback*`, `/r/*`, `/p/*`, `/job/*`, `/cover-letter/*`, `/dashboard*` and `webcredentials`.
+- `public/.well-known/assetlinks.json` — declares `com.wiseresume.app` for `delegate_permission/common.handle_all_urls` + `get_login_creds` with placeholder Play signing SHA-256.
+
+**Documentation (T006):**
+- `mobile/README.md` — stack table, first-time setup, env requirements, auth bridge explanation, deep-link instructions, push notifications overview, in-app purchases, build/submit/OTA workflow, troubleshooting, deferred Phase-2 items.
+- `mobile/QA.md` — manual QA matrix scaffold across 6 device classes covering cold-start, auth, dashboard, resumes, tracker, interview, cover/resignation letters, profile/settings, push, payments, universal links.
+- `mobile/store/README.md` — required-asset checklist for App Store and Play Console with copy guidelines.
+- `mobile/assets/README.md` — placeholder note for icon / splash / adaptive-icon / favicon assets the brand team will drop in.
+- Deleted `Project Atlas/01-Currently Implemented/critical-systems/13-mobile-capacitor.md`; replaced with `13-mobile-expo.md` covering the new repo layout, auth bridge, eight edge functions, two new tables, universal links, IAP, push, and explicit Phase-2 deferrals.
+- `replit.md` — Mobile bullet rewritten end-to-end (Capacitor → Expo SDK 51 + Expo Router, new edge fns named, migration named, links to README and Atlas card). Bottom-of-file dependency line updated from "Capacitor: Native shell for mobile builds" to "Expo SDK 51: Native shell for the iOS + Android client at `mobile/`".
+- `Project Atlas/04-For You (Plain Language)/coming-soon.md` — new "WiseResume on your phone" section in plain language explaining the rebuild, what ships in v1, and what's deferred. Last-verified date bumped to 2026-05-02.
+
+**Deviations from the task brief (per session-plan):**
+- Cannot install npm deps for the mobile package in this environment (footprint is multi-GB and requires native toolchains); `mobile/package.json` ships fully-pinned and the user runs `cd mobile && npm install` once on their workstation.
+- Edge functions are functional skeletons that own their auth, request validation, and core happy path; the four `export-*-pdf` endpoints intentionally delegate to a headless-Chromium service at `PDF_RENDERER_URL` — we do not ship Chromium inside an edge function.
+- No EAS project init, store assets, or screenshots generated (those run on a developer's Mac with the Apple Developer + Play Console accounts).
+- No Detox or Maestro tests — Phase 1 ships with the manual QA matrix in `mobile/QA.md`.
+- All Phase-2 items (inline section editing, in-app rich PDF preview, Apple Sign-In / Google One-Tap, Live Activities) deferred per the task brief: "after Phase 1 is in store review".
+
 ## 2026-05-02 — v3.11.0: Capacitor mobile pipeline + AI cost attribution
 
 Release rolling up Tasks #29, #30, and #31 since v3.10.2. The two user-visible features are the AI cost attribution panel in the admin Dev Kit (Task #29 — see entry below) and the end-to-end Capacitor mobile build pipeline (Task #30 — see entry below). Task #31 is a docs-only Atlas hygiene cleanup that resolved a `09-*` filename collision created by Task #30 and corrected a stale "PWA wrapper" description in `platform-overview.md`. Files touched in the version-bump commit itself: `package.json` (3.10.2 → 3.11.0), `package-lock.json` (top-level `version` field synced), `public/changelog.json` (new v3.11.0 entry, v3.10.2 `latest` flag flipped to `false`), and this `CHANGELOG.md` heading. No code change; per-task code entries are preserved unchanged below.

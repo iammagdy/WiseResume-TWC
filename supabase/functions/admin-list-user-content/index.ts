@@ -1,3 +1,18 @@
+/**
+ * admin-list-user-content — Inventory of every user-owned row across the
+ * core content tables (resumes, portfolios, cover letters, AI chats, etc.)
+ * for one target user.
+ *
+ * Trigger: DevKit "User detail → Content" tab; also called by support
+ *   workflows that need a one-shot view of a user's footprint before
+ *   delete or merge operations.
+ * Auth: ADMIN ONLY (`requireAdminAuth` — DevKit session token).
+ * Dispatch contract: POST `{target_user_id}`. Returns 200
+ *   `{success:true, content:{resumes:[...], portfolios:[...], ...}}` —
+ *   each list is capped (typically 50 rows) and pre-projected to the
+ *   minimum fields the UI renders. Missing input → 400; unexpected
+ *   throw → 500.
+ */
 import { getServiceClient } from '../_shared/dbClient.ts';
 import { requireAdminAuth } from '../_shared/adminAuth.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';

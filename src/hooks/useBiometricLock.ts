@@ -1,12 +1,13 @@
-import { useState, useEffect, useCallback, useRef, useLayoutEffect } from 'react';
-import { NativeBiometric, BiometryType } from '@capgo/capacitor-native-biometric';
-import { App } from '@capacitor/app';
-import { Capacitor } from '@capacitor/core';
-import { haptics } from '@/lib/haptics';
+/**
+ * Web stub for the former Capacitor-backed biometric lock. The
+ * Capacitor native shell was retired in favor of a standalone Expo
+ * app (`mobile/`), which handles biometric unlock via
+ * `expo-local-authentication`. On the web there is no biometric API,
+ * so this hook reports the feature as unavailable and never locks.
+ */
+export type BiometryTypeString = 'faceId' | 'fingerprint' | 'iris' | 'none';
 
-type BiometryTypeString = 'faceId' | 'fingerprint' | 'iris' | 'none';
-
-interface UseBiometricLockReturn {
+export interface UseBiometricLockReturn {
   isAvailable: boolean;
   biometryType: BiometryTypeString;
   isLocked: boolean;
@@ -17,163 +18,17 @@ interface UseBiometricLockReturn {
   lock: () => void;
 }
 
-const CURTAIN_CLASS = 'wr-security-curtain';
-
-function removeCurtain() {
-  if (Capacitor.isNativePlatform()) {
-    document.body.classList.remove(CURTAIN_CLASS);
-  }
-}
-
-function addCurtain() {
-  if (Capacitor.isNativePlatform()) {
-    document.body.classList.add(CURTAIN_CLASS);
-  }
-}
-
-export function useBiometricLock(enabled: boolean, lockTimeout: number = 30000): UseBiometricLockReturn {
-  const [isAvailable, setIsAvailable] = useState(false);
-  const [biometryType, setBiometryType] = useState<BiometryTypeString>('none');
-  const [isLocked, setIsLocked] = useState(true);
-  const [isAuthenticating, setIsAuthenticating] = useState(false);
-  const backgroundTimeRef = useRef<number | null>(null);
-
-  const mapBiometryType = (type: BiometryType): BiometryTypeString => {
-    switch (type) {
-      case BiometryType.FACE_ID:
-        return 'faceId';
-      case BiometryType.TOUCH_ID:
-      case BiometryType.FINGERPRINT:
-        return 'fingerprint';
-      // Future-proof: newer Android strong biometry APIs
-      case BiometryType.IRIS_AUTHENTICATION:
-        return 'iris';
-      default:
-        return 'fingerprint'; // Safe fallback for unknown strong biometry
-    }
-  };
-
-  const checkAvailability = useCallback(async () => {
-    if (!Capacitor.isNativePlatform()) {
-      setIsAvailable(false);
-      setBiometryType('none');
-      return;
-    }
-
-    try {
-      const result = await NativeBiometric.isAvailable();
-      setIsAvailable(result.isAvailable);
-      setBiometryType(mapBiometryType(result.biometryType));
-    } catch (error) {
-      console.warn('Biometric check failed:', error);
-      setIsAvailable(false);
-      setBiometryType('none');
-    }
-  }, []);
-
-  const authenticate = useCallback(async (): Promise<boolean> => {
-    if (!isAvailable || isAuthenticating) return false;
-
-    setIsAuthenticating(true);
-    
-    try {
-      await NativeBiometric.verifyIdentity({
-        reason: 'Verify your identity to open WiseResume',
-        title: 'Authenticate',
-        subtitle: 'Use biometrics to unlock',
-        description: 'Protect your sensitive resume data',
-        useFallback: true,
-        fallbackTitle: 'Use Device Password',
-      });
-      
-      haptics.success();
-      removeCurtain();
-      setIsLocked(false);
-      setIsAuthenticating(false);
-      return true;
-    } catch (error) {
-      haptics.error();
-      setIsAuthenticating(false);
-      console.warn('Biometric authentication failed:', error);
-      return false;
-    }
-  }, [isAvailable, isAuthenticating]);
-
-  const unlock = useCallback(() => {
-    removeCurtain();
-    setIsLocked(false);
-  }, []);
-
-  const lock = useCallback(() => {
-    setIsLocked(true);
-  }, []);
-
-  // Check availability on mount
-  useEffect(() => {
-    checkAvailability();
-  }, [checkAvailability]);
-
-  // Handle app state changes for background lock
-  useEffect(() => {
-    if (!Capacitor.isNativePlatform() || !enabled) return;
-
-    let listenerHandle: { remove: () => void } | null = null;
-
-    const setupListener = async () => {
-      listenerHandle = await App.addListener('appStateChange', ({ isActive }) => {
-        if (!isActive) {
-          // App went to background — apply curtain synchronously before OS screenshot
-          addCurtain();
-          backgroundTimeRef.current = Date.now();
-        } else {
-          // App returned to foreground
-          const bgTime = backgroundTimeRef.current;
-          if (bgTime) {
-          const timeInBackground = Date.now() - bgTime;
-            if (lockTimeout === 0 || timeInBackground >= lockTimeout) {
-              setIsAuthenticating(false); // Reset if stuck during background scan
-              setIsLocked(true);
-              // Keep curtain on — authenticate() or unlock() will remove it
-            } else {
-              // Timeout not exceeded, remove curtain
-              removeCurtain();
-            }
-          } else {
-            removeCurtain();
-          }
-          backgroundTimeRef.current = null;
-        }
-      });
-    };
-
-    setupListener();
-
-    return () => {
-      listenerHandle?.remove();
-    };
-  }, [enabled, lockTimeout]);
-
-  // If not enabled, always unlock and remove curtain
-  useLayoutEffect(() => {
-    if (!enabled) {
-      removeCurtain();
-      setIsLocked(false);
-    }
-  }, [enabled]);
-
-  // Cleanup curtain on unmount
-  useEffect(() => {
-    return () => removeCurtain();
-  }, []);
-
+export function useBiometricLock(_enabled: boolean, _lockTimeout: number = 30000): UseBiometricLockReturn {
+  void _enabled;
+  void _lockTimeout;
   return {
-    isAvailable,
-    biometryType,
-    isLocked,
-    isAuthenticating,
-    authenticate,
-    checkAvailability,
-    unlock,
-    lock,
+    isAvailable: false,
+    biometryType: 'none',
+    isLocked: false,
+    isAuthenticating: false,
+    authenticate: async () => true,
+    checkAvailability: async () => {},
+    unlock: () => {},
+    lock: () => {},
   };
 }

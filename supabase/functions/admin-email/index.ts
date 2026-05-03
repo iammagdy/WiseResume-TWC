@@ -1,3 +1,19 @@
+/**
+ * admin-email — Admin-side email management surface (Resend audiences,
+ * broadcast/transactional sends, contact list management) used by the
+ * DevKit "Email" pane.
+ *
+ * Trigger: invoked from the DevKit Email pane (audience CRUD, broadcast
+ *   send, single-user transactional resend) and from a couple of admin
+ *   automations (e.g. plan-change announcements).
+ * Auth: ADMIN ONLY (`requireAdminAuth` — DevKit session token).
+ * Dispatch contract: POST `{action, ...args}` where `action` selects one of
+ *   the audience helpers (`add-contact | remove-contact | list-contacts |
+ *   audience-stats | list-broadcasts`) or a send action (`send-broadcast |
+ *   send-transactional`). Each branch returns its own `{success, ...}`
+ *   envelope; failures map upstream Resend status codes onto 4xx/5xx
+ *   responses.
+ */
 import * as React from 'npm:react@18.3.1'
 import { renderAsync } from 'npm:@react-email/components@0.0.22'
 import { getServiceClient } from '../_shared/dbClient.ts'

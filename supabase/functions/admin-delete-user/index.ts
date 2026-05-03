@@ -1,3 +1,17 @@
+/**
+ * admin-delete-user — Permanently remove a Supabase auth user (and any
+ * cascading rows) on behalf of the DevKit admin panel.
+ *
+ * Trigger: "Delete account" button in the DevKit Users pane. For full
+ *   user-owned-table purge see the separate `hard-purge` function.
+ * Auth: ADMIN ONLY (`requireAdminAuth` — DevKit session token).
+ * Dispatch contract: POST `{target_user_id, actor_email?}`. Returns 200
+ *   `{success:true}` on success, 400 `{error:'target_user_id is required'}`
+ *   on missing input, 404 `{error:'not_found'}` when the auth user does
+ *   not exist (so the UI can distinguish from a real server error), 500
+ *   on any other failure. Writes one `audit_logs` row
+ *   (`category:'admin', action:'account_deleted'`).
+ */
 import { getServiceClient } from '../_shared/dbClient.ts';
 import { requireAdminAuth } from '../_shared/adminAuth.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';

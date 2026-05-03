@@ -242,6 +242,20 @@ async function handleWebhook(req: Request): Promise<Response> {
     )
   }
 
+  // Audit task #65 §6 H4: probe short-circuit. Once the Standard Webhooks
+  // signature has been verified above, allow a 2xx happy-path response WITHOUT
+  // invoking Resend so the post-deploy probe in
+  // `scripts/probe-webhooks-signed.mjs` can assert positive==200 (signature
+  // accepted) and negative==401 (wrong-secret rejected) without sending mail.
+  // The probe flag is meaningless without a valid signature, so this branch
+  // is unreachable from the public internet without `SUPABASE_AUTH_HOOK_SECRET`.
+  if (payload && payload.__probe === true) {
+    return new Response(
+      JSON.stringify({ ok: true, probe: true }),
+      { status: 200, headers: { ...hookCors, 'Content-Type': 'application/json' } }
+    )
+  }
+
   // The email action type is in different places depending on the hook format
   // Supabase Auth Hooks send: { user, email_data { token, token_hash, redirect_to, email_action_type } }
   let emailType = payload.email_data?.email_action_type || payload.data?.action_type || payload.type

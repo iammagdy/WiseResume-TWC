@@ -97,3 +97,19 @@ jobs:
         env:
           SUPABASE_PROJECT_REF: jnsfmkzgxsviuthaqlyy
         run: npm run smoke:functions
+
+      # Task #65 (audit H4): live signed-payload probes for the two webhook
+      # functions the unauthenticated smoke-test cannot positively verify.
+      # Each probe pair asserts BOTH:
+      #   - positive (valid signature) → endpoint-specific expected status
+      #     (auth-email-hook=200 via __probe short-circuit, kinde-webhook=200)
+      #   - negative (invalid signature) → 401
+      # The script SKIPs (exit 0) when either secret is not configured, so
+      # this step is non-blocking on forks but enforced on the canonical
+      # repo where both secrets are set.
+      - name: Probe signed webhooks (auth-email-hook + kinde-webhook)
+        env:
+          SUPABASE_PROJECT_REF: jnsfmkzgxsviuthaqlyy
+          SUPABASE_AUTH_HOOK_SECRET: ${{ secrets.SUPABASE_AUTH_HOOK_SECRET }}
+          KINDE_WEBHOOK_SECRET: ${{ secrets.KINDE_WEBHOOK_SECRET }}
+        run: node scripts/probe-webhooks-signed.mjs

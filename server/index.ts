@@ -3228,6 +3228,70 @@ app.all('/api/fn/:fnName', async (req, res) => {
       forwardHeaders['Authorization'] = authHeader;
     }
 
+    // Task #48: forward the coupons-router dispatch header so the merged
+    // `coupons` edge function can route to the correct sub-handler.
+    const couponsAction = req.headers['x-coupons-action'];
+    if (typeof couponsAction === 'string' && couponsAction) {
+      forwardHeaders['x-coupons-action'] = couponsAction;
+    }
+
+    // Task #51: forward the admin-user-ops dispatch header.
+    const adminUserOp = req.headers['x-admin-user-op'];
+    if (typeof adminUserOp === 'string' && adminUserOp) {
+      forwardHeaders['x-admin-user-op'] = adminUserOp;
+    }
+
+    // Task #52: forward the admin-config dispatch header so the merged
+    // `admin-config` edge function can route to the correct sub-handler.
+    const adminConfigAction = req.headers['x-admin-config-action'];
+    if (typeof adminConfigAction === 'string' && adminConfigAction) {
+      forwardHeaders['x-admin-config-action'] = adminConfigAction;
+    }
+
+    // Task #53: forward the admin-ai-ops dispatch header so the merged
+    // `admin-ai-ops` edge function can route to the correct sub-handler
+    // (caps, routing, inspect-keys, refresh-test-models).
+    const adminAiOp = req.headers['x-admin-ai-op'];
+    if (typeof adminAiOp === 'string' && adminAiOp) {
+      forwardHeaders['x-admin-ai-op'] = adminAiOp;
+    }
+
+    // Task #54: forward the admin-wisehire dispatch header so the merged
+    // `admin-wisehire` edge function can route to the correct sub-handler
+    // (invite, reset-user, revoke-invite, waitlist).
+    const adminWisehireOp = req.headers['x-admin-wisehire-op'];
+    if (typeof adminWisehireOp === 'string' && adminWisehireOp) {
+      forwardHeaders['x-admin-wisehire-op'] = adminWisehireOp;
+    }
+
+    // Task #55: forward the transactional-email dispatch header so the
+    // merged `transactional-email` edge function can route to the
+    // correct sub-handler (contact-email, contact-request,
+    // resume-reminder).
+    const transactionalEmailAction = req.headers['x-transactional-email-action'];
+    if (typeof transactionalEmailAction === 'string' && transactionalEmailAction) {
+      forwardHeaders['x-transactional-email-action'] = transactionalEmailAction;
+    }
+
+    // Task #56: forward the resume-section-ai dispatch header so the
+    // merged `resume-section-ai` edge function can route to the correct
+    // sub-handler (enhance, tailor, fill-gap, explain-gap).
+    const resumeSectionAiAction = req.headers['x-resume-section-ai-action'];
+    if (typeof resumeSectionAiAction === 'string' && resumeSectionAiAction) {
+      forwardHeaders['x-resume-section-ai-action'] = resumeSectionAiAction;
+    }
+
+    // Task #55: also forward the cron-secret header used by the
+    // resume-reminder action of the merged transactional-email router
+    // (and by the legacy send-resume-reminder/weekly-digest/
+    // wisehire-invite-reminder cron functions). The dev proxy never
+    // originates these, but a service-to-service caller hitting the
+    // proxy needs this to reach the function intact.
+    const cronSecret = req.headers['x-cron-secret'];
+    if (typeof cronSecret === 'string' && cronSecret) {
+      forwardHeaders['x-cron-secret'] = cronSecret;
+    }
+
     const isFormData = (req.headers['content-type'] || '').includes('multipart/form-data');
 
     let bodyToSend: string | Buffer | undefined;

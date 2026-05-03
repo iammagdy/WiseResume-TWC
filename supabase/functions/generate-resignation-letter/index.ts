@@ -7,7 +7,7 @@ import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
-import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
+import { requireAuth, tryAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 import { insertResignationLetter } from "../_shared/letterPersistence.ts";
 import { logger } from "../_shared/logger.ts";
 import { wrapHandler } from '../_shared/fnLogger.ts';
@@ -28,8 +28,11 @@ serve(wrapHandler("generate-resignation-letter", async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const auth = await tryAuth(req, corsHeaders);
+  if (auth instanceof Response) return auth;
+
   try {
-    const { userId, client } = await requireAuth(req);
+    const { userId, client } = auth;
 
     const rateCheck = await checkRateLimit(userId, { maxRequests: 10, windowSeconds: 60, actionType: 'resignation' });
     if (!rateCheck.allowed) {

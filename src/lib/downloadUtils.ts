@@ -4,8 +4,6 @@
  * with proper memory cleanup via URL.revokeObjectURL().
  */
 
-import { Capacitor } from '@capacitor/core';
-
 interface DownloadFileOptions {
   blob: Blob;
   fileName: string;
@@ -22,7 +20,6 @@ interface DownloadResult {
 
 const isIOS = () => /iPhone|iPad|iPod/i.test(navigator.userAgent);
 const isAndroid = () => /Android/i.test(navigator.userAgent);
-const isCapacitorNative = () => Capacitor.isNativePlatform();
 
 /**
  * Downloads a file using the best available method for the current platform.
@@ -35,11 +32,6 @@ export async function downloadFile(options: DownloadFileOptions): Promise<Downlo
   const { blob, fileName, mimeType, maxRetries = 1 } = options;
   const effectiveMimeType = mimeType || blob.type || 'application/octet-stream';
 
-  // Capacitor WebView: always use navigator.share for reliable file saving
-  if (isCapacitorNative()) {
-    return downloadNativeShare(blob, fileName, effectiveMimeType, maxRetries);
-  }
-
   if (isIOS()) {
     return downloadIOS(blob, fileName, effectiveMimeType, maxRetries);
   }
@@ -49,48 +41,6 @@ export async function downloadFile(options: DownloadFileOptions): Promise<Downlo
   }
 
   return downloadDesktop(blob, fileName);
-}
-
-/**
- * Native Capacitor share — works on both iOS and Android WebViews.
- * Presents the OS share sheet where user can "Save to Files".
- */
-async function downloadNativeShare(
-  blob: Blob,
-  fileName: string,
-  mimeType: string,
-  maxRetries: number
-): Promise<DownloadResult> {
-  const file = new File([blob], fileName, { type: mimeType });
-
-  if (navigator.canShare?.({ files: [file] })) {
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      try {
-        await navigator.share({ files: [file], title: fileName });
-        return { success: true, method: 'share' };
-      } catch (err: unknown) {
-        if (err instanceof Error && err.name === 'AbortError') {
-          return { success: false, cancelled: true, method: 'share' };
-        }
-        if (attempt < maxRetries) continue;
-      }
-    }
-  }
-
-  // Fallback: open blob in new tab (rare on native but just in case)
-  const url = URL.createObjectURL(blob);
-  try {
-    const newTab = window.open(url, '_blank');
-    if (newTab) {
-      setTimeout(() => URL.revokeObjectURL(url), 5 * 60 * 1000); // 5 minutes for large PDFs
-      return { success: true, method: 'open' };
-    }
-  } catch {
-    // popup blocked
-  }
-
-  URL.revokeObjectURL(url);
-  return { success: false, method: 'open' };
 }
 
 async function downloadIOS(

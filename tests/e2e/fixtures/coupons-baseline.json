@@ -1,0 +1,15 @@
+{
+  "_comment": "Baseline response fixtures for the coupons merge (Task #48). Captured against the pre-merge originals on 2026-05-03 by hitting each function with an unauthenticated request and an empty/missing-code body. The merged `coupons` router MUST reproduce these exact envelopes for byte-for-byte parity.",
+  "redeem.missing_code": {
+    "status": 500,
+    "body": { "success": false, "error": "Missing authorization header" }
+  },
+  "validate.missing_code": {
+    "status": 500,
+    "body": { "valid": false, "error": "Missing authorization header" }
+  },
+  "admin_manage.list_unauth": {
+    "status": 401,
+    "body_keys": ["error"]
+  }
+}

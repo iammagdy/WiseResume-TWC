@@ -21,6 +21,10 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import type { ActionType, SectionType } from '@/hooks/useAIEnhance';
 import { useAIAction } from '@/hooks/useAIAction';
 import { apiFnUrl } from '@/lib/apiFnUrl';
+import {
+  resumeSectionAiFnName,
+  resumeSectionAiHeader,
+} from '@/integrations/supabase/resumeSectionAiFlag';
 import { formatDegreeAndField } from '@/lib/educationFormat';
 import { AIError, parseAIErrorResponse, parseAIErrorBody, type AIErrorCode } from '@/lib/aiErrorParser';
 import {
@@ -255,10 +259,11 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
         throw new AIError({ code: 'unauthorized', status: 401, message: 'No session' });
       }
 
-      const res = await fetch(apiFnUrl(`enhance-section`), {
+      const res = await fetch(apiFnUrl(resumeSectionAiFnName('enhance-section')), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...resumeSectionAiHeader('enhance-section'),
           'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({

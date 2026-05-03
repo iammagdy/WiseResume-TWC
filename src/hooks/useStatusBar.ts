@@ -1,10 +1,10 @@
 import { useEffect } from 'react';
-import { Capacitor } from '@capacitor/core';
 import { isBrowser, getSafeMatchMedia } from '@/lib/envUtils';
 
 /**
- * Determines if the current theme is dark by checking the <html> class
- * and falling back to the OS preference.
+ * Web-only status-bar / theme-color sync. Capacitor's native status
+ * bar plugin was removed; the standalone Expo app (`mobile/`) handles
+ * native status-bar styling via `expo-status-bar`.
  */
 function isDarkTheme(): boolean {
   if (!isBrowser) return true;
@@ -15,21 +15,14 @@ function isDarkTheme(): boolean {
   );
 }
 
-/**
- * Reads the actual --background CSS variable and converts it from HSL to a hex string.
- * Falls back to known theme colors if the variable isn't available.
- */
 function getThemeColor(): string {
   const dark = isDarkTheme();
   if (!isBrowser) return dark ? '#09091a' : '#ffffff';
-
   try {
     const raw = getComputedStyle(document.documentElement)
       .getPropertyValue('--background')
       .trim();
-
     if (raw) {
-      // raw is e.g. "240 20% 4%" (Tailwind HSL without commas)
       const parts = raw.split(/\s+/);
       if (parts.length >= 3) {
         const h = parseFloat(parts[0]);
@@ -39,9 +32,8 @@ function getThemeColor(): string {
       }
     }
   } catch {
-    // getComputedStyle may throw in SSR-like environments
+    // getComputedStyle may throw outside the browser
   }
-
   return dark ? '#09091a' : '#ffffff';
 }
 
@@ -57,81 +49,31 @@ function hslToHex(h: number, s: number, l: number): string {
   return `#${f(0)}${f(8)}${f(4)}`;
 }
 
-async function applyNativeStatusBar(color: string) {
-  if (!Capacitor.isNativePlatform()) return;
-  try {
-    const { StatusBar, Style } = await import('@capacitor/status-bar');
-    const dark = isDarkTheme();
-    await StatusBar.setOverlaysWebView({ overlay: false });
-    await StatusBar.show();
-    await StatusBar.setBackgroundColor({ color });
-    // Style.Dark = light-colored icons (for dark backgrounds)
-    // Style.Light = dark-colored icons (for light backgrounds)
-    await StatusBar.setStyle({ style: dark ? Style.Dark : Style.Light });
-  } catch {
-    // Plugin not available (web build) — silently ignore
-  }
+function setMetaThemeColor(color: string) {
+  if (!isBrowser) return;
+  const metaThemeColor = document.querySelector('meta[name="theme-color"]');
+  if (metaThemeColor) metaThemeColor.setAttribute('content', color);
 }
 
-/**
- * Hook to control the status bar color for a specific page.
- * Updates both the HTML meta tag (PWA) and the native status bar (Capacitor).
- */
 export function useStatusBar(color?: string) {
   useEffect(() => {
     if (!isBrowser) return;
-    const statusBarColor = color || getThemeColor();
-
-    // Update PWA meta tag
-    const metaThemeColor = document.querySelector('meta[name="theme-color"]');
-    if (metaThemeColor) {
-      metaThemeColor.setAttribute('content', statusBarColor);
-    }
-
-    // Update native status bar
-    applyNativeStatusBar(statusBarColor);
+    setMetaThemeColor(color || getThemeColor());
   }, [color]);
 }
 
-/**
- * Global hook — syncs the status bar with the active theme.
- * Observes class changes on <html> and system prefers-color-scheme.
- * Call once inside AppRoutes.
- */
 export function useStatusBarThemeSync() {
   useEffect(() => {
     if (!isBrowser) return;
-
-    const updateStatusBar = () => {
-      const color = getThemeColor();
-
-      // Update PWA meta tag
-      const metaThemeColor = document.querySelector('meta[name="theme-color"]');
-      if (metaThemeColor) {
-        metaThemeColor.setAttribute('content', color);
-      }
-
-      // Update native status bar
-      applyNativeStatusBar(color);
-    };
-
-    // Watch for theme class changes on <html>
-    const observer = new MutationObserver(updateStatusBar);
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['class'],
-    });
-
-    // Watch for OS-level theme changes
+    const update = () => setMetaThemeColor(getThemeColor());
+    const observer = new MutationObserver(update);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
     const mediaQuery = getSafeMatchMedia('(prefers-color-scheme: dark)');
-    mediaQuery.addEventListener('change', updateStatusBar);
-
-    // Initial apply
-    updateStatusBar();
-
+    mediaQuery.addEventListener('change', update);
+    update();
     return () => {
       observer.disconnect();
-      mediaQuery.removeEventListener('change', updateStatusBar);
+      mediaQuery.removeEventListener('change', update);
     };
   }, []);
 }

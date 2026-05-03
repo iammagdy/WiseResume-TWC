@@ -1,10 +1,37 @@
+/**
+ * smart-fit-rewrite — Bullet-level rewrite suggestions for the resume editor's
+ * "Smart Fit" panel. Accepts a batch of candidate bullets + the target JD,
+ * extracts protected tokens (numbers, dates, JD keywords), runs a guarded AI
+ * rewrite for each, and returns per-candidate outcomes.
+ *
+ * Trigger: invoked from the resume editor when the user opens Smart Fit
+ *   ("rewrite" mode) and from the post-accept telemetry pipeline
+ *   ("telemetry" mode).
+ * Auth: AUTHENTICATED USER (`requireAuth`). Each call decrements one credit
+ *   per rewritten candidate via `checkAndDeductCredit`; failed AI calls
+ *   refund the credit.
+ * Dispatch contract: POST `{mode?:'rewrite'|'telemetry', candidates?,
+ *   jobDescription?, telemetry?}`. The default mode is `rewrite`. Returns
+ *   `{success:true, outcomes:[...]}` on success; rate-limit / credit /
+ *   payload-size violations return their own typed envelopes.
+ *
+ * Empty-input intent (audit H2 — Task #67, Phase 3): when `candidates` is
+ *   absent OR explicitly an empty array, the function returns
+ *   `{success:true, outcomes:[], reason:"no-op-empty-input"}` (HTTP 200) —
+ *   not a 400. The editor calls this endpoint optimistically after the
+ *   user filters every suggestion out via the accept/reject UI, so a 400
+ *   there would be a UX regression for input the user did not author.
+ *   The `reason` field lets callers distinguish a genuine no-op from a
+ *   successful rewrite. See the in-branch comment at the no-op site for
+ *   the full rationale.
+ */
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAIWithRetry, parseAIJSON, toUserError, sanitizeInputText } from "../_shared/aiClient.ts";
 import { selectProviderForTool } from "../_shared/modelRouter.ts";
 const __ROUTE = selectProviderForTool('one-page-optimizer');
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
-import { requireAuth } from "../_shared/authMiddleware.ts";
+import { requireAuth, tryAuth } from "../_shared/authMiddleware.ts";
 import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
 import { logger } from "../_shared/logger.ts";
@@ -248,8 +275,11 @@ Deno.serve(wrapHandler("smart-fit-rewrite", async (req) => {
   const sizeError = checkPayloadSize(req, 200 * 1024);
   if (sizeError) return sizeError;
 
+  const auth = await tryAuth(req, corsHeaders);
+  if (auth instanceof Response) return auth;
+
   try {
-    const { userId } = await requireAuth(req);
+    const { userId } = auth;
     const bodyText = await req.text();
     if (bodyText.length > MAX_PAYLOAD) {
       return new Response(
@@ -275,8 +305,29 @@ Deno.serve(wrapHandler("smart-fit-rewrite", async (req) => {
 
     const candidates = (parsed.candidates ?? []).slice(0, MAX_CANDIDATES);
     if (candidates.length === 0) {
+      // Empty-candidates branch is intentionally a graceful no-op (HTTP 200,
+      // not 400). Rationale: the resume editor calls this endpoint
+      // optimistically when the user clicks "Apply suggestions" — if the
+      // accept/reject UI has already filtered every candidate out, the array
+      // arrives empty and the right behaviour is "do nothing successfully"
+      // rather than surfacing an error the user did not cause. The explicit
+      // `reason` field lets callers distinguish this no-op from a real
+      // success with rewrites.
+      //
+      // Scope of this branch: a missing/null `candidates` field (the `?? []`
+      // fallback) and an explicit `candidates: []` both hit this path —
+      // they are treated as the same "nothing to do" no-op. A non-array
+      // truthy value (e.g. a string or object) is NOT coerced by `??` and
+      // would throw at the `.slice(...)` call above, falling out to the
+      // outer try/catch as a 500 — that is acceptable because the
+      // orchestrator never sends a malformed `candidates` value in
+      // production. Real per-candidate schema validation (id/text/
+      // targetLength etc.) still happens in the AI loop below for
+      // non-empty inputs and surfaces through the standard `toUserError`
+      // envelope.
+      // Resolved 2026-05-03 (Task #67, audit H2 — keep 200 with clearer payload).
       return new Response(
-        JSON.stringify({ success: true, outcomes: [] }),
+        JSON.stringify({ success: true, outcomes: [], reason: 'no-op-empty-input' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }

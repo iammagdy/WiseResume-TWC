@@ -1,3 +1,19 @@
+/**
+ * admin-audit-logs — Read/write access to the `audit_logs` table for the
+ * DevKit admin panel.
+ *
+ * Trigger: invoked by the DevKit "Audit Log" pane (read mode) and by other
+ *   admin functions/UI flows that need to record an entry (write mode).
+ * Auth: ADMIN ONLY (`requireAdminAuth` — DevKit session token). Non-admin
+ *   callers get the standard 401/403 envelope from the shared helper.
+ * Dispatch contract:
+ *   body.mode === 'write' → insert one entry (`entry.user_id|category|action`
+ *     required; `entry.metadata` optional). Returns `{success:true}`.
+ *   body.mode unset/'read' → list entries with optional filters
+ *     (`limit/offset/action_filter/category_filter/target_user_id/search/
+ *     date_from/date_to`). Returns `{success:true, logs:[...], total:N}`
+ *     with `user_email` enrichment from `profiles`.
+ */
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { requireAdminAuth } from '../_shared/adminAuth.ts';

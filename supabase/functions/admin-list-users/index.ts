@@ -1,3 +1,16 @@
+/**
+ * admin-list-users — Paged, filterable directory of Supabase auth users
+ * joined with `profiles` for the DevKit "Users" pane.
+ *
+ * Trigger: DevKit Users tab (initial load + search + pagination); also the
+ *   "Find user" autocomplete inside other admin panes.
+ * Auth: ADMIN ONLY (`requireAdminAuth` — DevKit session token).
+ * Dispatch contract: POST `{limit?, offset?, search?, plan_filter?,
+ *   sort_by?, sort_dir?}`. Returns 200 `{success:true, users:[...],
+ *   total:N}` where each user row carries auth + profile + plan/credit
+ *   summary fields. Invalid sort args fall back to default ordering;
+ *   unexpected throws → 500.
+ */
 import { getServiceClient } from '../_shared/dbClient.ts';
 import { requireAdminAuth } from '../_shared/adminAuth.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';

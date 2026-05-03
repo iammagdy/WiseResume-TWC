@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { invokeWisehireAccess } from '@/lib/wisehire/wisehireAccessClient';
 
 export interface WaitlistFormData {
   name: string;
@@ -16,9 +16,9 @@ export interface WaitlistResult {
 }
 
 async function joinWaitlist(data: WaitlistFormData): Promise<WaitlistResult> {
-  const { data: fnData, error } = await supabase.functions.invoke<WaitlistResult>(
-    'wisehire-waitlist-join',
-    { body: data }
+  const { data: fnData, error } = await invokeWisehireAccess<WaitlistResult>(
+    'waitlist-join',
+    data as unknown as Record<string, unknown>,
   );
 
   if (error) {

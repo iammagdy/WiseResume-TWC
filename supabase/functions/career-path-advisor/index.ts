@@ -5,7 +5,7 @@ import { selectProviderForTool } from "../_shared/modelRouter.ts";
 const __ROUTE = selectProviderForTool('career-path-advisor');
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
-import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
+import { requireAuth, tryAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
@@ -29,8 +29,11 @@ Deno.serve(wrapHandler("career-path-advisor", async (req: Request) => {
   const sizeError = checkPayloadSize(req, 500 * 1024);
   if (sizeError) return sizeError;
 
+  const auth = await tryAuth(req, corsHeaders);
+  if (auth instanceof Response) return auth;
+
   try {
-    const { userId, client } = await requireAuth(req);
+    const { userId, client } = auth;
 
     const rateCheck = await checkRateLimit(userId, { maxRequests: 10, windowSeconds: 60, actionType: 'career_path' });
     if (!rateCheck.allowed) {

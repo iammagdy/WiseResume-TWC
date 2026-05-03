@@ -1,0 +1,21 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appIDs": ["TEAMID_PLACEHOLDER.com.wiseresume.app"],
+        "components": [
+          { "/": "/auth/callback*", "comment": "Sign-in callback" },
+          { "/": "/r/*",            "comment": "Shared resume preview" },
+          { "/": "/p/*",            "comment": "Public portfolio" },
+          { "/": "/job/*",          "comment": "Saved job detail" },
+          { "/": "/cover-letter/*", "comment": "Cover letter detail" },
+          { "/": "/dashboard*",     "comment": "Dashboard deep link" }
+        ]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": ["TEAMID_PLACEHOLDER.com.wiseresume.app"]
+  }
+}

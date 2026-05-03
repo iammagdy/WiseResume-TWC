@@ -64,8 +64,6 @@ import { DevKitSessionProvider, useDevKitSession, loadRememberedToken } from '@/
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { DevKitPanelBoundary } from '@/components/dev-kit/DevKitPanelBoundary';
-import { NativeBiometric } from '@capgo/capacitor-native-biometric';
-import { Capacitor } from '@capacitor/core';
 
 type Tab = 'mission' | 'overview' | 'analytics' | 'ai-cost' | 'onboarding' | 'live' | 'deployment' | 'users' | 'coupons' | 'settings' | 'activity' | 'email' | 'automations' | 'wisehire' | 'portfolio' | 'openrouter' | 'groq' | 'deepseek' | 'flags' | 'owner-ops' | 'ai-routing' | 'observability' | 'moderation' | 'integrations';
 
@@ -205,14 +203,6 @@ function fromBase64Url(str: string): ArrayBuffer {
 type BiometricMode = 'checking' | 'native' | 'webauthn' | 'unavailable';
 
 async function detectBiometricMode(): Promise<BiometricMode> {
-  if (Capacitor.isNativePlatform()) {
-    try {
-      const res = await NativeBiometric.isAvailable();
-      return res.isAvailable ? 'native' : 'unavailable';
-    } catch {
-      return 'unavailable';
-    }
-  }
   if (typeof PublicKeyCredential !== 'undefined') {
     try {
       const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
@@ -508,7 +498,7 @@ function DevKitLoginForm() {
         setLockoutSecondsLeft(null);
 
         // After a successful "remember me" login on web, try to register WebAuthn credential
-        if (rememberMe && !Capacitor.isNativePlatform()) {
+        if (rememberMe) {
           const isPlatformAvailable = typeof PublicKeyCredential !== 'undefined' &&
             await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().catch(() => false);
           if (isPlatformAvailable) {
@@ -551,9 +541,7 @@ function DevKitLoginForm() {
     (biometricMode === 'native' || biometricMode === 'webauthn') &&
     !showFullForm;
 
-  const BiometricIcon = biometricMode === 'native' && Capacitor.isNativePlatform()
-    ? Fingerprint
-    : ScanFace;
+  const BiometricIcon = biometricMode === 'native' ? Fingerprint : ScanFace;
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4 relative">

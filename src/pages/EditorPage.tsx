@@ -765,7 +765,7 @@ export default function EditorPage() {
     saveToCloud,
   });
 
-  // Hardware back button guard for Capacitor
+  // Hardware back button guard (web no-op; native handled by Expo app)
   useBackButton(
     useCallback(() => {
       if (unsavedGuard.isDirty()) {

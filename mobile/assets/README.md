@@ -1,0 +1,1 @@
+Drop final brand assets here: icon.png (1024x1024), adaptive-icon.png (1024x1024 padded), splash.png (1242x2436), favicon.png (48x48). Until then Expo will fall back to its built-in template assets and emit warnings on build.

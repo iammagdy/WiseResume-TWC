@@ -19,33 +19,17 @@ author = "agent"
 task = "workflow.run"
 args = "Start application"
 
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Mobile (Web Preview)"
-
 [[workflows.workflow]]
 name = "Start application"
 author = "agent"
-
-[workflows.workflow.metadata]
-outputType = "webview"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "npm run server:dev & npm run dev"
 waitForPort = 5000
 
-[[workflows.workflow]]
-name = "Mobile (Web Preview)"
-author = "agent"
-
 [workflows.workflow.metadata]
-outputType = "console"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "cd mobile && CI=1 EXPO_NO_TELEMETRY=1 npx expo start --web --host lan --port 8000"
-waitForPort = 8000
+outputType = "webview"
 
 [[ports]]
 localPort = 4173
@@ -57,7 +41,7 @@ externalPort = 80
 
 [[ports]]
 localPort = 5001
-externalPort = 3003
+externalPort = 6000
 
 [[ports]]
 localPort = 5002
@@ -68,8 +52,8 @@ localPort = 5003
 externalPort = 5173
 
 [[ports]]
-localPort = 8080
-externalPort = 8080
+localPort = 8000
+externalPort = 8000
 
 [[ports]]
 localPort = 8081
@@ -82,10 +66,6 @@ externalPort = 3000
 [[ports]]
 localPort = 23637
 externalPort = 3002
-
-[[ports]]
-localPort = 8000
-externalPort = 8000
 
 [deployment]
 deploymentTarget = "autoscale"

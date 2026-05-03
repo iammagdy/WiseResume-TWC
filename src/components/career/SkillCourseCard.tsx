@@ -5,8 +5,6 @@ import { cn } from '@/lib/utils';
 import { AlertTriangle, BookOpen, CheckCircle2, Code2, ExternalLink, GraduationCap, Info, Play, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
-import { Capacitor } from '@capacitor/core';
-import { Browser } from '@capacitor/browser';
 import { findCuratedCourses, CuratedCourse } from '@/lib/curatedCourses';
 import { useMemo } from 'react';
 
@@ -31,11 +29,6 @@ const platformConfig = {
 
 async function openUrl(url: string) {
   haptics.light();
-  if (Capacitor.isNativePlatform()) {
-    await Browser.open({ url });
-    return;
-  }
-
   const win = window.open(url, '_blank', 'noopener,noreferrer');
   if (win) return;
 

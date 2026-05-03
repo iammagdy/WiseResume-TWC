@@ -9,7 +9,7 @@
  */
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { getCorsHeaders } from '../_shared/cors.ts';
-import { requireAuth } from '../_shared/authMiddleware.ts';
+import { requireAuth, tryAuth } from '../_shared/authMiddleware.ts';
 import { pingProvider, SUPPORTED_PROVIDERS } from '../_shared/providers.ts';
 
 import { wrapHandler } from '../_shared/fnLogger.ts';
@@ -29,9 +29,10 @@ serve(wrapHandler("validate-api-key", async (req) => {
     return json({ error: 'Method not allowed' }, 405);
   }
 
-  try {
-    await requireAuth(req);
+  const auth = await tryAuth(req, corsHeaders);
+  if (auth instanceof Response) return auth;
 
+  try {
     const body = await req.json().catch(() => ({}));
     const { provider, key } = body as { provider?: string; key?: string };
 
@@ -51,6 +52,17 @@ serve(wrapHandler("validate-api-key", async (req) => {
       clearTimeout(timeoutId);
     }
   } catch (err) {
+    // AuthError → 401 parity with gateway's verify_jwt path. Duck-typed so
+    // this file does not need to import the AuthError class. Audit #61 (H1).
+    if (
+      typeof err === 'object' && err !== null &&
+      (err as { name?: string }).name === 'AuthError'
+    ) {
+      const status = typeof (err as { status?: unknown }).status === 'number'
+        ? (err as { status: number }).status
+        : 401;
+      return json({ ok: false, error: (err as Error).message || 'Unauthorized', latencyMs: 0 }, status);
+    }
     console.error('[validate-api-key]', err);
     return json({ ok: false, error: (err as Error).message ?? 'Internal error', latencyMs: 0 }, 500);
   }

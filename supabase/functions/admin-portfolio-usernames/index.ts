@@ -1,3 +1,16 @@
+/**
+ * admin-portfolio-usernames — Manage public portfolio usernames (the slug
+ * users get under `https://wiseresume.com/p/<username>`): list, search,
+ * reassign, release, and reserve.
+ *
+ * Trigger: DevKit "Portfolio Usernames" pane and the moderation/takedown
+ *   workflow when a username needs to be released after a take-down.
+ * Auth: ADMIN ONLY (`requireAdminAuth` — DevKit session token).
+ * Dispatch contract: POST `{action, ...args}` where `action` ∈
+ *   `'list' | 'search' | 'reserve' | 'release' | 'reassign'`. Mutating
+ *   actions write a row to `audit_logs` (`category:'admin_portfolio'`).
+ *   Returns 200 `{success:true, ...}` per branch; unknown action → 400.
+ */
 import { getServiceClient } from '../_shared/dbClient.ts';
 import { requireAdminAuth } from '../_shared/adminAuth.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';

@@ -1,6 +1,38 @@
 # Edge Function Audit
 
-Last updated: 2026-04-24 (removed 3 unused functions to free a deployment slot for smart-fit-rewrite)
+Last updated: 2026-05-03 (Task #66 Phase 2 — orphan triage & config.toml reconciliation: all 16 H3 candidates KEEP, 4 M2 config blocks restored, deployed↔source 74↔74, 0 orphans / 0 stale per `scripts/check-edge-functions-deployed.mjs`)
+
+## Phase 2 Triage Outcome (Task #66, 2026-05-03)
+
+Supabase Management API is the sole source of truth. Deployed↔source is 1:1
+(74 ↔ 74, zero drift). Every one of the 16 Phase-1 H3 orphan candidates has a
+legitimate non-frontend caller and is **KEEP**. Zero deletions performed.
+
+| Function | Disposition | Caller / Justification |
+|---|---|---|
+| `admin-check-access` | KEEP | Internal helper invoked by other `admin-*` functions to short-circuit unauthorized callers (DevKit gate). |
+| `ask-portfolio` | KEEP | Public portfolio chat — called by `/p/:slug` page. |
+| `auth-email-hook` | KEEP | Supabase Auth Hook (HMAC-signed). Phase 1 added `__probe:true` short-circuit + signed CI probe pair. |
+| `create-portfolio-session` | KEEP | Public portfolio page-load analytics session opener. |
+| `export-portfolio-pdf` | KEEP | Web portfolio download + mobile (called via `mobile-api` router). |
+| `generate-question-bank` | KEEP | Interview prep sheet. |
+| `hard-purge` | KEEP | Admin GDPR purge — invoked manually from the Supabase dashboard / DevKit. |
+| `kinde-webhook` | KEEP | Kinde webhook for instant user provisioning (HMAC-signed). Phase 1 added signed CI probe pair. |
+| `mobile-config` | KEEP | Expo cold-start config bootstrap. **Phase 3 flag**: deployed `verify_jwt=true` blocks real anon callers — see §6 M2 follow-up. |
+| `og-image` | KEEP | Dynamic OpenGraph image for portfolio link previews. |
+| `parse-resume` | KEEP | Resume upload parser (called from upload flow). |
+| `revenuecat-webhook` | KEEP | RevenueCat entitlement webhook (shared-secret in `Authorization`). **Phase 3 flag**: deployed `verify_jwt=true` blocks RevenueCat callers — see §6 M2 follow-up. |
+| `send-push` | KEEP | Server-to-server Expo push fan-out (`EDGE_INTERNAL_TOKEN` in `x-internal-token`). **Phase 3 flag**: deployed `verify_jwt=true` blocks internal callers — see §6 M2 follow-up. |
+| `suggest-template` | KEEP | Editor template advisor sheet. |
+| `weekly-digest` | KEEP | pg_cron weekly digest email. |
+| `wisehire-invite-reminder` | KEEP | pg_cron WiseHire invite reminder email. |
+
+`supabase/config.toml` reconciled: every deployed function now has a
+`[functions.<name>]` block matching real `verify_jwt`. The stale NOTE
+claiming `export-portfolio-pdf`, `mobile-config`, `revenuecat-webhook`,
+and `send-push` were "never deployed" has been removed — they were and
+are deployed; the missing config blocks (default `verify_jwt=true`) had
+been masking the gateway-vs-handler auth-posture mismatch tracked above.
 
 ## Server-to-Server / Platform Hooks
 

@@ -107,6 +107,44 @@ export async function requireAuth(req: Request): Promise<AuthResult> {
 }
 
 /**
+ * Non-throwing variant of `requireAuth`. Returns either the `AuthResult` on
+ * success OR a fully-formed 401 `Response` on auth failure (with the caller's
+ * CORS headers attached). This is the architectural contract called for by
+ * audit task #65 §6 H1: callers can early-return the Response BEFORE entering
+ * their main `try { … } catch (toUserError)` block, so unauthenticated POSTs
+ * surface as a clean 401 instead of being collapsed into a generic 500 by the
+ * outer error translator. Non-auth errors (e.g. missing env, transient
+ * Supabase Auth call failures) are still re-thrown so they remain visible.
+ *
+ * Pattern at the call site:
+ *
+ *   const auth = await tryAuth(req, corsHeaders);
+ *   if (auth instanceof Response) return auth;
+ *   const { userId, client } = auth;
+ *   try {
+ *     // …feature work…
+ *   } catch (error) {
+ *     return new Response(JSON.stringify(toUserError(error)), { … });
+ *   }
+ */
+export async function tryAuth(
+  req: Request,
+  corsHeaders: Record<string, string>,
+): Promise<AuthResult | Response> {
+  try {
+    return await requireAuth(req);
+  } catch (err) {
+    if (err instanceof AuthError) {
+      return new Response(
+        JSON.stringify({ error: 'unauthorized', message: err.message }),
+        { status: err.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+    throw err;
+  }
+}
+
+/**
  * Helper to build an auth error response with CORS headers.
  */
 export function authErrorResponse(err: unknown, origin: string | null): Response {

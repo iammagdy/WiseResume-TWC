@@ -36,3 +36,9 @@ id = "eVe0Dzo9k5Cvcwi-bO-1p"
 uri = "file://reports/audits/2026-05-02-supabase-backend-audit.md"
 type = "text"
 title = "Supabase Backend & Edge Functions Audit (2026-05-02)"
+
+[[outputs]]
+id = "dEk4BtlBaRgP0FTB51Dkh"
+uri = "file://reports/edge-fn-full-audit-2026-05-03.md"
+type = "text"
+title = "Edge Functions Full Audit (Task #61)"
