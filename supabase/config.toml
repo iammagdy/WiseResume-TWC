@@ -176,9 +176,7 @@ project_id = "jnsfmkzgxsviuthaqlyy"
     verify_jwt = false
   [functions.inspect-ai-keys]
     verify_jwt = false
-  [functions.refresh-ai-test-models]
-    verify_jwt = false
-  [functions.kinde-webhook]
+    [functions.kinde-webhook]
     verify_jwt = false
   [functions.wisehire-invite-reminder]
     verify_jwt = false
