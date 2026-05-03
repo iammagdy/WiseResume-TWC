@@ -41,8 +41,15 @@ const FUNCTIONS_DIR = process.env.SUPABASE_FUNCTIONS_DIR || 'supabase/functions'
 // a tolerance window so that a function whose source was committed shortly
 // after a successful deploy is not flagged as stale. Override with
 // EDGE_STALE_TOLERANCE_HOURS for stricter checks.
-const STALE_TOLERANCE_MS =
-  Number.parseFloat(process.env.EDGE_STALE_TOLERANCE_HOURS ?? '6') * 60 * 60 * 1000;
+const STALE_TOLERANCE_HOURS_RAW = process.env.EDGE_STALE_TOLERANCE_HOURS ?? '6';
+const STALE_TOLERANCE_HOURS_PARSED = Number.parseFloat(STALE_TOLERANCE_HOURS_RAW);
+if (!Number.isFinite(STALE_TOLERANCE_HOURS_PARSED) || STALE_TOLERANCE_HOURS_PARSED < 0) {
+  console.error(
+    `EDGE_STALE_TOLERANCE_HOURS must be a finite, non-negative number (got: ${JSON.stringify(STALE_TOLERANCE_HOURS_RAW)}).`,
+  );
+  process.exit(2);
+}
+const STALE_TOLERANCE_MS = STALE_TOLERANCE_HOURS_PARSED * 60 * 60 * 1000;
 
 if (!TOKEN) {
   console.error('SUPABASE_ACCESS_TOKEN is required.');

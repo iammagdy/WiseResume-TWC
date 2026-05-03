@@ -9,6 +9,8 @@
 
 ## 1. Inventory (74 functions)
 
+> **Phase 2 disposition cross-reference (Task #66, 2026-05-03):** All 74 deployed functions → **KEEP**. Deployed↔source is 1:1 (74↔74, zero drift) per `node scripts/check-edge-functions-deployed.mjs`. The full per-function disposition log (with caller / justification) for the 16 Phase-1 H3 orphan candidates lives in `supabase/functions/EDGE_FUNCTION_AUDIT.md` § "Phase 2 Triage Outcome". Zero deletions performed in Phase 2.
+
 | # | Function | Role | Purpose | Trigger | Auth posture | verify_jwt | Deployed (UTC) | Ver |
 |---|----------|------|---------|---------|--------------|-----------|----------------|-----|
 | 1 | `admin-ai-ops` | router | Merged router for 4 AI control-plane ops + nightly cron (Task #53) | web (DevKit AI panels) + pg_cron (refresh-test-models) | admin cron | `false` | 2026-05-03 05:02:14Z | v2 |
