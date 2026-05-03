@@ -21,13 +21,15 @@ Repl. To launch it:
 2. Click **Run** next to *Mobile (Web Preview)*.
 3. When the console prints `Waiting on http://localhost:8000`, switch
    the preview pane's port selector to **`8000`** (mapped externally
-   via the standard Replit port table). Metro binds explicitly to
-   `0.0.0.0` so the Replit proxy can reach it.
+   via the standard Replit port table). Passing `--host lan` makes
+   Metro bind on all interfaces so the Replit proxy can reach it
+   (`--host` only accepts `lan | tunnel | localhost` — raw `0.0.0.0`
+   is rejected by the Expo CLI).
 
 Equivalent shell command (from the repo root):
 
 ```bash
-cd mobile && CI=1 EXPO_NO_TELEMETRY=1 npx expo start --web --host 0.0.0.0 --port 8000
+cd mobile && CI=1 EXPO_NO_TELEMETRY=1 npx expo start --web --host lan --port 8000
 ```
 
 The first cold start takes ~40 s (Metro bundling 1.4 k modules);
@@ -80,12 +82,20 @@ Removed `'expo-web-browser'` from `plugins` — it no longer ships a
 config plugin (current SDKs throw `PluginError`). The runtime export
 remains untouched.
 
-### 5. `mobile/.env`
+### 5. `mobile/.env` (local, gitignored)
 
-Created with placeholder Kinde / Supabase values so `mobile/src/lib/config.ts`
-doesn't throw on boot in the preview environment. Real credentials
-continue to be supplied by `eas.json` per build profile for actual
-device/EAS builds.
+`mobile/src/lib/config.ts` throws if any of the four required Expo
+public vars (Supabase URL/anon key, Kinde domain/client ID) are
+missing. For the web preview, copy the template and fill in (or keep
+the placeholders — sign-in won't work in the preview pane anyway):
+
+```bash
+cp mobile/.env.example mobile/.env
+```
+
+`mobile/.env.example` is the source of truth for the variable names.
+Real credentials continue to be supplied by `eas.json` per build
+profile for actual device/EAS builds, never committed to the repo.
 
 ---
 
