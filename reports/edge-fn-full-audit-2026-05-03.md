@@ -43,7 +43,7 @@
 | 30 | `coupons` | router | Merged router for coupon admin/redeem/validate (Task #48) | web (SubscriptionPage, UpgradeWall, UpgradeDialog) | admin user-jwt | `false` | 2026-05-03 05:03:40Z | v2 |
 | 31 | `create-portfolio-session` | standalone | Create an analytics session for a portfolio view | public web (portfolio page load) | webhook | `false` | 2026-05-03 05:03:33Z | v180 |
 | 32 | `detect-and-humanize` | standalone | AI-detection + humanizer | web (Editor humanize) | user-jwt | `false` | 2026-05-03 05:03:44Z | v262 |
-| 33 | `export-portfolio-pdf` | standalone | Export a portfolio to PDF | web (portfolio download) | user-jwt | `unset` | 2026-05-03 05:03:42Z | v4 |
+| 33 | `export-portfolio-pdf` | standalone | Export a portfolio to PDF | web (portfolio download) | user-jwt | `true` | 2026-05-03 05:03:42Z | v4 |
 | 34 | `generate-cover-letter` | standalone | Generate cover letter from resume+JD | web + mobile | user-jwt | `false` | 2026-05-03 05:00:57Z | v272 |
 | 35 | `generate-portfolio-bio` | standalone | Generate portfolio bio from resume | web (Portfolio editor) | user-jwt | `false` | 2026-05-03 05:03:41Z | v263 |
 | 36 | `generate-question-bank` | standalone | Generate interview question bank for a role | web (Interview prep) | user-jwt | `false` | 2026-05-03 05:05:15Z | v209 |
@@ -53,7 +53,7 @@
 | 40 | `manage-api-keys` | standalone | BYOK: list/save/delete user API keys + byok_enabled toggle | web (Settings → API Keys) | user-jwt | `false` | 2026-05-03 05:03:52Z | v234 |
 | 41 | `me` | standalone | Read current authenticated user profile | web (bootstrap) | user-jwt | `false` | 2026-05-03 05:03:56Z | v233 |
 | 42 | `mobile-api` | router | Merged router for 6 mobile-only ops (Task #?) | mobile (callMobileAction) | user-jwt | `false` | 2026-05-03 05:03:58Z | v3 |
-| 43 | `mobile-config` | standalone | Mobile app config bootstrap (per platform) | mobile (bootstrap) | anonymous | `unset` | 2026-05-03 05:01:05Z | v2 |
+| 43 | `mobile-config` | standalone | Mobile app config bootstrap (per platform) | mobile (bootstrap) | anonymous | `true` | 2026-05-03 05:01:05Z | v2 |
 | 44 | `og-image` | standalone | Render dynamic OpenGraph image (SVG) | public (link previews) | anonymous | `false` | 2026-05-03 05:04:03Z | v228 |
 | 45 | `one-page-optimizer` | standalone | Optimize resume to fit one page | web (Editor) | user-jwt | `false` | 2026-05-03 05:01:12Z | v264 |
 | 46 | `optimize-for-linkedin` | standalone | Generate LinkedIn-optimized profile copy | web (Editor) | user-jwt | `false` | 2026-05-03 05:03:53Z | v261 |
@@ -62,10 +62,10 @@
 | 49 | `portfolio-public` | standalone | Public portfolio reads (get_portfolio/etc.) | public web (portfolio pages) | anonymous | `false` | 2026-05-03 05:04:02Z | v2 |
 | 50 | `recruiter-simulation` | standalone | Simulate recruiter persona feedback on resume | web (Editor recruiter sim) | user-jwt | `false` | 2026-05-03 05:04:06Z | v263 |
 | 51 | `resume-section-ai` | router | Merged router for 4 resume-section AI ops (Task #56) | web (Editor SectionAIPopover, GapExplainer/Filler, RecruiterSim) | user-jwt | `false` | 2026-05-03 05:04:07Z | v2 |
-| 52 | `revenuecat-webhook` | standalone | RevenueCat subscription webhook | webhook (RevenueCat) | anonymous | `unset` | 2026-05-03 05:03:59Z | v2 |
+| 52 | `revenuecat-webhook` | standalone | RevenueCat subscription webhook | webhook (RevenueCat) | webhook | `true` | 2026-05-03 05:03:59Z | v2 |
 | 53 | `score-resume` | standalone | Resume score (subset of analyze) | web (Editor scorer) | user-jwt | `false` | 2026-05-03 05:04:00Z | v254 |
 | 54 | `send-password-reset` | standalone | Trigger Supabase password-reset email | web (login forgot-password) | anonymous | `false` | 2026-05-03 05:01:23Z | v15 |
-| 55 | `send-push` | standalone | Send a push notification (Expo) | server-side (notification triggers) | anonymous | `unset` | 2026-05-03 05:01:20Z | v2 |
+| 55 | `send-push` | standalone | Send a push notification (Expo) | server-side (notification triggers) | shared-token | `true` | 2026-05-03 05:01:20Z | v2 |
 | 56 | `smart-fit-rewrite` | standalone | Auto-rewrite sections to match target role | web (Editor smart-fit) | user-jwt | `false` | 2026-05-03 05:04:05Z | v32 |
 | 57 | `suggest-template` | standalone | Suggest a resume template based on inputs | web (Template picker) | user-jwt | `false` | 2026-05-03 05:04:04Z | v246 |
 | 58 | `tailor-resume` | standalone | Tailor a full resume to a JD | web (Tailor flow) | user-jwt | `false` | 2026-05-03 05:04:19Z | v267 |
@@ -484,6 +484,8 @@ Reachable model providers (from probe responses): **Groq** (slot 1, 490 ms), **D
 
 **H3. Orphan candidates (zero source caller, not router/webhook/cron):** `admin-check-access`, `export-portfolio-pdf`, `generate-question-bank`, `hard-purge`, `mobile-config`, `og-image`, `parse-resume`, `revenuecat-webhook`, `send-push`, `suggest-template`. Each is a deployment-slot occupant with no traceable invocation. Per task brief, **do not delete in this audit**, but each warrants confirmation in a downstream task.
 
+> **RESOLVED 2026-05-03 (Task #66, Phase 2).** Triaged the full 16-candidate Phase-1 orphan set (the 10 above + `ask-portfolio`, `auth-email-hook`, `create-portfolio-session`, `kinde-webhook`, `weekly-digest`, `wisehire-invite-reminder`) against the live Management API. **All 16 → KEEP**: deployed↔source is in 1:1 sync (74↔74, zero drift) and every candidate has a non-frontend caller — webhooks (`auth-email-hook`, `kinde-webhook`, `revenuecat-webhook`), pg_cron (`weekly-digest`, `wisehire-invite-reminder`), public-page server-rendered tags (`og-image`, `create-portfolio-session`, `ask-portfolio`), mobile cold-start (`mobile-config`), mobile downloads via `mobile-api` (`export-portfolio-pdf`), server-to-server (`send-push`), admin/dashboard (`hard-purge`, `admin-check-access`), or active frontend sheets (`generate-question-bank`, `suggest-template`, `parse-resume`). Disposition log captured in `supabase/functions/EDGE_FUNCTION_AUDIT.md`. **Zero deletions** performed. The reconciliation script `node scripts/check-edge-functions-deployed.mjs` reports 0 orphans / 0 stale.
+
 **H4. `auth-email-hook` and `kinde-webhook` returned 401 `{error:"Unauthorized"}` when probed with our test JWT.** This is correct (HMAC-signed webhooks reject any non-signature bearer) but means the audit cannot positively verify the signature path without the signing secret. Verification is currently only via Playwright spec `tests/e2e/auth-flow.spec.ts` and integration test `tests/e2e/kinde-webhook.spec.ts` — no live production probe.
 
 > **RESOLVED 2026-05-03 (Task #65, Phase 1).** Added `scripts/probe-webhooks-signed.mjs` and wired it into `.github/workflows/deploy-edge-functions.yml` as a final post-deploy step (after `npm run smoke:functions`). Each webhook gets a probe **pair**:
@@ -506,6 +508,8 @@ Reachable model providers (from probe responses): **Groq** (slot 1, 490 ms), **D
 **M1. CORS preflight on `wise-ai-chat` returns 204 instead of 200.** Other 73 functions return 200. Functionally equivalent (both are success responses), but inconsistent with the shared CORS helper. File: `supabase/functions/wise-ai-chat/index.ts`.
 
 **M2. 4 functions have no `[functions.<name>]` entry in `supabase/config.toml`** (`verify_jwt=unset`): `export-portfolio-pdf`, `mobile-config`, `revenuecat-webhook`, `send-push`. They default to `verify_jwt=true` at the gateway, which means anon callers cannot reach them. For `mobile-config` and `export-portfolio-pdf` this is fine (always called with auth). For `revenuecat-webhook` and `send-push` it depends on how RevenueCat / push triggers authenticate — review.
+
+> **RESOLVED 2026-05-03 (Task #66, Phase 2).** Added `[functions.export-portfolio-pdf]`, `[functions.mobile-config]`, `[functions.revenuecat-webhook]`, `[functions.send-push]` to `supabase/config.toml`, each with `verify_jwt = true` to match the deployed reality (Management API confirms all four ACTIVE with `verify_jwt=true`). The stale "NOTE 2026-05-03: ...were never deployed..." comment that claimed the source dirs were missing has been removed (source dirs DO exist and ship in every deploy). `node scripts/check-edge-functions-deployed.mjs` now reports `0 orphans / 0 stale / 0 missing`. **New finding deferred to Phase 3 (#67):** `revenuecat-webhook` (RevenueCat shared-secret in `Authorization`), `send-push` (`EDGE_INTERNAL_TOKEN` in `x-internal-token`), and `mobile-config` (anonymous by design) all have handler-level auth that does NOT use a Supabase JWT — but the gateway has `verify_jwt=true`, so it is rejecting their real callers before the handler runs. The config.toml change preserves the deployed truth; the auth-posture mismatch is now a Phase 3 fix (flip to `false` and re-deploy after handler verification).
 
 **M3. 16 standalone admin functions have no leading docstring** in `index.ts` (audited via `/** ... */` extraction). Listed in §1 inventory. Operability cost only; no runtime impact.
 

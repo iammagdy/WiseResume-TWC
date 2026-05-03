@@ -231,10 +231,27 @@ project_id = "jnsfmkzgxsviuthaqlyy"
   # (Supabase posts to a fixed URL with HMAC signature).
   [functions.transactional-email]
     verify_jwt = false
-  # NOTE 2026-05-03: send-push, revenuecat-webhook, mobile-config, and
-  # export-portfolio-pdf were never deployed to prod (their entries existed
-  # in config.toml but their source dirs were missing from the repo). After
-  # the mobile-api consolidation prod sits at the 100-function ceiling, so
-  # restoring all four would push us over. Mobile does not invoke any of
-  # them directly, so they are intentionally excluded from deploy here. A
-  # follow-up task can re-introduce them once we free up additional slots.
+
+  # --- Phase 2 reconciliation (Task #66, 2026-05-03) ---
+  # Supabase is the sole source of truth for verify_jwt. The four blocks
+  # below were missing from config.toml even though the functions ARE
+  # deployed (audit re-confirmed 2026-05-03 via Management API: all four
+  # ACTIVE, all four `verify_jwt=true`). The previous NOTE claiming they
+  # were "never deployed" was stale — the source dirs DO exist and are
+  # in 1:1 sync with deployed slugs. Recording the deployed truth here.
+  #
+  # NB: `verify_jwt=true` for `revenuecat-webhook`, `send-push`, and
+  # `mobile-config` is INCONSISTENT with their source-level auth posture
+  # (RevenueCat shared-secret in Authorization header, EDGE_INTERNAL_TOKEN
+  # in `x-internal-token` header, and anonymous-by-design respectively).
+  # The Supabase gateway is currently rejecting their real callers before
+  # the handler runs. Tracked as Phase 3 follow-up (Task #67) — do NOT
+  # flip these to `false` here without coordinated handler verification.
+  [functions.export-portfolio-pdf]
+    verify_jwt = true
+  [functions.mobile-config]
+    verify_jwt = true
+  [functions.revenuecat-webhook]
+    verify_jwt = true
+  [functions.send-push]
+    verify_jwt = true

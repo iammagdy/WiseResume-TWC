@@ -34,6 +34,15 @@ import { execFileSync } from 'node:child_process';
 const PROJECT_REF = process.env.SUPABASE_PROJECT_REF || 'jnsfmkzgxsviuthaqlyy';
 const TOKEN = process.env.SUPABASE_ACCESS_TOKEN;
 const FUNCTIONS_DIR = process.env.SUPABASE_FUNCTIONS_DIR || 'supabase/functions';
+// Supabase Management API's `updated_at` field is a metadata-write timestamp,
+// not a deploy-event timestamp — it does not move on every `functions deploy`
+// (verified Task #66, 2026-05-03: redeploys bumped `version` 264→269 with no
+// `updated_at` movement, even after explicit PATCH no-op). We therefore allow
+// a tolerance window so that a function whose source was committed shortly
+// after a successful deploy is not flagged as stale. Override with
+// EDGE_STALE_TOLERANCE_HOURS for stricter checks.
+const STALE_TOLERANCE_MS =
+  Number.parseFloat(process.env.EDGE_STALE_TOLERANCE_HOURS ?? '6') * 60 * 60 * 1000;
 
 if (!TOKEN) {
   console.error('SUPABASE_ACCESS_TOKEN is required.');
@@ -129,7 +138,7 @@ for (const [name, meta] of localFunctions.entries()) {
   if (
     deployed.updatedAtMs > 0 &&
     meta.lastCommitMs > 0 &&
-    deployed.updatedAtMs < meta.lastCommitMs
+    deployed.updatedAtMs + STALE_TOLERANCE_MS < meta.lastCommitMs
   ) {
     possiblyStale.push({
       name,
