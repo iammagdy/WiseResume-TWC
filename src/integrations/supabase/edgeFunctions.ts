@@ -78,6 +78,75 @@ function rewriteCouponInvoke(
 }
 
 /**
+ * Admin user-lifecycle consolidation (Task #51).
+ *
+ * Routes the seven legacy admin user-lifecycle function names to the
+ * merged `admin-user-ops` router. Dispatch is signalled via the
+ * `x-admin-user-op` request header so the router never has to read
+ * the request body — that's what lets each handler in the merged
+ * router preserve its ORIGINAL parse-vs-auth ordering byte-for-byte
+ * (critical for malformed-body parity, especially for
+ * admin-revoke-sessions which originally swallowed parse errors into
+ * `body = {}` and returned 400, while the other 6 originals threw to
+ * outer try/catch and returned 500).
+ *
+ * For spec compliance the helper ALSO injects `body.action` set to
+ * the same value; the router doesn't read it but it's there for
+ * any caller / observability tool that inspects the body.
+ *
+ * Set USE_MERGED_ADMIN_USER_OPS=false to fall back to the seven
+ * originals while soaking the new router.
+ *
+ * Explicitly excluded (kept isolated): admin-delete-user.
+ */
+const USE_MERGED_ADMIN_USER_OPS = true;
+const ADMIN_USER_OPS_ACTIONS: Record<
+  string,
+  'suspend' | 'grant-trial' | 'revoke-trial' | 'set-credits' | 'set-plan' | 'revoke-sessions' | 'update-profile'
+> = {
+  'admin-suspend-user': 'suspend',
+  'admin-grant-trial': 'grant-trial',
+  'admin-revoke-trial': 'revoke-trial',
+  'admin-set-credits': 'set-credits',
+  'admin-set-plan': 'set-plan',
+  'admin-revoke-sessions': 'revoke-sessions',
+  'admin-update-profile': 'update-profile',
+};
+function rewriteAdminUserOpsInvoke(
+  fnName: string,
+  options: { body?: unknown; headers?: Record<string, string>; method?: string } | undefined,
+): { fnName: string; options: { body?: unknown; headers?: Record<string, string>; method?: string } | undefined } {
+  if (!USE_MERGED_ADMIN_USER_OPS) return { fnName, options };
+  const action = ADMIN_USER_OPS_ACTIONS[fnName];
+  if (!action) return { fnName, options };
+  const newHeaders: Record<string, string> = {
+    ...(options?.headers ?? {}),
+    'x-admin-user-op': action,
+  };
+  // Preserve the original body 1:1 so each handler sees exactly what
+  // its pre-merge function saw (incl. admin-update-profile's inner
+  // `body.action: 'get'` selector). Add a top-level `action` field
+  // alongside (spec compliance) without clobbering an existing one.
+  const origBody = options?.body;
+  let newBody: unknown = origBody;
+  if (origBody && typeof origBody === 'object' && !Array.isArray(origBody)) {
+    const obj = origBody as Record<string, unknown>;
+    if (!('action' in obj)) {
+      newBody = { ...obj, action };
+    }
+    // If body already has its own `action` field (e.g. update-profile
+    // GET path), leave it untouched — the router dispatches on the
+    // header, not the body, so there's no collision.
+  } else if (origBody === undefined) {
+    newBody = { action };
+  }
+  return {
+    fnName: 'admin-user-ops',
+    options: { ...(options ?? {}), headers: newHeaders, body: newBody },
+  };
+}
+
+/**
  * Authenticated edge function client.
  * Routes via apiFnUrl(): in dev, through the Express proxy at
  * /api/fn/:fnName; in production (Hostinger static), directly to the
@@ -97,9 +166,10 @@ export const edgeFunctions = {
       // when the USE_MERGED_COUPONS flag is on. Dispatch happens via the
       // x-coupons-action header so the request body is left unmodified.
       const originalFnName = fnNameInput;
-      const rewritten = rewriteCouponInvoke(fnNameInput, options);
-      const fnName = rewritten.fnName;
-      options = rewritten.options;
+      const couponRewritten = rewriteCouponInvoke(fnNameInput, options);
+      const adminRewritten = rewriteAdminUserOpsInvoke(couponRewritten.fnName, couponRewritten.options);
+      const fnName = adminRewritten.fnName;
+      options = adminRewritten.options;
       const doInvoke = async (token: string | null) => {
         const userHeaders = options?.headers || {};
         const headers: Record<string, string> = {

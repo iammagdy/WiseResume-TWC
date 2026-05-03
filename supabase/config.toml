@@ -9,23 +9,13 @@ project_id = "jnsfmkzgxsviuthaqlyy"
     verify_jwt = false
   [functions.admin-devkit-data]
     verify_jwt = false
-  [functions.admin-grant-trial]
+  [functions.admin-user-ops]
     verify_jwt = false
   [functions.admin-list-users]
     verify_jwt = false
   [functions.admin-portfolio-usernames]
     verify_jwt = false
-  [functions.admin-revoke-trial]
-    verify_jwt = false
   [functions.admin-save-note]
-    verify_jwt = false
-  [functions.admin-set-credits]
-    verify_jwt = false
-  [functions.admin-set-plan]
-    verify_jwt = false
-  [functions.admin-suspend-user]
-    verify_jwt = false
-  [functions.admin-update-profile]
     verify_jwt = false
   [functions.admin-update-settings]
     verify_jwt = false
@@ -114,8 +104,6 @@ project_id = "jnsfmkzgxsviuthaqlyy"
   [functions.admin-list-user-content]
     verify_jwt = false
   [functions.admin-merge-identity]
-    verify_jwt = false
-  [functions.admin-revoke-sessions]
     verify_jwt = false
   [functions.admin-wisehire-invite]
     verify_jwt = false

@@ -1,5 +1,155 @@
 # Edge Function Audit — Mobile parity sweep (2026-05-03)
 
+## Admin user-lifecycle consolidation (Task #51, 2026-05-03)
+
+Seven admin-only user-lifecycle edge functions were merged into a single
+`admin-user-ops` router. All seven shared the exact same `requireAdminAuth`
+gate and mutated the same admin-only tables (`profiles`, `subscriptions`,
+`ai_credits`, `audit_logs`, `auth.users` sessions), so consolidating frees
+6 deployment slots under the 100-function Supabase limit.
+
+Dispatch contract (per task spec):
+
+- **PRIMARY:** `body.action` ∈ `{ "suspend", "grant-trial",
+  "revoke-trial", "set-credits", "set-plan", "revoke-sessions",
+  "update-profile" }`.
+- **FALLBACK:** `x-admin-user-op` request header. Used ONLY when
+  `body.action` is missing or doesn't name a valid dispatch action
+  — needed for two parity surfaces: (a) `admin-update-profile`'s
+  inner `body.action: 'get'` selector for its GET sub-path, which
+  must reach the update-profile handler with the inner action
+  preserved verbatim, and (b) malformed-body callers to
+  `admin-revoke-sessions` so its 400 envelope on bad bodies is
+  reachable.
+
+The web helper sends BOTH (header always; body.action only when the
+caller didn't already supply one), so the spec's body.action contract
+is the user-facing contract — the header is purely a parity-safety
+fallback.
+
+Parity strategy: the router buffers the body ONCE as text at the top,
+then hands the text string (not a parsed object) to each handler.
+Each handler does its OWN `JSON.parse` inside its original try/catch
+wrapper, so each handler's parse-vs-validation-vs-throw semantics are
+preserved byte-for-byte.
+
+Each sub-handler is a byte-for-byte port of its original — same
+validation, same response shape, same status codes, same audit-log
+writes (preserving the same `category` / `action` strings so existing
+admin dashboards keep working), same error envelopes.
+
+### Parity ordering — auth and body parsing
+
+The `requireAdminAuth` gate runs ONCE at the top of `serve` (per task
+spec — explicit "do not duplicate per action"). Each handler then
+does its OWN `await req.json()` inside its body, which preserves the
+original parse-vs-auth ordering for handler-internal effects:
+
+- 6 of 7 originals parsed body BEFORE auth and threw to outer
+  try/catch on parse failure → returned 500 `Internal server error`
+  (or, for `revoke-trial`, 500 `String(err)`). Handlers replicate
+  this verbatim with their own outer try/catch.
+- `admin-revoke-sessions` was the outlier: it ran auth FIRST, then
+  parsed body inside an inner try/catch with `body = {}` default —
+  so a malformed body fell through to validation and returned 400
+  `target_user_id is required`, NOT 500. Replicated exactly.
+
+On unauthenticated calls every action returns the canonical
+`{success:false, error:'Unauthorized'}` 401 — identical to all 7
+originals.
+
+**Single documented router-boundary deviation:** for the 6 parse-first
+originals, an unauthenticated call with a malformed body would have
+returned 500 (parse fails before auth runs). With auth lifted to the
+top of the router, that combined edge case now returns 401. No real
+client (web helper, mobile, server-side proxy) ever hits this case —
+they all serialize well-formed JSON. The Playwright spec asserts the
+401 behavior so the deviation is captured in CI.
+
+Merged (7 → 1):
+
+- `admin-suspend-user`     → action `suspend`
+- `admin-grant-trial`      → action `grant-trial`
+- `admin-revoke-trial`     → action `revoke-trial`
+- `admin-set-credits`      → action `set-credits`
+- `admin-set-plan`         → action `set-plan`
+- `admin-revoke-sessions`  → action `revoke-sessions`
+- `admin-update-profile`   → action `update-profile`
+
+Explicitly **NOT** merged (kept isolated for blast-radius / audit-trail
+clarity, per task #51 user direction):
+
+- `admin-delete-user` — destructive, must remain its own function.
+  Source unchanged, deployment unchanged.
+
+Also kept separate (different shapes / heavy reads / security-sensitive):
+`admin-impersonate`, `admin-list-users`, `admin-list-user-content`,
+`admin-merge-identity`, `admin-kinde-reconcile`.
+
+Web client routing:
+
+- `src/integrations/supabase/edgeFunctions.ts` adds a single
+  `USE_MERGED_ADMIN_USER_OPS` constant (default `true`). When on, every
+  legacy admin invoke (`admin-suspend-user` / `admin-grant-trial` /
+  `admin-revoke-trial` / `admin-set-credits` / `admin-set-plan` /
+  `admin-revoke-sessions` / `admin-update-profile`) is rewritten to
+  `admin-user-ops` with the `x-admin-user-op` header set for dispatch
+  (and `body.action` injected alongside for spec compliance, only
+  when the caller didn't already set its own `action` field). The
+  body is otherwise forwarded byte-for-byte. Flip to `false` to fall
+  back to the seven originals if any are still deployed.
+- `admin-update-profile` originally consumed its own inner `body.action`
+  field for the GET sub-path. With header-based dispatch the inner
+  field never collides with the router, so the helper passes the
+  body untouched and the handler's `action === 'get'` branch fires
+  exactly as before.
+- All call sites in `src/components/dev-kit/UserDetailDrawer.tsx` and
+  `src/components/dev-kit/AdminUsersPanel.tsx` continue to invoke the
+  legacy fn names; the rewrite happens transparently in the helper.
+  No DevKit UI changes.
+- The dev Express proxy (`server/index.ts`) is intentionally untouched
+  per task scope guard: the existing generic `/api/fn/:fnName` route
+  forwards `admin-user-ops` to Supabase exactly like the per-function
+  proxies did. The legacy per-fn proxy stubs become dead code and will
+  be cleaned up in the downstream redeploy + cleanup task.
+
+Original sources removed:
+
+- `supabase/functions/admin-suspend-user/`
+- `supabase/functions/admin-grant-trial/`
+- `supabase/functions/admin-revoke-trial/`
+- `supabase/functions/admin-set-credits/`
+- `supabase/functions/admin-set-plan/`
+- `supabase/functions/admin-revoke-sessions/`
+- `supabase/functions/admin-update-profile/`
+- Corresponding `[functions.*]` entries removed from
+  `supabase/config.toml`. New entry `[functions.admin-user-ops]` added
+  (`verify_jwt = false`, matching all 7 originals — auth is enforced
+  inside the handler via the DevKit HMAC token, not at the gateway).
+
+Tests:
+
+- `tests/e2e/specs/18-admin-user-ops-merged.spec.ts` asserts the merged
+  router reproduces the pre-merge unauthenticated response envelope
+  (`{success:false,error:'Unauthorized'}` / 401) for all 7 actions plus
+  the unknown-action branch. The unauthenticated 401 is the only safe
+  parity surface in CI — every other branch requires a real DevKit
+  session token (HMAC-signed payload + a row in `admin_sessions`),
+  which the test harness has no way to mint without leaking
+  `DEV_KIT_PASSWORD`. Auto-skips when `SUPABASE_URL` /
+  `SUPABASE_ANON_KEY` are missing.
+
+Soak / cleanup ownership:
+
+- The downstream *Full edge-function redeploy + platform verification*
+  task owns the prod-side deploy of `admin-user-ops`, the 24-hour
+  soak, and the eventual `DELETE /v1/projects/<ref>/functions/<name>`
+  for the seven originals. `admin-delete-user` is **NOT** to be
+  deleted — it stays deployed and isolated. Net deployed function
+  count drops by 6.
+
+---
+
 ## Wisehire access consolidation (Task #50, 2026-05-03)
 
 Five wisehire onboarding/gating edge functions were merged into a single
