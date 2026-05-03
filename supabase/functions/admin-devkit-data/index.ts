@@ -274,7 +274,7 @@ Deno.serve(wrapHandler("admin-devkit-data", async (req) => {
 
   if (!action) {
     return new Response(
-      JSON.stringify({ success: false, error: 'action is required: analytics | observability | live-activity | mission-control | github-status | ai-cost' }),
+      JSON.stringify({ success: false, error: 'action is required: analytics | observability | live-activity | mission-control | github-status | ai-cost | edge-fn-drift' }),
       { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   }
@@ -1238,8 +1238,217 @@ Deno.serve(wrapHandler("admin-devkit-data", async (req) => {
     }
   }
 
+  // ── ACTION: edge-fn-drift ─────────────────────────────────────────────────
+  // Live runtime drift snapshot for the DevKit Mission Control panel
+  // (Task #68, Phase 4). Surface area is intentionally narrower than the
+  // CI-side check in scripts/check-edge-functions-deployed.mjs --all because
+  // edge functions cannot read supabase/config.toml or scan the source tree:
+  //
+  //   - Inventory parity:  fetched live from the Management API; orphan
+  //                        detection requires comparing against an in-repo
+  //                        source list which lives in the CI script. The
+  //                        panel surfaces deployedCount + lastDeployAt only.
+  //   - Auth-posture:      no-auth POST {} probe per deployed function,
+  //                        compared to a small inline override map (covers
+  //                        the same legitimately-public functions allow-listed
+  //                        in scripts/edge-fn-drift-allowlist.json — keep
+  //                        these two lists in sync if you edit either).
+  //   - Freshness:         oldest/newest deployed updated_at + count of
+  //                        functions older than 30 days.
+  //
+  // The panel also surfaces a pointer to the latest CI run for the full
+  // 5-check report. Probe budget: 5s timeout per function, concurrency 8,
+  // ~74 functions → bounded by ~10s wall-clock in the worst case.
+  if (action === 'edge-fn-drift') {
+    try {
+      try {
+        await requireAdminAuth(req);
+      } catch (authErr) {
+        if (authErr instanceof Response) return authErr;
+        throw authErr;
+      }
+
+      const projectRef = Deno.env.get('SUPABASE_PROJECT_REF') || 'jnsfmkzgxsviuthaqlyy';
+      const accessToken = Deno.env.get('SUPABASE_ACCESS_TOKEN');
+      if (!accessToken) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: 'SUPABASE_ACCESS_TOKEN secret is not configured in Supabase Edge Function Secrets — required for the live Management API call.',
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
+
+      // Per-function expected no-auth status. Mirrors
+      // scripts/edge-fn-drift-allowlist.json::noAuthExpectedStatus — keep
+      // the two in sync (the CI script is the source of truth; this is a
+      // runtime convenience copy).
+      const NO_AUTH_DEFAULT = 401;
+      const NO_AUTH_OVERRIDES: Record<string, number> = {
+        'og-image': 200,
+        'portfolio-public': 400,
+        'ask-portfolio': 400,
+        'create-portfolio-session': 400,
+        'parse-job': 400,
+        'coupons': 400,
+        'send-password-reset': 400,
+        'transactional-email': 400,
+        'wisehire-access': 400,
+        'admin-devkit-data': 400,
+        'admin-email': 400,
+        'verify-dev-kit': 400,
+      };
+      const KNOWN_DRIFT: Record<string, string> = {
+        'ai-health': 'AUTH-DRIFT — returns 200 for non-admin JWT (tracked under separate fix task)',
+        'ai-test': 'AUTH-DRIFT — returns 200 for non-admin JWT (tracked under separate fix task)',
+        'verify-email': 'noauth→503 (SITE_URL not configured — tracked under separate fix task)',
+      };
+
+      const mgmtUrl = `https://api.supabase.com/v1/projects/${projectRef}/functions`;
+      const mgmtRes = await fetch(mgmtUrl, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (!mgmtRes.ok) {
+        const errText = await mgmtRes.text();
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: `Management API ${mgmtRes.status}: ${errText.slice(0, 300)}`,
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
+      const fns = await mgmtRes.json() as Array<{
+        slug?: string;
+        name?: string;
+        verify_jwt?: boolean;
+        version?: number;
+        updated_at?: string | number;
+        status?: string;
+      }>;
+
+      type ProbeRow = {
+        name: string;
+        expected: number;
+        got: number;
+        ok: boolean;
+        knownDrift: string | null;
+      };
+
+      const baseUrl = `https://${projectRef}.supabase.co/functions/v1`;
+      const slugs = fns
+        .map(f => f.slug || f.name || '')
+        .filter((s): s is string => !!s)
+        .sort();
+
+      // Bounded-concurrency no-auth probe pool.
+      const PROBE_TIMEOUT_MS = 5000;
+      const CONCURRENCY = 8;
+      const queue = [...slugs];
+      const probes: ProbeRow[] = [];
+      const probeOne = async (name: string): Promise<ProbeRow> => {
+        const expected = NO_AUTH_OVERRIDES[name] ?? NO_AUTH_DEFAULT;
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), PROBE_TIMEOUT_MS);
+        try {
+          const r = await fetch(`${baseUrl}/${name}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: '{}',
+            signal: ctrl.signal,
+          });
+          const got = r.status;
+          return {
+            name,
+            expected,
+            got,
+            ok: got === expected,
+            knownDrift: KNOWN_DRIFT[name] ?? null,
+          };
+        } catch (_err) {
+          return {
+            name,
+            expected,
+            got: 0,
+            ok: false,
+            knownDrift: KNOWN_DRIFT[name] ?? null,
+          };
+        } finally {
+          clearTimeout(t);
+        }
+      };
+      await Promise.all(
+        Array.from({ length: CONCURRENCY }, async () => {
+          while (queue.length) {
+            const name = queue.shift();
+            if (!name) break;
+            probes.push(await probeOne(name));
+          }
+        }),
+      );
+      probes.sort((a, b) => a.name.localeCompare(b.name));
+
+      const failures = probes.filter(p => !p.ok && !p.knownDrift);
+      const knownDrifts = probes.filter(p => !p.ok && p.knownDrift);
+      const passCount = probes.filter(p => p.ok).length;
+
+      // Freshness summary: oldest deploy + count older than 30 days.
+      const now = Date.now();
+      const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+      const updatedTimestamps = fns
+        .map(f => {
+          if (typeof f.updated_at === 'number') {
+            return f.updated_at < 1e12 ? f.updated_at * 1000 : f.updated_at;
+          }
+          if (typeof f.updated_at === 'string') {
+            const p = Date.parse(f.updated_at);
+            return Number.isNaN(p) ? 0 : p;
+          }
+          return 0;
+        })
+        .filter(ts => ts > 0);
+      updatedTimestamps.sort((a, b) => a - b);
+      const oldestDeployedAt = updatedTimestamps.length ? new Date(updatedTimestamps[0]).toISOString() : null;
+      const newestDeployedAt = updatedTimestamps.length ? new Date(updatedTimestamps[updatedTimestamps.length - 1]).toISOString() : null;
+      const olderThan30d = updatedTimestamps.filter(ts => now - ts > THIRTY_DAYS_MS).length;
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          checkedAt: new Date().toISOString(),
+          projectRef,
+          deployedCount: fns.length,
+          freshness: {
+            oldestDeployedAt,
+            newestDeployedAt,
+            olderThan30d,
+          },
+          authPosture: {
+            total: probes.length,
+            pass: passCount,
+            fail: failures.length,
+            knownDriftCount: knownDrifts.length,
+            failures: failures.map(f => ({ name: f.name, expected: f.expected, got: f.got })),
+            knownDrifts: knownDrifts.map(f => ({ name: f.name, expected: f.expected, got: f.got, note: f.knownDrift })),
+            defaultExpected: NO_AUTH_DEFAULT,
+          },
+          notes: 'Inventory and config-toml parity are enforced in CI only ' +
+                 '(see scripts/check-edge-functions-deployed.mjs --all). This live ' +
+                 'snapshot covers auth-posture + freshness against the Management API.',
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    } catch (err) {
+      return new Response(
+        JSON.stringify({ success: false, error: String(err) }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+  }
+
   return new Response(
-    JSON.stringify({ success: false, error: `Unknown action: ${action}. Valid values: analytics | observability | live-activity | mission-control | github-status | ai-cost` }),
+    JSON.stringify({ success: false, error: `Unknown action: ${action}. Valid values: analytics | observability | live-activity | mission-control | github-status | ai-cost | edge-fn-drift` }),
     { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
   );
 }));

@@ -1,0 +1,57 @@
+{
+  "$schema-comment": "Allow-list for scripts/check-edge-functions-deployed.mjs --all (Task #68, Phase 4). Source: Task #61 audit + Task #66 Phase 2 disposition + Task #65 Phase 1 RESOLVED list. Edit sparingly — every override is a documented exception, not a workaround.",
+  "version": 1,
+  "lastUpdated": "2026-05-03",
+
+  "nonSourceCallers": {
+    "_comment": "Functions that legitimately have zero source callers. Each entry must name HOW it is invoked. Anything deployed but absent from this map AND with zero source callers is flagged as a true orphan.",
+    "admin-check-access": { "kind": "internal-helper", "reason": "Invoked by other admin-* functions to short-circuit unauthorized callers (DevKit gate)." },
+    "ask-portfolio": { "kind": "public-page", "reason": "Called by /p/:slug portfolio chat widget (computed URL, not a source-string match)." },
+    "auth-email-hook": { "kind": "webhook", "reason": "Supabase Auth Hook (HMAC-signed) — Supabase posts to a fixed URL." },
+    "create-portfolio-session": { "kind": "public-page", "reason": "Called by public portfolio page-load analytics opener." },
+    "export-portfolio-pdf": { "kind": "computed-url", "reason": "Mobile downloads (via mobile-api router) + portfolio share links." },
+    "generate-question-bank": { "kind": "active-frontend", "reason": "Interview prep sheet (caller scan missed dynamic invocation name)." },
+    "hard-purge": { "kind": "manual", "reason": "Admin GDPR purge — invoked manually from Supabase dashboard / DevKit." },
+    "kinde-webhook": { "kind": "webhook", "reason": "Kinde user.created webhook (HMAC-signed) — Kinde posts to a fixed URL." },
+    "mobile-config": { "kind": "mobile-bootstrap", "reason": "Expo cold-start config bootstrap." },
+    "og-image": { "kind": "public-page", "reason": "Dynamic OpenGraph image for portfolio link previews (server-rendered <meta> tag)." },
+    "parse-resume": { "kind": "active-frontend", "reason": "Resume upload parser (caller scan missed dynamic invocation name)." },
+    "revenuecat-webhook": { "kind": "webhook", "reason": "RevenueCat entitlement webhook (shared-secret in Authorization header)." },
+    "send-push": { "kind": "internal", "reason": "Server-to-server Expo push fan-out (EDGE_INTERNAL_TOKEN in x-internal-token header)." },
+    "suggest-template": { "kind": "active-frontend", "reason": "Editor template advisor sheet." },
+    "weekly-digest": { "kind": "cron", "reason": "pg_cron weekly digest email." },
+    "wisehire-invite-reminder": { "kind": "cron", "reason": "pg_cron WiseHire invite reminder email." }
+  },
+
+  "noAuthExpectedStatus": {
+    "_default": 401,
+    "_comment": "HTTP status expected when called with no Authorization header at all. Default is 401 (Phase 1 contract — gateway should reject before the handler runs). Per-function overrides cover (a) functions that are intentionally public and reject on body validation (400), and (b) genuinely anonymous endpoints (200). New 500/503 responses indicate real auth-handler drift and are flagged.",
+    "og-image": 200,
+    "portfolio-public": 400,
+    "ask-portfolio": 400,
+    "create-portfolio-session": 400,
+    "parse-job": 400,
+    "coupons": 400,
+    "send-password-reset": 400,
+    "transactional-email": 400,
+    "wisehire-access": 400,
+    "admin-devkit-data": 400,
+    "admin-email": 400,
+    "verify-dev-kit": 400
+  },
+
+  "_overrideRationale": {
+    "admin-devkit-data": "Action-dispatch router: validates required `action` field before invoking requireAdminAuth, so a no-auth POST {} returns 400 ('action is required: ...') rather than 401. Same body-first contract as admin-email and verify-dev-kit.",
+    "admin-email": "Same body-first action dispatch as admin-devkit-data — validates required `action` field before auth.",
+    "verify-dev-kit": "Validates required email + password fields before attempting credential check — a no-auth POST {} returns 400 with the missing-field error before the auth comparator runs."
+  },
+
+  "knownPreExistingDrift": {
+    "_comment": "Auth-posture drifts that are already tracked under separate fix tasks. The drift checker reports these as warnings (not blocking failures) until the named task lands. When the named task closes, delete the entry and let the next CI run confirm parity.",
+    "ai-health": { "expectedFix": "Task: 'Stop signed-in users from triggering paid AI test calls (ai-health / ai-test auth drift)'", "drift": "AUTH-DRIFT — returns 200 for non-admin JWT (expected admin-only)" },
+    "ai-test": { "expectedFix": "Task: 'Stop signed-in users from triggering paid AI test calls (ai-health / ai-test auth drift)'", "drift": "AUTH-DRIFT — returns 200 for non-admin JWT (expected admin-only)" },
+    "verify-email": { "expectedFix": "Task: 'Fix broken email verification (verify-email returns 503: SITE_URL not configured)'", "drift": "noauth→503 (SITE_URL not configured)" }
+  },
+
+  "freshnessToleranceHours": 6
+}

@@ -1,0 +1,60 @@
+name: Edge Functions Monthly Re-Audit
+
+# Phase 4 (Task #68) recurring snapshot. Runs the full drift check
+# (`scripts/check-edge-functions-deployed.mjs --all`) on the first of every
+# month and commits a human-readable monthly markdown snapshot under
+# reports/edge-fn-drift-<YYYY-MM-DD>.md. The driver is
+# `scripts/edge-fn-monthly-reaudit.mjs` — see that file for what is and
+# isn't covered (this is the parity surface, not the full Task #61 probe-set).
+#
+# Failures DO NOT fail the workflow — the report is the deliverable. Use
+# the existing `Check Edge Functions Are Deployed` workflow for blocking
+# enforcement on every push / PR.
+
+on:
+  schedule:
+    - cron: '7 5 1 * *'   # 05:07 UTC on the 1st of every month
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  reaudit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # the freshness check needs the full git log
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run monthly re-audit driver
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+        # Allow non-zero exit (drift findings) — the report is what we want
+        # to capture; the existing per-push workflow handles blocking.
+        run: node scripts/edge-fn-monthly-reaudit.mjs || true
+
+      - name: Commit monthly snapshot
+        run: |
+          today=$(date -u +%Y-%m-%d)
+          report="reports/edge-fn-drift-${today}.md"
+          if [ ! -f "$report" ]; then
+            echo "Re-audit driver did not produce $report — nothing to commit."
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git add "$report"
+          if git diff --staged --quiet; then
+            echo "No changes — snapshot already up to date."
+            exit 0
+          fi
+          git commit -m "chore(edge-fn): monthly drift re-audit snapshot ${today} (Task #68)"
+          git push

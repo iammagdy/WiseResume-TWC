@@ -525,7 +525,11 @@ Reachable model providers (from probe responses): **Groq** (slot 1, 490 ms), **D
 
 **L1. 9 merged routers concentrate ~40 legacy slugs into single deployments.** All routers are GREEN (verified end-to-end via Playwright + this audit's router-dispatch probes: `coupons` 200 valid:false, `wisehire-access` 200 with format-check payload, `mobile-api` 200 `{ok:true}`, etc.). No action — noting as healthy state.
 
+> **Continuous monitoring 2026-05-03 (Task #68, Phase 4).** Router parity (and the four other "Supabase = source of truth" parity rules — inventory, config, auth-posture, callers, freshness) is now enforced on every push, every PR touching `supabase/functions/**` or `supabase/config.toml`, and on a daily schedule via `.github/workflows/check-edge-functions-deployed.yml` calling `node scripts/check-edge-functions-deployed.mjs --all`. Drift snapshots are surfaced live in the DevKit Mission Control panel ("Edge Functions" card → `admin-devkit-data` action `edge-fn-drift`) and committed monthly to `reports/edge-fn-drift-<YYYY-MM-DD>.md` by `.github/workflows/edge-fn-monthly-reaudit.yml`. The curated allow-list of non-source callers + per-function no-auth status overrides lives at `scripts/edge-fn-drift-allowlist.json` — every entry is a documented exception.
+
 **L2. All 74 deployed functions are <11 minutes old** (newest `admin-user-ops` at 2026-05-03 05:05:52Z, oldest `admin-check-access` at 2026-05-03 05:00:27Z). Force-redeploy at session start cleared the prior 3-hour staleness on `wise-ai-chat` / `token-exchange`. Monitor with `scripts/check-edge-functions-deployed.mjs` to detect drift.
+
+> **Continuous monitoring 2026-05-03 (Task #68, Phase 4).** Freshness is now the second of five parity rules in the unified drift checker (`--all`); a function whose source-tree last commit time is more than 6 hours newer than its deployed `updated_at` is flagged. The CI job (above) and the monthly snapshot both surface stale deployments — see `scripts/check-edge-functions-deployed.mjs` and the Mission Control "Edge Functions" card.
 
 
 ## 7. GREEN / YELLOW / RED Verdicts

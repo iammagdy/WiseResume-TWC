@@ -16,6 +16,7 @@ import {
   Globe,
   Zap,
   Lock,
+  Network,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
@@ -107,6 +108,33 @@ interface MissionControlData {
   };
   recentErrors: ErrorEntry[];
   recentAdminActions: AdminActionEntry[];
+}
+
+interface EdgeFnDriftFailure {
+  name: string;
+  expected: number;
+  got: number;
+  note?: string;
+}
+
+interface EdgeFnDriftData {
+  checkedAt: string;
+  projectRef: string;
+  deployedCount: number;
+  freshness: {
+    oldestDeployedAt: string | null;
+    newestDeployedAt: string | null;
+    olderThan30d: number;
+  };
+  authPosture: {
+    total: number;
+    pass: number;
+    fail: number;
+    knownDriftCount: number;
+    failures: EdgeFnDriftFailure[];
+    knownDrifts: EdgeFnDriftFailure[];
+    defaultExpected: number;
+  };
 }
 
 function StatusDotIcon({ status }: { status: StatusDot }) {
@@ -215,6 +243,9 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
+  const [edgeDrift, setEdgeDrift] = useState<EdgeFnDriftData | null>(null);
+  const [edgeDriftError, setEdgeDriftError] = useState<string | null>(null);
+  const [edgeDriftLoading, setEdgeDriftLoading] = useState(false);
   const isMounted = useIsMounted();
 
   const fetchData = useCallback(async () => {
@@ -237,8 +268,32 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
     }
   }, [isMounted]);
 
+  // Edge-function drift snapshot (Task #68, Phase 4). Polled less aggressively
+  // than mission-control because each refresh fans out 74 no-auth POST probes;
+  // 5 minutes is plenty for a "drift watchtower" use case.
+  const fetchEdgeDrift = useCallback(async () => {
+    setEdgeDriftLoading(true);
+    setEdgeDriftError(null);
+    try {
+      const tuple = await edgeFunctions.functions.invoke('admin-devkit-data', {
+        headers: devKitAuthHeaders(),
+        body: { action: 'edge-fn-drift' },
+      });
+      const result = unwrapAdminResponse<EdgeFnDriftData>(tuple, 'admin-devkit-data');
+      if (!isMounted()) return;
+      setEdgeDrift(result);
+    } catch (e) {
+      if (!isMounted()) return;
+      setEdgeDriftError(formatEdgeError(e, 'Failed to load edge-function drift snapshot'));
+    } finally {
+      if (isMounted()) setEdgeDriftLoading(false);
+    }
+  }, [isMounted]);
+
   useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => { fetchEdgeDrift(); }, [fetchEdgeDrift]);
   useVisibleInterval(fetchData, 60_000);
+  useVisibleInterval(fetchEdgeDrift, 300_000);
 
   if (!data && loading) {
     return (
@@ -345,10 +400,18 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
     ? 'yellow'
     : 'red';
 
-  const overallStatus: StatusDot =
-    deployStatus === 'red' || aiStatus === 'red' || dbStatus === 'red' || secretsStatus === 'red' || emailStatus === 'red'
+  const edgeDriftStatus: StatusDot = !edgeDrift
+    ? edgeDriftError ? 'red' : 'grey'
+    : edgeDrift.authPosture.fail > 0
     ? 'red'
-    : deployStatus === 'yellow' || aiStatus === 'yellow' || secretsStatus === 'yellow' || emailStatus === 'yellow' || errorsStatus === 'yellow' || dbStatus === 'yellow'
+    : edgeDrift.authPosture.knownDriftCount > 0 || edgeDrift.freshness.olderThan30d > 0
+    ? 'yellow'
+    : 'green';
+
+  const overallStatus: StatusDot =
+    deployStatus === 'red' || aiStatus === 'red' || dbStatus === 'red' || secretsStatus === 'red' || emailStatus === 'red' || edgeDriftStatus === 'red'
+    ? 'red'
+    : deployStatus === 'yellow' || aiStatus === 'yellow' || secretsStatus === 'yellow' || emailStatus === 'yellow' || errorsStatus === 'yellow' || dbStatus === 'yellow' || edgeDriftStatus === 'yellow'
     ? 'yellow'
     : 'green';
 
@@ -635,6 +698,59 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+        </StatusCard>
+
+        {/* Edge-function drift card (Task #68, Phase 4) */}
+        <StatusCard
+          icon={Network}
+          title="Edge Functions"
+          status={edgeDriftStatus}
+          summary={
+            edgeDriftError
+              ? edgeDriftError
+              : edgeDrift
+              ? `${edgeDrift.authPosture.pass}/${edgeDrift.authPosture.total} auth-posture pass · ${edgeDrift.deployedCount} deployed`
+              : edgeDriftLoading
+              ? 'Probing 74 functions…'
+              : 'Loading…'
+          }
+        >
+          {edgeDrift && (
+            <div className="space-y-2">
+              <div className="flex flex-wrap gap-2">
+                <span className={cn(
+                  'text-[10px] font-medium px-2 py-0.5 rounded-full border',
+                  edgeDrift.authPosture.fail === 0
+                    ? 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20'
+                    : 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20',
+                )}>
+                  {edgeDrift.authPosture.fail === 0 ? 'no new drift' : `${edgeDrift.authPosture.fail} new drift`}
+                </span>
+                {edgeDrift.authPosture.knownDriftCount > 0 && (
+                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full border bg-amber-400/10 text-amber-600 dark:text-amber-400 border-amber-400/20">
+                    {edgeDrift.authPosture.knownDriftCount} known
+                  </span>
+                )}
+                {edgeDrift.freshness.olderThan30d > 0 && (
+                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full border bg-amber-400/10 text-amber-600 dark:text-amber-400 border-amber-400/20">
+                    {edgeDrift.freshness.olderThan30d} {'>'}30d
+                  </span>
+                )}
+              </div>
+              {edgeDrift.authPosture.failures.length > 0 && (
+                <div className="space-y-0.5 max-h-20 overflow-y-auto">
+                  {edgeDrift.authPosture.failures.slice(0, 4).map(f => (
+                    <p key={f.name} className="text-[10px] font-mono text-red-600 dark:text-red-400 truncate">
+                      {f.name}: expected {f.expected}, got {f.got || '—'}
+                    </p>
+                  ))}
+                </div>
+              )}
+              <p className="text-[10px] text-muted-foreground">
+                Auto-refresh every 5m · CI runs full 5-check parity (config, callers, freshness) on every push
+              </p>
             </div>
           )}
         </StatusCard>
