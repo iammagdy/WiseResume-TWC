@@ -44,13 +44,21 @@ WiseResume is an AI-powered web application for comprehensive career management.
 **Authentication Flow:**
 Users authenticate via Kinde, receiving an access token. The client exchanges this token with the Express server at `POST /api/fn/token-exchange`. The server validates the Kinde JWT, generates a deterministic UUID for the user, upserts profile data in the Supabase database, and issues a short-lived session JWT. This session JWT is then used for all subsequent `/api/*` calls and validated server-side.
 
-**Replit Role (dev environment ONLY — never production):**
-- Replit is the **coding/development environment only** — it is NOT used for production hosting, deployment, or secret storage.
-- **Production** runs entirely on **Supabase**: Edge Functions serve all API traffic; Supabase Vault holds all secrets; Postgres stores all data. Replit has zero involvement in the production path.
-- All secrets are stored in **Supabase Vault**. Secrets that also appear in Replit's environment are there solely to allow the local Express proxy to connect to Supabase during development — they are not the source of truth.
-- In Replit dev: Vite dev server (port 5000) for frontend, `tsx` server (port 5001) for Express API. Vite proxies `/api/*` to port 5001.
-- `src/lib/apiFnUrl.ts` handles environment-specific routing: `/api/fn/<name>` in dev (Vite → Express proxy) and `${VITE_SUPABASE_URL}/functions/v1/<name>` in production (Supabase Edge Functions directly).
-- The Express server (`server/index.ts`) is a **dev proxy only** — it mimics edge functions for local testing. It is never deployed and has no production role. Every secret it checks is tagged `supabase_vault`; a secret absent from `process.env` means it lives in Vault and is accessible to production edge functions — it is never "missing".
+**Replit Environment:**
+- **Frontend**: Vite dev server on port 5000 (proxies `/api/*` to port 5001).
+- **Backend**: Express API server (`server/index.ts`) on port 5001 via `tsx --watch`.
+- **Database**: Replit-managed PostgreSQL 16 (connection via `DATABASE_URL` env var, always set automatically).
+- **Schema**: Managed by Drizzle ORM (`server/schema.ts`). Run `npm run db:push` to apply schema changes to the Replit Postgres.
+- **Startup command**: `npm run server:dev & npm run dev` (starts both servers in parallel).
+- **Optional secrets** (add as Replit Secrets to enable full functionality):
+  - `VITE_SUPABASE_URL` + `VITE_SUPABASE_PUBLISHABLE_KEY` — enables Supabase-backed features and production data sync.
+  - `SUPABASE_SERVICE_ROLE_KEY` + `SUPABASE_JWT_SECRET` — enables admin-level DB access and auth token validation.
+  - `VITE_KINDE_DOMAIN` + `VITE_KINDE_CLIENT_ID` — enables Kinde authentication (login/signup flows).
+  - `KINDE_M2M_CLIENT_ID` + `KINDE_M2M_CLIENT_SECRET` — enables Kinde M2M (admin user management).
+  - AI keys: `OPENROUTER_KEY_1`, `GROQ_KEY_1`, `GEMINI_API_KEY` — enables AI features.
+  - `RESEND_API_KEY` — enables email sending.
+- `src/lib/apiFnUrl.ts` handles environment routing: `/api/fn/<name>` in dev (Vite → Express proxy) and `${VITE_SUPABASE_URL}/functions/v1/<name>` in production.
+- The Express server gracefully degrades when optional secrets are absent — it boots and serves DB-backed routes even without Supabase/Kinde configured.
 
 **Core Features & Implementations:**
 - **AI Career Management**: AI-powered resume building, tailoring for job listings, public portfolios, interview practice, job tracking, and career goal management.

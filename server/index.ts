@@ -91,23 +91,20 @@ const KINDE_DOMAIN = process.env.VITE_KINDE_DOMAIN || process.env.KINDE_DOMAIN |
 // are effectively dev-only.
 const SESSION_SECRET = process.env.SESSION_SECRET || '';
 
-// ── Fail-fast startup guards ───────────────────────────────────────────────────
-// These three env vars are required for the server to function correctly.
-// Missing any of them causes silent, hard-to-diagnose runtime failures, so we
-// exit immediately with a clear message rather than booting in a degraded state.
-const MISSING_REQUIRED = [
-  !SUPABASE_URL && 'SUPABASE_URL (or VITE_SUPABASE_URL)',
-  !KINDE_DOMAIN && 'KINDE_DOMAIN (or VITE_KINDE_DOMAIN)',
-  !DATABASE_URL && 'DATABASE_URL',
-].filter(Boolean);
-
-if (MISSING_REQUIRED.length > 0) {
-  console.error(
-    '[server] FATAL: Required environment variables are not set:\n' +
-    MISSING_REQUIRED.map((v) => `  • ${v}`).join('\n') + '\n' +
-    '[server] Set them as Replit Secrets and restart the server.',
-  );
+// ── Startup guards ─────────────────────────────────────────────────────────────
+// DATABASE_URL is the only hard requirement — the local Replit Postgres is
+// always available. SUPABASE_URL and KINDE_DOMAIN are optional: when absent
+// those subsystems degrade gracefully (Supabase calls are skipped, Kinde auth
+// routes return 503) so the server still boots and the DB-backed routes work.
+if (!DATABASE_URL) {
+  console.error('[server] FATAL: DATABASE_URL is not set. Cannot connect to the database.');
   process.exit(1);
+}
+if (!SUPABASE_URL) {
+  console.warn('[server] SUPABASE_URL not set — Supabase-backed routes will be unavailable.');
+}
+if (!KINDE_DOMAIN) {
+  console.warn('[server] KINDE_DOMAIN not set — Kinde auth routes will be unavailable.');
 }
 
 /**
