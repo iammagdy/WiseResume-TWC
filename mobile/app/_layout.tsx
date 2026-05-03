@@ -1,3 +1,7 @@
+// `@expo/metro-runtime` enables Fast Refresh and the URL/error overlay for
+// the Expo Router web target. It is a no-op on native, so importing it
+// unconditionally at the root keeps the web entry-point happy.
+import '@expo/metro-runtime';
 import 'react-native-gesture-handler';
 import React, { useEffect, useState } from 'react';
 import { Slot, SplashScreen } from 'expo-router';

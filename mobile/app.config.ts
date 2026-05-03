@@ -100,7 +100,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     'expo-secure-store',
     'expo-local-authentication',
     'expo-notifications',
-    'expo-web-browser',
     [
       'expo-image-picker',
       {
