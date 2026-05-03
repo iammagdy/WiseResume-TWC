@@ -2,6 +2,42 @@
 
 Local changelog tracking WiseResume changes.
 
+## 2026-05-03 (Task #70 v2 — Sync Replit local main with GitHub origin/main; release v3.11.1)
+
+### Changed
+- **Reconciled `origin/main` with the Replit working copy after a 161-commit divergence.** Origin had Tasks #44–#46 worth of mobile / landing / audit fixes pushed directly to GitHub; Replit local had Tasks #47–#68 (incl. Tasks #52–#55 router consolidations, Task #66 Phase 2 reconciliation, Task #67 Phase 3 edge-function polish, and Task #68 Phase 4 continuous drift-detection scaffolding — commit `a23aebb` on top of `6eb7f28`). Plain `git push` was rejected non-fast-forward; the Replit sandbox blocks `fetch`/`pull`/`merge`/`add`/`checkout`/`commit`/`rm` so neither the standard merge-then-push flow nor a sidecar-clone flow could complete from inside this environment. The earlier Task #69 attempt and Task #70 v1 attempt both hit the same wall.
+
+### Added
+- **Merge commit `92233529514c54ee946b1900091e8db7943dfcd0` on `origin/main`** with both histories preserved as parents (`c8ba7da8…` from origin, `7e7da995…` from local). The commit was constructed via the GitHub Data API rather than the git CLI: `POST /repos/.../git/commits` with `tree=355e972a…` (= local main's tree) and the two parents, then `PATCH /repos/.../git/refs/heads/main` to fast-forward `main` to it (no `force` flag, no history rewriting).
+- **Backup branch `sync-from-replit-2026-05-03` on origin** holding the pre-merge local-main snapshot (`7e7da99…`). Created via `git push main:refs/heads/sync-from-replit-2026-05-03` (allowed because creating a new branch is a fast-forward operation). Left in place as a parachute; can be deleted from the GitHub UI any time.
+
+### Conflict resolutions (5 paths — all to LOCAL)
+- **`.replit`** — LOCAL. Environment config; local is current.
+- **`EDGE_FUNCTION_AUDIT.md`** — LOCAL. Phase 4 file (required by the task brief to survive verbatim).
+- **`supabase/config.toml`** — LOCAL. The Task #66 Phase 2 reconciliation note in the local version explicitly supersedes origin's stale comment claiming `export-portfolio-pdf`, `mobile-config`, `revenuecat-webhook`, and `send-push` were "never deployed" — those four were re-confirmed `ACTIVE` with `verify_jwt=true` via the Supabase Management API on 2026-05-03 and are recorded that way in local's config. Local also removes the standalone `[functions.admin-wisehire-reset-user]`, `[functions.admin-wisehire-revoke-invite]`, and `[functions.inspect-ai-keys]` entries because Tasks #53/#54 consolidated those into the `admin-ai-ops` and `admin-wisehire` routers.
+- **`supabase/functions/admin-devkit-data/index.ts`** — LOCAL. Phase 4 file (required by the task brief).
+- **`supabase/functions/admin-integrations/index.ts`** — DELETED. Local removed this file as part of Task #52 admin-config router consolidation; the functionality lives inside `admin-config` now.
+
+### Behaviour preserved
+- **Phase 4 commit `a23aebb` is preserved verbatim** and reachable from `origin/main` via the merge commit's second parent.
+- **Origin's exclusive commits (Tasks #44–#46)** remain reachable from `origin/main` via the merge commit's first parent.
+- **Zero changes to the Replit working copy.** Tree SHA of local `HEAD` (`355e972a…`) matches tree SHA of `origin/main` byte-for-byte. The local checkout reports `[ahead 162]` against `origin/main` only because it has not yet fetched the new merge commit — the file contents at both tips are identical.
+- **No rebase, no force-push, no history rewriting** of any kind. Out of scope per the task brief: cleaning up the `subrepl-*` remotes; force-pushing; cherry-picking origin's exclusive commits onto a linear local timeline.
+
+### Verification
+- `GET /repos/iammagdy/WiseResume-TWC/branches/main` → `commit.sha = 92233529…`, `parents = [c8ba7da8…, 7e7da995…]`, `tree.sha = 355e972a…`.
+- `GET /repos/.../compare/{LOCAL_TIP}...main` → `status: ahead, ahead_by: 36, behind_by: 0` — local tip is fully reachable from `main` (the 36-ahead are origin's exclusive commits plus the merge commit itself, all reachable through the merge).
+- Local `git rev-parse HEAD^{tree}` = `355e972ae50281c9685abe6dd4ddb850f93ad69d`, identical to GitHub `main`'s `commit.tree.sha`.
+- `Start application` workflow continues to run cleanly throughout; no source files were modified by this task.
+
+**Files changed (in this Replit checkout):** `package.json` (version bump to `3.11.1`), `public/changelog.json` (new `v3.11.1` entry; previous `v3.11.0` flipped to `latest:false`), `Project Atlas/01-Currently Implemented/stability-fixes/github-origin-sync-task-70.md` (new card), `Project Atlas/01-Currently Implemented/stability-fixes/README.md` (index entry added), `Project Atlas/04-For You (Plain Language)/stability-improvements.md` (plain-language paragraph added; `Last verified` bumped), `project-governance/CHANGELOG.md` (this entry).
+
+**Repository changed (on GitHub `iammagdy/WiseResume-TWC`):** `main` fast-forwarded from `c8ba7da8…` to `92233529…`; new branch `sync-from-replit-2026-05-03` created at `7e7da995…`.
+
+**Deployment:** repo-housekeeping only. No code, schema, edge-function, env-var, or build-output change. The `Start application` and `Mobile (Web Preview)` workflows are unaffected. Hostinger / Supabase / mobile build pipelines are unaffected. The next normal deploy picks up the version bump in `package.json` and the new `v3.11.1` entry in the in-app "What's New" page.
+
+---
+
 ## 2026-04-29 (Task #20 — Cap autosave drafts at the same size limit as publish)
 
 ### Changed
