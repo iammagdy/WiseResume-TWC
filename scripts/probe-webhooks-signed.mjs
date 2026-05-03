@@ -18,9 +18,10 @@
  *      function-specific (see EXPECTED_POS below) so we know we got past
  *      the signature gate AND landed in the expected business-logic
  *      branch:
- *        auth-email-hook  → 400  ("Unknown email type" — payload uses an
- *                                  unknown email_action_type so we never
- *                                  trigger a real Resend send)
+ *        auth-email-hook  → 200  (`__probe: true` payload short-circuits
+ *                                  the function AFTER signature verification,
+ *                                  before any Resend call — see
+ *                                  supabase/functions/auth-email-hook/index.ts)
  *        kinde-webhook    → 200  (a non-`user.created` event is acked
  *                                  without invoking provisionUser, so the
  *                                  probe is fully side-effect-free)

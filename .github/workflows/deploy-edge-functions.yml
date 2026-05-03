@@ -102,7 +102,7 @@ jobs:
       # functions the unauthenticated smoke-test cannot positively verify.
       # Each probe pair asserts BOTH:
       #   - positive (valid signature) → endpoint-specific expected status
-      #     (auth-email-hook=400, kinde-webhook=200)
+      #     (auth-email-hook=200 via __probe short-circuit, kinde-webhook=200)
       #   - negative (invalid signature) → 401
       # The script SKIPs (exit 0) when either secret is not configured, so
       # this step is non-blocking on forks but enforced on the canonical
