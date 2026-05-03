@@ -113,7 +113,6 @@ const ADMIN_FUNCTIONS = [
   'admin-portfolio-usernames',
   'admin-revoke-sessions',
   'admin-revoke-trial',
-  'admin-rotate-totp',
   'admin-save-note',
   'admin-set-credits',
   'admin-set-plan',

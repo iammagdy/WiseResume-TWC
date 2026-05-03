@@ -9,25 +9,30 @@ import { useAuthStore } from '@/state/authStore';
 
 interface SavedJob { id: string }
 
+/**
+ * Prod table is `job_applications` (NOT saved_jobs). Columns used here:
+ * job_title, company, url, status. Verified 2026-05-03 against Supabase
+ * project jnsfmkzgxsviuthaqlyy.
+ */
 export default function NewJob() {
   const userId = useAuthStore((s) => s.identity?.userId);
-  const [title, setTitle] = useState('');
+  const [jobTitle, setJobTitle] = useState('');
   const [company, setCompany] = useState('');
   const [url, setUrl] = useState('');
   const [busy, setBusy] = useState(false);
 
   const save = async () => {
-    if (!userId || !title.trim() || !company.trim()) {
+    if (!userId || !jobTitle.trim() || !company.trim()) {
       Alert.alert('Missing info', 'Job title and company are required.');
       return;
     }
     setBusy(true);
     try {
-      const rows = await rest<SavedJob[]>('saved_jobs', {
+      const rows = await rest<SavedJob[]>('job_applications', {
         method: 'POST',
         body: {
           user_id: userId,
-          title: title.trim(),
+          job_title: jobTitle.trim(),
           company: company.trim(),
           url: url.trim() || null,
           status: 'saved',
@@ -48,7 +53,7 @@ export default function NewJob() {
     <>
       <Stack.Screen options={{ title: 'Save a job' }} />
       <Screen>
-        <Input testID="job-title-input" label="Job title" value={title} onChangeText={setTitle} autoFocus />
+        <Input testID="job-title-input" label="Job title" value={jobTitle} onChangeText={setJobTitle} autoFocus />
         <Input testID="job-company-input" label="Company" value={company} onChangeText={setCompany} />
         <Input label="Posting URL (optional)" value={url} onChangeText={setUrl} autoCapitalize="none" keyboardType="url" />
         <Button testID="job-save-button" title="Save job" onPress={save} loading={busy} />

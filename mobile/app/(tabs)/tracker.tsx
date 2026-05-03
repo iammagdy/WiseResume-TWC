@@ -11,10 +11,15 @@ import { spacing, typography } from '@/theme/tokens';
 import { rest } from '@/lib/api';
 import { useAuthStore } from '@/state/authStore';
 
+/**
+ * Prod table is `job_applications` (NOT saved_jobs). Columns: id, user_id,
+ * job_title, company, status, url, applied_at, deadline, … Verified
+ * 2026-05-03 against project jnsfmkzgxsviuthaqlyy.
+ */
 interface JobRow {
   id: string;
   user_id: string;
-  title: string;
+  job_title: string;
   company: string;
   status: string;
   applied_at: string | null;
@@ -28,7 +33,7 @@ export default function TrackerTab() {
     queryKey: ['jobs', userId],
     enabled: !!userId,
     queryFn: () =>
-      rest<JobRow[]>('saved_jobs', {
+      rest<JobRow[]>('job_applications', {
         method: 'GET',
         select: '*',
         query: { user_id: `eq.${userId}`, order: 'updated_at.desc' },
@@ -61,7 +66,7 @@ export default function TrackerTab() {
         renderItem={({ item }) => (
           <Pressable onPress={() => router.push(`/job/${item.id}`)}>
             <Card>
-              <Text style={[typography.body, { color: theme.text, fontWeight: '600' }]}>{item.title}</Text>
+              <Text style={[typography.body, { color: theme.text, fontWeight: '600' }]}>{item.job_title}</Text>
               <Text style={[typography.small, { color: theme.textMuted }]}>
                 {item.company} · {item.status}
               </Text>

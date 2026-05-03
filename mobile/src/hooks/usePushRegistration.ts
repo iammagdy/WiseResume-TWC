@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
-import { callEdgeFunction } from '@/lib/api';
+import { callMobileAction } from '@/lib/api';
 import { useAuthStore } from '@/state/authStore';
 
 Notifications.setNotificationHandler({
@@ -15,8 +15,8 @@ Notifications.setNotificationHandler({
 
 /**
  * On sign-in, asks the OS for notification permission, retrieves an
- * Expo push token, and posts it to the new `register-push-token` edge
- * function. Silently no-ops on simulators (no APNs/FCM).
+ * Expo push token, and posts it to `mobile-api` (action=register-push-token).
+ * Silently no-ops on simulators (no APNs/FCM).
  */
 export function usePushRegistration() {
   const identity = useAuthStore((s) => s.identity);
@@ -45,12 +45,10 @@ export function usePushRegistration() {
         const tokenRes = await Notifications.getExpoPushTokenAsync();
         const expoPushToken = tokenRes.data;
         if (cancelled) return;
-        await callEdgeFunction('register-push-token', {
-          body: {
-            token: expoPushToken,
-            platform: Platform.OS,
-            app_version: '1.0.0',
-          },
+        await callMobileAction('register-push-token', {
+          token: expoPushToken,
+          platform: Platform.OS,
+          app_version: '1.0.0',
         });
       } catch (err) {
         // Push registration failures are non-fatal — surface in dev only.

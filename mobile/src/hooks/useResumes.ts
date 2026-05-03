@@ -2,14 +2,29 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { rest } from '@/lib/api';
 import { useAuthStore } from '@/state/authStore';
 
+/**
+ * Mirrors the prod `public.resumes` row shape (verified 2026-05-03 against
+ * Supabase project `jnsfmkzgxsviuthaqlyy` via Management API). The table
+ * has NO `content`/`data` column — sections live in their own jsonb columns
+ * (contact_info, summary, experience, education, skills, …). Mobile only
+ * lists/edits the metadata fields plus `template_id`; the full editor
+ * lives on the web. We expose the section columns optionally so callers
+ * (e.g. mobile cover-letter generator) can pass the resume as a single
+ * object to `generate-cover-letter`.
+ */
 export interface ResumeRow {
   id: string;
   user_id: string;
   title: string | null;
-  template_key: string | null;
+  template_id: string | null;
   updated_at: string;
   created_at: string;
-  data: unknown;
+  contact_info?: unknown;
+  summary?: string | null;
+  experience?: unknown;
+  education?: unknown;
+  skills?: unknown;
+  certifications?: unknown;
 }
 
 export function useResumes() {

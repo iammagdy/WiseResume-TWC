@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useTheme } from '@/theme/ThemeProvider';
 import { spacing, typography } from '@/theme/tokens';
-import { callEdgeFunction } from '@/lib/api';
+import { callMobileAction } from '@/lib/api';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/state/authStore';
 
@@ -66,9 +66,7 @@ export default function InterviewSession() {
     setFeedback(null);
     setTranscript('');
     try {
-      const q = await callEdgeFunction<Question>('interview-next-question', {
-        body: { track },
-      });
+      const q = await callMobileAction<Question>('interview-next-question', { track });
       setQuestion(q);
     } catch (err) {
       Alert.alert('Could not load question', err instanceof Error ? err.message : 'Please try again.');
@@ -96,14 +94,12 @@ export default function InterviewSession() {
 
   const gradeWithTranscript = async (text: string, audioPath?: string) => {
     if (!question) return;
-    const fb = await callEdgeFunction<Feedback>('interview-grade-answer', {
-      body: {
-        question_id: question.id,
-        prompt: question.prompt,
-        track,
-        transcript: text,
-        audio_path: audioPath,
-      },
+    const fb = await callMobileAction<Feedback>('interview-grade-answer', {
+      question_id: question.id,
+      prompt: question.prompt,
+      track,
+      transcript: text,
+      audio_path: audioPath,
     });
     setFeedback(fb);
   };

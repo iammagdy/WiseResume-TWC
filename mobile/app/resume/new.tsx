@@ -17,9 +17,13 @@ export default function NewResume() {
     if (!userId) return;
     setBusy(true);
     try {
+      // Prod `resumes` columns: template_id (text), title (text), and
+      // section columns (contact_info, summary, experience, education,
+      // skills, …) — all jsonb. There is NO `content` or `data` column.
+      // Verified 2026-05-03 against Supabase project jnsfmkzgxsviuthaqlyy.
       const created = await rest<ResumeRow[]>('resumes', {
         method: 'POST',
-        body: { user_id: userId, title, template_key: 'modern', data: {} },
+        body: { user_id: userId, title, template_id: 'modern' },
         select: '*',
         extraHeaders: { Prefer: 'return=representation' },
       });

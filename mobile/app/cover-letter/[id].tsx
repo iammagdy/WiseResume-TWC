@@ -7,10 +7,31 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { useTheme } from '@/theme/ThemeProvider';
 import { typography, spacing } from '@/theme/tokens';
-import { rest, callEdgeFunction } from '@/lib/api';
+import { rest, callMobileAction } from '@/lib/api';
 import { useAuthStore } from '@/state/authStore';
 
-interface CoverLetterRow { id: string; title: string | null; body: string | null; updated_at: string }
+/**
+ * Prod `cover_letters` columns: id, user_id, title, content (TEXT),
+ * job_title, company, position, tone, template_style, … Verified
+ * 2026-05-03. `content` is plain text (not jsonb) but legacy rows from
+ * the newer schema attempt may store `{text: …}`, so coerce both shapes.
+ */
+interface CoverLetterRow {
+  id: string;
+  title: string | null;
+  content: string | { text?: string } | null;
+  updated_at: string;
+}
+
+function pickText(content: unknown): string {
+  if (!content) return '';
+  if (typeof content === 'string') return content;
+  if (typeof content === 'object' && content !== null) {
+    const obj = content as Record<string, unknown>;
+    if (typeof obj.text === 'string') return obj.text;
+  }
+  return '';
+}
 
 export default function CoverLetterDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -35,8 +56,9 @@ export default function CoverLetterDetail() {
     if (!id) return;
     setBusy(true);
     try {
-      const res = await callEdgeFunction<{ url: string }>('export-cover-letter-pdf', {
-        body: { cover_letter_id: id },
+      const res = await callMobileAction<{ url: string }>('export-pdf', {
+        kind: 'cover_letter',
+        id,
       });
       Alert.alert('PDF ready', `Download: ${res.url}`);
     } catch (err) {
@@ -54,7 +76,9 @@ export default function CoverLetterDetail() {
       <Stack.Screen options={{ title: letter.data.title || 'Cover letter' }} />
       <Screen>
         <Card>
-          <Text style={[typography.body, { color: theme.text, lineHeight: 22 }]}>{letter.data.body ?? ''}</Text>
+          <Text style={[typography.body, { color: theme.text, lineHeight: 22 }]}>
+            {pickText(letter.data.content)}
+          </Text>
         </Card>
         <Button title="Export as PDF" onPress={exportPdf} loading={busy} />
         <Text style={[typography.small, { color: theme.textMuted, marginTop: spacing.lg }]}>

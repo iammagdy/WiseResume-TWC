@@ -58,6 +58,27 @@ async function buildAuthHeaders(skipAuth: boolean): Promise<Record<string, strin
 }
 
 /**
+ * Call the consolidated `mobile-api` router with `{action, ...payload}`.
+ * Six former mobile-only edge functions (register-push-token, the three
+ * export-*-pdf functions, and the two interview-* functions) were merged
+ * into a single router on 2026-05-03 so we stay under Supabase's
+ * 100-function-per-project deployment cap. Web functions (token-exchange,
+ * me, generate-cover-letter, generate-resignation-letter) keep their
+ * standalone deployments and are still called via callEdgeFunction.
+ */
+export async function callMobileAction<T = unknown>(
+  action: string,
+  payload: Record<string, unknown> = {},
+  opts: Omit<CallOptions, 'body' | 'method'> = {},
+): Promise<T> {
+  return callEdgeFunction<T>('mobile-api', {
+    ...opts,
+    method: 'POST',
+    body: { action, ...payload },
+  });
+}
+
+/**
  * Call a Supabase Edge Function and return the parsed JSON body.
  * Throws ApiError on non-2xx.
  */

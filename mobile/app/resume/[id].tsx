@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { useTheme } from '@/theme/ThemeProvider';
 import { spacing, typography } from '@/theme/tokens';
 import { useResume, useUpdateResume } from '@/hooks/useResumes';
-import { callEdgeFunction } from '@/lib/api';
+import { callMobileAction } from '@/lib/api';
 
 export default function ResumeDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -26,8 +26,9 @@ export default function ResumeDetail() {
     if (!id) return;
     setExporting(true);
     try {
-      const res = await callEdgeFunction<{ url: string }>('export-resume-pdf', {
-        body: { resume_id: id },
+      const res = await callMobileAction<{ url: string }>('export-pdf', {
+        kind: 'resume',
+        id,
       });
       Alert.alert('PDF ready', `Download: ${res.url}`);
     } catch (err) {
@@ -68,7 +69,7 @@ export default function ResumeDetail() {
         />
         <Card>
           <Text style={[typography.small, { color: theme.textMuted }]}>Template</Text>
-          <Text style={[typography.body, { color: theme.text }]}>{resume.data.template_key ?? 'modern'}</Text>
+          <Text style={[typography.body, { color: theme.text }]}>{resume.data.template_id ?? 'modern'}</Text>
         </Card>
         <Card>
           <Text style={[typography.small, { color: theme.textMuted }]}>Last updated</Text>
