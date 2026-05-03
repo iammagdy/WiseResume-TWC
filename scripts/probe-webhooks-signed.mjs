@@ -12,6 +12,26 @@
  * unsigned-bearer 401, not that the signature path actually accepts a
  * properly-signed request.
  *
+ * Each function gets two probes:
+ *
+ *   1. POSITIVE — payload signed with the real secret. Assertion is
+ *      function-specific (see EXPECTED_POS below) so we know we got past
+ *      the signature gate AND landed in the expected business-logic
+ *      branch:
+ *        auth-email-hook  → 400  ("Unknown email type" — payload uses an
+ *                                  unknown email_action_type so we never
+ *                                  trigger a real Resend send)
+ *        kinde-webhook    → 200  (a non-`user.created` event is acked
+ *                                  without invoking provisionUser, so the
+ *                                  probe is fully side-effect-free)
+ *
+ *   2. NEGATIVE — same payload signed with `WRONG_SECRET_DO_NOT_USE`.
+ *      Assertion is **401** for both functions: the signature MUST fail
+ *      and the function MUST refuse the request.
+ *
+ * A probe pair passes only if BOTH positive and negative assertions hit
+ * their expected status codes. Any deviation fails the run.
+ *
  * Required env (skipped with a warning if missing):
  *   SUPABASE_AUTH_HOOK_SECRET — same value configured on the deployed
  *                               function. May be raw or `whsec_<base64>`.
@@ -21,16 +41,11 @@
  *   SUPABASE_PROJECT_REF (defaults to jnsfmkzgxsviuthaqlyy)
  *   SUPABASE_URL / EXT_SUPABASE_URL (overrides the derived URL)
  *
- * Success criterion is "signature accepted" — i.e. the response is NOT
- * 401. Both functions reach business-logic failures past the signature
- * check (auth-email-hook hits "Unknown email type" → 400 for our probe
- * payload; kinde-webhook acks non-user.created events with 200). Either
- * outcome proves the signature path is alive.
- *
  * Exit codes:
- *   0 — every configured probe passed (or was skipped with secret missing)
- *   1 — at least one probe was attempted and failed (401 / network err)
- *   2 — config error
+ *   0 — every configured probe pair passed (or was skipped for a missing
+ *       secret — local dev / opt-in CI).
+ *   1 — at least one probe pair failed (wrong status, network error).
+ *   2 — config error.
  */
 import { createHmac } from 'node:crypto';
 
@@ -41,31 +56,43 @@ const BASE_URL = (
   `https://${PROJECT_REF}.supabase.co`
 ).replace(/\/+$/, '');
 
-const results = [];
+const WRONG_SECRET = 'WRONG_SECRET_DO_NOT_USE';
+
+// Per-endpoint expected status for a *valid* signature. Any other status
+// fails the positive probe even if it isn't 401.
+const EXPECTED_POS = {
+  'auth-email-hook': 400, // signature accepted, downstream rejects unknown email_action_type
+  'kinde-webhook':   200, // signature accepted, function acks non-user.created event
+};
+const EXPECTED_NEG = 401;   // both endpoints MUST return 401 on signature mismatch
+
 let attempted = 0;
 let failed = 0;
 
-function logResult(name, status, body, ok, note = '') {
+function reportProbe(name, kind, expected, status, body, extra = '') {
+  const ok = status === expected;
   const verdict = ok ? 'PASS' : 'FAIL';
-  const truncated = body.length > 200 ? body.slice(0, 200) + '…' : body;
-  console.log(`${verdict}  ${name}  status=${status}  ${note}`);
-  console.log(`        body: ${truncated.replace(/\n/g, ' ')}`);
-  results.push({ name, status, ok, body: truncated, note });
+  const truncated = (body || '').length > 200 ? body.slice(0, 200) + '…' : (body || '');
+  console.log(`  ${verdict}  ${name} [${kind}]  status=${status}  expected=${expected}  ${extra}`);
+  if (truncated) console.log(`        body: ${truncated.replace(/\n/g, ' ')}`);
   if (!ok) failed++;
+  return ok;
 }
 
-// ── Probe 1: auth-email-hook (Standard Webhooks v1 signature) ──────────────
-async function probeAuthEmailHook() {
-  const secret = process.env.SUPABASE_AUTH_HOOK_SECRET;
-  if (!secret) {
-    console.log('SKIP  auth-email-hook  (SUPABASE_AUTH_HOOK_SECRET not set)');
-    return;
+// ── Standard Webhooks signing (auth-email-hook) ────────────────────────────
+function signStandardWebhook(secret, id, timestamp, body) {
+  let keyBytes;
+  if (secret.startsWith('whsec_')) {
+    keyBytes = Buffer.from(secret.slice('whsec_'.length), 'base64');
+  } else {
+    keyBytes = Buffer.from(secret, 'utf8');
   }
-  attempted++;
+  return createHmac('sha256', keyBytes)
+    .update(`${id}.${timestamp}.${body}`)
+    .digest('base64');
+}
 
-  // A payload that will pass the signature check but fail downstream with a
-  // recognized "Unknown email type" 400. We deliberately use an unknown
-  // email_action_type so we don't risk sending a real email through Resend.
+async function postAuthEmailHook(secret) {
   const payload = JSON.stringify({
     user: { email: 'probe@example.test' },
     email_data: {
@@ -76,52 +103,73 @@ async function probeAuthEmailHook() {
       redirect_to: 'https://resume.thewise.cloud',
     },
   });
-
   const id = `audit-probe-${Date.now()}`;
   const timestamp = Math.floor(Date.now() / 1000).toString();
-  const signedContent = `${id}.${timestamp}.${payload}`;
+  const sig = signStandardWebhook(secret, id, timestamp, payload);
 
-  // Decode whsec_<base64> → raw key bytes; otherwise treat as raw secret.
-  let keyBytes;
-  if (secret.startsWith('whsec_')) {
-    keyBytes = Buffer.from(secret.slice('whsec_'.length), 'base64');
-  } else {
-    keyBytes = Buffer.from(secret, 'utf8');
-  }
-  const sig = createHmac('sha256', keyBytes).update(signedContent).digest('base64');
-
-  const url = `${BASE_URL}/functions/v1/auth-email-hook`;
-  let res, text;
-  try {
-    res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'webhook-id': id,
-        'webhook-timestamp': timestamp,
-        'webhook-signature': `v1,${sig}`,
-      },
-      body: payload,
-    });
-    text = await res.text();
-  } catch (e) {
-    logResult('auth-email-hook', 0, String(e), false, 'network error');
-    return;
-  }
-
-  // Pass = signature accepted (anything other than 401). 400 "Unknown email
-  // type" is the expected downstream rejection that proves we got past auth.
-  const ok = res.status !== 401;
-  logResult(
-    'auth-email-hook',
-    res.status,
-    text,
-    ok,
-    ok ? 'signature accepted (downstream rejection is expected)' : 'signature REJECTED — secret mismatch?',
-  );
+  const res = await fetch(`${BASE_URL}/functions/v1/auth-email-hook`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'webhook-id': id,
+      'webhook-timestamp': timestamp,
+      'webhook-signature': `v1,${sig}`,
+    },
+    body: payload,
+  });
+  return { status: res.status, body: await res.text() };
 }
 
-// ── Probe 2: kinde-webhook (X-Kinde-Signature: sha256=<hex>) ───────────────
+async function probeAuthEmailHook() {
+  const secret = process.env.SUPABASE_AUTH_HOOK_SECRET;
+  if (!secret) {
+    console.log('SKIP  auth-email-hook  (SUPABASE_AUTH_HOOK_SECRET not set)');
+    return;
+  }
+  attempted++;
+  console.log('PROBE auth-email-hook');
+
+  // Positive
+  try {
+    const { status, body } = await postAuthEmailHook(secret);
+    reportProbe('auth-email-hook', 'positive', EXPECTED_POS['auth-email-hook'], status, body,
+      'valid signature → expected 400 (unknown email_action_type, no Resend call)');
+  } catch (e) {
+    console.log(`  FAIL  auth-email-hook [positive]  network error: ${String(e).slice(0, 120)}`);
+    failed++;
+  }
+
+  // Negative
+  try {
+    const { status, body } = await postAuthEmailHook(WRONG_SECRET);
+    reportProbe('auth-email-hook', 'negative', EXPECTED_NEG, status, body,
+      'wrong-secret signature → expected 401');
+  } catch (e) {
+    console.log(`  FAIL  auth-email-hook [negative]  network error: ${String(e).slice(0, 120)}`);
+    failed++;
+  }
+}
+
+// ── Kinde HMAC-SHA256 hex (kinde-webhook) ──────────────────────────────────
+async function postKindeWebhook(secret) {
+  const payload = JSON.stringify({
+    type: 'user.updated',
+    event_id: `audit-probe-${Date.now()}`,
+    timestamp: new Date().toISOString(),
+    data: { user: { id: 'probe-user', email: 'probe@example.test' } },
+  });
+  const sig = createHmac('sha256', secret).update(payload).digest('hex');
+  const res = await fetch(`${BASE_URL}/functions/v1/kinde-webhook`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Kinde-Signature': `sha256=${sig}`,
+    },
+    body: payload,
+  });
+  return { status: res.status, body: await res.text() };
+}
+
 async function probeKindeWebhook() {
   const secret = process.env.KINDE_WEBHOOK_SECRET;
   if (!secret) {
@@ -129,43 +177,27 @@ async function probeKindeWebhook() {
     return;
   }
   attempted++;
+  console.log('PROBE kinde-webhook');
 
-  // Use a non-user.created event so the function acks with 200 and does NOT
-  // attempt user provisioning (keeps the probe side-effect-free).
-  const payload = JSON.stringify({
-    type: 'user.updated',
-    event_id: `audit-probe-${Date.now()}`,
-    timestamp: new Date().toISOString(),
-    data: { user: { id: 'probe-user', email: 'probe@example.test' } },
-  });
-
-  const sig = createHmac('sha256', secret).update(payload).digest('hex');
-  const url = `${BASE_URL}/functions/v1/kinde-webhook`;
-
-  let res, text;
+  // Positive
   try {
-    res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Kinde-Signature': `sha256=${sig}`,
-      },
-      body: payload,
-    });
-    text = await res.text();
+    const { status, body } = await postKindeWebhook(secret);
+    reportProbe('kinde-webhook', 'positive', EXPECTED_POS['kinde-webhook'], status, body,
+      'valid signature on user.updated → expected 200 (no provisionUser call)');
   } catch (e) {
-    logResult('kinde-webhook', 0, String(e), false, 'network error');
-    return;
+    console.log(`  FAIL  kinde-webhook [positive]  network error: ${String(e).slice(0, 120)}`);
+    failed++;
   }
 
-  const ok = res.status !== 401;
-  logResult(
-    'kinde-webhook',
-    res.status,
-    text,
-    ok,
-    ok ? 'signature accepted' : 'signature REJECTED — secret mismatch?',
-  );
+  // Negative
+  try {
+    const { status, body } = await postKindeWebhook(WRONG_SECRET);
+    reportProbe('kinde-webhook', 'negative', EXPECTED_NEG, status, body,
+      'wrong-secret signature → expected 401');
+  } catch (e) {
+    console.log(`  FAIL  kinde-webhook [negative]  network error: ${String(e).slice(0, 120)}`);
+    failed++;
+  }
 }
 
 console.log(`Webhook signature probes against ${BASE_URL}`);

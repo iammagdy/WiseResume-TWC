@@ -486,7 +486,14 @@ Reachable model providers (from probe responses): **Groq** (slot 1, 490 ms), **D
 
 **H4. `auth-email-hook` and `kinde-webhook` returned 401 `{error:"Unauthorized"}` when probed with our test JWT.** This is correct (HMAC-signed webhooks reject any non-signature bearer) but means the audit cannot positively verify the signature path without the signing secret. Verification is currently only via Playwright spec `tests/e2e/auth-flow.spec.ts` and integration test `tests/e2e/kinde-webhook.spec.ts` — no live production probe.
 
-> **RESOLVED 2026-05-03 (Task #65, Phase 1).** Added `scripts/probe-webhooks-signed.mjs`, which signs a sample payload with `SUPABASE_AUTH_HOOK_SECRET` (Standard Webhooks v1, `whsec_<base64>` aware) and `KINDE_WEBHOOK_SECRET` (HMAC-SHA256 hex, `X-Kinde-Signature: sha256=<hex>`) and POSTs to the deployed function. Pass criterion is "signature accepted" (any non-401 response): for `auth-email-hook` we send a deliberately unknown `email_action_type` so the signature passes but the function safely rejects with 400 (no email is ever sent through Resend); for `kinde-webhook` we send `type: "user.updated"` so the function acks 200 without invoking `provisionUser` (side-effect-free). The script skips with a warning when either secret is not in the env, so it is safe to invoke from CI or the deploy host. Locally the Replit env exposes neither webhook secret, so the script reports `SKIP` for both — operators should run it from a host that has both Supabase Function secrets to close the verification loop.
+> **RESOLVED 2026-05-03 (Task #65, Phase 1).** Added `scripts/probe-webhooks-signed.mjs` and wired it into `.github/workflows/deploy-edge-functions.yml` as a final post-deploy step (after `npm run smoke:functions`). Each webhook gets a probe **pair**:
+>
+> - **Positive** — payload signed with the real `SUPABASE_AUTH_HOOK_SECRET` (Standard Webhooks v1, `whsec_<base64>` aware) or `KINDE_WEBHOOK_SECRET` (HMAC-SHA256 hex, `X-Kinde-Signature: sha256=<hex>`). Asserts an endpoint-specific status that proves we got past the signature gate AND landed in the expected branch:
+>   - `auth-email-hook` → **400** ("Unknown email type" — payload uses `email_action_type: 'audit_probe_unknown_type'` so the signature passes but the function rejects before any Resend call; nothing is sent).
+>   - `kinde-webhook`  → **200** (a non-`user.created` event is acked without invoking `provisionUser`, so the probe is fully side-effect-free).
+> - **Negative** — same payload re-signed with `WRONG_SECRET_DO_NOT_USE`. Asserts **401** for both functions, proving the signature path actually rejects mismatched signatures (not just missing ones).
+>
+> Both probes must hit their expected status for the run to pass; the workflow step fails (exit 1) on any deviation. The script SKIPs (exit 0) when either secret is missing, so it is non-blocking on forks. Locally the Replit env exposes neither webhook secret, so the script reports `SKIP` for both during development; CI on the canonical repo runs both probe pairs against the live deployment after every edge-function deploy.
 
 ### 🟡 Medium (3)
 
