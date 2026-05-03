@@ -3228,6 +3228,13 @@ app.all('/api/fn/:fnName', async (req, res) => {
       forwardHeaders['Authorization'] = authHeader;
     }
 
+    // Task #48: forward the coupons-router dispatch header so the merged
+    // `coupons` edge function can route to the correct sub-handler.
+    const couponsAction = req.headers['x-coupons-action'];
+    if (typeof couponsAction === 'string' && couponsAction) {
+      forwardHeaders['x-coupons-action'] = couponsAction;
+    }
+
     const isFormData = (req.headers['content-type'] || '').includes('multipart/form-data');
 
     let bodyToSend: string | Buffer | undefined;

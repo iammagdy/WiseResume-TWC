@@ -95,8 +95,13 @@ export default function WiseHireSubscriptionPage() {
     setCouponError('');
 
     try {
-      const { data, error } = await supabase.functions.invoke('redeem-coupon', {
+      // Task #48: route through the merged `coupons` edge function. The
+      // sub-handler is selected by the `x-coupons-action` header so the
+      // request body stays byte-for-byte identical to the original
+      // redeem-coupon contract.
+      const { data, error } = await supabase.functions.invoke('coupons', {
         body: { code: couponCode.trim() },
+        headers: { 'x-coupons-action': 'redeem' },
       });
 
       if (error || !data?.success) {

@@ -1,5 +1,68 @@
 # Edge Function Audit — Mobile parity sweep (2026-05-03)
 
+## Coupons consolidation (Task #48, 2026-05-03)
+
+Three coupon-related functions were merged into a single `coupons`
+router. Dispatch is signalled via the **`x-coupons-action` request
+header** (not the body) so each sub-handler keeps its **original**
+parse-vs-auth ordering and original error envelope — preserving
+byte-for-byte parity with the pre-merge functions.
+
+Merged (3 → 1):
+
+- `admin-manage-coupons` → header `x-coupons-action: admin-manage`.
+  Body shape unchanged (`{ action: 'list'|'create'|'toggle'|'delete', ... }`).
+  Auth: `requireAdminAuth` (DevKit HMAC). Original ordering: parse body
+  first, then admin auth. 500 envelope: `{ success:false, error }`.
+- `redeem-coupon`        → header `x-coupons-action: redeem`. Body
+  shape unchanged (`{ code }`). Auth: `requireAuth` (Supabase JWT
+  bridge). Original ordering: auth first, then parse. 500 envelope:
+  `{ success:false, error }`.
+- `validate-coupon`      → header `x-coupons-action: validate`. Same
+  body and ordering as redeem. 500 envelope: `{ valid:false, error }`.
+
+Web client routing:
+
+- `src/integrations/supabase/edgeFunctions.ts` adds a single
+  `USE_MERGED_COUPONS` constant (default `true`). When on, every legacy
+  invoke (`admin-manage-coupons` / `redeem-coupon` / `validate-coupon`)
+  is rewritten to `coupons` with the right `x-coupons-action` header
+  and the body forwarded unchanged. Flip to `false` to fall back to the
+  originals if any are still deployed.
+- `src/pages/wisehire/WiseHireSubscriptionPage.tsx` calls supabase-js
+  directly (bypassing the helper). It was switched to invoke `coupons`
+  with the `x-coupons-action: redeem` header + the original
+  `{ code }` body.
+- `server/index.ts` generic `/api/fn/:fnName` proxy now forwards the
+  `x-coupons-action` header to Supabase so the dev path works the same
+  as production.
+
+Original sources removed:
+
+- `supabase/functions/admin-manage-coupons/`
+- `supabase/functions/redeem-coupon/`
+- `supabase/functions/validate-coupon/`
+- Corresponding `[functions.*]` entries removed from
+  `supabase/config.toml`. New entry `[functions.coupons]` added.
+
+Tests:
+
+- `tests/e2e/specs/15-coupons-merged.spec.ts` asserts the merged
+  router reproduces the pre-merge baseline envelopes captured in
+  `tests/e2e/fixtures/coupons-baseline.json` for the three safe parity
+  surfaces (unauthenticated redeem/validate/admin-manage). The spec
+  auto-skips when `SUPABASE_URL` / `SUPABASE_ANON_KEY` are missing.
+
+Soak / cleanup ownership:
+
+- The downstream *Full edge-function redeploy + platform verification*
+  task owns the prod-side deploy of `coupons`, the 24-hour soak, and
+  the eventual `DELETE /v1/projects/<ref>/functions/<name>` for the
+  three originals. Net deployed function count drops by 2.
+
+---
+
+
 ## Executive summary
 
 The Supabase project (`jnsfmkzgxsviuthaqlyy`) has a **hard 100-function

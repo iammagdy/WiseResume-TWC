@@ -13,8 +13,6 @@ project_id = "jnsfmkzgxsviuthaqlyy"
     verify_jwt = false
   [functions.admin-list-users]
     verify_jwt = false
-  [functions.admin-manage-coupons]
-    verify_jwt = false
   [functions.admin-portfolio-usernames]
     verify_jwt = false
   [functions.admin-revoke-trial]
@@ -85,8 +83,6 @@ project_id = "jnsfmkzgxsviuthaqlyy"
     verify_jwt = false
   [functions.recruiter-simulation]
     verify_jwt = false
-  [functions.redeem-coupon]
-    verify_jwt = false
   [functions.resolve-short-link]
     verify_jwt = false
   [functions.score-resume]
@@ -104,8 +100,6 @@ project_id = "jnsfmkzgxsviuthaqlyy"
   [functions.track-portfolio-view]
     verify_jwt = false
   [functions.validate-api-key]
-    verify_jwt = false
-  [functions.validate-coupon]
     verify_jwt = false
   [functions.verify-dev-kit]
     verify_jwt = false
@@ -207,6 +201,18 @@ project_id = "jnsfmkzgxsviuthaqlyy"
   # 2026-05-03 to stay under Supabase's 100-function project limit.
   # Mobile clients now POST `{action, ...}` to /functions/v1/mobile-api.
   [functions.mobile-api]
+    verify_jwt = false
+
+  # --- Coupons consolidation (Task #48) ---
+  # admin-manage-coupons, redeem-coupon, validate-coupon were merged into
+  # the `coupons` router on 2026-05-03 to free 2 slots under the
+  # 100-function project limit. Dispatch is HEADER-based: web clients
+  # POST the original per-handler body to /functions/v1/coupons with
+  # `x-coupons-action: admin-manage|redeem|validate` so each sub-handler
+  # keeps its original parse-vs-auth ordering and error envelope.
+  # Originals stay deployed alongside for the 24-hour soak; deletion is
+  # handled by the downstream platform task.
+  [functions.coupons]
     verify_jwt = false
   # NOTE 2026-05-03: send-push, revenuecat-webhook, mobile-config, and
   # export-portfolio-pdf were never deployed to prod (their entries existed

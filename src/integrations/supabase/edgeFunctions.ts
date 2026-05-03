@@ -51,6 +51,33 @@ function classifyEdgeError(status: number, text: string): {
 const DEVKIT_BYPASS_FUNCTIONS: ReadonlySet<string> = new Set(['ai-test']);
 
 /**
+ * Coupons consolidation (Task #48).
+ *
+ * Routes the three legacy coupon function names to the merged `coupons`
+ * router. Dispatch is signalled via the `x-coupons-action` header so the
+ * request body is forwarded byte-for-byte (no key remapping) and each
+ * handler in the merged router preserves its original parse-vs-auth
+ * order. Set USE_MERGED_COUPONS=false to fall back to the original
+ * endpoints if they are still deployed.
+ */
+const USE_MERGED_COUPONS = true;
+const COUPON_FN_ACTIONS: Record<string, 'admin-manage' | 'redeem' | 'validate'> = {
+  'admin-manage-coupons': 'admin-manage',
+  'redeem-coupon': 'redeem',
+  'validate-coupon': 'validate',
+};
+function rewriteCouponInvoke(
+  fnName: string,
+  options: { body?: unknown; headers?: Record<string, string>; method?: string } | undefined,
+): { fnName: string; options: { body?: unknown; headers?: Record<string, string>; method?: string } | undefined } {
+  if (!USE_MERGED_COUPONS) return { fnName, options };
+  const action = COUPON_FN_ACTIONS[fnName];
+  if (!action) return { fnName, options };
+  const newHeaders: Record<string, string> = { ...(options?.headers ?? {}), 'x-coupons-action': action };
+  return { fnName: 'coupons', options: { ...(options ?? {}), headers: newHeaders } };
+}
+
+/**
  * Authenticated edge function client.
  * Routes via apiFnUrl(): in dev, through the Express proxy at
  * /api/fn/:fnName; in production (Hostinger static), directly to the
@@ -63,9 +90,16 @@ const DEVKIT_BYPASS_FUNCTIONS: ReadonlySet<string> = new Set(['ai-test']);
 export const edgeFunctions = {
   functions: {
     invoke: async (
-      fnName: string,
+      fnNameInput: string,
       options?: { body?: unknown; headers?: Record<string, string>; method?: string }
     ) => {
+      // Rewrite legacy coupon fn names to the merged `coupons` router
+      // when the USE_MERGED_COUPONS flag is on. Dispatch happens via the
+      // x-coupons-action header so the request body is left unmodified.
+      const originalFnName = fnNameInput;
+      const rewritten = rewriteCouponInvoke(fnNameInput, options);
+      const fnName = rewritten.fnName;
+      options = rewritten.options;
       const doInvoke = async (token: string | null) => {
         const userHeaders = options?.headers || {};
         const headers: Record<string, string> = {
@@ -141,7 +175,9 @@ export const edgeFunctions = {
         // misleading toast we explicitly guard against in the bypass branch
         // below.
         const isAdminOrDevkitFn =
-          fnName.startsWith('admin-') || DEVKIT_BYPASS_FUNCTIONS.has(fnName);
+          fnName.startsWith('admin-') ||
+          DEVKIT_BYPASS_FUNCTIONS.has(fnName) ||
+          originalFnName.startsWith('admin-');
         if (result.response.status === 401 && !isAdminOrDevkitFn) {
           const { isSessionAuthFailure } = classifyEdgeError(401, result.text);
           if (isSessionAuthFailure && !getImpersonationToken()) {
@@ -163,7 +199,7 @@ export const edgeFunctions = {
           // "AI is temporarily unavailable" messages. Functions covered:
           // every `admin-*` function plus the DEVKIT_BYPASS_FUNCTIONS set
           // (module-level constant, currently `ai-test` for Bug #5).
-          if (fnName.startsWith('admin-') || DEVKIT_BYPASS_FUNCTIONS.has(fnName)) {
+          if (fnName.startsWith('admin-') || DEVKIT_BYPASS_FUNCTIONS.has(fnName) || originalFnName.startsWith('admin-')) {
             let rawError: string | null = null;
             try {
               const parsed = JSON.parse(result.text);
