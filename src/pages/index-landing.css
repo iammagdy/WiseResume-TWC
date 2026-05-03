@@ -724,6 +724,12 @@ body[data-lp-scheme="light"][data-lp-product="wisehire"] { background-color: #f0
   .lp-stack-step-chip-label {
     display: none !important;
   }
+  /* WiseHire scroll-stack card: tighter padding so the demo's inner
+     phone frame and ranked-result rows no longer kiss the card edges. */
+  .lp-stack-wh-card {
+    padding: 16px 14px !important;
+    gap: 12px !important;
+  }
 }
 
 /* ── Phase 4: sticky stack header + step counter chip ──── */
