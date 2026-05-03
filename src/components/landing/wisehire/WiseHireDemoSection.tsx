@@ -141,8 +141,8 @@ export function WiseHireDemoSection() {
           <span>{total.toString().padStart(2, '0')}</span>
           {activeLabel && (
             <>
-              <span className="lp-stack-step-chip-sep" aria-hidden="true">·</span>
-              <span>{activeLabel}</span>
+              <span className="lp-stack-step-chip-sep lp-stack-step-chip-label" aria-hidden="true">·</span>
+              <span className="lp-stack-step-chip-label">{activeLabel}</span>
             </>
           )}
         </div>
@@ -166,7 +166,7 @@ export function WiseHireDemoSection() {
                 demo content (RANKED RESULTS row, Tom avatar, JD Writer
                 Requirements list) at the stack peeks. */}
             <div
-              className="max-w-6xl mx-auto w-full"
+              className="lp-stack-wh-card max-w-6xl mx-auto w-full"
               style={{
                 padding: 'clamp(20px, 3vw, 36px) clamp(20px, 4vw, 40px)',
                 display: 'flex',
