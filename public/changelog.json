@@ -1,8 +1,20 @@
 [
   {
-    "version": "v3.11.2",
+    "version": "v3.11.3",
     "date": "May 3, 2026",
     "latest": true,
+    "summary": "Sign-in page fully restored \u2014 fixed a one-character typo in the auth domain that briefly broke the sign-in flow.",
+    "items": [
+      {
+        "title": "Sign-in flow fully restored",
+        "description": "Right after yesterday's auth-domain split (v3.11.2), the sign-in page stopped loading and showed a blank Kinde page. The cause was a single-character typo in the auth domain configuration: it had been saved as 'auth.thewise.cloud.' (with an extra dot at the end) instead of 'auth.thewise.cloud'. DNS resolution worked the same with or without the trailing dot, which is why the browser still reached Kinde's servers \u2014 but Kinde's website routing matches the hostname exactly, so requests with the trailing-dot version fell through to a generic empty page instead of the sign-in form. The configuration was corrected and a fresh deploy was rolled out so the new bundle calls the auth domain with the correct spelling. Sign-in now works end-to-end again."
+      }
+    ]
+  },
+  {
+    "version": "v3.11.2",
+    "date": "May 3, 2026",
+    "latest": false,
     "summary": "Sign-in page restored and moved to its own branded address (auth.thewise.cloud) after a Kinde custom-domain misconfiguration briefly made the site unreachable.",
     "items": [
       {
