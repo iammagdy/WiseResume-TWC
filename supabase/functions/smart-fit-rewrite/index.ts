@@ -1,3 +1,30 @@
+/**
+ * smart-fit-rewrite — Bullet-level rewrite suggestions for the resume editor's
+ * "Smart Fit" panel. Accepts a batch of candidate bullets + the target JD,
+ * extracts protected tokens (numbers, dates, JD keywords), runs a guarded AI
+ * rewrite for each, and returns per-candidate outcomes.
+ *
+ * Trigger: invoked from the resume editor when the user opens Smart Fit
+ *   ("rewrite" mode) and from the post-accept telemetry pipeline
+ *   ("telemetry" mode).
+ * Auth: AUTHENTICATED USER (`requireAuth`). Each call decrements one credit
+ *   per rewritten candidate via `checkAndDeductCredit`; failed AI calls
+ *   refund the credit.
+ * Dispatch contract: POST `{mode?:'rewrite'|'telemetry', candidates?,
+ *   jobDescription?, telemetry?}`. The default mode is `rewrite`. Returns
+ *   `{success:true, outcomes:[...]}` on success; rate-limit / credit /
+ *   payload-size violations return their own typed envelopes.
+ *
+ * Empty-input intent (audit H2 — Task #67, Phase 3): when `candidates` is
+ *   absent OR explicitly an empty array, the function returns
+ *   `{success:true, outcomes:[], reason:"no-op-empty-input"}` (HTTP 200) —
+ *   not a 400. The editor calls this endpoint optimistically after the
+ *   user filters every suggestion out via the accept/reject UI, so a 400
+ *   there would be a UX regression for input the user did not author.
+ *   The `reason` field lets callers distinguish a genuine no-op from a
+ *   successful rewrite. See the in-branch comment at the no-op site for
+ *   the full rationale.
+ */
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAIWithRetry, parseAIJSON, toUserError, sanitizeInputText } from "../_shared/aiClient.ts";
 import { selectProviderForTool } from "../_shared/modelRouter.ts";
@@ -285,9 +312,17 @@ Deno.serve(wrapHandler("smart-fit-rewrite", async (req) => {
       // arrives empty and the right behaviour is "do nothing successfully"
       // rather than surfacing an error the user did not cause. The explicit
       // `reason` field lets callers distinguish this no-op from a real
-      // success with rewrites. Any other malformed body (missing
-      // `candidates` field entirely, wrong type) still falls through to the
-      // generic 400 / parse error paths below.
+      // success with rewrites.
+      //
+      // Scope of this branch: a missing `candidates` field, an explicit
+      // `candidates: []`, and any non-array value coerced to empty by the
+      // `?? []` fallback all hit this path — they are all treated as the
+      // same "nothing to do" no-op. This is by design: the orchestrator
+      // never sends a malformed body in production, so the 200/no-op shape
+      // is strictly better UX than a 400 for any zero-work request. Real
+      // schema validation for non-empty inputs (per-candidate `id`/`text`/
+      // `targetLength` etc.) still happens in the AI loop below and surfaces
+      // through the standard `toUserError` envelope.
       // Resolved 2026-05-03 (Task #67, audit H2 — keep 200 with clearer payload).
       return new Response(
         JSON.stringify({ success: true, outcomes: [], reason: 'no-op-empty-input' }),
