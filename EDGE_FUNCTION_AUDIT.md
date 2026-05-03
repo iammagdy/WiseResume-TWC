@@ -95,6 +95,30 @@ Credit usage: `interview-grade-answer` deducts 1 AI credit (via
 All four returned HTTP 201 on 2026-05-03; existence verified via
 `select to_regclass(...)` and `select id from storage.buckets`.
 
+## Final deploy outcome (2026-05-03)
+
+- `mobile-api` is **deployed** to prod (`verify_jwt=false`, version 1).
+- Final prod function count: **99 / 100** (under the platform ceiling).
+- Deletions in prod via `DELETE /v1/projects/<ref>/functions/<slug>`:
+  - `admin-rotate-totp` (truly dead)
+  - `refresh-ai-test-models` (zero refs in `src/` and `mobile/`,
+    deleted to free a slot so the `bulk update` call stops 402-ing
+    even when the net deploy adds zero new functions)
+- Source-dir + config.toml entries removed from the repo because they
+  had never been deployed and re-introducing them would push prod
+  over the 100-function limit (mobile does not invoke any of these
+  four directly):
+  - `send-push`
+  - `revenuecat-webhook`
+  - `mobile-config`
+  - `export-portfolio-pdf`
+- Smoke-test coverage list (`scripts/smoke-test-edge-functions.mjs`)
+  updated to drop `admin-rotate-totp`.
+- Final deploy run on `deploy-edge-functions.yml` completed
+  successfully (deploy + jwt enforcement + ai-test smoke +
+  check-edge-functions-deployed + smoke-test-edge-functions all
+  green).
+
 ## Why local `psql $DATABASE_URL` is NOT a valid prod check
 
 The Replit container exposes a stub Postgres at `$DATABASE_URL` that has
