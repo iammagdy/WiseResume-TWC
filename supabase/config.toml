@@ -3,10 +3,6 @@ project_id = "jnsfmkzgxsviuthaqlyy"
 [functions]
   [functions.admin-audit-logs]
     verify_jwt = false
-  [functions.admin-env-check]
-    verify_jwt = false
-  [functions.admin-get-settings]
-    verify_jwt = false
   [functions.admin-devkit-data]
     verify_jwt = false
   [functions.admin-user-ops]
@@ -16,8 +12,6 @@ project_id = "jnsfmkzgxsviuthaqlyy"
   [functions.admin-portfolio-usernames]
     verify_jwt = false
   [functions.admin-save-note]
-    verify_jwt = false
-  [functions.admin-update-settings]
     verify_jwt = false
   [functions.agentic-chat]
     verify_jwt = false
@@ -150,8 +144,6 @@ project_id = "jnsfmkzgxsviuthaqlyy"
     verify_jwt = false
   [functions.wisehire-invite-reminder]
     verify_jwt = false
-  [functions.admin-feature-flags]
-    verify_jwt = false
   [functions.admin-impersonate]
     verify_jwt = false
   [functions.admin-owner-ops]
@@ -161,8 +153,6 @@ project_id = "jnsfmkzgxsviuthaqlyy"
   [functions.admin-ai-caps]
     verify_jwt = false
   [functions.admin-moderation]
-    verify_jwt = false
-  [functions.admin-integrations]
     verify_jwt = false
   [functions.verify-email]
     verify_jwt = false
@@ -175,6 +165,26 @@ project_id = "jnsfmkzgxsviuthaqlyy"
   # 2026-05-03 to stay under Supabase's 100-function project limit.
   # Mobile clients now POST `{action, ...}` to /functions/v1/mobile-api.
   [functions.mobile-api]
+    verify_jwt = false
+
+  # --- Admin config consolidation (Task #52) ---
+  # admin-get-settings, admin-update-settings, admin-feature-flags,
+  # admin-integrations, and admin-env-check were merged into the
+  # `admin-config` router on 2026-05-03 to free 4 slots under the
+  # 100-function project limit. Dispatch is body.action ∈ {get-settings,
+  # update-settings, feature-flags, integrations, env-check} with a
+  # `x-admin-config-action` header fallback used by feature-flags and
+  # integrations (whose original handlers read body.action for their own
+  # inner sub-routing — list/upsert/delete and get_resend_bounces/
+  # get_deploy_status/trigger_deploy respectively, so the router cannot
+  # clobber body.action without breaking byte-for-byte parity). Single
+  # `assertAdmin` runs at the top of the router; each sub-handler
+  # preserves its original parse-vs-validation semantics. Originals stay
+  # deployed alongside for the 24-hour soak; deletion is handled by the
+  # downstream platform task. NB: env-check's REQUIRED_ENV_VARS list is
+  # security-relevant and must remain byte-for-byte identical to the
+  # original — do NOT add or remove keys here.
+  [functions.admin-config]
     verify_jwt = false
 
   # --- Coupons consolidation (Task #48) ---

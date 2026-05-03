@@ -147,6 +147,69 @@ function rewriteAdminUserOpsInvoke(
 }
 
 /**
+ * Admin config consolidation (Task #52).
+ *
+ * Routes the five legacy admin-config function names to the merged
+ * `admin-config` router. Dispatch is signalled via the
+ * `x-admin-config-action` request header (NOT exclusively the body)
+ * because two of the five sub-handlers — feature-flags and
+ * integrations — read their OWN inner `body.action` for sub-routing
+ * (list/upsert/delete, get_resend_bounces/get_deploy_status/
+ * trigger_deploy). Clobbering body.action would break those handlers'
+ * byte-for-byte parity, so we leave the body untouched and dispatch
+ * via the header. For spec compliance the helper ALSO injects
+ * `body.action` set to the router-level action name when the body
+ * has no pre-existing `action` field (i.e. for get-settings,
+ * update-settings, env-check whose originals don't read body.action).
+ *
+ * Set USE_MERGED_ADMIN_CONFIG=false to fall back to the five
+ * originals while soaking the new router.
+ */
+const USE_MERGED_ADMIN_CONFIG = true;
+const ADMIN_CONFIG_ACTIONS: Record<
+  string,
+  'get-settings' | 'update-settings' | 'feature-flags' | 'integrations' | 'env-check'
+> = {
+  'admin-get-settings': 'get-settings',
+  'admin-update-settings': 'update-settings',
+  'admin-feature-flags': 'feature-flags',
+  'admin-integrations': 'integrations',
+  'admin-env-check': 'env-check',
+};
+function rewriteAdminConfigInvoke(
+  fnName: string,
+  options: { body?: unknown; headers?: Record<string, string>; method?: string } | undefined,
+): { fnName: string; options: { body?: unknown; headers?: Record<string, string>; method?: string } | undefined } {
+  if (!USE_MERGED_ADMIN_CONFIG) return { fnName, options };
+  const action = ADMIN_CONFIG_ACTIONS[fnName];
+  if (!action) return { fnName, options };
+  const newHeaders: Record<string, string> = {
+    ...(options?.headers ?? {}),
+    'x-admin-config-action': action,
+  };
+  // Preserve the original body 1:1 so each handler sees exactly what
+  // its pre-merge function saw (incl. feature-flags' `body.action:
+  // 'list'|'upsert'|'delete'` and integrations' `body.action:
+  // 'get_resend_bounces'|...`). Add a top-level `action` field
+  // alongside (spec compliance) ONLY when the caller didn't already
+  // set its own `action` field.
+  const origBody = options?.body;
+  let newBody: unknown = origBody;
+  if (origBody && typeof origBody === 'object' && !Array.isArray(origBody)) {
+    const obj = origBody as Record<string, unknown>;
+    if (!('action' in obj)) {
+      newBody = { ...obj, action };
+    }
+  } else if (origBody === undefined) {
+    newBody = { action };
+  }
+  return {
+    fnName: 'admin-config',
+    options: { ...(options ?? {}), headers: newHeaders, body: newBody },
+  };
+}
+
+/**
  * Authenticated edge function client.
  * Routes via apiFnUrl(): in dev, through the Express proxy at
  * /api/fn/:fnName; in production (Hostinger static), directly to the
@@ -168,8 +231,9 @@ export const edgeFunctions = {
       const originalFnName = fnNameInput;
       const couponRewritten = rewriteCouponInvoke(fnNameInput, options);
       const adminRewritten = rewriteAdminUserOpsInvoke(couponRewritten.fnName, couponRewritten.options);
-      const fnName = adminRewritten.fnName;
-      options = adminRewritten.options;
+      const adminConfigRewritten = rewriteAdminConfigInvoke(adminRewritten.fnName, adminRewritten.options);
+      const fnName = adminConfigRewritten.fnName;
+      options = adminConfigRewritten.options;
       const doInvoke = async (token: string | null) => {
         const userHeaders = options?.headers || {};
         const headers: Record<string, string> = {

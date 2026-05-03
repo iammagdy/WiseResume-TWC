@@ -3235,6 +3235,19 @@ app.all('/api/fn/:fnName', async (req, res) => {
       forwardHeaders['x-coupons-action'] = couponsAction;
     }
 
+    // Task #51: forward the admin-user-ops dispatch header.
+    const adminUserOp = req.headers['x-admin-user-op'];
+    if (typeof adminUserOp === 'string' && adminUserOp) {
+      forwardHeaders['x-admin-user-op'] = adminUserOp;
+    }
+
+    // Task #52: forward the admin-config dispatch header so the merged
+    // `admin-config` edge function can route to the correct sub-handler.
+    const adminConfigAction = req.headers['x-admin-config-action'];
+    if (typeof adminConfigAction === 'string' && adminConfigAction) {
+      forwardHeaders['x-admin-config-action'] = adminConfigAction;
+    }
+
     const isFormData = (req.headers['content-type'] || '').includes('multipart/form-data');
 
     let bodyToSend: string | Buffer | undefined;

@@ -1,5 +1,188 @@
 # Edge Function Audit — Mobile parity sweep (2026-05-03)
 
+## Admin config consolidation (Task #52, 2026-05-03)
+
+Five admin-only configuration edge functions were merged into a single
+`admin-config` router. All five shared the same `requireAdminAuth` gate
+and CRUD against config tables (`app_settings`, `feature_flags`) or
+read-only env / upstream-API surfaces, so consolidating frees 4
+deployment slots under the 100-function Supabase limit.
+
+Dispatch contract (per task spec):
+
+- **PRIMARY:** `body.action` ∈ `{ "get-settings", "update-settings",
+  "feature-flags", "integrations", "env-check" }`.
+- **FALLBACK:** `x-admin-config-action` request header. Used when
+  `body.action` is missing or names something else — needed for two
+  parity surfaces:
+  - `admin-feature-flags` reads `body.action ∈ {"list","upsert",
+    "delete"}` for its own inner sub-routing.
+  - `admin-integrations` reads `body.action ∈ {"get_resend_bounces",
+    "get_deploy_status","trigger_deploy"}` for its own inner
+    sub-routing.
+  Clobbering body.action would break those handlers' byte-for-byte
+  parity, so the helper leaves the body untouched and dispatches via
+  the header instead.
+
+The web helper sends BOTH (header always; body.action only when the
+caller didn't already supply one), so the spec's body.action contract
+is the user-facing contract for `get-settings`/`update-settings`/
+`env-check`. The header is the dispatch path for `feature-flags` and
+`integrations`.
+
+Parity strategy: the router buffers the body ONCE as text at the top,
+then hands the text string (not a parsed object) to each handler.
+Each handler does its OWN `JSON.parse` inside its original try/catch
+wrapper, so each handler's parse-vs-validation-vs-throw semantics are
+preserved byte-for-byte. Audit-log writes preserve the same
+`category` / `action` strings (`admin_feature_flag` / `upsert` |
+`delete`) so existing admin dashboards keep working.
+
+### Parity ordering — auth and body parsing
+
+The `requireAdminAuth` gate runs ONCE at the top of `serve` (per task
+spec — explicit "single assertAdmin at top of serve"). All 5
+originals parsed body BEFORE auth and threw to outer try/catch on
+parse failure → returned 500 `Internal server error`. Handlers
+replicate this verbatim with their own outer try/catch when called
+with a successful auth.
+
+On unauthenticated calls every action returns the canonical
+`{success:false, error:'Unauthorized'}` 401 — identical to all 5
+originals.
+
+**Single documented router-boundary deviation:** for the 5 originals,
+an unauthenticated call with a malformed body would have returned 500
+(parse fails before auth runs). With auth lifted to the top of the
+router, that combined edge case now returns 401. No real client
+ever hits this case — every caller (web helper, dev proxy) sends
+well-formed JSON. The Playwright spec asserts the 401 behavior so the
+deviation is captured in CI.
+
+**Authenticated malformed-body parity (preserved):**
+
+- `get-settings`: original called `await req.json()` even though it
+  ignored the result, so a malformed body inside an authenticated
+  call threw to the outer try/catch → JSON 500
+  `{success:false,error:'Internal server error'}`. The merged handler
+  reproduces this by calling `JSON.parse(bodyText)` (and discarding
+  the result) inside its outer try/catch.
+- `update-settings`, `feature-flags`, `env-check`: each handler keeps
+  its own outer try/catch and parses the body internally, so
+  authenticated malformed-body still returns the original 500 JSON
+  envelope.
+- `integrations`: original had NO try/catch wrapping
+  `await req.json()`, so a malformed body in an authenticated call
+  threw out of the handler and bubbled to `wrapHandler` → re-thrown
+  → platform-default 500 (not a JSON `{success:false,...}` envelope).
+  Per parity requirement, the merged router does NOT wrap dispatch in
+  an outer try/catch — `handleIntegrations`'s parse exception
+  propagates exactly as before. Wrapping it here would have changed
+  the error surface (platform default → JSON envelope) and broken
+  byte-for-byte parity.
+
+These authenticated parse-failure paths are not asserted in CI
+because the test harness cannot mint a real DevKit admin session
+token without leaking `DEV_KIT_PASSWORD`; they are verified by static
+review against each original handler's source.
+
+### Dispatch contract clarification
+
+The task spec lists `body.action` as the dispatch field. Strict
+compliance would have required us to either (a) rename the inner
+`action` field that `feature-flags` and `integrations` originals
+read for their sub-routing, or (b) wrap each inner action in an
+envelope like `{action:'feature-flags', innerAction:'list', ...}`.
+Both options would have changed each handler's input shape and
+broken byte-for-byte parity with the originals — the stated primary
+acceptance criterion. We chose to satisfy the parity criterion by
+keeping body.action available for the 3 actions whose originals
+don't read it (get-settings / update-settings / env-check) and
+adding a `x-admin-config-action` header fallback for the 2 actions
+whose originals DO read body.action for inner sub-routing
+(feature-flags / integrations). The web helper sets BOTH on every
+call (header always; body.action only when the caller didn't
+already supply one), so observability tools that inspect the body
+still see the router-level action. This is the same pattern used
+by Task #51's admin-user-ops merge.
+
+**env-check security note:** `REQUIRED_ENV_VARS` in
+`supabase/functions/admin-config/index.ts` is byte-for-byte identical
+to the original `admin-env-check`. Adding or removing keys is a
+security-relevant masking change and is explicitly out of scope for
+this task. The Playwright spec also asserts that an unauthenticated
+env-check call returns 401 with no `checks`/`supabaseUrl`/`present`
+fields in the body, so no env value can leak from this surface.
+
+Merged (5 → 1):
+
+- `admin-get-settings`     → action `get-settings`
+- `admin-update-settings`  → action `update-settings`
+- `admin-feature-flags`    → action `feature-flags` (inner action via body)
+- `admin-integrations`     → action `integrations` (inner action via body)
+- `admin-env-check`        → action `env-check`
+
+Web client routing:
+
+- `src/integrations/supabase/edgeFunctions.ts` adds a single
+  `USE_MERGED_ADMIN_CONFIG` constant (default `true`). When on,
+  every legacy admin-config invoke is rewritten to `admin-config`
+  with the `x-admin-config-action` header set for dispatch (and
+  `body.action` injected alongside for spec compliance only when
+  the caller didn't already set its own `action` field — i.e. for
+  feature-flags / integrations the inner action is preserved
+  untouched). Flip to `false` to fall back to the five originals
+  if any are still deployed.
+- All call sites in `src/components/dev-kit/AppSettingsPanel.tsx`,
+  `src/components/dev-kit/OwnerOpsPanel.tsx`,
+  `src/components/dev-kit/FeatureFlagsPanel.tsx`,
+  `src/components/dev-kit/IntegrationsPanel.tsx`, and
+  `src/components/dev-kit/DeploymentPanel.tsx` continue to invoke
+  the legacy fn names; the rewrite happens transparently in the
+  helper. No DevKit UI changes.
+- The dev Express proxy (`server/index.ts`) generic
+  `/api/fn/:fnName` route now forwards the `x-admin-config-action`
+  header to Supabase. The legacy per-fn proxy stubs become dead
+  code (the rewritten name `admin-config` falls through to the
+  generic forwarder) and will be cleaned up in the downstream
+  redeploy + cleanup task.
+
+Original sources removed:
+
+- `supabase/functions/admin-get-settings/`
+- `supabase/functions/admin-update-settings/`
+- `supabase/functions/admin-feature-flags/`
+- `supabase/functions/admin-integrations/`
+- `supabase/functions/admin-env-check/`
+- Corresponding `[functions.*]` entries removed from
+  `supabase/config.toml`. New entry `[functions.admin-config]` added
+  (`verify_jwt = false`, matching all 5 originals — auth is enforced
+  inside the handler via the DevKit HMAC token, not at the gateway).
+
+Tests:
+
+- `tests/e2e/specs/19-admin-config-merged.spec.ts` asserts the
+  merged router reproduces the pre-merge unauthenticated response
+  envelope (`{success:false,error:'Unauthorized'}` / 401) for all
+  5 actions plus the unknown-action branch, the inner-action
+  compatibility shims (feature-flags `list`, integrations
+  `get_resend_bounces`), and the env-check leakage guard. The
+  unauthenticated 401 is the only safe parity surface in CI —
+  every other branch requires a real DevKit session token
+  (HMAC-signed payload + a row in `admin_sessions`), which the
+  test harness has no way to mint without leaking
+  `DEV_KIT_PASSWORD`. Auto-skips when `SUPABASE_URL` /
+  `SUPABASE_ANON_KEY` are missing.
+
+Soak / cleanup ownership:
+
+- The downstream *Full edge-function redeploy + platform verification*
+  task owns the prod-side deploy of `admin-config`, the 24-hour
+  soak, and the eventual `DELETE /v1/projects/<ref>/functions/<name>`
+  for the five originals. Net deployed function count drops by 4.
+
+---
+
 ## Admin user-lifecycle consolidation (Task #51, 2026-05-03)
 
 Seven admin-only user-lifecycle edge functions were merged into a single
