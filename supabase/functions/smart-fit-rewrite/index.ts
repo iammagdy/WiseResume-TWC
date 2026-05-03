@@ -314,15 +314,17 @@ Deno.serve(wrapHandler("smart-fit-rewrite", async (req) => {
       // `reason` field lets callers distinguish this no-op from a real
       // success with rewrites.
       //
-      // Scope of this branch: a missing `candidates` field, an explicit
-      // `candidates: []`, and any non-array value coerced to empty by the
-      // `?? []` fallback all hit this path — they are all treated as the
-      // same "nothing to do" no-op. This is by design: the orchestrator
-      // never sends a malformed body in production, so the 200/no-op shape
-      // is strictly better UX than a 400 for any zero-work request. Real
-      // schema validation for non-empty inputs (per-candidate `id`/`text`/
-      // `targetLength` etc.) still happens in the AI loop below and surfaces
-      // through the standard `toUserError` envelope.
+      // Scope of this branch: a missing/null `candidates` field (the `?? []`
+      // fallback) and an explicit `candidates: []` both hit this path —
+      // they are treated as the same "nothing to do" no-op. A non-array
+      // truthy value (e.g. a string or object) is NOT coerced by `??` and
+      // would throw at the `.slice(...)` call above, falling out to the
+      // outer try/catch as a 500 — that is acceptable because the
+      // orchestrator never sends a malformed `candidates` value in
+      // production. Real per-candidate schema validation (id/text/
+      // targetLength etc.) still happens in the AI loop below for
+      // non-empty inputs and surfaces through the standard `toUserError`
+      // envelope.
       // Resolved 2026-05-03 (Task #67, audit H2 — keep 200 with clearer payload).
       return new Response(
         JSON.stringify({ success: true, outcomes: [], reason: 'no-op-empty-input' }),
