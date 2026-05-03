@@ -61,7 +61,7 @@ const WRONG_SECRET = 'WRONG_SECRET_DO_NOT_USE';
 // Per-endpoint expected status for a *valid* signature. Any other status
 // fails the positive probe even if it isn't 401.
 const EXPECTED_POS = {
-  'auth-email-hook': 400, // signature accepted, downstream rejects unknown email_action_type
+  'auth-email-hook': 200, // signature accepted, probe short-circuit returns 200 (no Resend send)
   'kinde-webhook':   200, // signature accepted, function acks non-user.created event
 };
 const EXPECTED_NEG = 401;   // both endpoints MUST return 401 on signature mismatch
@@ -93,10 +93,13 @@ function signStandardWebhook(secret, id, timestamp, body) {
 }
 
 async function postAuthEmailHook(secret) {
+  // The deployed function honours `__probe: true` after signature verification
+  // and returns 200 without invoking Resend. See supabase/functions/auth-email-hook/index.ts.
   const payload = JSON.stringify({
+    __probe: true,
     user: { email: 'probe@example.test' },
     email_data: {
-      email_action_type: 'audit_probe_unknown_type',
+      email_action_type: 'audit_probe',
       email: 'probe@example.test',
       token: 'PROBE',
       token_hash: 'PROBE_HASH',
@@ -133,7 +136,7 @@ async function probeAuthEmailHook() {
   try {
     const { status, body } = await postAuthEmailHook(secret);
     reportProbe('auth-email-hook', 'positive', EXPECTED_POS['auth-email-hook'], status, body,
-      'valid signature → expected 400 (unknown email_action_type, no Resend call)');
+      'valid signature + __probe:true → expected 200 (probe short-circuit, no Resend call)');
   } catch (e) {
     console.log(`  FAIL  auth-email-hook [positive]  network error: ${String(e).slice(0, 120)}`);
     failed++;

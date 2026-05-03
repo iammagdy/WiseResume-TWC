@@ -7,7 +7,7 @@ import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
 import { localParseResume } from "./localParser.ts";
-import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
+import { requireAuth, tryAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
 import { logger } from "../_shared/logger.ts";
 import { wrapHandler } from "../_shared/fnLogger.ts";
@@ -388,12 +388,15 @@ serve(wrapHandler("parse-resume", async (req) => {
   const sizeError = checkPayloadSize(req, 2 * 1024 * 1024);
   if (sizeError) return sizeError;
 
+  const auth = await tryAuth(req, corsHeaders);
+  if (auth instanceof Response) return auth;
+
   let creditCheck: Awaited<ReturnType<typeof checkAndDeductCredit>> | undefined;
   let _refundUserId: string | undefined;
 
   try {
-    // Require verified authentication — rejects unauthenticated and foreign-project JWTs.
-    const { userId } = await requireAuth(req);
+    // Auth already verified by tryAuth above (returned 401 Response on failure).
+    const { userId } = auth;
     _refundUserId = userId;
 
     // Rate limiting — when blocked, surface a structured error body and

@@ -9,7 +9,7 @@
  */
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { getCorsHeaders } from '../_shared/cors.ts';
-import { requireAuth } from '../_shared/authMiddleware.ts';
+import { requireAuth, tryAuth } from '../_shared/authMiddleware.ts';
 import { pingProvider, SUPPORTED_PROVIDERS } from '../_shared/providers.ts';
 
 import { wrapHandler } from '../_shared/fnLogger.ts';
@@ -29,9 +29,10 @@ serve(wrapHandler("validate-api-key", async (req) => {
     return json({ error: 'Method not allowed' }, 405);
   }
 
-  try {
-    await requireAuth(req);
+  const auth = await tryAuth(req, corsHeaders);
+  if (auth instanceof Response) return auth;
 
+  try {
     const body = await req.json().catch(() => ({}));
     const { provider, key } = body as { provider?: string; key?: string };
 

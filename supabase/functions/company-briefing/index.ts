@@ -4,7 +4,7 @@ import { selectProviderForTool } from "../_shared/modelRouter.ts";
 const __ROUTE = selectProviderForTool('company-briefing');
 import { checkRateLimit, recordUsage } from '../_shared/rateLimiter.ts';
 import { checkUserRateLimit } from '../_shared/userRateLimiter.ts';
-import { requireAuth, authErrorResponse } from '../_shared/authMiddleware.ts';
+import { requireAuth, tryAuth, authErrorResponse } from '../_shared/authMiddleware.ts';
 import { checkAndDeductCredit, refundCredit } from '../_shared/creditUtils.ts';
 import { getServiceClient } from '../_shared/dbClient.ts';
 import { logger } from '../_shared/logger.ts';
@@ -174,8 +174,11 @@ Deno.serve(wrapHandler("company-briefing", async (req) => {
     return new Response(null, { headers: cors });
   }
 
+  const auth = await tryAuth(req, cors);
+  if (auth instanceof Response) return auth;
+
   try {
-    const { userId, client } = await requireAuth(req);
+    const { userId, client } = auth;
 
     const rl = await checkRateLimit(userId, { maxRequests: 10, windowSeconds: 60, actionType: 'company_briefing' });
     if (!rl.allowed) {

@@ -488,12 +488,18 @@ Reachable model providers (from probe responses): **Groq** (slot 1, 490 ms), **D
 
 > **RESOLVED 2026-05-03 (Task #65, Phase 1).** Added `scripts/probe-webhooks-signed.mjs` and wired it into `.github/workflows/deploy-edge-functions.yml` as a final post-deploy step (after `npm run smoke:functions`). Each webhook gets a probe **pair**:
 >
-> - **Positive** — payload signed with the real `SUPABASE_AUTH_HOOK_SECRET` (Standard Webhooks v1, `whsec_<base64>` aware) or `KINDE_WEBHOOK_SECRET` (HMAC-SHA256 hex, `X-Kinde-Signature: sha256=<hex>`). Asserts an endpoint-specific status that proves we got past the signature gate AND landed in the expected branch:
->   - `auth-email-hook` → **400** ("Unknown email type" — payload uses `email_action_type: 'audit_probe_unknown_type'` so the signature passes but the function rejects before any Resend call; nothing is sent).
->   - `kinde-webhook`  → **200** (a non-`user.created` event is acked without invoking `provisionUser`, so the probe is fully side-effect-free).
+> - **Positive** — payload signed with the real `SUPABASE_AUTH_HOOK_SECRET` (Standard Webhooks v1, `whsec_<base64>` aware) or `KINDE_WEBHOOK_SECRET` (HMAC-SHA256 hex, `X-Kinde-Signature: sha256=<hex>`). Asserts **200** for both endpoints, proving we got past the signature gate AND the function returned a clean happy-path response:
+>   - `auth-email-hook` → **200**. To make this side-effect-free, the function now honours a `__probe: true` payload flag: once the Standard Webhooks signature is verified, the function short-circuits to `200 {ok:true,probe:true}` *without* calling Resend. The flag is meaningless without a valid signature, so the branch is unreachable from the public internet without `SUPABASE_AUTH_HOOK_SECRET`.
+>   - `kinde-webhook`  → **200**. Probe sends `type: "user.updated"` so the function acks 200 without invoking `provisionUser`.
 > - **Negative** — same payload re-signed with `WRONG_SECRET_DO_NOT_USE`. Asserts **401** for both functions, proving the signature path actually rejects mismatched signatures (not just missing ones).
 >
-> Both probes must hit their expected status for the run to pass; the workflow step fails (exit 1) on any deviation. The script SKIPs (exit 0) when either secret is missing, so it is non-blocking on forks. Locally the Replit env exposes neither webhook secret, so the script reports `SKIP` for both during development; CI on the canonical repo runs both probe pairs against the live deployment after every edge-function deploy.
+> Both probes must hit their expected status for the run to pass; the workflow step fails (exit 1) on any deviation. The script SKIPs (exit 0) when either secret is missing, so it is non-blocking on forks.
+>
+> **Live verification (2026-05-03, project `jnsfmkzgxsviuthaqlyy`):**
+> - `kinde-webhook` positive: HTTP **200** body `{"received":true,"processed":false}` — PASS
+> - `kinde-webhook` negative: HTTP **401** body `{"error":"Unauthorized"}` — PASS
+> - `auth-email-hook` negative: HTTP **401** body `{"error":"Unauthorized"}` — PASS
+> - `auth-email-hook` positive: not run — `SUPABASE_AUTH_HOOK_SECRET` is a Supabase-reserved name and cannot be set via the Function Secrets API or `supabase secrets set` (CLI returns `Env name cannot start with SUPABASE_, skipping`). It is provisioned by the Supabase Auth "Send Email Hook" config in the project dashboard. CI runs the positive probe against the real value via the GitHub `secrets.SUPABASE_AUTH_HOOK_SECRET` env, which the operator pastes from that dashboard page.
 
 ### 🟡 Medium (3)
 

@@ -3,7 +3,7 @@ import { recordUsage } from "../_shared/rateLimiter.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { isKillSwitchActive } from "../_shared/featureFlags.ts";
-import { requireAuth } from "../_shared/authMiddleware.ts";
+import { requireAuth, tryAuth } from "../_shared/authMiddleware.ts";
 import { toUserError } from "../_shared/aiClient.ts";
 import { wrapHandler } from "../_shared/fnLogger.ts";
 import {
@@ -35,8 +35,11 @@ serve(wrapHandler('score-resume', async (req) => {
     );
   }
 
+  const auth = await tryAuth(req, corsHeaders);
+  if (auth instanceof Response) return auth;
+
   try {
-    const { userId } = await requireAuth(req);
+    const { userId } = auth;
 
     const body = await req.json();
     const { resume, templateId, source } = body;

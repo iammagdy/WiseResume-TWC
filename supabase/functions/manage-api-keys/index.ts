@@ -11,7 +11,7 @@
  */
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { getCorsHeaders } from '../_shared/cors.ts';
-import { requireAuth } from '../_shared/authMiddleware.ts';
+import { requireAuth, tryAuth } from '../_shared/authMiddleware.ts';
 import { getServiceClient } from '../_shared/dbClient.ts';
 import { encrypt, maskKey } from '../_shared/encryption.ts';
 import { SUPPORTED_PROVIDERS } from '../_shared/providers.ts';
@@ -29,8 +29,11 @@ serve(wrapHandler("manage-api-keys", async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
+  const auth = await tryAuth(req, corsHeaders);
+  if (auth instanceof Response) return auth;
+
   try {
-    const { userId } = await requireAuth(req);
+    const { userId } = auth;
     const db = getServiceClient();
 
     // ── GET — list saved keys (masked) ──────────────────────────────────────

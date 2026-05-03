@@ -4,7 +4,7 @@ import { selectProviderForTool } from "../_shared/modelRouter.ts";
 const __ROUTE = selectProviderForTool('one-page-optimizer');
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
-import { requireAuth } from "../_shared/authMiddleware.ts";
+import { requireAuth, tryAuth } from "../_shared/authMiddleware.ts";
 import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
 import { logger } from "../_shared/logger.ts";
@@ -248,8 +248,11 @@ Deno.serve(wrapHandler("smart-fit-rewrite", async (req) => {
   const sizeError = checkPayloadSize(req, 200 * 1024);
   if (sizeError) return sizeError;
 
+  const auth = await tryAuth(req, corsHeaders);
+  if (auth instanceof Response) return auth;
+
   try {
-    const { userId } = await requireAuth(req);
+    const { userId } = auth;
     const bodyText = await req.text();
     if (bodyText.length > MAX_PAYLOAD) {
       return new Response(
