@@ -661,6 +661,25 @@ export function isAIError(error: unknown): error is AIError {
 }
 
 export function toUserError(error: unknown): { status: number; error: string; message: string } {
+  // AuthError thrown by `_shared/authMiddleware.ts#requireAuth` carries its own
+  // HTTP status (always 401). Duck-typed here to avoid an import cycle. Without
+  // this branch the `error instanceof Error` fall-through below would convert
+  // every unauthenticated POST into a generic 500, which is what audit task #61
+  // (H1) flagged across 12 edge functions. Surfacing the original 401 restores
+  // parity with the gateway's verify_jwt path.
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    (error as { name?: string }).name === 'AuthError' &&
+    typeof (error as { status?: unknown }).status === 'number'
+  ) {
+    const e = error as { status: number; message?: string };
+    return {
+      status: e.status,
+      error: e.status === 403 ? 'forbidden' : 'unauthorized',
+      message: e.message || 'Unauthorized',
+    };
+  }
   if (isAIError(error)) {
     if (error.status === 429) {
       return { status: 429, error: 'rate_limit', message: 'AI service is busy right now. Please try again in a moment.' };

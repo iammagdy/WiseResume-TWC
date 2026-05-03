@@ -141,6 +141,17 @@ serve(wrapHandler("manage-api-keys", async (req) => {
 
     return json({ error: 'Method not allowed' }, 405);
   } catch (err) {
+    // AuthError → 401 parity with gateway's verify_jwt path. Duck-typed so
+    // this file does not need to import the AuthError class. Audit #61 (H1).
+    if (
+      typeof err === 'object' && err !== null &&
+      (err as { name?: string }).name === 'AuthError'
+    ) {
+      const status = typeof (err as { status?: unknown }).status === 'number'
+        ? (err as { status: number }).status
+        : 401;
+      return json({ error: 'unauthorized', message: (err as Error).message || 'Unauthorized' }, status);
+    }
     console.error('[manage-api-keys]', err);
     return json({ error: 'Internal server error', message: (err as Error).message }, 500);
   }
