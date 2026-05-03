@@ -1,8 +1,24 @@
 [
   {
+    "version": "v3.11.1",
+    "date": "May 3, 2026",
+    "latest": true,
+    "summary": "Source-control housekeeping: the Replit working copy and the GitHub backup are back in sync after a long drift.",
+    "items": [
+      {
+        "title": "Replit ↔ GitHub repository reconciled",
+        "description": "The Replit working copy of `main` (which was 161 commits ahead, including the Phase 4 continuous drift-detection scaffolding) and the GitHub `origin/main` (which had Tasks #44–#46 mobile/landing/audit fixes pushed directly) have been merged into a single history. Both sides are preserved as parents of the new merge commit on GitHub — every individual commit from either side is still browseable. Five files conflicted; all resolved in favour of the Replit version, which carried the audit-confirmed truth about which backend functions are deployed. No history was rewritten, no force-push was used. A safety-net branch `sync-from-replit-2026-05-03` was left on GitHub as a parachute and can be deleted from the GitHub UI any time."
+      },
+      {
+        "title": "Internal documentation refreshed",
+        "description": "Project Atlas (the internal architecture reference), the governance changelog, and the in-app changelog all updated to record the sync. No user-facing behaviour changed."
+      }
+    ]
+  },
+  {
     "version": "v3.11.0",
     "date": "May 2, 2026",
-    "latest": true,
+    "latest": false,
     "summary": "Mobile (Capacitor) is buildable end-to-end and the admin desk now shows AI cost attribution per user, feature, and provider.",
     "items": [
       {

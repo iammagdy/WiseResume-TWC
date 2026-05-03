@@ -31,3 +31,4 @@ Cards in this folder describe shipped or in-flight stability fixes from the 2026
 - [Phase 11 — PDF export migration to Puppeteer (text-selectable across all surfaces)](./phase-11-pdf-export-puppeteer-migration.md)
 - [Phase 12 — Editor audit Phase 2: keyboard context split, layout cleanup, label fixes, DEV-only logger](./phase-12-editor-audit-phase-2.md)
 - [Editor ATS panel relabelled as "Job Match Analysis" / "Keyword Match Score"](./ats-keyword-match-clarity.md)
+- [GitHub origin sync — Replit ↔ GitHub reconciled (Task #70 v2)](./github-origin-sync-task-70.md)
