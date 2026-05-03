@@ -1,48 +1,50 @@
-// admin-config: consolidated router for the 5 admin-only configuration
-// edge functions. See task #52 + EDGE_FUNCTION_AUDIT.md for rationale.
-//
-// Dispatch contract (per task spec):
-//   PRIMARY: `body.action` ∈ {
-//     "get-settings", "update-settings", "feature-flags",
-//     "integrations", "env-check"
-//   }
-//   FALLBACK: `x-admin-config-action` request header.
-//
-// Why a header fallback exists:
-//   - The original `admin-feature-flags` handler reads `body.action ∈
-//     {"list","upsert","delete"}` for its inner sub-path.
-//   - The original `admin-integrations` handler reads `body.action ∈
-//     {"get_resend_bounces","get_deploy_status","trigger_deploy"}`.
-//   In both cases the inner `action` value collides with the router-level
-//   dispatch field. To preserve byte-for-byte parity with the originals
-//   we must NOT clobber the inner `action` key. The web helper therefore
-//   sets `x-admin-config-action: feature-flags` (or `integrations`) and
-//   leaves the body untouched. The router sees `body.action = "list"`
-//   (not in VALID_ACTIONS), falls back to the header, and the
-//   sub-handler re-parses the body and reads its own inner action
-//   exactly as before.
-//
-// Parity strategy: the router buffers the request body ONCE as text,
-// then hands the text string (not a parsed object) to each handler.
-// Each handler does its OWN JSON.parse inside its original try/catch
-// wrapper, so each handler preserves its original parse-vs-validation
-// semantics byte-for-byte.
-//
-// Single documented router-boundary deviation from originals:
-// `requireAdminAuth` runs ONCE at the top of `serve` (per task spec —
-// explicit "single assertAdmin at top of serve"). All 5 originals
-// parsed body BEFORE auth, so an unauthenticated call with a
-// malformed body returned 500 from the parse-fail path. With auth
-// at top, that combined edge case now returns 401. No real client
-// (web helper, dev proxy, mobile) ever hits this case — they all
-// post well-formed JSON. The Playwright spec asserts the new 401
-// behavior so the deviation is captured in CI.
-//
-// CRITICAL — env-check parity: the masking surface (which env vars
-// the function reports as `present`/`absent`) MUST match the original
-// admin-env-check byte-for-byte. Adding or removing keys here is a
-// security-relevant change. Do NOT modify REQUIRED_ENV_VARS without
-// explicit owner sign-off (per task #52 out-of-scope rules).
+/**
+ * admin-config — consolidated router for the 5 admin-only configuration
+ * edge functions. See task #52 + EDGE_FUNCTION_AUDIT.md for rationale.
+ *
+ * Dispatch contract (per task spec):
+ *   PRIMARY: `body.action` ∈ {
+ *     "get-settings", "update-settings", "feature-flags",
+ *     "integrations", "env-check"
+ *   }
+ *   FALLBACK: `x-admin-config-action` request header.
+ *
+ * Why a header fallback exists:
+ *   - The original `admin-feature-flags` handler reads `body.action ∈
+ *     {"list","upsert","delete"}` for its inner sub-path.
+ *   - The original `admin-integrations` handler reads `body.action ∈
+ *     {"get_resend_bounces","get_deploy_status","trigger_deploy"}`.
+ *   In both cases the inner `action` value collides with the router-level
+ *   dispatch field. To preserve byte-for-byte parity with the originals
+ *   we must NOT clobber the inner `action` key. The web helper therefore
+ *   sets `x-admin-config-action: feature-flags` (or `integrations`) and
+ *   leaves the body untouched. The router sees `body.action = "list"`
+ *   (not in VALID_ACTIONS), falls back to the header, and the
+ *   sub-handler re-parses the body and reads its own inner action
+ *   exactly as before.
+ *
+ * Parity strategy: the router buffers the request body ONCE as text,
+ * then hands the text string (not a parsed object) to each handler.
+ * Each handler does its OWN JSON.parse inside its original try/catch
+ * wrapper, so each handler preserves its original parse-vs-validation
+ * semantics byte-for-byte.
+ *
+ * Single documented router-boundary deviation from originals:
+ * `requireAdminAuth` runs ONCE at the top of `serve` (per task spec —
+ * explicit "single assertAdmin at top of serve"). All 5 originals
+ * parsed body BEFORE auth, so an unauthenticated call with a
+ * malformed body returned 500 from the parse-fail path. With auth
+ * at top, that combined edge case now returns 401. No real client
+ * (web helper, dev proxy, mobile) ever hits this case — they all
+ * post well-formed JSON. The Playwright spec asserts the new 401
+ * behavior so the deviation is captured in CI.
+ *
+ * CRITICAL — env-check parity: the masking surface (which env vars
+ * the function reports as `present`/`absent`) MUST match the original
+ * admin-env-check byte-for-byte. Adding or removing keys here is a
+ * security-relevant change. Do NOT modify REQUIRED_ENV_VARS without
+ * explicit owner sign-off (per task #52 out-of-scope rules).
+ */
 
 import { getServiceClient } from '../_shared/dbClient.ts';
 import { requireAdminAuth } from '../_shared/adminAuth.ts';

@@ -1,38 +1,40 @@
-// admin-wisehire: consolidated router for the 4 admin-only WiseHire
-// management edge functions. See task #54 + EDGE_FUNCTION_AUDIT.md
-// for rationale.
-//
-// Dispatch contract (per task spec):
-//   PRIMARY: `body.action` ∈ {
-//     "invite", "reset-user", "revoke-invite", "waitlist"
-//   }
-//   FALLBACK: `x-admin-wisehire-op` request header. Used when
-//   body.action is missing or names something else (e.g. malformed
-//   bodies — the waitlist handler's inner branching uses
-//   `delete_entry_id` / `history_email` and not `body.action`, so it
-//   never collides with the dispatch field, but the header fallback
-//   exists for parity safety with the other merged routers).
-//
-// Parity strategy: the router buffers the request body ONCE as text
-// at the top, then hands the text string (not a parsed object) to
-// each handler. Each handler does its OWN JSON.parse inside its
-// original try/catch wrapper, so each handler preserves its
-// original parse-vs-validation-vs-throw semantics byte-for-byte.
-//
-// All 4 originals parse body BEFORE auth and throw to outer
-// try/catch on parse failure → 500 'Internal server error'. With
-// auth lifted to the top of the router, an unauthenticated call
-// with a malformed body now returns 401 instead of 500. No real
-// client (web helper, dev proxy) ever hits this combined edge case;
-// the Playwright spec asserts the 401 behaviour so the deviation is
-// captured in CI. Documented in EDGE_FUNCTION_AUDIT.md.
-//
-// Audit log writes preserve the same `category` / `action` strings
-// as the originals:
-//   - invite        → category 'admin_email', action 'wisehire_invite'
-//   - reset-user    → category 'admin',       action 'wisehire_test_reset'
-//   - revoke-invite → category 'admin_email', action 'wisehire_invite_revoke'
-//   - waitlist      → no audit-log writes (read-only listing + entry delete).
+/**
+ * admin-wisehire — consolidated router for the 4 admin-only WiseHire
+ * management edge functions. See task #54 + EDGE_FUNCTION_AUDIT.md
+ * for rationale.
+ *
+ * Dispatch contract (per task spec):
+ *   PRIMARY: `body.action` ∈ {
+ *     "invite", "reset-user", "revoke-invite", "waitlist"
+ *   }
+ *   FALLBACK: `x-admin-wisehire-op` request header. Used when
+ *   body.action is missing or names something else (e.g. malformed
+ *   bodies — the waitlist handler's inner branching uses
+ *   `delete_entry_id` / `history_email` and not `body.action`, so it
+ *   never collides with the dispatch field, but the header fallback
+ *   exists for parity safety with the other merged routers).
+ *
+ * Parity strategy: the router buffers the request body ONCE as text
+ * at the top, then hands the text string (not a parsed object) to
+ * each handler. Each handler does its OWN JSON.parse inside its
+ * original try/catch wrapper, so each handler preserves its
+ * original parse-vs-validation-vs-throw semantics byte-for-byte.
+ *
+ * All 4 originals parse body BEFORE auth and throw to outer
+ * try/catch on parse failure → 500 'Internal server error'. With
+ * auth lifted to the top of the router, an unauthenticated call
+ * with a malformed body now returns 401 instead of 500. No real
+ * client (web helper, dev proxy) ever hits this combined edge case;
+ * the Playwright spec asserts the 401 behaviour so the deviation is
+ * captured in CI. Documented in EDGE_FUNCTION_AUDIT.md.
+ *
+ * Audit log writes preserve the same `category` / `action` strings
+ * as the originals:
+ *   - invite        → category 'admin_email', action 'wisehire_invite'
+ *   - reset-user    → category 'admin',       action 'wisehire_test_reset'
+ *   - revoke-invite → category 'admin_email', action 'wisehire_invite_revoke'
+ *   - waitlist      → no audit-log writes (read-only listing + entry delete).
+ */
 
 import { getServiceClient } from '../_shared/dbClient.ts';
 import { requireAdminAuth } from '../_shared/adminAuth.ts';

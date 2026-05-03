@@ -1,28 +1,30 @@
-// admin-ai-ops: merged router for the 4 AI control-plane edge functions.
-//
-// Task #53 (2026-05-03): consolidates `admin-ai-caps`, `admin-ai-routing`,
-// `inspect-ai-keys`, and `refresh-ai-test-models` into a single deployment
-// to free 3 slots under Supabase's 100-function project limit.
-//
-// Excluded (kept isolated): `ai-test`, `ai-health` — both are non-admin
-// surfaces with different auth postures.
-//
-// Dispatch contract:
-//   PRIMARY:  body.action ∈ {"caps","routing","inspect-keys","refresh-test-models"}
-//   FALLBACK: x-admin-ai-op header (used for `caps` + `routing`, whose
-//             original handlers read body.action for THEIR OWN inner
-//             sub-routing — clobbering body.action would break parity).
-//
-// Auth posture:
-//   * caps / routing / inspect-keys: single `requireAdminAuth` at the top
-//     of `serve` (per task spec).
-//   * refresh-test-models: dual-mode auth — `x-cron-secret` OR
-//     `requireAdminAuth`. The router special-cases this action so the
-//     nightly pg_cron caller still reaches it without an admin session,
-//     preserving the original `authenticate()` semantics byte-for-byte.
-//
-// Each handler is byte-for-byte equivalent to its original (response
-// envelopes, status codes, key-masking rules, audit-log writes).
+/**
+ * admin-ai-ops — merged router for the 4 AI control-plane edge functions.
+ *
+ * Task #53 (2026-05-03): consolidates `admin-ai-caps`, `admin-ai-routing`,
+ * `inspect-ai-keys`, and `refresh-ai-test-models` into a single deployment
+ * to free 3 slots under Supabase's 100-function project limit.
+ *
+ * Excluded (kept isolated): `ai-test`, `ai-health` — both are non-admin
+ * surfaces with different auth postures.
+ *
+ * Dispatch contract:
+ *   PRIMARY:  body.action ∈ {"caps","routing","inspect-keys","refresh-test-models"}
+ *   FALLBACK: x-admin-ai-op header (used for `caps` + `routing`, whose
+ *             original handlers read body.action for THEIR OWN inner
+ *             sub-routing — clobbering body.action would break parity).
+ *
+ * Auth posture:
+ *   * caps / routing / inspect-keys: single `requireAdminAuth` at the top
+ *     of `serve` (per task spec).
+ *   * refresh-test-models: dual-mode auth — `x-cron-secret` OR
+ *     `requireAdminAuth`. The router special-cases this action so the
+ *     nightly pg_cron caller still reaches it without an admin session,
+ *     preserving the original `authenticate()` semantics byte-for-byte.
+ *
+ * Each handler is byte-for-byte equivalent to its original (response
+ * envelopes, status codes, key-masking rules, audit-log writes).
+ */
 
 import { getServiceClient } from '../_shared/dbClient.ts';
 import { requireAdminAuth } from '../_shared/adminAuth.ts';

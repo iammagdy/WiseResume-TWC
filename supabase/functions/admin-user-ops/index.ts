@@ -1,43 +1,45 @@
-// admin-user-ops: consolidated router for the 7 admin user-lifecycle
-// edge functions. See task #51 + EDGE_FUNCTION_AUDIT.md for rationale.
-//
-// Dispatch contract (per task spec):
-//   PRIMARY: `body.action` ∈ {
-//     "suspend", "grant-trial", "revoke-trial", "set-credits",
-//     "set-plan", "revoke-sessions", "update-profile"
-//   }
-//   FALLBACK: `x-admin-user-op` request header (used ONLY when the
-//   body is unparseable, so admin-revoke-sessions can still dispatch
-//   to its handler and reproduce the original 400 envelope on
-//   malformed bodies — the only way to keep byte-for-byte parity for
-//   that handler without forcing the router to swallow parse errors
-//   silently for the other 6).
-//
-// Parity strategy: the router buffers the request body ONCE as text
-// at the top, then hands the text string (not a parsed object) to
-// each handler. Each handler does its OWN JSON.parse inside its
-// original try/catch wrapper, so each handler preserves its
-// original parse-vs-validation-vs-throw semantics byte-for-byte:
-//
-//   - 6 of 7 originals parsed body in the handler body and threw to
-//     outer try/catch on parse failure → 500 "Internal server error"
-//     (or for revoke-trial, 500 String(err)).
-//   - admin-revoke-sessions parsed body in an INNER try/catch with
-//     `body = {}` default → malformed body → 400 "target_user_id is
-//     required", NOT 500.
-//
-// Single documented router-boundary deviation from originals:
-// `requireAdminAuth` runs ONCE at the top of `serve` (per task spec
-// — explicit "do not duplicate per action"). The 6 parse-first
-// originals had auth AFTER body parsing, so an unauthenticated call
-// with a malformed body returned 500 from the parse-fail path.
-// In the merged router, auth runs first → returns 401. No real
-// client (web helper, mobile, server-side proxy) ever hits this
-// case. The Playwright spec asserts the new 401 behavior so the
-// deviation is captured in CI.
-//
-// Explicitly NOT included (kept isolated for blast-radius / audit
-// clarity): admin-delete-user. Do NOT merge it here.
+/**
+ * admin-user-ops — consolidated router for the 7 admin user-lifecycle
+ * edge functions. See task #51 + EDGE_FUNCTION_AUDIT.md for rationale.
+ *
+ * Dispatch contract (per task spec):
+ *   PRIMARY: `body.action` ∈ {
+ *     "suspend", "grant-trial", "revoke-trial", "set-credits",
+ *     "set-plan", "revoke-sessions", "update-profile"
+ *   }
+ *   FALLBACK: `x-admin-user-op` request header (used ONLY when the
+ *   body is unparseable, so admin-revoke-sessions can still dispatch
+ *   to its handler and reproduce the original 400 envelope on
+ *   malformed bodies — the only way to keep byte-for-byte parity for
+ *   that handler without forcing the router to swallow parse errors
+ *   silently for the other 6).
+ *
+ * Parity strategy: the router buffers the request body ONCE as text
+ * at the top, then hands the text string (not a parsed object) to
+ * each handler. Each handler does its OWN JSON.parse inside its
+ * original try/catch wrapper, so each handler preserves its
+ * original parse-vs-validation-vs-throw semantics byte-for-byte:
+ *
+ *   - 6 of 7 originals parsed body in the handler body and threw to
+ *     outer try/catch on parse failure → 500 "Internal server error"
+ *     (or for revoke-trial, 500 String(err)).
+ *   - admin-revoke-sessions parsed body in an INNER try/catch with
+ *     `body = {}` default → malformed body → 400 "target_user_id is
+ *     required", NOT 500.
+ *
+ * Single documented router-boundary deviation from originals:
+ * `requireAdminAuth` runs ONCE at the top of `serve` (per task spec
+ * — explicit "do not duplicate per action"). The 6 parse-first
+ * originals had auth AFTER body parsing, so an unauthenticated call
+ * with a malformed body returned 500 from the parse-fail path.
+ * In the merged router, auth runs first → returns 401. No real
+ * client (web helper, mobile, server-side proxy) ever hits this
+ * case. The Playwright spec asserts the new 401 behavior so the
+ * deviation is captured in CI.
+ *
+ * Explicitly NOT included (kept isolated for blast-radius / audit
+ * clarity): admin-delete-user. Do NOT merge it here.
+ */
 
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { getServiceClient } from '../_shared/dbClient.ts';
