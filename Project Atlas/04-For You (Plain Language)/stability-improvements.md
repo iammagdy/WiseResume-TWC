@@ -1,6 +1,16 @@
 # Stability Improvements — What's Getting Better Behind the Scenes
 
-**Last verified:** 2026-05-03 (sign-in flow restored after Kinde custom-domain misconfiguration; Replit working copy and GitHub backup are back in sync after a long drift)
+**Last verified:** 2026-05-04 (Editor AI backend consolidation fully complete — 4 retired backend functions removed from deployment, freeing 4 slots; DevKit cleaned up; GitHub synced)
+
+## The AI editor engine is now leaner and fully consolidated (2026-05-04)
+
+**What was the situation:** The platform has a hard limit of 100 deployable backend functions (think of them as small servers that handle specific tasks). Four of those slots were occupied by backend functions that had already been retired in a previous update — `analyze-resume`, `recruiter-simulation`, `suggest-template`, and `optimize-for-linkedin`. Since the previous update (v3.11.0), all the work those four functions used to do had been silently handed off to a single unified "editor-ai" router. The four original slots were still sitting there, deployed and taking up space, but receiving no real traffic.
+
+**What changed:** The four retired slots have been formally removed from the live deployment. Their source code is kept in the repository's history (so we can always look back or restore them if needed), but the files themselves have been replaced with clear "retired" markers. A database cleanup migration also removed the four leftover configuration rows for the retired functions from the AI routing table. The internal admin DevKit panel was updated so it no longer shows the four retired names in the AI routing control — only the five active functions appear now. Four legacy test entries in the admin smoke-test runner were also removed (replaced by the newer `editor-ai-*` tests that were added in the previous update).
+
+**What you'll notice:** Nothing visible — this is purely a backend housekeeping improvement. The AI editor features (resume analysis, recruiter simulation, template suggestion, LinkedIn optimisation) work exactly as before, still powered by the same consolidated router. What changed is that the platform now has 30 free deployment slots (up from 26), giving more room for future features. The admin routing panel is also cleaner — no retired or ghost entries.
+
+---
 
 ## The sign-in page is reachable again — and now lives on its own branded address (2026-05-03)
 

@@ -1,23 +1,27 @@
 # optimize-for-linkedin
 
-  **Last verified:** 2026-04-17
-  **Type:** reference card
+  **Last verified:** 2026-05-04 (Task #41/44)
+  **Status:** ⚠️ RETIRED — undeployed from Supabase 2026-05-04 (Task #44). Slot freed.
+  **Type:** reference card (historical)
   **Sources:**
-  - `supabase/functions/optimize-for-linkedin/index.ts`
-  - `supabase/config.toml` (JWT verification flag)
-  - `supabase/functions/_shared/aiClient.ts`
-- `supabase/functions/_shared/creditUtils.ts`
-- `project-governance/ARCHITECTURE.md` §7
-
-  **Canonical owner:** `project-governance/ARCHITECTURE.md` §7 (Edge Functions)
+  - `supabase/functions/optimize-for-linkedin/index.ts` (retirement stub — 410 Gone)
+  - Original implementation: git history pre-Task-#41
 
   ---
 
-  **What it does:** Rewrites resume content for LinkedIn About section.
+  **What it did:** Rewrote resume content for a LinkedIn About section using AI.
 
-  **Auth:** JWT (`requireAuth`) + L1 IP rate limit + L2 atomic credit check + payload size guard. → critical-system 09.
+  **Retired in favour of:** `editor-ai` with `x-editor-ai-action: optimize-for-linkedin` header.
+  All frontend calls transparently rewritten by `rewriteEditorAiInvoke` in
+  `src/integrations/supabase/edgeFunctions.ts`.
+
+  **Rollback:**
+  ```
+  supabase functions deploy optimize-for-linkedin
+  ```
+  (from a pre-Task-#41 commit), then flip `USE_MERGED_EDITOR_AI=false` in `edgeFunctions.ts`.
 
   **Related:**
   - `Project Atlas/01-Currently Implemented/edge-functions/README.md`
-- `Project Atlas/01-Currently Implemented/critical-systems/02-ai-routing-chain.md`
-  
+  - `EDGE_FUNCTION_AUDIT.md` — Editor AI Phase 3 section
+  - `Project Atlas/01-Currently Implemented/critical-systems/02-ai-routing-chain.md`
