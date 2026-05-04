@@ -364,9 +364,10 @@ export default function CareerPage() {
 
       <CareerQuizSheet
         open={showQuiz}
-        onOpenChange={setShowQuiz}
+        onOpenChange={(open) => { setShowQuiz(open); if (!open) setQuickCheck(false); }}
         onComplete={handleQuizComplete}
         isAnalyzing={isAnalyzing}
+        questionLimit={quickCheck ? 3 : undefined}
       />
     </div>
   );

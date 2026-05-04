@@ -38,6 +38,7 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   onComplete: (answers: QuizAnswers) => void;
   isAnalyzing?: boolean;
+  questionLimit?: number;
 }
 
 function OptionButton({ label, selected, onClick }: { label: string; selected: boolean; onClick: () => void }) {
@@ -75,10 +76,10 @@ function ChipButton({ label, selected, onClick }: { label: string; selected: boo
 const SKILLS = ['Leadership', 'Data Analysis', 'Cloud Computing', 'AI/ML', 'Project Management', 'Public Speaking', 'UX Design', 'Negotiation', 'Sales', 'Marketing', 'Coding', 'Finance'];
 const INDUSTRIES = ['Technology', 'Healthcare', 'Finance', 'Education', 'Marketing', 'Engineering', 'Creative/Design', 'Consulting', 'Government', 'Legal', 'Hospitality', 'Retail'];
 
-export function CareerQuizSheet({ open, onOpenChange, onComplete, isAnalyzing }: Props) {
+export function CareerQuizSheet({ open, onOpenChange, onComplete, isAnalyzing, questionLimit }: Props) {
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<QuizAnswers>(INITIAL_ANSWERS);
-  const totalSteps = 10;
+  const totalSteps = questionLimit ?? 10;
   const progress = ((step + 1) / totalSteps) * 100;
 
   const canNext = () => {
@@ -260,7 +261,9 @@ export function CareerQuizSheet({ open, onOpenChange, onComplete, isAnalyzing }:
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-[90dvh] flex flex-col rounded-t-3xl">
         <SheetHeader className="shrink-0 pb-2">
-          <SheetTitle className="text-base">Career Assessment</SheetTitle>
+          <SheetTitle className="text-base">
+            {questionLimit ? 'Quick Check' : 'Career Assessment'}
+          </SheetTitle>
           <Progress value={progress} className="h-2" />
           <p className="text-xs text-muted-foreground">{step + 1} of {totalSteps}</p>
         </SheetHeader>
