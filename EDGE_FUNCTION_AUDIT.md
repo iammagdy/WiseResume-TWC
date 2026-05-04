@@ -45,8 +45,14 @@ directly via the consolidated router.
 
 ### Rollback path
 
-1. `supabase functions deploy analyze-resume recruiter-simulation suggest-template optimize-for-linkedin`
-   (source code is preserved in git at any pre-retirement commit).
+1. Redeploy each function individually from a pre-retirement commit (the full original
+   source is in git history):
+   ```
+   supabase functions deploy analyze-resume
+   supabase functions deploy recruiter-simulation
+   supabase functions deploy suggest-template
+   supabase functions deploy optimize-for-linkedin
+   ```
 2. Flip `USE_MERGED_EDITOR_AI = false` in
    `src/integrations/supabase/edgeFunctions.ts`.
 3. Re-insert the 4 `ai_routing_config` rows (or revert the migration).
