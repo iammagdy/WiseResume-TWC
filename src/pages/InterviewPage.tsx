@@ -1,11 +1,11 @@
 import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Square, Keyboard, KeyboardOff, Sparkles, History, Lightbulb, RotateCcw, SkipForward, BookOpen, Check, AlertTriangle } from 'lucide-react';
+import { Square, Keyboard, Sparkles, History, Lightbulb, RotateCcw, SkipForward, BookOpen, Check, AlertTriangle } from 'lucide-react';
 import { BackButton } from '@/components/ui/BackButton';
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { InterviewSetup } from '@/components/interview/InterviewSetup';
-import { InterviewToggle } from '@/components/interview/InterviewToggle';
+
 import { TranscriptBubble, TypingBubble } from '@/components/interview/TranscriptBubble';
 import { InterviewSummary } from '@/components/interview/InterviewSummary';
 import { InterviewPreview } from '@/components/interview/InterviewPreview';
@@ -54,7 +54,7 @@ function InterviewPageContent() {
   const { createResume } = useResumeMutations();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [textInput, setTextInput] = useState('');
-  const [showTextInput, setShowTextInput] = useState(false);
+  const [showTextInput, setShowTextInput] = useState(true);
   const [pendingJobDescription, setPendingJobDescription] = useState<string | undefined>();
   const [showHistory, setShowHistory] = useState(false);
   const [showTips, setShowTips] = useState(false);
@@ -87,14 +87,11 @@ function InterviewPageContent() {
     speechSupported,
     speechRecognitionAvailable,
     elapsedSeconds,
-    silenceDetected,
     voiceGender,
     setVoiceGender,
     scores,
     latestScore,
     dismissScore,
-    countdown,
-    audioLevel,
     sttEngine,
     roleAnalysis,
     isAnalyzingRole,
@@ -108,8 +105,6 @@ function InterviewPageContent() {
     retryAI,
     skipAITurn,
     retryCurrentQuestion,
-    voiceFallbackReason,
-    retryVoice,
     submitAnswerNow,
     resumeFromDraft,
   } = useVoiceInterview(currentResume);
@@ -160,7 +155,7 @@ function InterviewPageContent() {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [transcript, interimText, status]);
+  }, [transcript, status]);
 
   // Show errors as toast with specific messages and auto-show text input
   useEffect(() => {
@@ -185,20 +180,6 @@ function InterviewPageContent() {
       toast.error(title, { description });
     }
   }, [error]);
-
-  // Auto-show text input if STT engine is none and interview is active
-  useEffect(() => {
-    if (isStarted && sttEngine === 'none' && status === 'idle' && transcript.length > 0) {
-      setShowTextInput(true);
-    }
-  }, [isStarted, sttEngine, status, transcript.length]);
-
-  // Haptic feedback for countdown
-  useEffect(() => {
-    if (countdown !== null) {
-      haptics.light();
-    }
-  }, [countdown]);
 
   const handleSetupStart = useCallback((jobDescription?: string, options?: { quickPractice?: boolean }) => {
     if (options?.quickPractice) {
@@ -600,6 +581,13 @@ function InterviewPageContent() {
             <ResumePicker />
           </div>
           <InterviewStatsCard onViewHistory={() => setShowHistory(true)} />
+          <div className="mx-4 mt-3 mb-1 flex items-start gap-2 px-3 py-2.5 rounded-xl border border-amber-500/20 bg-amber-500/8">
+            <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+            <div>
+              <p className="text-xs font-medium text-foreground">Text-only · AI responses temporarily unavailable</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Voice input is not available right now. You can still practise by typing your answers — questions will appear on screen as usual.</p>
+            </div>
+          </div>
           <InterviewSetup
             hasResume={!!currentResume}
             speechSupported={speechSupported}
@@ -658,7 +646,7 @@ function InterviewPageContent() {
         <div className="flex items-center gap-3">
           <BackButton onBeforeBack={() => { backTriggeredRef.current = true; setShowEndConfirm(true); return true; }} />
           <Sparkles className="w-5 h-5 text-primary" />
-          <h1 className="text-page-title flex-1">Wise AI</h1>
+          <h1 className="text-page-title flex-1">Wise AI <span className="text-xs font-normal text-muted-foreground">· Text-only</span></h1>
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/25">
             <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
             <span className="text-xs font-mono font-semibold text-primary tabular-nums">
@@ -705,42 +693,6 @@ function InterviewPageContent() {
         );
       })()}
 
-      {/* Voice → text fallback banner. Visible whenever the high-quality voice
-          path failed; gives the user a one-tap way to retry. */}
-      <AnimatePresence>
-        {voiceFallbackReason && (
-          <motion.div
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            className="shrink-0 px-4 pt-2"
-          >
-            <div className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5">
-              <AlertTriangle className="w-4 h-4 mt-0.5 text-amber-500 shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-foreground">
-                  Voice transcription degraded
-                </p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {voiceFallbackReason}
-                </p>
-              </div>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  retryVoice();
-                  toast.info('Trying voice again on your next answer.');
-                }}
-                className="shrink-0 h-8 text-xs"
-              >
-                Try voice again
-              </Button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* Transcript area */}
       <div
         ref={scrollRef}
@@ -779,17 +731,6 @@ function InterviewPageContent() {
           )}
         </AnimatePresence>
 
-        {interimText && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 0.7 }}
-            className="flex justify-end"
-          >
-            <div className="max-w-[85%] rounded-2xl rounded-br-md px-4 py-3 bg-primary/20 backdrop-blur-sm border border-primary/30 text-foreground text-sm italic shadow-[0_4px_15px_hsl(var(--primary)/0.15)]">
-              {interimText}
-            </div>
-          </motion.div>
-        )}
       </div>
 
       {/* Controls */}
@@ -818,13 +759,10 @@ function InterviewPageContent() {
             <span className="text-muted-foreground text-[10px]">Replay</span>
           </motion.button>
 
-          <InterviewToggle
-            status={status}
-            onPress={handleToggle}
-            silenceDetected={silenceDetected}
-            audioLevel={audioLevel}
-            sttEngine={sttEngine}
-          />
+          <div className="flex flex-col items-center gap-1 min-w-[44px] min-h-[44px] justify-center">
+            <Keyboard className="w-5 h-5 text-muted-foreground" />
+            <span className="text-muted-foreground text-[10px]">Type below</span>
+          </div>
 
           {/* Always-visible explicit "I'm done answering" affordance.
               Active when listening so users don't have to wait for the
@@ -867,26 +805,6 @@ function InterviewPageContent() {
             <span className="text-muted-foreground text-[10px]">Skip</span>
           </motion.button>
 
-          {/* Premium countdown overlay — absolutely positioned to avoid pushing siblings */}
-          <AnimatePresence>
-            {countdown !== null && status === 'speaking' && (
-              <motion.div
-                key={countdown}
-                initial={{ scale: 0.3, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 1.3, opacity: 0 }}
-                transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-                className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10"
-              >
-                <span className="text-3xl font-black text-primary tabular-nums drop-shadow-[0_0_15px_hsl(var(--primary)/0.5)]">
-                  {countdown}
-                </span>
-                <span className="text-[10px] text-muted-foreground font-medium">
-                  Get ready to speak
-                </span>
-              </motion.div>
-            )}
-          </AnimatePresence>
         </div>
 
         {/* Text input fallback */}
@@ -916,15 +834,6 @@ function InterviewPageContent() {
         )}
 
         <div className="flex items-center justify-between">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowTextInput(!showTextInput)}
-            className="text-muted-foreground hover:text-foreground min-h-[44px]"
-          >
-            {showTextInput ? <KeyboardOff className="w-4 h-4 mr-1" /> : <Keyboard className="w-4 h-4 mr-1" />}
-            {showTextInput ? 'Close' : 'Type'}
-          </Button>
           {/* Retry this question — shows after user has answered and AI has responded */}
           {status === 'idle' &&
             transcript.some(e => e.role === 'user') &&

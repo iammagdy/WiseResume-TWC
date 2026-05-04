@@ -95,8 +95,6 @@ export default function SettingsPage() {
     biometricLockEnabled,
     setBiometricLockEnabled,
     setHasSeenSplash,
-    byokEnabled,
-    byokProvider,
   } = useSettingsStore();
 
   const { isAvailable: biometricAvailable, biometryType, authenticate } = useBiometricLock(biometricLockEnabled);
@@ -323,11 +321,7 @@ export default function SettingsPage() {
                   <SettingsRow
                     type="navigation"
                     label="AI Engine"
-                    description={
-                      byokEnabled && byokProvider
-                        ? `Using your ${byokProvider} key`
-                        : 'Using WiseResume AI Pool'
-                    }
+                    description="WiseResume AI Pool"
                     onClick={() => setAISettingsOpen(true)}
                   />
                 </div>
