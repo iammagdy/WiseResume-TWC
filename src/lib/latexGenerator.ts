@@ -1,16 +1,20 @@
 import type { ResumeData } from '@/types/resume';
 
 /**
- * Escapes all LaTeX special characters in a plain string.
- * Characters: # $ % & _ { } ~ ^ \
+ * Escapes all LaTeX special characters in a plain string in a single pass,
+ * so inserted control sequences are never corrupted by subsequent replacements.
+ * Characters handled: \ # $ % & _ { } ~ ^
  */
 function esc(text: string | null | undefined): string {
   if (!text) return '';
-  return text
-    .replace(/\\/g, '\\textbackslash{}')
-    .replace(/~/g, '\\textasciitilde{}')
-    .replace(/\^/g, '\\textasciicircum{}')
-    .replace(/[#$%&_{}]/g, (c) => `\\${c}`);
+  return text.replace(/[\\#$%&_{}\^~]/g, (c) => {
+    switch (c) {
+      case '\\': return '\\textbackslash{}';
+      case '^':  return '\\textasciicircum{}';
+      case '~':  return '\\textasciitilde{}';
+      default:   return `\\${c}`;
+    }
+  });
 }
 
 function formatDate(date: string | null | undefined): string {
@@ -22,32 +26,23 @@ function formatDate(date: string | null | undefined): string {
 
 /**
  * Generates a complete, compilable LaTeX document from ResumeData.
- * Compatible with Overleaf and pdflatex using only standard packages:
- * geometry, hyperref, enumitem, parskip.
+ * Compatible with Overleaf and pdflatex.
+ * Only uses packages: geometry, hyperref (beyond the base article class).
  */
 export function generateLatex(resume: ResumeData): string {
   const { contactInfo: c, summary, experience, education, skills, certifications,
-          awards, projects, publications, volunteering, languages } = resume;
+          awards, projects, publications, volunteering, languages, hobbies, references } = resume;
 
   const lines: string[] = [];
 
-  // ─── Preamble ───────────────────────────────────────────────────────────────
+  // ─── Preamble (only article + geometry + hyperref) ───────────────────────
   lines.push(
     '\\documentclass[11pt,letterpaper]{article}',
     '\\usepackage[margin=0.8in]{geometry}',
     '\\usepackage{hyperref}',
-    '\\usepackage{enumitem}',
-    '\\usepackage{parskip}',
-    '\\usepackage[T1]{fontenc}',
-    '\\usepackage[utf8]{inputenc}',
     '',
-    '\\hypersetup{',
-    '  colorlinks=true,',
-    '  urlcolor=blue,',
-    '  linkcolor=black',
-    '}',
+    '\\hypersetup{colorlinks=true, urlcolor=blue, linkcolor=black}',
     '',
-    '\\setlist[itemize]{noitemsep, topsep=2pt, leftmargin=*}',
     '\\pagestyle{empty}',
     '',
     '\\begin{document}',
@@ -65,8 +60,10 @@ export function generateLatex(resume: ResumeData): string {
   if (c.linkedin)  contactParts.push(`\\href{${c.linkedin}}{LinkedIn}`);
   if (c.github)    contactParts.push(`\\href{${c.github}}{GitHub}`);
   if (c.portfolio) contactParts.push(`\\href{${c.portfolio}}{Portfolio}`);
-  lines.push(contactParts.join(' $\\cdot$ '));
-  lines.push('\\\\');
+  if (contactParts.length) {
+    lines.push(contactParts.join(' $\\cdot$ '));
+    lines.push('\\\\');
+  }
   lines.push('\\rule{\\linewidth}{0.4pt}');
   lines.push('');
 
@@ -86,7 +83,7 @@ export function generateLatex(resume: ResumeData): string {
       lines.push(
         `\\textbf{${esc(exp.position)}} --- \\textit{${esc(exp.company)}}` +
         (exp.account ? ` (${esc(exp.account)})` : '') +
-        ` \\hfill ${start} -- ${end}`,
+        ` \\hfill ${start}${end ? ` -- ${end}` : ''}`,
       );
       lines.push('\\\\[-4pt]');
 
@@ -96,9 +93,7 @@ export function generateLatex(resume: ResumeData): string {
 
       if (bullets.length) {
         lines.push('\\begin{itemize}');
-        for (const b of bullets) {
-          lines.push(`  \\item ${b}`);
-        }
+        for (const b of bullets) lines.push(`  \\item ${b}`);
         lines.push('\\end{itemize}');
       }
       lines.push('');
@@ -113,7 +108,7 @@ export function generateLatex(resume: ResumeData): string {
       const end = formatDate(edu.endDate);
       const degree = [esc(edu.degree), esc(edu.field)].filter(Boolean).join(' in ');
       lines.push(
-        `\\textbf{${degree}} --- \\textit{${esc(edu.institution)}} \\hfill ${start} -- ${end}`,
+        `\\textbf{${degree}} --- \\textit{${esc(edu.institution)}} \\hfill ${start}${end ? ` -- ${end}` : ''}`,
       );
       if (edu.gpa) lines.push(`\\\\ GPA: ${esc(edu.gpa)}`);
       if (edu.description?.trim()) lines.push(`\\\\ ${esc(edu.description)}`);
@@ -185,7 +180,7 @@ export function generateLatex(resume: ResumeData): string {
       const start = formatDate(vol.startDate);
       const end = formatDate(vol.endDate);
       lines.push(
-        `\\textbf{${esc(vol.role)}} --- \\textit{${esc(vol.organization)}} \\hfill ${start} -- ${end}`,
+        `\\textbf{${esc(vol.role)}} --- \\textit{${esc(vol.organization)}} \\hfill ${start}${end ? ` -- ${end}` : ''}`,
       );
       if (vol.description?.trim()) {
         lines.push('\\begin{itemize}');
@@ -203,7 +198,7 @@ export function generateLatex(resume: ResumeData): string {
     for (const award of awards) {
       const date = formatDate(award.date);
       lines.push(`  \\item \\textbf{${esc(award.title)}} --- ${esc(award.issuer)}${date ? `, ${date}` : ''}`);
-      if (award.description?.trim()) lines.push(`  \\\\ ${esc(award.description)}`);
+      if (award.description?.trim()) lines.push(`    \\\\ ${esc(award.description)}`);
     }
     lines.push('\\end{itemize}');
     lines.push('');
@@ -212,9 +207,37 @@ export function generateLatex(resume: ResumeData): string {
   // ─── Languages ──────────────────────────────────────────────────────────────
   if (languages?.length) {
     lines.push('\\section*{Languages}');
-    lines.push(
-      languages.map(l => `${esc(l.name)} (${esc(l.proficiency)})`).join(', '),
-    );
+    lines.push(languages.map(l => `${esc(l.name)} (${esc(l.proficiency)})`).join(', '));
+    lines.push('');
+  }
+
+  // ─── Hobbies ────────────────────────────────────────────────────────────────
+  const visibleHobbies = hobbies?.filter(h => h.visible !== false);
+  if (visibleHobbies?.length) {
+    lines.push('\\section*{Interests}');
+    lines.push(visibleHobbies.map(h => esc(h.name)).join(', '));
+    lines.push('');
+  }
+
+  // ─── References ─────────────────────────────────────────────────────────────
+  if (references?.length) {
+    lines.push('\\section*{References}');
+    const allOnRequest = references.every(r => r.availableOnRequest);
+    if (allOnRequest) {
+      lines.push('Available upon request.');
+    } else {
+      lines.push('\\begin{itemize}');
+      for (const ref of references) {
+        if (ref.availableOnRequest) {
+          lines.push(`  \\item \\textbf{${esc(ref.name)}} --- Available upon request`);
+        } else {
+          const detail = [esc(ref.title), esc(ref.company)].filter(Boolean).join(', ');
+          const contact = [ref.email && `\\href{mailto:${ref.email}}{${esc(ref.email)}}`, esc(ref.phone)].filter(Boolean).join(', ');
+          lines.push(`  \\item \\textbf{${esc(ref.name)}}${detail ? ` --- ${detail}` : ''}${contact ? `. ${contact}` : ''}`);
+        }
+      }
+      lines.push('\\end{itemize}');
+    }
     lines.push('');
   }
 
