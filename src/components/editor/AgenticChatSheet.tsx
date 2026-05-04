@@ -360,6 +360,64 @@ function SuggestionCard({
   );
 }
 
+function ConfirmApplyCard({
+  functionName,
+  onApply,
+  onDismiss,
+}: {
+  functionName: string;
+  onApply: () => void;
+  onDismiss: () => void;
+}) {
+  const sectionLabels: Record<string, string> = {
+    update_summary: 'your Summary',
+    update_experience: 'an Experience entry',
+    update_skills: 'your Skills',
+    add_skills: 'your Skills',
+  };
+  const section = sectionLabels[functionName] || 'this section';
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="flex gap-2 items-start"
+    >
+      <AppIcon size={28} showSparkle={false} className="shrink-0 mt-0.5" />
+      <div className="bg-card border border-amber-500/30 rounded-2xl rounded-bl-md px-3.5 py-3 max-w-[85%] space-y-2.5">
+        <div className="flex items-center gap-1.5">
+          <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+          <p className="text-sm font-medium text-amber-600 dark:text-amber-400">
+            Apply AI changes to {section}?
+          </p>
+        </div>
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          This will overwrite the current content in this section. Review the suggested changes above before applying.
+        </p>
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            className="h-8 text-xs gradient-primary"
+            onClick={() => { haptics.success(); onApply(); }}
+          >
+            <Check className="w-3.5 h-3.5 mr-1" />
+            Apply Changes
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 text-xs"
+            onClick={() => { haptics.light(); onDismiss(); }}
+          >
+            <X className="w-3.5 h-3.5 mr-1" />
+            Dismiss
+          </Button>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 function GuestShowcase({ onClose, onSignIn }: { onClose: () => void; onSignIn: () => void }) {
   return (
     <>
@@ -457,6 +515,9 @@ export function AgenticChatSheet({ open, onOpenChange, initialMessage }: Agentic
     sessionId,
     pendingAction,
     clearPendingAction,
+    pendingConfirmation,
+    applyPendingConfirmation,
+    dismissPendingConfirmation,
     sendMessage,
     retryLastMessage,
     startNewSession,
@@ -834,6 +895,15 @@ export function AgenticChatSheet({ open, onOpenChange, initialMessage }: Agentic
                       </motion.div>
                     ))}
                   </AnimatePresence>
+
+                  {/* Confirmation card for overwrite-risk AI functions */}
+                  {pendingConfirmation && !isThinking && (
+                    <ConfirmApplyCard
+                      functionName={pendingConfirmation.functionName}
+                      onApply={applyPendingConfirmation}
+                      onDismiss={dismissPendingConfirmation}
+                    />
+                  )}
 
                   {isThinking && (
                     <motion.div

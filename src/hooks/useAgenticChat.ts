@@ -19,6 +19,14 @@ export interface PendingChatAction {
   companyName: string;
 }
 
+export interface PendingConfirmation {
+  functionName: string;
+  args: Record<string, unknown>;
+  originalUserText: string;
+  historyAtCall: ChatMessage[];
+  activeSessionId: string | null;
+}
+
 const OVERWRITE_FUNCTIONS = new Set([
   'update_summary',
   'update_experience',
@@ -99,6 +107,7 @@ export function useAgenticChat(contextFilter?: string) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isThinking, setIsThinking] = useState(false);
   const [pendingAction, setPendingAction] = useState<PendingChatAction | null>(null);
+  const [pendingConfirmation, setPendingConfirmation] = useState<PendingConfirmation | null>(null);
   const { currentResume, currentResumeId, updateResume, lastSavedAt } = useResumeStore();
   const { data: allResumes = [] } = useResumes();
   const { incrementUsage, checkCredits } = useAICreditsMutations();
@@ -618,7 +627,7 @@ export function useAgenticChat(contextFilter?: string) {
         toast.success('1 credit used', { description: 'AI chat', duration: 2500, icon: '⚡' });
 
         if (response.type === 'function_call') {
-          const functionResult = executeFunctionCall(response.functionName, response.args);
+          const isOverwrite = OVERWRITE_FUNCTIONS.has(response.functionName);
 
           const initialMsg: ChatMessage = {
             id: uuidv4(),
@@ -635,6 +644,27 @@ export function useAgenticChat(contextFilter?: string) {
           if (activeSessionId) {
             persistMessage(activeSessionId, 'assistant', response.message, { name: response.functionName, args: response.args });
           }
+
+          if (isOverwrite) {
+            // For overwrite-risk functions, always require user confirmation via the
+            // inline chat card before mutating resume data. Execution resumes in
+            // applyPendingConfirmation / dismissPendingConfirmation below.
+            const historyAtCall = user
+              ? [...messages, userMsg, initialMsg]
+              : [...messages, userMsg, initialMsg].slice(-10);
+            setPendingConfirmation({
+              functionName: response.functionName,
+              args: response.args,
+              originalUserText: text.trim(),
+              historyAtCall,
+              activeSessionId,
+            });
+            // isThinking is cleared by the outer finally block
+            return;
+          }
+
+          // Non-overwrite: apply immediately (existing behavior)
+          const functionResult = executeFunctionCall(response.functionName, response.args);
 
           try {
             const feedbackHistory = user
@@ -759,12 +789,53 @@ export function useAgenticChat(contextFilter?: string) {
 
   const clearPendingAction = useCallback(() => setPendingAction(null), []);
 
+  // Called by the ConfirmApplyCard when the user clicks "Apply Changes"
+  const applyPendingConfirmation = useCallback(async () => {
+    if (!pendingConfirmation) return;
+    const conf = pendingConfirmation;
+    setPendingConfirmation(null);
+    setIsThinking(true);
+
+    try {
+      const functionResult = executeFunctionCall(conf.functionName, conf.args);
+      const feedbackResponse = await sendFunctionFeedback(
+        conf.originalUserText,
+        conf.historyAtCall,
+        currentResume,
+        functionResult
+      );
+      if (feedbackResponse.type === 'text') {
+        const confirmMsg: ChatMessage = {
+          id: uuidv4(),
+          role: 'assistant',
+          content: feedbackResponse.content,
+          timestamp: Date.now(),
+        };
+        setMessages((prev) => [...prev, confirmMsg]);
+        if (conf.activeSessionId) {
+          persistMessage(conf.activeSessionId, 'assistant', feedbackResponse.content);
+        }
+      }
+    } catch {
+      // Feedback failure is non-fatal; the function was already applied
+    } finally {
+      setIsThinking(false);
+    }
+  }, [pendingConfirmation, executeFunctionCall, currentResume, persistMessage]);
+
+  const dismissPendingConfirmation = useCallback(() => {
+    setPendingConfirmation(null);
+  }, []);
+
   return {
     messages,
     isThinking,
     sessionId,
     pendingAction,
     clearPendingAction,
+    pendingConfirmation,
+    applyPendingConfirmation,
+    dismissPendingConfirmation,
     sendMessage,
     retryLastMessage,
     startNewSession,
