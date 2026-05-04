@@ -27,8 +27,6 @@ project_id = "jnsfmkzgxsviuthaqlyy"
     verify_jwt = false
   [functions.career-assessment]
     verify_jwt = false
-  [functions.career-path-advisor]
-    verify_jwt = false
   [functions.company-briefing]
     verify_jwt = false
   [functions.detect-and-humanize]

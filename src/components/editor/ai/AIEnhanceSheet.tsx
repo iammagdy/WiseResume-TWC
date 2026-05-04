@@ -27,6 +27,7 @@ import {
 } from '@/integrations/supabase/resumeSectionAiFlag';
 import { formatDegreeAndField } from '@/lib/educationFormat';
 import { ExperienceDiffCard } from '@/components/editor/ai/ExperienceDiffCard';
+import type { Experience } from '@/types/resume';
 import { AIError, parseAIErrorResponse, parseAIErrorBody, type AIErrorCode } from '@/lib/aiErrorParser';
 import {
   mergeAIArrayResult,
@@ -82,6 +83,11 @@ interface SectionResult {
   selectedVariantIndex?: number;
   error?: string;
   retrying?: boolean;
+}
+
+/** Narrows unknown[] to Experience[] — used to avoid `any` casts in diff rendering. */
+function isExperienceArray(val: unknown): val is Experience[] {
+  return Array.isArray(val) && (val.length === 0 || (typeof val[0] === 'object' && val[0] !== null && 'id' in (val[0] as object)));
 }
 
 // --- Section-aware formatting helpers ---
@@ -1009,11 +1015,11 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
                                 );
                               })}
                             </div>
-                          ) : r.section === 'experience' && Array.isArray(r.original) && Array.isArray(r.improved) ? (
+                          ) : isExperienceArray(r.improved) && isExperienceArray(r.original) ? (
                             <div className="space-y-2">
-                              {(r.improved as any[]).map((entry: any, i: number) => {
-                                const orig = (r.original as any[]).find((o: any) => o.id === entry.id) ?? (r.original as any[])[i];
-                                return <ExperienceDiffCard key={entry?.id ?? i} entry={entry} original={orig} diffs={[]} />;
+                              {r.improved.map((entry, i) => {
+                                const orig = r.original.find(o => o.id === entry.id) ?? r.original[i];
+                                return <ExperienceDiffCard key={entry.id ?? i} entry={entry} original={orig} diffs={[]} />;
                               })}
                             </div>
                           ) : (
