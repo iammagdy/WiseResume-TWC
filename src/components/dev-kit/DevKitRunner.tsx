@@ -257,24 +257,6 @@ export function DevKitRunner() {
       },
     },
     {
-      id: 'recruiter-simulation', label: 'Recruiter Simulation (smoke)', description: 'Smoke-test recruiter-simulation edge function — no AI call, no credit deduction', section: 'ai',
-      run: async (): Promise<TestResult> => {
-        return strictInvoke('recruiter-simulation', () => edgeFunctions.functions.invoke('recruiter-simulation', { headers: { 'x-smoke-test': 'true', ...devKitAuthHeaders() }, body: { resume: MINIMAL_RESUME, persona: 'hiring_manager' } }));
-      },
-    },
-    {
-      id: 'suggest-template', label: 'Suggest Template (smoke)', description: 'Smoke-test suggest-template edge function — no AI call, no credit deduction', section: 'ai',
-      run: async (): Promise<TestResult> => {
-        return strictInvoke('suggest-template', () => edgeFunctions.functions.invoke('suggest-template', { headers: { 'x-smoke-test': 'true', ...devKitAuthHeaders() }, body: { resume: MINIMAL_RESUME } }));
-      },
-    },
-    {
-      id: 'optimize-for-linkedin', label: 'LinkedIn Optimizer (smoke)', description: 'Smoke-test optimize-for-linkedin edge function — no AI call, no credit deduction', section: 'ai',
-      run: async (): Promise<TestResult> => {
-        return strictInvoke('optimize-for-linkedin', () => edgeFunctions.functions.invoke('optimize-for-linkedin', { headers: { 'x-smoke-test': 'true', ...devKitAuthHeaders() }, body: { resume: MINIMAL_RESUME } }));
-      },
-    },
-    {
       id: 'smart-fit-rewrite', label: 'Smart Fit Rewrite (smoke)', description: 'Smoke-test smart-fit-rewrite edge function — no AI call, no credit deduction', section: 'ai',
       run: async (): Promise<TestResult> => {
         return strictInvoke('smart-fit-rewrite', () => edgeFunctions.functions.invoke('smart-fit-rewrite', { headers: { 'x-smoke-test': 'true', ...devKitAuthHeaders() }, body: { mode: 'rewrite', candidates: [], jobDescription: SAMPLE_JD } }));
@@ -383,12 +365,6 @@ export function DevKitRunner() {
       id: 'resume-section-ai', label: 'Resume Section AI (smoke)', description: 'Smoke-test resume-section-ai edge function (enhance action) — no AI call, no credit deduction', section: 'ai',
       run: async (): Promise<TestResult> => {
         return strictInvoke('resume-section-ai', () => edgeFunctions.functions.invoke('resume-section-ai', { headers: { 'x-smoke-test': 'true', 'x-resume-section-ai-action': 'enhance', ...devKitAuthHeaders() }, body: { section: 'summary', currentContent: MINIMAL_RESUME.summary, context: { resume: MINIMAL_RESUME } } }));
-      },
-    },
-    {
-      id: 'analyze-resume', label: 'Analyze Resume (smoke)', description: 'Smoke-test analyze-resume edge function — no AI call, no credit deduction', section: 'ai',
-      run: async (): Promise<TestResult> => {
-        return strictInvoke('analyze-resume', () => edgeFunctions.functions.invoke('analyze-resume', { headers: { 'x-smoke-test': 'true', ...devKitAuthHeaders() }, body: { resume: MINIMAL_RESUME, jobDescription: SAMPLE_JD } }));
       },
     },
     // === editor-ai router smoke tests (Task #40) ===
