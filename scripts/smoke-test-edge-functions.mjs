@@ -88,41 +88,31 @@ const ALLOW_AUTH_LEAK_AS_500_DEFAULT = false;
 //   }
 
 const ADMIN_FUNCTIONS = [
-  'admin-ai-caps',
-  'admin-ai-routing',
+  // ── Merged routers (Tasks #51-54) ─────────────────────────────────────
+  // Each merged router runs requireAdminAuth at the top of serve() before
+  // dispatch, so unauthenticated POST → 401 regardless of dispatch header.
+  'admin-ai-ops',     // merged: admin-ai-caps, admin-ai-routing, inspect-ai-keys, refresh-ai-test-models
+  'admin-config',     // merged: admin-env-check, admin-feature-flags, admin-get-settings, admin-integrations, admin-update-settings
+  'admin-user-ops',   // merged: admin-grant-trial, admin-revoke-sessions, admin-revoke-trial, admin-set-credits, admin-set-plan, admin-suspend-user, admin-update-profile
+  'admin-wisehire',   // merged: admin-wisehire-invite, admin-wisehire-reset-user, admin-wisehire-revoke-invite, admin-wisehire-waitlist
+
+  // ── Still-individual admin functions ──────────────────────────────────
   'admin-audit-logs',
   'admin-check-access',
   'admin-delete-user',
   // admin-devkit-data is multi-action — defined explicitly below.
   // admin-email is multi-action — defined explicitly below.
-  'admin-env-check',
-  'admin-feature-flags',
   'admin-get-identity',
-  'admin-get-settings',
-  'admin-grant-trial',
   'admin-impersonate',
-  'admin-integrations',
   'admin-kinde-reconcile',
   'admin-list-user-content',
   'admin-list-users',
-  'admin-manage-coupons',
   'admin-merge-identity',
   'admin-moderation',
   'admin-onboarding-funnel',
   'admin-owner-ops',
   'admin-portfolio-usernames',
-  'admin-revoke-sessions',
-  'admin-revoke-trial',
   'admin-save-note',
-  'admin-set-credits',
-  'admin-set-plan',
-  'admin-suspend-user',
-  'admin-update-profile',
-  'admin-update-settings',
-  'admin-wisehire-invite',
-  'admin-wisehire-reset-user',
-  'admin-wisehire-revoke-invite',
-  'admin-wisehire-waitlist',
 ];
 
 const FUNCTIONS = [
@@ -200,6 +190,23 @@ const FUNCTIONS = [
     ],
   },
 
+  // ── Coupons merged router (Task #48) ───────────────────────────────────
+  // Dispatch is via x-coupons-action header, NOT body.action. Auth is
+  // per-handler (not top-level), so a POST without the header returns a
+  // 400 dispatch error rather than 401. We test the admin-manage sub-route
+  // (which requires admin auth) using the dispatch header so the router
+  // reaches its auth gate and returns 401 as expected.
+  {
+    name: 'coupons',
+    routes: [
+      {
+        label: 'coupons/admin-manage',
+        body: { action: 'list' },
+        headers: { 'x-coupons-action': 'admin-manage' },
+      },
+    ],
+  },
+
   // ── Single-action admin functions (auth-only) ───────────────────────────
   ...ADMIN_FUNCTIONS.map((name) => ({ name })),
 
@@ -261,10 +268,10 @@ async function preflight(fn) {
   };
 }
 
-async function postJson(fn, body) {
+async function postJson(fn, body, extraHeaders) {
   const res = await timedFetch(`${BASE}/${fn}`, {
     method: 'POST',
-    headers: { Origin: ORIGIN, 'Content-Type': 'application/json' },
+    headers: { Origin: ORIGIN, 'Content-Type': 'application/json', ...(extraHeaders || {}) },
     body: JSON.stringify(body ?? {}),
   });
   let parsed = null;
@@ -377,6 +384,7 @@ function expandRoutes(f) {
       label: r.label || `${f.name}${r.body?.action ? `/${r.body.action}` : ''}`,
       allowAuthLeakAs500:
         r.allowAuthLeakAs500 ?? ALLOW_AUTH_LEAK_AS_500_DEFAULT,
+      headers: r.headers || null,
     }));
   }
   return [{
@@ -384,6 +392,7 @@ function expandRoutes(f) {
     body: {},
     label: f.name,
     allowAuthLeakAs500: ALLOW_AUTH_LEAK_AS_500_DEFAULT,
+    headers: null,
   }];
 }
 
@@ -391,7 +400,7 @@ async function runRouteAuthChecks() {
   const items = FUNCTIONS.flatMap(expandRoutes);
   const rows = await runWithConcurrency(items, async (r) => {
     try {
-      const { status, body } = await postJson(r.fn, r.body);
+      const { status, body } = await postJson(r.fn, r.body, r.headers);
       // Each route's auth middleware throws/returns a 401 before doing any
       // real work. We accept either:
       //   - status=401 (the normal path: gateway-level JWT verify, or
