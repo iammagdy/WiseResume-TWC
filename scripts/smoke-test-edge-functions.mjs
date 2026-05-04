@@ -196,8 +196,11 @@ const FUNCTIONS = [
   // 400 dispatch error rather than 401. We test the admin-manage sub-route
   // (which requires admin auth) using the dispatch header so the router
   // reaches its auth gate and returns 401 as expected.
+  // requireHeadersInAcah: asserts the dispatch header is listed in the
+  // CORS preflight response — direct regression guard for the cors.ts fix.
   {
     name: 'coupons',
+    requireHeadersInAcah: ['x-coupons-action'],
     routes: [
       {
         label: 'coupons/admin-manage',
@@ -208,7 +211,17 @@ const FUNCTIONS = [
   },
 
   // ── Single-action admin functions (auth-only) ───────────────────────────
-  ...ADMIN_FUNCTIONS.map((name) => ({ name })),
+  // Merged routers assert their dispatch header is in CORS Allow-Headers.
+  ...ADMIN_FUNCTIONS.map((name) => {
+    const DISPATCH_HEADER_MAP = {
+      'admin-ai-ops':   'x-admin-ai-op',
+      'admin-config':   'x-admin-config-action',
+      'admin-user-ops': 'x-admin-user-op',
+      'admin-wisehire': 'x-admin-wisehire-op',
+    };
+    const h = DISPATCH_HEADER_MAP[name];
+    return h ? { name, requireHeadersInAcah: [h] } : { name };
+  }),
 
   // ── High-traffic public functions ───────────────────────────────────────
   // All five funnel through requireAuth(); tailor-resume catches the
@@ -233,6 +246,24 @@ const FUNCTIONS = [
   {
     name: 'generate-cover-letter',
     routes: [{ label: 'generate-cover-letter', body: {}, allowAuthLeakAs500: true }],
+  },
+  // resume-section-ai: merged router (Task #56) for enhance/tailor/fill-gap/
+  // explain-gap. Dispatch via x-resume-section-ai-action header. Auth is
+  // inside each handler (not top-level), so without the dispatch header the
+  // router returns a dispatch error. We probe the enhance route with the
+  // header so the handler's auth gate fires and returns 401.
+  // requireHeadersInAcah: regression guard for the cors.ts header-list fix.
+  {
+    name: 'resume-section-ai',
+    requireHeadersInAcah: ['x-resume-section-ai-action'],
+    routes: [
+      {
+        label: 'resume-section-ai/enhance',
+        body: { action: 'generate' },
+        headers: { 'x-resume-section-ai-action': 'enhance' },
+        allowAuthLeakAs500: true,
+      },
+    ],
   },
   {
     name: 'agentic-chat',
@@ -265,6 +296,7 @@ async function preflight(fn) {
     status: res.status,
     acao: res.headers.get('access-control-allow-origin'),
     acam: res.headers.get('access-control-allow-methods'),
+    acah: res.headers.get('access-control-allow-headers') || '',
   };
 }
 
@@ -314,18 +346,26 @@ function flushSection(title, rows) {
 // ── Phase runners ───────────────────────────────────────────────────────────
 
 async function runPreflightChecks() {
-  const items = FUNCTIONS.map((f) => f.name);
-  const rows = await runWithConcurrency(items, async (fn) => {
+  const items = FUNCTIONS.map((f) => ({ name: f.name, requireHeadersInAcah: f.requireHeadersInAcah || [] }));
+  const rows = await runWithConcurrency(items, async ({ name: fn, requireHeadersInAcah }) => {
     const label = `${fn}: CORS preflight`;
     try {
-      const { status, acao, acam } = await preflight(fn);
+      const { status, acao, acam, acah } = await preflight(fn);
       const statusOk = status === 200 || status === 204;
       const acaoOk = acao === ORIGIN;
       const acamOk = !!acam && acam.toUpperCase().includes('POST');
-      const ok = statusOk && acaoOk && acamOk;
+      const acahLower = acah.toLowerCase();
+      const missingHeaders = requireHeadersInAcah.filter((h) => !acahLower.includes(h.toLowerCase()));
+      const acahOk = missingHeaders.length === 0;
+      const ok = statusOk && acaoOk && acamOk && acahOk;
       const detail = ok
         ? `${status} ${acao}`
-        : `status=${status} acao=${acao || '(missing)'} methods=${acam || '(missing)'}`;
+        : [
+            !statusOk ? `status=${status}` : null,
+            !acaoOk ? `acao=${acao || '(missing)'}` : null,
+            !acamOk ? `methods=${acam || '(missing)'}` : null,
+            !acahOk ? `acah missing: ${missingHeaders.join(', ')}` : null,
+          ].filter(Boolean).join(' ');
       const r = { label, ok, detail };
       record(label, ok, detail);
       return r;
