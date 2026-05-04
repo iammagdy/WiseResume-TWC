@@ -17,6 +17,22 @@ function esc(text: string | null | undefined): string {
   });
 }
 
+/**
+ * Percent-encodes characters that would break LaTeX \href argument parsing
+ * while leaving already-encoded sequences untouched.
+ * Only the characters `#`, `%` (when not already an escape), `{`, `}`, `\`
+ * and unbalanced `^`/`~` need escaping inside href argument braces.
+ * Using encodeURI handles the common cases reliably.
+ */
+function escUrl(url: string | null | undefined): string {
+  if (!url) return '';
+  try {
+    return encodeURI(decodeURI(url));
+  } catch {
+    return url.replace(/[%{}\\]/g, (c) => encodeURIComponent(c));
+  }
+}
+
 function formatDate(date: string | null | undefined): string {
   if (!date) return '';
   const d = new Date(date);
@@ -54,12 +70,12 @@ export function generateLatex(resume: ResumeData): string {
   lines.push('\\\\[4pt]');
 
   const contactParts: string[] = [];
-  if (c.email)     contactParts.push(`\\href{mailto:${c.email}}{${esc(c.email)}}`);
+  if (c.email)     contactParts.push(`\\href{mailto:${escUrl(c.email)}}{${esc(c.email)}}`);
   if (c.phone)     contactParts.push(esc(c.phone));
   if (c.location)  contactParts.push(esc(c.location));
-  if (c.linkedin)  contactParts.push(`\\href{${c.linkedin}}{LinkedIn}`);
-  if (c.github)    contactParts.push(`\\href{${c.github}}{GitHub}`);
-  if (c.portfolio) contactParts.push(`\\href{${c.portfolio}}{Portfolio}`);
+  if (c.linkedin)  contactParts.push(`\\href{${escUrl(c.linkedin)}}{LinkedIn}`);
+  if (c.github)    contactParts.push(`\\href{${escUrl(c.github)}}{GitHub}`);
+  if (c.portfolio) contactParts.push(`\\href{${escUrl(c.portfolio)}}{Portfolio}`);
   if (contactParts.length) {
     lines.push(contactParts.join(' $\\cdot$ '));
     lines.push('\\\\');
@@ -166,7 +182,7 @@ export function generateLatex(resume: ResumeData): string {
       const date = formatDate(pub.date);
       let entry = `\\textbf{${esc(pub.title)}}. ${esc(pub.publisher)}${date ? `, ${date}` : ''}.`;
       if (pub.coAuthors) entry += ` Co-authors: ${esc(pub.coAuthors)}.`;
-      if (pub.url) entry += ` \\href{${pub.url}}{Link}.`;
+      if (pub.url) entry += ` \\href{${escUrl(pub.url)}}{Link}.`;
       lines.push(`  \\item ${entry}`);
     }
     lines.push('\\end{itemize}');
@@ -232,7 +248,7 @@ export function generateLatex(resume: ResumeData): string {
           lines.push(`  \\item \\textbf{${esc(ref.name)}} --- Available upon request`);
         } else {
           const detail = [esc(ref.title), esc(ref.company)].filter(Boolean).join(', ');
-          const contact = [ref.email && `\\href{mailto:${ref.email}}{${esc(ref.email)}}`, esc(ref.phone)].filter(Boolean).join(', ');
+          const contact = [ref.email && `\\href{mailto:${escUrl(ref.email)}}{${esc(ref.email)}}`, esc(ref.phone)].filter(Boolean).join(', ');
           lines.push(`  \\item \\textbf{${esc(ref.name)}}${detail ? ` --- ${detail}` : ''}${contact ? `. ${contact}` : ''}`);
         }
       }

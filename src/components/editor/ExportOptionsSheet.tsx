@@ -176,7 +176,7 @@ export function ExportOptionsSheet({
             exportProgress={exportProgress}
             isOnline={isOnline}
             selectedType={selectedType}
-            isDownloadable={isPdfType}
+            isDownloadable={isDownloadable}
             customFileName={customFileName}
             fileSuffix={getFileSuffix()}
             buttonLabel={getButtonLabel()}
