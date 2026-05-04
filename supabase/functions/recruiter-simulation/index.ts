@@ -257,7 +257,7 @@ Analyze this resume from your unique perspective as ${personaConfig.name}. Be sp
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
-    log.error('Unhandled error', error, { function_name: 'recruiter-simulation', error_type: (error as Error)?.name ?? 'Error', duration_ms: Date.now() - _fnStart });
+    log.error('Unhandled error', error, { function_name: 'recruiter-simulation', provider_used: null, error_type: (error as Error)?.name ?? 'Error', duration_ms: Date.now() - _fnStart });
     const userError = toUserError(error);
     return new Response(
       JSON.stringify({ error: userError.message }),

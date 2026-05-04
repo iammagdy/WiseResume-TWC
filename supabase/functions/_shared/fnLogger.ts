@@ -11,6 +11,15 @@
  *   wrapHandler(functionName, handler)
  *     Wraps a serve/Deno.serve handler to automatically log every
  *     invocation. OPTIONS pre-flights are skipped (noise).
+ *
+ *     Every non-OPTIONS response emits a structured console log with
+ *     the four canonical fields required for Task #39:
+ *       function_name, provider_used (null — per-call logs carry actual value),
+ *       error_type (null on 2xx/3xx, 'HttpError' on 4xx/5xx),
+ *       duration_ms.
+ *     This ensures every request path — including early returns for
+ *     rate-limit, credit, feature-gate, and validation errors — is
+ *     covered without per-branch instrumentation.
  */
 
 import { getServiceClient } from './dbClient.ts';
@@ -57,8 +66,19 @@ export function wrapHandler(
       status = 500;
       throw err;
     } finally {
-      const latencyMs = Date.now() - start;
-      logInvocation(functionName, status, latencyMs, status >= 400);
+      const duration_ms = Date.now() - start;
+      logInvocation(functionName, status, duration_ms, status >= 400);
+      console.log(JSON.stringify({
+        level: status >= 400 ? 'WARN' : 'INFO',
+        fn: functionName,
+        msg: 'invocation',
+        function_name: functionName,
+        provider_used: null,
+        error_type: status >= 400 ? 'HttpError' : null,
+        duration_ms,
+        status_code: status,
+        ts: new Date().toISOString(),
+      }));
     }
   };
 }

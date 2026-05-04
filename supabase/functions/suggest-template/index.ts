@@ -186,7 +186,7 @@ Key Skills: ${skills?.join(', ') || 'Not specified'}`,
     if (typeof err === 'object' && err !== null && 'status' in err) {
       return authErrorResponse(err, origin);
     }
-    log.error('Unhandled error', err, { function_name: 'suggest-template', error_type: (err as Error)?.name ?? 'Error', duration_ms: Date.now() - _fnStart });
+    log.error('Unhandled error', err, { function_name: 'suggest-template', provider_used: null, error_type: (err as Error)?.name ?? 'Error', duration_ms: Date.now() - _fnStart });
     const userErr = toUserError(err);
     return new Response(
       JSON.stringify({ error: userErr.error, message: userErr.message }),

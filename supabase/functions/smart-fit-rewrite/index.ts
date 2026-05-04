@@ -437,7 +437,7 @@ Deno.serve(wrapHandler("smart-fit-rewrite", async (req) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   } catch (error) {
-    log.error('Unhandled error', error, { function_name: 'smart-fit-rewrite', error_type: (error as Error)?.name ?? 'Error', duration_ms: Date.now() - _fnStart });
+    log.error('Unhandled error', error, { function_name: 'smart-fit-rewrite', provider_used: null, error_type: (error as Error)?.name ?? 'Error', duration_ms: Date.now() - _fnStart });
     const userError = toUserError(error);
     return new Response(
       JSON.stringify({ error: userError.message }),

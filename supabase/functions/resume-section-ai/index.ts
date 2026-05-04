@@ -51,6 +51,8 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { wrapHandler } from "../_shared/fnLogger.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
 import { checkSmokeBypass } from "../_shared/smokeTest.ts";
+import { logger } from "../_shared/logger.ts";
+const log = logger('resume-section-ai');
 import { handleEnhance } from "./enhance.ts";
 import { handleTailor } from "./tailor.ts";
 import { handleFillGap } from "./fillGap.ts";
@@ -152,7 +154,10 @@ serve(wrapHandler('resume-section-ai', async (req) => {
   }
 
   const action = resolveAction(req, bodyText);
+  const _fnStart = Date.now();
+
   if (!action) {
+    log.warn('request dropped', { function_name: 'resume-section-ai', provider_used: null, error_type: 'InvalidActionError', duration_ms: Date.now() - _fnStart });
     return new Response(
       JSON.stringify({
         error: 'invalid_action',
@@ -163,14 +168,29 @@ serve(wrapHandler('resume-section-ai', async (req) => {
     );
   }
 
-  switch (action) {
-    case 'enhance':
-      return await handleEnhance(req, userId, bodyText, corsHeaders);
-    case 'tailor':
-      return await handleTailor(req, userId, bodyText, corsHeaders);
-    case 'fill-gap':
-      return await handleFillGap(req, userId, bodyText, corsHeaders);
-    case 'explain-gap':
-      return await handleExplainGap(req, userId, bodyText, corsHeaders);
+  try {
+    let res: Response;
+    switch (action) {
+      case 'enhance':
+        res = await handleEnhance(req, userId, bodyText, corsHeaders);
+        break;
+      case 'tailor':
+        res = await handleTailor(req, userId, bodyText, corsHeaders);
+        break;
+      case 'fill-gap':
+        res = await handleFillGap(req, userId, bodyText, corsHeaders);
+        break;
+      case 'explain-gap':
+        res = await handleExplainGap(req, userId, bodyText, corsHeaders);
+        break;
+    }
+    log.info('request completed', { function_name: 'resume-section-ai', provider_used: null, error_type: null, duration_ms: Date.now() - _fnStart, action });
+    return res!;
+  } catch (err) {
+    log.error('Unhandled error', err, { function_name: 'resume-section-ai', provider_used: null, error_type: (err as Error)?.name ?? 'Error', duration_ms: Date.now() - _fnStart });
+    return new Response(
+      JSON.stringify({ error: 'Internal server error' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    );
   }
 }));

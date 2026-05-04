@@ -248,7 +248,7 @@ Provide analysis in this exact JSON format:
     if ((error as { name?: string })?.name === 'AuthError') {
       return authErrorResponse(error, req.headers.get('origin'));
     }
-    log.error("Unhandled error", error, { function_name: 'analyze-resume', error_type: (error as Error)?.name ?? 'Error', duration_ms: Date.now() - _fnStart });
+    log.error("Unhandled error", error, { function_name: 'analyze-resume', provider_used: null, error_type: (error as Error)?.name ?? 'Error', duration_ms: Date.now() - _fnStart });
 
     const userError = toUserError(error);
     return new Response(

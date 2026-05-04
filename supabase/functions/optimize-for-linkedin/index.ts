@@ -249,7 +249,7 @@ Generate a complete LinkedIn optimization package following the rules above.`;
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
-    log.error('Unhandled error', error, { function_name: 'optimize-for-linkedin', error_type: (error as Error)?.name ?? 'Error', duration_ms: Date.now() - _fnStart });
+    log.error('Unhandled error', error, { function_name: 'optimize-for-linkedin', provider_used: null, error_type: (error as Error)?.name ?? 'Error', duration_ms: Date.now() - _fnStart });
     const userError = toUserError(error);
     return new Response(
       JSON.stringify({ error: userError.message }),

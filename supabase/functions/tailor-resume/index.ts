@@ -946,7 +946,7 @@ Generate 3-5 talking points and 3 strengths. Be specific to this candidate and r
     );
 
   } catch (error) {
-    log.error("Unhandled error", error, { function_name: 'tailor-resume', error_type: (error as Error)?.name ?? 'Error', duration_ms: Date.now() - _fnStart });
+    log.error("Unhandled error", error, { function_name: 'tailor-resume', provider_used: null, error_type: (error as Error)?.name ?? 'Error', duration_ms: Date.now() - _fnStart });
 
     const userError = toUserError(error);
     return new Response(

@@ -635,7 +635,7 @@ Deno.serve(wrapHandler('agentic-chat', async (req: Request) => {
     if ((error as { name?: string })?.name === 'AuthError') {
       return authErrorResponse(error, req.headers.get('origin'));
     }
-    log.error("Unhandled error", error, { function_name: 'agentic-chat', error_type: (error as Error)?.name ?? 'Error', duration_ms: Date.now() - _fnStart });
+    log.error("Unhandled error", error, { function_name: 'agentic-chat', provider_used: null, error_type: (error as Error)?.name ?? 'Error', duration_ms: Date.now() - _fnStart });
     const { status, error: code, message } = toUserError(error);
     // Forward attempt telemetry from callWiseresumeAI when present so the
     // chat error card can show "Tried OpenRouter (timeout) + Groq (429)"
