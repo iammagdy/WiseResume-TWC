@@ -1,4 +1,5 @@
 import { callAI, sanitizeInputText, toUserError } from '../_shared/aiClient.ts';
+import { buildSingleBioPrompt } from '../_shared/portfolioBioPrompt.ts';
 import { selectProviderForTool } from "../_shared/modelRouter.ts";
 const __ROUTE = selectProviderForTool('generate-portfolio-bio');
 import { getCorsHeaders } from '../_shared/cors.ts';
@@ -444,21 +445,12 @@ Requirements:
 
     // ── Action: bio (default) ──────────────────────────────────────────────
     if (action === 'bio') {
-      const prompt = `You are a personal branding expert. Write a warm, friendly, first-person "About Me" bio for a personal portfolio website based on this information.
-
-Name: ${fullName || 'the user'}
-Job Title: ${hasJobTitle ? jobTitle : 'Professional'}
-Resume Summary: ${sanitizedSummary || 'Not provided'}
-Recent Experience: ${experienceContext || 'Not provided'}
-
-Requirements:
-- Write in first person ("I", "my")
-- Keep it under 120 words
-- Make it warm, human, and conversational — NOT corporate
-- Highlight what excites them about their work
-- End with something personal or aspirational
-- Do NOT use clichés like "results-oriented" or "passionate professional"
-- Return ONLY the bio text, no quotes or labels`;
+      const prompt = buildSingleBioPrompt({
+        fullName: fullName || 'the user',
+        jobTitle: hasJobTitle ? jobTitle : 'Professional',
+        summary: sanitizedSummary || 'Not provided',
+        experienceContext: experienceContext || 'Not provided',
+      });
 
       let response;
       try {

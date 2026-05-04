@@ -12,6 +12,9 @@ import { logger } from "../_shared/logger.ts";
 import { wrapHandler } from '../_shared/fnLogger.ts';
 const log = logger('recruiter-simulation');
 
+// Recruiter-persona simulation: surfaces a persona's internal concerns about a resume
+// (questionsIdAsk = "what I'd ask", not interview practice questions for the candidate).
+// See generate-question-bank for the candidate-facing structured interview prep tool.
 
 interface ResumeData {
   contactInfo: {

@@ -73,7 +73,7 @@ export async function analyzeCareerPath(
     throw new Error(`Too many requests. Please wait ${rateCheck.waitSeconds}s.`);
   }
 
-  const { data, error } = await edgeFunctions.functions.invoke('career-path-advisor', {
+  const { data, error } = await edgeFunctions.functions.invoke('career-assessment', {
     body: { resume },
   });
 

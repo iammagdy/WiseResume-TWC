@@ -38,8 +38,30 @@ function json(data: unknown, status = 200, cors: Record<string, string> = {}) {
   });
 }
 
-/** Strip PDF binary noise — extract printable ASCII text */
-function extractTextFromPdfBuffer(buffer: ArrayBuffer): string {
+/** Extract text using pdfjs-dist (handles compressed streams, Unicode, multi-column) */
+async function extractWithPdfJs(buffer: ArrayBuffer): Promise<string> {
+  // @ts-ignore — npm specifier resolved at runtime by Deno
+  const pdfjsLib = await import('npm:pdfjs-dist/build/pdf.min.mjs');
+  pdfjsLib.GlobalWorkerOptions.workerSrc = '';
+  const pdf = await pdfjsLib.getDocument({
+    data: new Uint8Array(buffer),
+    useWorkerFetch: false,
+    isEvalSupported: false,
+  }).promise;
+  const pages: string[] = [];
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    const pageText = content.items
+      .map((item: any) => ('str' in item ? item.str : ''))
+      .join(' ');
+    pages.push(pageText);
+  }
+  return pages.join('\n\n').slice(0, MAX_RESUME_CHARS);
+}
+
+/** ASCII byte-strip fallback for cold-start import failures */
+function extractTextFallback(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
   let text = '';
   for (let i = 0; i < bytes.length; i++) {
@@ -48,12 +70,20 @@ function extractTextFromPdfBuffer(buffer: ArrayBuffer): string {
       text += String.fromCharCode(c);
     }
   }
-  // Collapse whitespace, keep newlines for structure
   return text
     .replace(/[^\S\n]+/g, ' ')
     .replace(/\n{3,}/g, '\n\n')
     .trim()
     .slice(0, MAX_RESUME_CHARS);
+}
+
+/** Extract text from a PDF buffer — pdfjs-dist with ASCII fallback */
+async function extractTextFromPdfBuffer(buffer: ArrayBuffer): Promise<string> {
+  try {
+    return await extractWithPdfJs(buffer);
+  } catch {
+    return extractTextFallback(buffer);
+  }
 }
 
 /** Derive a display name from filename */
@@ -159,7 +189,7 @@ Deno.serve(wrapHandler("wisehire-bulk-screen", async (req) => {
     const resumeTexts: { name: string; text: string }[] = await Promise.all(
       files.map(async (file) => {
         const buffer = await file.arrayBuffer();
-        const text = extractTextFromPdfBuffer(buffer);
+        const text = await extractTextFromPdfBuffer(buffer);
         return { name: nameFromFilename(file.name), text };
       })
     );

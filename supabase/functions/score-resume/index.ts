@@ -20,6 +20,9 @@ import {
 const MAX_RESUME_SIZE = 100 * 1024;
 
 // ── Main Handler ─────────────────────────────────────────────────────
+// NON-AI: All scoring is fully deterministic (heuristic functions only).
+// No LLM calls are made. No AI credits are consumed.
+// recordUsage() below writes to ai_usage_logs with provider:'deterministic' for analytics only.
 
 serve(wrapHandler('score-resume', async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));

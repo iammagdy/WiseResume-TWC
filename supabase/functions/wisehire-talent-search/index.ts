@@ -50,31 +50,28 @@ Deno.serve(wrapHandler("wisehire-talent-search", async (req) => {
 
     let dbQuery = supabase
       .from('talent_pool_profiles')
-      .select('id, full_name, headline, skills, experience_level, availability, location, remote_ok, profile_slug, view_count, opted_in_at')
+      .select('id, full_name, headline, skills, experience_level, availability, location, remote_ok, profile_slug, view_count, opted_in_at', { count: 'exact' })
       .eq('opted_in', true)
-      .order('opted_in_at', { ascending: false })
-      .range(Number(offset), Number(offset) + Number(qLimit) - 1);
+      .order('opted_in_at', { ascending: false });
 
     if (experience_level) dbQuery = dbQuery.eq('experience_level', experience_level);
     if (availability) dbQuery = dbQuery.eq('availability', availability);
     if (remote_ok !== undefined) dbQuery = dbQuery.eq('remote_ok', remote_ok);
     if (skills && skills.length > 0) dbQuery = dbQuery.overlaps('skills', skills);
 
+    // Text search via SQL ilike so pagination and count stay correct.
+    // Skills exact-tag matching remains via .overlaps() above.
+    if (query?.trim()) {
+      const q = query.trim();
+      dbQuery = dbQuery.or(`full_name.ilike.%${q}%,headline.ilike.%${q}%`);
+    }
+
+    dbQuery = dbQuery.range(Number(offset), Number(offset) + Number(qLimit) - 1);
+
     const { data: results, error, count } = await dbQuery;
     if (error) throw error;
 
-    let filtered = results ?? [];
-
-    // Text search across name/headline if query provided
-    if (query?.trim()) {
-      const q = query.trim().toLowerCase();
-      filtered = filtered.filter(
-        (p) =>
-          p.full_name?.toLowerCase().includes(q) ||
-          p.headline?.toLowerCase().includes(q) ||
-          p.skills?.some((s: string) => s.toLowerCase().includes(q)),
-      );
-    }
+    const filtered = results ?? [];
 
     return json({ results: filtered, total: count ?? filtered.length, remaining: rl.remaining }, 200, cors);
   } catch (err) {

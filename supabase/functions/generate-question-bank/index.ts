@@ -13,6 +13,10 @@ import { logger } from '../_shared/logger.ts';
 import { wrapHandler } from '../_shared/fnLogger.ts';
 const log = logger('generate-question-bank');
 
+// Candidate-facing interview prep tool: generates structured practice questions
+// (4 categories x 3-5 each, with context + answerTip per question).
+// See recruiter-simulation for the distinct recruiter-persona perspective tool
+// which surfaces a recruiter's internal concerns about a resume, not practice questions.
 
 serve(wrapHandler("generate-question-bank", async (req) => {
   const origin = req.headers.get('origin');

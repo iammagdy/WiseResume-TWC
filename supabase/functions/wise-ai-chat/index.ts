@@ -17,6 +17,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAI, isAIError, sanitizeInputText, toUserError } from "../_shared/aiClient.ts";
+import { buildBioVariantsPrompt } from "../_shared/portfolioBioPrompt.ts";
 import { selectProviderForTool } from "../_shared/modelRouter.ts";
 const __ROUTE = selectProviderForTool('wise-ai-chat');
 import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
@@ -119,21 +120,12 @@ Return ONLY a JSON object with exactly these two keys:
 Both emails should be compelling and tailored. No subject line needed. Return no markdown, no code blocks — just the JSON.`;
 
     case "portfolio_bio":
-      return `You are a professional bio writer. Create three portfolio bio variants for this person.
-
-Name: ${s(payload.name, 100)}
-Summary: ${s(payload.summary, 800)}
-Top Skills: ${s(payload.topSkills, 400)}
-Experience: ${s(payload.experience, 600)}
-
-Return ONLY a JSON object with exactly these keys:
-{
-  "short": "<1 sentence (15-25 words) — ideal for taglines or Twitter/X bio>",
-  "medium": "<2-3 sentences (40-70 words) — ideal for GitHub or portfolio header>",
-  "full": "<4-5 sentences (80-120 words) — ideal for About page or LinkedIn summary>"
-}
-
-All bios should be written in third person and convey professional credibility. Return no markdown, no code blocks — just the JSON.`;
+      return buildBioVariantsPrompt({
+        name: s(payload.name, 100),
+        summary: s(payload.summary, 800),
+        topSkills: s(payload.topSkills, 400),
+        experience: s(payload.experience, 600),
+      });
 
     case "salary_negotiation":
       return `You are a salary negotiation coach. Create a complete negotiation script for the following situation.
