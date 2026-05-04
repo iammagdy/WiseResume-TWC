@@ -12,6 +12,8 @@ const SignInPromptDialog = lazy(() => import('@/components/auth/SignInPromptDial
 
 interface SectionAIActionProps {
   section: SectionType;
+  /** Called after the user clicks Apply and the section data is written to the store. */
+  onApplied?: () => void;
 }
 
 /** Render a contact info object as a stable, human-readable preview string. */
@@ -555,7 +557,7 @@ function mergeObjectById<T extends { id: string }>(existing: T[], aiItem: T): T[
   return [...existing, aiItem];
 }
 
-export const SectionAIAction = memo(function SectionAIAction({ section }: SectionAIActionProps) {
+export const SectionAIAction = memo(function SectionAIAction({ section, onApplied }: SectionAIActionProps) {
   const currentResume = useResumeStore(state => state.currentResume);
   const updateResume = useResumeStore(state => state.updateResume);
   const jobDescription = useResumeStore(state => state.jobDescription);
@@ -684,6 +686,7 @@ export const SectionAIAction = memo(function SectionAIAction({ section }: Sectio
       apply(editedText);
       setShowDialog(false);
       latestPayloadRef.current = null;
+      onApplied?.();
       return;
     }
 
@@ -698,6 +701,7 @@ export const SectionAIAction = memo(function SectionAIAction({ section }: Sectio
       apply(editedText);
       setShowDialog(false);
       latestPayloadRef.current = null;
+      onApplied?.();
       return;
     }
 
@@ -729,6 +733,7 @@ export const SectionAIAction = memo(function SectionAIAction({ section }: Sectio
     apply(editedText);
     setShowDialog(false);
     latestPayloadRef.current = null;
+    onApplied?.();
   };
 
   const handleDiscardFromDialog = () => {

@@ -50,10 +50,12 @@ function MoreSubSectionContent({
   moreSubSection,
   isOpen,
   onToggle,
+  onExpand,
 }: {
   moreSubSection: string;
   isOpen: boolean;
   onToggle: () => void;
+  onExpand: () => void;
 }) {
   const config = MORE_SECTION_COMPONENTS[moreSubSection];
   if (!config) return null;
@@ -62,7 +64,7 @@ function MoreSubSectionContent({
     <SectionCard
       icon={icon}
       title={title}
-      action={aiSection ? <SectionAIAction section={aiSection} /> : undefined}
+      action={aiSection ? <SectionAIAction section={aiSection} onApplied={onExpand} /> : undefined}
       isOpen={isOpen}
       onToggle={onToggle}
     >
@@ -234,7 +236,7 @@ export function EditorScrollForm({
           title="Contact Information"
           tip="Add your name, email, phone and LinkedIn — these appear at the top of your resume"
           status={getSectionStatus(sectionScores.contact)}
-          action={<SectionAIAction section="contact" />}
+          action={<SectionAIAction section="contact" onApplied={() => expandSection('contact')} />}
           isOpen={openSections['contact'] ?? false}
           onToggle={() => toggleSection('contact')}
         >
@@ -249,7 +251,7 @@ export function EditorScrollForm({
           title="Professional Summary"
           tip="Write 2–4 sentences about your experience and what you're looking for"
           status={getSectionStatus(sectionScores.summary)}
-          action={<SectionAIAction section="summary" />}
+          action={<SectionAIAction section="summary" onApplied={() => expandSection('summary')} />}
           isOpen={openSections['summary'] ?? false}
           onToggle={() => toggleSection('summary')}
         >
@@ -265,7 +267,7 @@ export function EditorScrollForm({
           title="Work Experience"
           tip="Add your most recent job first — click an entry to expand and edit it"
           status={getSectionStatus(sectionScores.experience)}
-          action={<SectionAIAction section="experience" />}
+          action={<SectionAIAction section="experience" onApplied={() => expandSection('experience')} />}
           isOpen={openSections['experience'] ?? false}
           onToggle={() => toggleSection('experience')}
         >
@@ -281,7 +283,7 @@ export function EditorScrollForm({
           title="Education"
           tip="List your highest degree first — GPA is optional"
           status={getSectionStatus(sectionScores.education)}
-          action={<SectionAIAction section="education" />}
+          action={<SectionAIAction section="education" onApplied={() => expandSection('education')} />}
           isOpen={openSections['education'] ?? false}
           onToggle={() => toggleSection('education')}
         >
@@ -297,7 +299,7 @@ export function EditorScrollForm({
           title="Skills"
           tip="Add 6–10 skills matching the jobs you're applying to"
           status={getSectionStatus(sectionScores.skills)}
-          action={<SectionAIAction section="skills" />}
+          action={<SectionAIAction section="skills" onApplied={() => expandSection('skills')} />}
           isOpen={openSections['skills'] ?? false}
           onToggle={() => toggleSection('skills')}
         >
@@ -316,7 +318,7 @@ export function EditorScrollForm({
             <SectionCard
               icon={icon}
               title={title}
-              action={aiSection ? <SectionAIAction section={aiSection} /> : undefined}
+              action={aiSection ? <SectionAIAction section={aiSection} onApplied={() => expandSection(step.id)} /> : undefined}
               isOpen={openSections[step.id] ?? false}
               onToggle={() => toggleSection(step.id)}
             >
@@ -348,6 +350,7 @@ export function EditorScrollForm({
                   moreSubSection={moreSubSection!}
                   isOpen={openSections['more'] ?? false}
                   onToggle={() => toggleSection('more')}
+                  onExpand={() => expandSection('more')}
                 />
               </Suspense>
             </div>
