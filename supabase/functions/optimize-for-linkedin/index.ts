@@ -133,9 +133,9 @@ ${regionContext[region]}
 WRITING RULES — apply to every section you generate:
 1. Headlines: structure each as [Role] + [one differentiator] + [value proposition]. Maximum 120 characters. Do not repeat the same differentiator across options. No generic phrases like "results-oriented" or "passionate professional".
 2. About sections: write entirely in first person ("I", "my"). Open with a strong hook, not the candidate's name or job title. Quantify achievements wherever the resume data supports it (e.g. "grew ARR by 40%", "led a team of 12"). Close with a forward-looking sentence about goals or what excites the candidate. No clichés.
-3. Suggested skills: source ONLY from the skills already listed in the candidate's resume plus skills that are directly and verifiably implied by their stated job titles and responsibilities. Do not invent skills not supported by the resume data.
+3. Suggested skills: use ONLY the exact skill terms from the "Skills" list provided in the candidate's resume. Do not infer, add, or paraphrase skills from job titles, responsibilities, or industry norms. If a skill is not in the provided list, do not include it.
 4. Experience rewrites: reframe the original bullet-point style into LinkedIn's narrative paragraph style — storytelling tone, first person, emphasis on impact and context. Do not fabricate metrics or responsibilities not present in the original.
-5. Keywords: extract from the candidate's actual skills, job titles, and industry — do not invent keywords the candidate cannot legitimately claim.
+5. Keywords: use only terms that appear verbatim in the candidate's provided skills list, job titles, or summary. Do not add keywords the candidate has not explicitly stated.
 6. Do not fabricate companies, credentials, awards, or any experience not stated in the resume.`;
 
     const userPrompt = `Optimize the LinkedIn profile for this candidate:
