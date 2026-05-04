@@ -117,15 +117,27 @@ export default function CareerPage() {
           <TrendingUp className="w-5 h-5 text-primary" />
           <h1 className="text-page-title flex-1">Career Plan</h1>
           {assessment && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => { haptics.medium(); setShowQuiz(true); }}
-              className="h-8 gap-1 text-xs"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              Re-analyze
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => { haptics.medium(); setQuickCheck(true); setShowQuiz(true); }}
+                className="h-8 px-2 gap-1 text-xs"
+                title="Quick Check — 3 questions"
+              >
+                <Clock className="w-3.5 h-3.5" />
+                Quick
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => { haptics.medium(); setShowQuiz(true); }}
+                className="h-8 gap-1 text-xs"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                Re-analyze
+              </Button>
+            </div>
           )}
         </div>
       </header>

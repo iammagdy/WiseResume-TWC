@@ -644,6 +644,9 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
   );
 
   const availableSections = enabledSections;
+  const hasQuickBoostTarget = (['summary', 'experience', 'skills'] as SectionType[]).some(
+    id => availableSections.some(s => s.id === id)
+  );
 
   const sheetTitle = atsMode ? 'ATS Keyword Optimization' : 'AI Enhance';
 
@@ -728,7 +731,7 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
           {!atsMode && results.length === 0 && !isEnhancing && (
             <button
               onClick={handleQuickBoost}
-              disabled={!currentResume || availableSections.length === 0}
+              disabled={!currentResume || !hasQuickBoostTarget}
               className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-primary/10 border border-primary/20 hover:bg-primary/15 active:scale-[0.98] transition-all touch-manipulation disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <div className="p-1.5 rounded-lg bg-primary/20 shrink-0">
