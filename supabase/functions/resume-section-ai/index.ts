@@ -50,7 +50,7 @@ import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { wrapHandler } from "../_shared/fnLogger.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
-import { isSmokeTest, smokeResponse } from "../_shared/smokeTest.ts";
+import { checkSmokeBypass } from "../_shared/smokeTest.ts";
 import { handleEnhance } from "./enhance.ts";
 import { handleTailor } from "./tailor.ts";
 import { handleFillGap } from "./fillGap.ts";
@@ -100,27 +100,24 @@ serve(wrapHandler('resume-section-ai', async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
-  // Single auth gate at the top — BEFORE we touch the body. Every
-  // pre-merge function called requireAuth as the first line of its
-  // serve() body, so unauthenticated callers get the same 401
-  // envelope they got pre-merge (via the shared authErrorResponse,
-  // which all four pre-merge functions used).
+  // Smoke-test bypass — validates DevKit admin token (Authorization: Bearer).
+  // MUST run before requireAuth so the admin token is not mis-validated as a Supabase JWT.
+  {
+    const smokeRes = await checkSmokeBypass(req, corsHeaders, 'resume-section-ai', {
+      function_name: 'resume-section-ai',
+      action: req.headers.get('x-resume-section-ai-action') ?? 'enhance',
+      result: 'Experienced professional with a proven track record.',
+    });
+    if (smokeRes !== null) return smokeRes;
+  }
+
+  // Single auth gate at the top — BEFORE we touch the body.
   let userId: string;
   try {
     const auth = await requireAuth(req);
     userId = auth.userId;
   } catch (authErr) {
     return authErrorResponse(authErr, req.headers.get('origin'));
-  }
-
-  // Smoke-test bypass — return synthetic 200 without AI call or credit deduction.
-  // Must be checked AFTER auth so unauthenticated callers cannot exploit it.
-  if (isSmokeTest(req)) {
-    return smokeResponse(corsHeaders, {
-      function_name: 'resume-section-ai',
-      action: req.headers.get('x-resume-section-ai-action') ?? 'enhance',
-      result: 'Experienced professional with a proven track record.',
-    });
   }
 
   // Content-Length-based size guard at the router boundary, BEFORE we

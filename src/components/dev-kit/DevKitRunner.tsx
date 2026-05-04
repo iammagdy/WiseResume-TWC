@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/safeClient';
 import { getToken, getUserId, isReady, exchangeToken } from '@/lib/supabaseBridge';
 import { useSettingsStore } from '@/store/settingsStore';
 import { logAudit } from '@/lib/auditLogger';
+import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
 import { Button } from '@/components/ui/button';
 import { Trash2, Loader2, PlayCircle, AlertCircle, CheckCircle, Activity } from 'lucide-react';
 import { type TestStatus, type TestResult, type TestDef, type SectionId } from './types';
@@ -247,42 +248,42 @@ export function DevKitRunner() {
       id: 'tailor-resume', label: 'Tailor Resume (smoke)', description: 'Smoke-test tailor-resume edge function — no AI call, no credit deduction', section: 'ai',
       run: async (): Promise<TestResult> => {
         if (!auth.isAuthenticated) return { status: 'warn' as const, summary: 'Skipped — sign in to the main app first, then re-run (requires an active Supabase session)', durationMs: 0 };
-        return strictInvoke('tailor-resume', () => edgeFunctions.functions.invoke('tailor-resume', { headers: { 'x-smoke-test': 'true' }, body: { resume: MINIMAL_RESUME, jobDescription: SAMPLE_JD, intensity: 'light' } }));
+        return strictInvoke('tailor-resume', () => edgeFunctions.functions.invoke('tailor-resume', { headers: { 'x-smoke-test': 'true', ...devKitAuthHeaders() }, body: { resume: MINIMAL_RESUME, jobDescription: SAMPLE_JD, intensity: 'light' } }));
       },
     },
     {
       id: 'agentic-chat', label: 'Agentic Chat (smoke)', description: 'Smoke-test agentic-chat edge function — no AI call, no credit deduction', section: 'ai',
       run: async (): Promise<TestResult> => {
         if (!auth.isAuthenticated) return { status: 'warn' as const, summary: 'Skipped — sign in to the main app first, then re-run (requires an active Supabase session)', durationMs: 0 };
-        return strictInvoke('agentic-chat', () => edgeFunctions.functions.invoke('agentic-chat', { headers: { 'x-smoke-test': 'true' }, body: { message: 'What can you help me with?', conversationHistory: [], currentResume: null } }));
+        return strictInvoke('agentic-chat', () => edgeFunctions.functions.invoke('agentic-chat', { headers: { 'x-smoke-test': 'true', ...devKitAuthHeaders() }, body: { message: 'What can you help me with?', conversationHistory: [], currentResume: null } }));
       },
     },
     {
       id: 'recruiter-simulation', label: 'Recruiter Simulation (smoke)', description: 'Smoke-test recruiter-simulation edge function — no AI call, no credit deduction', section: 'ai',
       run: async (): Promise<TestResult> => {
         if (!auth.isAuthenticated) return { status: 'warn' as const, summary: 'Skipped — sign in to the main app first, then re-run (requires an active Supabase session)', durationMs: 0 };
-        return strictInvoke('recruiter-simulation', () => edgeFunctions.functions.invoke('recruiter-simulation', { headers: { 'x-smoke-test': 'true' }, body: { resume: MINIMAL_RESUME, persona: 'hiring_manager' } }));
+        return strictInvoke('recruiter-simulation', () => edgeFunctions.functions.invoke('recruiter-simulation', { headers: { 'x-smoke-test': 'true', ...devKitAuthHeaders() }, body: { resume: MINIMAL_RESUME, persona: 'hiring_manager' } }));
       },
     },
     {
       id: 'suggest-template', label: 'Suggest Template (smoke)', description: 'Smoke-test suggest-template edge function — no AI call, no credit deduction', section: 'ai',
       run: async (): Promise<TestResult> => {
         if (!auth.isAuthenticated) return { status: 'warn' as const, summary: 'Skipped — sign in to the main app first, then re-run (requires an active Supabase session)', durationMs: 0 };
-        return strictInvoke('suggest-template', () => edgeFunctions.functions.invoke('suggest-template', { headers: { 'x-smoke-test': 'true' }, body: { resume: MINIMAL_RESUME } }));
+        return strictInvoke('suggest-template', () => edgeFunctions.functions.invoke('suggest-template', { headers: { 'x-smoke-test': 'true', ...devKitAuthHeaders() }, body: { resume: MINIMAL_RESUME } }));
       },
     },
     {
       id: 'optimize-for-linkedin', label: 'LinkedIn Optimizer (smoke)', description: 'Smoke-test optimize-for-linkedin edge function — no AI call, no credit deduction', section: 'ai',
       run: async (): Promise<TestResult> => {
         if (!auth.isAuthenticated) return { status: 'warn' as const, summary: 'Skipped — sign in to the main app first, then re-run (requires an active Supabase session)', durationMs: 0 };
-        return strictInvoke('optimize-for-linkedin', () => edgeFunctions.functions.invoke('optimize-for-linkedin', { headers: { 'x-smoke-test': 'true' }, body: { resume: MINIMAL_RESUME } }));
+        return strictInvoke('optimize-for-linkedin', () => edgeFunctions.functions.invoke('optimize-for-linkedin', { headers: { 'x-smoke-test': 'true', ...devKitAuthHeaders() }, body: { resume: MINIMAL_RESUME } }));
       },
     },
     {
       id: 'smart-fit-rewrite', label: 'Smart Fit Rewrite (smoke)', description: 'Smoke-test smart-fit-rewrite edge function — no AI call, no credit deduction', section: 'ai',
       run: async (): Promise<TestResult> => {
         if (!auth.isAuthenticated) return { status: 'warn' as const, summary: 'Skipped — sign in to the main app first, then re-run (requires an active Supabase session)', durationMs: 0 };
-        return strictInvoke('smart-fit-rewrite', () => edgeFunctions.functions.invoke('smart-fit-rewrite', { headers: { 'x-smoke-test': 'true' }, body: { mode: 'rewrite', candidates: [], jobDescription: SAMPLE_JD } }));
+        return strictInvoke('smart-fit-rewrite', () => edgeFunctions.functions.invoke('smart-fit-rewrite', { headers: { 'x-smoke-test': 'true', ...devKitAuthHeaders() }, body: { mode: 'rewrite', candidates: [], jobDescription: SAMPLE_JD } }));
       },
     },
     {
@@ -388,14 +389,14 @@ export function DevKitRunner() {
       id: 'enhance-section', label: 'Resume Section AI (smoke)', description: 'Smoke-test resume-section-ai edge function (enhance action) — no AI call, no credit deduction', section: 'ai',
       run: async (): Promise<TestResult> => {
         if (!auth.isAuthenticated) return { status: 'warn' as const, summary: 'Skipped — sign in to the main app first, then re-run (requires an active Supabase session)', durationMs: 0 };
-        return strictInvoke('enhance-section', () => edgeFunctions.functions.invoke('resume-section-ai', { headers: { 'x-smoke-test': 'true', 'x-resume-section-ai-action': 'enhance' }, body: { section: 'summary', currentContent: MINIMAL_RESUME.summary, context: { resume: MINIMAL_RESUME } } }));
+        return strictInvoke('enhance-section', () => edgeFunctions.functions.invoke('resume-section-ai', { headers: { 'x-smoke-test': 'true', 'x-resume-section-ai-action': 'enhance', ...devKitAuthHeaders() }, body: { section: 'summary', currentContent: MINIMAL_RESUME.summary, context: { resume: MINIMAL_RESUME } } }));
       },
     },
     {
       id: 'analyze-resume', label: 'Analyze Resume (smoke)', description: 'Smoke-test analyze-resume edge function — no AI call, no credit deduction', section: 'ai',
       run: async (): Promise<TestResult> => {
         if (!auth.isAuthenticated) return { status: 'warn' as const, summary: 'Skipped — sign in to the main app first, then re-run (requires an active Supabase session)', durationMs: 0 };
-        return strictInvoke('analyze-resume', () => edgeFunctions.functions.invoke('analyze-resume', { headers: { 'x-smoke-test': 'true' }, body: { resume: MINIMAL_RESUME, jobDescription: SAMPLE_JD } }));
+        return strictInvoke('analyze-resume', () => edgeFunctions.functions.invoke('analyze-resume', { headers: { 'x-smoke-test': 'true', ...devKitAuthHeaders() }, body: { resume: MINIMAL_RESUME, jobDescription: SAMPLE_JD } }));
       },
     },
     {

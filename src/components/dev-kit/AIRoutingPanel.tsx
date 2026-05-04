@@ -163,37 +163,30 @@ export function AIRoutingPanel() {
     const editorAIConfigs = configs.filter(c => EDITOR_AI_FUNCTIONS.has(c.feature_name));
     if (editorAIConfigs.length === 0) return;
     setBulkOverriding(true);
-    let saved = 0;
-    let failed = 0;
-    for (const cfg of editorAIConfigs) {
-      try {
-        const tuple = await edgeFunctions.functions.invoke('admin-ai-routing', {
-          headers: devKitAuthHeaders(),
-          body: {
-            action: 'update_feature',
-            feature_name: cfg.feature_name,
-            provider: bulkProvider,
-            model: '',
-            ab_secondary_provider: null,
-            ab_secondary_model: '',
-            ab_split_pct: 0,
-          },
-        });
-        unwrapAdminResponse(tuple, 'admin-ai-routing');
-        saved++;
-      } catch {
-        failed++;
-      }
-    }
-    if (!isMounted()) return;
-    if (saved > 0) {
+    try {
+      const featureNames = editorAIConfigs.map(c => c.feature_name);
+      const tuple = await edgeFunctions.functions.invoke('admin-ai-ops', {
+        headers: { 'x-admin-ai-op': 'routing', ...devKitAuthHeaders() },
+        body: {
+          action: 'bulk_update_features',
+          feature_names: featureNames,
+          provider: bulkProvider,
+          model: '',
+          ab_secondary_provider: null,
+          ab_secondary_model: '',
+          ab_split_pct: 0,
+        },
+      });
+      unwrapAdminResponse(tuple, 'admin-ai-ops');
+      if (!isMounted()) return;
       await fetchRouting();
-      toast.success(`Bulk override applied to ${saved} Editor AI function${saved > 1 ? 's' : ''}`);
+      toast.success(`Bulk override applied to ${featureNames.length} Editor AI function${featureNames.length !== 1 ? 's' : ''}`);
+    } catch {
+      if (!isMounted()) return;
+      toast.error('Bulk override failed');
+    } finally {
+      if (isMounted()) setBulkOverriding(false);
     }
-    if (failed > 0) {
-      toast.error(`${failed} function${failed > 1 ? 's' : ''} failed to update`);
-    }
-    setBulkOverriding(false);
   };
 
   const saveFeature = async (feature: string) => {

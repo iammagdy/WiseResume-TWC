@@ -317,6 +317,11 @@ const SUPPORTED_FEATURES = [
   'generate-cover-letter',
   'agentic-chat',
   'wise-ai-chat',
+  'resume-section-ai',
+  'recruiter-simulation',
+  'suggest-template',
+  'optimize-for-linkedin',
+  'smart-fit-rewrite',
 ] as const;
 const VALID_PROVIDERS = ['auto', 'openrouter', 'groq', 'deepseek'];
 
@@ -466,6 +471,71 @@ async function handleRouting(
 
       return new Response(
         JSON.stringify({ success: true, feature_name, reset: true }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
+    if (action === 'bulk_update_features') {
+      const { feature_names, provider, model, ab_secondary_provider, ab_secondary_model, ab_split_pct } = body;
+
+      if (!Array.isArray(feature_names) || feature_names.length === 0) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'feature_names must be a non-empty array' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
+
+      const invalidFeatures = (feature_names as string[]).filter(f => !SUPPORTED_FEATURES.includes(f as typeof SUPPORTED_FEATURES[number]));
+      if (invalidFeatures.length > 0) {
+        return new Response(
+          JSON.stringify({ success: false, error: `Invalid feature_names: ${invalidFeatures.join(', ')}` }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
+
+      const resolvedProvider = provider ?? 'auto';
+      if (!VALID_PROVIDERS.includes(resolvedProvider)) {
+        return new Response(
+          JSON.stringify({ success: false, error: `Invalid provider. Must be one of: ${VALID_PROVIDERS.join(', ')}` }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
+
+      const splitPct = typeof ab_split_pct === 'number' ? Math.min(100, Math.max(0, Math.round(ab_split_pct))) : 0;
+      const now = new Date().toISOString();
+      const rows = (feature_names as string[]).map((f) => ({
+        feature_name: f,
+        provider: resolvedProvider,
+        model: model ?? '',
+        ab_secondary_provider: ab_secondary_provider || null,
+        ab_secondary_model: ab_secondary_model ?? '',
+        ab_split_pct: splitPct,
+        updated_by: 'dev-kit',
+        updated_at: now,
+      }));
+
+      const { error: upsertErr } = await supabase
+        .from('ai_routing_config')
+        .upsert(rows, { onConflict: 'feature_name' });
+
+      if (upsertErr) {
+        return new Response(
+          JSON.stringify({ success: false, error: upsertErr.message }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
+
+      await supabase.from('audit_logs').insert({
+        action: 'ai_routing_bulk_update',
+        category: 'ai_routing',
+        metadata: { feature_names, provider: resolvedProvider, updated_by: 'dev-kit', updated_at: now },
+        created_at: now,
+      }).then(({ error: auditErr }) => {
+        if (auditErr) console.warn('[admin-ai-routing] audit log error (non-fatal):', auditErr);
+      });
+
+      return new Response(
+        JSON.stringify({ success: true, updated: feature_names, provider: resolvedProvider }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }

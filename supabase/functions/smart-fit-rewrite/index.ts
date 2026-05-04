@@ -34,7 +34,7 @@ import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import { requireAuth, tryAuth } from "../_shared/authMiddleware.ts";
 import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
-import { isSmokeTest, smokeResponse } from "../_shared/smokeTest.ts";
+import { checkSmokeBypass } from "../_shared/smokeTest.ts";
 import { logger } from "../_shared/logger.ts";
 
 import { wrapHandler } from '../_shared/fnLogger.ts';
@@ -276,15 +276,19 @@ Deno.serve(wrapHandler("smart-fit-rewrite", async (req) => {
   const sizeError = checkPayloadSize(req, 200 * 1024);
   if (sizeError) return sizeError;
 
+  // Smoke-test bypass — validates DevKit admin token (Authorization: Bearer).
+  // MUST run before tryAuth so the admin token is not mis-validated as a Supabase JWT.
+  {
+    const smokeRes = await checkSmokeBypass(req, corsHeaders, 'smart-fit-rewrite', { success: true, outcomes: [] });
+    if (smokeRes !== null) return smokeRes;
+  }
+
   const auth = await tryAuth(req, corsHeaders);
   if (auth instanceof Response) return auth;
 
-  // Smoke-test bypass — return synthetic 200 without AI call or credit deduction.
-  if (isSmokeTest(req)) {
-    return smokeResponse(corsHeaders, { function_name: 'smart-fit-rewrite', success: true, outcomes: [] });
-  }
-
+  let _fnStart = Date.now();
   try {
+    _fnStart = Date.now();
     const { userId } = auth;
     const bodyText = await req.text();
     if (bodyText.length > MAX_PAYLOAD) {
@@ -414,9 +418,12 @@ Deno.serve(wrapHandler("smart-fit-rewrite", async (req) => {
     }
 
     await recordUsage(userId, 'smart_fit_rewrite', { provider: attempt.ai.providerUsed || 'unknown' });
-    log.info('smart_fit_rewrite success', {
+    log.info('request completed', {
+      function_name: 'smart-fit-rewrite',
+      provider_used: attempt.ai.providerUsed || 'unknown',
+      error_type: null,
+      duration_ms: Date.now() - _fnStart,
       userId,
-      provider: attempt.ai.providerUsed,
       candidates: candidates.length,
       validated: attempt.outcomes.filter(o => o.valid).length,
     });
@@ -430,7 +437,7 @@ Deno.serve(wrapHandler("smart-fit-rewrite", async (req) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   } catch (error) {
-    log.error('Unhandled error', error);
+    log.error('Unhandled error', error, { function_name: 'smart-fit-rewrite', error_type: (error as Error)?.name ?? 'Error', duration_ms: Date.now() - _fnStart });
     const userError = toUserError(error);
     return new Response(
       JSON.stringify({ error: userError.message }),

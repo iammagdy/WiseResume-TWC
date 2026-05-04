@@ -10,7 +10,7 @@ import { getServiceClient } from "../_shared/dbClient.ts";
 import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
 import { getProfileContext } from "../_shared/profileContext.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
-import { isSmokeTest, smokeResponse } from "../_shared/smokeTest.ts";
+import { checkSmokeBypass } from "../_shared/smokeTest.ts";
 import { logger } from "../_shared/logger.ts";
 const log = logger('tailor-resume');
 import { wrapHandler } from "../_shared/fnLogger.ts";
@@ -333,12 +333,21 @@ serve(wrapHandler('tailor-resume', async (req) => {
   const sizeError = checkPayloadSize(req, 500 * 1024);
   if (sizeError) return sizeError;
 
+  // Smoke-test bypass — validates DevKit admin token (Authorization: Bearer).
+  // MUST run before requireAuth so the admin token is not mis-validated as a Supabase JWT.
+  {
+    const smokeRes = await checkSmokeBypass(req, corsHeaders, 'tailor-resume', { tailoredResume: null, atsScore: 80 });
+    if (smokeRes !== null) return smokeRes;
+  }
+
   // Parse query params early for stage-mode detection
   const url = new URL(req.url);
   const stageMode = url.searchParams.get('stage'); // '1' returns only Stage 1 results
 
+  let _fnStart = Date.now();
   try {
     // requireAuth() verifies JWT signature via jose.jwtVerify — see _shared/authMiddleware.ts
+    _fnStart = Date.now();
     let userId: string;
     try {
       const auth = await requireAuth(req);
@@ -347,11 +356,6 @@ serve(wrapHandler('tailor-resume', async (req) => {
       return authErrorResponse(authErr, req.headers.get('origin'));
     }
     console.log('Authenticated user:', userId);
-
-    // Smoke-test bypass — return synthetic 200 without AI call or credit deduction.
-    if (isSmokeTest(req)) {
-      return smokeResponse(corsHeaders, { function_name: 'tailor-resume', tailoredResume: null, atsScore: 80 });
-    }
 
     const rateCheck = await checkRateLimit(userId, { maxRequests: 10, windowSeconds: 60, actionType: 'tailor' });
     if (!rateCheck.allowed) {
@@ -923,6 +927,7 @@ Generate 3-5 talking points and 3 strengths. Be specific to this candidate and r
     console.log("Successfully tailored resume with multi-stage pipeline");
 
     await recordUsage(userId, 'tailor', { provider: aiResponse.providerUsed || 'unknown' });
+    log.info('request completed', { function_name: 'tailor-resume', provider_used: aiResponse.providerUsed || 'unknown', error_type: null, duration_ms: Date.now() - _fnStart });
 
     const svcClient = getServiceClient();
 
@@ -941,7 +946,7 @@ Generate 3-5 talking points and 3 strengths. Be specific to this candidate and r
     );
 
   } catch (error) {
-    log.error("Unhandled error", error);
+    log.error("Unhandled error", error, { function_name: 'tailor-resume', error_type: (error as Error)?.name ?? 'Error', duration_ms: Date.now() - _fnStart });
 
     const userError = toUserError(error);
     return new Response(

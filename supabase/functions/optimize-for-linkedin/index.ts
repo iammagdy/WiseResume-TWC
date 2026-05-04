@@ -8,7 +8,7 @@ import { requireAuth, tryAuth, authErrorResponse } from "../_shared/authMiddlewa
 import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
-import { isSmokeTest, smokeResponse } from "../_shared/smokeTest.ts";
+import { checkSmokeBypass } from "../_shared/smokeTest.ts";
 import { logger } from "../_shared/logger.ts";
 import { wrapHandler } from '../_shared/fnLogger.ts';
 const log = logger('optimize-for-linkedin');
@@ -78,20 +78,23 @@ Deno.serve(wrapHandler("optimize-for-linkedin", async (req) => {
   const sizeError = checkPayloadSize(req, 500 * 1024);
   if (sizeError) return sizeError;
 
-  const auth = await tryAuth(req, corsHeaders);
-  if (auth instanceof Response) return auth;
-
-  // Smoke-test bypass — return synthetic 200 without AI call or credit deduction.
-  if (isSmokeTest(req)) {
-    return smokeResponse(corsHeaders, {
-      function_name: 'optimize-for-linkedin',
+  // Smoke-test bypass — validates DevKit admin token (Authorization: Bearer).
+  // MUST run before tryAuth so the admin token is not mis-validated as a Supabase JWT.
+  {
+    const smokeRes = await checkSmokeBypass(req, corsHeaders, 'optimize-for-linkedin', {
       success: true,
       headlines: ['Experienced Software Engineer | Full-Stack Developer'],
       aboutSection: 'Smoke test placeholder.',
     });
+    if (smokeRes !== null) return smokeRes;
   }
 
+  const auth = await tryAuth(req, corsHeaders);
+  if (auth instanceof Response) return auth;
+
+  let _fnStart = Date.now();
   try {
+    _fnStart = Date.now();
     const { userId, client } = auth;
 
     const rateCheck = await checkRateLimit(userId, { maxRequests: 10, windowSeconds: 60, actionType: 'linkedin_opt' });
@@ -239,14 +242,14 @@ Generate a complete LinkedIn optimization package following the rules above.`;
     }
 
     await recordUsage(userId, 'linkedin_opt', { provider: aiResponse.providerUsed || 'unknown' });
-
+    log.info('request completed', { function_name: 'optimize-for-linkedin', provider_used: aiResponse.providerUsed || 'unknown', error_type: null, duration_ms: Date.now() - _fnStart });
 
     return new Response(
       JSON.stringify({ success: true, ...result }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
-    log.error('Unhandled error', error);
+    log.error('Unhandled error', error, { function_name: 'optimize-for-linkedin', error_type: (error as Error)?.name ?? 'Error', duration_ms: Date.now() - _fnStart });
     const userError = toUserError(error);
     return new Response(
       JSON.stringify({ error: userError.message }),

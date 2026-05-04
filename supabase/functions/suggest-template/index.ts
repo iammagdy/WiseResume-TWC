@@ -7,7 +7,7 @@ const __ROUTE = selectProviderForTool('suggest-template');
 import { checkRateLimit, recordUsage } from '../_shared/rateLimiter.ts';
 import { checkUserRateLimit } from '../_shared/userRateLimiter.ts';
 import { checkPayloadSize } from '../_shared/requestUtils.ts';
-import { isSmokeTest, smokeResponse } from '../_shared/smokeTest.ts';
+import { checkSmokeBypass } from '../_shared/smokeTest.ts';
 import { checkAndDeductCredit, refundCredit } from '../_shared/creditUtils.ts';
 import { logger } from '../_shared/logger.ts';
 import { wrapHandler } from '../_shared/fnLogger.ts';
@@ -25,13 +25,17 @@ serve(wrapHandler("suggest-template", async (req) => {
   const sizeError = checkPayloadSize(req, 500 * 1024);
   if (sizeError) return sizeError;
 
-  try {
-    const { userId } = await requireAuth(req);
+  // Smoke-test bypass — validates DevKit admin token (Authorization: Bearer).
+  // MUST run before requireAuth so the admin token is not mis-validated as a Supabase JWT.
+  {
+    const smokeRes = await checkSmokeBypass(req, corsHeaders, 'suggest-template', { recommendedTemplateId: 'professional', confidence: 0.9 });
+    if (smokeRes !== null) return smokeRes;
+  }
 
-    // Smoke-test bypass — return synthetic 200 without AI call or credit deduction.
-    if (isSmokeTest(req)) {
-      return smokeResponse(corsHeaders, { function_name: 'suggest-template', recommendedTemplateId: 'professional', confidence: 0.9 });
-    }
+  let _fnStart = Date.now();
+  try {
+    _fnStart = Date.now();
+    const { userId } = await requireAuth(req);
 
     const { allowed } = await checkRateLimit(userId, { actionType: 'suggest_template', maxRequests: 30, windowSeconds: 60 });
     if (!allowed) {
@@ -168,6 +172,7 @@ Key Skills: ${skills?.join(', ') || 'Not specified'}`,
     const providerUsed = aiResponse.providerUsed || 'unknown';
 
     await recordUsage(userId, 'suggest_template', { provider: providerUsed });
+    log.info('request completed', { function_name: 'suggest-template', provider_used: providerUsed, error_type: null, duration_ms: Date.now() - _fnStart });
 
     return new Response(JSON.stringify({
       ...result,
@@ -181,7 +186,7 @@ Key Skills: ${skills?.join(', ') || 'Not specified'}`,
     if (typeof err === 'object' && err !== null && 'status' in err) {
       return authErrorResponse(err, origin);
     }
-    log.error('Unhandled error', err);
+    log.error('Unhandled error', err, { function_name: 'suggest-template', error_type: (err as Error)?.name ?? 'Error', duration_ms: Date.now() - _fnStart });
     const userErr = toUserError(err);
     return new Response(
       JSON.stringify({ error: userErr.error, message: userErr.message }),

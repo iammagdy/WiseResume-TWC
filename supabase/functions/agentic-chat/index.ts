@@ -10,7 +10,7 @@ import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
-import { isSmokeTest, smokeResponse } from "../_shared/smokeTest.ts";
+import { checkSmokeBypass } from "../_shared/smokeTest.ts";
 import { logger } from "../_shared/logger.ts";
 const log = logger('agentic-chat');
 import { wrapHandler } from "../_shared/fnLogger.ts";
@@ -365,13 +365,17 @@ Deno.serve(wrapHandler('agentic-chat', async (req: Request) => {
   const sizeError = checkPayloadSize(req, 500 * 1024);
   if (sizeError) return sizeError;
 
-  try {
-    const { userId, client } = await requireAuth(req);
+  // Smoke-test bypass — validates DevKit admin token (Authorization: Bearer).
+  // MUST run before requireAuth so the admin token is not mis-validated as a Supabase JWT.
+  {
+    const smokeRes = await checkSmokeBypass(req, corsHeaders, 'agentic-chat', { type: 'text', content: 'Smoke test OK' });
+    if (smokeRes !== null) return smokeRes;
+  }
 
-    // Smoke-test bypass — return synthetic 200 without AI call or credit deduction.
-    if (isSmokeTest(req)) {
-      return smokeResponse(corsHeaders, { function_name: 'agentic-chat', type: 'text', content: 'Smoke test OK' });
-    }
+  let _fnStart = Date.now();
+  try {
+    _fnStart = Date.now();
+    const { userId, client } = await requireAuth(req);
 
     // Plan-aware server-side chat rate limits.
     // Free users get the baseline budget; Pro/Premium get larger windows
@@ -618,6 +622,7 @@ Deno.serve(wrapHandler('agentic-chat', async (req: Request) => {
       content: content || "I'm not sure how to help with that. Could you rephrase?",
     };
 
+    log.info('request completed', { function_name: 'agentic-chat', provider_used: aiResponse.providerUsed || 'unknown', error_type: null, duration_ms: Date.now() - _fnStart });
     return new Response(JSON.stringify({ ...result, _providerUsed: aiResponse.providerUsed || 'unknown' }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
@@ -630,7 +635,7 @@ Deno.serve(wrapHandler('agentic-chat', async (req: Request) => {
     if ((error as { name?: string })?.name === 'AuthError') {
       return authErrorResponse(error, req.headers.get('origin'));
     }
-    log.error("Unhandled error", error);
+    log.error("Unhandled error", error, { function_name: 'agentic-chat', error_type: (error as Error)?.name ?? 'Error', duration_ms: Date.now() - _fnStart });
     const { status, error: code, message } = toUserError(error);
     // Forward attempt telemetry from callWiseresumeAI when present so the
     // chat error card can show "Tried OpenRouter (timeout) + Groq (429)"
