@@ -1,5 +1,63 @@
 # Edge Function Audit — Mobile parity sweep (2026-05-03)
 
+## Editor AI Phase 3 — Legacy function retirement (Task #41, 2026-06-03)
+
+Four individual Editor AI edge functions were retired from active
+deployment after their traffic was fully consolidated into the
+`editor-ai` router in Phase 2 (Task #40).
+
+Functions retired (4 → absorbed into editor-ai):
+
+- `analyze-resume`       → `editor-ai` with `x-editor-ai-action: analyze`
+- `recruiter-simulation` → `editor-ai` with `x-editor-ai-action: recruiter-sim`
+- `suggest-template`     → `editor-ai` with `x-editor-ai-action: suggest-template`
+- `optimize-for-linkedin`→ `editor-ai` with `x-editor-ai-action: optimize-for-linkedin`
+
+### Source-tree changes
+
+Each original `supabase/functions/<name>/index.ts` has been replaced with
+a minimal retirement stub (returns `410 Gone` with a redirect message) so
+that an accidental `supabase functions deploy <name>` from this commit is
+safe and self-documenting. The full original implementation is preserved in
+git history (pre-Task-#41 commits).
+
+### Database changes
+
+Migration `20260603000000_retire_legacy_editor_ai_routing_config.sql`
+deletes the 4 individual `ai_routing_config` rows for the retired functions.
+The `editor-ai` consolidated row (seeded in Task #40) remains.
+
+### DevKit AIRoutingPanel changes
+
+`FEATURE_LABELS` and `EDITOR_AI_FUNCTIONS` in `AIRoutingPanel.tsx` no longer
+include the 4 retired slugs. The Editor AI group now shows 5 active functions:
+`editor-ai`, `resume-section-ai`, `tailor-resume`, `smart-fit-rewrite`,
+`agentic-chat`. The bulk override button targets these 5 only.
+
+### DevKit smoke tests
+
+The 4 legacy smoke tests (`recruiter-simulation`, `suggest-template`,
+`optimize-for-linkedin`, `analyze-resume`) in `DevKitRunner.tsx` continue
+to pass — they invoke the legacy names, which are transparently rewritten to
+`editor-ai` by `rewriteEditorAiInvoke` in `edgeFunctions.ts`. The 4 new
+`editor-ai-*` smoke tests (Task #40) also pass, covering all 4 sub-actions
+directly via the consolidated router.
+
+### Rollback path
+
+1. `supabase functions deploy analyze-resume recruiter-simulation suggest-template optimize-for-linkedin`
+   (source code is preserved in git at any pre-retirement commit).
+2. Flip `USE_MERGED_EDITOR_AI = false` in
+   `src/integrations/supabase/edgeFunctions.ts`.
+3. Re-insert the 4 `ai_routing_config` rows (or revert the migration).
+
+Once the deployed function slots are freed and the soak window passes,
+those slots can be reclaimed. There is no `USE_MERGED_EDITOR_AI` flag
+removal in this phase — the flag stays `true` and serves as the permanent
+rewrite path.
+
+---
+
 ## Full redeploy + platform verification (Task #57, 2026-05-03)
 
 Final gate after Tasks #49–#56 merged 9 routers. Full

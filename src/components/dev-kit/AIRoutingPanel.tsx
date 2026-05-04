@@ -37,27 +37,21 @@ interface CapValues {
 const FEATURE_LABELS: Record<string, string> = {
   'tailor-resume': 'Tailor Resume',
   'enhance-section': 'Enhance Section',
-  'analyze-resume': 'Analyze Resume',
   'generate-cover-letter': 'Cover Letter',
   'agentic-chat': 'Agentic Chat',
   'wise-ai-chat': 'Wise AI Chat',
   'resume-section-ai': 'Resume Section AI',
   'editor-ai': 'Editor AI Router',
-  'recruiter-simulation': 'Recruiter Simulation',
-  'suggest-template': 'Suggest Template',
-  'optimize-for-linkedin': 'LinkedIn Optimizer',
   'smart-fit-rewrite': 'Smart Fit Rewrite',
 };
 
 // The Editor AI functions managed as a group (Phase 1 — Task #39, Phase 2 — Task #40).
+// Phase 3 (Task #41): analyze-resume, recruiter-simulation, suggest-template,
+// optimize-for-linkedin retired — all traffic now routes through editor-ai.
 const EDITOR_AI_FUNCTIONS = new Set([
   'resume-section-ai',
   'editor-ai',
   'tailor-resume',
-  'analyze-resume',
-  'recruiter-simulation',
-  'suggest-template',
-  'optimize-for-linkedin',
   'smart-fit-rewrite',
   'agentic-chat',
 ]);
@@ -447,7 +441,7 @@ export function AIRoutingPanel() {
                   <Layers className="w-3.5 h-3.5 text-muted-foreground" />
                   <span className="text-xs font-semibold">Editor AI</span>
                   <Badge variant="outline" className="text-[10px]">
-                    {configs.filter(c => EDITOR_AI_FUNCTIONS.has(c.feature_name)).length} / 8 functions
+                    {configs.filter(c => EDITOR_AI_FUNCTIONS.has(c.feature_name)).length} functions
                   </Badge>
                 </div>
                 <div className="flex items-center gap-3">
