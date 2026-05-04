@@ -113,8 +113,6 @@ serve(wrapHandler("parse-job", async (req) => {
       } catch (authErr) {
         return authErrorResponse(authErr, req.headers.get('origin'));
       }
-      console.log('Authenticated user:', userId);
-
       const rateCheck = await checkRateLimit(userId, { maxRequests: 20, windowSeconds: 60, actionType: 'parse_job' });
       if (!rateCheck.allowed) {
         return new Response(
