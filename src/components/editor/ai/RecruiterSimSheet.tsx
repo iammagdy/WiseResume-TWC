@@ -163,7 +163,12 @@ export function RecruiterSimSheet({ open, onOpenChange }: RecruiterSimSheetProps
         return;
       }
 
-      // 2. Call AI to apply the fix (with credit check)
+      // 2. Call AI to apply the fix (with credit check).
+      // Note: `edgeFunctions.functions.invoke('enhance-section', …)` is
+      // transparently rewritten to `resume-section-ai` with the correct
+      // `x-resume-section-ai-action: enhance` header by
+      // `rewriteResumeSectionAiInvoke` in edgeFunctions.ts. No manual
+      // URL change needed here.
       const result = await executeAI(async () => {
         const { data, error } = await edgeFunctions.functions.invoke('enhance-section', {
           body: {

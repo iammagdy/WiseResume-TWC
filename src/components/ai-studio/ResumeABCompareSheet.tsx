@@ -14,6 +14,7 @@ import { activityTracker } from '@/lib/activityTracker';
 import { cn } from '@/lib/utils';
 import { Trophy, ArrowLeft, Sparkles, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useAIAction } from '@/hooks/useAIAction';
 
 interface Props {
   open: boolean;
@@ -45,6 +46,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 export default function ResumeABCompareSheet({ open, onOpenChange }: Props) {
   const { user } = useAuth();
   const { data: resumes } = useResumes();
+  const { execute } = useAIAction({ operation: 'ab-compare' });
 
   useEffect(() => {
     if (open) { activityTracker.setActiveFeature('A/B Compare'); }
@@ -89,33 +91,34 @@ export default function ResumeABCompareSheet({ open, onOpenChange }: Props) {
     const dataB = dbToResumeData(dbB);
 
     try {
-      const [atsResA, atsResB, matchResA, matchResB] = await Promise.all([
-        edgeFunctions.functions.invoke('score-resume', { body: { resume: dataA } }),
-        edgeFunctions.functions.invoke('score-resume', { body: { resume: dataB } }),
-        edgeFunctions.functions.invoke('analyze-resume', { body: { resume: dataA, jobDescription } }),
-        edgeFunctions.functions.invoke('analyze-resume', { body: { resume: dataB, jobDescription } }),
-      ]);
+      const compared = await execute(async () => {
+        const [atsResA, atsResB, matchResA, matchResB] = await Promise.all([
+          edgeFunctions.functions.invoke('score-resume', { body: { resume: dataA } }),
+          edgeFunctions.functions.invoke('score-resume', { body: { resume: dataB } }),
+          edgeFunctions.functions.invoke('analyze-resume', { body: { resume: dataA, jobDescription } }),
+          edgeFunctions.functions.invoke('analyze-resume', { body: { resume: dataB, jobDescription } }),
+        ]);
 
-      // Check for errors
-      for (const res of [atsResA, atsResB, matchResA, matchResB]) {
-        if (res.error) {
-          const msg = res.error.message || 'Scoring failed';
-          if (msg.includes('429') || msg.includes('Rate limit')) {
-            toast.error('Rate limit reached. Please wait a moment and try again.');
-          } else if (msg.includes('401') || msg.includes('Unauthorized')) {
-            toast.error('Session expired. Please log in again.');
-          } else {
-            toast.error(msg);
+        for (const res of [atsResA, atsResB, matchResA, matchResB]) {
+          if (res.error) {
+            throw new Error(res.error.message || 'Scoring failed');
           }
-          setStep('input');
-          return;
         }
-      }
 
-      setAtsA(atsResA.data);
-      setAtsB(atsResB.data);
-      setMatchA(matchResA.data);
-      setMatchB(matchResB.data);
+        return {
+          atsA: atsResA.data as ATSResult,
+          atsB: atsResB.data as ATSResult,
+          matchA: matchResA.data as AIMatchResult,
+          matchB: matchResB.data as AIMatchResult,
+        };
+      });
+
+      if (!compared) { setStep('input'); return; }
+
+      setAtsA(compared.atsA);
+      setAtsB(compared.atsB);
+      setMatchA(compared.matchA);
+      setMatchB(compared.matchB);
       setStep('results');
       haptics.success();
     } catch (err) {
@@ -123,7 +126,7 @@ export default function ResumeABCompareSheet({ open, onOpenChange }: Props) {
       toast.error('Comparison failed. Please try again.');
       setStep('input');
     }
-  }, [canCompare, user, resumeAId, resumeBId, resumeList, jobDescription]);
+  }, [canCompare, user, resumeAId, resumeBId, resumeList, jobDescription, execute]);
 
   const winner = useMemo(() => {
     if (!atsA || !atsB) return null;

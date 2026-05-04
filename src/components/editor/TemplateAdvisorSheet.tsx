@@ -13,6 +13,7 @@ import { useResumeStore } from '@/store/resumeStore';
 import { templates } from '@/lib/templateData';
 import type { TemplateId, TemplateCustomization } from '@/types/resume';
 import { apiFnUrl } from '@/lib/apiFnUrl';
+import { useAIAction } from '@/hooks/useAIAction';
 
 interface TemplateAdvisorSheetProps {
   open: boolean;
@@ -30,6 +31,7 @@ export function TemplateAdvisorSheet({ open, onOpenChange, onApply }: TemplateAd
   const [loading, setLoading] = useState(false);
   const [suggestion, setSuggestion] = useState<Suggestion | null>(null);
   const { currentResume } = useResumeStore();
+  const { execute } = useAIAction({ operation: 'template-advisor' });
 
   const handleGenerate = async () => {
     if (!currentResume) {
@@ -40,37 +42,41 @@ export function TemplateAdvisorSheet({ open, onOpenChange, onApply }: TemplateAd
     setLoading(true);
     haptics.light();
     try {
-      const token = await getSupabaseToken();
-      if (!token) throw new Error('Not authenticated');
+      const result = await execute(async () => {
+        const token = await getSupabaseToken();
+        if (!token) throw new Error('Not authenticated');
 
-      const skills = (currentResume.skills ?? []).map(s => {
-        if (typeof s === 'string') return s;
-        if (s && typeof (s as Record<string, unknown>).name === 'string') return (s as Record<string, unknown>).name as string;
-        return '';
-      }).filter(Boolean);
+        const skills = (currentResume.skills ?? []).map(s => {
+          if (typeof s === 'string') return s;
+          if (s && typeof (s as Record<string, unknown>).name === 'string') return (s as Record<string, unknown>).name as string;
+          return '';
+        }).filter(Boolean);
 
-      const latestExp = currentResume.experience?.[0];
-      const jobTitle = latestExp?.position || '';
-      const industry = '';
+        const latestExp = currentResume.experience?.[0];
+        const jobTitle = latestExp?.position || '';
+        const industry = '';
 
-      const response = await fetch(
-        apiFnUrl(`suggest-template`),
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ jobTitle, industry, skills: skills.slice(0, 15) }),
+        const response = await fetch(
+          apiFnUrl(`suggest-template`),
+          {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ jobTitle, industry, skills: skills.slice(0, 15) }),
+          }
+        );
+
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.error || 'Failed to get suggestion');
         }
-      );
 
-      if (!response.ok) {
-        const err = await response.json().catch(() => ({}));
-        throw new Error(err.error || 'Failed to get suggestion');
-      }
+        return await response.json();
+      });
 
-      const result = await response.json();
+      if (!result) return;
       setSuggestion(result);
       haptics.medium();
     } catch (err) {
