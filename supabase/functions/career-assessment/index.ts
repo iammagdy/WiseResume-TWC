@@ -177,7 +177,7 @@ ${resume.certifications?.map((c: any) => `- ${c.name} from ${c.issuer}`).join("\
 
     const parsedLimit = Number(questionLimit);
     const applyLimit = <T>(arr: T[]): T[] =>
-      parsedLimit === 3 ? arr.slice(0, 3) : arr;
+      parsedLimit > 0 ? arr.slice(0, parsedLimit) : arr;
 
     const sanitized = {
       currentLevel: (result as any).currentLevel || "mid",
