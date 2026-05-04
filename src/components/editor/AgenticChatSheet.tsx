@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { diffWords } from 'diff';
 import { useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
@@ -428,15 +429,27 @@ function getBeforePreview(
           ) ?? null
         : entries[0] ?? null;
       if (!entry) return null;
-      const position = (entry.position as string) || '';
-      const company = (entry.company as string) || '';
-      const header = [position, company].filter(Boolean).join(' @ ');
-      const description = (entry.description as string) || '';
-      return header
-        ? description
-          ? `${header}\n${description.slice(0, 120)}${description.length > 120 ? '…' : ''}`
-          : header
-        : null;
+      // Mirror the same field selection and format as getConfirmPreview so the
+      // diff compares like-for-like (same labels, same truncation at 200 chars).
+      const updates = (args.updates as Record<string, unknown>) ?? {};
+      const parts: string[] = [];
+      if (updates.position !== undefined && entry.position) parts.push(`Position: ${entry.position}`);
+      if (updates.company !== undefined && entry.company) parts.push(`Company: ${entry.company}`);
+      if (updates.description !== undefined && entry.description) {
+        const desc = (entry.description as string);
+        parts.push(desc.slice(0, 200) + (desc.length > 200 ? '…' : ''));
+      }
+      if (updates.startDate !== undefined || updates.endDate !== undefined) {
+        parts.push(`${(entry.startDate as string) ?? ''}–${(entry.endDate as string) ?? ''}`);
+      }
+      // Fallback: if no matching update fields found, show position @ company
+      if (parts.length === 0) {
+        const pos = (entry.position as string) || '';
+        const co = (entry.company as string) || '';
+        const header = [pos, co].filter(Boolean).join(' @ ');
+        return header || null;
+      }
+      return parts.join('\n') || null;
     }
   } catch {
     // ignore parse errors
@@ -445,6 +458,40 @@ function getBeforePreview(
 }
 
 const PREVIEW_CLAMP = 180;
+
+function DiffText({ before, after, clamp }: { before: string; after: string; clamp?: boolean }) {
+  const parts = diffWords(before, after);
+  return (
+    <span
+      className="text-xs break-words leading-relaxed"
+      style={clamp ? { display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' } : undefined}
+    >
+      {parts.map((part, i) => {
+        if (part.added) {
+          return (
+            <mark
+              key={i}
+              className="bg-green-500/20 text-green-700 dark:text-green-300 rounded-sm px-0.5"
+            >
+              {part.value}
+            </mark>
+          );
+        }
+        if (part.removed) {
+          return (
+            <del
+              key={i}
+              className="bg-red-500/15 text-red-600 dark:text-red-400 line-through rounded-sm px-0.5"
+            >
+              {part.value}
+            </del>
+          );
+        }
+        return <span key={i}>{part.value}</span>;
+      })}
+    </span>
+  );
+}
 
 function ConfirmApplyCard({
   functionName,
@@ -505,16 +552,48 @@ function ConfirmApplyCard({
           <div className="space-y-1.5">
             {hasBoth ? (
               <>
-                {/* Before row */}
-                <div className="rounded-lg bg-muted/50 border border-border px-2.5 py-2 space-y-0.5">
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/70">Current</p>
-                  <p className="text-xs text-muted-foreground break-words leading-relaxed">{clampText(beforeText)}</p>
-                </div>
-                {/* After row */}
-                <div className="rounded-lg bg-amber-500/8 border border-amber-500/20 px-2.5 py-2 space-y-0.5">
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-600/70 dark:text-amber-400/70">{newLabel}</p>
-                  <p className="text-xs text-muted-foreground break-words leading-relaxed">{clampText(afterText)}</p>
-                </div>
+                {functionName === 'add_skills' ? (
+                  /* add_skills is purely additive — show existing + new additions highlighted */
+                  <>
+                    <div className="rounded-lg bg-muted/50 border border-border px-2.5 py-2 space-y-0.5">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/70">Current</p>
+                      <p className="text-xs text-muted-foreground break-words leading-relaxed">{clampText(beforeText)}</p>
+                    </div>
+                    <div className="rounded-lg bg-green-500/8 border border-green-500/20 px-2.5 py-2 space-y-0.5">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-green-700/70 dark:text-green-400/70">Skills to add</p>
+                      <p className="text-xs break-words leading-relaxed">
+                        {(expanded ? afterText! : (afterText!.length > PREVIEW_CLAMP ? afterText!.slice(0, PREVIEW_CLAMP) + '…' : afterText!))
+                          .split(', ')
+                          .map((skill, i, arr) => (
+                            <span key={i}>
+                              <mark className="bg-green-500/20 text-green-700 dark:text-green-300 rounded-sm px-0.5">{skill}</mark>
+                              {i < arr.length - 1 ? ', ' : ''}
+                            </span>
+                          ))}
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  /* Diff view for update_* operations */
+                  <div className="rounded-lg bg-muted/30 border border-border px-2.5 py-2 space-y-1">
+                    <div className="flex items-center gap-2">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/70">Changes</p>
+                      <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/60">
+                        <span className="inline-flex items-center gap-0.5">
+                          <span className="w-2 h-2 rounded-sm bg-green-500/30 inline-block" />
+                          added
+                        </span>
+                        <span className="inline-flex items-center gap-0.5">
+                          <span className="w-2 h-2 rounded-sm bg-red-500/20 inline-block" />
+                          removed
+                        </span>
+                      </div>
+                    </div>
+                    <div className="text-muted-foreground">
+                      <DiffText before={beforeText!} after={afterText!} clamp={!expanded} />
+                    </div>
+                  </div>
+                )}
               </>
             ) : afterText !== null ? (
               /* Fallback: only new content available */
