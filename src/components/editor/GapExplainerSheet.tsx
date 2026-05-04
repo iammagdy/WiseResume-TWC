@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Copy, Check, Lightbulb, ChevronDown, Loader2 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
@@ -41,6 +42,7 @@ function formatGapDate(date: { month: number; year: number }): string {
 
 export function GapExplainerSheet({ isOpen, onClose, gap, experiences, onAddToSummary }: GapExplainerSheetProps) {
   const [selectedReason, setSelectedReason] = useState<string>('');
+  const [targetRole, setTargetRole] = useState('');
   const [additionalContext, setAdditionalContext] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [explanation, setExplanation] = useState('');
@@ -104,6 +106,7 @@ export function GapExplainerSheet({ isOpen, onClose, gap, experiences, onAddToSu
               months: gap.months,
             },
             reason: selectedReason,
+            targetRole: targetRole.trim() || undefined,
             previousJob,
             nextJob,
             additionalContext: additionalContext.trim() || undefined,
@@ -151,6 +154,7 @@ export function GapExplainerSheet({ isOpen, onClose, gap, experiences, onAddToSu
 
   const handleClose = () => {
     setSelectedReason('');
+    setTargetRole('');
     setAdditionalContext('');
     setExplanation('');
     setTips([]);
@@ -231,6 +235,16 @@ export function GapExplainerSheet({ isOpen, onClose, gap, experiences, onAddToSu
               onChange={(e) => setAdditionalContext(e.target.value)}
               placeholder="Any details that might help personalize the explanation..."
               className="min-h-[80px] resize-none"
+            />
+          </div>
+
+          {/* Target Role */}
+          <div className="space-y-2">
+            <Label>Target role (optional)</Label>
+            <Input
+              value={targetRole}
+              onChange={(e) => setTargetRole(e.target.value)}
+              placeholder="e.g. Product Manager, Software Engineer..."
             />
           </div>
 

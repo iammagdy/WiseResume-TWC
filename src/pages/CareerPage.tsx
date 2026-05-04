@@ -31,6 +31,7 @@ export default function CareerPage() {
   const { data: resumes } = useResumes();
   const [showQuiz, setShowQuiz] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [quickCheck, setQuickCheck] = useState(false);
   const { execute: executeAI } = useAIAction({ operation: 'career-assessment' });
 
   const primaryResume = resumes?.find(r => r.is_primary) || resumes?.[0];
@@ -61,7 +62,7 @@ export default function CareerPage() {
 
       const result = await executeAI(async () => {
         const { data, error } = await edgeFunctions.functions.invoke('career-assessment', {
-          body: { resume: resumeData, quizAnswers: answers },
+          body: { resume: resumeData, quizAnswers: answers, ...(quickCheck ? { questionLimit: 3 } : {}) },
         });
 
         if (error) throw new Error(error.message || 'Analysis failed');
@@ -77,11 +78,13 @@ export default function CareerPage() {
       });
 
       setShowQuiz(false);
+      setQuickCheck(false);
       haptics.success();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to analyze career path');
     } finally {
       setIsAnalyzing(false);
+      setQuickCheck(false);
     }
   };
 
@@ -168,6 +171,16 @@ export default function CareerPage() {
                   <Sparkles className="w-4 h-4 mr-2" />
                   {primaryResume ? 'Start Assessment' : 'Create a Resume First'}
                 </Button>
+                {primaryResume && (
+                  <Button
+                    variant="outline"
+                    onClick={() => { haptics.medium(); setQuickCheck(true); setShowQuiz(true); }}
+                    className="w-full mt-2 min-h-[48px] active:scale-95"
+                  >
+                    <Clock className="w-4 h-4 mr-2" />
+                    Quick Check · 3 questions
+                  </Button>
+                )}
                 {!primaryResume && (
                   <Button
                     variant="outline"

@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { Star, Loader2, Copy, Check, RefreshCw, RotateCcw } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
@@ -67,6 +69,7 @@ export function PersonalBrandingSheet({ open, onOpenChange }: PersonalBrandingSh
   const resumeId = (currentResume as { id?: string } | null)?.id;
   const redactedResume = useRedactedResume(currentResume as ResumeData | null);
   const [result, setResult] = useState<BrandingResult | null>(null);
+  const [targetRole, setTargetRole] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [selected, setSelected] = useState<keyof BrandingResult | null>(null);
@@ -105,6 +108,7 @@ export function PersonalBrandingSheet({ open, onOpenChange }: PersonalBrandingSh
               topSkills,
               experience,
               resumeContext: redactedResume,
+              targetRole: targetRole.trim() || undefined,
             },
           },
         });
@@ -173,6 +177,15 @@ export function PersonalBrandingSheet({ open, onOpenChange }: PersonalBrandingSh
                     AI reads your resume and creates 3 versions — formal, casual, and bold — perfect for LinkedIn, signatures, or your portfolio.
                   </p>
                 </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Target role or audience (optional)</Label>
+                <Input
+                  value={targetRole}
+                  onChange={(e) => setTargetRole(e.target.value)}
+                  placeholder="e.g. Senior Engineer, LinkedIn, portfolio..."
+                  disabled={isLoading}
+                />
               </div>
               <Button className="w-full gradient-primary" onClick={handleGenerate} disabled={isLoading || !currentResume}>
                 {isLoading ? (

@@ -213,6 +213,7 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
   const [selectedSections, setSelectedSections] = useState<Set<SectionType>>(new Set());
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [results, setResults] = useState<SectionResult[]>([]);
+  const [pendingQuickBoost, setPendingQuickBoost] = useState(false);
   const [expandedResults, setExpandedResults] = useState<Set<number>>(new Set());
   const [expandedDiffText, setExpandedDiffText] = useState<Set<string>>(new Set());
   const scrollRef = useScrollFade<HTMLDivElement>();
@@ -497,6 +498,29 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
     }
   }, [currentResume, selectedSections, checkCredits, tryEnhanceWithRetry, buildResultFromData]);
 
+  // Quick Boost: select Summary + Experience + Skills, force "improve" mode, fire immediately.
+  const handleQuickBoost = useCallback(() => {
+    if (!currentResume || isEnhancing) return;
+    haptics.medium();
+    setMode('improve');
+    setVariantsMode(false);
+    setResults([]);
+    setExpandedResults(new Set());
+    const quickSections = new Set<SectionType>(
+      (['summary', 'experience', 'skills'] as SectionType[]).filter(id =>
+        sectionHasContent(currentResume as unknown as Record<string, unknown>, id)
+      )
+    );
+    setSelectedSections(quickSections);
+    setPendingQuickBoost(true);
+  }, [currentResume, isEnhancing]);
+
+  useEffect(() => {
+    if (!pendingQuickBoost) return;
+    setPendingQuickBoost(false);
+    handleEnhance();
+  }, [pendingQuickBoost, handleEnhance]);
+
   const selectVariant = useCallback((resultIndex: number, variantIndex: number) => {
     haptics.light();
     setResults(prev => prev.map((r, i) => {
@@ -700,6 +724,24 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
         </SheetHeader>
 
         <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto space-y-5 py-4 ai-output-scroll-fade">
+          {/* Quick Boost — one-tap shortcut for the most common flow */}
+          {!atsMode && results.length === 0 && !isEnhancing && (
+            <button
+              onClick={handleQuickBoost}
+              disabled={!currentResume || availableSections.length === 0}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-primary/10 border border-primary/20 hover:bg-primary/15 active:scale-[0.98] transition-all touch-manipulation disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <div className="p-1.5 rounded-lg bg-primary/20 shrink-0">
+                <Sparkles className="w-4 h-4 text-primary" />
+              </div>
+              <div className="text-left flex-1 min-w-0">
+                <p className="text-sm font-semibold text-foreground">Quick Boost</p>
+                <p className="text-xs text-muted-foreground">Improve Summary, Experience &amp; Skills in one tap</p>
+              </div>
+              <ArrowRight className="w-4 h-4 text-primary shrink-0" />
+            </button>
+          )}
+
           {/* Mode Selector - hidden in ATS mode */}
           {!atsMode && (
             <div>
