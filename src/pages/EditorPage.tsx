@@ -263,6 +263,15 @@ export default function EditorPage() {
           return;
         }
 
+        if (type === 'latex') {
+          const { generateLatex } = await import('@/lib/latexGenerator');
+          const tex = generateLatex(currentResume);
+          const blob = new Blob([tex], { type: 'text/plain;charset=utf-8' });
+          const result = await downloadFile({ blob, fileName: `${baseName}_Resume.tex` });
+          if (result.success) toast.success('LaTeX source downloaded!');
+          setShowExport(false); return;
+        }
+
         if (type === 'json') {
           const blob = new Blob([JSON.stringify(currentResume, null, 2)], { type: 'application/json' });
           const result = await downloadFile({ blob, fileName: `${baseName}_Backup.json` });

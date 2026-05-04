@@ -340,7 +340,7 @@ export interface PDFOptions {
   showBranding?: boolean; // WiseResume prestige stamp
 }
 
-export type ExportType = 'resume' | 'cover-letter' | 'combined' | 'one-page' | 'docx' | 'ats-pdf' | 'linkedin' | 'plain-text' | 'share-link' | 'interview-prep' | 'json' | 'image';
+export type ExportType = 'resume' | 'cover-letter' | 'combined' | 'one-page' | 'docx' | 'ats-pdf' | 'linkedin' | 'plain-text' | 'share-link' | 'interview-prep' | 'json' | 'image' | 'latex';
 
 export interface CoverLetterHistory {
   id: string;

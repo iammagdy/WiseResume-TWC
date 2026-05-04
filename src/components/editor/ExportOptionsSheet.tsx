@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Download, FileText, Package, Minimize2, FileType, Shield, Linkedin, AlignLeft, Link2, FolderDown, Image } from 'lucide-react';
+import { Download, FileText, Package, Minimize2, FileType, Shield, Linkedin, AlignLeft, Link2, FolderDown, Image, FileCode } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { ExportType, CoverLetterContext } from '@/types/resume';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -81,6 +81,7 @@ export function ExportOptionsSheet({
     { id: 'cover-letter', label: 'Cover Letter Only', description: !isOnline ? 'Requires an internet connection' : hasCoverLetter ? `For ${coverLetterContext?.title || 'position'} at ${coverLetterContext?.company || 'company'}` : 'Generate a cover letter first', icon: FileText, available: hasCoverLetter && isOnline },
     { id: 'combined', label: 'Application Package', description: !isOnline ? 'Requires an internet connection' : hasCoverLetter ? 'Cover letter + Resume in one PDF' : 'Generate a cover letter first', icon: Package, available: hasCoverLetter && isOnline },
     { id: 'json', label: 'JSON Backup', description: 'Full resume data as a portable JSON file', icon: FolderDown, available: true },
+    { id: 'latex', label: 'LaTeX Source (.tex)', description: 'Compile with Overleaf or pdflatex — ideal for academic & technical roles', icon: FileCode, available: true, badge: 'Academic / Tech' },
   ];
 
   const handleExport = () => {
@@ -99,7 +100,7 @@ export function ExportOptionsSheet({
 
   const isPdfType = ['resume', 'ats-pdf', 'one-page', 'cover-letter', 'combined'].includes(selectedType);
   const isTextType = ['linkedin', 'plain-text', 'share-link'].includes(selectedType);
-  const isDownloadable = ['resume', 'ats-pdf', 'one-page', 'cover-letter', 'combined', 'docx', 'plain-text', 'json', 'image'].includes(selectedType);
+  const isDownloadable = ['resume', 'ats-pdf', 'one-page', 'cover-letter', 'combined', 'docx', 'plain-text', 'json', 'image', 'latex'].includes(selectedType);
   const allOptions = [...primaryOptions, ...secondaryOptions];
   const selectedOption = allOptions.find(o => o.id === selectedType);
   const isOfflineBlocked = !isOnline && (selectedType === 'combined' || selectedType === 'cover-letter');
@@ -115,6 +116,7 @@ export function ExportOptionsSheet({
       case 'plain-text': return '_Resume.txt';
       case 'json': return '_Backup.json';
       case 'image': return '_Resume_4K.png';
+      case 'latex': return '_Resume.tex';
       default: return '_Resume.pdf';
     }
   };
@@ -127,6 +129,7 @@ export function ExportOptionsSheet({
     if (selectedType === 'share-link') return 'Copy Share Link';
     if (selectedType === 'json') return 'Download JSON';
     if (selectedType === 'image') return 'Download 4K Image';
+    if (selectedType === 'latex') return 'Download .tex';
     if (selectedType === 'ats-pdf') return 'Download CV (ATS)';
     if (selectedType === 'one-page') return 'Download CV (1 Page)';
     return 'Download CV';
