@@ -7,18 +7,13 @@ export type ExtraSectionsVariant =
   | 'professional'
   | 'classic'
   | 'executive'
-  | 'corporate'
   | 'federal'
   | 'minimal'
-  | 'mono'
-  | 'startup'
   | 'marketing'
   | 'designer'
-  | 'infographic'
   | 'consulting'
   | 'product'
   | 'banking'
-  | 'cyber'
   | 'datascience'
   | 'devops'
   | 'portfolio'
@@ -31,7 +26,6 @@ export type ExtraSectionsVariant =
   | 'healthcare'
   | 'sales'
   | 'academic'
-  | 'zen'
   | 'clean';
 
 interface ExtraSectionsProps {
@@ -50,33 +44,21 @@ const getHeaderClasses = (variant: ExtraSectionsVariant): string => {
       return 'text-sm font-bold text-gray-900 uppercase mb-2 border-b border-gray-200 pb-1';
     case 'executive':
       return 'text-xs font-semibold text-amber-700 uppercase tracking-[0.2em] mb-3';
-    case 'corporate':
-      return 'text-sm font-bold text-gray-800 uppercase tracking-widest border-b border-gray-300 pb-1 mb-3';
     case 'federal':
       return 'text-sm font-bold text-gray-900 uppercase border-b border-gray-400 pb-1 mb-2';
     case 'minimal':
     case 'clean':
       return 'text-xs font-semibold text-gray-400 uppercase tracking-widest mb-4';
-    case 'zen':
-      return 'text-center text-xs font-light text-gray-500 uppercase tracking-[0.3em] mb-4';
-    case 'mono':
-      return 'text-xs font-medium text-gray-500 uppercase tracking-widest mb-3';
-    case 'startup':
-      return 'text-lg font-bold text-emerald-600 mb-2';
     case 'marketing':
       return 'text-lg font-bold text-rose-600 mb-2';
     case 'designer':
       return 'text-xs font-bold text-gray-900 uppercase tracking-widest mb-2';
-    case 'infographic':
-      return 'text-xs font-bold text-violet-600 uppercase tracking-widest text-center mb-3';
     case 'consulting':
       return 'text-xs font-bold text-blue-700 uppercase tracking-widest mb-2';
     case 'product':
       return 'text-xs font-bold text-indigo-600 uppercase tracking-widest mb-2';
     case 'banking':
       return 'text-xs font-bold text-gray-900 uppercase tracking-widest mb-2';
-    case 'cyber':
-      return 'text-xs font-bold text-red-600 uppercase tracking-widest mb-2';
     case 'datascience':
       return 'text-xs font-bold text-teal-600 uppercase tracking-widest mb-2';
     case 'devops':
@@ -110,12 +92,12 @@ const getHeaderClasses = (variant: ExtraSectionsVariant): string => {
 const getSectionClasses = (variant: ExtraSectionsVariant): string => {
   // Templates that already wrap ExtraSections in a padded container
   const noPadding: ExtraSectionsVariant[] = [
-    'professional', 'classic', 'executive', 'corporate', 'federal',
-    'minimal', 'clean', 'zen', 'mono', 'startup', 'marketing',
-    'consulting', 'product', 'banking', 'cyber', 'datascience',
+    'professional', 'classic', 'executive', 'federal',
+    'minimal', 'clean', 'marketing',
+    'consulting', 'product', 'banking', 'datascience',
     'devops', 'portfolio', 'swiss', 'legal', 'designer', 'developer',
     'creative', 'elegant', 'healthcare', 'sales', 'academic',
-    'infographic', 'compact',
+    'compact',
   ];
   if (noPadding.includes(variant)) return 'mb-5';
   return 'mb-5 px-8';

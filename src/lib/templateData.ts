@@ -85,14 +85,7 @@ export const templates: TemplateInfo[] = [
     atsScore: 'medium',
     category: 'creative',
   },
-  // --- New templates ---
-  {
-    id: 'corporate',
-    name: 'Corporate',
-    description: 'Boardroom-ready executive format',
-    atsScore: 'high',
-    category: 'professional',
-  },
+  // --- Industry templates ---
   {
     id: 'banking',
     name: 'Banking',
@@ -143,20 +136,6 @@ export const templates: TemplateInfo[] = [
     category: 'creative',
   },
   {
-    id: 'startup',
-    name: 'Startup',
-    description: 'Modern startup culture fit',
-    atsScore: 'high',
-    category: 'creative',
-  },
-  {
-    id: 'infographic',
-    name: 'Infographic',
-    description: 'Visual data-driven resume',
-    atsScore: 'low',
-    category: 'creative',
-  },
-  {
     id: 'data-science',
     name: 'Data Science',
     description: 'Analytics & ML focused layout',
@@ -167,13 +146,6 @@ export const templates: TemplateInfo[] = [
     id: 'devops',
     name: 'DevOps',
     description: 'Infrastructure & CI/CD focused',
-    atsScore: 'high',
-    category: 'tech',
-  },
-  {
-    id: 'cyber',
-    name: 'Cybersecurity',
-    description: 'Security specialist format',
     atsScore: 'high',
     category: 'tech',
   },
@@ -198,19 +170,27 @@ export const templates: TemplateInfo[] = [
     atsScore: 'high',
     category: 'minimalist',
   },
+  // --- 2026 Creative Templates ---
   {
-    id: 'mono',
-    name: 'Mono',
-    description: 'Monochrome single-weight design',
+    id: 'bento',
+    name: 'Bento',
+    description: 'Modular card-grid layout, 2026 style',
     atsScore: 'high',
-    category: 'minimalist',
+    category: 'creative',
   },
   {
-    id: 'zen',
-    name: 'Zen',
-    description: 'Calm balanced asymmetric layout',
+    id: 'brutalist',
+    name: 'Brutalist',
+    description: 'Bold black borders, offset shadow header',
     atsScore: 'high',
-    category: 'minimalist',
+    category: 'creative',
+  },
+  {
+    id: 'bold-type',
+    name: 'Bold Type',
+    description: 'Oversized black header, strong typography',
+    atsScore: 'high',
+    category: 'creative',
   },
 ];
 

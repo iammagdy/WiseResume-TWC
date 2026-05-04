@@ -23,7 +23,6 @@ export const TEMPLATE_CONFIGS: Record<TemplateId, TemplateConfig> = {
   healthcare: { id: 'healthcare', name: 'Healthcare', layout: 'linear', maxRecommendedPages: 2, supportsPhoto: false },
   sales: { id: 'sales', name: 'Sales', layout: 'linear', maxRecommendedPages: 2, supportsPhoto: false },
   elegant: { id: 'elegant', name: 'Elegant', layout: 'linear', maxRecommendedPages: 2, supportsPhoto: false },
-  corporate: { id: 'corporate', name: 'Corporate', layout: 'linear', maxRecommendedPages: 2, supportsPhoto: false },
   banking: { id: 'banking', name: 'Banking', layout: 'linear', maxRecommendedPages: 2, supportsPhoto: false },
   consulting: { id: 'consulting', name: 'Consulting', layout: 'linear', maxRecommendedPages: 2, supportsPhoto: false },
   federal: { id: 'federal', name: 'Government', layout: 'linear', maxRecommendedPages: 3, supportsPhoto: false },
@@ -31,16 +30,14 @@ export const TEMPLATE_CONFIGS: Record<TemplateId, TemplateConfig> = {
   marketing: { id: 'marketing', name: 'Marketing', layout: 'linear', maxRecommendedPages: 2, supportsPhoto: false },
   designer: { id: 'designer', name: 'Designer', layout: 'linear', maxRecommendedPages: 3, supportsPhoto: true },
   portfolio: { id: 'portfolio', name: 'Portfolio', layout: 'linear', maxRecommendedPages: 2, supportsPhoto: false },
-  startup: { id: 'startup', name: 'Startup', layout: 'linear', maxRecommendedPages: 2, supportsPhoto: false },
-  infographic: { id: 'infographic', name: 'Infographic', layout: 'linear', maxRecommendedPages: 1, supportsPhoto: false },
   'data-science': { id: 'data-science', name: 'Data Science', layout: 'linear', maxRecommendedPages: 2, supportsPhoto: false },
   devops: { id: 'devops', name: 'DevOps', layout: 'linear', maxRecommendedPages: 2, supportsPhoto: false },
-  cyber: { id: 'cyber', name: 'Cybersecurity', layout: 'linear', maxRecommendedPages: 2, supportsPhoto: false },
   product: { id: 'product', name: 'Product', layout: 'linear', maxRecommendedPages: 2, supportsPhoto: false },
   clean: { id: 'clean', name: 'Clean', layout: 'linear', maxRecommendedPages: 2, supportsPhoto: false },
   swiss: { id: 'swiss', name: 'Swiss', layout: 'linear', maxRecommendedPages: 2, supportsPhoto: false },
-  mono: { id: 'mono', name: 'Mono', layout: 'linear', maxRecommendedPages: 2, supportsPhoto: false },
-  zen: { id: 'zen', name: 'Zen', layout: 'linear', maxRecommendedPages: 2, supportsPhoto: false },
+  bento: { id: 'bento', name: 'Bento', layout: 'linear', maxRecommendedPages: 2, supportsPhoto: false },
+  brutalist: { id: 'brutalist', name: 'Brutalist', layout: 'linear', maxRecommendedPages: 2, supportsPhoto: false },
+  'bold-type': { id: 'bold-type', name: 'Bold Type', layout: 'linear', maxRecommendedPages: 2, supportsPhoto: false },
 };
 
 /**

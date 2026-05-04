@@ -7,6 +7,19 @@ import { logAudit } from '@/lib/auditLogger';
 import type { TemplateId } from '@/types/resume';
 import type { KindeAppUser } from '@/contexts/AuthContext';
 
+const LEGACY_TEMPLATE_FALLBACKS: Record<string, TemplateId> = {
+  corporate: 'classic',
+  zen: 'minimal',
+  mono: 'minimal',
+  cyber: 'devops',
+  startup: 'modern',
+  infographic: 'clean',
+};
+
+function migrateLegacyTemplateId(id: string): TemplateId {
+  return (LEGACY_TEMPLATE_FALLBACKS[id] ?? id) as TemplateId;
+}
+
 interface DatabaseResumeLike {
   id: string;
   user_id: string;
@@ -67,7 +80,7 @@ export function useEditorHydration({
     if (!localResume) {
       useResumeStore.getState().setCurrentResume(dbToResumeData(resumeFromDb as any));
       useResumeStore.getState().setSelectedTemplate(
-        ((resumeFromDb.template_id as string) || 'modern') as TemplateId
+        migrateLegacyTemplateId((resumeFromDb.template_id as string) || 'modern')
       );
       localLoadedAtRef.current = (resumeFromDb.updated_at as string) ?? null;
       lastSavedResumeRef.current = JSON.stringify(dbToResumeData(resumeFromDb as any));
@@ -93,7 +106,7 @@ export function useEditorHydration({
       if (isClean) {
         useResumeStore.getState().setCurrentResume(dbToResumeData(resumeFromDb as any));
         useResumeStore.getState().setSelectedTemplate(
-          ((resumeFromDb.template_id as string) || 'modern') as TemplateId
+          migrateLegacyTemplateId((resumeFromDb.template_id as string) || 'modern')
         );
         localLoadedAtRef.current = serverUpdatedAt;
         lastSavedResumeRef.current = JSON.stringify(dbToResumeData(resumeFromDb as any));

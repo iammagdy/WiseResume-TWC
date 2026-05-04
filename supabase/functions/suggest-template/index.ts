@@ -55,9 +55,9 @@ serve(wrapHandler("suggest-template", async (req) => {
     const templateIds = [
       'minimal', 'classic', 'modern', 'developer', 'executive', 'professional',
       'creative', 'compact', 'academic', 'healthcare', 'sales', 'elegant',
-      'corporate', 'banking', 'consulting', 'federal', 'legal', 'marketing',
-      'designer', 'portfolio', 'startup', 'infographic', 'data-science',
-      'devops', 'cyber', 'product', 'clean', 'swiss', 'mono', 'zen',
+      'banking', 'consulting', 'federal', 'legal', 'marketing',
+      'designer', 'portfolio', 'data-science',
+      'devops', 'product', 'clean', 'swiss', 'bento', 'brutalist', 'bold-type',
     ];
 
     const systemPrompt = `You are a resume design expert. Based on the user's industry, job title, career level, and skills, recommend the best resume template and customization settings.
@@ -65,20 +65,20 @@ serve(wrapHandler("suggest-template", async (req) => {
 Available template IDs: ${templateIds.join(', ')}
 
 Template categories:
-- Professional: classic, professional, executive, corporate, banking, consulting, federal, legal, elegant
-- Creative: creative, designer, marketing, portfolio, infographic
-- Tech: developer, data-science, devops, cyber, product, startup
-- Minimalist: minimal, modern, compact, clean, swiss, mono, zen, academic, healthcare, sales
+- Professional: classic, professional, executive, banking, consulting, federal, legal, elegant
+- Creative: creative, designer, marketing, portfolio, bento, brutalist, bold-type
+- Tech: developer, data-science, devops, product
+- Minimalist: minimal, modern, compact, clean, swiss, academic, healthcare, sales
 
 Guidelines:
-- Finance/Banking/Legal → banking, consulting, corporate, executive
-- Tech/Engineering → developer, devops, cyber, data-science, product
-- Creative/Design/Marketing → creative, designer, marketing, portfolio
+- Finance/Banking/Legal → banking, consulting, executive
+- Tech/Engineering → developer, devops, data-science, product
+- Creative/Design/Marketing → creative, designer, marketing, portfolio, bento, bold-type
 - Healthcare → healthcare
 - Academic/Research → academic
 - Entry-level → clean, minimal, modern
-- Executive/Senior → executive, elegant, corporate
-- Startup → startup, product
+- Executive/Senior → executive, elegant
+- Bold/Modern 2026 → bento, brutalist, bold-type
 
 For colors: use professional, muted tones for corporate roles; bolder accents for creative; dark tones for tech.
 For fonts: serif pairs for traditional industries; sans-serif for modern/tech; display fonts for creative.`;
