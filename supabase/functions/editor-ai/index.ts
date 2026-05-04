@@ -26,6 +26,7 @@ import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { isKillSwitchActive } from '../_shared/featureFlags.ts';
 import { requireAuth, authErrorResponse } from '../_shared/authMiddleware.ts';
+import { toUserError } from '../_shared/aiClient.ts';
 import { checkPayloadSize } from '../_shared/requestUtils.ts';
 import { checkSmokeBypass } from '../_shared/smokeTest.ts';
 import { wrapHandler } from '../_shared/fnLogger.ts';
@@ -94,18 +95,9 @@ serve(wrapHandler('editor-ai', async (req) => {
     );
   }
 
-  const sizeError = checkPayloadSize(req, 500 * 1024);
-  if (sizeError) {
-    const text = await sizeError.text();
-    return new Response(text, {
-      status: sizeError.status,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
-
-  // Smoke-test bypass — admin auth BEFORE requireAuth so the DevKit HMAC
-  // token in Authorization: Bearer is consumed by admin auth, not mis-validated
-  // as a Supabase JWT. Action-specific synthetic responses are returned.
+  // Smoke-test bypass — BEFORE requireAuth so the DevKit HMAC token in
+  // Authorization: Bearer is consumed by admin auth, not mis-validated as a
+  // Supabase JWT. Action-specific synthetic responses are returned.
   {
     const editorAction = req.headers.get('x-editor-ai-action');
     const smokeRes = await checkSmokeBypass(req, corsHeaders, 'editor-ai', smokeResponse(editorAction));
@@ -119,6 +111,17 @@ serve(wrapHandler('editor-ai', async (req) => {
     userId = auth.userId;
   } catch (authErr) {
     return authErrorResponse(authErr, req.headers.get('origin'));
+  }
+
+  // Payload size check — AFTER auth so oversized unauthenticated requests are
+  // rejected as 401 before touching body buffering, matching resume-section-ai.
+  const sizeError = checkPayloadSize(req, 500 * 1024);
+  if (sizeError) {
+    const text = await sizeError.text();
+    return new Response(text, {
+      status: sizeError.status,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 
   // Buffer body once at the router boundary.
@@ -165,9 +168,10 @@ serve(wrapHandler('editor-ai', async (req) => {
     return res!;
   } catch (err) {
     log.error('Unhandled error', err, { function_name: 'editor-ai', provider_used: null, error_type: (err as Error)?.name ?? 'Error', duration_ms: Date.now() - _fnStart });
+    const userError = toUserError(err);
     return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      JSON.stringify({ error: userError.message }),
+      { status: userError.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   }
 }));
