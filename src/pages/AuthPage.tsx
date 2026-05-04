@@ -168,7 +168,7 @@ function BrandedRedirectScreen({ mode }: { mode: string | null }) {
 export default function AuthPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { isAuthenticated, loading: authLoading } = useAuth();
+  const { isAuthenticated, loading: authLoading, authAvailable } = useAuth();
   const { login: kindeLogin, register: kindeRegister } = useKindeAuth();
   const triggered = useRef(false);
   const [popupBlocked, setPopupBlocked] = useState(false);
@@ -197,6 +197,8 @@ export default function AuthPage() {
     // When a ?from= context is present or mode=forgot-password, don't
     // auto-trigger Kinde — show the contextual UI instead.
     if (fromConfig || isForgotPassword) return;
+    // Auth not configured in this environment — don't fire the no-op.
+    if (!authAvailable) return;
     if (authLoading || isAuthenticated || triggered.current) return;
     triggered.current = true;
 
@@ -365,6 +367,30 @@ export default function AuthPage() {
             </form>
           </motion.div>
         </div>
+      </div>
+    );
+  }
+
+  // ── Auth not configured in this environment ───────────────────────────────
+  if (!authAvailable) {
+    const liveUrl = `https://resume.thewise.cloud/auth?mode=${mode ?? 'signup'}`;
+    return (
+      <div
+        className="fixed inset-0 flex flex-col items-center justify-center gap-6 px-6"
+        style={{ background: HERO_GRADIENT }}
+      >
+        <AppIcon size={56} />
+        <div className="flex flex-col items-center gap-3 text-center max-w-sm">
+          <p className="text-base font-semibold" style={{ color: 'rgba(255,255,255,0.9)' }}>
+            Sign in isn't available here
+          </p>
+          <p className="text-sm" style={{ color: 'rgba(255,255,255,0.5)' }}>
+            Authentication isn't configured in this environment. Use the live site to sign in.
+          </p>
+        </div>
+        <Button onClick={() => { window.open(liveUrl, '_blank'); }}>
+          Open live site
+        </Button>
       </div>
     );
   }

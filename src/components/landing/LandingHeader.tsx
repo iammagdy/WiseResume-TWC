@@ -12,6 +12,7 @@ import {
 import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
 import triggerHaptic from '@/lib/haptics';
 import { LandingToggle } from '@/components/landing/LandingToggle';
+import { useAuth } from '@/hooks/useAuth';
 
 interface LandingHeaderProps {
   mode: 'jobseeker' | 'wisehire';
@@ -36,6 +37,7 @@ export function LandingHeader({
 }: LandingHeaderProps) {
   const navigate = useNavigate();
   const { login: kindeLogin } = useKindeAuth();
+  const { authAvailable } = useAuth();
 
   const getInitials = () => {
     if (profile?.fullName) {
@@ -206,6 +208,10 @@ export function LandingHeader({
             <button
               onClick={() => {
                 triggerHaptic.light();
+                if (!authAvailable) {
+                  void navigate('/auth?mode=login');
+                  return;
+                }
                 void Promise.resolve(kindeLogin({ prompt: 'login' })).catch(() => {
                   toast.error('Unable to sign in. Please try again or contact support.');
                 });
