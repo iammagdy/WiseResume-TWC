@@ -2,6 +2,7 @@ import { useRef, useEffect, useState, memo, lazy, Suspense } from 'react';
 import { ResumeData, TemplateId } from '@/types/resume';
 import { useInView } from '@/hooks/useInView';
 import { Skeleton } from '@/components/ui/skeleton';
+import { migrateTemplateId } from '@/lib/templateMigration';
 
 // Lazy load all template components
 const ModernTemplate = lazy(() => import('@/components/templates/ModernTemplate').then(m => ({ default: m.ModernTemplate })));
@@ -104,7 +105,8 @@ export const TemplateThumbnail = memo(function TemplateThumbnail({ templateId, r
     return () => resizeObserver.disconnect();
   }, []);
 
-  const TemplateComponent = templateComponents[templateId];
+  const safeId: TemplateId = templateComponents[templateId] ? templateId : migrateTemplateId(templateId);
+  const TemplateComponent = templateComponents[safeId] ?? templateComponents['modern'];
 
   return (
     <div 

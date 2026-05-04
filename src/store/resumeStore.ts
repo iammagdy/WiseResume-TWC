@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { ResumeData, JobMatchScore, GapAnalysis, TemplateId, TailorHistory, TailorSectionId, EnhancedTailorResult, CoverLetterContext, MultiJobComparison, JobComparisonEntry, SuperTailorResult, CoverLetterHistory, SectionStyleOverride, TemplateCustomization } from '@/types/resume';
+import { migrateTemplateId } from '@/lib/templateMigration';
 import { getDefaultCustomization } from '@/lib/templateCustomization';
 import { TailorIntensity } from '@/lib/aiTailor';
 import { v4 as uuidv4 } from 'uuid';
@@ -418,7 +419,10 @@ export const useResumeStore = create<ResumeState>()(
         jobDescription: state.jobDescription,
       }),
       onRehydrateStorage: () => {
-        return () => {
+        return (state) => {
+          if (state && state.selectedTemplate) {
+            state.selectedTemplate = migrateTemplateId(state.selectedTemplate);
+          }
           hasHydrated = true;
           hydrationListeners.forEach(listener => listener());
         };

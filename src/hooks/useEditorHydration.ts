@@ -4,21 +4,8 @@ import { toast } from 'sonner';
 import { dbToResumeData } from '@/hooks/useResumes';
 import { useResumeStore } from '@/store/resumeStore';
 import { logAudit } from '@/lib/auditLogger';
-import type { TemplateId } from '@/types/resume';
 import type { KindeAppUser } from '@/contexts/AuthContext';
-
-const LEGACY_TEMPLATE_FALLBACKS: Record<string, TemplateId> = {
-  corporate: 'classic',
-  zen: 'minimal',
-  mono: 'minimal',
-  cyber: 'devops',
-  startup: 'modern',
-  infographic: 'clean',
-};
-
-function migrateLegacyTemplateId(id: string): TemplateId {
-  return (LEGACY_TEMPLATE_FALLBACKS[id] ?? id) as TemplateId;
-}
+import { migrateTemplateId as migrateLegacyTemplateId } from '@/lib/templateMigration';
 
 interface DatabaseResumeLike {
   id: string;

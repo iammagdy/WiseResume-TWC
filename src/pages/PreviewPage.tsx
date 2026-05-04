@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { useResumeStore } from '@/store/resumeStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { PreviewScaledWrapper } from '@/components/editor/PreviewScaledWrapper';
+import { migrateTemplateId } from '@/lib/templateMigration';
 
 // Lazy-loaded templates (only the selected one loads)
 const templateComponentMap: Record<string, ReturnType<typeof lazy>> = {
@@ -491,7 +492,8 @@ export default function PreviewPage() {
     }
   };
 
-  const TemplateComponent = templateComponentMap[selectedTemplate];
+  const safeTemplateId = templateComponentMap[selectedTemplate] ? selectedTemplate : migrateTemplateId(selectedTemplate);
+  const TemplateComponent = templateComponentMap[safeTemplateId] ?? templateComponentMap['modern'];
 
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
