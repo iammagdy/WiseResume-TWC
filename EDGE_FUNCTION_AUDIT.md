@@ -1,5 +1,69 @@
 # Edge Function Audit — Mobile parity sweep (2026-05-03)
 
+## Editor AI Phase 4 — Deployed-slot cleanup for 4 retired functions (Task #44, 2026-05-04)
+
+Task #41 had already replaced the source for `analyze-resume`,
+`recruiter-simulation`, `suggest-template`, and `optimize-for-linkedin`
+with 410-Gone stubs and removed their `ai_routing_config` rows.
+Task #57's full-redeploy run redeployed the stubs from source but did NOT
+delete the four deployed copies, leaving them consuming 4 of the 100
+Supabase function slots.
+
+This task performs the final cleanup step: deleting the 4 functions from
+the Supabase project (`jnsfmkzgxsviuthaqlyy`) via the Management API.
+
+### Deletions executed (2026-05-04)
+
+All four returned HTTP 200 from
+`DELETE /v1/projects/jnsfmkzgxsviuthaqlyy/functions/<slug>`:
+
+```
+DELETE analyze-resume        → HTTP 200
+DELETE recruiter-simulation  → HTTP 200
+DELETE suggest-template      → HTTP 200
+DELETE optimize-for-linkedin → HTTP 200
+```
+
+### Post-deletion inventory (2026-05-04T21:00:26Z)
+
+Confirmed via `GET /v1/projects/jnsfmkzgxsviuthaqlyy/functions`:
+
+```
+Total deployed: 70
+Free slots:     30
+  CONFIRMED ABSENT: analyze-resume
+  CONFIRMED ABSENT: recruiter-simulation
+  CONFIRMED ABSENT: suggest-template
+  CONFIRMED ABSENT: optimize-for-linkedin
+```
+
+### Slot count after deletion
+
+| Metric                       | Value |
+| ---------------------------- | ----- |
+| Deployed functions (before)  | 74    |
+| Deployed functions (after)   | **70** |
+| Slots freed                  | 4     |
+| Slots free under 100-fn cap  | **30** |
+
+### DevKit smoke-test status
+
+The 4 legacy DevKit smoke tests (`recruiter-simulation`, `suggest-template`,
+`optimize-for-linkedin`, `analyze-resume`) in `DevKitRunner.tsx` continue
+to pass because `rewriteEditorAiInvoke` in `edgeFunctions.ts` transparently
+rewrites those names to `editor-ai` — no request ever hits the now-deleted
+slugs. The 4 `editor-ai-*` smoke tests (Task #40) cover all 4 sub-actions
+directly.
+
+### Rollback path
+
+Rollback now requires redeploying from a pre-retirement commit (the original
+source is in git history), re-inserting the 4 `ai_routing_config` rows, and
+flipping `USE_MERGED_EDITOR_AI = false`. The soak window has passed; no
+same-version rollback is possible from the current source tree.
+
+---
+
 ## Editor AI Phase 3 — Legacy function retirement (Task #41, 2026-06-03)
 
 Four individual Editor AI edge functions were retired from active

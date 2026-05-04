@@ -24,6 +24,15 @@ changed.
 Final gate: source list matches deployed list 1:1. The 100-function cap
 now has 26 free slots of headroom.
 
+---
+
+**Post-Task-#44 update (2026-05-04):** The 4 retired Editor AI functions
+(`analyze-resume`, `recruiter-simulation`, `suggest-template`,
+`optimize-for-linkedin`) were deleted from the Supabase project via the
+Management API. Deployed function count dropped from 74 → **70**;
+free slots under the 100-function cap increased from 26 → **30**.
+See `EDGE_FUNCTION_AUDIT.md` — "Editor AI Phase 4" section for details.
+
 ## Pre-flight inventory
 
 `node scripts/check-edge-functions-deployed.mjs` (initial run):

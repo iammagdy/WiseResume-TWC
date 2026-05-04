@@ -409,16 +409,20 @@ console.log('');
 let failed = false;
 
 if (orphanedDeployments.length > 0) {
-  console.log(
-    `WARNING: ${orphanedDeployments.length} function(s) are deployed but have no source directory:`,
+  console.error(
+    `ERROR: ${orphanedDeployments.length} function(s) are deployed but have no source directory:`,
   );
-  for (const name of orphanedDeployments.sort()) console.log(`  - ${name}`);
-  console.log(
-    '  (These are usually leftovers from deleted/renamed functions. ' +
-      'Delete them via the Supabase dashboard or the Management API ' +
-      'if they are truly unused.)',
+  for (const name of orphanedDeployments.sort()) console.error(`  - ${name}`);
+  console.error(
+    '  These are orphaned deployments — retired or renamed functions that were never ' +
+      'deleted from Supabase. Delete them via the Management API:\n' +
+      '    curl -X DELETE -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \\\n' +
+      `      "https://api.supabase.com/v1/projects/${PROJECT_REF}/functions/<slug>"\n` +
+      '  or via the Supabase dashboard. Leaving orphans deployed wastes function slots ' +
+      'and risks traffic reaching dead or stale handlers.',
   );
-  console.log('');
+  console.error('');
+  failed = true;
 }
 
 if (possiblyStale.length > 0) {
