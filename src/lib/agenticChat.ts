@@ -197,6 +197,7 @@ export interface FunctionResult {
     success: boolean;
     applied?: Record<string, unknown>;
     error?: string;
+    reason?: string;
   };
 }
 

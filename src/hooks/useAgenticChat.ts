@@ -856,7 +856,7 @@ export function useAgenticChat(contextFilter?: string) {
     try {
       const dismissResult: FunctionResult = {
         name: conf.functionName,
-        result: { success: false, applied: { reason: 'user_dismissed' } },
+        result: { success: false, reason: 'user_dismissed' },
       };
       const feedbackResponse = await sendFunctionFeedback(
         conf.originalUserText,
