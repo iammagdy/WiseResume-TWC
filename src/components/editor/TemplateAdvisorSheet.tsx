@@ -8,11 +8,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
-import { getSupabaseToken } from '@/lib/supabaseAuth';
 import { useResumeStore } from '@/store/resumeStore';
 import { templates } from '@/lib/templateData';
 import type { TemplateId, TemplateCustomization } from '@/types/resume';
-import { apiFnUrl } from '@/lib/apiFnUrl';
+import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { useAIAction } from '@/hooks/useAIAction';
 
 interface TemplateAdvisorSheetProps {
@@ -43,9 +42,6 @@ export function TemplateAdvisorSheet({ open, onOpenChange, onApply }: TemplateAd
     haptics.light();
     try {
       const result = await execute(async () => {
-        const token = await getSupabaseToken();
-        if (!token) throw new Error('Not authenticated');
-
         const skills = (currentResume.skills ?? []).map(s => {
           if (typeof s === 'string') return s;
           if (s && typeof (s as Record<string, unknown>).name === 'string') return (s as Record<string, unknown>).name as string;
@@ -56,24 +52,12 @@ export function TemplateAdvisorSheet({ open, onOpenChange, onApply }: TemplateAd
         const jobTitle = latestExp?.position || '';
         const industry = '';
 
-        const response = await fetch(
-          apiFnUrl(`suggest-template`),
-          {
-            method: 'POST',
-            headers: {
-              Authorization: `Bearer ${token}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ jobTitle, industry, skills: skills.slice(0, 15) }),
-          }
-        );
+        const { data, error } = await edgeFunctions.functions.invoke('suggest-template', {
+          body: { jobTitle, industry, skills: skills.slice(0, 15) },
+        });
 
-        if (!response.ok) {
-          const err = await response.json().catch(() => ({}));
-          throw new Error(err.error || 'Failed to get suggestion');
-        }
-
-        return await response.json();
+        if (error) throw new Error(error.message || 'Failed to get suggestion');
+        return data;
       });
 
       if (!result) return;

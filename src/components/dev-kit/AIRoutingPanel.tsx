@@ -42,15 +42,17 @@ const FEATURE_LABELS: Record<string, string> = {
   'agentic-chat': 'Agentic Chat',
   'wise-ai-chat': 'Wise AI Chat',
   'resume-section-ai': 'Resume Section AI',
+  'editor-ai': 'Editor AI Router',
   'recruiter-simulation': 'Recruiter Simulation',
   'suggest-template': 'Suggest Template',
   'optimize-for-linkedin': 'LinkedIn Optimizer',
   'smart-fit-rewrite': 'Smart Fit Rewrite',
 };
 
-// The 8 Editor AI functions managed as a group (Phase 1 — Task #39).
+// The Editor AI functions managed as a group (Phase 1 — Task #39, Phase 2 — Task #40).
 const EDITOR_AI_FUNCTIONS = new Set([
   'resume-section-ai',
+  'editor-ai',
   'tailor-resume',
   'analyze-resume',
   'recruiter-simulation',

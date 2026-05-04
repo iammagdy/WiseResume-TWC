@@ -75,7 +75,7 @@ export function isOriginAllowed(origin: string | null | undefined): boolean {
 
 export const getCorsHeaders = (origin?: string | null) => {
   const headers: Record<string, string> = {
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version, x-resume-section-ai-action, x-coupons-action, x-transactional-email-action, x-admin-user-op, x-admin-ai-op, x-admin-config-action, x-admin-wisehire-op',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version, x-resume-section-ai-action, x-editor-ai-action, x-coupons-action, x-transactional-email-action, x-admin-user-op, x-admin-ai-op, x-admin-config-action, x-admin-wisehire-op',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
   };
 

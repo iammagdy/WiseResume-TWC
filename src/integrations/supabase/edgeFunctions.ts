@@ -387,6 +387,45 @@ function rewriteResumeSectionAiInvoke(
   };
 }
 
+/**
+ * Editor AI consolidation (Task #40).
+ *
+ * Routes the four legacy editor AI function names to the merged
+ * `editor-ai` router. Dispatch is signalled via the
+ * `x-editor-ai-action` request header (PRIMARY) — header is preferred
+ * because body.action may carry sub-action fields in some callers.
+ * The body is forwarded byte-for-byte so each handler preserves its
+ * original parse-vs-auth ordering.
+ *
+ * Action mapping:
+ *   analyze-resume      → analyze
+ *   recruiter-simulation→ recruiter-sim
+ *   suggest-template    → suggest-template
+ *   optimize-for-linkedin → optimize-for-linkedin
+ *
+ * Set USE_MERGED_EDITOR_AI=false to fall back to the four originals.
+ */
+const USE_MERGED_EDITOR_AI = true;
+const EDITOR_AI_ACTIONS: Record<string, string> = {
+  'analyze-resume': 'analyze',
+  'recruiter-simulation': 'recruiter-sim',
+  'suggest-template': 'suggest-template',
+  'optimize-for-linkedin': 'optimize-for-linkedin',
+};
+function rewriteEditorAiInvoke(
+  fnName: string,
+  options: { body?: unknown; headers?: Record<string, string>; method?: string } | undefined,
+): { fnName: string; options: { body?: unknown; headers?: Record<string, string>; method?: string } | undefined } {
+  if (!USE_MERGED_EDITOR_AI) return { fnName, options };
+  const action = EDITOR_AI_ACTIONS[fnName];
+  if (!action) return { fnName, options };
+  const newHeaders: Record<string, string> = {
+    ...(options?.headers ?? {}),
+    'x-editor-ai-action': action,
+  };
+  return { fnName: 'editor-ai', options: { ...(options ?? {}), headers: newHeaders } };
+}
+
 function rewriteAdminConfigInvoke(
   fnName: string,
   options: { body?: unknown; headers?: Record<string, string>; method?: string } | undefined,
@@ -447,8 +486,9 @@ export const edgeFunctions = {
       const adminWisehireRewritten = rewriteAdminWisehireInvoke(adminAiOpsRewritten.fnName, adminAiOpsRewritten.options);
       const transactionalEmailRewritten = rewriteTransactionalEmailInvoke(adminWisehireRewritten.fnName, adminWisehireRewritten.options);
       const resumeSectionAiRewritten = rewriteResumeSectionAiInvoke(transactionalEmailRewritten.fnName, transactionalEmailRewritten.options);
-      const fnName = resumeSectionAiRewritten.fnName;
-      options = resumeSectionAiRewritten.options;
+      const editorAiRewritten = rewriteEditorAiInvoke(resumeSectionAiRewritten.fnName, resumeSectionAiRewritten.options);
+      const fnName = editorAiRewritten.fnName;
+      options = editorAiRewritten.options;
       const doInvoke = async (token: string | null) => {
         const userHeaders = options?.headers || {};
         const headers: Record<string, string> = {

@@ -391,6 +391,31 @@ export function DevKitRunner() {
         return strictInvoke('analyze-resume', () => edgeFunctions.functions.invoke('analyze-resume', { headers: { 'x-smoke-test': 'true', ...devKitAuthHeaders() }, body: { resume: MINIMAL_RESUME, jobDescription: SAMPLE_JD } }));
       },
     },
+    // === editor-ai router smoke tests (Task #40) ===
+    {
+      id: 'editor-ai-analyze', label: 'Editor AI — Analyze (smoke)', description: 'Smoke-test editor-ai router, analyze action — no AI call, no credit deduction', section: 'ai',
+      run: async (): Promise<TestResult> => {
+        return strictInvoke('editor-ai-analyze', () => edgeFunctions.functions.invoke('editor-ai', { headers: { 'x-smoke-test': 'true', 'x-editor-ai-action': 'analyze', ...devKitAuthHeaders() }, body: { resume: MINIMAL_RESUME, jobDescription: SAMPLE_JD } }));
+      },
+    },
+    {
+      id: 'editor-ai-recruiter-sim', label: 'Editor AI — Recruiter Sim (smoke)', description: 'Smoke-test editor-ai router, recruiter-sim action — no AI call, no credit deduction', section: 'ai',
+      run: async (): Promise<TestResult> => {
+        return strictInvoke('editor-ai-recruiter-sim', () => edgeFunctions.functions.invoke('editor-ai', { headers: { 'x-smoke-test': 'true', 'x-editor-ai-action': 'recruiter-sim', ...devKitAuthHeaders() }, body: { resume: MINIMAL_RESUME, persona: 'startup' } }));
+      },
+    },
+    {
+      id: 'editor-ai-suggest-template', label: 'Editor AI — Suggest Template (smoke)', description: 'Smoke-test editor-ai router, suggest-template action — no AI call, no credit deduction', section: 'ai',
+      run: async (): Promise<TestResult> => {
+        return strictInvoke('editor-ai-suggest-template', () => edgeFunctions.functions.invoke('editor-ai', { headers: { 'x-smoke-test': 'true', 'x-editor-ai-action': 'suggest-template', ...devKitAuthHeaders() }, body: { jobTitle: 'Software Engineer', industry: 'Technology', skills: ['TypeScript', 'React'] } }));
+      },
+    },
+    {
+      id: 'editor-ai-optimize-linkedin', label: 'Editor AI — LinkedIn Optimizer (smoke)', description: 'Smoke-test editor-ai router, optimize-for-linkedin action — no AI call, no credit deduction', section: 'ai',
+      run: async (): Promise<TestResult> => {
+        return strictInvoke('editor-ai-optimize-linkedin', () => edgeFunctions.functions.invoke('editor-ai', { headers: { 'x-smoke-test': 'true', 'x-editor-ai-action': 'optimize-for-linkedin', ...devKitAuthHeaders() }, body: { resume: MINIMAL_RESUME } }));
+      },
+    },
     {
       id: 'cover-letter', label: 'Cover Letter', description: 'Call generate-cover-letter edge function', section: 'ai',
       run: async (): Promise<TestResult> => {
