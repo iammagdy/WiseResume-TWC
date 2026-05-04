@@ -240,12 +240,21 @@ export function GapExplainerSheet({ isOpen, onClose, gap, experiences, onAddToSu
 
           {/* Target Role */}
           <div className="space-y-2">
-            <Label>Target role (optional)</Label>
+            <div className="flex items-center justify-between">
+              <Label>Target role (optional)</Label>
+              <span className={`text-xs ${targetRole.length > 180 ? (targetRole.length >= 200 ? 'text-destructive font-medium' : 'text-amber-500') : 'text-muted-foreground'}`}>
+                {targetRole.length}/200
+              </span>
+            </div>
             <Input
               value={targetRole}
               onChange={(e) => setTargetRole(e.target.value)}
               placeholder="e.g. Product Manager, Software Engineer..."
+              maxLength={200}
             />
+            {targetRole.length >= 200 && (
+              <p className="text-xs text-destructive">Maximum 200 characters reached.</p>
+            )}
           </div>
 
           {/* Generate Button */}

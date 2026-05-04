@@ -179,13 +179,22 @@ export function PersonalBrandingSheet({ open, onOpenChange }: PersonalBrandingSh
                 </div>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Target role or audience (optional)</Label>
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs text-muted-foreground">Target role or audience (optional)</Label>
+                  <span className={`text-xs ${targetRole.length > 130 ? (targetRole.length >= 150 ? 'text-destructive font-medium' : 'text-amber-500') : 'text-muted-foreground'}`}>
+                    {targetRole.length}/150
+                  </span>
+                </div>
                 <Input
                   value={targetRole}
                   onChange={(e) => setTargetRole(e.target.value)}
                   placeholder="e.g. Senior Engineer, LinkedIn, portfolio..."
                   disabled={isLoading}
+                  maxLength={150}
                 />
+                {targetRole.length >= 150 && (
+                  <p className="text-xs text-destructive">Maximum 150 characters reached.</p>
+                )}
               </div>
               <Button className="w-full gradient-primary" onClick={handleGenerate} disabled={isLoading || !currentResume}>
                 {isLoading ? (
