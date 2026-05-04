@@ -185,10 +185,17 @@ ${resume.certifications?.map((c: any) => `- ${c.name} from ${c.issuer}`).join("\
       primaryField: (result as any).primaryField || "General",
       strengthSummary: (result as any).strengthSummary || "",
       riskFactors: (result as any).riskFactors || [],
-      careerMap: (result as any).careerMap || null,
+      careerMap: (() => {
+        const cm = (result as any).careerMap;
+        if (!cm) return null;
+        return {
+          ...cm,
+          branches: applyLimit(cm.branches || []),
+        };
+      })(),
       nextRoles: applyLimit((result as any).nextRoles || []),
       skillGaps: applyLimit((result as any).skillGaps || []),
-      industryAlternatives: (result as any).industryAlternatives || [],
+      industryAlternatives: applyLimit((result as any).industryAlternatives || []),
       actionPlan: (result as any).actionPlan || [],
     };
 
