@@ -24,6 +24,7 @@ export interface PendingConfirmation {
   args: Record<string, unknown>;
   originalUserText: string;
   historyAtCall: ChatMessage[];
+  initialMsg: ChatMessage;
   activeSessionId: string | null;
 }
 
@@ -300,15 +301,20 @@ export function useAgenticChat(contextFilter?: string) {
   }, [hasPendingEditsForSection]);
 
   const executeFunctionCall = useCallback(
-    (functionName: string, args: Record<string, unknown>): FunctionResult => {
+    (functionName: string, args: Record<string, unknown>, bypassConfirmation = false): FunctionResult => {
       if (!currentResume) {
         return { name: functionName, result: { success: false, error: 'No resume loaded' } };
       }
 
+      // When called from applyPendingConfirmation the user has already explicitly
+      // approved the change, so skip the confirmAndApply gate entirely.
+      const applyOrConfirm = (name: string, fn: () => FunctionResult) =>
+        bypassConfirmation ? fn() : confirmAndApply(name, fn);
+
       try {
         switch (functionName) {
           case 'update_summary': {
-            return confirmAndApply(functionName, () => {
+            return applyOrConfirm(functionName, () => {
               updateResume({ summary: args.newSummary as string });
               haptics.success();
               return { name: functionName, result: { success: true, applied: { newSummary: args.newSummary } } };
@@ -342,7 +348,7 @@ export function useAgenticChat(contextFilter?: string) {
             if (expIndex === -1) {
               return { name: functionName, result: { success: false, error: `Could not find experience matching "${args.identifier}"` } };
             }
-            return confirmAndApply(functionName, () => {
+            return applyOrConfirm(functionName, () => {
               const updatedExp = { ...currentResume.experience[expIndex], ...updates };
               const newExperience = [...currentResume.experience];
               newExperience[expIndex] = updatedExp;
@@ -352,7 +358,7 @@ export function useAgenticChat(contextFilter?: string) {
             });
           }
           case 'update_skills': {
-            return confirmAndApply(functionName, () => {
+            return applyOrConfirm(functionName, () => {
               updateResume({ skills: args.skills as string[] });
               haptics.success();
               return { name: functionName, result: { success: true, applied: { skillCount: (args.skills as string[]).length } } };
@@ -360,7 +366,7 @@ export function useAgenticChat(contextFilter?: string) {
           }
           case 'add_skills': {
             const newSkills = args.skills as string[];
-            return confirmAndApply(functionName, () => {
+            return applyOrConfirm(functionName, () => {
               const merged = [...new Set([...currentResume.skills, ...newSkills])];
               updateResume({ skills: merged });
               haptics.success();
@@ -629,6 +635,10 @@ export function useAgenticChat(contextFilter?: string) {
         if (response.type === 'function_call') {
           const isOverwrite = OVERWRITE_FUNCTIONS.has(response.functionName);
 
+          // Build the function-call message that will be shown with the badge.
+          // For overwrite functions we defer adding it to the visible chat until
+          // the user explicitly clicks "Apply" — this way the badge only appears
+          // after the change is actually applied.
           const initialMsg: ChatMessage = {
             id: uuidv4(),
             role: 'assistant',
@@ -639,16 +649,11 @@ export function useAgenticChat(contextFilter?: string) {
             },
             timestamp: Date.now(),
           };
-          setMessages((prev) => [...prev, initialMsg]);
-
-          if (activeSessionId) {
-            persistMessage(activeSessionId, 'assistant', response.message, { name: response.functionName, args: response.args });
-          }
 
           if (isOverwrite) {
-            // For overwrite-risk functions, always require user confirmation via the
-            // inline chat card before mutating resume data. Execution resumes in
-            // applyPendingConfirmation / dismissPendingConfirmation below.
+            // For overwrite-risk functions show a confirmation card.
+            // We include initialMsg in historyAtCall so the AI has full context
+            // for its follow-up, but we do NOT yet add it to the visible chat.
             const historyAtCall = user
               ? [...messages, userMsg, initialMsg]
               : [...messages, userMsg, initialMsg].slice(-10);
@@ -657,13 +662,19 @@ export function useAgenticChat(contextFilter?: string) {
               args: response.args,
               originalUserText: text.trim(),
               historyAtCall,
+              initialMsg,
               activeSessionId,
             });
             // isThinking is cleared by the outer finally block
             return;
           }
 
-          // Non-overwrite: apply immediately (existing behavior)
+          // Non-overwrite: show the message and apply immediately (existing behavior)
+          setMessages((prev) => [...prev, initialMsg]);
+          if (activeSessionId) {
+            persistMessage(activeSessionId, 'assistant', response.message, { name: response.functionName, args: response.args });
+          }
+
           const functionResult = executeFunctionCall(response.functionName, response.args);
 
           try {
@@ -796,8 +807,19 @@ export function useAgenticChat(contextFilter?: string) {
     setPendingConfirmation(null);
     setIsThinking(true);
 
+    // Now reveal the function-call message with the badge — deferred until after
+    // the user explicitly confirms so the chip only appears on real applies.
+    setMessages((prev) => [...prev, conf.initialMsg]);
+    if (conf.activeSessionId) {
+      persistMessage(conf.activeSessionId, 'assistant', conf.initialMsg.content, {
+        name: conf.functionName,
+        args: conf.args,
+      });
+    }
+
     try {
-      const functionResult = executeFunctionCall(conf.functionName, conf.args);
+      // bypassConfirmation=true so the old snapshot-based gate doesn't re-fire
+      const functionResult = executeFunctionCall(conf.functionName, conf.args, true);
       const feedbackResponse = await sendFunctionFeedback(
         conf.originalUserText,
         conf.historyAtCall,
@@ -817,15 +839,49 @@ export function useAgenticChat(contextFilter?: string) {
         }
       }
     } catch {
-      // Feedback failure is non-fatal; the function was already applied
+      // Feedback failure is non-fatal; the function change was already applied
     } finally {
       setIsThinking(false);
     }
   }, [pendingConfirmation, executeFunctionCall, currentResume, persistMessage]);
 
-  const dismissPendingConfirmation = useCallback(() => {
+  // Called by the ConfirmApplyCard when the user clicks "Dismiss".
+  // Sends a dismissal result to the AI so the conversation context stays coherent.
+  const dismissPendingConfirmation = useCallback(async () => {
+    if (!pendingConfirmation) return;
+    const conf = pendingConfirmation;
     setPendingConfirmation(null);
-  }, []);
+    setIsThinking(true);
+
+    try {
+      const dismissResult: FunctionResult = {
+        name: conf.functionName,
+        result: { success: false, applied: { reason: 'user_dismissed' } },
+      };
+      const feedbackResponse = await sendFunctionFeedback(
+        conf.originalUserText,
+        conf.historyAtCall,
+        currentResume,
+        dismissResult
+      );
+      if (feedbackResponse.type === 'text') {
+        const msg: ChatMessage = {
+          id: uuidv4(),
+          role: 'assistant',
+          content: feedbackResponse.content,
+          timestamp: Date.now(),
+        };
+        setMessages((prev) => [...prev, msg]);
+        if (conf.activeSessionId) {
+          persistMessage(conf.activeSessionId, 'assistant', feedbackResponse.content);
+        }
+      }
+    } catch {
+      // Non-fatal — card is dismissed regardless
+    } finally {
+      setIsThinking(false);
+    }
+  }, [pendingConfirmation, currentResume, persistMessage]);
 
   return {
     messages,

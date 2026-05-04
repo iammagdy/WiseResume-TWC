@@ -360,12 +360,44 @@ function SuggestionCard({
   );
 }
 
+function getConfirmPreview(functionName: string, args: Record<string, unknown>): string | null {
+  const CLAMP = 220;
+  if (functionName === 'update_summary') {
+    const text = (args.newSummary as string) || '';
+    return text.length > CLAMP ? text.slice(0, CLAMP) + '…' : text || null;
+  }
+  if (functionName === 'update_skills') {
+    const skills = args.skills as string[] | undefined;
+    if (!skills?.length) return null;
+    const joined = skills.join(', ');
+    return joined.length > CLAMP ? joined.slice(0, CLAMP) + '…' : joined;
+  }
+  if (functionName === 'add_skills') {
+    const skills = args.skills as string[] | undefined;
+    if (!skills?.length) return null;
+    const joined = skills.join(', ');
+    const preview = joined.length > CLAMP ? joined.slice(0, CLAMP) + '…' : joined;
+    return `Adding: ${preview}`;
+  }
+  if (functionName === 'update_experience') {
+    const identifier = (args.identifier as string) || '';
+    const updates = args.updates as Record<string, unknown> | undefined;
+    const fields = updates ? Object.keys(updates).join(', ') : '';
+    return identifier
+      ? `Entry: "${identifier}"${fields ? ` — updating ${fields}` : ''}`
+      : null;
+  }
+  return null;
+}
+
 function ConfirmApplyCard({
   functionName,
+  args,
   onApply,
   onDismiss,
 }: {
   functionName: string;
+  args: Record<string, unknown>;
   onApply: () => void;
   onDismiss: () => void;
 }) {
@@ -376,6 +408,7 @@ function ConfirmApplyCard({
     add_skills: 'your Skills',
   };
   const section = sectionLabels[functionName] || 'this section';
+  const preview = getConfirmPreview(functionName, args);
 
   return (
     <motion.div
@@ -391,8 +424,13 @@ function ConfirmApplyCard({
             Apply AI changes to {section}?
           </p>
         </div>
+        {preview && (
+          <div className="p-2 rounded-lg bg-amber-500/8 border border-amber-500/20">
+            <p className="text-xs text-muted-foreground break-words leading-relaxed">{preview}</p>
+          </div>
+        )}
         <p className="text-xs text-muted-foreground leading-relaxed">
-          This will overwrite the current content in this section. Review the suggested changes above before applying.
+          This will overwrite the current content. Dismiss to keep the original.
         </p>
         <div className="flex gap-2">
           <Button
@@ -900,6 +938,7 @@ export function AgenticChatSheet({ open, onOpenChange, initialMessage }: Agentic
                   {pendingConfirmation && !isThinking && (
                     <ConfirmApplyCard
                       functionName={pendingConfirmation.functionName}
+                      args={pendingConfirmation.args}
                       onApply={applyPendingConfirmation}
                       onDismiss={dismissPendingConfirmation}
                     />
