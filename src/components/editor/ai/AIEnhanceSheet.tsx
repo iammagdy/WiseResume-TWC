@@ -1015,7 +1015,7 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
                                 );
                               })}
                             </div>
-                          ) : isExperienceArray(r.improved) && isExperienceArray(r.original) ? (
+                          ) : r.section === 'experience' && isExperienceArray(r.improved) && isExperienceArray(r.original) ? (
                             <div className="space-y-2">
                               {r.improved.map((entry, i) => {
                                 const orig = r.original.find(o => o.id === entry.id) ?? r.original[i];
