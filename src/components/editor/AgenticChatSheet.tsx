@@ -24,6 +24,7 @@ import {
   Trash2,
   AlertTriangle,
   ChevronLeft,
+  ChevronDown,
   RefreshCw,
   Settings as SettingsIcon,
   AlertCircle,
@@ -361,23 +362,19 @@ function SuggestionCard({
 }
 
 function getConfirmPreview(functionName: string, args: Record<string, unknown>): string | null {
-  const CLAMP = 220;
   if (functionName === 'update_summary') {
     const text = (args.newSummary as string) || '';
-    return text.length > CLAMP ? text.slice(0, CLAMP) + '…' : text || null;
+    return text || null;
   }
   if (functionName === 'update_skills') {
     const skills = args.skills as string[] | undefined;
     if (!skills?.length) return null;
-    const joined = skills.join(', ');
-    return joined.length > CLAMP ? joined.slice(0, CLAMP) + '…' : joined;
+    return skills.join(', ');
   }
   if (functionName === 'add_skills') {
     const skills = args.skills as string[] | undefined;
     if (!skills?.length) return null;
-    const joined = skills.join(', ');
-    const preview = joined.length > CLAMP ? joined.slice(0, CLAMP) + '…' : joined;
-    return `Adding: ${preview}`;
+    return `Adding: ${skills.join(', ')}`;
   }
   if (functionName === 'update_experience') {
     const identifier = (args.identifier as string) || '';
@@ -390,6 +387,8 @@ function getConfirmPreview(functionName: string, args: Record<string, unknown>):
   return null;
 }
 
+const PREVIEW_CLAMP = 200;
+
 function ConfirmApplyCard({
   functionName,
   args,
@@ -401,6 +400,8 @@ function ConfirmApplyCard({
   onApply: () => void;
   onDismiss: () => void;
 }) {
+  const [showMore, setShowMore] = useState(false);
+
   const sectionLabels: Record<string, string> = {
     update_summary: 'your Summary',
     update_experience: 'an Experience entry',
@@ -409,6 +410,10 @@ function ConfirmApplyCard({
   };
   const section = sectionLabels[functionName] || 'this section';
   const preview = getConfirmPreview(functionName, args);
+  const isLong = preview !== null && preview.length > PREVIEW_CLAMP;
+  const displayedPreview = preview && isLong && !showMore
+    ? preview.slice(0, PREVIEW_CLAMP) + '…'
+    : preview;
 
   return (
     <motion.div
@@ -424,9 +429,18 @@ function ConfirmApplyCard({
             Apply AI changes to {section}?
           </p>
         </div>
-        {preview && (
-          <div className="p-2 rounded-lg bg-amber-500/8 border border-amber-500/20">
-            <p className="text-xs text-muted-foreground break-words leading-relaxed">{preview}</p>
+        {displayedPreview && (
+          <div className="p-2 rounded-lg bg-amber-500/8 border border-amber-500/20 space-y-1">
+            <p className="text-xs text-muted-foreground break-words leading-relaxed">{displayedPreview}</p>
+            {isLong && (
+              <button
+                onClick={() => setShowMore(prev => !prev)}
+                className="flex items-center gap-0.5 text-xs text-amber-600 dark:text-amber-400 hover:opacity-80 transition-opacity"
+              >
+                {showMore ? 'Show less' : 'Show more'}
+                <ChevronDown className={cn('w-3 h-3 transition-transform', showMore && 'rotate-180')} />
+              </button>
+            )}
           </div>
         )}
         <p className="text-xs text-muted-foreground leading-relaxed">
