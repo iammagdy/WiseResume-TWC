@@ -26,6 +26,7 @@ import {
   resumeSectionAiHeader,
 } from '@/integrations/supabase/resumeSectionAiFlag';
 import { formatDegreeAndField } from '@/lib/educationFormat';
+import { ExperienceDiffCard } from '@/components/editor/ai/ExperienceDiffCard';
 import { AIError, parseAIErrorResponse, parseAIErrorBody, type AIErrorCode } from '@/lib/aiErrorParser';
 import {
   mergeAIArrayResult,
@@ -1006,6 +1007,13 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
                                     {renderSectionPreview(r.section, v.improved, 'enhanced')}
                                   </button>
                                 );
+                              })}
+                            </div>
+                          ) : r.section === 'experience' && Array.isArray(r.original) && Array.isArray(r.improved) ? (
+                            <div className="space-y-2">
+                              {(r.improved as any[]).map((entry: any, i: number) => {
+                                const orig = (r.original as any[]).find((o: any) => o.id === entry.id) ?? (r.original as any[])[i];
+                                return <ExperienceDiffCard key={entry?.id ?? i} entry={entry} original={orig} diffs={[]} />;
                               })}
                             </div>
                           ) : (

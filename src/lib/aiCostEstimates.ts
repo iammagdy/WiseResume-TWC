@@ -1,6 +1,6 @@
 /** Estimated AI credit cost per operation type */
 export const AI_COST_MAP: Record<string, number> = {
-  'score': 1,
+  'score': 0,
   'enhance': 1,
   'tailor': 2,
   'cover-letter': 2,
