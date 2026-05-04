@@ -10,6 +10,7 @@ import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
+import { isSmokeTest, smokeResponse } from "../_shared/smokeTest.ts";
 import { logger } from "../_shared/logger.ts";
 const log = logger('agentic-chat');
 import { wrapHandler } from "../_shared/fnLogger.ts";
@@ -366,6 +367,11 @@ Deno.serve(wrapHandler('agentic-chat', async (req: Request) => {
 
   try {
     const { userId, client } = await requireAuth(req);
+
+    // Smoke-test bypass — return synthetic 200 without AI call or credit deduction.
+    if (isSmokeTest(req)) {
+      return smokeResponse(corsHeaders, { function_name: 'agentic-chat', type: 'text', content: 'Smoke test OK' });
+    }
 
     // Plan-aware server-side chat rate limits.
     // Free users get the baseline budget; Pro/Premium get larger windows

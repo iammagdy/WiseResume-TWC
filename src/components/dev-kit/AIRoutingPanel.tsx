@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { RefreshCw, Save, RotateCcw, SplitSquareVertical, Zap, Route, Globe, User, Search, Trash2 } from 'lucide-react';
+import { RefreshCw, Save, RotateCcw, SplitSquareVertical, Zap, Route, Globe, User, Search, Trash2, ChevronDown, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -41,7 +41,24 @@ const FEATURE_LABELS: Record<string, string> = {
   'generate-cover-letter': 'Cover Letter',
   'agentic-chat': 'Agentic Chat',
   'wise-ai-chat': 'Wise AI Chat',
+  'resume-section-ai': 'Resume Section AI',
+  'recruiter-simulation': 'Recruiter Simulation',
+  'suggest-template': 'Suggest Template',
+  'optimize-for-linkedin': 'LinkedIn Optimizer',
+  'smart-fit-rewrite': 'Smart Fit Rewrite',
 };
+
+// The 8 Editor AI functions managed as a group (Phase 1 — Task #39).
+const EDITOR_AI_FUNCTIONS = new Set([
+  'resume-section-ai',
+  'tailor-resume',
+  'analyze-resume',
+  'recruiter-simulation',
+  'suggest-template',
+  'optimize-for-linkedin',
+  'smart-fit-rewrite',
+  'agentic-chat',
+]);
 
 const PROVIDER_OPTIONS: { value: Provider; label: string }[] = [
   { value: 'auto', label: 'Auto (random pool)' },
@@ -63,6 +80,10 @@ export function AIRoutingPanel() {
   const [resetingFeature, setResetingFeature] = useState<string | null>(null);
 
   const [localConfigs, setLocalConfigs] = useState<Record<string, Partial<RoutingConfig>>>({});
+
+  const [editorAIOpen, setEditorAIOpen] = useState(true);
+  const [bulkProvider, setBulkProvider] = useState<Provider>('auto');
+  const [bulkOverriding, setBulkOverriding] = useState(false);
 
   const [caps, setCaps] = useState<CapValues>({ daily_cap_free: null, daily_cap_trial: null, daily_cap_pro: null, global_daily_limit: null });
   const [capInputs, setCapInputs] = useState<Record<string, string>>({ free: '', trial: '', pro: '', global: '' });
@@ -137,6 +158,43 @@ export function AIRoutingPanel() {
     ...base,
     ...localConfigs[base.feature_name],
   });
+
+  const bulkOverrideEditorAI = async () => {
+    const editorAIConfigs = configs.filter(c => EDITOR_AI_FUNCTIONS.has(c.feature_name));
+    if (editorAIConfigs.length === 0) return;
+    setBulkOverriding(true);
+    let saved = 0;
+    let failed = 0;
+    for (const cfg of editorAIConfigs) {
+      try {
+        const tuple = await edgeFunctions.functions.invoke('admin-ai-routing', {
+          headers: devKitAuthHeaders(),
+          body: {
+            action: 'update_feature',
+            feature_name: cfg.feature_name,
+            provider: bulkProvider,
+            model: '',
+            ab_secondary_provider: null,
+            ab_secondary_model: '',
+            ab_split_pct: 0,
+          },
+        });
+        unwrapAdminResponse(tuple, 'admin-ai-routing');
+        saved++;
+      } catch {
+        failed++;
+      }
+    }
+    if (!isMounted()) return;
+    if (saved > 0) {
+      await fetchRouting();
+      toast.success(`Bulk override applied to ${saved} Editor AI function${saved > 1 ? 's' : ''}`);
+    }
+    if (failed > 0) {
+      toast.error(`${failed} function${failed > 1 ? 's' : ''} failed to update`);
+    }
+    setBulkOverriding(false);
+  };
 
   const saveFeature = async (feature: string) => {
     const base = configs.find(c => c.feature_name === feature);
@@ -381,11 +439,120 @@ export function AIRoutingPanel() {
             />
           )}
 
-          <div className="space-y-3">
-            {configs.map((cfg) => {
+          <div className="space-y-4">
+
+            {/* ── Editor AI group ─────────────────────────────────────────── */}
+            <div className="rounded-xl border border-border overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setEditorAIOpen(!editorAIOpen)}
+                className="w-full flex items-center justify-between px-4 py-3 bg-muted/40 hover:bg-muted/60 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <Layers className="w-3.5 h-3.5 text-muted-foreground" />
+                  <span className="text-xs font-semibold">Editor AI</span>
+                  <Badge variant="outline" className="text-[10px]">
+                    {configs.filter(c => EDITOR_AI_FUNCTIONS.has(c.feature_name)).length} / 8 functions
+                  </Badge>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div
+                    className="flex items-center gap-1.5"
+                    onClick={e => e.stopPropagation()}
+                  >
+                    <select
+                      value={bulkProvider}
+                      onChange={e => setBulkProvider(e.target.value as Provider)}
+                      className="h-7 px-2 text-xs bg-background border border-border rounded-md focus:outline-none"
+                    >
+                      {PROVIDER_OPTIONS.map(o => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
+                    </select>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={bulkOverrideEditorAI}
+                      disabled={bulkOverriding || loadingRouting}
+                      className="h-7 px-2 text-xs shrink-0"
+                    >
+                      {bulkOverriding ? 'Applying…' : 'Bulk Override'}
+                    </Button>
+                  </div>
+                  <ChevronDown className={cn('w-4 h-4 text-muted-foreground transition-transform duration-150', editorAIOpen && 'rotate-180')} />
+                </div>
+              </button>
+
+              {editorAIOpen && (
+                <div className="space-y-3 p-3">
+                  {configs.filter(c => EDITOR_AI_FUNCTIONS.has(c.feature_name)).map((cfg) => {
+                    const resolved = resolvedConfig(cfg);
+                    const dirty = hasLocalChanges(cfg.feature_name);
+                    return (
+                      <div key={cfg.feature_name} className={cn(
+                        'rounded-lg border p-3 space-y-3 transition-colors',
+                        dirty ? 'border-primary/40 bg-primary/3' : 'border-border bg-card',
+                      )}>
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium">{FEATURE_LABELS[cfg.feature_name] ?? cfg.feature_name}</span>
+                            <span className="text-[10px] font-mono text-muted-foreground">{cfg.feature_name}</span>
+                            {dirty && (
+                              <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/20">
+                                unsaved
+                              </Badge>
+                            )}
+                          </div>
+                          {featureActionButtons(cfg)}
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <label className="text-[11px] text-muted-foreground font-medium">Primary provider</label>
+                            <select
+                              value={resolved.provider}
+                              onChange={(e) => setLocalField(cfg.feature_name, 'provider', e.target.value as Provider)}
+                              className="w-full h-8 px-2 text-xs bg-background border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
+                            >
+                              {PROVIDER_OPTIONS.map(o => (
+                                <option key={o.value} value={o.value}>{o.label}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[11px] text-muted-foreground font-medium">
+                              Model override <span className="font-normal">(blank = provider default)</span>
+                            </label>
+                            <Input
+                              placeholder="e.g. llama-3.3-70b-versatile"
+                              value={resolved.model ?? ''}
+                              onChange={(e) => setLocalField(cfg.feature_name, 'model', e.target.value)}
+                              className="h-8 text-xs font-mono"
+                              disabled={resolved.provider === 'auto'}
+                            />
+                          </div>
+                        </div>
+                        {cfg.updated_at && (
+                          <p className="text-[10px] text-muted-foreground">
+                            Last updated {new Date(cfg.updated_at).toLocaleString()}
+                            {cfg.updated_by ? ` by ${cfg.updated_by}` : ''}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                  {configs.filter(c => EDITOR_AI_FUNCTIONS.has(c.feature_name)).length === 0 && !loadingRouting && (
+                    <p className="text-xs text-muted-foreground text-center py-3">
+                      No Editor AI configs found — run the 20260601200000 migration to seed them.
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* ── Platform / other AI ─────────────────────────────────────── */}
+            {configs.filter(c => !EDITOR_AI_FUNCTIONS.has(c.feature_name)).map((cfg) => {
               const resolved = resolvedConfig(cfg);
               const dirty = hasLocalChanges(cfg.feature_name);
-
               return (
                 <div key={cfg.feature_name} className={cn(
                   'rounded-xl border p-4 space-y-3 transition-colors',
@@ -403,7 +570,6 @@ export function AIRoutingPanel() {
                     </div>
                     {featureActionButtons(cfg)}
                   </div>
-
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <label className="text-[11px] text-muted-foreground font-medium">Primary provider</label>
@@ -417,7 +583,6 @@ export function AIRoutingPanel() {
                         ))}
                       </select>
                     </div>
-
                     <div className="space-y-1">
                       <label className="text-[11px] text-muted-foreground font-medium">
                         Model override <span className="font-normal">(blank = provider default)</span>
@@ -431,7 +596,6 @@ export function AIRoutingPanel() {
                       />
                     </div>
                   </div>
-
                   {cfg.updated_at && (
                     <p className="text-[10px] text-muted-foreground">
                       Last updated {new Date(cfg.updated_at).toLocaleString()}

@@ -50,6 +50,7 @@ import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { wrapHandler } from "../_shared/fnLogger.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
+import { isSmokeTest, smokeResponse } from "../_shared/smokeTest.ts";
 import { handleEnhance } from "./enhance.ts";
 import { handleTailor } from "./tailor.ts";
 import { handleFillGap } from "./fillGap.ts";
@@ -110,6 +111,16 @@ serve(wrapHandler('resume-section-ai', async (req) => {
     userId = auth.userId;
   } catch (authErr) {
     return authErrorResponse(authErr, req.headers.get('origin'));
+  }
+
+  // Smoke-test bypass — return synthetic 200 without AI call or credit deduction.
+  // Must be checked AFTER auth so unauthenticated callers cannot exploit it.
+  if (isSmokeTest(req)) {
+    return smokeResponse(corsHeaders, {
+      function_name: 'resume-section-ai',
+      action: req.headers.get('x-resume-section-ai-action') ?? 'enhance',
+      result: 'Experienced professional with a proven track record.',
+    });
   }
 
   // Content-Length-based size guard at the router boundary, BEFORE we

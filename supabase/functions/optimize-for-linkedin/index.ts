@@ -8,6 +8,7 @@ import { requireAuth, tryAuth, authErrorResponse } from "../_shared/authMiddlewa
 import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
+import { isSmokeTest, smokeResponse } from "../_shared/smokeTest.ts";
 import { logger } from "../_shared/logger.ts";
 import { wrapHandler } from '../_shared/fnLogger.ts';
 const log = logger('optimize-for-linkedin');
@@ -79,6 +80,16 @@ Deno.serve(wrapHandler("optimize-for-linkedin", async (req) => {
 
   const auth = await tryAuth(req, corsHeaders);
   if (auth instanceof Response) return auth;
+
+  // Smoke-test bypass — return synthetic 200 without AI call or credit deduction.
+  if (isSmokeTest(req)) {
+    return smokeResponse(corsHeaders, {
+      function_name: 'optimize-for-linkedin',
+      success: true,
+      headlines: ['Experienced Software Engineer | Full-Stack Developer'],
+      aboutSection: 'Smoke test placeholder.',
+    });
+  }
 
   try {
     const { userId, client } = auth;

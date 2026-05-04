@@ -12,6 +12,7 @@ import { getServiceClient } from "../_shared/dbClient.ts";
 import { INDUSTRY_KEYWORDS, detectIndustryCategory } from "../_shared/industryKeywords.ts";
 import { getProfileContext } from "../_shared/profileContext.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
+import { isSmokeTest, smokeResponse } from "../_shared/smokeTest.ts";
 import { logger } from "../_shared/logger.ts";
 import { wrapHandler } from '../_shared/fnLogger.ts';
 const log = logger('analyze-resume');
@@ -47,6 +48,11 @@ serve(wrapHandler("analyze-resume", async (req) => {
   try {
     const { userId, client } = await requireAuth(req);
     console.log('Authenticated user:', userId);
+
+    // Smoke-test bypass — return synthetic 200 without AI call or credit deduction.
+    if (isSmokeTest(req)) {
+      return smokeResponse(corsHeaders, { function_name: 'analyze-resume', score: { overallScore: 80, atsScore: 75 }, gaps: [] });
+    }
 
     const userPlan = await getUserPlan(userId);
 

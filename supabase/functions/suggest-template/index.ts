@@ -7,6 +7,7 @@ const __ROUTE = selectProviderForTool('suggest-template');
 import { checkRateLimit, recordUsage } from '../_shared/rateLimiter.ts';
 import { checkUserRateLimit } from '../_shared/userRateLimiter.ts';
 import { checkPayloadSize } from '../_shared/requestUtils.ts';
+import { isSmokeTest, smokeResponse } from '../_shared/smokeTest.ts';
 import { checkAndDeductCredit, refundCredit } from '../_shared/creditUtils.ts';
 import { logger } from '../_shared/logger.ts';
 import { wrapHandler } from '../_shared/fnLogger.ts';
@@ -26,6 +27,11 @@ serve(wrapHandler("suggest-template", async (req) => {
 
   try {
     const { userId } = await requireAuth(req);
+
+    // Smoke-test bypass — return synthetic 200 without AI call or credit deduction.
+    if (isSmokeTest(req)) {
+      return smokeResponse(corsHeaders, { function_name: 'suggest-template', recommendedTemplateId: 'professional', confidence: 0.9 });
+    }
 
     const { allowed } = await checkRateLimit(userId, { actionType: 'suggest_template', maxRequests: 30, windowSeconds: 60 });
     if (!allowed) {

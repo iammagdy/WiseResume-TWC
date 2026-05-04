@@ -34,6 +34,7 @@ import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import { requireAuth, tryAuth } from "../_shared/authMiddleware.ts";
 import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
+import { isSmokeTest, smokeResponse } from "../_shared/smokeTest.ts";
 import { logger } from "../_shared/logger.ts";
 
 import { wrapHandler } from '../_shared/fnLogger.ts';
@@ -277,6 +278,11 @@ Deno.serve(wrapHandler("smart-fit-rewrite", async (req) => {
 
   const auth = await tryAuth(req, corsHeaders);
   if (auth instanceof Response) return auth;
+
+  // Smoke-test bypass — return synthetic 200 without AI call or credit deduction.
+  if (isSmokeTest(req)) {
+    return smokeResponse(corsHeaders, { function_name: 'smart-fit-rewrite', success: true, outcomes: [] });
+  }
 
   try {
     const { userId } = auth;

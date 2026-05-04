@@ -10,6 +10,7 @@ import { getServiceClient } from "../_shared/dbClient.ts";
 import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
 import { getProfileContext } from "../_shared/profileContext.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
+import { isSmokeTest, smokeResponse } from "../_shared/smokeTest.ts";
 import { logger } from "../_shared/logger.ts";
 const log = logger('tailor-resume');
 import { wrapHandler } from "../_shared/fnLogger.ts";
@@ -346,6 +347,11 @@ serve(wrapHandler('tailor-resume', async (req) => {
       return authErrorResponse(authErr, req.headers.get('origin'));
     }
     console.log('Authenticated user:', userId);
+
+    // Smoke-test bypass — return synthetic 200 without AI call or credit deduction.
+    if (isSmokeTest(req)) {
+      return smokeResponse(corsHeaders, { function_name: 'tailor-resume', tailoredResume: null, atsScore: 80 });
+    }
 
     const rateCheck = await checkRateLimit(userId, { maxRequests: 10, windowSeconds: 60, actionType: 'tailor' });
     if (!rateCheck.allowed) {

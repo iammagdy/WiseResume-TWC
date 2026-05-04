@@ -8,6 +8,7 @@ import { requireAuth, tryAuth, authErrorResponse } from "../_shared/authMiddlewa
 import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
+import { isSmokeTest, smokeResponse } from "../_shared/smokeTest.ts";
 import { logger } from "../_shared/logger.ts";
 import { wrapHandler } from '../_shared/fnLogger.ts';
 const log = logger('recruiter-simulation');
@@ -104,6 +105,15 @@ Deno.serve(wrapHandler("recruiter-simulation", async (req) => {
 
   const auth = await tryAuth(req, corsHeaders);
   if (auth instanceof Response) return auth;
+
+  // Smoke-test bypass — return synthetic 200 without AI call or credit deduction.
+  if (isSmokeTest(req)) {
+    return smokeResponse(corsHeaders, {
+      function_name: 'recruiter-simulation',
+      success: true,
+      analysis: { hireabilityScore: 75, questionsIdAsk: [], redFlags: [], positives: [] },
+    });
+  }
 
   try {
     const { userId, client } = auth;
