@@ -374,33 +374,92 @@ function getConfirmPreview(functionName: string, args: Record<string, unknown>):
   if (functionName === 'add_skills') {
     const skills = args.skills as string[] | undefined;
     if (!skills?.length) return null;
-    return `Adding: ${skills.join(', ')}`;
+    return skills.join(', ');
   }
   if (functionName === 'update_experience') {
-    const identifier = (args.identifier as string) || '';
     const updates = args.updates as Record<string, unknown> | undefined;
-    const fields = updates ? Object.keys(updates).join(', ') : '';
-    return identifier
-      ? `Entry: "${identifier}"${fields ? ` — updating ${fields}` : ''}`
-      : null;
+    if (!updates || Object.keys(updates).length === 0) return null;
+    const parts: string[] = [];
+    if (updates.position) parts.push(`Position: ${updates.position}`);
+    if (updates.company) parts.push(`Company: ${updates.company}`);
+    if (updates.description) {
+      const desc = updates.description as string;
+      parts.push(desc.slice(0, 200) + (desc.length > 200 ? '…' : ''));
+    }
+    if (updates.startDate || updates.endDate) {
+      parts.push(`${updates.startDate ?? ''}–${updates.endDate ?? ''}`);
+    }
+    if (parts.length === 0) {
+      parts.push(Object.keys(updates).join(', '));
+    }
+    return parts.join('\n') || null;
   }
   return null;
 }
 
-const PREVIEW_CLAMP = 200;
+function getBeforePreview(
+  functionName: string,
+  beforeSnapshot: string,
+  args: Record<string, unknown>,
+): string | null {
+  if (!beforeSnapshot) return null;
+  try {
+    const parsed = JSON.parse(beforeSnapshot);
+    if (functionName === 'update_summary') {
+      return typeof parsed === 'string' ? parsed || null : null;
+    }
+    if (functionName === 'update_skills' || functionName === 'add_skills') {
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return (parsed as string[]).join(', ');
+      }
+      return null;
+    }
+    if (functionName === 'update_experience') {
+      if (!Array.isArray(parsed) || parsed.length === 0) return null;
+      // Use the same matching logic as executeFunctionCall('update_experience'):
+      // case-insensitive substring match on company or position (findIndex order).
+      const identifier = ((args.identifier as string) ?? '').toLowerCase().trim();
+      const entries = parsed as Record<string, unknown>[];
+      const entry = identifier
+        ? entries.find(
+            (e) =>
+              (e.company as string)?.toLowerCase().includes(identifier) ||
+              (e.position as string)?.toLowerCase().includes(identifier),
+          ) ?? null
+        : entries[0] ?? null;
+      if (!entry) return null;
+      const position = (entry.position as string) || '';
+      const company = (entry.company as string) || '';
+      const header = [position, company].filter(Boolean).join(' @ ');
+      const description = (entry.description as string) || '';
+      return header
+        ? description
+          ? `${header}\n${description.slice(0, 120)}${description.length > 120 ? '…' : ''}`
+          : header
+        : null;
+    }
+  } catch {
+    // ignore parse errors
+  }
+  return null;
+}
+
+const PREVIEW_CLAMP = 180;
 
 function ConfirmApplyCard({
   functionName,
   args,
+  beforeSnapshot,
   onApply,
   onDismiss,
 }: {
   functionName: string;
   args: Record<string, unknown>;
+  beforeSnapshot: string;
   onApply: () => void;
   onDismiss: () => void;
 }) {
-  const [showMore, setShowMore] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   const sectionLabels: Record<string, string> = {
     update_summary: 'your Summary',
@@ -409,11 +468,23 @@ function ConfirmApplyCard({
     add_skills: 'your Skills',
   };
   const section = sectionLabels[functionName] || 'this section';
-  const preview = getConfirmPreview(functionName, args);
-  const isLong = preview !== null && preview.length > PREVIEW_CLAMP;
-  const displayedPreview = preview && isLong && !showMore
-    ? preview.slice(0, PREVIEW_CLAMP) + '…'
-    : preview;
+
+  const newLabel = functionName === 'add_skills' ? 'Skills to add' : 'New';
+
+  const afterText = getConfirmPreview(functionName, args);
+  const beforeText = getBeforePreview(functionName, beforeSnapshot, args);
+
+  const hasBoth = beforeText !== null && afterText !== null;
+  const hasAny = beforeText !== null || afterText !== null;
+
+  const clampText = (text: string | null) =>
+    text && !expanded && text.length > PREVIEW_CLAMP
+      ? text.slice(0, PREVIEW_CLAMP) + '…'
+      : text;
+
+  const isLong =
+    (beforeText !== null && beforeText.length > PREVIEW_CLAMP) ||
+    (afterText !== null && afterText.length > PREVIEW_CLAMP);
 
   return (
     <motion.div
@@ -429,22 +500,52 @@ function ConfirmApplyCard({
             Apply AI changes to {section}?
           </p>
         </div>
-        {displayedPreview && (
-          <div className="p-2 rounded-lg bg-amber-500/8 border border-amber-500/20 space-y-1">
-            <p className="text-xs text-muted-foreground break-words leading-relaxed">{displayedPreview}</p>
+
+        {hasAny && (
+          <div className="space-y-1.5">
+            {hasBoth ? (
+              <>
+                {/* Before row */}
+                <div className="rounded-lg bg-muted/50 border border-border px-2.5 py-2 space-y-0.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/70">Current</p>
+                  <p className="text-xs text-muted-foreground break-words leading-relaxed">{clampText(beforeText)}</p>
+                </div>
+                {/* After row */}
+                <div className="rounded-lg bg-amber-500/8 border border-amber-500/20 px-2.5 py-2 space-y-0.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-600/70 dark:text-amber-400/70">{newLabel}</p>
+                  <p className="text-xs text-muted-foreground break-words leading-relaxed">{clampText(afterText)}</p>
+                </div>
+              </>
+            ) : afterText !== null ? (
+              /* Fallback: only new content available */
+              <div className="rounded-lg bg-amber-500/8 border border-amber-500/20 px-2.5 py-2 space-y-0.5">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-600/70 dark:text-amber-400/70">{newLabel}</p>
+                <p className="text-xs text-muted-foreground break-words leading-relaxed">{clampText(afterText)}</p>
+              </div>
+            ) : (
+              /* Fallback: only current content available */
+              <div className="rounded-lg bg-muted/50 border border-border px-2.5 py-2 space-y-0.5">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/70">Current</p>
+                <p className="text-xs text-muted-foreground break-words leading-relaxed">{clampText(beforeText)}</p>
+              </div>
+            )}
+
             {isLong && (
               <button
-                onClick={() => setShowMore(prev => !prev)}
+                onClick={() => setExpanded(prev => !prev)}
                 className="flex items-center gap-0.5 text-xs text-amber-600 dark:text-amber-400 hover:opacity-80 transition-opacity"
               >
-                {showMore ? 'Show less' : 'Show more'}
-                <ChevronDown className={cn('w-3 h-3 transition-transform', showMore && 'rotate-180')} />
+                {expanded ? 'Show less' : 'Show more'}
+                <ChevronDown className={cn('w-3 h-3 transition-transform', expanded && 'rotate-180')} />
               </button>
             )}
           </div>
         )}
+
         <p className="text-xs text-muted-foreground leading-relaxed">
-          This will overwrite the current content. Dismiss to keep the original.
+          {functionName === 'add_skills'
+            ? 'These skills will be added to your existing list. Dismiss to cancel.'
+            : 'This will overwrite the current content. Dismiss to keep the original.'}
         </p>
         <div className="flex gap-2">
           <Button
@@ -953,6 +1054,7 @@ export function AgenticChatSheet({ open, onOpenChange, initialMessage }: Agentic
                     <ConfirmApplyCard
                       functionName={pendingConfirmation.functionName}
                       args={pendingConfirmation.args}
+                      beforeSnapshot={pendingConfirmation.beforeSnapshot}
                       onApply={applyPendingConfirmation}
                       onDismiss={dismissPendingConfirmation}
                     />

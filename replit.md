@@ -1,7 +1,7 @@
 # WiseResume — Compressed Project Knowledge Base
 
 ### Overview
-WiseResume is an AI-powered web application for comprehensive career management. It assists users in creating and tailoring resumes for specific job listings, publishing public portfolios, practicing interview questions, tracking job applications, and managing career goals. The project's vision is to establish a robust, AI-driven platform for job seekers, with future expansion into an HR SaaS product called WiseHire. The application focuses on providing an efficient and intelligent solution for career advancement.
+WiseResume is an AI-powered web application for comprehensive career management. It assists users in creating and tailoring resumes for specific job listings, publishing public portfolios, practicing interview questions, tracking job applications, and managing career goals. The project's vision is to establish a robust, AI-driven platform for job seekers, with future expansion into an HR SaaS product called WiseHire. The application focuses on providing an efficient and intelligent solution for career advancement by leveraging AI for resume generation, job tracking, and career guidance.
 
 ### User Preferences
 - **Supabase is the sole production source of truth** — Replit is a development/coding environment ONLY. Never treat Replit secrets, Replit environment variables, or the Express server as production infrastructure. All production secrets live in Supabase Vault. All production API traffic is served by Supabase Edge Functions. If a secret is absent from `process.env` in Replit, that is expected and normal — it is vault-managed and available to edge functions in production. Never add `replit_env` or `optional` secret sources; every secret is `supabase_vault`. Never suggest storing secrets in Replit as a production solution.
@@ -36,73 +36,61 @@ WiseResume is an AI-powered web application for comprehensive career management.
 - **Styling**: Tailwind CSS, Radix UI, Framer Motion
 - **State Management**: Zustand, TanStack Query (React Query)
 - **Authentication**: Kinde Auth (JWT verified server-side via JWKS)
-- **Database**: Supabase Postgres via Drizzle ORM (schema: `server/schema.ts`)
-- **Backend**: Supabase Edge Functions for business logic, AI calls, and auth helpers. Express.js server (`server/index.ts`, port 5001) acts as a dev proxy, PDF exporter, and admin bridge.
-- **Mobile**: Native iOS + Android client lives at `mobile/` and is built with **Expo SDK 51** + **Expo Router**. It talks to the same Supabase project, Kinde tenant, and AI providers as the web app — no second backend. Auth uses Kinde PKCE via `expo-auth-session`, exchanged through the existing `token-exchange` edge function for a bridge JWT stored in `expo-secure-store`. New edge functions for the mobile surface: `register-push-token`, `send-push`, `revenuecat-webhook`, `mobile-config`, and `export-{resume,cover-letter,resignation-letter,portfolio}-pdf` (the latter four delegate to a headless-Chromium renderer at `PDF_RENDERER_URL`). New tables `device_push_tokens` and `mobile_app_versions` ship via migration `20260601000000_*.sql`. See `mobile/README.md` for setup, `mobile/QA.md` for the release checklist, and `Project Atlas/01-Currently Implemented/critical-systems/13-mobile-expo.md` for the full architecture card. **Capacitor is fully removed** from the web repo (Task #34).
+- **Database**: Supabase Postgres via Drizzle ORM
+- **Backend**: Supabase Edge Functions for business logic, AI calls, and auth helpers. Express.js server acts as a dev proxy, PDF exporter, and admin bridge.
+- **Mobile**: Native iOS + Android client (`mobile/`) built with Expo SDK 51 + Expo Router. It integrates with the same Supabase project, Kinde tenant, and AI providers as the web app. Auth uses Kinde PKCE via `expo-auth-session`, exchanged through the existing `token-exchange` edge function. New edge functions for mobile include `register-push-token`, `send-push`, `revenuecat-webhook`, `mobile-config`, and PDF export functions. New tables `device_push_tokens` and `mobile_app_versions` are used. Capacitor is fully removed.
 - **Hosting**: Hostinger for static frontend, Replit for development environment.
 
 **Authentication Flow:**
-Users authenticate via Kinde, receiving an access token. The client exchanges this token with the Express server at `POST /api/fn/token-exchange`. The server validates the Kinde JWT, generates a deterministic UUID for the user, upserts profile data in the Supabase database, and issues a short-lived session JWT. This session JWT is then used for all subsequent `/api/*` calls and validated server-side.
+Users authenticate via Kinde. The client exchanges the Kinde token with the Express server at `POST /api/fn/token-exchange`. The server validates the Kinde JWT, generates a user UUID, upserts profile data in Supabase, and issues a short-lived session JWT for subsequent API calls.
 
 **Replit Environment:**
 - **Frontend**: Vite dev server on port 5000 (proxies `/api/*` to port 5001).
-- **Backend**: Express API server (`server/index.ts`) on port 5001 via `tsx --watch`. Dev proxy only — never production infrastructure.
-- **Database**: **Supabase is the sole source of truth.** All data operations in `server/index.ts` use `supabaseGet`/`supabaseUpsert`/`supabaseDelete` helpers that call the Supabase REST API directly. The Replit-managed Postgres (`DATABASE_URL`) and all local `sql`/`pgPool` code have been fully removed from the server.
-- **Startup command**: `npm run server:dev & npm run dev` (starts both servers in parallel).
-- **Optional secrets** (add as Replit Secrets to enable full functionality):
-  - `VITE_SUPABASE_URL` + `VITE_SUPABASE_PUBLISHABLE_KEY` — enables Supabase-backed features and production data sync.
-  - `SUPABASE_SERVICE_ROLE_KEY` + `SUPABASE_JWT_SECRET` — enables admin-level DB access and auth token validation.
-  - `VITE_KINDE_DOMAIN` + `VITE_KINDE_CLIENT_ID` — enables Kinde authentication (login/signup flows).
-  - `KINDE_M2M_CLIENT_ID` + `KINDE_M2M_CLIENT_SECRET` — enables Kinde M2M (admin user management).
-  - AI keys: `OPENROUTER_KEY_1`, `GROQ_KEY_1`, `GEMINI_API_KEY` — enables AI features.
-  - `RESEND_API_KEY` — enables email sending.
-- `src/lib/apiFnUrl.ts` handles environment routing: `/api/fn/<name>` in dev (Vite → Express proxy) and `${VITE_SUPABASE_URL}/functions/v1/<name>` in production.
-- The Express server gracefully degrades when optional secrets are absent — it boots and serves routes even without Supabase/Kinde configured.
+- **Backend**: Express API server (`server/index.ts`) on port 5001 via `tsx --watch` (dev proxy only).
+- **Database**: Supabase is the sole source of truth. All data operations use `supabaseGet`/`supabaseUpsert`/`supabaseDelete` helpers calling the Supabase REST API directly.
+- **Startup command**: `npm run server:dev & npm run dev`.
+- `src/lib/apiFnUrl.ts` handles environment routing: `/api/fn/<name>` in dev and `${VITE_SUPABASE_URL}/functions/v1/<name>` in production.
+- The Express server gracefully degrades when optional secrets are absent.
 
 **Core Features & Implementations:**
 - **AI Career Management**: AI-powered resume building, tailoring for job listings, public portfolios, interview practice, job tracking, and career goal management.
-- **AI System**: Centralized AI client (`supabase/functions/_shared/aiClient.ts`) dispatches calls to OpenRouter and Groq (primary providers). Supports "Bring Your Own Key" (BYOK). Per-feature routing config in `ai_routing_config` table; pass `featureName` to `callAI`/`callAIWithRetry` to activate. `_shared/modelRouter.ts` is the canonical routing helper — exports `resolveFeatureRoute(featureName)` which aiClient imports. A/B splits via `ab_secondary_provider`+`ab_split_pct`. Forced routing disables cross-provider fallback to preserve A/B integrity.
-- **AI Error Handling**: Structured error chain from Supabase Edge Functions to user-facing toasts, with utilities for parsing `AIError` types.
-- **Agentic Chat**: Multi-turn AI assistant with persistent sessions and tool-calling capabilities (e.g., `update_summary`, `get_company_briefing`, `open_job_tracker`). Uses a `tool_cache` DB table for output caching.
+- **AI System**: Centralized AI client (`supabase/functions/_shared/aiClient.ts`) dispatches calls to OpenRouter and Groq (primary providers). Supports "Bring Your Own Key" (BYOK) and per-feature routing configured in `ai_routing_config` table. A/B splits are supported via `ab_secondary_provider` and `ab_split_pct`.
+- **AI Error Handling**: Structured error chain from Supabase Edge Functions to user-facing toasts.
+- **Agentic Chat**: Multi-turn AI assistant with persistent sessions and tool-calling capabilities.
 - **Subscription & Credits**: `free`, `pro`, `premium` plans with dynamic daily AI credit limits.
 - **Design System**: Consistent UI with Deep Indigo primary, Warm Amber accent colors, Inter typography, custom shadow scales, and light/dark/system themes.
-- **Navigation**: `DesktopNav` and `BottomTabBar` for intuitive feature access; locked tabs guide users to subscription page for upgrades.
-- **Admin DevKit**: Password-protected admin panel with Mission Control, Analytics, Live Activity, Deployment, Audit Log, AI Provider panels (OpenRouter/Groq key slots), AI Routing (per-feature provider config, A/B splits, plan spend caps), Feature Flags, Owner Ops (broadcasts, maintenance), User management, Observability (edge function metrics + error stream), Moderation (Bug Inbox, Blocklist, Moderation Queue), and Integrations (Kinde Events, Resend Bounces, Deploy/GitHub Actions). Key edge functions: `admin-devkit-data` (analytics/observability/live-activity/mission-control/github-status — routes on `body.action`), `admin-email` (resend-stats/resend-sync/email-actions/broadcast — routes on `body.module`), `admin-ai-routing`, `admin-ai-caps`, `admin-moderation`, `admin-integrations`.
-- **DevKit session recovery**: When a DevKit admin edge function returns HTTP 401 (token rejected by `requireAdminAuth` — e.g. session row missing/revoked in `admin_sessions`, expired `expires_at`, or HMAC mismatch after a `DEV_KIT_PASSWORD` rotation), the affected panel surfaces the actual server message and a "Sign in again" button that calls `lock()` from `DevKitSessionContext`. `lock()` clears both the in-memory `_devKitToken` and the `devkit_session_*` keys in `localStorage`, then sets `isUnlocked=false` so the unlock screen reappears with the email + password + TOTP form. Currently wired into `AIKeySlotPanels` (OpenRouter, Groq) and `ObservabilityPanel` (Telemetry, Error Stream / "alerts"); the same pattern needs to be propagated to the other 17 admin panels (tracked as a follow-up).
-  - **Moderation**: `ModerationPanel.tsx` — 3-tab panel (Bug Inbox, Blocklist, Moderation Queue). Backed by `admin-moderation` edge function reading from `bug_reports`, `blocklist`, `moderation_queue` tables.
-  - **Integrations**: `IntegrationsPanel.tsx` — 3-tab panel (Kinde Events, Resend Bounces, Deploy). Backed by `admin-integrations` edge function (Resend API, GitHub Actions API) and `admin-moderation` for kinde_events.
-  - **Blocklist enforcement**: `token-exchange` checks `blocklist` table after computing UUID, before provisioning; returns `ACCOUNT_SUSPENDED 403` if matched.
-  - **Kinde event logging**: `kinde-webhook` fire-and-forgets a row into `kinde_events` for every processed event (success + failure paths).
+- **Navigation**: `DesktopNav` and `BottomTabBar` for intuitive feature access; locked tabs guide users to subscription upgrades.
+- **Admin DevKit**: Password-protected admin panel with Mission Control, Analytics, Live Activity, Deployment, Audit Log, AI Provider panels, AI Routing, Feature Flags, Owner Ops, User management, Observability, Moderation (Bug Inbox, Blocklist, Moderation Queue), and Integrations (Kinde Events, Resend Bounces, Deploy/GitHub Actions).
 - **Server-side LinkedIn Importer**: `POST /api/linkedin-profile` endpoint uses Proxycurl for structured profile data import with rate limiting.
-- **Kanban Job Tracker**: Board view for job applications with draggable cards, inline quick add, and optimistic updates.
+- **Kanban Job Tracker**: Board view for job applications with draggable cards.
 - **WiseHire (HR SaaS Platform)**: Integrated HR product with AI JD Writer, AI Brief Generator, and Candidate Pipeline Board.
-- **WebMCP Integration**: Agent discovery via static files (`sitemap.xml`, `robots.txt`, `.well-known/*`) and HTTP headers, plus WebMCP `navigator.modelContext` integration for skill registration.
-- **Analytics Data Lifecycle**: Daily pruning of insert-heavy analytics tables (`portfolio_visits`, `error_log`, `audit_logs`, `admin_audit_log`) with configurable retention and BRIN indexing.
+- **WebMCP Integration**: Agent discovery via static files and HTTP headers, plus WebMCP `navigator.modelContext` integration.
+- **Analytics Data Lifecycle**: Daily pruning of insert-heavy analytics tables with configurable retention and BRIN indexing.
 
 **Project Structure:**
-- `src/`: Frontend code (components, hooks, lib, pages, store).
+- `src/`: Frontend code.
 - `supabase/`: Edge functions and database migrations.
 - `server/`: Express.js backend code.
-- `public/`: Static assets, Apache `.htaccess`, and changelog JSON.
+- `public/`: Static assets.
 - `specs/`: Technical specifications.
 - `project-governance/`: Architecture documentation.
 - `wise-templates/`: Resume templates.
 
 ### External Dependencies
 - **Kinde Auth**: User authentication and identity management.
-- **Supabase**: Backend-as-a-Service providing PostgreSQL, Edge Functions, and RLS.
+- **Supabase**: Backend-as-a-Service (PostgreSQL, Edge Functions, RLS).
 - **Drizzle ORM**: PostgreSQL database interaction.
 - **Proxycurl**: LinkedIn profile data import.
-- **OpenRouter**: AI provider for various language models.
-- **Groq**: AI provider for various language models.
-- **Gemini**: AI provider for various language models.
+- **OpenRouter**: AI provider.
+- **Groq**: AI provider.
+- **Gemini**: AI provider.
 - **Sentry**: Error tracking and performance monitoring.
 - **GitHub**: Version control, CI/CD, and DevKit integration.
-- **Stripe**: Subscription and payment management (implied).
+- **Stripe**: Subscription and payment management.
 - **Vite**: Frontend build tool.
 - **Tailwind CSS**: Utility-first CSS framework.
 - **Radix UI**: UI component library.
 - **Framer Motion**: Animation library.
 - **Zustand**: State management library.
 - **TanStack Query (React Query)**: Data fetching and caching library.
-- **Expo SDK 51**: Native shell for the iOS + Android client at `mobile/`. See `mobile/README.md`.
+- **Expo SDK 51**: Native shell for iOS and Android clients.

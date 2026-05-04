@@ -26,6 +26,8 @@ export interface PendingConfirmation {
   historyAtCall: ChatMessage[];
   initialMsg: ChatMessage;
   activeSessionId: string | null;
+  /** JSON snapshot of the resume section before the AI change is applied */
+  beforeSnapshot: string;
 }
 
 const OVERWRITE_FUNCTIONS = new Set([
@@ -657,6 +659,8 @@ export function useAgenticChat(contextFilter?: string) {
             const historyAtCall = user
               ? [...messages, userMsg, initialMsg]
               : [...messages, userMsg, initialMsg].slice(-10);
+            const sectionKey = getSectionKey(response.functionName);
+            const beforeSnapshot = sectionKey ? sectionSnapshot(currentResume, sectionKey) : '';
             setPendingConfirmation({
               functionName: response.functionName,
               args: response.args,
@@ -664,6 +668,7 @@ export function useAgenticChat(contextFilter?: string) {
               historyAtCall,
               initialMsg,
               activeSessionId,
+              beforeSnapshot,
             });
             // isThinking is cleared by the outer finally block
             return;
