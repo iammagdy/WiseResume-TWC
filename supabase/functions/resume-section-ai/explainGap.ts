@@ -26,6 +26,7 @@ interface GapRequest {
   previousJob?: { position: string; company: string };
   nextJob?: { position: string; company: string };
   additionalContext?: string;
+  targetRole?: string;
 }
 
 const reasonLabels: Record<string, string> = {
@@ -68,7 +69,7 @@ export async function handleExplainGap(
       );
     }
 
-    const { gap, reason, previousJob, nextJob, additionalContext }: GapRequest = JSON.parse(bodyText);
+    const { gap, reason, previousJob, nextJob, additionalContext, targetRole }: GapRequest = JSON.parse(bodyText);
 
     if (!gap || !reason) {
       return new Response(
@@ -94,7 +95,9 @@ export async function handleExplainGap(
 
     const systemPrompt = `You are a professional career coach helping job seekers explain employment gaps. Your explanations should be honest but positive, concise (2-3 sentences), in first person, and frame the gap as a deliberate choice or valuable experience.`;
 
-    const userPrompt = `Help me explain an employment gap.\n\n${contextText}\n\nReason: ${reasonLabel}\n\nGenerate a professional explanation and 2-3 tips for discussing this gap.`;
+    const sanitizedTargetRole = targetRole ? targetRole.substring(0, 200) : null;
+    const roleContext = sanitizedTargetRole ? `\nTarget Role: ${sanitizedTargetRole}` : "";
+    const userPrompt = `Help me explain an employment gap.\n\n${contextText}${roleContext}\n\nReason: ${reasonLabel}\n\nGenerate a professional explanation and 2-3 tips for discussing this gap${sanitizedTargetRole ? ` in the context of applying for a ${sanitizedTargetRole} position` : ""}.`;
 
 
     const creditCheck = await checkAndDeductCredit(userId);

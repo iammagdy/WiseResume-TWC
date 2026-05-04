@@ -59,7 +59,7 @@ Deno.serve(wrapHandler("career-assessment", async (req: Request) => {
       );
     }
 
-    const { resume, quizAnswers } = JSON.parse(body);
+    const { resume, quizAnswers, questionLimit } = JSON.parse(body);
 
     if (!resume || typeof resume !== "object") {
       return new Response(
@@ -175,6 +175,10 @@ ${resume.certifications?.map((c: any) => `- ${c.name} from ${c.issuer}`).join("\
       throw new Error("Career assessment returned invalid data. Please try again.");
     }
 
+    const parsedLimit = Number(questionLimit);
+    const applyLimit = <T>(arr: T[]): T[] =>
+      parsedLimit === 3 ? arr.slice(0, 3) : arr;
+
     const sanitized = {
       currentLevel: (result as any).currentLevel || "mid",
       yearsExperience: (result as any).yearsExperience || 0,
@@ -182,8 +186,8 @@ ${resume.certifications?.map((c: any) => `- ${c.name} from ${c.issuer}`).join("\
       strengthSummary: (result as any).strengthSummary || "",
       riskFactors: (result as any).riskFactors || [],
       careerMap: (result as any).careerMap || null,
-      nextRoles: (result as any).nextRoles || [],
-      skillGaps: (result as any).skillGaps || [],
+      nextRoles: applyLimit((result as any).nextRoles || []),
+      skillGaps: applyLimit((result as any).skillGaps || []),
       industryAlternatives: (result as any).industryAlternatives || [],
       actionPlan: (result as any).actionPlan || [],
     };

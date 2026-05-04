@@ -55,13 +55,17 @@ function s(v: unknown, max = 1000): string {
 
 function buildPrompt(type: AIStudioType, payload: Payload): string {
   switch (type) {
-    case "personal_branding":
+    case "personal_branding": {
+      const targetRole = payload.targetRole ? s(payload.targetRole, 150) : null;
+      const roleInstruction = targetRole
+        ? `\nTarget Role: ${targetRole}\nTailor all three statements to position the candidate as an ideal fit for this target role.`
+        : "";
       return `You are a personal branding expert. Given this candidate's information, craft three distinct personal branding statements.
 
 Name: ${s(payload.name, 100)}
 Summary: ${s(payload.summary, 800)}
 Top Skills: ${s(payload.topSkills, 400)}
-Experience: ${s(payload.experience, 600)}
+Experience: ${s(payload.experience, 600)}${roleInstruction}
 
 Return ONLY a JSON object with exactly these three keys:
 {
@@ -71,6 +75,7 @@ Return ONLY a JSON object with exactly these three keys:
 }
 
 Each statement must be 1-2 sentences (25-60 words). Do not include markdown, code blocks, or explanations — just the JSON.`;
+    }
 
     case "skills_gap":
       return `You are a career development expert. Analyze the gap between the candidate's current skills and the job requirements.
