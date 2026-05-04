@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Download, FileText, Package, Minimize2, FileType, Shield, Linkedin, AlignLeft, Link2, FolderDown, Image, FileCode } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { ExportType, CoverLetterContext } from '@/types/resume';
+import type { ResumeData } from '@/types/resume';
 import { useSettingsStore } from '@/store/settingsStore';
 import { estimateOnePageScale } from '@/lib/pdfUtils';
 import haptics from '@/lib/haptics';
@@ -11,6 +12,7 @@ import { ExportTypeList } from './export/ExportTypeList';
 import { AtsWarningAlert } from './export/AtsWarningAlert';
 import { PdfOptionsFooter } from './export/PdfOptionsFooter';
 import { ExportProgressBar } from './export/ExportProgressBar';
+import { LaTeXPreviewPanel } from './export/LaTeXPreviewPanel';
 import type { ExportOptionDef } from './export/ExportOptionCard';
 
 interface ExportOptionsSheetProps {
@@ -25,11 +27,12 @@ interface ExportOptionsSheetProps {
   resumeName?: string;
   templateName?: string;
   templateAtsScore?: 'high' | 'medium' | 'low';
+  resumeData?: ResumeData | null;
 }
 
 export function ExportOptionsSheet({
   open, onOpenChange, hasCoverLetter, coverLetterContext, onExport,
-  isExporting, templateElement, exportProgress, resumeName, templateName, templateAtsScore,
+  isExporting, templateElement, exportProgress, resumeName, templateName, templateAtsScore, resumeData,
 }: ExportOptionsSheetProps) {
   const { pdfDefaults, lastExportType, setLastExportType } = useSettingsStore();
   const { isOnline } = useNetworkStatus();
@@ -162,6 +165,10 @@ export function ExportOptionsSheet({
 
           {selectedType === 'resume' && (
             <AtsWarningAlert templateAtsScore={templateAtsScore} onSwitchToAts={handleSwitchToAts} />
+          )}
+
+          {selectedType === 'latex' && resumeData && (
+            <LaTeXPreviewPanel resumeData={resumeData} />
           )}
 
           <PdfOptionsFooter

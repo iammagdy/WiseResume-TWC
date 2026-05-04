@@ -660,7 +660,8 @@ export default function PreviewPage() {
           exportProgress={exportProgress}
           resumeName={currentResume?.contactInfo?.fullName || 'Resume'}
           templateName={templates.find((t) => t.id === selectedTemplate)?.name || selectedTemplate}
-          templateAtsScore={templates.find((t) => t.id === selectedTemplate)?.atsScore as 'high' | 'medium' | 'low' | undefined} />
+          templateAtsScore={templates.find((t) => t.id === selectedTemplate)?.atsScore as 'high' | 'medium' | 'low' | undefined}
+          resumeData={currentResume} />
 
         }
         {showOnePageWizard &&

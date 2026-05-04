@@ -1712,6 +1712,7 @@ export default function EditorPage() {
               exportProgress={exportProgress}
               resumeName={currentResume.contactInfo?.fullName || ''}
               templateName={selectedTemplate}
+              resumeData={currentResume}
             />
           )}
         </Suspense>
