@@ -11,7 +11,7 @@ const CSP_BASE = [
   "style-src 'self' 'unsafe-inline'",
   "font-src 'self' data:",
   "img-src 'self' data: blob: https:",
-  "connect-src 'self' https://*.supabase.co https://*.supabase.in wss://*.supabase.co https://*.kinde.com https://api.openrouter.ai https://api.groq.com https://generativelanguage.googleapis.com https://api.elevenlabs.io",
+  "connect-src 'self' https://*.supabase.co https://*.supabase.in wss://*.supabase.co https://*.kinde.com https://auth.thewise.cloud https://api.openrouter.ai https://api.groq.com https://generativelanguage.googleapis.com https://api.elevenlabs.io",
   // Web Workers must be allowed from the same origin AND blob: URLs.
   // Tesseract.js v7 (and many other libs) wrap their worker script in
   // a Blob and call `new Worker(URL.createObjectURL(blob))`. Without
