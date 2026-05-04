@@ -631,14 +631,6 @@ function DeferredProviders() {
 
 const AppInterior = () => {
   if (!kindeConfigStatus.valid) {
-    if (import.meta.env.DEV) {
-      return (
-        <>
-          <Toaster />
-          <KindeMissingConfigOverlay missing={kindeConfigStatus.missing} />
-        </>
-      );
-    }
     return (
       <>
         <Toaster />
