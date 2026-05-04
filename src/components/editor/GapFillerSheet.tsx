@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Loader2, Sparkles, Plus, Shield, BookOpen, Heart, Compass, Briefcase, MoreHorizontal, Check, X } from 'lucide-react';
+import { Loader2, Sparkles, Plus, Shield, BookOpen, Heart, Compass, Briefcase, MoreHorizontal, Check, X, Info } from 'lucide-react';
 import { GapInfo } from '@/lib/dateUtils';
 import { Experience } from '@/types/resume';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
@@ -282,6 +282,12 @@ export function GapFillerSheet({ isOpen, onClose, gap, experiences, onAddExperie
                 animate={{ opacity: 1, y: 0 }}
                 className="space-y-3"
               >
+                <div className="flex items-start gap-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                  <Info className="w-4 h-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+                  <p className="text-xs text-amber-700 dark:text-amber-300">
+                    These are AI-generated templates. Edit them to reflect your real experience before adding to your resume.
+                  </p>
+                </div>
                 <p className="text-sm font-medium">Choose a suggestion:</p>
                 {suggestions.map((suggestion, index) => {
                   const isSelected = selectedIndex === index;

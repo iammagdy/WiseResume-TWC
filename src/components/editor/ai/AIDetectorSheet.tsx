@@ -395,10 +395,13 @@ export function AIDetectorSheet({ open, onOpenChange }: AIDetectorSheetProps) {
                 exit={{ opacity: 0, y: -20 }}
                 className="p-4 space-y-4"
               >
-                <div className="p-3 rounded-xl bg-primary/5 border border-primary/10">
+                <div className="p-3 rounded-xl bg-primary/5 border border-primary/10 space-y-2">
                   <p className="text-sm text-muted-foreground flex items-start gap-2">
                     <Info className="w-4 h-4 shrink-0 mt-0.5 text-primary" />
                     Many companies use AI detectors. This tool helps you identify AI-sounding text and rewrite it to sound more natural.
+                  </p>
+                  <p className="text-xs text-muted-foreground pl-6">
+                    Works best on your summary, bio, and cover letter text. Humanizing resume bullet points may reduce their ATS impact.
                   </p>
                 </div>
 
