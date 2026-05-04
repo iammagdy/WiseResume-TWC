@@ -12,6 +12,9 @@ export const BoldTypeTemplate = memo(function BoldTypeTemplate({ resume }: Templ
     <div className="font-sans text-sm leading-relaxed bg-white">
       <header className="px-8 pt-10 pb-7 bg-black text-white mb-7">
         <h1 className="text-5xl font-black uppercase tracking-tighter leading-none text-white">{resume.contactInfo.fullName || 'Your Name'}</h1>
+        {resume.experience.length > 0 && (
+          <p className="mt-2 text-xl font-light text-white/80 tracking-wide">{resume.experience[0].position}</p>
+        )}
         <div className="mt-4 border-t border-white/20 pt-4">
           <ContactLinks contact={resume.contactInfo} className="text-white/70 text-xs" iconSize={3} />
         </div>

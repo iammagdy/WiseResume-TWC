@@ -16,7 +16,6 @@ const AcademicTemplate = lazy(() => import('@/components/templates/AcademicTempl
 const HealthcareTemplate = lazy(() => import('@/components/templates/HealthcareTemplate').then(m => ({ default: m.HealthcareTemplate })));
 const SalesTemplate = lazy(() => import('@/components/templates/SalesTemplate').then(m => ({ default: m.SalesTemplate })));
 const ElegantTemplate = lazy(() => import('@/components/templates/ElegantTemplate').then(m => ({ default: m.ElegantTemplate })));
-const CorporateTemplate = lazy(() => import('@/components/templates/CorporateTemplate').then(m => ({ default: m.CorporateTemplate })));
 const BankingTemplate = lazy(() => import('@/components/templates/BankingTemplate').then(m => ({ default: m.BankingTemplate })));
 const ConsultingTemplate = lazy(() => import('@/components/templates/ConsultingTemplate').then(m => ({ default: m.ConsultingTemplate })));
 const FederalTemplate = lazy(() => import('@/components/templates/FederalTemplate').then(m => ({ default: m.FederalTemplate })));
@@ -24,16 +23,14 @@ const LegalTemplate = lazy(() => import('@/components/templates/LegalTemplate').
 const MarketingTemplate = lazy(() => import('@/components/templates/MarketingTemplate').then(m => ({ default: m.MarketingTemplate })));
 const DesignerTemplate = lazy(() => import('@/components/templates/DesignerTemplate').then(m => ({ default: m.DesignerTemplate })));
 const PortfolioTemplate = lazy(() => import('@/components/templates/PortfolioTemplate').then(m => ({ default: m.PortfolioTemplate })));
-const StartupTemplate = lazy(() => import('@/components/templates/StartupTemplate').then(m => ({ default: m.StartupTemplate })));
-const InfographicTemplate = lazy(() => import('@/components/templates/InfographicTemplate').then(m => ({ default: m.InfographicTemplate })));
 const DataScienceTemplate = lazy(() => import('@/components/templates/DataScienceTemplate').then(m => ({ default: m.DataScienceTemplate })));
 const DevOpsTemplate = lazy(() => import('@/components/templates/DevOpsTemplate').then(m => ({ default: m.DevOpsTemplate })));
-const CyberTemplate = lazy(() => import('@/components/templates/CyberTemplate').then(m => ({ default: m.CyberTemplate })));
 const ProductTemplate = lazy(() => import('@/components/templates/ProductTemplate').then(m => ({ default: m.ProductTemplate })));
 const CleanTemplate = lazy(() => import('@/components/templates/CleanTemplate').then(m => ({ default: m.CleanTemplate })));
 const SwissTemplate = lazy(() => import('@/components/templates/SwissTemplate').then(m => ({ default: m.SwissTemplate })));
-const MonoTemplate = lazy(() => import('@/components/templates/MonoTemplate').then(m => ({ default: m.MonoTemplate })));
-const ZenTemplate = lazy(() => import('@/components/templates/ZenTemplate').then(m => ({ default: m.ZenTemplate })));
+const BentoTemplate = lazy(() => import('@/components/templates/BentoTemplate').then(m => ({ default: m.BentoTemplate })));
+const BrutalistTemplate = lazy(() => import('@/components/templates/BrutalistTemplate').then(m => ({ default: m.BrutalistTemplate })));
+const BoldTypeTemplate = lazy(() => import('@/components/templates/BoldTypeTemplate').then(m => ({ default: m.BoldTypeTemplate })));
 
 interface TemplateThumbnailProps {
   templateId: TemplateId;
@@ -53,7 +50,6 @@ export const templateComponents: Record<TemplateId, React.LazyExoticComponent<Re
   healthcare: HealthcareTemplate,
   sales: SalesTemplate,
   elegant: ElegantTemplate,
-  corporate: CorporateTemplate,
   banking: BankingTemplate,
   consulting: ConsultingTemplate,
   federal: FederalTemplate,
@@ -61,16 +57,14 @@ export const templateComponents: Record<TemplateId, React.LazyExoticComponent<Re
   marketing: MarketingTemplate,
   designer: DesignerTemplate,
   portfolio: PortfolioTemplate,
-  startup: StartupTemplate,
-  infographic: InfographicTemplate,
   'data-science': DataScienceTemplate,
   devops: DevOpsTemplate,
-  cyber: CyberTemplate,
   product: ProductTemplate,
   clean: CleanTemplate,
   swiss: SwissTemplate,
-  mono: MonoTemplate,
-  zen: ZenTemplate,
+  bento: BentoTemplate,
+  brutalist: BrutalistTemplate,
+  'bold-type': BoldTypeTemplate,
 };
 
 function ThumbnailSkeleton() {
