@@ -63,6 +63,7 @@ export function WiseResumeHero({
         ref={heroRef}
         className="lp-hero-top relative flex flex-col items-center text-center px-4 sm:px-6 overflow-hidden"
         style={{ background: 'var(--lp-bg)', paddingBottom: '4rem' }}
+        data-section="hero"
       >
         {/* Indigo radial glow */}
         <div
@@ -171,6 +172,7 @@ export function WiseResumeHero({
                 whileHover={prefersReducedMotion ? {} : { scale: 1.04 }}
                 whileTap={prefersReducedMotion ? {} : { scale: 0.97 }}
                 transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                data-track="hero-go-to-dashboard"
               >
                 Go to Dashboard
                 <ArrowRight className="w-4 h-4" />
@@ -183,6 +185,7 @@ export function WiseResumeHero({
                 whileHover={prefersReducedMotion ? {} : { scale: 1.04 }}
                 whileTap={prefersReducedMotion ? {} : { scale: 0.97 }}
                 transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                data-track="hero-get-started-free"
               >
                 Get Started Free
                 <ArrowRight className="w-4 h-4" />

@@ -1,6 +1,20 @@
 # What Wise Cloud Can Do Today
 
-**Last verified:** 2026-05-02 (Task #30)
+**Last verified:** 2026-05-05 (Task #4)
+
+## See exactly who visits the site and what they do (2026-05-05)
+**What was the situation:** There was no way to see how many people visited the landing page, where they came from, which features they looked at, or whether they were new or returning. All usage data was limited to signed-in users.
+**What changed:** The admin desk now has a "Visitors" panel that tracks both anonymous visitors and signed-in users across the whole site. Here's what you can see:
+- **Headline numbers** — unique visitors, sessions, page views, bounce rate, and average session length, for any time window you choose.
+- **World map** — a colour-coded map showing which countries visitors come from.
+- **Device & browser breakdown** — donut charts showing whether people use phones, tablets, or desktops, and which browsers they prefer.
+- **Top pages** — which pages get the most traffic.
+- **Click targets** — which buttons and links people click most, filterable by page.
+- **Section engagement** — which sections of the landing page people actually read (measured by scrolling into view and staying for at least 2 seconds).
+- **Session list** — a paginated list of individual visits with device, country, and page count.
+- **Journey timeline** — click any session to see the full sequence of pages visited, clicks made, and sections read, with timestamps.
+**Privacy:** A GDPR consent banner now appears the first time someone visits. No tracking fires until they accept. Visitors who decline are never tracked. Once a visitor signs in, their anonymous browsing history is linked to their account automatically.
+**What you'll notice:** A "Visitors" item in the admin sidebar, between Analytics and AI Cost.
 
 ## Mobile builds are now buildable in minutes (2026-05-02)
 **What was the situation:** Wise Resume had been *partially* configured for mobile (the Capacitor wrap) for some time, but no one had ever produced a working app you could actually install on a phone. There was no recipe, no script, and no safety net — and worse, if anyone *had* built it, the mobile binary would have shipped the admin tools panel inside it (a security and clutter problem on a user's phone).

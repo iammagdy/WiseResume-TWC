@@ -255,3 +255,17 @@ project_id = "jnsfmkzgxsviuthaqlyy"
 # before the handler runs. Dispatch is via x-editor-ai-action header.
 [functions.editor-ai]
   verify_jwt = true
+
+# --- Visitor Intelligence (Task #4, 2026-05-05) ---
+# track-visitor-event: anonymous insert endpoint; no JWT required.
+# stitch-visitor-identity: links pre-auth anon rows to a known user post-login.
+# purge-old-visitor-events: cron-triggered retention sweep (daily 03:00 UTC).
+# admin-visitor-analytics: DevKit read-only queries; requireAdminAuth inside.
+[functions.track-visitor-event]
+  verify_jwt = false
+[functions.stitch-visitor-identity]
+  verify_jwt = false
+[functions.purge-old-visitor-events]
+  verify_jwt = false
+[functions.admin-visitor-analytics]
+  verify_jwt = false

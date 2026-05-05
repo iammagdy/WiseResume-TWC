@@ -14,6 +14,39 @@
 - New formula: `viewportEntry = cardTop - containerHeight; fadeStart = viewportEntry - containerHeight * 0.5; opacity = calculateProgress(scrollTop, fadeStart, viewportEntry)`.
 - `viewportEntry` is the scroll position at which the card's top edge first enters the viewport from below. `calculateProgress` clamps to 1 when `scrollTop >= viewportEntry` → opacity = 1 the moment the card is in or above the viewport, regardless of scroll direction. No fade-out on upward scroll.
 
+## 2026-05-05 — v3.12.0: Visitor Intelligence Dashboard (Task #4)
+
+Full end-to-end visitor tracking pipeline: anonymous event collection, GDPR consent gating, geo enrichment, identity stitching, and a rich DevKit "Visitors" panel.
+
+**DB migrations:**
+- `supabase/migrations/20260607000000_visitor_events.sql`: `public.visitor_events` table — `id uuid PK`, `anon_id text`, `user_id uuid FK users nullable`, `session_id text`, `event_type text`, `page text`, `target text nullable`, `section text nullable`, `props jsonb`, `country_code char(2) nullable`, `device text`, `browser text`, `referrer text nullable`, `created_at timestamptz`. Indexes on `anon_id`, `user_id`, `session_id`, `created_at desc`, `event_type + created_at`, `country_code`. RLS: `service_role` insert-only. Purge helper: `purge_old_visitor_events(p_days int)`.
+- `supabase/migrations/20260607000001_visitor_events_rpcs.sql`: `count_distinct_visitor_anon_ids(p_start timestamptz, p_end timestamptz)` and `visitor_new_vs_returning(p_start timestamptz, p_end timestamptz)` RPCs via `SECURITY DEFINER`.
+
+**Edge functions (new):**
+- `supabase/functions/track-visitor-event/index.ts`: anonymous bulk-insert endpoint; no JWT required; IP rate-limit (60 req/min via `ip_rate_limits` table); geo from Cloudflare `CF-IPCountry` header; validates event types; batches up to 20 events per call.
+- `supabase/functions/purge-old-visitor-events/index.ts`: cron retention sweep; calls `purge_old_visitor_events(90)`; requires `CRON_SECRET`.
+- `supabase/functions/stitch-visitor-identity/index.ts`: post-login anon→user identity linking; requires user JWT; reads `wise_anon_id` from request body; updates all rows with matching `anon_id` to set `user_id`.
+- `supabase/functions/admin-visitor-analytics/index.ts`: DevKit query backend; requires admin auth; actions: `kpis`, `country-dist`, `top-pages`, `click-targets`, `sections`, `sessions`, `journey`, `cohort`.
+
+**Client tracking:**
+- `src/lib/visitorTrack.ts`: queue/flush architecture, consent gating (`wise_tracking_consent` key), device/browser detection, session management (`wise_session_id`), anon ID generation/persistence (`wise_anon_id`).
+- `src/hooks/useVisitorTracking.ts`: `page_view` events on React Router navigation, delegated `click` listener for `[data-track]` elements, `IntersectionObserver` section dwell tracking for `[data-section]` elements (2-second threshold).
+- `src/components/layout/ConsentBanner.tsx`: GDPR banner; appears 1.5 s after first visit; accept/decline; never re-appears once answered.
+
+**DevKit panel:**
+- `src/components/dev-kit/VisitorsPanel.tsx`: KPI strip (unique visitors, sessions, page views, bounce rate, avg session length); world map choropleth (`react-simple-maps`); device + browser donut charts; top pages ranked list; click targets table with page filter; section engagement table; session list with pagination; journey drawer (per-session timeline); user cohort table.
+
+**Wiring:**
+- `src/pages/DevToolsPage.tsx`: `visitors` tab added between `analytics` and `ai-cost` in `NAV_SECTIONS`, `TAB_LABELS`, `Tab` type, and panel render.
+- `src/AppInterior.tsx`: `useVisitorTracking` called inside `AppRoutes` with `user?.id`; `<ConsentBanner />` mounted at root layout.
+- `supabase/config.toml`: 4 new function blocks (`track-visitor-event`, `purge-old-visitor-events`, `stitch-visitor-identity`, `admin-visitor-analytics`), all `verify_jwt = false`.
+- `src/lib/apiFnUrl.ts`: `track-visitor-event` and `stitch-visitor-identity` added to `DIRECT_FN_NAMES`.
+
+**Landing page tracking attributes:**
+- `src/components/landing/WiseResumeHero.tsx`: `data-track="hero-get-started-free"` + `data-track="hero-go-to-dashboard"` on CTA buttons; `data-section="hero"` on root `<section>`.
+- `src/components/landing/FeatureSection.tsx`: `data-section="feature-{id}"` on root `<section>`.
+- `src/components/landing/TrustSection.tsx`: `data-section="trust"` on root `<section>`.
+
 ## 2026-05-04 — v3.11.4: Editor AI consolidation complete — 4 legacy edge functions retired (Tasks #41, #44, #45)
 
 Backend housekeeping release. All traffic for `analyze-resume`, `recruiter-simulation`,

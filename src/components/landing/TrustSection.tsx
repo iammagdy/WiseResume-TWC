@@ -64,6 +64,7 @@ export function TrustSection() {
   return (
     <section
       aria-labelledby="trust-heading"
+      data-section="trust"
       style={{
         background: 'var(--lp-section-alt2)',
         borderTop: '1px solid var(--lp-border)',

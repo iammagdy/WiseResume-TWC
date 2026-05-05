@@ -30,6 +30,7 @@ import {
   Telescope,
   Zap,
   Coins,
+  MousePointerClick,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -56,6 +57,7 @@ import { AIRoutingPanel } from '@/components/dev-kit/AIRoutingPanel';
 import { ObservabilityPanel } from '@/components/dev-kit/ObservabilityPanel';
 import { ModerationPanel } from '@/components/dev-kit/ModerationPanel';
 import { IntegrationsPanel } from '@/components/dev-kit/IntegrationsPanel';
+import { VisitorsPanel } from '@/components/dev-kit/VisitorsPanel';
 import { DEV_KIT_VERSION } from '@/components/dev-kit/config';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { apiFnUrl } from '@/lib/apiFnUrl';
@@ -65,7 +67,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { DevKitPanelBoundary } from '@/components/dev-kit/DevKitPanelBoundary';
 
-type Tab = 'mission' | 'overview' | 'analytics' | 'ai-cost' | 'onboarding' | 'live' | 'deployment' | 'users' | 'coupons' | 'settings' | 'activity' | 'email' | 'automations' | 'wisehire' | 'portfolio' | 'openrouter' | 'groq' | 'deepseek' | 'flags' | 'owner-ops' | 'ai-routing' | 'observability' | 'moderation' | 'integrations';
+type Tab = 'mission' | 'overview' | 'analytics' | 'visitors' | 'ai-cost' | 'onboarding' | 'live' | 'deployment' | 'users' | 'coupons' | 'settings' | 'activity' | 'email' | 'automations' | 'wisehire' | 'portfolio' | 'openrouter' | 'groq' | 'deepseek' | 'flags' | 'owner-ops' | 'ai-routing' | 'observability' | 'moderation' | 'integrations';
 
 interface NavItem {
   id: Tab;
@@ -85,6 +87,7 @@ const NAV_SECTIONS: NavSection[] = [
       { id: 'mission', label: 'Mission Control', icon: Radio },
       { id: 'overview', label: 'Overview', icon: LayoutDashboard },
       { id: 'analytics', label: 'Analytics', icon: BarChart2 },
+      { id: 'visitors', label: 'Visitors', icon: MousePointerClick },
       { id: 'ai-cost', label: 'AI Cost', icon: Coins },
       { id: 'onboarding', label: 'Onboarding', icon: Filter },
       { id: 'live', label: 'Live Activity', icon: Activity },
@@ -124,6 +127,7 @@ const TAB_LABELS: Record<Tab, string> = {
   mission: 'Mission Control',
   overview: 'Overview',
   analytics: 'Analytics',
+  visitors: 'Visitors',
   'ai-cost': 'AI Cost',
   onboarding: 'Onboarding Funnel',
   live: 'Live Activity',
@@ -928,6 +932,10 @@ function DevToolsInner() {
 
               {activeTab === 'analytics' && (
                 <AnalyticsPanel />
+              )}
+
+              {activeTab === 'visitors' && (
+                <VisitorsPanel />
               )}
 
               {activeTab === 'ai-cost' && (

@@ -216,6 +216,7 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
       ref={sectionRef as React.Ref<HTMLElement>}
       id={`feature-${data.id}`}
       aria-label={data.title}
+      data-section={`feature-${data.id}`}
       style={{
         background: sectionBg,
         width: '100%',

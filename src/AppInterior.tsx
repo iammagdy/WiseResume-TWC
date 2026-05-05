@@ -25,6 +25,8 @@ import { BroadcastBanner, MaintenanceCountdown } from "@/components/layout/Broad
 import { ActingAsBanner } from "@/components/layout/ActingAsBanner";
 import { useAppSettings } from "@/hooks/useAppSettings";
 import { useAuth } from "@/hooks/useAuth";
+import { useVisitorTracking } from "@/hooks/useVisitorTracking";
+import { ConsentBanner } from "@/components/layout/ConsentBanner";
 import { isAppHostname, usePublicPortfolioByDomain } from "@/hooks/usePublicPortfolio";
 import { AIPrivacyDisclosureProvider } from "@/components/ai/AIPrivacyDisclosureProvider";
 import { useAIKeyHydration } from "@/hooks/useAIKeyHydration";
@@ -383,7 +385,8 @@ function AppRoutes() {
   }, [theme]);
 
   const { isLocked, isAvailable, biometryType, isAuthenticating, authenticate } = useBiometricLock(biometricLockEnabled, biometricLockTimeout);
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
+  useVisitorTracking({ userId: user?.id ?? null });
   const location = useLocation();
 
   const isPublicStandalone = useIsPublicRoute();
@@ -430,6 +433,7 @@ function AppRoutes() {
 
   return (
     <>
+        <ConsentBanner />
         <AuroraLayer />{/* shared with AppLanding via @/components/landing/AuroraLayer */}
         {appSettings.announcement_enabled && appSettings.announcement_banner && (
           <AnnouncementBanner message={appSettings.announcement_banner} />

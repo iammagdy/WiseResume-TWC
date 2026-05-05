@@ -73,6 +73,11 @@ function rewritePortfolioFnName(fnName: string): string {
   return tail ? `${merged}&${tail}` : merged;
 }
 
+// Visitor tracking endpoint: always call Supabase directly (no Express
+// proxy path), even in dev, because sendBeacon cannot follow redirects
+// and the dev proxy strips query params on forwarded paths.
+const DIRECT_FN_NAMES = new Set(['track-visitor-event', 'stitch-visitor-identity']);
+
 export function apiFnUrl(fnName: string): string {
   const rewritten = rewritePortfolioFnName(fnName);
   // The merged `portfolio-public` router is anonymous, CORS-allow-listed
@@ -83,6 +88,12 @@ export function apiFnUrl(fnName: string): string {
   // this router and call Supabase directly so dispatch works in dev
   // too. Production (already-direct) is unaffected.
   if (rewritten.startsWith('portfolio-public?') || rewritten === 'portfolio-public') {
+    const directBase = SUPABASE_URL?.replace(/\/+$/, '');
+    if (directBase) return `${directBase}/functions/v1/${rewritten}`;
+  }
+  // Always call visitor tracking / identity stitch directly so sendBeacon
+  // works in dev (the Express proxy can't forward beacon payloads reliably).
+  if (DIRECT_FN_NAMES.has(rewritten)) {
     const directBase = SUPABASE_URL?.replace(/\/+$/, '');
     if (directBase) return `${directBase}/functions/v1/${rewritten}`;
   }
