@@ -46,10 +46,18 @@ export interface CuratedAllowlist {
 }
 
 /**
- * Hard cap on the number of models exposed per provider in the dropdown.
- * Keeps the UI usable when an upstream returns hundreds of variants.
+ * Per-provider cap on the number of models exposed in the DevKit dropdown.
+ * OpenRouter exposes 200+ models (including 30+ free ones), so its cap is
+ * raised to 50 so the free-model tier is meaningfully surfaced. Groq and
+ * DeepSeek have small catalogs; their caps are kept at 25 and 15 respectively.
  */
-export const PER_PROVIDER_CAP = 15;
+export const PER_PROVIDER_CAP = 15; // legacy export — kept for backward compat
+
+export const PER_PROVIDER_CAPS: Record<AITestProvider, number> = {
+  openrouter: 50,
+  groq: 25,
+  deepseek: 15,
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // OpenRouter
@@ -61,23 +69,34 @@ interface OpenRouterModelRaw {
 }
 
 /**
+ * Model families that are NOT text-chat completions on OpenRouter.
+ * The DevKit test-request flow only sends chat completions, so audio,
+ * image, OCR, embedding, and router-meta endpoints are excluded.
+ */
+const OPENROUTER_NON_CHAT_RE =
+  /lyria|whisper|tts(?:\b|-)|embed|clip(?:\b|-)|ocr|rerank|guard|diffusion|openrouter\/(free|owl)/i;
+
+/**
  * Curate the OpenRouter `/api/v1/models` payload.
  *
  * Heuristics:
+ *   - Non-chat model families (audio, image, OCR, router meta) are skipped.
  *   - Models with the `:free` suffix or zero prompt+completion price are
  *     marked as `tier: 'free'` and given a "Free tier" hint.
  *   - Free models sort first (so the dropdown leads with the safer
  *     no-cost choices), then paid models alphabetically.
- *   - Capped at PER_PROVIDER_CAP.
+ *   - Capped at PER_PROVIDER_CAPS.openrouter (50).
  */
 export function curateOpenRouter(payload: unknown): CuratedModel[] {
   const data = extractDataArray(payload);
   if (!data) return [];
 
+  const cap = PER_PROVIDER_CAPS.openrouter;
   const candidates: Array<CuratedModel & { _sort: number }> = [];
   for (const raw of data as OpenRouterModelRaw[]) {
     const id = typeof raw?.id === 'string' ? raw.id.trim() : '';
     if (!id) continue;
+    if (OPENROUTER_NON_CHAT_RE.test(id)) continue;
     const promptPrice = Number(raw?.pricing?.prompt ?? '0');
     const completionPrice = Number(raw?.pricing?.completion ?? '0');
     const isFreeBySuffix = id.endsWith(':free');
@@ -93,7 +112,7 @@ export function curateOpenRouter(payload: unknown): CuratedModel[] {
     });
   }
   candidates.sort((a, b) => a._sort - b._sort || a.id.localeCompare(b.id));
-  return candidates.slice(0, PER_PROVIDER_CAP).map(({ _sort: _, ...m }) => m);
+  return candidates.slice(0, cap).map(({ _sort: _, ...m }) => m);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -109,17 +128,18 @@ interface GroqModelRaw {
  * Curate the Groq `/openai/v1/models` payload.
  *
  * Heuristics:
- *   - Skip non-chat model families (whisper, TTS, guard, vision) — the
+ *   - Skip non-chat model families (whisper, TTS, guard, vision, llava) — the
  *     "Send test request" flow only ever issues a text chat completion.
  *   - Inactive models (`active: false`) are kept but flagged
  *     `deprecated: true` so the admin can see why their saved choice is
  *     misbehaving without removing it from the dropdown entirely.
- *   - Capped at PER_PROVIDER_CAP.
+ *   - Capped at PER_PROVIDER_CAPS.groq (25).
  */
 export function curateGroq(payload: unknown): CuratedModel[] {
   const data = extractDataArray(payload);
   if (!data) return [];
 
+  const cap = PER_PROVIDER_CAPS.groq;
   const out: CuratedModel[] = [];
   for (const raw of data as GroqModelRaw[]) {
     const id = typeof raw?.id === 'string' ? raw.id.trim() : '';
@@ -134,7 +154,7 @@ export function curateGroq(payload: unknown): CuratedModel[] {
     });
   }
   out.sort((a, b) => a.id.localeCompare(b.id));
-  return out.slice(0, PER_PROVIDER_CAP);
+  return out.slice(0, cap);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -150,13 +170,14 @@ interface DeepSeekModelRaw {
  *
  * DeepSeek returns minimal metadata (just `id` + `owned_by`), so every
  * model is marked `tier: 'paid'` (DeepSeek bills per token) with no extra
- * hint. Capped at PER_PROVIDER_CAP for consistency, though DeepSeek
+ * hint. Capped at PER_PROVIDER_CAPS.deepseek (15), though DeepSeek
  * usually only exposes 2-3 chat models at a time.
  */
 export function curateDeepSeek(payload: unknown): CuratedModel[] {
   const data = extractDataArray(payload);
   if (!data) return [];
 
+  const cap = PER_PROVIDER_CAPS.deepseek;
   const out: CuratedModel[] = [];
   for (const raw of data as DeepSeekModelRaw[]) {
     const id = typeof raw?.id === 'string' ? raw.id.trim() : '';
@@ -164,7 +185,7 @@ export function curateDeepSeek(payload: unknown): CuratedModel[] {
     out.push({ id, tier: 'paid' });
   }
   out.sort((a, b) => a.id.localeCompare(b.id));
-  return out.slice(0, PER_PROVIDER_CAP);
+  return out.slice(0, cap);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

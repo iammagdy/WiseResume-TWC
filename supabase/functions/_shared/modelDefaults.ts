@@ -108,20 +108,34 @@ export const AI_TEST_DEFAULT_MODELS: Record<AITestProvider, string> = {
  * with before the dynamic refresh existed.
  */
 export const AI_TEST_MODEL_ALLOWLIST: Record<AITestProvider, readonly string[]> = {
+  // Confirmed live on OpenRouter as of 2026-06-06 (fetched from /api/v1/models).
+  // Free models only — sorted alphabetically by slug. The dynamic refresh
+  // (`refresh-test-models`) will extend this list nightly; these seeds ensure
+  // the dropdown is never empty even before the first refresh runs.
   openrouter: [
+    'google/gemma-3-12b-it:free',
+    'google/gemma-3-27b-it:free',
+    'google/gemma-3-4b-it:free',
+    'google/gemma-4-26b-a4b-it:free',
+    'google/gemma-4-31b-it:free',
+    'meta-llama/llama-3.2-3b-instruct:free',
     'meta-llama/llama-3.3-70b-instruct:free',
-    'google/gemma-2-9b-it:free',
-    'mistralai/mistral-7b-instruct:free',
+    'nousresearch/hermes-3-llama-3.1-405b:free',
+    'nvidia/nemotron-3-super-120b-a12b:free',
     'openai/gpt-oss-120b:free',
-    'meta-llama/llama-3.1-8b-instruct',
-    'openai/gpt-4o-mini',
+    'openai/gpt-oss-20b:free',
+    'qwen/qwen3-coder:free',
+    'qwen/qwen3-next-80b-a3b-instruct:free',
   ],
+  // Confirmed live on Groq as of 2026-06-06. All Groq chat models are free-tier.
   groq: [
-    'llama-3.3-70b-versatile',
-    'llama-3.1-8b-instant',
-    'mixtral-8x7b-32768',
+    'compound-beta',
+    'compound-beta-mini',
     'gemma2-9b-it',
-    'qwen/qwen3-32b',
+    'llama-3.1-8b-instant',
+    'llama-3.3-70b-specdec',
+    'llama-3.3-70b-versatile',
+    'qwen-qwq-32b',
   ],
   deepseek: [
     'deepseek-v4-flash',
