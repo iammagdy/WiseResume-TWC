@@ -50,7 +50,7 @@ CRITICAL RULES:
 - Your knowledge has a cutoff date — mention this if relevant to recent events.`;
 
 const TOOL_SCHEMA = {
-  type: 'function',
+  type: 'function' as const,
   function: {
     name: 'generate_company_briefing',
     description: 'Generate a structured company research briefing',
@@ -229,7 +229,7 @@ Deno.serve(wrapHandler("company-briefing", async (req) => {
           if (e.startDate || e.endDate) parts.push(`(${[e.startDate, e.endDate].filter(Boolean).join(' – ')})`);
           return parts.join(' ');
         }).filter(Boolean);
-        if (expLines.length) parts.push('Work Experience:\n' + expLines.map(l => `  - ${l}`).join('\n'));
+        if (expLines.length) parts.push('Work Experience:\n' + expLines.map((l: string) => `  - ${l}`).join('\n'));
       }
       if (resumeData.skills?.length) {
         const skillNames = resumeData.skills.map((s: any) => typeof s === 'string' ? s : s.name || s.skill || '').filter(Boolean);
@@ -242,7 +242,7 @@ Deno.serve(wrapHandler("company-briefing", async (req) => {
           if (ed.institution || ed.school) parts.push(`from ${ed.institution || ed.school}`);
           return parts.join(' ');
         }).filter(Boolean);
-        if (eduLines.length) parts.push('Education:\n' + eduLines.map(l => `  - ${l}`).join('\n'));
+        if (eduLines.length) parts.push('Education:\n' + eduLines.map((l: string) => `  - ${l}`).join('\n'));
       }
       const resumeContext = sanitizeInputText(parts.join('\n'), 3000);
       if (resumeContext) {
