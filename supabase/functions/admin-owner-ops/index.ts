@@ -56,7 +56,7 @@ Deno.serve(wrapHandler("admin-owner-ops", async (req) => {
         return new Response(
           JSON.stringify({
             success: false,
-            error: 'SUPABASE_ACCESS_TOKEN is not configured. Set SB_MGMT_TOKEN as a Supabase Edge Function secret to enable backup triggers.',
+            error: 'SB_MGMT_TOKEN is not configured. Set it as a Supabase Edge Function secret to enable backup triggers.',
           }),
           { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
         );
