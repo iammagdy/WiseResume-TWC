@@ -79,6 +79,8 @@ run = ["npm", "run", "server:prod"]
 NODE_ENV = "development"
 PUPPETEER_SKIP_DOWNLOAD = "true"
 API_PORT = "5001"
+VITE_KINDE_CLIENT_ID = "629174acb2874e6bbf53cd4a95497425"
+VITE_KINDE_DOMAIN = "https://auth.thewise.cloud"
 
 [postMerge]
 path = "scripts/post-merge.sh"
