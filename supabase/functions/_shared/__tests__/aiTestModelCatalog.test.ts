@@ -5,7 +5,7 @@ import {
   curateDeepSeek,
   mergeWithSeed,
   toIdList,
-  PER_PROVIDER_CAP,
+  PER_PROVIDER_CAPS,
 } from "../aiTestModelCatalog.ts";
 
 // To run:
@@ -40,13 +40,13 @@ Deno.test("curateOpenRouter — flags zero-cost paid-tier slugs as free", () => 
   assertEquals(out[0].hint, "Free tier");
 });
 
-Deno.test("curateOpenRouter — caps the result at PER_PROVIDER_CAP", () => {
+Deno.test("curateOpenRouter — caps the result at PER_PROVIDER_CAPS.openrouter (50)", () => {
   const data = Array.from({ length: 100 }, (_, i) => ({
     id: `vendor/model-${String(i).padStart(3, "0")}:free`,
     pricing: { prompt: "0", completion: "0" },
   }));
   const out = curateOpenRouter({ data });
-  assertEquals(out.length, PER_PROVIDER_CAP);
+  assertEquals(out.length, PER_PROVIDER_CAPS.openrouter);
 });
 
 Deno.test("curateOpenRouter — empty / malformed payload returns []", () => {

@@ -133,7 +133,7 @@ interface GroqModelRaw {
  *   - Inactive models (`active: false`) are kept but flagged
  *     `deprecated: true` so the admin can see why their saved choice is
  *     misbehaving without removing it from the dropdown entirely.
- *   - Capped at PER_PROVIDER_CAPS.groq (25).
+ *   - Capped at PER_PROVIDER_CAPS.groq (15).
  */
 export function curateGroq(payload: unknown): CuratedModel[] {
   const data = extractDataArray(payload);
