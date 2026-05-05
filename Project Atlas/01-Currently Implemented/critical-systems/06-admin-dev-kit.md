@@ -1,6 +1,6 @@
 # Admin Dev Kit
 
-**Last verified:** 2026-04-25 (Task #25)
+**Last verified:** 2026-05-05 (Task #15 — AI model catalog cron fix)
 
 ## Login recovery — what to do when /devkit rejects the admin
 
@@ -157,6 +157,35 @@ The Identity section in `UserDetailDrawer.tsx` now surfaces more useful informat
 ## AI error parser bleed-through fix (Task #11, 2026-04-26)
 
 `edgeFunctions.ts` now short-circuits the AI error parser entirely for any `admin-*` function that returns a non-ok HTTP response. Instead of routing through `parseAIErrorBody` (which was mapping `status:"invalid"` in validation error bodies to "AI is temporarily unavailable"), the wrapper now reads the `error` or `message` field from the JSON body directly and surfaces it as-is. This prevents any admin validation error from being displayed as an AI failure.
+
+## AI Keys panel — model catalog (Task #15, 2026-05-05)
+
+The DevKit **AI Keys** panel shows a per-slot model picker for all nine AI test slots (3× OpenRouter, 3× Groq, 3× DeepSeek). Before Task #15 the picker was showing only a 6-entry hardcoded seed list because the nightly catalog refresh cron had never actually run in production.
+
+### Root causes fixed
+
+| # | Problem | Fix |
+|---|---|---|
+| 1 | Cron never ran — prior migrations required `app.cron_secret` + `app.edge_functions_url` GUCs set via `ALTER DATABASE`; those GUCs were never set so scheduling was silently skipped | Migration `20260606000000` auto-seeds `vault.cron_secret` with `gen_random_uuid()` and resolves the URL at call time from `app.edge_functions_url` GUC (with production-project fallback) — no GUC pre-flight required |
+| 2 | Single `PER_PROVIDER_CAP = 15` too small for OpenRouter (30+ free models available) | Per-provider map: `openrouter: 50`, `groq: 15`, `deepseek: 15` |
+| 3 | Seed list stale (gemma-2-9b, mistral-7b no longer in live free tier) | 15 confirmed-live OpenRouter seeds + 7 Groq seeds replacing stale entries |
+| 4 | No non-chat filter — audio/TTS/embed/diffusion/OCR models leaked into the picker | `OPENROUTER_NON_CHAT_RE` regex filters those families before curation |
+
+### Cron schedule
+
+`refresh_ai_test_models` pg_cron job fires nightly at **03:17 UTC** via `private.exec_refresh_ai_test_models()`. The function reads `cron_secret` from `vault.decrypted_secrets` and POSTs to `admin-ai-ops` with it in `x-cron-secret`. The edge function verifies the secret via `requireCronSecretOrVault` (env-var fast path first, Vault RPC fallback).
+
+### Vault bridge
+
+`public.get_cron_secret_internal()` — SECURITY DEFINER, `service_role` only, executes by `getServiceClient().rpc('get_cron_secret_internal')` inside `requireCronSecretOrVault`. Created by migration `20260606000000`. PostgREST does not expose the `vault` schema by default, so a direct REST query against `vault.decrypted_secrets` is not possible — this function is the approved bridge.
+
+### Per-slot model persistence
+
+Saved choices live in `app_settings.ai_test_slot_models` (JSONB keyed `${provider}:${slot}`). Written by `set_ai_test_slot_model` RPC. Surfaced to the UI via `inspect-ai-keys` response fields `slotModels` (saved overrides) and `defaultModels` (provider defaults). Frontend: `src/lib/devkit/aiTestSlotModels.ts` + `src/components/dev-kit/AIKeySlotPanels.tsx` + `src/components/dev-kit/AITestSlotModelsCard.tsx`.
+
+→ `supabase/functions/_shared/aiTestModelCatalog.ts`, `supabase/functions/_shared/modelDefaults.ts`, `supabase/functions/_shared/webhookAuth.ts`, `supabase/functions/admin-ai-ops/index.ts`, `supabase/migrations/20260606000000_configure_ai_model_catalog_cron.sql`
+
+→ See also: `Project Atlas/01-Currently Implemented/stability-fixes/task-15-ai-model-catalog-cron.md`
 
 ## Known gotchas
 
