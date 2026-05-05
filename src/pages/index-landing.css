@@ -662,15 +662,21 @@ body[data-lp-scheme="light"][data-lp-product="wisehire"] { background-color: #f0
   box-shadow:
     var(--lp-stack-card-shadow),
     inset 0 0 0 1px var(--lp-stack-card-ring);
-  /* No transition here: this element is promoted to a GPU compositing
-     layer by will-change:transform (set inline by ScrollStack.tsx). Adding
-     CSS transitions on paint properties (background, box-shadow) on a
-     composited layer causes Chromium to schedule texture repaints on every
-     JS transform write during fast scroll → 1-2 frame paint/composite
-     mismatch → flicker. Theme-switch transitions for the section background
-     are covered by the .lp-stack-section transition and the view-transition
-     ripple in Index.tsx; the card snapping is imperceptible during that
-     animation. */
+  /* No transition here — intentional trade-off to fix fast-scroll flicker:
+     This element is promoted to a GPU compositing layer by will-change:transform
+     (set inline by ScrollStack.tsx). CSS transitions on paint properties
+     (background, box-shadow) on a composited element cause Chromium to
+     schedule a full texture repaint on every JS style.transform write, which
+     at fast-scroll frame rates creates a 1-2 frame paint/composite mismatch
+     visible as flicker.
+     Theme-switch visual continuity: background/shadow SNAP rather than fade
+     on this card, but that snap is imperceptible because:
+       1. Index.tsx calls document.startViewTransition which renders a full-page
+          snapshot overlay for the entire ~600 ms duration of the theme change.
+       2. The .lp-stack-section wrapper has its own transition:background 0.45s
+          so the ambient section colour fades smoothly underneath the cards.
+     If a per-card shadow transition is ever required again, implement it on a
+     non-composited ::before pseudo-element rather than directly on this element. */
   /* Fix content leaking outside card boundaries when the card is
      3D-transformed (translate3d + scale). isolation:isolate creates a new
      stacking context so the card's own z-index plane clips correctly.
