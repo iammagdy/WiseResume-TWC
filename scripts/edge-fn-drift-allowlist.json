@@ -31,6 +31,7 @@
   "noAuthExpectedStatus": {
     "_default": 401,
     "_comment": "HTTP status expected when called with no Authorization header at all. Default is 401 (Phase 1 contract — gateway should reject before the handler runs). Per-function overrides cover (a) functions that are intentionally public and reject on body validation (400), (b) genuinely anonymous endpoints (200), and (c) retired tombstone stubs (410). New 500/503 responses indicate real auth-handler drift and are flagged.",
+    "manage-api-keys": 410,
     "analyze-resume": 410,
     "optimize-for-linkedin": 410,
     "recruiter-simulation": 410,
@@ -54,6 +55,7 @@
   },
 
   "_overrideRationale": {
+    "manage-api-keys": "Retired tombstone stub (BYOK removed Task #17/19). Returns 410 Gone unconditionally for all requests — no auth check runs.",
     "analyze-resume": "Retired tombstone stub (Task #41). Returns 410 Gone unconditionally before any auth check. Source kept for rollback.",
     "optimize-for-linkedin": "Retired tombstone stub (Task #41). Returns 410 Gone unconditionally. Traffic now via editor-ai.",
     "recruiter-simulation": "Retired tombstone stub (Task #41). Returns 410 Gone unconditionally. Traffic now via editor-ai.",
