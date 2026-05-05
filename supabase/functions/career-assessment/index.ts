@@ -1,4 +1,3 @@
-import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAIWithRetry, isAIError, parseAIJSON, toUserError } from "../_shared/aiClient.ts";
 import { selectProviderForTool } from "../_shared/modelRouter.ts";

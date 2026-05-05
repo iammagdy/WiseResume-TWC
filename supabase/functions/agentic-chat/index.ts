@@ -1,4 +1,3 @@
-import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { isKillSwitchActive, isFeatureEnabled } from "../_shared/featureFlags.ts";
 import { callAI, isAIError, parseAIJSON, toUserError } from "../_shared/aiClient.ts";
