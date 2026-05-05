@@ -40,6 +40,10 @@ import { useShallow } from 'zustand/react/shallow';
 import { Json } from '@/integrations/supabase/types';
 import { activityTracker } from '@/lib/activityTracker';
 
+function logTailorEvent(event: string, detail?: Record<string, unknown>) {
+  console.log(`[TailorPage] ${event}`, detail ?? '');
+}
+
 const SECTION_LABELS: Record<TailorSectionId, string> = {
   summary: 'Summary',
   skills: 'Skills',
@@ -189,6 +193,7 @@ export default function TailorPage() {
   const [appliedResumeTitle, setAppliedResumeTitle] = useState<string | null>(null);
   const [appliedJobInfo, setAppliedJobInfo] = useState<{ title: string; company: string } | null>(null);
   const [appliedScore, setAppliedScore] = useState<{ before: number; after: number } | null>(null);
+  const [appliedKeywordCount, setAppliedKeywordCount] = useState<number | null>(null);
 
   const [customInstructions, setCustomInstructions] = useState(
     () => localStorage.getItem(CUSTOM_INSTRUCTIONS_KEY) || ''
@@ -304,6 +309,7 @@ export default function TailorPage() {
     if (!jobDescription.trim()) { toast.error('Please paste a job description first'); return; }
     if (!currentResume) { toast.error('No resume to tailor'); return; }
 
+    logTailorEvent('optimize-clicked', { resumeId: currentResumeId });
     setTailorError(null);
     setIsTailoring(true);
     setOriginalResume(currentResume);
@@ -374,6 +380,7 @@ export default function TailorPage() {
     if (!tailorResult || !currentResume || !user) return;
     if (!currentResumeId) { toast.error('Please select a resume before applying changes.'); return; }
 
+    logTailorEvent('apply-changes-clicked', { resumeId: currentResumeId });
     setIsApplying(true);
     try {
       const mergedResume = buildMergedResume(currentResume, tailorResult, enabledSections, rejectedBullets);
@@ -417,10 +424,16 @@ export default function TailorPage() {
         appliedSections: enabledSections,
       }, currentResumeId || undefined);
 
+      const matchedCount = tailorResult.atsAnalysis?.matchedKeywords?.length ?? 0;
       setAppliedResumeId(newResume?.id || null);
       setAppliedResumeTitle(newTitle);
       setAppliedJobInfo({ title: jobTitle, company });
       setAppliedScore(tailorResult.overallScore ?? null);
+      setAppliedKeywordCount(matchedCount > 0 ? matchedCount : null);
+      logTailorEvent('success-screen-shown', {
+        score: tailorResult.overallScore,
+        keywordsMatched: matchedCount,
+      });
       setShowAppliedCTA(true);
       setTailorResult(null);
 
@@ -554,8 +567,14 @@ export default function TailorPage() {
     setAppliedResumeTitle(null);
     setAppliedJobInfo(null);
     setAppliedScore(null);
+    setAppliedKeywordCount(null);
     navigate(-1);
   }, [navigate]);
+
+  const handleGoToPortfolio = useCallback(() => {
+    logTailorEvent('portfolio-cta-clicked', { resumeId: appliedResumeId });
+    navigate('/portfolio');
+  }, [navigate, appliedResumeId]);
 
   return (
     <div className="flex-1 flex flex-col min-h-0 h-full">
@@ -735,8 +754,9 @@ export default function TailorPage() {
                 onViewResume={handleViewResume}
                 onTrackApplication={handleTrackApplication}
                 onCloseSuccess={handleCloseSuccess}
-                onGoToPortfolio={() => navigate('/portfolio')}
+                onGoToPortfolio={handleGoToPortfolio}
                 appliedScore={appliedScore}
+                appliedKeywordCount={appliedKeywordCount}
                 copiedText={copiedText}
                 onCopyText={handleCopyPlainText}
                 onReTailor={handleTailor}
@@ -776,8 +796,9 @@ export default function TailorPage() {
               onViewResume={handleViewResume}
               onTrackApplication={handleTrackApplication}
               onCloseSuccess={handleCloseSuccess}
-              onGoToPortfolio={() => navigate('/portfolio')}
+              onGoToPortfolio={handleGoToPortfolio}
               appliedScore={appliedScore}
+              appliedKeywordCount={appliedKeywordCount}
               copiedText={copiedText}
               onCopyText={handleCopyPlainText}
               onReTailor={handleTailor}
@@ -867,6 +888,7 @@ interface ResultsPanelProps {
   onCloseSuccess: () => void;
   onGoToPortfolio: () => void;
   appliedScore: { before: number; after: number } | null;
+  appliedKeywordCount: number | null;
   copiedText: boolean;
   onCopyText: () => void;
   onReTailor: () => void;
@@ -885,6 +907,7 @@ function ResultsPanel({
   onRetry, onSettings, onRevert, abortRef, setIsTailoring, setProgress,
   showAppliedCTA, appliedResumeId, appliedResumeTitle, appliedJobInfo,
   onViewResume, onTrackApplication, onCloseSuccess, onGoToPortfolio, appliedScore,
+  appliedKeywordCount,
   copiedText, onCopyText, onReTailor,
   rejectedBullets, onBulletReject, onRegenerate, revealedSections,
 }: ResultsPanelProps) {
@@ -896,7 +919,7 @@ function ResultsPanel({
           <CheckCircle className="w-8 h-8 text-success" />
         </div>
         <div className="space-y-2">
-          <h3 className="font-bold text-xl">New tailored resume created!</h3>
+          <h3 className="font-bold text-xl">Your resume is now stronger for this job</h3>
           {appliedResumeTitle && (
             <p className="text-sm font-medium text-foreground break-words px-2">
               {appliedResumeTitle}
@@ -932,9 +955,14 @@ function ResultsPanel({
                   +{improvement} improvement
                 </span>
               ) : (
-                <span className="text-xs text-muted-foreground">Minor improvements applied</span>
+                <span className="text-xs text-muted-foreground">Your resume has been refined and aligned with this role</span>
               )}
             </div>
+            {appliedKeywordCount !== null && appliedKeywordCount > 0 && (
+              <p className="text-xs text-muted-foreground mt-2">
+                +{appliedKeywordCount} keywords matched
+              </p>
+            )}
           </div>
         )}
 

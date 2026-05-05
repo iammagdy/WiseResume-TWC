@@ -1,6 +1,13 @@
 # What Wise Cloud Can Do Today
 
-**Last verified:** 2026-05-05 (Task #7)
+**Last verified:** 2026-05-05 (Task #28)
+
+## The success screen after tailoring now shows clearer results and keyword wins (2026-05-05)
+**What was the situation:** After applying a tailored resume, the screen said "New tailored resume created!" and, if the score didn't jump, it showed a flat "Minor improvements applied" message. It also gave no detail about what specifically improved.
+**What changed:** The heading now reads "Your resume is now stronger for this job." When the score didn't change numerically, the sub-line reads "Your resume has been refined and aligned with this role" instead of the flat placeholder. If the AI matched additional keywords from the job description, a new line shows "+X keywords matched" directly below the score card — only when there are real keywords to show. Nothing is invented; the number comes directly from the AI's analysis.
+**What you'll notice:** The success screen feels more conclusive and informative. You'll see the keyword count when the AI found matches — and a reassuring message either way.
+
+
 
 ## Mission Control now shows which countries your live visitors come from (2026-05-05)
 **What was the situation:** The "Live Visitors" card in the admin Mission Control panel showed a single number — how many sessions were active in the last 5 minutes — but gave no geographic context.

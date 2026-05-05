@@ -1,5 +1,37 @@
 # Changelog
 
+## 2026-05-05 — Tailor success screen: copy, keyword highlight, event logging (Task #28)
+
+**Files changed:**
+- `src/pages/TailorPage.tsx`
+
+**New state:**
+- `appliedKeywordCount: number | null` — captured from `tailorResult.atsAnalysis?.matchedKeywords?.length` in `handleApplyChanges` before `setTailorResult(null)`; reset in `handleCloseSuccess`.
+
+**New helper:**
+- `logTailorEvent(event, detail?)` — module-level `console.log` wrapper; zero dependencies, easy to swap for a real analytics call later.
+
+**New callback:**
+- `handleGoToPortfolio` — extracted from inline arrow at both `<ResultsPanel>` call sites; fires `logTailorEvent('portfolio-cta-clicked')` then navigates to `/portfolio`.
+
+**Copy changes (success screen):**
+- Heading: `"New tailored resume created!"` → `"Your resume is now stronger for this job"`
+- Zero-improvement sub-text: `"Minor improvements applied"` → `"Your resume has been refined and aligned with this role"`
+
+**New render:**
+- `+{appliedKeywordCount} keywords matched` line below score card; only rendered when count is a positive integer.
+
+**Event logging (four points):**
+- `optimize-clicked` — top of `handleTailor`
+- `apply-changes-clicked` — top of `handleApplyChanges`
+- `success-screen-shown` — just before `setShowAppliedCTA(true)`, includes score and keyword count
+- `portfolio-cta-clicked` — inside `handleGoToPortfolio`
+
+**Props threaded:**
+- `appliedKeywordCount` added to `ResultsPanelProps` and passed at both mobile + desktop `<ResultsPanel>` call sites.
+
+---
+
 ## 2026-05-05 — Tailor success screen: score display + portfolio nudge (Task #24)
 
 **Files changed:**
