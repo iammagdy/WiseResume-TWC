@@ -49,13 +49,13 @@ export interface CuratedAllowlist {
  * Per-provider cap on the number of models exposed in the DevKit dropdown.
  * OpenRouter exposes 200+ models (including 30+ free ones), so its cap is
  * raised to 50 so the free-model tier is meaningfully surfaced. Groq and
- * DeepSeek have small catalogs; their caps are kept at 25 and 15 respectively.
+ * DeepSeek have small catalogs; their caps are kept at 15 each.
  */
 export const PER_PROVIDER_CAP = 15; // legacy export — kept for backward compat
 
 export const PER_PROVIDER_CAPS: Record<AITestProvider, number> = {
   openrouter: 50,
-  groq: 25,
+  groq: 15,
   deepseek: 15,
 };
 

@@ -120,6 +120,8 @@ export const AI_TEST_MODEL_ALLOWLIST: Record<AITestProvider, readonly string[]> 
     'google/gemma-4-31b-it:free',
     'meta-llama/llama-3.2-3b-instruct:free',
     'meta-llama/llama-3.3-70b-instruct:free',
+    'meta-llama/llama-4-maverick:free',
+    'meta-llama/llama-4-scout:free',
     'nousresearch/hermes-3-llama-3.1-405b:free',
     'nvidia/nemotron-3-super-120b-a12b:free',
     'openai/gpt-oss-120b:free',
