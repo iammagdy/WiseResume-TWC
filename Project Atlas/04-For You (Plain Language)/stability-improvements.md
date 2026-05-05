@@ -1,6 +1,26 @@
 # Stability Improvements — What's Getting Better Behind the Scenes
 
-**Last verified:** 2026-05-04 (Editor AI backend consolidation fully complete — 4 retired backend functions removed from deployment, freeing 4 slots; DevKit cleaned up; GitHub synced)
+**Last verified:** 2026-05-05 (Task #15 — AI model catalog cron fix)
+
+## The AI model picker in the admin tools now shows the real, live list of available models (2026-05-05)
+
+**What was the situation:** The admin DevKit panel has an "AI Keys" section where you can see all nine configured AI test slots (three for OpenRouter, three for Groq, three for DeepSeek) and choose which specific AI model each slot should use when the "Send test request" button is pressed. Each slot has a dropdown menu that should show the current live catalogue of available models from each provider. That dropdown was only showing six items — a short, hardcoded fallback list that was baked into the code months ago and never updated. Several of those six models were no longer even offered by their providers. The real reason for this is that the system was supposed to automatically refresh the catalogue every night at 3:17 AM by calling out to OpenRouter, Groq, and DeepSeek and asking for their current model lists. That nightly task had been configured twice before but had silently failed to schedule itself both times, because it was waiting for two database settings to be pre-configured before it would do anything — and those settings were never actually filled in.
+
+**What changed:** Four separate problems were fixed at once. First, the nightly scheduling task was rewritten so it no longer depends on those two pre-configured settings — it figures out what it needs on its own the first time it runs, including automatically generating and storing a private security key. Second, the limit on how many OpenRouter models could appear in the list was raised from 15 to 50, because OpenRouter alone has over 30 free-tier models worth offering. Third, the fallback list (used when the live fetch fails) was updated with models that are actually available today — including the newest Llama 4 and Qwen 3 models. Fourth, a filter was added so that non-chat models (audio transcription, text-to-speech, image generation, embedding tools) are automatically excluded — those models don't work with the test-request button and were just cluttering the list.
+
+**What you'll notice:** The model dropdown in the AI Keys section of the admin panel now shows the full, current list from each provider — 50 from OpenRouter, 11 from Groq, and 2 from DeepSeek as of today. The list refreshes automatically every night. Free-tier models appear at the top. The models that failed silently before (audio, image-generation, etc.) no longer appear in the list.
+
+---
+
+## DevKit deployment panel and email verification restored on live site (2026-05-05)
+
+**What was the situation:** Several backend improvements from the previous two tasks existed only in the development code — they had never been pushed to the live Supabase backend where the app actually runs. Additionally, two environment settings were missing from the live Supabase project: the site URL (causing email verification to fail with a 503 error), and the GitHub access token (causing the DevKit admin panel's "Deployment" tab to show an error instead of commit history).
+
+**What changed:** All 73 backend functions were pushed live to Supabase. The two missing environment secrets were configured. Two leftover "ghost" backend function slots (`career-path-advisor` and `one-page-optimizer`, which had been deleted from the codebase but were still occupying deployment slots) were cleaned up from the live project. The deployment audit allowlist was updated to accurately reflect four retired functions that intentionally return a "410 Gone" response redirecting callers to the unified editor-ai router. A full live smoke test confirmed 68/68 checks passing.
+
+**What you'll notice:** Email verification links work correctly again (no more 503 errors). The DevKit admin panel's Deployment tab shows live commit history. All backend auth enforcement from the previous two tasks is now active on the live domain.
+
+---
 
 ## The AI editor engine is now leaner and fully consolidated (2026-05-04)
 
