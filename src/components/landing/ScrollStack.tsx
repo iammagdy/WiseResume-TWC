@@ -332,7 +332,7 @@ const ScrollStack = ({
            sitting visible-but-scaled-down from the start. Honour
            prefers-reduced-motion: skip the interpolation entirely so
            cards remain fully opaque (static layout). */
-        const fadeStart = triggerStart - containerHeight * 0.5;
+        const fadeStart = triggerStart - containerHeight * 1.2;
         const opacity = reduceMotion
           ? 1
           : calculateProgress(scrollTop, fadeStart, triggerStart);

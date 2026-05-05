@@ -662,17 +662,26 @@ body[data-lp-scheme="light"][data-lp-product="wisehire"] { background-color: #f0
   box-shadow:
     var(--lp-stack-card-shadow),
     inset 0 0 0 1px var(--lp-stack-card-ring);
-  transition: background 0.35s ease, box-shadow 0.35s ease;
+  /* No transition here: this element is promoted to a GPU compositing
+     layer by will-change:transform (set inline by ScrollStack.tsx). Adding
+     CSS transitions on paint properties (background, box-shadow) on a
+     composited layer causes Chromium to schedule texture repaints on every
+     JS transform write during fast scroll → 1-2 frame paint/composite
+     mismatch → flicker. Theme-switch transitions for the section background
+     are covered by the .lp-stack-section transition and the view-transition
+     ripple in Index.tsx; the card snapping is imperceptible during that
+     animation. */
   /* Fix content leaking outside card boundaries when the card is
-     3D-transformed (translate3d + scale). In WebKit/Safari, a compositing
-     context must be explicitly promoted for overflow:hidden + border-radius
-     to clip children correctly on a transformed element.
-     isolation:isolate creates a new stacking context so the card's own
-     z-index plane clips correctly. The -webkit-mask-image trick forces
-     WebKit to create a new compositing layer, which in turn respects the
-     rounded overflow clip even under scale/translate3d. */
+     3D-transformed (translate3d + scale). isolation:isolate creates a new
+     stacking context so the card's own z-index plane clips correctly.
+     overflow:clip is the modern, compositing-safe alternative to the old
+     -webkit-mask-image hack — it enforces the clip at paint time without
+     forcing an additional GPU compositing layer (which combined with
+     will-change:transform caused layer thrashing on mobile WebKit). The
+     JS setup code already sets backface-visibility:hidden and an initial
+     translateZ(0) on each card for the same purpose. */
   isolation: isolate;
-  -webkit-mask-image: -webkit-radial-gradient(white, black);
+  overflow: clip;
 }
 @media (max-width: 640px) {
   .lp-stack-section .scroll-stack-card {
@@ -690,8 +699,9 @@ body[data-lp-scheme="light"][data-lp-product="wisehire"] { background-color: #f0
 }
 
 @media (prefers-reduced-motion: reduce) {
+  /* .scroll-stack-card has no CSS transition (removed to fix fast-scroll
+     flicker), so only the section wrapper and inner panes need resetting. */
   .lp-stack-section,
-  .lp-stack-section .scroll-stack-card,
   .lp-stack-pane {
     transition: none !important;
   }
