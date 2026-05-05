@@ -14,7 +14,7 @@
  *   400.
  */
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import * as jose from 'https://deno.land/x/jose@v5.2.2/index.ts';
+import * as jose from 'npm:jose@5.2.2';
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { requireAdminAuth } from "../_shared/adminAuth.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";

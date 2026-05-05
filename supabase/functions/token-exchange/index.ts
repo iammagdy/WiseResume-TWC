@@ -13,7 +13,7 @@ import { getCorsHeaders } from '../_shared/cors.ts';
 import { getServiceClient } from '../_shared/dbClient.ts';
 import { logger } from '../_shared/logger.ts';
 import { provisionUser, kindeSubToUserId, ProvisionError } from '../_shared/provisionUser.ts';
-import * as jose from 'https://deno.land/x/jose@v5.2.2/index.ts';
+import * as jose from 'npm:jose@5.2.2';
 import { wrapHandler } from '../_shared/fnLogger.ts';
 
 const log = logger('token-exchange');
