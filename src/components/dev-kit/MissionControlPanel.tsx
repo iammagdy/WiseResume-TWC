@@ -17,6 +17,7 @@ import {
   Zap,
   Lock,
   Network,
+  Users,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
@@ -246,6 +247,7 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
   const [edgeDrift, setEdgeDrift] = useState<EdgeFnDriftData | null>(null);
   const [edgeDriftError, setEdgeDriftError] = useState<string | null>(null);
   const [edgeDriftLoading, setEdgeDriftLoading] = useState(false);
+  const [liveCount, setLiveCount] = useState<number | null>(null);
   const isMounted = useIsMounted();
 
   const fetchData = useCallback(async () => {
@@ -290,10 +292,26 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
     }
   }, [isMounted]);
 
+  const fetchLiveCount = useCallback(async () => {
+    try {
+      const tuple = await edgeFunctions.functions.invoke('admin-visitor-analytics', {
+        headers: devKitAuthHeaders(),
+        body: { action: 'live-count' },
+      });
+      const result = unwrapAdminResponse<{ liveCount: number }>(tuple, 'admin-visitor-analytics');
+      if (!isMounted()) return;
+      setLiveCount(result.liveCount);
+    } catch {
+      // fail-open: keep showing last known value
+    }
+  }, [isMounted]);
+
   useEffect(() => { fetchData(); }, [fetchData]);
   useEffect(() => { fetchEdgeDrift(); }, [fetchEdgeDrift]);
+  useEffect(() => { fetchLiveCount(); }, [fetchLiveCount]);
   useVisibleInterval(fetchData, 60_000);
   useVisibleInterval(fetchEdgeDrift, 300_000);
+  useVisibleInterval(fetchLiveCount, 30_000);
 
   if (!data && loading) {
     return (
@@ -698,6 +716,37 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+        </StatusCard>
+
+        {/* Live Visitors card — unique sessions with an event in the last 5 min */}
+        <StatusCard
+          icon={Users}
+          title="Live Visitors"
+          status={liveCount === null ? 'grey' : liveCount > 0 ? 'green' : 'grey'}
+          summary={
+            liveCount === null
+              ? 'Loading…'
+              : `${liveCount} active session${liveCount !== 1 ? 's' : ''} in the last 5 minutes`
+          }
+          onDeepLink={() => onNavigate('visitors')}
+          deepLinkLabel="Visitors"
+        >
+          {liveCount !== null && (
+            <div className="flex items-center gap-2">
+              {liveCount > 0 && (
+                <span className="relative flex h-2 w-2 shrink-0">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+                </span>
+              )}
+              <span className="text-2xl font-bold tabular-nums text-foreground leading-none">
+                {liveCount}
+              </span>
+              <span className="text-[10px] text-muted-foreground">
+                session{liveCount !== 1 ? 's' : ''} · refreshes every 30s
+              </span>
             </div>
           )}
         </StatusCard>

@@ -390,6 +390,22 @@ Deno.serve(wrapHandler('admin-visitor-analytics', async (req) => {
     });
   }
 
+  // ── live-count ────────────────────────────────────────────────────────────
+  // Unique sessions with at least one event in the last 5 minutes.
+  // Used by Mission Control for the "Live Visitors" KPI card (polls every 30s).
+  if (action === 'live-count') {
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    const { data } = await supabase
+      .from('visitor_events')
+      .select('session_id')
+      .gte('created_at', fiveMinutesAgo);
+    const liveCount = new Set((data ?? []).map((r: { session_id: string }) => r.session_id)).size;
+
+    return new Response(JSON.stringify({ success: true, data: { liveCount } }), {
+      status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
   return new Response(
     JSON.stringify({ success: false, error: `Unknown action: ${action}` }),
     { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },

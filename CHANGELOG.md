@@ -15,6 +15,23 @@
 
 ---
 
+## 2026-05-05 — Live visitor counter on Mission Control (Task #8)
+
+**`supabase/functions/admin-visitor-analytics/index.ts` — new `live-count` action:**
+- Queries `visitor_events` for rows with `created_at >= NOW() - 5 minutes`, collects distinct `session_id` values in a `Set`, returns `{ liveCount: number }`.
+- No new edge function; extends the existing `admin-visitor-analytics` dispatch table.
+- Query is intentionally lightweight (session_id column only, 5-minute window); no RPC needed.
+
+**`src/components/dev-kit/MissionControlPanel.tsx` — Live Visitors KPI card:**
+- New `liveCount: number | null` state variable.
+- New `fetchLiveCount` callback: calls `admin-visitor-analytics` with `{ action: 'live-count' }`; fail-open (catches errors silently, keeps last known value).
+- `useEffect(() => { fetchLiveCount(); }, [fetchLiveCount])` for initial load.
+- `useVisibleInterval(fetchLiveCount, 30_000)` for 30-second polling (same pattern as existing cards, half the 60s interval of the main mission-control fetch).
+- `StatusCard` with `Users` icon, green status dot when `liveCount > 0`, grey when 0 or loading.
+- Card body: animated ping dot (Tailwind `animate-ping`) + large tabular-nums count + "refreshes every 30s" label.
+- Deep-link button navigates to `visitors` tab.
+- `Users` added to lucide-react import.
+
 ## 2026-05-05 — ScrollStack flicker and sticking fix (Task #5)
 
 **Root cause A fixed — removed `duration` + `easing` from both Lenis constructor calls (`src/components/landing/ScrollStack.tsx:469-491`):**
