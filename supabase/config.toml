@@ -47,8 +47,6 @@ project_id = "jnsfmkzgxsviuthaqlyy"
     verify_jwt = false
   [functions.og-image]
     verify_jwt = false
-  [functions.one-page-optimizer]
-    verify_jwt = false
   [functions.optimize-for-linkedin]
     verify_jwt = false
   [functions.parse-job]
@@ -252,4 +250,9 @@ project_id = "jnsfmkzgxsviuthaqlyy"
   [functions.revenuecat-webhook]
     verify_jwt = true
   [functions.send-push]
+    verify_jwt = true
+  # editor-ai: verify_jwt=true matches deployed value (Management API confirmed
+  # 2026-05-05). Callers supply a Supabase JWT; the Supabase gateway verifies it
+  # before the handler runs. Dispatch is via x-editor-ai-action header.
+  [functions.editor-ai]
     verify_jwt = true
