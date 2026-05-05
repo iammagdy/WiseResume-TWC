@@ -27,11 +27,13 @@ DO $$
 DECLARE
   has_pg_cron  boolean;
   has_pg_net   boolean;
+  has_vault    boolean;
   existing_id  bigint;
   vault_exists boolean;
 BEGIN
-  SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') INTO has_pg_cron;
-  SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_net')  INTO has_pg_net;
+  SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron')        INTO has_pg_cron;
+  SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_net')         INTO has_pg_net;
+  SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'supabase_vault') INTO has_vault;
 
   IF NOT has_pg_cron OR NOT has_pg_net THEN
     RAISE NOTICE 'pg_cron or pg_net not installed; skipping refresh_ai_test_models schedule.';
@@ -39,34 +41,30 @@ BEGIN
   END IF;
 
   -- ── 1. Auto-seed Vault with a random cron_secret (idempotent) ──────────────
-  -- If a 'cron_secret' row already exists (e.g. manually provisioned or from
-  -- a previous migration run), we leave it in place. This INSERT is a no-op
-  -- on re-runs, so the migration is safe to apply multiple times.
-  --
-  -- The edge function reads this row via requireCronSecretOrVault() as a
-  -- fallback when the CRON_SECRET env var is not set. After running this
-  -- migration you can optionally set CRON_SECRET in Edge Function Secrets to
-  -- the same value (SELECT decrypted_secret FROM vault.decrypted_secrets
-  -- WHERE name = 'cron_secret') to enable the fast env-var path; if you
-  -- don't, the Vault path is used automatically and everything still works.
-  BEGIN
-    SELECT EXISTS (
-      SELECT 1 FROM vault.secrets WHERE name = 'cron_secret'
-    ) INTO vault_exists;
+  -- Skipped when supabase_vault extension is not installed (e.g. preview
+  -- branches). The cron job falls back to the app.cron_secret GUC in that case.
+  IF has_vault THEN
+    BEGIN
+      SELECT EXISTS (
+        SELECT 1 FROM vault.secrets WHERE name = 'cron_secret'
+      ) INTO vault_exists;
 
-    IF NOT vault_exists THEN
-      PERFORM vault.create_secret(
-        gen_random_uuid()::text,
-        'cron_secret',
-        'CRON_SECRET for refresh_ai_test_models nightly cron job (Task #15)'
-      );
-      RAISE NOTICE 'Auto-seeded vault.cron_secret with a random UUID.';
-    ELSE
-      RAISE NOTICE 'vault.cron_secret already exists; skipping seed.';
-    END IF;
-  EXCEPTION WHEN others THEN
-    RAISE NOTICE 'Vault seed skipped (error: %); cron will fall back to app.cron_secret GUC.', SQLERRM;
-  END;
+      IF NOT vault_exists THEN
+        PERFORM vault.create_secret(
+          gen_random_uuid()::text,
+          'cron_secret',
+          'CRON_SECRET for refresh_ai_test_models nightly cron job (Task #15)'
+        );
+        RAISE NOTICE 'Auto-seeded vault.cron_secret with a random UUID.';
+      ELSE
+        RAISE NOTICE 'vault.cron_secret already exists; skipping seed.';
+      END IF;
+    EXCEPTION WHEN others THEN
+      RAISE NOTICE 'Vault seed skipped (error: %); cron will fall back to app.cron_secret GUC.', SQLERRM;
+    END;
+  ELSE
+    RAISE NOTICE 'supabase_vault not installed; skipping vault seed. Cron will use app.cron_secret GUC.';
+  END IF;
 
   -- ── 2. Create private schema + helper function ──────────────────────────────
   -- private schema is not exposed by PostgREST so this function is not
@@ -144,18 +142,40 @@ BEGIN
   -- cron_secret from Vault and returns it to the service_role caller only.
   -- requireCronSecretOrVault() in webhookAuth.ts calls this via supabase-js
   -- .rpc('get_cron_secret_internal') as the Vault fallback path.
-  CREATE OR REPLACE FUNCTION public.get_cron_secret_internal()
-  RETURNS text
-  LANGUAGE sql
-  SECURITY DEFINER
-  SET search_path = vault, public
-  AS $$
-    SELECT decrypted_secret FROM vault.decrypted_secrets
-    WHERE name = 'cron_secret' LIMIT 1;
-  $$;
+  --
+  -- IMPORTANT: LANGUAGE sql function bodies are validated at CREATE time, so
+  -- any reference to vault.decrypted_secrets will fail if supabase_vault is
+  -- not installed (e.g. in preview branches). We use EXECUTE (dynamic SQL) to
+  -- create the function only when the extension is available, and create a
+  -- no-op stub otherwise so callers get NULL instead of a missing-function error.
+  IF has_vault THEN
+    EXECUTE $func$
+      CREATE OR REPLACE FUNCTION public.get_cron_secret_internal()
+      RETURNS text
+      LANGUAGE sql
+      SECURITY DEFINER
+      SET search_path = vault, public
+      AS $$
+        SELECT decrypted_secret FROM vault.decrypted_secrets
+        WHERE name = 'cron_secret' LIMIT 1;
+      $$
+    $func$;
+    RAISE NOTICE 'Created public.get_cron_secret_internal() backed by vault (service_role only).';
+  ELSE
+    -- Stub: always returns NULL. Edge functions fall back to the CRON_SECRET
+    -- env var when this RPC returns NULL, so cron auth still works on preview.
+    CREATE OR REPLACE FUNCTION public.get_cron_secret_internal()
+    RETURNS text
+    LANGUAGE sql
+    SECURITY DEFINER
+    SET search_path = public
+    AS $$
+      SELECT NULL::text;
+    $$;
+    RAISE NOTICE 'Created public.get_cron_secret_internal() as NULL stub (supabase_vault not installed).';
+  END IF;
   REVOKE ALL ON FUNCTION public.get_cron_secret_internal() FROM PUBLIC;
   GRANT EXECUTE ON FUNCTION public.get_cron_secret_internal() TO service_role;
-  RAISE NOTICE 'Created public.get_cron_secret_internal() (service_role only).';
 
   -- ── 4. Schedule (idempotent — unschedule first if exists) ──────────────────
   SELECT jobid INTO existing_id FROM cron.job WHERE jobname = 'refresh_ai_test_models';
