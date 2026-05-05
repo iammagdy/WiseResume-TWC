@@ -1,4 +1,3 @@
-import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { isKillSwitchActive } from "../_shared/featureFlags.ts";
@@ -316,7 +315,7 @@ const intensityInstructions: Record<string, string> = {
 - Position every piece of experience to directly map to job requirements.`,
 };
 
-serve(wrapHandler('tailor-resume', async (req) => {
+Deno.serve(wrapHandler('tailor-resume', async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
 
   if (req.method === 'OPTIONS') {

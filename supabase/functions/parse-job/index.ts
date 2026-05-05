@@ -1,17 +1,12 @@
-import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { callAI, isAIError, parseAIJSON, toUserError, sanitizeInputText } from "../_shared/aiClient.ts";
-import { selectProviderForTool } from "../_shared/modelRouter.ts";
+import { callAIWithRetry, isAIError, parseAIJSON, toUserError, sanitizeInputText } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
-import { getServiceClient } from "../_shared/dbClient.ts";
 import { logger } from "../_shared/logger.ts";
+import { checkSmokeBypass } from "../_shared/smokeTest.ts";
 
 import { wrapHandler } from '../_shared/fnLogger.ts';
-const __ROUTE_URL = selectProviderForTool('parse-job-url');
-const __ROUTE_TEXT = selectProviderForTool('parse-job-text');
-const __ROUTE_LINKEDIN = selectProviderForTool('parse-linkedin');
 const logUrl = logger('parse-job-url');
 const logText = logger('parse-job-text');
 const logLinkedin = logger('parse-linkedin');
@@ -77,12 +72,15 @@ function validateJobUrl(urlString: string): { valid: boolean; errorCode?: string
   return { valid: true, url: parsedUrl };
 }
 
-serve(wrapHandler("parse-job", async (req) => {
+Deno.serve(wrapHandler("parse-job", async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
 
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
+
+  const smokeRes = await checkSmokeBypass(req, corsHeaders, 'parse-job', { action: 'smoke', parsed: true });
+  if (smokeRes) return smokeRes;
 
   let body: Record<string, unknown>;
   try {
@@ -192,14 +190,14 @@ serve(wrapHandler("parse-job", async (req) => {
         let aiContent: string;
         let aiProviderUsed: string | undefined;
         try {
-          const aiResponse = await callAI({
-            model: __ROUTE_URL.model, wiseresumeSubProvider: __ROUTE_URL.provider,
+          const aiResponse = await callAIWithRetry({
+            featureName: 'parse-job-url',
             messages: [
               { role: 'system', content: systemPrompt },
               { role: 'user', content: userPrompt },
             ],
             temperature: 0.2,
-            userId: userId,
+            userId,
           });
           aiContent = aiResponse.content || '';
           aiProviderUsed = aiResponse.providerUsed;
@@ -322,8 +320,8 @@ serve(wrapHandler("parse-job", async (req) => {
       }
 
       try {
-        const aiResponse = await callAI({
-          model: __ROUTE_TEXT.model, wiseresumeSubProvider: __ROUTE_TEXT.provider,
+        const aiResponse = await callAIWithRetry({
+          featureName: 'parse-job-text',
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userPrompt },
@@ -460,8 +458,9 @@ serve(wrapHandler("parse-job", async (req) => {
       }
       let aiResponse;
       try {
-        aiResponse = await callAI({
-          model: __ROUTE_LINKEDIN.model, wiseresumeSubProvider: __ROUTE_LINKEDIN.provider,
+        aiResponse = await callAIWithRetry({
+          featureName: 'parse-linkedin',
+          userId,
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: `Extract structured data from this ${platform} profile:\n\n${sanitizeInputText(profileText, 30000)}` },

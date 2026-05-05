@@ -1,4 +1,3 @@
-import { serve } from "https://deno.land/std@0.224.0/http/server.ts"
 import { createClient } from "npm:@supabase/supabase-js@2.49.1"
 import { requireAdminAuth } from "../_shared/adminAuth.ts"
 import { getCorsHeaders } from "../_shared/cors.ts"
@@ -19,7 +18,7 @@ import { wrapHandler } from '../_shared/fnLogger.ts';
  *
  * Finally the Supabase auth user record is deleted, which removes the account.
  */
-serve(wrapHandler("hard-purge", async (req) => {
+Deno.serve(wrapHandler("hard-purge", async (req) => {
   const origin = req.headers.get('Origin')
   const corsHeaders = getCorsHeaders(origin)
 

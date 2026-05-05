@@ -1,4 +1,3 @@
-import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAI, isAIError, toUserError, sanitizeInputText, parseAIJSON } from "../_shared/aiClient.ts";
 import { selectProviderForTool } from "../_shared/modelRouter.ts";
@@ -378,7 +377,7 @@ function computeFieldConfidence(data: any): { completeness: number; fieldConfide
   return { completeness: Math.round(completeness), fieldConfidence: fc };
 }
 
-serve(wrapHandler("parse-resume", async (req) => {
+Deno.serve(wrapHandler("parse-resume", async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
 
   if (req.method === 'OPTIONS') {

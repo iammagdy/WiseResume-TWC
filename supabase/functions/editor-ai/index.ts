@@ -22,7 +22,6 @@
 // Kill switch
 // ───────────
 // isKillSwitchActive('editor-ai') at the router level covers all 4 actions.
-import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { isKillSwitchActive } from '../_shared/featureFlags.ts';
 import { requireAuth, authErrorResponse } from '../_shared/authMiddleware.ts';
@@ -81,7 +80,7 @@ function smokeResponse(action: string | null): Record<string, unknown> {
   }
 }
 
-serve(wrapHandler('editor-ai', async (req) => {
+Deno.serve(wrapHandler('editor-ai', async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
 
   if (req.method === 'OPTIONS') {

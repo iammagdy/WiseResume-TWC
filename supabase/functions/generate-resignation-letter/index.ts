@@ -1,4 +1,3 @@
-import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAI, isAIError, toUserError } from "../_shared/aiClient.ts";
 import { selectProviderForTool } from "../_shared/modelRouter.ts";
@@ -21,7 +20,7 @@ const VALID_TEMPLATES = ['standard', 'short', 'grateful', 'career_growth', 'imme
 const VALID_REASONS = ['new_opportunity', 'career_growth', 'relocation', 'personal_reasons', 'back_to_school', 'health_reasons', 'retirement', 'prefer_not_to_say'];
 const VALID_NOTICE_PERIODS = ['2_weeks', '1_month', 'immediate', 'custom'];
 
-serve(wrapHandler("generate-resignation-letter", async (req) => {
+Deno.serve(wrapHandler("generate-resignation-letter", async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
 
   if (req.method === 'OPTIONS') {

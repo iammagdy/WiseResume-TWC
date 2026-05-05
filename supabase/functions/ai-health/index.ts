@@ -1,7 +1,6 @@
-import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { callAIWithRetry } from "../_shared/aiClient.ts";
 import { getCorsHeaders } from '../_shared/cors.ts';
-import { requireAuth } from '../_shared/authMiddleware.ts';
+import { requireAdminAuthSession } from '../_shared/adminAuth.ts';
 import { checkRateLimit } from '../_shared/rateLimiter.ts';
 
 import { wrapHandler } from '../_shared/fnLogger.ts';
@@ -16,7 +15,7 @@ import { wrapHandler } from '../_shared/fnLogger.ts';
  *   - degraded: pool responded OK but slow, or replied 429/402
  *   - down:     anything else (timeout, network error, 5xx, 401, …)
  */
-serve(wrapHandler("ai-health", async (req) => {
+Deno.serve(wrapHandler("ai-health", async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -25,17 +24,15 @@ serve(wrapHandler("ai-health", async (req) => {
   const startTime = Date.now();
 
   try {
-    let userId: string;
+    let sessionId: string;
     try {
-      ({ userId } = await requireAuth(req));
-    } catch {
-      return new Response(
-        JSON.stringify({ error: 'Authentication required' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      );
+      ({ sessionId } = await requireAdminAuthSession(req, corsHeaders));
+    } catch (authErr) {
+      if (authErr instanceof Response) return authErr;
+      throw authErr;
     }
 
-    const { allowed } = await checkRateLimit(userId, { actionType: 'health_check', maxRequests: 120, windowSeconds: 60 });
+    const { allowed } = await checkRateLimit(sessionId, { actionType: 'health_check', maxRequests: 120, windowSeconds: 60 });
     if (!allowed) {
       return new Response(
         JSON.stringify({ error: 'health_throttled', message: 'Health check throttled — too many recent pings.' }),

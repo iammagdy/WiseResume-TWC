@@ -1,4 +1,3 @@
-import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { isKillSwitchActive, isFeatureEnabled } from "../_shared/featureFlags.ts";
 import { callAIWithRetry, isAIError, sanitizeInputText, toUserError } from "../_shared/aiClient.ts";
@@ -23,7 +22,7 @@ const MAX_RESUME_SIZE = 100 * 1024;
 const MAX_JOB_DESCRIPTION_SIZE = 50 * 1024;
 const VALID_TONES = ['professional', 'enthusiastic', 'conversational'];
 
-serve(wrapHandler("generate-cover-letter", async (req) => {
+Deno.serve(wrapHandler("generate-cover-letter", async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
 
   if (req.method === 'OPTIONS') {

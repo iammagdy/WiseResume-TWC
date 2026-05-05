@@ -14,13 +14,12 @@
  *     date_from/date_to`). Returns `{success:true, logs:[...], total:N}`
  *     with `user_email` enrichment from `profiles`.
  */
-import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { requireAdminAuth } from '../_shared/adminAuth.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 
 import { wrapHandler } from '../_shared/fnLogger.ts';
-serve(wrapHandler("admin-audit-logs", async (req) => {
+Deno.serve(wrapHandler("admin-audit-logs", async (req) => {
   const origin = req.headers.get('origin');
   const corsHeaders = getCorsHeaders(origin);
   if (req.method === 'OPTIONS') {

@@ -1,4 +1,3 @@
-import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { getServiceClient } from '../_shared/dbClient.ts';
 import { wrapHandler } from '../_shared/fnLogger.ts';
@@ -56,7 +55,7 @@ function mapProductToPlan(productId: string | undefined): 'free' | 'pro' | 'prem
   return 'free';
 }
 
-serve(wrapHandler('revenuecat-webhook', async (req) => {
+Deno.serve(wrapHandler('revenuecat-webhook', async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
   if (req.method !== 'POST') {

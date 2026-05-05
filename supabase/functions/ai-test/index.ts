@@ -1,8 +1,6 @@
-import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { callAIWithRetry } from "../_shared/aiClient.ts";
 import { getCorsHeaders } from '../_shared/cors.ts';
-import { requireAuth, authErrorResponse } from '../_shared/authMiddleware.ts';
-import { requireAdminAuth } from '../_shared/adminAuth.ts';
+import { requireAdminAuthSession } from '../_shared/adminAuth.ts';
 import { checkRateLimit } from '../_shared/rateLimiter.ts';
 import { logger } from '../_shared/logger.ts';
 import { getServiceClient } from '../_shared/dbClient.ts';
@@ -77,11 +75,11 @@ const log = logger('ai-test');
  *   - prompt:    string                                → user prompt (default: "Say hello")
  *
  * Admin DevKit panels send `provider`+`keyIndex` to test individual keys.
- * Regular users may call without a body for a quick connectivity check.
+ * All paths require a valid admin DevKit token — this function is admin-only.
  *
  * DeepSeek slot 1 reads DEEPSEEK_KEY first, then DEEPSEEK_KEY_1.
  */
-serve(wrapHandler("ai-test", async (req) => {
+Deno.serve(wrapHandler("ai-test", async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
   const startTime = Date.now();
@@ -95,16 +93,10 @@ serve(wrapHandler("ai-test", async (req) => {
 
     const isAdminPin = body.provider === 'openrouter' || body.provider === 'groq' || body.provider === 'deepseek';
 
-    let userId = 'admin';
-    if (isAdminPin) {
-      await requireAdminAuth(req, corsHeaders);
-    } else {
-      try {
-        ({ userId } = await requireAuth(req));
-      } catch (e) {
-        return authErrorResponse(e, req.headers.get('origin'));
-      }
-      const { allowed } = await checkRateLimit(userId, { actionType: 'test_check', maxRequests: 10, windowSeconds: 60 });
+    const { sessionId } = await requireAdminAuthSession(req, corsHeaders);
+
+    if (!isAdminPin) {
+      const { allowed } = await checkRateLimit(sessionId, { actionType: 'test_check', maxRequests: 10, windowSeconds: 60 });
       if (!allowed) {
         return new Response(
           JSON.stringify({ success: false, error: 'Rate limit exceeded' }),
@@ -232,7 +224,7 @@ serve(wrapHandler("ai-test", async (req) => {
         messages: [{ role: 'user', content: body.prompt || 'Say hello in one short sentence.' }],
         maxTokens: 60,
         temperature: 0,
-        userId,
+        userId: sessionId,
       });
       providerUsed = r.providerUsed;
       model = r.model;

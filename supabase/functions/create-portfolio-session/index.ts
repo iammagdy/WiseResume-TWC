@@ -1,4 +1,3 @@
-import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { logger } from "../_shared/logger.ts";
@@ -7,7 +6,7 @@ import { createSessionToken } from "../_shared/portfolioSession.ts";
 import { wrapHandler } from '../_shared/fnLogger.ts';
 const log = logger('create-portfolio-session');
 
-serve(wrapHandler("create-portfolio-session", async (req) => {
+Deno.serve(wrapHandler("create-portfolio-session", async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 

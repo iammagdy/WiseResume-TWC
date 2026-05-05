@@ -14,7 +14,10 @@
  * Response propagate to the top-level catch and return it as-is.
  */
 
-import { decodeBase64 } from 'https://deno.land/std@0.224.0/encoding/base64.ts';
+/** Decode a standard base64 string to a Uint8Array (no external deps). */
+function decodeBase64(s: string): Uint8Array {
+  return Uint8Array.from(atob(s), c => c.charCodeAt(0));
+}
 
 /**
  * Build a uniform 401 response. The body is intentionally generic so the

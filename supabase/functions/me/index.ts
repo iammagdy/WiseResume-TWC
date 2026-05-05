@@ -1,10 +1,9 @@
-import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { requireAuth, authErrorResponse } from '../_shared/authMiddleware.ts';
 import { planDailyLimit } from '../_shared/planLimits.ts';
 import { wrapHandler } from '../_shared/fnLogger.ts';
 
-serve(wrapHandler('me', async (req) => {
+Deno.serve(wrapHandler('me', async (req) => {
   const origin = req.headers.get('origin');
   const corsHeaders = getCorsHeaders(origin);
 
@@ -28,7 +27,9 @@ serve(wrapHandler('me', async (req) => {
     // Using service client (from requireAuth) bypasses RLS — no auth.uid() dependency.
     const [profileResult, prefsResult, subsResult, creditsResult] = await Promise.all([
       client.from('profiles').select('*').eq('user_id', userId).maybeSingle(),
-      client.from('user_preferences').select('*, byok_enabled, byok_provider').eq('user_id', userId).maybeSingle(),
+      client.from('user_preferences')
+        .select('id, user_id, ai_provider, biometric_enabled, biometric_timeout, default_template, onboarding_flags, pdf_defaults, updated_at')
+        .eq('user_id', userId).maybeSingle(),
       client.from('subscriptions')
         .select('plan_name, status, plan_updated_at, trial_plan, trial_expires_at')
         .eq('user_id', userId)
@@ -113,8 +114,6 @@ serve(wrapHandler('me', async (req) => {
         preferences: prefsResult.data || null,
         subscription: subscriptionPayload,
         ai_credits: aiCreditsPayload,
-        byok_enabled: prefsResult.data?.byok_enabled ?? false,
-        byok_provider: prefsResult.data?.byok_provider ?? null,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );

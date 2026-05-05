@@ -10,7 +10,6 @@
  *   (defaults to '30d'). Returns 200 `{success:true, funnel:{steps:[...],
  *   conversion_pct:[...]}, range}`. Unexpected throws → 500.
  */
-import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { requireAdminAuth } from '../_shared/adminAuth.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
@@ -26,7 +25,7 @@ interface AuditRow {
 const FUNNEL_STEPS = ['started', 'path_selected', 'review_opened', 'completed'] as const;
 type FunnelStep = (typeof FUNNEL_STEPS)[number];
 
-serve(wrapHandler("admin-onboarding-funnel", async (req) => {
+Deno.serve(wrapHandler("admin-onboarding-funnel", async (req) => {
   const origin = req.headers.get('origin');
   const corsHeaders = getCorsHeaders(origin);
   if (req.method === 'OPTIONS') {

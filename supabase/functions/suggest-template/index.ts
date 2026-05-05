@@ -7,10 +7,9 @@
 // then flip USE_MERGED_EDITOR_AI=false in src/integrations/supabase/edgeFunctions.ts.
 //
 // This stub is intentionally NOT deployed. If accidentally deployed it returns 410 Gone.
-import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   return new Response(

@@ -1,4 +1,3 @@
-import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { requireAuth, authErrorResponse } from '../_shared/authMiddleware.ts';
 import { callAI, toUserError, parseAIJSON } from '../_shared/aiClient.ts';
@@ -18,7 +17,7 @@ const log = logger('generate-question-bank');
 // See recruiter-simulation for the distinct recruiter-persona perspective tool
 // which surfaces a recruiter's internal concerns about a resume, not practice questions.
 
-serve(wrapHandler("generate-question-bank", async (req) => {
+Deno.serve(wrapHandler("generate-question-bank", async (req) => {
   const origin = req.headers.get('origin');
   const corsHeaders = getCorsHeaders(origin);
 

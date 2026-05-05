@@ -45,7 +45,6 @@
 // ────
 // CORS preflight is handled here, before auth, so OPTIONS requests
 // succeed without a token (matches every pre-merge function).
-import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { wrapHandler } from "../_shared/fnLogger.ts";
@@ -95,7 +94,7 @@ function resolveAction(req: Request, bodyText: string): RouterAction | null {
   return null;
 }
 
-serve(wrapHandler('resume-section-ai', async (req) => {
+Deno.serve(wrapHandler('resume-section-ai', async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
 
   if (req.method === 'OPTIONS') {

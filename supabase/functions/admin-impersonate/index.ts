@@ -13,7 +13,6 @@
  *   token_id}` revokes a previously issued token. Other actions return
  *   400.
  */
-import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import * as jose from 'npm:jose@5.2.2';
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { requireAdminAuth } from "../_shared/adminAuth.ts";
@@ -22,7 +21,7 @@ import { getServiceClient } from "../_shared/dbClient.ts";
 import { wrapHandler } from '../_shared/fnLogger.ts';
 const SESSION_TTL_SECONDS = 30 * 60;
 
-serve(wrapHandler("admin-impersonate", async (req) => {
+Deno.serve(wrapHandler("admin-impersonate", async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
 
   if (req.method === 'OPTIONS') {

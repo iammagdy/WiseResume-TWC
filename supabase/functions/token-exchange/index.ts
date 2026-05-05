@@ -8,7 +8,6 @@
 //     (or EXT_SUPABASE_JWT_SECRET) JWT returned to the client.
 //   SUPABASE_URL / EXT_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY — used by the
 //                               service-role client for shadow-user upserts.
-import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { getServiceClient } from '../_shared/dbClient.ts';
 import { logger } from '../_shared/logger.ts';
@@ -80,7 +79,7 @@ async function logExchange(
   }
 }
 
-serve(wrapHandler('token-exchange', async (req) => {
+Deno.serve(wrapHandler('token-exchange', async (req) => {
   const origin = req.headers.get('origin');
   const corsHeaders = getCorsHeaders(origin);
 

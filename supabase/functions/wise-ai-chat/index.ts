@@ -14,7 +14,6 @@
  * Called by all 7 AI Studio tool sheets.
  */
 
-import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAI, isAIError, sanitizeInputText, toUserError } from "../_shared/aiClient.ts";
 import { buildBioVariantsPrompt } from "../_shared/portfolioBioPrompt.ts";
@@ -187,7 +186,7 @@ Return ONLY the letter text with no JSON, no markdown, no code blocks.`;
   }
 }
 
-serve(wrapHandler('wise-ai-chat', async (req: Request) => {
+Deno.serve(wrapHandler('wise-ai-chat', async (req: Request) => {
   const origin = req.headers.get("origin");
   const corsHeaders = getCorsHeaders(origin);
 

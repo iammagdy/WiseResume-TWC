@@ -7,13 +7,12 @@
  *
  * The key is NEVER stored — this function only tests it.
  */
-import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { requireAuth, tryAuth } from '../_shared/authMiddleware.ts';
 import { pingProvider, SUPPORTED_PROVIDERS } from '../_shared/providers.ts';
 
 import { wrapHandler } from '../_shared/fnLogger.ts';
-serve(wrapHandler("validate-api-key", async (req) => {
+Deno.serve(wrapHandler("validate-api-key", async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });

@@ -1,4 +1,3 @@
-import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { requireAuth, AuthError } from '../_shared/authMiddleware.ts';
@@ -289,7 +288,7 @@ async function handleInterviewGradeAnswer(
 
 // ─── router ──────────────────────────────────────────────────────────────
 
-serve(wrapHandler('mobile-api', async (req) => {
+Deno.serve(wrapHandler('mobile-api', async (req) => {
   const cors = getCorsHeaders(req.headers.get('origin'));
   if (req.method === 'OPTIONS') return new Response(null, { headers: cors });
   if (req.method !== 'POST') return jsonResp(cors, { error: 'Method not allowed' }, 405);

@@ -1,4 +1,3 @@
-import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { callAI } from "../_shared/aiClient.ts";
 import { selectProviderForTool } from "../_shared/modelRouter.ts";
 const __ROUTE = selectProviderForTool('ask-portfolio');
@@ -15,7 +14,7 @@ const log = logger('ask-portfolio');
 // Public endpoint (no auth). Spend controls: HMAC session token, BYOK-only AI
 // key (no platform fallback), and atomic per-session/daily quota RPC.
 
-serve(wrapHandler("ask-portfolio", async (req) => {
+Deno.serve(wrapHandler("ask-portfolio", async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get("origin"));
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 

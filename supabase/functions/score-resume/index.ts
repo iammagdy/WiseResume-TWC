@@ -1,4 +1,3 @@
-import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { recordUsage } from "../_shared/rateLimiter.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
@@ -24,7 +23,7 @@ const MAX_RESUME_SIZE = 100 * 1024;
 // No LLM calls are made. No AI credits are consumed.
 // recordUsage() below writes to ai_usage_logs with provider:'deterministic' for analytics only.
 
-serve(wrapHandler('score-resume', async (req) => {
+Deno.serve(wrapHandler('score-resume', async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
 
   if (req.method === 'OPTIONS') {
