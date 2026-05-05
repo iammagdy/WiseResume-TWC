@@ -16,5 +16,18 @@
 CREATE INDEX IF NOT EXISTS error_log_user_id_created_at_idx
   ON public.error_log (user_id, created_at DESC);
 
-CREATE INDEX IF NOT EXISTS wisehire_pipeline_events_event_type_idx
-  ON public.wisehire_pipeline_events (event_type);
+-- Guard: only create if the event_type column actually exists on this environment.
+-- The column was referenced in the audit report but was never added to the
+-- wisehire_pipeline_events CREATE TABLE migration; skip silently if absent.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name   = 'wisehire_pipeline_events'
+      AND column_name  = 'event_type'
+  ) THEN
+    EXECUTE 'CREATE INDEX IF NOT EXISTS wisehire_pipeline_events_event_type_idx
+             ON public.wisehire_pipeline_events (event_type)';
+  END IF;
+END $$;
