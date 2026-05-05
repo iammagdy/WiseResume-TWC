@@ -1,7 +1,14 @@
 /**
- * BYOK provider registry.
+ * Flat-pool AI provider definitions.
  *
- * Maps provider slug → metadata used by validate-api-key and aiClient BYOK path.
+ * These are the three providers used by the managed flat-pool infrastructure
+ * (OpenRouter, Groq, DeepSeek — up to 3 key slots each). The `validate-api-key`
+ * edge function uses `pingProvider` + `SUPPORTED_PROVIDERS` to let admins test
+ * individual key slots from the DevKit AI panel.
+ *
+ * BYOK was removed in Task #17. The former BYOK-only entries (openai, anthropic,
+ * gemini, mistral, cohere, xai) have been removed along with callBYOK(),
+ * resolveByok(), and the aiClient BYOK paths.
  */
 
 export interface ProviderConfig {
@@ -9,58 +16,13 @@ export interface ProviderConfig {
   baseUrl: string;
   chatEndpoint: string;
   defaultModel: string;
-  /**
-   * 'bearer'    — Authorization: Bearer {key}  (OpenAI-compatible APIs)
-   * 'anthropic' — x-api-key: {key} + anthropic-version header (Anthropic native)
-   */
-  authStyle: 'bearer' | 'anthropic';
+  /** 'bearer' — Authorization: Bearer {key}  (OpenAI-compatible APIs) */
+  authStyle: 'bearer';
   /** Extra headers to merge in (e.g. OpenRouter HTTP-Referer). */
   extraHeaders?: Record<string, string>;
 }
 
 export const PROVIDERS: Record<string, ProviderConfig> = {
-  openai: {
-    displayName: 'OpenAI',
-    baseUrl: 'https://api.openai.com',
-    chatEndpoint: 'https://api.openai.com/v1/chat/completions',
-    defaultModel: 'gpt-4o-mini',
-    authStyle: 'bearer',
-  },
-  anthropic: {
-    displayName: 'Anthropic',
-    baseUrl: 'https://api.anthropic.com',
-    chatEndpoint: 'https://api.anthropic.com/v1/messages',
-    defaultModel: 'claude-haiku-4-5',
-    authStyle: 'anthropic',
-  },
-  gemini: {
-    displayName: 'Google Gemini',
-    baseUrl: 'https://generativelanguage.googleapis.com',
-    chatEndpoint: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
-    defaultModel: 'gemini-2.0-flash',
-    authStyle: 'bearer',
-  },
-  groq: {
-    displayName: 'Groq',
-    baseUrl: 'https://api.groq.com',
-    chatEndpoint: 'https://api.groq.com/openai/v1/chat/completions',
-    defaultModel: 'llama-3.3-70b-versatile',
-    authStyle: 'bearer',
-  },
-  mistral: {
-    displayName: 'Mistral AI',
-    baseUrl: 'https://api.mistral.ai',
-    chatEndpoint: 'https://api.mistral.ai/v1/chat/completions',
-    defaultModel: 'mistral-small-latest',
-    authStyle: 'bearer',
-  },
-  cohere: {
-    displayName: 'Cohere',
-    baseUrl: 'https://api.cohere.ai',
-    chatEndpoint: 'https://api.cohere.ai/compatibility/v1/chat/completions',
-    defaultModel: 'command-r',
-    authStyle: 'bearer',
-  },
   openrouter: {
     displayName: 'OpenRouter',
     baseUrl: 'https://openrouter.ai',
@@ -72,21 +34,18 @@ export const PROVIDERS: Record<string, ProviderConfig> = {
       'X-Title': 'WiseResume',
     },
   },
-  xai: {
-    displayName: 'xAI Grok',
-    baseUrl: 'https://api.x.ai',
-    chatEndpoint: 'https://api.x.ai/v1/chat/completions',
-    defaultModel: 'grok-beta',
+  groq: {
+    displayName: 'Groq',
+    baseUrl: 'https://api.groq.com',
+    chatEndpoint: 'https://api.groq.com/openai/v1/chat/completions',
+    defaultModel: 'llama-3.3-70b-versatile',
     authStyle: 'bearer',
   },
   deepseek: {
     displayName: 'DeepSeek',
     baseUrl: 'https://api.deepseek.com',
     chatEndpoint: 'https://api.deepseek.com/v1/chat/completions',
-    // `deepseek-chat` is deprecated 2026/07/24. `deepseek-v4-flash` is the
-    // same engine with thinking disabled (matched by aiClient.callBYOK,
-    // which forces `thinking: { type: 'disabled' }` on every DeepSeek call).
-    defaultModel: 'deepseek-v4-flash',
+    defaultModel: 'deepseek-chat',
     authStyle: 'bearer',
   },
 };
@@ -98,41 +57,17 @@ export function getProvider(slug: string): ProviderConfig | null {
 }
 
 /**
- * Build the HTTP headers for a provider's auth style.
+ * Build the Authorization header for a Bearer-auth provider.
  * Returns an object ready to merge into a fetch headers map.
  */
 export function buildAuthHeaders(
   cfg: ProviderConfig,
   key: string,
 ): Record<string, string> {
-  if (cfg.authStyle === 'anthropic') {
-    return {
-      'x-api-key': key,
-      'anthropic-version': '2023-06-01',
-      ...cfg.extraHeaders,
-    };
-  }
   return {
     Authorization: `Bearer ${key}`,
     ...cfg.extraHeaders,
   };
-}
-
-/**
- * Extract the text content from an API response body (already parsed JSON).
- * Handles both OpenAI-compatible format and Anthropic native format.
- */
-export function extractResponseContent(
-  cfg: ProviderConfig,
-  parsed: Record<string, unknown>,
-): string {
-  if (cfg.authStyle === 'anthropic') {
-    const blocks = parsed?.content as Array<{ type: string; text?: string }> | undefined;
-    return blocks?.[0]?.text ?? '';
-  }
-  const choices = parsed?.choices as Array<{ message?: { content?: string } }> | undefined;
-  const content = choices?.[0]?.message?.content;
-  return typeof content === 'string' ? content : JSON.stringify(content ?? '');
 }
 
 /** Make a minimal one-token chat completion using the given key+provider. */
