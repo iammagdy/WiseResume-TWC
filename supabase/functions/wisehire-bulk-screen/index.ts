@@ -40,8 +40,7 @@ function json(data: unknown, status = 200, cors: Record<string, string> = {}) {
 
 /** Extract text using pdfjs-dist (handles compressed streams, Unicode, multi-column) */
 async function extractWithPdfJs(buffer: ArrayBuffer): Promise<string> {
-  // @ts-ignore — HTTPS specifier fetched from CDN at runtime (not bundled by Supabase)
-  const pdfjsLib = await import('https://esm.sh/pdfjs-dist@4.10.38/build/pdf.min.mjs');
+  const pdfjsLib = await import('npm:pdfjs-dist@4.10.38/build/pdf.min.mjs');
   pdfjsLib.GlobalWorkerOptions.workerSrc = '';
   const pdf = await pdfjsLib.getDocument({
     data: new Uint8Array(buffer),
