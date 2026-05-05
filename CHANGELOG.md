@@ -1,5 +1,37 @@
 # Changelog
 
+## 2026-05-05 — Deploy visitor tracking edge functions + DB migrations to production (Task #6)
+
+**Deployment — Supabase project `jnsfmkzgxsviuthaqlyy` (CLI v2.98.1):**
+
+`supabase functions deploy track-visitor-event stitch-visitor-identity purge-old-visitor-events admin-visitor-analytics`
+
+- `track-visitor-event`: ACTIVE. Anonymous bulk-insert endpoint; 120 req/min IP rate-limit; Cloudflare `CF-IPCountry`/`CF-IPCity` geo enrichment; validates event types (`page_view`, `click`, `section_view`, `feature_use`) and device types; inserts up to 100 events per call.
+- `stitch-visitor-identity`: ACTIVE. JWT Bearer decode via `jose.decodeJwt`; updates `visitor_events.user_id` where `anon_id` matches and `user_id IS NULL`.
+- `purge-old-visitor-events`: ACTIVE. Calls `public.purge_old_visitor_events()` RPC; deletes rows `created_at < now() - interval '365 days'`; requires `x-cron-secret` or `Authorization: Bearer <CRON_SECRET>`.
+- `admin-visitor-analytics`: ACTIVE. `requireAdminAuth` gate; 8 dispatch actions (`kpis`, `country-dist`, `top-pages`, `click-targets`, `sections`, `sessions`, `journey`, `cohort`); uses `count_distinct_visitor_anon_ids` and `visitor_new_vs_returning` RPCs.
+
+`supabase db push` — applied 3 migrations:
+
+- `20260607000000_visitor_events.sql`: `public.visitor_events` table with RLS (anon+authenticated insert, service_role read-bypass); 6 indexes (`anon_id`, `user_id`, `session_id`, `created_at DESC`, `event_type+page`, `country`); `public.purge_old_visitor_events()` security-definer function.
+- `20260607000001_visitor_events_rpcs.sql`: `public.count_distinct_visitor_anon_ids(p_start timestamptz)` and `public.visitor_new_vs_returning(p_start timestamptz)` — both `SECURITY DEFINER STABLE`.
+- `20260607000002_visitor_purge_cron.sql`: Initial (buggy) cron schedule attempt — used `net.http_post` inline (pg_net not installed) and wrong vault key name. Superseded by 20260607000003.
+- `20260607000003_fix_visitor_purge_cron.sql` (NEW): Unschedules the broken job from 20260607000002; reschedules `purge-old-visitor-events-daily` to call `SELECT public.purge_old_visitor_events()` directly via SQL (no pg_net, no secrets needed). Confirmed active: `cron.job` row — `jobid: 4`, `schedule: 0 3 * * *`, `command: SELECT public.purge_old_visitor_events()`, `active: true`.
+
+**Infrastructure verified (production DB queries):**
+- `pg_cron` v1.6.4: INSTALLED ✅
+- `pg_net`: NOT installed — cron uses direct SQL call instead of HTTP POST
+- `vault.cron_secret`: EXISTS (seeded by migration 20260606000000)
+- Cron job `purge-old-visitor-events-daily`: ACTIVE, schedule `0 3 * * *`, command `SELECT public.purge_old_visitor_events()` ✅
+
+**Smoke test (2026-05-05):** `POST https://jnsfmkzgxsviuthaqlyy.supabase.co/functions/v1/track-visitor-event` with `{events:[{anon_id:..., session_id:..., event_type:"page_view", ...}]}` → `{"ok":true,"inserted":1}`. Confirms `track-visitor-event` is live and writing to `public.visitor_events`.
+
+**`react-simple-maps` scope resolution:** Task spec mentioned verifying this package in the prod bundle. Audited `src/components/dev-kit/VisitorsPanel.tsx` — the `WorldMap` sub-component is a fully custom emoji-flag + CSS progress-bar chart; `react-simple-maps` is not imported anywhere, not in `package.json`, and is not needed. Scope item closed: no action required.
+
+**Reference cards updated:** `Project Atlas/01-Currently Implemented/edge-functions/track-visitor-event.md`, `stitch-visitor-identity.md`, `purge-old-visitor-events.md`, `admin-visitor-analytics.md`.
+
+---
+
 ## 2026-05-05 — Expand data-track and data-section coverage (Task #7)
 
 **Files modified:**
