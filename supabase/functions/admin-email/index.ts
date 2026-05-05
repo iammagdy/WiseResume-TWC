@@ -501,7 +501,7 @@ Deno.serve(wrapHandler("admin-email", async (req) => {
       }
 
       let resolvedEmail = target_email
-      let resolvedUserId = target_user_id
+      let resolvedUserId: string | null | undefined = target_user_id
 
       if (!resolvedEmail && resolvedUserId) {
         const { data: authUser, error: userErr } = await supabase.auth.admin.getUserById(resolvedUserId)
@@ -541,7 +541,7 @@ Deno.serve(wrapHandler("admin-email", async (req) => {
 
       switch (action) {
         case 'resend_confirmation': {
-          const { data: linkData, error: linkErr } = await supabase.auth.admin.generateLink({ type: 'signup', email: resolvedEmail })
+          const { data: linkData, error: linkErr } = await supabase.auth.admin.generateLink({ type: 'signup', email: resolvedEmail } as any)
           if (linkErr) return new Response(JSON.stringify({ success: false, error: linkErr.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
           const confirmationUrl = linkData?.properties?.action_link
           if (!confirmationUrl) return new Response(JSON.stringify({ success: false, error: 'Failed to generate confirmation link: action_link missing in response' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
@@ -567,7 +567,8 @@ Deno.serve(wrapHandler("admin-email", async (req) => {
           break
         }
         case 'send_otp': {
-          const { data: linkData, error: linkErr } = await supabase.auth.admin.generateLink({ type: 'reauthentication', email: resolvedEmail })
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const { data: linkData, error: linkErr } = await supabase.auth.admin.generateLink({ type: 'reauthentication' as any, email: resolvedEmail })
           if (linkErr) return new Response(JSON.stringify({ success: false, error: linkErr.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
           const token = linkData?.properties?.email_otp
           if (!token) return new Response(JSON.stringify({ success: false, error: 'Failed to generate OTP: email_otp missing in response' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })

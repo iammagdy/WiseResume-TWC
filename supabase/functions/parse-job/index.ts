@@ -567,7 +567,6 @@ Deno.serve(wrapHandler("parse-job", async (req) => {
             },
           ],
           toolChoice: { type: "function", function: { name: "extract_linkedin_data" } },
-          userId,
         });
       } catch (aiErr) {
         await refundCredit(userId, creditCheck, 1);

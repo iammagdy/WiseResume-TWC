@@ -1,23 +1,14 @@
 /**
- * Flat-pool + BYOK AI client.
+ * Flat-pool AI client.
  *
- * Default path (pool):
- *   Up to 9 keys: 3 OpenRouter + 3 Groq + 3 DeepSeek. Provider is chosen
- *   uniformly at random among those with at least one key configured;
- *   then a random key within that provider is used. One sibling-key retry,
- *   then a cross-provider fallback to any key from a different provider.
- *
- * BYOK path (when opts.userId is provided and user has byok_enabled=true):
- *   Resolves the user's saved key from user_api_keys, decrypts it, and
- *   routes the call through their chosen provider. On any failure, throws
- *   AIError { code: 'byok_failed' } — never silently falls back to pool.
+ * Up to 9 keys: 3 OpenRouter + 3 Groq + 3 DeepSeek. Provider is chosen
+ * uniformly at random among those with at least one key configured;
+ * then a random key within that provider is used. One sibling-key retry,
+ * then a cross-provider fallback to any key from a different provider.
  *
  * Public surface preserved so the 30+ AI edge functions don't need edits.
  * Circuit breaker removed; `recordBreakerEvent` is a no-op for compat.
  */
-import { getServiceClient } from './dbClient.ts';
-import { decrypt } from './encryption.ts';
-import { getProvider, buildAuthHeaders, extractResponseContent } from './providers.ts';
 import { resolveFeatureRoute, type RouteSelection as ForcedRoute } from './modelRouter.ts';
 
 // ── Public types ──────────────────────────────────────────────────────────────
@@ -67,6 +58,14 @@ export interface AICallOptions {
   responseFormat?: Record<string, unknown>;
   /** Optional abort signal forwarded to fetch. */
   signal?: AbortSignal;
+  /** Optional per-call timeout in milliseconds. */
+  timeout?: number;
+  /** Optional preferred AI provider override. */
+  preferredProvider?: string;
+}
+
+export interface AIToolCall {
+  function: { name: string; arguments: string };
 }
 
 export interface AIResponse {
@@ -75,28 +74,23 @@ export interface AIResponse {
   providerUsed: string;
   /** Model slug that actually served the request. */
   model: string;
-  toolCalls?: unknown;
+  toolCalls?: AIToolCall[];
   finishReason?: string | null;
   usage?: {
     promptTokens?: number;
     completionTokens?: number;
     totalTokens?: number;
   };
+  fallbackUsed?: boolean;
+  fallbackReason?: string | null;
 }
 
 export interface AIError {
   message: string;
   status: number;
+  type?: string;
   code: string;
   provider?: string;
-}
-
-/** Retained only so edge functions that still `throw new LegacyKeyVersionError(...)` compile. */
-export class LegacyKeyVersionError extends Error {
-  constructor(message = 'Legacy BYOK keys are no longer supported') {
-    super(message);
-    this.name = 'LegacyKeyVersionError';
-  }
 }
 
 // ── Provider pool ─────────────────────────────────────────────────────────────
@@ -362,196 +356,8 @@ async function callOnce(entry: PickedKey | KeyEntry, opts: AICallOptions): Promi
   };
 }
 
-// ── BYOK path ─────────────────────────────────────────────────────────────────
-
-interface ByokResolved {
-  provider: string;
-  key: string;
-}
-
-/**
- * Look up the user's BYOK preference + active key.
- *
- * Returns null  → BYOK is disabled; caller falls through to the managed pool.
- * Returns value → decrypted key ready to use.
- * Throws AIError{code:'byok_failed'} → BYOK is ENABLED but key resolution
- *   failed (missing key, decryption error, bad provider). Must NOT fall back
- *   to pool in this case — surface the error immediately.
- */
-async function resolveByok(userId: string): Promise<ByokResolved | null> {
-  let byokEnabled = false;
-  try {
-    const db = getServiceClient();
-
-    // Phase 1: read user preference
-    const prefsRes = await db
-      .from('user_preferences')
-      .select('byok_enabled, byok_provider')
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    if (!prefsRes.data?.byok_enabled) return null; // BYOK off → use pool
-    byokEnabled = true;
-
-    const chosenProvider: string = prefsRes.data.byok_provider ?? '';
-    if (!chosenProvider) {
-      throw {
-        message: 'BYOK is enabled but no provider is selected',
-        status: 400,
-        code: 'byok_failed',
-      } as AIError;
-    }
-
-    // Phase 2: fetch the active key for that provider
-    const keysRes = await db
-      .from('user_api_keys')
-      .select('provider, encrypted_key')
-      .eq('user_id', userId)
-      .eq('provider', chosenProvider)
-      .eq('is_active', true)
-      .maybeSingle();
-
-    if (!keysRes.data) {
-      throw {
-        message: `BYOK: no active key found for provider '${chosenProvider}'`,
-        status: 400,
-        code: 'byok_failed',
-      } as AIError;
-    }
-
-    // Phase 3: decrypt
-    const plainKey = await decrypt(keysRes.data.encrypted_key);
-    return { provider: chosenProvider, key: plainKey };
-  } catch (err) {
-    const aiErr = err as AIError;
-    if (aiErr.code === 'byok_failed') throw err; // already typed — re-throw as-is
-
-    if (byokEnabled) {
-      // BYOK is enabled but an unexpected error occurred during resolution.
-      // Never fall back to pool when the user has explicitly opted into BYOK.
-      throw {
-        message: `BYOK key resolution failed: ${(err as Error).message ?? 'unknown error'}`,
-        status: 500,
-        code: 'byok_failed',
-      } as AIError;
-    }
-
-    // BYOK status unknown (DB unreachable before we could read the preference).
-    // Safe to fall through to pool — we don't know if BYOK was wanted.
-    return null;
-  }
-}
-
-/** Make a real AI call through a BYOK provider. Throws AIError{code:'byok_failed'} on any error. */
-async function callBYOK(opts: AICallOptions, provider: string, key: string): Promise<AIResponse> {
-  const cfg = getProvider(provider);
-  if (!cfg) {
-    throw {
-      message: `BYOK: unknown provider '${provider}'`,
-      status: 400,
-      code: 'byok_failed',
-      provider,
-    } as AIError;
-  }
-
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...buildAuthHeaders(cfg, key),
-  };
-
-  // Anthropic native API: system prompts must be extracted to top-level `system`
-  // field; only user/assistant messages are allowed in `messages`.
-  let normalizedMessages: AIMessage[] = opts.messages;
-  const body: Record<string, unknown> = {
-    model: cfg.defaultModel,
-    temperature: typeof opts.temperature === 'number' ? opts.temperature : 0.7,
-    max_tokens: typeof opts.maxTokens === 'number' ? opts.maxTokens : 4096,
-  };
-
-  if (cfg.authStyle === 'anthropic') {
-    const systemParts = opts.messages.filter(m => m.role === 'system').map(m => m.content);
-    normalizedMessages = opts.messages.filter(m => m.role !== 'system');
-    if (systemParts.length > 0) body.system = systemParts.join('\n\n');
-    body.messages = normalizedMessages;
-  } else {
-    body.messages = normalizedMessages;
-    if (opts.tools) body.tools = opts.tools;
-    if (opts.toolChoice) body.tool_choice = opts.toolChoice;
-    if (opts.responseFormat) body.response_format = opts.responseFormat;
-    else if (opts.jsonMode) body.response_format = { type: 'json_object' };
-  }
-
-  if (typeof opts.topP === 'number') body.top_p = opts.topP;
-
-  // Mirror the pool path: when a BYOK user routes through DeepSeek we lock
-  // thinking mode off so their bill matches the legacy `deepseek-chat`
-  // behaviour, regardless of which DeepSeek model their key resolves to.
-  if (provider === 'deepseek') {
-    body.thinking = { type: 'disabled' };
-  }
-
-  let res: Response;
-  try {
-    res = await fetch(cfg.chatEndpoint, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(body),
-      signal: opts.signal,
-    });
-  } catch (fetchErr) {
-    throw {
-      message: `BYOK ${provider} network error: ${(fetchErr as Error).message}`,
-      status: 0,
-      code: 'byok_failed',
-      provider,
-    } as AIError;
-  }
-
-  const rawText = await res.text();
-  if (!res.ok) {
-    let userMessage = rawText.slice(0, 400);
-    try {
-      const j = JSON.parse(rawText);
-      userMessage = j?.error?.message ?? j?.error?.error ?? j?.message ?? userMessage;
-    } catch { /* ignore */ }
-    throw {
-      message: `BYOK ${provider} ${res.status}: ${userMessage}`,
-      status: res.status,
-      code: 'byok_failed',
-      provider,
-    } as AIError;
-  }
-
-  let parsed: Record<string, unknown>;
-  try { parsed = JSON.parse(rawText); } catch {
-    throw { message: `BYOK ${provider} non-JSON response`, status: 502, code: 'byok_failed', provider } as AIError;
-  }
-
-  const content = extractResponseContent(cfg, parsed);
-
-  // Tool calls are only available on OpenAI-compat responses
-  const choices = parsed?.choices as Array<{ message?: { tool_calls?: unknown }; finish_reason?: string }> | undefined;
-  const choice = choices?.[0];
-
-  const usage = parsed?.usage as { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } | undefined;
-  return {
-    content,
-    providerUsed: `byok:${provider}`,
-    model: (parsed?.model as string | undefined) ?? cfg.defaultModel,
-    toolCalls: choice?.message?.tool_calls,
-    finishReason: choice?.finish_reason ?? null,
-    usage: usage
-      ? { promptTokens: usage.prompt_tokens, completionTokens: usage.completion_tokens, totalTokens: usage.total_tokens }
-      : undefined,
-  };
-}
-
 // ── Public entry points ───────────────────────────────────────────────────────
 export async function callAI(opts: AICallOptions): Promise<AIResponse> {
-  if (opts.userId) {
-    const byok = await resolveByok(opts.userId);
-    if (byok) return callBYOK(opts, byok.provider, byok.key);
-  }
   const forced = opts.featureName ? await resolveFeatureRoute(opts.featureName) : undefined;
   const picked = pickKey(opts, forced);
   return callOnce(picked, opts);
@@ -564,13 +370,8 @@ export async function callAI(opts: AICallOptions): Promise<AIResponse> {
  *   3. Cross-provider fallback — picks any key from the OTHER provider.
  * This handles the common case where all keys for one provider are
  * temporarily rate-limited and we need to spill over to the other pool.
- * BYOK path does NOT retry — failure is surfaced immediately.
  */
 export async function callAIWithRetry(opts: AICallOptions): Promise<AIResponse> {
-  if (opts.userId) {
-    const byok = await resolveByok(opts.userId);
-    if (byok) return callBYOK(opts, byok.provider, byok.key);
-  }
   const forced = opts.featureName ? await resolveFeatureRoute(opts.featureName) : undefined;
   const picked = pickKey(opts, forced);
 

@@ -315,7 +315,8 @@ Deno.serve(wrapHandler('wise-ai-chat', async (req: Request) => {
         invalid_key:      { error: "invalid_key",      message: "AI service configuration error. Please contact support.", status: 500 },
         unknown:          { error: "provider_busy",    message: "AI is temporarily busy — please try again in a moment.", status: 503 },
       };
-      const mapped = errorMap[error.type] ?? { error: error.type, message: error.message, status: error.status ?? 500 };
+      const errType = error.type ?? 'unknown';
+      const mapped = errorMap[errType] ?? { error: errType, message: error.message, status: error.status ?? 500 };
       return new Response(
         JSON.stringify({ error: mapped.error, message: mapped.message, ...attemptsField }),
         { status: mapped.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }

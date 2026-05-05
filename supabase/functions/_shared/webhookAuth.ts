@@ -125,7 +125,7 @@ export async function requireStandardWebhookSignature(
 
   const cryptoKey = await crypto.subtle.importKey(
     'raw',
-    keyBytes,
+    keyBytes.buffer.slice(keyBytes.byteOffset, keyBytes.byteOffset + keyBytes.byteLength) as ArrayBuffer,
     { name: 'HMAC', hash: 'SHA-256' },
     false,
     ['sign'],

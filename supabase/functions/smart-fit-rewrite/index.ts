@@ -394,7 +394,7 @@ Deno.serve(wrapHandler("smart-fit-rewrite", async (req) => {
       return { ai, outcomes };
     };
 
-    let attempt: { ai: Awaited<ReturnType<typeof callAI>>; outcomes: CandidateOutcome[] };
+    let attempt: { ai: Awaited<ReturnType<typeof callAIWithRetry>>; outcomes: CandidateOutcome[] };
     try {
       attempt = await callOnce(false);
       // Retry strictly for any candidate whose first-pass outcome was invalid.

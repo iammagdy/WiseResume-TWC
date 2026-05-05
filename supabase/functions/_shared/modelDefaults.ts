@@ -46,22 +46,6 @@ export const LEGACY_GROQ_MODEL = 'qwen/qwen3-32b';
  */
 export const LEGACY_OPENROUTER2_MODEL = 'openrouter/elephant-alpha';
 
-// ── BYOK Provider Default Models ─────────────────────────────────────────────
-// Used as fallbacks when a user has configured a BYOK provider but has not
-// explicitly chosen a model. These are safe, widely-available defaults.
-
-export const BYOK_DEFAULT_MODELS: Record<string, string> = {
-  openai: 'gpt-4o-mini',
-  anthropic: 'claude-3-5-haiku-20241022',
-  groq: LEGACY_GROQ_MODEL,
-  mistral: 'mistral-small-latest',
-  xai: 'grok-2-mini',
-  cohere: 'command-r',
-  gemini: 'gemini-2.5-flash',
-  openrouter: '',
-  ollama: '',
-};
-
 // ── DevKit AI-Test Slot Model Allow-Lists ────────────────────────────────────
 // Curated per-provider model choices the admin can pick for each AI key slot
 // in the DevKit "Send test request" panel. Frontend dropdown options and
@@ -207,7 +191,7 @@ interface AppSettingsClient {
   from(table: 'app_settings'): {
     select(cols: string): {
       eq(col: string, val: string): {
-        maybeSingle(): Promise<{ data: { value: unknown } | null; error: unknown }>;
+        maybeSingle(): PromiseLike<{ data: { value: unknown } | null; error: unknown }>;
       };
     };
   };

@@ -10,7 +10,7 @@
  * UNLIMITED_SENTINEL (-1) is the value stored in ai_credits.daily_limit
  * for Premium users. It is compared against in edge function credit checks.
  */
-import creditLimitsJson from './creditLimits.json' assert { type: 'json' };
+import creditLimitsJson from './creditLimits.json' with { type: 'json' };
 
 export const UNLIMITED_SENTINEL = -1;
 

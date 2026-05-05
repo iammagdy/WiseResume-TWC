@@ -72,20 +72,21 @@ function writeToErrorLog(
     const userId = context?.userId ?? context?.user_id;
     const validUserId = typeof userId === 'string' && UUID_RE.test(userId) ? userId : null;
 
-    db.from('error_log')
-      .insert({
-        level,
-        message: msg,
-        source: functionName,
-        context: context ?? null,
-        user_id: validUserId,
-      })
-      .then(({ error }) => {
-        if (error) {
-          console.warn(`[logger] error_log insert failed (non-fatal): ${error.message}`);
+    void (async () => {
+      try {
+        const { error: insertError } = await db.from('error_log')
+          .insert({
+            level,
+            message: msg,
+            source: functionName,
+            context: context ?? null,
+            user_id: validUserId,
+          });
+        if (insertError) {
+          console.warn(`[logger] error_log insert failed (non-fatal): ${insertError.message}`);
         }
-      })
-      .catch(() => { /* swallow */ });
+      } catch { /* swallow */ }
+    })();
   } catch {
     /* swallow — never let logging break the caller */
   }

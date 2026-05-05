@@ -53,9 +53,7 @@ function logKindeEvent(
         email: email || null,
         payload,
         provisioning_ok: provisioningOk,
-      })
-      .then(() => {})
-      .catch(() => {});
+      });
   } catch { /* ignore */ }
 }
 

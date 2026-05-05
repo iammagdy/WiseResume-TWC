@@ -302,7 +302,7 @@ Deno.serve(wrapHandler("admin-list-users", async (req) => {
         else if (matchContactEmail) matched_via = 'contact_email';
         else if (matchName) matched_via = 'name';
         return { ...u, matched_via };
-      }).filter((u): u is UserRecord => u !== null);
+      }).filter(u => u !== null) as UserRecord[];
 
       // If a collision user's contact_email matches the search, also include the orphan (real email user)
       const contactMatches = users.filter(u => u.matched_via === 'contact_email' && u.has_id_conflict);

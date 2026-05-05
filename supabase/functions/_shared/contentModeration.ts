@@ -63,13 +63,19 @@ export async function screenContent(
 
     if (matches.length > 0) {
       // Fire-and-forget: create a queue item for each matching pattern.
-      await supabase.from('moderation_queue').insert({
-        content_type: contentType,
-        content_id: contentId ?? null,
-        snippet: text.slice(0, 500),
-        reporter_user_id: reporterUserId ?? null,
-        status: 'pending',
-      }).catch((e) => console.warn('[contentModeration] Queue insert failed:', e.message));
+      void (async () => {
+        try {
+          await supabase.from('moderation_queue').insert({
+            content_type: contentType,
+            content_id: contentId ?? null,
+            snippet: text.slice(0, 500),
+            reporter_user_id: reporterUserId ?? null,
+            status: 'pending',
+          });
+        } catch (e) {
+          console.warn('[contentModeration] Queue insert failed:', (e as Error).message);
+        }
+      })();
     }
 
     return matches;

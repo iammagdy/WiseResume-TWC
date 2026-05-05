@@ -646,7 +646,7 @@ async function handleInspectKeys(
           return json({ success: false, error: 'invalid slot' }, 400);
         }
         const trimmed = typeof model === 'string' ? model.trim() : '';
-        const catalog = await loadAITestModelCatalog(getServiceClient());
+        const catalog = await loadAITestModelCatalog(getServiceClient() as any);
         if (!trimmed || !isAllowedAITestModelDynamic(provider, trimmed, catalog)) {
           return json({
             success: false,
@@ -676,7 +676,7 @@ async function handleInspectKeys(
     // ── GET (default) / empty POST: inspect all 9 slots + return allow-list ─
     const [saved, catalog] = await Promise.all([
       loadSavedSlotModels(),
-      loadAITestModelCatalog(getServiceClient()),
+      loadAITestModelCatalog(getServiceClient() as any),
     ]);
     const modelFor = (provider: AITestProvider, slot: 1 | 2 | 3): string => {
       const v = saved[slotKey(provider, slot)];

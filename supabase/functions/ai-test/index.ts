@@ -38,7 +38,7 @@ async function resolveSlotTestModel(
   // Catalog merges the dynamically-refreshed list with the hardcoded seed
   // so a freshly-added model upstream is acceptable on the first call,
   // and an admin's saved choice keeps validating until they pick a new one.
-  const catalog = await loadAITestModelCatalog(db);
+  const catalog = await loadAITestModelCatalog(db as any);
 
   const requested = typeof requestedModel === 'string' ? requestedModel.trim() : '';
   if (requested && isAllowedAITestModelDynamic(provider, requested, catalog)) return requested;

@@ -90,12 +90,12 @@ Deno.serve(wrapHandler("admin-moderation", async (req) => {
 
     if (error) return json({ success: false, error: error.message }, 500, cors);
 
-    await supabase.from('audit_logs').insert({
+    void supabase.from('audit_logs').insert({
       user_id: null,
       category: 'admin_moderation',
       action: 'bug_report_updated',
       metadata: { report_id, updates, performed_by: callerEmail },
-    }).catch(() => {});
+    });
 
     return json({ success: true }, 200, cors);
   }
@@ -140,12 +140,12 @@ Deno.serve(wrapHandler("admin-moderation", async (req) => {
     if (error) return json({ success: false, error: error.message }, 500, cors);
     if (!data) return json({ success: false, error: 'not_found' }, 404, cors);
 
-    await supabase.from('audit_logs').insert({
+    void supabase.from('audit_logs').insert({
       user_id: null,
       category: 'admin_moderation',
       action: 'blocklist_entry_added',
       metadata: { type, value, reason, performed_by: callerEmail },
-    }).catch(() => {});
+    });
 
     return json({ success: true, entry: data }, 200, cors);
   }
@@ -165,12 +165,12 @@ Deno.serve(wrapHandler("admin-moderation", async (req) => {
     const { error } = await supabase.from('blocklist').delete().eq('id', entry_id);
     if (error) return json({ success: false, error: error.message }, 500, cors);
 
-    await supabase.from('audit_logs').insert({
+    void supabase.from('audit_logs').insert({
       user_id: null,
       category: 'admin_moderation',
       action: 'blocklist_entry_removed',
       metadata: { entry_id, removed_entry: existing, performed_by: callerEmail },
-    }).catch(() => {});
+    });
 
     return json({ success: true }, 200, cors);
   }
@@ -248,19 +248,19 @@ Deno.serve(wrapHandler("admin-moderation", async (req) => {
     }
 
     if (suspend_user && item?.reporter_user_id) {
-      await supabase.rpc('admin_suspend_user', {
+      void supabase.rpc('admin_suspend_user', {
         p_target_user_id: item.reporter_user_id,
         p_suspend: true,
         p_reason: `Suspended via moderation review (item: ${item_id})`,
-      }).catch(() => {});
+      });
     }
 
-    await supabase.from('audit_logs').insert({
+    void supabase.from('audit_logs').insert({
       user_id: null,
       category: 'admin_moderation',
       action: 'queue_item_reviewed',
       metadata: { item_id, decision, suspend_user, content_deleted: contentDeleted, performed_by: callerEmail },
-    }).catch(() => {});
+    });
 
     return json({ success: true, content_deleted: contentDeleted }, 200, cors);
   }
@@ -294,12 +294,12 @@ Deno.serve(wrapHandler("admin-moderation", async (req) => {
     if (error) return json({ success: false, error: error.message }, 500, cors);
     if (!data) return json({ success: false, error: 'not_found' }, 404, cors);
 
-    await supabase.from('audit_logs').insert({
+    void supabase.from('audit_logs').insert({
       user_id: null,
       category: 'admin_moderation',
       action: 'email_suppressed',
       metadata: { email: emailToSuppress, performed_by: callerEmail },
-    }).catch(() => {});
+    });
 
     return json({ success: true, entry: data }, 200, cors);
   }

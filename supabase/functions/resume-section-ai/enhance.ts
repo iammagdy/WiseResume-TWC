@@ -771,7 +771,7 @@ export async function handleEnhance(
 
     const body = JSON.parse(bodyText) as EnhanceRequest & { content?: string; instruction?: string; variants?: boolean };
     const section = body.section;
-    const action = body.action || (section === 'custom' ? 'custom' : undefined);
+    const action = body.action || ((section as string) === 'custom' ? 'custom' : undefined);
     const currentContent = body.currentContent ?? body.content;
     const context = body.context;
     const variantsMode = body.variants === true;
@@ -908,7 +908,7 @@ export async function handleEnhance(
     }
 
     // Call AI using the shared client
-    const temperature = action === 'ats_improve' ? 0.3 : 0.7;
+    const temperature = (action as string) === 'ats_improve' ? 0.3 : 0.7;
     let aiResponse;
     try {
       aiResponse = await callAIWithRetry({
@@ -935,7 +935,6 @@ export async function handleEnhance(
     const enhancedContent = await parseAIJSONWithRetry(content, {
       model: __ROUTE.model, wiseresumeSubProvider: __ROUTE.provider,
       userId,
-      temperature,
     });
 
     if (!enhancedContent) {
@@ -993,7 +992,6 @@ export async function handleEnhance(
             const retryParsed = await parseAIJSONWithRetry<Record<string, unknown>>(retryResp.content, {
               model: __ROUTE.model, wiseresumeSubProvider: __ROUTE.provider,
               userId,
-              temperature: 0.2,
             });
             if (retryParsed && retryParsed.improved !== undefined) {
               finalContent = retryParsed;
@@ -1096,7 +1094,8 @@ export async function handleEnhance(
         'payment_required': { error: 'payment_required', message: 'AI credits exhausted. Please check your account.' },
         'quota_exceeded': { error: 'quota_exceeded', message: 'Daily quota exceeded. Try again tomorrow or use a paid key.' },
       };
-      const mapped = errorMap[error.type] || { error: error.type, message: error.message };
+      const errType = error.type ?? 'unknown';
+      const mapped = errorMap[errType] || { error: errType, message: error.message };
       return new Response(JSON.stringify(mapped), {
         status: error.status,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

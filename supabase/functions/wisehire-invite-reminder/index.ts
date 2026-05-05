@@ -281,13 +281,14 @@ Deno.serve(wrapHandler("wisehire-invite-reminder", async (req) => {
         // Release the claim if the row was claimed before the error occurred,
         // so the next scheduled run can retry sending the reminder.
         if (rowClaimed) {
-          await supabase
-            .from('wisehire_invites')
-            .update({ reminder_sent_at: null })
-            .eq('id', invite.id)
-            .catch((releaseErr: unknown) => {
-              console.error(`[wisehire-invite-reminder] Failed to release claim for invite ${invite.id}:`, releaseErr);
-            });
+          try {
+            await supabase
+              .from('wisehire_invites')
+              .update({ reminder_sent_at: null })
+              .eq('id', invite.id);
+          } catch (releaseErr: unknown) {
+            console.error(`[wisehire-invite-reminder] Failed to release claim for invite ${invite.id}:`, releaseErr);
+          }
         }
         failed++;
       }

@@ -932,7 +932,7 @@ async function handleCompleteSignup(
       return json({ success: false, error: 'server_error' }, 500, corsHeaders);
     }
 
-    const rpcResult = rpcRows?.[0];
+    const rpcResult = (rpcRows as Array<{ success: boolean; error_code: string | null; plan_override: string | null }> | null)?.[0];
     if (!rpcResult?.success) {
       const errCode = rpcResult?.error_code ?? 'invalid_early_access_code';
       const status = errCode === 'early_access_code_exhausted' ? 409 : 400;
