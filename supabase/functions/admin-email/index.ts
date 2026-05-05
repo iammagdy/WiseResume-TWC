@@ -15,7 +15,7 @@
  *   responses.
  */
 import * as React from 'npm:react@18.3.1'
-import { renderAsync } from 'npm:@react-email/components@0.0.22'
+import { renderAsync } from 'npm:@react-email/render@0.0.17'
 import { getServiceClient } from '../_shared/dbClient.ts'
 import { requireAdminAuth } from '../_shared/adminAuth.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'

@@ -2,18 +2,16 @@
 
 import * as React from 'npm:react@18.3.1'
 
-import {
-  Body,
-  Container,
-  Head,
-  Heading,
-  Html,
-  Img,
-  Link,
-  Preview,
-  Section,
-  Text,
-} from 'npm:@react-email/components@0.0.22'
+import { Body } from 'npm:@react-email/body@0.0.9'
+import { Container } from 'npm:@react-email/container@0.0.13'
+import { Head } from 'npm:@react-email/head@0.0.10'
+import { Heading } from 'npm:@react-email/heading@0.0.13'
+import { Html } from 'npm:@react-email/html@0.0.9'
+import { Img } from 'npm:@react-email/img@0.0.9'
+import { Link } from 'npm:@react-email/link@0.0.9'
+import { Preview } from 'npm:@react-email/preview@0.0.10'
+import { Section } from 'npm:@react-email/section@0.0.13'
+import { Text } from 'npm:@react-email/text@0.0.9'
 
 interface WelcomeEmailProps {
   siteName: string

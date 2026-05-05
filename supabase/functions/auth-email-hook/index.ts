@@ -28,7 +28,7 @@
  *   Returns rendered HTML without sending an email.
  */
 import * as React from 'npm:react@18.3.1'
-import { renderAsync } from 'npm:@react-email/components@0.0.22'
+import { renderAsync } from 'npm:@react-email/render@0.0.17'
 import { requireStandardWebhookSignature } from '../_shared/webhookAuth.ts'
 import { SignupEmail } from '../_shared/email-templates/signup.tsx'
 import { InviteEmail } from '../_shared/email-templates/invite.tsx'
