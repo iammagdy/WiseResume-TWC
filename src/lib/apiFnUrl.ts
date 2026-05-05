@@ -97,6 +97,12 @@ export function apiFnUrl(fnName: string): string {
     const directBase = SUPABASE_URL?.replace(/\/+$/, '');
     if (directBase) return `${directBase}/functions/v1/${rewritten}`;
   }
+  // In dev, route ai-health to the local Express handler (/api/ai-health)
+  // which tests both the direct-key path and the Supabase Edge path.
+  // Routing it through /api/fn/ai-health proxies to a Supabase function
+  // that does not exist in the deployed project, returning 401 and making
+  // the badge permanently show "AI Unavailable" even when AI is healthy.
+  if (import.meta.env.DEV && rewritten === 'ai-health') return '/api/ai-health';
   if (import.meta.env.DEV) return `/api/fn/${rewritten}`;
   const base = SUPABASE_URL?.replace(/\/+$/, '');
   if (!base) return `/api/fn/${rewritten}`;
