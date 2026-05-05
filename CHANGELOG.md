@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-05-05 — Live visitor counter upgraded to Supabase Realtime (Task #11)
+
+**Files changed:** `src/components/dev-kit/MissionControlPanel.tsx`
+
+- Replaced `useVisibleInterval(fetchLiveCount, 30_000)` unconditional HTTP poll with a Supabase Realtime channel subscription on `public.visitor_events` (`postgres_changes`, `INSERT` event).
+- Added `realtimeConnected: boolean` state; channel `.subscribe()` callback sets it `true` on `SUBSCRIBED`, `false` on `CLOSED` / `CHANNEL_ERROR`.
+- `useVisibleInterval(fetchLiveCount, 30_000)` — poll runs unconditionally every 30s even when Realtime is connected; Realtime INSERT events handle instant upward ticks while the poll keeps the count accurate during quiet periods (sessions aging out of the 5-min window) and acts as fallback when the channel is unavailable.
+- Subscribe callback treats `CLOSED`, `CHANNEL_ERROR`, and `TIMED_OUT` as disconnected, re-enabling polling if realtime drops after initial connection.
+- Channel is created on mount (guarded by `if (!SUPABASE_URL) return` to skip in envs without credentials) and cleaned up via `supabase.removeChannel()` on unmount using a closure over the local `channel` variable.
+- UI badge in the Live Visitors card updated: shows `live` when Realtime is connected, `refreshes every 30s` when falling back to polling.
+- Imports added: `supabase` from `@/integrations/supabase/safeClient`, `SUPABASE_URL` from `@/lib/supabaseConstants`.
+
 ## 2026-05-05 — Deploy visitor tracking edge functions + DB migrations to production (Task #6)
 
 **Deployment — Supabase project `jnsfmkzgxsviuthaqlyy` (CLI v2.98.1):**

@@ -21,6 +21,8 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { supabase } from '@/integrations/supabase/safeClient';
+import { SUPABASE_URL } from '@/lib/supabaseConstants';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
 import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
 import { useIsMounted, useVisibleInterval } from '@/lib/devkit/hooks';
@@ -248,6 +250,7 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
   const [edgeDriftError, setEdgeDriftError] = useState<string | null>(null);
   const [edgeDriftLoading, setEdgeDriftLoading] = useState(false);
   const [liveCount, setLiveCount] = useState<number | null>(null);
+  const [realtimeConnected, setRealtimeConnected] = useState(false);
   const isMounted = useIsMounted();
 
   const fetchData = useCallback(async () => {
@@ -308,9 +311,43 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
 
   useEffect(() => { fetchData(); }, [fetchData]);
   useEffect(() => { fetchEdgeDrift(); }, [fetchEdgeDrift]);
-  useEffect(() => { fetchLiveCount(); }, [fetchLiveCount]);
+
+  useEffect(() => {
+    fetchLiveCount();
+
+    if (!SUPABASE_URL) {
+      return;
+    }
+
+    const channel = supabase
+      .channel('mission-control-live-visitors')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'visitor_events' },
+        () => { fetchLiveCount(); },
+      )
+      .subscribe((status) => {
+        if (!isMounted()) return;
+        if (status === 'SUBSCRIBED') {
+          setRealtimeConnected(true);
+        } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          setRealtimeConnected(false);
+        }
+      });
+
+    return () => {
+      setRealtimeConnected(false);
+      supabase.removeChannel(channel).catch(() => undefined);
+    };
+  }, [fetchLiveCount, isMounted]);
+
   useVisibleInterval(fetchData, 60_000);
   useVisibleInterval(fetchEdgeDrift, 300_000);
+  // Always poll at 30s even when Realtime is connected — the live count
+  // covers the last-5-minute window, so it must also decrease as sessions
+  // age out. Realtime INSERT events handle instant upward ticks; the poll
+  // keeps the count accurate during quiet periods and acts as fallback if
+  // the channel is unavailable.
   useVisibleInterval(fetchLiveCount, 30_000);
 
   if (!data && loading) {
@@ -745,7 +782,7 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
                 {liveCount}
               </span>
               <span className="text-[10px] text-muted-foreground">
-                session{liveCount !== 1 ? 's' : ''} · refreshes every 30s
+                session{liveCount !== 1 ? 's' : ''} · {realtimeConnected ? 'live · polls every 30s' : 'refreshes every 30s'}
               </span>
             </div>
           )}
