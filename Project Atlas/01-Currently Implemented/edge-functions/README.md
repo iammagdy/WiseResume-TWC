@@ -1,6 +1,6 @@
 # Edge Functions Index
 
-  **Last verified:** 2026-04-18
+  **Last verified:** 2026-05-05
   **Type:** index
   **Sources:**
   - `supabase/functions/` (93 deployed functions as of 2026-04-24, after Task #21 removed 5 orphans — `admin-backfill-ollama-urls`, `admin-migrate-api-key-encryption`, `ai-breaker-status`, `elevenlabs-scribe-token`, `generate-headshot`. See `../critical-systems/08-deployment.md` → "Orphan removal log".)
@@ -11,8 +11,9 @@
 
   ---
 
-  ## Admin Dev Kit (27)
+  ## Admin Dev Kit (28)
 
+- [admin-ai-ops](./admin-ai-ops.md)
 - [admin-analytics](./admin-analytics.md)
 - [admin-audit-logs](./admin-audit-logs.md)
 - [admin-check-access](./admin-check-access.md)
