@@ -399,7 +399,11 @@ Deno.serve(wrapHandler('admin-visitor-analytics', async (req) => {
       .from('visitor_events')
       .select('session_id')
       .gte('created_at', fiveMinutesAgo);
-    const liveCount = new Set((data ?? []).map((r: { session_id: string }) => r.session_id)).size;
+    const liveCount = new Set(
+      (data ?? [])
+        .map((r: { session_id: string }) => r.session_id)
+        .filter(Boolean),
+    ).size;
 
     return new Response(JSON.stringify({ success: true, data: { liveCount } }), {
       status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
