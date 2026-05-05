@@ -124,7 +124,27 @@ BEGIN
 
   RAISE NOTICE 'Created private.exec_refresh_ai_test_models().';
 
-  -- ── 3. Schedule (idempotent — unschedule first if exists) ──────────────────
+  -- ── 3. Public helper function for edge-function Vault access ───────────────
+  -- PostgREST does not expose the vault schema by default, so edge functions
+  -- cannot query vault.decrypted_secrets via the REST API. This SECURITY
+  -- DEFINER function in the public schema bridges that gap: it reads the
+  -- cron_secret from Vault and returns it to the service_role caller only.
+  -- requireCronSecretOrVault() in webhookAuth.ts calls this via supabase-js
+  -- .rpc('get_cron_secret_internal') as the Vault fallback path.
+  CREATE OR REPLACE FUNCTION public.get_cron_secret_internal()
+  RETURNS text
+  LANGUAGE sql
+  SECURITY DEFINER
+  SET search_path = vault, public
+  AS $$
+    SELECT decrypted_secret FROM vault.decrypted_secrets
+    WHERE name = 'cron_secret' LIMIT 1;
+  $$;
+  REVOKE ALL ON FUNCTION public.get_cron_secret_internal() FROM PUBLIC;
+  GRANT EXECUTE ON FUNCTION public.get_cron_secret_internal() TO service_role;
+  RAISE NOTICE 'Created public.get_cron_secret_internal() (service_role only).';
+
+  -- ── 4. Schedule (idempotent — unschedule first if exists) ──────────────────
   SELECT jobid INTO existing_id FROM cron.job WHERE jobname = 'refresh_ai_test_models';
   IF existing_id IS NOT NULL THEN
     PERFORM cron.unschedule(existing_id);
@@ -139,7 +159,7 @@ BEGIN
 
   RAISE NOTICE 'Scheduled refresh_ai_test_models cron job (nightly 03:17 UTC).';
 
-  -- ── 4. Soft-fail GUC attempt ────────────────────────────────────────────────
+  -- ── 5. Soft-fail GUC attempt ────────────────────────────────────────────────
   -- Requires superuser; silently skipped when running as a restricted role.
   -- Set via the Supabase Dashboard → Database → Configuration if needed.
   BEGIN
