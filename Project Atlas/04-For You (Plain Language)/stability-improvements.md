@@ -1,6 +1,6 @@
 # Stability Improvements — What's Getting Better Behind the Scenes
 
-**Last verified:** 2026-05-05 (Task #15 — AI model catalog cron fix)
+**Last verified:** 2026-05-05 (Task #22 — Replit preview auth)
 
 ## The AI model picker in the admin tools now shows the real, live list of available models (2026-05-05)
 

@@ -19,6 +19,18 @@
 
 **Imports added:** `Globe`, `TrendingUp` from `lucide-react`.
 
+## 2026-05-05 — Enable Kinde sign-in in Replit preview (Task #22)
+
+**Files changed:**
+- No code changes — environment configuration only.
+
+**Configuration:**
+- Confirmed `VITE_KINDE_CLIENT_ID` and `VITE_KINDE_DOMAIN` already present as shared Replit env vars.
+- Replit dev callback URL for Kinde allowlist: `https://1f351d86-f0a0-42e9-a76f-db07653707b7-00-qtwju03yj2qa-rtsqjr1v.kirk.replit.dev/auth/callback`
+- Replit dev origin for Kinde allowlist: `https://1f351d86-f0a0-42e9-a76f-db07653707b7-00-qtwju03yj2qa-rtsqjr1v.kirk.replit.dev`
+- User added both values to the Kinde application dashboard (Allowed redirect URIs + Allowed origins).
+- Verified: landing page loads in preview with "Sign In" button visible (not the "Sign in isn't available here" fallback screen).
+
 ## 2026-05-05 — Dashboard UX: hero section, discovery grid, subtler lock badges (Task #19)
 
 **Files changed:**
