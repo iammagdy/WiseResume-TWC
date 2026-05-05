@@ -33,6 +33,7 @@ CREATE INDEX IF NOT EXISTS wisehire_candidates_role_idx
 
 ALTER TABLE public.wisehire_candidates ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "HR user owns their candidates" ON public.wisehire_candidates;
 CREATE POLICY "HR user owns their candidates"
   ON public.wisehire_candidates
   FOR ALL

@@ -22,6 +22,7 @@ CREATE INDEX IF NOT EXISTS broadcasts_created_at_idx ON public.broadcasts (creat
 ALTER TABLE public.broadcasts ENABLE ROW LEVEL SECURITY;
 
 -- Authenticated users can read active, non-expired broadcasts
+DROP POLICY IF EXISTS "authenticated_read_active_broadcasts" ON public.broadcasts;
 CREATE POLICY "authenticated_read_active_broadcasts" ON public.broadcasts
   FOR SELECT TO authenticated
   USING (
@@ -30,6 +31,7 @@ CREATE POLICY "authenticated_read_active_broadcasts" ON public.broadcasts
   );
 
 -- Anon users can also read (for pre-auth pages / loading states)
+DROP POLICY IF EXISTS "anon_read_active_broadcasts" ON public.broadcasts;
 CREATE POLICY "anon_read_active_broadcasts" ON public.broadcasts
   FOR SELECT TO anon
   USING (
@@ -38,6 +40,7 @@ CREATE POLICY "anon_read_active_broadcasts" ON public.broadcasts
   );
 
 -- Service role has full write access (edge functions use service role)
+DROP POLICY IF EXISTS "service_role_broadcasts_all" ON public.broadcasts;
 CREATE POLICY "service_role_broadcasts_all" ON public.broadcasts
   USING (auth.role() = 'service_role')
   WITH CHECK (auth.role() = 'service_role');

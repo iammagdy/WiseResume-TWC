@@ -26,9 +26,11 @@ CREATE INDEX IF NOT EXISTS idx_ppu_assigned_user
 -- Regular authenticated users get a read-only view of available listings only.
 ALTER TABLE public.portfolio_premium_usernames ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "deny_public_write" ON public.portfolio_premium_usernames;
 CREATE POLICY "deny_public_write" ON public.portfolio_premium_usernames
   FOR ALL USING (false);
 
+DROP POLICY IF EXISTS "authenticated_read_available" ON public.portfolio_premium_usernames;
 CREATE POLICY "authenticated_read_available" ON public.portfolio_premium_usernames
   FOR SELECT
   USING (status = 'available');

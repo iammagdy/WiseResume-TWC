@@ -32,6 +32,7 @@ CREATE INDEX IF NOT EXISTS wisehire_briefs_token_idx
 
 ALTER TABLE public.wisehire_candidate_briefs ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "HR user owns their briefs" ON public.wisehire_candidate_briefs;
 CREATE POLICY "HR user owns their briefs"
   ON public.wisehire_candidate_briefs
   FOR ALL

@@ -8,14 +8,17 @@ create table if not exists public.company_briefings (
 
 alter table public.company_briefings enable row level security;
 
+DROP POLICY IF EXISTS "Users can view own briefings" ON public.company_briefings;
 create policy "Users can view own briefings"
   on public.company_briefings for select
   using (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert own briefings" ON public.company_briefings;
 create policy "Users can insert own briefings"
   on public.company_briefings for insert
   with check (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete own briefings" ON public.company_briefings;
 create policy "Users can delete own briefings"
   on public.company_briefings for delete
   using (auth.uid() = user_id);

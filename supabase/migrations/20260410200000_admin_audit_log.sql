@@ -19,6 +19,7 @@ CREATE INDEX IF NOT EXISTS admin_audit_log_created_at_idx ON public.admin_audit_
 
 ALTER TABLE public.admin_audit_log ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "service_role_audit_log" ON public.admin_audit_log;
 CREATE POLICY "service_role_audit_log" ON public.admin_audit_log
   USING (auth.role() = 'service_role')
   WITH CHECK (auth.role() = 'service_role');

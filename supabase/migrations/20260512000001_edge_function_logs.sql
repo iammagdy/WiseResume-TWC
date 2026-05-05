@@ -24,6 +24,7 @@ ALTER TABLE public.edge_function_logs ENABLE ROW LEVEL SECURITY;
 -- Only the service_role (which bypasses RLS) can read/write this table.
 -- Writes come from _shared/fnLogger.ts using the service key.
 -- Reads come from admin-observability using the service key.
+DROP POLICY IF EXISTS "deny_public_access" ON public.edge_function_logs;
 CREATE POLICY "deny_public_access" ON public.edge_function_logs
   AS RESTRICTIVE
   FOR ALL

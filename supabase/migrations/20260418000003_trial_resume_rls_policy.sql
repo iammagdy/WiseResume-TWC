@@ -11,6 +11,7 @@
 --   First edit    (client sets trial_expires_at = now())  → USING saw old row as active → write succeeds, trial expires
 --   Expired trial (trial_expires_at <= now()) → USING blocks → write rejected
 
+DROP POLICY IF EXISTS "block_writes_to_expired_trials" ON public.resumes;
 CREATE POLICY "block_writes_to_expired_trials"
   ON public.resumes
   AS RESTRICTIVE

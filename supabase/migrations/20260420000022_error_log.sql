@@ -16,12 +16,14 @@ create table if not exists public.error_log (
 alter table public.error_log enable row level security;
 
 -- Only service-role can insert (edge functions use service key)
+DROP POLICY IF EXISTS "service_role_insert_error_log" ON public.error_log;
 create policy "service_role_insert_error_log"
   on public.error_log for insert
   to service_role
   with check (true);
 
 -- Admins can read all error log rows (admin role determined by app_metadata)
+DROP POLICY IF EXISTS "admin_read_error_log" ON public.error_log;
 create policy "admin_read_error_log"
   on public.error_log for select
   to authenticated
@@ -30,6 +32,7 @@ create policy "admin_read_error_log"
   );
 
 -- Admins can mark rows as resolved
+DROP POLICY IF EXISTS "admin_update_error_log" ON public.error_log;
 create policy "admin_update_error_log"
   on public.error_log for update
   to authenticated

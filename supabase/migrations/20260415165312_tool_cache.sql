@@ -12,6 +12,7 @@ CREATE TABLE tool_cache (
 
 ALTER TABLE tool_cache ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "tool_cache_owner_all" ON tool_cache;
 CREATE POLICY "tool_cache_owner_all"
   ON tool_cache FOR ALL
   USING (auth.uid() = user_id)

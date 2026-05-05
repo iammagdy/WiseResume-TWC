@@ -16,6 +16,7 @@ CREATE INDEX IF NOT EXISTS wisehire_mask_sessions_owner_created_idx
 
 ALTER TABLE public.wisehire_mask_sessions ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "HR user owns their mask sessions" ON public.wisehire_mask_sessions;
 CREATE POLICY "HR user owns their mask sessions"
   ON public.wisehire_mask_sessions
   FOR ALL

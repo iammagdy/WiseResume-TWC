@@ -23,6 +23,7 @@ CREATE INDEX IF NOT EXISTS feature_flags_updated_at_idx ON public.feature_flags 
 
 ALTER TABLE public.feature_flags ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "service_role_feature_flags" ON public.feature_flags;
 CREATE POLICY "service_role_feature_flags" ON public.feature_flags
   USING (auth.role() = 'service_role')
   WITH CHECK (auth.role() = 'service_role');

@@ -17,6 +17,7 @@ CREATE INDEX IF NOT EXISTS wisehire_pipeline_events_candidate_idx
 
 ALTER TABLE public.wisehire_pipeline_events ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "HR user owns their pipeline events" ON public.wisehire_pipeline_events;
 CREATE POLICY "HR user owns their pipeline events"
   ON public.wisehire_pipeline_events
   FOR ALL

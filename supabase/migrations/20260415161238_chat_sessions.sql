@@ -10,6 +10,7 @@ CREATE TABLE chat_sessions (
 
 ALTER TABLE chat_sessions ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "chat_sessions_owner_all" ON chat_sessions;
 CREATE POLICY "chat_sessions_owner_all"
   ON chat_sessions FOR ALL
   USING (auth.uid() = user_id)
@@ -27,6 +28,7 @@ CREATE TABLE chat_messages (
 
 ALTER TABLE chat_messages ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "chat_messages_owner_all" ON chat_messages;
 CREATE POLICY "chat_messages_owner_all"
   ON chat_messages FOR ALL
   USING (

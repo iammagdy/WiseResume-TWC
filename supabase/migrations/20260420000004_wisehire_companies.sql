@@ -19,6 +19,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS wisehire_companies_owner_idx
 
 ALTER TABLE public.wisehire_companies ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "HR user owns their company" ON public.wisehire_companies;
 CREATE POLICY "HR user owns their company"
   ON public.wisehire_companies
   FOR ALL

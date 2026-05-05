@@ -25,6 +25,7 @@ BEGIN
 
   EXECUTE 'DROP POLICY IF EXISTS "Users can view own tailoring results" ON public.tailoring_results';
   EXECUTE $sql$
+DROP POLICY IF EXISTS "Users can view own tailoring results" ON public.tailoring_results;
     CREATE POLICY "Users can view own tailoring results"
       ON public.tailoring_results
       FOR SELECT
@@ -34,6 +35,7 @@ BEGIN
 
   EXECUTE 'DROP POLICY IF EXISTS "Users can insert own tailoring results" ON public.tailoring_results';
   EXECUTE $sql$
+DROP POLICY IF EXISTS "Users can insert own tailoring results" ON public.tailoring_results;
     CREATE POLICY "Users can insert own tailoring results"
       ON public.tailoring_results
       FOR INSERT
@@ -43,6 +45,7 @@ BEGIN
 
   EXECUTE 'DROP POLICY IF EXISTS "Users can update own tailoring results" ON public.tailoring_results';
   EXECUTE $sql$
+DROP POLICY IF EXISTS "Users can update own tailoring results" ON public.tailoring_results;
     CREATE POLICY "Users can update own tailoring results"
       ON public.tailoring_results
       FOR UPDATE
@@ -52,6 +55,7 @@ BEGIN
 
   EXECUTE 'DROP POLICY IF EXISTS "Users can delete own tailoring results" ON public.tailoring_results';
   EXECUTE $sql$
+DROP POLICY IF EXISTS "Users can delete own tailoring results" ON public.tailoring_results;
     CREATE POLICY "Users can delete own tailoring results"
       ON public.tailoring_results
       FOR DELETE

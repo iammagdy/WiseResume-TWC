@@ -17,6 +17,7 @@ CREATE INDEX IF NOT EXISTS idx_blocklist_type_value
 
 ALTER TABLE public.blocklist ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "deny_public_access" ON public.blocklist;
 CREATE POLICY "deny_public_access" ON public.blocklist
   AS RESTRICTIVE FOR ALL TO public
   USING (false) WITH CHECK (false);
@@ -41,6 +42,7 @@ CREATE INDEX IF NOT EXISTS idx_moderation_queue_status_created
 
 ALTER TABLE public.moderation_queue ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "deny_public_access" ON public.moderation_queue;
 CREATE POLICY "deny_public_access" ON public.moderation_queue
   AS RESTRICTIVE FOR ALL TO public
   USING (false) WITH CHECK (false);
@@ -65,6 +67,7 @@ CREATE INDEX IF NOT EXISTS idx_kinde_events_type
 
 ALTER TABLE public.kinde_events ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "deny_public_access" ON public.kinde_events;
 CREATE POLICY "deny_public_access" ON public.kinde_events
   AS RESTRICTIVE FOR ALL TO public
   USING (false) WITH CHECK (false);

@@ -61,6 +61,7 @@ CREATE POLICY "Admins can manage all messages"
 DROP POLICY IF EXISTS "Anyone can insert contact requests"
   ON public.contact_requests;
 
+DROP POLICY IF EXISTS "Anyone can insert contact requests" ON public.contact_requests;
 CREATE POLICY "Anyone can insert contact requests"
   ON public.contact_requests
   FOR INSERT
@@ -96,6 +97,7 @@ CREATE POLICY "Anyone can insert contact requests"
 DROP POLICY IF EXISTS "talent_pool_views_hr_insert"
   ON public.talent_pool_views;
 
+DROP POLICY IF EXISTS "talent_pool_views_hr_insert" ON public.talent_pool_views;
 CREATE POLICY "talent_pool_views_hr_insert"
   ON public.talent_pool_views
   FOR INSERT

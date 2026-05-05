@@ -16,12 +16,14 @@ alter table public.portfolio_interactions enable row level security;
 -- Insert-only from service-role context (edge function uses service key).
 -- Explicitly scoped TO service_role so anon/authenticated cannot write directly
 -- and bypass edge-function rate limiting.
+DROP POLICY IF EXISTS "service_role_insert_portfolio_interactions" ON public.portfolio_interactions;
 create policy "service_role_insert_portfolio_interactions"
   on public.portfolio_interactions for insert
   to service_role
   with check (true);
 
 -- Portfolio owners can read interactions on their own username.
+DROP POLICY IF EXISTS "owner_read_portfolio_interactions" ON public.portfolio_interactions;
 create policy "owner_read_portfolio_interactions"
   on public.portfolio_interactions for select
   using (

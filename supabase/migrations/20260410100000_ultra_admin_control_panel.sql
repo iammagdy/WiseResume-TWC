@@ -33,6 +33,7 @@ CREATE INDEX IF NOT EXISTS admin_user_notes_user_id_idx ON public.admin_user_not
 CREATE INDEX IF NOT EXISTS admin_user_notes_created_at_idx ON public.admin_user_notes (created_at DESC);
 
 ALTER TABLE public.admin_user_notes ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "service_role_admin_notes" ON public.admin_user_notes;
 CREATE POLICY "service_role_admin_notes" ON public.admin_user_notes
   USING (auth.role() = 'service_role')
   WITH CHECK (auth.role() = 'service_role');
@@ -58,6 +59,7 @@ CREATE INDEX IF NOT EXISTS discount_codes_code_idx ON public.discount_codes (cod
 CREATE INDEX IF NOT EXISTS discount_codes_is_active_idx ON public.discount_codes (is_active);
 
 ALTER TABLE public.discount_codes ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "service_role_discount_codes" ON public.discount_codes;
 CREATE POLICY "service_role_discount_codes" ON public.discount_codes
   USING (auth.role() = 'service_role')
   WITH CHECK (auth.role() = 'service_role');
@@ -72,11 +74,13 @@ CREATE TABLE IF NOT EXISTS public.app_settings (
 );
 
 ALTER TABLE public.app_settings ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "service_role_app_settings" ON public.app_settings;
 CREATE POLICY "service_role_app_settings" ON public.app_settings
   USING (auth.role() = 'service_role')
   WITH CHECK (auth.role() = 'service_role');
 
 -- Allow authenticated users to read certain app settings (feature flags, announcements)
+DROP POLICY IF EXISTS "authenticated_read_app_settings" ON public.app_settings;
 CREATE POLICY "authenticated_read_app_settings" ON public.app_settings
   FOR SELECT
   USING (key IN (
@@ -113,6 +117,7 @@ CREATE TABLE IF NOT EXISTS public.coupon_redemptions (
 );
 
 ALTER TABLE public.coupon_redemptions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "service_role_coupon_redemptions" ON public.coupon_redemptions;
 CREATE POLICY "service_role_coupon_redemptions" ON public.coupon_redemptions
   USING (auth.role() = 'service_role')
   WITH CHECK (auth.role() = 'service_role');
