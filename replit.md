@@ -1,9 +1,62 @@
-# WiseResume — Compressed Project Knowledge Base
+# WiseResume
 
-### Overview
-WiseResume is an AI-powered web application for comprehensive career management. It assists users in creating and tailoring resumes for specific job listings, publishing public portfolios, practicing interview questions, tracking job applications, and managing career goals. The application focuses on providing an efficient and intelligent solution for career advancement by leveraging AI for resume generation, job tracking, and career guidance. The platform also includes WiseHire — an integrated HR SaaS product for recruiters.
+WiseResume is an AI-powered web application that helps users manage their careers through resume tailoring, portfolio publishing, interview practice, and job application tracking.
 
-### User Preferences
+## Run & Operate
+
+To run the application locally, execute:
+```bash
+npm run server:dev & npm run dev
+```
+The frontend will be available on port 5000 and the Express backend on port 5001.
+
+**Environment Variables (Supabase Secrets):**
+- `DEV_KIT_PASSWORD`: Password for accessing the `/devkit` admin panel.
+- `CRON_SECRET`: Secret for cron job authentication.
+- `WISE_ENV`: Set to `production` for production environments, `dev` otherwise.
+
+## Stack
+
+- **Frontend**: React 18, TypeScript 5, Vite 6
+- **Styling**: Tailwind CSS, Radix UI, Framer Motion
+- **State Management**: Zustand, TanStack Query
+- **Authentication**: Kinde Auth (JWT), `auth.thewise.cloud` custom domain
+- **Database**: Supabase Postgres with Drizzle ORM
+- **Backend**: Supabase Edge Functions, Express.js (dev proxy, PDF export, admin bridge)
+- **Mobile**: Expo SDK 51, Expo Router 3.5 (iOS/Android)
+- **Hosting**: Hostinger (static frontend)
+
+## Where things live
+
+- `src/`: Frontend source code.
+- `supabase/`: Supabase Edge Functions, database migrations, and schema definition.
+- `server/`: Express.js backend code.
+- `mobile/`: Native iOS + Android client.
+- `public/`: Static assets.
+- `Project Atlas/`: Living knowledge base and documentation.
+- `wise-templates/`: Resume templates.
+- `supabase/functions/_shared/creditLimits.json`: Source of truth for credit limits.
+- `supabase/config.toml`: Supabase Edge Function configurations.
+- `src/lib/apiFnUrl.ts`: API endpoint routing logic.
+
+## Architecture decisions
+
+- **Supabase as Primary Infrastructure**: Supabase is the sole source of truth for production data and secrets, serving all production API traffic via Edge Functions. The Replit environment is for development only.
+- **AI Provider Routing & Fallback**: AI requests are routed through a pool of OpenRouter, Groq, and DeepSeek keys, with per-feature configuration via `ai_routing_config` and cross-provider fallback.
+- **Credit System Source of Truth**: Credit limits are defined centrally in `supabase/functions/_shared/creditLimits.json` and imported by both frontend and edge function logic to ensure consistency.
+- **Dedicated Admin DevKit**: A password-protected `/devkit` provides comprehensive administrative tools, analytics, and observability, with granular control over AI routing, feature flags, and user management.
+- **Server-Side PDF Export**: PDF generation for resumes and portfolios is handled server-side using Puppeteer (`POST /api/export/pdf-native`) to ensure consistent rendering.
+
+## Product
+
+- **Career Management Suite**: AI-powered resume builder, tailoring for job listings, public portfolio publishing, interview practice, job application tracking, and career goal management.
+- **WiseHire HR SaaS**: Integrated platform for recruiters including talent search, bulk screening, job description writing, and candidate scorecards.
+- **Mobile Applications**: Native iOS and Android clients integrating with the core platform for on-the-go access.
+- **Admin DevKit**: Comprehensive internal tool for monitoring system health, managing users, auditing activity, and configuring platform settings.
+- **AI Studio**: Centralized hub for various AI tools, including agentic chat with persistent sessions and tool-calling capabilities.
+
+## User preferences
+
 - **Supabase is the sole production source of truth** — Replit is a development/coding environment ONLY. Never treat Replit secrets, Replit environment variables, or the Express server as production infrastructure. All production secrets live in Supabase Vault. All production API traffic is served by Supabase Edge Functions. If a secret is absent from `process.env` in Replit, that is expected and normal — it is vault-managed and available to edge functions in production. Never add `replit_env` or `optional` secret sources; every secret is `supabase_vault`. Never suggest storing secrets in Replit as a production solution.
 - **Documentation Rules**: After every completed task, bug fix, or feature, the following documentation updates are mandatory:
     - Add an entry to `CHANGELOG.md` detailing technical changes (files, functions, DB migrations, behavior) in English, without plain-language explanations.
@@ -30,171 +83,23 @@ WiseResume is an AI-powered web application for comprehensive career management.
 - **AI cron secret**: `CRON_SECRET` Supabase Edge Function secret + `vault.cron_secret` row. The cron auth helper `requireCronSecretOrVault` (in `_shared/webhookAuth.ts`) accepts either the env-var fast path or the Vault RPC fallback (`public.get_cron_secret_internal()`, `service_role` only). Both must be kept in sync; the helper tolerates a rotation window where only one matches.
 - **`ai_routing_config` active rows**: `editor-ai`, `resume-section-ai`, `tailor-resume`, `smart-fit-rewrite`, `agentic-chat`, `parse-job` (+ platform-wide rows). Legacy rows (`analyze-resume`, `recruiter-simulation`, `suggest-template`, `optimize-for-linkedin`) removed by migration `20260603000000`. Pass `featureName` on `AICallOptions` to get per-feature model routing; do not call `resolveFeatureRoute()` directly — it is deprecated.
 
----
+## Gotchas
 
-### System Architecture
+- **Kinde Authentication Flow**: Client exchanges Kinde token with Express at `POST /api/fn/token-exchange` to get a Supabase session JWT. Direct Kinde logins don't immediately grant Supabase access.
+- **BYOK Removal**: Bring-Your-Own-Key (BYOK) AI credit bypass has been fully removed; all AI requests deduct credits from a managed pool.
+- **AI Circuit Breaker No-Op**: The `recordBreakerEvent` function is a no-op stub and does not actively manage AI circuit breaking.
+- **Email Verification**: New email/password sign-ups require email verification before access.
+- **Admin Authentication**: Access to `/devkit` requires `DEV_KIT_PASSWORD` and `requireAdminAuth` for specific edge functions.
+- **Mobile Push Notifications**: Requires `register-push-token` edge function and `device_push_tokens` table for functionality.
 
-**Tech Stack:**
-- **Frontend**: React 18, TypeScript 5, Vite 6
-- **Styling**: Tailwind CSS, Radix UI, Framer Motion
-- **State Management**: Zustand, TanStack Query (React Query)
-- **Authentication**: Kinde Auth (JWT verified server-side via JWKS), with `auth.thewise.cloud` as the dedicated Kinde custom domain (split from the app domain in 2026-05-03)
-- **Database**: Supabase Postgres via Drizzle ORM
-- **Backend**: Supabase Edge Functions (74 deployed) for business logic, AI calls, and auth helpers. Express.js server acts as a dev proxy, PDF exporter, and admin bridge.
-- **Mobile**: Native iOS + Android client (`mobile/`) built with Expo SDK 51 + Expo Router 3.5. Integrates with the same Supabase project, Kinde tenant, and AI providers as the web app. Auth uses Kinde PKCE via `expo-auth-session`, exchanged through the existing `token-exchange` edge function. Edge functions for mobile: `register-push-token`, `send-push`, `revenuecat-webhook`, `mobile-config`, `mobile-api`. Tables: `device_push_tokens`, `mobile_app_versions`. Capacitor fully removed.
-- **Hosting**: Hostinger for static frontend. Replit is a development/coding environment ONLY — never production infrastructure.
+## Pointers
 
-**Authentication Flow:**
-Users authenticate via Kinde. The client exchanges the Kinde token with the Express server at `POST /api/fn/token-exchange`. The server validates the Kinde JWT, generates a user UUID, upserts profile data in Supabase, and issues a short-lived session JWT for subsequent API calls. Email/password sign-ups go through email verification (`auth-email-hook`) before access is granted.
-
-**Replit Environment:**
-- **Frontend**: Vite dev server on port 5000 (proxies `/api/*` to port 5001).
-- **Backend**: Express API server (`server/index.ts`) on port 5001 via `tsx --watch` (dev proxy only).
-- **Database**: Supabase is the sole source of truth. All data operations use `supabaseGet`/`supabaseUpsert`/`supabaseDelete` helpers calling the Supabase REST API directly.
-- **Startup command**: `npm run server:dev & npm run dev`.
-- `src/lib/apiFnUrl.ts` handles environment routing: `/api/fn/<name>` in dev and `${VITE_SUPABASE_URL}/functions/v1/<name>` in production.
-- The Express server gracefully degrades when optional secrets are absent.
-
-**AI System:**
-- **Pool**: Up to 9 managed keys — 3 OpenRouter + 3 Groq + 3 DeepSeek. Provider chosen by per-feature routing config first (`ai_routing_config` table via `modelRouter.ts`), then random uniform selection among configured providers. One sibling-key retry within the same provider, then cross-provider fallback.
-- **BYOK removed**: The BYOK code path still exists in `aiClient.ts` for source compatibility (30+ call sites), but `creditUtils.ts` sets `isByok = false` unconditionally. No user-facing BYOK UI or credit bypass exists.
-- **Circuit breaker removed**: `recordBreakerEvent` is a no-op stub kept for call-site compatibility.
-- **Feature routing**: `featureName` on `AICallOptions` triggers a DB lookup in `ai_routing_config` for the preferred provider + optional model override. A/B splits supported via `ab_secondary_provider` + `ab_split_pct`.
-- **Smoke-test bypass**: `supabase/functions/_shared/smokeTest.ts` — `checkSmokeBypass` returns a synthetic 200 (no AI call, no credit deduction) when `x-smoke-test: true` is present AND the caller holds a valid DevKit admin token.
-- **AI model catalog cron**: `refresh_ai_test_models` pg_cron job at `03:17 UTC` via `private.exec_refresh_ai_test_models()`. Reads `vault.cron_secret`, POSTs to `admin-ai-ops`. Catalog stored in `app_settings.ai_test_model_catalog`. Up to 50 OpenRouter + 15 Groq + 15 DeepSeek curated models; non-chat filter via `OPENROUTER_NON_CHAT_RE`.
-
-**Subscription & Credits:**
-- Plans: `free` (5 AI credits/day), `pro` (100 AI credits/day), `premium` (unlimited, stored as `-1`).
-- Source of truth for credit values: `supabase/functions/_shared/creditLimits.json`.
-- Expensive endpoints (`tailor-resume`, `generate-cover-letter`) deduct 2 credits; all others deduct 1.
-- Trial plans supported — `subscriptions.trial_plan` + `trial_expires_at` override the base plan during the trial window.
-
-**Core Features:**
-- **Resume builder**: AI-powered creation, editing (30 templates), PDF export, ATS scoring, version history, sharing.
-- **Resume tailoring**: Smart job-fit analysis with AI rewrite, `tailor_history` persistence.
-- **Cover letters**: AI generation with 4 styles (Classic, Modern, Compact, Creative). Stored in `cover_letters` table.
-- **Resignation letters**: AI-generated resignation letters. `resignation_letters` table.
-- **Interview prep**: AI question bank, voice interview (ElevenLabs STT → Groq LLM → browser TTS), session scoring, `interview_sessions` + `interview_question_bank` tables, company briefings via `company-briefing` edge function.
-- **AI Studio**: Tabbed AI tool hub at `/ai-studio`. Agentic chat with persistent sessions (`chat_sessions`, `chat_messages`), history panel, tool-calling, delete-experience action.
-- **Career page**: Achievements, career assessment, goal tracking.
-- **Achievements / Gamification**: `user_gamification` table.
-- **Public portfolio**: At `/p/:username`. Password-protected option (`portfolio_settings.password_hash`). Portfolio interactions (`portfolio_interactions`), visits (`portfolio_visits`), history (`portfolio_history`), OG image (`og-image`), bio generation (`generate-portfolio-bio`), session tracking (`create-portfolio-session`), PDF export (`export-portfolio-pdf`).
-- **QR codes**: Generate, batch, scan. `/qr-code`, `/qr-batch`, `/qr-scan`.
-- **Kanban job tracker**: Board view at `/applications` with draggable cards and activity timeline.
-- **Short links**: `/l/:linkId` with `short_links` table.
-- **Referral system**: `/referral`.
-- **Store screenshots**: App-store mockup screenshots at `/store-screenshots` + `store_screenshots` table.
-- **LinkedIn import**: `POST /api/linkedin-profile` → Proxycurl → structured profile.
-- **"Build from Text"**: Paste freeform career notes → `parse-linkedin` edge function → structured resume.
-- **Admin impersonation (ActAs)**: Admins can act as any user from DevKit → Users panel. Sessions tracked in `impersonation_revocations` table. `ActAs.tsx` page + `ActAsDialog.tsx` + `ActingAsBanner.tsx`.
-- **Notifications**: In-app notification center. `notifications` table.
-- **WebMCP**: Agent discovery via static files, HTTP headers, and `navigator.modelContext` via `useWebMcp` hook.
-- **Analytics Data Lifecycle**: Daily pruning of insert-heavy analytics tables with configurable retention and BRIN indexing.
-
-**WiseHire (HR SaaS Platform):**
-Full integrated HR product under `/wisehire/*`. Edge functions: `wisehire-access`, `wisehire-bulk-screen`, `wisehire-generate-brief`, `wisehire-invite-reminder`, `wisehire-mask-cvs`, `wisehire-send-outreach`, `wisehire-talent-search`, `wisehire-talent-view`, `wisehire-write-jd`.
-
-Routes: `/wisehire/dashboard`, `/wisehire/jd-writer`, `/wisehire/briefs`, `/wisehire/briefs/:briefId`, `/wisehire/pipeline`, `/wisehire/bulk-screen`, `/wisehire/scorecards/:candidateId`, `/wisehire/talent-pool`, `/wisehire/analytics`, `/wisehire/mask-cvs`, `/wisehire/clients`, `/wisehire/onboarding`, `/wisehire/subscription`, `/wisehire/settings`.
-
-Sharable views: `/share/brief/:shareToken`, `/share/scorecard/:shareToken`.
-
-**Admin DevKit (`/devkit`):**
-Password-protected via `DEV_KIT_PASSWORD` (Supabase secret), verified server-side by `verify-dev-kit` edge function. Admin sessions stored in `admin_sessions` table. Admin-only edge functions wrapped by `requireAdminAuth` from `_shared/adminAuth.ts`.
-
-Panels (from `src/components/dev-kit/`):
-
-| Panel | Purpose |
-|---|---|
-| Mission Control | System health snapshot |
-| Overview | User list summary + quick stats |
-| Analytics | Page views, active users, AI credits, geographic distribution, signups sparkline |
-| AI Cost | Per-user / per-feature / per-provider AI call attribution. Backed by `ai_usage_logs`. |
-| Onboarding Funnel | Conversion funnel from signup to first resume |
-| Live Activity | 30 s auto-refresh of last 50 `usage_events` + edge function health cards |
-| Deployment | GitHub commits, env var checklist, Analytics Retention Sweep status |
-| Audit Log | Admin action trail from `admin_audit_log` |
-| Users | List, search, identity (Kinde email lookup), content, plan, credits, suspend, delete, merge, notes |
-| Email Management | Send magic links, confirmations, custom emails via Resend |
-| Email Automations | Transactional email trigger management |
-| Coupons | Create / list / toggle / delete coupon codes |
-| App Settings | Platform-wide flags, maintenance mode, feature gates, `app_settings` table |
-| Feature Flags | Fine-grained feature gating |
-| Portfolio Usernames | Audit / clean public portfolio handles |
-| WiseHire | Waitlist + invite generation + account-type badges |
-| AI Provider / AI Keys | Per-slot model picker (3× OR, 3× Groq, 3× DeepSeek). Dynamic live catalog (50 OR + 11 Groq + 2 DeepSeek). Server-side proxy routes for balance / model lists. Confirm-before-switch UX. |
-| AI Routing | `ai_routing_config` table editor with Editor AI group + bulk override |
-| Observability | `ops_health_events` counts, error log, rate-limit events |
-| Moderation | Bug inbox (`bug_reports`), blocklist, moderation queue |
-| Integrations | Kinde Events, Resend Bounces, Deploy/GitHub Actions |
-| Owner Ops | One-click sample resume seed, owner-only utilities |
-| Act As | Admin impersonation — act as any user, revocable |
-
-**Express server routes (selected):**
-
-| Route | Purpose |
-|---|---|
-| `GET /api/health` | Basic liveness probe |
-| `GET /api/ai-health` | OpenRouter + Groq latency/status ping |
-| `GET /api/db-health` | Supabase connectivity probe |
-| `POST /api/fn/token-exchange` | Kinde → Supabase JWT exchange |
-| `POST /api/fetch-url` | Server-side URL fetch proxy (rate-limited) |
-| `POST /api/linkedin-profile` | Proxycurl LinkedIn import (rate-limited) |
-| `GET /api/data/resumes`, `GET /api/data/resumes/:id` | Resume CRUD |
-| `GET /api/data/profile`, `GET /api/data/portfolios/me` | Profile / portfolio data |
-| `GET /api/data/notifications`, `POST /api/data/notifications/*` | Notification CRUD |
-| `GET /api/data/jobs`, `GET /api/data/jobs/:id` | Job data |
-| `GET /api/data/me` | Aggregated user record |
-| `POST /api/export/pdf-native` | Server-side Puppeteer PDF export |
-| `GET /api/admin/ai-provider/openrouter-status` | OpenRouter balance proxy |
-| `GET /api/admin/ai-provider/groq-models` | Live Groq model list proxy |
-| `GET /api/admin/ai-provider/gemini-models` | Live Gemini model list proxy |
-| `POST /api/admin/ai-provider/gemini-test` | Gemini ping via managed key |
-| `GET /api/admin/ai-provider/audit-recent` | Cursor-paginated `admin_audit_log` reader |
-| `POST /api/auth/reset-password` | Password reset trigger |
-
-All admin proxy routes are behind `requireAuthHeader + requireAdminEmail`. They respond with `{ configured: false }` when the backing env var is absent.
-
-**Key database tables (public schema):**
-
-`profiles`, `subscriptions`, `resumes`, `resume_experiences`, `resume_educations`, `resume_skills`, `resume_certifications`, `resume_versions`, `resume_shares`, `cover_letters`, `resignation_letters`, `tailor_history`, `jobs`, `job_applications`, `chat_sessions`, `chat_messages`, `tool_cache`, `ai_credits`, `ai_usage_logs`, `credit_transactions`, `user_api_keys` (legacy BYOK scaffolding — no longer written), `portfolio_settings`, `portfolio_visits`, `portfolio_interactions`, `portfolio_history`, `social_links`, `short_links`, `store_screenshots`, `interview_sessions`, `interview_question_bank`, `company_briefings`, `career_assessments`, `user_gamification`, `notifications`, `usage_events`, `audit_logs`, `admin_audit_log`, `admin_sessions`, `app_settings`, `ai_routing_config`, `feature_requests`, `bug_reports`, `error_log`, `ops_health_events`, `rpc_rate_limits`, `impersonation_revocations`, `device_push_tokens`, `mobile_app_versions`, `contact_inquiries`, `signup_otps`, `token_exchanges`, `messages`, `share_comments`.
-
-**Shared edge-function modules (`supabase/functions/_shared/`):**
-`adminAuth.ts`, `aiClient.ts`, `aiTestModelCatalog.ts`, `authMiddleware.ts`, `botGuard.ts`, `contentModeration.ts`, `cors.ts`, `creditLimits.json`, `creditUtils.ts`, `dbClient.ts`, `encryption.ts`, `featureFlags.ts`, `fnLogger.ts`, `htmlEscape.ts`, `industryKeywords.ts`, `jwtUtils.ts`, `letterPersistence.ts`, `logger.ts`, `modelDefaults.ts`, `modelRouter.ts`, `opsHealth.ts`, `pdfRenderer.ts`, `planLimits.ts`, `portfolioBioPrompt.ts`, `portfolioSession.ts`, `profileContext.ts`, `providers.ts`, `provisionUser.ts`, `rateLimiter.ts`, `requestUtils.ts`, `resendAudiences.ts`, `resendConfig.ts`, `scoringFunctions.ts`, `scrubSecrets.ts`, `smokeTest.ts`, `urlSafety.ts`, `userRateLimiter.ts`, `webhookAuth.ts`.
-
-**Editor AI smoke-test bypass:**
-The 5 active Editor AI edge functions (`editor-ai`, `resume-section-ai`, `tailor-resume`, `smart-fit-rewrite`, `agentic-chat`) check for `x-smoke-test: true` + valid DevKit admin token and return a synthetic 200 without calling AI or deducting credits. Implemented via `_shared/smokeTest.ts`. DevKit smoke tests cover all 4 `editor-ai` sub-actions via `editor-ai-*` test entries.
-
-**Project Structure:**
-- `src/`: Frontend code.
-- `supabase/`: Edge functions and database migrations.
-- `server/`: Express.js backend code.
-- `mobile/`: Expo SDK 51 native client (iOS + Android).
-- `public/`: Static assets.
-- `specs/`: Technical specifications.
-- `project-governance/`: Architecture documentation.
-- `Project Atlas/`: Living knowledge base (engineering cards + plain-language docs).
-- `wise-templates/`: Resume templates.
-
----
-
-### External Dependencies
-- **Kinde Auth**: User authentication and identity management. Custom domain: `auth.thewise.cloud`.
-- **Supabase**: Backend-as-a-Service (PostgreSQL, Edge Functions, RLS, Vault, Cron).
-- **Drizzle ORM**: PostgreSQL database interaction.
-- **Proxycurl**: LinkedIn profile data import (server-side, `server/index.ts`).
-- **OpenRouter**: Primary managed AI provider (up to 3 keys).
-- **Groq**: Secondary managed AI provider (up to 3 keys). Also used for JSON-mode calls.
-- **DeepSeek**: Tertiary managed AI provider (up to 3 keys).
-- **Gemini**: AI provider for Gemini-specific features (managed `GEMINI_API_KEY`).
-- **Resend**: Transactional email delivery. Audience management via `resendAudiences.ts`.
-- **RevenueCat**: Mobile subscription and entitlement management.
-- **Expo Push Notifications**: Via `send-push` edge function + `device_push_tokens` table.
-- **Sentry**: Error tracking via `VITE_SENTRY_DSN`. Feedback submitted programmatically via `captureFeedback()` — no standalone Sentry widget.
-- **GitHub**: Version control, CI/CD, and DevKit Deployment panel integration.
-- **Vite**: Frontend build tool.
-- **Tailwind CSS**: Utility-first CSS framework.
-- **Radix UI**: UI component library.
-- **Framer Motion**: Animation library.
-- **Zustand**: State management library.
-- **TanStack Query (React Query)**: Data fetching and caching library.
-- **Expo SDK 51**: Native shell for iOS and Android clients.
+- **Supabase Docs**: [https://supabase.com/docs](https://supabase.com/docs)
+- **Kinde Auth Docs**: [https://kinde.com/docs](https://kinde.com/docs)
+- **Drizzle ORM Docs**: [https://orm.drizzle.team/docs](https://orm.drizzle.team/docs)
+- **Tailwind CSS Docs**: [https://tailwindcss.com/docs](https://tailwindcss.com/docs)
+- **TanStack Query Docs**: [https://tanstack.com/query/latest](https://tanstack.com/query/latest)
+- **Expo Docs**: [https://docs.expo.dev/](https://docs.expo.dev/)
+- **OpenRouter Docs**: [https://openrouter.ai/docs](https://openrouter.ai/docs)
+- **Groq Docs**: [https://groq.com/docs](https://groq.com/docs)
+- **Resend Docs**: [https://resend.com/docs](https://resend.com/docs)
