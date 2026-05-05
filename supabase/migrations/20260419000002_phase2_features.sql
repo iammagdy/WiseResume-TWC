@@ -1,4 +1,5 @@
 -- Phase 2 feature tables: Resume Snapshots, Interview Answer Library, Interview Report Tokens
+-- Idempotent: DROP POLICY IF EXISTS before each CREATE POLICY so re-application is safe.
 
 -- ── Resume Snapshots ─────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.resume_snapshots (
@@ -13,6 +14,7 @@ CREATE TABLE IF NOT EXISTS public.resume_snapshots (
 
 ALTER TABLE public.resume_snapshots ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can manage own resume snapshots" ON public.resume_snapshots;
 CREATE POLICY "Users can manage own resume snapshots"
   ON public.resume_snapshots
   FOR ALL
@@ -38,6 +40,7 @@ CREATE TABLE IF NOT EXISTS public.interview_answers (
 
 ALTER TABLE public.interview_answers ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can manage own interview answers" ON public.interview_answers;
 CREATE POLICY "Users can manage own interview answers"
   ON public.interview_answers
   FOR ALL
@@ -60,16 +63,16 @@ CREATE TABLE IF NOT EXISTS public.interview_report_tokens (
 
 ALTER TABLE public.interview_report_tokens ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can manage own report tokens" ON public.interview_report_tokens;
 CREATE POLICY "Users can manage own report tokens"
   ON public.interview_report_tokens
   FOR ALL
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY "Anyone can read non-expired report tokens"
-  ON public.interview_report_tokens
-  FOR SELECT
-  USING (expires_at > now());
+-- Note: "Anyone can read non-expired report tokens" is intentionally NOT created here.
+-- It was removed by 20260419000004_phase2_security_fix.sql for security reasons.
+-- Do not add it back.
 
 CREATE INDEX IF NOT EXISTS interview_report_tokens_token_idx ON public.interview_report_tokens(token);
 CREATE INDEX IF NOT EXISTS interview_report_tokens_user_id_idx ON public.interview_report_tokens(user_id);
