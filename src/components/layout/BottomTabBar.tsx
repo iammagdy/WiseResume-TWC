@@ -277,16 +277,11 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
                           </span>
                         )}
                         {tab.path === '/ai-studio' && !isPro && !active && (
-                          <motion.span
-                            initial={{ scale: 0 }}
-                            animate={{ scale: 1 }}
-                            transition={{ type: 'spring', stiffness: 400, damping: 18 }}
-                            className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-amber-500 border-2 border-background flex items-center justify-center"
+                          <Lock
+                            className="absolute -top-1 -right-1.5 w-3 h-3 text-muted-foreground/50"
                             aria-label="Pro feature"
                             title="Upgrade to Pro to unlock"
-                          >
-                            <Lock className="w-2 h-2 text-white" />
-                          </motion.span>
+                          />
                         )}
                         {tab.path === '/ai-studio' && isPro && discoveryDots.aiTools && !active && (
                           <span
@@ -301,16 +296,11 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
                           />
                         )}
                         {tab.path === '/applications' && !isPro && !active && (
-                          <motion.span
-                            initial={{ scale: 0 }}
-                            animate={{ scale: 1 }}
-                            transition={{ type: 'spring', stiffness: 400, damping: 18 }}
-                            className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-amber-500 border-2 border-background flex items-center justify-center"
+                          <Lock
+                            className="absolute -top-1 -right-1.5 w-3 h-3 text-muted-foreground/50"
                             aria-label="Pro feature"
                             title="Upgrade to Pro to unlock"
-                          >
-                            <Lock className="w-2 h-2 text-white" />
-                          </motion.span>
+                          />
                         )}
                         {tab.path === '/portfolio' && discoveryDots.portfolio && !active && (
                           <span

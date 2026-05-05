@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo, useDeferredValue, lazy, Suspense,
 import { preloadLazy } from '@/lib/preloadLazy';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { LazyMotion, domAnimation, m as motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, User, Settings, LogOut, FileText as FileTextIcon, Upload, Download, Briefcase, Sparkles, Linkedin, CheckSquare, X, Trash2, WifiOff, ShieldCheck, ExternalLink, HelpCircle, AlertCircle, RefreshCw, LayoutTemplate, BookOpen, Users, Map, Sun, Moon } from 'lucide-react';
+import { Search, User, Settings, LogOut, FileText as FileTextIcon, Sparkles, CheckSquare, X, Trash2, WifiOff, ShieldCheck, ExternalLink, HelpCircle, AlertCircle, RefreshCw, LayoutTemplate, BookOpen, Users, Map, Sun, Moon } from 'lucide-react';
 import { DashboardSkeleton } from '@/components/layout/PageSkeletons';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { SortOption, CategoryFilter, ScoreFilter } from '@/components/dashboard/ResumeFilters';
@@ -21,6 +21,7 @@ import { DashboardStats } from '@/components/dashboard/DashboardStats';
 // DailyTipCard removed - tip merged into DashboardStats
 import { FloatingCreateButton } from '@/components/dashboard/FloatingCreateButton';
 import { WhatsNextCard } from '@/components/dashboard/WhatsNextCard';
+import { DashboardHero } from '@/components/dashboard/DashboardHero';
 import { FeatureMapSheet } from '@/components/layout/FeatureMapSheet';
 import { trackSession } from '@/lib/discoveryManager';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -117,17 +118,6 @@ function DashboardPageContent() {
     try { localStorage.setItem('wr-trust-banner-visits', String(visitCount + 1)); } catch { /* localStorage full or disabled */ }
     return true;
   });
-  const [showQuickStartBanner, setShowQuickStartBanner] = useState(() => {
-    // Note: this initial check uses the legacy global key because `user` is
-    // not yet available in the useState initializer. The QuickStart banner
-    // is visual-only (hides when a resume exists), so a brief mis-show on
-    // shared browsers is acceptable — the per-user gating below handles
-    // the authoritative onboarding redirect/banner decisions.
-    const onboardingCompleted = localStorage.getItem('wr-onboarding-completed') === 'true';
-    const dismissed = localStorage.getItem('wr-quickstart-dismissed') === 'true';
-    const hadResume = localStorage.getItem('wr-quickstart-had-resume') === 'true';
-    return onboardingCompleted && !dismissed && !hadResume;
-  });
   const [profilePulseSeen, setProfilePulseSeen] = useState(() => !!localStorage.getItem('wr-profile-pulse-seen'));
   const [showFeatureMap, setShowFeatureMap] = useState(false);
   const { isOnline } = useNetworkStatus();
@@ -174,6 +164,15 @@ function DashboardPageContent() {
     setIsCreating(true);
     setShowCreateDialog(true);
   }, []);
+
+  const handleHeroTailor = useCallback(() => {
+    if (resumes && resumes.length > 0) {
+      const latest = resumes[0];
+      setCurrentResumeId(latest.id);
+      setCurrentResume(dbToResumeData(latest));
+    }
+    navigate('/tailor');
+  }, [resumes, setCurrentResumeId, setCurrentResume, navigate]);
 
   // Check onboarding status for authenticated users.
   // If the flag is false but the user actually has a resume, that's a
@@ -277,13 +276,12 @@ function DashboardPageContent() {
     run();
   }, [user, navigate]);
 
-  // Persist flag when user has at least one resume so Quick Start banner never reappears
+  // Persist flag when user has at least one resume (guards against stale quickstart localStorage)
   useEffect(() => {
-    if (resumes && resumes.length > 0 && showQuickStartBanner) {
+    if (resumes && resumes.length > 0) {
       try { localStorage.setItem('wr-quickstart-had-resume', 'true'); } catch { /* ignore */ }
-      setShowQuickStartBanner(false);
     }
-  }, [resumes, showQuickStartBanner]);
+  }, [resumes]);
 
   // Keyboard shortcuts for empty state
   useEffect(() => {
@@ -715,6 +713,13 @@ function DashboardPageContent() {
       {/* All scrollable content inside PullToRefresh */}
       <PullToRefresh onRefresh={handleRefresh} className="flex-1">
         <div className="pb-safe lg:max-w-none mx-auto w-full">
+          {/* Dashboard Hero — primary entry point, first visible element */}
+          <DashboardHero
+            hasResumes={resumes.length > 0}
+            onBuild={handleCreateNew}
+            onTailor={handleHeroTailor}
+          />
+
           {/* Trust banner — only on first visit, hidden on small screens after first dismiss */}
           {showTrustBanner && (
             <div className="px-4 pt-3">
@@ -771,10 +776,10 @@ function DashboardPageContent() {
           {/* What's Next Card — shown after greeting for better context flow */}
           <WhatsNextCard />
 
-          {/* Explore + Quick Actions — unified grid */}
+          {/* Explore — secondary discovery links only */}
           <div className="px-4 pt-2 pb-1" data-section="dashboard-explore">
             <p className="text-xs font-medium text-muted-foreground mb-2.5 px-1">Explore</p>
-            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {[
                 {
                   icon: LayoutTemplate,
@@ -791,13 +796,6 @@ function DashboardPageContent() {
                   action: () => navigate('/examples'),
                 },
                 {
-                  icon: Users,
-                  iconBg: 'bg-emerald-500/10',
-                  iconColor: 'text-emerald-500 dark:text-emerald-400',
-                  label: 'Referral',
-                  action: () => navigate('/referral'),
-                },
-                {
                   icon: Map,
                   iconBg: 'bg-violet-500/10',
                   iconColor: 'text-violet-500 dark:text-violet-400',
@@ -805,32 +803,18 @@ function DashboardPageContent() {
                   action: () => navigate('/guides'),
                 },
                 {
-                  icon: FileTextIcon,
-                  iconBg: 'bg-primary/10',
-                  iconColor: 'text-primary',
-                  label: 'New Resume',
-                  action: handleCreateNew,
-                },
-                {
-                  icon: Upload,
-                  iconBg: 'bg-secondary/10',
-                  iconColor: 'text-secondary',
-                  label: 'Upload PDF',
-                  action: () => navigate('/upload'),
-                },
-                {
-                  icon: Download,
-                  iconBg: 'bg-[#0A66C2]/10',
-                  iconColor: 'text-[#0A66C2]',
-                  label: 'Import',
-                  action: () => setShowLinkedInImport(true),
+                  icon: Users,
+                  iconBg: 'bg-emerald-500/10',
+                  iconColor: 'text-emerald-500 dark:text-emerald-400',
+                  label: 'Referral',
+                  action: () => navigate('/referral'),
                 },
               ].map((item) => (
                 <button
                   key={item.label}
                   onClick={() => { haptics.light(); item.action(); }}
                   className="flex flex-col items-center gap-2 py-3 px-2 rounded-2xl bg-card border border-border hover:border-primary/20 active:scale-[0.97] transition-all touch-manipulation"
-                  data-track={`dashboard-quick-action-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
+                  data-track={`dashboard-explore-${item.label.toLowerCase()}`}
                 >
                   <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${item.iconBg}`}>
                     <item.icon className={`w-[18px] h-[18px] ${item.iconColor}`} />
@@ -839,46 +823,22 @@ function DashboardPageContent() {
                 </button>
               ))}
             </div>
-          </div>
-
-          {/* Quick Start Banner — shown after onboarding skip when user has no resumes */}
-          {showQuickStartBanner && resumes && resumes.length === 0 && (
-            <div className="mx-4 mb-3 rounded-2xl border border-primary/30 bg-primary/5 px-4 py-3 flex items-start gap-3">
-              <Sparkles className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-foreground leading-tight">Ready to build your resume?</p>
-                <p className="text-xs text-muted-foreground mt-0.5 leading-snug">Create your first resume in minutes with AI assistance.</p>
-                <div className="flex items-center gap-2 mt-2 flex-wrap">
-                  <Button
-                    size="sm"
-                    className="h-8 text-xs"
-                    onPointerEnter={preloadLazy(() => import('@/components/dashboard/CreateResumeDialog'))}
-                    onClick={() => { haptics.light(); handleCreateNew(); }}
-                  >
-                    Create your first resume
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-8 text-xs"
-                    onClick={() => { haptics.light(); navigate('/onboarding'); }}
-                  >
-                    Take the tour
-                  </Button>
-                </div>
-              </div>
+            {resumes && resumes.length > 0 && (
               <button
-                aria-label="Dismiss"
-                className="text-muted-foreground hover:text-foreground touch-manipulation shrink-0"
                 onClick={() => {
-                  try { localStorage.setItem('wr-quickstart-dismissed', 'true'); } catch { /* ignore */ }
-                  setShowQuickStartBanner(false);
+                  haptics.light();
+                  const latest = resumes[0];
+                  setCurrentResumeId(latest.id);
+                  setCurrentResume(dbToResumeData(latest));
+                  navigate('/editor');
                 }}
+                className="mt-2.5 w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors touch-manipulation active:scale-[0.98] min-h-[44px]"
               >
-                <X className="w-4 h-4" />
+                <FileTextIcon className="w-3.5 h-3.5" />
+                Continue editing
               </button>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Search pill — moved below tabs area conceptually, but above filter bar */}
           {resumes && resumes.length > 0 && (

@@ -1,5 +1,30 @@
 # Changelog
 
+## 2026-05-05 — Dashboard UX: hero section, discovery grid, subtler lock badges (Task #19)
+
+**Files changed:**
+- `src/components/dashboard/DashboardHero.tsx` — new component
+- `src/pages/DashboardPage.tsx`
+- `src/components/layout/BottomTabBar.tsx`
+
+**New component — `DashboardHero`:**
+- Full-size variant (0-resume users): gradient card, "Optimize your resume. Get more interviews." headline, subline, two full-width `size="lg"` buttons — "Build a Resume" (outline) and "Optimize for a Job" (filled); Framer Motion `y: 10 → 0` entry.
+- Compact variant (returning users): plain card, "Jump back in" label, same two buttons at `h-10`; `y: 6 → 0` entry.
+- Props: `hasResumes: boolean`, `onBuild: () => void`, `onTailor: () => void`.
+
+**`DashboardPageContent` changes:**
+- Imported `DashboardHero`; mounted as first child of `PullToRefresh` scroll area (before trust banner, profile banner, `DashboardStats`).
+- Added `handleHeroTailor` callback: loads `resumes[0]` into resume store if present, then `navigate('/tailor')`.
+- Replaced 7-tile unified Explore grid with 4-tile `grid-cols-2 sm:grid-cols-4` secondary-discovery grid (Templates, Examples, Guides, Referral); removed creation tiles (New Resume, Upload PDF, Import).
+- Added conditional "Continue editing" text link below discovery tiles — visible only when `resumes.length > 0`; loads latest resume into store and navigates to `/editor`.
+- Removed `QuickStartBanner` block entirely (hero covers 0-resume CTA).
+- Removed `showQuickStartBanner` state; simplified `wr-quickstart-had-resume` effect to set flag when `resumes.length > 0`.
+- Removed unused lucide imports: `Plus`, `Upload`, `Download`, `Briefcase`, `Linkedin`.
+
+**`BottomTabBar` changes:**
+- Replaced `motion.span` amber pill on AI Tools (non-pro) with plain `<Lock className="… text-muted-foreground/50" />` — no background, no animation.
+- Same replacement for Activity tab (non-pro).
+
 ## 2026-05-05 — Live Visitors card shows per-country breakdown (Task #12)
 
 **Files changed:**
