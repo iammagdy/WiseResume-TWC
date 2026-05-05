@@ -2,6 +2,11 @@
 
 **Last verified:** 2026-05-05 (Task #7)
 
+## Mission Control now shows which countries your live visitors come from (2026-05-05)
+**What was the situation:** The "Live Visitors" card in the admin Mission Control panel showed a single number — how many sessions were active in the last 5 minutes — but gave no geographic context.
+**What changed:** The Live Visitors card now includes a compact country breakdown directly beneath the session count. You'll see the top countries (up to five) contributing to the current live count, each shown with its flag, 2-letter code, a proportional green bar, and a session count. The data refreshes on the same 30-second cycle as the count and updates instantly when new visitors arrive. The breakdown only appears when at least one country is detectable.
+**What you'll notice:** Small flag+bar rows appear underneath the live session number whenever the site has active visitors.
+
 ## See exactly who visits the site and what they do (2026-05-05)
 **What was the situation:** There was no way to see how many people visited the landing page, where they came from, which features they looked at, or whether they were new or returning. All usage data was limited to signed-in users.
 **What changed:** The admin desk now has a "Visitors" panel that tracks both anonymous visitors and signed-in users across the whole site. Here's what you can see:

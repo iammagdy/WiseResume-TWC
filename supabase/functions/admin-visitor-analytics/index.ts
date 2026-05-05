@@ -392,20 +392,47 @@ Deno.serve(wrapHandler('admin-visitor-analytics', async (req) => {
 
   // ── live-count ────────────────────────────────────────────────────────────
   // Unique sessions with at least one event in the last 5 minutes.
+  // Also returns top 5 countries contributing to the live session count.
   // Used by Mission Control for the "Live Visitors" KPI card (polls every 30s).
   if (action === 'live-count') {
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
     const { data } = await supabase
       .from('visitor_events')
-      .select('session_id')
+      .select('session_id, country')
       .gte('created_at', fiveMinutesAgo);
-    const liveCount = new Set(
-      (data ?? [])
-        .map((r: { session_id: string }) => r.session_id)
-        .filter(Boolean),
-    ).size;
 
-    return new Response(JSON.stringify({ success: true, data: { liveCount } }), {
+    const rows = (data ?? []) as { session_id: string; country: string | null }[];
+
+    // Deduplicate by session_id, preferring a non-null country value over null.
+    // This avoids incorrect null attribution when a session's first DB row (in
+    // an unordered select) happens to have no country set, while later rows do.
+    const sessionCountry = new Map<string, string | null>();
+    for (const r of rows) {
+      if (!r.session_id) continue;
+      const existing = sessionCountry.get(r.session_id);
+      if (existing === undefined) {
+        // First time seeing this session — record whatever we have
+        sessionCountry.set(r.session_id, r.country ? r.country.toUpperCase() : null);
+      } else if (existing === null && r.country) {
+        // Upgrade a null entry to a known country
+        sessionCountry.set(r.session_id, r.country.toUpperCase());
+      }
+    }
+
+    const liveCount = sessionCountry.size;
+
+    // Aggregate country counts across unique live sessions.
+    // Country codes are already normalised to uppercase above.
+    const countryMap = new Map<string, number>();
+    for (const country of sessionCountry.values()) {
+      if (country) countryMap.set(country, (countryMap.get(country) ?? 0) + 1);
+    }
+    const topCountries = Array.from(countryMap.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([country, count]) => ({ country, count }));
+
+    return new Response(JSON.stringify({ success: true, data: { liveCount, topCountries } }), {
       status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }

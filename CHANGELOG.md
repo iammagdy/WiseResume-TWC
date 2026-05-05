@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-05-05 — Live Visitors card shows per-country breakdown (Task #12)
+
+**Files changed:**
+- `supabase/functions/admin-visitor-analytics/index.ts` — `live-count` action
+- `src/components/dev-kit/MissionControlPanel.tsx`
+
+**Backend:**
+- `live-count` now selects `session_id, country` (was `session_id` only); deduplicates by session_id keeping first-seen country; aggregates country counts across live sessions; returns `topCountries: { country: string; count: number }[]` (top 5, sorted descending) alongside `liveCount`.
+
+**Frontend:**
+- Added `countryCodeToFlag(code: string): string` helper — converts ISO 3166-1 alpha-2 code to Unicode regional indicator flag emoji.
+- Added `LiveCountryBreakdown` component — renders up to 5 rows, each with flag emoji, 2-letter code, proportional green progress bar, and session count.
+- `liveTopCountries` state (`useState<{ country: string; count: number }[]>([])`); populated by `fetchLiveCount` from `result.topCountries ?? []`.
+- Live Visitors `StatusCard` body now wraps count row + `<LiveCountryBreakdown />` in a `space-y-2` div; breakdown only renders when `liveTopCountries.length > 0`.
+
 ## 2026-05-05 — Live visitor counter upgraded to Supabase Realtime (Task #11)
 
 **Files changed:** `src/components/dev-kit/MissionControlPanel.tsx`

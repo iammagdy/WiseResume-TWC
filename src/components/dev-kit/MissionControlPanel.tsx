@@ -237,6 +237,51 @@ function PingBadge({ ping, label }: { ping?: ProviderPing; label: string }) {
   );
 }
 
+function countryCodeToFlag(code: string): string {
+  if (!code || code.length !== 2) return '🌐';
+  const upper = code.toUpperCase();
+  const a = upper.codePointAt(0);
+  const b = upper.codePointAt(1);
+  if (!a || !b) return '🌐';
+  return String.fromCodePoint(a - 65 + 0x1F1E6) + String.fromCodePoint(b - 65 + 0x1F1E6);
+}
+
+function LiveCountryBreakdown({
+  countries,
+  total,
+}: {
+  countries: { country: string; count: number }[];
+  total: number;
+}) {
+  const safeTotal = total || 1;
+  return (
+    <div className="space-y-1 pt-0.5">
+      {countries.map(({ country, count }) => {
+        const pct = Math.round((count / safeTotal) * 100);
+        return (
+          <div key={country} className="flex items-center gap-2 min-w-0">
+            <span className="text-base leading-none shrink-0" aria-hidden="true">
+              {countryCodeToFlag(country)}
+            </span>
+            <span className="text-[10px] font-mono text-foreground w-6 shrink-0 uppercase">
+              {country}
+            </span>
+            <div className="flex-1 h-1.5 rounded-full bg-muted/50 overflow-hidden min-w-0">
+              <div
+                className="h-full rounded-full bg-green-500/70"
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+            <span className="text-[10px] tabular-nums text-muted-foreground shrink-0 w-5 text-right">
+              {count}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 interface MissionControlPanelProps {
   onNavigate: (tab: string) => void;
 }
@@ -250,6 +295,7 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
   const [edgeDriftError, setEdgeDriftError] = useState<string | null>(null);
   const [edgeDriftLoading, setEdgeDriftLoading] = useState(false);
   const [liveCount, setLiveCount] = useState<number | null>(null);
+  const [liveTopCountries, setLiveTopCountries] = useState<{ country: string; count: number }[]>([]);
   const [realtimeConnected, setRealtimeConnected] = useState(false);
   const isMounted = useIsMounted();
 
@@ -301,9 +347,10 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
         headers: devKitAuthHeaders(),
         body: { action: 'live-count' },
       });
-      const result = unwrapAdminResponse<{ liveCount: number }>(tuple, 'admin-visitor-analytics');
+      const result = unwrapAdminResponse<{ liveCount: number; topCountries?: { country: string; count: number }[] }>(tuple, 'admin-visitor-analytics');
       if (!isMounted()) return;
       setLiveCount(result.liveCount);
+      setLiveTopCountries(result.topCountries ?? []);
     } catch {
       // fail-open: keep showing last known value
     }
@@ -771,19 +818,24 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
           deepLinkLabel="Visitors"
         >
           {liveCount !== null && (
-            <div className="flex items-center gap-2">
-              {liveCount > 0 && (
-                <span className="relative flex h-2 w-2 shrink-0">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                {liveCount > 0 && (
+                  <span className="relative flex h-2 w-2 shrink-0">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+                  </span>
+                )}
+                <span className="text-2xl font-bold tabular-nums text-foreground leading-none">
+                  {liveCount}
                 </span>
+                <span className="text-[10px] text-muted-foreground">
+                  session{liveCount !== 1 ? 's' : ''} · {realtimeConnected ? 'live · polls every 30s' : 'refreshes every 30s'}
+                </span>
+              </div>
+              {liveTopCountries.length > 0 && (
+                <LiveCountryBreakdown countries={liveTopCountries} total={liveCount} />
               )}
-              <span className="text-2xl font-bold tabular-nums text-foreground leading-none">
-                {liveCount}
-              </span>
-              <span className="text-[10px] text-muted-foreground">
-                session{liveCount !== 1 ? 's' : ''} · {realtimeConnected ? 'live · polls every 30s' : 'refreshes every 30s'}
-              </span>
             </div>
           )}
         </StatusCard>
