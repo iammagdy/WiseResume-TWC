@@ -513,6 +513,7 @@ function PublicPortfolioContent({ usernameOverride }: { usernameOverride?: strin
         animate={{ opacity: 1 }}
         transition={{ duration: 0.5 }}
       >
+        <div data-section="portfolio-hero">
         <PublicHero 
           ref={heroRef}
           profile={profile}
@@ -525,6 +526,7 @@ function PublicPortfolioContent({ usernameOverride }: { usernameOverride?: strin
           videoIntroUrl={videoIntroUrl}
           schedulingUrl={schedulingUrl}
         />
+        </div>
 
         {hasTranslation && (
           <motion.div
@@ -563,6 +565,7 @@ function PublicPortfolioContent({ usernameOverride }: { usernameOverride?: strin
               onClick={handleInterest}
               disabled={interestSent || sendingInterest}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold transition-all active:scale-95 disabled:opacity-70 disabled:cursor-default hover:scale-105"
+              data-track="portfolio-interested"
               style={{
                 background: interestSent
                   ? 'color-mix(in srgb, var(--pf-success) 15%, transparent)'
@@ -584,6 +587,7 @@ function PublicPortfolioContent({ usernameOverride }: { usernameOverride?: strin
         )}
 
         <Suspense fallback={<SectionsSkeleton />}>
+          <div data-section="portfolio-sections">
           <PublicSections 
             profile={profile}
             resume={resume}
@@ -601,6 +605,7 @@ function PublicPortfolioContent({ usernameOverride }: { usernameOverride?: strin
             videoIntroUrl={videoIntroUrl}
             activeLanguage={activeLanguage || undefined}
           />
+          </div>
         </Suspense>
 
         {/* Contact Form */}

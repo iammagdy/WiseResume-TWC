@@ -1537,6 +1537,7 @@ export default function EditorPage() {
                     <button
                       onClick={() => { haptics.light(); setShowToolsSheet(false); setShowExport(true); }}
                       className="flex items-center gap-3 w-full rounded-xl border border-border bg-card hover:bg-muted active:scale-[0.98] transition-transform touch-manipulation min-h-[56px] px-4"
+                      data-track="editor-tools-export"
                     >
                       <Download className="w-5 h-5 text-green-600 shrink-0" />
                       <div className="text-left min-w-0">
@@ -1549,6 +1550,7 @@ export default function EditorPage() {
                       onPointerEnter={preloadLazy(() => import('@/components/editor/TailorSheet'))}
                       onClick={() => { haptics.light(); setShowToolsSheet(false); handleTailor(); }}
                       className="flex items-center gap-3 w-full rounded-xl border border-border bg-card hover:bg-muted active:scale-[0.98] transition-transform touch-manipulation min-h-[56px] px-4"
+                      data-track="editor-tools-tailor"
                     >
                       <Target className="w-5 h-5 text-amber-500 shrink-0" />
                       <div className="text-left min-w-0">

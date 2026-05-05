@@ -1,6 +1,6 @@
 # What Wise Cloud Can Do Today
 
-**Last verified:** 2026-05-05 (Task #4)
+**Last verified:** 2026-05-05 (Task #7)
 
 ## See exactly who visits the site and what they do (2026-05-05)
 **What was the situation:** There was no way to see how many people visited the landing page, where they came from, which features they looked at, or whether they were new or returning. All usage data was limited to signed-in users.

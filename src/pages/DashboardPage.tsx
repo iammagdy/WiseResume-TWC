@@ -757,6 +757,7 @@ function DashboardPageContent() {
           )}
 
           {/* Personalized Stats Header */}
+          <div data-section="dashboard-hero">
           <DashboardStats
             totalResumes={resumes?.length || 0}
             healthScores={healthScores}
@@ -765,12 +766,13 @@ function DashboardPageContent() {
             resumes={resumes ?? undefined}
             loginStreak={profile?.loginStreak}
           />
+          </div>
 
           {/* What's Next Card — shown after greeting for better context flow */}
           <WhatsNextCard />
 
           {/* Explore + Quick Actions — unified grid */}
-          <div className="px-4 pt-2 pb-1">
+          <div className="px-4 pt-2 pb-1" data-section="dashboard-explore">
             <p className="text-xs font-medium text-muted-foreground mb-2.5 px-1">Explore</p>
             <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
               {[
@@ -828,6 +830,7 @@ function DashboardPageContent() {
                   key={item.label}
                   onClick={() => { haptics.light(); item.action(); }}
                   className="flex flex-col items-center gap-2 py-3 px-2 rounded-2xl bg-card border border-border hover:border-primary/20 active:scale-[0.97] transition-all touch-manipulation"
+                  data-track={`dashboard-quick-action-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
                 >
                   <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${item.iconBg}`}>
                     <item.icon className={`w-[18px] h-[18px] ${item.iconColor}`} />

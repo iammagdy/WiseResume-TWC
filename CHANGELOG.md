@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-05-05 — Expand data-track and data-section coverage (Task #7)
+
+**Files modified:**
+- `src/pages/AuthPage.tsx`: Added `data-track="auth-sign-in"` on the post-verify/post-reset Sign In button; `data-track="auth-back-to-sign-in"` on the forgot-password back link; `data-track="auth-send-reset-link"` on the forgot-password submit button; `data-track="auth-sign-in"` / `"auth-sign-up"` (mode-derived) on the "Open live site" and "Open in new tab" fallback buttons.
+- `src/components/editor/EditorHeader.tsx`: Added `data-track="editor-change-template"` on Template button; `data-track="editor-customize-design"` on Design button; `data-track="editor-export"` on Export button; `data-track="editor-open-ai-chat"` on both desktop and mobile Wise AI buttons.
+- `src/components/editor/EditorScrollForm.tsx`: Added `data-section="editor-section-{id}"` on all five core form section `<section>` elements (contact, summary, experience, education, skills) — coexists with existing `data-section-id` used by the IntersectionObserver.
+- `src/components/editor/SectionSidebar.tsx`: Added `data-section="editor-form"` on the `<nav>` element; added dynamic `data-track="editor-section-{step.id}"` on every section nav button (contact, summary, experience, education, skills, etc.).
+- `src/components/editor/TailorSheet.tsx`: Added `data-track="editor-generate-cover-letter"` on the "Generate Matching Cover Letter" button (line ~1535).
+- `src/pages/EditorPage.tsx`: Added `data-track="editor-tools-export"` on the tools-sheet Download/Export button; `data-track="editor-tools-tailor"` on the tools-sheet Tailor to Job button.
+- `src/pages/DashboardPage.tsx`: Wrapped `<DashboardStats>` in `<div data-section="dashboard-hero">`; added `data-section="dashboard-explore"` on the Explore grid wrapper; added `data-track="dashboard-quick-action-{kebab-label}"` on all seven quick-action buttons (templates, examples, referral, guides, new-resume, upload-pdf, import).
+- `src/pages/SubscriptionPage.tsx`: Added `data-track="dashboard-upgrade-cta-{target}"` (pro / premium) on both upgrade `<Button>` elements.
+- `src/pages/PublicPortfolioPage.tsx`: Wrapped `<PublicHero>` in `<div data-section="portfolio-hero">`; wrapped `<PublicSections>` in `<div data-section="portfolio-sections">`; added `data-track="portfolio-interested"` on the "I'm Interested" recruiter CTA button.
+
+---
+
 ## 2026-05-05 — ScrollStack flicker and sticking fix (Task #5)
 
 **Root cause A fixed — removed `duration` + `easing` from both Lenis constructor calls (`src/components/landing/ScrollStack.tsx:469-491`):**

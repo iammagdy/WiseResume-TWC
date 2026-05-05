@@ -353,6 +353,7 @@ export function EditorHeader({
             onClick={() => { onChangeTemplate(); haptics.light(); }}
             className="keyboard-hide relative rounded-full transition-all touch-manipulation min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95 hover:bg-muted text-muted-foreground"
             aria-label="Open template gallery"
+            data-track="editor-change-template"
           >
             <LayoutGrid className="w-5 h-5" />
             <span className="text-[9px] font-medium leading-none">Template</span>
@@ -362,6 +363,7 @@ export function EditorHeader({
             onClick={() => { onCustomize(); haptics.light(); }}
             className="keyboard-hide relative rounded-full transition-all touch-manipulation min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95 hover:bg-muted text-muted-foreground"
             aria-label="Open design customization"
+            data-track="editor-customize-design"
           >
             <Palette className="w-5 h-5" />
             <span className="text-[9px] font-medium leading-none">Design</span>
@@ -395,6 +397,7 @@ export function EditorHeader({
             disabled={isQuickDownloading}
             className="keyboard-hide relative rounded-full transition-all touch-manipulation min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95 hover:bg-muted text-muted-foreground disabled:opacity-50 disabled:cursor-not-allowed"
             aria-label="Export resume"
+            data-track="editor-export"
           >
             {isQuickDownloading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Download className="w-5 h-5" />}
             <span className="text-[9px] font-medium leading-none">Export</span>
@@ -403,6 +406,7 @@ export function EditorHeader({
             onClick={onOpenChat}
             className="keyboard-hide relative rounded-full transition-all touch-manipulation min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 -mr-2 bg-primary/10 shadow-[0_0_20px_-4px_hsl(var(--primary)/0.3)] hover:shadow-[0_0_28px_-4px_hsl(var(--primary)/0.5)] hover:bg-primary/15 active:scale-95"
             aria-label="Open Wise AI Chat"
+            data-track="editor-open-ai-chat"
           >
             <span className="relative">
               <MessageSquare className="w-5 h-5 text-primary" />
@@ -417,6 +421,7 @@ export function EditorHeader({
             onClick={() => { haptics.light(); onOpenChat(); }}
             className="rounded-full min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 px-1 active:scale-95 bg-primary/10 hover:bg-primary/15 touch-manipulation"
             aria-label="Open Wise AI Chat"
+            data-track="editor-open-ai-chat"
           >
             <span className="relative">
               <MessageSquare className="w-4 h-4 text-primary" />

@@ -270,6 +270,7 @@ export default function AuthPage() {
             </div>
             <Button
               className="w-full"
+              data-track="auth-sign-in"
               onClick={() => {
                 triggered.current = false;
                 void Promise.resolve(kindeLogin({ prompt: 'login' })).catch(() => {
@@ -334,6 +335,7 @@ export default function AuthPage() {
               onClick={() => navigate('/auth?mode=login', { replace: true })}
               className="flex items-center gap-1.5 text-xs self-start"
               style={{ color: 'rgba(255,255,255,0.4)' }}
+              data-track="auth-back-to-sign-in"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
               Back to sign in
@@ -354,7 +356,7 @@ export default function AuthPage() {
                 autoFocus
                 className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-red-500/50"
               />
-              <Button type="submit" className="w-full" disabled={forgotLoading}>
+              <Button type="submit" className="w-full" disabled={forgotLoading} data-track="auth-send-reset-link">
                 {forgotLoading ? (
                   <span className="flex items-center gap-2">
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -388,7 +390,7 @@ export default function AuthPage() {
             Authentication isn't configured in this environment. Use the live site to sign in.
           </p>
         </div>
-        <Button onClick={() => { window.open(liveUrl, '_blank'); }}>
+        <Button onClick={() => { window.open(liveUrl, '_blank'); }} data-track={`auth-${mode === 'login' ? 'sign-in' : 'sign-up'}`}>
           Open live site
         </Button>
       </div>
@@ -414,6 +416,7 @@ export default function AuthPage() {
         <Button
           onClick={() => window.open(window.location.href, '_blank')}
           className="mt-2"
+          data-track={`auth-${mode === 'login' ? 'sign-in' : 'sign-up'}-new-tab`}
         >
           Open in new tab
         </Button>

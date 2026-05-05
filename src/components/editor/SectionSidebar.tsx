@@ -96,6 +96,7 @@ export const SectionSidebar = memo(function SectionSidebar({
       className="shrink-0 flex flex-col gap-0.5 py-2 px-1 border-r border-border bg-card/60 overflow-y-auto"
       aria-label="Resume sections"
       style={{ width: 80 }}
+      data-section="editor-form"
     >
       {steps.map((step) => {
         const isActive = step.id === activeSection;
@@ -108,6 +109,7 @@ export const SectionSidebar = memo(function SectionSidebar({
           <button
             key={step.id}
             onClick={() => onSectionClick(step.id)}
+            data-track={`editor-section-${step.id}`}
             className={cn(
               'relative flex flex-col items-center gap-1 px-1 py-2 rounded-xl transition-all touch-manipulation active:scale-95 min-h-[64px] w-full',
               isActive

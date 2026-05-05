@@ -230,7 +230,7 @@ export function EditorScrollForm({
       )}
 
       {/* Contact */}
-      <section ref={setSectionRef('contact')} data-section-id="contact">
+      <section ref={setSectionRef('contact')} data-section-id="contact" data-section="editor-section-contact">
         <SectionCard
           icon={User}
           title="Contact Information"
@@ -245,7 +245,7 @@ export function EditorScrollForm({
       </section>
 
       {/* Summary */}
-      <section ref={setSectionRef('summary')} data-section-id="summary">
+      <section ref={setSectionRef('summary')} data-section-id="summary" data-section="editor-section-summary">
         <SectionCard
           icon={AlignLeft}
           title="Professional Summary"
@@ -261,7 +261,7 @@ export function EditorScrollForm({
       </section>
 
       {/* Experience */}
-      <section ref={setSectionRef('experience')} data-section-id="experience">
+      <section ref={setSectionRef('experience')} data-section-id="experience" data-section="editor-section-experience">
         <SectionCard
           icon={Briefcase}
           title="Work Experience"
@@ -277,7 +277,7 @@ export function EditorScrollForm({
       </section>
 
       {/* Education */}
-      <section ref={setSectionRef('education')} data-section-id="education">
+      <section ref={setSectionRef('education')} data-section-id="education" data-section="editor-section-education">
         <SectionCard
           icon={GraduationCap}
           title="Education"
@@ -293,7 +293,7 @@ export function EditorScrollForm({
       </section>
 
       {/* Skills */}
-      <section ref={setSectionRef('skills')} data-section-id="skills">
+      <section ref={setSectionRef('skills')} data-section-id="skills" data-section="editor-section-skills">
         <SectionCard
           icon={Wrench}
           title="Skills"

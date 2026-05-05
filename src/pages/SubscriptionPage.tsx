@@ -590,6 +590,7 @@ export default function SubscriptionPage() {
                     : 'bg-blue-500 hover:bg-blue-600 text-white'
                 }`}
                 onClick={() => handleUpgrade(target)}
+                data-track={`dashboard-upgrade-cta-${target}`}
               >
                 <Crown className="w-4 h-4 mr-2" />
                 Upgrade to {planLabel(target)} — coming soon

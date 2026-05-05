@@ -1529,6 +1529,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
                   variant="outline"
                   className="w-full bg-gradient-to-r from-purple-500/10 to-pink-500/10 border-purple-500/30 hover:border-purple-500/50"
                   onClick={() => setShowCoverLetter(true)}
+                  data-track="editor-generate-cover-letter"
                 >
                   <FileText className="w-4 h-4 mr-2 text-purple-500" />
                   Generate Matching Cover Letter
