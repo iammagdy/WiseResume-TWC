@@ -1,7 +1,7 @@
 {
   "name": "wise-resume",
   "private": true,
-  "version": "3.11.4",
+  "version": "3.11.5",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -16,6 +16,7 @@
     "test:coverage": "vitest run --coverage",
     "server": "tsx server/index.ts",
     "server:dev": "tsx --watch server/index.ts",
+    "server:prod": "node dist/server.mjs",
     "build:server": "esbuild server/index.ts --bundle --platform=node --format=esm --outfile=dist/server.mjs --packages=external",
     "build:all": "npm run build && npm run build:server",
     "db:push": "node_modules/.bin/drizzle-kit push",

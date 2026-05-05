@@ -1269,14 +1269,14 @@ Deno.serve(wrapHandler("admin-devkit-data", async (req) => {
       }
 
       const projectRef = Deno.env.get('SUPABASE_PROJECT_REF') || 'jnsfmkzgxsviuthaqlyy';
-      const accessToken = Deno.env.get('SUPABASE_ACCESS_TOKEN');
+      const accessToken = Deno.env.get('SB_MGMT_TOKEN');
       if (!accessToken) {
         return new Response(
           JSON.stringify({
             success: false,
-            error: 'SUPABASE_ACCESS_TOKEN secret is not configured in Supabase Edge Function Secrets — required for the live Management API call.',
+            error: 'SB_MGMT_TOKEN secret is not configured in Supabase Edge Function Secrets — required for the live Management API call. Add your Supabase personal access token (from supabase.com/account/tokens) as SB_MGMT_TOKEN.',
           }),
-          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+          { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
         );
       }
 
@@ -1300,8 +1300,6 @@ Deno.serve(wrapHandler("admin-devkit-data", async (req) => {
         'verify-dev-kit': 400,
       };
       const KNOWN_DRIFT: Record<string, string> = {
-        'ai-health': 'AUTH-DRIFT — returns 200 for non-admin JWT (tracked under separate fix task)',
-        'ai-test': 'AUTH-DRIFT — returns 200 for non-admin JWT (tracked under separate fix task)',
         'verify-email': 'noauth→503 (SITE_URL not configured — tracked under separate fix task)',
       };
 

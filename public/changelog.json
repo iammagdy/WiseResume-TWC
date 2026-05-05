@@ -1,8 +1,28 @@
 [
   {
+    "version": "v3.11.5",
+    "date": "May 5, 2026",
+    "latest": true,
+    "summary": "Infrastructure: scheduled email jobs now run reliably — cron authentication fixed, weekly digest and WiseHire invite reminders fully wired up.",
+    "items": [
+      {
+        "title": "Scheduled emails fully operational",
+        "description": "The weekly career digest and WiseHire invite reminder emails were silently failing on every scheduled run because the cron authentication secret was missing. Both jobs are now correctly configured and authenticated end-to-end. The weekly digest (Mondays at 09:00 UTC) and the WiseHire invite reminder (every hour) will fire reliably going forward."
+      },
+      {
+        "title": "Resume reminder email fixed",
+        "description": "The automated nudge that reminds users to update stale resumes was returning a server error on every run due to a missing database column. The column has been restored and the reminder is fully operational again."
+      },
+      {
+        "title": "Admin DevKit edge function panel fixed",
+        "description": "The Edge Function Drift panel in the admin DevKit was blocked by a Supabase naming restriction on the required token. The configuration has been updated and the panel now loads live function drift data correctly."
+      }
+    ]
+  },
+  {
     "version": "v3.11.4",
     "date": "May 4, 2026",
-    "latest": true,
+    "latest": false,
     "summary": "Backend cleanup: the AI editor engine is now fully consolidated — 4 retired backend functions removed, freeing deployment capacity for future features.",
     "items": [
       {
