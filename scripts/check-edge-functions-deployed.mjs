@@ -430,7 +430,15 @@ if (possiblyStale.length > 0) {
   // explicit check flag) a stale deployment is a hard failure. Default
   // invocation (no flags, no --all) treats it as a warning so legacy callers
   // that just want the inventory check don't suddenly start failing.
-  const stalenessIsBlocking = checkConfig || checkAuth || checkCallers;
+  //
+  // Exception: if `freshnessBlocking: false` is set in the allow-list, staleness
+  // is always a WARNING (never a hard failure), regardless of --all or other
+  // check flags. Use this when freshness false-positives are a confirmed platform
+  // limitation — e.g. Supabase Management API's `updated_at` field does not
+  // advance on `supabase functions deploy` (verified Task #66, 2026-05-03;
+  // documented in edge-fn-drift-allowlist.json `_freshnessNote`).
+  const freshnessBlockingPolicy = allowlist.freshnessBlocking !== false;
+  const stalenessIsBlocking = freshnessBlockingPolicy && (checkConfig || checkAuth || checkCallers);
   const label = stalenessIsBlocking ? 'ERROR' : 'WARNING';
   const sink = stalenessIsBlocking ? console.error : console.log;
   sink(
