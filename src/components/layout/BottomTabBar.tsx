@@ -278,7 +278,7 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
                         )}
                         {tab.path === '/ai-studio' && !isPro && !active && (
                           <Lock
-                            className="absolute -top-1 -right-1.5 w-3 h-3 text-muted-foreground/50"
+                            className="absolute -top-1 -right-1.5 w-3 h-3 text-muted-foreground/60"
                             aria-label="Pro feature"
                             title="Upgrade to Pro to unlock"
                           />
@@ -297,7 +297,7 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
                         )}
                         {tab.path === '/applications' && !isPro && !active && (
                           <Lock
-                            className="absolute -top-1 -right-1.5 w-3 h-3 text-muted-foreground/50"
+                            className="absolute -top-1 -right-1.5 w-3 h-3 text-muted-foreground/60"
                             aria-label="Pro feature"
                             title="Upgrade to Pro to unlock"
                           />

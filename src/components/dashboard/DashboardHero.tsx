@@ -62,7 +62,7 @@ export const DashboardHero = memo(function DashboardHero({
       <p className="text-sm text-muted-foreground mb-5 leading-snug">
         Start in under 2 minutes — build from scratch or optimize for a specific job.
       </p>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+      <div className="grid grid-cols-2 gap-2.5">
         <Button
           size="lg"
           variant="outline"
