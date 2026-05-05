@@ -51,12 +51,12 @@ Deno.serve(wrapHandler("admin-owner-ops", async (req) => {
     const supabase = getServiceClient();
 
     if (action === 'trigger_backup') {
-      const accessToken = Deno.env.get('SUPABASE_ACCESS_TOKEN');
+      const accessToken = Deno.env.get('SB_MGMT_TOKEN') ?? Deno.env.get('SUPABASE_ACCESS_TOKEN');
       if (!accessToken) {
         return new Response(
           JSON.stringify({
             success: false,
-            error: 'SUPABASE_ACCESS_TOKEN is not configured. Set it as a Supabase Edge Function secret to enable backup triggers.',
+            error: 'SUPABASE_ACCESS_TOKEN is not configured. Set SB_MGMT_TOKEN as a Supabase Edge Function secret to enable backup triggers.',
           }),
           { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
         );
@@ -115,12 +115,12 @@ Deno.serve(wrapHandler("admin-owner-ops", async (req) => {
     }
 
     if (action === 'get_backup_status') {
-      const accessToken = Deno.env.get('SUPABASE_ACCESS_TOKEN');
+      const accessToken = Deno.env.get('SB_MGMT_TOKEN') ?? Deno.env.get('SUPABASE_ACCESS_TOKEN');
       if (!accessToken) {
         return new Response(
           JSON.stringify({
             success: false,
-            error: 'SUPABASE_ACCESS_TOKEN is not configured.',
+            error: 'SB_MGMT_TOKEN is not configured.',
             not_configured: true,
           }),
           { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
