@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-05-05 — ScrollStack flicker and sticking fix (Task #5)
+
+**Root cause A fixed — removed `duration` + `easing` from both Lenis constructor calls (`src/components/landing/ScrollStack.tsx:469-491`):**
+- Lenis v1.3.23 `Animate` class (`node_modules/lenis/dist/lenis.mjs:79-86`): when `duration` AND `easing` are both present, the duration-based easing branch is taken and `lerp` is silently ignored.
+- Both Lenis instances (window-scroll path and scroller-element path) previously passed all three: `duration: 1.2`, `easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t))`, and `lerp: 0.08/0.1`.
+- The easing function is front-loaded: 97% of scroll distance in the first 50% of 1.2 s → last 0.6 s covers only 3% → `window.scrollY` barely moves → card transforms appear frozen ("sticking"). Every fast direction-reversal re-triggered this tail.
+- Fix: removed `duration` and `easing` from both constructors. Lenis now uses the `else if (this.lerp)` branch → lerp `0.08` (touch) / `0.1` (non-touch) provides frame-rate-independent damped scroll with no frozen tail.
+
+**Root cause B fixed — opacity formula changed from trigger-relative to viewport-relative (`src/components/landing/ScrollStack.tsx:349-353`):**
+- Old formula: `fadeStart = triggerStart - containerHeight * 1.2; opacity = calculateProgress(scrollTop, fadeStart, triggerStart)`. `calculateProgress` decreases when `scrollTop` drops below `triggerStart`, so upward scrolling fades out cards that are still physically in the viewport (card 1 visible at 580 px from viewport top but rendered at 66% opacity at `scrollTop=800`).
+- The `1.2×` multiplier applied in Task #1 made this worse (lowered `fadeStart` from ~630 to ~90, creating a large fade-out zone during visible scroll).
+- New formula: `viewportEntry = cardTop - containerHeight; fadeStart = viewportEntry - containerHeight * 0.5; opacity = calculateProgress(scrollTop, fadeStart, viewportEntry)`.
+- `viewportEntry` is the scroll position at which the card's top edge first enters the viewport from below. `calculateProgress` clamps to 1 when `scrollTop >= viewportEntry` → opacity = 1 the moment the card is in or above the viewport, regardless of scroll direction. No fade-out on upward scroll.
+
 ## 2026-05-04 — v3.11.4: Editor AI consolidation complete — 4 legacy edge functions retired (Tasks #41, #44, #45)
 
 Backend housekeeping release. All traffic for `analyze-resume`, `recruiter-simulation`,

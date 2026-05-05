@@ -332,10 +332,22 @@ const ScrollStack = ({
            sitting visible-but-scaled-down from the start. Honour
            prefers-reduced-motion: skip the interpolation entirely so
            cards remain fully opaque (static layout). */
-        const fadeStart = triggerStart - containerHeight * 1.2;
+        /* Root Cause B fix: use viewport-relative fade, not trigger-relative.
+           The old formula used triggerStart as the upper bound, which caused
+           cards to fade OUT on upward scroll even while still visible in the
+           viewport (a card entering the viewport at opacity 0.66 looks like
+           a ghost/flicker on every reversal cycle).
+           New formula: the card fades in over the half-viewport range that
+           precedes the card actually entering the viewport from below.
+           viewportEntry = scrollTop at which the card's top edge first
+           reaches the bottom of the viewport. Once scrollTop >= viewportEntry
+           the card is in or above the viewport → calculateProgress clamps to
+           1 → opacity = 1 always, regardless of scroll direction. */
+        const viewportEntry = cardTop - containerHeight;
+        const fadeStart = viewportEntry - containerHeight * 0.5;
         const opacity = reduceMotion
           ? 1
-          : calculateProgress(scrollTop, fadeStart, triggerStart);
+          : calculateProgress(scrollTop, fadeStart, viewportEntry);
 
         let translateY = 0;
         const isPinned = scrollTop >= pinStart && scrollTop <= pinEnd;
@@ -454,10 +466,17 @@ const ScrollStack = ({
        card rather than flying past several via native momentum. Desktop
        wheel feel is unchanged. */
     const touch = isCoarsePointer();
+    /* Root Cause A fix: do NOT pass `duration` or `easing` alongside `lerp`.
+       In Lenis v1.3.23 the Animate class prioritises the `duration+easing`
+       branch over `lerp` — when all three are provided, lerp is silently
+       discarded and the exponential ease-out runs instead. That easing covers
+       97% of the scroll distance in the first half of the 1.2 s window, then
+       barely moves for the remaining 0.6 s — cards appear frozen ("sticking")
+       during that tail, and every fast direction-reversal re-triggers it.
+       Using lerp only gives frame-rate-independent smooth damping with no
+       frozen tail and no frozen-tail accumulation across down-up cycles. */
     const lenis = useWindowScroll
       ? new Lenis({
-          duration: 1.2,
-          easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
           smoothWheel: true,
           touchMultiplier: touch ? 1.0 : 2,
           infinite: false,
@@ -470,8 +489,6 @@ const ScrollStack = ({
       : new Lenis({
           wrapper: scroller,
           content: scroller.querySelector(".scroll-stack-inner") as HTMLElement,
-          duration: 1.2,
-          easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
           smoothWheel: true,
           touchMultiplier: touch ? 1.0 : 2,
           infinite: false,
