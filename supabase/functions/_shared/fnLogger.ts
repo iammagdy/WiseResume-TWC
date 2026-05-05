@@ -30,24 +30,23 @@ export function logInvocation(
   latencyMs: number,
   isError: boolean,
 ): void {
-  try {
-    const db = getServiceClient();
-    db.from('edge_function_logs')
-      .insert({
-        function_name: functionName,
-        status_code: statusCode,
-        latency_ms: latencyMs,
-        error: isError,
-      })
-      .then(({ error }) => {
-        if (error) {
-          console.warn(`[fnLogger] insert failed (non-fatal): ${error.message}`);
-        }
-      })
-      .catch(() => { /* swallow */ });
-  } catch {
-    /* swallow — never let logging break the caller */
-  }
+  void (async () => {
+    try {
+      const db = getServiceClient();
+      const { error } = await db.from('edge_function_logs')
+        .insert({
+          function_name: functionName,
+          status_code: statusCode,
+          latency_ms: latencyMs,
+          error: isError,
+        });
+      if (error) {
+        console.warn(`[fnLogger] insert failed (non-fatal): ${error.message}`);
+      }
+    } catch {
+      /* swallow — never let logging break the caller */
+    }
+  })();
 }
 
 export function wrapHandler(

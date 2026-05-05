@@ -1,4 +1,4 @@
-import { assertEquals, assertStringIncludes } from "https://deno.land/std@0.224.0/testing/asserts.ts";
+import { assertEquals, assertStringIncludes } from "jsr:@std/assert@^1";
 import { scrubSecrets, scrubAndCap, REDACTED_MARKER } from "../scrubSecrets.ts";
 import { toUserError } from "../aiClient.ts";
 
