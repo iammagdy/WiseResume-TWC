@@ -1,6 +1,6 @@
 # Stability Fixes
 
-**Last verified:** 2026-04-26
+**Last verified:** 2026-05-05
 **Type:** index
 **Canonical owner:** Project Atlas maintainer (see `../../MAINTENANCE.md`) + the per-phase task briefs under `.local/tasks/phase-*.md`
 **Sources (governance — supreme):**
@@ -33,3 +33,4 @@ Cards in this folder describe shipped or in-flight stability fixes from the 2026
 - [Editor ATS panel relabelled as "Job Match Analysis" / "Keyword Match Score"](./ats-keyword-match-clarity.md)
 - [GitHub origin sync — Replit ↔ GitHub reconciled (Task #70 v2)](./github-origin-sync-task-70.md)
 - [Kinde custom domain split — `auth.thewise.cloud` separated from `resume.thewise.cloud`](./kinde-custom-domain-split.md)
+- [Task #15 — DevKit AI model catalog: cron fix, per-provider caps, non-chat filter](./task-15-ai-model-catalog-cron.md)
