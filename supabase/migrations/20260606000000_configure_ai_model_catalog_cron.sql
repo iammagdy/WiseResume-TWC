@@ -29,7 +29,6 @@ DECLARE
   has_pg_net   boolean;
   existing_id  bigint;
   vault_exists boolean;
-  fn_url       text := 'https://jnsfmkzgxsviuthaqlyy.supabase.co/functions/v1/admin-ai-ops';
 BEGIN
   SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') INTO has_pg_cron;
   SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_net')  INTO has_pg_net;
@@ -72,55 +71,69 @@ BEGIN
   -- ── 2. Create private schema + helper function ──────────────────────────────
   -- private schema is not exposed by PostgREST so this function is not
   -- reachable from the API layer.
+  --
+  -- URL resolution at call time (environment-portable):
+  --   1. GUC app.edge_functions_url — set in Dashboard → Database → Config
+  --      for staging or any non-production project.
+  --   2. Hardcoded fallback for the production project (jnsfmkzgxsviuthaqlyy).
+  -- The hardcoded value is a last-resort fallback only; other environments
+  -- override it via the GUC without touching this migration.
   CREATE SCHEMA IF NOT EXISTS private;
 
-  EXECUTE format($func$
-    CREATE OR REPLACE FUNCTION private.exec_refresh_ai_test_models()
-    RETURNS void
-    LANGUAGE plpgsql
-    SECURITY DEFINER
-    SET search_path = public, vault, extensions
-    AS $body$
-    DECLARE
-      cron_secret text;
-      fn_url      text := %L;
+  CREATE OR REPLACE FUNCTION private.exec_refresh_ai_test_models()
+  RETURNS void
+  LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path = public, vault, extensions
+  AS $$
+  DECLARE
+    cron_secret text;
+    base_url    text;
+    fn_url      text;
+  BEGIN
+    -- Resolve the edge-functions base URL at call time from the GUC,
+    -- falling back to the production project URL if the GUC is not set.
+    base_url := COALESCE(
+      NULLIF(current_setting('app.edge_functions_url', true), ''),
+      'https://jnsfmkzgxsviuthaqlyy.supabase.co/functions/v1'
+    );
+    fn_url := base_url || '/admin-ai-ops';
+
+    -- Read CRON_SECRET from Supabase Vault (preferred).
     BEGIN
-      -- Read CRON_SECRET from Supabase Vault (preferred).
-      BEGIN
-        SELECT decrypted_secret INTO cron_secret
-        FROM vault.decrypted_secrets
-        WHERE name = 'cron_secret'
-        LIMIT 1;
-      EXCEPTION WHEN others THEN
-        cron_secret := NULL;
-      END;
-
-      -- Fall back to GUC (set via dashboard or ALTER DATABASE if available).
-      IF cron_secret IS NULL OR cron_secret = '' THEN
-        cron_secret := current_setting('app.cron_secret', true);
-      END IF;
-
-      IF cron_secret IS NULL OR cron_secret = '' THEN
-        RAISE WARNING
-          'refresh_ai_test_models: no cron_secret found in Vault or GUC. '
-          'Run: SELECT vault.create_secret(''<value>'', ''cron_secret'', ''''); '
-          'then re-run this migration or manually call cron.schedule(...)';
-        RETURN;
-      END IF;
-
-      PERFORM net.http_post(
-        url     := fn_url,
-        headers := jsonb_build_object(
-          'x-cron-secret', cron_secret,
-          'x-admin-ai-op', 'refresh-test-models',
-          'Content-Type',  'application/json'
-        ),
-        body    := '{"action":"refresh-test-models"}'::jsonb,
-        timeout_milliseconds := 30000
-      );
+      SELECT decrypted_secret INTO cron_secret
+      FROM vault.decrypted_secrets
+      WHERE name = 'cron_secret'
+      LIMIT 1;
+    EXCEPTION WHEN others THEN
+      cron_secret := NULL;
     END;
-    $body$
-  $func$, fn_url);
+
+    -- Fall back to GUC (set via dashboard or ALTER DATABASE if available).
+    IF cron_secret IS NULL OR cron_secret = '' THEN
+      cron_secret := current_setting('app.cron_secret', true);
+    END IF;
+
+    IF cron_secret IS NULL OR cron_secret = '' THEN
+      RAISE WARNING
+        'refresh_ai_test_models: no cron_secret found in Vault or GUC. '
+        'Run: SELECT vault.create_secret(''<value>'', ''cron_secret'', ''''); '
+        'then re-run this migration or manually call cron.schedule(...)';
+      RETURN;
+    END IF;
+
+    PERFORM net.http_post(
+      url     := fn_url,
+      headers := jsonb_build_object(
+        'x-cron-secret', cron_secret,
+        'x-admin-ai-op', 'refresh-test-models',
+        'Content-Type',  'application/json'
+      ),
+      body    := '{"action":"refresh-test-models"}'::jsonb,
+      timeout_milliseconds := 30000
+    );
+  END;
+  $$;
 
   RAISE NOTICE 'Created private.exec_refresh_ai_test_models().';
 

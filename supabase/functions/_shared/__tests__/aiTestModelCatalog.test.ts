@@ -6,10 +6,79 @@ import {
   mergeWithSeed,
   toIdList,
   PER_PROVIDER_CAPS,
+  OPENROUTER_NON_CHAT_RE,
 } from "../aiTestModelCatalog.ts";
 
 // To run:
 //   deno test --allow-net --allow-env supabase/functions/_shared/__tests__/aiTestModelCatalog.test.ts
+
+// ── OPENROUTER_NON_CHAT_RE ──────────────────────────────────────────────────
+
+Deno.test("OPENROUTER_NON_CHAT_RE — matches non-chat model slugs", () => {
+  const shouldFilter = [
+    "openai/whisper-large-v3",
+    "google/gemini-pro-vision-tts",
+    "openai/text-embedding-ada-002",
+    "mistral/embed-v1",
+    "openai/clip-vit-large",
+    "meta/ocr-doc-scanner",
+    "meta/llama-guard-3-8b",
+    "stability/stable-diffusion-xl",
+    "openrouter/free",
+    "openrouter/owl",
+    "suno/lyria-realtime-exp",
+    "vendor/model-tts-v2",
+  ];
+  for (const id of shouldFilter) {
+    assertEquals(
+      OPENROUTER_NON_CHAT_RE.test(id),
+      true,
+      `Expected ${id} to be filtered by OPENROUTER_NON_CHAT_RE`,
+    );
+  }
+});
+
+Deno.test("OPENROUTER_NON_CHAT_RE — does NOT match chat model slugs", () => {
+  const shouldPass = [
+    "openai/gpt-4o",
+    "meta-llama/llama-3.3-70b-instruct:free",
+    "google/gemma-2-9b-it:free",
+    "anthropic/claude-3.5-sonnet",
+    "mistralai/mistral-7b-instruct:free",
+    "deepseek/deepseek-chat-v3-0324:free",
+    "meta-llama/llama-4-maverick:free",
+    "meta-llama/llama-4-scout:free",
+    "qwen/qwen3-8b:free",
+    "microsoft/phi-4-reasoning:free",
+  ];
+  for (const id of shouldPass) {
+    assertEquals(
+      OPENROUTER_NON_CHAT_RE.test(id),
+      false,
+      `Expected ${id} to NOT be filtered by OPENROUTER_NON_CHAT_RE`,
+    );
+  }
+});
+
+Deno.test("curateOpenRouter — filters non-chat models via OPENROUTER_NON_CHAT_RE", () => {
+  const out = curateOpenRouter({
+    data: [
+      { id: "meta-llama/llama-3.3-70b-instruct:free", pricing: { prompt: "0", completion: "0" } },
+      { id: "openai/whisper-large-v3",                pricing: { prompt: "0.001", completion: "0" } },
+      { id: "stability/stable-diffusion-xl",          pricing: { prompt: "0.002", completion: "0" } },
+      { id: "openai/text-embedding-3-small",          pricing: { prompt: "0", completion: "0" } },
+      { id: "anthropic/claude-3.5-sonnet",            pricing: { prompt: "0.003", completion: "0.015" } },
+    ],
+  });
+  const ids = out.map(m => m.id);
+  assertEquals(ids.includes("meta-llama/llama-3.3-70b-instruct:free"), true);
+  assertEquals(ids.includes("anthropic/claude-3.5-sonnet"), true);
+  assertEquals(ids.includes("openai/whisper-large-v3"), false, "whisper should be filtered");
+  assertEquals(ids.includes("stability/stable-diffusion-xl"), false, "diffusion should be filtered");
+  assertEquals(ids.includes("openai/text-embedding-3-small"), false, "embed should be filtered");
+});
+
+// ── curateOpenRouter ────────────────────────────────────────────────────────
 
 Deno.test("curateOpenRouter — sorts free :free models first", () => {
   const out = curateOpenRouter({

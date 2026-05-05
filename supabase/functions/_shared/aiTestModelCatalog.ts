@@ -73,7 +73,7 @@ interface OpenRouterModelRaw {
  * The DevKit test-request flow only sends chat completions, so audio,
  * image, OCR, embedding, and router-meta endpoints are excluded.
  */
-const OPENROUTER_NON_CHAT_RE =
+export const OPENROUTER_NON_CHAT_RE =
   /lyria|whisper|tts(?:\b|-)|embed|clip(?:\b|-)|ocr|rerank|guard|diffusion|openrouter\/(free|owl)/i;
 
 /**
