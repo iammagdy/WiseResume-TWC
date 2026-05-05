@@ -45,7 +45,9 @@ export const PROVIDERS: Record<string, ProviderConfig> = {
     displayName: 'DeepSeek',
     baseUrl: 'https://api.deepseek.com',
     chatEndpoint: 'https://api.deepseek.com/v1/chat/completions',
-    defaultModel: 'deepseek-chat',
+    // deepseek-v4-flash is the current production model (thinking disabled).
+    // deepseek-chat was deprecated 2026/07/24.
+    defaultModel: 'deepseek-v4-flash',
     authStyle: 'bearer',
   },
 };
