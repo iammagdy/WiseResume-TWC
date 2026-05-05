@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-05-05 — Tailor success screen: score display + portfolio nudge (Task #24)
+
+**Files changed:**
+- `src/pages/TailorPage.tsx`
+
+**New state:**
+- `appliedScore: { before: number; after: number } | null` — captured from `tailorResult.overallScore` in `handleApplyChanges` before `setTailorResult(null)`; reset in `handleCloseSuccess`.
+
+**`ResultsPanelProps` additions:** `appliedScore`, `onGoToPortfolio: () => void` — passed to both mobile and desktop `<ResultsPanel>` instances.
+
+**New `ScoreLabel` helper:** inlined colour-coded score renderer using same thresholds as `ScoreComparison` (success ≥85, amber ≥70, destructive <70).
+
+**`ResultsPanel` success screen (`showAppliedCTA` branch):**
+- Removed `✅` emoji from heading.
+- Score card rendered above CTAs when `appliedScore` is non-null: before (muted) → arrow → after (colour-coded). `+N improvement` badge (green) when `after > before`; "Minor improvements applied" (muted) otherwise. Always shown when data is present.
+- Fourth CTA: "Turn this into a portfolio" (`variant="outline"`, `Globe` icon) → `navigate('/portfolio')`. No plan gate; shown to all users.
+
+**Imports added:** `Globe`, `TrendingUp` from `lucide-react`.
+
 ## 2026-05-05 — Dashboard UX: hero section, discovery grid, subtler lock badges (Task #19)
 
 **Files changed:**

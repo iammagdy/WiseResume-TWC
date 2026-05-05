@@ -4,7 +4,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Wand2, Loader2, CheckCircle, ArrowLeft, Sparkles, Zap, Gauge, Flame,
   Settings, RefreshCw, Copy, Check, ExternalLink, ChevronDown, ChevronUp,
-  Key, HeartHandshake, Bug, X, Briefcase, Eye
+  Key, HeartHandshake, Bug, X, Briefcase, Eye, Globe, TrendingUp
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -188,6 +188,7 @@ export default function TailorPage() {
   const [appliedResumeId, setAppliedResumeId] = useState<string | null>(null);
   const [appliedResumeTitle, setAppliedResumeTitle] = useState<string | null>(null);
   const [appliedJobInfo, setAppliedJobInfo] = useState<{ title: string; company: string } | null>(null);
+  const [appliedScore, setAppliedScore] = useState<{ before: number; after: number } | null>(null);
 
   const [customInstructions, setCustomInstructions] = useState(
     () => localStorage.getItem(CUSTOM_INSTRUCTIONS_KEY) || ''
@@ -419,6 +420,7 @@ export default function TailorPage() {
       setAppliedResumeId(newResume?.id || null);
       setAppliedResumeTitle(newTitle);
       setAppliedJobInfo({ title: jobTitle, company });
+      setAppliedScore(tailorResult.overallScore ?? null);
       setShowAppliedCTA(true);
       setTailorResult(null);
 
@@ -551,6 +553,7 @@ export default function TailorPage() {
     setAppliedResumeId(null);
     setAppliedResumeTitle(null);
     setAppliedJobInfo(null);
+    setAppliedScore(null);
     navigate(-1);
   }, [navigate]);
 
@@ -732,6 +735,8 @@ export default function TailorPage() {
                 onViewResume={handleViewResume}
                 onTrackApplication={handleTrackApplication}
                 onCloseSuccess={handleCloseSuccess}
+                onGoToPortfolio={() => navigate('/portfolio')}
+                appliedScore={appliedScore}
                 copiedText={copiedText}
                 onCopyText={handleCopyPlainText}
                 onReTailor={handleTailor}
@@ -771,6 +776,8 @@ export default function TailorPage() {
               onViewResume={handleViewResume}
               onTrackApplication={handleTrackApplication}
               onCloseSuccess={handleCloseSuccess}
+              onGoToPortfolio={() => navigate('/portfolio')}
+              appliedScore={appliedScore}
               copiedText={copiedText}
               onCopyText={handleCopyPlainText}
               onReTailor={handleTailor}
@@ -858,6 +865,8 @@ interface ResultsPanelProps {
   onViewResume: () => void;
   onTrackApplication: () => void;
   onCloseSuccess: () => void;
+  onGoToPortfolio: () => void;
+  appliedScore: { before: number; after: number } | null;
   copiedText: boolean;
   onCopyText: () => void;
   onReTailor: () => void;
@@ -865,23 +874,29 @@ interface ResultsPanelProps {
   revealedSections: Set<TailorSectionId>;
 }
 
+function ScoreLabel({ score }: { score: number }) {
+  const color = score >= 85 ? 'text-success' : score >= 70 ? 'text-amber-500' : 'text-destructive';
+  return <span className={cn('text-2xl font-bold tabular-nums', color)}>{score}%</span>;
+}
+
 function ResultsPanel({
   isTailoring, progress, tailorResult, tailorError, originalResume,
   enabledSections, toggleSection, onApplyChanges, onPreview, isApplying,
   onRetry, onSettings, onRevert, abortRef, setIsTailoring, setProgress,
   showAppliedCTA, appliedResumeId, appliedResumeTitle, appliedJobInfo,
-  onViewResume, onTrackApplication, onCloseSuccess,
+  onViewResume, onTrackApplication, onCloseSuccess, onGoToPortfolio, appliedScore,
   copiedText, onCopyText, onReTailor,
   rejectedBullets, onBulletReject, onRegenerate, revealedSections,
 }: ResultsPanelProps) {
   if (showAppliedCTA && !isTailoring && !tailorResult) {
+    const improvement = appliedScore ? appliedScore.after - appliedScore.before : 0;
     return (
       <div className="flex flex-col items-center justify-center gap-6 py-12 px-6 text-center animate-fade-in">
         <div className="w-16 h-16 rounded-full bg-success/10 flex items-center justify-center">
           <CheckCircle className="w-8 h-8 text-success" />
         </div>
         <div className="space-y-2">
-          <h3 className="font-bold text-xl">✅ New tailored resume created!</h3>
+          <h3 className="font-bold text-xl">New tailored resume created!</h3>
           {appliedResumeTitle && (
             <p className="text-sm font-medium text-foreground break-words px-2">
               {appliedResumeTitle}
@@ -893,6 +908,36 @@ function ResultsPanel({
             </p>
           )}
         </div>
+
+        {appliedScore && (
+          <div className="w-full max-w-xs rounded-2xl bg-card border border-border px-5 py-4">
+            <p className="text-xs font-medium text-muted-foreground mb-3 flex items-center justify-center gap-1.5">
+              <TrendingUp className="w-3.5 h-3.5" />
+              Match Score
+            </p>
+            <div className="flex items-center justify-center gap-4">
+              <div className="text-center">
+                <span className="text-2xl font-bold tabular-nums text-muted-foreground">{appliedScore.before}%</span>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Before</p>
+              </div>
+              <span className="text-muted-foreground text-lg">→</span>
+              <div className="text-center">
+                <ScoreLabel score={appliedScore.after} />
+                <p className="text-[10px] text-muted-foreground mt-0.5">After</p>
+              </div>
+            </div>
+            <div className="mt-3 flex justify-center">
+              {improvement > 0 ? (
+                <span className="inline-flex items-center gap-1 text-xs font-semibold text-success bg-success/10 px-2.5 py-0.5 rounded-full">
+                  +{improvement} improvement
+                </span>
+              ) : (
+                <span className="text-xs text-muted-foreground">Minor improvements applied</span>
+              )}
+            </div>
+          </div>
+        )}
+
         <div className="flex flex-col gap-3 w-full max-w-xs">
           {appliedResumeId && (
             <Button className="gradient-primary min-h-[44px]" onClick={onViewResume}>
@@ -903,6 +948,10 @@ function ResultsPanel({
           <Button variant="outline" className="min-h-[44px]" onClick={onTrackApplication}>
             <Briefcase className="w-4 h-4 mr-2" />
             Track Application
+          </Button>
+          <Button variant="outline" className="min-h-[44px]" onClick={onGoToPortfolio}>
+            <Globe className="w-4 h-4 mr-2" />
+            Turn this into a portfolio
           </Button>
           <Button variant="ghost" className="min-h-[44px]" onClick={onCloseSuccess}>
             Close
