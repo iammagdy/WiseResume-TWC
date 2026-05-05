@@ -7,42 +7,73 @@
 -- job. Those GUCs were never set in production, so both migrations silently
 -- skipped the schedule step. The cron has never run.
 --
--- This migration:
---   1. Creates a SECURITY DEFINER helper function in the `private` schema
---      that reads the CRON_SECRET from Supabase Vault at runtime (no secret
---      stored in source control or in the cron.job command string).
---   2. Schedules a pg_cron job to call that function nightly at 03:17 UTC.
+-- This migration is fully self-contained — no manual steps required:
+--   1. Auto-seeds Supabase Vault with a random cron_secret if absent.
+--   2. Creates private.exec_refresh_ai_test_models() — a SECURITY DEFINER
+--      helper that reads the secret from Vault at call time (no secret in
+--      the cron.job command string or any source file).
+--   3. Schedules the pg_cron job nightly at 03:17 UTC (idempotent).
 --
--- The CRON_SECRET must be stored in Supabase Vault under the name
--- 'cron_secret' before this job first fires. The vault row is created once
--- via the Supabase Management API and is never committed to source control.
+-- The edge function (admin-ai-ops) verifies callers by reading the same
+-- Vault row via requireCronSecretOrVault() in _shared/webhookAuth.ts.
+-- The CRON_SECRET env var (set in Edge Function Secrets) is also accepted
+-- for backward compatibility with older deployments.
 --
 -- After this migration runs, trigger a one-shot manual refresh via:
 --   POST /admin-ai-ops { "action": "refresh-test-models" }  (admin auth)
--- so the catalog is populated immediately without waiting for 03:17 UTC.
+-- to populate the catalog immediately without waiting for 03:17 UTC.
 
 DO $$
 DECLARE
-  has_pg_cron boolean;
-  has_pg_net  boolean;
-  has_vault   boolean;
-  existing_id bigint;
-  fn_url      text := 'https://jnsfmkzgxsviuthaqlyy.supabase.co/functions/v1/admin-ai-ops';
+  has_pg_cron  boolean;
+  has_pg_net   boolean;
+  existing_id  bigint;
+  vault_exists boolean;
+  fn_url       text := 'https://jnsfmkzgxsviuthaqlyy.supabase.co/functions/v1/admin-ai-ops';
 BEGIN
-  SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron')           INTO has_pg_cron;
-  SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_net')            INTO has_pg_net;
-  SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'supabase_vault')    INTO has_vault;
+  SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') INTO has_pg_cron;
+  SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_net')  INTO has_pg_net;
 
   IF NOT has_pg_cron OR NOT has_pg_net THEN
     RAISE NOTICE 'pg_cron or pg_net not installed; skipping refresh_ai_test_models schedule.';
     RETURN;
   END IF;
 
-  -- ── 1. Create the helper function ──────────────────────────────────────────
-  -- The function lives in `private` (not `public`) so it is not accessible
-  -- via PostgREST. It reads the CRON_SECRET from Supabase Vault at call time —
-  -- the secret value is never embedded in the scheduled command string or in
-  -- any migration source file.
+  -- ── 1. Auto-seed Vault with a random cron_secret (idempotent) ──────────────
+  -- If a 'cron_secret' row already exists (e.g. manually provisioned or from
+  -- a previous migration run), we leave it in place. This INSERT is a no-op
+  -- on re-runs, so the migration is safe to apply multiple times.
+  --
+  -- The edge function reads this row via requireCronSecretOrVault() as a
+  -- fallback when the CRON_SECRET env var is not set. After running this
+  -- migration you can optionally set CRON_SECRET in Edge Function Secrets to
+  -- the same value (SELECT decrypted_secret FROM vault.decrypted_secrets
+  -- WHERE name = 'cron_secret') to enable the fast env-var path; if you
+  -- don't, the Vault path is used automatically and everything still works.
+  BEGIN
+    SELECT EXISTS (
+      SELECT 1 FROM vault.secrets WHERE name = 'cron_secret'
+    ) INTO vault_exists;
+
+    IF NOT vault_exists THEN
+      PERFORM vault.create_secret(
+        gen_random_uuid()::text,
+        'cron_secret',
+        'CRON_SECRET for refresh_ai_test_models nightly cron job (Task #15)'
+      );
+      RAISE NOTICE 'Auto-seeded vault.cron_secret with a random UUID.';
+    ELSE
+      RAISE NOTICE 'vault.cron_secret already exists; skipping seed.';
+    END IF;
+  EXCEPTION WHEN others THEN
+    RAISE NOTICE 'Vault seed skipped (error: %); cron will fall back to app.cron_secret GUC.', SQLERRM;
+  END;
+
+  -- ── 2. Create private schema + helper function ──────────────────────────────
+  -- private schema is not exposed by PostgREST so this function is not
+  -- reachable from the API layer.
+  CREATE SCHEMA IF NOT EXISTS private;
+
   EXECUTE format($func$
     CREATE OR REPLACE FUNCTION private.exec_refresh_ai_test_models()
     RETURNS void
@@ -54,7 +85,7 @@ BEGIN
       cron_secret text;
       fn_url      text := %L;
     BEGIN
-      -- Read secret from Supabase Vault (preferred) with GUC fallback.
+      -- Read CRON_SECRET from Supabase Vault (preferred).
       BEGIN
         SELECT decrypted_secret INTO cron_secret
         FROM vault.decrypted_secrets
@@ -64,13 +95,16 @@ BEGIN
         cron_secret := NULL;
       END;
 
+      -- Fall back to GUC (set via dashboard or ALTER DATABASE if available).
       IF cron_secret IS NULL OR cron_secret = '' THEN
         cron_secret := current_setting('app.cron_secret', true);
       END IF;
 
       IF cron_secret IS NULL OR cron_secret = '' THEN
-        RAISE WARNING 'refresh_ai_test_models: cron_secret not configured in Vault or GUC. '
-          'Store the secret with: SELECT vault.create_secret(''<value>'', ''cron_secret'', '''');';
+        RAISE WARNING
+          'refresh_ai_test_models: no cron_secret found in Vault or GUC. '
+          'Run: SELECT vault.create_secret(''<value>'', ''cron_secret'', ''''); '
+          'then re-run this migration or manually call cron.schedule(...)';
         RETURN;
       END IF;
 
@@ -90,7 +124,7 @@ BEGIN
 
   RAISE NOTICE 'Created private.exec_refresh_ai_test_models().';
 
-  -- ── 2. Schedule (idempotent — unschedule first if exists) ──────────────────
+  -- ── 3. Schedule (idempotent — unschedule first if exists) ──────────────────
   SELECT jobid INTO existing_id FROM cron.job WHERE jobname = 'refresh_ai_test_models';
   IF existing_id IS NOT NULL THEN
     PERFORM cron.unschedule(existing_id);
@@ -105,10 +139,9 @@ BEGIN
 
   RAISE NOTICE 'Scheduled refresh_ai_test_models cron job (nightly 03:17 UTC).';
 
-  -- ── 3. Soft-fail GUC attempt ───────────────────────────────────────────────
-  -- These require superuser. The EXCEPTION block makes this a no-op when the
-  -- Management API runs migrations as a restricted role. Set them via the
-  -- Supabase Dashboard → Database → Configuration if needed by other migrations.
+  -- ── 4. Soft-fail GUC attempt ────────────────────────────────────────────────
+  -- Requires superuser; silently skipped when running as a restricted role.
+  -- Set via the Supabase Dashboard → Database → Configuration if needed.
   BEGIN
     EXECUTE format('ALTER DATABASE postgres SET "app.edge_functions_url" = %L',
       'https://jnsfmkzgxsviuthaqlyy.supabase.co/functions/v1');

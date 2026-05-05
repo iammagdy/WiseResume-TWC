@@ -162,6 +162,10 @@ export async function requireStandardWebhookSignature(
  * Always throws 401 on failure (including when CRON_SECRET is not configured)
  * to avoid leaking misconfiguration. Server-side logging records the missing
  * secret so operators can debug.
+ *
+ * Reads the expected secret from the `CRON_SECRET` env var. For a Vault-aware
+ * variant that also falls back to reading from Supabase Vault when the env var
+ * is absent, use `requireCronSecretOrVault` instead.
  */
 export function requireCronSecret(
   req: Request,
@@ -174,6 +178,71 @@ export function requireCronSecret(
   }
   const provided = req.headers.get('x-cron-secret')?.trim() ?? '';
   if (!provided || !constantTimeStringEqual(provided, expected)) {
+    throw unauthorized(corsHeaders);
+  }
+}
+
+/**
+ * Async variant of `requireCronSecret` that also reads from Supabase Vault
+ * when the `CRON_SECRET` env var is absent.
+ *
+ * Auth priority:
+ *   1. `CRON_SECRET` env var (fast path — set via Edge Function Secrets).
+ *   2. `cron_secret` row in `vault.decrypted_secrets` (set automatically by
+ *      migration 20260606000000_configure_ai_model_catalog_cron.sql).
+ *
+ * Use this in any edge function whose cron secret may have been auto-seeded
+ * in Vault by the migration rather than manually set as an env var.
+ */
+export async function requireCronSecretOrVault(
+  req: Request,
+  corsHeaders: Record<string, string>,
+  supabaseUrl?: string,
+  serviceRoleKey?: string,
+): Promise<void> {
+  const provided = req.headers.get('x-cron-secret')?.trim() ?? '';
+  if (!provided) {
+    throw unauthorized(corsHeaders);
+  }
+
+  // Fast path: env var is set — no DB round-trip needed.
+  const envSecret = Deno.env.get('CRON_SECRET')?.trim();
+  if (envSecret) {
+    if (!constantTimeStringEqual(provided, envSecret)) {
+      throw unauthorized(corsHeaders);
+    }
+    return;
+  }
+
+  // Fallback: read from Supabase Vault. The migration auto-seeds this row so
+  // the system works even when CRON_SECRET is not set as an env var.
+  const url = supabaseUrl ?? Deno.env.get('SUPABASE_URL') ?? '';
+  const key = serviceRoleKey ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+  if (!url || !key) {
+    console.error('[webhookAuth] CRON_SECRET not set and SUPABASE_URL/SERVICE_ROLE_KEY unavailable for Vault fallback.');
+    throw unauthorized(corsHeaders);
+  }
+
+  let vaultSecret: string | null = null;
+  try {
+    const resp = await fetch(
+      `${url}/rest/v1/vault_decrypted_secrets?select=decrypted_secret&name=eq.cron_secret&limit=1`,
+      { headers: { apikey: key, Authorization: `Bearer ${key}` } },
+    );
+    if (resp.ok) {
+      const rows = await resp.json() as Array<{ decrypted_secret?: string }>;
+      vaultSecret = rows[0]?.decrypted_secret?.trim() ?? null;
+    }
+  } catch (err) {
+    console.error('[webhookAuth] Vault fallback fetch failed:', err);
+  }
+
+  if (!vaultSecret) {
+    console.error('[webhookAuth] CRON_SECRET not configured (env var absent, Vault row missing or empty).');
+    throw unauthorized(corsHeaders);
+  }
+
+  if (!constantTimeStringEqual(provided, vaultSecret)) {
     throw unauthorized(corsHeaders);
   }
 }

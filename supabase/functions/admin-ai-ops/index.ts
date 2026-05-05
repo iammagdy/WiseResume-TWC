@@ -28,7 +28,7 @@
 
 import { getServiceClient } from '../_shared/dbClient.ts';
 import { requireAdminAuth } from '../_shared/adminAuth.ts';
-import { requireCronSecret } from '../_shared/webhookAuth.ts';
+import { requireCronSecret, requireCronSecretOrVault } from '../_shared/webhookAuth.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { wrapHandler } from '../_shared/fnLogger.ts';
 import {
@@ -1040,7 +1040,7 @@ Deno.serve(wrapHandler('admin-ai-ops', async (req) => {
   // use the single requireAdminAuth gate at the top.
   try {
     if (action === 'refresh-test-models' && req.headers.get('x-cron-secret')) {
-      requireCronSecret(req, corsHeaders);
+      await requireCronSecretOrVault(req, corsHeaders);
     } else {
       await requireAdminAuth(req, corsHeaders);
     }
