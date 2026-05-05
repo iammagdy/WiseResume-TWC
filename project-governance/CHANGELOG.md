@@ -639,6 +639,47 @@ A full audit of all AI providers, AI Studio tools, and Supabase edge functions w
 
 ---
 
+## 2026-05-05 — Task #15: DevKit AI model catalog — cron fix, per-provider caps, seeds, non-chat filter
+
+### Fixed
+
+- **Cron never ran (root cause).** Two prior migrations (`20260520000001`, `20260503000001`) required `app.cron_secret` and `app.edge_functions_url` database-level GUCs to be set via `ALTER DATABASE` before they would schedule the `refresh_ai_test_models` pg_cron job. Those GUCs were never set in production. Both migrations silently skipped scheduling. The nightly catalog refresh had never executed; the DevKit AI Keys panel was showing only the 6-entry hardcoded seed fallback.
+  - **Fix:** New migration `20260606000000_configure_ai_model_catalog_cron.sql` is fully self-contained (no manual prerequisites):
+    - Step 1: Auto-seeds `vault.cron_secret` with `gen_random_uuid()` if absent (idempotent `INSERT … ON CONFLICT DO NOTHING`).
+    - Step 2: Creates `private` schema + `private.exec_refresh_ai_test_models()` SECURITY DEFINER. Resolves the edge-function URL at call time from `app.edge_functions_url` GUC (environment-portable) with production-project URL as fallback. Reads `cron_secret` from `vault.decrypted_secrets` directly.
+    - Step 3: Creates `public.get_cron_secret_internal()` SECURITY DEFINER, granted only to `service_role` — PostgREST Vault bridge for `requireCronSecretOrVault`.
+    - Step 4: Schedules `refresh_ai_test_models` at `17 3 * * *` (idempotent — unschedules prior job first).
+    - Step 5: Soft-fails `ALTER DATABASE … SET "app.edge_functions_url"` (catches `insufficient_privilege`).
+  - **Source:** `supabase/migrations/20260606000000_configure_ai_model_catalog_cron.sql`
+
+- **Per-provider cap too small.** Single `PER_PROVIDER_CAP = 15` constant applied to all providers. OpenRouter has 30+ free-tier models.
+  - **Fix:** `PER_PROVIDER_CAPS: Record<AITestProvider, number>` — `openrouter: 50`, `groq: 15`, `deepseek: 15`. Legacy `PER_PROVIDER_CAP = 15` kept as export for backward compatibility.
+  - **Source:** `supabase/functions/_shared/aiTestModelCatalog.ts:56-62`
+
+- **Seed list stale.** Default seeds included models no longer in the OpenRouter free-tier live list (`gemma-2-9b-it:free`, `mistral-7b-instruct:free`). Stale seeds survive as deprecated entries, cluttering the picker.
+  - **Fix:** 15 confirmed-live OpenRouter seeds (including `llama-4-maverick:free`, `llama-4-scout:free`, `qwen3-32b:free`, `phi-4-reasoning:free`) + 7 Groq seeds.
+  - **Source:** `supabase/functions/_shared/modelDefaults.ts`
+
+- **No non-chat filter.** Audio, TTS, embedding, image-generation, OCR, reranking, and router-meta OpenRouter models leaked into the catalog. The DevKit test-request flow only sends chat completions; those models always fail.
+  - **Fix:** `OPENROUTER_NON_CHAT_RE` regex exported from `aiTestModelCatalog.ts`. Applied in `curateOpenRouter` before curation loop. Three new unit tests added covering positive matches, negative matches, and end-to-end integration with `curateOpenRouter`.
+  - **Source:** `supabase/functions/_shared/aiTestModelCatalog.ts:79-80`; `supabase/functions/_shared/__tests__/aiTestModelCatalog.test.ts`
+
+- **Cron auth — env-var mismatch hard-fail.** Prior `requireCronSecret` would reject if `CRON_SECRET` env var was set but didn't match, never consulting Vault. Vault secret and env var could be out of sync during rotation.
+  - **Fix:** New `requireCronSecretOrVault(req, corsHeaders)` in `_shared/webhookAuth.ts`. Fast path: env-var match → accept. Fall-through: tries `get_cron_secret_internal()` RPC even when env var is set but mismatched. Neither matches → 401.
+  - **Source:** `supabase/functions/_shared/webhookAuth.ts:200-252`
+
+### Production state after this task
+
+| Item | Value |
+|---|---|
+| pg_cron job | `jobid=2`, `17 3 * * *`, `active=true` |
+| Last catalog refresh | `2026-05-05T03:38:44Z` — 50 OR + 11 Groq + 2 DeepSeek |
+| GitHub commit | `314762b` |
+
+**Files changed:** `supabase/functions/_shared/aiTestModelCatalog.ts`, `supabase/functions/_shared/modelDefaults.ts`, `supabase/functions/_shared/webhookAuth.ts`, `supabase/functions/admin-ai-ops/index.ts`, `supabase/functions/_shared/__tests__/aiTestModelCatalog.test.ts`, `supabase/migrations/20260606000000_configure_ai_model_catalog_cron.sql`, `project-governance/CHANGELOG.md`
+
+---
+
 ## [Unreleased] — 2026-04-18 — Task #28: AI Provider panel hardening
 
 ### Added
