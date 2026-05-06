@@ -430,6 +430,7 @@ export interface ValidatorResult {
     projects?: Project[];
     certifications?: Certification[];
     awards?: Award[];
+    validatorResult?: ValidatorResult;
   }
  
  // ===== MULTI-JOB COMPARISON TYPES =====

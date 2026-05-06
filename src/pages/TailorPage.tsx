@@ -402,23 +402,26 @@ export default function TailorPage() {
         const token = await getSupabaseToken();
         const validateAbort = new AbortController();
         const validateTimeout = setTimeout(() => validateAbort.abort(), 12000);
-        const vResponse = await fetch(apiFnUrl('validate-tailor'), {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-          body: JSON.stringify({
-            originalResume: currentResume,
-            jobDescription,
-            finalResume: mergedResume,
-            mustHaveKeywords: tailorResult.atsAnalysis?.criticalKeywords ?? [],
-          }),
-          signal: validateAbort.signal,
-        });
-        clearTimeout(validateTimeout);
-        if (vResponse.ok) {
-          validatorResult = (await vResponse.json()) as ValidatorResult;
+        try {
+          const vResponse = await fetch(apiFnUrl('validate-tailor'), {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: JSON.stringify({
+              originalResume: currentResume,
+              jobDescription,
+              finalResume: mergedResume,
+              mustHaveKeywords: tailorResult.atsAnalysis?.criticalKeywords ?? [],
+            }),
+            signal: validateAbort.signal,
+          });
+          if (vResponse.ok) {
+            validatorResult = (await vResponse.json()) as ValidatorResult;
+          }
+        } finally {
+          clearTimeout(validateTimeout);
         }
       } catch {
         // Non-fatal: validator timeout or error — fall back to generator score
