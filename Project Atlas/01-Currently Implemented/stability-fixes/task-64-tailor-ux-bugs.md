@@ -34,7 +34,7 @@
 
 **Root cause:** On any transient error, `tailorResumeWithProgress` called `onProgress({ progress: 70, … })` before auto-retrying, visibly dropping the bar from whatever value the timer had reached.
 
-**Fix:** Added `let lastEmittedProgress = 0` tracker. The interval updates it on each step transition. On retry, `progress: Math.max(lastEmittedProgress, 70)` is used — the bar never decreases.
+**Fix:** Added `let lastEmittedProgress = 0` tracker. Updated on every interval tick (not just step transitions) so it always reflects the live animated value. On retry, `progress: lastEmittedProgress` carries the exact current position through — no jump, no regression.
 
 ### 5 — Resume-switch toast appeared as error
 

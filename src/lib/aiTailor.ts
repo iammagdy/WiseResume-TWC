@@ -82,6 +82,7 @@ export async function tailorResumeWithProgress(
     const t = Math.min(elapsed / 30000, 1); // 30s expected max
     const eased = 1 - Math.pow(1 - t, 3); // cubic ease-out
     const currentProgress = Math.min(eased * 85, 85);
+    lastEmittedProgress = currentProgress; // always track live animated value for retry use
 
     // Determine which step we're on based on percentage thresholds
     let stepIndex = 0;
@@ -99,7 +100,6 @@ export async function tailorResumeWithProgress(
         funFact: step.funFact,
       } as EnhancedTailorProgress);
       lastStepIndex = stepIndex;
-      lastEmittedProgress = currentProgress;
     }
   }, 200);
 
@@ -174,10 +174,10 @@ export async function tailorResumeWithProgress(
       if (code === 'rate_limit' || code === 'credits_exhausted') throw firstError;
       if (firstError.message?.includes('Unauthorized')) throw firstError;
 
-      // Auto-retry once after 2s — preserve current progress (never regress the bar)
+      // Auto-retry once after 2s — carry through current progress exactly (no regression)
       onProgress({
         step: 'finalizing',
-        progress: Math.max(lastEmittedProgress, 70),
+        progress: lastEmittedProgress,
         message: '🔄 Retrying — hang tight...',
         funFact: FUN_FACTS[0],
       } as EnhancedTailorProgress);
