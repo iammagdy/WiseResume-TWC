@@ -1313,6 +1313,7 @@ function ResultsPanel({
       setDiscardConfirm(false);
       onRevert();
     } else {
+      if (discardTimerRef.current) clearTimeout(discardTimerRef.current);
       setDiscardConfirm(true);
       discardTimerRef.current = setTimeout(() => setDiscardConfirm(false), 3000);
     }
@@ -1343,11 +1344,7 @@ function ResultsPanel({
     if (!tailorResult?.skills) return '0 skills optimized';
     if (!originalResume?.skills) return `${tailorResult.skills.length} skills optimized`;
     const diff = compareSkills(originalResume.skills, tailorResult.skills);
-    const parts: string[] = [];
-    if (diff.added.length > 0) parts.push(`Added ${diff.added.length}`);
-    if (diff.removed.length > 0) parts.push(`Removed ${diff.removed.length}`);
-    parts.push(`Kept ${diff.unchanged.length}`);
-    return parts.join(' · ');
+    return `Added ${diff.added.length} · Removed ${diff.removed.length} · Kept ${diff.unchanged.length}`;
   }, [originalResume?.skills, tailorResult?.skills]);
 
   const experienceChangesSummary = useMemo(() => {
