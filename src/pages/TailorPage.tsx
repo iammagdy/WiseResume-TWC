@@ -1245,30 +1245,43 @@ function ResultsPanel({
           )}
 
           {/* Apply */}
-          <div className="flex flex-wrap gap-2 pt-2">
-            <Button variant="outline" className="flex-1 min-w-[110px]" onClick={onRevert}>
-              <X className="w-4 h-4 mr-2" /> Discard
-            </Button>
-            <Button
-              variant="outline"
-              className="flex-1 min-w-[110px]"
-              onClick={onPreview}
-              disabled={enabledSections.length === 0}
-            >
-              <Eye className="w-4 h-4 mr-2" /> Preview
-            </Button>
-            <Button
-              className="flex-1 min-w-[140px] gradient-primary"
-              onClick={onApplyChanges}
-              disabled={enabledSections.length === 0 || isApplying}
-            >
-              {isApplying ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <CheckCircle className="w-4 h-4 mr-2" />
-              )}
-              {isApplying ? 'Creating...' : `Apply (${enabledSections.length})`}
-            </Button>
+          <div className="flex flex-col gap-2 pt-2">
+            {tailorResult?.overallScore && tailorResult.overallScore.after > tailorResult.overallScore.before && (
+              <p className="text-xs text-muted-foreground text-center">
+                Your score will improve from {tailorResult.overallScore.before}%{' '}
+                <span aria-hidden="true">→</span>{' '}
+                {tailorResult.overallScore.after}%
+              </p>
+            )}
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" className="flex-1 min-w-[110px]" onClick={onRevert}>
+                <X className="w-4 h-4 mr-2" /> Discard
+              </Button>
+              <Button
+                variant="outline"
+                className="flex-1 min-w-[110px]"
+                onClick={onPreview}
+                disabled={enabledSections.length === 0}
+              >
+                <Eye className="w-4 h-4 mr-2" /> Preview
+              </Button>
+              <Button
+                className="flex-1 min-w-[140px] gradient-primary"
+                onClick={onApplyChanges}
+                disabled={enabledSections.length === 0 || isApplying}
+              >
+                {isApplying ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                )}
+                {isApplying ? 'Creating...' : `Apply (${enabledSections.length})`}
+              </Button>
+            </div>
+            <div className="flex flex-col gap-0.5 items-center">
+              <p className="text-xs text-muted-foreground text-center">Make your resume stronger for this job</p>
+              <p className="text-[11px] text-muted-foreground/70 text-center">You can always edit your resume later</p>
+            </div>
           </div>
         </div>
       )}
