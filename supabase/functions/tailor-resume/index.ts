@@ -13,6 +13,7 @@ import { checkSmokeBypass } from "../_shared/smokeTest.ts";
 import { logger } from "../_shared/logger.ts";
 const log = logger('tailor-resume');
 import { wrapHandler } from "../_shared/fnLogger.ts";
+import { tokenize, countKeywordInTokens, resumeToText } from "../_shared/keywordScoring.ts";
 
 
 /** Safely extract skills as a comma-separated string */
@@ -130,67 +131,6 @@ For mustHaveKeywords: include 10-20 specific, searchable terms (technologies, me
 }
 
 /**
- * Light stemming: strips common English suffixes to normalize variants.
- * e.g. "managing" → "manag", "managed" → "manag", "kubernetes" → "kubernetes"
- * This avoids false positives from substring matching (e.g., "java" inside "javascript").
- */
-function stem(word: string): string {
-  const w = word.toLowerCase().trim();
-  // Strip possessives
-  let s = w.replace(/'s$/, '');
-  // Strip common suffixes in order of length (longest first)
-  const suffixes = ['ations', 'ation', 'ments', 'ment', 'ities', 'ity', 'ness',
-    'ings', 'ing', 'tion', 'ions', 'ion', 'ers', 'er', 'ies', 'es', 's', 'ed', 'ly'];
-  for (const suffix of suffixes) {
-    if (s.length > suffix.length + 3 && s.endsWith(suffix)) {
-      s = s.slice(0, s.length - suffix.length);
-      break;
-    }
-  }
-  return s;
-}
-
-/**
- * Tokenize text into normalized word tokens for keyword matching.
- * Splits on non-alphanumeric characters, lowercases all tokens.
- */
-function tokenize(text: string): string[] {
-  return text.toLowerCase().split(/[^a-z0-9]+/).filter(t => t.length > 0);
-}
-
-/**
- * Counts how many times a keyword (which may be a phrase) appears in tokenized text.
- * Uses word-boundary matching on tokens to prevent substring false positives.
- * For single-word keywords: matches stemmed token.
- * For multi-word phrases: looks for all tokens appearing consecutively (sliding window).
- */
-function countKeywordInTokens(keyword: string, textTokens: string[]): number {
-  const kwTokens = tokenize(keyword);
-  if (kwTokens.length === 0) return 0;
-
-  if (kwTokens.length === 1) {
-    // Single word — match stemmed form
-    const stemmedKw = stem(kwTokens[0]);
-    return textTokens.filter(t => stem(t) === stemmedKw).length;
-  }
-
-  // Multi-word phrase — look for consecutive token sequence (stemmed)
-  const stemmedKwTokens = kwTokens.map(stem);
-  let count = 0;
-  for (let i = 0; i <= textTokens.length - stemmedKwTokens.length; i++) {
-    let match = true;
-    for (let j = 0; j < stemmedKwTokens.length; j++) {
-      if (stem(textTokens[i + j]) !== stemmedKwTokens[j]) {
-        match = false;
-        break;
-      }
-    }
-    if (match) count++;
-  }
-  return count;
-}
-
-/**
  * Deterministic ATS keyword scoring.
  * Uses word-boundary token matching with light stemming to prevent false positives
  * (e.g., "java" will NOT match inside "javascript").
@@ -251,42 +191,6 @@ function computeAtsKeywordScores(
     matchedKeywords,
     unmatchedKeywords,
   };
-}
-
-/**
- * Extracts a flat text representation of the resume for keyword counting.
- */
-function resumeToText(resume: any): string {
-  const parts: string[] = [];
-  if (resume.summary) parts.push(resume.summary);
-  if (Array.isArray(resume.skills)) {
-    parts.push(resume.skills.map((s: any) => typeof s === 'string' ? s : s?.name || '').join(' '));
-  }
-  if (Array.isArray(resume.experience)) {
-    for (const exp of resume.experience) {
-      if (exp.description) parts.push(exp.description);
-      if (exp.position) parts.push(exp.position);
-      if (Array.isArray(exp.achievements)) parts.push(exp.achievements.join(' '));
-    }
-  }
-  if (Array.isArray(resume.education)) {
-    for (const edu of resume.education) {
-      const eduParts = [edu.degree, edu.field, edu.institution].filter(Boolean);
-      if (eduParts.length > 0) parts.push(eduParts.join(' '));
-    }
-  }
-  if (Array.isArray(resume.projects)) {
-    for (const proj of resume.projects) {
-      if (proj.description) parts.push(proj.description);
-      if (Array.isArray(proj.technologies)) parts.push(proj.technologies.join(' '));
-    }
-  }
-  if (Array.isArray(resume.certifications)) {
-    for (const cert of resume.certifications) {
-      if (cert.name) parts.push(cert.name);
-    }
-  }
-  return parts.join(' ');
 }
 
 // ============= INTENSITY-BASED PROMPT MODIFIERS =============

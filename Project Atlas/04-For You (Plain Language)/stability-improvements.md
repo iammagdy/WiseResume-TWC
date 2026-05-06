@@ -1,6 +1,16 @@
 # Stability Improvements — What's Getting Better Behind the Scenes
 
-**Last verified:** 2026-05-06 (Task #36 — validate-tailor)
+**Last verified:** 2026-05-06 (Task #39 — keyword scoring consolidation)
+
+## The keyword-matching rules that calculate your match score can no longer drift out of sync (2026-05-06)
+
+**What was the situation:** Two separate processes calculate your keyword match score — one when your resume is first tailored, and one when the result is independently verified before saving. The underlying rules (how words are matched, how score percentages are computed) were copy-pasted between those two processes. Any future bug fix or improvement would have had to be applied in both places independently; if someone updated one and forgot the other, your tailored score and your verified score could silently start disagreeing.
+
+**What changed:** The shared matching rules now live in exactly one place. Both processes read from that single file. A change anywhere automatically applies everywhere.
+
+**What you'll notice:** Nothing visible changes — scores work the same way. The improvement is that scores are now guaranteed to stay consistent between tailoring and verification, permanently.
+
+---
 
 ## Your job match score is now independently verified before saving (2026-05-06)
 

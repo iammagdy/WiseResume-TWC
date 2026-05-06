@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-05-06 — Extract shared keyword-scoring logic into _shared/keywordScoring.ts (Task #39)
+
+**Files changed:**
+- `supabase/functions/_shared/keywordScoring.ts` — new shared module; exports `stem`, `tokenize`, `countKeywordInTokens`, `resumeToText`, `computeDeterministicScores`
+- `supabase/functions/tailor-resume/index.ts` — removed local `stem`, `tokenize`, `countKeywordInTokens`, `resumeToText`; imports `tokenize`, `countKeywordInTokens`, `resumeToText` from `_shared/keywordScoring.ts`; `computeAtsKeywordScores` remains local (tailor-specific shape)
+- `supabase/functions/validate-tailor/index.ts` — removed all five local duplicate functions; imports `resumeToText`, `computeDeterministicScores` from `_shared/keywordScoring.ts`
+
+**Behaviour:**
+- No runtime behaviour change; algorithmic output is identical
+- Single source of truth for keyword scoring: all future bug fixes or stemming improvements must only be made in `_shared/keywordScoring.ts`
+- `validate-tailor`'s stricter TypeScript types (no `any`) preserved in the shared module
+
 ## 2026-05-06 — Verified match scores on dashboard cards and tailor history (Task #38)
 
 **Files changed:**

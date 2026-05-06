@@ -1,9 +1,10 @@
 # tailor-resume
 
-  **Last verified:** 2026-04-17
+  **Last verified:** 2026-05-06
   **Type:** reference card
   **Sources:**
   - `supabase/functions/tailor-resume/index.ts`
+  - `supabase/functions/_shared/keywordScoring.ts` (stem, tokenize, countKeywordInTokens, resumeToText)
   - `supabase/config.toml` (JWT verification flag)
   - `supabase/functions/_shared/aiClient.ts`
 - `supabase/functions/_shared/creditUtils.ts`
