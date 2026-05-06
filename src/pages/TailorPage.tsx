@@ -21,6 +21,7 @@ import { ScoreComparison } from '@/components/editor/tailor/ScoreComparison';
 import { KeywordMatchBar } from '@/components/editor/tailor/KeywordMatchBar';
 import { KeywordMatchList } from '@/components/editor/tailor/KeywordMatchList';
 import { JobUrlParser } from '@/components/editor/tailor/JobUrlParser';
+import { TailorDemoPanel } from '@/components/editor/tailor/TailorDemoPanel';
 import { TailorPreviewSheet } from '@/components/editor/tailor/TailorPreviewSheet';
 import { buildMergedResume, applyFixesOnTop } from '@/lib/tailorMerge';
 import { compareSkills, diffText } from '@/lib/diffUtils';
@@ -1072,27 +1073,7 @@ export default function TailorPage() {
               onApplyFix={handleApplyFix}
             />
           ) : (
-            <div className="relative rounded-xl border border-border bg-card p-6 space-y-4 opacity-60 overflow-hidden">
-              <div className="space-y-2">
-                <div className="flex gap-3 items-center">
-                  <div className="h-4 w-40 rounded bg-muted animate-pulse" />
-                  <div className="h-3 w-28 rounded bg-muted animate-pulse" />
-                </div>
-              </div>
-              {[0, 1, 2].map((i) => (
-                <div key={i} className="space-y-2">
-                  <div className="h-3 w-20 rounded bg-muted animate-pulse" />
-                  <div className="h-3 w-full rounded bg-muted animate-pulse" />
-                  <div className="h-3 w-4/5 rounded bg-muted animate-pulse" />
-                  <div className="h-3 w-3/5 rounded bg-muted animate-pulse" />
-                </div>
-              ))}
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/60 backdrop-blur-[2px] text-center px-6">
-                <Badge variant="secondary">Before → After optimization</Badge>
-                <p className="font-medium mt-2">Your optimized resume will appear here</p>
-                <p className="text-sm text-muted-foreground mt-1">See how your resume gets improved to match the job</p>
-              </div>
-            </div>
+            <TailorDemoPanel />
           )}
         </div>
       </div>

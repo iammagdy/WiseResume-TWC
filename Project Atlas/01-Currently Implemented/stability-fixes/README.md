@@ -35,3 +35,4 @@ Cards in this folder describe shipped or in-flight stability fixes from the 2026
 - [Kinde custom domain split — `auth.thewise.cloud` separated from `resume.thewise.cloud`](./kinde-custom-domain-split.md)
 - [Task #15 — DevKit AI model catalog: cron fix, per-provider caps, non-chat filter](./task-15-ai-model-catalog-cron.md)
 - [Task #64 — Tailor UX bug fixes: URL/paste toggle, placeholder text, dark-mode text contrast, progress regression on retry, resume-switch toast colour](./task-64-tailor-ux-bugs.md)
+- [Task #65 — Tailor animated demo panel: looping Before→After animation in the desktop right panel empty state](./task-65-tailor-animated-demo-panel.md)

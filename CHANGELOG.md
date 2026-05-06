@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-05-06 — Task #65: Tailor animated demo panel
+
+**Files changed:**
+- `src/components/editor/tailor/TailorDemoPanel.tsx` (new)
+- `src/pages/TailorPage.tsx`
+
+**Changes:**
+- `TailorDemoPanel` (new component) — self-contained animated card that cycles through three illustrative "Before → After" bullet-point transformations on a ~4.8 s loop (1800 ms before / 700 ms sparkle transform / 1900 ms after / 350 ms reset). Uses `useReducedMotion` from framer-motion to freeze on the static "After" frame when the system preference is set. Phases: `before` (muted bullet with "Before" badge) → `transforming` (pulsing sparkle globe in centre, `gradient-primary` background) → `after` (primary-tinted bullet with "After" badge) → `resetting` (fade, advance example index). Progress dots below the animation area indicate which of the three examples is active. No hardcoded marketing stats — copy is realistic but non-specific illustrative text.
+- `TailorPage.tsx`: replaced the 20-line static blurred skeleton placeholder in the desktop right panel (lines 1075–1095) with `<TailorDemoPanel />`. Component unmounts automatically when `tailorResult` arrives — no regression to the existing results display.
+
+---
+
 ## 2026-05-06 — Task #64: Tailor UX bug fixes
 
 **Files changed:**
