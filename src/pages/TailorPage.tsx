@@ -34,7 +34,10 @@ import {
   TailorSectionId,
   ResumeData,
   EnhancedTailorProgress,
+  ValidatorResult,
 } from '@/types/resume';
+import { apiFnUrl } from '@/lib/apiFnUrl';
+import { getSupabaseToken } from '@/lib/supabaseAuth';
 import { cn } from '@/lib/utils';
 import { useShallow } from 'zustand/react/shallow';
 import { Json } from '@/integrations/supabase/types';
@@ -194,6 +197,7 @@ export default function TailorPage() {
   const [appliedJobInfo, setAppliedJobInfo] = useState<{ title: string; company: string } | null>(null);
   const [appliedScore, setAppliedScore] = useState<{ before: number; after: number } | null>(null);
   const [appliedKeywordCount, setAppliedKeywordCount] = useState<number | null>(null);
+  const [appliedValidatorResult, setAppliedValidatorResult] = useState<ValidatorResult | null>(null);
 
   const [customInstructions, setCustomInstructions] = useState(
     () => localStorage.getItem(CUSTOM_INSTRUCTIONS_KEY) || ''
@@ -390,6 +394,41 @@ export default function TailorPage() {
       const originalTitle = currentResume.contactInfo.fullName || 'Resume';
       const newTitle = `${originalTitle} - Tailored for ${jobTitle} @ ${company}`;
 
+      // Phase: validate the final merged resume before saving.
+      // The validator score is the single source of truth for job_match_score.
+      // On timeout or error we fall back to the generator's estimated score.
+      let validatorResult: ValidatorResult | null = null;
+      try {
+        const token = await getSupabaseToken();
+        const validateAbort = new AbortController();
+        const validateTimeout = setTimeout(() => validateAbort.abort(), 12000);
+        const vResponse = await fetch(apiFnUrl('validate-tailor'), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({
+            originalResume: currentResume,
+            jobDescription,
+            finalResume: mergedResume,
+            mustHaveKeywords: tailorResult.atsAnalysis?.criticalKeywords ?? [],
+          }),
+          signal: validateAbort.signal,
+        });
+        clearTimeout(validateTimeout);
+        if (vResponse.ok) {
+          validatorResult = (await vResponse.json()) as ValidatorResult;
+        }
+      } catch {
+        // Non-fatal: validator timeout or error — fall back to generator score
+      }
+
+      const finalMatchScore =
+        validatorResult !== null
+          ? validatorResult.score
+          : (tailorResult.overallScore?.after ?? null);
+
       const { data: newResume, error } = await supabase
         .from('resumes')
         .insert({
@@ -407,7 +446,7 @@ export default function TailorPage() {
           parent_resume_id: currentResumeId,
           target_job_title: jobTitle,
           target_company: company,
-          job_match_score: tailorResult.overallScore?.after ?? null,
+          job_match_score: finalMatchScore,
           job_url: jobUrl || null,
         })
         .select()
@@ -424,14 +463,16 @@ export default function TailorPage() {
         appliedSections: enabledSections,
       }, currentResumeId || undefined);
 
-      const matchedCount = tailorResult.atsAnalysis?.matchedKeywords?.length ?? 0;
+      const matchedCount = validatorResult?.matched_keywords?.length ?? tailorResult.atsAnalysis?.matchedKeywords?.length ?? 0;
       setAppliedResumeId(newResume?.id || null);
       setAppliedResumeTitle(newTitle);
       setAppliedJobInfo({ title: jobTitle, company });
       setAppliedScore(tailorResult.overallScore ?? null);
       setAppliedKeywordCount(matchedCount > 0 ? matchedCount : null);
+      setAppliedValidatorResult(validatorResult);
       logTailorEvent('success-screen-shown', {
         score: tailorResult.overallScore,
+        validatedScore: validatorResult?.score ?? null,
         keywordsMatched: matchedCount,
       });
       setShowAppliedCTA(true);
@@ -568,6 +609,7 @@ export default function TailorPage() {
     setAppliedJobInfo(null);
     setAppliedScore(null);
     setAppliedKeywordCount(null);
+    setAppliedValidatorResult(null);
     navigate(-1);
   }, [navigate]);
 
@@ -757,6 +799,7 @@ export default function TailorPage() {
                 onGoToPortfolio={handleGoToPortfolio}
                 appliedScore={appliedScore}
                 appliedKeywordCount={appliedKeywordCount}
+                appliedValidatorResult={appliedValidatorResult}
                 copiedText={copiedText}
                 onCopyText={handleCopyPlainText}
                 onReTailor={handleTailor}
@@ -799,6 +842,7 @@ export default function TailorPage() {
               onGoToPortfolio={handleGoToPortfolio}
               appliedScore={appliedScore}
               appliedKeywordCount={appliedKeywordCount}
+              appliedValidatorResult={appliedValidatorResult}
               copiedText={copiedText}
               onCopyText={handleCopyPlainText}
               onReTailor={handleTailor}
@@ -889,6 +933,7 @@ interface ResultsPanelProps {
   onGoToPortfolio: () => void;
   appliedScore: { before: number; after: number } | null;
   appliedKeywordCount: number | null;
+  appliedValidatorResult: ValidatorResult | null;
   copiedText: boolean;
   onCopyText: () => void;
   onReTailor: () => void;
@@ -907,12 +952,14 @@ function ResultsPanel({
   onRetry, onSettings, onRevert, abortRef, setIsTailoring, setProgress,
   showAppliedCTA, appliedResumeId, appliedResumeTitle, appliedJobInfo,
   onViewResume, onTrackApplication, onCloseSuccess, onGoToPortfolio, appliedScore,
-  appliedKeywordCount,
+  appliedKeywordCount, appliedValidatorResult,
   copiedText, onCopyText, onReTailor,
   rejectedBullets, onBulletReject, onRegenerate, revealedSections,
 }: ResultsPanelProps) {
   if (showAppliedCTA && !isTailoring && !tailorResult) {
-    const improvement = appliedScore ? appliedScore.after - appliedScore.before : 0;
+    const validatedAfterScore = appliedValidatorResult?.score ?? appliedScore?.after ?? 0;
+    const improvement = appliedScore ? validatedAfterScore - appliedScore.before : 0;
+    const isVerified = appliedValidatorResult !== null;
     return (
       <div className="flex flex-col items-center justify-center gap-6 py-12 px-6 text-center animate-fade-in">
         <div className="w-16 h-16 rounded-full bg-success/10 flex items-center justify-center">
@@ -945,11 +992,11 @@ function ResultsPanel({
               </div>
               <span className="text-muted-foreground text-lg">→</span>
               <div className="text-center">
-                <ScoreLabel score={appliedScore.after} />
+                <ScoreLabel score={validatedAfterScore} />
                 <p className="text-[10px] text-muted-foreground mt-0.5">After</p>
               </div>
             </div>
-            <div className="mt-3 flex justify-center">
+            <div className="mt-3 flex items-center justify-center gap-2 flex-wrap">
               {improvement > 0 ? (
                 <span className="inline-flex items-center gap-1 text-xs font-semibold text-success bg-success/10 px-2.5 py-0.5 rounded-full">
                   +{improvement} improvement
@@ -957,11 +1004,62 @@ function ResultsPanel({
               ) : (
                 <span className="text-xs text-muted-foreground">Your resume has been refined and aligned with this role</span>
               )}
+              <span className={cn(
+                'inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full',
+                isVerified
+                  ? 'bg-success/10 text-success'
+                  : 'bg-muted text-muted-foreground'
+              )}>
+                {isVerified ? '✓ Verified' : '~ Estimated'}
+              </span>
             </div>
+            {appliedValidatorResult?.verdict && (
+              <div className="mt-2 flex justify-center">
+                <span className={cn(
+                  'text-xs font-medium px-2.5 py-0.5 rounded-full',
+                  appliedValidatorResult.verdict === 'strong'
+                    ? 'bg-success/10 text-success'
+                    : appliedValidatorResult.verdict === 'average'
+                      ? 'bg-amber-500/10 text-amber-600'
+                      : 'bg-destructive/10 text-destructive'
+                )}>
+                  {appliedValidatorResult.verdict === 'strong'
+                    ? 'Strong match'
+                    : appliedValidatorResult.verdict === 'average'
+                      ? 'Average match'
+                      : 'Weak match'}
+                </span>
+              </div>
+            )}
             {appliedKeywordCount !== null && appliedKeywordCount > 0 && (
               <p className="text-xs text-muted-foreground mt-2">
                 +{appliedKeywordCount} keywords matched
               </p>
+            )}
+            {appliedValidatorResult?.missing_keywords && appliedValidatorResult.missing_keywords.length > 0 && (
+              <div className="mt-2 text-left">
+                <p className="text-[10px] font-medium text-muted-foreground mb-1">Still missing:</p>
+                <div className="flex flex-wrap gap-1">
+                  {appliedValidatorResult.missing_keywords.slice(0, 5).map((kw, i) => (
+                    <span key={i} className="text-[10px] bg-destructive/10 text-destructive px-1.5 py-0.5 rounded">{kw}</span>
+                  ))}
+                  {appliedValidatorResult.missing_keywords.length > 5 && (
+                    <span className="text-[10px] text-muted-foreground">+{appliedValidatorResult.missing_keywords.length - 5} more</span>
+                  )}
+                </div>
+              </div>
+            )}
+            {appliedValidatorResult?.issues && appliedValidatorResult.issues.length > 0 && (
+              <details className="mt-2 text-left">
+                <summary className="text-[10px] font-medium text-muted-foreground cursor-pointer hover:text-foreground">
+                  Review notes ({appliedValidatorResult.issues.length})
+                </summary>
+                <ul className="mt-1 space-y-0.5">
+                  {appliedValidatorResult.issues.map((issue, i) => (
+                    <li key={i} className="text-[10px] text-muted-foreground">• {issue}</li>
+                  ))}
+                </ul>
+              </details>
             )}
           </div>
         )}

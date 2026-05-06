@@ -565,6 +565,7 @@ Transform this resume into a PERFECT match for the target job while maintaining 
 6. Every bullet should follow: ACTION VERB + WHAT + RESULT/IMPACT
 7. Weave critical keywords naturally - no stuffing
 8. Score honestly - don't inflate scores to please
+9. SKILLS INTEGRITY: Only add a skill to the tailored skills list if it already appears in the original resume OR is explicitly required in the job description. Do not invent or hallucinate skills. The result will be independently validated.
 
 ## BULLET TRANSFORMATION INSTRUCTIONS
 ${industrySpecificExamples}

@@ -410,7 +410,16 @@ export interface CoverLetterContext {
    fullDescription?: string;
    jobIntelligence?: JobIntelligence;
  }
- 
+
+export interface ValidatorResult {
+  score: number;
+  matched_keywords: string[];
+  missing_keywords: string[];
+  issues: string[];
+  strengths: string[];
+  verdict: 'weak' | 'average' | 'strong' | null;
+}
+
  // Extended tailor result with all new fields
   export interface SuperTailorResult extends EnhancedTailorResult {
     jobIntelligence?: JobIntelligence;

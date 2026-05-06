@@ -1,5 +1,30 @@
 # Changelog
 
+## 2026-05-06 — validate-tailor Edge Function + Apply-time score verification (Task #36)
+
+**Files changed:**
+- `supabase/functions/validate-tailor/index.ts` — NEW: two-phase validator edge function
+- `supabase/config.toml` — added `[functions.validate-tailor] verify_jwt = false`
+- `src/types/resume.ts` — added `ValidatorResult` interface (exported)
+- `src/pages/TailorPage.tsx` — validator fetch in `handleApplyChanges`, `appliedValidatorResult` state, updated success screen
+- `supabase/functions/tailor-resume/index.ts` — added rule 9 (SKILLS INTEGRITY) to system prompt
+
+**validate-tailor/index.ts:**
+- Phase 1 (deterministic): replicates `stem/tokenize/countKeywordInTokens/resumeToText/computeDeterministicScores` from `tailor-resume` — keyword scoring against `finalResume`, returns `score/matched_keywords/missing_keywords`. No AI, no credits.
+- Phase 2 (qualitative): `callAIWithRetry` with `featureName: 'tailor-resume'`, `temperature: 0.1`, `maxTokens: 600`. Prompt checks for hallucinated skills (skills not in original OR job description) and weak bullet language. Returns `issues/strengths/verdict`. Phase 2 failure is non-fatal; falls through with `verdict: null` and empty arrays.
+- No credit deduction. `requireAuth` guards the endpoint. `wrapHandler` wraps for invocation logging.
+
+**TailorPage.tsx:**
+- `handleApplyChanges`: fetches `validate-tailor` with 12 s `AbortController` timeout before DB insert. `job_match_score` = `validatorResult.score` if non-null, else `tailorResult.overallScore?.after`.
+- `appliedValidatorResult` state snapshotted after apply; reset in `handleCloseSuccess`.
+- Success screen: "After" score uses `validatedAfterScore`; `✓ Verified` (green) vs `~ Estimated` (muted) badge; verdict chip (Strong/Average/Weak); missing-keywords chips (max 5 + overflow count); issues `<details>` collapsed.
+- Both mobile and desktop `ResultsPanel` call sites receive `appliedValidatorResult` prop.
+- `matchedCount` prefers `validatorResult.matched_keywords.length` over generator ATS list.
+
+**tailor-resume prompt rule 9:** "SKILLS INTEGRITY: Only add a skill to the tailored skills list if it already appears in the original resume OR is explicitly required in the job description. Do not invent or hallucinate skills. The result will be independently validated."
+
+---
+
 ## 2026-05-05 — Dashboard visual hierarchy cleanup (Task #30)
 
 **Files changed:**

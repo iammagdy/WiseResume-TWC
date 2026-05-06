@@ -1,6 +1,14 @@
 # Stability Improvements — What's Getting Better Behind the Scenes
 
-**Last verified:** 2026-05-05 (Task #22 — Replit preview auth)
+**Last verified:** 2026-05-06 (Task #36 — validate-tailor)
+
+## Your job match score is now independently verified before saving (2026-05-06)
+
+**What was the situation:** When you clicked "Apply" on a tailored resume, the match score that appeared on the success screen and got saved with your new resume came from the same AI process that created the tailoring — in other words, the AI was essentially grading its own homework. This made it possible for the score to be optimistic or inconsistent, because the same system that rewrote your resume was also deciding how well the rewrite matched the job.
+
+**What changed:** There is now a second, independent check that runs the moment you click Apply. It re-reads the final resume — exactly as it will be saved — and counts how many of the job's required keywords are actually present. This count uses a rule-based algorithm (not another AI guess), so the score is deterministic and consistent. An AI layer also reviews the result for things like made-up skills or weak bullet language. The score shown on the success screen and stored in your resume now comes from this independent verification step. You'll see a small "✓ Verified" badge next to the score when verification succeeded, or "~ Estimated" when it fell back to the original score (for example, if the check timed out). If any keywords are still missing after tailoring, they'll appear as chips below the score so you know exactly what to address.
+
+---
 
 ## The AI model picker in the admin tools now shows the real, live list of available models (2026-05-05)
 
