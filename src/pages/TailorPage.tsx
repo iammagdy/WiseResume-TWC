@@ -4,7 +4,8 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Wand2, Loader2, CheckCircle, ArrowLeft, Sparkles, Zap, Gauge, Flame,
   Settings, RefreshCw, Copy, Check, ExternalLink, ChevronDown, ChevronUp,
-  Key, HeartHandshake, Bug, X, Briefcase, Eye, Globe, TrendingUp
+  Key, HeartHandshake, Bug, X, Briefcase, Eye, Globe, TrendingUp,
+  Shield, AlertTriangle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -199,6 +200,10 @@ export default function TailorPage() {
   const [appliedKeywordCount, setAppliedKeywordCount] = useState<number | null>(null);
   const [appliedValidatorResult, setAppliedValidatorResult] = useState<ValidatorResult | null>(null);
 
+  const [preValidatorResult, setPreValidatorResult] = useState<ValidatorResult | null>(null);
+  const [isPreValidating, setIsPreValidating] = useState(false);
+  const [dismissedIssueIndices, setDismissedIssueIndices] = useState<Set<number>>(new Set());
+
   const [customInstructions, setCustomInstructions] = useState(
     () => localStorage.getItem(CUSTOM_INSTRUCTIONS_KEY) || ''
   );
@@ -211,6 +216,7 @@ export default function TailorPage() {
   const [rejectedBullets, setRejectedBullets] = useState<Set<string>>(new Set());
 
   const abortRef = useRef<AbortController | null>(null);
+  const preValidateAbortRef = useRef<AbortController | null>(null);
   const copiedTextTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { execute: executeAI } = useAIAction({ operation: 'tailor' });
   const redactedResume = useRedactedResume(currentResume as ResumeData | null);
@@ -322,6 +328,13 @@ export default function TailorPage() {
     setAppliedResumeId(null);
     setAppliedResumeTitle(null);
     setAppliedJobInfo(null);
+    setPreValidatorResult(null);
+    setIsPreValidating(false);
+    setDismissedIssueIndices(new Set());
+
+    // Cancel any in-flight pre-validation from a previous tailor run
+    preValidateAbortRef.current?.abort();
+    preValidateAbortRef.current = null;
 
     abortRef.current = new AbortController();
 
@@ -364,6 +377,44 @@ export default function TailorPage() {
         intensity,
         jobUrl: jobUrl || null,
       });
+
+      // Fire-and-forget pre-validate: runs in background after result arrives
+      setIsPreValidating(true);
+      (async () => {
+        try {
+          const mergedForValidation = buildMergedResume(currentResume, superResult, enabledSections, new Set());
+          const token = await getSupabaseToken();
+          const thisAbort = new AbortController();
+          preValidateAbortRef.current = thisAbort;
+          const preValidateTimeout = setTimeout(() => thisAbort.abort(), 12000);
+          try {
+            const vResponse = await fetch(apiFnUrl('validate-tailor'), {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+              },
+              body: JSON.stringify({
+                originalResume: currentResume,
+                jobDescription,
+                finalResume: mergedForValidation,
+                mustHaveKeywords: superResult.atsAnalysis?.criticalKeywords ?? [],
+              }),
+              signal: thisAbort.signal,
+            });
+            // Only apply result if this is still the current pre-validate request
+            if (vResponse.ok && preValidateAbortRef.current === thisAbort) {
+              setPreValidatorResult((await vResponse.json()) as ValidatorResult);
+            }
+          } finally {
+            clearTimeout(preValidateTimeout);
+          }
+        } catch {
+          // Non-fatal — pre-validation is advisory only
+        } finally {
+          setIsPreValidating(false);
+        }
+      })();
     } catch (error) {
       const err = error as TailorError;
       const rawMsg = err?.message;
@@ -378,7 +429,11 @@ export default function TailorPage() {
       setIsTailoring(false);
       setProgress(null);
     }
-  }, [jobDescription, currentResume, intensity, customInstructions, executeAI, setPendingTailor, jobUrl, redactedResume]);
+  }, [jobDescription, currentResume, intensity, customInstructions, executeAI, setPendingTailor, jobUrl, redactedResume, enabledSections]);
+
+  const handleDismissIssue = useCallback((index: number) => {
+    setDismissedIssueIndices(prev => new Set([...prev, index]));
+  }, []);
 
   const handleApplyChanges = useCallback(async () => {
     if (!tailorResult || !currentResume || !user) return;
@@ -810,6 +865,10 @@ export default function TailorPage() {
                 onBulletReject={setRejectedBullets}
                 onRegenerate={handleRegenerateSection}
                 revealedSections={revealedSections}
+                preValidatorResult={preValidatorResult}
+                isPreValidating={isPreValidating}
+                dismissedIssueIndices={dismissedIssueIndices}
+                onDismissIssue={handleDismissIssue}
               />
             )}
           </div>
@@ -853,6 +912,10 @@ export default function TailorPage() {
               onBulletReject={setRejectedBullets}
               onRegenerate={handleRegenerateSection}
               revealedSections={revealedSections}
+              preValidatorResult={preValidatorResult}
+              isPreValidating={isPreValidating}
+              dismissedIssueIndices={dismissedIssueIndices}
+              onDismissIssue={handleDismissIssue}
             />
           ) : (
             <div className="flex-1 flex items-center justify-center text-center text-muted-foreground px-8">
@@ -881,7 +944,7 @@ export default function TailorPage() {
           handleApplyChanges();
         }}
         isApplying={isApplying}
-        applyLabel={`Apply (${enabledSections.length})`}
+        applyLabel={preValidatorResult ? `Apply (${preValidatorResult.score}% → Verified)` : `Apply (${enabledSections.length})`}
         jobTitle={parsedJobInfo?.title || tailorResult?.jobParsed?.title}
       />
     </div>
@@ -942,11 +1005,77 @@ interface ResultsPanelProps {
   onReTailor: () => void;
   onRegenerate: (sectionId: TailorSectionId, instruction?: string) => Promise<void>;
   revealedSections: Set<TailorSectionId>;
+  preValidatorResult: ValidatorResult | null;
+  isPreValidating: boolean;
+  dismissedIssueIndices: Set<number>;
+  onDismissIssue: (index: number) => void;
 }
 
 function ScoreLabel({ score }: { score: number }) {
   const color = score >= 85 ? 'text-success' : score >= 70 ? 'text-amber-500' : 'text-destructive';
   return <span className={cn('text-2xl font-bold tabular-nums', color)}>{score}%</span>;
+}
+
+/** Maps each issue index to the most relevant section (or 'global' for catch-all). */
+function mapIssuesToSections(issues: string[]): Map<TailorSectionId | 'global', number[]> {
+  const priorityMap: Array<{ sectionId: TailorSectionId | 'global'; keywords: string[] }> = [
+    { sectionId: 'summary', keywords: ['summary', 'objective'] },
+    { sectionId: 'education', keywords: ['education', 'degree', 'university', 'college', 'gpa', 'coursework'] },
+    { sectionId: 'projects', keywords: ['project'] },
+    { sectionId: 'certifications', keywords: ['certification', 'certificate', 'credential', 'licensed'] },
+    // awards intentionally omitted — no callout render path in ResultsPanel; falls to 'global'
+    { sectionId: 'skills', keywords: ['skill', 'technology', 'tool', 'hallucinated', 'fabricated', 'invented'] },
+    { sectionId: 'experience', keywords: ['bullet', 'achievement', 'experience', 'position', 'responsible for', 'generic phrasing', 'vague', 'weak phrasing'] },
+  ];
+
+  const result = new Map<TailorSectionId | 'global', number[]>();
+  issues.forEach((issue, i) => {
+    const lower = issue.toLowerCase();
+    let assigned = false;
+    for (const { sectionId, keywords } of priorityMap) {
+      if (keywords.some(kw => lower.includes(kw))) {
+        if (!result.has(sectionId)) result.set(sectionId, []);
+        result.get(sectionId)!.push(i);
+        assigned = true;
+        break;
+      }
+    }
+    if (!assigned) {
+      if (!result.has('global')) result.set('global', []);
+      result.get('global')!.push(i);
+    }
+  });
+  return result;
+}
+
+interface SectionIssueCalloutsProps {
+  sectionId: TailorSectionId;
+  issueIndices: number[];
+  issues: string[];
+  dismissedIssueIndices: Set<number>;
+  onDismissIssue: (index: number) => void;
+}
+
+function SectionIssueCallouts({ sectionId: _sectionId, issueIndices, issues, dismissedIssueIndices, onDismissIssue }: SectionIssueCalloutsProps) {
+  const visible = issueIndices.filter(i => !dismissedIssueIndices.has(i));
+  if (visible.length === 0) return null;
+  return (
+    <div className="space-y-1.5 -mt-1">
+      {visible.map(i => (
+        <div key={i} className="flex items-start gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
+          <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
+          <p className="text-xs text-foreground flex-1 leading-snug">{issues[i]}</p>
+          <button
+            onClick={() => onDismissIssue(i)}
+            className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="Dismiss"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function ResultsPanel({
@@ -958,7 +1087,13 @@ function ResultsPanel({
   appliedKeywordCount, appliedValidatorResult,
   copiedText, onCopyText, onReTailor,
   rejectedBullets, onBulletReject, onRegenerate, revealedSections,
+  preValidatorResult, isPreValidating, dismissedIssueIndices, onDismissIssue,
 }: ResultsPanelProps) {
+  const issueMap = useMemo(
+    () => preValidatorResult ? mapIssuesToSections(preValidatorResult.issues) : new Map<TailorSectionId | 'global', number[]>(),
+    [preValidatorResult]
+  );
+
   if (showAppliedCTA && !isTailoring && !tailorResult) {
     const validatedAfterScore = appliedValidatorResult?.score ?? appliedScore?.after ?? 0;
     const improvement = appliedScore ? validatedAfterScore - appliedScore.before : 0;
@@ -1220,6 +1355,9 @@ function ResultsPanel({
                 preview={<p className="text-muted-foreground leading-relaxed">{tailorResult.summary}</p>}
               />
             </SectionRevealWrapper>
+            {preValidatorResult && issueMap.get('summary') && (
+              <SectionIssueCallouts sectionId="summary" issueIndices={issueMap.get('summary')!} issues={preValidatorResult.issues} dismissedIssueIndices={dismissedIssueIndices} onDismissIssue={onDismissIssue} />
+            )}
 
             <SectionRevealWrapper revealed={revealedSections.has('skills') || revealedSections.size === 0} title={SECTION_LABELS.skills}>
               <SectionChangeCard
@@ -1244,6 +1382,9 @@ function ResultsPanel({
                 }
               />
             </SectionRevealWrapper>
+            {preValidatorResult && issueMap.get('skills') && (
+              <SectionIssueCallouts sectionId="skills" issueIndices={issueMap.get('skills')!} issues={preValidatorResult.issues} dismissedIssueIndices={dismissedIssueIndices} onDismissIssue={onDismissIssue} />
+            )}
 
             <SectionRevealWrapper revealed={revealedSections.has('experience') || revealedSections.size === 0} title={SECTION_LABELS.experience}>
               <SectionChangeCard
@@ -1268,6 +1409,9 @@ function ResultsPanel({
                 }
               />
             </SectionRevealWrapper>
+            {preValidatorResult && issueMap.get('experience') && (
+              <SectionIssueCallouts sectionId="experience" issueIndices={issueMap.get('experience')!} issues={preValidatorResult.issues} dismissedIssueIndices={dismissedIssueIndices} onDismissIssue={onDismissIssue} />
+            )}
 
             <SectionRevealWrapper revealed={revealedSections.has('education') || revealedSections.size === 0} title={SECTION_LABELS.education}>
               <SectionChangeCard
@@ -1289,49 +1433,62 @@ function ResultsPanel({
                 }
               />
             </SectionRevealWrapper>
+            {preValidatorResult && issueMap.get('education') && (
+              <SectionIssueCallouts sectionId="education" issueIndices={issueMap.get('education')!} issues={preValidatorResult.issues} dismissedIssueIndices={dismissedIssueIndices} onDismissIssue={onDismissIssue} />
+            )}
 
             {tailorResult.projects && tailorResult.projects.length > 0 && (
-              <SectionRevealWrapper revealed={revealedSections.has('projects') || revealedSections.size === 0} title={SECTION_LABELS.projects}>
-                <SectionChangeCard
-                  sectionId="projects"
-                  title={SECTION_LABELS.projects}
-                  enabled={enabledSections.includes('projects')}
-                  onToggle={() => toggleSection('projects')}
-                  impactScore={5}
-                  changesSummary={`${tailorResult.projects.length} projects optimized`}
-                  onRegenerate={onRegenerate}
-                  preview={
-                    <ul className="space-y-1">
-                      {tailorResult.projects.map((p, i) => (
-                        <li key={i} className="text-muted-foreground text-sm">
-                          <span className="font-medium text-foreground">{p.name}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  }
-                />
-              </SectionRevealWrapper>
+              <>
+                <SectionRevealWrapper revealed={revealedSections.has('projects') || revealedSections.size === 0} title={SECTION_LABELS.projects}>
+                  <SectionChangeCard
+                    sectionId="projects"
+                    title={SECTION_LABELS.projects}
+                    enabled={enabledSections.includes('projects')}
+                    onToggle={() => toggleSection('projects')}
+                    impactScore={5}
+                    changesSummary={`${tailorResult.projects.length} projects optimized`}
+                    onRegenerate={onRegenerate}
+                    preview={
+                      <ul className="space-y-1">
+                        {tailorResult.projects.map((p, i) => (
+                          <li key={i} className="text-muted-foreground text-sm">
+                            <span className="font-medium text-foreground">{p.name}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    }
+                  />
+                </SectionRevealWrapper>
+                {preValidatorResult && issueMap.get('projects') && (
+                  <SectionIssueCallouts sectionId="projects" issueIndices={issueMap.get('projects')!} issues={preValidatorResult.issues} dismissedIssueIndices={dismissedIssueIndices} onDismissIssue={onDismissIssue} />
+                )}
+              </>
             )}
 
             {tailorResult.certifications && tailorResult.certifications.length > 0 && (
-              <SectionRevealWrapper revealed={revealedSections.has('certifications') || revealedSections.size === 0} title={SECTION_LABELS.certifications}>
-                <SectionChangeCard
-                  sectionId="certifications"
-                  title={SECTION_LABELS.certifications}
-                  enabled={enabledSections.includes('certifications')}
-                  onToggle={() => toggleSection('certifications')}
-                  impactScore={3}
-                  changesSummary={`${tailorResult.certifications.length} certifications refined`}
-                  onRegenerate={onRegenerate}
-                  preview={
-                    <ul className="space-y-1">
-                      {tailorResult.certifications.map((c, i) => (
-                        <li key={i} className="text-muted-foreground text-sm">{c.name} — {c.issuer}</li>
-                      ))}
-                    </ul>
-                  }
-                />
-              </SectionRevealWrapper>
+              <>
+                <SectionRevealWrapper revealed={revealedSections.has('certifications') || revealedSections.size === 0} title={SECTION_LABELS.certifications}>
+                  <SectionChangeCard
+                    sectionId="certifications"
+                    title={SECTION_LABELS.certifications}
+                    enabled={enabledSections.includes('certifications')}
+                    onToggle={() => toggleSection('certifications')}
+                    impactScore={3}
+                    changesSummary={`${tailorResult.certifications.length} certifications refined`}
+                    onRegenerate={onRegenerate}
+                    preview={
+                      <ul className="space-y-1">
+                        {tailorResult.certifications.map((c, i) => (
+                          <li key={i} className="text-muted-foreground text-sm">{c.name} — {c.issuer}</li>
+                        ))}
+                      </ul>
+                    }
+                  />
+                </SectionRevealWrapper>
+                {preValidatorResult && issueMap.get('certifications') && (
+                  <SectionIssueCallouts sectionId="certifications" issueIndices={issueMap.get('certifications')!} issues={preValidatorResult.issues} dismissedIssueIndices={dismissedIssueIndices} onDismissIssue={onDismissIssue} />
+                )}
+              </>
             )}
           </div>
 
@@ -1343,6 +1500,76 @@ function ResultsPanel({
               criticalKeywords={tailorResult.atsAnalysis?.criticalKeywords}
               missingSkills={tailorResult.missingSkills}
             />
+          )}
+
+          {/* Pre-validation feedback — shown while loading or once result arrives */}
+          {(isPreValidating || preValidatorResult) && (
+            <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Shield className="w-4 h-4 text-primary shrink-0" />
+                <h4 className="font-semibold text-sm flex-1">Validator Check</h4>
+                {isPreValidating && !preValidatorResult && (
+                  <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    Checking…
+                  </span>
+                )}
+              </div>
+
+              {preValidatorResult && (
+                <>
+                  {/* Score + verdict row */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className={cn(
+                      'text-xs font-semibold px-2.5 py-0.5 rounded-full',
+                      preValidatorResult.verdict === 'strong'
+                        ? 'bg-success/10 text-success'
+                        : preValidatorResult.verdict === 'average'
+                          ? 'bg-amber-500/10 text-amber-600'
+                          : 'bg-destructive/10 text-destructive'
+                    )}>
+                      {preValidatorResult.verdict === 'strong'
+                        ? 'Strong'
+                        : preValidatorResult.verdict === 'average'
+                          ? 'Average'
+                          : 'Weak'}
+                    </span>
+                    <span className="text-sm font-bold tabular-nums">{preValidatorResult.score}%</span>
+                    <span className="text-xs text-muted-foreground">keyword match · Verified</span>
+                  </div>
+
+                  {/* Missing keywords */}
+                  {preValidatorResult.missing_keywords.length > 0 && (
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground mb-1.5">
+                        Missing keywords — consider adding these before applying:
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {preValidatorResult.missing_keywords.map((kw, i) => (
+                          <span
+                            key={i}
+                            className="text-xs bg-destructive/10 text-destructive px-2 py-0.5 rounded-full border border-destructive/20 font-medium"
+                          >
+                            {kw}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Global issues (not tied to any specific section) */}
+                  {(issueMap.get('global') ?? []).length > 0 && (
+                    <SectionIssueCallouts
+                      sectionId="summary"
+                      issueIndices={issueMap.get('global')!}
+                      issues={preValidatorResult.issues}
+                      dismissedIssueIndices={dismissedIssueIndices}
+                      onDismissIssue={onDismissIssue}
+                    />
+                  )}
+                </>
+              )}
+            </div>
           )}
 
           {/* Apply */}
@@ -1376,7 +1603,11 @@ function ResultsPanel({
                 ) : (
                   <CheckCircle className="w-4 h-4 mr-2" />
                 )}
-                {isApplying ? 'Creating...' : `Apply (${enabledSections.length})`}
+                {isApplying
+                  ? 'Creating...'
+                  : preValidatorResult
+                    ? `Apply (${preValidatorResult.score}% → Verified)`
+                    : `Apply (${enabledSections.length})`}
               </Button>
             </div>
             <div className="flex flex-col gap-0.5 items-center">

@@ -1,5 +1,26 @@
 # Changelog
 
+## 2026-05-06 — Inline pre-validation feedback before Apply (Task #37)
+
+**Files changed:**
+- `src/pages/TailorPage.tsx` — pre-validate state, background fetch, `ResultsPanel` UI, Apply label
+
+**TailorPage.tsx:**
+- New state: `preValidatorResult`, `isPreValidating`, `dismissedIssueIndices` (Set<number>).
+- `handleTailor`: after result arrives, fires a fire-and-forget IIFE that POSTs to `validate-tailor` with the merged-preview resume (all selected sections, empty `rejectedBullets`). 12 s `AbortController` timeout; non-fatal failure. Sets `preValidatorResult` on success, clears `isPreValidating` in finally.
+- Reset of pre-validate state (`null`, `false`, `new Set()`) added at start of `handleTailor`.
+- `handleDismissIssue(index)` callback added; uses functional `setDismissedIssueIndices`.
+- `enabledSections` added to `handleTailor` `useCallback` deps (was previously missing, needed for merged-preview build).
+- `ResultsPanelProps`: four new props — `preValidatorResult`, `isPreValidating`, `dismissedIssueIndices`, `onDismissIssue`.
+- `ResultsPanel`: below `KeywordMatchList`, renders "Validator Check" card when `isPreValidating || preValidatorResult`. Card shows: spinner while loading; verdict pill (Strong/Average/Weak color-coded); score%; "keyword match · Verified" label; missing keyword chips (red pill, border); dismissible `AlertTriangle` callouts for each AI-flagged issue.
+- Apply button label: `Apply (${preValidatorResult.score}% → Verified)` when result available, else `Apply (${enabledSections.length})`.
+- Both mobile and desktop `ResultsPanel` call sites updated with new props.
+- Added `Shield`, `AlertTriangle` to lucide-react imports.
+- `mapIssuesToSections(issues)`: pure helper that assigns each issue index to the first matching section via priority-ordered keyword scan (`summary` → `education` → `projects` → `certifications` → `awards` → `skills` → `experience` → `global`). Returns `Map<TailorSectionId | 'global', number[]>`.
+- `SectionIssueCallouts` component: renders only the visible (non-dismissed) issues for a given index list — amber `AlertTriangle` callouts with `×` dismiss button.
+- `ResultsPanel` computes `issueMap` via `useMemo`. Section-specific callouts (`SectionIssueCallouts`) render immediately after each `SectionRevealWrapper` block for summary/skills/experience/education/projects/certifications. Global Validator Check card shows only `issueMap.get('global')` catch-all issues.
+- `TailorPreviewSheet` `applyLabel` updated to use the same `Apply (score% → Verified)` format when `preValidatorResult` is available.
+
 ## 2026-05-06 — validate-tailor Edge Function + Apply-time score verification (Task #36)
 
 **Files changed:**

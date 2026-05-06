@@ -1,6 +1,12 @@
 # What Wise Cloud Can Do Today
 
-**Last verified:** 2026-05-05 (Task #28)
+**Last verified:** 2026-05-06 (Task #37)
+
+## See keyword gaps and quality issues before saving your tailored resume (2026-05-06)
+**What was the situation:** After the AI finished tailoring your resume, you had no way to know how well it scored until after you clicked Apply — at which point the resume was already saved.
+**What changed:** The moment tailoring completes, a "Validator Check" card now appears automatically below the keyword match list — before you click Apply. It shows a Weak / Average / Strong verdict, the verified keyword match score, any missing keywords as red chips, and specific quality notes (like a skill that wasn't in your original resume, or a bullet with vague language) as individual callouts you can dismiss one by one.
+The Apply button itself also updates: instead of "Apply (3)", it now reads "Apply (74% → Verified)" so you know the validated score at a glance before committing.
+**What you'll notice:** A shielded "Validator Check" panel appears in the results sidebar right after tailoring finishes — while you're still reviewing the changes. Missing keywords appear as red tags, and AI quality notes appear as amber callouts with an × to dismiss each one.
 
 ## The success screen after tailoring now shows clearer results and keyword wins (2026-05-05)
 **What was the situation:** After applying a tailored resume, the screen said "New tailored resume created!" and, if the score didn't jump, it showed a flat "Minor improvements applied" message. It also gave no detail about what specifically improved.

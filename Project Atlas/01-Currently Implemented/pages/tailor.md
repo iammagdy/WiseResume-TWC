@@ -1,6 +1,6 @@
 # TailorPage
 
-  **Last verified:** 2026-04-17
+  **Last verified:** 2026-05-06 (Task #37)
   **Type:** reference card
   **Sources:**
   - `src/pages/TailorPage.tsx`
