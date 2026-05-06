@@ -284,9 +284,56 @@ function resolveProdRoute(
   }
 
   // ── /api/data/jobs ──────────────────────────────────────────────────────
-  // Express handler is a hardcoded `{ jobs: [] }` stub (no jobs table yet).
   if (path === '/api/data/jobs' && method === 'GET') {
-    return { synthetic: { jobs: [] } };
+    return {
+      url: `${base}/rest/v1/jobs?user_id=eq.${u}&select=*&order=created_at.desc`,
+      method: 'GET',
+      transform: (raw) => ({ jobs: Array.isArray(raw) ? raw : [] }),
+    };
+  }
+  if (path === '/api/data/jobs' && method === 'POST') {
+    const insertBody = { ...(body as Record<string, unknown> || {}), user_id: userId };
+    return {
+      url: `${base}/rest/v1/jobs?select=*`,
+      method: 'POST',
+      body: insertBody,
+      extraHeaders: { Prefer: 'return=representation' },
+      transform: (raw) => {
+        const arr = Array.isArray(raw) ? raw : [raw];
+        return { job: arr[0] };
+      },
+    };
+  }
+  const jobIdMatch = path.match(/^\/api\/data\/jobs\/([^/]+)$/);
+  if (jobIdMatch) {
+    const jobId = encodeURIComponent(jobIdMatch[1]);
+    if (method === 'GET') {
+      return {
+        url: `${base}/rest/v1/jobs?id=eq.${jobId}&user_id=eq.${u}&select=*&limit=1`,
+        method: 'GET',
+        emptyAs404: true,
+        transform: (raw) => ({ job: Array.isArray(raw) ? raw[0] : raw }),
+      };
+    }
+    if (method === 'PATCH') {
+      return {
+        url: `${base}/rest/v1/jobs?id=eq.${jobId}&user_id=eq.${u}&select=*`,
+        method: 'PATCH',
+        body,
+        extraHeaders: { Prefer: 'return=representation' },
+        transform: (raw) => {
+          const arr = Array.isArray(raw) ? raw : [raw];
+          return { job: arr[0] };
+        },
+      };
+    }
+    if (method === 'DELETE') {
+      return {
+        url: `${base}/rest/v1/jobs?id=eq.${jobId}&user_id=eq.${u}`,
+        method: 'DELETE',
+        transform: () => ({ ok: true }),
+      };
+    }
   }
 
   // ── /api/data/portfolios/me ─────────────────────────────────────────────

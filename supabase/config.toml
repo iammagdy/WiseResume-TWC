@@ -273,3 +273,14 @@ project_id = "jnsfmkzgxsviuthaqlyy"
   verify_jwt = false
 [functions.admin-visitor-analytics]
   verify_jwt = false
+
+# --- Production routing fixes (2026-05-06) ---
+# export-resume-pdf: server-side resume PDF via PDF_RENDERER_URL; auth inside handler.
+# fetch-url:         SSRF-safe URL proxy for resume/LinkedIn import; auth inside handler.
+# track-handle-interest: fire-and-forget Resend audience add; auth inside handler.
+[functions.export-resume-pdf]
+  verify_jwt = false
+[functions.fetch-url]
+  verify_jwt = false
+[functions.track-handle-interest]
+  verify_jwt = false

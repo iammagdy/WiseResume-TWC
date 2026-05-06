@@ -1,6 +1,6 @@
 # Edge Function Audit
 
-Last updated: 2026-05-03 (Task #66 Phase 2 — orphan triage & config.toml reconciliation: all 16 H3 candidates KEEP, 4 M2 config blocks restored, deployed↔source 74↔74, 0 orphans / 0 stale per `scripts/check-edge-functions-deployed.mjs`)
+Last updated: 2026-05-06 (Production routing fixes — 3 new functions added: `export-resume-pdf`, `fetch-url`, `track-handle-interest`. deployed↔source 77↔77)
 
 ## Phase 2 Triage Outcome (Task #66, 2026-05-03)
 
@@ -70,6 +70,14 @@ These have confirmed call sites in `src/`:
 | `ai-test` | `src/components/dev-kit/DevKitRunner.tsx`, `src/components/settings/AISettingsSheet.tsx` |
 | `generate-cover-letter` | Cover Letter sheet — each generation is persisted to `cover_letters` via `_shared/letterPersistence.ts` |
 | `generate-resignation-letter` | Resignation Letter sheet — each generation is persisted to `resignation_letters` via `_shared/letterPersistence.ts` |
+
+## New Functions (2026-05-06 — Production routing fixes)
+
+| Function | Purpose |
+|---|---|
+| `export-resume-pdf` | Server-side resume PDF export. Accepts serialised DOM HTML + options; forwards to `PDF_RENDERER_URL` (same renderer as `export-portfolio-pdf`). Returns 503 `text/html` when renderer not configured — triggers `PDFServerUnavailableError` → browser print fallback. Replaces the direct Express `/api/export/pdf-native` call in production. |
+| `fetch-url` | SSRF-safe URL proxy for resume/LinkedIn import. Validates hostname against private IP ranges, follows redirects safely (max 5 hops), caps response at 2 MB, enforces 10 s timeout. Returns `{ url, contentType, html }`. Replaces the direct Express `/api/fetch-url` call in production. |
+| `track-handle-interest` | Fire-and-forget Resend audience add. Checks `profiles.handle_type`; if user has a free handle, adds their email to `RESEND_AUDIENCE_HANDLE_INTEREST` audience. Always returns `{ success: true }`. Replaces the direct Express `/api/track-handle-interest` call in production. |
 
 ## Removed from repo (no callers)
 

@@ -31,6 +31,7 @@ import { ImportUploadSheet } from '@/components/upload/ImportUploadSheet';
 import { detectFileType, type FileType } from '@/lib/detectFileType';
 import { UploadZone } from '@/components/upload/UploadZone';
 import { toast } from 'sonner';
+import { apiFnUrl } from '@/lib/apiFnUrl';
 import type { ResumeData } from '@/types/resume';
 import { useATSScoreHistoryStore } from '@/store/atsScoreHistoryStore';
 
@@ -347,7 +348,8 @@ export default function UploadPage() {
         setIsProcessing(false);
         return;
       }
-      const proxyRes = await fetch('/api/fetch-url', {
+      const fetchUrlEndpoint = import.meta.env.DEV ? '/api/fetch-url' : apiFnUrl('fetch-url');
+      const proxyRes = await fetch(fetchUrlEndpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

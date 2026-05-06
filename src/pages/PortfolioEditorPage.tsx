@@ -10,6 +10,7 @@ import { useResumes } from '@/hooks/useResumes';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { getUserId } from '@/lib/supabaseBridge';
+import { apiFnUrl } from '@/lib/apiFnUrl';
 import { useQueryClient } from '@tanstack/react-query';
 import type { Profile } from '@/hooks/useProfile';
 import { toast } from 'sonner';
@@ -324,7 +325,8 @@ export default function PortfolioEditorPage() {
     sessionStorage.setItem(DEDUP_KEY, '1');
     const token = getToken();
     if (!token) return;
-    fetch('/api/track-handle-interest', {
+    const trackUrl = import.meta.env.DEV ? '/api/track-handle-interest' : apiFnUrl('track-handle-interest');
+    fetch(trackUrl, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,

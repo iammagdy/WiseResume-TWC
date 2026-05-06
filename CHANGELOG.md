@@ -1,5 +1,42 @@
 # Changelog
 
+## 2026-05-06 — Production routing fixes: PDF export, URL import, job CRUD, handle-interest analytics
+
+**Files changed:**
+- `supabase/functions/export-resume-pdf/index.ts` (new)
+- `supabase/functions/fetch-url/index.ts` (new)
+- `supabase/functions/track-handle-interest/index.ts` (new)
+- `supabase/config.toml` — 3 new `[functions.*]` blocks with `verify_jwt = false`
+- `src/lib/nativePdfGenerator.ts` — `pdfExportUrl()` helper; both `fetch('/api/export/pdf-native')` calls replaced with `fetch(pdfExportUrl())`
+- `src/lib/apiFetch.ts` — `resolveProdRoute()`: replaced hardcoded `{ jobs: [] }` synthetic with real PostgREST routes for `GET /api/data/jobs`, `POST /api/data/jobs`, `GET /api/data/jobs/:id`, `PATCH /api/data/jobs/:id`, `DELETE /api/data/jobs/:id`
+- `src/lib/onboardingProfile.ts` — LinkedIn OG-meta fallback uses `apiFnUrl('fetch-url')` in prod
+- `src/pages/UploadPage.tsx` — URL import uses `apiFnUrl('fetch-url')` in prod
+- `src/pages/PortfolioEditorPage.tsx` — handle-interest ping uses `apiFnUrl('track-handle-interest')` in prod
+
+**Changes:**
+
+**A — `export-resume-pdf` edge function**
+- Accepts `POST { html, pageFormat, onePage, fitScale, showPageNumbers, showBranding, customBreakPositions?, totalContentHeightPx? }` with `requireAuth`.
+- Forwards payload to `PDF_RENDERER_URL` (same renderer used by `export-portfolio-pdf`). Returns PDF bytes on success.
+- If `PDF_RENDERER_URL` is not set, returns `503 text/html` — `nativePdfGenerator.ts` detects this content-type and throws `PDFServerUnavailableError`, which `EditorPage.tsx` catches and falls back to browser print-to-PDF.
+
+**B — `fetch-url` edge function**
+- Accepts `POST { url }` with `requireAuth`.
+- SSRF protection: private IP hostname check (10.x, 192.168.x, 172.16-31.x, 127.x, localhost, link-local, CGNAT), redirect validation on every hop, max 5 redirects, 10s timeout, 2 MB response cap.
+- Returns `{ url, contentType, html }`. Only serves `text/html`, `text/plain`, `application/xhtml` content types.
+
+**C — `track-handle-interest` edge function**
+- Accepts `POST` with `requireAuth`. Reads `profiles.handle_type` for the caller. If `handle_type` is `free` or unset, adds their email to the `RESEND_AUDIENCE_HANDLE_INTEREST` Resend audience via the Resend API. Always returns `{ success: true }` — non-fatal.
+
+**D — Job CRUD production routing (`apiFetch.ts`)**
+- `GET /api/data/jobs` → `rest/v1/jobs?user_id=eq.{u}&select=*&order=created_at.desc`
+- `POST /api/data/jobs` → PostgREST insert with `user_id` injected; returns `{ job: row }`
+- `GET /api/data/jobs/:id` → single-row fetch; 404 on empty
+- `PATCH /api/data/jobs/:id` → PostgREST PATCH with `return=representation`
+- `DELETE /api/data/jobs/:id` → PostgREST DELETE; returns `{ ok: true }`
+
+---
+
 ## 2026-05-06 — Task #66: Tailor AI reliability
 
 **Files changed:**

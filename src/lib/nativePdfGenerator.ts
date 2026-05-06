@@ -5,7 +5,20 @@
  */
 import { PDFDocument } from 'pdf-lib';
 import { getToken } from '@/lib/supabaseBridge';
+import { apiFnUrl } from '@/lib/apiFnUrl';
 import type { OnProgressCallback } from '@/hooks/useExportProgress';
+
+/**
+ * Returns the correct PDF export endpoint for the current environment.
+ * Dev  → local Express Puppeteer at /api/export/pdf-native
+ * Prod → Supabase edge function export-resume-pdf (routes to PDF_RENDERER_URL
+ *         or returns 503 text/html which triggers PDFServerUnavailableError →
+ *         browser print fallback in EditorPage.tsx)
+ */
+function pdfExportUrl(): string {
+  if (import.meta.env.DEV) return '/api/export/pdf-native';
+  return apiFnUrl('export-resume-pdf');
+}
 
 /**
  * Thrown when the PDF rendering server returns a non-PDF response (e.g. the
@@ -264,9 +277,9 @@ ${clone.outerHTML}
 
   onProgress?.('paginating', 35);
 
-  // 5. POST to the server for Puppeteer rendering.
+  // 5. POST to the PDF export endpoint (Express in dev, Supabase edge function in prod).
   const token = getToken();
-  const response = await fetch('/api/export/pdf-native', {
+  const response = await fetch(pdfExportUrl(), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -421,7 +434,7 @@ export async function generateCoverLetterNativePDF(
   onProgress?.('capturing', 20);
 
   const token = getToken();
-  const response = await fetch('/api/export/pdf-native', {
+  const response = await fetch(pdfExportUrl(), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

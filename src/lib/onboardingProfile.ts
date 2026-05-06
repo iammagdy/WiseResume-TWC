@@ -12,6 +12,7 @@ import type { ResumeData } from '@/types/resume';
 import type { ProfileData } from '@/components/settings/ProfileImportSheet';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { getUserId } from '@/lib/supabaseBridge';
+import { apiFnUrl } from '@/lib/apiFnUrl';
 import type { Json } from '@/integrations/supabase/types';
 
 export interface OnboardingExperience {
@@ -621,7 +622,8 @@ export async function probeLinkedInUrl(rawUrl: string): Promise<LinkedInProbeRes
   // 2) Fall back to the OG-meta best-effort probe.
   try {
     if (token) {
-      const res = await fetch('/api/fetch-url', {
+      const fetchUrlEndpoint = import.meta.env.DEV ? '/api/fetch-url' : apiFnUrl('fetch-url');
+      const res = await fetch(fetchUrlEndpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
