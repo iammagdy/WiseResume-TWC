@@ -1,6 +1,6 @@
 # What Wise Cloud Can Do Today
 
-**Last verified:** 2026-05-06 (Task #57)
+**Last verified:** 2026-05-06 (Task #60)
 
 ## The Optimize screen now shows trust signals and clearer actions after tailoring (2026-05-06)
 **What was the situation:** After the AI finished optimizing your resume, the results panel gave you a score and a list of suggested fixes — but nothing that explained what the AI had actually done, and the "Apply (3)" button label was cryptic.

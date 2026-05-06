@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef, useEffect, type ReactNode } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect, Fragment, type ReactNode } from 'react';
 import { formatDegreeAndField } from '@/lib/educationFormat';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
@@ -23,6 +23,7 @@ import { KeywordMatchList } from '@/components/editor/tailor/KeywordMatchList';
 import { JobUrlParser } from '@/components/editor/tailor/JobUrlParser';
 import { TailorPreviewSheet } from '@/components/editor/tailor/TailorPreviewSheet';
 import { buildMergedResume, applyFixesOnTop } from '@/lib/tailorMerge';
+import { compareSkills, diffText } from '@/lib/diffUtils';
 import { AICostBadge } from '@/components/ai/AICostBadge';
 import { reportBug } from '@/lib/bugReport';
 import { useAIAction } from '@/hooks/useAIAction';
@@ -1303,6 +1304,68 @@ function ResultsPanel({
     [preValidatorResult]
   );
 
+  const [discardConfirm, setDiscardConfirm] = useState(false);
+  const discardTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleDiscardClick = useCallback(() => {
+    if (discardConfirm) {
+      if (discardTimerRef.current) clearTimeout(discardTimerRef.current);
+      setDiscardConfirm(false);
+      onRevert();
+    } else {
+      setDiscardConfirm(true);
+      discardTimerRef.current = setTimeout(() => setDiscardConfirm(false), 3000);
+    }
+  }, [discardConfirm, onRevert]);
+
+  const sectionDelta = useMemo<Record<'summary' | 'skills' | 'experience' | 'education', number>>(() => {
+    if (!tailorResult?.sectionScores) return { summary: 0, skills: 0, experience: 0, education: 0 };
+    const scores = tailorResult.sectionScores as unknown as Record<string, { before: number; after: number }>;
+    return {
+      summary: scores.summary ? scores.summary.after - scores.summary.before : 0,
+      skills: scores.skills ? scores.skills.after - scores.skills.before : 0,
+      experience: scores.experience ? scores.experience.after - scores.experience.before : 0,
+      education: scores.education ? scores.education.after - scores.education.before : 0,
+    };
+  }, [tailorResult?.sectionScores]);
+
+  const sortedCoreSections = useMemo(
+    () =>
+      (['summary', 'skills', 'experience', 'education'] as const)
+        .slice()
+        .sort((a, b) => sectionDelta[b] - sectionDelta[a]),
+    [sectionDelta]
+  );
+
+  const topSectionId: 'summary' | 'skills' | 'experience' | 'education' = sortedCoreSections[0];
+
+  const skillsChangesSummary = useMemo(() => {
+    if (!tailorResult?.skills) return '0 skills optimized';
+    if (!originalResume?.skills) return `${tailorResult.skills.length} skills optimized`;
+    const diff = compareSkills(originalResume.skills, tailorResult.skills);
+    const parts: string[] = [];
+    if (diff.added.length > 0) parts.push(`Added ${diff.added.length}`);
+    if (diff.removed.length > 0) parts.push(`Removed ${diff.removed.length}`);
+    parts.push(`Kept ${diff.unchanged.length}`);
+    return parts.join(' · ');
+  }, [originalResume?.skills, tailorResult?.skills]);
+
+  const experienceChangesSummary = useMemo(() => {
+    const bts = tailorResult?.bulletTransformations;
+    if (!bts || bts.length === 0) return `${tailorResult?.experience?.length ?? 0} positions enhanced`;
+    const uniqueCount = new Set(bts.map(bt => bt.experienceId)).size;
+    return `${bts.length} bullet${bts.length !== 1 ? 's' : ''} optimized across ${uniqueCount} position${uniqueCount !== 1 ? 's' : ''}`;
+  }, [tailorResult?.bulletTransformations, tailorResult?.experience?.length]);
+
+  const summaryChangesSummary = useMemo(() => {
+    if (!originalResume?.summary || !tailorResult?.summary) return 'Professional summary rewritten';
+    const diffs = diffText(originalResume.summary, tailorResult.summary);
+    const wordCount = diffs
+      .filter(d => d.type !== 'unchanged')
+      .reduce((acc, d) => acc + d.text.split(/\s+/).filter(Boolean).length, 0);
+    if (wordCount === 0) return 'Professional summary rewritten';
+    return `~${wordCount} word${wordCount !== 1 ? 's' : ''} changed`;
+  }, [originalResume?.summary, tailorResult?.summary]);
+
   if (showAppliedCTA && !isTailoring && !tailorResult) {
     const validatedAfterScore = appliedValidatorResult?.score ?? appliedScore?.after ?? 0;
     const improvement = appliedScore ? validatedAfterScore - appliedScore.before : 0;
@@ -1557,108 +1620,129 @@ function ResultsPanel({
             ))}
           </div>
 
-          {/* Section changes */}
+          {/* Section changes — sorted by impact delta */}
           <div className="space-y-3">
             <h4 className="font-semibold text-sm flex items-center gap-2">
               <CheckCircle className="w-4 h-4 text-primary" />
               Select Changes to Apply
             </h4>
 
-            <SectionRevealWrapper revealed={revealedSections.has('summary') || revealedSections.size === 0} title={SECTION_LABELS.summary}>
-              <SectionChangeCard
-                sectionId="summary"
-                title={SECTION_LABELS.summary}
-                enabled={enabledSections.includes('summary')}
-                onToggle={() => toggleSection('summary')}
-                impactScore={tailorResult.sectionScores ? tailorResult.sectionScores.summary.after - tailorResult.sectionScores.summary.before : 0}
-                changesSummary="Professional summary rewritten"
-                originalText={originalResume?.summary || ''}
-                tailoredText={tailorResult.summary}
-                onRegenerate={onRegenerate}
-                preview={<p className="text-muted-foreground leading-relaxed">{tailorResult.summary}</p>}
-              />
-            </SectionRevealWrapper>
-            {preValidatorResult && issueMap.get('summary') && (
-              <SectionIssueCallouts sectionId="summary" issueIndices={issueMap.get('summary')!} issues={preValidatorResult.issues} dismissedIssueIndices={dismissedIssueIndices} onDismissIssue={onDismissIssue} />
-            )}
-
-            <SectionRevealWrapper revealed={revealedSections.has('skills') || revealedSections.size === 0} title={SECTION_LABELS.skills}>
-              <SectionChangeCard
-                sectionId="skills"
-                title={SECTION_LABELS.skills}
-                enabled={enabledSections.includes('skills')}
-                onToggle={() => toggleSection('skills')}
-                impactScore={tailorResult.sectionScores ? tailorResult.sectionScores.skills.after - tailorResult.sectionScores.skills.before : 0}
-                changesSummary={`${tailorResult.skills.length} skills optimized`}
-                originalSkills={originalResume?.skills || []}
-                tailoredSkills={tailorResult.skills}
-                onRegenerate={onRegenerate}
-                preview={
-                  <div className="flex flex-wrap gap-2">
-                    {tailorResult.skills.slice(0, 10).map((skill, i) => (
-                      <Badge key={i} variant="secondary" className="text-xs">{skill}</Badge>
-                    ))}
-                    {tailorResult.skills.length > 10 && (
-                      <Badge variant="outline" className="text-xs">+{tailorResult.skills.length - 10} more</Badge>
-                    )}
-                  </div>
-                }
-              />
-            </SectionRevealWrapper>
-            {preValidatorResult && issueMap.get('skills') && (
-              <SectionIssueCallouts sectionId="skills" issueIndices={issueMap.get('skills')!} issues={preValidatorResult.issues} dismissedIssueIndices={dismissedIssueIndices} onDismissIssue={onDismissIssue} />
-            )}
-
-            <SectionRevealWrapper revealed={revealedSections.has('experience') || revealedSections.size === 0} title={SECTION_LABELS.experience}>
-              <SectionChangeCard
-                sectionId="experience"
-                title={SECTION_LABELS.experience}
-                enabled={enabledSections.includes('experience')}
-                onToggle={() => toggleSection('experience')}
-                impactScore={tailorResult.sectionScores ? tailorResult.sectionScores.experience.after - tailorResult.sectionScores.experience.before : 0}
-                changesSummary={`${tailorResult.experience.length} positions enhanced`}
-                bulletTransformations={tailorResult.bulletTransformations}
-                onBulletReject={onBulletReject}
-                onRegenerate={onRegenerate}
-                preview={
-                  <ul className="space-y-2">
-                    {tailorResult.experience.slice(0, 2).map((exp, i) => (
-                      <li key={i} className="text-muted-foreground">
-                        <span className="font-medium text-foreground">{exp.position}</span>
-                        <span className="text-xs"> @ {exp.company}</span>
-                      </li>
-                    ))}
-                  </ul>
-                }
-              />
-            </SectionRevealWrapper>
-            {preValidatorResult && issueMap.get('experience') && (
-              <SectionIssueCallouts sectionId="experience" issueIndices={issueMap.get('experience')!} issues={preValidatorResult.issues} dismissedIssueIndices={dismissedIssueIndices} onDismissIssue={onDismissIssue} />
-            )}
-
-            <SectionRevealWrapper revealed={revealedSections.has('education') || revealedSections.size === 0} title={SECTION_LABELS.education}>
-              <SectionChangeCard
-                sectionId="education"
-                title={SECTION_LABELS.education}
-                enabled={enabledSections.includes('education')}
-                onToggle={() => toggleSection('education')}
-                impactScore={tailorResult.sectionScores ? tailorResult.sectionScores.education.after - tailorResult.sectionScores.education.before : 0}
-                changesSummary={`${tailorResult.education.length} entries refined`}
-                onRegenerate={onRegenerate}
-                preview={
-                  <ul className="space-y-1">
-                    {tailorResult.education.map((edu, i) => (
-                      <li key={i} className="text-muted-foreground text-sm">
-                        {formatDegreeAndField(edu.degree, edu.field)}{edu.institution ? ` - ${edu.institution}` : ''}
-                      </li>
-                    ))}
-                  </ul>
-                }
-              />
-            </SectionRevealWrapper>
-            {preValidatorResult && issueMap.get('education') && (
-              <SectionIssueCallouts sectionId="education" issueIndices={issueMap.get('education')!} issues={preValidatorResult.issues} dismissedIssueIndices={dismissedIssueIndices} onDismissIssue={onDismissIssue} />
-            )}
+            {sortedCoreSections.map(id => {
+              const autoExpand = id === topSectionId && sectionDelta[id] > 0;
+              if (id === 'summary') return (
+                <Fragment key="summary">
+                  <SectionRevealWrapper revealed={revealedSections.has('summary') || revealedSections.size === 0} title={SECTION_LABELS.summary}>
+                    <SectionChangeCard
+                      sectionId="summary"
+                      title={SECTION_LABELS.summary}
+                      enabled={enabledSections.includes('summary')}
+                      onToggle={() => toggleSection('summary')}
+                      impactScore={sectionDelta.summary}
+                      changesSummary={summaryChangesSummary}
+                      originalText={originalResume?.summary || ''}
+                      tailoredText={tailorResult.summary}
+                      onRegenerate={onRegenerate}
+                      defaultExpanded={autoExpand}
+                      preview={<p className="text-muted-foreground leading-relaxed">{tailorResult.summary}</p>}
+                    />
+                  </SectionRevealWrapper>
+                  {preValidatorResult && issueMap.get('summary') && (
+                    <SectionIssueCallouts sectionId="summary" issueIndices={issueMap.get('summary')!} issues={preValidatorResult.issues} dismissedIssueIndices={dismissedIssueIndices} onDismissIssue={onDismissIssue} />
+                  )}
+                </Fragment>
+              );
+              if (id === 'skills') return (
+                <Fragment key="skills">
+                  <SectionRevealWrapper revealed={revealedSections.has('skills') || revealedSections.size === 0} title={SECTION_LABELS.skills}>
+                    <SectionChangeCard
+                      sectionId="skills"
+                      title={SECTION_LABELS.skills}
+                      enabled={enabledSections.includes('skills')}
+                      onToggle={() => toggleSection('skills')}
+                      impactScore={sectionDelta.skills}
+                      changesSummary={skillsChangesSummary}
+                      originalSkills={originalResume?.skills || []}
+                      tailoredSkills={tailorResult.skills}
+                      onRegenerate={onRegenerate}
+                      defaultExpanded={autoExpand}
+                      preview={
+                        <div className="flex flex-wrap gap-2">
+                          {tailorResult.skills.slice(0, 10).map((skill, i) => (
+                            <Badge key={i} variant="secondary" className="text-xs">{skill}</Badge>
+                          ))}
+                          {tailorResult.skills.length > 10 && (
+                            <Badge variant="outline" className="text-xs">+{tailorResult.skills.length - 10} more</Badge>
+                          )}
+                        </div>
+                      }
+                    />
+                  </SectionRevealWrapper>
+                  {preValidatorResult && issueMap.get('skills') && (
+                    <SectionIssueCallouts sectionId="skills" issueIndices={issueMap.get('skills')!} issues={preValidatorResult.issues} dismissedIssueIndices={dismissedIssueIndices} onDismissIssue={onDismissIssue} />
+                  )}
+                </Fragment>
+              );
+              if (id === 'experience') return (
+                <Fragment key="experience">
+                  <SectionRevealWrapper revealed={revealedSections.has('experience') || revealedSections.size === 0} title={SECTION_LABELS.experience}>
+                    <SectionChangeCard
+                      sectionId="experience"
+                      title={SECTION_LABELS.experience}
+                      enabled={enabledSections.includes('experience')}
+                      onToggle={() => toggleSection('experience')}
+                      impactScore={sectionDelta.experience}
+                      changesSummary={experienceChangesSummary}
+                      bulletTransformations={tailorResult.bulletTransformations}
+                      onBulletReject={onBulletReject}
+                      onRegenerate={onRegenerate}
+                      defaultExpanded={autoExpand}
+                      preview={
+                        <ul className="space-y-2">
+                          {tailorResult.experience.slice(0, 2).map((exp, i) => (
+                            <li key={i} className="text-muted-foreground">
+                              <span className="font-medium text-foreground">{exp.position}</span>
+                              <span className="text-xs"> @ {exp.company}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      }
+                    />
+                  </SectionRevealWrapper>
+                  {preValidatorResult && issueMap.get('experience') && (
+                    <SectionIssueCallouts sectionId="experience" issueIndices={issueMap.get('experience')!} issues={preValidatorResult.issues} dismissedIssueIndices={dismissedIssueIndices} onDismissIssue={onDismissIssue} />
+                  )}
+                </Fragment>
+              );
+              if (id === 'education') return (
+                <Fragment key="education">
+                  <SectionRevealWrapper revealed={revealedSections.has('education') || revealedSections.size === 0} title={SECTION_LABELS.education}>
+                    <SectionChangeCard
+                      sectionId="education"
+                      title={SECTION_LABELS.education}
+                      enabled={enabledSections.includes('education')}
+                      onToggle={() => toggleSection('education')}
+                      impactScore={sectionDelta.education}
+                      changesSummary={`${tailorResult.education.length} entries refined`}
+                      onRegenerate={onRegenerate}
+                      defaultExpanded={autoExpand}
+                      preview={
+                        <ul className="space-y-1">
+                          {tailorResult.education.map((edu, i) => (
+                            <li key={i} className="text-muted-foreground text-sm">
+                              {formatDegreeAndField(edu.degree, edu.field)}{edu.institution ? ` - ${edu.institution}` : ''}
+                            </li>
+                          ))}
+                        </ul>
+                      }
+                    />
+                  </SectionRevealWrapper>
+                  {preValidatorResult && issueMap.get('education') && (
+                    <SectionIssueCallouts sectionId="education" issueIndices={issueMap.get('education')!} issues={preValidatorResult.issues} dismissedIssueIndices={dismissedIssueIndices} onDismissIssue={onDismissIssue} />
+                  )}
+                </Fragment>
+              );
+              return null;
+            })}
 
             {tailorResult.projects && tailorResult.projects.length > 0 && (
               <>
@@ -1838,8 +1922,13 @@ function ResultsPanel({
               </p>
             )}
             <div className="flex flex-wrap gap-2">
-              <Button variant="outline" className="flex-1 min-w-[110px]" onClick={onRevert}>
-                <X className="w-4 h-4 mr-2" /> Discard
+              <Button
+                variant={discardConfirm ? 'destructive' : 'outline'}
+                className="flex-1 min-w-[110px]"
+                onClick={handleDiscardClick}
+              >
+                <X className="w-4 h-4 mr-2" />
+                {discardConfirm ? 'Confirm discard?' : 'Discard'}
               </Button>
               <Button
                 variant="outline"

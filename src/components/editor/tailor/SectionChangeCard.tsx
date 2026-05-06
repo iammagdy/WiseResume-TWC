@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { ChevronDown, TrendingUp, Eye, Pencil, Check, X, RotateCcw, RefreshCw, Loader2 } from 'lucide-react';
+import { ChevronDown, TrendingUp, Eye, Pencil, Check, X, RotateCcw, RefreshCw, Loader2, Lightbulb } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -27,6 +27,7 @@ interface SectionChangeCardProps {
   bulletTransformations?: BulletTransformation[];
   onBulletReject?: (rejectedKeys: Set<string>) => void;
   onRegenerate?: (sectionId: TailorSectionId, instruction?: string) => Promise<void>;
+  defaultExpanded?: boolean;
 }
 
 const SECTION_ICONS: Record<TailorSectionId, string> = {
@@ -96,8 +97,9 @@ export function SectionChangeCard({
   bulletTransformations,
   onBulletReject,
   onRegenerate,
+  defaultExpanded,
 }: SectionChangeCardProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded ?? false);
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState('');
   const [rejectedBullets, setRejectedBullets] = useState<Set<string>>(new Set());
@@ -228,7 +230,10 @@ export function SectionChangeCard({
                             {bt.enhancedBullet}
                           </p>
                           {bt.improvement && (
-                            <p className="text-muted-foreground text-[10px] italic">{bt.improvement}</p>
+                            <div className="flex items-start gap-1.5 mt-1 px-2 py-1.5 rounded-md bg-amber-50 border border-amber-200/50 dark:bg-amber-900/20 dark:border-amber-700/30">
+                              <Lightbulb className="w-3 h-3 text-amber-500 shrink-0 mt-0.5" />
+                              <p className="text-[11px] text-amber-700 dark:text-amber-400 leading-snug">{bt.improvement}</p>
+                            </div>
                           )}
                         </>
                       ) : (

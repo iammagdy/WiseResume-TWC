@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-05-06 — Task #60: Tailor results — clarity, reasoning & safety
+
+**Files changed:**
+- `src/pages/TailorPage.tsx`
+- `src/components/editor/tailor/SectionChangeCard.tsx`
+
+**Changes:**
+- `ResultsPanel`: added `sectionDelta` useMemo (derives per-section score delta from `tailorResult.sectionScores`) typed as `Record<'summary'|'skills'|'experience'|'education', number>`.
+- `ResultsPanel`: added `sortedCoreSections` useMemo that sorts the four core section IDs by delta descending; `topSectionId` is `sortedCoreSections[0]`.
+- `ResultsPanel`: added `summaryChangesSummary` useMemo using `diffText()` word-count of changed tokens; falls back to `"Professional summary rewritten"`.
+- `ResultsPanel`: added `skillsChangesSummary` useMemo using `compareSkills()` → `"Added N · Removed N · Kept N"` string.
+- `ResultsPanel`: added `experienceChangesSummary` useMemo deriving from `bulletTransformations` count and unique `experienceId` set.
+- `ResultsPanel`: replaced fixed-order section block (summary → skills → experience → education) with `sortedCoreSections.map()` using `<Fragment key={id}>` — section with highest delta renders first; `defaultExpanded={autoExpand}` set for top section when delta > 0.
+- `ResultsPanel`: added `discardConfirm` useState + `discardTimerRef` useRef + `handleDiscardClick` useCallback (3-second auto-reset); Discard button switches to `variant="destructive"` with label `"Confirm discard?"` on first click.
+- `SectionChangeCard`: added `defaultExpanded?: boolean` prop; `useState(defaultExpanded ?? false)` replaces `useState(false)` for `isExpanded`.
+- `SectionChangeCard`: imported `Lightbulb` from lucide-react; upgraded `bt.improvement` rendering from `text-[10px] italic` paragraph to amber chip with `Lightbulb` icon (`bg-amber-50 border-amber-200/50 dark:bg-amber-900/20`).
+- `TailorPage.tsx`: added imports for `Fragment` (React), `compareSkills`, `diffText` (`@/lib/diffUtils`).
+
 ## 2026-05-06 — Dev-mode persistent auth across preview reloads
 
 **Files changed:**
