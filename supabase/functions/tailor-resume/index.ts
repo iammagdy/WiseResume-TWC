@@ -701,6 +701,11 @@ Analyze deeply, then return this exact JSON structure:
     let trimIter = 0;
     const MAX_TRIM_ITER = experienceForPrompt.length * 10 + 5; // safety ceiling
 
+    // Track bullet count before iterative loop for observability log.
+    const bulletCountBefore = experienceForPrompt.reduce(
+      (n, e) => n + (Array.isArray(e.achievements) ? (e.achievements as unknown[]).length : 0), 0
+    );
+
     while (finalSystemPrompt.length + finalUserPrompt.length > PROMPT_CHAR_BUDGET && trimIter < MAX_TRIM_ITER) {
       trimIter++;
       // Step 1: remove one bullet from the oldest job (beyond idx 2) that has >1 achievement.
@@ -743,8 +748,14 @@ Analyze deeply, then return this exact JSON structure:
     }
 
     if (trimIter > 0) {
+      const bulletCountAfter = experienceForPrompt.reduce(
+        (n, e) => n + (Array.isArray(e.achievements) ? (e.achievements as unknown[]).length : 0), 0
+      );
+      const bulletMsg = bulletCountAfter < bulletCountBefore
+        ? `, reduced experience bullets from ${bulletCountBefore} to ${bulletCountAfter}`
+        : '';
       console.log(
-        `[tailor] Prompt truncated: ${trimIter} trim iteration(s), final size ${finalSystemPrompt.length + finalUserPrompt.length} chars (budget ${PROMPT_CHAR_BUDGET})`
+        `[tailor] Prompt truncated: ${trimIter} trim iteration(s)${bulletMsg}, final size ${finalSystemPrompt.length + finalUserPrompt.length} chars (budget ${PROMPT_CHAR_BUDGET})`
       );
     }
 
@@ -983,8 +994,10 @@ Generate 3-5 talking points and 3 strengths. Be specific to this candidate and r
     log.error("Unhandled error", error, { function_name: 'tailor-resume', provider_used: null, error_type: (error as Error)?.name ?? 'Error', duration_ms: Date.now() - _fnStart });
 
     const userError = toUserError(error);
+    // Return both machine-readable code (error) and human message so clients can
+    // branch on upstream_error / upstream_5xx without parsing message text.
     return new Response(
-      JSON.stringify({ error: userError.message }),
+      JSON.stringify({ error: userError.error, message: userError.message }),
       { status: userError.status, headers: { ...getCorsHeaders(req.headers.get('origin')), "Content-Type": "application/json" } }
     );
   }
