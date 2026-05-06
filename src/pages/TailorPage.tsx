@@ -453,6 +453,7 @@ export default function TailorPage() {
   useEffect(() => {
     if (!preValidatorResult) {
       fixGenerateAbortRef.current?.abort();
+      fixGenerateAbortRef.current = null;
       setFixSuggestions(null);
       setIsGeneratingFixes(false);
       return;
@@ -508,19 +509,24 @@ export default function TailorPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preValidatorResult, jobDescription]);
 
-  const handleApplyFix = useCallback((idx: number) => {
+  const handleApplyFix = useCallback((targetFix: FixSuggestion) => {
     setFixSuggestions(prev => {
-      if (!prev || !prev[idx]) return prev;
-      const selected = prev[idx];
+      if (!prev) return prev;
+      const idx = prev.findIndex(f =>
+        f.type === targetFix.type &&
+        f.after === targetFix.after &&
+        f.target_id === targetFix.target_id
+      );
+      if (idx === -1) return prev;
       setAppliedFixes(current => {
         if (current.length >= MAX_APPLIED_FIXES) return current;
         const exists = current.some(f =>
-          f.type === selected.type &&
-          f.after === selected.after &&
-          f.target_id === selected.target_id
+          f.type === targetFix.type &&
+          f.after === targetFix.after &&
+          f.target_id === targetFix.target_id
         );
         if (exists) return current;
-        return [...current, selected];
+        return [...current, targetFix];
       });
       return prev.filter((_, i) => i !== idx);
     });
@@ -1120,7 +1126,7 @@ interface ResultsPanelProps {
   fixSuggestions: FixSuggestion[] | null;
   isGeneratingFixes: boolean;
   appliedFixes: FixSuggestion[];
-  onApplyFix: (idx: number) => void;
+  onApplyFix: (fix: FixSuggestion) => void;
 }
 
 function ScoreLabel({ score }: { score: number }) {
@@ -1195,7 +1201,7 @@ function FixSuggestionCard({ fix, onApply }: { fix: FixSuggestion; onApply: () =
       {fix.before && (
         <p className="text-xs text-muted-foreground line-through leading-snug">{fix.before}</p>
       )}
-      <p className="text-xs font-medium leading-snug">{fix.after}</p>
+      <p className="text-xs font-medium leading-snug line-clamp-6">{fix.after}</p>
       <p className="text-[11px] text-muted-foreground leading-snug">{fix.reason}</p>
     </div>
   );
@@ -1713,11 +1719,11 @@ function ResultsPanel({
                           <Loader2 className="w-3 h-3 animate-spin ml-1" />
                         )}
                       </p>
-                      {fixSuggestions?.map((fix, i) => (
+                      {fixSuggestions?.map((fix) => (
                         <FixSuggestionCard
-                          key={`${fix.type}-${fix.after.slice(0, 20)}-${i}`}
+                          key={`${fix.type}-${fix.after}-${fix.target_id ?? ''}`}
                           fix={fix}
-                          onApply={() => onApplyFix(i)}
+                          onApply={() => onApplyFix(fix)}
                         />
                       ))}
                     </div>

@@ -169,6 +169,7 @@ ${expSnippet || 'none'}`;
 
       // 2. Length guard
       if (obj.after.trim().length < 10) return false;
+      if (obj.after.length > 600) return false;
 
       // 3. Generic-phrase guard
       const afterLower = obj.after.toLowerCase();
