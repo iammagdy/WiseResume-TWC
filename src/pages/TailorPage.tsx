@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useResumeStore } from '@/store/resumeStore';
 import { tailorResumeWithProgress, tailorSection, TailorIntensity, TailorError } from '@/lib/aiTailor';
 import { toast } from 'sonner';
@@ -148,7 +149,6 @@ export default function TailorPage() {
   const { user } = useAuth();
 
   const {
-    currentResume,
     currentResumeId,
     jobDescription,
     setJobDescription,
@@ -164,7 +164,6 @@ export default function TailorPage() {
     pendingTailorJobUrl,
     pendingTailorSections,
   } = useResumeStore(useShallow(state => ({
-    currentResume: state.currentResume,
     currentResumeId: state.currentResumeId,
     jobDescription: state.jobDescription,
     setJobDescription: state.setJobDescription,
@@ -182,6 +181,11 @@ export default function TailorPage() {
   })));
 
   const { data: allResumes } = useResumes();
+
+  const currentResume = useMemo(() => {
+    const found = allResumes?.find((r: DatabaseResume) => r.id === currentResumeId);
+    return found ? dbToResumeData(found) : null;
+  }, [allResumes, currentResumeId]);
 
   const [isTailoring, setIsTailoring] = useState(false);
   const [tailorResult, setTailorResult] = useState<SuperTailorResult | null>(null);
@@ -225,6 +229,7 @@ export default function TailorPage() {
   const fixGenerateAbortRef = useRef<AbortController | null>(null);
   const preValidateMergedRef = useRef<ResumeData | null>(null);
   const copiedTextTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const resumeIdRef = useRef<string | null>(currentResumeId);
   const { execute: executeAI } = useAIAction({ operation: 'tailor' });
   const redactedResume = useRedactedResume(currentResume as ResumeData | null);
 
@@ -305,6 +310,42 @@ export default function TailorPage() {
       setCurrentResume(dbToResumeData(mostRecent));
     }
   }, [paramResumeId, currentResume, allResumes, setCurrentResumeId, setCurrentResume]);
+
+  useEffect(() => {
+    resumeIdRef.current = currentResumeId;
+  }, [currentResumeId]);
+
+  useEffect(() => {
+    if (!allResumes) return;
+    if (currentResumeId && !allResumes.find((r: DatabaseResume) => r.id === currentResumeId)) {
+      setCurrentResumeId(null);
+    }
+  }, [allResumes, currentResumeId, setCurrentResumeId]);
+
+  const handleResumeSwitch = useCallback((resumeId: string) => {
+    if (!allResumes || allResumes.length === 0) return;
+    const found = allResumes.find((r: DatabaseResume) => r.id === resumeId);
+    if (!found) return;
+    if (resumeId === currentResumeId) return;
+    fixGenerateAbortRef.current?.abort();
+    fixGenerateAbortRef.current = null;
+    preValidateAbortRef.current?.abort();
+    preValidateAbortRef.current = null;
+    preValidateMergedRef.current = null;
+    setCurrentResumeId(resumeId);
+    setTailorResult(null);
+    setOriginalResume(null);
+    setTailorError(null);
+    setPreValidatorResult(null);
+    setIsPreValidating(false);
+    setFixSuggestions(null);
+    setIsGeneratingFixes(false);
+    setAppliedFixes([]);
+    setRejectedBullets(new Set());
+    setDismissedIssueIndices(new Set());
+    setParsedJobInfo(null);
+    toast.info('Resume switched — ready to tailor');
+  }, [allResumes, currentResumeId]);
 
   const toggleSection = (sectionId: TailorSectionId) => {
     setEnabledSections(prev =>
@@ -394,6 +435,7 @@ export default function TailorPage() {
       // Fire-and-forget pre-validate: runs in background after result arrives
       setIsPreValidating(true);
       (async () => {
+        const capturedResumeId = resumeIdRef.current;
         try {
           const mergedForValidation = buildMergedResume(currentResume, superResult, enabledSections, new Set());
           preValidateMergedRef.current = mergedForValidation;
@@ -416,8 +458,9 @@ export default function TailorPage() {
               }),
               signal: thisAbort.signal,
             });
-            // Only apply result if this is still the current pre-validate request
+            // Only apply result if this is still the current pre-validate request and same resume
             if (vResponse.ok && preValidateAbortRef.current === thisAbort) {
+              if (resumeIdRef.current !== capturedResumeId) return;
               setPreValidatorResult((await vResponse.json()) as ValidatorResult);
             }
           } finally {
@@ -426,6 +469,7 @@ export default function TailorPage() {
         } catch {
           // Non-fatal — pre-validation is advisory only
         } finally {
+          if (resumeIdRef.current !== capturedResumeId) return;
           setIsPreValidating(false);
         }
       })();
@@ -471,8 +515,11 @@ export default function TailorPage() {
     (async () => {
       const thisAbort = new AbortController();
       fixGenerateAbortRef.current = thisAbort;
+      const capturedResumeId = resumeIdRef.current;
       if (!preValidateMergedRef.current) {
+        if (resumeIdRef.current !== capturedResumeId) return;
         setFixSuggestions([]);
+        if (resumeIdRef.current !== capturedResumeId) return;
         setIsGeneratingFixes(false);
         return;
       }
@@ -494,16 +541,17 @@ export default function TailorPage() {
           signal: thisAbort.signal,
         });
         if (fixGenerateAbortRef.current !== thisAbort) return;
+        if (resumeIdRef.current !== capturedResumeId) return;
         if (r.ok) {
           setFixSuggestions(((await r.json()) as FixSuggestion[]).slice(0, 5));
         } else {
           setFixSuggestions([]);
         }
       } catch {
-        if (fixGenerateAbortRef.current === thisAbort) setFixSuggestions([]);
+        if (fixGenerateAbortRef.current === thisAbort && resumeIdRef.current === capturedResumeId) setFixSuggestions([]);
       } finally {
         clearTimeout(fixTimeout);
-        if (fixGenerateAbortRef.current === thisAbort) setIsGeneratingFixes(false);
+        if (fixGenerateAbortRef.current === thisAbort && resumeIdRef.current === capturedResumeId) setIsGeneratingFixes(false);
       }
     })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -811,51 +859,44 @@ export default function TailorPage() {
       <div className="flex-1 flex overflow-hidden">
         {/* Left panel: Job input */}
         <div className="w-full lg:w-[420px] lg:border-r border-border overflow-y-auto lg:flex-shrink-0 p-4 space-y-4">
-          {/* Resume picker */}
-          {!currentResume && (
-            <div className="p-4 rounded-xl bg-muted border border-border space-y-3">
-              <h4 className="font-semibold text-sm">Select a resume to tailor</h4>
-              {allResumes && allResumes.length > 0 ? (
-                <div className="space-y-2 max-h-[200px] overflow-y-auto">
+          {/* Resume Selector */}
+          <div className="space-y-1">
+            <p className="text-xs font-medium text-muted-foreground">Tailoring resume</p>
+            {allResumes === undefined ? (
+              <div className="animate-pulse h-9 rounded-lg bg-muted w-full" />
+            ) : allResumes.length === 0 ? (
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  You don't have a resume yet. Upload your existing CV (PDF or DOCX) and
+                  we'll tailor it for this job in seconds.
+                </p>
+                <Button
+                  className="w-full"
+                  onClick={() => navigate('/upload?next=/tailor')}
+                >
+                  <Wand2 className="w-4 h-4 mr-2" />
+                  Upload your resume
+                </Button>
+              </div>
+            ) : (
+              <Select
+                value={currentResumeId ?? undefined}
+                onValueChange={handleResumeSwitch}
+                disabled={isTailoring || isApplying}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select a resume..." />
+                </SelectTrigger>
+                <SelectContent>
                   {allResumes.map((r: DatabaseResume) => (
-                    <button
-                      key={r.id}
-                      onClick={() => {
-                        setCurrentResumeId(r.id);
-                        setCurrentResume(dbToResumeData(r));
-                      }}
-                      className="w-full text-left p-3 rounded-lg border border-border bg-card hover:border-primary/30 min-h-[48px] flex items-center gap-3 transition-all"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium text-sm truncate">{r.title}</p>
-                      </div>
-                    </button>
+                    <SelectItem key={r.id} value={r.id}>
+                      {r.title}
+                    </SelectItem>
                   ))}
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <p className="text-sm text-muted-foreground">
-                    You don't have a resume yet. Upload your existing CV (PDF or DOCX) and
-                    we'll tailor it for this job in seconds.
-                  </p>
-                  <Button
-                    className="w-full"
-                    onClick={() => navigate('/upload?next=/tailor')}
-                  >
-                    <Wand2 className="w-4 h-4 mr-2" />
-                    Upload your resume
-                  </Button>
-                </div>
-              )}
-            </div>
-          )}
-
-          {currentResume && (
-            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-primary/5 border border-primary/20">
-              <Wand2 className="w-4 h-4 text-primary shrink-0" />
-              <span className="text-sm font-medium truncate flex-1">{currentResume.contactInfo.fullName || 'Resume'}</span>
-            </div>
-          )}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
 
           <JobUrlParser
             value={jobDescription}
@@ -911,9 +952,9 @@ export default function TailorPage() {
               </ToggleGroupItem>
             </ToggleGroup>
             <p className="text-[11px] text-muted-foreground">
-              {intensity === 'light' && 'Minimal keyword tweaks, preserves your voice'}
+              {intensity === 'light' && 'Minor keyword improvements'}
               {intensity === 'moderate' && 'Balanced rewrite with keyword optimization'}
-              {intensity === 'aggressive' && 'Maximum ATS compatibility, extensive rewrite'}
+              {intensity === 'aggressive' && 'Strong rewrite for maximum job match'}
             </p>
           </div>
 
@@ -928,6 +969,12 @@ export default function TailorPage() {
               <><Wand2 className="w-5 h-5 mr-2" />Tailor My Resume</>
             )}
           </Button>
+
+          {!isTailoring && (
+            <p className="text-xs text-center text-muted-foreground">
+              AI will rewrite your resume to better match this job • Takes ~10–20 seconds
+            </p>
+          )}
 
           {/* On mobile, show results inline below the input */}
           <div className="lg:hidden">
@@ -1028,11 +1075,25 @@ export default function TailorPage() {
               onApplyFix={handleApplyFix}
             />
           ) : (
-            <div className="flex-1 flex items-center justify-center text-center text-muted-foreground px-8">
-              <div>
-                <Wand2 className="w-12 h-12 mx-auto mb-4 opacity-30" />
-                <p className="font-medium">Your tailored results will appear here</p>
-                <p className="text-sm mt-1">Paste a job description and click "Tailor My Resume"</p>
+            <div className="relative rounded-xl border border-border bg-card p-6 space-y-4 opacity-60 overflow-hidden">
+              <div className="space-y-2">
+                <div className="flex gap-3 items-center">
+                  <div className="h-4 w-40 rounded bg-muted animate-pulse" />
+                  <div className="h-3 w-28 rounded bg-muted animate-pulse" />
+                </div>
+              </div>
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="space-y-2">
+                  <div className="h-3 w-20 rounded bg-muted animate-pulse" />
+                  <div className="h-3 w-full rounded bg-muted animate-pulse" />
+                  <div className="h-3 w-4/5 rounded bg-muted animate-pulse" />
+                  <div className="h-3 w-3/5 rounded bg-muted animate-pulse" />
+                </div>
+              ))}
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/60 backdrop-blur-[2px] text-center px-6">
+                <Badge variant="secondary">Before → After optimization</Badge>
+                <p className="font-medium mt-2">Your optimized resume will appear here</p>
+                <p className="text-sm text-muted-foreground mt-1">See how your resume gets improved to match the job</p>
               </div>
             </div>
           )}

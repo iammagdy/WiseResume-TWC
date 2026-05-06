@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Link2, Check, Globe, ChevronDown, FileText } from 'lucide-react';
+import { Link2, Check, Globe, ChevronDown, FileText, Sparkles } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,8 @@ interface JobUrlParserProps {
   onChange: (value: string) => void;
   onParsed?: (data: { title: string; company: string; url?: string }) => void;
 }
+
+const SAMPLE_JOB_DESCRIPTION = "We are looking for a Frontend Developer with experience in React, TypeScript, and modern web technologies. The ideal candidate should be able to build responsive user interfaces, optimize performance, and collaborate with cross-functional teams.";
 
 const SUPPORTED_SITES = [
   { name: 'LinkedIn', icon: '🔗' },
@@ -85,7 +87,7 @@ export function JobUrlParser({ value, onChange, onParsed }: JobUrlParserProps) {
       <div className="space-y-2">
         <label className="text-sm font-medium flex items-center gap-2">
           <Link2 className="w-4 h-4 text-primary" />
-          Paste job URL or description
+          Paste a job description to match your resume in seconds
         </label>
 
         {/* URL Mode */}
@@ -113,7 +115,7 @@ export function JobUrlParser({ value, onChange, onParsed }: JobUrlParserProps) {
                 {isParsing ? (
                   <MiniSpinner size={16} />
                 ) : (
-                  'Parse'
+                  'Extract Job Details'
                 )}
               </Button>
             </div>
@@ -127,6 +129,15 @@ export function JobUrlParser({ value, onChange, onParsed }: JobUrlParserProps) {
                 </Badge>
               ))}
             </div>
+
+            {/* Sample job link */}
+            <button
+              onClick={() => { onChange(SAMPLE_JOB_DESCRIPTION); setShowManual(true); }}
+              className="text-xs text-primary hover:text-primary/80 transition-colors flex items-center gap-1 min-h-[44px] active:scale-95"
+            >
+              <Sparkles className="w-3 h-3" />
+              Try a sample job
+            </button>
 
             {/* Manual Toggle */}
             <button

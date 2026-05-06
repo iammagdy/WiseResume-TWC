@@ -1,5 +1,35 @@
 # Changelog
 
+## 2026-05-06 — TailorPage UX polish + resume selector (Task #51)
+
+**Files changed:**
+- `src/pages/TailorPage.tsx`:
+  - Added `Select, SelectContent, SelectItem, SelectTrigger, SelectValue` import from `@/components/ui/select`
+  - Removed `currentResume: state.currentResume` from `useResumeStore` destructure; added `useMemo` that derives `currentResume` locally from `allResumes?.find(r => r.id === currentResumeId)` → shadows store value for entire component
+  - Added `resumeIdRef = useRef<string | null>(currentResumeId)` alongside abort refs
+  - Added `useEffect([currentResumeId])` to keep `resumeIdRef.current` in sync
+  - Added `useEffect([allResumes, currentResumeId])` stale-selection guard: if loaded `allResumes` does not contain `currentResumeId`, calls `setCurrentResumeId(null)`
+  - Added `handleResumeSwitch(resumeId: string)` callback: three guards (empty list, ID not found, same ID); aborts `fixGenerateAbortRef` + `preValidateAbortRef` + clears `preValidateMergedRef`; calls `setCurrentResumeId`; resets `tailorResult`, `originalResume`, `tailorError`, `preValidatorResult`, `isPreValidating`, `fixSuggestions`, `isGeneratingFixes`, `appliedFixes`, `rejectedBullets`, `dismissedIssueIndices`, `parsedJobInfo`; calls `toast.info('Resume switched — ready to tailor')`. Deps: `[allResumes, currentResumeId]`
+  - Pre-validation IIFE: added `const capturedResumeId = resumeIdRef.current` at IIFE start; added `if (resumeIdRef.current !== capturedResumeId) return` before `setPreValidatorResult` and before `setIsPreValidating(false)` in finally
+  - Fix-generation IIFE: added `const capturedResumeId = resumeIdRef.current` after `thisAbort` creation; added identity guards before all state writes alongside existing abort-controller checks
+  - Replaced old conditional resume picker + resume badge blocks with a single always-visible `<div className="space-y-1">` selector: skeleton while `allResumes === undefined`; upload prompt when `allResumes.length === 0`; Radix `Select` with `value={currentResumeId ?? undefined}` (no empty-string fallback), `disabled={isTailoring || isApplying}`, and `SelectItem` per resume otherwise
+  - Intensity copy: Light → `'Minor keyword improvements'`, Aggressive → `'Strong rewrite for maximum job match'`
+  - Added `{!isTailoring && <p>AI will rewrite your resume to better match this job • Takes ~10–20 seconds</p>}` below Tailor button
+  - Desktop right-panel empty state replaced with animated skeleton card (3 section groups, animate-pulse bars) and absolute-overlay "Before → After optimization" badge with descriptive text
+- `src/components/editor/tailor/JobUrlParser.tsx`:
+  - Added `Sparkles` to lucide-react import
+  - Added module-level `SAMPLE_JOB_DESCRIPTION` constant (Frontend Developer sample, no API call)
+  - Label text: `'Paste job URL or description'` → `'Paste a job description to match your resume in seconds'`
+  - Parse button text: `'Parse'` → `'Extract Job Details'`
+  - Added "Try a sample job" button after supported-sites badges: `onClick={() => { onChange(SAMPLE_JOB_DESCRIPTION); setShowManual(true); }}`
+
+**Behaviour:**
+- Resume selector always visible at top of left panel; switches resume without navigation, resets all resume-specific state, shows toast
+- Async stale-write safety: two independent guards per IIFE (abort-controller + resume identity ref)
+- Stale-selection guard handles resume deletion in another tab
+- `currentResume` derived from TanStack Query cache (`allResumes`) — eliminates store divergence risk
+- `value={currentResumeId ?? undefined}` prevents Radix Select from receiving a mismatched value
+
 ## 2026-05-06 — Guided Fix System: per-fix suggestion cards in Validator Check (Task #45)
 
 **Files changed:**

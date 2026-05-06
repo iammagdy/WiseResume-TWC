@@ -1,6 +1,11 @@
 # What Wise Cloud Can Do Today
 
-**Last verified:** 2026-05-06 (Task #45)
+**Last verified:** 2026-05-06 (Task #51)
+
+## Switch resumes and get clearer guidance on the Tailor screen (2026-05-06)
+**What was the situation:** The Tailor screen assumed you only had one active resume. To tailor a different CV you had to leave the page, change your active resume elsewhere, and come back. The screen also gave very little guidance about what to do, how long tailoring would take, or what to expect before you clicked Tailor.
+**What changed:** A resume selector now sits at the very top of the left panel at all times. You can pick any resume you own from a dropdown and the page instantly resets — ready to tailor that resume against the same job description if you want, or a new one. A brief confirmation toast tells you the switch worked. The job input label now explains exactly what to paste in. The Parse button is renamed "Extract Job Details". A "Try a sample job" link lets you fill in a ready-made example with one click. Below the Tailor button, a short line tells you what the AI is about to do and roughly how long it takes. When there's nothing in the results panel yet, a soft skeleton preview shows where your optimised resume will appear — with a "Before → After optimization" label so the purpose is clear. The three tailoring intensity levels also have new, clearer descriptions: Light says "Minor keyword improvements", Aggressive says "Strong rewrite for maximum job match".
+**What you'll notice:** A dropdown at the top of the tailor form lets you pick which resume to work with. Switching it clears all previous results so nothing carries over. The label above the job description box, the Parse button name, and the hints below the Tailor button are all more descriptive. The empty right panel now shows a faint resume skeleton instead of a blank space.
 
 ## One-click fix suggestions appear automatically after the AI checks your tailored resume (2026-05-06)
 **What was the situation:** After tailoring, the Validator Check panel told you what was missing — keywords, quality issues — but offered no way to act on them directly. You had to manually go into the resume editor to fix each gap yourself.
