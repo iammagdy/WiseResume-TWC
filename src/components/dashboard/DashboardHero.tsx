@@ -21,9 +21,9 @@ export const DashboardHero = memo(function DashboardHero({
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        className="mx-4 mt-3 mb-1 rounded-2xl bg-card border border-border px-4 py-3"
+        className="mx-4 mt-4 mb-4 rounded-2xl bg-card border border-border px-4 py-4"
       >
-        <p className="text-[11px] font-medium text-muted-foreground mb-2">Jump back in</p>
+        <p className="text-[11px] font-medium text-muted-foreground mb-3">Jump back in</p>
         <div className="grid grid-cols-2 gap-2">
           <Button
             variant="outline"
@@ -50,16 +50,16 @@ export const DashboardHero = memo(function DashboardHero({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      className="mx-4 mt-4 mb-3 rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20 px-5 py-6"
+      className="mx-4 mt-5 mb-6 rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20 px-5 py-8"
     >
       <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-primary uppercase tracking-widest mb-2">
         <Wand2 className="w-3 h-3" aria-hidden="true" />
         AI-Powered
       </span>
-      <h2 className="text-[22px] font-bold text-foreground leading-tight mb-1.5">
+      <h2 className="text-2xl font-bold text-foreground leading-tight mb-2">
         Optimize your resume.<br />Get more interviews.
       </h2>
-      <p className="text-sm text-muted-foreground mb-5 leading-snug">
+      <p className="text-sm text-muted-foreground mb-6 leading-snug">
         Start in under 2 minutes — build from scratch or optimize for a specific job.
       </p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">

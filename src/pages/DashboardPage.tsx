@@ -20,7 +20,6 @@ import { SkeletonCardList } from '@/components/ui/skeleton-card';
 import { DashboardStats } from '@/components/dashboard/DashboardStats';
 // DailyTipCard removed - tip merged into DashboardStats
 import { FloatingCreateButton } from '@/components/dashboard/FloatingCreateButton';
-import { WhatsNextCard } from '@/components/dashboard/WhatsNextCard';
 import { DashboardHero } from '@/components/dashboard/DashboardHero';
 import { FeatureMapSheet } from '@/components/layout/FeatureMapSheet';
 import { trackSession } from '@/lib/discoveryManager';
@@ -773,11 +772,8 @@ function DashboardPageContent() {
           />
           </div>
 
-          {/* What's Next Card — shown after greeting for better context flow */}
-          <WhatsNextCard />
-
           {/* Explore — secondary discovery links only */}
-          <div className="px-4 pt-2 pb-1" data-section="dashboard-explore">
+          <div className="px-4 pt-1 pb-1" data-section="dashboard-explore">
             <p className="text-xs font-medium text-muted-foreground mb-2.5 px-1">Explore</p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {[
@@ -813,13 +809,13 @@ function DashboardPageContent() {
                 <button
                   key={item.label}
                   onClick={() => { haptics.light(); item.action(); }}
-                  className="flex flex-col items-center gap-2 py-3 px-2 rounded-2xl bg-card border border-border hover:border-primary/20 active:scale-[0.97] transition-all touch-manipulation"
+                  className="flex flex-col items-center gap-2 py-2 px-2 rounded-2xl bg-muted/40 border border-border/50 hover:border-primary/20 active:scale-[0.97] transition-all touch-manipulation"
                   data-track={`dashboard-explore-${item.label.toLowerCase()}`}
                 >
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${item.iconBg}`}>
-                    <item.icon className={`w-[18px] h-[18px] ${item.iconColor}`} />
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${item.iconBg}`}>
+                    <item.icon className={`w-4 h-4 ${item.iconColor}`} />
                   </div>
-                  <span className="text-[12px] font-medium text-foreground text-center leading-tight">{item.label}</span>
+                  <span className="text-[11px] font-medium text-foreground text-center leading-tight">{item.label}</span>
                 </button>
               ))}
             </div>

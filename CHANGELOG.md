@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-05-05 — Dashboard visual hierarchy cleanup (Task #30)
+
+**Files changed:**
+- `src/pages/DashboardPage.tsx`
+- `src/components/dashboard/DashboardHero.tsx`
+
+**WhatsNextCard:** removed `<WhatsNextCard />` render and its comment; removed unused import. Component file and logic untouched.
+
+**DashboardHero — returning user (compact):** `mt-3→mt-4`, `mb-1→mb-4`, `py-3→py-4`; label `mb-2→mb-3`.
+
+**DashboardHero — new user (full):** `mt-4→mt-5`, `mb-3→mb-6`, `py-6→py-8`; headline `text-[22px]→text-2xl`, `mb-1.5→mb-2`; sub-copy `mb-5→mb-6`.
+
+**Explore cards:** `pt-2→pt-1` on wrapper; cards `py-3→py-2`, `bg-card→bg-muted/40`, `border-border→border-border/50`; icon container `w-9 h-9→w-8 h-8`; icon `w-[18px] h-[18px]→w-4 h-4`; label `text-[12px]→text-[11px]`. Grid unchanged.
+
+---
+
 ## 2026-05-05 — Tailor success screen: copy, keyword highlight, event logging (Task #28)
 
 **Files changed:**
