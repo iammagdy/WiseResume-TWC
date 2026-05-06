@@ -340,6 +340,7 @@ export default function TailorPage() {
     setRejectedBullets(new Set());
     setDismissedIssueIndices(new Set());
     setParsedJobInfo(null);
+    toast.dismiss();
     toast.info('Resume switched — ready to tailor');
   }, [allResumes, currentResumeId]);
 
@@ -515,7 +516,6 @@ export default function TailorPage() {
       if (!preValidateMergedRef.current) {
         if (resumeIdRef.current !== capturedResumeId) return;
         setFixSuggestions([]);
-        if (resumeIdRef.current !== capturedResumeId) return;
         setIsGeneratingFixes(false);
         return;
       }
@@ -881,7 +881,7 @@ export default function TailorPage() {
                 disabled={isTailoring || isApplying}
               >
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select a resume..." />
+                  <SelectValue placeholder="Select a resume" />
                 </SelectTrigger>
                 <SelectContent>
                   {allResumes.map((r: DatabaseResume) => (

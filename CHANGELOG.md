@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-05-06 — TailorPage resume-switch micro-polish (Task #55)
+
+**Files changed:**
+- `src/pages/TailorPage.tsx`:
+  - `handleResumeSwitch`: added `toast.dismiss()` before `toast.info(...)` to prevent toast stacking on rapid resume switching
+  - Fix-generation IIFE early-return guard: removed redundant second `if (resumeIdRef.current !== capturedResumeId) return` that appeared between two synchronous `setState` calls (`setFixSuggestions([])` / `setIsGeneratingFixes(false)`) and was unreachable in a single-threaded JS context
+  - Resume `SelectValue`: changed `placeholder="Select a resume..."` → `placeholder="Select a resume"` (removed trailing ellipsis)
+
+**Behaviour:**
+- Switching resumes quickly shows at most one "Resume switched — ready to tailor" toast at a time; previous toast is dismissed before the new one appears
+- Fix-generation IIFE early-return path is clean: one identity guard, then both synchronous state resets, then return
+- Select placeholder copy consistent with rest of UI (no ellipsis)
+
 ## 2026-05-06 — TailorPage UX polish + resume selector (Task #51)
 
 **Files changed:**
