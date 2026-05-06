@@ -1,6 +1,11 @@
 # What Wise Cloud Can Do Today
 
-**Last verified:** 2026-05-06 (Task #37)
+**Last verified:** 2026-05-06 (Task #38)
+
+## Tailored resumes now show their verified match score on the main dashboard (2026-05-06)
+**What was the situation:** The match score produced after tailoring and validating a resume was stored but not visible anywhere outside the tailoring flow itself. The resume cards on the dashboard and the history list just showed the raw job title, or nothing at all.
+**What changed:** Any tailored resume that has a validated match score now shows it right on the dashboard card — a small colour-coded badge with a shield icon. Green means ≥75%, amber means ≥50%, and red means below 50%. The tailor history list also shows the same verified score with a "Verified" label on the badge, replacing the older estimated score, so you can compare before and after at a glance.
+**What you'll notice:** When you open the dashboard, tailored resume cards with a target job set will show a small score badge (e.g. "✓ 82%") next to the job title. In the tailor history sheet, each entry's badge now reads the verified score with a "Verified" label.
 
 ## See keyword gaps and quality issues before saving your tailored resume (2026-05-06)
 **What was the situation:** After the AI finished tailoring your resume, you had no way to know how well it scored until after you clicked Apply — at which point the resume was already saved.

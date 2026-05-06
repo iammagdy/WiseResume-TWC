@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-05-06 — Verified match scores on dashboard cards and tailor history (Task #38)
+
+**Files changed:**
+- `src/types/resume.ts` — added optional `verifiedScore?: number | null` field to `TailorHistory` interface
+- `src/pages/TailorPage.tsx` — passes `verifiedScore: finalMatchScore` into `addTailorHistory` call
+- `src/components/dashboard/ResumeListCard.tsx` — replaces inline `(matchScore% match)` text with a colour-coded `ShieldCheck` badge; helper `verifiedScoreClass(score)` (≥75 green / ≥50 amber / <50 red)
+- `src/components/editor/tailor/TailorHistorySheet.tsx` — badge now uses `verifiedScore ?? scoreBeforeAfter.after` with a `ShieldCheck` icon and "Verified" label when the field is set; colour thresholds updated to match spec (≥75 / ≥50 / <50); before→after row uses `verifiedScore` as the "after" value when available
+
+**Behaviour:**
+- Dashboard resume cards: if `resume.job_match_score` is set the target-job row now shows a small colour-coded badge (`ShieldCheck` icon + score%) instead of inline plain text; badge absent when score is null
+- Tailor history sheet: badge shows `ShieldCheck` + score% + "Verified" label when `verifiedScore` is present; falls back to `TrendingUp` icon with generator score for older entries that pre-date this change; before→after line uses verified score as "after"
+- Old history entries in the Zustand store do not have `verifiedScore` (field is optional) — they continue to display the generator estimate via `scoreBeforeAfter.after`
+
 ## 2026-05-06 — Inline pre-validation feedback before Apply (Task #37)
 
 **Files changed:**

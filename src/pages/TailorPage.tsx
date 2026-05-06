@@ -518,6 +518,7 @@ export default function TailorPage() {
         jobDescription,
         tailorResult,
         scoreBeforeAfter: tailorResult.overallScore ?? { before: 0, after: 0 },
+        verifiedScore: finalMatchScore,
         appliedSections: enabledSections,
       }, currentResumeId || undefined);
 

@@ -24,6 +24,7 @@ import {
   ArrowRight,
   Timer,
   AlertTriangle,
+  ShieldCheck,
 } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
 import { useOfflineSyncStore } from '@/store/offlineSyncStore';
@@ -149,6 +150,12 @@ export const ResumeListCard = memo(function ResumeListCard({
   const isPending = useOfflineSyncStore(s => s.pendingChanges.some(c => c.resumeId === resume.id));
   const matchScore = resume.job_match_score;
   const resumeForProgress = useMemo(() => dbToResumeData(resume), [resume.id, resume.updated_at]);
+
+  const verifiedScoreClass = (score: number) => {
+    if (score >= 75) return 'bg-success/10 text-success border-success/30';
+    if (score >= 50) return 'bg-amber-500/10 text-amber-600 border-amber-500/30';
+    return 'bg-red-500/10 text-red-600 border-red-500/30';
+  };
 
   const handleDragStart = () => {
     setIsDragging(true);
@@ -430,11 +437,22 @@ export const ResumeListCard = memo(function ResumeListCard({
                   className="flex items-center gap-1 text-sm text-muted-foreground mb-1 hover:text-foreground transition-colors"
                   onClick={(e) => { e.stopPropagation(); haptics.light(); setShowTargetJobSheet(true); }}
                 >
-                  <Target className="w-3.5 h-3.5 text-primary" />
-                  <span className="truncate">
-                    🎯 {resume.target_company && `${resume.target_company} - `}{resume.target_job_title}
-                    {matchScore ? ` (${matchScore}% match)` : ''}
+                  <Target className="w-3.5 h-3.5 text-primary shrink-0" />
+                  <span className="truncate flex-1">
+                    {resume.target_company && `${resume.target_company} – `}{resume.target_job_title}
                   </span>
+                  {matchScore !== null && matchScore !== undefined && (
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        'shrink-0 text-[10px] px-1.5 py-0 h-4 gap-0.5 font-medium',
+                        verifiedScoreClass(matchScore),
+                      )}
+                    >
+                      <ShieldCheck className="w-2.5 h-2.5" />
+                      {matchScore}% Verified
+                    </Badge>
+                  )}
                 </button>
               ) : (
                 <button

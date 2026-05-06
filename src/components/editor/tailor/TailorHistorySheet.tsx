@@ -1,4 +1,4 @@
-import { History, RotateCcw, Trash2, Calendar, TrendingUp, Download } from 'lucide-react';
+import { History, RotateCcw, Trash2, Calendar, TrendingUp, Download, ShieldCheck } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,6 +14,12 @@ interface TailorHistorySheetProps {
   history: TailorHistory[];
   onRestore: (id: string) => void;
   onClear: () => void;
+}
+
+function verifiedScoreClass(score: number) {
+  if (score >= 75) return 'bg-success/10 text-success border-success/30';
+  if (score >= 50) return 'bg-amber-500/10 text-amber-600 border-amber-500/30';
+  return 'bg-red-500/10 text-red-600 border-red-500/30';
 }
 
 export function TailorHistorySheet({
@@ -83,25 +89,29 @@ export function TailorHistorySheet({
                             @ {entry.company}
                           </p>
                         </div>
-                        <Badge
-                          variant="outline"
-                          className={cn(
-                            'shrink-0',
-                            entry.scoreBeforeAfter.after >= 85
-                              ? 'bg-success/10 text-success border-success/30'
-                              : entry.scoreBeforeAfter.after >= 70
-                              ? 'bg-amber-500/10 text-amber-600 border-amber-500/30'
-                              : 'bg-muted'
-                          )}
-                        >
-                          <TrendingUp className="w-3 h-3 mr-1" />
-                          {entry.scoreBeforeAfter.after}%
-                        </Badge>
+                        {(() => {
+                          const displayScore = entry.verifiedScore ?? entry.scoreBeforeAfter.after;
+                          const isVerified = entry.verifiedScore !== undefined && entry.verifiedScore !== null;
+                          return (
+                            <Badge
+                              variant="outline"
+                              className={cn('shrink-0', verifiedScoreClass(displayScore))}
+                            >
+                              {isVerified ? (
+                                <ShieldCheck className="w-3 h-3 mr-1" />
+                              ) : (
+                                <TrendingUp className="w-3 h-3 mr-1" />
+                              )}
+                              {displayScore}%
+                              {isVerified && <span className="ml-1 font-medium">Verified</span>}
+                            </Badge>
+                          );
+                        })()}
                       </div>
 
                       <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
                         <span>
-                          {entry.scoreBeforeAfter.before}% → {entry.scoreBeforeAfter.after}%
+                          {entry.scoreBeforeAfter.before}% → {entry.verifiedScore ?? entry.scoreBeforeAfter.after}%
                         </span>
                         <span>•</span>
                         <span>
