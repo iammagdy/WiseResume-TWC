@@ -52,6 +52,11 @@ export function TailorDemoPanel() {
   const [exampleIdx, setExampleIdx] = useState(0);
   const [phase, setPhase] = useState<Phase>(prefersReducedMotion ? 'after' : 'before');
 
+  // If reduced-motion preference is toggled while the panel is mounted, snap to static "after" frame
+  useEffect(() => {
+    if (prefersReducedMotion) setPhase('after');
+  }, [prefersReducedMotion]);
+
   useEffect(() => {
     if (prefersReducedMotion) return;
 
