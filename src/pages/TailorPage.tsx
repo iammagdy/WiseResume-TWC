@@ -458,6 +458,9 @@ export default function TailorPage() {
       return;
     }
     if (preValidatorResult.missing_keywords.length === 0 && preValidatorResult.issues.length === 0) {
+      fixGenerateAbortRef.current?.abort();
+      fixGenerateAbortRef.current = null;
+      setIsGeneratingFixes(false);
       setFixSuggestions([]);
       return;
     }
@@ -1705,7 +1708,7 @@ function ResultsPanel({
                     <div className="space-y-2 pt-1">
                       <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                         <Sparkles className="w-3.5 h-3.5 text-primary" />
-                        Suggested fixes — apply individually before finalising:
+                        Suggested improvements — apply individually before finalising:
                         {isGeneratingFixes && (
                           <Loader2 className="w-3 h-3 animate-spin ml-1" />
                         )}
