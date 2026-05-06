@@ -156,7 +156,6 @@ export default function TailorPage() {
     setPendingTailor,
     clearPendingTailor,
     setCurrentResumeId,
-    setCurrentResume,
     pendingTailorResult,
     pendingTailorOriginal,
     pendingTailorJobInfo,
@@ -171,7 +170,6 @@ export default function TailorPage() {
     setPendingTailor: state.setPendingTailor,
     clearPendingTailor: state.clearPendingTailor,
     setCurrentResumeId: state.setCurrentResumeId,
-    setCurrentResume: state.setCurrentResume,
     pendingTailorResult: state.pendingTailorResult,
     pendingTailorOriginal: state.pendingTailorOriginal,
     pendingTailorJobInfo: state.pendingTailorJobInfo,
@@ -287,9 +285,8 @@ export default function TailorPage() {
     const found = allResumes.find((r: DatabaseResume) => r.id === paramResumeId);
     if (found) {
       setCurrentResumeId(paramResumeId);
-      setCurrentResume(dbToResumeData(found));
     }
-  }, [paramResumeId, allResumes, currentResumeId, setCurrentResumeId, setCurrentResume]);
+  }, [paramResumeId, allResumes, currentResumeId, setCurrentResumeId]);
 
   // Auto-select the most recently updated resume when the user lands on
   // /tailor without an explicit resumeId param and nothing is loaded yet.
@@ -307,9 +304,8 @@ export default function TailorPage() {
     })[0];
     if (mostRecent) {
       setCurrentResumeId(mostRecent.id);
-      setCurrentResume(dbToResumeData(mostRecent));
     }
-  }, [paramResumeId, currentResume, allResumes, setCurrentResumeId, setCurrentResume]);
+  }, [paramResumeId, currentResume, allResumes, setCurrentResumeId]);
 
   useEffect(() => {
     resumeIdRef.current = currentResumeId;
@@ -487,7 +483,7 @@ export default function TailorPage() {
       setIsTailoring(false);
       setProgress(null);
     }
-  }, [jobDescription, currentResume, intensity, customInstructions, executeAI, setPendingTailor, jobUrl, redactedResume, enabledSections]);
+  }, [jobDescription, currentResume, currentResumeId, intensity, customInstructions, executeAI, setPendingTailor, jobUrl, redactedResume, enabledSections]);
 
   const handleDismissIssue = useCallback((index: number) => {
     setDismissedIssueIndices(prev => new Set([...prev, index]));
@@ -880,7 +876,7 @@ export default function TailorPage() {
               </div>
             ) : (
               <Select
-                value={currentResumeId ?? undefined}
+                value={allResumes.some(r => r.id === currentResumeId) ? (currentResumeId ?? undefined) : undefined}
                 onValueChange={handleResumeSwitch}
                 disabled={isTailoring || isApplying}
               >
