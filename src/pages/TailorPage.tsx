@@ -936,7 +936,7 @@ export default function TailorPage() {
                 isApplying={isApplying}
                 onRetry={() => { setTailorError(null); handleTailor(); }}
                 onSettings={() => {}}
-                onRevert={() => setTailorResult(null)}
+                onRevert={() => { setTailorResult(null); setAppliedFixes([]); }}
                 abortRef={abortRef}
                 setIsTailoring={setIsTailoring}
                 setProgress={setProgress}
@@ -987,7 +987,7 @@ export default function TailorPage() {
               isApplying={isApplying}
               onRetry={() => { setTailorError(null); handleTailor(); }}
               onSettings={() => {}}
-              onRevert={() => setTailorResult(null)}
+              onRevert={() => { setTailorResult(null); setAppliedFixes([]); }}
               abortRef={abortRef}
               setIsTailoring={setIsTailoring}
               setProgress={setProgress}
@@ -1700,18 +1700,7 @@ function ResultsPanel({
                     </div>
                   )}
 
-                  {/* Global issues (not tied to any specific section) */}
-                  {(issueMap.get('global') ?? []).length > 0 && (
-                    <SectionIssueCallouts
-                      sectionId="summary"
-                      issueIndices={issueMap.get('global')!}
-                      issues={preValidatorResult.issues}
-                      dismissedIssueIndices={dismissedIssueIndices}
-                      onDismissIssue={onDismissIssue}
-                    />
-                  )}
-
-                  {/* Fix suggestions */}
+                  {/* Fix suggestions — shown between missing keywords and global issues */}
                   {(isGeneratingFixes || (fixSuggestions && fixSuggestions.length > 0)) && (
                     <div className="space-y-2 pt-1">
                       <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
@@ -1734,8 +1723,19 @@ function ResultsPanel({
                   {/* Score-awareness note */}
                   {appliedFixes.length > 0 && (
                     <p className="text-[11px] text-muted-foreground bg-muted/60 rounded-md px-2.5 py-1.5 leading-snug">
-                      {appliedFixes.length} fix{appliedFixes.length > 1 ? 'es' : ''} applied — click <span className="font-medium">Apply</span> below to save them to your resume.
+                      Applied improvements will be reflected in your final score after you click Apply.
                     </p>
+                  )}
+
+                  {/* Global issues (not tied to any specific section) */}
+                  {(issueMap.get('global') ?? []).length > 0 && (
+                    <SectionIssueCallouts
+                      sectionId="summary"
+                      issueIndices={issueMap.get('global')!}
+                      issues={preValidatorResult.issues}
+                      dismissedIssueIndices={dismissedIssueIndices}
+                      onDismissIssue={onDismissIssue}
+                    />
                   )}
                 </>
               )}
