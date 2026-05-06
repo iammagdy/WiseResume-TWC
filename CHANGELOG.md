@@ -1,5 +1,33 @@
 # Changelog
 
+## 2026-05-06 — Guided Fix System: per-fix suggestion cards in Validator Check (Task #45)
+
+**Files changed:**
+- `src/types/resume.ts` — added `FixSuggestion` interface (`type`, `section`, `target_id?`, `before?`, `after`, `reason`)
+- `src/lib/tailorMerge.ts` — added `normalizeSkill()` and `applyFixesOnTop(merged, fixes, enabledSections)` exports; `improve_bullet` target_id split uses `lastIndexOf('-')` to handle UUID-based experienceIds correctly
+- `supabase/functions/generate-fix-suggestions/index.ts` — new edge function; calls `callAIWithRetry` with `featureName:'tailor-resume'`, `temperature:0.2`, `maxTokens:800`, `jsonMode:true`; post-processes AI output with VALID_TYPES/VALID_SECTIONS guards, length <10 drop, generic-phrase drop (`responsible for`, `worked on`, etc.), `isBulletRelevant()` overlap check for `improve_bullet` (≥2 tokens OR ≥25% overlap), `target_id` `lastIndexOf` split, bounds check; always returns HTTP 200 `[]` on any error
+- `supabase/config.toml` — registered `[functions.generate-fix-suggestions] verify_jwt = false`
+- `src/pages/TailorPage.tsx`:
+  - Imports: added `FixSuggestion` from types, `applyFixesOnTop` from tailorMerge
+  - Added `MAX_APPLIED_FIXES = 10` constant
+  - New state: `fixSuggestions: FixSuggestion[] | null`, `isGeneratingFixes: boolean`, `appliedFixes: FixSuggestion[]`
+  - New refs: `fixGenerateAbortRef`, `preValidateMergedRef` (set after `buildMergedResume` in pre-validate IIFE)
+  - `handleTailor` reset block: resets all three new state vars, aborts `fixGenerateAbortRef`, clears `preValidateMergedRef`
+  - New `useEffect([preValidatorResult, jobDescription])`: fires `generate-fix-suggestions` POST with abort+timeout guard; race-condition identity check before setting state; skips if no missing_keywords and no issues
+  - New `handleApplyFix(idx)`: nested setState pattern (stale-closure-safe); deduplication by `(type, after, target_id)`; MAX_APPLIED_FIXES cap
+  - `handleApplyChanges` and preview sheet: both `buildMergedResume` call sites now wrapped with `applyFixesOnTop(..., appliedFixes, enabledSections)`
+  - `ResultsPanelProps`: added `fixSuggestions`, `isGeneratingFixes`, `appliedFixes`, `onApplyFix`
+  - Both mobile and desktop `ResultsPanel` call sites: pass all four new props
+  - New `FixSuggestionCard` component: shows type label, before (strikethrough), after text, reason, and "Apply" button
+  - `ResultsPanel` `ResultsPanel`: destructures new props; renders fix suggestion cards and score-awareness note inside Validator Check card
+
+**Behaviour:**
+- After pre-validation completes (and only when missing_keywords or issues are present), a background call to `generate-fix-suggestions` fires automatically
+- Up to 5 atomic fix cards appear inside the Validator Check card — each individually applicable with one click
+- Applying a fix: removes the card, composes the change into `appliedFixes` state (never mutating `tailorResult`)
+- `applyFixesOnTop` is composed over `buildMergedResume` output at both Apply and Preview sites — the merged resume seen in preview and saved to DB always includes applied fixes
+- Score-awareness note shown when `appliedFixes.length > 0` reminding user to click Apply to save
+
 ## 2026-05-06 — Extract shared keyword-scoring logic into _shared/keywordScoring.ts (Task #39)
 
 **Files changed:**

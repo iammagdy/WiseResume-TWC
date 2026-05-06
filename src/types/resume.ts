@@ -422,6 +422,15 @@ export interface ValidatorResult {
   verdict: 'weak' | 'average' | 'strong' | null;
 }
 
+export interface FixSuggestion {
+  type: 'add_skill' | 'improve_bullet' | 'enhance_summary';
+  section: 'skills' | 'experience' | 'summary';
+  target_id?: string;
+  before?: string;
+  after: string;
+  reason: string;
+}
+
  // Extended tailor result with all new fields
   export interface SuperTailorResult extends EnhancedTailorResult {
     jobIntelligence?: JobIntelligence;

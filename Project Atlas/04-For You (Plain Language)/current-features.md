@@ -1,6 +1,11 @@
 # What Wise Cloud Can Do Today
 
-**Last verified:** 2026-05-06 (Task #38)
+**Last verified:** 2026-05-06 (Task #45)
+
+## One-click fix suggestions appear automatically after the AI checks your tailored resume (2026-05-06)
+**What was the situation:** After tailoring, the Validator Check panel told you what was missing — keywords, quality issues — but offered no way to act on them directly. You had to manually go into the resume editor to fix each gap yourself.
+**What changed:** The moment the Validator Check finishes, the system automatically generates up to 5 targeted fix cards inside that same panel. Each card shows exactly what it would change (a new skill, a stronger bullet point, or a better summary), explains why it helps, and has a single "Apply" button. Clicking Apply instantly folds the change into your resume preview — no manual editing needed. You can apply as many or as few as you like before clicking the main Apply button to save.
+**What you'll notice:** After a tailoring run, fix suggestion cards appear beneath the missing-keywords list — labelled "Add skill", "Improve bullet", or "Enhance summary". Each has an Apply button. Once you click it, the card disappears and a note at the bottom tells you how many fixes are pending. The preview and the saved resume both reflect every fix you applied.
 
 ## Tailored resumes now show their verified match score on the main dashboard (2026-05-06)
 **What was the situation:** The match score produced after tailoring and validating a resume was stored but not visible anywhere outside the tailoring flow itself. The resume cards on the dashboard and the history list just showed the raw job title, or nothing at all.

@@ -21,7 +21,7 @@ import { KeywordMatchBar } from '@/components/editor/tailor/KeywordMatchBar';
 import { KeywordMatchList } from '@/components/editor/tailor/KeywordMatchList';
 import { JobUrlParser } from '@/components/editor/tailor/JobUrlParser';
 import { TailorPreviewSheet } from '@/components/editor/tailor/TailorPreviewSheet';
-import { buildMergedResume } from '@/lib/tailorMerge';
+import { buildMergedResume, applyFixesOnTop } from '@/lib/tailorMerge';
 import { AICostBadge } from '@/components/ai/AICostBadge';
 import { reportBug } from '@/lib/bugReport';
 import { useAIAction } from '@/hooks/useAIAction';
@@ -36,6 +36,7 @@ import {
   ResumeData,
   EnhancedTailorProgress,
   ValidatorResult,
+  FixSuggestion,
 } from '@/types/resume';
 import { apiFnUrl } from '@/lib/apiFnUrl';
 import { getSupabaseToken } from '@/lib/supabaseAuth';
@@ -59,6 +60,7 @@ const SECTION_LABELS: Record<TailorSectionId, string> = {
 };
 
 const CUSTOM_INSTRUCTIONS_KEY = 'wr-tailor-custom-instructions';
+const MAX_APPLIED_FIXES = 10;
 
 function buildPlainText(resume: ResumeData, tailorResult: SuperTailorResult, enabledSections: TailorSectionId[]): string {
   const lines: string[] = [];
@@ -203,6 +205,9 @@ export default function TailorPage() {
   const [preValidatorResult, setPreValidatorResult] = useState<ValidatorResult | null>(null);
   const [isPreValidating, setIsPreValidating] = useState(false);
   const [dismissedIssueIndices, setDismissedIssueIndices] = useState<Set<number>>(new Set());
+  const [fixSuggestions, setFixSuggestions] = useState<FixSuggestion[] | null>(null);
+  const [isGeneratingFixes, setIsGeneratingFixes] = useState(false);
+  const [appliedFixes, setAppliedFixes] = useState<FixSuggestion[]>([]);
 
   const [customInstructions, setCustomInstructions] = useState(
     () => localStorage.getItem(CUSTOM_INSTRUCTIONS_KEY) || ''
@@ -217,6 +222,8 @@ export default function TailorPage() {
 
   const abortRef = useRef<AbortController | null>(null);
   const preValidateAbortRef = useRef<AbortController | null>(null);
+  const fixGenerateAbortRef = useRef<AbortController | null>(null);
+  const preValidateMergedRef = useRef<ResumeData | null>(null);
   const copiedTextTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { execute: executeAI } = useAIAction({ operation: 'tailor' });
   const redactedResume = useRedactedResume(currentResume as ResumeData | null);
@@ -331,6 +338,12 @@ export default function TailorPage() {
     setPreValidatorResult(null);
     setIsPreValidating(false);
     setDismissedIssueIndices(new Set());
+    setFixSuggestions(null);
+    setIsGeneratingFixes(false);
+    setAppliedFixes([]);
+    fixGenerateAbortRef.current?.abort();
+    fixGenerateAbortRef.current = null;
+    preValidateMergedRef.current = null;
 
     // Cancel any in-flight pre-validation from a previous tailor run
     preValidateAbortRef.current?.abort();
@@ -383,6 +396,7 @@ export default function TailorPage() {
       (async () => {
         try {
           const mergedForValidation = buildMergedResume(currentResume, superResult, enabledSections, new Set());
+          preValidateMergedRef.current = mergedForValidation;
           const token = await getSupabaseToken();
           const thisAbort = new AbortController();
           preValidateAbortRef.current = thisAbort;
@@ -435,6 +449,80 @@ export default function TailorPage() {
     setDismissedIssueIndices(prev => new Set([...prev, index]));
   }, []);
 
+  // Fire generate-fix-suggestions whenever pre-validation result arrives
+  useEffect(() => {
+    if (!preValidatorResult) {
+      fixGenerateAbortRef.current?.abort();
+      setFixSuggestions(null);
+      setIsGeneratingFixes(false);
+      return;
+    }
+    if (preValidatorResult.missing_keywords.length === 0 && preValidatorResult.issues.length === 0) {
+      setFixSuggestions([]);
+      return;
+    }
+    fixGenerateAbortRef.current?.abort();
+    setIsGeneratingFixes(true);
+    setFixSuggestions(null);
+    (async () => {
+      const thisAbort = new AbortController();
+      fixGenerateAbortRef.current = thisAbort;
+      if (!preValidateMergedRef.current) {
+        setFixSuggestions([]);
+        setIsGeneratingFixes(false);
+        return;
+      }
+      const fixTimeout = setTimeout(() => thisAbort.abort(), 12000);
+      try {
+        const token = await getSupabaseToken();
+        const r = await fetch(apiFnUrl('generate-fix-suggestions'), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({
+            finalResume: preValidateMergedRef.current,
+            jobDescription,
+            missing_keywords: preValidatorResult.missing_keywords,
+            issues: preValidatorResult.issues,
+          }),
+          signal: thisAbort.signal,
+        });
+        if (fixGenerateAbortRef.current !== thisAbort) return;
+        if (r.ok) {
+          setFixSuggestions(((await r.json()) as FixSuggestion[]).slice(0, 5));
+        } else {
+          setFixSuggestions([]);
+        }
+      } catch {
+        if (fixGenerateAbortRef.current === thisAbort) setFixSuggestions([]);
+      } finally {
+        clearTimeout(fixTimeout);
+        if (fixGenerateAbortRef.current === thisAbort) setIsGeneratingFixes(false);
+      }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preValidatorResult, jobDescription]);
+
+  const handleApplyFix = useCallback((idx: number) => {
+    setFixSuggestions(prev => {
+      if (!prev || !prev[idx]) return prev;
+      const selected = prev[idx];
+      setAppliedFixes(current => {
+        if (current.length >= MAX_APPLIED_FIXES) return current;
+        const exists = current.some(f =>
+          f.type === selected.type &&
+          f.after === selected.after &&
+          f.target_id === selected.target_id
+        );
+        if (exists) return current;
+        return [...current, selected];
+      });
+      return prev.filter((_, i) => i !== idx);
+    });
+  }, []);
+
   const handleApplyChanges = useCallback(async () => {
     if (!tailorResult || !currentResume || !user) return;
     if (!currentResumeId) { toast.error('Please select a resume before applying changes.'); return; }
@@ -442,7 +530,11 @@ export default function TailorPage() {
     logTailorEvent('apply-changes-clicked', { resumeId: currentResumeId });
     setIsApplying(true);
     try {
-      const mergedResume = buildMergedResume(currentResume, tailorResult, enabledSections, rejectedBullets);
+      const mergedResume = applyFixesOnTop(
+        buildMergedResume(currentResume, tailorResult, enabledSections, rejectedBullets),
+        appliedFixes,
+        enabledSections,
+      );
 
       const jobTitle = parsedJobInfo?.title || tailorResult.jobParsed?.title || 'Position';
       const company = parsedJobInfo?.company || tailorResult.jobParsed?.company || 'Company';
@@ -870,6 +962,10 @@ export default function TailorPage() {
                 isPreValidating={isPreValidating}
                 dismissedIssueIndices={dismissedIssueIndices}
                 onDismissIssue={handleDismissIssue}
+                fixSuggestions={fixSuggestions}
+                isGeneratingFixes={isGeneratingFixes}
+                appliedFixes={appliedFixes}
+                onApplyFix={handleApplyFix}
               />
             )}
           </div>
@@ -917,6 +1013,10 @@ export default function TailorPage() {
               isPreValidating={isPreValidating}
               dismissedIssueIndices={dismissedIssueIndices}
               onDismissIssue={handleDismissIssue}
+              fixSuggestions={fixSuggestions}
+              isGeneratingFixes={isGeneratingFixes}
+              appliedFixes={appliedFixes}
+              onApplyFix={handleApplyFix}
             />
           ) : (
             <div className="flex-1 flex items-center justify-center text-center text-muted-foreground px-8">
@@ -937,7 +1037,11 @@ export default function TailorPage() {
         onOpenChange={setShowTailorPreview}
         resume={
           tailorResult && currentResume
-            ? buildMergedResume(currentResume, tailorResult, enabledSections, rejectedBullets)
+            ? applyFixesOnTop(
+                buildMergedResume(currentResume, tailorResult, enabledSections, rejectedBullets),
+                appliedFixes,
+                enabledSections,
+              )
             : null
         }
         onApply={() => {
@@ -1010,6 +1114,10 @@ interface ResultsPanelProps {
   isPreValidating: boolean;
   dismissedIssueIndices: Set<number>;
   onDismissIssue: (index: number) => void;
+  fixSuggestions: FixSuggestion[] | null;
+  isGeneratingFixes: boolean;
+  appliedFixes: FixSuggestion[];
+  onApplyFix: (idx: number) => void;
 }
 
 function ScoreLabel({ score }: { score: number }) {
@@ -1057,6 +1165,39 @@ interface SectionIssueCalloutsProps {
   onDismissIssue: (index: number) => void;
 }
 
+function FixSuggestionCard({ fix, onApply }: { fix: FixSuggestion; onApply: () => void }) {
+  const typeLabel =
+    fix.type === 'add_skill'
+      ? 'Add skill'
+      : fix.type === 'improve_bullet'
+        ? 'Improve bullet'
+        : 'Enhance summary';
+
+  return (
+    <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-2">
+      <div className="flex items-start justify-between gap-2">
+        <span className="text-[10px] font-semibold uppercase tracking-wide text-primary/70">
+          {typeLabel}
+        </span>
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-6 px-2 text-[10px] shrink-0 border-primary/30 text-primary hover:bg-primary/10"
+          onClick={onApply}
+        >
+          <CheckCircle className="w-3 h-3 mr-1" />
+          Apply
+        </Button>
+      </div>
+      {fix.before && (
+        <p className="text-xs text-muted-foreground line-through leading-snug">{fix.before}</p>
+      )}
+      <p className="text-xs font-medium leading-snug">{fix.after}</p>
+      <p className="text-[11px] text-muted-foreground leading-snug">{fix.reason}</p>
+    </div>
+  );
+}
+
 function SectionIssueCallouts({ sectionId: _sectionId, issueIndices, issues, dismissedIssueIndices, onDismissIssue }: SectionIssueCalloutsProps) {
   const visible = issueIndices.filter(i => !dismissedIssueIndices.has(i));
   if (visible.length === 0) return null;
@@ -1089,6 +1230,7 @@ function ResultsPanel({
   copiedText, onCopyText, onReTailor,
   rejectedBullets, onBulletReject, onRegenerate, revealedSections,
   preValidatorResult, isPreValidating, dismissedIssueIndices, onDismissIssue,
+  fixSuggestions, isGeneratingFixes, appliedFixes, onApplyFix,
 }: ResultsPanelProps) {
   const issueMap = useMemo(
     () => preValidatorResult ? mapIssuesToSections(preValidatorResult.issues) : new Map<TailorSectionId | 'global', number[]>(),
@@ -1567,6 +1709,33 @@ function ResultsPanel({
                       dismissedIssueIndices={dismissedIssueIndices}
                       onDismissIssue={onDismissIssue}
                     />
+                  )}
+
+                  {/* Fix suggestions */}
+                  {(isGeneratingFixes || (fixSuggestions && fixSuggestions.length > 0)) && (
+                    <div className="space-y-2 pt-1">
+                      <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-primary" />
+                        Suggested fixes — apply individually before finalising:
+                        {isGeneratingFixes && (
+                          <Loader2 className="w-3 h-3 animate-spin ml-1" />
+                        )}
+                      </p>
+                      {fixSuggestions?.map((fix, i) => (
+                        <FixSuggestionCard
+                          key={`${fix.type}-${fix.after.slice(0, 20)}-${i}`}
+                          fix={fix}
+                          onApply={() => onApplyFix(i)}
+                        />
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Score-awareness note */}
+                  {appliedFixes.length > 0 && (
+                    <p className="text-[11px] text-muted-foreground bg-muted/60 rounded-md px-2.5 py-1.5 leading-snug">
+                      {appliedFixes.length} fix{appliedFixes.length > 1 ? 'es' : ''} applied — click <span className="font-medium">Apply</span> below to save them to your resume.
+                    </p>
                   )}
                 </>
               )}

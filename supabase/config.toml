@@ -64,6 +64,8 @@ project_id = "jnsfmkzgxsviuthaqlyy"
   verify_jwt = false
 [functions.validate-tailor]
   verify_jwt = false
+[functions.generate-fix-suggestions]
+  verify_jwt = false
 [functions.token-exchange]
   verify_jwt = false
 [functions.validate-api-key]

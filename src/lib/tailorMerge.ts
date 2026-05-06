@@ -1,4 +1,4 @@
-import { ResumeData, SuperTailorResult, TailorSectionId } from '@/types/resume';
+import { ResumeData, SuperTailorResult, TailorSectionId, FixSuggestion } from '@/types/resume';
 
 /**
  * Build a merged resume snapshot by overlaying the AI-tailored result onto the
@@ -54,4 +54,54 @@ export function buildMergedResume(
   }
 
   return mergedResume;
+}
+
+export function normalizeSkill(skill: string): string {
+  return skill.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+export function applyFixesOnTop(
+  merged: ResumeData,
+  fixes: FixSuggestion[],
+  enabledSections: TailorSectionId[],
+): ResumeData {
+  if (fixes.length === 0) return merged;
+  let result: ResumeData = {
+    ...merged,
+    skills: [...merged.skills],
+    experience: merged.experience.map(exp => ({
+      ...exp,
+      achievements: [...(exp.achievements ?? [])],
+    })),
+  };
+  for (const fix of fixes) {
+    if (!enabledSections.includes(fix.section as TailorSectionId)) continue;
+    if (fix.type === 'enhance_summary') {
+      result = { ...result, summary: fix.after };
+    } else if (fix.type === 'add_skill') {
+      const norm = normalizeSkill(fix.after);
+      if (!result.skills.some(s => normalizeSkill(s) === norm)) {
+        result = { ...result, skills: [...result.skills, fix.after] };
+      }
+    } else if (fix.type === 'improve_bullet' && fix.target_id) {
+      const dashIdx = fix.target_id.lastIndexOf('-');
+      if (dashIdx === -1) continue;
+      const experienceId = fix.target_id.slice(0, dashIdx);
+      const bulletIndex = parseInt(fix.target_id.slice(dashIdx + 1), 10);
+      if (!experienceId || isNaN(bulletIndex)) continue;
+      result = {
+        ...result,
+        experience: result.experience.map(exp => {
+          if (exp.id !== experienceId) return exp;
+          const achievements = [...(exp.achievements ?? [])];
+          if (bulletIndex < 0 || bulletIndex >= achievements.length) {
+            return exp;
+          }
+          achievements[bulletIndex] = fix.after;
+          return { ...exp, achievements };
+        }),
+      };
+    }
+  }
+  return result;
 }
