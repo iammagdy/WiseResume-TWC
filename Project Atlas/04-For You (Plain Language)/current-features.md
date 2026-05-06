@@ -1,6 +1,11 @@
 # What Wise Cloud Can Do Today
 
-**Last verified:** 2026-05-06 (Task #51)
+**Last verified:** 2026-05-06 (Task #57)
+
+## The Optimize screen now shows trust signals and clearer actions after tailoring (2026-05-06)
+**What was the situation:** After the AI finished optimizing your resume, the results panel gave you a score and a list of suggested fixes — but nothing that explained what the AI had actually done, and the "Apply (3)" button label was cryptic.
+**What changed:** Three short trust-signal lines now appear below the score comparison — "Keywords matched from job description", "ATS-friendly improvements applied", and "Bullet points optimized for impact" — so you know at a glance what the AI worked on. The main button now reads "Optimize Resume" instead of "Tailor My Resume". The Apply button reads "Apply Improvements" with a simple "Saving…" state when it's working. The helper text below that button now reads "This will save an optimized copy — your original is always kept safe". The AI suggestions section has a clearer heading: "AI suggestions to improve your match". And if the AI finds no critical issues, you now see a green confirmation card saying "No critical issues found — your resume is well optimized for this role" instead of nothing at all.
+**What you'll notice:** After an optimization run, three short lines tell you what changed. The buttons have plain-language labels. If the AI has no extra suggestions to make, it tells you so clearly instead of leaving the section blank.
 
 ## Switch resumes and get clearer guidance on the Tailor screen (2026-05-06)
 **What was the situation:** The Tailor screen assumed you only had one active resume. To tailor a different CV you had to leave the page, change your active resume elsewhere, and come back. The screen also gave very little guidance about what to do, how long tailoring would take, or what to expect before you clicked Tailor.

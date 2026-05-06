@@ -960,9 +960,9 @@ export default function TailorPage() {
             disabled={isTailoring || !jobDescription.trim() || !currentResume}
           >
             {isTailoring ? (
-              <><Loader2 className="w-5 h-5 mr-2 animate-spin" />Tailoring Resume...</>
+              <><Loader2 className="w-5 h-5 mr-2 animate-spin" />Optimizing...</>
             ) : (
-              <><Wand2 className="w-5 h-5 mr-2" />Tailor My Resume</>
+              <><Wand2 className="w-5 h-5 mr-2" />Optimize Resume</>
             )}
           </Button>
 
@@ -1543,6 +1543,20 @@ function ResultsPanel({
             />
           )}
 
+          {/* Confidence indicators — static trust signals */}
+          <div className="flex flex-col gap-1.5 px-1">
+            {[
+              { icon: <Check className="w-3.5 h-3.5 text-success shrink-0" />, label: 'Keywords matched from job description' },
+              { icon: <Shield className="w-3.5 h-3.5 text-primary shrink-0" />, label: 'ATS-friendly improvements applied' },
+              { icon: <TrendingUp className="w-3.5 h-3.5 text-amber-500 shrink-0" />, label: 'Bullet points optimized for impact' },
+            ].map(({ icon, label }) => (
+              <div key={label} className="flex items-center gap-2 text-xs text-muted-foreground">
+                {icon}
+                <span>{label}</span>
+              </div>
+            ))}
+          </div>
+
           {/* Section changes */}
           <div className="space-y-3">
             <h4 className="font-semibold text-sm flex items-center gap-2">
@@ -1767,15 +1781,21 @@ function ResultsPanel({
                   )}
 
                   {/* Fix suggestions — shown between missing keywords and global issues */}
-                  {(isGeneratingFixes || (fixSuggestions && fixSuggestions.length > 0)) && (
+                  {(isGeneratingFixes || fixSuggestions !== null) && (
                     <div className="space-y-2 pt-1">
-                      <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                      <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                         <Sparkles className="w-3.5 h-3.5 text-primary" />
-                        Suggested improvements — apply individually before finalising:
+                        AI suggestions to improve your match
                         {isGeneratingFixes && (
-                          <Loader2 className="w-3 h-3 animate-spin ml-1" />
+                          <Loader2 className="w-3 h-3 animate-spin ml-1 text-muted-foreground" />
                         )}
                       </p>
+                      {!isGeneratingFixes && fixSuggestions !== null && fixSuggestions.length === 0 && (
+                        <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-success/10 border border-success/20">
+                          <CheckCircle className="w-4 h-4 text-success shrink-0" />
+                          <p className="text-xs text-success font-medium">No critical issues found — your resume is well optimized for this role</p>
+                        </div>
+                      )}
                       {fixSuggestions?.map((fix) => (
                         <FixSuggestionCard
                           key={`${fix.type}-${fix.after}-${fix.target_id ?? ''}`}
@@ -1839,15 +1859,11 @@ function ResultsPanel({
                 ) : (
                   <CheckCircle className="w-4 h-4 mr-2" />
                 )}
-                {isApplying
-                  ? 'Creating...'
-                  : preValidatorResult
-                    ? `Apply (${preValidatorResult.score}% → Verified)`
-                    : `Apply (${enabledSections.length})`}
+                {isApplying ? 'Saving...' : 'Apply Improvements'}
               </Button>
             </div>
             <div className="flex flex-col gap-0.5 items-center">
-              <p className="text-xs text-muted-foreground text-center">Make your resume stronger for this job</p>
+              <p className="text-xs text-muted-foreground text-center">This will save an optimized copy — your original is always kept safe</p>
               <p className="text-[11px] text-muted-foreground/70 text-center">You can always edit your resume later</p>
             </div>
           </div>

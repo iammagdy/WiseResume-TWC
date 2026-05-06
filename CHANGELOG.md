@@ -21,6 +21,24 @@
 - **Production**: Unchanged — `sessionStorage` is still used; the dev fallback branch in the `user` memo is dead code (build-time `import.meta.env.DEV = false`)
 - Bridge token expiry (1 hour from exchange) is still enforced; after expiry the cached entry is dropped by `loadState()` and the user must sign in again
 
+## 2026-05-06 — Tailor UX Polish v2 — Confidence indicators, empty fix state & microcopy (Task #57)
+
+**Files changed:**
+- `src/pages/TailorPage.tsx`:
+  - Main tailor button label: `"Tailor My Resume"` → `"Optimize Resume"`; loading label `"Tailoring Resume..."` → `"Optimizing..."`
+  - After `<ScoreComparison>` (inside `tailorResult && !isTailoring` block): added static confidence indicators row — three `<div>` rows each with a coloured icon (`Check`/`Shield`/`TrendingUp`) and a short label ("Keywords matched from job description", "ATS-friendly improvements applied", "Bullet points optimized for impact"); no new props or state
+  - Fix suggestions section heading `<p>` changed from `"Suggested improvements — apply individually before finalising:"` to `"AI suggestions to improve your match"`; element promoted from `text-xs font-medium text-muted-foreground` to `text-xs font-semibold text-foreground`
+  - Fix suggestions show condition expanded: was `(isGeneratingFixes || (fixSuggestions && fixSuggestions.length > 0))`; now `(isGeneratingFixes || fixSuggestions !== null)` — ensures the section title and empty state render even when the list is empty
+  - Added empty fix state: when `!isGeneratingFixes && fixSuggestions !== null && fixSuggestions.length === 0`, renders a `bg-success/10 border-success/20` card with `CheckCircle` icon and "No critical issues found — your resume is well optimized for this role"
+  - Apply button label: removed dynamic `"Apply (N)"` / `"Apply (score% → Verified)"` variants; simplified to static `"Apply Improvements"` / `"Saving..."` when applying
+  - Apply CTA primary helper text: `"Make your resume stronger for this job"` → `"This will save an optimized copy — your original is always kept safe"`
+
+**Behaviour:**
+- After tailoring, three small trust-signal rows appear below the score comparison — static, no data dependency
+- When fix-suggestion generation completes and returns an empty array, a green confirmation card is shown instead of a blank space
+- Fix suggestions block now always shows its heading during/after generation regardless of list length
+- Apply button reads "Apply Improvements" consistently; the validated score is already visible in the Validator Check card above it
+
 ## 2026-05-06 — TailorPage resume-switch micro-polish (Task #55)
 
 **Files changed:**
