@@ -142,8 +142,9 @@ export async function tailorResumeWithProgress(
     }
 
     if (!response.ok) {
-      const errData = await response.json().catch(() => ({ error: 'Failed to tailor resume' }));
-      const msg = errData.error || errData.message || '';
+      const errData = await response.json().catch(() => ({ error: 'generic', message: 'Failed to tailor resume' }));
+      // Prefer the human-readable `message` field over `error` (which is now the machine code).
+      const msg = errData.message || errData.error || '';
       if (response.status === 401) {
         throw new Error('Session expired. Please sign in again to use AI features.');
       }
