@@ -13,16 +13,17 @@
  * token exchange catches up.
  *
  * XSS / token-theft posture (AUTH_AUDIT M3, M4):
- *   The bridged Supabase JWT is held in memory and mirrored to
- *   `sessionStorage` so it survives in-tab reloads but not other tabs or
- *   process restarts. This is the standard SPA trade-off — any successful
- *   XSS in the app can read the token. Defenses live elsewhere (CSP,
- *   trusted-types, careful sanitisation in editor surfaces). The
- *   module-level `localStorage` purge below removes a legacy v1 cache key
- *   that was previously stored in `localStorage`; it is gated by a
+ *   In production: the bridged Supabase JWT is held in memory and mirrored
+ *   to `sessionStorage` so it survives in-tab reloads but not other tabs or
+ *   process restarts. This is the standard SPA trade-off.
+ *   In dev (import.meta.env.DEV): `localStorage` is used instead so the
+ *   bridge state survives Replit preview iframe reloads, where third-party
+ *   cookies on auth.thewise.cloud are blocked and Kinde cannot silently
+ *   restore its session. Developers sign in once and stay signed in.
+ *   The module-level `localStorage` purge below removes a legacy v1 cache
+ *   key that was previously stored in `localStorage`; it is gated by a
  *   one-time migration flag so we do not pay the localStorage hit on
- *   every module load (and so we can drop the migration once v1 has aged
- *   out — TODO: remove the migration block after one full release cycle).
+ *   every module load.
  */
 
 import { apiFnUrl } from '@/lib/apiFnUrl';
@@ -60,6 +61,13 @@ interface BridgeState {
    * RLS queries may fail in this state, but server-proxied Neon queries work.
    */
   shadowUserOk: boolean;
+  /**
+   * User profile cached alongside the token. Used in dev mode to reconstruct
+   * the user object when Kinde cannot restore its session across preview
+   * reloads (third-party cookie restriction in iframes).
+   */
+  email: string | null;
+  name: string | null;
 }
 
 // v2: bumped after the server cutover from SESSION_SECRET-signed bridge JWTs
@@ -69,6 +77,22 @@ interface BridgeState {
 const STORAGE_KEY = 'wise_supabase_bridge_state_v2';
 const LAST_ACTIVE_KEY = 'wr-bridge-last-active';
 const IDLE_CLEAR_MS = 4 * 60 * 60 * 1000; // 4 hours
+
+// Dev mode: use localStorage so the bridge state survives Replit preview
+// iframe reloads (where third-party cookies block Kinde session restoration).
+// Production keeps sessionStorage for the standard XSS posture.
+const _isDev = import.meta.env.DEV === true;
+const DEV_STORAGE_KEY = 'wise_bridge_dev_v1';
+const DEV_LAST_ACTIVE_KEY = 'wr-bridge-dev-last-active';
+const _key = (): string => _isDev ? DEV_STORAGE_KEY : STORAGE_KEY;
+const _activeKey = (): string => _isDev ? DEV_LAST_ACTIVE_KEY : LAST_ACTIVE_KEY;
+const _store = (): Storage => {
+  try {
+    return _isDev ? localStorage : sessionStorage;
+  } catch {
+    return sessionStorage;
+  }
+};
 
 // AUTH_AUDIT M4: one-time legacy-cache purge. Earlier builds wrote bridge
 // state into `localStorage`; the v2 cutover moved it to `sessionStorage`.
@@ -92,12 +116,14 @@ function emptyState(): BridgeState {
     expiresAt: 0,
     lastError: null,
     shadowUserOk: true,
+    email: null,
+    name: null,
   };
 }
 
 function loadState(): BridgeState {
   try {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
+    const raw = _store().getItem(_key());
     if (raw) {
       const parsed = JSON.parse(raw);
       // Require kindeSub on persisted entries — entries without it predate
@@ -118,10 +144,12 @@ function loadState(): BridgeState {
           // shadowUserOk was added after v2 — default true for legacy entries
           // so they don't trigger degraded-state UI on hydration.
           shadowUserOk: parsed.shadowUserOk !== false,
+          email: parsed.email ?? null,
+          name: parsed.name ?? null,
         };
       }
       // Stale or unbound entry — drop it.
-      try { sessionStorage.removeItem(STORAGE_KEY); } catch {}
+      try { _store().removeItem(_key()); } catch {}
     }
   } catch {}
   return emptyState();
@@ -129,12 +157,14 @@ function loadState(): BridgeState {
 
 function persistState(s: BridgeState) {
   try {
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
+    _store().setItem(_key(), JSON.stringify({
       supabaseToken: s.supabaseToken,
       userId: s.userId,
       kindeSub: s.kindeSub,
       expiresAt: s.expiresAt,
       shadowUserOk: s.shadowUserOk,
+      email: s.email,
+      name: s.name,
     }));
     updateLastActive();
   } catch {}
@@ -142,7 +172,7 @@ function persistState(s: BridgeState) {
 
 function updateLastActive(): void {
   try {
-    sessionStorage.setItem(LAST_ACTIVE_KEY, String(Date.now()));
+    _store().setItem(_activeKey(), String(Date.now()));
   } catch {}
 }
 
@@ -186,7 +216,7 @@ if (typeof document !== 'undefined') {
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
       try {
-        const raw = sessionStorage.getItem(LAST_ACTIVE_KEY);
+        const raw = _store().getItem(_activeKey());
         const lastActive = raw ? parseInt(raw, 10) : 0;
         if (lastActive && Date.now() - lastActive > IDLE_CLEAR_MS) {
           clearBridge();
@@ -223,6 +253,8 @@ export function setCurrentKindeSub(sub: string | null): void {
     state.userId = null;
     state.kindeSub = null;
     state.expiresAt = 0;
+    state.email = null;
+    state.name = null;
     // Also drop every in-flight exchange handle. Without this, a subsequent
     // `exchangeToken(kindeTokenB)` call would await the previous account's
     // in-flight promise instead of starting a fresh exchange for B. The
@@ -230,7 +262,7 @@ export function setCurrentKindeSub(sub: string | null): void {
     // are discarded by the race guard inside `exchangeToken` since
     // `_currentKindeSub` no longer matches.
     exchangePromises.clear();
-    try { sessionStorage.removeItem(STORAGE_KEY); } catch {}
+    try { _store().removeItem(_key()); } catch {}
   }
 }
 
@@ -426,7 +458,7 @@ export async function refreshTokenIfNeeded(force = false): Promise<boolean> {
       // is guaranteed to perform a fresh round-trip.
       state.supabaseToken = null;
       state.expiresAt = 0;
-      try { sessionStorage.removeItem(STORAGE_KEY); } catch {}
+      try { _store().removeItem(_key()); } catch {}
     }
     const kindeToken = await _getKindeTokenFn();
     if (!kindeToken) {
@@ -481,11 +513,13 @@ export function clearBridge(): void {
   state.expiresAt = 0;
   state.lastError = null;
   state.shadowUserOk = true;
+  state.email = null;
+  state.name = null;
   exchangePromises.clear();
   _getKindeTokenFn = null;
   _currentKindeSub = null;
-  try { sessionStorage.removeItem(STORAGE_KEY); } catch {}
-  try { sessionStorage.removeItem(LAST_ACTIVE_KEY); } catch {}
+  try { _store().removeItem(_key()); } catch {}
+  try { _store().removeItem(_activeKey()); } catch {}
 }
 
 /**
@@ -509,4 +543,32 @@ export function getLastError(): BridgeError | null {
  */
 export function clearLastError(): void {
   state.lastError = null;
+}
+
+/**
+ * Store the user's display profile alongside the bridge token.
+ * Called by AuthContext when the Kinde user is known so that in dev mode
+ * the user object can be reconstructed from localStorage after a preview
+ * reload where Kinde cannot silently restore its session.
+ */
+export function setUserProfile(email: string, name: string | null): void {
+  state.email = email || null;
+  state.name = name || null;
+  persistState(state);
+}
+
+/**
+ * Return the email stored alongside the bridge token, or null.
+ * Only meaningful after at least one successful token exchange where
+ * AuthContext called setUserProfile().
+ */
+export function getStoredEmail(): string | null {
+  return state.email;
+}
+
+/**
+ * Return the display name stored alongside the bridge token, or null.
+ */
+export function getStoredName(): string | null {
+  return state.name;
 }

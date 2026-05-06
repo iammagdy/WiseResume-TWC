@@ -1,5 +1,26 @@
 # Changelog
 
+## 2026-05-06 — Dev-mode persistent auth across preview reloads
+
+**Files changed:**
+- `src/lib/supabaseBridge.ts`:
+  - Added `email: string | null` and `name: string | null` to `BridgeState` and `emptyState()`
+  - Added `_isDev = import.meta.env.DEV` constant; added `DEV_STORAGE_KEY = 'wise_bridge_dev_v1'` and `DEV_LAST_ACTIVE_KEY` constants
+  - Added `_key()`, `_activeKey()`, `_store()` helpers that switch between `localStorage` (dev) and `sessionStorage` (production)
+  - Updated `loadState()`, `persistState()`, `updateLastActive()`, `clearBridge()`, `refreshTokenIfNeeded()`, and the `visibilitychange` listener to use `_store()`, `_key()`, `_activeKey()`
+  - `setCurrentKindeSub()`: also clears `email` and `name` from state on account swap
+  - Added `setUserProfile(email, name)` export: updates `state.email/name` and calls `persistState()`
+  - Added `getStoredEmail()` and `getStoredName()` exports
+- `src/contexts/AuthContext.tsx`:
+  - Imported `setUserProfile`, `getStoredEmail`, `getStoredName` from `supabaseBridge`
+  - In `useEffect([kindeAuthenticated, kindeUser, ...])`: calls `setUserProfile(kindeUser.email, displayName)` immediately after the `!kindeAuthenticated || !kindeUser` early-return so profile is persisted on every successful Kinde auth
+  - In `user` memo: added dev-only branch when `kindeUser` is null — if `import.meta.env.DEV && bridgeReady` and stored email + userId are present, reconstructs the `KindeAppUser` object from bridge localStorage state
+
+**Behaviour:**
+- **Dev only**: After the first sign-in, the bridge token and user profile (email, name) are written to `localStorage`. On subsequent preview reloads where Kinde cannot restore its session (third-party cookie block in iframe), `bridgeReady` is set from the cached localStorage token and the user object is reconstructed from stored email/name — no sign-in prompt appears
+- **Production**: Unchanged — `sessionStorage` is still used; the dev fallback branch in the `user` memo is dead code (build-time `import.meta.env.DEV = false`)
+- Bridge token expiry (1 hour from exchange) is still enforced; after expiry the cached entry is dropped by `loadState()` and the user must sign in again
+
 ## 2026-05-06 — TailorPage resume-switch micro-polish (Task #55)
 
 **Files changed:**

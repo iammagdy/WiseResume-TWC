@@ -6,7 +6,7 @@ import { logAudit } from '@/lib/auditLogger';
 import { clearAllPersistedCaches } from '@/lib/persistedQueryCache';
 import { clearAllCachedScores } from '@/hooks/useResumeScore';
 import { clearAllEditorSessions } from '@/lib/editorSession';
-import { exchangeToken, clearBridge, isReady, getUserId, getToken as getBridgeToken, setKindeTokenGetter, setCurrentKindeSub, getCachedKindeSub } from '@/lib/supabaseBridge';
+import { exchangeToken, clearBridge, isReady, getUserId, getToken as getBridgeToken, setKindeTokenGetter, setCurrentKindeSub, getCachedKindeSub, setUserProfile, getStoredEmail, getStoredName } from '@/lib/supabaseBridge';
 import { supabase } from '@/integrations/supabase/safeClient';
 import {
   isImpersonating as isImpersonatingFn,
@@ -152,7 +152,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         name: undefined,
       };
     }
-    if (!kindeUser) return null;
+    if (!kindeUser) {
+      // DEV-ONLY FALLBACK: In the Replit preview iframe, third-party cookies
+      // from auth.thewise.cloud are blocked, so Kinde cannot silently restore
+      // its session after a preview reload. If the bridge still holds a valid
+      // localStorage token with cached profile data, reconstruct the user from
+      // it so developers don't have to sign in on every preview restart.
+      // This path is never active in production (import.meta.env.DEV is false).
+      if (import.meta.env.DEV && bridgeReady) {
+        const bridgeUserId = getUserId();
+        const storedEmail = getStoredEmail();
+        if (bridgeUserId && storedEmail) {
+          return {
+            id: bridgeUserId,
+            email: storedEmail,
+            name: getStoredName() ?? undefined,
+          };
+        }
+      }
+      return null;
+    }
     const bridgeUserId = getUserId();
     if (!bridgeUserId) return null;
     // Defence-in-depth: never expose a userId whose cached Kinde sub does
@@ -188,6 +207,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (isReady()) setBridgeReady(true);
       return;
     }
+
+    // Persist the user's display profile into the bridge state so that in dev
+    // mode the user object can be reconstructed from localStorage after a
+    // preview reload where Kinde cannot silently restore its session.
+    const displayName = [kindeUser.givenName, kindeUser.familyName].filter(Boolean).join(' ') || null;
+    setUserProfile(kindeUser.email ?? '', displayName);
 
     let cancelled = false;
 

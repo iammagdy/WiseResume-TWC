@@ -1,6 +1,16 @@
 # Stability Improvements — What's Getting Better Behind the Scenes
 
-**Last verified:** 2026-05-06 (Task #39 — keyword scoring consolidation)
+**Last verified:** 2026-05-06 (dev-mode persistent auth)
+
+## You no longer need to sign in every time the preview restarts during development (2026-05-06)
+
+**What was the situation:** Every time the Replit preview reloaded — triggered by restarting the app or saving code — you had to go through the sign-in flow again before you could test anything. This happened because the preview runs inside an embedded frame, and modern browsers block certain types of cookies from cross-origin services inside frames. The auth system (Kinde) relies on exactly those cookies to silently restore your session. Without them, it would see no active session and show the sign-in screen on every reload.
+
+**What changed:** When running in development, the app now stores a copy of your auth token and profile in a part of the browser's memory (localStorage) that persists across reloads. When the preview restarts and the cookie-based session can't be restored, the app picks up that saved token instead. You land straight on your dashboard, already signed in.
+
+**What you'll notice:** Sign in once. As long as you're actively working (within about an hour of your last sign-in), the preview will remember who you are across restarts. The only time you'll need to sign in again is if you've been away for a while and the token has expired. This change only applies to development — production behaviour is completely unchanged.
+
+---
 
 ## The keyword-matching rules that calculate your match score can no longer drift out of sync (2026-05-06)
 
