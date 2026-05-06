@@ -1306,6 +1306,7 @@ function ResultsPanel({
 
   const [discardConfirm, setDiscardConfirm] = useState(false);
   const discardTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (discardTimerRef.current) clearTimeout(discardTimerRef.current); }, []);
   const handleDiscardClick = useCallback(() => {
     if (discardConfirm) {
       if (discardTimerRef.current) clearTimeout(discardTimerRef.current);
