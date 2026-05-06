@@ -105,7 +105,7 @@ export function JobUrlParser({ value, onChange, onParsed }: JobUrlParserProps) {
                 const extracted = extractUrl(raw);
                 setUrlInput(extracted || raw);
               }}
-                placeholder="https://linkedin.com/jobs/view/..."
+                placeholder="Paste a job URL (LinkedIn, Indeed, Glassdoor…)"
                 className="flex-1"
               />
               <Button
@@ -195,18 +195,16 @@ export function JobUrlParser({ value, onChange, onParsed }: JobUrlParserProps) {
                 placeholder="Paste the job posting you want to tailor your resume for..."
                 className="min-h-[140px] resize-none text-base"
               />
-              {!showManual && !isUrl(urlInput) && (
-                <button
-                  onClick={() => {
-                    setShowManual(false);
-                    onChange('');
-                  }}
-                  className="text-xs text-muted-foreground hover:text-foreground transition-colors mt-2 flex items-center gap-1 min-h-[44px] active:scale-95"
-                >
-                  <Link2 className="w-3 h-3" />
-                  Use URL instead
-                </button>
-              )}
+              <button
+                onClick={() => {
+                  setShowManual(false);
+                  onChange('');
+                }}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors mt-2 flex items-center gap-1 min-h-[44px] active:scale-95"
+              >
+                <Link2 className="w-3 h-3" />
+                Use URL instead
+              </button>
             </motion.div>
           )}
         </AnimatePresence>

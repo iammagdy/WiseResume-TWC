@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-05-06 — Task #64: Tailor UX bug fixes
+
+**Files changed:**
+- `src/components/editor/tailor/JobUrlParser.tsx`
+- `src/components/editor/tailor/TailorProgress.tsx`
+- `src/lib/aiTailor.ts`
+- `src/pages/TailorPage.tsx`
+
+**Changes:**
+- `JobUrlParser`: removed `!showManual && !isUrl(urlInput)` guard from the "Use URL instead" button — button now renders unconditionally whenever the manual textarea is visible (`showManual || value`), fixing the case where the user clicked "Or paste manually" and had no way to return to URL mode.
+- `JobUrlParser`: updated URL `<Input>` placeholder from `"https://linkedin.com/jobs/view/..."` to `"Paste a job URL (LinkedIn, Indeed, Glassdoor…)"` to reflect multi-platform support.
+- `TailorProgress`: added `text-foreground` class to the `<h4>` heading and replaced `text-muted-foreground` with `text-foreground/70` on the step message `<p>` to guarantee legibility against the `from-primary/10` gradient card background in dark mode.
+- `aiTailor.ts`: added `let lastEmittedProgress = 0` variable; updated to `lastEmittedProgress = currentProgress` inside the step-transition branch of `progressInterval`; on auto-retry, changed hardcoded `progress: 70` to `progress: Math.max(lastEmittedProgress, 70)` — the progress bar no longer regresses when a retry fires after reaching a higher percentage.
+- `TailorPage.tsx` `handleResumeSwitch`: changed `toast.info(...)` to `toast.success(...)` for the "Resume switched" confirmation so it renders with unambiguous green styling rather than the info accent that appeared error-like in dark mode.
+
+---
+
 ## 2026-05-06 — Task #60: Tailor results — clarity, reasoning & safety
 
 **Files changed:**

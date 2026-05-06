@@ -162,10 +162,10 @@ export function TailorProgressComponent({ progress, projectedScore, matchingKeyw
           )}
         </div>
 
-        <h4 className="font-semibold text-sm mt-3">
+        <h4 className="font-semibold text-sm mt-3 text-foreground">
           {isComplete ? '🎉 Tailoring Complete!' : '✨ Supercharging Your Resume'}
         </h4>
-        <p className="text-xs text-muted-foreground">{progress.message}</p>
+        <p className="text-xs text-foreground/70">{progress.message}</p>
 
         {/* Time remaining */}
         {!isComplete && timeLeft > 0 && (

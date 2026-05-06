@@ -34,3 +34,4 @@ Cards in this folder describe shipped or in-flight stability fixes from the 2026
 - [GitHub origin sync — Replit ↔ GitHub reconciled (Task #70 v2)](./github-origin-sync-task-70.md)
 - [Kinde custom domain split — `auth.thewise.cloud` separated from `resume.thewise.cloud`](./kinde-custom-domain-split.md)
 - [Task #15 — DevKit AI model catalog: cron fix, per-provider caps, non-chat filter](./task-15-ai-model-catalog-cron.md)
+- [Task #64 — Tailor UX bug fixes: URL/paste toggle, placeholder text, dark-mode text contrast, progress regression on retry, resume-switch toast colour](./task-64-tailor-ux-bugs.md)

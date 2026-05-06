@@ -342,7 +342,7 @@ export default function TailorPage() {
     setDismissedIssueIndices(new Set());
     setParsedJobInfo(null);
     toast.dismiss();
-    toast.info('Resume switched — ready to tailor');
+    toast.success('Resume switched — ready to tailor');
   }, [allResumes, currentResumeId]);
 
   const toggleSection = (sectionId: TailorSectionId) => {
