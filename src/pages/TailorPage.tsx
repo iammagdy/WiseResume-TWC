@@ -635,7 +635,7 @@ export default function TailorPage() {
     } finally {
       setIsApplying(false);
     }
-  }, [tailorResult, currentResume, user, enabledSections, rejectedBullets, parsedJobInfo, currentResumeId, jobDescription, addTailorHistory, clearPendingTailor, jobUrl, navigate]);
+  }, [tailorResult, currentResume, user, enabledSections, rejectedBullets, appliedFixes, parsedJobInfo, currentResumeId, jobDescription, addTailorHistory, clearPendingTailor, jobUrl, navigate]);
 
   const handleCopyPlainText = useCallback(async () => {
     if (!currentResume || !tailorResult) return;
