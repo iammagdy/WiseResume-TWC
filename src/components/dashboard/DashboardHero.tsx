@@ -63,23 +63,33 @@ export const DashboardHero = memo(function DashboardHero({
         Start in under 2 minutes — build from scratch or optimize for a specific job.
       </p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-        <Button
-          size="lg"
-          variant="outline"
-          className="h-12 gap-2.5 justify-center border-border hover:border-primary/30 active:scale-[0.98] touch-manipulation"
-          onClick={() => { haptics.light(); onBuild(); }}
-        >
-          <FileText className="w-5 h-5 shrink-0" />
-          Build a Resume
-        </Button>
-        <Button
-          size="lg"
-          className="h-12 gap-2.5 justify-center active:scale-[0.98] touch-manipulation"
-          onClick={() => { haptics.light(); onTailor(); }}
-        >
-          <Wand2 className="w-5 h-5 shrink-0" />
-          Optimize for a Job
-        </Button>
+        <div className="flex flex-col gap-1.5">
+          <Button
+            size="lg"
+            variant="outline"
+            className="h-12 gap-2.5 justify-center border-border hover:border-primary/30 active:scale-[0.98] touch-manipulation"
+            onClick={() => { haptics.light(); onBuild(); }}
+          >
+            <FileText className="w-5 h-5 shrink-0" />
+            Build a Resume
+          </Button>
+          <p className="text-[11px] text-muted-foreground text-center leading-tight px-1">
+            Create a professional resume in minutes with AI
+          </p>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Button
+            size="lg"
+            className="h-12 gap-2.5 justify-center active:scale-[0.98] touch-manipulation"
+            onClick={() => { haptics.light(); onTailor(); }}
+          >
+            <Wand2 className="w-5 h-5 shrink-0" />
+            Optimize for a Job
+          </Button>
+          <p className="text-[11px] text-muted-foreground text-center leading-tight px-1">
+            Match your resume to any job and boost your interview chances
+          </p>
+        </div>
       </div>
     </motion.div>
   );
