@@ -174,15 +174,22 @@ export async function tailorResumeWithProgress(
       if (code === 'rate_limit' || code === 'credits_exhausted') throw firstError;
       if (firstError.message?.includes('Unauthorized')) throw firstError;
 
-      // Auto-retry once after 2s — carry through current progress exactly (no regression)
+      // Auto-retry once after 4s — give transient provider overloads time to clear.
+      // Use a more specific message when the error is a known upstream provider outage.
+      const isUpstreamOverload =
+        (firstError as TailorError).code === 'upstream_5xx' ||
+        (firstError as TailorError).code === 'upstream_error' ||
+        (firstError.message as string | undefined)?.toLowerCase().includes('upstream');
       onProgress({
         step: 'finalizing',
         progress: lastEmittedProgress,
-        message: '🔄 Retrying — hang tight...',
+        message: isUpstreamOverload
+          ? '⏳ Our AI is temporarily overloaded — retrying...'
+          : '🔄 Retrying — hang tight...',
         funFact: FUN_FACTS[0],
       } as EnhancedTailorProgress);
 
-      await new Promise(r => setTimeout(r, 2000));
+      await new Promise(r => setTimeout(r, 4000));
       if (signal?.aborted) throw firstError;
       data = await invokeOnce();
     }

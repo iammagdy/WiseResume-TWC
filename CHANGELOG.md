@@ -1,5 +1,29 @@
 # Changelog
 
+## 2026-05-06 — Task #66: Tailor AI reliability
+
+**Files changed:**
+- `supabase/functions/tailor-resume/index.ts`
+- `supabase/functions/_shared/scrubSecrets.ts` (import only)
+- `src/lib/aiTailor.ts`
+
+**Changes:**
+
+**A — Prompt token-budget guard (`tailor-resume/index.ts`)**
+- Added `experienceForPrompt` pre-trim block between `industrySpecificExamples` and `systemPrompt`. When `JSON.stringify(resume.experience).length > 30_000` and the resume has >3 jobs, achievements on experience entries beyond the 3 most recent are capped to 2 bullets each. Logs: `[tailor] Prompt truncated: reduced experience bullets from N to M (X jobs, oldest trimmed to 2 achievements)`.
+- Added post-assembly char-budget check after `userPrompt` is built. If `systemPrompt.length + userPrompt.length > 120_000` chars (~30k tokens), the industry-examples block is truncated from the system prompt and replaced with a minimal JSON instruction. Logs: `[tailor] Prompt truncated: trimmed industry-examples block by N chars (total was M)`.
+- Stage 2 AI call now uses `finalSystemPrompt` / `finalUserPrompt` (which are equal to originals when no truncation occurred — zero cost path).
+- Added `callAI, isAIError` to imports from `_shared/aiClient.ts`; added `scrubAndCap` from `_shared/scrubSecrets.ts`.
+
+**B — Explicit Groq fallback on upstream 5xx (`tailor-resume/index.ts`)**
+- Wrapped Stage 2 `callAIWithRetry` catch. When error is an `AIError` with `status >= 500` and `code !== 'rate_limit'`, a single retry is attempted via `callAI({ jsonMode: true, ... })` — no `featureName` so routing config is bypassed, and `jsonMode: true` biases pool selection toward Groq (`llama-3.3-70b-versatile`). Logs success with `[tailor] Stage 2 Groq fallback succeeded via <providerUsed>`. On fallback failure, refunds credit and re-throws the original error after logging the fallback failure through `scrubAndCap`.
+
+**C — Client retry improvements (`aiTailor.ts`)**
+- Retry delay increased from 2,000 ms to 4,000 ms to give transient provider throttles time to clear.
+- Retry progress message now distinguishes upstream overload (code `upstream_5xx` / `upstream_error` / message contains "upstream") with copy "Our AI is temporarily overloaded — retrying…" vs generic "Retrying — hang tight…".
+
+---
+
 ## 2026-05-06 — Task #65: Tailor animated demo panel
 
 **Files changed:**

@@ -1,7 +1,8 @@
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { isKillSwitchActive } from "../_shared/featureFlags.ts";
-import { callAIWithRetry, parseAIJSONWithRetry, sanitizeInputText, toUserError } from "../_shared/aiClient.ts";
+import { callAI, callAIWithRetry, isAIError, parseAIJSONWithRetry, sanitizeInputText, toUserError } from "../_shared/aiClient.ts";
+import { scrubAndCap } from "../_shared/scrubSecrets.ts";
 import { selectProviderForTool } from "../_shared/modelRouter.ts";
 const __ROUTE = selectProviderForTool('tailor-resume');
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
@@ -444,6 +445,33 @@ AFTER: "Collaborated with cross-functional team of 8 engineers to deliver $2M pr
 BEFORE: "Responsible for customer service"
 AFTER: "Resolved 200+ customer inquiries weekly with 98% satisfaction rating, reducing escalations by 35%"`;
 
+    // ── Prompt token-budget pre-trim ─────────────────────────────────────────
+    // If the user has many jobs with long bullet lists, the assembled prompt can
+    // exceed the model's context window. Keep the 3 most-recent jobs intact;
+    // trim achievements on older entries to ≤2 bullets before building the prompt.
+    let experienceForPrompt: Array<Record<string, unknown>> = Array.isArray(resume.experience)
+      ? (resume.experience as Array<Record<string, unknown>>)
+      : [];
+    const rawExpChars = JSON.stringify(experienceForPrompt).length;
+    if (rawExpChars > 30_000 && experienceForPrompt.length > 3) {
+      const originalBulletCount = experienceForPrompt.reduce(
+        (n, e) => n + (Array.isArray(e.achievements) ? (e.achievements as unknown[]).length : 0), 0
+      );
+      experienceForPrompt = experienceForPrompt.map((e, idx) =>
+        idx < 3
+          ? e
+          : { ...e, achievements: Array.isArray(e.achievements) ? (e.achievements as unknown[]).slice(0, 2) : [] }
+      );
+      const trimmedBulletCount = experienceForPrompt.reduce(
+        (n, e) => n + (Array.isArray(e.achievements) ? (e.achievements as unknown[]).length : 0), 0
+      );
+      if (trimmedBulletCount < originalBulletCount) {
+        console.log(
+          `[tailor] Prompt truncated: reduced experience bullets from ${originalBulletCount} to ${trimmedBulletCount} (${experienceForPrompt.length} jobs, oldest trimmed to 2 achievements)`
+        );
+      }
+    }
+
     const systemPrompt = `You are a LEGENDARY resume writer, career strategist, and ATS optimization expert with 20+ years of experience helping candidates land jobs at top companies.
 
 ${profilePreamble}${jobSignalsPreamble}${intensityInstructions[tailorIntensity] || intensityInstructions.moderate}
@@ -492,7 +520,7 @@ CURRENT SKILLS:
 ${safeSkillsString(resume.skills)}
 
 EXPERIENCE:
-${resume.experience?.map((e: any) => `
+${experienceForPrompt.map((e: any) => `
 [ID: ${e.id}] ${e.position} at ${e.company}
 Duration: ${e.startDate} - ${e.current ? 'Present' : e.endDate}
 Description: ${e.description}
@@ -645,6 +673,28 @@ Analyze deeply, then return this exact JSON structure:
   ]
 }`;
 
+    // ── Prompt char-budget post-check ─────────────────────────────────────────
+    // After full assembly, if the total still exceeds ~30k tokens (120k chars),
+    // truncate the industry-examples block from the system prompt. This is the
+    // safety net for extreme cases where even pre-trimmed experience is large.
+    const PROMPT_CHAR_BUDGET = 120_000;
+    let finalSystemPrompt = systemPrompt;
+    let finalUserPrompt = userPrompt;
+    const assembledLen = finalSystemPrompt.length + finalUserPrompt.length;
+    if (assembledLen > PROMPT_CHAR_BUDGET) {
+      const overBy = assembledLen - PROMPT_CHAR_BUDGET;
+      const exIdx = finalSystemPrompt.indexOf('### ');
+      if (exIdx > 100 && finalSystemPrompt.length - exIdx > overBy) {
+        const keepUpTo = Math.max(exIdx - 1, finalSystemPrompt.length - overBy - 100);
+        finalSystemPrompt =
+          finalSystemPrompt.slice(0, keepUpTo) +
+          '\n\nReturn ONLY valid JSON with no markdown or code blocks.';
+        console.log(
+          `[tailor] Prompt truncated: trimmed industry-examples block by ${overBy} chars (total was ${assembledLen})`
+        );
+      }
+    }
+
     console.log("[tailor] Stage 2: Calling AI for resume tailoring...");
 
     let aiResponse;
@@ -654,16 +704,43 @@ Analyze deeply, then return this exact JSON structure:
         model: selectedModel,
         wiseresumeSubProvider: __ROUTE.provider,
         messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
+          { role: 'system', content: finalSystemPrompt },
+          { role: 'user', content: finalUserPrompt },
         ],
         temperature: 0.5,
         maxTokens: 16000,
         userId,
       });
     } catch (aiErr) {
-      await refundCredit(userId, creditCheck, 2);
-      throw aiErr;
+      // If the primary route failed with a transient upstream 5xx, attempt one
+      // explicit fallback via jsonMode (which biases pool selection toward Groq)
+      // before giving up. callAIWithRetry already handles sibling-key retries but
+      // skips cross-provider fallback when a provider is pinned via routing config.
+      if (isAIError(aiErr) && aiErr.status >= 500 && aiErr.code !== 'rate_limit') {
+        console.warn(`[tailor] Stage 2 primary route failed (${aiErr.code}), attempting Groq fallback`);
+        try {
+          aiResponse = await callAI({
+            // No featureName → no routing config → random pool; jsonMode biases to Groq
+            jsonMode: true,
+            messages: [
+              { role: 'system', content: finalSystemPrompt },
+              { role: 'user', content: finalUserPrompt },
+            ],
+            temperature: 0.5,
+            maxTokens: 16000,
+            userId,
+          });
+          console.log(`[tailor] Stage 2 Groq fallback succeeded via ${aiResponse.providerUsed}`);
+        } catch (fallbackErr) {
+          const msg = fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr);
+          console.error(`[tailor] Stage 2 Groq fallback also failed: ${scrubAndCap(msg)}`);
+          await refundCredit(userId, creditCheck, 2);
+          throw aiErr;
+        }
+      } else {
+        await refundCredit(userId, creditCheck, 2);
+        throw aiErr;
+      }
     }
 
     const content = aiResponse.content;
