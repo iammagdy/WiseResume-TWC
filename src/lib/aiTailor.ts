@@ -10,7 +10,8 @@ import {
 } from '@/integrations/supabase/resumeSectionAiFlag';
 
 export interface TailorError extends Error {
-  code?: 'rate_limit' | 'credits_exhausted' | 'generic';
+  /** Machine-readable code propagated from the edge function's `error` field. */
+  code?: 'rate_limit' | 'credits_exhausted' | 'upstream_5xx' | 'upstream_error' | 'generic' | string;
 }
 
 export interface TailorResult {
@@ -156,8 +157,15 @@ export async function tailorResumeWithProgress(
         (e as TailorError).code = 'credits_exhausted';
         throw e;
       }
+      // Propagate the machine-readable error code from the edge function response
+      // (edge functions return { error: '<code>', message: '...' }) so upstream-
+      // specific codes like 'upstream_error' reach the retry message logic.
+      const rawCode =
+        (typeof errData.code === 'string' && errData.code) ||
+        (typeof errData.error === 'string' && errData.error) ||
+        'generic';
       const e = new Error(msg || 'Failed to tailor resume');
-      (e as TailorError).code = 'generic';
+      (e as TailorError).code = rawCode;
       throw e;
     }
 

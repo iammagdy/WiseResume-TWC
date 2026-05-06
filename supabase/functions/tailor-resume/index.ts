@@ -472,6 +472,17 @@ AFTER: "Resolved 200+ customer inquiries weekly with 98% satisfaction rating, re
       }
     }
 
+    /** Render the EXPERIENCE block for the Stage 2 user prompt.
+     *  Extracted so the iterative budget loop can rebuild it after each trim step. */
+    const renderExpForPrompt = (exp: Array<Record<string, unknown>>): string => {
+      if (exp.length === 0) return 'Not provided';
+      return exp
+        .map((e: any) =>
+          `\n[ID: ${e.id}] ${e.position} at ${e.company}\nDuration: ${e.startDate} - ${e.current ? 'Present' : e.endDate}\nDescription: ${e.description}\nAchievements:\n${(e.achievements as string[] | undefined)?.map((a, i) => `  ${i + 1}. ${a}`).join('\n') ?? '  None listed'}\n`
+        )
+        .join('\n');
+    };
+
     const systemPrompt = `You are a LEGENDARY resume writer, career strategist, and ATS optimization expert with 20+ years of experience helping candidates land jobs at top companies.
 
 ${profilePreamble}${jobSignalsPreamble}${intensityInstructions[tailorIntensity] || intensityInstructions.moderate}
@@ -520,13 +531,7 @@ CURRENT SKILLS:
 ${safeSkillsString(resume.skills)}
 
 EXPERIENCE:
-${experienceForPrompt.map((e: any) => `
-[ID: ${e.id}] ${e.position} at ${e.company}
-Duration: ${e.startDate} - ${e.current ? 'Present' : e.endDate}
-Description: ${e.description}
-Achievements:
-${e.achievements?.map((a: string, i: number) => `  ${i + 1}. ${a}`).join('\n') || '  None listed'}
-`).join('\n') || 'Not provided'}
+${renderExpForPrompt(experienceForPrompt)}
 
 EDUCATION:
 ${resume.education?.map((e: any) => `
@@ -673,26 +678,74 @@ Analyze deeply, then return this exact JSON structure:
   ]
 }`;
 
-    // ── Prompt char-budget post-check ─────────────────────────────────────────
-    // After full assembly, if the total still exceeds ~30k tokens (120k chars),
-    // truncate the industry-examples block from the system prompt. This is the
-    // safety net for extreme cases where even pre-trimmed experience is large.
+    // ── Prompt char-budget post-check (iterative) ────────────────────────────
+    // After full assembly, iteratively trim until the total fits PROMPT_CHAR_BUDGET
+    // (~30k tokens / 120k chars). Strategy order:
+    //   1. Remove one achievement at a time from oldest jobs (beyond idx 2).
+    //   2. When no more old-job bullets exist, remove the industry-examples block
+    //      from the system prompt (one-shot; only one examples block present).
+    //   3. Hard-cap userPrompt as a final guarantee so a result is always returned.
+    // The userPrompt is split at EXPERIENCE/EDUCATION boundaries so rebuilding
+    // the experience section avoids duplicating the entire template.
     const PROMPT_CHAR_BUDGET = 120_000;
+    const EXP_MARKER = '\nEXPERIENCE:\n';
+    const EDU_MARKER = '\nEDUCATION:\n';
+    const expMarkerIdx = userPrompt.indexOf(EXP_MARKER);
+    const eduMarkerIdx = userPrompt.indexOf(EDU_MARKER);
+    const canRebuildExp = expMarkerIdx !== -1 && eduMarkerIdx > expMarkerIdx;
+    const userPromptHead = canRebuildExp ? userPrompt.slice(0, expMarkerIdx + EXP_MARKER.length) : userPrompt;
+    const userPromptTail = canRebuildExp ? userPrompt.slice(eduMarkerIdx) : '';
+
     let finalSystemPrompt = systemPrompt;
     let finalUserPrompt = userPrompt;
-    const assembledLen = finalSystemPrompt.length + finalUserPrompt.length;
-    if (assembledLen > PROMPT_CHAR_BUDGET) {
-      const overBy = assembledLen - PROMPT_CHAR_BUDGET;
-      const exIdx = finalSystemPrompt.indexOf('### ');
-      if (exIdx > 100 && finalSystemPrompt.length - exIdx > overBy) {
-        const keepUpTo = Math.max(exIdx - 1, finalSystemPrompt.length - overBy - 100);
-        finalSystemPrompt =
-          finalSystemPrompt.slice(0, keepUpTo) +
-          '\n\nReturn ONLY valid JSON with no markdown or code blocks.';
-        console.log(
-          `[tailor] Prompt truncated: trimmed industry-examples block by ${overBy} chars (total was ${assembledLen})`
-        );
+    let trimIter = 0;
+    const MAX_TRIM_ITER = experienceForPrompt.length * 10 + 5; // safety ceiling
+
+    while (finalSystemPrompt.length + finalUserPrompt.length > PROMPT_CHAR_BUDGET && trimIter < MAX_TRIM_ITER) {
+      trimIter++;
+      // Step 1: remove one bullet from the oldest job (beyond idx 2) that has >1 achievement.
+      let bulletTrimmed = false;
+      if (canRebuildExp) {
+        for (let i = experienceForPrompt.length - 1; i >= 3; i--) {
+          const e = experienceForPrompt[i];
+          const achs = Array.isArray(e.achievements) ? (e.achievements as unknown[]) : [];
+          if (achs.length > 1) {
+            experienceForPrompt = experienceForPrompt.map((entry, idx) =>
+              idx === i
+                ? { ...entry, achievements: (entry.achievements as unknown[]).slice(0, -1) }
+                : entry
+            );
+            finalUserPrompt = userPromptHead + renderExpForPrompt(experienceForPrompt) + userPromptTail;
+            bulletTrimmed = true;
+            break;
+          }
+        }
       }
+      if (bulletTrimmed) continue;
+
+      // Step 2: truncate the industry-examples block from the system prompt (one-shot).
+      const exIdx = finalSystemPrompt.indexOf('### ');
+      if (exIdx > 100) {
+        finalSystemPrompt =
+          finalSystemPrompt.slice(0, exIdx - 1) +
+          '\n\nReturn ONLY valid JSON with no markdown or code blocks.';
+        continue;
+      }
+
+      // Step 3: hard cap — truncate userPrompt to guarantee budget is met.
+      const maxUserLen = PROMPT_CHAR_BUDGET - finalSystemPrompt.length - 500;
+      if (finalUserPrompt.length > maxUserLen && maxUserLen > 0) {
+        finalUserPrompt =
+          finalUserPrompt.slice(0, maxUserLen) +
+          '\n\n[Content truncated to fit model context window]';
+      }
+      break; // nothing more to trim
+    }
+
+    if (trimIter > 0) {
+      console.log(
+        `[tailor] Prompt truncated: ${trimIter} trim iteration(s), final size ${finalSystemPrompt.length + finalUserPrompt.length} chars (budget ${PROMPT_CHAR_BUDGET})`
+      );
     }
 
     console.log("[tailor] Stage 2: Calling AI for resume tailoring...");
