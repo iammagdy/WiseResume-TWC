@@ -1,6 +1,22 @@
 # Stability Improvements — What's Getting Better Behind the Scenes
 
-**Last verified:** 2026-05-07 (iOS PDF fixes)
+**Last verified:** 2026-05-07 (DevKit dashboard panel fixes)
+
+## Several admin dashboard panels were silently broken (2026-05-07)
+
+**What was the situation:** The admin control panel (DevKit) has a number of tabs for monitoring the platform. Several of them were failing in development:
+
+- The **AI Cost** tab — which shows a breakdown of AI usage costs over time — always showed an error instead of any data.
+- The **Mission Control** tab's edge-function drift checker always showed an error.
+- The **Analytics** tab loaded without error but displayed no numbers, because it was receiving data in the wrong format from a stale internal handler.
+- The **Onboarding Funnel** tab always showed "No data returned" for the same reason — a data format mismatch between what the tab expected and what it was getting in the development environment.
+- The **Live Activity** tab appeared to load but always showed an empty list, again because the internal development handler returned data under the wrong field name.
+
+All these issues only affected the development environment; the live production admin panel was unaffected.
+
+**What changed:** The development server's internal handler for the admin data endpoint was rewritten as a simple pass-through to the real Supabase backend, instead of trying to replicate the behaviour locally with its own stale copy. The Onboarding Funnel endpoint received the same treatment. Both now forward requests directly to the same Supabase functions that production uses, so the data format and the feature set are always in sync.
+
+**What you'll notice:** All affected admin tabs now load correctly in the development environment, including AI Cost, Mission Control drift checker, Analytics, Onboarding Funnel, and Live Activity. Any new actions added to these endpoints in future will automatically work without requiring a separate dev-server update.
 
 ## PDFs now upload and download correctly on iPhone (2026-05-07)
 

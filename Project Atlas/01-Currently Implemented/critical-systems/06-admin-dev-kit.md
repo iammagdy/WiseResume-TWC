@@ -1,6 +1,6 @@
 # Admin Dev Kit
 
-**Last verified:** 2026-05-05 (Task #15 — AI model catalog cron fix)
+**Last verified:** 2026-05-07 (DevKit panel proxy fixes)
 
 ## Login recovery — what to do when /devkit rejects the admin
 

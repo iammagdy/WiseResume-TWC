@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-05-07 — DevKit dashboard: admin-devkit-data and admin-onboarding-funnel converted to Supabase proxy
+
+**Files changed:**
+- `server/index.ts`
+
+**`app.all('/api/fn/admin-devkit-data')`** (lines 3074–3105)
+- Removed hardcoded `actionToRoute` dispatch map (`analytics → admin-analytics`, `mission-control → admin-mission-control`, `github-status → admin-github-status`, `live-activity → admin-live-activity`, `observability → admin-observability`).
+- Removed `obs_action → action` rewrite for the observability sub-handler.
+- Replaced entire dispatch body with a thin Supabase proxy: validates DevKit session via `requireDevKitAuth`, then `POST`s to `${SUPABASE_URL}/functions/v1/admin-devkit-data` with `apikey` + forwarded `Authorization` header.
+- Fixes 400 `Unknown action` errors for `ai-cost` (AICostPanel) and `edge-fn-drift` (MissionControlPanel) — neither was in the old dispatch map.
+- Fixes `analytics` response shape mismatch: local `admin-analytics` returned `{ kpis, daily_series }` but `AnalyticsPanel` expects `{ data: PremiumAnalyticsData }` (with `activitySeries`). Supabase function returns the correct shape.
+- Fixes silent empty-data failures in `LiveActivityPanel` and `UserDetailDrawer`: local `admin-live-activity` returned `{ events }` but panels use `result.data` (with `[] ` fallback), so data was always empty in dev.
+- Returns `503` when `SUPABASE_URL` / `SUPABASE_ANON_KEY` are absent rather than `400 Unknown action`.
+
+**`app.all('/api/fn/admin-onboarding-funnel')`** (lines 2304–2325)
+- Replaced local implementation (queried `audit_logs` directly, returned `{ funnel, total_users }`) with Supabase proxy identical in structure to the `admin-devkit-data` handler above.
+- Fixes `OnboardingFunnelPanel` "No data returned" error: local handler returned no `data` wrapper; the Supabase `admin-onboarding-funnel` function returns `{ data: FunnelData }` as the panel expects.
+
+---
+
 ## 2026-05-07 — iOS PDF upload and export fixes (Promise.withResolvers polyfill + PreviewPage fallback)
 
 **Files changed:**

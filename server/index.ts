@@ -2299,24 +2299,25 @@ app.all('/api/fn/admin-live-activity', async (req, res) => {
 });
 
 // ── admin-onboarding-funnel ───────────────────────────────────────────────────
+// Thin auth gate + Supabase proxy. The previous local implementation returned
+// { funnel, total_users } without the { data } wrapper that OnboardingFunnelPanel
+// expects (result.data). Proxying to the Supabase function restores the correct
+// response shape and keeps dev/prod behaviour identical.
 app.all('/api/fn/admin-onboarding-funnel', async (req, res) => {
   const callerEmail = await requireDevKitAuth(req, res); if (!callerEmail) return;
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    return res.status(503).json({ success: false, error: 'Supabase not configured' });
+  }
   try {
-    const { since } = req.body ?? {} as { since?: string };
-    const cutoff = since ?? new Date(Date.now() - 30 * 86400000).toISOString();
-    const logs = await supabaseGet<{ user_id: string; action: string; metadata: Record<string, unknown>; created_at: string }>('audit_logs', `select=user_id,action,metadata,created_at&category=eq.onboarding&created_at=gte.${encodeURIComponent(cutoff)}&order=created_at.asc&limit=50000`);
-    const byUser = new Map<string, Set<string>>();
-    for (const log of logs) {
-      if (!byUser.has(log.user_id)) byUser.set(log.user_id, new Set());
-      byUser.get(log.user_id)!.add(log.action);
-    }
-    const steps = ['onboarding_start', 'onboarding_step_1', 'onboarding_step_2', 'onboarding_step_3', 'onboarding_complete'];
-    const funnel = steps.map(step => {
-      const count = [...byUser.values()].filter(actions => actions.has(step)).length;
-      return { step, count };
+    const proxyHeaders: Record<string, string> = { 'apikey': SUPABASE_ANON_KEY, 'Content-Type': 'application/json' };
+    const authHeader = req.headers.authorization;
+    if (authHeader) proxyHeaders['Authorization'] = authHeader;
+    const r = await fetch(`${SUPABASE_URL}/functions/v1/admin-onboarding-funnel`, {
+      method: 'POST', headers: proxyHeaders, body: JSON.stringify(req.body ?? {}), signal: AbortSignal.timeout(30_000),
     });
-    res.json({ success: true, funnel, total_users: byUser.size });
-  } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
+    const data = await r.json();
+    return res.status(r.status).json(data);
+  } catch (err) { return res.status(502).json({ success: false, error: String(err) }); }
 });
 
 // ── admin-analytics ───────────────────────────────────────────────────────────
@@ -3069,37 +3070,34 @@ app.all('/api/fn/admin-wisehire-reset-user', async (req, res) => {
 });
 
 // ── admin-devkit-data ─────────────────────────────────────────────────────────
-// Multiplexer: panels call admin-devkit-data?action=X. Route each action to
-// the dedicated Express sub-handler so the DevKit never touches edge functions
-// in dev (Replit) mode.
+// Thin auth gate + Supabase proxy. Validates the DevKit session token locally
+// (no round-trip for the auth check) then forwards the full request body to
+// the Supabase admin-devkit-data edge function. Keeps dev/prod behaviour
+// identical and automatically supports all actions (analytics, observability,
+// live-activity, mission-control, github-status, ai-cost, edge-fn-drift, …)
+// without requiring a local stub for each one.
 app.all('/api/fn/admin-devkit-data', async (req, res) => {
   const callerEmail = await requireDevKitAuth(req, res);
   if (!callerEmail) return;
-  const body = req.body ?? {};
-  const action = (body.action as string | undefined) ?? '';
-  if (!action) return res.status(400).json({ success: false, error: 'action is required: analytics | observability | live-activity | mission-control | github-status' });
 
-  const actionToRoute: Record<string, string> = {
-    'analytics':      'admin-analytics',
-    'mission-control':'admin-mission-control',
-    'github-status':  'admin-github-status',
-    'live-activity':  'admin-live-activity',
-    'observability':  'admin-observability',
-  };
-  const subRoute = actionToRoute[action];
-  if (!subRoute) return res.status(400).json({ success: false, error: `Unknown action: ${action}` });
-
-  // For observability the sub-handler reads body.action as the sub-action;
-  // panels send obs_action for that.
-  const forwardBody = action === 'observability'
-    ? { ...body, action: body.obs_action ?? 'get_telemetry' }
-    : body;
-
+  // Proxy every action directly to the Supabase admin-devkit-data edge function.
+  // The previous local dispatch (analytics → admin-analytics, etc.) had stale
+  // response shapes and was missing actions added later (ai-cost, edge-fn-drift).
+  // Proxying to Supabase ensures dev/prod parity for all current and future actions.
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    return res.status(503).json({ success: false, error: 'Supabase not configured — SUPABASE_URL / SUPABASE_ANON_KEY missing' });
+  }
   try {
-    const r = await fetch(`http://127.0.0.1:5001/api/fn/${subRoute}`, {
+    const proxyHeaders: Record<string, string> = {
+      'apikey': SUPABASE_ANON_KEY,
+      'Content-Type': 'application/json',
+    };
+    const authHeader = req.headers.authorization;
+    if (authHeader) proxyHeaders['Authorization'] = authHeader;
+    const r = await fetch(`${SUPABASE_URL}/functions/v1/admin-devkit-data`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: req.headers.authorization ?? '' },
-      body: JSON.stringify(forwardBody),
+      headers: proxyHeaders,
+      body: JSON.stringify(req.body ?? {}),
       signal: AbortSignal.timeout(30_000),
     });
     const data = await r.json();
