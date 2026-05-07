@@ -1,10 +1,77 @@
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
-// pdfjs-dist v4 removed the disableWorker option from getDocument().
-// GlobalWorkerOptions.workerSrc must be set so pdfjs can load the worker
-// correctly. Vite's ?url import resolves this to the properly bundled path.
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+// ─── Promise.withResolvers polyfill (main thread) ────────────────────────────
+// pdfjs-dist v4+ calls Promise.withResolvers() internally. This API was
+// added in Safari 17.4 (iOS 17.4, March 2024). iPhones on iOS ≤ 17.3 throw
+// a TypeError the moment pdfjs tries to use it, causing every
+// page.getTextContent() call to fail with PAGE_ERRORS.
+// We polyfill here (main thread) and also inject it into the worker thread
+// via buildPolyfillWorkerSrc() below.
+if (typeof Promise.withResolvers !== 'function') {
+  (Promise as unknown as Record<string, unknown>).withResolvers = function <T>() {
+    let resolve!: (value: T | PromiseLike<T>) => void;
+    let reject!: (reason?: unknown) => void;
+    const promise = new Promise<T>((res, rej) => { resolve = res; reject = rej; });
+    return { promise, resolve, reject };
+  };
+}
+
+/**
+ * Build a classic blob worker URL that injects the Promise.withResolvers
+ * polyfill into the worker thread BEFORE the pdfjs IIFE executes.
+ *
+ * Why a blob wrapper?
+ * - pdfjs-dist v5's pdf.worker.min.mjs is an IIFE (no top-level import/export)
+ *   and CAN be loaded with importScripts() in a classic Web Worker.
+ * - Main-thread polyfills never reach the worker global scope — they are
+ *   separate JS environments.
+ * - The CSP already allows `worker-src 'self' blob:` so blob: workers are
+ *   permitted without any config change.
+ * - importScripts() with a same-origin URL is unconditionally allowed by the
+ *   browser regardless of script-src, so this does not tighten the CSP.
+ *
+ * If URL.createObjectURL is not available (e.g. SSR / test environment) we
+ * fall back to the raw worker URL so callers are never broken.
+ */
+function buildPolyfillWorkerSrc(rawWorkerUrl: string): string {
+  if (typeof URL === 'undefined' || typeof Blob === 'undefined' || typeof URL.createObjectURL !== 'function') {
+    return rawWorkerUrl;
+  }
+  try {
+    // Resolve to an absolute URL so importScripts() inside the blob worker
+    // can reach the file regardless of the page's base URL.
+    const absoluteSrc = new URL(rawWorkerUrl, globalThis.location?.href ?? '/').href;
+
+    // Compact polyfill repeated inside the worker scope. Written in ES5 so it
+    // executes cleanly as a classic script in any browser that supports
+    // Web Workers (no arrow functions, no const/let).
+    const polyfill =
+      'if(typeof Promise.withResolvers!=="function"){' +
+      'Promise.withResolvers=function(){' +
+      'var r,j;var p=new Promise(function(a,b){r=a;j=b;});' +
+      'return{promise:p,resolve:r,reject:j};' +
+      '};' +
+      '}';
+
+    // importScripts() runs synchronously and blocks until the script is
+    // executed, so the polyfill is guaranteed to be in scope before any
+    // pdfjs code runs.
+    const code = `${polyfill}\nimportScripts(${JSON.stringify(absoluteSrc)});`;
+    const blob = new Blob([code], { type: 'text/javascript' });
+    return URL.createObjectURL(blob);
+  } catch {
+    // Any failure (e.g. CSP that somehow blocks createObjectURL) degrades
+    // gracefully: the raw worker URL is used and pdfjs behaves as before.
+    return rawWorkerUrl;
+  }
+}
+
+// Set the worker source. The blob wrapper injects the Promise.withResolvers
+// polyfill into the worker thread so pdfjs v4+ works on iOS < 17.4.
+// On non-iOS platforms the same wrapper is used for consistency — it has no
+// negative performance impact and keeps the code path uniform.
+pdfjsLib.GlobalWorkerOptions.workerSrc = buildPolyfillWorkerSrc(pdfWorkerUrl);
 
 /**
  * Yield to the browser's event loop between expensive per-page extractions

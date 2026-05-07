@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-05-07 — iOS PDF upload and export fixes (Promise.withResolvers polyfill + PreviewPage fallback)
+
+**Files changed:**
+- `src/lib/pdf/textExtractor.ts` — `Promise.withResolvers` polyfill (main thread) + `buildPolyfillWorkerSrc()` blob wrapper (worker thread)
+- `src/pages/PreviewPage.tsx` — `PDFServerUnavailableError` import + handling in `handleExport` catch + `handleSaveToFiles` catch
+
+**Changes:**
+
+**A — iOS PDF upload fix (`textExtractor.ts`)**
+- Added `Promise.withResolvers` polyfill at module-init time (main thread). pdfjs-dist v4+ calls this API internally; Safari < 17.4 (iOS ≤ 17.3) does not implement it, causing every `page.getTextContent()` call to throw → `PAGE_ERRORS` on every page for every uploaded PDF.
+- Added `buildPolyfillWorkerSrc(rawWorkerUrl)`: creates a classic blob worker URL that injects the same ES5 polyfill via `importScripts()` before the pdfjs IIFE executes in the worker thread. Confirmed: `pdf.worker.min.mjs` has zero top-level `import`/`export` statements (IIFE-compatible) and contains 2 calls to `withResolvers`. Main-thread polyfills do not propagate to worker global scope, so the blob wrapper is required.
+- `buildPolyfillWorkerSrc` gracefully falls back to the raw URL if `URL.createObjectURL` is unavailable (SSR / test environment).
+- `GlobalWorkerOptions.workerSrc` is now set to the blob wrapper URL on all platforms (no negative impact on non-iOS; worker blob permitted by existing `worker-src 'self' blob:` CSP directive).
+
+**B — iOS PDF export fix (`PreviewPage.tsx`)**
+- Imported `PDFServerUnavailableError` from `@/lib/nativePdfGenerator`.
+- `handleExport` catch block: added `instanceof PDFServerUnavailableError` check before the generic `PdfGenerationError` path — calls `window.print()` with an informational toast (identical pattern to `EditorPage.tsx` line ~384).
+- `handleSaveToFiles` catch block: added the same `instanceof PDFServerUnavailableError` branch before the `'Failed to save'` fallback — calls `window.print()` with a "Save to Files" prompt.
+- Root cause: `export-resume-pdf` edge function returns `503 text/html` when `PDF_RENDERER_URL` is not configured → `PDFServerUnavailableError`. `EditorPage.tsx` had a fallback; `PreviewPage.tsx` did not — mobile users who primarily use PreviewPage saw "Failed to save" / "Failed to generate PDF" instead.
+
 ## 2026-05-06 — Production routing fixes: PDF export, URL import, job CRUD, handle-interest analytics
 
 **Files changed:**

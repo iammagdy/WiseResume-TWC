@@ -48,6 +48,7 @@ const ResumePhotoSheet = lazy(() => import('@/components/editor/ResumePhotoSheet
 const OnePageWizardSheet = lazy(() => import('@/components/editor/ai/SmartFitWizardSheet').then((m) => ({ default: m.SmartFitWizardSheet })));
 const ShareSheet = lazy(() => import('@/components/editor/ShareSheet').then((m) => ({ default: m.ShareSheet })));
 import { PdfGenerationError } from '@/lib/pdfUtils';
+import { PDFServerUnavailableError } from '@/lib/nativePdfGenerator';
 import { getTemplateConfig } from '@/lib/templateConfig';
 import { downloadFile } from '@/lib/downloadUtils';
 import { useExportProgress } from '@/hooks/useExportProgress';
@@ -413,6 +414,17 @@ export default function PreviewPage() {
         }, 1500);
 
       } catch (error) {
+        // PDF renderer not configured — fall back to browser print-to-PDF,
+        // the same way EditorPage.tsx handles this (see EditorPage line ~384).
+        if (error instanceof PDFServerUnavailableError) {
+          toast.info(
+            'PDF export is not available right now. Opening print dialog — choose "Save as PDF" to download your resume.',
+            { duration: 8000 },
+          );
+          window.print();
+          return;
+        }
+
         attempt++;
         const isPdfError = error instanceof PdfGenerationError;
         const errMsg = error instanceof Error ? error.message : '';
@@ -477,6 +489,13 @@ export default function PreviewPage() {
     } catch (err: unknown) {
       if (err instanceof Error && err.name === 'AbortError') {
         toast.info('Cancelled. Tap again to save.');
+      } else if (err instanceof PDFServerUnavailableError) {
+        // PDF renderer not configured — offer print-to-PDF as fallback.
+        toast.info(
+          'PDF export is not available right now. Opening print dialog — choose "Save to Files" to save your resume.',
+          { duration: 8000 },
+        );
+        window.print();
       } else {
         toast.error('Failed to save. Try downloading instead.');
       }

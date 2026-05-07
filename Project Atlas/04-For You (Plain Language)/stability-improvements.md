@@ -1,6 +1,24 @@
 # Stability Improvements — What's Getting Better Behind the Scenes
 
-**Last verified:** 2026-05-06 (dev-mode persistent auth)
+**Last verified:** 2026-05-07 (iOS PDF fixes)
+
+## PDFs now upload and download correctly on iPhone (2026-05-07)
+
+**What was the situation:** Anyone using WiseResume on an iPhone ran into two separate problems.
+
+First, uploading any CV as a PDF showed the message "Every page in this PDF errored while we tried to read it." This happened on every iPhone regardless of which PDF was uploaded — the file was perfectly fine, but the tool that reads PDF text (built into the browser) uses a feature called `Promise.withResolvers` that Apple only added to iPhones in the iOS 17.4 update (March 2024). Any iPhone still on iOS 17.3 or earlier was missing this feature, so the PDF reader crashed silently before it could extract any text.
+
+Second, tapping Save or Download on the Preview page showed either "Failed to save. Try downloading instead." or "Failed to generate PDF." The PDF generation service requires a specific configuration that may not always be available. When it wasn't, the Editor page (used mainly on desktop) already showed a "Save as PDF" print dialog as a backup — but the Preview page (the main mobile screen) had no such backup and just showed an error.
+
+**What changed:** Two targeted fixes were applied.
+
+For PDF uploads: the PDF reader now includes a compatibility patch that fills in the missing `Promise.withResolvers` feature — both in the main page and inside the background worker thread that does the actual PDF reading. This covers all iPhones on iOS 17.3 and earlier while making no difference to newer devices that already support it natively.
+
+For PDF save/download: the Preview page now handles the "PDF service unavailable" case the same way the Editor page always has — it opens the browser's print dialog with a prompt to choose "Save as PDF" or "Save to Files," so you can still get your resume out even when the cloud service isn't responding.
+
+**What you'll notice:** On any iPhone, uploading a CV PDF should now successfully extract the text so the AI can read and improve it. Tapping Save or Download on the Preview page will now open the print/save dialog rather than showing an error, giving you a working path to get your resume file.
+
+---
 
 ## You no longer need to sign in every time the preview restarts during development (2026-05-06)
 
