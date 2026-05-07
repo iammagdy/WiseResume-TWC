@@ -590,12 +590,16 @@ app.post('/api/track-handle-interest', requireAuthHeader, async (req: AuthedRequ
     if (!audienceId) return res.json({ success: true });
 
     // Skip if the user already owns a premium handle (check profiles.handle_type).
-    const { data: profile } = await supabaseAdmin
-      .from('profiles')
-      .select('handle_type')
-      .eq('user_id', userId)
-      .maybeSingle();
-    const handleType = (profile as { handle_type?: string } | null)?.handle_type;
+    let handleType: string | undefined;
+    try {
+      const profileRows = await supabaseGet<{ handle_type?: string }>(
+        'profiles',
+        `user_id=eq.${encodeURIComponent(userId)}&select=handle_type&limit=1`,
+      );
+      handleType = profileRows[0]?.handle_type;
+    } catch {
+      handleType = undefined;
+    }
     if (handleType && handleType !== 'free') return res.json({ success: true });
 
     // Fire-and-forget via the shared server-side Resend helper.
