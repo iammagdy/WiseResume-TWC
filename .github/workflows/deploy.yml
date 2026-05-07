@@ -277,6 +277,9 @@ jobs:
         # This step runs ONLY after the live-site verification passes, so every
         # tagged artifact is guaranteed to have been successfully verified on the
         # live site — making it safe to roll back to.
+        # continue-on-error: quota failures (recalculated every 6-12 h) must
+        # not mark an otherwise-successful deploy as failed.
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: frontend-v${{ github.run_number }}-${{ github.sha }}
