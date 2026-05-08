@@ -19,8 +19,6 @@ import type { AdminUser } from './AdminUsersPanel';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
 import { DevKitErrorCard } from './DevKitErrorCard';
 
-// supabase client kept for RPC-only usage (username availability check)
-// Profile data fetch is routed through admin-update-profile edge function to bypass RLS
 
 interface UserDetailDrawerProps {
   user: AdminUser;
