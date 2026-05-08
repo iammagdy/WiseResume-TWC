@@ -1,3 +1,39 @@
+## 2026-05-08 — Task #12: All AI fetch() calls migrated to edgeFunctions.invoke()
+
+**17 files changed.** Every raw `fetch(apiFnUrl(...))` call that targets an AI or Appwrite Function has been replaced with `edgeFunctions.invoke()`. Supabase auth (`getSupabaseToken`, `getToken` from supabaseBridge, `refreshTokenIfNeeded`) and manual JWT headers have been removed from all migrated paths; the Appwrite SDK handles auth internally.
+
+### New export — `src/lib/resumeSectionAiFlag.ts`
+`resumeSectionAiBodyProps(originalFn)` added alongside the deprecated `resumeSectionAiHeader`. Returns `{ 'x-resume-section-ai-action': action }` as a **body field** instead of a header. Required because `functions.createExecution()` does not forward custom HTTP request headers to the Appwrite Function runtime.
+
+### Core AI functions migrated
+- **`src/lib/pdfParser.ts`** — `parseTextWithAI`: removed `getSupabaseToken` + retry-on-401 loop; now `edgeFunctions.invoke('parse-resume', { body: { text, fileType } })`. Fallback to local regex parser preserved for all non-billing failures. Timeout via AbortController removed (SDK handles timeouts internally).
+- **`src/lib/aiTailor.ts`** — `tailorResumeWithProgress`: replaced `doFetch`/`invokeOnce` raw-fetch pattern with `edgeFunctions.invoke<SuperTailorResult>('tailor-resume', ...)`. Removed `getAppwriteJWT`/`invalidateAppwriteJWT` imports; `let data: any` → `let data: SuperTailorResult`; `catch (firstError: any)` → `catch (firstError: unknown)`. Retry logic preserved (4 s backoff for transient 5xx). `tailorSection`: now uses `resumeSectionAiBodyProps('tailor-section')` in body instead of `resumeSectionAiHeader`.
+- **`src/hooks/useResumeScore.ts`** — `invokeScoreResume`: removed `getAppwriteJWT` import; now `edgeFunctions.invoke<ResumeHealthScore>('score-resume', ...)`. Return type tightened from `any` to `ResumeHealthScore`. Error flags (`isAuth`, `isRateLimit`, `isConfigError`, `isNetworkError`) mapped from `error.status` instead of HTTP response status.
+
+### Section AI hooks migrated
+- **`src/hooks/useAIEnhance.ts`** — `enhance`: replaced `doFetch`/JWT-check/fetch with `edgeFunctions.invoke` + `resumeSectionAiBodyProps`. Removed `getAppwriteJWT`, `apiFnUrl`, `parseAIErrorResponse` imports. Error code mapped from `invokeError.status`.
+- **`src/hooks/useATSSuggestions.ts`** — deep-analysis call: same pattern; removed `getAppwriteJWT`, `apiFnUrl`, `parseAIErrorResponse`.
+- **`src/components/editor/SectionAIPopover.tsx`** — inline fetch replaced; removed `getAppwriteJWT`, `apiFnUrl`, `parseAIErrorResponse`.
+- **`src/components/editor/tailor/QuickActions.tsx`** — custom-instruction call replaced; removed `getAppwriteJWT`, `apiFnUrl`, `parseAIErrorResponse`.
+- **`src/components/editor/ai/AIEnhanceSheet.tsx`** — `callEnhanceForSection` replaced; removed `getAppwriteJWT`, `apiFnUrl`, `parseAIErrorResponse`.
+
+### Page-level fetch calls migrated
+- **`src/pages/TailorPage.tsx`** — three `fetch(apiFnUrl(...))` calls replaced: pre-validate background IIFE (`validate-tailor`), fix-suggestion generator (`generate-fix-suggestions`), and apply-changes validator (`validate-tailor`). Removed `getAppwriteJWT` and `apiFnUrl` imports; added `edgeFunctions` import. AbortController timeout patterns simplified (SDK does not support AbortSignal).
+- **`src/pages/UploadPage.tsx`** — `handleUrlImport`: replaced `getSupabaseToken` dynamic import + `apiFnUrl('fetch-url')` with `edgeFunctions.invoke('fetch-url', { body: { url } })`. Removed sign-in guard (auth handled by SDK session).
+
+### Other components migrated
+- **`src/components/ai/AIHealthBadge.tsx`** — `runPing`: removed `getToken` (supabaseBridge) and `apiFnUrl`; now `edgeFunctions.invoke('ai-health', {})`.
+- **`src/components/applications/AddApplicationSheet.tsx`** — URL parser: removed `getSupabaseToken`; now `edgeFunctions.invoke('parse-job', ...)`.
+- **`src/components/interview/QuestionBankSheet.tsx`** — question generator: removed `getSupabaseToken`; now `edgeFunctions.invoke('generate-question-bank', ...)`.
+- **`src/components/portfolio/public/ChatWidget.tsx`** — both session-init (`create-portfolio-session`) and ask-portfolio calls migrated. Response destructuring updated to `{ data, error }`.
+- **`src/components/portfolio/public/PortfolioContactForm.tsx`** — contact submit: header `x-transactional-email-action` moved into body payload; `apiFnUrl` removed.
+- **`src/lib/onboardingProfile.ts`** — LinkedIn OG-meta fallback (`fetch-url`): dynamic `edgeFunctions` import replaces `apiFnUrl` + Appwrite JWT fetch. `apiFnUrl` import removed from file.
+
+### TypeScript
+`tsc --noEmit` passes with zero errors after all changes.
+
+---
+
 ## 2026-05-08 — resumeSectionAiFlag + aiTailor + editor auth — Task #3 final closure
 
 **`src/lib/resumeSectionAiFlag.ts` created** — canonical home for the Task #56 resume-section-ai routing flag (previously misplaced under `src/integrations/supabase/`; has zero Supabase dependency). Exports unchanged: `USE_MERGED_RESUME_SECTION_AI`, `resumeSectionAiFnName`, `resumeSectionAiHeader`, `ResumeSectionAiAction`.

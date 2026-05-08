@@ -12,7 +12,6 @@ import type { ResumeData } from '@/types/resume';
 import type { ProfileData } from '@/components/settings/ProfileImportSheet';
 import { databases, DATABASE_ID, Query, ID, account } from '@/lib/appwrite';
 import { COLLECTIONS } from '@/lib/appwrite-collections';
-import { apiFnUrl } from '@/lib/apiFnUrl';
 
 export interface OnboardingExperience {
   id: string;
@@ -639,18 +638,11 @@ export async function probeLinkedInUrl(rawUrl: string): Promise<LinkedInProbeRes
 
   // 2) Fall back to the OG-meta best-effort probe.
   try {
-    if (token) {
-      const fetchUrlEndpoint = import.meta.env.DEV ? '/api/fetch-url' : apiFnUrl('fetch-url');
-      const res = await fetch(fetchUrlEndpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ url }),
-      });
-      if (res.ok) {
-        const body = (await res.json()) as { html?: string };
+    {
+      const { edgeFunctions: ef } = await import('@/lib/edgeFunctions');
+      const { data: proxyBody, error: proxyError } = await ef.invoke<{ html?: string }>('fetch-url', { body: { url } });
+      if (!proxyError && proxyBody) {
+        const body = proxyBody;
         const html = body.html || '';
         const titleMatch =
           html.match(/<meta\s+property=["']og:title["']\s+content=["']([^"']+)["']/i) ||

@@ -7,12 +7,10 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useJobApplicationMutations, ApplicationStatus } from '@/hooks/useJobApplications';
 import { useQuery } from '@tanstack/react-query';
-import { getSupabaseToken } from '@/lib/supabaseAuth';
-
 import { useAuth } from '@/hooks/useAuth';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { toast } from 'sonner';
-import { apiFnUrl } from '@/lib/apiFnUrl';
+import { edgeFunctions } from '@/lib/edgeFunctions';
 
 interface AddApplicationSheetProps {
   open: boolean;
@@ -69,25 +67,18 @@ export function AddApplicationSheet({ open, onOpenChange, defaultValues }: AddAp
 
     setIsParsingUrl(true);
     try {
-      const token = await getSupabaseToken();
-      const res = await fetch(
-        apiFnUrl(`parse-job`),
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-          },
-          body: JSON.stringify({ action: 'url', url: trimmed }),
-          signal,
-        }
-      );
-      if (res.ok) {
-        const parsed = await res.json();
+      const { data: parsed, error } = await edgeFunctions.invoke<{
+        title?: string;
+        company?: string;
+        deadline?: string;
+      }>('parse-job', {
+        body: { action: 'url', url: trimmed },
+      });
+      if (!error && parsed) {
         if (parsed.title && !jobTitle) setJobTitle(parsed.title);
         if (parsed.company && !company) setCompany(parsed.company);
         if (parsed.deadline) setDeadline(parsed.deadline.split('T')[0]);
-      } else {
+      } else if (error) {
         toast.error('Failed to parse URL automatically.');
       }
     } catch (error) {

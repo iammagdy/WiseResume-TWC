@@ -2,6 +2,20 @@
 
 **Last verified:** 2026-05-08
 
+## All AI features now talk directly to Appwrite — Task #12 (2026-05-08)
+
+Every AI feature in the app (resume tailoring, section enhancement, scoring, PDF parsing, job parsing, interview question generation, AI health badge, portfolio chat, and more) now calls Appwrite directly using the official SDK. The old pattern — where the app had to manually fetch a temporary token, attach it as an HTTP header, and call a URL that was only valid in one environment — is completely gone.
+
+**What this means for you:**
+- AI features are less likely to fail with "session expired" errors, because the SDK manages authentication automatically.
+- AI calls no longer have a fragile token-refresh step that could silently return empty results.
+- The same code path works in development and in production — no more environment-specific URL switching.
+- Cover letter generation, ATS scoring, section rewriting, interview prep, and contact form submissions all go through the same reliable Appwrite channel.
+
+**Last verified:** 2026-05-08
+
+---
+
 ## AI editor tools fully reconnected — Task #3 closure (2026-05-08)
 
 The last batch of files that were still pulling from the old Supabase wiring have been fully reconnected. This covers the section-level AI tools in the resume editor and the username-request dialog.

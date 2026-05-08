@@ -1,5 +1,4 @@
 import { useState, useCallback, useRef } from 'react';
-import { getAppwriteJWT } from '@/lib/appwriteJWT';
 import { toast } from 'sonner';
 import { useAIAction } from '@/hooks/useAIAction';
 import { useAIHealthStore } from '@/store/aiHealthStore';
@@ -8,11 +7,11 @@ import { sanitizeAIContent } from '@/lib/ai/sanitizeContent';
 import { checkAIFallback } from '@/lib/aiFallbackToast';
 import { redactResumeForAI } from '@/lib/piiRedact';
 import { useSettingsStore } from '@/store/settingsStore';
-import { parseAIErrorResponse, parseAIErrorBody, aiErrorToastMessage, AIError } from '@/lib/aiErrorParser';
-import { apiFnUrl } from '@/lib/apiFnUrl';
+import { parseAIErrorBody, aiErrorToastMessage, AIError } from '@/lib/aiErrorParser';
+import { edgeFunctions } from '@/lib/edgeFunctions';
 import {
   resumeSectionAiFnName,
-  resumeSectionAiHeader,
+  resumeSectionAiBodyProps,
 } from '@/lib/resumeSectionAiFlag';
 
 
@@ -127,52 +126,35 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
           redactPiiBeforeAI,
         );
 
-        const body = JSON.stringify({
-          section,
-          action,
-          currentContent,
-          context: {
-            resume: redactedResume,
-            jobDescription,
-          },
-        });
-
-        const doFetch = async (authToken: string | null) =>
-          fetch(apiFnUrl(resumeSectionAiFnName('enhance-section')), {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              ...resumeSectionAiHeader('enhance-section'),
-              ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}),
+        const { data: respData, error: invokeError } = await edgeFunctions.invoke<Record<string, unknown>>(
+          resumeSectionAiFnName('enhance-section'),
+          {
+            body: {
+              ...resumeSectionAiBodyProps('enhance-section'),
+              section,
+              action,
+              currentContent,
+              context: {
+                resume: redactedResume,
+                jobDescription,
+              },
             },
-            body,
-          });
-
-        const token = await getAppwriteJWT().catch(() => null);
-        if (!token) {
-          // Surface as a structured AIError so useAIAction maps it to the
-          // canonical "Session expired" toast (same as a real 401 response).
-          throw new AIError({
-            code: 'unauthorized',
-            status: 401,
-            message: 'No active session — please sign in again.',
-          });
-        }
-
-        const res = await doFetch(token);
+          },
+        );
 
         clearTimeout(slowTimer);
         const _latency = Date.now() - _start;
 
-        if (!res.ok) {
-          useAIHealthStore.getState().recordFailure(0);
-          const info = await parseAIErrorResponse(res);
-          throw new AIError(info);
+        if (invokeError) {
+          useAIHealthStore.getState().recordFailure(invokeError.status ?? 0);
+          const code = invokeError.status === 401 ? 'unauthorized'
+            : invokeError.status === 429 ? 'rate_limit'
+            : invokeError.status === 402 ? 'credits_exhausted'
+            : 'internal';
+          throw new AIError({ code, status: invokeError.status ?? 500, message: invokeError.message });
         }
 
-        const respData = await res.json();
-
-        if (respData.error) {
+        if (respData?.error) {
           throw new AIError(parseAIErrorBody(respData, 200));
         }
 

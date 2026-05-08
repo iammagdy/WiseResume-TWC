@@ -5,8 +5,7 @@ import { useAIHealth, AIHealthStatus } from '@/hooks/useAIHealth';
 import { useAIHealthStore } from '@/store/aiHealthStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { cn } from '@/lib/utils';
-import { getToken } from '@/lib/supabaseBridge';
-import { apiFnUrl } from '@/lib/apiFnUrl';
+import { edgeFunctions } from '@/lib/edgeFunctions';
 
 type PingState = 'idle' | 'pinging' | 'done';
 
@@ -104,33 +103,27 @@ export function AIHealthBadge() {
   const runPing = useCallback(async () => {
     setPingState('pinging');
     try {
-      const token = getToken();
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const { data, error } = await edgeFunctions.invoke<{
+        latencyMs?: number;
+        status?: AIHealthStatus;
+        errorCode?: number | null;
+        provider?: string;
+        reason?: string | null;
+      }>('ai-health', {});
 
-      // Route via apiFnUrl so prod hits the Supabase Edge Function directly
-      // (Hostinger static has no /api/ai-health Express endpoint — would 200/HTML
-      // and the badge would be permanently "down").
-      const res = await fetch(apiFnUrl('ai-health'), {
-        method: 'GET',
-        headers,
-      });
-
-      if (!res.ok) {
-        const code = res.status;
-        recordFailure(code);
-        setPingResult({ latencyMs: null, status: 'down', errorCode: code });
+      if (error) {
+        recordFailure(error.status ?? 0);
+        setPingResult({ latencyMs: null, status: 'down', errorCode: error.status ?? 0 });
         setPingResultAt(Date.now());
         setPingState('done');
         return;
       }
 
-      const data = await res.json();
-      const latency: number = data.latencyMs ?? 0;
-      const pingStatus: AIHealthStatus = data.status ?? 'healthy';
-      const pingErrorCode: number | null = data.errorCode ?? null;
-      const pingProvider: string = data.provider ?? 'wiseresume';
-      const pingReason: string | null = data.reason ?? null;
+      const latency: number = data?.latencyMs ?? 0;
+      const pingStatus: AIHealthStatus = data?.status ?? 'healthy';
+      const pingErrorCode: number | null = data?.errorCode ?? null;
+      const pingProvider: string = data?.provider ?? 'wiseresume';
+      const pingReason: string | null = data?.reason ?? null;
 
       recordProvider(pingProvider);
       if (pingStatus === 'down') {

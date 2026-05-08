@@ -7,7 +7,6 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
 import { useResumeStore } from '@/store/resumeStore';
-import { getAppwriteJWT } from '@/lib/appwriteJWT';
 import { useAICreditsMutations } from '@/hooks/useAICredits';
 import { toast } from 'sonner';
 import editorLogger from '@/lib/editorLogger';
@@ -20,15 +19,15 @@ import { activityTracker } from '@/lib/activityTracker';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import type { ActionType, SectionType } from '@/hooks/useAIEnhance';
 import { useAIAction } from '@/hooks/useAIAction';
-import { apiFnUrl } from '@/lib/apiFnUrl';
+import { edgeFunctions } from '@/lib/edgeFunctions';
 import {
   resumeSectionAiFnName,
-  resumeSectionAiHeader,
+  resumeSectionAiBodyProps,
 } from '@/lib/resumeSectionAiFlag';
 import { formatDegreeAndField } from '@/lib/educationFormat';
 import { ExperienceDiffCard } from '@/components/editor/ai/ExperienceDiffCard';
 import type { Experience } from '@/types/resume';
-import { AIError, parseAIErrorResponse, parseAIErrorBody, type AIErrorCode } from '@/lib/aiErrorParser';
+import { AIError, parseAIErrorBody, type AIErrorCode } from '@/lib/aiErrorParser';
 import {
   mergeAIArrayResult,
   EXPERIENCE_FINGERPRINT,
@@ -262,33 +261,28 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
     // classifier (no global "AI temporarily unavailable" toast for transient
     // section failures). Privacy gate + credit cache invalidation still run.
     return executeAI(async () => {
-      const token = await getAppwriteJWT();
-      if (!token) {
-        throw new AIError({ code: 'unauthorized', status: 401, message: 'Not authenticated' });
-      }
-
-      const res = await fetch(apiFnUrl(resumeSectionAiFnName('enhance-section')), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...resumeSectionAiHeader('enhance-section'),
-          'Authorization': `Bearer ${token}`,
+      const { data: respData, error: invokeError } = await edgeFunctions.invoke<Record<string, unknown>>(
+        resumeSectionAiFnName('enhance-section'),
+        {
+          body: {
+            ...resumeSectionAiBodyProps('enhance-section'),
+            section: sectionInfo.id,
+            action: effectiveAction,
+            currentContent: content,
+            context: { resume: currentResume },
+            ...(variantsMode && !atsMode ? { variants: true } : {}),
+          },
         },
-        body: JSON.stringify({
-          section: sectionInfo.id,
-          action: effectiveAction,
-          currentContent: content,
-          context: { resume: currentResume },
-          ...(variantsMode && !atsMode ? { variants: true } : {}),
-        }),
-      });
+      );
 
-      if (!res.ok) {
-        const info = await parseAIErrorResponse(res);
-        throw new AIError(info);
+      if (invokeError) {
+        const code: AIErrorCode = invokeError.status === 401 ? 'unauthorized'
+          : invokeError.status === 429 ? 'rate_limit'
+          : invokeError.status === 402 ? 'credits_exhausted'
+          : 'internal';
+        throw new AIError({ code, status: invokeError.status ?? 500, message: invokeError.message });
       }
 
-      const respData = await res.json();
       if (respData?.error) {
         const info = parseAIErrorBody(respData, 500);
         throw new AIError(info);

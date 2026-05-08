@@ -32,8 +32,8 @@ import { useResumes, dbToResumeData, DatabaseResume } from '@/hooks/useResumes';
 import { useAuth } from '@/hooks/useAuth';
 import { databases, DATABASE_ID, ID } from '@/lib/appwrite';
 import { COLLECTIONS } from '@/lib/appwrite-collections';
-import { getAppwriteJWT } from '@/lib/appwriteJWT';
 import { useRedactedResume } from '@/hooks/useRedactedResume';
+import { edgeFunctions } from '@/lib/edgeFunctions';
 import {
   SuperTailorResult,
   TailorProgress,
@@ -43,7 +43,6 @@ import {
   ValidatorResult,
   FixSuggestion,
 } from '@/types/resume';
-import { apiFnUrl } from '@/lib/apiFnUrl';
 import { cn } from '@/lib/utils';
 import { useShallow } from 'zustand/react/shallow';
 import { activityTracker } from '@/lib/activityTracker';
@@ -438,32 +437,24 @@ export default function TailorPage() {
         try {
           const mergedForValidation = buildMergedResume(currentResume, superResult, enabledSections, new Set());
           preValidateMergedRef.current = mergedForValidation;
-          const token = await getAppwriteJWT();
           const thisAbort = new AbortController();
           preValidateAbortRef.current = thisAbort;
-          const preValidateTimeout = setTimeout(() => thisAbort.abort(), 12000);
           try {
-            const vResponse = await fetch(apiFnUrl('validate-tailor'), {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                ...(token ? { Authorization: `Bearer ${token}` } : {}),
-              },
-              body: JSON.stringify({
+            const { data: vResult, error: vError } = await edgeFunctions.invoke<ValidatorResult>('validate-tailor', {
+              body: {
                 originalResume: currentResume,
                 jobDescription,
                 finalResume: mergedForValidation,
                 mustHaveKeywords: superResult.atsAnalysis?.criticalKeywords ?? [],
-              }),
-              signal: thisAbort.signal,
+              },
             });
             // Only apply result if this is still the current pre-validate request and same resume
-            if (vResponse.ok && preValidateAbortRef.current === thisAbort) {
+            if (!vError && vResult && preValidateAbortRef.current === thisAbort) {
               if (resumeIdRef.current !== capturedResumeId) return;
-              setPreValidatorResult((await vResponse.json()) as ValidatorResult);
+              setPreValidatorResult(vResult);
             }
           } finally {
-            clearTimeout(preValidateTimeout);
+            /* no-op: invoke does not use AbortController */
           }
         } catch {
           // Non-fatal — pre-validation is advisory only
@@ -521,34 +512,25 @@ export default function TailorPage() {
         setIsGeneratingFixes(false);
         return;
       }
-      const fixTimeout = setTimeout(() => thisAbort.abort(), 12000);
       try {
-        const token = await getAppwriteJWT();
-        const r = await fetch(apiFnUrl('generate-fix-suggestions'), {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-          body: JSON.stringify({
+        const { data: fixes, error: fixError } = await edgeFunctions.invoke<FixSuggestion[]>('generate-fix-suggestions', {
+          body: {
             finalResume: preValidateMergedRef.current,
             jobDescription,
             missing_keywords: preValidatorResult.missing_keywords,
             issues: preValidatorResult.issues,
-          }),
-          signal: thisAbort.signal,
+          },
         });
         if (fixGenerateAbortRef.current !== thisAbort) return;
         if (resumeIdRef.current !== capturedResumeId) return;
-        if (r.ok) {
-          setFixSuggestions(((await r.json()) as FixSuggestion[]).slice(0, 5));
+        if (!fixError && fixes) {
+          setFixSuggestions(fixes.slice(0, 5));
         } else {
           setFixSuggestions([]);
         }
       } catch {
         if (fixGenerateAbortRef.current === thisAbort && resumeIdRef.current === capturedResumeId) setFixSuggestions([]);
       } finally {
-        clearTimeout(fixTimeout);
         if (fixGenerateAbortRef.current === thisAbort && resumeIdRef.current === capturedResumeId) setIsGeneratingFixes(false);
       }
     })();
@@ -601,32 +583,19 @@ export default function TailorPage() {
       // On timeout or error we fall back to the generator's estimated score.
       let validatorResult: ValidatorResult | null = null;
       try {
-        const token = await getAppwriteJWT();
-        const validateAbort = new AbortController();
-        const validateTimeout = setTimeout(() => validateAbort.abort(), 12000);
-        try {
-          const vResponse = await fetch(apiFnUrl('validate-tailor'), {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            },
-            body: JSON.stringify({
-              originalResume: currentResume,
-              jobDescription,
-              finalResume: mergedResume,
-              mustHaveKeywords: tailorResult.atsAnalysis?.criticalKeywords ?? [],
-            }),
-            signal: validateAbort.signal,
-          });
-          if (vResponse.ok) {
-            validatorResult = (await vResponse.json()) as ValidatorResult;
-          }
-        } finally {
-          clearTimeout(validateTimeout);
+        const { data: vResult, error: vError } = await edgeFunctions.invoke<ValidatorResult>('validate-tailor', {
+          body: {
+            originalResume: currentResume,
+            jobDescription,
+            finalResume: mergedResume,
+            mustHaveKeywords: tailorResult.atsAnalysis?.criticalKeywords ?? [],
+          },
+        });
+        if (!vError && vResult) {
+          validatorResult = vResult;
         }
       } catch {
-        // Non-fatal: validator timeout or error — fall back to generator score
+        // Non-fatal: validator error — fall back to generator score
       }
 
       const finalMatchScore =

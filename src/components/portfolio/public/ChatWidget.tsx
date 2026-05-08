@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquare, X, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import type { PublicProfile, PublicResume } from '@/hooks/usePublicPortfolio';
-import { apiFnUrl } from '@/lib/apiFnUrl';
+import { edgeFunctions } from '@/lib/edgeFunctions';
 
 interface ChatMessage { role: 'user' | 'assistant'; content: string; }
 
@@ -67,14 +67,11 @@ export function ChatWidget({ profile, resume, accentColor, pStyle }: {
 
     setSessionLoading(true);
     setSessionError(false);
-    fetch(apiFnUrl(`create-portfolio-session`), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ portfolioUsername: profile.username }),
+    edgeFunctions.invoke<{ token?: string }>('create-portfolio-session', {
+      body: { portfolioUsername: profile.username },
     })
-      .then(r => r.json())
-      .then(data => {
-        if (data.token) {
+      .then(({ data, error }) => {
+        if (!error && data?.token) {
           setSessionToken(data.token);
         } else {
           setSessionError(true);
@@ -127,32 +124,34 @@ export function ChatWidget({ profile, resume, accentColor, pStyle }: {
     setLoading(true);
 
     try {
-      const res = await fetch(apiFnUrl(`ask-portfolio`), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const { data, error } = await edgeFunctions.invoke<{
+        answer?: string;
+        isFallback?: boolean;
+        chatDisabled?: boolean;
+        error?: string;
+      }>('ask-portfolio', {
+        body: {
           username: profile.username,
           question: q,
           conversationHistory: messages.slice(-6),
           sessionToken,
-        }),
+        },
       });
-      const data = await res.json();
-      
-      if (data.isFallback) {
+
+      if (data?.isFallback) {
         setIsFallback(true);
       }
 
       // If the owner has explicitly disabled chat or a permanent error occurs
-      if (data.chatDisabled) {
+      if (data?.chatDisabled) {
         setMessages(prev => [...prev, { 
           role: 'assistant', 
           content: "I'm sorry, but chat is currently disabled for this portfolio. You can still reach out via the contact buttons!" 
         }]);
         return;
       }
-      if (!res.ok) throw new Error(data.error || 'Request failed');
-      setMessages(prev => [...prev, { role: 'assistant', content: data.answer }]);
+      if (error) throw new Error(error.message || 'Request failed');
+      setMessages(prev => [...prev, { role: 'assistant', content: data?.answer ?? '' }]);
     } catch {
       toast.error('Could not get a response. Please try again.');
       setMessages(prev => prev.slice(0, -1));

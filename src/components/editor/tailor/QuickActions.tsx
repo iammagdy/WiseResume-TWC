@@ -2,17 +2,16 @@ import { useState } from 'react';
 import { Plus, ArrowUpDown, Hash } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Button } from '@/components/ui/button';
-import { getAppwriteJWT } from '@/lib/appwriteJWT';
 import { useAIAction } from '@/hooks/useAIAction';
 import { showErrorToast } from '@/lib/errorToast';
 import { toast } from 'sonner';
 import editorLogger from '@/lib/editorLogger';
-import { parseAIErrorResponse, parseAIErrorBody, aiErrorToastMessage, AIError } from '@/lib/aiErrorParser';
+import { parseAIErrorBody, aiErrorToastMessage, AIError } from '@/lib/aiErrorParser';
 import { ResumeData, SuperTailorResult } from '@/types/resume';
-import { apiFnUrl } from '@/lib/apiFnUrl';
+import { edgeFunctions } from '@/lib/edgeFunctions';
 import {
   resumeSectionAiFnName,
-  resumeSectionAiHeader,
+  resumeSectionAiBodyProps,
 } from '@/lib/resumeSectionAiFlag';
 
 
@@ -73,33 +72,20 @@ Return JSON: { "recommendedOrder": ["section1", "section2", ...], "reasoning": "
       }
 
       const result = await executeAI(async () => {
-        const token = await getAppwriteJWT();
-        if (!token) {
-          throw new AIError({
-            code: 'unauthorized',
-            status: 401,
-            message: 'Not authenticated',
-          });
-        }
-
-        const res = await fetch(apiFnUrl(resumeSectionAiFnName('enhance-section')), {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...resumeSectionAiHeader('enhance-section'),
-            'Authorization': `Bearer ${token}`,
+        const { data, error: invokeError } = await edgeFunctions.invoke<Record<string, unknown>>(
+          resumeSectionAiFnName('enhance-section'),
+          {
+            body: {
+              ...resumeSectionAiBodyProps('enhance-section'),
+              section: 'custom',
+              content: instruction,
+              instruction,
+            },
           },
-          body: JSON.stringify({
-            section: 'custom',
-            content: instruction,
-            instruction,
-          }),
-        });
-
-        if (!res.ok) {
-          throw new AIError(await parseAIErrorResponse(res));
+        );
+        if (invokeError) {
+          throw new AIError({ code: 'internal', status: invokeError.status ?? 500, message: invokeError.message });
         }
-        const data = await res.json();
         if (data?.error) {
           throw new AIError(parseAIErrorBody(data, 200));
         }

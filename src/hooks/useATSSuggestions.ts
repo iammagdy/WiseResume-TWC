@@ -2,15 +2,14 @@ import { useMemo, useCallback, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { ResumeData, SectionId } from '@/types/resume';
-import { getAppwriteJWT } from '@/lib/appwriteJWT';
 import { showErrorToast } from '@/lib/errorToast';
-import { parseAIErrorResponse, aiErrorToastMessage, AIError } from '@/lib/aiErrorParser';
+import { aiErrorToastMessage, AIError } from '@/lib/aiErrorParser';
 import { hasPassiveVerbs, hasMetrics, hasLongBullets, findPassiveStarter } from '@/lib/contentAnalysis';
 import { useAICreditsMutations } from './useAICredits';
-import { apiFnUrl } from '@/lib/apiFnUrl';
+import { edgeFunctions } from '@/lib/edgeFunctions';
 import {
   resumeSectionAiFnName,
-  resumeSectionAiHeader,
+  resumeSectionAiBodyProps,
 } from '@/lib/resumeSectionAiFlag';
 
 
@@ -267,42 +266,23 @@ export function useATSSuggestions(resume: ResumeData | null, jobDescription: str
     try {
       const currentContent = getSectionContent(resume, section);
 
-      const fetchBody = JSON.stringify({
-        section,
-        action: 'ats_optimize',
-        currentContent,
-        context: { resume, jobDescription },
-      });
-
-      const doFetch = async (authToken: string | null) =>
-        fetch(apiFnUrl(resumeSectionAiFnName('enhance-section')), {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...resumeSectionAiHeader('enhance-section'),
-            ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}),
-          },
-          body: fetchBody,
-        });
-
-      const token = await getAppwriteJWT().catch(() => null);
-      if (!token) {
-        throw new AIError({
-          code: 'unauthorized',
-          status: 401,
-          message: 'No active session — please sign in again.',
-        });
-      }
-
       console.log(`[useATSSuggestions] Starting deep analysis for ${section}...`);
-      const res = await doFetch(token);
-
-      if (!res.ok) {
-        const info = await parseAIErrorResponse(res);
-        console.error(`[useATSSuggestions] Edge Function ${res.status} error:`, info);
-        throw new AIError(info);
+      const { data, error: invokeError } = await edgeFunctions.invoke<Record<string, unknown>>(
+        resumeSectionAiFnName('enhance-section'),
+        {
+          body: {
+            ...resumeSectionAiBodyProps('enhance-section'),
+            section,
+            action: 'ats_optimize',
+            currentContent,
+            context: { resume, jobDescription },
+          },
+        },
+      );
+      if (invokeError) {
+        console.error(`[useATSSuggestions] Edge Function error:`, invokeError);
+        throw new AIError({ code: 'internal', status: invokeError.status ?? 500, message: invokeError.message });
       }
-      const data = await res.json();
       console.log(`[useATSSuggestions] Deep analysis for ${section} completed in ${Date.now() - startTime}ms`);
 
       // Store full result for apply/discard UI

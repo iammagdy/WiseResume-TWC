@@ -40,8 +40,25 @@ export function resumeSectionAiFnName(originalFn: string): string {
  * legacy function name. While the flag is on, returns the
  * `x-resume-section-ai-action` header so the router can dispatch to
  * the correct handler.
+ *
+ * @deprecated Prefer `resumeSectionAiBodyProps` for Appwrite SDK callers —
+ * `functions.createExecution()` does not forward custom HTTP headers.
  */
 export function resumeSectionAiHeader(originalFn: string): Record<string, string> {
+  if (!USE_MERGED_RESUME_SECTION_AI) return {};
+  const action = ACTION_MAP[originalFn];
+  if (!action) return {};
+  return { 'x-resume-section-ai-action': action };
+}
+
+/**
+ * Returns the dispatch key/value that should be spread into the **body**
+ * payload for a given legacy function name. Use this instead of
+ * `resumeSectionAiHeader` when calling via `edgeFunctions.invoke()` /
+ * `functions.createExecution()`, where custom HTTP request headers are
+ * not forwarded to the Appwrite Function.
+ */
+export function resumeSectionAiBodyProps(originalFn: string): Record<string, string> {
   if (!USE_MERGED_RESUME_SECTION_AI) return {};
   const action = ACTION_MAP[originalFn];
   if (!action) return {};

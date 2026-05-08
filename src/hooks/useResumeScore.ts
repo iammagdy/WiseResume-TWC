@@ -1,10 +1,8 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { getAppwriteJWT } from '@/lib/appwriteJWT';
-
 import { ResumeData } from '@/types/resume';
 import { toast } from 'sonner';
 import { useATSScoreHistoryStore } from '@/store/atsScoreHistoryStore';
-import { apiFnUrl } from '@/lib/apiFnUrl';
+import { edgeFunctions } from '@/lib/edgeFunctions';
 
 export interface WeakBullet {
   text: string;
@@ -145,60 +143,42 @@ function normalizeForScoring(resume: ResumeData): { content: Partial<ResumeData>
 /** Helper: wait ms */
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-async function invokeScoreResume(resume: ResumeData, isBackground = false): Promise<{ data: any; latencyMs: number }> {
+async function invokeScoreResume(resume: ResumeData, isBackground = false): Promise<{ data: ResumeHealthScore; latencyMs: number }> {
   const { content: normalized, templateId } = normalizeForScoring(resume);
   const _start = Date.now();
-  const token = await getAppwriteJWT().catch(() => null);
 
-  if (!token) {
-    // JWT not ready — silently skip scoring rather than showing a false session-expired error
-    throw Object.assign(new Error('Scoring skipped: Appwrite JWT not available'), { isSkip: true });
-  }
+  const { data, error } = await edgeFunctions.invoke<ResumeHealthScore>('score-resume', {
+    body: { resume: normalized, templateId, ...(isBackground ? { source: 'background' } : {}) },
+  });
 
-  const scoreUrl = apiFnUrl(`score-resume`);
-  let res: Response;
-  try {
-    res = await fetch(scoreUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-      body: JSON.stringify({ resume: normalized, templateId, ...(isBackground ? { source: 'background' } : {}) }),
-    });
-  } catch (networkErr) {
-    // TypeError: Failed to fetch — the request never reached the server.
-    // Common causes: offline, DNS failure, or the Express server isn't reachable.
-    const detail = networkErr instanceof Error ? networkErr.message : String(networkErr);
-    console.error(`[ScoreResume] Network-level fetch error (${scoreUrl}):`, detail);
-    throw Object.assign(
-      new Error(`Scoring unavailable: network error — ${detail}`),
-      { isNetworkError: true },
-    );
-  }
-
-  if (!res.ok) {
-    const errText = await res.text().catch(() => '');
-    console.error('[ScoreResume] HTTP error:', res.status, errText);
-    if (res.status === 401) {
+  if (error) {
+    const status = error.status;
+    const msg = error.message;
+    if (status === 401 || status === 403) {
       throw Object.assign(new Error('Session expired. Please sign in again.'), { isAuth: true });
     }
-    if (res.status === 429) {
+    if (status === 429) {
       throw Object.assign(new Error('Rate limit reached. Try again shortly.'), { isRateLimit: true });
     }
-    if (res.status === 503) {
-      // Server is missing required Supabase config — log clearly so it shows in production logs
-      console.error('[ScoreResume] Server configuration error (503):', errText);
-      throw Object.assign(new Error(`Scoring service misconfigured: ${errText}`), { isConfigError: true });
+    if (status === 503) {
+      console.error('[ScoreResume] Service configuration error (503):', msg);
+      throw Object.assign(new Error(`Scoring service misconfigured: ${msg}`), { isConfigError: true });
     }
-    throw new Error(`Scoring failed (${res.status}): ${errText}`);
+    if (!status && (msg.includes('fetch') || msg.includes('network'))) {
+      throw Object.assign(new Error(`Scoring unavailable: network error — ${msg}`), { isNetworkError: true });
+    }
+    console.error('[ScoreResume] Error:', status, msg);
+    throw new Error(`Scoring failed: ${msg}`);
   }
 
-  const data = await res.json();
+  if (!data) {
+    throw new Error('Scoring returned empty response');
+  }
 
-  if (data?.error) {
-    console.error('[ScoreResume] API body error:', data.error);
-    throw new Error(data.error);
+  const rawData = data as unknown as Record<string, unknown>;
+  if (rawData.error) {
+    console.error('[ScoreResume] API body error:', rawData.error);
+    throw new Error(String(rawData.error));
   }
 
   return { data, latencyMs: Date.now() - _start };

@@ -1,12 +1,10 @@
 import { ResumeData, TailorProgress, EnhancedTailorStep, EnhancedTailorProgress, SuperTailorResult } from '@/types/resume';
 import { edgeFunctions } from '@/lib/edgeFunctions';
-import { getAppwriteJWT, invalidateAppwriteJWT } from '@/lib/appwriteJWT';
 import { extractErrorMessage } from './errorToast';
 import { checkAIFallback } from './aiFallbackToast';
-import { apiFnUrl } from '@/lib/apiFnUrl';
 import {
   resumeSectionAiFnName,
-  resumeSectionAiHeader,
+  resumeSectionAiBodyProps,
 } from '@/lib/resumeSectionAiFlag';
 
 export interface TailorError extends Error {
@@ -116,79 +114,52 @@ export async function tailorResumeWithProgress(
     }
   }, 25_000);
 
-  const doFetch = async (token: string | null) => {
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
-    if (token) headers['Authorization'] = `Bearer ${token}`;
-    return fetch(apiFnUrl(`tailor-resume`), {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ resume, jobDescription, intensity, ...(userInstructions ? { userInstructions } : {}) }),
-      ...(signal ? { signal } : {}),
+  const invokeOnce = async (): Promise<SuperTailorResult> => {
+    const { data, error } = await edgeFunctions.invoke<SuperTailorResult>('tailor-resume', {
+      body: { resume, jobDescription, intensity, ...(userInstructions ? { userInstructions } : {}) },
     });
-  };
 
-  const invokeOnce = async () => {
-    let response = await doFetch(await getAppwriteJWT());
-
-    // On 401, invalidate the cached JWT and retry once with a fresh token.
-    if (response.status === 401) {
-      invalidateAppwriteJWT();
-      const freshToken = await getAppwriteJWT();
-      if (freshToken) {
-        response = await doFetch(freshToken);
-      }
-    }
-
-    if (!response.ok) {
-      const errData = await response.json().catch(() => ({ error: 'generic', message: 'Failed to tailor resume' }));
-      // Prefer the human-readable `message` field over `error` (which is now the machine code).
-      const msg = errData.message || errData.error || '';
-      if (response.status === 401) {
+    if (error) {
+      const status = error.status;
+      const msg = error.message;
+      if (status === 401) {
         throw new Error('Session expired. Please sign in again to use AI features.');
       }
-      if (response.status === 429 || msg.toLowerCase().includes('rate limit')) {
+      if (status === 429 || msg.toLowerCase().includes('rate limit')) {
         const e = new Error('Our AI servers are experiencing high demand. Please try again in a moment.');
         (e as TailorError).code = 'rate_limit';
         throw e;
       }
-      if (response.status === 402 || msg.toLowerCase().includes('credits')) {
+      if (status === 402 || msg.toLowerCase().includes('credits')) {
         const e = new Error('Your AI credits have been used up for today. Try again tomorrow or upgrade your plan.');
         (e as TailorError).code = 'credits_exhausted';
         throw e;
       }
-      // Propagate the machine-readable error code from the edge function response
-      // (edge functions return { error: '<code>', message: '...' }) so upstream-
-      // specific codes like 'upstream_error' reach the retry message logic.
-      const rawCode =
-        (typeof errData.code === 'string' && errData.code) ||
-        (typeof errData.error === 'string' && errData.error) ||
-        'generic';
+      const code = status && status >= 500 ? 'upstream_5xx' : 'generic';
       const e = new Error(msg || 'Failed to tailor resume');
-      (e as TailorError).code = rawCode;
+      (e as TailorError).code = code;
       throw e;
     }
 
-    return await response.json();
+    return data!;
   };
 
   try {
-    let data: any;
+    let data: SuperTailorResult;
     try {
       data = await invokeOnce();
-    } catch (firstError: any) {
+    } catch (firstError: unknown) {
       // Only retry transient errors (not auth/credits/rate-limit)
       const code = (firstError as TailorError).code;
       if (code === 'rate_limit' || code === 'credits_exhausted') throw firstError;
-      if (firstError.message?.includes('Unauthorized')) throw firstError;
+      if ((firstError as Error).message?.includes('Session expired')) throw firstError;
 
       // Auto-retry once after 4s — give transient provider overloads time to clear.
       // Use a more specific message when the error is a known upstream provider outage.
       const isUpstreamOverload =
         (firstError as TailorError).code === 'upstream_5xx' ||
         (firstError as TailorError).code === 'upstream_error' ||
-        (firstError.message as string | undefined)?.toLowerCase().includes('upstream');
+        ((firstError as Error).message ?? '').toLowerCase().includes('upstream');
       onProgress({
         step: 'finalizing',
         progress: lastEmittedProgress,
@@ -307,26 +278,20 @@ export async function tailorSection(params: {
   intensity?: string;
   projectItems?: Array<{ name: string; description: string; technologies?: string[]; role?: string }>;
 }): Promise<TailorSectionResult> {
-  const token = await getAppwriteJWT();
+  const { data, error } = await edgeFunctions.invoke<TailorSectionResult>(
+    resumeSectionAiFnName('tailor-section'),
+    {
+      body: {
+        ...resumeSectionAiBodyProps('tailor-section'),
+        ...params,
+      },
+    },
+  );
 
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...resumeSectionAiHeader('tailor-section'),
-  };
-  if (token) headers['Authorization'] = `Bearer ${token}`;
+  if (error) throw new Error(error.message || 'Failed to regenerate section');
 
-  const res = await fetch(apiFnUrl(resumeSectionAiFnName('tailor-section')), {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(params),
-  });
+  const rawData = data as unknown as Record<string, unknown>;
+  if (rawData?.error) throw new Error(String(rawData.error));
 
-  if (!res.ok) {
-    const errData = await res.json().catch(() => ({ error: 'Failed to regenerate section' }));
-    throw new Error(errData.error || errData.message || 'Failed to regenerate section');
-  }
-
-  const data = await res.json();
-  if (data?.error) throw new Error(data.error);
-  return data as TailorSectionResult;
+  return data!;
 }

@@ -11,9 +11,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
-import { getSupabaseToken } from '@/lib/supabaseAuth';
 import { cn } from '@/lib/utils';
-import { apiFnUrl } from '@/lib/apiFnUrl';
+import { edgeFunctions } from '@/lib/edgeFunctions';
 
 interface Question {
   question: string;
@@ -62,34 +61,17 @@ export function QuestionBankSheet({
     setLoading(true);
     haptics.light();
     try {
-      const token = await getSupabaseToken();
-      if (!token) throw new Error('Not authenticated');
-
-      const response = await fetch(
-        apiFnUrl(`generate-question-bank`),
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            jobTitle,
-            company: company || '',
-            jobDescription: jobDescription || '',
-            resumeSummary: resumeSummary || '',
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        const err = await response.json().catch(() => ({}));
-        throw new Error(err.error || 'Failed to generate questions');
-      }
-
-      const result = await response.json();
-      setCategories(result.categories || []);
-      if (result.categories?.length > 0) {
+      const { data: result, error } = await edgeFunctions.invoke<{ categories: QuestionCategory[] }>('generate-question-bank', {
+        body: {
+          jobTitle,
+          company: company || '',
+          jobDescription: jobDescription || '',
+          resumeSummary: resumeSummary || '',
+        },
+      });
+      if (error) throw new Error(error.message || 'Failed to generate questions');
+      setCategories(result?.categories || []);
+      if (result?.categories && result.categories.length > 0) {
         setActiveTab(result.categories[0].id);
       }
       haptics.medium();

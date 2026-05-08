@@ -11,13 +11,12 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useResumeStore } from '@/store/resumeStore';
-import { apiFnUrl } from '@/lib/apiFnUrl';
+import { edgeFunctions } from '@/lib/edgeFunctions';
 import {
   resumeSectionAiFnName,
-  resumeSectionAiHeader,
+  resumeSectionAiBodyProps,
 } from '@/lib/resumeSectionAiFlag';
-import { getAppwriteJWT } from '@/lib/appwriteJWT';
-import { parseAIErrorResponse, aiErrorToastMessage } from '@/lib/aiErrorParser';
+import { aiErrorToastMessage } from '@/lib/aiErrorParser';
 import { SECTION_LABELS } from './LivePreviewPanel';
 import type { ResumeData } from '@/types/resume';
 
@@ -141,33 +140,25 @@ export function SectionAIPopover({ open, onOpenChange, sectionName }: SectionAIP
     setErrorMsg(null);
 
     try {
-      const token = await getAppwriteJWT();
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-        ...resumeSectionAiHeader('enhance-section'),
-      };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const { data, error: invokeError } = await edgeFunctions.invoke<{ improved?: unknown }>(
+        resumeSectionAiFnName('enhance-section'),
+        {
+          body: {
+            ...resumeSectionAiBodyProps('enhance-section'),
+            section: sectionName,
+            action,
+            ...(fixInstruction ? { fixInstruction } : {}),
+            currentContent: snapshot,
+            context: { resume: currentResume },
+          },
+        },
+      );
 
-      const res = await fetch(apiFnUrl(resumeSectionAiFnName('enhance-section')), {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          section: sectionName,
-          action,
-          ...(fixInstruction ? { fixInstruction } : {}),
-          currentContent: snapshot,
-          context: { resume: currentResume },
-        }),
-      });
-
-      if (!res.ok) {
-        const info = await parseAIErrorResponse(res);
-        setErrorMsg(aiErrorToastMessage(info));
+      if (invokeError) {
+        setErrorMsg(aiErrorToastMessage({ code: 'internal', message: invokeError.message, status: invokeError.status ?? 500 }));
         setPhase('error');
         return;
       }
-
-      const data = await res.json() as { improved?: unknown };
       const improved = data?.improved ?? null;
       if (improved === null || improved === undefined) {
         setErrorMsg('AI returned an empty result. Please try again.');

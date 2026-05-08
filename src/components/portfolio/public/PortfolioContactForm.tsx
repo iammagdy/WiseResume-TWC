@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Send, CheckCircle2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import { apiFnUrl } from '@/lib/apiFnUrl';
+import { edgeFunctions } from '@/lib/edgeFunctions';
 import { USE_MERGED_TRANSACTIONAL_EMAIL } from '@/lib/transactionalEmailFlag';
 
 interface PortfolioContactFormProps {
@@ -42,7 +42,6 @@ export function PortfolioContactForm({ username, accentColor, ownerName }: Portf
       // `src/integrations/supabase/transactionalEmailFlag.ts` and is
       // shared with the rewrite helper and sendFeedback.
       const fnName = USE_MERGED_TRANSACTIONAL_EMAIL ? 'transactional-email' : 'submit-contact-request';
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       const body: Record<string, unknown> = {
         type: 'portfolio_contact',
         email: email.trim(),
@@ -53,23 +52,18 @@ export function PortfolioContactForm({ username, accentColor, ownerName }: Portf
           portfolio_username: username,
           visitor_name: name.trim(),
         },
+        ...(USE_MERGED_TRANSACTIONAL_EMAIL ? {
+          action: 'contact-request',
+          'x-transactional-email-action': 'contact-request',
+        } : {}),
       };
-      if (USE_MERGED_TRANSACTIONAL_EMAIL) {
-        body.action = 'contact-request';
-        headers['x-transactional-email-action'] = 'contact-request';
-      }
-      const res = await fetch(apiFnUrl(fnName), {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(body),
-      });
+      const { error } = await edgeFunctions.invoke(fnName, { body });
 
-      if (res.ok) {
+      if (!error) {
         setStatus('success');
         toast.success('Message sent! The portfolio owner will get back to you soon.');
       } else {
-        const body = await res.json().catch(() => ({}));
-        const msg = (body as { error?: string }).error || 'Something went wrong. Please try again.';
+        const msg = error.message || 'Something went wrong. Please try again.';
         const friendlyMsg = msg.includes('Too many') ? 'Too many messages sent. Please wait a few minutes.' : msg;
         setErrorMsg(friendlyMsg);
         setStatus('error');

@@ -31,7 +31,7 @@ import { ImportUploadSheet } from '@/components/upload/ImportUploadSheet';
 import { detectFileType, type FileType } from '@/lib/detectFileType';
 import { UploadZone } from '@/components/upload/UploadZone';
 import { toast } from 'sonner';
-import { apiFnUrl } from '@/lib/apiFnUrl';
+import { edgeFunctions } from '@/lib/edgeFunctions';
 import type { ResumeData } from '@/types/resume';
 import { useATSScoreHistoryStore } from '@/store/atsScoreHistoryStore';
 
@@ -339,33 +339,18 @@ export default function UploadPage() {
     setParseStep('reading');
 
     try {
-      // Step 1: fetch the HTML via our server proxy (requires auth to prevent
-      // the endpoint being used as an open proxy).
-      const { getSupabaseToken } = await import('@/lib/supabaseAuth');
-      const token = await getSupabaseToken();
-      if (!token) {
-        setUrlError('Please sign in to import from a URL.');
-        setIsProcessing(false);
-        return;
-      }
-      const fetchUrlEndpoint = import.meta.env.DEV ? '/api/fetch-url' : apiFnUrl('fetch-url');
-      const proxyRes = await fetch(fetchUrlEndpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ url }),
+      // Step 1: fetch the HTML via the Appwrite fetch-url function.
+      const { data: proxyData, error: proxyError } = await edgeFunctions.invoke<{ html?: string }>('fetch-url', {
+        body: { url },
       });
-      if (!proxyRes.ok) {
-        const body = await proxyRes.json().catch(() => ({}));
-        const msg = body?.error || `Could not fetch the page (status ${proxyRes.status}).`;
+      if (proxyError) {
+        const msg = proxyError.message || `Could not fetch the page.`;
         setUrlError(msg);
         toast.error(msg, { duration: 5000 });
         setIsProcessing(false);
         return;
       }
-      const { html } = (await proxyRes.json()) as { html: string };
+      const html = proxyData?.html ?? '';
 
       setParseStep('extracting');
       const text = extractTextFromHTML(html);

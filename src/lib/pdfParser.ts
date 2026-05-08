@@ -12,8 +12,7 @@ import { extractTextFromPDF, PDFParseError, ExtractionResult } from './pdf/textE
 import { extractTextWithOCR, OCRProgressCallback, estimateOCRTime } from './pdf/ocrExtractor';
 import { parseResumeText } from './pdf/sectionParsers';
 import { preprocessResumeText, extractContactHints } from './pdf/textPreprocessor';
-
-import { apiFnUrl } from '@/lib/apiFnUrl';
+import { edgeFunctions } from '@/lib/edgeFunctions';
 
 export { PDFParseError, estimateOCRTime };
 export type { ExtractionResult, OCRProgressCallback };
@@ -49,115 +48,71 @@ export interface ParseResult {
  * Exported for use with Word and Image parsing.
  */
 export async function parseTextWithAI(text: string): Promise<ResumeData> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), PARSE_TIMEOUT);
-
   try {
     if (import.meta.env.DEV) console.log('Calling AI to parse resume text...');
-    
-    // Get Supabase Auth JWT
-    const { getSupabaseToken } = await import('@/lib/supabaseAuth');
-    const token = await getSupabaseToken();
-    
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-    
-    // fileType: 'text/plain' because the server receives pre-extracted plain text
-    // regardless of the source document format (PDF, DOCX, etc). The MIME type
-    // is required by the server for strict file-type enforcement.
-    const requestBody = JSON.stringify({ text, fileType: 'text/plain' });
 
-    let response = await fetch(apiFnUrl(`parse-resume`), {
-      method: 'POST',
-      headers,
-      body: requestBody,
-      signal: controller.signal,
+    // fileType: 'text/plain' because the function receives pre-extracted plain text
+    // regardless of the source document format (PDF, DOCX, etc).
+    const { data, error } = await edgeFunctions.invoke<ResumeData>('parse-resume', {
+      body: { text, fileType: 'text/plain' },
     });
 
-    // On 401, refresh the bridge token once and retry before falling back.
-    if (response.status === 401) {
-      const { refreshTokenIfNeeded } = await import('@/lib/supabaseBridge');
-      const refreshed = await refreshTokenIfNeeded();
-      if (refreshed) {
-        const { getSupabaseToken: getToken } = await import('@/lib/supabaseAuth');
-        const newToken = await getToken();
-        const retryHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
-        if (newToken) retryHeaders['Authorization'] = `Bearer ${newToken}`;
-        response = await fetch(apiFnUrl(`parse-resume`), {
-          method: 'POST',
-          headers: retryHeaders,
-          body: requestBody,
-          signal: controller.signal,
-        });
-      }
-    }
-
-    if (!response.ok) {
-      const errData = await response.json().catch(() => ({} as { error?: string; message?: string }));
-      const msg = errData?.error || errData?.message || 'AI parsing failed';
-      if (response.status === 429 || msg.toLowerCase().includes('rate limit')) {
+    if (error) {
+      const msg = error.message;
+      const status = error.status;
+      if (status === 429 || msg.toLowerCase().includes('rate limit')) {
         throw new Error('Rate limit reached. Please try again in a moment.');
       }
-      if (response.status === 402 || msg.toLowerCase().includes('credits')) {
+      if (status === 402 || msg.toLowerCase().includes('credits')) {
         throw new Error('AI credits exhausted for today.');
       }
-      throw new Error(msg);
+      throw new Error(msg || 'AI parsing failed');
     }
 
-    const data = await response.json();
+    if (!data) {
+      throw new Error('AI parsing returned empty response');
+    }
+
     if (import.meta.env.DEV) console.log('AI parsing successful');
+
     // Preserve server-side _meta (section-level fieldConfidence, completeness,
     // textQuality). Accept both the new nested `_meta` shape and the legacy
     // top-level shape for forward/backward compat.
     const nestedMeta = isRecord(data) ? readNestedMeta(data._meta) : undefined;
     const legacyMeta = extractLegacyMeta(data);
-    const serverMeta: ParseMeta = { ...(legacyMeta || {}), ...(nestedMeta || {}) };
+    const serverMeta: ParseMeta = { ...(legacyMeta ?? {}), ...(nestedMeta ?? {}) };
 
-    const cleaned = regenerateResumeIds(data as ResumeData);
+    const cleaned = regenerateResumeIds(data);
 
-    // Compute per-field-instance confidence (every experience/education item
-    // etc.) and merge with the server's section-level scores so the UI can
-    // flag low-confidence fields at full granularity.
+    // Compute per-field-instance confidence and merge with server's section-level
+    // scores so the UI can flag low-confidence fields at full granularity.
     const itemConfidence = computeFieldLevelConfidence(cleaned);
     const mergedConfidence: Record<string, number> = {
-      ...(serverMeta.fieldConfidence || {}),
+      ...(serverMeta.fieldConfidence ?? {}),
       ...itemConfidence,
     };
     cleaned._meta = {
-      ...(cleaned._meta || {}),
+      ...(cleaned._meta ?? {}),
       ...serverMeta,
       fieldConfidence: mergedConfidence,
     };
     return cleaned;
   } catch (error) {
-    // Handle timeout specifically
-    if (error instanceof Error && error.name === 'AbortError') {
-      console.warn('AI parsing timed out after 20s, falling back to local parser');
-      return attachFieldConfidence(parseResumeText(text));
-    }
-    
     // Re-throw rate limit and payment errors
-    if (error instanceof Error && 
+    if (error instanceof Error &&
         (error.message.includes('Rate limit') || error.message.includes('credits'))) {
       throw error;
     }
-    
-    // Log network/CORS failures — but still fall back to local parser
-    if (error instanceof TypeError && (error.message === 'Failed to fetch' || error.message.includes('NetworkError'))) {
-      console.warn('AI parser unreachable (CORS or network issue) — using local fallback parser');
+
+    if (import.meta.env.DEV) {
+      console.warn('AI parsing unavailable, falling back to local parser:', error);
     } else {
       console.error('AI parsing error:', error);
     }
-    
+
     // Fall back to local regex parsing for all non-billing failures
     if (import.meta.env.DEV) console.log('Using fallback local parser...');
     return attachFieldConfidence(parseResumeText(text));
-  } finally {
-    clearTimeout(timeoutId);
   }
 }
 
