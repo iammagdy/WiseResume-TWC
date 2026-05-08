@@ -206,13 +206,7 @@ export function LandingHeader({
             <button
               onClick={() => {
                 triggerHaptic.light();
-                if (!authAvailable) {
-                  void navigate('/auth?mode=login');
-                  return;
-                }
-                void Promise.resolve(kindeLogin({ prompt: 'login' })).catch(() => {
-                  toast.error('Unable to sign in. Please try again or contact support.');
-                });
+                void navigate('/auth?mode=login');
               }}
               className="text-sm font-semibold px-3 sm:px-4 h-10 sm:h-11 rounded-lg transition-all duration-200 whitespace-nowrap shrink-0 hover:brightness-110 active:scale-[0.98]"
               style={{

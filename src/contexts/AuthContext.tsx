@@ -26,6 +26,8 @@ export interface AuthContextType {
   isImpersonating: boolean;
   appwriteUser: any | null;
   authAvailable: boolean;
+  supabaseSettled: boolean;
+  supabaseReady: boolean;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -120,6 +122,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     window.location.replace('/');
   }, [queryClient]);
 
+  const supabaseSettled = !appwriteLoading;
+  const supabaseReady = !appwriteLoading && (impersonating || !!appwriteUser);
+
   const value = useMemo<AuthContextType>(() => ({
     user,
     loading,
@@ -128,7 +133,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isImpersonating: impersonating,
     appwriteUser,
     authAvailable: isAppwriteEnabled,
-  }), [user, loading, signOut, isAuthenticated, impersonating, appwriteUser]);
+    supabaseSettled,
+    supabaseReady,
+  }), [user, loading, signOut, isAuthenticated, impersonating, appwriteUser, supabaseSettled, supabaseReady]);
 
   return (
     <AuthContext.Provider value={value}>

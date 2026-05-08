@@ -5,7 +5,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { useAccountType } from '@/hooks/wisehire/useAccountType';
 import triggerHaptic from '@/lib/haptics';
-import { useAuth } from '@/hooks/useAuth';
 // Step 4 (B-3) — full lazy-load: framer-motion is NOT imported by this
 // page-level component anymore. The entire AnimatePresence + m.div tree
 // lives in `LandingMotionStage` which is loaded via `React.lazy`, and
@@ -228,7 +227,7 @@ const Index = () => {
         toast.error('Unable to start sign-up. Please try again or contact support.');
       });
     }
-  }, [navigate, kindeRegister]);
+  }, [navigate]);
 
   /* Shorthand for the window transition-in-flight flag. When true,
      ScrollStack's per-frame card-transform loop skips its write pass

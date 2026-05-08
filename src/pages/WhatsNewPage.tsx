@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
 import triggerHaptic from '@/lib/haptics';
 import { toast } from 'sonner';
 import {
