@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { databases, DATABASE_ID, Query } from '@/lib/appwrite';
+import { COLLECTIONS } from '@/lib/appwrite-collections';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { formatDistanceToNow, isToday, isYesterday, isThisWeek } from 'date-fns';
@@ -62,6 +63,35 @@ const typeConfig = {
   application:     { icon: CheckCircle2, label: 'Applied',      bg: 'bg-success/10',  fg: 'text-success' },
 };
 
+interface TailorDocFields {
+  job_title: string;
+  company: string | null;
+  resume_id: string | null;
+}
+
+interface AppDocFields {
+  job_title: string;
+  company: string | null;
+  resume_id: string | null;
+  url: string | null;
+  status: string;
+  deadline: string | null;
+  applied_at: string | null;
+}
+
+interface CoverDocFields {
+  job_title: string;
+  company: string | null;
+  resume_id: string | null;
+}
+
+interface ResumeDocFields {
+  title: string;
+  parent_resume_id: string | null;
+  target_job_title: string | null;
+  target_company: string | null;
+}
+
 export function ActivityTimeline() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -71,39 +101,84 @@ export function ActivityTimeline() {
   const { data: entries = [], isLoading } = useQuery({
     queryKey: ['activity-timeline', user?.id],
     queryFn: async () => {
+      if (!user?.id) return [];
+
       const [tailorRes, appRes, coverRes, resumeRes] = await Promise.all([
-        supabase.from('tailor_history').select('id, job_title, company, created_at, resume_id').order('created_at', { ascending: false }).limit(50),
-        supabase.from('job_applications').select('id, job_title, company, applied_at, resume_id, url, status, deadline').order('applied_at', { ascending: false }).limit(50),
-        supabase.from('cover_letters').select('id, job_title, company, created_at, resume_id').order('created_at', { ascending: false }).limit(50),
-        supabase.from('resumes').select('id, title, parent_resume_id, target_job_title, target_company, created_at').order('created_at', { ascending: false }).limit(50),
+        databases.listDocuments(DATABASE_ID, COLLECTIONS.tailor_history, [
+          Query.equal('user_id', user.id),
+          Query.orderDesc('$createdAt'),
+          Query.limit(50),
+        ]),
+        databases.listDocuments(DATABASE_ID, COLLECTIONS.job_applications, [
+          Query.equal('user_id', user.id),
+          Query.orderDesc('$createdAt'),
+          Query.limit(50),
+        ]),
+        databases.listDocuments(DATABASE_ID, COLLECTIONS.cover_letters, [
+          Query.equal('user_id', user.id),
+          Query.orderDesc('$createdAt'),
+          Query.limit(50),
+        ]),
+        databases.listDocuments(DATABASE_ID, COLLECTIONS.resumes, [
+          Query.equal('user_id', user.id),
+          Query.orderDesc('$createdAt'),
+          Query.limit(50),
+        ]),
       ]);
 
       const items: TimelineEntry[] = [];
 
-      (resumeRes.data || []).forEach(r => items.push({
-        id: `r-${r.id}`,
-        type: r.parent_resume_id ? 'resume_tailored' : 'resume_created',
-        jobTitle: r.target_job_title || r.title,
-        company: r.target_company || null,
-        date: r.created_at!,
-        resumeId: r.id,
-        resumeName: r.title,
-      }));
+      resumeRes.documents.forEach(doc => {
+        const r = doc as unknown as ResumeDocFields;
+        items.push({
+          id: `r-${doc.$id}`,
+          type: r.parent_resume_id ? 'resume_tailored' : 'resume_created',
+          jobTitle: r.target_job_title ?? r.title,
+          company: r.target_company ?? null,
+          date: doc.$createdAt,
+          resumeId: doc.$id,
+          resumeName: r.title,
+        });
+      });
 
-      (tailorRes.data || []).forEach(t => items.push({
-        id: `t-${t.id}`, type: 'tailor', jobTitle: t.job_title, company: t.company,
-        date: t.created_at!, resumeId: t.resume_id,
-      }));
+      tailorRes.documents.forEach(doc => {
+        const t = doc as unknown as TailorDocFields;
+        items.push({
+          id: `t-${doc.$id}`,
+          type: 'tailor',
+          jobTitle: t.job_title,
+          company: t.company,
+          date: doc.$createdAt,
+          resumeId: t.resume_id,
+        });
+      });
 
-      (appRes.data || []).forEach(a => items.push({
-        id: `a-${a.id}`, type: 'application', jobTitle: a.job_title, company: a.company,
-        date: a.applied_at!, resumeId: a.resume_id, url: a.url, status: a.status, deadline: a.deadline,
-      }));
+      appRes.documents.forEach(doc => {
+        const a = doc as unknown as AppDocFields;
+        items.push({
+          id: `a-${doc.$id}`,
+          type: 'application',
+          jobTitle: a.job_title,
+          company: a.company,
+          date: a.applied_at ?? doc.$createdAt,
+          resumeId: a.resume_id,
+          url: a.url,
+          status: a.status,
+          deadline: a.deadline,
+        });
+      });
 
-      (coverRes.data || []).forEach(c => items.push({
-        id: `c-${c.id}`, type: 'cover_letter', jobTitle: c.job_title, company: c.company,
-        date: c.created_at!, resumeId: c.resume_id,
-      }));
+      coverRes.documents.forEach(doc => {
+        const c = doc as unknown as CoverDocFields;
+        items.push({
+          id: `c-${doc.$id}`,
+          type: 'cover_letter',
+          jobTitle: c.job_title,
+          company: c.company,
+          date: doc.$createdAt,
+          resumeId: c.resume_id,
+        });
+      });
 
       items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
@@ -111,9 +186,14 @@ export function ActivityTimeline() {
       const needNames = items.filter(i => !i.resumeName && i.resumeId);
       const resumeIds = [...new Set(needNames.map(i => i.resumeId).filter(Boolean))] as string[];
       if (resumeIds.length > 0) {
-        const { data: resumes } = await supabase.from('resumes').select('id, title').in('id', resumeIds);
+        const nameRes = await databases.listDocuments(DATABASE_ID, COLLECTIONS.resumes, [
+          Query.equal('$id', resumeIds),
+          Query.limit(resumeIds.length),
+        ]);
         const nameMap: Record<string, string> = {};
-        (resumes || []).forEach(r => { nameMap[r.id] = r.title; });
+        nameRes.documents.forEach(doc => {
+          nameMap[doc.$id] = (doc as unknown as { title: string }).title;
+        });
         needNames.forEach(i => { if (i.resumeId) i.resumeName = nameMap[i.resumeId]; });
       }
 
@@ -221,7 +301,7 @@ export function ActivityTimeline() {
       ) : (
         grouped.map(({ group, items }) => (
           <div key={group}>
-            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-1 mb-2 sticky top-0 bg-background/80 backdrop-blur-sm py-1 -mx-1 px-1 z-10">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-1 mb-2 sticky top-0 bg-background/80 backdrop-blur-sm py-1 -mx-1 z-10">
               {group}
             </p>
             <div className="space-y-2">

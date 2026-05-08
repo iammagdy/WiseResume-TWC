@@ -7,7 +7,8 @@ import { haptics } from '@/lib/haptics';
 import { useNavigate } from 'react-router-dom';
 import { useProfile } from '@/hooks/useProfile';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { databases, DATABASE_ID, ID } from '@/lib/appwrite';
+import { COLLECTIONS } from '@/lib/appwrite-collections';
 import { toast } from 'sonner';
 
 // Simple confetti particle
@@ -96,9 +97,7 @@ export function HiredCelebrationModal({ open, onClose, jobTitle, company, resume
     if (!user?.id) return;
     setIsSettingReminder(true);
     try {
-      const reminderDate = new Date();
-      reminderDate.setMonth(reminderDate.getMonth() + 3);
-      await supabase.from('notifications').insert({
+      await databases.createDocument(DATABASE_ID, COLLECTIONS.notifications, ID.unique(), {
         user_id: user.id,
         type: 'system',
         title: '⏰ Time to update your resume!',

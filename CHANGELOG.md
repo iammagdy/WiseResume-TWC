@@ -1,3 +1,43 @@
+## 2026-05-08 — Task #14: Migrate supabase safeClient calls → Appwrite SDK
+
+**5 files changed.** All remaining `supabase` safeClient imports removed from active UI components. Each call site replaced with the Appwrite Databases SDK equivalent. No new `any` casts. `tsc --noEmit` passes with zero errors.
+
+### `src/components/applications/ActivityTimeline.tsx`
+- Removed `import { supabase } from '@/integrations/supabase/safeClient'`.
+- Added `{ databases, DATABASE_ID, Query }` from `@/lib/appwrite` and `{ COLLECTIONS }` from `@/lib/appwrite-collections`.
+- Four `supabase.from(table).select(...).order(...).limit(50)` chains replaced with `databases.listDocuments(DATABASE_ID, COLLECTIONS.<table>, [Query.equal('user_id', user.id), Query.orderDesc('$createdAt'), Query.limit(50)])` run in `Promise.all`.
+- Secondary resume-name lookup (`supabase.from('resumes').select('id,title').in('id', ids)`) replaced with `databases.listDocuments(..., [Query.equal('$id', resumeIds), Query.limit(N)])`.
+- Document fields mapped: `$id` → id, `$createdAt` → created_at/applied_at fallback; typed via narrow `interface XDocFields` casts using `as unknown as`.
+- Pre-existing JSX bug `style-origin="bottom"` (invalid prop on `motion.div`) fixed by merging `transformOrigin: 'bottom'` into the existing `style` object in `PortfolioActivityCard` during that file's edit.
+
+### `src/components/applications/ApplicationDetailSheet.tsx`
+- Removed `import { supabase }`.
+- Added `{ databases, DATABASE_ID }` + `COLLECTIONS`.
+- `supabase.from('resumes').select('id,title').eq('id', id).maybeSingle()` → `databases.getDocument(DATABASE_ID, COLLECTIONS.resumes, application.resume_id)`. Return mapped to `{ id: doc.$id, title: doc.title }` via typed interface.
+
+### `src/components/dashboard/HiredCelebrationModal.tsx`
+- Removed `import { supabase }`.
+- Added `{ databases, DATABASE_ID, ID }` + `COLLECTIONS`.
+- `supabase.from('notifications').insert({...})` → `databases.createDocument(DATABASE_ID, COLLECTIONS.notifications, ID.unique(), {...})`.
+
+### `src/components/dashboard/PortfolioActivityCard.tsx`
+- Removed `import { supabase }`.
+- Added `{ databases, DATABASE_ID, Query }` + `COLLECTIONS`.
+- `supabase.from('portfolio_visits').select('visited_at').eq(...).gte(...)` → `databases.listDocuments(DATABASE_ID, COLLECTIONS.portfolio_visits, [Query.equal('username', username), Query.greaterThanEqual('$createdAt', sevenDaysAgo.toISOString()), Query.limit(1000)])`.
+- Date grouping now uses `doc.$createdAt` (Appwrite system field) instead of the Supabase-specific `visited_at` column.
+- Fixed pre-existing invalid JSX prop `style-origin="bottom"` → `style={{ ..., transformOrigin: 'bottom' }}`.
+
+### `src/components/ErrorBoundary.tsx`
+- Removed `import { supabase } from '@/integrations/supabase/safeClient'` (was unused at runtime).
+- Removed `import { getUserId } from '@/lib/supabaseBridge'`.
+- Added module-level `let _currentUserId: string | null = null` and exported `setErrorBoundaryUserId(id)` setter (class-component-safe alternative to hooks).
+- `handleSendReport`: `getUserId() || 'anonymous'` → `_currentUserId ?? 'anonymous'`.
+- Removed `useDirectSupabase: true` option from `sendFeedback` call (was already a documented no-op in `sendFeedback.ts`; removed for clarity).
+
+### `src/contexts/AuthContext.tsx`
+- Added `import { setErrorBoundaryUserId } from '@/components/ErrorBoundary'`.
+- Calls `setErrorBoundaryUserId(currentId)` in the existing `useEffect` that tracks `user?.id` changes, so the ErrorBoundary always has the current user id for crash reports.
+
 ## 2026-05-08 — Task #13: Tracking, short-links & portfolio interactions → Appwrite DB
 
 **13 files changed.** All remaining `apiFnUrl()` + raw `fetch()` calls for non-AI operational features replaced with direct Appwrite Databases SDK writes/queries or the Express `/api/fetch-url` proxy. No new `any` casts. `tsc --noEmit` passes with zero errors.

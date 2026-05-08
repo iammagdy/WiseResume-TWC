@@ -6,6 +6,7 @@ import { logAudit } from '@/lib/auditLogger';
 import { clearAllPersistedCaches } from '@/lib/persistedQueryCache';
 import { clearAllCachedScores } from '@/hooks/useResumeScore';
 import { clearAllEditorSessions } from '@/lib/editorSession';
+import { setErrorBoundaryUserId } from '@/components/ErrorBoundary';
 import {
   isImpersonating as isImpersonatingFn,
   getImpersonationState,
@@ -94,6 +95,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const currentId = user?.id ?? null;
+    setErrorBoundaryUserId(currentId);
     if (lastSeenUserIdRef.current !== currentId) {
       const previousId = lastSeenUserIdRef.current;
       lastSeenUserIdRef.current = currentId;

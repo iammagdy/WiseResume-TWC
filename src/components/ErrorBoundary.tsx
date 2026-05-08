@@ -1,10 +1,16 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw, Home, ArrowLeft, MessageSquareWarning, Send, X, Loader2, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { supabase } from '@/integrations/supabase/safeClient';
-import { getUserId } from '@/lib/supabaseBridge';
 import { captureError, getLastSentryEventId } from '@/lib/captureErrorShim';
 import { sendFeedback } from '@/lib/sendFeedback';
+
+// Module-level auth user id store — populated by AuthContext on each auth
+// state change. Avoids hooks (impossible in a class component).
+let _currentUserId: string | null = null;
+
+export function setErrorBoundaryUserId(id: string | null): void {
+  _currentUserId = id;
+}
 
 interface Props {
   children: ReactNode;
@@ -188,7 +194,7 @@ export class ErrorBoundary extends Component<Props, State> {
   };
 
   private handleRetry = async () => {
-    const isChunkError = this.state.error?.message &&
+    const isChunkError = this.state.error?.message != null &&
       (this.state.error.message.includes('dynamically imported module') ||
        this.state.error.message.includes('Failed to fetch') ||
        this.state.error.message.includes('Loading chunk'));
@@ -228,7 +234,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
   private handleSendReport = async () => {
     this.setState({ reportStatus: 'sending' });
-    const userId = getUserId() || 'anonymous';
+    const userId = _currentUserId ?? 'anonymous';
     const errorMsg = this.state.error?.message || 'Unknown error';
     const userNote = this.state.reportContext?.trim();
 
@@ -258,11 +264,9 @@ export class ErrorBoundary extends Component<Props, State> {
           error_name: this.state.error?.name ?? 'Error',
         },
       },
-      // Use the supabase client directly (the /api/fn proxy itself may be
-      // implicated when the boundary fires) and skip the
-      // submit-contact-request fallback, since a 429 from the primary
+      // Skip the submit-contact-request fallback since a 429 from the primary
       // function will re-trigger the same rate limit on the fallback.
-      { useDirectSupabase: true, skipFallback: true },
+      { skipFallback: true },
     );
 
     if (!result.anyDelivered) {

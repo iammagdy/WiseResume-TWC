@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { Eye, TrendingUp, Globe } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { databases, DATABASE_ID, Query } from '@/lib/appwrite';
+import { COLLECTIONS } from '@/lib/appwrite-collections';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { useNavigate } from 'react-router-dom';
@@ -20,11 +21,10 @@ function SparkBar({ data }: { data: DayCount[] }) {
         <motion.div
           key={day.date}
           className="flex-1 rounded-sm bg-primary/40 min-w-[4px]"
-          style={{ height: `${Math.max((day.count / max) * 100, 8)}%` }}
+          style={{ height: `${Math.max((day.count / max) * 100, 8)}%`, transformOrigin: 'bottom' }}
           initial={{ scaleY: 0 }}
           animate={{ scaleY: 1 }}
           transition={{ delay: i * 0.04, duration: 0.3, ease: 'easeOut' }}
-          style-origin="bottom"
         />
       ))}
     </div>
@@ -54,19 +54,21 @@ export function PortfolioActivityCard() {
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-      const { data } = await supabase
-        .from('portfolio_visits')
-        .select('visited_at')
-        .eq('username', username)
-        .gte('visited_at', sevenDaysAgo.toISOString());
+      const result = await databases.listDocuments(
+        DATABASE_ID,
+        COLLECTIONS.portfolio_visits,
+        [
+          Query.equal('username', username),
+          Query.greaterThanEqual('$createdAt', sevenDaysAgo.toISOString()),
+          Query.limit(1000),
+        ],
+      );
 
-      if (data) {
-        data.forEach(row => {
-          const dateStr = row.visited_at.split('T')[0];
-          const found = days.find(d => d.date === dateStr);
-          if (found) found.count++;
-        });
-      }
+      result.documents.forEach(doc => {
+        const dateStr = doc.$createdAt.split('T')[0];
+        const found = days.find(d => d.date === dateStr);
+        if (found) found.count++;
+      });
 
       const totalThisWeek = days.reduce((sum, d) => sum + d.count, 0);
       return { days, totalThisWeek };

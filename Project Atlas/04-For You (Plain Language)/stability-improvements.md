@@ -2,6 +2,21 @@
 
 **Last verified:** 2026-05-08
 
+## Activity timeline, application detail, hired modal and portfolio card reconnected — Task #14 (2026-05-08)
+
+Five more UI components that were silently crashing (because they still called the removed Supabase client) are now live on Appwrite.
+
+**What changed:**
+- The **activity timeline** on the Applications page (tailoring history, job applications, cover letters, resume events) now loads real data from Appwrite.
+- The **application detail sheet** can again look up the resume linked to a job application.
+- The **"You got the job!" celebration modal** can now create a 3-month reminder notification in Appwrite.
+- The **Portfolio Activity card** on the dashboard now shows real visit counts from the Appwrite database.
+- The **crash report** sent when the app encounters an unexpected error now correctly identifies the logged-in user (previously it would always say "anonymous" due to using a removed Supabase helper).
+
+**Last verified:** 2026-05-08
+
+---
+
 ## Portfolio tracking, short links and interactions reconnected — Task #13 (2026-05-08)
 
 Visitor tracking, portfolio view analytics, short-link redirects, recruiter interest signals, and the portfolio chat session are all working again via direct Appwrite database calls — no broken middleware.

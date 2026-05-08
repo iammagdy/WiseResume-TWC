@@ -9,7 +9,13 @@ import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
 import { haptics } from '@/lib/haptics';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { databases, DATABASE_ID } from '@/lib/appwrite';
+import { COLLECTIONS } from '@/lib/appwrite-collections';
+
+interface ResumeBasic {
+  id: string;
+  title: string;
+}
 
 const STATUS_CONFIG: Record<ApplicationStatus, { label: string; color: string }> = {
   saved: { label: 'Saved', color: 'bg-secondary/15 text-secondary-foreground' },
@@ -30,16 +36,16 @@ export function ApplicationDetailSheet({ application, open, onOpenChange }: Appl
   const navigate = useNavigate();
   const { updateApplication } = useJobApplicationMutations();
 
-  const { data: linkedResume } = useQuery({
+  const { data: linkedResume } = useQuery<ResumeBasic | null>({
     queryKey: ['resume-name', application?.resume_id],
     queryFn: async () => {
       if (!application?.resume_id) return null;
-      const { data } = await supabase
-        .from('resumes')
-        .select('id, title')
-        .eq('id', application.resume_id)
-        .maybeSingle();
-      return data;
+      const doc = await databases.getDocument(
+        DATABASE_ID,
+        COLLECTIONS.resumes,
+        application.resume_id,
+      );
+      return { id: doc.$id, title: (doc as unknown as { title: string }).title };
     },
     enabled: !!application?.resume_id,
   });
