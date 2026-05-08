@@ -361,6 +361,9 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
   useEffect(() => {
     fetchLiveCount();
 
+    // setRealtimeConnected(true) is called optimistically immediately after
+    // client.subscribe() because Appwrite Realtime has no separate "connected"
+    // lifecycle event — the subscription is active as soon as the call returns.
     const unsubscribe = client.subscribe(
       'databases.main.collections.visitor_events.documents',
       (response) => {

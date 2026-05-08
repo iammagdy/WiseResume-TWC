@@ -122,6 +122,7 @@ export function useHRAnalytics(dateRange: AnalyticsDateRange = 'all') {
           Query.limit(500),
         ]),
         databases.listDocuments(DATABASE_ID, COLLECTIONS.talent_pool_views, [
+          Query.equal('owner_id', userId),
           ...genericDateFilters,
           Query.limit(5000),
         ]),
