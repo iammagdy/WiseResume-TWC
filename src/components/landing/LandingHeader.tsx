@@ -9,7 +9,6 @@ import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
   DropdownMenuItem, DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
-import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
 import triggerHaptic from '@/lib/haptics';
 import { LandingToggle } from '@/components/landing/LandingToggle';
 import { useAuth } from '@/hooks/useAuth';
@@ -36,7 +35,6 @@ export function LandingHeader({
   onModeChange, onThemeToggle, onOpenWaitlist, onSignOut,
 }: LandingHeaderProps) {
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
   const { authAvailable } = useAuth();
 
   const getInitials = () => {

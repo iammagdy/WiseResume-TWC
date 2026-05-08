@@ -393,7 +393,6 @@ const comingSoon: ComingSoonEntry[] = [
 export default function WhatsNewPage() {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
-  const { isAuthenticated } = useAuth();
 
   const handleGetStarted = () => {
     triggerHaptic.light();

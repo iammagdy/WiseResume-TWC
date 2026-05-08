@@ -113,7 +113,6 @@ const Index = () => {
     return 'jobseeker';
   });
   const [waitlistOpen, setWaitlistOpen] = useState(false);
-  const { isAuthenticated } = useAuth();
 
   useEffect(() => { setLpProduct(mode); }, [mode, setLpProduct]);
 
