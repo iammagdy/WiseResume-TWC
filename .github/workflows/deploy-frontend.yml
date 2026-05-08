@@ -24,8 +24,8 @@ jobs:
       - name: Build project
         run: npm run build
         env:
-          VITE_APPWRITE_ENDPOINT: ${{ secrets.VITE_APPWRITE_ENDPOINT }}
-          VITE_APPWRITE_PROJECT_ID: ${{ secrets.VITE_APPWRITE_PROJECT_ID }}
+          VITE_APPWRITE_ENDPOINT: https://fra.cloud.appwrite.io/v1
+          VITE_APPWRITE_PROJECT_ID: 69fd362b001eb325a192
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
           BUILD_COMMIT: ${{ github.sha }}
           BUILD_TIME: ${{ github.event.repository.updated_at }}
@@ -33,9 +33,9 @@ jobs:
       - name: Install lftp
         run: sudo apt-get update && sudo apt-get install -y lftp
 
-      - name: Sync to Hostinger (Optimized Mirror)
+      - name: Sync to Hostinger (Subdomain Root)
         env:
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
         run: |
           lftp -d -u "u966279061.thewise.cloud,${FTP_PASSWORD}" "ftp://82.29.154.120:21" \
-            -e "set ftp:ssl-force true; set ssl:verify-certificate no; mirror --reverse --delete --verbose --parallel=10 ./dist/ /public_html/; bye"
+            -e "set ftp:ssl-force true; set ssl:verify-certificate no; mirror --reverse --delete --verbose --parallel=10 ./dist/ ./; bye"
