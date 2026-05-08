@@ -11,7 +11,7 @@ const CSP_BASE = [
   "style-src 'self' 'unsafe-inline'",
   "font-src 'self' data:",
   "img-src 'self' data: blob: https:",
-  "connect-src 'self' https://*.supabase.co https://*.supabase.in wss://*.supabase.co https://*.kinde.com https://auth.thewise.cloud https://api.openrouter.ai https://api.groq.com https://generativelanguage.googleapis.com https://api.elevenlabs.io",
+  "connect-src 'self' https://fra.cloud.appwrite.io https://api.resend.com https://*.supabase.co https://*.supabase.in wss://*.supabase.co https://*.kinde.com https://auth.thewise.cloud https://api.openrouter.ai https://api.groq.com https://generativelanguage.googleapis.com https://api.elevenlabs.io",
   // Web Workers must be allowed from the same origin AND blob: URLs.
   // Tesseract.js v7 (and many other libs) wrap their worker script in
   // a Blob and call `new Worker(URL.createObjectURL(blob))`. Without
@@ -31,7 +31,7 @@ const CSP_BASE = [
 // Note: frame-ancestors is included here for defense-in-depth, but meta-tag
 // CSP does not enforce frame-ancestors in all browsers — the _headers file
 // provides the authoritative HTTP header for frame-ancestors enforcement.
-const CSP = [...CSP_BASE, "script-src 'self'", "frame-ancestors 'none'"].join('; ');
+const CSP = [...CSP_BASE, "script-src 'self' 'unsafe-inline'", "frame-ancestors 'none'"].join('; ');
 
 function cspPlugin(): Plugin {
   return {
@@ -54,7 +54,7 @@ const PREFETCH_CHUNKS = ['DashboardPage', 'EditorPage', 'UploadPage', 'framer', 
 // Defer route prefetch until the page is interactive. Previously, prefetch
 // links were emitted directly into <head>, which competes with critical
 // app JS for bandwidth on cold start (especially on mobile). Now we emit
-// a tiny external bootstrap as a build asset (CSP `script-src 'self'`
+// a tiny external bootstrap as a build asset (CSP `script-src 'self' 'unsafe-inline'`
 // compliant — inline scripts would be blocked) that waits for window
 // `load`, then materializes <link rel="prefetch"> tags via
 // requestIdleCallback. Net: zero competing bytes during the splash
@@ -85,7 +85,7 @@ function prefetchPlugin(): Plugin {
           `else{addEventListener('load',schedule,{once:true});}})();`;
         const hash = createHash('sha256').update(code).digest('hex').slice(0, 8);
         const assetFileName = `assets/prefetch-${hash}.js`;
-        // Emit as a real asset so it satisfies `script-src 'self'`.
+        // Emit as a real asset so it satisfies `script-src 'self' 'unsafe-inline'`.
         (ctx.bundle as Record<string, unknown>)[assetFileName] = {
           type: 'asset',
           fileName: assetFileName,
