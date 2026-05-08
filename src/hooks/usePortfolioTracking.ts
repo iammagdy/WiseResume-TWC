@@ -96,11 +96,22 @@ export function usePortfolioTracking({ username, refParam, abVariant }: UsePortf
       ab_variant: snap.abVariant ?? null,
     };
 
-    // Use navigator.sendBeacon to the Express proxy — guaranteed delivery
-    // even on page unload/pagehide. sendBeacon is fire-and-forget; errors
-    // are silently discarded.
-    const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
-    navigator.sendBeacon('/api/track-portfolio-view', blob);
+    // Deliver via navigator.sendBeacon where available — guaranteed delivery
+    // even on page unload/pagehide because the browser completes the request
+    // regardless of navigation. Falls back to keepalive fetch for environments
+    // where sendBeacon is unavailable. Both paths are fire-and-forget.
+    const body = JSON.stringify(payload);
+    if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
+      const blob = new Blob([body], { type: 'application/json' });
+      navigator.sendBeacon('/api/track-portfolio-view', blob);
+    } else {
+      fetch('/api/track-portfolio-view', {
+        method: 'POST',
+        keepalive: true,
+        headers: { 'Content-Type': 'application/json' },
+        body,
+      }).catch(() => {});
+    }
   }, []);
 
   // Public-API beacon — wraps sendBeaconCore with live ref values so

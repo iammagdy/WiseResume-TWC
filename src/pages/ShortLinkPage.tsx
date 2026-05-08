@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Link2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { databases, DATABASE_ID } from '@/lib/appwrite';
+import { databases, DATABASE_ID, Query } from '@/lib/appwrite';
 import { COLLECTIONS } from '@/lib/appwrite-collections';
 
 interface ShortLinkDocument {
@@ -26,35 +26,51 @@ export default function ShortLinkPage() {
     let cancelled = false;
 
     (async () => {
+      let doc: ShortLinkDocument | null = null;
+
+      // Primary path: shareUtils.ts creates short links with the slug as the
+      // document ID (databases.createDocument(... slug, { target_url, ... })).
+      // getDocument is an O(1) lookup and covers all links created by the app.
       try {
-        // Short links are created with the slug as the document ID
-        // (see src/lib/shareUtils.ts). Use getDocument for O(1) lookup.
-        const doc = await databases.getDocument(
+        doc = (await databases.getDocument(
           DATABASE_ID,
           COLLECTIONS.short_links,
           linkId,
-        ) as unknown as ShortLinkDocument;
-
-        if (cancelled) return;
-
-        // Security: only navigate to relative paths to prevent open redirects.
-        if (doc.target_url && typeof doc.target_url === 'string' && doc.target_url.startsWith('/')) {
-          // Always append ?ref=<linkId> so portfolio tracking can attribute the visit
-          // to this short link (short_link_id is read from the query param on the portfolio page)
-          const sep = doc.target_url.includes('?') ? '&' : '?';
-          navigate(`${doc.target_url}${sep}ref=${encodeURIComponent(linkId)}`, { replace: true });
-        } else if (doc.username) {
-          // Legacy portfolio link fallback
-          navigate(`/p/${doc.username}?ref=${linkId}`, { replace: true });
-        } else {
-          setNotFound(true);
+        )) as unknown as ShortLinkDocument;
+      } catch {
+        // Fallback path: some legacy records may store the slug in a
+        // link_id field with a different document ID. Try a field query.
+        try {
+          const result = await databases.listDocuments(
+            DATABASE_ID,
+            COLLECTIONS.short_links,
+            [Query.equal('link_id', linkId), Query.limit(1)],
+          );
+          if (result.documents.length > 0) {
+            doc = result.documents[0] as unknown as ShortLinkDocument;
+          }
+        } catch {
+          // Both lookups failed — fall through to not-found state.
         }
-      } catch (err: unknown) {
-        if (cancelled) return;
-        // Appwrite throws 404 when the document doesn't exist — show not-found.
-        // Any other error also falls through to not-found for safety.
-        const is404 = err instanceof Error && (err.message.includes('404') || err.message.toLowerCase().includes('not found'));
-        if (is404 || true) setNotFound(true);
+      }
+
+      if (cancelled) return;
+
+      if (!doc) {
+        setNotFound(true);
+        return;
+      }
+
+      // Security: only navigate to relative paths to prevent open redirects.
+      if (doc.target_url && typeof doc.target_url === 'string' && doc.target_url.startsWith('/')) {
+        // Append ?ref=<linkId> so portfolio tracking can attribute the visit.
+        const sep = doc.target_url.includes('?') ? '&' : '?';
+        navigate(`${doc.target_url}${sep}ref=${encodeURIComponent(linkId)}`, { replace: true });
+      } else if (doc.username) {
+        // Legacy portfolio link fallback
+        navigate(`/p/${doc.username}?ref=${linkId}`, { replace: true });
+      } else {
+        setNotFound(true);
       }
     })();
 
