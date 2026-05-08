@@ -67,7 +67,7 @@ function DashboardPageContent() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user, supabaseReady, supabaseSettled, signOut } = useAuth();
-  const { isMigrating } = useGuestMigration(null);
+  const { isMigrating } = useGuestMigration();
   const { 
     data: resumes = [], 
     isLoading: resumesLoading, 

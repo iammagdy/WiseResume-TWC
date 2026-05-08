@@ -1,3 +1,21 @@
+## 2026-05-08 — Task #18: Fix guest resume migration — Appwrite DB calls
+
+**2 files changed.** `useGuestMigration` fully rewritten on Appwrite SDK. No new `any` casts. `tsc --noEmit` passes with zero errors.
+
+### `src/hooks/useGuestMigration.ts`
+- Removed `import { apiFetch }` and the local `Session` stub type.
+- Added `import { databases, DATABASE_ID }` from `@/lib/appwrite`, `AppwriteException` from `appwrite`, `useAuth` from `./useAuth`, `resumeDataToDb` from `./useResumes`, and `COLLECTIONS` from `@/lib/appwrite-collections`.
+- Hook signature changed from `useGuestMigration(session)` to `useGuestMigration()` — user identity now sourced from `useAuth()` internally, eliminating the `null` dummy argument the caller was forced to pass.
+- Removed early-exit `return;` that had disabled the hook entirely during the migration freeze.
+- `check-existing` step: `apiFetch('/api/data/resumes/exists/...')` → `databases.getDocument(DATABASE_ID, COLLECTIONS.resumes, resumeId)` inside a new `resumeExists()` helper (catches 404, re-throws other errors).
+- `insert-resume` step: `apiFetch('/api/data/resumes', { method: 'POST' })` → `databases.createDocument(DATABASE_ID, COLLECTIONS.resumes, resumeId, payload)` using the existing `resumeDataToDb()` helper. The guest `resumeId` is used as the Appwrite document ID to preserve natural idempotency — re-running the step against an existing ID would 409, which `resumeExists()` already guards.
+- Effect dependency array changed from `[session, queryClient]` to `[user, queryClient]`.
+
+### `src/pages/DashboardPage.tsx`
+- `useGuestMigration(null)` → `useGuestMigration()` to match updated signature.
+
+---
+
 ## 2026-05-08 — Task #17: Fix coupon and billing flows via Appwrite
 
 **2 files changed.** `validate-coupon` and `redeem-coupon` routed through `ai-gateway` Appwrite Function. No new `any` casts. `tsc --noEmit` passes with zero errors.

@@ -2,6 +2,19 @@
 
 **Last verified:** 2026-05-08
 
+## Guest resume migration reconnected — Task #18 (2026-05-08)
+
+When a new user signed up after editing a resume as a guest, their draft was supposed to be automatically saved to their new account. This was silently broken — the migration code had been intentionally disabled while the backend was being rebuilt, so guest resumes were stuck in the browser and never transferred.
+
+**What changed:**
+- After signing up, the app now automatically checks whether your guest draft resume is already saved to your account. If not, it writes it directly to Appwrite using the same ID it had locally — ensuring the process is safe to retry without creating duplicates.
+- The migration runs once per new account, clears the local copy on success, and shows your resumes instantly in the dashboard.
+- If something goes wrong mid-transfer (e.g. you go offline), your data stays safely in the browser and the migration will finish next time you open the app.
+
+**Last verified:** 2026-05-08
+
+---
+
 ## Coupon and billing flows reconnected — Task #17 (2026-05-08)
 
 Entering a coupon code on the Subscription page or any upgrade prompt would silently fail with "pending migration" errors. Coupon validation and redemption now work end-to-end through Appwrite.
