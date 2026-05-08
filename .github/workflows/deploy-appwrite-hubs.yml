@@ -25,11 +25,10 @@ jobs:
 
       - name: Package and Deploy Hubs
         env:
+          APPWRITE_ENDPOINT: ${{ secrets.VITE_APPWRITE_ENDPOINT }}
+          APPWRITE_PROJECT_ID: ${{ secrets.VITE_APPWRITE_PROJECT_ID }}
           APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
         run: |
-          # 1. Create Tarballs in Root
           cd appwrite-hubs/auth-master && tar -czf ../../auth-master.tar.gz . && cd ../..
           cd appwrite-hubs/ai-gateway && tar -czf ../../ai-gateway.tar.gz . && cd ../..
-          
-          # 2. Deploy using Fixed Script
           node scripts/deploy_hubs.cjs
