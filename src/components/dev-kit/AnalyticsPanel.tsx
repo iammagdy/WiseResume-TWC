@@ -4,7 +4,7 @@ import {
   Smartphone, Link2, MapPin, Calendar, Layers, FileText,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { edgeFunctions } from '@/lib/edgeFunctions';
 import { getDevKitToken, useDevKitSession } from '@/contexts/DevKitSessionContext';
 import { useIsMounted, useVisibleInterval } from '@/lib/devkit/hooks';
 import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';

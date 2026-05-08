@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { edgeFunctions } from '@/lib/edgeFunctions';
 import { useDevKitSession } from '@/contexts/DevKitSessionContext';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
 import { DevKitErrorCard } from './DevKitErrorCard';

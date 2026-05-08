@@ -1,3 +1,18 @@
+## 2026-05-08 — WiseHire + DevKit Appwrite migration — final stub cleanup (Task #3)
+
+**13 remaining files migrated from `@/integrations/supabase/edgeFunctions` throw-stub to `@/lib/edgeFunctions`:**
+
+WiseHire components:
+- `src/components/wisehire/brief/BriefForm.tsx`: import path fixed; `getUserId()` from `supabaseBridge` replaced with `useAuth().user?.id`; `edgeFunctions.functions.invoke` → `edgeFunctions.invoke`.
+- `src/components/wisehire/jd-writer/JDWriterForm.tsx`: import path fixed; `edgeFunctions.functions.invoke` → `edgeFunctions.invoke`.
+
+DevKit panels (import path only — `edgeFunctions.functions.invoke` is a valid shim in `@/lib/edgeFunctions`):
+- `VisitorsPanel.tsx`, `LiveActivityPanel.tsx`, `PortfolioUsernamesPanel.tsx`, `FeatureFlagsPanel.tsx`, `OnboardingFunnelPanel.tsx`, `ObservabilityPanel.tsx`, `ModerationPanel.tsx`, `AnalyticsPanel.tsx`, `ActAsDialog.tsx`, `EmailManagementPanel.tsx`, `EmailAutomationsPanel.tsx`
+
+**Result:** zero `@/integrations/supabase/edgeFunctions` or `supabaseBridge.getUserId` imports remain in WiseHire/DevKit scope. `tsc --noEmit`: 0 errors.
+
+---
+
 ## 2026-05-08 — WiseHire + DevKit Appwrite migration — post-approval fixes (Task #3)
 
 **Files fixed following code review approval-with-comments:**

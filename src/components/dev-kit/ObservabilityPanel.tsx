@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { RefreshCw, Activity, AlertCircle, AlertTriangle, ChevronDown, ChevronRight, CheckCircle2, Clock, Loader2, Lock, Filter, TrendingUp, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { edgeFunctions } from '@/lib/edgeFunctions';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
 import { unwrapAdminResponse, formatEdgeError, EdgeFunctionError } from '@/lib/devkit/edgeResponse';
 import { useIsMounted, useVisibleInterval } from '@/lib/devkit/hooks';

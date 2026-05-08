@@ -6,10 +6,10 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { Loader2, Sparkles, KeyRound, AlertCircle } from 'lucide-react';
-import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { edgeFunctions } from '@/lib/edgeFunctions';
 import type { CandidateBrief } from '@/hooks/wisehire/useBriefs';
 import { useQueryClient } from '@tanstack/react-query';
-import { getUserId } from '@/lib/supabaseBridge';
+import { useAuth } from '@/hooks/useAuth';
 
 interface Candidate {
   id: string;
@@ -32,7 +32,8 @@ export function BriefForm({ candidates, defaultCandidateId, defaultJd, onResult 
   const [error, setError] = useState('');
   const [requiresKey, setRequiresKey] = useState(false);
   const queryClient = useQueryClient();
-  const userId = getUserId();
+  const { user } = useAuth();
+  const userId = user?.id;
 
   const canSubmit = candidateId && jdText.trim().length >= 20 && !loading;
 
@@ -44,7 +45,7 @@ export function BriefForm({ candidates, defaultCandidateId, defaultJd, onResult 
     setRequiresKey(false);
 
     try {
-      const { data, error: fnErr } = await edgeFunctions.functions.invoke('wisehire-generate-brief', {
+      const { data, error: fnErr } = await edgeFunctions.invoke('wisehire-generate-brief', {
         body: { candidate_id: candidateId, jd_text: jdText.trim() },
       });
 

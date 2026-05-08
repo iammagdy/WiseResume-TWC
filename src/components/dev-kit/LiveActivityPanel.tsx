@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { RefreshCw, Activity, CheckCircle, AlertCircle, Clock, PlayCircle, Loader2, XCircle, AlertTriangle, Mail, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { edgeFunctions } from '@/lib/edgeFunctions';
 import { useAuth } from '@/hooks/useAuth';
 import { getDevKitToken, useDevKitSession, onDevKitLock } from '@/contexts/DevKitSessionContext';
 import { useVisibleInterval, useIsMounted } from '@/lib/devkit/hooks';

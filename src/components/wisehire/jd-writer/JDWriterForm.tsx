@@ -6,7 +6,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { Loader2, Sparkles, KeyRound, AlertCircle } from 'lucide-react';
-import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { edgeFunctions } from '@/lib/edgeFunctions';
 import type { JDData } from './JDInlineEditor';
 import type { WiseHireRole } from '@/hooks/wisehire/useJDs';
 
@@ -33,7 +33,7 @@ export function JDWriterForm({ roles, onResult }: JDWriterFormProps) {
     setRequiresKey(false);
 
     try {
-      const { data, error: fnErr } = await edgeFunctions.functions.invoke('wisehire-write-jd', {
+      const { data, error: fnErr } = await edgeFunctions.invoke('wisehire-write-jd', {
         body: {
           input: input.trim(),
           role_id: selectedRoleId !== 'none' ? selectedRoleId : undefined,

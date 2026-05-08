@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { edgeFunctions } from '@/lib/edgeFunctions';
 import { getDevKitToken } from '@/contexts/DevKitSessionContext';
 import type { AdminUser } from './AdminUsersPanel';
 import { useIsMounted } from '@/lib/devkit/hooks';

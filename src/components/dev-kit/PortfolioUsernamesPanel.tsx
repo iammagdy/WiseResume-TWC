@@ -54,7 +54,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { edgeFunctions } from '@/lib/edgeFunctions';
 import { getDevKitToken } from '@/contexts/DevKitSessionContext';
 import { cn } from '@/lib/utils';
 import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';

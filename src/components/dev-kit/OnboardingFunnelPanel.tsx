@@ -3,7 +3,7 @@ import {
   RefreshCw, Lock, Filter, Users, ListChecks, AlertTriangle, SkipForward, Activity,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { edgeFunctions } from '@/lib/edgeFunctions';
 import { getDevKitToken, useDevKitSession } from '@/contexts/DevKitSessionContext';
 import { useIsMounted } from '@/lib/devkit/hooks';
 import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
