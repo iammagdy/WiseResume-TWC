@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { databases, ID, Query } from '@/lib/appwrite';
+import { COLLECTIONS, DATABASE_ID } from '@/lib/appwrite-collections';
 import { useAuth } from '@/hooks/useAuth';
-import { getUserId } from '@/lib/supabaseBridge';
 import { toast } from 'sonner';
 
 export interface WiseHireRole {
@@ -23,40 +23,33 @@ export interface WiseHireRole {
 }
 
 export function useJDs() {
-  const { isAuthenticated, supabaseReady } = useAuth();
-  const userId = getUserId();
+  const { isAuthenticated, user } = useAuth();
+  const userId = user?.id;
   const queryClient = useQueryClient();
 
   const query = useQuery({
     queryKey: ['wisehire-jds', userId],
     queryFn: async (): Promise<WiseHireRole[]> => {
       if (!userId) return [];
-      const { data, error } = await supabase
-        .from('wisehire_roles')
-        .select('id, company_id, title, jd_text, status, client_id, slug, published, location, remote_ok, salary_min, salary_max, employment_type, created_at, updated_at')
-        .eq('owner_id', userId)
-        .eq('is_deleted', false)
-        .not('jd_text', 'is', null)
-        .order('updated_at', { ascending: false });
-
-      if (error) {
-        console.warn('[useJDs] fetch error:', error.message);
-        return [];
-      }
-      return (data ?? []) as WiseHireRole[];
+      const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.wisehire_roles, [
+        Query.equal('owner_id', userId),
+        Query.equal('is_deleted', false),
+        Query.isNotNull('jd_text'),
+        Query.orderDesc('updated_at'),
+        Query.limit(500),
+      ]);
+      return res.documents.map((d) => ({ ...d, id: d.$id } as unknown as WiseHireRole));
     },
-    enabled: isAuthenticated && supabaseReady && !!userId,
+    enabled: isAuthenticated && !!userId,
     staleTime: 60 * 1000,
   });
 
   const saveJD = useMutation({
     mutationFn: async ({ roleId, jdText }: { roleId: string; jdText: string }) => {
-      const { error } = await supabase
-        .from('wisehire_roles')
-        .update({ jd_text: jdText, status: 'draft' })
-        .eq('id', roleId)
-        .eq('owner_id', userId);
-      if (error) throw new Error(error.message);
+      await databases.updateDocument(DATABASE_ID, COLLECTIONS.wisehire_roles, roleId, {
+        jd_text: jdText,
+        status: 'draft',
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['wisehire-jds', userId] });
@@ -70,19 +63,19 @@ export function useJDs() {
   const createRole = useMutation({
     mutationFn: async ({ title, jdText }: { title: string; jdText?: string }) => {
       if (!userId) throw new Error('Not authenticated');
-      const { data, error } = await supabase
-        .from('wisehire_roles')
-        .insert({
+      const doc = await databases.createDocument(
+        DATABASE_ID,
+        COLLECTIONS.wisehire_roles,
+        ID.unique(),
+        {
           owner_id: userId,
           title,
           jd_text: jdText ?? null,
           status: 'draft',
           is_deleted: false,
-        })
-        .select('id')
-        .single();
-      if (error) throw new Error(error.message);
-      return data.id as string;
+        },
+      );
+      return doc.$id;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['wisehire-jds', userId] });
@@ -100,12 +93,7 @@ export function useJDs() {
       roleId: string;
       updates: Partial<Pick<WiseHireRole, 'title' | 'status' | 'client_id'>>;
     }) => {
-      const { error } = await supabase
-        .from('wisehire_roles')
-        .update(updates)
-        .eq('id', roleId)
-        .eq('owner_id', userId);
-      if (error) throw new Error(error.message);
+      await databases.updateDocument(DATABASE_ID, COLLECTIONS.wisehire_roles, roleId, updates);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['wisehire-jds', userId] });
@@ -118,12 +106,7 @@ export function useJDs() {
 
   const deleteJD = useMutation({
     mutationFn: async (roleId: string) => {
-      const { error } = await supabase
-        .from('wisehire_roles')
-        .update({ is_deleted: true })
-        .eq('id', roleId)
-        .eq('owner_id', userId);
-      if (error) throw new Error(error.message);
+      await databases.updateDocument(DATABASE_ID, COLLECTIONS.wisehire_roles, roleId, { is_deleted: true });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['wisehire-jds', userId] });

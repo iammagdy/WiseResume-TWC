@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { databases, Query } from '@/lib/appwrite';
+import { COLLECTIONS, DATABASE_ID } from '@/lib/appwrite-collections';
 import { useAuth } from '@/hooks/useAuth';
-import { getUserId } from '@/lib/supabaseBridge';
 import { Sparkles, Briefcase, Users, TrendingUp } from 'lucide-react';
 import { DashboardStatsSkeleton } from './DashboardStatsSkeleton';
 
@@ -13,8 +13,8 @@ interface StatData {
 }
 
 function useWiseHireDashboardStats() {
-  const { isAuthenticated, supabaseReady } = useAuth();
-  const userId = getUserId();
+  const { isAuthenticated, supabaseReady, user } = useAuth();
+  const userId = user?.id;
 
   return useQuery({
     queryKey: ['wisehire-dashboard-stats', userId],
@@ -22,34 +22,36 @@ function useWiseHireDashboardStats() {
       if (!userId) return { totalBriefs: 0, openRoles: 0, candidatesInPipeline: 0, avgMatchScore: null };
 
       const [briefsRes, rolesRes, candidatesRes] = await Promise.all([
-        supabase
-          .from('wisehire_candidate_briefs')
-          .select('id, match_score', { count: 'exact' })
-          .eq('owner_id', userId),
-        supabase
-          .from('wisehire_roles')
-          .select('id', { count: 'exact' })
-          .eq('owner_id', userId)
-          .eq('is_deleted', false)
-          .neq('status', 'archived'),
-        supabase
-          .from('wisehire_candidates')
-          .select('id', { count: 'exact' })
-          .eq('owner_id', userId)
-          .eq('is_deleted', false),
+        databases.listDocuments(DATABASE_ID, COLLECTIONS.wisehire_candidate_briefs, [
+          Query.equal('owner_id', userId),
+          Query.select(['match_score']),
+          Query.limit(5000),
+        ]),
+        databases.listDocuments(DATABASE_ID, COLLECTIONS.wisehire_roles, [
+          Query.equal('owner_id', userId),
+          Query.equal('is_deleted', false),
+          Query.notEqual('status', 'archived'),
+          Query.select(['$id']),
+          Query.limit(1),
+        ]),
+        databases.listDocuments(DATABASE_ID, COLLECTIONS.wisehire_candidates, [
+          Query.equal('owner_id', userId),
+          Query.equal('is_deleted', false),
+          Query.select(['$id']),
+          Query.limit(1),
+        ]),
       ]);
 
-      const briefs = briefsRes.data ?? [];
-      const scores = briefs
-        .map((b: { match_score: number | null }) => b.match_score)
+      const scores = briefsRes.documents
+        .map((b) => b.match_score as number | null)
         .filter((s): s is number => s !== null);
       const avgMatchScore =
         scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null;
 
       return {
-        totalBriefs: briefsRes.count ?? 0,
-        openRoles: rolesRes.count ?? 0,
-        candidatesInPipeline: candidatesRes.count ?? 0,
+        totalBriefs: briefsRes.total,
+        openRoles: rolesRes.total,
+        candidatesInPipeline: candidatesRes.total,
         avgMatchScore,
       };
     },

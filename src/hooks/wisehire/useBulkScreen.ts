@@ -1,8 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { databases, ID, Query } from '@/lib/appwrite';
+import { COLLECTIONS, DATABASE_ID } from '@/lib/appwrite-collections';
 import { edgeFunctions } from '@/lib/edgeFunctions';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import type { Models } from 'appwrite';
 
 export interface ScreenResult {
   rank: number;
@@ -24,21 +26,27 @@ export interface BulkScreenJob {
   created_at: string;
 }
 
+function docToJob(doc: Models.Document): BulkScreenJob {
+  return { ...doc, id: doc.$id } as unknown as BulkScreenJob;
+}
+
 export function useLatestBulkJobs(roleId?: string) {
   const { user } = useAuth();
+  const userId = user?.id;
+
   return useQuery({
-    queryKey: ['bulk-screen-jobs', user?.id, roleId],
+    queryKey: ['bulk-screen-jobs', userId, roleId],
     queryFn: async () => {
-      let q = supabase
-        .from('wisehire_bulk_screen_jobs')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(5);
-      if (roleId) q = q.eq('role_id', roleId);
-      const { data, error } = await q;
-      if (error) throw error;
-      return (data ?? []) as BulkScreenJob[];
+      if (!userId) return [];
+      const queries: string[] = [
+        Query.orderDesc('created_at'),
+        Query.limit(5),
+      ];
+      if (roleId) queries.push(Query.equal('role_id', roleId));
+      const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.wisehire_bulk_screen_jobs, queries);
+      return res.documents.map(docToJob);
     },
+    enabled: !!userId,
   });
 }
 
@@ -93,6 +101,7 @@ export function useRunBulkScreen() {
 
 export function useAddCandidateFromScreen() {
   const qc = useQueryClient();
+  const { user } = useAuth();
 
   return useMutation({
     mutationFn: async ({
@@ -104,23 +113,34 @@ export function useAddCandidateFromScreen() {
       roleId?: string;
       resumeSummary?: string;
     }) => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
+      const userId = user?.id;
+      if (!userId) throw new Error('Not authenticated');
 
-      const { data, error } = await supabase
-        .from('wisehire_candidates')
-        .insert({
-          owner_id: user.id,
+      const existing = await databases.listDocuments(DATABASE_ID, COLLECTIONS.wisehire_candidates, [
+        Query.equal('owner_id', userId),
+        Query.equal('name', name || 'Unknown Candidate'),
+        Query.limit(1),
+      ]);
+
+      if (existing.total > 0) {
+        return { id: existing.documents[0].$id, userId };
+      }
+
+      const doc = await databases.createDocument(
+        DATABASE_ID,
+        COLLECTIONS.wisehire_candidates,
+        ID.unique(),
+        {
+          owner_id: userId,
           name: name || 'Unknown Candidate',
           role_id: roleId ?? null,
           pipeline_stage: 'shortlisted',
           resume_text: resumeSummary ?? null,
-        })
-        .select('id')
-        .single();
+          is_deleted: false,
+        },
+      );
 
-      if (error) throw error;
-      return { ...data, userId: user.id };
+      return { id: doc.$id, userId };
     },
     onSuccess: ({ userId }) => {
       qc.invalidateQueries({ queryKey: ['wisehire-pipeline', userId] });

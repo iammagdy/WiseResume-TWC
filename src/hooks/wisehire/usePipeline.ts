@@ -1,8 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { databases, ID, Query } from '@/lib/appwrite';
+import { COLLECTIONS, DATABASE_ID } from '@/lib/appwrite-collections';
 import { useAuth } from '@/hooks/useAuth';
-import { getUserId } from '@/lib/supabaseBridge';
 import { toast } from 'sonner';
+import type { Models } from 'appwrite';
 
 export type PipelineStage =
   | 'shortlisted'
@@ -46,69 +47,95 @@ export interface PipelineEvent {
   moved_at: string;
 }
 
+function docToCandidate(doc: Models.Document): PipelineCandidate {
+  return { ...doc, id: doc.$id } as unknown as PipelineCandidate;
+}
+
 export function usePipeline(roleId?: string, clientId?: string) {
-  const { isAuthenticated, supabaseReady } = useAuth();
-  const userId = getUserId();
+  const { isAuthenticated, user } = useAuth();
+  const userId = user?.id;
   const queryClient = useQueryClient();
 
   const query = useQuery({
     queryKey: ['wisehire-pipeline', userId, roleId, clientId],
     queryFn: async (): Promise<PipelineCandidate[]> => {
       if (!userId) return [];
-      let q = supabase
-        .from('wisehire_candidates')
-        .select('*, brief:wisehire_candidate_briefs(id, match_score), role:wisehire_roles(title, client_id)')
-        .eq('owner_id', userId)
-        .eq('is_deleted', false)
-        .order('created_at', { ascending: false });
 
-      if (roleId) q = q.eq('role_id', roleId);
+      const candidateQueries: string[] = [
+        Query.equal('owner_id', userId),
+        Query.equal('is_deleted', false),
+        Query.orderDesc('created_at'),
+        Query.limit(5000),
+      ];
+      if (roleId) candidateQueries.push(Query.equal('role_id', roleId));
 
-      const { data, error } = await q;
-      if (error) {
-        console.warn('[usePipeline] fetch error:', error.message);
-        return [];
+      const [candidatesRes, briefsRes, rolesRes] = await Promise.all([
+        databases.listDocuments(DATABASE_ID, COLLECTIONS.wisehire_candidates, candidateQueries),
+        databases.listDocuments(DATABASE_ID, COLLECTIONS.wisehire_candidate_briefs, [
+          Query.equal('owner_id', userId),
+          Query.select(['candidate_id', 'match_score']),
+          Query.limit(5000),
+        ]),
+        databases.listDocuments(DATABASE_ID, COLLECTIONS.wisehire_roles, [
+          Query.equal('owner_id', userId),
+          Query.select(['title', 'client_id']),
+          Query.limit(500),
+        ]),
+      ]);
+
+      const briefMap: Record<string, { id: string; match_score: number | null }> = {};
+      for (const b of briefsRes.documents) {
+        const cid = b.candidate_id as string;
+        if (cid && !briefMap[cid]) {
+          briefMap[cid] = { id: b.$id, match_score: b.match_score as number | null };
+        }
       }
-      let results = (data ?? []) as PipelineCandidate[];
+
+      const roleMap: Record<string, { title: string; client_id: string | null }> = {};
+      for (const r of rolesRes.documents) {
+        roleMap[r.$id] = { title: r.title as string, client_id: r.client_id as string | null };
+      }
+
+      let results: PipelineCandidate[] = candidatesRes.documents.map((d) => ({
+        ...docToCandidate(d),
+        brief: briefMap[d.$id] ?? null,
+        role: d.role_id ? (roleMap[d.role_id as string] ?? null) : null,
+      }));
+
       if (clientId) {
         results = results.filter(
-          (c) => c.client_id === clientId || c.role?.client_id === clientId
+          (c) => c.client_id === clientId || c.role?.client_id === clientId,
         );
       }
+
       return results;
     },
-    enabled: isAuthenticated && supabaseReady && !!userId,
+    enabled: isAuthenticated && !!userId,
     staleTime: 30 * 1000,
   });
 
   const updatePipelineStage = useMutation({
     mutationFn: async ({ candidateId, toStage, fromStage }: { candidateId: string; toStage: PipelineStage; fromStage: PipelineStage }) => {
       if (!userId) throw new Error('Not authenticated');
-
-      const [updateResult, eventResult] = await Promise.all([
-        supabase
-          .from('wisehire_candidates')
-          .update({ pipeline_stage: toStage })
-          .eq('id', candidateId)
-          .eq('owner_id', userId),
-        supabase
-          .from('wisehire_pipeline_events')
-          .insert({
-            owner_id: userId,
-            candidate_id: candidateId,
-            from_stage: fromStage,
-            to_stage: toStage,
-            moved_by: userId,
-          }),
+      await Promise.all([
+        databases.updateDocument(DATABASE_ID, COLLECTIONS.wisehire_candidates, candidateId, {
+          pipeline_stage: toStage,
+        }),
+        databases.createDocument(DATABASE_ID, COLLECTIONS.wisehire_pipeline_events, ID.unique(), {
+          owner_id: userId,
+          candidate_id: candidateId,
+          from_stage: fromStage,
+          to_stage: toStage,
+          moved_by: userId,
+          moved_at: new Date().toISOString(),
+        }),
       ]);
-
-      if (updateResult.error) throw new Error(updateResult.error.message);
     },
     onMutate: async ({ candidateId, toStage }) => {
       await queryClient.cancelQueries({ queryKey: ['wisehire-pipeline', userId, roleId, clientId] });
       const prev = queryClient.getQueryData<PipelineCandidate[]>(['wisehire-pipeline', userId, roleId, clientId]);
       queryClient.setQueryData<PipelineCandidate[]>(['wisehire-pipeline', userId, roleId, clientId], (old) =>
-        (old ?? []).map((c) => c.id === candidateId ? { ...c, pipeline_stage: toStage } : c)
+        (old ?? []).map((c) => c.id === candidateId ? { ...c, pipeline_stage: toStage } : c),
       );
       return { prev };
     },
@@ -128,12 +155,12 @@ export function usePipeline(roleId?: string, clientId?: string) {
     mutationFn: async ({ candidateIds, toStage }: { candidateIds: string[]; toStage: PipelineStage }) => {
       if (!userId) throw new Error('Not authenticated');
       if (candidateIds.length === 0) return 0;
-      const { data, error } = await supabase.rpc('bulk_update_pipeline_stage', {
-        p_candidate_ids: candidateIds,
-        p_to_stage: toStage,
-      });
-      if (error) throw new Error(error.message);
-      return (data as number | null) ?? 0;
+      await Promise.all(
+        candidateIds.map((id) =>
+          databases.updateDocument(DATABASE_ID, COLLECTIONS.wisehire_candidates, id, { pipeline_stage: toStage }),
+        ),
+      );
+      return candidateIds.length;
     },
     onMutate: async ({ candidateIds, toStage }) => {
       await queryClient.cancelQueries({ queryKey: ['wisehire-pipeline', userId, roleId, clientId] });
@@ -159,12 +186,7 @@ export function usePipeline(roleId?: string, clientId?: string) {
 
   const updateNotes = useMutation({
     mutationFn: async ({ candidateId, notes }: { candidateId: string; notes: string }) => {
-      const { error } = await supabase
-        .from('wisehire_candidates')
-        .update({ notes })
-        .eq('id', candidateId)
-        .eq('owner_id', userId);
-      if (error) throw new Error(error.message);
+      await databases.updateDocument(DATABASE_ID, COLLECTIONS.wisehire_candidates, candidateId, { notes });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['wisehire-pipeline', userId] });
@@ -181,9 +203,11 @@ export function usePipeline(roleId?: string, clientId?: string) {
       stage?: PipelineStage;
     }) => {
       if (!userId) throw new Error('Not authenticated');
-      const { data, error } = await supabase
-        .from('wisehire_candidates')
-        .insert({
+      const doc = await databases.createDocument(
+        DATABASE_ID,
+        COLLECTIONS.wisehire_candidates,
+        ID.unique(),
+        {
           owner_id: userId,
           name,
           email: email ?? null,
@@ -192,11 +216,9 @@ export function usePipeline(roleId?: string, clientId?: string) {
           resume_text: resumeText ?? null,
           pipeline_stage: stage ?? 'shortlisted',
           is_deleted: false,
-        })
-        .select('id')
-        .single();
-      if (error) throw new Error(error.message);
-      return data.id as string;
+        },
+      );
+      return doc.$id;
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['wisehire-pipeline', userId] });
@@ -213,23 +235,27 @@ export function usePipeline(roleId?: string, clientId?: string) {
 }
 
 export function useCandidateHistory(candidateId: string | null) {
-  const { isAuthenticated, supabaseReady } = useAuth();
-  const userId = getUserId();
+  const { isAuthenticated, user } = useAuth();
+  const userId = user?.id;
 
   return useQuery({
     queryKey: ['wisehire-pipeline-events', candidateId],
     queryFn: async (): Promise<PipelineEvent[]> => {
       if (!candidateId || !userId) return [];
-      const { data, error } = await supabase
-        .from('wisehire_pipeline_events')
-        .select('id, candidate_id, from_stage, to_stage, moved_at')
-        .eq('candidate_id', candidateId)
-        .eq('owner_id', userId)
-        .order('moved_at', { ascending: false });
-      if (error) return [];
-      return (data ?? []) as PipelineEvent[];
+      const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.wisehire_pipeline_events, [
+        Query.equal('candidate_id', candidateId),
+        Query.equal('owner_id', userId),
+        Query.orderDesc('moved_at'),
+      ]);
+      return res.documents.map((d) => ({
+        id: d.$id,
+        candidate_id: d.candidate_id as string,
+        from_stage: d.from_stage as string | null,
+        to_stage: d.to_stage as string,
+        moved_at: d.moved_at as string,
+      }));
     },
-    enabled: isAuthenticated && supabaseReady && !!candidateId,
+    enabled: isAuthenticated && !!candidateId,
     staleTime: 30 * 1000,
   });
 }

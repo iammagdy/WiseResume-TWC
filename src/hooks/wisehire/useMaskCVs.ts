@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
-import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { edgeFunctions } from '@/lib/edgeFunctions';
 import { toast } from 'sonner';
 
 export interface MaskResult {

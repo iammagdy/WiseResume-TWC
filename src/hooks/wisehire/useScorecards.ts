@@ -1,6 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { databases, ID, Query } from '@/lib/appwrite';
+import { COLLECTIONS, DATABASE_ID } from '@/lib/appwrite-collections';
+import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import type { Models } from 'appwrite';
 
 export interface Scorecard {
   id: string;
@@ -17,17 +20,19 @@ export interface Scorecard {
   created_at: string;
 }
 
+function docToScorecard(doc: Models.Document): Scorecard {
+  return { ...doc, id: doc.$id } as unknown as Scorecard;
+}
+
 export function useScorecards(candidateId: string) {
   return useQuery({
     queryKey: ['scorecards', candidateId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('wisehire_scorecards')
-        .select('*')
-        .eq('candidate_id', candidateId)
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      return (data ?? []) as Scorecard[];
+      const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.wisehire_scorecards, [
+        Query.equal('candidate_id', candidateId),
+        Query.orderDesc('created_at'),
+      ]);
+      return res.documents.map(docToScorecard);
     },
     enabled: Boolean(candidateId),
   });
@@ -37,13 +42,8 @@ export function useScorecard(scorecardId: string | undefined) {
   return useQuery({
     queryKey: ['scorecard', scorecardId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('wisehire_scorecards')
-        .select('*')
-        .eq('id', scorecardId!)
-        .single();
-      if (error) throw error;
-      return data as Scorecard;
+      const doc = await databases.getDocument(DATABASE_ID, COLLECTIONS.wisehire_scorecards, scorecardId!);
+      return docToScorecard(doc);
     },
     enabled: Boolean(scorecardId),
   });
@@ -53,14 +53,12 @@ export function usePublicScorecard(shareToken: string | undefined) {
   return useQuery({
     queryKey: ['public-scorecard', shareToken],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('wisehire_scorecards')
-        .select('*')
-        .eq('share_token', shareToken!)
-        .eq('share_token_active', true)
-        .maybeSingle();
-      if (error) throw error;
-      return data as Scorecard | null;
+      const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.wisehire_scorecards, [
+        Query.equal('share_token', shareToken!),
+        Query.equal('share_token_active', true),
+        Query.limit(1),
+      ]);
+      return res.total > 0 ? docToScorecard(res.documents[0]) : null;
     },
     enabled: Boolean(shareToken),
     retry: false,
@@ -69,6 +67,7 @@ export function usePublicScorecard(shareToken: string | undefined) {
 
 export function useCreateScorecard() {
   const qc = useQueryClient();
+  const { user } = useAuth();
 
   return useMutation({
     mutationFn: async ({
@@ -80,24 +79,25 @@ export function useCreateScorecard() {
       briefId?: string;
       questions: string[];
     }) => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
+      if (!user?.id) throw new Error('Not authenticated');
 
-      const { data, error } = await supabase
-        .from('wisehire_scorecards')
-        .insert({
+      const doc = await databases.createDocument(
+        DATABASE_ID,
+        COLLECTIONS.wisehire_scorecards,
+        ID.unique(),
+        {
           owner_id: user.id,
           candidate_id: candidateId,
           brief_id: briefId ?? null,
           questions,
           ratings: new Array(questions.length).fill(null),
           notes: new Array(questions.length).fill(''),
-        })
-        .select('*')
-        .single();
+          share_token: crypto.randomUUID(),
+          share_token_active: true,
+        },
+      );
 
-      if (error) throw error;
-      return data as Scorecard;
+      return docToScorecard(doc);
     },
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['scorecards', data.candidate_id] });
@@ -131,15 +131,8 @@ export function useSaveScorecard() {
       const patch: Record<string, unknown> = { ratings, notes, overall_score: overall };
       if (submit) patch.submitted_at = new Date().toISOString();
 
-      const { data, error } = await supabase
-        .from('wisehire_scorecards')
-        .update(patch)
-        .eq('id', id)
-        .select('*')
-        .single();
-
-      if (error) throw error;
-      return data as Scorecard;
+      const doc = await databases.updateDocument(DATABASE_ID, COLLECTIONS.wisehire_scorecards, id, patch);
+      return docToScorecard(doc);
     },
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['scorecard', data.id] });
@@ -157,17 +150,11 @@ export function useRevokeShareToken() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const { data, error } = await supabase
-        .from('wisehire_scorecards')
-        .update({
-          share_token: crypto.randomUUID(),
-          share_token_active: true,
-        })
-        .eq('id', id)
-        .select('*')
-        .single();
-      if (error) throw error;
-      return data as Scorecard;
+      const doc = await databases.updateDocument(DATABASE_ID, COLLECTIONS.wisehire_scorecards, id, {
+        share_token: crypto.randomUUID(),
+        share_token_active: true,
+      });
+      return docToScorecard(doc);
     },
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['scorecard', data.id] });

@@ -1,9 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { databases, ID, Query } from '@/lib/appwrite';
+import { COLLECTIONS, DATABASE_ID } from '@/lib/appwrite-collections';
 import { useAuth } from '@/hooks/useAuth';
-import { getUserId } from '@/lib/supabaseBridge';
 import { toast } from 'sonner';
 import type { TalentSearchFilters } from './useTalentPool';
+import type { Models } from 'appwrite';
 
 export interface SavedSearch {
   id: string;
@@ -12,21 +13,30 @@ export interface SavedSearch {
   created_at: string;
 }
 
+function docToSearch(doc: Models.Document): SavedSearch {
+  return {
+    id: doc.$id,
+    name: doc.name as string,
+    filters: (doc.filters ?? {}) as TalentSearchFilters,
+    created_at: doc.created_at as string,
+  };
+}
+
 export function useSavedSearches() {
-  const { isAuthenticated, supabaseReady } = useAuth();
-  const userId = getUserId();
+  const { isAuthenticated, supabaseReady, user } = useAuth();
+  const userId = user?.id;
   const qc = useQueryClient();
 
   const query = useQuery({
     queryKey: ['wisehire-saved-searches', userId],
     queryFn: async (): Promise<SavedSearch[]> => {
-      const { data, error } = await supabase
-        .from('wisehire_saved_searches')
-        .select('id, name, filters, created_at')
-        .eq('owner_id', userId)
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      return (data ?? []) as SavedSearch[];
+      if (!userId) return [];
+      const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.wisehire_saved_searches, [
+        Query.equal('owner_id', userId),
+        Query.orderDesc('created_at'),
+        Query.limit(200),
+      ]);
+      return res.documents.map(docToSearch);
     },
     enabled: isAuthenticated && supabaseReady && !!userId,
     staleTime: 60_000,
@@ -35,10 +45,12 @@ export function useSavedSearches() {
   const saveSearch = useMutation({
     mutationFn: async ({ name, filters }: { name: string; filters: TalentSearchFilters }) => {
       if (!userId) throw new Error('Not authenticated');
-      const { error } = await supabase
-        .from('wisehire_saved_searches')
-        .insert({ owner_id: userId, name, filters });
-      if (error) throw error;
+      await databases.createDocument(
+        DATABASE_ID,
+        COLLECTIONS.wisehire_saved_searches,
+        ID.unique(),
+        { owner_id: userId, name, filters },
+      );
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['wisehire-saved-searches', userId] });
@@ -49,12 +61,7 @@ export function useSavedSearches() {
 
   const deleteSearch = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('wisehire_saved_searches')
-        .delete()
-        .eq('id', id)
-        .eq('owner_id', userId);
-      if (error) throw error;
+      await databases.deleteDocument(DATABASE_ID, COLLECTIONS.wisehire_saved_searches, id);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['wisehire-saved-searches', userId] });

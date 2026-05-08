@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/safeClient';
-import { getUserId } from '@/lib/supabaseBridge';
+import { databases, ID, Query } from '@/lib/appwrite';
+import { COLLECTIONS, DATABASE_ID } from '@/lib/appwrite-collections';
+import { edgeFunctions } from '@/lib/edgeFunctions';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
@@ -29,11 +30,15 @@ export interface TalentSearchFilters {
 }
 
 async function callEdge<T>(name: string, body: object): Promise<T> {
-  const { data, error } = await supabase.functions.invoke(name, { body });
-  if (error) throw error;
-  if (data?.error) {
-    const e = new Error(data.error) as Error & { status?: number };
-    e.status = data.status ?? 500;
+  const { data, error } = await edgeFunctions.invoke<T>(name, { body });
+  if (error) {
+    const e = new Error((error as { message?: string }).message ?? 'Request failed') as Error & { status?: number };
+    e.status = (error as { status?: number }).status;
+    throw e;
+  }
+  if (data && typeof data === 'object' && 'error' in (data as Record<string, unknown>)) {
+    const e = new Error((data as Record<string, unknown>).error as string) as Error & { status?: number };
+    e.status = (data as Record<string, unknown>).status as number | undefined ?? 500;
     throw e;
   }
   return data as T;
@@ -60,6 +65,7 @@ export function useRecordTalentView() {
 
 export function useAddTalentToPool() {
   const qc = useQueryClient();
+  const { user } = useAuth();
   return useMutation({
     mutationFn: async ({
       profile,
@@ -70,22 +76,24 @@ export function useAddTalentToPool() {
       roleId?: string;
       stage?: string;
     }) => {
-      const userId = await getUserId();
+      const userId = user?.id;
       if (!userId) throw new Error('Not authenticated');
 
-      const { data: existing } = await supabase
-        .from('wisehire_candidates')
-        .select('id')
-        .eq('owner_id', userId)
-        .eq('name', profile.full_name ?? '')
-        .limit(1)
-        .maybeSingle();
+      const existing = await databases.listDocuments(DATABASE_ID, COLLECTIONS.wisehire_candidates, [
+        Query.equal('owner_id', userId),
+        Query.equal('name', profile.full_name ?? ''),
+        Query.limit(1),
+      ]);
 
-      if (existing) return { ...existing, userId };
+      if (existing.total > 0) {
+        return { id: existing.documents[0].$id, userId };
+      }
 
-      const { data, error } = await supabase
-        .from('wisehire_candidates')
-        .insert({
+      const doc = await databases.createDocument(
+        DATABASE_ID,
+        COLLECTIONS.wisehire_candidates,
+        ID.unique(),
+        {
           owner_id: userId,
           role_id: roleId ?? null,
           name: profile.full_name ?? 'Talent Pool Candidate',
@@ -93,12 +101,11 @@ export function useAddTalentToPool() {
           pipeline_stage: stage,
           resume_text: `Headline: ${profile.headline ?? ''}\nSkills: ${(profile.skills ?? []).join(', ')}\nExperience: ${profile.experience_level ?? ''}\nAvailability: ${profile.availability ?? ''}\nLocation: ${profile.location ?? ''}`,
           source: 'talent_pool',
-        })
-        .select()
-        .single();
+          is_deleted: false,
+        },
+      );
 
-      if (error) throw error;
-      return { ...data, userId };
+      return { id: doc.$id, userId };
     },
     onSuccess: ({ userId }) => {
       toast.success('Candidate added to pipeline');

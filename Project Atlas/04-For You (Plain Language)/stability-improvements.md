@@ -2,6 +2,32 @@
 
 **Last verified:** 2026-05-08
 
+## WiseHire + DevKit fully reconnected — Task #3 (2026-05-08)
+
+WiseHire (the HR hiring tool built into WiseResume) and the internal Admin DevKit are now fully running on the new backend. Everything that previously hit a dead-end stub now talks to Appwrite directly.
+
+**What's back:**
+- **Candidate pipeline** — all pipeline activity (recent moves, stage breakdown) now reads live data.
+- **Candidate briefs** — brief list, single brief view, and the "Recent Briefs" dashboard panel all load real data.
+- **HR analytics** — the analytics dashboard now computes stats (candidates by stage, match scores, time-to-hire, funnel, etc.) from live Appwrite queries — no longer blocked by the migration stub.
+- **Bulk screening** — the "CV screened" job history loads from Appwrite; the add-to-pipeline flow creates real candidate records.
+- **Talent pool search** — search, view tracking, and saving profiles to the pipeline all work; saved searches read/write live.
+- **Outreach emails** — outreach history loads from Appwrite; sending calls the correct edge function.
+- **Scorecard templates** — create, update and delete scorecard templates; apply a template inside an interview scorecard.
+- **Candidate notes** — add, pin, and delete notes on a candidate profile.
+- **Interview scorecards** — candidate name and brief questions now load directly from Appwrite; applying a template updates the document in Appwrite.
+- **Company profile settings** — saving your company name and size now correctly writes to Appwrite (upsert without Supabase's `.upsert()` helper).
+- **Subscription / coupon redemption** — the coupon redemption call now goes through the correct Appwrite-routed edge function instead of the old Supabase client.
+- **Mask sessions** — the last 5 CV masking sessions load from Appwrite.
+- **DevKit test runner** — the DevKit's auth test now verifies your live Appwrite session (`account.get()`); DB tests use Appwrite collections; the removed "Kinde token exchange" test has been replaced with the Appwrite session test. All references to old bridge tokens / Supabase rows have been cleaned up.
+
+**Also cleaned up:**
+- Removed three permanent "bridge error" banners from the main app shell — these banners could never appear after switching to Appwrite auth, so they were dead UI taking up space and causing noise.
+
+**Last verified:** 2026-05-08
+
+---
+
 ## More features reconnected to the new backend — Batch 7 (2026-05-08)
 
 The final batch of user-facing features that were still hitting the old dead-end stub are now fully reconnected to the Appwrite backend:

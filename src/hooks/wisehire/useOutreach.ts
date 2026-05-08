@@ -1,8 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/safeClient';
-import { getUserId } from '@/lib/supabaseBridge';
+import { databases, ID, Query } from '@/lib/appwrite';
+import { COLLECTIONS, DATABASE_ID } from '@/lib/appwrite-collections';
+import { edgeFunctions } from '@/lib/edgeFunctions';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import type { Models } from 'appwrite';
 
 export interface OutreachEmail {
   id: string;
@@ -15,11 +17,19 @@ export interface OutreachEmail {
   created_at: string;
 }
 
+function docToEmail(doc: Models.Document): OutreachEmail {
+  return { ...doc, id: doc.$id } as unknown as OutreachEmail;
+}
+
 async function callEdge<T>(name: string, body: object): Promise<T> {
-  const { data, error } = await supabase.functions.invoke(name, { body });
-  if (error) throw error;
-  if (data?.error) {
-    const e = new Error(data.error) as Error & { status?: number };
+  const { data, error } = await edgeFunctions.invoke<T>(name, { body });
+  if (error) {
+    const e = new Error((error as { message?: string }).message ?? 'Request failed') as Error & { status?: number };
+    e.status = (error as { status?: number }).status;
+    throw e;
+  }
+  if (data && typeof data === 'object' && 'error' in (data as Record<string, unknown>)) {
+    const e = new Error((data as Record<string, unknown>).error as string) as Error & { status?: number };
     e.status = 429;
     throw e;
   }
@@ -32,13 +42,11 @@ export function useOutreachHistory(candidateId: string | undefined) {
     queryKey: ['outreach-history', candidateId],
     queryFn: async () => {
       if (!candidateId) return [];
-      const { data, error } = await supabase
-        .from('wisehire_outreach_emails')
-        .select('*')
-        .eq('candidate_id', candidateId)
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      return (data ?? []) as OutreachEmail[];
+      const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.wisehire_outreach_emails, [
+        Query.equal('candidate_id', candidateId),
+        Query.orderDesc('created_at'),
+      ]);
+      return res.documents.map(docToEmail);
     },
     enabled: isAuthenticated && supabaseReady && !!candidateId,
     staleTime: 30_000,

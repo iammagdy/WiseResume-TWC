@@ -1,8 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/safeClient';
-import { getUserId } from '@/lib/supabaseBridge';
+import { databases, ID, Query } from '@/lib/appwrite';
+import { COLLECTIONS, DATABASE_ID } from '@/lib/appwrite-collections';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import type { Models } from 'appwrite';
 
 export type NoteTag = 'general' | 'highlight' | 'concern';
 
@@ -17,20 +18,22 @@ export interface CandidateNote {
   created_at: string;
 }
 
+function docToNote(doc: Models.Document): CandidateNote {
+  return { ...doc, id: doc.$id } as unknown as CandidateNote;
+}
+
 export function useCandidateNotes(candidateId: string | undefined) {
   const { isAuthenticated, supabaseReady, user } = useAuth();
   return useQuery({
     queryKey: ['candidate-notes', user?.id, candidateId],
     queryFn: async () => {
       if (!candidateId) return [];
-      const { data, error } = await supabase
-        .from('wisehire_candidate_notes')
-        .select('*')
-        .eq('candidate_id', candidateId)
-        .order('pinned', { ascending: false })
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      return (data ?? []) as CandidateNote[];
+      const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.wisehire_candidate_notes, [
+        Query.equal('candidate_id', candidateId),
+        Query.orderDesc('pinned'),
+        Query.orderDesc('created_at'),
+      ]);
+      return res.documents.map(docToNote);
     },
     enabled: isAuthenticated && supabaseReady && !!candidateId,
     staleTime: 30_000,
@@ -39,6 +42,7 @@ export function useCandidateNotes(candidateId: string | undefined) {
 
 export function useAddNote() {
   const qc = useQueryClient();
+  const { user } = useAuth();
   return useMutation({
     mutationFn: async ({
       candidateId,
@@ -49,25 +53,23 @@ export function useAddNote() {
       body: string;
       tag?: NoteTag;
     }) => {
-      const userId = await getUserId();
+      const userId = user?.id;
       if (!userId) throw new Error('Not authenticated');
 
-      // owner_id and author_id are both the current HR user
-      const { data, error } = await supabase
-        .from('wisehire_candidate_notes')
-        .insert({
+      const doc = await databases.createDocument(
+        DATABASE_ID,
+        COLLECTIONS.wisehire_candidate_notes,
+        ID.unique(),
+        {
           owner_id: userId,
           candidate_id: candidateId,
           author_id: userId,
           body: body.trim(),
           tag,
           pinned: false,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-      return { ...(data as CandidateNote), userId };
+        },
+      );
+      return { ...docToNote(doc), userId };
     },
     onSuccess: ({ userId }, vars) => {
       qc.invalidateQueries({ queryKey: ['candidate-notes', userId, vars.candidateId] });
@@ -78,15 +80,11 @@ export function useAddNote() {
 
 export function useDeleteNote() {
   const qc = useQueryClient();
+  const { user } = useAuth();
   return useMutation({
     mutationFn: async ({ noteId, candidateId }: { noteId: string; candidateId: string }) => {
-      const userId = await getUserId();
-      const { error } = await supabase
-        .from('wisehire_candidate_notes')
-        .delete()
-        .eq('id', noteId);
-      if (error) throw error;
-      return { candidateId, userId };
+      await databases.deleteDocument(DATABASE_ID, COLLECTIONS.wisehire_candidate_notes, noteId);
+      return { candidateId, userId: user?.id };
     },
     onSuccess: ({ candidateId, userId }) => {
       qc.invalidateQueries({ queryKey: ['candidate-notes', userId, candidateId] });
@@ -97,6 +95,7 @@ export function useDeleteNote() {
 
 export function useTogglePinNote() {
   const qc = useQueryClient();
+  const { user } = useAuth();
   return useMutation({
     mutationFn: async ({
       noteId,
@@ -107,13 +106,10 @@ export function useTogglePinNote() {
       candidateId: string;
       pinned: boolean;
     }) => {
-      const userId = await getUserId();
-      const { error } = await supabase
-        .from('wisehire_candidate_notes')
-        .update({ pinned: !pinned })
-        .eq('id', noteId);
-      if (error) throw error;
-      return { candidateId, userId };
+      await databases.updateDocument(DATABASE_ID, COLLECTIONS.wisehire_candidate_notes, noteId, {
+        pinned: !pinned,
+      });
+      return { candidateId, userId: user?.id };
     },
     onSuccess: ({ candidateId, userId }) => {
       qc.invalidateQueries({ queryKey: ['candidate-notes', userId, candidateId] });

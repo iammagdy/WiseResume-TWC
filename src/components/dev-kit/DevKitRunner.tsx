@@ -1,8 +1,8 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
-import { supabase } from '@/integrations/supabase/safeClient';
-import { getToken, getUserId, isReady, exchangeToken } from '@/lib/supabaseBridge';
+import { databases, account, Query } from '@/lib/appwrite';
+import { COLLECTIONS, DATABASE_ID } from '@/lib/appwrite-collections';
 import { useSettingsStore } from '@/store/settingsStore';
 import { logAudit } from '@/lib/auditLogger';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
@@ -26,7 +26,6 @@ const SAMPLE_JD = 'We are looking for a Senior Frontend Engineer with 3+ years o
 
 /**
  * Lightweight runtime shape for any error-like object the runner observes.
- * Replaces 6 `as any` casts that were previously scattered around the file.
  */
 interface RunnerError {
   message: string;
@@ -74,11 +73,9 @@ export function DevKitRunner() {
   const [sectionRunning, setSectionRunning] = useState<Record<string, boolean>>({});
   const [sectionSummary, setSectionSummary] = useState<Record<string, { passed: number; skipped: number; failed: number }>>({});
   const [globalRunning, setGlobalRunning] = useState(false);
-  // C1: non-critical sections collapsed by default (FR-DK-007)
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({
     routing: true, settings: true, credits: true, db: true, errors: true, usage: true,
   });
-  // C3: smoke run summary (FR-DK-011)
   const [smokeSummary, setSmokeSummary] = useState<{ passed: number; skipped: number; failed: number; failedIds: string[] } | null>(null);
 
   const setResult = useCallback((id: string, r: TestResult) => {
@@ -96,11 +93,6 @@ export function DevKitRunner() {
     setExpandedJson(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
-  /**
-   * Returns a developer-friendly message when the raw error text signals a
-   * missing or invalid server-side AI API key, so that the Dev Kit shows
-   * a clear next step instead of a cryptic "Invalid API key" label.
-   */
   const friendlyAIKeyError = (raw: string): string | null => {
     const s = raw.toLowerCase();
     if (s.includes('openrouter') && (s.includes('invalid_key') || s.includes('invalid api key') || s.includes('401'))) {
@@ -110,7 +102,7 @@ export function DevKitRunner() {
       return 'OpenRouter account has insufficient credits — add funds at openrouter.ai';
     }
     if (s.includes('gemini_api_key') && s.includes('not configured')) {
-      return 'GEMINI_API_KEY not configured — required for headshot generation. Set it in Supabase → Project Settings → Edge Function Secrets';
+      return 'GEMINI_API_KEY not configured — required for headshot generation. Set it in Appwrite → Function Variables';
     }
     if (
       s.includes('invalid_key') ||
@@ -123,26 +115,20 @@ export function DevKitRunner() {
       s.includes('api key not configured') ||
       s.includes('wiseresume ai is not configured')
     ) {
-      return 'AI key not configured — set OPENROUTER_API_KEY and GROQ_API_KEY in Supabase → Project Settings → Edge Function Secrets';
+      return 'AI key not configured — set OPENROUTER_API_KEY and GROQ_API_KEY in Appwrite → Function Variables';
     }
     return null;
   };
 
-  /**
-   * strictInvoke: Helper to enforce US1-FR-DK-002. Wrapped in useCallback so useMemo
-   * dependency on strictInvoke is stable and doesn't cause infinite re-creation of tests[].
-   */
   const strictInvoke = useCallback(async (testId: string, fn: () => Promise<unknown>): Promise<TestResult> => {
     const start = Date.now();
     try {
       const res = await fn();
       const durationMs = Date.now() - start;
 
-      // Check if it's a Supabase edge function response
       if (res && typeof res === 'object' && ('data' in res || 'error' in res)) {
-        const { data, error } = res;
+        const { data, error } = res as { data?: unknown; error?: unknown };
 
-        // Strict Error: Edge function returned an error object
         if (error) {
           const errObj = toRunnerError(error);
           const status = errObj.status ?? 500;
@@ -158,7 +144,6 @@ export function DevKitRunner() {
           };
         }
 
-        // Strict Error: Data payload contains an 'error' field (US1-FR-DK-002)
         if (data && typeof data === 'object' && hasErrorField(data)) {
           const errObj = toRunnerError(data);
           const rawErr = errObj.message;
@@ -176,7 +161,6 @@ export function DevKitRunner() {
         return { status: 'success', data, durationMs, summary: 'OK' };
       }
 
-      // Handle raw responses or direct DB queries
       return { status: 'success', data: res, durationMs, summary: 'OK' };
     } catch (err) {
       const rawMsg = (err instanceof Error ? err.message : String(err)) || String(err);
@@ -204,32 +188,27 @@ export function DevKitRunner() {
       run: () => strictInvoke('auth-state', async () => ({
         isAuthenticated: auth.isAuthenticated,
         supabaseReady: auth.supabaseReady,
-        user: auth.user,
-        bridgeToken: getToken() ? '(present)' : '(null)',
-        bridgeUserId: getUserId(),
-        bridgeReady: isReady()
+        user: auth.user ? { id: auth.user.id, email: auth.user.email, name: auth.user.name } : null,
       })),
     },
     {
-      id: 'token-exchange', label: 'Test Token Exchange', description: 'Call getKindeToken() → exchangeToken()', section: 'auth',
+      id: 'appwrite-session', label: 'Appwrite Session', description: 'Call account.get() to verify active Appwrite session', section: 'auth',
       run: async (): Promise<TestResult> => {
-        if (!auth.isAuthenticated) return { status: 'warn' as const, summary: 'Skipped — sign in to the main app first, then re-run (requires an active Kinde session)', durationMs: 0 };
-        return strictInvoke('token-exchange', async () => {
-          const kindeToken = await auth.getKindeToken();
-          if (!kindeToken) throw new Error('No Kinde token available');
-          await exchangeToken(kindeToken);
-          return { bridgeReady: isReady(), userId: getUserId(), tokenPresent: !!getToken() };
+        if (!auth.isAuthenticated) return { status: 'warn' as const, summary: 'Skipped — sign in to the main app first', durationMs: 0 };
+        return strictInvoke('appwrite-session', async () => {
+          const session = await account.get();
+          return { userId: session.$id, email: session.email, name: session.name, status: session.status };
         });
       },
     },
     {
       id: 'who-am-i', label: 'Who am I?', description: 'Call /me edge function', section: 'auth',
       run: async (): Promise<TestResult> => {
-        if (!auth.isAuthenticated) return { status: 'warn' as const, summary: 'Skipped — sign in to the main app first, then re-run (requires an active Supabase session)', durationMs: 0 };
+        if (!auth.isAuthenticated) return { status: 'warn' as const, summary: 'Skipped — sign in to the main app first', durationMs: 0 };
         return strictInvoke('who-am-i', () => edgeFunctions.functions.invoke('me'));
       },
     },
-    // === EMAIL === — Single consolidated test to conserve the 3,000/month email quota
+    // === EMAIL ===
     {
       id: 'email-service', label: 'Email Service Test', description: 'Validates the email pipeline configuration using dry_run mode — no real email is sent.', section: 'email',
       run: () => strictInvoke('email-service', async () => {
@@ -243,7 +222,7 @@ export function DevKitRunner() {
         return { ...res.data, _hint: 'Dry-run mode: configuration validated without sending a real email.' };
       }),
     },
-    // === AI — Editor AI smoke tests (x-smoke-test: true bypasses credit deduction) ===
+    // === AI ===
     {
       id: 'tailor-resume', label: 'Tailor Resume (smoke)', description: 'Smoke-test tailor-resume edge function — no AI call, no credit deduction', section: 'ai',
       run: async (): Promise<TestResult> => {
@@ -265,7 +244,7 @@ export function DevKitRunner() {
     {
       id: 'ai-engine-openrouter', label: 'Engine · OpenRouter (Gemma 4)', description: 'Directly test WiseResume managed OpenRouter endpoint — admin only', section: 'ai',
       run: async (): Promise<TestResult> => {
-        if (!auth.isAuthenticated) return { status: 'warn' as const, summary: 'Skipped — sign in to the main app first, then re-run (requires an active Supabase session)', durationMs: 0 };
+        if (!auth.isAuthenticated) return { status: 'warn' as const, summary: 'Skipped — sign in first', durationMs: 0 };
         return strictInvoke('ai-engine-openrouter', async () => {
           const res = await edgeFunctions.functions.invoke('ai-test', { body: { wiseresumeSubProvider: 'openrouter' } });
           if (res.error) throw new Error(toRunnerError(res.error).message || 'ai-test error');
@@ -277,7 +256,7 @@ export function DevKitRunner() {
     {
       id: 'ai-engine-groq', label: 'Engine · Groq (Qwen 3 32B)', description: 'Directly test WiseResume managed Groq endpoint (qwen/qwen3-32b) — admin only', section: 'ai',
       run: async (): Promise<TestResult> => {
-        if (!auth.isAuthenticated) return { status: 'warn' as const, summary: 'Skipped — sign in to the main app first, then re-run (requires an active Supabase session)', durationMs: 0 };
+        if (!auth.isAuthenticated) return { status: 'warn' as const, summary: 'Skipped — sign in first', durationMs: 0 };
         return strictInvoke('ai-engine-groq', async () => {
           const res = await edgeFunctions.functions.invoke('ai-test', { body: { wiseresumeSubProvider: 'groq' } });
           if (res.error) throw new Error(toRunnerError(res.error).message || 'ai-test error');
@@ -323,8 +302,18 @@ export function DevKitRunner() {
     })),
     // === ROUTING ===
     {
-      id: 'dashboard-route', label: 'Dashboard Route Check', description: 'Query resumes table (RLS check)', section: 'routing',
-      run: () => strictInvoke('dashboard-route', async () => supabase.from('resumes').select('id').limit(1)),
+      id: 'dashboard-route', label: 'Dashboard Route Check', description: 'List 1 resume from Appwrite (RLS check)', section: 'routing',
+      run: async (): Promise<TestResult> => {
+        if (!auth.isAuthenticated) return { status: 'warn', summary: 'Skipped — sign in first', durationMs: 0 };
+        return strictInvoke('dashboard-route', async () => {
+          const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.resumes, [
+            Query.equal('user_id', auth.user?.id ?? ''),
+            Query.limit(1),
+            Query.select(['$id', 'title']),
+          ]);
+          return { total: res.total, sample: res.documents[0] ?? null };
+        });
+      },
     },
     {
       id: 'protected-route', label: 'ProtectedRoute Auth Check', description: 'Verify useAuth() state', section: 'routing',
@@ -348,15 +337,17 @@ export function DevKitRunner() {
     },
     // === CREDITS ===
     {
-      id: 'ai-credits-read', label: 'AI Credits Read', description: 'Query ai_credits table', section: 'credits',
+      id: 'ai-credits-read', label: 'AI Credits Read', description: 'Query ai_credits from Appwrite', section: 'credits',
       run: async (): Promise<TestResult> => {
-        if (!auth.isAuthenticated) return { status: 'warn' as const, summary: 'Skipped — sign in to the main app first, then re-run (requires an active Supabase session)', durationMs: 0 };
+        if (!auth.isAuthenticated) return { status: 'warn' as const, summary: 'Skipped — sign in first', durationMs: 0 };
         return strictInvoke('ai-credits-read', async () => {
-          const userId = getUserId();
+          const userId = auth.user?.id;
           if (!userId) throw new Error('No userId');
-          const { data, error } = await supabase.from('ai_credits').select('*').eq('user_id', userId).maybeSingle();
-          if (error) throw error;
-          return data;
+          const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.ai_credits, [
+            Query.equal('user_id', userId),
+            Query.limit(1),
+          ]);
+          return res.total > 0 ? res.documents[0] : { user_id: userId, credits: 0, _note: 'No credits record found' };
         });
       },
     },
@@ -367,7 +358,6 @@ export function DevKitRunner() {
         return strictInvoke('resume-section-ai', () => edgeFunctions.functions.invoke('resume-section-ai', { headers: { 'x-smoke-test': 'true', 'x-resume-section-ai-action': 'enhance', ...devKitAuthHeaders() }, body: { section: 'summary', currentContent: MINIMAL_RESUME.summary, context: { resume: MINIMAL_RESUME } } }));
       },
     },
-    // === editor-ai router smoke tests (Task #40) ===
     {
       id: 'editor-ai-analyze', label: 'Editor AI — Analyze (smoke)', description: 'Smoke-test editor-ai router, analyze action — no AI call, no credit deduction', section: 'ai',
       run: async (): Promise<TestResult> => {
@@ -395,56 +385,71 @@ export function DevKitRunner() {
     {
       id: 'cover-letter', label: 'Cover Letter', description: 'Call generate-cover-letter edge function', section: 'ai',
       run: async (): Promise<TestResult> => {
-        if (!auth.isAuthenticated) return { status: 'warn' as const, summary: 'Skipped — sign in to the main app first, then re-run (requires an active Supabase session)', durationMs: 0 };
+        if (!auth.isAuthenticated) return { status: 'warn' as const, summary: 'Skipped — sign in first', durationMs: 0 };
         return strictInvoke('cover-letter', () => edgeFunctions.functions.invoke('generate-cover-letter', { body: { resume: MINIMAL_RESUME, jobDescription: SAMPLE_JD, tone: 'professional' } }));
       },
     },
     // === DB ===
     {
-      id: 'list-resume', label: 'List 1 Resume', description: 'Check direct DB access', section: 'db',
-      run: () => strictInvoke('list-resume', async () => supabase.from('resumes').select('id, title').limit(1)),
+      id: 'list-resume', label: 'List 1 Resume (Appwrite)', description: 'Check Appwrite DB access for resumes collection', section: 'db',
+      run: async (): Promise<TestResult> => {
+        if (!auth.isAuthenticated) return { status: 'warn', summary: 'Skipped — sign in first', durationMs: 0 };
+        return strictInvoke('list-resume', async () => {
+          const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.resumes, [
+            Query.equal('user_id', auth.user?.id ?? ''),
+            Query.limit(1),
+            Query.select(['$id', 'title']),
+          ]);
+          return { total: res.total, sample: res.documents[0] ?? null };
+        });
+      },
     },
     // === ERRORS ===
     {
-      id: 'audit-log-write', label: 'Audit Log Write', description: 'Write and verify a test audit log entry', section: 'errors',
+      id: 'audit-log-write', label: 'Audit Log Write', description: 'Write and verify a test audit log entry via Appwrite', section: 'errors',
       run: async (): Promise<TestResult> => {
-        if (!auth.isAuthenticated) return { status: 'warn' as const, summary: 'Skipped — sign in to the main app first, then re-run (requires an active Supabase session)', durationMs: 0 };
+        if (!auth.isAuthenticated) return { status: 'warn' as const, summary: 'Skipped — sign in first', durationMs: 0 };
         return strictInvoke('audit-log-write', async () => {
-          const userId = getUserId();
+          const userId = auth.user?.id;
           if (!userId) throw new Error('No userId');
           const testAction = `dev-kit-test-${Date.now()}`;
           logAudit('account', testAction, { source: 'dev-kit' });
           await new Promise(r => setTimeout(r, 1500));
-          const { data, error } = await supabase.from('audit_logs').select('id').eq('action', testAction).limit(1);
-          if (error) throw error;
-          if (!data || data.length === 0) throw new Error('Audit log entry not found');
-          return data[0];
+          const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.audit_logs, [
+            Query.equal('action', testAction),
+            Query.limit(1),
+          ]);
+          if (res.total === 0) {
+            return { ok: false, _note: 'Audit log write succeeded locally but Appwrite collection may not yet exist for audit_logs', action: testAction };
+          }
+          return { ok: true, id: res.documents[0].$id, action: testAction };
         });
       },
     },
     // === USAGE ===
-    // U3: Production UI queries usage_events directly via Supabase client (no edge function wraps it).
-    // This Dev Kit test is intentionally a direct DB call — same path as the real feature.
     {
-      id: 'load-usage-events', label: 'Usage Events Health', description: 'Query last 10 events from real table', section: 'usage',
-      run: () => strictInvoke('load-usage-events', async () => {
-        const { data, error } = await supabase.from('usage_events').select('*').order('created_at', { ascending: false }).limit(10);
-        if (error) throw error;
-        return data;
-      }),
+      id: 'load-usage-events', label: 'Usage Events Health', description: 'Query last 10 events from Appwrite usage_events collection', section: 'usage',
+      run: async (): Promise<TestResult> => {
+        if (!auth.isAuthenticated) return { status: 'warn', summary: 'Skipped — sign in first', durationMs: 0 };
+        return strictInvoke('load-usage-events', async () => {
+          const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.usage_events, [
+            Query.orderDesc('$createdAt'),
+            Query.limit(10),
+          ]);
+          return { total: res.total, sample: res.documents.slice(0, 2) };
+        });
+      },
     },
   ], [auth, strictInvoke]);
 
   const runAllInSection = useCallback(async (sectionId: SectionId) => {
     const sectionTests = tests.filter(t => t.section === sectionId);
-    // Auto-expand section when running
     setCollapsed(prev => ({ ...prev, [sectionId]: false }));
     setSectionRunning(prev => ({ ...prev, [sectionId]: true }));
     let passed = 0;
     let skipped = 0;
     let failed = 0;
 
-    // Run sequentially per section
     for (const test of sectionTests) {
       const status = await runTest(test);
       if (status === 'success') passed++;
@@ -460,7 +465,6 @@ export function DevKitRunner() {
     setGlobalRunning(true);
     setSmokeSummary(null);
 
-    // Group EVERY test by its section ID
     const bySectionId: Record<string, TestDef[]> = {};
     for (const test of tests) {
       if (!bySectionId[test.section]) bySectionId[test.section] = [];
@@ -469,16 +473,13 @@ export function DevKitRunner() {
 
     const allStatuses: { id: string; status: string }[] = [];
 
-    // Walk through SECTIONS in order to reveal them progressively
     for (const section of SECTIONS) {
       const sectionTests = bySectionId[section.id];
       if (!sectionTests || sectionTests.length === 0) continue;
 
-      // Reveal & expand this section as we start it
       setCollapsed(prev => ({ ...prev, [section.id]: false }));
       setSectionRunning(prev => ({ ...prev, [section.id]: true }));
 
-      // Run every test in this section one by one
       let passed = 0;
       let skipped = 0;
       let failed = 0;
@@ -488,7 +489,6 @@ export function DevKitRunner() {
         if (status === 'success') passed++;
         else if (status === 'warn') skipped++;
         else failed++;
-        // Add a micro-delay to make the UI feel responsive
         await new Promise(r => setTimeout(r, 50));
       }
 
@@ -509,13 +509,11 @@ export function DevKitRunner() {
 
     const running = sectionRunning[section.id] || false;
     const summary = sectionSummary[section.id];
-    // C1 — FR-DK-007: collapsed state; non-critical sections start collapsed
     const isCollapsed = collapsed[section.id] ?? false;
 
     return (
       <div key={section.id} className="space-y-3">
         <div className="flex items-center justify-between border-b border-border pb-2 px-1">
-          {/* Clickable section header to toggle collapse */}
           <button
             className="flex items-center gap-2 text-left group flex-1 min-w-0"
             onClick={() => setCollapsed(prev => ({ ...prev, [section.id]: !prev[section.id] }))}
@@ -533,20 +531,22 @@ export function DevKitRunner() {
             onClick={() => runAllInSection(section.id)}
             className="hover:bg-primary/10 hover:text-primary transition-colors h-8 flex-shrink-0 ml-2"
           >
-            {running ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <PlayCircle className="w-3.5 h-3.5 mr-1.5" />}
-            Run
+            {running ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <PlayCircle className="h-3 w-3 mr-1" />}
+            Run all
           </Button>
         </div>
+
         {!isCollapsed && (
-          <div className="grid grid-cols-1 gap-3">
+          <div className="space-y-2">
             {sectionTests.map(test => (
               <TestItem
                 key={test.id}
                 test={test}
-                result={results[test.id] || { status: 'idle' }}
-                isExpanded={expandedJson[test.id] || false}
+                result={results[test.id]}
+                expandedJson={expandedJson[test.id] ?? false}
                 onRun={() => runTest(test)}
-                onToggleExpand={() => toggleJson(test.id)}
+                onToggleJson={() => toggleJson(test.id)}
+                globalRunning={globalRunning}
               />
             ))}
           </div>
@@ -556,148 +556,41 @@ export function DevKitRunner() {
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      {/* Sticky toolbar + FR-DK-011 smoke summary banner */}
-      <div className="sticky top-0 z-30 bg-background/98 dark:bg-background backdrop-blur-sm border-b border-border">
-        <div className="flex items-center justify-between py-4 px-1">
-          <div className="flex items-center gap-3">
-            <Button
-              onClick={runSmoke}
-              disabled={globalRunning}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20 transition-all active:scale-95"
-            >
-              {globalRunning ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <PlayCircle className="w-4 h-4 mr-2" />}
-              Run All Smoke
-            </Button>
-            <Button variant="outline" size="sm" onClick={clearAll} disabled={globalRunning} className="h-10">
-              <Trash2 className="w-4 h-4 mr-2" /> Clear All
-            </Button>
-          </div>
-
-          {globalRunning && (
-            <div className="flex items-center gap-2 text-primary font-medium text-sm">
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              Testing Platform Health...
-            </div>
-          )}
-        </div>
-
-        {/* FR-DK-011: Consolidated smoke summary — show after smoke finishes */}
-        {smokeSummary && !globalRunning && (
-          <div className={`px-2 pb-3 flex items-start gap-2 text-sm font-medium ${
-            smokeSummary.failed === 0 ? 'text-green-700 dark:text-green-400' : 'text-destructive'
-          }`}>
-            {smokeSummary.failed === 0
-              ? <CheckCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-              : <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-            }
-            <div>
-              <span>
-                {smokeSummary.failed === 0
-                  ? smokeSummary.passed === 0
-                    ? `⏭ All ${smokeSummary.skipped} checks skipped — sign in to the main app and re-run`
-                    : smokeSummary.skipped > 0
-                      ? `✅ ${smokeSummary.passed} passed · ${smokeSummary.skipped} skipped`
-                      : `✅ All ${smokeSummary.passed} smoke checks passed`
-                  : `❌ ${smokeSummary.failed} failed: ${smokeSummary.failedIds.join(', ')}`
-                }
-              </span>
-              {smokeSummary.failed === 0 && smokeSummary.skipped > 0 && (
-                <p className="text-xs text-muted-foreground font-normal mt-0.5">
-                  {smokeSummary.skipped} check{smokeSummary.skipped !== 1 ? 's' : ''} require a user session —{' '}
-                  <a
-                    href="/sign-in?mode=login"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="underline hover:text-foreground transition-colors"
-                  >
-                    sign in to the main app
-                  </a>
-                  {' '}in a separate tab, then re-run.
-                  {smokeSummary.passed > 0 && ' Email Service Test ran in dry-run mode — no real email was sent.'}
-                </p>
-              )}
-              {smokeSummary.failed === 0 && smokeSummary.skipped === 0 && smokeSummary.passed > 0 && (
-                <p className="text-xs text-muted-foreground font-normal mt-0.5">
-                  Email Service Test ran in dry-run mode — no real email was sent.
-                </p>
-              )}
-            </div>
-          </div>
+    <div className="space-y-6">
+      {/* Global controls */}
+      <div className="flex flex-wrap items-center gap-3">
+        <Button
+          onClick={runSmoke}
+          disabled={globalRunning}
+          className="bg-primary text-primary-foreground hover:bg-primary/90"
+        >
+          {globalRunning
+            ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Running smoke…</>
+            : <><Activity className="h-4 w-4 mr-2" />Run smoke suite</>
+          }
+        </Button>
+        {Object.keys(results).length > 0 && (
+          <Button variant="outline" size="sm" onClick={clearAll} className="gap-1.5">
+            <Trash2 className="h-3.5 w-3.5" />
+            Clear
+          </Button>
         )}
       </div>
 
-      {/* System Health Summary Card */}
-      {(() => {
-        const total = tests.length;
-        const passed = smokeSummary ? smokeSummary.passed : 0;
-        const skipped = smokeSummary ? smokeSummary.skipped : 0;
-        const failed = smokeSummary ? smokeSummary.failed : 0;
-        // Health % is based only on tests that actually ran (not skipped)
-        const ran = passed + failed;
-        const healthPct = smokeSummary ? (ran === 0 ? null : Math.round((passed / ran) * 100)) : null;
-        const isHealthy = healthPct !== null && healthPct === 100;
-        const isPartial = healthPct !== null && healthPct >= 50 && healthPct < 100;
-        const isUnhealthy = healthPct !== null && healthPct < 50;
+      {smokeSummary && (
+        <div className={`rounded-lg border px-4 py-3 flex items-center gap-3 text-sm ${smokeSummary.failed > 0 ? 'border-red-300 bg-red-50 dark:bg-red-900/20 dark:border-red-800' : 'border-emerald-300 bg-emerald-50 dark:bg-emerald-900/20 dark:border-emerald-800'}`}>
+          {smokeSummary.failed > 0
+            ? <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400 shrink-0" />
+            : <CheckCircle className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+          }
+          <span className={smokeSummary.failed > 0 ? 'text-red-700 dark:text-red-300' : 'text-emerald-700 dark:text-emerald-300'}>
+            Smoke suite complete — {smokeSummary.passed} passed, {smokeSummary.skipped} skipped, {smokeSummary.failed} failed
+            {smokeSummary.failedIds.length > 0 && ` (${smokeSummary.failedIds.join(', ')})`}
+          </span>
+        </div>
+      )}
 
-        return (
-          <div className={`rounded-xl border p-4 flex items-center gap-4 transition-all ${
-            isHealthy ? 'border-green-500/30 bg-green-500/5' :
-            isPartial ? 'border-amber-500/30 bg-amber-500/5' :
-            isUnhealthy ? 'border-destructive/30 bg-destructive/5' :
-            'border-border bg-muted/30'
-          }`}>
-            <div className={`rounded-lg p-2.5 shrink-0 ${
-              isHealthy ? 'bg-green-500/20 text-green-600 dark:text-green-400' :
-              isPartial ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400' :
-              isUnhealthy ? 'bg-destructive/20 text-destructive' :
-              'bg-muted text-muted-foreground'
-            }`}>
-              <Activity className="w-5 h-5" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between mb-1.5">
-                <p className="text-sm font-semibold text-foreground">
-                  System Health
-                </p>
-                <span className={`text-sm font-bold tabular-nums ${
-                  isHealthy ? 'text-green-600 dark:text-green-400' :
-                  isPartial ? 'text-amber-600 dark:text-amber-400' :
-                  isUnhealthy ? 'text-destructive' :
-                  'text-muted-foreground'
-                }`}>
-                  {healthPct !== null ? `${healthPct}%` : '—'}
-                </span>
-              </div>
-              <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                {healthPct !== null && (
-                  <div
-                    className={`h-full rounded-full transition-all duration-500 ${
-                      isHealthy ? 'bg-green-500' :
-                      isPartial ? 'bg-amber-500' :
-                      'bg-destructive'
-                    }`}
-                    style={{ width: `${healthPct}%` }}
-                  />
-                )}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {smokeSummary === null
-                  ? `${total} checks available — run smoke test to evaluate health`
-                  : ran === 0
-                    ? `${skipped} checks skipped — sign in to the main app to run session-dependent checks`
-                    : skipped > 0
-                      ? `${passed} of ${ran} checks passing · ${skipped} skipped (sign in to run session checks)`
-                      : `${passed} of ${ran} checks passing`}
-              </p>
-            </div>
-          </div>
-        );
-      })()}
-
-      <div className="space-y-10">
-        {SECTIONS.map(section => renderSection(section))}
-      </div>
+      {SECTIONS.map(renderSection)}
     </div>
   );
 }

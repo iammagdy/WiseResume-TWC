@@ -1,11 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/safeClient';
-import { getUserId } from '@/lib/supabaseBridge';
+import { databases, Query } from '@/lib/appwrite';
+import { COLLECTIONS, DATABASE_ID } from '@/lib/appwrite-collections';
 import { useAuth } from '@/hooks/useAuth';
 import { formatDistanceToNow } from 'date-fns';
 import { ArrowRight, Clock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Skeleton } from '@/components/ui/skeleton';
+import type { Models } from 'appwrite';
 
 const STAGE_COLOURS: Record<string, string> = {
   shortlisted: 'text-blue-600 dark:text-blue-400',
@@ -33,19 +34,36 @@ interface ActivityRow {
 }
 
 function useRecentActivity() {
-  const { isAuthenticated, supabaseReady } = useAuth();
-  const userId = getUserId();
+  const { isAuthenticated, supabaseReady, user } = useAuth();
+  const userId = user?.id;
   return useQuery({
     queryKey: ['pipeline-recent-activity', userId],
     queryFn: async (): Promise<ActivityRow[]> => {
       if (!userId) return [];
-      const { data } = await supabase
-        .from('wisehire_pipeline_events')
-        .select('id, to_stage, moved_at, candidate:wisehire_candidates!candidate_id(name)')
-        .eq('owner_id', userId)
-        .order('moved_at', { ascending: false })
-        .limit(6);
-      return (data ?? []) as ActivityRow[];
+      const eventsRes = await databases.listDocuments(DATABASE_ID, COLLECTIONS.wisehire_pipeline_events, [
+        Query.equal('owner_id', userId),
+        Query.orderDesc('moved_at'),
+        Query.limit(6),
+      ]);
+
+      const candidateIds = [...new Set(eventsRes.documents.map((e) => e.candidate_id as string).filter(Boolean))];
+      const candidates = await Promise.all(
+        candidateIds.map((id) =>
+          databases.getDocument(DATABASE_ID, COLLECTIONS.wisehire_candidates, id).catch(() => null),
+        ),
+      );
+
+      const candidateMap: Record<string, string> = {};
+      for (const c of candidates) {
+        if (c) candidateMap[c.$id] = c.name as string;
+      }
+
+      return eventsRes.documents.map((e) => ({
+        id: e.$id,
+        to_stage: e.to_stage as string,
+        moved_at: e.moved_at as string,
+        candidate: e.candidate_id ? { name: candidateMap[e.candidate_id as string] ?? 'Unknown candidate' } : null,
+      }));
     },
     enabled: isAuthenticated && supabaseReady && !!userId,
     staleTime: 60_000,

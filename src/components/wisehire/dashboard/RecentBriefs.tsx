@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { databases, Query } from '@/lib/appwrite';
+import { COLLECTIONS, DATABASE_ID } from '@/lib/appwrite-collections';
 import { useAuth } from '@/hooks/useAuth';
-import { getUserId } from '@/lib/supabaseBridge';
 import { Sparkles, ChevronRight, ArrowRight } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -15,25 +15,50 @@ interface BriefRow {
 }
 
 function useRecentBriefs() {
-  const { isAuthenticated, supabaseReady } = useAuth();
-  const userId = getUserId();
+  const { isAuthenticated, supabaseReady, user } = useAuth();
+  const userId = user?.id;
 
   return useQuery({
     queryKey: ['wisehire-recent-briefs', userId],
     queryFn: async (): Promise<BriefRow[]> => {
       if (!userId) return [];
-      const { data, error } = await supabase
-        .from('wisehire_candidate_briefs')
-        .select('id, match_score, created_at, candidate:wisehire_candidates(name), role:wisehire_roles(title)')
-        .eq('owner_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(3);
+      const briefsRes = await databases.listDocuments(DATABASE_ID, COLLECTIONS.wisehire_candidate_briefs, [
+        Query.equal('owner_id', userId),
+        Query.orderDesc('created_at'),
+        Query.limit(3),
+        Query.select(['match_score', 'created_at', 'candidate_id', 'role_id']),
+      ]);
 
-      if (error) {
-        console.warn('[RecentBriefs]', error.message);
-        return [];
+      if (briefsRes.total === 0) return [];
+
+      const candidateIds = [...new Set(briefsRes.documents.map((b) => b.candidate_id as string).filter(Boolean))];
+      const roleIds = [...new Set(briefsRes.documents.map((b) => b.role_id as string).filter(Boolean))];
+
+      const [candidates, roles] = await Promise.all([
+        Promise.all(candidateIds.map((id) =>
+          databases.getDocument(DATABASE_ID, COLLECTIONS.wisehire_candidates, id).catch(() => null),
+        )),
+        Promise.all(roleIds.map((id) =>
+          databases.getDocument(DATABASE_ID, COLLECTIONS.wisehire_roles, id).catch(() => null),
+        )),
+      ]);
+
+      const candidateMap: Record<string, string> = {};
+      for (const c of candidates) {
+        if (c) candidateMap[c.$id] = c.name as string;
       }
-      return (data ?? []) as BriefRow[];
+      const roleMap: Record<string, string> = {};
+      for (const r of roles) {
+        if (r) roleMap[r.$id] = r.title as string;
+      }
+
+      return briefsRes.documents.map((b) => ({
+        id: b.$id,
+        match_score: b.match_score as number | null,
+        created_at: b.created_at as string,
+        candidate: b.candidate_id ? { name: candidateMap[b.candidate_id as string] ?? 'Unknown candidate' } : null,
+        role: b.role_id ? { title: roleMap[b.role_id as string] ?? 'Unknown role' } : null,
+      }));
     },
     enabled: isAuthenticated && supabaseReady && !!userId,
     staleTime: 60 * 1000,

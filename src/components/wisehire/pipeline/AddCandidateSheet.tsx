@@ -9,8 +9,9 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { Loader2, UserPlus, AlertTriangle } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/safeClient';
-import { getUserId } from '@/lib/supabaseBridge';
+import { databases, Query } from '@/lib/appwrite';
+import { COLLECTIONS, DATABASE_ID } from '@/lib/appwrite-collections';
+import { useAuth } from '@/hooks/useAuth';
 import type { PipelineStage } from '@/hooks/wisehire/usePipeline';
 
 interface Role {
@@ -33,28 +34,64 @@ interface AddCandidateSheetProps {
   onAdd: (data: { name: string; email?: string; roleId?: string; stage?: PipelineStage }) => Promise<void>;
 }
 
-async function checkForDuplicates(name: string, email: string): Promise<DuplicateMatch[]> {
-  const userId = await getUserId();
-  if (!userId || (!name.trim() && !email.trim())) return [];
+function useCurrentUserId() {
+  const { user } = useAuth();
+  return user?.id;
+}
 
-  const orParts: string[] = [];
+async function checkForDuplicates(
+  userId: string,
+  name: string,
+  email: string,
+): Promise<DuplicateMatch[]> {
+  if (!name.trim() && !email.trim()) return [];
+
+  const checks: Promise<DuplicateMatch[]>[] = [];
+
   if (name.trim().length >= 2) {
-    orParts.push(`name.ilike.${name.trim()}`);
+    checks.push(
+      databases.listDocuments(DATABASE_ID, COLLECTIONS.wisehire_candidates, [
+        Query.equal('owner_id', userId),
+        Query.equal('is_deleted', false),
+        Query.equal('name', name.trim()),
+        Query.limit(3),
+      ]).then((res) =>
+        res.documents.map((d) => ({
+          id: d.$id,
+          name: d.name as string,
+          pipeline_stage: d.pipeline_stage as string,
+        })),
+      ).catch(() => []),
+    );
   }
+
   if (email.trim().length >= 4) {
-    orParts.push(`email.ilike.${email.trim()}`);
+    checks.push(
+      databases.listDocuments(DATABASE_ID, COLLECTIONS.wisehire_candidates, [
+        Query.equal('owner_id', userId),
+        Query.equal('is_deleted', false),
+        Query.equal('email', email.trim()),
+        Query.limit(3),
+      ]).then((res) =>
+        res.documents.map((d) => ({
+          id: d.$id,
+          name: d.name as string,
+          pipeline_stage: d.pipeline_stage as string,
+        })),
+      ).catch(() => []),
+    );
   }
-  if (!orParts.length) return [];
 
-  const { data } = await supabase
-    .from('wisehire_candidates')
-    .select('id, name, pipeline_stage')
-    .eq('owner_id', userId)
-    .eq('is_deleted', false)
-    .or(orParts.join(','))
-    .limit(3);
+  if (checks.length === 0) return [];
 
-  return (data ?? []) as DuplicateMatch[];
+  const results = await Promise.all(checks);
+  const merged = results.flat();
+  const seen = new Set<string>();
+  return merged.filter((d) => {
+    if (seen.has(d.id)) return false;
+    seen.add(d.id);
+    return true;
+  }).slice(0, 3);
 }
 
 export function AddCandidateSheet({ open, onClose, roles, defaultRoleId, defaultStage, onAdd }: AddCandidateSheetProps) {
@@ -65,6 +102,7 @@ export function AddCandidateSheet({ open, onClose, roles, defaultRoleId, default
   const [error, setError] = useState('');
   const [duplicates, setDuplicates] = useState<DuplicateMatch[]>([]);
   const checkTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const userId = useCurrentUserId();
 
   useEffect(() => {
     if (!open) {
@@ -79,7 +117,8 @@ export function AddCandidateSheet({ open, onClose, roles, defaultRoleId, default
   function scheduleDuplicateCheck(newName: string, newEmail: string) {
     if (checkTimer.current) clearTimeout(checkTimer.current);
     checkTimer.current = setTimeout(async () => {
-      const matches = await checkForDuplicates(newName, newEmail);
+      if (!userId) return;
+      const matches = await checkForDuplicates(userId, newName, newEmail);
       setDuplicates(matches);
     }, 600);
   }
@@ -170,7 +209,6 @@ export function AddCandidateSheet({ open, onClose, roles, defaultRoleId, default
             />
           </div>
 
-          {/* Duplicate warning */}
           {duplicates.length > 0 && (
             <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-800 p-3 space-y-1.5">
               <div className="flex items-center gap-1.5 text-amber-700 dark:text-amber-400">

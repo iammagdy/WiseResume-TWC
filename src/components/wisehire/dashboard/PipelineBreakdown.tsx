@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/safeClient';
-import { getUserId } from '@/lib/supabaseBridge';
+import { databases, Query } from '@/lib/appwrite';
+import { COLLECTIONS, DATABASE_ID } from '@/lib/appwrite-collections';
 import { useAuth } from '@/hooks/useAuth';
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
@@ -20,8 +20,8 @@ interface StageCounts {
 }
 
 function usePipelineBreakdown() {
-  const { isAuthenticated, supabaseReady } = useAuth();
-  const userId = getUserId();
+  const { isAuthenticated, supabaseReady, user } = useAuth();
+  const userId = user?.id;
   return useQuery({
     queryKey: ['pipeline-breakdown', userId],
     queryFn: async (): Promise<{ counts: StageCounts; addedThisWeek: number }> => {
@@ -29,18 +29,19 @@ function usePipelineBreakdown() {
 
       const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
-      const { data } = await supabase
-        .from('wisehire_candidates')
-        .select('pipeline_stage, created_at')
-        .eq('owner_id', userId)
-        .eq('is_deleted', false);
+      const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.wisehire_candidates, [
+        Query.equal('owner_id', userId),
+        Query.equal('is_deleted', false),
+        Query.select(['pipeline_stage', 'created_at']),
+        Query.limit(5000),
+      ]);
 
       const counts: StageCounts = {};
       let addedThisWeek = 0;
-      for (const c of data ?? []) {
-        const s = c.pipeline_stage ?? 'shortlisted';
+      for (const c of res.documents) {
+        const s = (c.pipeline_stage as string) ?? 'shortlisted';
         counts[s] = (counts[s] ?? 0) + 1;
-        if (c.created_at >= weekAgo) addedThisWeek++;
+        if ((c.created_at as string) >= weekAgo) addedThisWeek++;
       }
       return { counts, addedThisWeek };
     },

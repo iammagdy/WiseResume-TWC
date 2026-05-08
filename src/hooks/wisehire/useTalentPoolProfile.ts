@@ -1,8 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/safeClient';
-import { getUserId } from '@/lib/supabaseBridge';
+import { databases, ID, Query } from '@/lib/appwrite';
+import { COLLECTIONS, DATABASE_ID } from '@/lib/appwrite-collections';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import type { Models } from 'appwrite';
 
 export interface TalentPoolProfile {
   id: string;
@@ -31,62 +32,63 @@ export interface TalentPoolProfileUpdate {
   opted_in?: boolean;
 }
 
+function docToProfile(doc: Models.Document): TalentPoolProfile {
+  return { ...doc, id: doc.$id } as unknown as TalentPoolProfile;
+}
+
 export function useMyTalentProfile() {
-  const { isAuthenticated, supabaseReady } = useAuth();
+  const { isAuthenticated, supabaseReady, user } = useAuth();
+  const userId = user?.id;
   return useQuery({
-    queryKey: ['talent-pool-profile-me'],
+    queryKey: ['talent-pool-profile-me', userId],
     queryFn: async () => {
-      const userId = await getUserId();
       if (!userId) return null;
-      const { data, error } = await supabase
-        .from('talent_pool_profiles')
-        .select('*')
-        .eq('user_id', userId)
-        .maybeSingle();
-      if (error) throw error;
-      return data as TalentPoolProfile | null;
+      const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.talent_pool_profiles, [
+        Query.equal('user_id', userId),
+        Query.limit(1),
+      ]);
+      return res.total > 0 ? docToProfile(res.documents[0]) : null;
     },
-    enabled: isAuthenticated && supabaseReady,
+    enabled: isAuthenticated && supabaseReady && !!userId,
     staleTime: 60_000,
   });
 }
 
 export function useMyTalentViews() {
-  const { isAuthenticated, supabaseReady } = useAuth();
+  const { isAuthenticated, supabaseReady, user } = useAuth();
+  const userId = user?.id;
   return useQuery({
-    queryKey: ['talent-pool-views-me'],
+    queryKey: ['talent-pool-views-me', userId],
     queryFn: async () => {
-      const userId = await getUserId();
       if (!userId) return [];
-      const { data: profile } = await supabase
-        .from('talent_pool_profiles')
-        .select('id')
-        .eq('user_id', userId)
-        .maybeSingle();
-      if (!profile) return [];
-      const { data, error } = await supabase
-        .from('talent_pool_views')
-        .select('id, viewed_at')
-        .eq('profile_id', profile.id)
-        .order('viewed_at', { ascending: false })
-        .limit(50);
-      if (error) throw error;
-      return data ?? [];
+      const profileRes = await databases.listDocuments(DATABASE_ID, COLLECTIONS.talent_pool_profiles, [
+        Query.equal('user_id', userId),
+        Query.limit(1),
+        Query.select(['$id']),
+      ]);
+      if (profileRes.total === 0) return [];
+      const profileId = profileRes.documents[0].$id;
+      const viewsRes = await databases.listDocuments(DATABASE_ID, COLLECTIONS.talent_pool_views, [
+        Query.equal('profile_id', profileId),
+        Query.orderDesc('viewed_at'),
+        Query.limit(50),
+      ]);
+      return viewsRes.documents.map((d) => ({ id: d.$id, viewed_at: d.viewed_at as string }));
     },
-    enabled: isAuthenticated && supabaseReady,
+    enabled: isAuthenticated && supabaseReady && !!userId,
     staleTime: 30_000,
   });
 }
 
 export function useUpsertTalentProfile() {
   const qc = useQueryClient();
+  const { user } = useAuth();
   return useMutation({
     mutationFn: async (updates: TalentPoolProfileUpdate) => {
-      const userId = await getUserId();
+      const userId = user?.id;
       if (!userId) throw new Error('Not authenticated');
 
       const payload: Record<string, unknown> = {
-        user_id: userId,
         ...updates,
         updated_at: new Date().toISOString(),
       };
@@ -97,17 +99,32 @@ export function useUpsertTalentProfile() {
         payload.opted_in_at = null;
       }
 
-      const { data, error } = await supabase
-        .from('talent_pool_profiles')
-        .upsert(payload, { onConflict: 'user_id' })
-        .select()
-        .single();
+      const existing = await databases.listDocuments(DATABASE_ID, COLLECTIONS.talent_pool_profiles, [
+        Query.equal('user_id', userId),
+        Query.limit(1),
+      ]);
 
-      if (error) throw error;
-      return data;
+      if (existing.total > 0) {
+        const doc = await databases.updateDocument(
+          DATABASE_ID,
+          COLLECTIONS.talent_pool_profiles,
+          existing.documents[0].$id,
+          payload,
+        );
+        return docToProfile(doc);
+      } else {
+        const doc = await databases.createDocument(
+          DATABASE_ID,
+          COLLECTIONS.talent_pool_profiles,
+          ID.unique(),
+          { user_id: userId, ...payload },
+        );
+        return docToProfile(doc);
+      }
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['talent-pool-profile-me'] });
+      const userId = user?.id;
+      qc.invalidateQueries({ queryKey: ['talent-pool-profile-me', userId] });
     },
     onError: (err: Error) => {
       toast.error(err.message ?? 'Failed to update profile');

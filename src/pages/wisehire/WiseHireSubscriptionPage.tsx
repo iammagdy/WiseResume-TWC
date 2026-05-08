@@ -5,10 +5,10 @@ import { WiseHireShell } from '@/components/wisehire/WiseHireShell';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { edgeFunctions } from '@/lib/edgeFunctions';
 import { useWiseHireAccount } from '@/hooks/wisehire/useWiseHireAccount';
 import { useQueryClient } from '@tanstack/react-query';
-import { getUserId } from '@/lib/supabaseBridge';
+import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
 interface Tier {
@@ -82,7 +82,8 @@ const TIERS: Tier[] = [
 export default function WiseHireSubscriptionPage() {
   const { data: account, isLoading } = useWiseHireAccount();
   const queryClient = useQueryClient();
-  const userId = getUserId();
+  const { user } = useAuth();
+  const userId = user?.id;
 
   const [couponCode, setCouponCode] = useState('');
   const [couponLoading, setCouponLoading] = useState(false);
@@ -95,17 +96,14 @@ export default function WiseHireSubscriptionPage() {
     setCouponError('');
 
     try {
-      // Task #48: route through the merged `coupons` edge function. The
-      // sub-handler is selected by the `x-coupons-action` header so the
-      // request body stays byte-for-byte identical to the original
-      // redeem-coupon contract.
-      const { data, error } = await supabase.functions.invoke('coupons', {
+      const { data, error } = await edgeFunctions.invoke<{ success: boolean; error?: string }>('coupons', {
         body: { code: couponCode.trim() },
         headers: { 'x-coupons-action': 'redeem' },
       });
 
+      const errMsg = (error as { message?: string } | null)?.message;
       if (error || !data?.success) {
-        setCouponError(data?.error ?? error?.message ?? 'Invalid or expired coupon code.');
+        setCouponError(data?.error ?? errMsg ?? 'Invalid or expired coupon code.');
       } else {
         toast.success('Coupon applied! Your plan has been updated.');
         setCouponCode('');
@@ -122,7 +120,6 @@ export default function WiseHireSubscriptionPage() {
     <WiseHireShell>
     <div className="py-10 px-4">
       <div className="max-w-5xl mx-auto">
-        {/* Header */}
         <div className="mb-2">
           <Link
             to="/wisehire/dashboard"
@@ -145,12 +142,10 @@ export default function WiseHireSubscriptionPage() {
           </p>
         </div>
 
-        {/* Current plan status */}
         {!isLoading && account && (
           <CurrentPlanBanner account={account} />
         )}
 
-        {/* Tier cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
           {TIERS.map((tier) => (
             <TierCard
@@ -161,7 +156,6 @@ export default function WiseHireSubscriptionPage() {
           ))}
         </div>
 
-        {/* Coupon redemption */}
         <div className="max-w-sm mx-auto bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
           <div className="flex items-center gap-2 mb-4">
             <Tag className="h-4 w-4 text-blue-600" />
@@ -266,7 +260,6 @@ function TierCard({ tier, isCurrent }: { tier: Tier; isCurrent: boolean }) {
           : 'border-slate-200 dark:border-slate-800'
       }`}
     >
-      {/* Early Access badge */}
       <div className="flex items-center gap-2 mb-3">
         <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide">
           <Sparkles className="h-2.5 w-2.5" />

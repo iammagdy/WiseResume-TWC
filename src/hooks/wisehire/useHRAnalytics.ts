@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
-import { apiFetch } from '@/lib/apiFetch';
+import { databases, Query } from '@/lib/appwrite';
+import { COLLECTIONS, DATABASE_ID } from '@/lib/appwrite-collections';
 import { useAuth } from '@/hooks/useAuth';
+import type { Models } from 'appwrite';
 
 export type AnalyticsDateRange = 'week' | 'month' | 'quarter' | 'all';
 
@@ -48,42 +50,89 @@ interface ServerEvent {
   to_stage: string | null;
   created_at: string;
 }
-interface ServerAnalyticsResponse {
-  candidates: ServerCandidate[];
-  pipelineEvents: ServerEvent[];
-  companyId: string | null;
-  bulkJobs: { results?: Array<{ match_score?: number }> }[];
-  briefs: { id: string }[];
-  roles: { id: string }[];
-  talentViews: { id: string }[];
+
+function docToCandidate(doc: Models.Document): ServerCandidate {
+  return {
+    id: doc.$id,
+    pipeline_stage: doc.pipeline_stage as string,
+    resume_text: (doc.resume_text as string | null) ?? null,
+    created_at: (doc.created_at as string) ?? doc.$createdAt,
+    source: (doc.source as string | null) ?? null,
+  };
+}
+
+function docToEvent(doc: Models.Document): ServerEvent {
+  return {
+    candidate_id: doc.candidate_id as string,
+    from_stage: (doc.from_stage as string | null) ?? null,
+    to_stage: (doc.to_stage as string | null) ?? null,
+    created_at: (doc.moved_at as string) ?? doc.$createdAt,
+  };
 }
 
 export function useHRAnalytics(dateRange: AnalyticsDateRange = 'all') {
   const { isAuthenticated, supabaseReady, user } = useAuth();
+  const userId = user?.id;
 
   return useQuery({
-    queryKey: ['hr-analytics', user?.id, dateRange],
+    queryKey: ['hr-analytics', userId, dateRange],
     queryFn: async (): Promise<HRAnalytics> => {
-      const data = await apiFetch<ServerAnalyticsResponse>('/api/data/hr-analytics', {
-        query: { range: dateRange },
-      });
+      if (!userId) throw new Error('Not authenticated');
 
-      const candidates = data.candidates ?? [];
-      const allEvents = data.pipelineEvents ?? [];
-      const bulkJobs = data.bulkJobs ?? [];
-      const roles = data.roles ?? [];
-      const briefs = data.briefs ?? [];
-      const talentViews = data.talentViews ?? [];
-      const hireEvents = allEvents.filter(e => e.to_stage === 'hired');
+      const dateFilters: string[] = [];
+      if (dateRange !== 'all') {
+        const days = dateRange === 'week' ? 7 : dateRange === 'month' ? 30 : 90;
+        const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+        dateFilters.push(Query.greaterThanEqual('created_at', startDate));
+      }
 
-      // Candidates by stage
+      const [candidatesRes, eventsRes, bulkRes, briefsRes, rolesRes, talentViewsRes] = await Promise.all([
+        databases.listDocuments(DATABASE_ID, COLLECTIONS.wisehire_candidates, [
+          Query.equal('owner_id', userId),
+          Query.equal('is_deleted', false),
+          ...dateFilters,
+          Query.limit(5000),
+        ]),
+        databases.listDocuments(DATABASE_ID, COLLECTIONS.wisehire_pipeline_events, [
+          Query.equal('owner_id', userId),
+          ...dateFilters,
+          Query.limit(5000),
+        ]),
+        databases.listDocuments(DATABASE_ID, COLLECTIONS.wisehire_bulk_screen_jobs, [
+          Query.equal('owner_id', userId),
+          ...dateFilters,
+          Query.limit(1000),
+        ]),
+        databases.listDocuments(DATABASE_ID, COLLECTIONS.wisehire_candidate_briefs, [
+          Query.equal('owner_id', userId),
+          ...dateFilters,
+          Query.limit(5000),
+        ]),
+        databases.listDocuments(DATABASE_ID, COLLECTIONS.wisehire_roles, [
+          Query.equal('owner_id', userId),
+          Query.equal('is_deleted', false),
+          Query.notEqual('status', 'archived'),
+          Query.limit(500),
+        ]),
+        databases.listDocuments(DATABASE_ID, COLLECTIONS.talent_pool_views, [
+          ...dateFilters,
+          Query.limit(5000),
+        ]),
+      ]);
+
+      const candidates = candidatesRes.documents.map(docToCandidate);
+      const allEvents = eventsRes.documents.map(docToEvent);
+      const bulkJobs = bulkRes.documents.map((d) => ({
+        results: (d.results ?? null) as Array<{ match_score?: number }> | null,
+      }));
+      const hireEvents = allEvents.filter((e) => e.to_stage === 'hired');
+
       const stageMap: Record<string, number> = {};
       for (const c of candidates) {
         stageMap[c.pipeline_stage] = (stageMap[c.pipeline_stage] ?? 0) + 1;
       }
       const candidatesByStage = Object.entries(stageMap).map(([stage, count]) => ({ stage, count }));
 
-      // Candidates over time (last 6 months)
       const monthCounts: Record<string, number> = {};
       for (const c of candidates) {
         const d = new Date(c.created_at);
@@ -98,7 +147,6 @@ export function useHRAnalytics(dateRange: AnalyticsDateRange = 'all') {
         return { month: label, count: monthCounts[key] ?? 0 };
       });
 
-      // Avg match score from bulk screen results
       const allScores: number[] = [];
       for (const job of bulkJobs) {
         if (Array.isArray(job.results)) {
@@ -116,7 +164,6 @@ export function useHRAnalytics(dateRange: AnalyticsDateRange = 'all') {
         return sum + results;
       }, 0);
 
-      // Top skills from candidate resume_text
       const commonSkills = ['React', 'TypeScript', 'Python', 'Node.js', 'SQL', 'AWS', 'Docker', 'Java', 'Go', 'Kubernetes', 'GraphQL', 'REST API', 'MongoDB', 'PostgreSQL', 'Machine Learning', 'Product Management', 'Agile', 'Scrum', 'Figma', 'Design'];
       const skillMap: Record<string, number> = {};
       for (const c of candidates) {
@@ -132,7 +179,6 @@ export function useHRAnalytics(dateRange: AnalyticsDateRange = 'all') {
         .slice(0, 8)
         .map(([skill, count]) => ({ skill, count }));
 
-      // Avg time to hire in days
       let avgTimeToHire: number | null = null;
       if (hireEvents.length > 0) {
         const times: number[] = [];
@@ -150,10 +196,8 @@ export function useHRAnalytics(dateRange: AnalyticsDateRange = 'all') {
         }
       }
 
-      // Stage conversion funnel
       const reachedStage: Record<string, Set<string>> = {};
       for (const s of FUNNEL_STAGES) reachedStage[s.id] = new Set();
-
       for (const c of candidates) {
         const idx = FUNNEL_STAGES.findIndex((s) => s.id === c.pipeline_stage);
         if (idx >= 0) {
@@ -167,15 +211,14 @@ export function useHRAnalytics(dateRange: AnalyticsDateRange = 'all') {
         }
       }
 
-      const topCount = Math.max(reachedStage['shortlisted'].size, 1);
+      const topCount = Math.max(reachedStage['shortlisted']?.size ?? 0, 1);
       const stageFunnel: StageFunnelEntry[] = FUNNEL_STAGES.map((s) => ({
         stage: s.id,
         label: s.label,
-        count: reachedStage[s.id].size,
-        pct: Math.round((reachedStage[s.id].size / topCount) * 100),
+        count: reachedStage[s.id]?.size ?? 0,
+        pct: Math.round(((reachedStage[s.id]?.size ?? 0) / topCount) * 100),
       }));
 
-      // Source breakdown
       const srcMap: Record<string, number> = {};
       for (const c of candidates) {
         const src = c.source ?? 'manual';
@@ -186,7 +229,6 @@ export function useHRAnalytics(dateRange: AnalyticsDateRange = 'all') {
         .sort(([, a], [, b]) => b - a)
         .map(([source, count]) => ({ source, count }));
 
-      // Avg days per stage
       const candidateEventMap: Record<string, ServerEvent[]> = {};
       for (const evt of allEvents) {
         if (!candidateEventMap[evt.candidate_id]) candidateEventMap[evt.candidate_id] = [];
@@ -236,15 +278,15 @@ export function useHRAnalytics(dateRange: AnalyticsDateRange = 'all') {
         candidatesOverTime,
         topSkills,
         avgTimeToHire,
-        talentPoolViews: talentViews.length,
-        activeRoles: roles.length,
-        briefsGenerated: briefs.length,
+        talentPoolViews: talentViewsRes.total,
+        activeRoles: rolesRes.total,
+        briefsGenerated: briefsRes.total,
         stageFunnel,
         sourceBreakdown,
         avgDaysPerStage,
       };
     },
-    enabled: isAuthenticated && supabaseReady,
+    enabled: isAuthenticated && supabaseReady && !!userId,
     staleTime: 120_000,
   });
 }

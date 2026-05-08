@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { WiseHireShell } from '@/components/wisehire/WiseHireShell';
 import { useWiseHireAccount } from '@/hooks/wisehire/useWiseHireAccount';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/safeClient';
-import { getUserId } from '@/lib/supabaseBridge';
+import { databases, ID, Query } from '@/lib/appwrite';
+import { COLLECTIONS, DATABASE_ID } from '@/lib/appwrite-collections';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -33,12 +33,10 @@ const COMPANY_SIZES = [
   { value: '1000+', label: '1,000+ employees' },
 ];
 
-// ── Company Profile Section ───────────────────────────────────────
-
 function CompanyProfileSection() {
   const { data: account } = useWiseHireAccount();
   const { user } = useAuth();
-  const userId = getUserId();
+  const userId = user?.id;
   const queryClient = useQueryClient();
 
   const [name, setName] = useState(account?.company?.name ?? '');
@@ -58,13 +56,27 @@ function CompanyProfileSection() {
     setSaving(true);
     setSaveError('');
     try {
-      const { error } = await supabase
-        .from('wisehire_companies')
-        .upsert(
-          { owner_id: userId, name: name.trim(), size },
-          { onConflict: 'owner_id' },
+      const existing = await databases.listDocuments(DATABASE_ID, COLLECTIONS.wisehire_companies, [
+        Query.equal('owner_id', userId),
+        Query.limit(1),
+      ]);
+
+      if (existing.total > 0) {
+        await databases.updateDocument(
+          DATABASE_ID,
+          COLLECTIONS.wisehire_companies,
+          existing.documents[0].$id,
+          { name: name.trim(), size },
         );
-      if (error) throw new Error(error.message);
+      } else {
+        await databases.createDocument(
+          DATABASE_ID,
+          COLLECTIONS.wisehire_companies,
+          ID.unique(),
+          { owner_id: userId, name: name.trim(), size },
+        );
+      }
+
       queryClient.invalidateQueries({ queryKey: ['wisehire-account', userId] });
       window.scrollTo({ top: 0, behavior: 'smooth' });
       toast.success('Company profile saved.');
@@ -133,8 +145,6 @@ function CompanyProfileSection() {
   );
 }
 
-// ── Account Info Section ─────────────────────────────────────────
-
 function AccountInfoSection() {
   const { user } = useAuth();
 
@@ -146,7 +156,7 @@ function AccountInfoSection() {
         </div>
         <div>
           <h2 className="text-base font-semibold text-slate-900 dark:text-white">Account</h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Your Kinde account info.</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Your account info.</p>
         </div>
       </div>
 
@@ -166,13 +176,11 @@ function AccountInfoSection() {
       </div>
 
       <p className="text-xs text-slate-400 dark:text-slate-500">
-        To change your name or email, visit your Kinde account settings.
+        To change your name or email, visit your account settings.
       </p>
     </section>
   );
 }
-
-// ── Page ─────────────────────────────────────────────────────────
 
 export default function WiseHireSettingsPage() {
   return (

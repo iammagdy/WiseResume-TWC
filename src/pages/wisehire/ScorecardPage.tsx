@@ -12,7 +12,8 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { databases } from '@/lib/appwrite';
+import { COLLECTIONS, DATABASE_ID } from '@/lib/appwrite-collections';
 import {
   useScorecards,
   useCreateScorecard,
@@ -22,13 +23,6 @@ import {
 import { useScorecardTemplates } from '@/hooks/wisehire/useScorecardTemplates';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-
-// WiseHire tables live in a separate schema not yet reflected in the generated DB types.
-// This helper provides a single, narrowed access point for those tables.
-type WiseHireTableName = 'wisehire_candidates' | 'wisehire_candidate_briefs' | 'wisehire_scorecards';
-function wiseHireFrom(table: WiseHireTableName) {
-  return (supabase as unknown as { from(t: WiseHireTableName): ReturnType<typeof supabase.from> }).from(table);
-}
 
 export default function ScorecardPage() {
   const { candidateId } = useParams<{ candidateId: string }>();
@@ -59,19 +53,31 @@ export default function ScorecardPage() {
     async function load() {
       setResolving(true);
       try {
-        const { data: candidate } = await wiseHireFrom('wisehire_candidates')
-          .select('name')
-          .eq('id', candidateId)
-          .maybeSingle();
-        if ((candidate as { name?: string } | null)?.name) setCandidateName((candidate as { name: string }).name);
+        try {
+          const candidateDoc = await databases.getDocument(
+            DATABASE_ID,
+            COLLECTIONS.wisehire_candidates,
+            candidateId!,
+          );
+          const cName = candidateDoc.name as string | undefined;
+          if (cName) setCandidateName(cName);
+        } catch {
+          // candidate not found — proceed without name
+        }
 
         if (briefId) {
-          const { data: brief } = await wiseHireFrom('wisehire_candidate_briefs')
-            .select('interview_questions')
-            .eq('id', briefId)
-            .maybeSingle();
-          if (brief?.interview_questions?.length) {
-            setBriefQuestions(brief.interview_questions);
+          try {
+            const briefDoc = await databases.getDocument(
+              DATABASE_ID,
+              COLLECTIONS.wisehire_candidate_briefs,
+              briefId,
+            );
+            const qs = briefDoc.interview_questions as string[] | null;
+            if (qs && qs.length > 0) {
+              setBriefQuestions(qs);
+            }
+          } catch {
+            // brief not found — use fallback questions
           }
         }
       } finally {
@@ -111,14 +117,16 @@ export default function ScorecardPage() {
     if (!template) return;
     setApplyingTemplate(true);
     try {
-      const { error } = await wiseHireFrom('wisehire_scorecards')
-        .update({
+      await databases.updateDocument(
+        DATABASE_ID,
+        COLLECTIONS.wisehire_scorecards,
+        scorecard.id,
+        {
           questions: template.questions,
           ratings: new Array(template.questions.length).fill(null),
           notes: new Array(template.questions.length).fill(''),
-        })
-        .eq('id', scorecard.id);
-      if (error) throw error;
+        },
+      );
       await qc.invalidateQueries({ queryKey: ['scorecards', candidateId] });
       toast.success(`Template "${template.title}" applied.`);
     } catch {
@@ -151,7 +159,6 @@ export default function ScorecardPage() {
   return (
     <WiseHireShell>
       <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
-        {/* Header */}
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon" asChild>
@@ -171,7 +178,6 @@ export default function ScorecardPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Template picker — only when not submitted */}
             {!isSubmitted && templates.length > 0 && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -217,7 +223,6 @@ export default function ScorecardPage() {
           </div>
         </div>
 
-        {/* Fallback questions notice */}
         {usedFallback && !fallbackDismissed && !isSubmitted && (
           <Alert className="border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-800">
             <AlertDescription className="flex items-start justify-between gap-3 text-sm text-amber-800 dark:text-amber-300">
@@ -234,7 +239,6 @@ export default function ScorecardPage() {
           </Alert>
         )}
 
-        {/* Form or view */}
         <div className="rounded-xl border bg-card p-5">
           {isSubmitted ? (
             <ScorecardView

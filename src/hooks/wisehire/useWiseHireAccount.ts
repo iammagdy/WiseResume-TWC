@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { databases, Query } from '@/lib/appwrite';
+import { COLLECTIONS, DATABASE_ID } from '@/lib/appwrite-collections';
 import { useAuth } from '@/hooks/useAuth';
-import { getUserId } from '@/lib/supabaseBridge';
 import { useMe, type MeSubscription } from '@/hooks/useMe';
+import type { Models } from 'appwrite';
 
 export interface WiseHireCompany {
   id: string;
@@ -20,13 +21,9 @@ export interface WiseHireCompany {
 export interface WiseHireAccountData {
   company: WiseHireCompany | null;
   subscription: MeSubscription | null;
-  /** True when trial is active (trial_plan set + trial_expires_at in the future) */
   isTrialActive: boolean;
-  /** Days remaining in trial (0 if not active) */
   daysRemaining: number;
-  /** The user's effective plan name considering trial */
   currentPlan: string;
-  /** True when trial has expired AND no paid WiseHire plan is active */
   isExpiredWithNoPlan: boolean;
 }
 
@@ -36,6 +33,10 @@ const WISEHIRE_PAID_PLANS = [
   'wisehire_business',
   'wisehire_enterprise',
 ];
+
+function docToCompany(doc: Models.Document): WiseHireCompany {
+  return { ...doc, id: doc.$id } as unknown as WiseHireCompany;
+}
 
 function computeAccount(
   company: WiseHireCompany | null,
@@ -65,40 +66,28 @@ function computeAccount(
   return { company, subscription: sub, isTrialActive, daysRemaining, currentPlan, isExpiredWithNoPlan };
 }
 
-/**
- * Fetches WiseHire-specific company data and combines it with the subscription
- * already loaded by `useMe`. The direct `subscriptions` Supabase query has been
- * removed — `MeSubscription` from `/api/data/me` covers all fields needed by
- * `computeAccount`, preventing a duplicate round-trip.
- */
 export function useWiseHireAccount() {
-  const { isAuthenticated, supabaseReady } = useAuth();
-  const userId = getUserId();
+  const { isAuthenticated, user } = useAuth();
+  const userId = user?.id;
   const { data: meData } = useMe();
 
   const companyQuery = useQuery({
     queryKey: ['wisehire-account', userId],
     queryFn: async (): Promise<WiseHireCompany | null> => {
       if (!userId) return null;
-
-      const { data, error } = await supabase
-        .from('wisehire_companies')
-        .select('id, owner_id, name, size, role_types, monthly_volume, onboarding_completed, slug, created_at, updated_at')
-        .eq('owner_id', userId)
-        .maybeSingle();
-
-      if (error) console.warn('[useWiseHireAccount] company fetch:', error.message);
-      return data as WiseHireCompany | null;
+      const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.wisehire_companies, [
+        Query.equal('owner_id', userId),
+        Query.limit(1),
+      ]);
+      if (res.total === 0) return null;
+      return docToCompany(res.documents[0]);
     },
-    enabled: isAuthenticated && supabaseReady && !!userId,
+    enabled: isAuthenticated && !!userId,
     staleTime: 2 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
     retry: 1,
   });
 
-  // Combine company (from Supabase, unique to this hook) with subscription
-  // (from useMe cache, no extra network call). Recomputed on every render so
-  // subscription changes from Realtime invalidations are reflected immediately.
   const accountData = computeAccount(
     companyQuery.data ?? null,
     meData?.subscription ?? null,

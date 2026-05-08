@@ -1,3 +1,41 @@
+## 2026-05-08 — WiseHire + DevKit Appwrite migration — complete (Task #3)
+
+**Hooks migrated — all `supabase`/`getUserId()` throw-stubs replaced with live Appwrite Web SDK:**
+
+- `src/hooks/wisehire/useScorecardTemplates.ts`: `supabase.from('wisehire_scorecard_templates')` → `databases.listDocuments / createDocument / updateDocument / deleteDocument`. Interface keeps `title` / `description` to match existing Appwrite attribute names and `ScorecardPage` consumers.
+- `src/hooks/wisehire/useCandidateNotes.ts`: all three hooks (`useCandidateNotes`, `useAddNote`, `useDeleteNote`, `useTogglePinNote`) ported; `getUserId()` → `user?.id`; `.maybeSingle()` pattern removed.
+- `src/hooks/wisehire/useBulkScreen.ts`: `supabase.from('wisehire_bulk_screen_jobs').select(...)` → `databases.listDocuments`; `edgeFunctions.functions.invoke` → `edgeFunctions.invoke` from `@/lib/edgeFunctions`; error codes for 402/429 preserved.
+- `src/hooks/wisehire/useMaskSessions.ts`: `supabase.from('wisehire_mask_sessions')` → `databases.listDocuments`.
+- `src/hooks/wisehire/useOutreach.ts`: `supabase.from('wisehire_outreach_emails')` → `databases.listDocuments`; all `edgeFunctions.functions.invoke` → `edgeFunctions.invoke`.
+- `src/hooks/wisehire/useBriefs.ts`: complex joined query (briefs + candidates + roles) decomposed into parallel `databases.listDocuments` + `databases.getDocument` calls joined in JS; `getUserId()` → `user?.id`. `useBrief` single-brief query uses `databases.getDocument`.
+- `src/hooks/wisehire/useTalentPool.ts`: `useTalentSearch` uses `edgeFunctions.invoke`; `useAddTalentToPool` uses `databases.listDocuments` (duplicate check) + `databases.createDocument`; `getUserId()` → `user?.id`.
+- `src/hooks/wisehire/useTalentPoolProfile.ts`: `useMyTalentProfile` uses `listDocuments([Query.equal('user_id', userId), Query.limit(1)])`; `useUpsertTalentProfile` does list → update or create (upsert semantics without `.upsert()`).
+- `src/hooks/wisehire/useSavedSearches.ts`: `supabase.from('wisehire_saved_searches')` → `databases.listDocuments / createDocument / deleteDocument`.
+- `src/hooks/wisehire/useHRAnalytics.ts`: removed `apiFetch('/api/data/hr-analytics')` (throws `pending_appwrite_migration`); replaced with six parallel `databases.listDocuments` calls (candidates, pipeline events, bulk jobs, briefs, roles, talent pool views); all downstream computation logic preserved identically.
+
+**Pages migrated:**
+
+- `src/pages/wisehire/WiseHireSettingsPage.tsx`: removed `supabase` import and `getUserId()`; company upsert now does `listDocuments([Query.equal('owner_id', userId)])` then `updateDocument` or `createDocument`. Account info section updated to remove "Kinde account" wording.
+- `src/pages/wisehire/WiseHireSubscriptionPage.tsx`: removed `supabase` and `getUserId()`; coupon redemption now uses `edgeFunctions.invoke<...>('coupons', ...)` from `@/lib/edgeFunctions`; `userId` sourced from `useAuth().user?.id`.
+- `src/pages/wisehire/ScorecardPage.tsx`: removed `wiseHireFrom` helper (wrapped throwing `supabase` proxy); candidate name and brief questions now fetched via `databases.getDocument`; `handleApplyTemplate` uses `databases.updateDocument`; `import { supabase }` removed.
+
+**Components migrated:**
+
+- `src/components/layout/AppShell.tsx`: removed all bridge error banner state (`bridgeError`, `showBridgeConfigError`, `showBridgeRejectionError`), removed dead `getLastError / clearLastError / refreshTokenIfNeeded` imports, removed `supabaseSettled` destructure, removed `AlertTriangle / RefreshCw` imports, removed three `<Alert>` banners (all permanently false with Appwrite auth). `X` icon kept (used in Wise AI toggle button).
+- `src/components/dev-kit/DevKitRunner.tsx`: removed `supabase`, `getToken`, `getUserId`, `isReady`, `exchangeToken` imports; added `databases, account, Query` from `@/lib/appwrite` and `COLLECTIONS, DATABASE_ID`; removed `token-exchange` test (used dead `auth.getKindeToken()` / Kinde `exchangeToken`); replaced with `appwrite-session` test (`account.get()`); `auth-state` test no longer shows stub token state; `dashboard-route` + `list-resume` use `databases.listDocuments(COLLECTIONS.resumes)`; `ai-credits-read` uses `databases.listDocuments(COLLECTIONS.ai_credits)`; `audit-log-write` uses `databases.listDocuments(COLLECTIONS.audit_logs)` with graceful missing-collection note; `load-usage-events` uses `databases.listDocuments(COLLECTIONS.usage_events)`; `friendlyAIKeyError` updated to reference Appwrite Function Variables instead of Supabase secrets.
+
+**New dashboard components (Appwrite-native, no Supabase):**
+
+- `src/components/wisehire/dashboard/DashboardStats.tsx`: parallel `listDocuments` for briefs (match scores), roles, candidates → computes `avgMatchScore`, `openRoles`, `candidatesInPipeline`, `totalBriefs`.
+- `src/components/wisehire/dashboard/PipelineBreakdown.tsx`: `listDocuments` on `wisehire_candidates` with stage and created_at fields → progress bars per stage + "added this week" count.
+- `src/components/wisehire/dashboard/RecentActivity.tsx`: `listDocuments` on `wisehire_pipeline_events` (6 most recent) + parallel `getDocument` for candidate names.
+- `src/components/wisehire/dashboard/RecentBriefs.tsx`: `listDocuments` on `wisehire_candidate_briefs` (3 most recent) + parallel candidate/role name resolution.
+- `src/components/wisehire/pipeline/AddCandidateSheet.tsx`: duplicate detection via `databases.listDocuments` on name/email; candidate creation via `databases.createDocument`; no Supabase imports.
+
+**TypeScript:** `tsc --noEmit` passes with zero errors. No `any` casts introduced. All `user.id` references use Appwrite `$id` via `useAuth().user?.id`.
+
+---
+
 ## 2026-05-08 — Appwrite migration Batch 7 — final in-scope files (Task #2)
 
 **Files migrated — all remaining Supabase throw-stubs replaced with live Appwrite Web SDK calls:**

@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { databases, ID, Query } from '@/lib/appwrite';
+import { COLLECTIONS, DATABASE_ID } from '@/lib/appwrite-collections';
 import { useAuth } from '@/hooks/useAuth';
-import { getUserId } from '@/lib/supabaseBridge';
 import { toast } from 'sonner';
 
 export interface RoleWithStats {
@@ -25,8 +25,8 @@ export const ROLE_STATUSES = [
 ];
 
 export function useRoles() {
-  const { isAuthenticated, supabaseReady } = useAuth();
-  const userId = getUserId();
+  const { isAuthenticated, user } = useAuth();
+  const userId = user?.id;
   const qc = useQueryClient();
 
   const query = useQuery({
@@ -35,38 +35,38 @@ export function useRoles() {
       if (!userId) return [];
 
       const [rolesRes, candidatesRes] = await Promise.all([
-        supabase
-          .from('wisehire_roles')
-          .select('id, title, status, client_id, jd_text, created_at, updated_at')
-          .eq('owner_id', userId)
-          .eq('is_deleted', false)
-          .order('updated_at', { ascending: false }),
-        supabase
-          .from('wisehire_candidates')
-          .select('role_id, pipeline_stage')
-          .eq('owner_id', userId),
+        databases.listDocuments(DATABASE_ID, COLLECTIONS.wisehire_roles, [
+          Query.equal('owner_id', userId),
+          Query.equal('is_deleted', false),
+          Query.orderDesc('updated_at'),
+          Query.limit(500),
+        ]),
+        databases.listDocuments(DATABASE_ID, COLLECTIONS.wisehire_candidates, [
+          Query.equal('owner_id', userId),
+          Query.select(['role_id', 'pipeline_stage']),
+          Query.limit(5000),
+        ]),
       ]);
-
-      const roles = rolesRes.data ?? [];
-      const candidates = candidatesRes.data ?? [];
 
       const countMap: Record<string, number> = {};
       const activeMap: Record<string, number> = {};
-      for (const c of candidates) {
-        if (!c.role_id) continue;
-        countMap[c.role_id] = (countMap[c.role_id] ?? 0) + 1;
+      for (const c of candidatesRes.documents) {
+        const rId = c.role_id as string | null;
+        if (!rId) continue;
+        countMap[rId] = (countMap[rId] ?? 0) + 1;
         if (c.pipeline_stage !== 'rejected') {
-          activeMap[c.role_id] = (activeMap[c.role_id] ?? 0) + 1;
+          activeMap[rId] = (activeMap[rId] ?? 0) + 1;
         }
       }
 
-      return roles.map((r) => ({
-        ...(r as RoleWithStats),
-        candidate_count: countMap[r.id] ?? 0,
-        active_count: activeMap[r.id] ?? 0,
-      }));
+      return rolesRes.documents.map((r) => ({
+        ...r,
+        id: r.$id,
+        candidate_count: countMap[r.$id] ?? 0,
+        active_count: activeMap[r.$id] ?? 0,
+      } as unknown as RoleWithStats));
     },
-    enabled: isAuthenticated && supabaseReady && !!userId,
+    enabled: isAuthenticated && !!userId,
     staleTime: 60 * 1000,
   });
 
@@ -78,12 +78,7 @@ export function useRoles() {
       roleId: string;
       updates: Partial<Pick<RoleWithStats, 'title' | 'status' | 'client_id'>>;
     }) => {
-      const { error } = await supabase
-        .from('wisehire_roles')
-        .update(updates)
-        .eq('id', roleId)
-        .eq('owner_id', userId);
-      if (error) throw new Error(error.message);
+      await databases.updateDocument(DATABASE_ID, COLLECTIONS.wisehire_roles, roleId, updates);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['wisehire-roles-all', userId] });
@@ -97,19 +92,19 @@ export function useRoles() {
   const createRole = useMutation({
     mutationFn: async ({ title, clientId }: { title: string; clientId?: string }) => {
       if (!userId) throw new Error('Not authenticated');
-      const { data, error } = await supabase
-        .from('wisehire_roles')
-        .insert({
+      const doc = await databases.createDocument(
+        DATABASE_ID,
+        COLLECTIONS.wisehire_roles,
+        ID.unique(),
+        {
           owner_id: userId,
           title,
           status: 'draft',
           client_id: clientId ?? null,
           is_deleted: false,
-        })
-        .select('id')
-        .single();
-      if (error) throw new Error(error.message);
-      return data.id as string;
+        },
+      );
+      return doc.$id;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['wisehire-roles-all', userId] });
@@ -123,12 +118,7 @@ export function useRoles() {
 
   const deleteRole = useMutation({
     mutationFn: async (roleId: string) => {
-      const { error } = await supabase
-        .from('wisehire_roles')
-        .update({ is_deleted: true })
-        .eq('id', roleId)
-        .eq('owner_id', userId);
-      if (error) throw new Error(error.message);
+      await databases.updateDocument(DATABASE_ID, COLLECTIONS.wisehire_roles, roleId, { is_deleted: true });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['wisehire-roles-all', userId] });

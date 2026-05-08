@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { databases, ID, Query } from '@/lib/appwrite';
+import { COLLECTIONS, DATABASE_ID } from '@/lib/appwrite-collections';
 import { useAuth } from '@/hooks/useAuth';
-import { getUserId } from '@/lib/supabaseBridge';
 import { toast } from 'sonner';
 
 export interface WiseHireClient {
@@ -15,36 +15,36 @@ export interface WiseHireClient {
 }
 
 export function useClients() {
-  const { isAuthenticated, supabaseReady } = useAuth();
-  const userId = getUserId();
+  const { isAuthenticated, user } = useAuth();
+  const userId = user?.id;
   const qc = useQueryClient();
 
   const query = useQuery({
     queryKey: ['wisehire-clients', userId],
     queryFn: async (): Promise<WiseHireClient[]> => {
-      const { data, error } = await supabase
-        .from('wisehire_clients')
-        .select('id, name, contact_name, contact_email, notes, created_at, updated_at')
-        .eq('owner_id', userId)
-        .eq('is_deleted', false)
-        .order('name', { ascending: true });
-      if (error) throw error;
-      return (data ?? []) as WiseHireClient[];
+      if (!userId) return [];
+      const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.wisehire_clients, [
+        Query.equal('owner_id', userId),
+        Query.equal('is_deleted', false),
+        Query.orderAsc('name'),
+        Query.limit(500),
+      ]);
+      return res.documents.map((d) => ({ ...d, id: d.$id } as unknown as WiseHireClient));
     },
-    enabled: isAuthenticated && supabaseReady && !!userId,
+    enabled: isAuthenticated && !!userId,
     staleTime: 60_000,
   });
 
   const createClient = useMutation({
     mutationFn: async (input: { name: string; contact_name?: string; contact_email?: string; notes?: string }) => {
       if (!userId) throw new Error('Not authenticated');
-      const { data, error } = await supabase
-        .from('wisehire_clients')
-        .insert({ owner_id: userId, ...input })
-        .select('id')
-        .single();
-      if (error) throw error;
-      return data.id as string;
+      const doc = await databases.createDocument(
+        DATABASE_ID,
+        COLLECTIONS.wisehire_clients,
+        ID.unique(),
+        { owner_id: userId, ...input },
+      );
+      return doc.$id;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['wisehire-clients', userId] });
@@ -55,12 +55,10 @@ export function useClients() {
 
   const updateClient = useMutation({
     mutationFn: async ({ id, ...updates }: Partial<WiseHireClient> & { id: string }) => {
-      const { error } = await supabase
-        .from('wisehire_clients')
-        .update({ ...updates, updated_at: new Date().toISOString() })
-        .eq('id', id)
-        .eq('owner_id', userId);
-      if (error) throw error;
+      await databases.updateDocument(DATABASE_ID, COLLECTIONS.wisehire_clients, id, {
+        ...updates,
+        updated_at: new Date().toISOString(),
+      });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['wisehire-clients', userId] });
@@ -71,12 +69,7 @@ export function useClients() {
 
   const deleteClient = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('wisehire_clients')
-        .update({ is_deleted: true })
-        .eq('id', id)
-        .eq('owner_id', userId);
-      if (error) throw error;
+      await databases.updateDocument(DATABASE_ID, COLLECTIONS.wisehire_clients, id, { is_deleted: true });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['wisehire-clients', userId] });
