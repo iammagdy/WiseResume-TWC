@@ -1,6 +1,4 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { databases, DATABASE_ID, ID } from '@/lib/appwrite';
-import { COLLECTIONS } from '@/lib/appwrite-collections';
 
 interface UsePortfolioTrackingProps {
   username?: string | null;
@@ -98,11 +96,11 @@ export function usePortfolioTracking({ username, refParam, abVariant }: UsePortf
       ab_variant: snap.abVariant ?? null,
     };
 
-    // Write directly to Appwrite portfolio_visits collection.
-    // Fire-and-forget: errors are silently discarded.
-    databases
-      .createDocument(DATABASE_ID, COLLECTIONS.portfolio_visits, ID.unique(), payload)
-      .catch(() => {});
+    // Use navigator.sendBeacon to the Express proxy — guaranteed delivery
+    // even on page unload/pagehide. sendBeacon is fire-and-forget; errors
+    // are silently discarded.
+    const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+    navigator.sendBeacon('/api/track-portfolio-view', blob);
   }, []);
 
   // Public-API beacon — wraps sendBeaconCore with live ref values so

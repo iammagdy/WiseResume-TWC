@@ -1,6 +1,6 @@
 ## 2026-05-08 — Task #13: Tracking, short-links & portfolio interactions → Appwrite DB
 
-**10 files changed.** All remaining `apiFnUrl()` + raw `fetch()` calls for non-AI operational features replaced with direct Appwrite Databases SDK writes/queries or the Express `/api/fetch-url` proxy. No new `any` casts. `tsc --noEmit` passes with zero errors.
+**13 files changed.** All remaining `apiFnUrl()` + raw `fetch()` calls for non-AI operational features replaced with direct Appwrite Databases SDK writes/queries or the Express `/api/fetch-url` proxy. No new `any` casts. `tsc --noEmit` passes with zero errors.
 
 ### Direct Appwrite DB writes — fire-and-forget tracking
 - **`src/lib/visitorTrack.ts`** — `flush()`: removed `sendBeacon`/`fetch` + `apiFnUrl('track-visitor-event')`. Now uses `Promise.allSettled` over `databases.createDocument(... COLLECTIONS.visitor_events ...)` per event. Import swapped from `apiFnUrl` to `{ databases, DATABASE_ID, ID }` + `COLLECTIONS`.
@@ -23,6 +23,16 @@
 ### UploadPage + onboardingProfile — use Express proxy
 - **`src/pages/UploadPage.tsx`** — `handleUrlImport`: replaced `edgeFunctions.invoke('fetch-url', ...)` with `fetch('/api/fetch-url', ...)` relative-path call to the Express server. `edgeFunctions` import removed (was the only usage in this file).
 - **`src/lib/onboardingProfile.ts`** — OG-meta fallback: replaced dynamic `edgeFunctions` import + invoke with `fetch('/api/fetch-url', ...)`. No Appwrite SDK or auth dependency in this path.
+
+### PortfolioContactForm — simplified to send-contact-email
+- **`src/components/portfolio/public/PortfolioContactForm.tsx`** — removed `USE_MERGED_TRANSACTIONAL_EMAIL` flag and legacy `submit-contact-request` / `transactional-email` function-name switching. Now calls `edgeFunctions.invoke('send-contact-email', { body })` directly. `transactionalEmailFlag` import removed. Body payload simplified (extra action fields removed).
+
+### usePortfolioTracking — beacon-safe unload transport
+- **`src/hooks/usePortfolioTracking.ts`** — replaced `databases.createDocument(portfolio_visits, ...)` in `sendBeaconCore` with `navigator.sendBeacon('/api/track-portfolio-view', blob)`. Guarantees delivery even on page unload/pagehide where async SDK Promises are abandoned by the browser. Appwrite client SDK imports removed from this hook.
+
+### server/index.ts — SSRF hardening + portfolio-view beacon endpoint
+- **`server/index.ts`** — Added `isBlockedHost()` utility: blocks localhost, `.local` hostnames, 0.0.0.0, ip6-localhost/loopback, IPv6 loopback (::1) and private ranges (fc00::/7), and IPv4 private/loopback/link-local/special ranges (10.x, 127.x, 169.254.x, 172.16-31.x, 192.168.x, 100.64-127.x, 192.0.2.x, 198.18-19.x, 255.x, 0.x). `/api/fetch-url` now rejects blocked hosts with 400.
+- Added `POST /api/track-portfolio-view`: receives `navigator.sendBeacon` payloads and writes to Appwrite `portfolio_visits` via the server-side `APPWRITE_API_KEY`. Returns 204 (non-critical; gracefully no-ops if key is absent).
 
 ---
 

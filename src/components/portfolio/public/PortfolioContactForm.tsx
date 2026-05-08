@@ -3,7 +3,6 @@ import { motion } from 'framer-motion';
 import { Send, CheckCircle2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { edgeFunctions } from '@/lib/edgeFunctions';
-import { USE_MERGED_TRANSACTIONAL_EMAIL } from '@/lib/transactionalEmailFlag';
 
 interface PortfolioContactFormProps {
   username: string;
@@ -36,12 +35,6 @@ export function PortfolioContactForm({ username, accentColor, ownerName }: Portf
     setErrorMsg('');
 
     try {
-      // Task #55: route through the merged `transactional-email` router
-      // when USE_MERGED_TRANSACTIONAL_EMAIL is on. The flag is the
-      // single source of truth in
-      // `src/integrations/supabase/transactionalEmailFlag.ts` and is
-      // shared with the rewrite helper and sendFeedback.
-      const fnName = USE_MERGED_TRANSACTIONAL_EMAIL ? 'transactional-email' : 'submit-contact-request';
       const body: Record<string, unknown> = {
         type: 'portfolio_contact',
         email: email.trim(),
@@ -52,12 +45,8 @@ export function PortfolioContactForm({ username, accentColor, ownerName }: Portf
           portfolio_username: username,
           visitor_name: name.trim(),
         },
-        ...(USE_MERGED_TRANSACTIONAL_EMAIL ? {
-          action: 'contact-request',
-          'x-transactional-email-action': 'contact-request',
-        } : {}),
       };
-      const { error } = await edgeFunctions.invoke(fnName, { body });
+      const { error } = await edgeFunctions.invoke('send-contact-email', { body });
 
       if (!error) {
         setStatus('success');
