@@ -1,15 +1,7 @@
 const sdk = require('node-appwrite');
+const { InputFile } = require('node-appwrite/file');
 const path = require('path');
 const fs = require('fs');
-
-// In node-appwrite v24+, InputFile is exported directly or via sdk.InputFile
-const InputFile = sdk.InputFile;
-
-if (!InputFile) {
-    console.error('❌ CRITICAL: InputFile is not exported by node-appwrite.');
-    console.log('Available keys:', Object.keys(sdk));
-    process.exit(1);
-}
 
 const client = new sdk.Client()
     .setEndpoint('https://fra.cloud.appwrite.io/v1')
