@@ -2,6 +2,19 @@
 
 **Last verified:** 2026-05-08
 
+## Coupon and billing flows reconnected — Task #17 (2026-05-08)
+
+Entering a coupon code on the Subscription page or any upgrade prompt would silently fail with "pending migration" errors. Coupon validation and redemption now work end-to-end through Appwrite.
+
+**What changed:**
+- **Checking a coupon code** now queries the live `discount_codes` table in Appwrite, verifies it's active and not expired, and returns the coupon details (including how many trial days it grants).
+- **Redeeming a coupon** checks you haven't already redeemed the same code, records the redemption in `coupon_redemptions`, and updates your subscription plan automatically — including setting a trial expiry date if the coupon grants a fixed number of days.
+- The subscription page, upgrade dialog, and upgrade wall all benefit from this fix without any visual changes to those screens.
+
+**Last verified:** 2026-05-08
+
+---
+
 ## Email verification reconnected to Appwrite — Task #16 (2026-05-08)
 
 The "verify your email" page was calling a custom function that no longer exists. It now uses Appwrite's built-in email verification system directly.

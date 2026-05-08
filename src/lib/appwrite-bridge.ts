@@ -21,7 +21,10 @@ const AI_HUB_FUNCTIONS = new Set([
   'career-assessment', 'ask-portfolio', 'company-briefing', 'detect-and-humanize',
   
   // PDF & Infrastructure (Redirecting to old Supabase or keeping stubs)
-  'export-resume-pdf', 'export-portfolio-pdf', 'send-contact-email'
+  'export-resume-pdf', 'export-portfolio-pdf', 'send-contact-email',
+
+  // Billing / Coupon
+  'validate-coupon', 'redeem-coupon'
 ]);
 
 export async function invokeAppwriteHub(fnName: string, options: any) {

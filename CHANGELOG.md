@@ -1,3 +1,19 @@
+## 2026-05-08 — Task #17: Fix coupon and billing flows via Appwrite
+
+**2 files changed.** `validate-coupon` and `redeem-coupon` routed through `ai-gateway` Appwrite Function. No new `any` casts. `tsc --noEmit` passes with zero errors.
+
+### `src/lib/appwrite-bridge.ts`
+- Added `'validate-coupon'` and `'redeem-coupon'` to `AI_HUB_FUNCTIONS` set so `edgeFunctions.invoke()` routes both through the `ai-gateway` Appwrite Function instead of throwing `pending_appwrite_migration`.
+
+### `appwrite-hubs/ai-gateway/src/main.js`
+- Added `require('node-appwrite')` (already in `package.json` at `^11.1.1`).
+- Added `getDbClient()` helper: constructs `sdk.Databases` client using `APPWRITE_FUNCTION_API_ENDPOINT`, `APPWRITE_FUNCTION_PROJECT_ID`, and `APPWRITE_API_KEY` environment variables.
+- **`validate-coupon` route**: reads `x-appwrite-user-id` from request headers; queries `discount_codes` collection (`code == opts.code`, `is_active == true`); checks expiry; checks if user is already on the target plan (queries `subscriptions`); returns flat `{ valid, coupon, trial_ends_at }` JSON.
+- **`redeem-coupon` route**: same lookup; checks `coupon_redemptions` for duplicate redemption; creates a `coupon_redemptions` document; upserts (create or update) the user's `subscriptions` document with the new plan and optional trial dates; returns flat `{ success, message }` JSON.
+- All three UI call sites (`SubscriptionPage.tsx`, `UpgradeDialog.tsx`, `UpgradeWall.tsx`) already used `edgeFunctions.invoke` — no frontend changes needed.
+
+---
+
 ## 2026-05-08 — Task #16: Fix email verification to use Appwrite native API
 
 **1 file changed.** `edgeFunctions.invoke('verify-email', ...)` replaced with Appwrite Account SDK calls. No new `any` casts. `tsc --noEmit` passes with zero errors.
