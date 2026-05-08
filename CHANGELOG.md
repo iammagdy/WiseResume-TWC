@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-05-08 — Project Atlas: comprehensive reconciliation against deployed code
+
+**Files changed:**
+- `Project Atlas/01-Currently Implemented/edge-functions/` — deleted 41 stale `.md` files (pre-consolidation per-fn cards) and added 19 new reference cards for the consolidated routers and previously-undocumented functions
+- `Project Atlas/01-Currently Implemented/edge-functions/README.md` — full rewrite to reflect the actual 82 deployed functions (post Tasks #49–#56), grouped by domain
+- `Project Atlas/01-Currently Implemented/pages/actas.md` — new card for `ActAs.tsx` (`/act-as` impersonation landing, mounted at App-level before the auth gate)
+- `Project Atlas/01-Currently Implemented/pages/README.md` — added ActAs row, updated source counts (78 files), unified `Last verified` header
+- `Project Atlas/01-Currently Implemented/frontend-layer/hooks.md` — added missing entries (`useAIApplyEffects`, `useExpandedEntryRestore`, `useFitToPages`, `useOnePageExport`, `useSuspensionCheck`, `useTilt`, `useScrollFade`, `useTypewriter`, `useUndoRedo`, `useUnsavedChangesGuard`, `useThemeLogo`, `useStatusBar`, `useShakeDetect`, `useShareComments`, `useResumeShares`, `useResumeSnapshots`, `useResumeVersions`, `useTierGate`, `useVisitorTracking`, `useVoiceInterview`, `useWebMcp`, `useWebSpeechFallback`, `useEditorSheets`) and full table for the 21 `src/hooks/wisehire/` hooks
+- `Project Atlas/01-Currently Implemented/frontend-layer/stores.md` — added `aiEnhancingStore` and `sectionAIBridge` entries (previously undocumented)
+- `Project Atlas/01-Currently Implemented/frontend-layer/lib.md` — full rewrite covering all 90+ root files plus the 6 subfolders (`ai/`, `pdf/`, `smartFit/`, `devkit/`, `wisehire/`, `__tests__/`); added missing entries (`apiFnUrl`, `apiFetch`, `applyAIResult`, `tailorMerge`, `editorSession`, `editorLogger`, `latexGenerator`, `nativePdfGenerator`, `templateMigration`, `educationFormat`, `emptyStateExamples`, `impersonationStore`, `sendFeedback`, `sanitizeFileName`, `detectFileType`, `captureErrorShim`, `activityTracker`, `visitorTrack`, `persistedQueryCache`, `usePrefersReducedMotion`)
+- `Project Atlas/01-Currently Implemented/critical-systems/13-mobile-expo.md` — refreshed with the post-consolidation backend (mobile traffic now flows through `mobile-api` consolidated router instead of 6 separate fns), explicit file inventory of 26 Expo Router routes + 20 source files
+- `Project Atlas/01-Currently Implemented/database-tables/migration-ledger.md` — new ledger of all 228 migrations with the descriptive slugs from the recent ~38 enumerated, plus filename convention rules
+
+**Behavioral impact:** documentation only; no runtime change.
+
+**Why:** the Atlas had drifted significantly from the deployed code. 21 stale per-fn cards documented edge functions that had been merged into routers (`admin-config`, `admin-user-ops`, `admin-wisehire`, `coupons`, `editor-ai`, `resume-section-ai`, `portfolio-public`, `transactional-email`, `wisehire-access`, `mobile-api`); 19 active edge functions had no Atlas card at all (`admin-config`, `admin-user-ops`, `admin-wisehire`, `coupons`, `editor-ai`, `export-portfolio-pdf`, `export-resume-pdf`, `fetch-url`, `mobile-api`, `mobile-config`, `portfolio-public`, `resume-section-ai`, `revenuecat-webhook`, `send-password-reset`, `send-push`, `transactional-email`, `validate-tailor`, `verify-email`, `wisehire-access`); the `ActAs` page, `aiEnhancingStore`, `sectionAIBridge`, the entire `src/hooks/wisehire/` subdir (21 hooks), and ~25 entries in `src/lib/` were missing from their umbrella cards.
+
+---
+
 ## 2026-05-07 — DevKit dashboard: admin-devkit-data and admin-onboarding-funnel converted to Supabase proxy
 
 **Files changed:**

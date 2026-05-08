@@ -1,143 +1,153 @@
 # Edge Functions Index
 
-  **Last verified:** 2026-05-05
-  **Type:** index
-  **Sources:**
-  - `supabase/functions/` (93 deployed functions as of 2026-04-24, after Task #21 removed 5 orphans — `admin-backfill-ollama-urls`, `admin-migrate-api-key-encryption`, `ai-breaker-status`, `elevenlabs-scribe-token`, `generate-headshot`. See `../critical-systems/08-deployment.md` → "Orphan removal log".)
-  - `project-governance/ARCHITECTURE.md` §7 (Edge Functions inventory)
-  - `supabase/functions/EDGE_FUNCTION_AUDIT.md` (when available)
+**Last verified:** 2026-05-08 (full reconciliation against `supabase/functions/`)
+**Type:** index
+**Sources:**
+- `supabase/functions/` (82 deployed functions, after Tasks #49–#56 consolidations)
+- `supabase/functions/EDGE_FUNCTION_AUDIT.md`
+- `supabase/config.toml`
 
-  **Canonical owner:** `project-governance/ARCHITECTURE.md` §7.
+**Canonical owner:** `supabase/functions/` directory.
 
-  ---
+---
 
-  ## Admin Dev Kit (28)
+## Admin DevKit (21)
 
-- [admin-ai-ops](./admin-ai-ops.md)
-- [admin-analytics](./admin-analytics.md)
+- [admin-ai-ops](./admin-ai-ops.md) — AI keys, slot models, nightly model catalog refresh
 - [admin-audit-logs](./admin-audit-logs.md)
 - [admin-check-access](./admin-check-access.md)
-- [admin-delete-user](./admin-delete-user.md)
-- [admin-email-actions](./admin-email-actions.md)
-- [admin-env-check](./admin-env-check.md)
+- [admin-config](./admin-config.md) — **consolidated** (5→1): get/update settings, feature flags, integrations, env-check
+- [admin-delete-user](./admin-delete-user.md) — kept isolated for blast-radius
+- [admin-devkit-data](./admin-devkit-data.md) — analytics, usage, system health aggregation
+- [admin-email](./admin-email.md)
 - [admin-get-identity](./admin-get-identity.md)
-- [admin-get-settings](./admin-get-settings.md)
-- [admin-github-status](./admin-github-status.md)
-- [admin-grant-trial](./admin-grant-trial.md)
+- [admin-impersonate](./admin-impersonate.md)
+- [admin-kinde-reconcile](./admin-kinde-reconcile.md)
 - [admin-list-user-content](./admin-list-user-content.md)
 - [admin-list-users](./admin-list-users.md)
-- [admin-live-activity](./admin-live-activity.md)
-- [admin-manage-coupons](./admin-manage-coupons.md)
 - [admin-merge-identity](./admin-merge-identity.md)
+- [admin-moderation](./admin-moderation.md)
 - [admin-onboarding-funnel](./admin-onboarding-funnel.md)
+- [admin-owner-ops](./admin-owner-ops.md)
 - [admin-portfolio-usernames](./admin-portfolio-usernames.md)
-- [admin-revoke-sessions](./admin-revoke-sessions.md)
-- [admin-revoke-trial](./admin-revoke-trial.md)
 - [admin-save-note](./admin-save-note.md)
-- [admin-set-credits](./admin-set-credits.md)
-- [admin-set-plan](./admin-set-plan.md)
-- [admin-suspend-user](./admin-suspend-user.md)
-- [admin-update-profile](./admin-update-profile.md)
-- [admin-update-settings](./admin-update-settings.md)
-- [admin-wisehire-invite](./admin-wisehire-invite.md)
-- [admin-wisehire-waitlist](./admin-wisehire-waitlist.md)
+- [admin-user-ops](./admin-user-ops.md) — **consolidated** (7→1): suspend, grant/revoke trial, set credits/plan, revoke sessions, update profile
+- [admin-visitor-analytics](./admin-visitor-analytics.md)
+- [admin-wisehire](./admin-wisehire.md) — **consolidated** (4→1): invite, reset-user, revoke-invite, waitlist
 
-## WiseHire (12)
+## WiseHire (9)
 
-- [wisehire-apply](./wisehire-apply.md)
+- [wisehire-access](./wisehire-access.md) — **consolidated** (5→1): waitlist-check/join, validate early-access/invite, complete-signup
 - [wisehire-bulk-screen](./wisehire-bulk-screen.md)
-- [wisehire-complete-signup](./wisehire-complete-signup.md)
 - [wisehire-generate-brief](./wisehire-generate-brief.md)
+- [wisehire-invite-reminder](./wisehire-invite-reminder.md) — pg_cron trigger
 - [wisehire-mask-cvs](./wisehire-mask-cvs.md)
 - [wisehire-send-outreach](./wisehire-send-outreach.md)
 - [wisehire-talent-search](./wisehire-talent-search.md)
 - [wisehire-talent-view](./wisehire-talent-view.md)
-- [wisehire-validate-early-access](./wisehire-validate-early-access.md)
-- [wisehire-validate-invite](./wisehire-validate-invite.md)
-- [wisehire-waitlist-join](./wisehire-waitlist-join.md)
 - [wisehire-write-jd](./wisehire-write-jd.md)
 
-## AI (25)
+## AI / Editor (16)
 
 - [agentic-chat](./agentic-chat.md)
 - [ai-health](./ai-health.md)
 - [ai-test](./ai-test.md)
-- [analyze-resume](./analyze-resume.md)
-- [auth-email-hook](./auth-email-hook.md)
+- [ask-portfolio](./ask-portfolio.md) — RAG over portfolio
 - [career-assessment](./career-assessment.md)
-- [career-path-advisor](./career-path-advisor.md)
 - [company-briefing](./company-briefing.md)
 - [detect-and-humanize](./detect-and-humanize.md)
-- [enhance-section](./enhance-section.md)
-- [explain-gap](./explain-gap.md)
+- [editor-ai](./editor-ai.md) — **consolidated** (4→1): analyze, recruiter-sim, suggest-template, optimize-for-linkedin
 - [generate-cover-letter](./generate-cover-letter.md)
+- [generate-fix-suggestions](./generate-fix-suggestions.md)
 - [generate-portfolio-bio](./generate-portfolio-bio.md)
 - [generate-question-bank](./generate-question-bank.md)
 - [generate-resignation-letter](./generate-resignation-letter.md)
-- [generate-store-screenshots](./generate-store-screenshots.md)
-- [optimize-for-linkedin](./optimize-for-linkedin.md)
-- [parse-job-text](./parse-job-text.md)
-- [parse-job-url](./parse-job-url.md)
-- [parse-linkedin](./parse-linkedin.md)
-- [parse-resume](./parse-resume.md)
-- [send-contact-email](./send-contact-email.md)
+- [resume-section-ai](./resume-section-ai.md) — **consolidated** (4→1): enhance, tailor, fill-gap, explain-gap
+- [score-resume](./score-resume.md)
+- [smart-fit-rewrite](./smart-fit-rewrite.md)
 - [tailor-resume](./tailor-resume.md)
-- [tailor-section](./tailor-section.md)
+- [validate-tailor](./validate-tailor.md) — deterministic + AI qualitative
 - [wise-ai-chat](./wise-ai-chat.md)
 
-## Auth & Identity (3)
+(Note: `analyze-resume`, `recruiter-simulation`, `suggest-template`, `optimize-for-linkedin`, `enhance-section`, `tailor-section`, `fill-gap`, `explain-gap` remain deployed as legacy fallbacks but the active routing is via `editor-ai` / `resume-section-ai`.)
 
-- [me](./me.md)
-- [token-exchange](./token-exchange.md)
-- [verify-dev-kit](./verify-dev-kit.md)
+## Auth & Identity (6)
 
-## Billing & Credits (3)
+- [auth-email-hook](./auth-email-hook.md) — Supabase Auth webhook (signed)
+- [kinde-webhook](./kinde-webhook.md) — Kinde lifecycle webhook (signed)
+- [me](./me.md) — unified profile / plan / credits
+- [send-password-reset](./send-password-reset.md) — Kinde M2M + Resend
+- [token-exchange](./token-exchange.md) — Kinde JWT → Supabase JWT bridge
+- [verify-dev-kit](./verify-dev-kit.md) — admin DevKit auth
+- [verify-email](./verify-email.md) — custom email verification (send/resend/confirm)
 
-- [manage-api-keys](./manage-api-keys.md)
-- [redeem-coupon](./redeem-coupon.md)
-- [validate-coupon](./validate-coupon.md)
+## Billing & Mobile Subscriptions (4)
 
-## Portfolio & Public (7)
-
-- [ask-portfolio](./ask-portfolio.md)
-- [create-portfolio-session](./create-portfolio-session.md)
-- [og-image](./og-image.md)
-- [portfolio-interest](./portfolio-interest.md)
-- [portfolio-meta](./portfolio-meta.md)
-- [resolve-short-link](./resolve-short-link.md)
-- [track-portfolio-view](./track-portfolio-view.md)
-
-## Notifications (1)
-
-- [send-push-notification](./send-push-notification.md)
-
-## Data & Maintenance (2)
-
-- [hard-purge](./hard-purge.md)
-- [score-resume](./score-resume.md)
-
-## Other (11)
-
-- [fill-gap](./fill-gap.md)
-- [interview-chat](./interview-chat.md)
-- [one-page-optimizer](./one-page-optimizer.md)
-- [recruiter-simulation](./recruiter-simulation.md)
-- [send-contact-inquiry](./send-contact-inquiry.md)
-- [send-feature-request](./send-feature-request.md)
-- [send-resume-reminder](./send-resume-reminder.md)
-- [submit-contact-request](./submit-contact-request.md)
-- [suggest-template](./suggest-template.md)
+- [coupons](./coupons.md) — **consolidated** (3→1): admin-manage, redeem, validate
+- [manage-api-keys](./manage-api-keys.md) — BYOK key storage (legacy; BYOK fully removed but endpoint retained for compat)
+- [revenuecat-webhook](./revenuecat-webhook.md) — RevenueCat IAP entitlement reconciliation
 - [validate-api-key](./validate-api-key.md)
-- [weekly-digest](./weekly-digest.md)
+
+## Mobile (2)
+
+- [mobile-api](./mobile-api.md) — **consolidated**: register-push-token, export-pdf, interview-next-question, interview-grade-answer
+- [mobile-config](./mobile-config.md) — version gate + banner
+
+## Notifications & Email (2)
+
+- [send-push](./send-push.md) — server-to-server Expo push fan-out
+- [transactional-email](./transactional-email.md) — **consolidated** (3→1): contact-email, contact-request, resume-reminder
+
+## Portfolio & Public (4)
+
+- [create-portfolio-session](./create-portfolio-session.md) — password-protected portfolio session
+- [og-image](./og-image.md) — dynamic OpenGraph PNG
+- [portfolio-public](./portfolio-public.md) — **consolidated** (4→1): meta, interest, track-view, resolve-short-link
+- [stitch-visitor-identity](./stitch-visitor-identity.md) — link anon visitor → user post-signup
+
+## Visitor / Cron / Maintenance (5)
+
+- [hard-purge](./hard-purge.md) — admin-only full user data delete
+- [purge-old-visitor-events](./purge-old-visitor-events.md) — pg_cron trigger
+- [track-handle-interest](./track-handle-interest.md) — premium portfolio handle interest leads
+- [track-visitor-event](./track-visitor-event.md) — anonymous visitor analytics ingest
+- [weekly-digest](./weekly-digest.md) — pg_cron user digest emails
+
+## Misc (3)
+
+- [export-portfolio-pdf](./export-portfolio-pdf.md) — server-side Puppeteer
+- [export-resume-pdf](./export-resume-pdf.md) — server-side Puppeteer (with browser fallback)
+- [fetch-url](./fetch-url.md) — SSRF-protected URL proxy
+- [parse-job](./parse-job.md)
+- [parse-resume](./parse-resume.md)
 
 ---
 
-  **Total:** 94 functions.
+## Total: 82 functions
 
-  **Maintenance:** when you add an edge function:
-  1. Create `supabase/functions/<name>/index.ts`.
-  2. Add `verify_jwt = false` in `supabase/config.toml` if it uses Kinde-issued JWTs.
-  3. Wire the four security layers (critical-system 09).
-  4. Add a reference card here.
-  5. Update this index and `project-governance/ARCHITECTURE.md` §7.
-  
+## Consolidation summary (Tasks #49–#56)
+
+| Router | Replaced | Slots freed |
+|---|---|---|
+| `admin-config` | 5 fns | 4 |
+| `admin-user-ops` | 7 fns | 6 |
+| `admin-wisehire` | 4 fns | 3 |
+| `coupons` | 3 fns | 2 |
+| `editor-ai` | 4 fns (kept as fallback) | 0 net |
+| `resume-section-ai` | 4 fns (kept as fallback) | 0 net |
+| `portfolio-public` | 4 fns | 3 |
+| `transactional-email` | 3 fns | 2 |
+| `wisehire-access` | 5 fns | 4 |
+| `mobile-api` | 4 fns | 3 |
+| **Total slots freed** | | **~27** |
+
+Goal: stay below Supabase's 100-function project deployment limit.
+
+## Maintenance — adding a new edge function
+
+1. Create `supabase/functions/<name>/index.ts`.
+2. Add `verify_jwt = false` in `supabase/config.toml`.
+3. Wire the four security layers (see `../critical-systems/09-security-model.md`).
+4. Wrap with `wrapHandler('<name>', ...)` from `_shared/fnLogger.ts`.
+5. Add a reference card here.
+6. Update this index.

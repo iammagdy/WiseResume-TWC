@@ -1,10 +1,10 @@
 # Pages Index
 
-  **Last verified:** 2026-04-17
+  **Last verified:** 2026-05-08
   **Type:** index
   **Sources:**
-  - `src/pages/` (77 files: 56 WiseResume + 1 WiseResume share-brief + 20 WiseHire). One additional file (`src/pages/share/PublicBriefPage.tsx`) lives under the `share/` subfolder and is carded separately as `share-brief.md`.
-  - `src/AppInterior.tsx` (route registration)
+  - `src/pages/` (78 files: 57 WiseResume + 1 share-brief + 20 WiseHire). One additional file (`src/pages/share/PublicBriefPage.tsx`) lives under `share/` and is carded separately as `share-brief.md`. `ActAs.tsx` is mounted at the App level (BEFORE the auth gate) — see `actas.md`.
+  - `src/AppInterior.tsx` + `src/App.tsx` (route registration)
 
   **Canonical owner:** `src/AppInterior.tsx` for the route map; `project-governance/PRODUCT.md` for the product narrative.
 
@@ -16,6 +16,7 @@
   |---|---|---|
   | AIStudioPage | `  /ai-studio`, `  /ai-studio/:tool` | [aistudio.md](./aistudio.md) |
 | AchievementsPage | `  /achievements` | [achievements.md](./achievements.md) |
+| ActAs | `  /act-as` (App-level, pre-auth) | [actas.md](./actas.md) |
 | AnalyticsPage | `  /analytics` | [analytics.md](./analytics.md) |
 | ApplicationTrackerPage | `  /application/:id` | [applicationtracker.md](./applicationtracker.md) |
 | ApplicationsPage | `  /applications` | [applications.md](./applications.md) |

@@ -1,6 +1,10 @@
 # Stability Improvements — What's Getting Better Behind the Scenes
 
-**Last verified:** 2026-05-07 (DevKit dashboard panel fixes)
+**Last verified:** 2026-05-08
+
+## Project documentation now matches the live system (2026-05-08)
+
+We did a top-to-bottom audit of our internal knowledge base against the actual code we have deployed today. Over the past few months we consolidated dozens of small backend services into a smaller number of smarter routers — that change made things faster and cheaper to run, but our reference notes hadn't caught up yet. We rewrote them so the docs and the running system now agree on every page, every backend service, every helper, every database change. This means future work moves faster, fewer things slip through the cracks, and anyone we onboard can trust what they read.
 
 ## Several admin dashboard panels were silently broken (2026-05-07)
 
