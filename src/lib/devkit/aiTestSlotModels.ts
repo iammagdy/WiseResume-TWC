@@ -15,7 +15,7 @@
  * caring whether the slot has a saved override or is falling back to
  * the provider default.
  */
-import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { edgeFunctions } from '@/lib/edgeFunctions';
 import { devKitAuthHeaders } from './devKitAuth';
 import { unwrapAdminResponse } from './edgeResponse';
 
@@ -107,7 +107,7 @@ function isSlot(value: unknown): value is AITestSlot {
  * provider default on as a final safety net for slots the server omits.
  */
 export async function fetchAITestSlotModels(): Promise<AITestSlotMap> {
-  const tuple = await edgeFunctions.functions.invoke('inspect-ai-keys', {
+  const tuple = await edgeFunctions.invoke('inspect-ai-keys', {
     headers: devKitAuthHeaders(),
   });
   const result = unwrapAdminResponse<InspectAIKeysResponse>(tuple, 'inspect-ai-keys');

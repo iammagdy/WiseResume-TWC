@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { edgeFunctions } from '@/lib/edgeFunctions';
 import { useAIAction } from './useAIAction';
 import type { CompanyBriefing } from '@/types/companyBriefing';
 
@@ -27,7 +27,7 @@ export function useCompanyBriefing() {
 
     try {
       const result = await execute(async () => {
-        const { data, error: fnError } = await edgeFunctions.functions.invoke('company-briefing', {
+        const { data, error: fnError } = await edgeFunctions.invoke('company-briefing', {
           body: {
             companyName: params.companyName,
             jobDescription: params.jobDescription,

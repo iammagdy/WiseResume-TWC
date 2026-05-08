@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useResumeSnapshots, useSaveResumeSnapshot, useDeleteResumeSnapshot, type ResumeSnapshot } from '@/hooks/useResumeSnapshots';
 import type { ResumeData } from '@/types/resume';
-import type { Json } from '@/integrations/supabase/types';
+
 import { toast } from 'sonner';
 
 interface ResumeSnapshotsSheetProps {
@@ -24,7 +24,7 @@ interface ResumeSnapshotsSheetProps {
 }
 
 /** Parse snapshot JSON into a typed ResumeData, returning null if the shape is wrong. */
-function parseSnapshotData(json: Json): ResumeData | null {
+function parseSnapshotData(json: unknown): ResumeData | null {
   if (!json || typeof json !== 'object' || Array.isArray(json)) return null;
   const obj = json as Record<string, unknown>;
   if (!obj.contactInfo || typeof obj.contactInfo !== 'object') return null;

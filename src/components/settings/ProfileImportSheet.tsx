@@ -39,7 +39,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
-import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { edgeFunctions } from '@/lib/edgeFunctions';
 import { cn } from '@/lib/utils';
 
 export interface ProfileData {
@@ -233,7 +233,7 @@ export function ProfileImportSheet({
   const platformLabel = PLATFORMS.find((p) => p.id === platform)?.label ?? 'LinkedIn';
 
   const callParseApi = useCallback(async (text: string): Promise<Partial<ProfileData>> => {
-    const { data, error: fnError } = await edgeFunctions.functions.invoke('parse-job', {
+    const { data, error: fnError } = await edgeFunctions.invoke('parse-job', {
       body: { action: 'linkedin', profileText: text.trim(), platform },
     });
     if (fnError) throw fnError;

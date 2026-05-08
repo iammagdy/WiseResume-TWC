@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Send, CheckCircle2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiFnUrl } from '@/lib/apiFnUrl';
-import { USE_MERGED_TRANSACTIONAL_EMAIL } from '@/integrations/supabase/transactionalEmailFlag';
+import { USE_MERGED_TRANSACTIONAL_EMAIL } from '@/lib/transactionalEmailFlag';
 
 interface PortfolioContactFormProps {
   username: string;

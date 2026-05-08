@@ -13,7 +13,7 @@ import {
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
-import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { edgeFunctions } from '@/lib/edgeFunctions';
 import { usePlan } from '@/hooks/usePlan';
 
 interface UpgradeDialogProps {
@@ -54,7 +54,7 @@ export function UpgradeDialog({
     haptics.light();
     setRedeeming(true);
     try {
-      const { data, error } = await edgeFunctions.functions.invoke('redeem-coupon', {
+      const { data, error } = await edgeFunctions.invoke('redeem-coupon', {
         body: { code: couponCode.trim().toUpperCase() },
       });
       if (error) throw new Error(error.message);

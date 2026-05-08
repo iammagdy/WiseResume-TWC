@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Lightbulb, Send, CheckCircle2 } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { useAuth } from '@/hooks/useAuth';
-import { getUserId } from '@/lib/supabaseBridge';
+
 import { sendFeedback } from '@/lib/sendFeedback';
 
 let cachedAppVersion: string | null = null;
@@ -39,7 +39,7 @@ export function FeatureRequestDialog({ open, onOpenChange }: FeatureRequestDialo
     if (!featureTitle.trim() || !featureDescription.trim()) return;
     setStatus('sending');
 
-    const userId = getUserId() || undefined;
+    const userId = user?.id || undefined;
     const userEmail = 'authenticated';
 
     const appVersion = await getAppVersion();

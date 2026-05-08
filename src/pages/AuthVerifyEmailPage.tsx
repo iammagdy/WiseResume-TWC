@@ -9,7 +9,7 @@ import { useMe } from '@/hooks/useMe';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { OfflineBanner } from '@/components/layout/OfflineBanner';
-import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { edgeFunctions } from '@/lib/edgeFunctions';
 
 const HERO_GRADIENT = 'linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #0d0d1e 100%)';
 
@@ -57,7 +57,7 @@ export default function AuthVerifyEmailPage() {
     void (async () => {
       try {
         setMode('confirming');
-        const { error } = await edgeFunctions.functions.invoke('verify-email', {
+        const { error } = await edgeFunctions.invoke('verify-email', {
           body: { action: 'confirm', token },
         });
         if (error) throw new Error(typeof error === 'object' && 'message' in error ? (error as { message: string }).message : String(error));
@@ -94,7 +94,7 @@ export default function AuthVerifyEmailPage() {
     if (resending || resendCooldown > 0) return;
     setResending(true);
     try {
-      const { error } = await edgeFunctions.functions.invoke('verify-email', {
+      const { error } = await edgeFunctions.invoke('verify-email', {
         body: { action: 'resend' },
       });
       if (error) throw new Error(typeof error === 'object' && 'message' in error ? (error as { message: string }).message : String(error));

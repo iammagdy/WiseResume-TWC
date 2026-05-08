@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { useAIAction } from '@/hooks/useAIAction';
 import { useAIDraft } from '@/hooks/useAIDraft';
-import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { edgeFunctions } from '@/lib/edgeFunctions';
 import { useResumeStore } from '@/store/resumeStore';
 import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
 import { AICostBadge } from '@/components/ai/AICostBadge';
@@ -140,7 +140,7 @@ export function SkillsGapSheet({ open, onOpenChange }: SkillsGapSheetProps) {
         const experience = getResumeExperienceString(resume);
         const summary = resume.summary ?? '';
 
-        const { data: responseData, error } = await edgeFunctions.functions.invoke('wise-ai-chat', {
+        const { data: responseData, error } = await edgeFunctions.invoke('wise-ai-chat', {
           body: {
             type: 'skills_gap',
             payload: {

@@ -1,6 +1,6 @@
 import { ResumeData } from '@/types/resume';
 import { Job } from '@/hooks/useJobs';
-import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { edgeFunctions } from '@/lib/edgeFunctions';
 
 export interface JobMatchResult {
   overall: number;
@@ -132,7 +132,7 @@ export async function scoreJobMatchAI(
     // session exists (which is always, in our Kinde flow), causing
     // analyze-resume's requireAuth to log "Missing authorization header"
     // into error_log on every background score call (Task #41).
-    const { data, error } = await edgeFunctions.functions.invoke('analyze-resume', {
+    const { data, error } = await edgeFunctions.invoke('analyze-resume', {
       body: { resume, jobDescription },
     });
 

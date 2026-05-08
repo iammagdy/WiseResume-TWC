@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { MessageSquare, Send, CheckCircle2 } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { useAuth } from '@/hooks/useAuth';
-import { getUserId } from '@/lib/supabaseBridge';
+
 import { sendFeedback } from '@/lib/sendFeedback';
 
 export const DEPARTMENTS = [
@@ -62,7 +62,7 @@ export function ContactInquiryDialog({ open, onOpenChange, defaultDepartment }: 
     if (!subject.trim() || !message.trim()) return;
     setStatus('sending');
 
-    const userId = getUserId() || undefined;
+    const userId = user?.id || undefined;
     const userEmail = 'authenticated';
 
     const appVersion = await getAppVersion();

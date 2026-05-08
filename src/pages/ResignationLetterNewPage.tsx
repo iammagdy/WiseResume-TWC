@@ -12,7 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { useAuth } from '@/hooks/useAuth';
 import { useResumes, dbToResumeData } from '@/hooks/useResumes';
-import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { edgeFunctions } from '@/lib/edgeFunctions';
 import { useQueryClient } from '@tanstack/react-query';
 import { haptics } from '@/lib/haptics';
 import { useBackNavigation } from '@/hooks/useBackNavigation';
@@ -112,7 +112,7 @@ export default function ResignationLetterNewPage() {
     setGenerating(true);
     haptics.light();
     try {
-      const { data, error } = await edgeFunctions.functions.invoke('generate-resignation-letter', {
+      const { data, error } = await edgeFunctions.invoke('generate-resignation-letter', {
         body: {
           recipientName,
           company,

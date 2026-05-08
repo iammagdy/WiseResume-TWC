@@ -11,7 +11,7 @@ import { haptics } from '@/lib/haptics';
 import { useResumeStore } from '@/store/resumeStore';
 import { templates } from '@/lib/templateData';
 import type { TemplateId, TemplateCustomization } from '@/types/resume';
-import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { edgeFunctions } from '@/lib/edgeFunctions';
 import { useAIAction } from '@/hooks/useAIAction';
 
 interface TemplateAdvisorSheetProps {
@@ -52,7 +52,7 @@ export function TemplateAdvisorSheet({ open, onOpenChange, onApply }: TemplateAd
         const jobTitle = latestExp?.position || '';
         const industry = '';
 
-        const { data, error } = await edgeFunctions.functions.invoke('suggest-template', {
+        const { data, error } = await edgeFunctions.invoke('suggest-template', {
           body: { jobTitle, industry, skills: skills.slice(0, 15) },
         });
 

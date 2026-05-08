@@ -25,7 +25,7 @@ import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { useResumeStore } from '@/store/resumeStore';
 import { useShallow } from 'zustand/react/shallow';
-import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { edgeFunctions } from '@/lib/edgeFunctions';
 import { toast } from 'sonner';
 import editorLogger from '@/lib/editorLogger';
 import { haptics } from '@/lib/haptics';
@@ -267,7 +267,7 @@ export function AIDetectorSheet({ open, onOpenChange }: AIDetectorSheetProps) {
 
     try {
       const result = await executeAI(async () => {
-        const { data, error } = await edgeFunctions.functions.invoke('detect-and-humanize', {
+        const { data, error } = await edgeFunctions.invoke('detect-and-humanize', {
           body: {
             text: inputText,
             action: 'detect',
@@ -297,7 +297,7 @@ export function AIDetectorSheet({ open, onOpenChange }: AIDetectorSheetProps) {
     setIsHumanizing(true);
 
     try {
-      const { data, error } = await edgeFunctions.functions.invoke('detect-and-humanize', {
+      const { data, error } = await edgeFunctions.invoke('detect-and-humanize', {
         body: {
           text: inputText,
           action: 'humanize',

@@ -246,7 +246,7 @@ export interface ParsedJobData {
 }
 
 export async function parseJobUrl(url: string): Promise<ParsedJobData> {
-  const { data, error } = await edgeFunctions.functions.invoke('parse-job', {
+  const { data, error } = await edgeFunctions.invoke('parse-job', {
     body: { action: 'url', url },
   });
   if (error) throw new Error(extractErrorMessage(error, data, 'Failed to parse job URL'));
@@ -255,7 +255,7 @@ export async function parseJobUrl(url: string): Promise<ParsedJobData> {
 }
 
 export async function parseJobText(text: string): Promise<ParsedJobData> {
-  const { data, error } = await edgeFunctions.functions.invoke('parse-job', {
+  const { data, error } = await edgeFunctions.invoke('parse-job', {
     body: { action: 'text', text },
   });
   if (error) {
@@ -272,7 +272,7 @@ export async function generateCoverLetter(
   tone: 'professional' | 'enthusiastic' | 'conversational' = 'professional',
   signal?: AbortSignal
 ): Promise<string> {
-  const { data, error } = await edgeFunctions.functions.invoke('generate-cover-letter', {
+  const { data, error } = await edgeFunctions.invoke('generate-cover-letter', {
     body: { resume, jobDescription, tone },
     ...(signal ? { options: { signal } } : {}),
   } as any);

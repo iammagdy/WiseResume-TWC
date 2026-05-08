@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { useAIAction } from '@/hooks/useAIAction';
-import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { edgeFunctions } from '@/lib/edgeFunctions';
 import { useResumeStore } from '@/store/resumeStore';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
@@ -97,7 +97,7 @@ export function PortfolioBioSheet({ open, onOpenChange }: PortfolioBioSheetProps
         const topSkills = getTopSkills(resume);
         const experience = getRecentExperience(resume);
 
-        const { data: responseData, error } = await edgeFunctions.functions.invoke('wise-ai-chat', {
+        const { data: responseData, error } = await edgeFunctions.invoke('wise-ai-chat', {
           body: {
             type: 'portfolio_bio',
             payload: {

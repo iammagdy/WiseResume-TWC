@@ -1,5 +1,5 @@
 import { ResumeData, JobMatchScore, GapAnalysis } from '@/types/resume';
-import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { edgeFunctions } from '@/lib/edgeFunctions';
 import { extractErrorMessage } from './errorToast';
 import { checkAIFallback } from './aiFallbackToast';
 
@@ -12,7 +12,7 @@ export async function analyzeResume(
   resume: ResumeData,
   jobDescription: string
 ): Promise<AnalysisResult> {
-  const { data, error } = await edgeFunctions.functions.invoke('analyze-resume', {
+  const { data, error } = await edgeFunctions.invoke('analyze-resume', {
     body: { resume, jobDescription },
   });
 

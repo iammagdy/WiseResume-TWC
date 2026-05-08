@@ -8,7 +8,7 @@ import { usePlan } from '@/hooks/usePlan';
 import { useProfile } from '@/hooks/useProfile';
 import { useResumes } from '@/hooks/useResumes';
 import { supabase } from '@/integrations/supabase/safeClient';
-import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { edgeFunctions } from '@/lib/edgeFunctions';
 import { getUserId } from '@/lib/supabaseBridge';
 import { apiFnUrl } from '@/lib/apiFnUrl';
 import { useQueryClient } from '@tanstack/react-query';
@@ -540,7 +540,7 @@ export default function PortfolioEditorPage() {
       throw new Error("Resume data not available yet. Please wait a moment.");
     }
 
-    const { data, error } = await edgeFunctions.functions.invoke('generate-portfolio-bio', {
+    const { data, error } = await edgeFunctions.invoke('generate-portfolio-bio', {
       body: {
         action,
         summary: selectedResume?.summary || '',
@@ -615,7 +615,7 @@ export default function PortfolioEditorPage() {
     if (!targetLanguage) return null;
     if (!silent) setTranslating(true);
     try {
-      const { data, error } = await edgeFunctions.functions.invoke('generate-portfolio-bio', {
+      const { data, error } = await edgeFunctions.invoke('generate-portfolio-bio', {
         body: {
           action: 'translate',
           targetLanguage,
