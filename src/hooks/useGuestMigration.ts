@@ -3,7 +3,10 @@ import { apiFetch } from '@/lib/apiFetch';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import type { ResumeData } from '@/types/resume';
-import type { Session } from '@supabase/supabase-js';
+// Local stand-in for the removed @supabase/supabase-js `Session` type.
+// Pending Appwrite migration — the guest-migration pipeline currently throws
+// at the first `apiFetch` call and will be rebuilt on Appwrite.
+type Session = { user?: { id?: string } | null } | null;
 import { runMigrationPipeline, isMigrationDone } from '@/lib/migrationRunner';
 import type { MigrationStep } from '@/lib/migrationRunner';
 
@@ -54,6 +57,14 @@ export function useGuestMigration(session: Session | null) {
   const queryClient = useQueryClient();
 
   useEffect(() => {
+    // Pending Appwrite migration: the legacy `/api/data/resumes` endpoints
+    // backing this pipeline now throw `pending_appwrite_migration`. Disable
+    // the hook entirely so first-time logins do not surface error toasts.
+    // Guest resume data remains safely in localStorage and will be migrated
+    // once the Appwrite-Functions data layer ships.
+    return;
+
+    // eslint-disable-next-line no-unreachable
     if (hasRun.current) return;
     if (!session?.user) return;
     if (isMigrationDone(PIPELINE_ID)) return;

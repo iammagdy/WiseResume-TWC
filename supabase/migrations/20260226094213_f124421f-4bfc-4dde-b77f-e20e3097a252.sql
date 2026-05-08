@@ -1,1 +1,0 @@
-ALTER TABLE public.bug_reports DROP CONSTRAINT IF EXISTS bug_reports_user_id_fkey;

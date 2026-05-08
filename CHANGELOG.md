@@ -1,3 +1,46 @@
+## 2026-05-08 — Scorched-earth removal of Supabase + Kinde from web app
+
+**Web-app code removed:**
+- Top-level `supabase/` directory deleted (84 edge functions, all migrations, `config.toml`, `_shared/` helper layer).
+- npm packages uninstalled: `@supabase/supabase-js`, `@kinde-oss/kinde-auth-react`.
+- Legacy scripts removed: `scripts/check-supabase-migration-drift.mjs`, `scripts/check-edge-functions-deployed.mjs`, `scripts/smoke-test-edge-functions.mjs`, `scripts/edge-fn-monthly-reaudit.mjs`, `scripts/edge-fn-drift-allowlist.json`, `scripts/deploy-functions.sh`, `scripts/refresh-devkit-secrets.sh`, `scripts/probe-webhooks-signed.mjs`, `scripts/preview-waitlist-emails.mjs`, `scripts/kinde-brand-console.js`, `scripts/apply-kinde-branding.mjs`. Stale build artifact `idx.js` deleted. Obsolete tests removed: `src/test/mocks/supabase.ts`, `src/integrations/supabase/safeClient.test.ts`, `src/contexts/__tests__/AuthContext.impersonation.test.tsx`, `src/pages/__tests__/Pages-D5.test.tsx`.
+- `package.json` scripts removed: `db:check-drift`, `check:functions:deployed`, `smoke:functions`, `preview:emails`. Bumped to `4.1.0-Appwrite-Native`.
+- Replit env vars deleted from `[userenv.shared]`: `VITE_KINDE_CLIENT_ID`, `VITE_KINDE_DOMAIN`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`.
+- `vite.config.ts`: dropped `@supabase` and `@kinde-oss` from `manualChunks`, replaced with `appwrite` chunk; CSP `connect-src` purged of `*.supabase.co`, `*.supabase.in`, `wss://*.supabase.co`, `*.kinde.com`, `auth.thewise.cloud`.
+
+**Web-app code converted to throw-stubs (filename preserved so 130+ legacy importers still compile, but contents have ZERO Supabase / Kinde dependency):**
+- `src/lib/supabaseBridge.ts` — every export (`exchangeToken`, `refreshTokenIfNeeded`, `getToken`, `getUserId`, `isReady`, `clearBridge`, `getShadowUserOk`, `getLastError`, `clearLastError`, `setUserProfile`, `getStoredEmail`, `getStoredName`, `setKindeTokenGetter`, `setCurrentKindeSub`, `getCachedKindeSub`, `BridgeErrorType`) is a no-op shim returning `null`/`false`/`void`.
+- `src/lib/supabaseAuth.ts` — `getSupabaseToken()`, `getAuthUserId()` return `null`.
+- `src/lib/supabaseConstants.ts` — `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `EDGE_FUNCTIONS_URL`, `EDGE_FUNCTIONS_ANON_KEY` all empty strings.
+- `src/lib/apiFnUrl.ts` — returns sentinel path `/__pending_appwrite_migration__/<fn>` that fails fast on fetch.
+- `src/lib/apiFetch.ts` — `apiFetch()` throws `ApiFetchError(503, 'Pending Appwrite migration: <path>')` on every call. Type signatures preserved.
+- `src/integrations/supabase/safeClient.ts` — `supabase` is a recursive `Proxy` that throws `[supabase stub] Supabase client removed — pending Appwrite migration` on any property access or call.
+- `src/integrations/supabase/edgeFunctions.ts` — `edgeFunctions.invoke(fn)` now ONLY routes the AI-Hub set (24 names in `appwrite-bridge.ts` `AI_HUB_FUNCTIONS`) through `invokeAppwriteHub()`. Anything outside that set returns `{ data: null, error: { message: '… Pending Appwrite migration', code: 'pending_appwrite_migration' } }` instead of falling back to Supabase.
+- `src/integrations/supabase/sessionExpired.ts` — `dispatchSessionExpiredOnce()` is a no-op (Appwrite session lifecycle replaces it).
+- `src/integrations/supabase/types.ts` — `Database` and `Json` exported as `any` placeholder so any leftover `import type { Database }` still compiles.
+
+**Server rewrite:**
+- `server/index.ts` collapsed from 5 577 lines to ~80. Removed every Supabase REST helper (`supabaseGet/Upsert/Insert/Patch/Delete/Rpc/AuthAdmin`), every Kinde helper (`kindeSubToUserId`, `getKindeM2MToken`, `getKindeJWKS`, `validateSupabaseToken`, `requireAuthHeader`), all `/api/fn/*`, `/api/data/*`, `/api/auth/*`, `/api/devkit/*`, `/api/track-handle-interest`, `/api/fetch-url`, `/api/ai-health`, `/api/db-health` endpoints, and the Sentry+JOSE+JWT bootstrap chain. Kept: Sentry init, CORS, body parsing, `GET /api/health`, `POST /api/export/pdf-native` (returns `503 pending_appwrite_migration` until the Puppeteer worker is rebuilt as an Appwrite Function), and a catch-all `/api/*` that returns `503 pending_appwrite_migration`.
+
+**Frontend type fix-ups (Kinde → Appwrite naming):**
+- `src/hooks/useEditorAutosave.ts` — `KindeAppUser` import renamed to `AppUser`.
+- `src/hooks/useEditorHydration.ts` — `KindeAppUser` import renamed to `AppUser`.
+- `src/hooks/useGuestMigration.ts` — replaced `import type { Session } from '@supabase/supabase-js'` with a local minimal `type Session = { user?: { id?: string } | null } | null;`.
+
+**Behavioural impact:**
+- ✅ Auth (Appwrite `account.get()` / `deleteSession()`) — unchanged, fully working.
+- ✅ AI Hub (24 functions in `AI_HUB_FUNCTIONS`) — unchanged, routed through Appwrite `ai-gateway` Function.
+- ❌ Every `/api/data/*` data-layer call (resumes, profile, jobs, notifications, portfolios, hr-analytics, share, etc.) now throws `ApiFetchError(503)` at runtime. Pending Appwrite-Functions reimplementation.
+- ❌ Every non-AI edge-function call (admin-*, wisehire-*, transactional-email, portfolio-public, token-exchange, me, …) now returns `{ error: { code: 'pending_appwrite_migration' } }` from `edgeFunctions.invoke()`. Pending Appwrite-Functions reimplementation.
+- ❌ Server-side PDF export returns `503` until the Puppeteer worker is reimplemented on Appwrite.
+- ⚠️ Mobile app (`mobile/`) — left untouched per task scope; will be addressed in a separate cycle.
+
+**Why scorched earth instead of incremental:** Atlas claimed `v4.0.0-Appwrite-Native` but the production data layer (`apiFetch.ts` → Supabase PostgREST) and ~60 of 84 edge functions still hit Supabase, while AuthContext had stopped feeding the bridge any Kinde token, leaving the app in a half-broken state masquerading as migrated. Removing all Supabase/Kinde code surfaces those broken paths with explicit `pending_appwrite_migration` errors so the rebuild work can be tracked, instead of empty data hiding behind silent fail-opens.
+
+**Verified:** dev workflow (`npm run server:dev & npm run dev`) starts cleanly. Vite re-optimises deps, Express minimal server boots on `:5001`, Vite on `:5000`. Landing page renders, Appwrite client logs `Status: CONNECTED ✅`, the only console error is the expected `401` on `account.get()` for an unauthenticated visitor.
+
+---
+
 ## 2026-05-08 — Project Atlas: full coverage of previously-undocumented surfaces
 
 **Files added (Project Atlas):**

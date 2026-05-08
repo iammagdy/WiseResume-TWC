@@ -1,1 +1,0 @@
-ALTER TABLE public.resumes ADD COLUMN IF NOT EXISTS job_url text;

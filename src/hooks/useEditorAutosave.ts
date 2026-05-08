@@ -4,7 +4,7 @@ import { useAppLifecycle } from '@/hooks/useAppLifecycle';
 import { backgroundScore } from '@/hooks/useResumeScore';
 import { useSettingsStore } from '@/store/settingsStore';
 import type { ResumeData } from '@/types/resume';
-import type { KindeAppUser } from '@/contexts/AuthContext';
+import type { AppUser } from '@/contexts/AuthContext';
 
 interface UpdateResumeMutation {
   mutateAsync: (args: { resumeId: string; updates: ResumeData }) => Promise<{ updated_at?: string } | void>;
@@ -17,7 +17,7 @@ interface DatabaseResumeLike {
 }
 
 interface UseEditorAutosaveOptions {
-  user: KindeAppUser | null;
+  user: AppUser | null;
   currentResumeId: string | null;
   resumeRef: React.MutableRefObject<ResumeData | null>;
   lastSavedResumeRef: React.MutableRefObject<string>;

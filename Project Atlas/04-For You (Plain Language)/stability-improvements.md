@@ -2,6 +2,20 @@
 
 **Last verified:** 2026-05-08
 
+## We finished pulling out the old plumbing (2026-05-08)
+
+For months the website was running on **two backends at once** — the old one we were trying to leave behind, and the new one we wanted to move to. The new backend was already handling sign-in and every AI feature (resume writing, tailoring, scoring, interview practice, cover letters, and the rest). But the parts that fetch and save your data — your resume list, your profile, your saved jobs, your portfolio — were still quietly talking to the old backend.
+
+Today we removed the old backend from the website completely. What this means for you:
+
+- **Sign-in still works the same.** Nothing changes about how you log in.
+- **Every AI feature still works the same.** Resume writing, tailoring, ATS scoring, interview practice, cover letters, portfolio bios, job parsing — all of it keeps running on the new backend.
+- **The data parts of the site are temporarily on hold.** Dashboards, saved resumes, application tracking, the admin tools, the recruiter tools, and PDF download will show a friendly "being rebuilt" message until we finish moving them to the new backend. We are starting that work next.
+
+We did this on purpose, in one clean sweep, because keeping the old backend around was making it look like everything had been moved when really only half of it had. Now what's broken is *visibly* broken, with a clear message and a clear next step, instead of silently failing.
+
+The mobile apps are not affected by this and continue to work normally — they will be moved across in their own dedicated round of work.
+
 ## Project documentation now matches the live system (2026-05-08)
 
 We did a top-to-bottom audit of our internal knowledge base against the actual code we have deployed today. Over the past few months we consolidated dozens of small backend services into a smaller number of smarter routers — that change made things faster and cheaper to run, but our reference notes hadn't caught up yet. We rewrote them so the docs and the running system now agree on every page, every backend service, every helper, every database change. This means future work moves faster, fewer things slip through the cracks, and anyone we onboard can trust what they read.

@@ -1,1 +1,0 @@
-DROP POLICY IF EXISTS "Public can view last_active_at for enabled portfolios" ON public.profiles;

@@ -11,7 +11,7 @@ const CSP_BASE = [
   "style-src 'self' 'unsafe-inline'",
   "font-src 'self' data:",
   "img-src 'self' data: blob: https:",
-  "connect-src 'self' https://fra.cloud.appwrite.io https://api.resend.com https://*.supabase.co https://*.supabase.in wss://*.supabase.co https://*.kinde.com https://auth.thewise.cloud https://api.openrouter.ai https://api.groq.com https://generativelanguage.googleapis.com https://api.elevenlabs.io",
+  "connect-src 'self' https://fra.cloud.appwrite.io https://api.resend.com https://api.openrouter.ai https://api.groq.com https://generativelanguage.googleapis.com https://api.elevenlabs.io",
   // Web Workers must be allowed from the same origin AND blob: URLs.
   // Tesseract.js v7 (and many other libs) wrap their worker script in
   // a Blob and call `new Worker(URL.createObjectURL(blob))`. Without
@@ -223,8 +223,7 @@ export default defineConfig(({ mode }) => ({
 
           if (id.includes('node_modules/@radix-ui')) return 'radix';
           if (id.includes('node_modules/ogl')) return 'ogl';
-          if (id.includes('node_modules/@supabase')) return 'supabase';
-          if (id.includes('node_modules/@kinde-oss')) return 'kinde-auth';
+          if (id.includes('node_modules/appwrite')) return 'appwrite';
           if (id.includes('node_modules/@tanstack/react-query')) return 'react-query';
           if (id.includes('node_modules/zustand')) return 'zustand';
           if (

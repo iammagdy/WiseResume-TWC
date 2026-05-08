@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { dbToResumeData } from '@/hooks/useResumes';
 import { useResumeStore } from '@/store/resumeStore';
 import { logAudit } from '@/lib/auditLogger';
-import type { KindeAppUser } from '@/contexts/AuthContext';
+import type { AppUser } from '@/contexts/AuthContext';
 import { migrateTemplateId as migrateLegacyTemplateId } from '@/lib/templateMigration';
 
 interface DatabaseResumeLike {
@@ -19,7 +19,7 @@ interface DatabaseResumeLike {
 interface UseEditorHydrationOptions {
   resumeFromDb: DatabaseResumeLike | null | undefined;
   currentResumeId: string | null;
-  user: KindeAppUser | null;
+  user: AppUser | null;
   setCurrentResumeId: (id: string | null) => void;
   navigate: ReturnType<typeof useNavigate>;
   lastSavedResumeRef: React.MutableRefObject<string>;

@@ -8,98 +8,85 @@ To run the application locally, execute:
 ```bash
 npm run server:dev & npm run dev
 ```
-The frontend will be available on port 5000 and the Express backend on port 5001.
+The frontend will be available on port 5000 and a minimal Express health/PDF stub on port 5001.
 
-**Environment Variables (Supabase Secrets):**
-- `DEV_KIT_PASSWORD`: Password for accessing the `/devkit` admin panel.
-- `CRON_SECRET`: Secret for cron job authentication.
-- `WISE_ENV`: Set to `production` for production environments, `dev` otherwise.
+**Environment variables (Replit):**
+- `VITE_APPWRITE_ENDPOINT` — Appwrite Cloud Feed endpoint (`https://fra.cloud.appwrite.io/v1`).
+- `VITE_APPWRITE_PROJECT_ID` — Appwrite project id (`69fd362b001eb325a192`).
+- `API_PORT` — Express dev port (default `5001`).
+
+All other secrets (AI provider keys, Resend, devkit password, cron secret, etc.) live in Appwrite Function variables and are never present in Replit env. If a former Supabase/Kinde secret is missing from `process.env`, that is expected and correct.
 
 ## Stack
 
 - **Frontend**: React 18, TypeScript 5, Vite 6
 - **Styling**: Tailwind CSS, Radix UI, Framer Motion
-- **State Management**: Zustand, TanStack Query
-- **Authentication**: Kinde Auth (JWT), `auth.thewise.cloud` custom domain
-- **Database**: Supabase Postgres with Drizzle ORM
-- **Backend**: Supabase Edge Functions, Express.js (dev proxy, PDF export, admin bridge)
-- **Mobile**: Expo SDK 51, Expo Router 3.5 (iOS/Android)
+- **State management**: Zustand, TanStack Query
+- **Authentication**: Appwrite Account SDK (`account.get()` / `account.deleteSession()`)
+- **AI**: Appwrite `ai-gateway` Function (router for ~24 AI feature names — see `src/lib/appwrite-bridge.ts` `AI_HUB_FUNCTIONS`)
+- **Database**: PostgreSQL via Drizzle ORM (Replit-managed dev DB) — production data layer is being rebuilt on Appwrite Databases.
+- **Server**: Minimal Express stub (`server/index.ts`, ~80 lines) — health probe + future Puppeteer PDF worker landing pad. The full Express bridge that previously proxied Supabase has been deleted.
+- **Mobile**: Expo SDK 51, Expo Router 3.5 (iOS/Android) — *not yet migrated to Appwrite; continues to target the legacy backend.*
 - **Hosting**: Hostinger (static frontend)
 
 ## Where things live
 
-- `src/`: Frontend source code.
-- `supabase/`: Supabase Edge Functions, database migrations, and schema definition.
-- `server/`: Express.js backend code.
-- `mobile/`: Native iOS + Android client.
-- `public/`: Static assets.
-- `Project Atlas/`: Living knowledge base and documentation.
-- `wise-templates/`: Resume templates.
-- `supabase/functions/_shared/creditLimits.json`: Source of truth for credit limits.
-- `supabase/config.toml`: Supabase Edge Function configurations.
-- `src/lib/apiFnUrl.ts`: API endpoint routing logic.
+- `src/` — Frontend source.
+- `src/lib/appwrite.ts` — Appwrite client (`account`, `databases`, `functions`, `storage`).
+- `src/lib/appwrite-bridge.ts` — `AI_HUB_FUNCTIONS` set + `invokeAppwriteHub()` router for AI features.
+- `src/contexts/AuthContext.tsx` — Appwrite-only auth context (`AppUser` shape).
+- `src/lib/supabaseBridge.ts`, `src/lib/supabaseAuth.ts`, `src/lib/supabaseConstants.ts`, `src/lib/apiFetch.ts`, `src/lib/apiFnUrl.ts`, `src/integrations/supabase/*` — **legacy throw-stubs**. Filenames preserved so 130+ legacy import sites still compile, but contents have zero Supabase/Kinde dependency. Every runtime call throws `pending_appwrite_migration`. Slated for full deletion once each importer is migrated.
+- `appwrite-hubs/` — Appwrite Function source (the new home for what used to live under `supabase/functions/`).
+- `server/` — Minimal Express stub (PDF placeholder + health).
+- `mobile/` — Native iOS + Android client (legacy backend, unmigrated).
+- `public/` — Static assets.
+- `Project Atlas/` — Living knowledge base and documentation.
+- `wise-templates/` — Resume templates.
 
 ## Architecture decisions
 
-- **Supabase as Primary Infrastructure**: Supabase is the sole source of truth for production data and secrets, serving all production API traffic via Edge Functions. The Replit environment is for development only.
-- **AI Provider Routing & Fallback**: AI requests are routed through a pool of OpenRouter, Groq, and DeepSeek keys, with per-feature configuration via `ai_routing_config` and cross-provider fallback.
-- **Credit System Source of Truth**: Credit limits are defined centrally in `supabase/functions/_shared/creditLimits.json` and imported by both frontend and edge function logic to ensure consistency.
-- **Dedicated Admin DevKit**: A password-protected `/devkit` provides comprehensive administrative tools, analytics, and observability, with granular control over AI routing, feature flags, and user management.
-- **Server-Side PDF Export**: PDF generation for resumes and portfolios is handled server-side using Puppeteer (`POST /api/export/pdf-native`) to ensure consistent rendering.
+- **Appwrite is the production source of truth.** Auth, AI Hub, Functions, Databases and Storage all live in Appwrite Cloud Feed (project `69fd362b001eb325a192`). Replit is a development environment only.
+- **AI-Hub routing.** Any feature name in `AI_HUB_FUNCTIONS` is routed by `edgeFunctions.invoke()` (and direct callers) through `invokeAppwriteHub()` → Appwrite `ai-gateway` Function. The Function picks the AI provider, applies feature-level routing config, and returns `{ data, error }`.
+- **Scorched-earth Supabase/Kinde removal (2026-05-08).** All Supabase + Kinde code has been removed from the web app. The data layer (`/api/data/*`), the ~60 non-AI edge functions, the admin DevKit, WiseHire, transactional email and portfolio-public surfaces all now throw `pending_appwrite_migration` until they are rebuilt on Appwrite Functions. AI Hub and Auth keep working unchanged.
+- **Server-side PDF export** is not yet implemented on Appwrite. `POST /api/export/pdf-native` returns `503` with a friendly migration message; the client should treat this as temporarily unavailable.
 
 ## Product
 
-- **Career Management Suite**: AI-powered resume builder, tailoring for job listings, public portfolio publishing, interview practice, job application tracking, and career goal management.
-- **WiseHire HR SaaS**: Integrated platform for recruiters including talent search, bulk screening, job description writing, and candidate scorecards.
-- **Mobile Applications**: Native iOS and Android clients integrating with the core platform for on-the-go access.
-- **Admin DevKit**: Comprehensive internal tool for monitoring system health, managing users, auditing activity, and configuring platform settings.
-- **AI Studio**: Centralized hub for various AI tools, including agentic chat with persistent sessions and tool-calling capabilities.
+- **Career Management Suite** — AI resume builder, tailoring, public portfolios, interview practice, job tracker, career goals.
+- **WiseHire HR SaaS** — talent search, bulk screening, JD writer, scorecards. *Currently throws `pending_appwrite_migration` until rebuilt on Appwrite.*
+- **Mobile applications** — native iOS/Android clients (legacy backend, unmigrated).
+- **Admin DevKit** — internal monitoring and configuration. *Currently throws `pending_appwrite_migration` until rebuilt on Appwrite.*
+- **AI Studio** — agentic chat, tool-calling, persistent sessions (working via Appwrite AI Hub).
 
 ## User preferences
 
-- **Supabase is the sole production source of truth** — Replit is a development/coding environment ONLY. Never treat Replit secrets, Replit environment variables, or the Express server as production infrastructure. All production secrets live in Supabase Vault. All production API traffic is served by Supabase Edge Functions. If a secret is absent from `process.env` in Replit, that is expected and normal — it is vault-managed and available to edge functions in production. Never add `replit_env` or `optional` secret sources; every secret is `supabase_vault`. Never suggest storing secrets in Replit as a production solution.
-- **Documentation Rules**: After every completed task, bug fix, or feature, the following documentation updates are mandatory:
-    - Add an entry to `CHANGELOG.md` detailing technical changes (files, functions, DB migrations, behavior) in English, without plain-language explanations.
-    - Add a plain-language entry to `Project Atlas/04-For You (Plain Language)/` in the appropriate file (`current-features.md`, `stability-improvements.md`, or `coming-soon.md`), focusing on user benefits without jargon or file names. Update the "Last verified" timestamp.
-    - Update relevant reference cards in `Project Atlas/01-Currently Implemented/` (e.g., database tables, critical systems, hooks, pages, stability fixes). Update the "Last verified" timestamp on touched cards.
-    - Update `replit.md` only for changes in architecture, infrastructure, or key patterns (new endpoint, DB table, shared cache key, env var), skipping routine bug fixes.
-- **No `any` casts** — TypeScript strict mode enforced.
-- **Never change primary key column types** — destructive and breaks existing data.
+- **Appwrite is the sole production source of truth.** Replit is dev-only. Production secrets live in Appwrite Function variables; never propose storing production secrets in Replit.
+- **Documentation rules** — after every completed task, bug fix, or feature:
+    - Add an entry to `CHANGELOG.md` (technical, English, files/functions/behaviour).
+    - Add a plain-language entry under `Project Atlas/04-For You (Plain Language)/` (`current-features.md`, `stability-improvements.md`, or `coming-soon.md`). Update the "Last verified" timestamp.
+    - Update affected reference cards under `Project Atlas/01-Currently Implemented/`. Update each touched card's "Last verified" timestamp.
+    - Update `replit.md` only for changes to architecture, infrastructure, or key patterns (new endpoint, new env var, new shared module). Skip routine bug fixes.
+- **No `any` casts in production code.** TypeScript strict mode is enforced. The throw-stubs under `src/lib/supabase*` and `src/integrations/supabase/*` are explicitly excepted — they are pending-deletion shims and use `any` to keep 130+ legacy importers compiling. New production code must not.
+- **Never change primary key column types.**
 - **Never invent marketing stats** — always source from `src/pages/Index.tsx`.
-- **`user.id` = bridge UUID only** — never raw Kinde `kp_xxx` ID.
-- **`creditUtils.ts`**: BYOK has been fully removed. Every authenticated AI request runs through the managed flat pool; credit deduction always applies and `isByok` is permanently false. The `isByok` field is retained on `CreditCheckResult` for source compatibility only. Daily limits derive from plan at runtime via a single batched `app_settings` query. Priority chain (highest wins): (1) per-user override `user_limit_<uuid>` in `app_settings`, (2) per-plan cap override `daily_cap_free|trial|pro` in `app_settings`, (3) global cap `global_daily_limit` in `app_settings`, (4) per-plan default from `planLimits.ts`. All override lookups are non-fatal fail-open.
-- **Credit limit single source of truth**: `supabase/functions/_shared/creditLimits.json` — both `src/lib/planConfig.ts` (frontend) and `supabase/functions/_shared/planLimits.ts` (edge functions) import from this JSON. Never define credit limit numbers in either file directly; edit only `creditLimits.json`.
-- **`useMe` is canonical** for plan/credits — queryKey: `['me', user?.id]`.
-- **All edge functions** need `verify_jwt = false` in `supabase/config.toml`.
-- **Pricing CTAs** on landing → `/auth?plan=free|pro|premium` (not direct `kindeRegister` calls).
-- **Portfolio `pf-*` CSS**: Never touch — used by public portfolio pages.
-- **Glass cleanup**: Complete — only `glass-pro` data value and `Badge variant="glass"` are preserved intentionally.
-- **hard-purge**: Protected by `requireAdminAuth` — never callable without admin auth.
-- **AI error secret-scrub**: every string that reaches stderr or the JSON envelope returned to the browser must run through `supabase/functions/_shared/scrubSecrets.ts` (`scrubSecrets` / `scrubAndCap`). Gemini calls authenticate via the `x-goog-api-key` header — never via `?key=…`.
-- **Ops health signal**: every fail-open code path (rate limiter, AI breaker no-op, admin-settings DB error) writes a row via `_shared/opsHealth.ts` → `public.ops_health_events`. Read per-(event,feature) hourly counts via `ops_health_recent_counts(p_window_minutes)`.
-- **PDF capture / print-safe.css**: `print-safe.css` was deleted because every rule was gated on a `[data-pdf-force-layout]` attribute that nothing ever set. If a future template introduces `backdrop-filter` or `position: sticky` inside the captured tree, set `data-pdf-force-layout` on the source element inside `prepareForCapture` and re-introduce targeted overrides — do not restore the old file as-is.
-- **Template photo elements**: `<img>` tags inside `[data-resume-template]` (currently `CreativeTemplate` and `DesignerTemplate`) MUST set `crossOrigin="anonymous"` and MUST NOT use `loading="lazy"`. The Supabase Storage public bucket serving `photoUrl` must respond with `Access-Control-Allow-Origin: *`.
-- **`WISE_ENV` Supabase secret**: explicit per-environment marker read by `admin-devkit-data`. Set to `production` in the production Supabase project and `dev` in any non-prod project. When unset, code falls back to the legacy `DENO_DEPLOYMENT_ID` heuristic — always set `WISE_ENV` on new Supabase projects.
-- **AI cron secret**: `CRON_SECRET` Supabase Edge Function secret + `vault.cron_secret` row. The cron auth helper `requireCronSecretOrVault` (in `_shared/webhookAuth.ts`) accepts either the env-var fast path or the Vault RPC fallback (`public.get_cron_secret_internal()`, `service_role` only). Both must be kept in sync; the helper tolerates a rotation window where only one matches.
-- **`ai_routing_config` active rows**: `editor-ai`, `resume-section-ai`, `tailor-resume`, `smart-fit-rewrite`, `agentic-chat`, `parse-job` (+ platform-wide rows). Legacy rows (`analyze-resume`, `recruiter-simulation`, `suggest-template`, `optimize-for-linkedin`) removed by migration `20260603000000`. Pass `featureName` on `AICallOptions` to get per-feature model routing; do not call `resolveFeatureRoute()` directly — it is deprecated.
+- **`user.id` is the Appwrite `$id`.**
+- **Portfolio `pf-*` CSS** — never touch; used by public portfolio pages.
+- **Template photo elements** — `<img>` tags inside `[data-resume-template]` (currently `CreativeTemplate` and `DesignerTemplate`) MUST set `crossOrigin="anonymous"` and MUST NOT use `loading="lazy"`. The Appwrite Storage bucket serving `photoUrl` must respond with `Access-Control-Allow-Origin: *`.
 
 ## Gotchas
 
-- **Kinde Authentication Flow**: Client exchanges Kinde token with Express at `POST /api/fn/token-exchange` to get a Supabase session JWT. Direct Kinde logins don't immediately grant Supabase access.
-- **BYOK Removal**: Bring-Your-Own-Key (BYOK) AI credit bypass has been fully removed; all AI requests deduct credits from a managed pool.
-- **AI Circuit Breaker No-Op**: The `recordBreakerEvent` function is a no-op stub and does not actively manage AI circuit breaking.
-- **Email Verification**: New email/password sign-ups require email verification before access.
-- **Admin Authentication**: Access to `/devkit` requires `DEV_KIT_PASSWORD` and `requireAdminAuth` for specific edge functions.
-- **Mobile Push Notifications**: Requires `register-push-token` edge function and `device_push_tokens` table for functionality.
+- **Most data-layer features are intentionally broken right now.** `/api/data/*` and most `edgeFunctions.invoke()` calls return `pending_appwrite_migration`. This is the expected post-cutover state until the Appwrite Functions are written.
+- **Mobile app targets the legacy backend.** Do not delete or stub anything under `mobile/` while doing further Supabase/Kinde cleanup on the web app.
+- **PDF export returns 503.** Until the Puppeteer worker is rebuilt as an Appwrite Function, expect "PDF export is being rebuilt" toasts.
+- **Express server is minimal.** It only serves `/api/health` and a `503` PDF placeholder. Anything else under `/api/*` is a `503 pending_appwrite_migration` catch-all.
 
 ## Pointers
 
-- **Supabase Docs**: [https://supabase.com/docs](https://supabase.com/docs)
-- **Kinde Auth Docs**: [https://kinde.com/docs](https://kinde.com/docs)
-- **Drizzle ORM Docs**: [https://orm.drizzle.team/docs](https://orm.drizzle.team/docs)
-- **Tailwind CSS Docs**: [https://tailwindcss.com/docs](https://tailwindcss.com/docs)
-- **TanStack Query Docs**: [https://tanstack.com/query/latest](https://tanstack.com/query/latest)
-- **Expo Docs**: [https://docs.expo.dev/](https://docs.expo.dev/)
-- **OpenRouter Docs**: [https://openrouter.ai/docs](https://openrouter.ai/docs)
-- **Groq Docs**: [https://groq.com/docs](https://groq.com/docs)
-- **Resend Docs**: [https://resend.com/docs](https://resend.com/docs)
+- **Appwrite Docs**: [https://appwrite.io/docs](https://appwrite.io/docs)
+- **Drizzle ORM**: [https://orm.drizzle.team/docs](https://orm.drizzle.team/docs)
+- **Tailwind CSS**: [https://tailwindcss.com/docs](https://tailwindcss.com/docs)
+- **TanStack Query**: [https://tanstack.com/query/latest](https://tanstack.com/query/latest)
+- **Expo**: [https://docs.expo.dev/](https://docs.expo.dev/)
+- **OpenRouter**: [https://openrouter.ai/docs](https://openrouter.ai/docs)
+- **Groq**: [https://groq.com/docs](https://groq.com/docs)
+- **Resend**: [https://resend.com/docs](https://resend.com/docs)
