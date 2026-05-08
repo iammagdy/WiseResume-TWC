@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { databases, DATABASE_ID, ID } from '@/lib/appwrite';
+import { COLLECTIONS } from '@/lib/appwrite-collections';
 
 interface UsePortfolioTrackingProps {
   username?: string | null;
@@ -96,22 +98,11 @@ export function usePortfolioTracking({ username, refParam, abVariant }: UsePortf
       ab_variant: snap.abVariant ?? null,
     };
 
-    // Deliver via navigator.sendBeacon where available — guaranteed delivery
-    // even on page unload/pagehide because the browser completes the request
-    // regardless of navigation. Falls back to keepalive fetch for environments
-    // where sendBeacon is unavailable. Both paths are fire-and-forget.
-    const body = JSON.stringify(payload);
-    if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
-      const blob = new Blob([body], { type: 'application/json' });
-      navigator.sendBeacon('/api/track-portfolio-view', blob);
-    } else {
-      fetch('/api/track-portfolio-view', {
-        method: 'POST',
-        keepalive: true,
-        headers: { 'Content-Type': 'application/json' },
-        body,
-      }).catch(() => {});
-    }
+    // Write directly to the Appwrite portfolio_visits collection.
+    // Fire-and-forget: errors are silently discarded.
+    databases
+      .createDocument(DATABASE_ID, COLLECTIONS.portfolio_visits, ID.unique(), payload)
+      .catch(() => {});
   }, []);
 
   // Public-API beacon — wraps sendBeaconCore with live ref values so
