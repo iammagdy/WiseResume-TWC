@@ -200,6 +200,7 @@ export function useResumeShareMutations() {
           token,
           is_active: true,
           password: input.password ?? null,
+          has_password: !!input.password,
           expires_at: input.expires_at ?? null,
           view_count: 0,
         },
@@ -218,7 +219,10 @@ export function useResumeShareMutations() {
       if (!user) throw new Error('Not authenticated');
       const payload: Record<string, unknown> = {};
       if (updates.is_active !== undefined) payload.is_active = updates.is_active;
-      if (updates.password !== undefined) payload.password = updates.password;
+      if (updates.password !== undefined) {
+        payload.password = updates.password;
+        payload.has_password = !!updates.password;
+      }
       if (updates.expires_at !== undefined) payload.expires_at = updates.expires_at;
       const doc = await databases.updateDocument(
         DATABASE_ID,

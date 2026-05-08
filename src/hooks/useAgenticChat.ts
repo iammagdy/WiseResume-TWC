@@ -209,7 +209,16 @@ export function useAgenticChat(contextFilter?: string) {
 
   // Public: load a specific historical session by ID
   const loadSession = useCallback(async (id: string) => {
+    if (!user) return;
     try {
+      // Verify ownership before loading messages (prevent IDOR).
+      const sessionDoc = await databases.getDocument(
+        DATABASE_ID,
+        COLLECTIONS.chat_sessions,
+        id,
+      ) as unknown as Record<string, unknown>;
+      if (sessionDoc.user_id !== user.id) return;
+
       const msgRes = await databases.listDocuments(
         DATABASE_ID,
         COLLECTIONS.chat_messages,
@@ -242,7 +251,7 @@ export function useAgenticChat(contextFilter?: string) {
     } catch {
       // Silently fail
     }
-  }, []);
+  }, [user]);
 
   // Fire-and-forget: create a new session row in DB
   const createSession = useCallback(async (title: string): Promise<string | null> => {
