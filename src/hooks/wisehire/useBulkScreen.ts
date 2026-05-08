@@ -39,6 +39,7 @@ export function useLatestBulkJobs(roleId?: string) {
     queryFn: async () => {
       if (!userId) return [];
       const queries: string[] = [
+        Query.equal('owner_id', userId),
         Query.orderDesc('created_at'),
         Query.limit(5),
       ];
