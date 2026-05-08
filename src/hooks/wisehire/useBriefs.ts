@@ -62,7 +62,7 @@ function mergeDoc(doc: Models.Document, candidateMap: Record<string, { name: str
 }
 
 export function useBriefs() {
-  const { isAuthenticated, supabaseReady, user } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const userId = user?.id;
   const queryClient = useQueryClient();
 
@@ -79,7 +79,7 @@ export function useBriefs() {
       const { candidateMap, roleMap } = await fetchRelated(briefsRes.documents);
       return briefsRes.documents.map((d) => mergeDoc(d, candidateMap, roleMap));
     },
-    enabled: isAuthenticated && supabaseReady && !!userId,
+    enabled: isAuthenticated && !!userId,
     staleTime: 60 * 1000,
   });
 
@@ -105,7 +105,7 @@ export function useBriefs() {
 }
 
 export function useBrief(briefId: string | undefined) {
-  const { isAuthenticated, supabaseReady, user } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const userId = user?.id;
 
   return useQuery({
@@ -121,7 +121,7 @@ export function useBrief(briefId: string | undefined) {
         return null;
       }
     },
-    enabled: isAuthenticated && supabaseReady && !!userId && !!briefId,
+    enabled: isAuthenticated && !!userId && !!briefId,
     staleTime: 2 * 60 * 1000,
   });
 }

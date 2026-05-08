@@ -19,7 +19,7 @@ function docToTemplate(doc: Models.Document): ScorecardTemplate {
 }
 
 export function useScorecardTemplates() {
-  const { isAuthenticated, supabaseReady, user } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const userId = user?.id;
   const qc = useQueryClient();
 
@@ -34,7 +34,7 @@ export function useScorecardTemplates() {
       ]);
       return res.documents.map(docToTemplate);
     },
-    enabled: isAuthenticated && supabaseReady && !!userId,
+    enabled: isAuthenticated && !!userId,
     staleTime: 60_000,
   });
 

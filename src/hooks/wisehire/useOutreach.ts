@@ -37,7 +37,7 @@ async function callEdge<T>(name: string, body: object): Promise<T> {
 }
 
 export function useOutreachHistory(candidateId: string | undefined) {
-  const { isAuthenticated, supabaseReady } = useAuth();
+  const { isAuthenticated } = useAuth();
   return useQuery({
     queryKey: ['outreach-history', candidateId],
     queryFn: async () => {
@@ -48,7 +48,7 @@ export function useOutreachHistory(candidateId: string | undefined) {
       ]);
       return res.documents.map(docToEmail);
     },
-    enabled: isAuthenticated && supabaseReady && !!candidateId,
+    enabled: isAuthenticated && !!candidateId,
     staleTime: 30_000,
   });
 }

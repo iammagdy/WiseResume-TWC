@@ -45,12 +45,12 @@ async function callEdge<T>(name: string, body: object): Promise<T> {
 }
 
 export function useTalentSearch(filters: TalentSearchFilters, enabled = true) {
-  const { isAuthenticated, supabaseReady } = useAuth();
+  const { isAuthenticated } = useAuth();
   return useQuery({
     queryKey: ['talent-search', filters],
     queryFn: () =>
       callEdge<{ results: TalentProfile[]; total: number; remaining?: number }>('wisehire-talent-search', filters),
-    enabled: enabled && isAuthenticated && supabaseReady,
+    enabled: enabled && isAuthenticated,
     staleTime: 30_000,
   });
 }

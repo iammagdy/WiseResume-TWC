@@ -20,7 +20,7 @@ interface StageCounts {
 }
 
 function usePipelineBreakdown() {
-  const { isAuthenticated, supabaseReady, user } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const userId = user?.id;
   return useQuery({
     queryKey: ['pipeline-breakdown', userId],
@@ -45,7 +45,7 @@ function usePipelineBreakdown() {
       }
       return { counts, addedThisWeek };
     },
-    enabled: isAuthenticated && supabaseReady && !!userId,
+    enabled: isAuthenticated && !!userId,
     staleTime: 60_000,
   });
 }

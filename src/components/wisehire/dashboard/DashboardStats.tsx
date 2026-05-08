@@ -13,7 +13,7 @@ interface StatData {
 }
 
 function useWiseHireDashboardStats() {
-  const { isAuthenticated, supabaseReady, user } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const userId = user?.id;
 
   return useQuery({
@@ -55,7 +55,7 @@ function useWiseHireDashboardStats() {
         avgMatchScore,
       };
     },
-    enabled: isAuthenticated && supabaseReady && !!userId,
+    enabled: isAuthenticated && !!userId,
     staleTime: 60 * 1000,
     retry: 1,
   });

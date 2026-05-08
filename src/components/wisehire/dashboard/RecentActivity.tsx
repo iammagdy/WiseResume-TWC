@@ -34,7 +34,7 @@ interface ActivityRow {
 }
 
 function useRecentActivity() {
-  const { isAuthenticated, supabaseReady, user } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const userId = user?.id;
   return useQuery({
     queryKey: ['pipeline-recent-activity', userId],
@@ -65,7 +65,7 @@ function useRecentActivity() {
         candidate: e.candidate_id ? { name: candidateMap[e.candidate_id as string] ?? 'Unknown candidate' } : null,
       }));
     },
-    enabled: isAuthenticated && supabaseReady && !!userId,
+    enabled: isAuthenticated && !!userId,
     staleTime: 60_000,
   });
 }

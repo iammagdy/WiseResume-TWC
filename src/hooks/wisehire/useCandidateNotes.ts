@@ -23,7 +23,7 @@ function docToNote(doc: Models.Document): CandidateNote {
 }
 
 export function useCandidateNotes(candidateId: string | undefined) {
-  const { isAuthenticated, supabaseReady, user } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   return useQuery({
     queryKey: ['candidate-notes', user?.id, candidateId],
     queryFn: async () => {
@@ -35,7 +35,7 @@ export function useCandidateNotes(candidateId: string | undefined) {
       ]);
       return res.documents.map(docToNote);
     },
-    enabled: isAuthenticated && supabaseReady && !!candidateId,
+    enabled: isAuthenticated && !!candidateId,
     staleTime: 30_000,
   });
 }

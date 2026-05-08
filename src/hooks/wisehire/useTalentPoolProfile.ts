@@ -37,7 +37,7 @@ function docToProfile(doc: Models.Document): TalentPoolProfile {
 }
 
 export function useMyTalentProfile() {
-  const { isAuthenticated, supabaseReady, user } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const userId = user?.id;
   return useQuery({
     queryKey: ['talent-pool-profile-me', userId],
@@ -49,13 +49,13 @@ export function useMyTalentProfile() {
       ]);
       return res.total > 0 ? docToProfile(res.documents[0]) : null;
     },
-    enabled: isAuthenticated && supabaseReady && !!userId,
+    enabled: isAuthenticated && !!userId,
     staleTime: 60_000,
   });
 }
 
 export function useMyTalentViews() {
-  const { isAuthenticated, supabaseReady, user } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const userId = user?.id;
   return useQuery({
     queryKey: ['talent-pool-views-me', userId],
@@ -75,7 +75,7 @@ export function useMyTalentViews() {
       ]);
       return viewsRes.documents.map((d) => ({ id: d.$id, viewed_at: d.viewed_at as string }));
     },
-    enabled: isAuthenticated && supabaseReady && !!userId,
+    enabled: isAuthenticated && !!userId,
     staleTime: 30_000,
   });
 }

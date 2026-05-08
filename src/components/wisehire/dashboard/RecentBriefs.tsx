@@ -15,7 +15,7 @@ interface BriefRow {
 }
 
 function useRecentBriefs() {
-  const { isAuthenticated, supabaseReady, user } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const userId = user?.id;
 
   return useQuery({
@@ -60,7 +60,7 @@ function useRecentBriefs() {
         role: b.role_id ? { title: roleMap[b.role_id as string] ?? 'Unknown role' } : null,
       }));
     },
-    enabled: isAuthenticated && supabaseReady && !!userId,
+    enabled: isAuthenticated && !!userId,
     staleTime: 60 * 1000,
     retry: 1,
   });

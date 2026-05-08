@@ -23,7 +23,7 @@ function docToSearch(doc: Models.Document): SavedSearch {
 }
 
 export function useSavedSearches() {
-  const { isAuthenticated, supabaseReady, user } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const userId = user?.id;
   const qc = useQueryClient();
 
@@ -38,7 +38,7 @@ export function useSavedSearches() {
       ]);
       return res.documents.map(docToSearch);
     },
-    enabled: isAuthenticated && supabaseReady && !!userId,
+    enabled: isAuthenticated && !!userId,
     staleTime: 60_000,
   });
 

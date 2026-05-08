@@ -187,7 +187,7 @@ export function DevKitRunner() {
       id: 'auth-state', label: 'Show Auth State', description: 'Display current useAuth() context values', section: 'auth',
       run: () => strictInvoke('auth-state', async () => ({
         isAuthenticated: auth.isAuthenticated,
-        supabaseReady: auth.supabaseReady,
+        appwriteReady: auth.supabaseReady,
         user: auth.user ? { id: auth.user.id, email: auth.user.email, name: auth.user.name } : null,
       })),
     },
@@ -317,7 +317,7 @@ export function DevKitRunner() {
     },
     {
       id: 'protected-route', label: 'ProtectedRoute Auth Check', description: 'Verify useAuth() state', section: 'routing',
-      run: () => strictInvoke('protected-route', async () => ({ isAuthenticated: auth.isAuthenticated, supabaseReady: auth.supabaseReady, loading: auth.loading })),
+      run: () => strictInvoke('protected-route', async () => ({ isAuthenticated: auth.isAuthenticated, appwriteReady: auth.supabaseReady, loading: auth.loading })),
     },
     // === SETTINGS ===
     {
