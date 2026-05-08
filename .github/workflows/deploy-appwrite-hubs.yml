@@ -1,9 +1,6 @@
 name: 🧠 Deploy AI Hubs
 
 on:
-    paths:
-      - 'appwrite-hubs/**'
-      - 'scripts/deploy_hubs.cjs'
   workflow_dispatch:
 
 jobs:
@@ -31,8 +28,8 @@ jobs:
           cd appwrite-hubs/ai-gateway && tar -czf ../../ai-gateway.tar.gz . && cd ../..
           node -e "
           const sdk = require('node-appwrite');
-          const functions = new sdk.Functions(new sdk.Client().setEndpoint(process.env.APPWRITE_ENDPOINT).setProject(process.env.APPWRITE_PROJECT_ID).setKey(process.env.APPWRITE_API_KEY));
           const { InputFile } = require('node-appwrite/file');
+          const functions = new sdk.Functions(new sdk.Client().setEndpoint(process.env.APPWRITE_ENDPOINT).setProject(process.env.APPWRITE_PROJECT_ID).setKey(process.env.APPWRITE_API_KEY));
           
           async function run() {
             try {
