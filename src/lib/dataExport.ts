@@ -186,10 +186,7 @@ export async function importResumes(file: File, userId: string): Promise<number>
       education: JSON.stringify(Array.isArray(resume.education) ? resume.education : []),
       skills: JSON.stringify(Array.isArray(resume.skills) ? resume.skills : []),
       certifications: JSON.stringify(Array.isArray(resume.certifications) ? resume.certifications : []),
-      template_id: typeof resume.templateId === 'string' ? resume.templateId : 'modern',
-      target_job_title: typeof resume.targetJobTitle === 'string' ? resume.targetJobTitle : null,
-      target_company: typeof resume.targetCompany === 'string' ? resume.targetCompany : null,
-      job_match_score: typeof resume.jobMatchScore === 'number' ? resume.jobMatchScore : null,
+      template: typeof resume.templateId === 'string' ? resume.templateId : 'modern',
     };
 
     const existingId = typeof resume.id === 'string' ? resume.id : null;

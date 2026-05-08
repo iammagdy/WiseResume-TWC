@@ -450,8 +450,7 @@ export async function saveOnboardingProfile({
         languages: JSON.stringify(languages),
         projects: JSON.stringify(projects),
         volunteering: JSON.stringify(volunteering),
-        template_id: templateId,
-        is_primary: true,
+        template: templateId,
       },
     );
     resumeId = resumeDoc.$id;

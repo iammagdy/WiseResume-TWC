@@ -26,9 +26,14 @@
   - Three `getSupabaseToken()` → `getAppwriteJWT()` callsites (pre-validate, fix-suggestions, validate-tailor fetches).
   - `handleApplyChanges`: supabase insert → `databases.createDocument`; all fields JSON-serialised; `template` not `template_id`; `parent_resume_id`/`target_job_title`/etc. omitted; `newResume?.id` → `newDoc.$id`.
 
-**Post-review fix (same session):**
+**Post-review fixes (same session):**
 
-- `src/pages/OnboardingPage.tsx` (redirect/reconciliation effect, lines ~174–188): replaced the remaining `apiFetch('/api/data/profile')` dynamic import with `databases.listDocuments(DATABASE_ID, COLLECTIONS.profiles, [Query.equal('user_id', userId), Query.select(['$id', 'onboarding_completed']), Query.limit(1)])`. Profile doc typed inline as `{ $id: string; onboarding_completed?: boolean }`. Behaviour is identical: if `onboarding_completed` is true, sets localStorage flag and redirects to `/dashboard`. No `apiFetch` calls remain in `OnboardingPage.tsx`.
+- `src/pages/OnboardingPage.tsx` (redirect/reconciliation effect): replaced the remaining `apiFetch('/api/data/profile')` dynamic import with `databases.listDocuments(DATABASE_ID, COLLECTIONS.profiles, [Query.equal('user_id', userId), ...])`. No `apiFetch` calls remain in `OnboardingPage.tsx`.
+- `src/pages/DashboardPage.tsx` (two sites):
+  - Onboarding probe effect (~line 202): `apiFetch('/api/data/profile')` + `ApiFetchError` replaced with dynamic `import('@/lib/appwrite')` + `db.listDocuments(dbId, cols.profiles, [q.equal('user_id', user.id), q.select(['$id', 'onboarding_completed']), q.limit(1)])`. Result shape is `Record<string, unknown> | null` — identical interface to the old profile JSON. Error handling preserved (shows profile banner on failure).
+  - LinkedIn import handler (~line 1270): `apiFetch('/api/data/resumes', { method: 'POST' })` replaced with dynamic Appwrite `db.createDocument(dbId, cols.resumes, aw_id.unique(), { ... })`. Fields serialised as JSON strings; `template_id` → `template`; result id taken from `doc.$id`. Store set via `createdId` string instead of `created.id`.
+- `src/lib/onboardingProfile.ts` (`saveOnboardingProfile` resume create payload): `template_id: templateId` → `template: templateId`; removed `is_primary: true` (attribute not in Appwrite `resumes` collection schema).
+- `src/lib/dataExport.ts` (`importResumes` payload): `template_id` → `template`; removed `target_job_title`, `target_company`, `job_match_score` (not in Appwrite `resumes` collection schema).
 
 **Additional fixes (same session):**
 

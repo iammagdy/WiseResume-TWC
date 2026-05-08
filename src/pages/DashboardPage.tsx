@@ -195,23 +195,21 @@ function DashboardPageContent() {
         const completedKey = `wr-onboarding-completed-${user.id}`;
         if (localStorage.getItem(completedKey) === 'true') return;
 
-        // Use the production-aware apiFetch wrapper rather than a raw
-        // `fetch('/api/data/profile')`. In production (static hosting) the
-        // raw path resolves to the SPA HTML via the .htaccess rewrite,
-        // which would silently break this onboarding probe.
-        const { apiFetch, ApiFetchError } = await import('@/lib/apiFetch');
         let data: Record<string, unknown> | null = null;
         try {
-          const profileJson = await apiFetch<{ profile: Record<string, unknown> | null }>(
-            '/api/data/profile',
-          );
-          data = profileJson.profile;
+          const { databases: db, DATABASE_ID: dbId, Query: q } = await import('@/lib/appwrite');
+          const { COLLECTIONS: cols } = await import('@/lib/appwrite-collections');
+          const profileRes = await db.listDocuments(dbId, cols.profiles, [
+            q.equal('user_id', user.id),
+            q.select(['$id', 'onboarding_completed']),
+            q.limit(1),
+          ]);
+          data = (profileRes.documents[0] as Record<string, unknown>) ?? null;
         } catch (apiErr) {
-          // Server-side / network error — show the banner as a fallback so
+          // Network / Appwrite error — show the banner as a fallback so
           // the user can still get to onboarding manually. Do NOT cache the
           // outcome so the next mount retries.
-          const status = apiErr instanceof ApiFetchError ? apiErr.status : 0;
-          console.warn('[DashboardPage] Onboarding profile check error:', status, apiErr);
+          console.warn('[DashboardPage] Onboarding profile check error:', apiErr);
           if (!sessionStorage.getItem('wr-dismissed-profile-banner')) {
             setShowProfileBanner(true);
           }
@@ -1265,33 +1263,36 @@ function DashboardPageContent() {
                   endDate: edu.endYear || '',
                 })),
                 skills: data.skills || [],
-                template_id: 'modern',
               };
-              const { apiFetch } = await import('@/lib/apiFetch');
-              // The server inserts into Supabase via the service-role key and
-              // returns the full row. We hydrate the editor from the submitted
-              // payload rather than the returned row to avoid a round-trip.
-              type CreatedResume = { id: string; template_id?: string };
-              let created: CreatedResume | null = null;
+              const { databases: db, DATABASE_ID: dbId, ID: aw_id } = await import('@/lib/appwrite');
+              const { COLLECTIONS: cols } = await import('@/lib/appwrite-collections');
+              let createdId: string | null = null;
               try {
-                const res = await apiFetch<{ resume: CreatedResume }>('/api/data/resumes', {
-                  method: 'POST', body: newResume,
+                const doc = await db.createDocument(dbId, cols.resumes, aw_id.unique(), {
+                  user_id: user.id,
+                  title: newResume.title,
+                  contact_info: JSON.stringify(contactInfo),
+                  summary: newResume.summary || '',
+                  experience: JSON.stringify(newResume.experience || []),
+                  education: JSON.stringify(newResume.education || []),
+                  skills: JSON.stringify(newResume.skills || []),
+                  template: 'modern',
                 });
-                created = res.resume;
+                createdId = doc.$id;
               } catch (e) {
                 console.error('Failed to create resume from LinkedIn import', e);
               }
-              if (created) {
-                setCurrentResumeId(created.id);
+              if (createdId) {
+                setCurrentResumeId(createdId);
                 setCurrentResume({
-                  id: created.id,
+                  id: createdId,
                   contactInfo: contactInfo,
                   summary: newResume.summary || '',
                   experience: (newResume.experience || []) as never,
                   education: (newResume.education || []) as never,
                   skills: (newResume.skills || []) as never,
                   certifications: [],
-                  templateId: created.template_id || newResume.template_id || 'modern',
+                  templateId: 'modern',
                 });
                 haptics.success();
                 toast.success('Resume created from LinkedIn!');
