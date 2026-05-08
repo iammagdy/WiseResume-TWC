@@ -139,13 +139,6 @@ module.exports = async ({ req, res, log, error }) => {
         return res.json({ success: false, error: 'You have already redeemed this code' });
       }
 
-      await db.createDocument(DB_ID, 'coupon_redemptions', sdk.ID.unique(), {
-        user_id: userId,
-        code,
-        discount_code_id: couponDoc.$id,
-        redeemed_at: new Date().toISOString(),
-      });
-
       const targetPlan = couponDoc.plan_override || couponDoc.target_plan || 'pro';
 
       const subsRes = await db.listDocuments(DB_ID, 'subscriptions', [
@@ -156,6 +149,13 @@ module.exports = async ({ req, res, log, error }) => {
       if (subsRes.total > 0 && subsRes.documents[0].plan === targetPlan) {
         return res.json({ success: false, already_on_plan: true, error: `You already have the ${targetPlan} plan` });
       }
+
+      await db.createDocument(DB_ID, 'coupon_redemptions', sdk.ID.unique(), {
+        user_id: userId,
+        code,
+        discount_code_id: couponDoc.$id,
+        redeemed_at: new Date().toISOString(),
+      });
 
       const now = new Date().toISOString();
       let trialEndsAt = null;
