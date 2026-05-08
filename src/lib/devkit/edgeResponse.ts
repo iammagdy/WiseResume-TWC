@@ -6,7 +6,7 @@
  *   { success: false, error: '...' } / { error: '...' } / 4xx-5xx upstream
  *
  * `unwrapAdminResponse` accepts the `{ data, error }` tuple returned by
- * `edgeFunctions.functions.invoke(...)` and either returns a typed payload
+ * `edgeFunctions.invoke(...)` and either returns a typed payload
  * or throws an `EdgeFunctionError` whose message is safe to surface.
  *
  * This replaces dozens of unchecked `as { success?; error?; … }` casts
@@ -132,8 +132,8 @@ export function formatEdgeError(e: unknown, fallback = 'Unknown error'): string 
 
 /**
  * Counterpart to `unwrapAdminResponse` for the local Express admin API
- * (i.e. `/api/admin/...` routes — these are NOT Supabase edge functions and
- * therefore can't go through `edgeFunctions.functions.invoke`). Performs the
+ * (i.e. `/api/admin/...` routes — these are NOT Appwrite Functions and
+ * therefore can't go through `edgeFunctions.invoke`). Performs the
  * same error normalization so DevKit panels never call `fetch` directly:
  *   - non-2xx response → throws EdgeFunctionError with `{ error }` body or
  *     `HTTP <status>` fallback (sets `notDeployed` for 404).
