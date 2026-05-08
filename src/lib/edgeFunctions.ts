@@ -8,6 +8,15 @@
  * AI-Hub functions (anything in AI_HUB_FUNCTIONS) are forwarded to the
  * single `ai-gateway` Appwrite Function with `featureName` in the body.
  * All other functions are called directly by their function ID.
+ *
+ * Behavioral notes vs. former HTTP-proxy path:
+ * - `InvokeOptions.headers` and `InvokeOptions.method` are intentional
+ *   no-ops. Appwrite SDK executions always use POST; custom headers belong
+ *   in the body payload or in Function-level config, not the client call.
+ * - The former 401-JWT-refresh retry loop is replaced by catching
+ *   `AppwriteException` with code 401/403 and dispatching a
+ *   session-expired event. The SDK handles token refresh internally;
+ *   a client-side retry is no longer needed.
  */
 import { AppwriteException } from 'appwrite';
 import { functions } from '@/lib/appwrite';
