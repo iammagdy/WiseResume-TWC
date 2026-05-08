@@ -100,7 +100,7 @@ function docToPublicShare(doc: Record<string, unknown>): PublicShareDoc {
     expires_at: (doc.expires_at as string | null) ?? null,
     view_count: Number(doc.view_count ?? 0),
     $createdAt: doc.$createdAt as string,
-    has_password: Boolean(doc.has_password ?? doc.password),
+    has_password: Boolean(doc.has_password),
   };
 }
 
@@ -123,7 +123,7 @@ export function usePublicResume(token: string | null, passwordAttempt?: string) 
       const shareRes = await databases.listDocuments(DATABASE_ID, COLLECTIONS.resume_shares, [
         Query.equal('token', token),
         Query.select(['$id', '$createdAt', 'resume_id', 'user_id', 'token',
-                      'is_active', 'expires_at', 'view_count', 'has_password', 'password']),
+                      'is_active', 'expires_at', 'view_count', 'has_password']),
         Query.limit(1),
       ]);
       if (shareRes.documents.length === 0) throw new Error('Share link not found or expired');
