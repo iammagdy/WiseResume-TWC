@@ -7,9 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { usePlan } from '@/hooks/usePlan';
 import { useProfile } from '@/hooks/useProfile';
 import { useResumes } from '@/hooks/useResumes';
-import { supabase } from '@/integrations/supabase/safeClient';
 import { edgeFunctions } from '@/lib/edgeFunctions';
-import { getUserId } from '@/lib/supabaseBridge';
 import { useQueryClient } from '@tanstack/react-query';
 import type { Profile } from '@/hooks/useProfile';
 import { toast } from 'sonner';
@@ -22,7 +20,7 @@ import { UnsavedChangesDialog } from '@/components/editor/UnsavedChangesDialog';
 import { UsernameRequestDialog } from '@/components/settings/UsernameRequestDialog';
 import { usePortfolioUsernameRules } from '@/hooks/usePortfolioUsernameRules';
 import { getPortfolioUrl, getPortfolioDisplayUrl } from '@/lib/portfolioUrl';
-import { databases, DATABASE_ID, ID } from '@/lib/appwrite';
+import { databases, DATABASE_ID, ID, Query } from '@/lib/appwrite';
 import { COLLECTIONS } from '@/lib/appwrite-collections';
 import { openExternal } from '@/lib/openExternal';
 import { getSafeMatchMedia } from '@/lib/envUtils';
@@ -304,14 +302,23 @@ export default function PortfolioEditorPage() {
   // Fetch available premium handles for the user-facing upgrade card
   useEffect(() => {
     let cancelled = false;
-    supabase
-      .from('portfolio_premium_usernames')
-      .select('username, price_cents, currency')
-      .eq('status', 'available')
-      .order('price_cents', { ascending: true })
-      .then(({ data }) => {
-        if (!cancelled) setPremiumHandles((data ?? []) as PremiumHandle[]);
-      });
+    databases
+      .listDocuments(DATABASE_ID, COLLECTIONS.portfolio_premium_usernames, [
+        Query.equal('status', 'available'),
+        Query.orderAsc('price_cents'),
+        Query.limit(50),
+      ])
+      .then((result) => {
+        if (!cancelled) {
+          const handles: PremiumHandle[] = result.documents.map((doc) => ({
+            username: doc['username'] as string,
+            price_cents: doc['price_cents'] as number,
+            currency: doc['currency'] as string,
+          }));
+          setPremiumHandles(handles);
+        }
+      })
+      .catch(() => { /* non-critical — leave premiumHandles empty on error */ });
     return () => { cancelled = true; };
   }, []);
 
@@ -364,8 +371,7 @@ export default function PortfolioEditorPage() {
     if (snapshot === lastDraftPersistedSnapshotRef.current) return;
     const timer = setTimeout(async () => {
       try {
-        const supabaseUserId = getUserId();
-        if (!supabaseUserId) return;
+        if (!user?.id) return;
         const currentSnapshot = getCurrentSnapshot();
         // Re-check dedup inside the async callback (snapshot may have changed)
         if (currentSnapshot === lastDraftPersistedSnapshotRef.current) return;
@@ -396,11 +402,15 @@ export default function PortfolioEditorPage() {
         }
         const parsed = JSON.parse(currentSnapshot) as Record<string, unknown>;
         const now = new Date().toISOString();
-        const { error } = await supabase
-          .from('profiles')
-          .update({ portfolio_draft: parsed, portfolio_draft_saved_at: now })
-          .eq('user_id', supabaseUserId);
-        if (!error) {
+        const profileDocs = await databases.listDocuments(DATABASE_ID, COLLECTIONS.profiles, [
+          Query.equal('user_id', user.id),
+          Query.limit(1),
+        ]);
+        if (profileDocs.total > 0) {
+          await databases.updateDocument(DATABASE_ID, COLLECTIONS.profiles, profileDocs.documents[0].$id, {
+            portfolioDraft: parsed,
+            portfolioDraftSavedAt: now,
+          });
           lastDraftPersistedSnapshotRef.current = currentSnapshot;
           // Update cache in place — no invalidation, no refetch, no state clobber
           queryClient.setQueriesData<Profile | null>({ queryKey: ['profile'] }, (old) =>
@@ -467,17 +477,16 @@ export default function PortfolioEditorPage() {
     setUsernameAvailable(null);
     usernameCheckRef.current = setTimeout(async () => {
       try {
-        const { data, error } = await supabase.rpc('check_username_available', {
-          p_username: username,
-          p_user_id: user!.id
-        });
-        if (error) throw error;
-        const status = (data as { status?: string } | null)?.status ?? 'invalid';
-        setUsernameAvailable(status === 'available');
-        setUsernameCheckStatus({
-          status,
-          reason: (data as { reason?: string } | null)?.reason,
-        });
+        const result = await databases.listDocuments(DATABASE_ID, COLLECTIONS.profiles, [
+          Query.equal('username', username.toLowerCase()),
+          Query.limit(1),
+        ]);
+        const takenByOther =
+          result.total > 0 &&
+          (result.documents[0] as unknown as { user_id: string }).user_id !== user!.id;
+        const status = takenByOther ? 'taken' : 'available';
+        setUsernameAvailable(!takenByOther);
+        setUsernameCheckStatus({ status });
       } catch {
         setUsernameAvailable(null);
         toast.error('Failed to check username availability. Please try again.');
@@ -704,16 +713,19 @@ export default function PortfolioEditorPage() {
     haptics.light();
     setSavingDraft(true);
     try {
-      const supabaseUserId = getUserId();
-      if (!supabaseUserId) throw new Error('Not authenticated');
+      if (!user?.id) throw new Error('Not authenticated');
       const snapshot = JSON.parse(getCurrentSnapshot()) as Record<string, unknown>;
       const now = new Date().toISOString();
       // Direct write — bypass mutation invalidation to avoid clobbering active edits
-      const { error } = await supabase
-        .from('profiles')
-        .update({ portfolio_draft: snapshot, portfolio_draft_saved_at: now })
-        .eq('user_id', supabaseUserId);
-      if (error) throw error;
+      const profileDocs = await databases.listDocuments(DATABASE_ID, COLLECTIONS.profiles, [
+        Query.equal('user_id', user.id),
+        Query.limit(1),
+      ]);
+      if (profileDocs.total === 0) throw new Error('Profile not found');
+      await databases.updateDocument(DATABASE_ID, COLLECTIONS.profiles, profileDocs.documents[0].$id, {
+        portfolioDraft: snapshot,
+        portfolioDraftSavedAt: now,
+      });
       queryClient.setQueriesData<Profile | null>({ queryKey: ['profile'] }, (old) =>
         old ? { ...old, portfolioDraft: snapshot, portfolioDraftSavedAt: now } : old
       );
@@ -799,18 +811,22 @@ export default function PortfolioEditorPage() {
       // entire portfolio_extras merge server-side; both are out of scope
       // for the current task.  The window is one network round-trip wide
       // and requires two tabs actively editing the password simultaneously.
-      const supabaseUserIdForPwd = await getUserId();
       let dbPasswordEnabled = cachedPasswordEnabled;
       let dbPasswordHash = cachedPasswordHash;
-      if (supabaseUserIdForPwd) {
-        const { data: freshExtras } = await supabase
-          .from('profiles')
-          .select('portfolio_extras')
-          .eq('user_id', supabaseUserIdForPwd)
-          .maybeSingle();
-        const fe = (freshExtras?.portfolio_extras as Record<string, unknown> | null) ?? {};
-        dbPasswordEnabled = !!fe.passwordEnabled;
-        dbPasswordHash = typeof fe.passwordHash === 'string' ? fe.passwordHash : '';
+      if (user?.id) {
+        try {
+          const settingsDocs = await databases.listDocuments(DATABASE_ID, COLLECTIONS.portfolio_settings, [
+            Query.equal('user_id', user.id),
+            Query.limit(1),
+          ]);
+          if (settingsDocs.total > 0) {
+            const doc = settingsDocs.documents[0] as unknown as { password_enabled?: boolean; password_hash?: string };
+            dbPasswordEnabled = !!doc.password_enabled;
+            dbPasswordHash = doc.password_hash ?? '';
+          }
+        } catch {
+          // Fall back to cached values on error
+        }
       }
 
       // Deferred guard: enabling password protection without a stored hash
@@ -823,17 +839,16 @@ export default function PortfolioEditorPage() {
       }
 
       if (username && username.length >= usernameRules.min_length && profile?.username !== username) {
-        const { data: available } = await supabase.rpc('check_username_available', {
-          p_username: username,
-          p_user_id: user!.id
-        });
-        const availStatus = (available as { status?: string } | null)?.status ?? 'invalid';
-        if (availStatus !== 'available') {
+        const usernameResult = await databases.listDocuments(DATABASE_ID, COLLECTIONS.profiles, [
+          Query.equal('username', username.toLowerCase()),
+          Query.limit(1),
+        ]);
+        const takenByOther =
+          usernameResult.total > 0 &&
+          (usernameResult.documents[0] as unknown as { user_id: string }).user_id !== user!.id;
+        if (takenByOther) {
           setUsernameAvailable(false);
-          setUsernameCheckStatus({
-            status: availStatus,
-            reason: (available as { reason?: string } | null)?.reason,
-          });
+          setUsernameCheckStatus({ status: 'taken' });
           toast.error('Username was just taken. Please choose another.');
           setSavingPortfolio(false);
           return;
@@ -912,22 +927,41 @@ export default function PortfolioEditorPage() {
 
       await updateProfile(updates as Parameters<typeof updateProfile>[0]);
 
-      // ── Apply password changes via the dedicated server-side RPC ──
-      // The RPC bcrypts the raw password on the server (no client hashing)
-      // and merges only the passwordEnabled / passwordHash keys, leaving the
-      // portfolio_extras JSONB column we just wrote untouched in every other
-      // respect.  Called only when the password state actually changed so a
-      // routine save never bumps the bcrypt hash.
+      // ── Apply password changes via Appwrite portfolio_settings upsert ──
+      // The raw password is hashed client-side with SHA-256 before being
+      // written to Appwrite.  Only the password_enabled / password_hash keys
+      // are touched — the main profile write above is unaffected.
+      // Called only when the password state actually changed so a routine
+      // save never regenerates the hash.
       const pwdStateChanged = passwordEnabled !== dbPasswordEnabled || hasNewPassword;
       let pwdRpcFailed = false;
       if (pwdStateChanged) {
         try {
-          const { error: rpcError } = await supabase.rpc('set_portfolio_password', {
-            p_password: hasNewPassword ? portfolioPassword : null,
-            p_enabled: passwordEnabled,
-          });
-          if (rpcError) throw rpcError;
-          // Reflect the new server state locally:
+          let finalHash = dbPasswordHash;
+          if (passwordEnabled && hasNewPassword) {
+            const encoder = new TextEncoder();
+            const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(portfolioPassword));
+            finalHash = Array.from(new Uint8Array(hashBuffer))
+              .map((b) => b.toString(16).padStart(2, '0'))
+              .join('');
+          } else if (!passwordEnabled) {
+            finalHash = '';
+          }
+          const pwdSettingsDocs = await databases.listDocuments(DATABASE_ID, COLLECTIONS.portfolio_settings, [
+            Query.equal('user_id', user!.id),
+            Query.limit(1),
+          ]);
+          const pwdPayload = {
+            user_id: user!.id,
+            password_enabled: passwordEnabled,
+            password_hash: finalHash || null,
+          };
+          if (pwdSettingsDocs.total > 0) {
+            await databases.updateDocument(DATABASE_ID, COLLECTIONS.portfolio_settings, pwdSettingsDocs.documents[0].$id, pwdPayload);
+          } else {
+            await databases.createDocument(DATABASE_ID, COLLECTIONS.portfolio_settings, ID.unique(), pwdPayload);
+          }
+          // Reflect the new state locally:
           //  - on enable+new pwd: we now have a stored hash (sentinel value;
           //    the actual hash never returns to the browser)
           //  - on disable: the hash was cleared

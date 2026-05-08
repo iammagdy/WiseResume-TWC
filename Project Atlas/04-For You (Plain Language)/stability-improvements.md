@@ -2,6 +2,22 @@
 
 **Last verified:** 2026-05-08
 
+## Portfolio editor fully reconnected to Appwrite — Task #15 (2026-05-08)
+
+The portfolio editor page (`/portfolio`) was still making several calls to the old Supabase database. All of those calls have been replaced so the editor now runs entirely on Appwrite.
+
+**What changed:**
+- **Available premium handles** (the upgrade card showing premium usernames for sale) now loads from Appwrite instead of silently failing.
+- **Autosave** (the 3-second background draft save that lets you recover unsaved work after a browser close) now writes to Appwrite.
+- **Save Draft** button now correctly saves your work-in-progress to Appwrite.
+- **Username availability check** (the "tick" or "taken" indicator as you type a username) now queries Appwrite directly instead of calling a removed Supabase function.
+- **Publishing** — the final save on "Publish" now checks username availability via Appwrite and writes portfolio settings to Appwrite.
+- **Portfolio password protection** — setting or clearing a portfolio password now hashes it securely in the browser and stores it in Appwrite (replacing a removed Supabase server function).
+
+**Last verified:** 2026-05-08
+
+---
+
 ## Activity timeline, application detail, hired modal and portfolio card reconnected — Task #14 (2026-05-08)
 
 Five more UI components that were silently crashing (because they still called the removed Supabase client) are now live on Appwrite.

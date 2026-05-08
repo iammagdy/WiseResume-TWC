@@ -1,3 +1,20 @@
+## 2026-05-08 — Task #15: Migrate PortfolioEditorPage to Appwrite SDK
+
+**1 file changed.** All `supabase` safeClient and `getUserId` calls removed from `PortfolioEditorPage.tsx`. No new `any` casts. `tsc --noEmit` passes with zero errors.
+
+### `src/pages/PortfolioEditorPage.tsx`
+- Removed `import { supabase } from '@/integrations/supabase/safeClient'` and `import { getUserId } from '@/lib/supabaseBridge'`.
+- Added `Query` to the existing `{ databases, DATABASE_ID, ID }` import from `@/lib/appwrite`.
+- **Premium handles fetch**: `supabase.from('portfolio_premium_usernames').select(...).eq(...).order(...)` replaced with `databases.listDocuments(DATABASE_ID, COLLECTIONS.portfolio_premium_usernames, [Query.equal('status','available'), Query.orderAsc('price_cents'), Query.limit(50)])`. Documents mapped to `PremiumHandle[]` via bracket-notation field access (no `any`).
+- **Autosave useEffect**: `getUserId()` replaced with `user?.id` guard. `supabase.from('profiles').update({ portfolio_draft, portfolio_draft_saved_at }).eq('user_id', ...)` replaced with `databases.listDocuments(profiles, [Query.equal('user_id', user.id)])` → `databases.updateDocument(docId, { portfolioDraft, portfolioDraftSavedAt })`.
+- **Debounced username check**: `supabase.rpc('check_username_available', ...)` replaced with `databases.listDocuments(profiles, [Query.equal('username', username.toLowerCase())])`. Taken-by-other check derived from the returned `user_id` field.
+- **handleSaveDraft**: Same `listDocuments` → `updateDocument` pattern as autosave. `getUserId()` → `user?.id` guard.
+- **handleSave — fresh password read**: `getUserId()` + `supabase.from('profiles').select('portfolio_extras')` replaced with `databases.listDocuments(COLLECTIONS.portfolio_settings, [Query.equal('user_id', user.id)])`. Falls back to cached React Query values on error (documented residual race unchanged).
+- **handleSave — username collision check**: Same `databases.listDocuments` + `user_id` comparison pattern as debounced check.
+- **handleSave — password upsert** (replaces `supabase.rpc('set_portfolio_password')`): Password hashed client-side with `crypto.subtle.digest('SHA-256', ...)` → hex string. Result upserted to `COLLECTIONS.portfolio_settings` (`updateDocument` if doc exists, `createDocument` otherwise) with fields `{ user_id, password_enabled, password_hash }`.
+
+---
+
 ## 2026-05-08 — Task #14: Migrate supabase safeClient calls → Appwrite SDK
 
 **5 files changed.** All remaining `supabase` safeClient imports removed from active UI components. Each call site replaced with the Appwrite Databases SDK equivalent. No new `any` casts. `tsc --noEmit` passes with zero errors.
