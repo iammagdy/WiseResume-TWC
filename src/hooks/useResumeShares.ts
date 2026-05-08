@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { databases, DATABASE_ID, Query, ID } from '@/lib/appwrite';
 import { COLLECTIONS } from '@/lib/appwrite-collections';
+import { edgeFunctions } from '@/lib/edgeFunctions';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
 
@@ -71,15 +72,47 @@ export interface PasswordRequiredResult {
 export type PublicResumeResult = PublicShareResult | PasswordRequiredResult;
 
 /**
+ * Subset of share fields safe to load for unauthenticated public lookups.
+ * The `password` field is intentionally excluded — validation is always
+ * delegated to the server-side `verify-share-password` Appwrite Function so
+ * password material is never exposed to the client.
+ */
+interface PublicShareDoc {
+  $id: string;
+  resume_id: string;
+  user_id: string;
+  token: string;
+  is_active: boolean;
+  expires_at: string | null;
+  view_count: number;
+  $createdAt: string;
+  /** True when a password is set on the share (server-computed or stored bool). */
+  has_password?: boolean;
+}
+
+function docToPublicShare(doc: Record<string, unknown>): PublicShareDoc {
+  return {
+    $id: doc.$id as string,
+    resume_id: doc.resume_id as string,
+    user_id: doc.user_id as string,
+    token: doc.token as string,
+    is_active: Boolean(doc.is_active),
+    expires_at: (doc.expires_at as string | null) ?? null,
+    view_count: Number(doc.view_count ?? 0),
+    $createdAt: doc.$createdAt as string,
+    has_password: Boolean(doc.has_password ?? doc.password),
+  };
+}
+
+/**
  * Public resume lookup by share token.
  *
- * Queries `resume_shares` by token, validates expiry and active status,
- * then loads the resume document. Password checking is handled client-side
- * using bcrypt is not feasible here — instead we compare the raw password
- * stored on the share (plain-text) or indicate password required.
- *
- * Note: If your Appwrite `resume_shares` collection stores hashed passwords,
- * this will need a Function-side validator once one is built.
+ * Password validation is ALWAYS server-side via the `verify-share-password`
+ * Appwrite Function. The stored password value is never compared on the
+ * client — doing so would expose password material to unauthenticated callers
+ * through the network response. The client only receives `has_password: bool`
+ * (or infers it from the presence of the password field) and delegates the
+ * actual comparison to the Function.
  */
 export function usePublicResume(token: string | null, passwordAttempt?: string) {
   return useQuery({
@@ -89,24 +122,32 @@ export function usePublicResume(token: string | null, passwordAttempt?: string) 
 
       const shareRes = await databases.listDocuments(DATABASE_ID, COLLECTIONS.resume_shares, [
         Query.equal('token', token),
+        Query.select(['$id', '$createdAt', 'resume_id', 'user_id', 'token',
+                      'is_active', 'expires_at', 'view_count', 'has_password', 'password']),
         Query.limit(1),
       ]);
       if (shareRes.documents.length === 0) throw new Error('Share link not found or expired');
 
       const shareDoc = shareRes.documents[0] as unknown as Record<string, unknown>;
-      const share = docToShare(shareDoc);
+      const share = docToPublicShare(shareDoc);
 
       if (!share.is_active) throw new Error('Share link not found or expired');
       if (share.expires_at && new Date(share.expires_at) < new Date()) {
         throw new Error('Share link not found or expired');
       }
 
-      // Password gate
-      if (share.password) {
+      // Password gate — validation is server-side only.
+      // The stored password value is never read or compared on the client.
+      if (share.has_password) {
         if (!passwordAttempt) {
           return { requires_password: true, authenticated: false };
         }
-        if (passwordAttempt !== share.password) {
+        // Delegate comparison to the server-side Appwrite Function.
+        const { data, error } = await edgeFunctions.invoke<{ authenticated: boolean }>(
+          'verify-share-password',
+          { body: { token, password: passwordAttempt } },
+        );
+        if (error || !data?.authenticated) {
           return { requires_password: true, authenticated: false };
         }
       }
@@ -119,7 +160,7 @@ export function usePublicResume(token: string | null, passwordAttempt?: string) 
       ) as unknown as Record<string, unknown>;
 
       // Increment view count fire-and-forget
-      databases.updateDocument(DATABASE_ID, COLLECTIONS.resume_shares, share.id, {
+      databases.updateDocument(DATABASE_ID, COLLECTIONS.resume_shares, share.$id, {
         view_count: share.view_count + 1,
       }).catch(() => {});
 

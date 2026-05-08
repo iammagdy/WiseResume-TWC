@@ -36,18 +36,18 @@ export function useSaveResumeSnapshot() {
       resume_json: unknown;
       ats_score?: number;
     }): Promise<null> => {
-      console.warn('[useResumeSnapshots] resume_snapshots collection not yet created in Appwrite');
-      throw new Error('Snapshots are being rebuilt on Appwrite — try again soon');
+      // resume_snapshots collection not yet provisioned in Appwrite 'main' DB.
+      // Silently no-op so callers aren't disrupted.
+      return null;
     },
-    onError: () => toast.error('Snapshots are being rebuilt — try again soon'),
+    onSuccess: () => toast.info('Snapshots will be available once collection is provisioned'),
   });
 }
 
 export function useDeleteResumeSnapshot() {
   return useMutation({
     mutationFn: async (_id: string): Promise<void> => {
-      console.warn('[useResumeSnapshots] resume_snapshots collection not yet created in Appwrite');
+      // Silently no-op — collection pending provisioning.
     },
-    onSuccess: () => toast.success('Snapshot deleted'),
   });
 }

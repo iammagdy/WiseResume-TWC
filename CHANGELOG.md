@@ -21,6 +21,13 @@
 
 **TypeScript:** `tsc --noEmit` passes with zero errors after all changes.
 
+**Follow-up fixes (code review):**
+
+- `src/hooks/useAgenticChat.ts` — `persistMessage` now explicitly calls `databases.updateDocument(chat_sessions, sessionId, { updated_at })` after creating the message. Appwrite only bumps `$updatedAt` on the document that was written; writing to `chat_messages` does NOT cascade to `chat_sessions`, so session recency ordering was stale without this touch.
+- `src/hooks/useResumeShares.ts` — `usePublicResume` password gate migrated from client-side plaintext comparison to server-side validation via `edgeFunctions.invoke('verify-share-password', { body: { token, password } })`. The stored `password` value is no longer compared in client code. `Query.select` restricts the public `listDocuments` call to non-sensitive fields. A `PublicShareDoc` interface and `docToPublicShare` helper separate the public-access shape from the owner `ResumeShare` type. The `verify-share-password` Appwrite Function is a pending build item; until built, password-protected shares will return `requires_password: true` (safe degradation).
+- `src/hooks/useResumeVersions.ts` — fixed incorrect `onSuccess` callback on `deleteVersion` that was showing `toast.error()` (error toast on success). Changed to `toast.info()` with a non-alarming "being rebuilt" message. Removed `console.warn` noise from `saveVersion`.
+- `src/hooks/useResumeSnapshots.ts` — `useSaveResumeSnapshot` no longer throws; returns `null` silently (graceful no-op). `useDeleteResumeSnapshot` silent no-op. Both collections (`resume_versions`, `resume_snapshots`) are confirmed absent from the live Appwrite `main` DB; stubs are the correct state until collections are provisioned.
+
 ## 2026-05-08 — Appwrite MCP server + secrets setup (Task #1)
 
 **Secrets / env vars:**

@@ -272,20 +272,31 @@ export function useAgenticChat(contextFilter?: string) {
     content: string,
     functionCallData?: { name: string; args: Record<string, unknown> }
   ) => {
-    // Fire-and-forget: create message doc.
-    // $updatedAt on the session is automatically bumped by Appwrite on any write,
-    // so we don't need to touch the session document separately.
-    void databases.createDocument(
-      DATABASE_ID,
-      COLLECTIONS.chat_messages,
-      ID.unique(),
-      {
-        session_id: sessionId,
-        role,
-        content,
-        function_call: functionCallData ? JSON.stringify(functionCallData) : null,
-      },
-    ).catch(() => { /* persistence is best-effort */ });
+    // Fire-and-forget: create message doc, then touch the session so that
+    // ordering by recency (listDocuments ...orderDesc('$updatedAt')) stays
+    // correct. Appwrite only bumps $updatedAt on the document that was
+    // written — writing to chat_messages does NOT cascade to chat_sessions.
+    void databases
+      .createDocument(
+        DATABASE_ID,
+        COLLECTIONS.chat_messages,
+        ID.unique(),
+        {
+          session_id: sessionId,
+          role,
+          content,
+          function_call: functionCallData ? JSON.stringify(functionCallData) : null,
+        },
+      )
+      .then(() =>
+        databases.updateDocument(
+          DATABASE_ID,
+          COLLECTIONS.chat_sessions,
+          sessionId,
+          { updated_at: new Date().toISOString() },
+        ),
+      )
+      .catch(() => { /* persistence is best-effort */ });
   }, []);
 
   const hasPendingEditsForSection = useCallback((functionName: string): boolean => {

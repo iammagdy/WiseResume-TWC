@@ -36,17 +36,18 @@ export function useResumeVersionMutations() {
       snapshot: ResumeData;
       changeSummary?: string;
     }): Promise<null> => {
-      console.warn('[useResumeVersions] resume_versions collection not yet created in Appwrite');
+      // resume_versions collection not yet provisioned in Appwrite 'main' DB.
+      // Silently no-op so callers aren't disrupted.
       return null;
     },
   });
 
   const deleteVersion = useMutation({
     mutationFn: async (_input: { versionId: string; resumeId: string }): Promise<void> => {
-      console.warn('[useResumeVersions] resume_versions collection not yet created in Appwrite');
+      // Silently no-op — collection pending provisioning.
     },
     onSuccess: () => {
-      toast.error('Version history is being rebuilt — try again soon');
+      toast.info('Version history is being rebuilt — this will be available soon');
     },
   });
 

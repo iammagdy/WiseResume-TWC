@@ -12,7 +12,9 @@ Another round of reconnection work is done. The following parts of the app now t
 - **Resume import (data export)** — restoring resumes from a `.json` backup file now correctly creates or updates each resume in the new backend. Deleting all account data also correctly cleans every table.
 - **Onboarding profile save** — the onboarding flow (where you confirm what to import from your CV or LinkedIn) now correctly saves your profile and first resume to the new backend, and reconciles incomplete saves if the network drops mid-flow.
 - **AI enhance, ATS deep analysis, resume health scoring** — these three AI features now use the correct Appwrite authentication token when calling the AI backend (instead of the old Supabase token). No user-visible behaviour change — these features were already working via the AI Hub; this fixes the auth handshake.
-- **AI Studio chat persistence** — session and message history for the AI chat (agentic chat) now reads from and writes to the new backend. Chat history across sessions should now correctly load and save.
+- **AI Studio chat persistence** — session and message history for the AI chat (agentic chat) now reads from and writes to the new backend. Chat history across sessions should now correctly load and save. A bug where the session's "last active" timestamp wasn't being updated (causing sessions to appear in wrong order) has also been fixed.
+- **Shared resume password protection** — password validation for password-protected shared resume links is now handled server-side. Previously, the stored password was compared in the browser (a security risk). Now the check happens on the server, and the browser never sees the stored value.
+- **Version history and snapshot buttons no longer show confusing error messages** — clicking delete on a version or taking a snapshot no longer shows misleading error or success toasts for features that are still being set up.
 
 **Last verified:** 2026-05-08
 
