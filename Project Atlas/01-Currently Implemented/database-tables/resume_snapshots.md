@@ -2,6 +2,7 @@
 
 **Last verified:** 2026-05-08
 **Type:** reference card
+**Appwrite status:** ⚠️ NOT created in Appwrite `main` database (verified 2026-05-08 via live API). This collection existed in Supabase only. Must be created in Appwrite Console before any Phase 5 migration code targets it. See `Project Atlas/05-Migration to Appwrite/07-Collection-Verification-2026-05-08.md`.
 **Sources:** `supabase/migrations/20260419000002_phase2_features.sql`.
 
 **Canonical owner:** Resume snapshot / saved-version surface (distinct from `resume_versions` which tracks live edit history).

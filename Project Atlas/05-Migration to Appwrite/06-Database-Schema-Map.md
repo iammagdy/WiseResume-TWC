@@ -1,9 +1,20 @@
 # 06 - Database Schema Map (Finalized)
 
+**Last verified against live API:** 2026-05-08
+
 **Architecture:** SQL (Supabase) has been fully ported to Documents (Appwrite).
 
-## Ported Collections (99 total)
-All 99 tables from Supabase now exist as Collections in the 'main' database.
+## Ported Collections (96 confirmed in live Appwrite; 3 not yet created)
+
+Live API returns **96 collections** in the `main` database (verified 2026-05-08 via `databases.listCollections` with `APPWRITE_API_KEY`). The previous "99 total" figure was an estimate based on Supabase migration files — the following 3 tables exist in the old Supabase schema and reference card docs but were **never created** in Appwrite:
+
+| Missing collection | Source | Status |
+|---|---|---|
+| `resume_skills` | `supabase/migrations/` + `types.ts` | NOT in Appwrite — create when migrating resume section hooks |
+| `resume_snapshots` | `supabase/migrations/20260419000002_phase2_features.sql` | NOT in Appwrite — create when implementing snapshot/rollback feature |
+| `resume_versions` | `supabase/migrations/` + `types.ts` | NOT in Appwrite — create when implementing version history |
+
+These must be created in Appwrite Console before any code targeting them is written in Phase 5.
 
 ### Core Schema Detail
 1. **profiles**

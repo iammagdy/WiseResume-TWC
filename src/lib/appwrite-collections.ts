@@ -123,6 +123,10 @@ export const COLLECTIONS = {
   resume_experiences:                'resume_experiences',
   resume_shares:                     'resume_shares',
   resumes:                           'resumes',
+  // NOTE: resume_skills, resume_snapshots, resume_versions exist in the old Supabase schema
+  // (reference cards in Project Atlas/01-Currently Implemented/database-tables/) but were
+  // NEVER created in the live Appwrite 'main' database (verified 2026-05-08 via live API).
+  // These three collections must be created in Appwrite Console before any code targets them.
 
   // Sharing
   share_comments:                    'share_comments',
