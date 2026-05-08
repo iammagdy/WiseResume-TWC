@@ -6,6 +6,7 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -28,12 +29,43 @@ jobs:
           BUILD_COMMIT: ${{ github.sha }}
           BUILD_TIME: ${{ github.event.repository.updated_at }}
 
+      - name: Verify build output
+        run: |
+          echo "=== index.html bundle reference ==="
+          grep -o 'src="/assets/index-[^"]*"' dist/index.html
+          echo "=== dist/index.html size (bytes) ==="
+          wc -c dist/index.html
+
       - name: Install lftp
         run: sudo apt-get update && sudo apt-get install -y lftp
 
-      - name: Sync to Hostinger
+      - name: Probe FTP directory structure
+        timeout-minutes: 3
         env:
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
         run: |
           lftp -d -u "u966279061.thewise.cloud,${FTP_PASSWORD}" "ftp://82.29.154.120:21" \
-            -e "set ftp:ssl-force true; set ssl:verify-certificate no; mirror --reverse --delete --verbose --parallel=10 ./dist/ /public_html/resume/; bye"
+            -e "set ftp:ssl-force true; \
+                set ssl:verify-certificate no; \
+                set net:timeout 30; \
+                set net:max-retries 2; \
+                pwd; \
+                ls; \
+                bye" 2>&1 | grep -E "^<---|PWD|^257|ls |index\.|html|resume" | head -30
+
+      - name: Sync to Hostinger
+        timeout-minutes: 20
+        env:
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+        run: |
+          # FTP home = /public_html (the web document root for thewise.cloud)
+          # Mirror dist/ directly into the FTP home (.)
+          lftp -u "u966279061.thewise.cloud,${FTP_PASSWORD}" "ftp://82.29.154.120:21" \
+            -e "set ftp:ssl-force true; \
+                set ssl:verify-certificate no; \
+                set net:timeout 30; \
+                set net:max-retries 3; \
+                set net:reconnect-interval-base 5; \
+                rm -f index.html; \
+                mirror --reverse --delete --verbose --parallel=5 ./dist/ .; \
+                bye"

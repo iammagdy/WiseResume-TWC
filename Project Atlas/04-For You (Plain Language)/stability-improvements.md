@@ -2,6 +2,24 @@
 
 **Last verified:** 2026-05-08
 
+## Live site restored — blank page fixed and production re-deployed — Task #25 (2026-05-08)
+
+The WiseResume website at thewise.cloud was showing a completely blank page. Users who visited the site saw nothing — no landing page, no sign-in button, no content at all.
+
+**What went wrong:**
+The deployment tool that pushes new code to the web server had been silently uploading files to the wrong folder since the Appwrite migration. Every time new code was deployed, it arrived at a dead-end folder that the web server never reads from. So the old broken build (which contained code for services we'd already removed) stayed in place indefinitely.
+
+**What changed:**
+- The deployment workflow now correctly uploads files directly to the folder the web server actually reads from. This was confirmed by checking the FTP server's starting directory and tracing exactly where files were landing.
+- The security headers file (`public/_headers`) was updated to allow the app to talk to Appwrite (the new backend) and remove all references to Supabase and Kinde (the old backend). This prevents browser security policies from blocking requests to Appwrite.
+- The live site now loads the current Appwrite-native build — the same code that's been working in development for weeks.
+
+**Verified:** https://thewise.cloud/ loads the WiseResume landing page correctly as of 2026-05-08 22:36 UTC.
+
+**Last verified:** 2026-05-08
+
+---
+
 ## Guest resume migration reconnected — Task #18 (2026-05-08)
 
 When a new user signed up after editing a resume as a guest, their draft was supposed to be automatically saved to their new account. This was silently broken — the migration code had been intentionally disabled while the backend was being rebuilt, so guest resumes were stuck in the browser and never transferred.

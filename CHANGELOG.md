@@ -1,3 +1,32 @@
+## 2026-05-08 — Task #25: Fix live blank page and deploy to production
+
+**Files changed:** `.github/workflows/deploy-frontend.yml`, `public/_headers`, `CHANGELOG.md`, `Project Atlas/04-For You (Plain Language)/stability-improvements.md`.
+
+### Root-cause diagnosis
+The live domain `thewise.cloud` had served an old pre-Appwrite build (containing Supabase/Kinde chunks) indefinitely because the `deploy-frontend` GitHub Actions workflow had the **wrong FTP remote path**. The FTP session starts at `/public_html` (the Hostinger account root), so the correct FTP-relative mirror destination is `resume/` — but the workflow used `/public_html/resume/`, which resolved to the non-serving path `/public_html/public_html/resume/`. Every GitHub Actions deploy since the migration silently succeeded but wrote to the wrong directory.
+
+### `public/_headers`
+- Removed stale Supabase (`*.supabase.co`, `*.supabase.in`, `wss://*.supabase.co`) and Kinde (`*.kinde.com`) origins from `connect-src`.
+- Added `https://fra.cloud.appwrite.io` to `connect-src`.
+- Added `'unsafe-inline'` to `script-src` (required for the inline theme-detection script in the Vite build).
+- Removed stale Google Fonts references from `style-src` and `font-src`.
+
+### `.github/workflows/deploy-frontend.yml`
+- Changed lftp mirror remote path from `/public_html/resume/` → `.` (FTP home = the web document root for thewise.cloud).
+- Added `set net:timeout 30`, `set net:max-retries 3`, `set net:reconnect-interval-base 5` to prevent the workflow hanging indefinitely on transient FTP connection timeouts (the original run got stuck for 40+ minutes).
+- Removed `-d` (debug) flag from production lftp invocation.
+- Reduced `--parallel` from 10 → 5 to avoid overwhelming the FTP server.
+- Added `timeout-minutes: 30` job-level and `timeout-minutes: 20` step-level to enforce hard upper bounds.
+- Added `rm -f index.html` before mirror so `index.html` is always re-uploaded (lftp mirror skips files whose timestamp/size match the remote).
+- Added a **Verify build output** step that prints the bundle hash from `dist/index.html` and the list of `index-*.js` files — this surfaced the hash mismatch that confirmed the wrong upload path.
+
+### Deployment outcome
+- `deploy-appwrite-hubs` workflow: completed SUCCESS (run 25580008577).
+- `deploy-frontend` workflow: completed SUCCESS (run 25582827906) — new Appwrite-native build (`index-AQhfc8ts.js`) now live at `https://thewise.cloud/`.
+- Live domain: WiseResume landing page renders correctly, no blank page, no legacy Supabase/Kinde JS chunks served.
+
+---
+
 ## 2026-05-08 — Task #18: Fix guest resume migration — Appwrite DB calls
 
 **2 files changed.** `useGuestMigration` fully rewritten on Appwrite SDK. No new `any` casts. `tsc --noEmit` passes with zero errors.
