@@ -50,7 +50,10 @@ export async function invokeAppwriteHub(fnName: string, options: any) {
       
       if (response.status === 'failed') throw new Error(response.errors || 'AI Hub Execution Failed');
       const result = JSON.parse(response.responseBody);
-      return { data: result.data, error: result.status === 'error' ? { message: result.message } : null };
+      // AI routes return { status, data, message }; ops routes (email, coupon) return flat JSON.
+      // Fall through to the full result when result.data is absent so both shapes work.
+      const payload = result.data !== undefined ? result.data : result;
+      return { data: payload, error: result.status === 'error' ? { message: result.message } : null };
     } catch (err: any) {
       console.error('[Appwrite Hub Error]:', err.message);
       return { data: null, error: { message: "AI Feature temporarily unavailable during migration." } };

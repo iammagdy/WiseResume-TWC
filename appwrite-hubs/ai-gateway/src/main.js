@@ -14,10 +14,13 @@ const BASES = {
 const DB_ID = 'main';
 
 function getDbClient() {
-  const client = new sdk.Client()
-    .setEndpoint(process.env.APPWRITE_FUNCTION_API_ENDPOINT || 'https://fra.cloud.appwrite.io/v1')
-    .setProject(process.env.APPWRITE_FUNCTION_PROJECT_ID || '69fd362b001eb325a192')
-    .setKey(process.env.APPWRITE_API_KEY);
+  const endpoint = process.env.APPWRITE_FUNCTION_API_ENDPOINT || process.env.APPWRITE_FUNCTION_ENDPOINT;
+  const projectId = process.env.APPWRITE_FUNCTION_PROJECT_ID;
+  const apiKey = process.env.APPWRITE_API_KEY || process.env.APPWRITE_FUNCTION_API_KEY;
+  if (!endpoint || !projectId || !apiKey) {
+    throw new Error('Appwrite DB client env vars not configured (APPWRITE_FUNCTION_API_ENDPOINT, APPWRITE_FUNCTION_PROJECT_ID, APPWRITE_API_KEY)');
+  }
+  const client = new sdk.Client().setEndpoint(endpoint).setProject(projectId).setKey(apiKey);
   return new sdk.Databases(client);
 }
 
