@@ -19,6 +19,7 @@ import * as Sentry from '@sentry/node';
 import express from 'express';
 import type { Request, Response } from 'express';
 import cors from 'cors';
+import dns from 'dns';
 
 const app = express();
 const PORT = parseInt(process.env.API_PORT || '5001', 10);
@@ -156,7 +157,14 @@ app.post('/api/track-portfolio-view', async (req: Request, res: Response) => {
 // ── Fetch-URL proxy ───────────────────────────────────────────────────────────
 // Fetches a remote URL server-side and returns the HTML body, bypassing
 // browser CORS restrictions. Used by UploadPage and onboardingProfile to
-// import LinkedIn/resume pages. SSRF-hardened: rejects private/loopback hosts.
+// import LinkedIn/resume pages.
+//
+// SSRF hardening (two layers):
+//   1. Hostname string-check via isBlockedHost() — fast rejection of known
+//      dangerous literals (localhost, private CIDR notation, etc.).
+//   2. DNS resolution — resolve the hostname to IPs and re-run isBlockedHost()
+//      on each resolved address, defeating DNS-rebinding attacks where a public
+//      hostname resolves to a private IP.
 app.post('/api/fetch-url', async (req: Request, res: Response) => {
   const { url } = req.body as { url?: string };
   if (!url || typeof url !== 'string') {
@@ -174,8 +182,24 @@ app.post('/api/fetch-url', async (req: Request, res: Response) => {
     res.status(400).json({ error: 'Only http and https URLs are supported.' });
     return;
   }
+  // Layer 1: string-based hostname check
   if (isBlockedHost(parsedUrl.hostname)) {
     res.status(400).json({ error: 'URL host is not permitted.' });
+    return;
+  }
+  // Layer 2: DNS resolution — check all resolved IPs against private ranges
+  try {
+    const addresses = await dns.promises.resolve(parsedUrl.hostname);
+    for (const addr of addresses) {
+      if (isBlockedHost(addr)) {
+        res.status(400).json({ error: 'URL host resolves to a private address.' });
+        return;
+      }
+    }
+  } catch {
+    // DNS lookup failed — could be NXDOMAIN or network error.
+    // Fail closed: reject the request rather than risk fetching an unknown target.
+    res.status(400).json({ error: 'Could not resolve URL hostname.' });
     return;
   }
   try {

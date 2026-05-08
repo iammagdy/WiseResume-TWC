@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Link2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { databases, DATABASE_ID, Query } from '@/lib/appwrite';
+import { databases, DATABASE_ID } from '@/lib/appwrite';
 import { COLLECTIONS } from '@/lib/appwrite-collections';
 
 interface ShortLinkDocument {
@@ -27,20 +27,15 @@ export default function ShortLinkPage() {
 
     (async () => {
       try {
-        const result = await databases.listDocuments(
+        // Short links are created with the slug as the document ID
+        // (see src/lib/shareUtils.ts). Use getDocument for O(1) lookup.
+        const doc = await databases.getDocument(
           DATABASE_ID,
           COLLECTIONS.short_links,
-          [Query.equal('link_id', linkId), Query.limit(1)],
-        );
+          linkId,
+        ) as unknown as ShortLinkDocument;
 
         if (cancelled) return;
-
-        if (result.documents.length === 0) {
-          setNotFound(true);
-          return;
-        }
-
-        const doc = result.documents[0] as unknown as ShortLinkDocument;
 
         // Security: only navigate to relative paths to prevent open redirects.
         if (doc.target_url && typeof doc.target_url === 'string' && doc.target_url.startsWith('/')) {
@@ -54,8 +49,12 @@ export default function ShortLinkPage() {
         } else {
           setNotFound(true);
         }
-      } catch {
-        if (!cancelled) setNotFound(true);
+      } catch (err: unknown) {
+        if (cancelled) return;
+        // Appwrite throws 404 when the document doesn't exist — show not-found.
+        // Any other error also falls through to not-found for safety.
+        const is404 = err instanceof Error && (err.message.includes('404') || err.message.toLowerCase().includes('not found'));
+        if (is404 || true) setNotFound(true);
       }
     })();
 
