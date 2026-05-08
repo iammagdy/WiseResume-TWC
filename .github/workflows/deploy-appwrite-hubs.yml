@@ -32,6 +32,4 @@ jobs:
           cd appwrite-hubs/ai-gateway && tar -czf ../../ai-gateway.tar.gz . && cd ../..
           
           # 2. Deploy using Fixed Script
-          export APPWRITE_ENDPOINT="https://fra.cloud.appwrite.io/v1"
-          export APPWRITE_PROJECT_ID="69fd362b001eb325a192"
           node scripts/deploy_hubs.cjs
