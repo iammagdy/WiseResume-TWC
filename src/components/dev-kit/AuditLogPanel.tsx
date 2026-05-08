@@ -23,7 +23,7 @@ export const AuditLogPanel = () => {
     <div className="space-y-4">
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-white font-bold flex items-center gap-2 italic uppercase tracking-tighter"><History size={20}/> Security Audit Trail</h3>
-        <span className="text-[10px] font-mono text-blue-400 bg-blue-500/5 px-2 py-1 rounded-full border border-blue-500/10">Appwrite Frankfurt Feed</span>
+        <span className="text-[10px] font-mono text-blue-400 bg-blue-500/5 px-2 py-1 rounded-full border border-blue-500/10">Appwrite Cloud Feed</span>
       </div>
 
       <div className="space-y-2">
