@@ -251,7 +251,7 @@ async function defaultRewriteFn(
   candidates: RewriteRequest[],
   jobDescription?: string,
 ): Promise<RewriteOutcome[]> {
-  const { edgeFunctions } = await import('@/integrations/supabase/edgeFunctions');
+  const { edgeFunctions } = await import('@/lib/edgeFunctions');
   const { data, error } = await edgeFunctions.invoke('smart-fit-rewrite', {
     body: { candidates, jobDescription },
   });
