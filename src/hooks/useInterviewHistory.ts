@@ -22,6 +22,16 @@ export interface InterviewSessionRecord {
   updated_at: string | null;
 }
 
+function parseJsonField<T>(raw: unknown, fallback: T): T {
+  if (raw == null) return fallback;
+  if (typeof raw !== 'string') return raw as T;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
+}
+
 function docToRecord(doc: Record<string, unknown>): InterviewSessionRecord {
   return {
     id: doc.$id as string,
@@ -31,10 +41,10 @@ function docToRecord(doc: Record<string, unknown>): InterviewSessionRecord {
     interview_type: (doc.interview_type as string | null) ?? null,
     job_title: (doc.job_title as string | null) ?? null,
     job_description: (doc.job_description as string | null) ?? null,
-    messages: doc.messages ?? null,
+    messages: parseJsonField<unknown>(doc.messages, null),
     overall_score: (doc.overall_score as number | null) ?? null,
-    strengths: doc.strengths ?? null,
-    improvements: doc.improvements ?? null,
+    strengths: parseJsonField<unknown>(doc.strengths, []),
+    improvements: parseJsonField<unknown>(doc.improvements, []),
     duration_seconds: (doc.duration_seconds as number | null) ?? null,
     status: (doc.status as string | null) ?? null,
     created_at: (doc.$createdAt as string) ?? null,

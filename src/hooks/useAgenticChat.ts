@@ -164,7 +164,7 @@ export function useAgenticChat(contextFilter?: string) {
         const sessionRes = await databases.listDocuments(
           DATABASE_ID,
           COLLECTIONS.chat_sessions,
-          [Query.orderDesc('$updatedAt'), Query.limit(1)],
+          [Query.equal('user_id', user.id), Query.orderDesc('$updatedAt'), Query.limit(1)],
         );
 
         if (sessionRes.documents.length === 0) return;
