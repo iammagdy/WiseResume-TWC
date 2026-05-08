@@ -1,13 +1,12 @@
 /**
  * Frontend plan configuration.
  *
- * Credit limit values are loaded from the single-source-of-truth JSON file:
+ * NOTE: The old single-source-of-truth JSON file
  *   supabase/functions/_shared/creditLimits.json
- *
- * Both this file (React frontend) and supabase/functions/_shared/planLimits.ts
- * (edge functions) import from that JSON so they can never drift.
+ * was removed when the Supabase directory was deleted. Credit limits are now
+ * defined directly here until the Appwrite Functions equivalent is in place.
+ * Keep these values in sync with the Appwrite ai-gateway function config.
  */
-import creditLimitsJson from '../../supabase/functions/_shared/creditLimits.json';
 
 export type PlanKey = 'free' | 'pro' | 'premium';
 
@@ -18,13 +17,13 @@ export const PLAN_PRICES: Record<string, string> = {
 };
 
 /**
- * Authoritative daily AI credit limits for each plan.
- * Values come from the shared JSON — do NOT edit them here; edit creditLimits.json.
+ * Daily AI credit limits per plan (frontend display / soft guard).
+ * The server enforces the hard limit — these values are for UI feedback only.
  */
 export const PLAN_CREDIT_LIMITS: Record<PlanKey, number> = {
-  free: creditLimitsJson.free,
-  pro: creditLimitsJson.pro,
-  premium: Infinity, // -1 in server, Infinity in frontend display
+  free: 5,
+  pro: 50,
+  premium: Infinity,
 };
 
 export const PLAN_FEATURE_LABELS: Record<PlanKey, string[]> = {

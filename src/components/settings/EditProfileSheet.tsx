@@ -19,7 +19,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 
 import { haptics } from '@/lib/haptics';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { storage, ID } from '@/lib/appwrite';
+import { BUCKETS } from '@/lib/appwrite-collections';
 import { toast } from 'sonner';
 import { 
   Profile,
@@ -195,20 +196,19 @@ export function EditProfileSheet({
 
     setIsUploading(true);
     try {
-      const fileName = `${userId}/avatar.png`;
+      // Use a stable, deterministic file ID so re-uploads replace the existing
+      // avatar rather than accumulating new files.
+      const fileId = userId.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 36);
+      const file = new File([blob], 'avatar.png', { type: 'image/png' });
 
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(fileName, blob, { upsert: true, contentType: 'image/png' });
+      // Delete the previous avatar (ignore 404 if it doesn't exist yet)
+      try { await storage.deleteFile(BUCKETS.avatars, fileId); } catch { /* no previous avatar */ }
 
-      if (uploadError) throw uploadError;
+      const uploaded = await storage.createFile(BUCKETS.avatars, fileId, file);
+      const viewUrl = storage.getFileView(BUCKETS.avatars, uploaded.$id);
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(fileName);
-
-      // Add cache-busting query param
-      const newAvatarUrl = `${publicUrl}?t=${Date.now()}`;
+      // Cache-bust so browsers pick up the new image immediately
+      const newAvatarUrl = `${viewUrl.href}&t=${Date.now()}`;
       setAvatarUrl(newAvatarUrl);
       
       // AUTO-SAVE: Immediately persist avatar URL to database
@@ -232,9 +232,9 @@ export function EditProfileSheet({
     
     setIsUploading(true);
     try {
-      // Try to delete from storage
-      const fileName = `${userId}/avatar.png`;
-      await supabase.storage.from('avatars').remove([fileName]);
+      // Delete avatar from Appwrite Storage (ignore errors if already gone)
+      const fileId = userId.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 36);
+      try { await storage.deleteFile(BUCKETS.avatars, fileId); } catch { /* already deleted */ }
       
       // Clear local state
       setAvatarUrl('');

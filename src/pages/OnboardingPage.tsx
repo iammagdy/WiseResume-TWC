@@ -13,9 +13,10 @@ import { useAuth } from '@/hooks/useAuth';
 import { useQueryClient } from '@tanstack/react-query';
 import { useMe } from '@/hooks/useMe';
 import { toast } from 'sonner';
-import { getUserId } from '@/lib/supabaseBridge';
 import { parseResumePDF, parseResumePDFWithOCR, parseTextWithAI } from '@/lib/pdfParser';
-import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { edgeFunctions } from '@/lib/edgeFunctions';
+import { databases, DATABASE_ID, Query } from '@/lib/appwrite';
+import { COLLECTIONS } from '@/lib/appwrite-collections';
 import {
   fromResumeData, fromProfileData, saveOnboardingProfile,
   probeLinkedInUrl, emptyProfile, reconcileOnboardingCompletion,
@@ -347,7 +348,7 @@ export default function OnboardingPage() {
         }
       } else if (probe.profileText.trim().length > 50) {
         try {
-          const { data, error: fnError } = await edgeFunctions.functions.invoke('parse-job', {
+          const { data, error: fnError } = await edgeFunctions.invoke('parse-job', {
             body: { action: 'linkedin', profileText: probe.profileText, platform: 'linkedin' },
           });
           if (fnError) throw fnError;
@@ -428,23 +429,21 @@ export default function OnboardingPage() {
   // ─── Skip ───────────────────────────────────────────────────────────────
   const handleSkip = useCallback(async () => {
     logAudit('onboarding', 'skipped', { step, method: methodRef.current });
-    // For the API call we accept either id source — the server-side
-    // PATCH only needs *some* authenticated identity. But the local
-    // completion flag MUST use the Kinde user.id to stay consistent
-    // with the reads in DashboardPage and the redirect probe above
-    // (which both use user.id). getUserId() returns the deterministic
-    // Supabase UUID, which is a different value.
-    const apiUserId = getUserId() || user?.id;
-    if (apiUserId) {
+    if (user?.id) {
       try {
-        const { apiFetch } = await import('@/lib/apiFetch');
-        await apiFetch('/api/data/profile', {
-          method: 'PATCH',
-          body: { onboarding_completed: true },
-        });
+        const profileRes = await databases.listDocuments(DATABASE_ID, COLLECTIONS.profiles, [
+          Query.equal('user_id', user.id),
+          Query.select(['$id']),
+          Query.limit(1),
+        ]);
+        if (profileRes.documents.length > 0) {
+          await databases.updateDocument(DATABASE_ID, COLLECTIONS.profiles, profileRes.documents[0].$id, {
+            onboarding_completed: true,
+          });
+        }
         queryClient.invalidateQueries({ queryKey: ['profile'] });
       } catch {
-        // non-critical
+        // non-critical — onboarding flag update failure does not block skip
       }
     }
     if (user?.id) {

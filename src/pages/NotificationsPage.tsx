@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useNotifications, useNotificationMutations, Notification } from '@/hooks/useNotifications';
 import { useAuth } from '@/hooks/useAuth';
 import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { client } from '@/lib/appwrite';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   AlertDialog,
@@ -32,16 +32,14 @@ export default function NotificationsPage() {
   const [filter, setFilter] = useState<FilterTab>('all');
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
-  // Realtime subscription for notifications
+  // Realtime subscription for notifications via Appwrite Realtime
   useEffect(() => {
     if (!user) return;
-    const channel = supabase
-      .channel('notifications-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` }, () => {
-        queryClient.invalidateQueries({ queryKey: ['notifications'] });
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    const unsubscribe = client.subscribe(
+      'databases.main.collections.notifications.documents',
+      () => { queryClient.invalidateQueries({ queryKey: ['notifications'] }); },
+    );
+    return () => { unsubscribe(); };
   }, [user, queryClient]);
 
   const filtered = notifications.filter(n => {

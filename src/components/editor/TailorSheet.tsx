@@ -47,7 +47,9 @@ import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
 import { AISheetErrorBoundary } from '@/components/ai/AISheetErrorBoundary';
 import { useResumeMutations, resumeDataToDb, useResumes, dbToResumeData, DatabaseResume } from '@/hooks/useResumes';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { edgeFunctions } from '@/lib/edgeFunctions';
+import { databases, DATABASE_ID, ID } from '@/lib/appwrite';
+import { COLLECTIONS } from '@/lib/appwrite-collections';
 import { useRedactedResume } from '@/hooks/useRedactedResume';
 import { 
   EnhancedTailorResult, 
@@ -59,7 +61,6 @@ import {
 } from '@/types/resume';
 import { cn } from '@/lib/utils';
 import { useShallow } from 'zustand/react/shallow';
-import { Json } from '@/integrations/supabase/types';
 
 interface TailorSheetProps {
   open: boolean;
@@ -621,30 +622,19 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
       const originalTitle = currentResume.contactInfo.fullName || 'Resume';
       const newTitle = `${originalTitle} - Tailored for ${jobTitle} @ ${company}`;
 
-      const { data: newResume, error } = await supabase
-        .from('resumes')
-        .insert({
-          user_id: user.id,
-          title: newTitle,
-          contact_info: mergedResume.contactInfo as unknown as Json,
-          summary: mergedResume.summary,
-          experience: mergedResume.experience as unknown as Json,
-          education: mergedResume.education as unknown as Json,
-          skills: mergedResume.skills as unknown as Json,
-          certifications: mergedResume.certifications as unknown as Json,
-          projects: mergedResume.projects as unknown as Json,
-          awards: mergedResume.awards as unknown as Json,
-          template_id: mergedResume.templateId,
-          parent_resume_id: currentResumeId,
-          target_job_title: jobTitle,
-          target_company: company,
-          job_match_score: tailorResult.overallScore?.after ?? null, // T008: null not 0 when score absent
-          job_url: jobUrl || null,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
+      const newDoc = await databases.createDocument(DATABASE_ID, COLLECTIONS.resumes, ID.unique(), {
+        user_id: user.id,
+        title: newTitle,
+        contact_info: JSON.stringify(mergedResume.contactInfo),
+        summary: mergedResume.summary,
+        experience: JSON.stringify(mergedResume.experience),
+        education: JSON.stringify(mergedResume.education),
+        skills: JSON.stringify(mergedResume.skills),
+        certifications: JSON.stringify(mergedResume.certifications),
+        projects: JSON.stringify(mergedResume.projects),
+        awards: JSON.stringify(mergedResume.awards),
+        template: mergedResume.templateId || 'modern',
+      });
 
       addTailorHistory({
         jobTitle,
@@ -657,9 +647,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
 
       const jt = parsedJobInfo?.title || tailorResult.jobParsed?.title || 'Position';
       const co = parsedJobInfo?.company || tailorResult.jobParsed?.company || 'Company';
-      const newResumeId = newResume?.id;
-
-      setAppliedResumeId(newResumeId || null);
+      setAppliedResumeId(newDoc.$id);
       setAppliedJobInfo({ title: jt, company: co });
       setAppliedMergedResume(mergedResume);
       setAppliedResumeTitle(newTitle);
@@ -804,10 +792,10 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
       };
 
       const [beforeResult, afterResult] = await Promise.all([
-        supabase.functions.invoke('score-resume', {
+        edgeFunctions.invoke<{ overallScore?: number }>('score-resume', {
           body: { resume: originalResume, source: 'background' },
         }),
-        supabase.functions.invoke('score-resume', {
+        edgeFunctions.invoke<{ overallScore?: number }>('score-resume', {
           body: { resume: tailoredResume, source: 'background' },
         }),
       ]);

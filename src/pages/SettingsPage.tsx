@@ -12,6 +12,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
+import { databases, DATABASE_ID, Query } from '@/lib/appwrite';
+import { COLLECTIONS } from '@/lib/appwrite-collections';
 import { usePlan } from '@/hooks/usePlan';
 import { PlanAvatar } from '@/components/ui/PlanAvatar';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -303,7 +305,18 @@ export default function SettingsPage() {
                 onTakeTour={async () => {
                   haptics.light();
                   if (user) {
-                    await (await import('@/lib/apiFetch')).apiFetch('/api/data/profile', { method: 'PATCH', body: { onboarding_completed: false } });
+                    try {
+                      const profileRes = await databases.listDocuments(DATABASE_ID, COLLECTIONS.profiles, [
+                        Query.equal('user_id', user!.id),
+                        Query.select(['$id']),
+                        Query.limit(1),
+                      ]);
+                      if (profileRes.documents.length > 0) {
+                        await databases.updateDocument(DATABASE_ID, COLLECTIONS.profiles, profileRes.documents[0].$id, {
+                          onboarding_completed: false,
+                        });
+                      }
+                    } catch { /* non-critical */ }
                   } else {
                     localStorage.removeItem('wr-onboarding-seen');
                   }

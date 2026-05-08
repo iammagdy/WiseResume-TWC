@@ -2,6 +2,24 @@
 
 **Last verified:** 2026-05-08
 
+## More features reconnected to the new backend — Batch 7 (2026-05-08)
+
+The final batch of user-facing features that were still hitting the old dead-end stub are now fully reconnected to the Appwrite backend:
+
+- **Notifications live updates** — the notifications page now uses Appwrite Realtime so new notifications appear automatically without a manual page refresh.
+- **Resume creation dialogs** — creating a blank resume, duplicating one, creating a tailored copy, or building from pasted text all now correctly write to (and read from) the new backend. Fixed a bug where the new resume's ID was silently wrong after creation.
+- **Resume tailoring** — the Tailor Sheet (the main tailoring panel in the editor) and the Set Target Job Sheet now correctly save the tailored resume to the new backend. Score comparison and keyword matching calls also use the correct function router.
+- **Profile photo upload** — uploading or removing your profile photo (from both the editor's Preview tab and the Edit Profile sheet) now stores the image in Appwrite Storage instead of the old Supabase storage bucket.
+- **Avatar management** — repeated avatar uploads correctly replace the previous file (stable file ID) instead of accumulating orphaned files.
+- **Onboarding skip** — clicking "Skip" during onboarding now correctly marks your profile as onboarding-complete in the new backend.
+- **Settings → Retake Tour** — the "Retake the tour" option in Settings now correctly resets the onboarding flag in the new backend so the tour restarts on next login.
+- **AI token handshake** — three AI calls in the Tailor page (pre-validation, fix suggestions, post-validation) now correctly pass an Appwrite JWT instead of the old Supabase token.
+- **Credit limits display** — removed a broken import that caused a build failure; credit limit values (5 free / 50 pro) are now defined directly in the frontend config.
+
+**Last verified:** 2026-05-08
+
+---
+
 ## More features reconnected to the new backend — Batch 6 (2026-05-08)
 
 Another round of reconnection work is done. The following parts of the app now talk directly to the new backend (Appwrite) instead of hitting a dead-end stub:

@@ -1,6 +1,6 @@
 # Hooks (`src/hooks/`)
 
-**Last verified:** 2026-05-08
+**Last verified:** 2026-05-08 (Batch 7)
 **Type:** reference card
 **Sources:**
 - `src/hooks/` (84 files at root + `src/hooks/wisehire/` 21 files)

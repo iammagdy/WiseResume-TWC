@@ -24,6 +24,16 @@ export interface DatabaseResume {
   is_master?: boolean;
   $createdAt: string;
   $updatedAt: string;
+  // Legacy / optional attributes — may be present in the Appwrite collection
+  // if they were provisioned from the old Supabase schema.
+  is_trial?: boolean;
+  is_primary?: boolean;
+  template_id?: string;
+  target_job_title?: string;
+  target_company?: string;
+  parent_resume_id?: string;
+  job_match_score?: number;
+  job_url?: string;
 }
 
 export function parseDbResume(doc: any): DatabaseResume {

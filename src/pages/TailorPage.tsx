@@ -30,7 +30,9 @@ import { reportBug } from '@/lib/bugReport';
 import { useAIAction } from '@/hooks/useAIAction';
 import { useResumes, dbToResumeData, DatabaseResume } from '@/hooks/useResumes';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { databases, DATABASE_ID, ID } from '@/lib/appwrite';
+import { COLLECTIONS } from '@/lib/appwrite-collections';
+import { getAppwriteJWT } from '@/lib/appwriteJWT';
 import { useRedactedResume } from '@/hooks/useRedactedResume';
 import {
   SuperTailorResult,
@@ -42,10 +44,8 @@ import {
   FixSuggestion,
 } from '@/types/resume';
 import { apiFnUrl } from '@/lib/apiFnUrl';
-import { getSupabaseToken } from '@/lib/supabaseAuth';
 import { cn } from '@/lib/utils';
 import { useShallow } from 'zustand/react/shallow';
-import { Json } from '@/integrations/supabase/types';
 import { activityTracker } from '@/lib/activityTracker';
 
 function logTailorEvent(event: string, detail?: Record<string, unknown>) {
@@ -438,7 +438,7 @@ export default function TailorPage() {
         try {
           const mergedForValidation = buildMergedResume(currentResume, superResult, enabledSections, new Set());
           preValidateMergedRef.current = mergedForValidation;
-          const token = await getSupabaseToken();
+          const token = await getAppwriteJWT();
           const thisAbort = new AbortController();
           preValidateAbortRef.current = thisAbort;
           const preValidateTimeout = setTimeout(() => thisAbort.abort(), 12000);
@@ -523,7 +523,7 @@ export default function TailorPage() {
       }
       const fixTimeout = setTimeout(() => thisAbort.abort(), 12000);
       try {
-        const token = await getSupabaseToken();
+        const token = await getAppwriteJWT();
         const r = await fetch(apiFnUrl('generate-fix-suggestions'), {
           method: 'POST',
           headers: {
@@ -601,7 +601,7 @@ export default function TailorPage() {
       // On timeout or error we fall back to the generator's estimated score.
       let validatorResult: ValidatorResult | null = null;
       try {
-        const token = await getSupabaseToken();
+        const token = await getAppwriteJWT();
         const validateAbort = new AbortController();
         const validateTimeout = setTimeout(() => validateAbort.abort(), 12000);
         try {
@@ -634,30 +634,19 @@ export default function TailorPage() {
           ? validatorResult.score
           : (tailorResult.overallScore?.after ?? null);
 
-      const { data: newResume, error } = await supabase
-        .from('resumes')
-        .insert({
-          user_id: user.id,
-          title: newTitle,
-          contact_info: mergedResume.contactInfo as unknown as Json,
-          summary: mergedResume.summary,
-          experience: mergedResume.experience as unknown as Json,
-          education: mergedResume.education as unknown as Json,
-          skills: mergedResume.skills as unknown as Json,
-          certifications: mergedResume.certifications as unknown as Json,
-          projects: mergedResume.projects as unknown as Json,
-          awards: mergedResume.awards as unknown as Json,
-          template_id: mergedResume.templateId,
-          parent_resume_id: currentResumeId,
-          target_job_title: jobTitle,
-          target_company: company,
-          job_match_score: finalMatchScore,
-          job_url: jobUrl || null,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
+      const newDoc = await databases.createDocument(DATABASE_ID, COLLECTIONS.resumes, ID.unique(), {
+        user_id: user.id,
+        title: newTitle,
+        contact_info: JSON.stringify(mergedResume.contactInfo),
+        summary: mergedResume.summary,
+        experience: JSON.stringify(mergedResume.experience),
+        education: JSON.stringify(mergedResume.education),
+        skills: JSON.stringify(mergedResume.skills),
+        certifications: JSON.stringify(mergedResume.certifications),
+        projects: JSON.stringify(mergedResume.projects),
+        awards: JSON.stringify(mergedResume.awards),
+        template: mergedResume.templateId || 'modern',
+      });
 
       addTailorHistory({
         jobTitle,
@@ -670,7 +659,7 @@ export default function TailorPage() {
       }, currentResumeId || undefined);
 
       const matchedCount = validatorResult?.matched_keywords?.length ?? tailorResult.atsAnalysis?.matchedKeywords?.length ?? 0;
-      setAppliedResumeId(newResume?.id || null);
+      setAppliedResumeId(newDoc.$id);
       setAppliedResumeTitle(newTitle);
       setAppliedJobInfo({ title: jobTitle, company });
       setAppliedScore(tailorResult.overallScore ?? null);

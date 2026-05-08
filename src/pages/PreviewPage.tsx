@@ -61,7 +61,8 @@ import { TemplateId, ExportType } from '@/types/resume';
 import { useRateApp } from '@/hooks/useRateApp';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { storage, ID } from '@/lib/appwrite';
+import { BUCKETS } from '@/lib/appwrite-collections';
 
 
 
@@ -173,13 +174,10 @@ export default function PreviewPage() {
   const handleUploadPhoto = async (blob: Blob) => {
     try {
       if (user) {
-        const fileName = `${user.id}/resume-photo-${Date.now()}.png`;
-        const { data, error } = await supabase.storage.
-        from('avatars').
-        upload(fileName, blob, { upsert: true });
-        if (error) throw error;
-        const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(fileName);
-        updateResume({ contactInfo: { ...currentResume.contactInfo, photoUrl: urlData.publicUrl } });
+        const file = new File([blob], `resume-photo-${Date.now()}.png`, { type: 'image/png' });
+        const uploaded = await storage.createFile(BUCKETS.avatars, ID.unique(), file);
+        const viewUrl = storage.getFileView(BUCKETS.avatars, uploaded.$id);
+        updateResume({ contactInfo: { ...currentResume.contactInfo, photoUrl: viewUrl.href } });
       } else {
         const url = URL.createObjectURL(blob);
         updateResume({ contactInfo: { ...currentResume.contactInfo, photoUrl: url } });

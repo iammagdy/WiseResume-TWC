@@ -23,14 +23,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { useResumeMutations, DatabaseResume, dbToResumeData, parseDbResume } from '@/hooks/useResumes';
 import haptics from '@/lib/haptics';
 import { useResumeStore } from '@/store/resumeStore';
-import { supabase } from '@/integrations/supabase/safeClient';
-import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { databases, DATABASE_ID, ID } from '@/lib/appwrite';
+import { COLLECTIONS } from '@/lib/appwrite-collections';
+import { edgeFunctions } from '@/lib/edgeFunctions';
 import { useAuth } from '@/hooks/useAuth';
-import { getUserId } from '@/lib/supabaseBridge';
 import { useProfile } from '@/hooks/useProfile';
 import { usePlan } from '@/hooks/usePlan';
 import { UpgradeWall } from '@/components/plan/UpgradeWall';
-import { Json } from '@/integrations/supabase/types';
 import {
   Select,
   SelectContent,
@@ -198,28 +197,16 @@ export function CreateResumeDialog({
         title: title.trim(),
       });
 
-      // Persist target job title and experience level via customization JSON column
+      // Persist experience level via customization field
       if (intakeJobTitle.trim() || experienceLevel) {
-        await supabase
-          .from('resumes')
-          .update({
-            target_job_title: intakeJobTitle.trim() || null,
-            customization: { experienceLevel: experienceLevel || null },
-          })
-          .eq('id', newResume.id);
+        await databases.updateDocument(DATABASE_ID, COLLECTIONS.resumes, newResume.$id, {
+          customization: JSON.stringify({ experienceLevel: experienceLevel || null }),
+        });
       }
-      
-      setCurrentResumeId(newResume.id);
-      setCurrentResume({
-        id: newResume.id,
-        contactInfo: newResume.contact_info,
-        summary: newResume.summary,
-        experience: newResume.experience || [],
-        education: newResume.education || [],
-        skills: newResume.skills || [],
-        certifications: newResume.certifications || [],
-        templateId: newResume.template_id,
-      });
+
+      const startBlankData = dbToResumeData(newResume);
+      setCurrentResumeId(startBlankData.id);
+      setCurrentResume(startBlankData);
       
       onOpenChange(false);
       // Navigate with experience level so the editor can reorder sections
@@ -244,19 +231,10 @@ export function CreateResumeDialog({
     
     setIsCreating(true);
     try {
-      const newResume = await duplicateResume.mutateAsync(selectedResumeId);
-      
-      setCurrentResumeId(newResume.id);
-      setCurrentResume({
-        id: newResume.id,
-        contactInfo: newResume.contact_info,
-        summary: newResume.summary,
-        experience: newResume.experience || [],
-        education: newResume.education || [],
-        skills: newResume.skills || [],
-        certifications: newResume.certifications || [],
-        templateId: newResume.template_id,
-      });
+      const dupDoc = await duplicateResume.mutateAsync(selectedResumeId);
+      const dupData = dbToResumeData(dupDoc);
+      setCurrentResumeId(dupData.id);
+      setCurrentResume(dupData);
       
       onOpenChange(false);
       navigate('/editor');
@@ -270,78 +248,42 @@ export function CreateResumeDialog({
   // Handle creating a tailored version
   const handleCreateTailored = async () => {
     if (!title.trim() || !parentResumeId || !user) return;
-    
-    const bridgedUserId = getUserId();
-    if (!bridgedUserId) {
-      toast.error('Authentication not ready. Please try again in a moment.');
-      return;
-    }
-    
-    const parentResume = existingResumes.find(r => r.id === parentResumeId);
+
+    const parentResume = existingResumes.find(r => r.$id === parentResumeId);
     if (!parentResume) return;
-    
+
     setIsCreating(true);
     try {
-      // Create a copy with parent_resume_id set, including new job-targeting fields
-      // Build customization payload storing job description for persistence
-      const customizationData: Record<string, unknown> = {};
-      if (tailoredJobDescription.trim()) {
-        customizationData.jobDescription = tailoredJobDescription.trim();
-      }
+      // Store job description in customization field for persistence
+      const customizationPayload = tailoredJobDescription.trim()
+        ? JSON.stringify({ jobDescription: tailoredJobDescription.trim() })
+        : undefined;
 
-      const { data: newResume, error } = await supabase
-        .from('resumes')
-        .insert({
-          user_id: bridgedUserId,
-          title: title.trim(),
-          contact_info: parentResume.contact_info as unknown as Json,
-          summary: parentResume.summary,
-          experience: parentResume.experience as unknown as Json,
-          education: parentResume.education as unknown as Json,
-          skills: parentResume.skills as unknown as Json,
-          certifications: parentResume.certifications as unknown as Json,
-          awards: parentResume.awards as unknown as Json,
-          projects: parentResume.projects as unknown as Json,
-          languages: parentResume.languages as unknown as Json,
-          publications: parentResume.publications as unknown as Json,
-          volunteering: parentResume.volunteering as unknown as Json,
-          hobbies: parentResume.hobbies as unknown as Json,
-          references: parentResume.references as unknown as Json,
-          template_id: parentResume.template_id,
-          target_job_title: tailoredJobTitle.trim() || parentResume.target_job_title || null,
-          target_company: tailoredCompany.trim() || parentResume.target_company || null,
-          parent_resume_id: parentResumeId,
-          is_primary: false,
-          customization: Object.keys(customizationData).length > 0 ? customizationData as unknown as Json : null,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
+      const newDoc = await databases.createDocument(DATABASE_ID, COLLECTIONS.resumes, ID.unique(), {
+        user_id: user.id,
+        title: title.trim(),
+        // contact_info, experience, education, skills, certifications, awards,
+        // projects are already JSON strings in the Appwrite DatabaseResume.
+        contact_info: parentResume.contact_info,
+        summary: parentResume.summary,
+        experience: parentResume.experience,
+        education: parentResume.education,
+        skills: parentResume.skills,
+        certifications: parentResume.certifications,
+        awards: parentResume.awards,
+        projects: parentResume.projects,
+        template: parentResume.template,
+        ...(customizationPayload ? { customization: customizationPayload } : {}),
+      });
 
       // If a job description was provided, seed the store so TailorSheet has it pre-filled
       if (tailoredJobDescription.trim()) {
         useResumeStore.getState().setJobDescription(tailoredJobDescription.trim());
       }
 
-      setCurrentResumeId(newResume.id);
-      setCurrentResume({
-        id: newResume.id,
-        contactInfo: parentResume.contact_info,
-        summary: parentResume.summary,
-        experience: parentResume.experience || [],
-        education: parentResume.education || [],
-        skills: parentResume.skills || [],
-        certifications: parentResume.certifications || [],
-        awards: parentResume.awards || [],
-        projects: parentResume.projects || [],
-        languages: parentResume.languages || [],
-        publications: parentResume.publications || [],
-        volunteering: parentResume.volunteering || [],
-        hobbies: parentResume.hobbies || [],
-        references: parentResume.references || [],
-        templateId: parentResume.template_id,
-      });
+      const parentData = dbToResumeData(parentResume);
+      setCurrentResumeId(newDoc.$id);
+      setCurrentResume({ ...parentData, id: newDoc.$id });
       
       onOpenChange(false);
       // If job description supplied, open tailor sheet immediately
@@ -394,11 +336,16 @@ export function CreateResumeDialog({
     setIsCreating(true);
     setPasteError(null);
     try {
-      const { data, error: fnError } = await edgeFunctions.functions.invoke('parse-job', {
+      const { data, error: fnError } = await edgeFunctions.invoke('parse-job', {
         body: { action: 'linkedin', profileText: pasteText.trim(), platform: 'generic' },
       });
       if (fnError) throw fnError;
-      if (data?.error) throw new Error(data.message || data.error);
+      if ((data as Record<string, unknown> | null)?.error) {
+        throw new Error(
+          (data as Record<string, unknown>).message as string ||
+          (data as Record<string, unknown>).error as string
+        );
+      }
 
       const parsed = data as Partial<ProfileData> & { summary?: string };
       const mapped = mapProfileDataToResumeFields(parsed);
@@ -418,17 +365,9 @@ export function CreateResumeDialog({
         title: pasteTitle.trim() || 'My Resume',
       });
 
-      setCurrentResumeId(newResume.id);
-      setCurrentResume({
-        id: newResume.id,
-        contactInfo: newResume.contact_info,
-        summary: newResume.summary || '',
-        experience: newResume.experience || [],
-        education: newResume.education || [],
-        skills: newResume.skills || [],
-        certifications: newResume.certifications || [],
-        templateId: newResume.template_id || 'modern',
-      });
+      const pasteData = dbToResumeData(newResume);
+      setCurrentResumeId(pasteData.id);
+      setCurrentResume(pasteData);
 
       onOpenChange(false);
       navigate('/editor');
@@ -449,53 +388,37 @@ export function CreateResumeDialog({
 
   const handleCreateTrial = async () => {
     if (!user) return;
-    const bridgedUserId = getUserId();
-    if (!bridgedUserId) {
-      toast.error('Authentication not ready. Please try again.');
-      return;
-    }
     setIsCreatingTrial(true);
     try {
-      // Prefer the specific resume being tailored; fall back to primary, then any.
+      // Prefer the specific resume being tailored; fall back to first available.
       const source =
-        (parentResumeId ? nonTrialResumes.find(r => r.id === parentResumeId) : undefined) ??
-        nonTrialResumes.find(r => r.is_primary) ??
+        (parentResumeId ? nonTrialResumes.find(r => r.$id === parentResumeId) : undefined) ??
         nonTrialResumes[0];
-      const trialExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
       const insertPayload: Record<string, unknown> = {
-        user_id: bridgedUserId,
+        user_id: user.id,
         title: source ? `${source.title} (Trial)` : 'My Trial Resume',
-        is_trial: true,
-        trial_expires_at: trialExpiresAt,
-        template_id: source?.template_id || 'modern',
-        is_primary: false,
+        template: source?.template || 'modern',
       };
       if (source) {
-        insertPayload.contact_info = source.contact_info as unknown;
+        // These fields are already JSON strings in Appwrite — pass them directly.
+        insertPayload.contact_info = source.contact_info;
         insertPayload.summary = source.summary;
-        insertPayload.experience = source.experience as unknown;
-        insertPayload.education = source.education as unknown;
-        insertPayload.skills = source.skills as unknown;
-        insertPayload.certifications = source.certifications as unknown;
-        insertPayload.awards = source.awards as unknown;
-        insertPayload.projects = source.projects as unknown;
-        insertPayload.publications = source.publications as unknown;
-        insertPayload.volunteering = source.volunteering as unknown;
-        insertPayload.hobbies = source.hobbies as unknown;
-        insertPayload.references = source.references as unknown;
+        insertPayload.experience = source.experience;
+        insertPayload.education = source.education;
+        insertPayload.skills = source.skills;
+        insertPayload.certifications = source.certifications;
+        insertPayload.awards = source.awards;
+        insertPayload.projects = source.projects;
       }
-      const { data: rawResume, error } = await supabase
-        .from('resumes')
-        .insert(insertPayload)
-        .select()
-        .single();
-      if (error) throw error;
+      const rawDoc = await databases.createDocument(
+        DATABASE_ID, COLLECTIONS.resumes, ID.unique(), insertPayload,
+      );
 
       await queryClient.invalidateQueries({ queryKey: ['resumes', user.id] });
 
-      const newResume = parseDbResume(rawResume);
+      const newResume = parseDbResume(rawDoc);
       const newResumeData = dbToResumeData(newResume);
-      setCurrentResumeId(newResume.id);
+      setCurrentResumeId(newResume.$id);
       setCurrentResume(newResumeData);
 
       toast.success('Trial resume created! It will expire in 24 hours.');

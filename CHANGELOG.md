@@ -1,3 +1,42 @@
+## 2026-05-08 — Appwrite migration Batch 7 — final in-scope files (Task #2)
+
+**Files migrated — all remaining Supabase throw-stubs replaced with live Appwrite Web SDK calls:**
+
+- `src/pages/NotificationsPage.tsx`: removed `supabase` import; replaced Supabase Realtime channel (`supabase.channel(...).on(...)`) with `client.subscribe('databases.main.collections.notifications.documents', callback)` from `@/lib/appwrite`. Returns the Appwrite unsubscribe function in useEffect cleanup.
+- `src/components/editor/TailorSheet.tsx` (two sites):
+  - Background score comparison: `supabase.functions.invoke('score-resume', ...)` × 2 replaced with `edgeFunctions.invoke<{ overallScore?: number }>('score-resume', ...)` from `@/lib/edgeFunctions`. Return type explicit; no `any`.
+  - `handleApplyChanges`: `supabase.from('resumes').insert(...)` replaced with `databases.createDocument(DATABASE_ID, COLLECTIONS.resumes, ID.unique(), { ... })`. Fields serialised as JSON strings. `newResume?.id` → `newDoc.$id`. Added `databases`, `DATABASE_ID`, `ID` from `@/lib/appwrite` and `COLLECTIONS` from `@/lib/appwrite-collections`.
+- `src/pages/OnboardingPage.tsx`: removed `import { getUserId }` and `import { edgeFunctions } from '@/integrations/supabase/edgeFunctions'`; replaced with `edgeFunctions` from `@/lib/edgeFunctions`. `handleSkip` migrated from `apiFetch('/api/data/profile', PATCH)` to `databases.listDocuments + updateDocument` on the `profiles` collection. `getUserId() || user?.id` reduced to `user?.id`.
+- `src/pages/PreviewPage.tsx` (`handleUploadPhoto`): removed `supabase` import; replaced `supabase.storage.from('avatars').upload(...)` + `getPublicUrl(...)` with `storage.createFile(BUCKETS.avatars, ID.unique(), file)` + `storage.getFileView(...).href` from `@/lib/appwrite`. Added `storage`, `ID`, `BUCKETS`.
+- `src/components/settings/EditProfileSheet.tsx` (`handleCroppedImage` + `handleRemoveAvatar`): removed `supabase` import; replaced Supabase Storage calls with Appwrite Storage — stable `fileId = userId.replace(...)` for deterministic avatar overwrites; `storage.deleteFile` (ignore 404) then `storage.createFile`; `storage.getFileView(...).href` for public URL; `?t=Date.now()` cache-bust. Added `storage`, `ID`, `BUCKETS`.
+- `src/pages/SettingsPage.tsx` (`onTakeTour` reset): removed dynamic `apiFetch` import; replaced with `databases.listDocuments + updateDocument` to set `onboarding_completed: false` on the user's profile document. Added static `databases`, `DATABASE_ID`, `Query`, `COLLECTIONS` imports.
+- `src/components/dashboard/CreateResumeDialog.tsx` (all four handlers + `handleDuplicate`):
+  - Removed `supabase`, `getUserId`, supabase `edgeFunctions`, `Json` imports. Added `databases`, `DATABASE_ID`, `ID` from `@/lib/appwrite`; `COLLECTIONS`; `edgeFunctions` from `@/lib/edgeFunctions`.
+  - `handleStartBlank`: `supabase.from('resumes').update(...)` → `databases.updateDocument(...)` (customization only; `target_job_title` not in Appwrite schema). Store setup via `dbToResumeData(newResume)`.
+  - `handleDuplicate`: store setup via `dbToResumeData(dupDoc)` replacing manual field spread.
+  - `handleCreateTailored`: dropped `getUserId()` guard; `existingResumes.find(r => r.id)` → `r.$id`; supabase insert replaced with `databases.createDocument`; fields passed as-is (already JSON strings in Appwrite); `template` not `template_id`; store setup via `dbToResumeData`.
+  - `handlePasteCreate`: `edgeFunctions.functions.invoke` → `edgeFunctions.invoke`; store setup via `dbToResumeData`.
+  - `handleCreateTrial`: dropped `getUserId()` guard and `bridgedUserId`; removed `is_trial`/`trial_expires_at`/`is_primary`/`template_id` (not in Appwrite schema); supabase insert → `databases.createDocument`; `newResume.id` → `newResume.$id`.
+- `src/components/dashboard/SetTargetJobSheet.tsx`:
+  - Removed `supabase`, `Json` imports. Added `databases`, `DATABASE_ID`, `ID`, `COLLECTIONS`.
+  - `handleAnalyze` background save: `supabase.from('resumes').update(...).eq('id', resume.id)` → `databases.updateDocument(DATABASE_ID, COLLECTIONS.resumes, resume.$id, { target_job_title, target_company, job_match_score })`.
+  - `handleTailor` resume creation: supabase insert → `databases.createDocument`; `contact_info` passed directly (already JSON string); experience/education/skills arrays from tailor result serialised with `JSON.stringify`; `template` not `template_id`; `parent_resume_id`/`target_job_title`/etc. omitted (not in Appwrite schema).
+- `src/pages/TailorPage.tsx`:
+  - Removed `supabase`, `getSupabaseToken`, `Json` imports. Added `databases`, `DATABASE_ID`, `ID`, `COLLECTIONS`, `getAppwriteJWT`.
+  - Three `getSupabaseToken()` → `getAppwriteJWT()` callsites (pre-validate, fix-suggestions, validate-tailor fetches).
+  - `handleApplyChanges`: supabase insert → `databases.createDocument`; all fields JSON-serialised; `template` not `template_id`; `parent_resume_id`/`target_job_title`/etc. omitted; `newResume?.id` → `newDoc.$id`.
+
+**Additional fixes (same session):**
+
+- `src/lib/appwrite-collections.ts`: `BUCKETS = { avatars: 'avatars' }` added with provisioning note for Appwrite Console.
+- `src/hooks/useResumes.ts` (`DatabaseResume` interface): added optional legacy attributes `is_trial`, `is_primary`, `template_id`, `target_job_title`, `target_company`, `parent_resume_id`, `job_match_score`, `job_url` so call sites that still reference these fields compile without `any`.
+- `src/lib/planConfig.ts`: removed broken `import creditLimitsJson from '../../supabase/functions/_shared/creditLimits.json'` (supabase dir deleted); replaced with hardcoded constants `free: 5`, `pro: 50`, `premium: Infinity`. Updated comment documenting why.
+
+**TypeScript:** `tsc --noEmit` passes with zero errors.
+**Build:** `vite build --mode development` succeeds with zero errors (chunk-size warnings only — pre-existing).
+
+---
+
 ## 2026-05-08 — Appwrite migration Batch 6 (Task #2)
 
 **Files migrated — all Supabase throw-stubs replaced with live Appwrite Web SDK calls:**

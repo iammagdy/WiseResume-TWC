@@ -1,6 +1,6 @@
 # Components (`src/components/`)
 
-**Last verified:** 2026-05-08
+**Last verified:** 2026-05-08 (Batch 7)
 **Type:** reference card
 **Sources:** `src/components/`, `replit.md`.
 

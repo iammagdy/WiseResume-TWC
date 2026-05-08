@@ -1,8 +1,12 @@
 # Library (`src/lib/`)
 
-**Last verified:** 2026-05-08
+**Last verified:** 2026-05-08 (Batch 7)
 **Type:** reference card
 **Sources:** `src/lib/` (≈90 root files + 6 subfolders).
+
+**Batch 7 changes:**
+- `planConfig.ts`: removed broken JSON import (`supabase/functions/_shared/creditLimits.json` deleted with supabase dir); credit limits now hardcoded (`free: 5`, `pro: 50`, `premium: Infinity`).
+- `appwrite-collections.ts`: `BUCKETS` object now contains `avatars: 'avatars'` (provision this bucket in Appwrite Console with CORS `*`).
 
 **Canonical owner:** `src/lib/` directory.
 

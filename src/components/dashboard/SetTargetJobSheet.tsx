@@ -10,7 +10,8 @@ import { Progress } from '@/components/ui/progress';
 import { JobUrlParser } from '@/components/editor/tailor/JobUrlParser';
 import { tailorResumeWithProgress } from '@/lib/aiTailor';
 import { DatabaseResume, dbToResumeData } from '@/hooks/useResumes';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { databases, DATABASE_ID, ID } from '@/lib/appwrite';
+import { COLLECTIONS } from '@/lib/appwrite-collections';
 import { useAuth } from '@/hooks/useAuth';
 import { useAIAction } from '@/hooks/useAIAction';
 import { toast } from 'sonner';
@@ -18,7 +19,6 @@ import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { EnhancedTailorProgress, SuperTailorResult } from '@/types/resume';
 import { useQueryClient } from '@tanstack/react-query';
-import { Json } from '@/integrations/supabase/types';
 
 interface SetTargetJobSheetProps {
   open: boolean;
@@ -95,16 +95,11 @@ export function SetTargetJobSheet({ open, onOpenChange, resume }: SetTargetJobSh
 
         setIsSavingMatch(true);
         try {
-          await supabase
-            .from('resumes')
-            .update({
-              target_job_title: title,
-              target_company: company,
-              job_match_score: score,
-            })
-            .eq('id', resume.id)
-            .eq('user_id', user.id);
-
+          await databases.updateDocument(DATABASE_ID, COLLECTIONS.resumes, resume.$id, {
+            target_job_title: title,
+            target_company: company,
+            job_match_score: score,
+          });
           queryClient.invalidateQueries({ queryKey: ['resumes'] });
         } finally {
           setIsSavingMatch(false);
@@ -123,34 +118,22 @@ export function SetTargetJobSheet({ open, onOpenChange, resume }: SetTargetJobSh
     setIsTailoring(true);
 
     try {
-      const insertData = {
+      await databases.createDocument(DATABASE_ID, COLLECTIONS.resumes, ID.unique(), {
         user_id: user.id,
         title: `${resume.title} — ${parsedJob?.company || tailorResult.jobParsed?.company || 'Tailored'}`,
-        contact_info: resume.contact_info as unknown as Json,
+        // contact_info is already a JSON string in Appwrite DatabaseResume
+        contact_info: resume.contact_info,
         summary: tailorResult.summary,
-        experience: tailorResult.experience as unknown as Json,
-        education: tailorResult.education as unknown as Json,
-        skills: tailorResult.skills as unknown as Json,
-        certifications: resume.certifications as unknown as Json,
-        awards: resume.awards as unknown as Json,
-        projects: resume.projects as unknown as Json,
-        publications: resume.publications as unknown as Json,
-        volunteering: resume.volunteering as unknown as Json,
-        hobbies: resume.hobbies as unknown as Json,
-        references: resume.references as unknown as Json,
-        template_id: resume.template_id,
-        parent_resume_id: resume.id,
-        target_job_title: parsedJob?.title || tailorResult.jobParsed?.title || '',
-        target_company: parsedJob?.company || tailorResult.jobParsed?.company || '',
-        job_match_score: tailorResult.overallScore?.after || 0,
-      };
-      const { data, error } = await supabase
-        .from('resumes')
-        .insert(insertData)
-        .select()
-        .single();
-
-      if (error) throw error;
+        // tailor result arrays must be serialised to JSON strings
+        experience: JSON.stringify(tailorResult.experience),
+        education: JSON.stringify(tailorResult.education),
+        skills: JSON.stringify(tailorResult.skills),
+        // remaining resume fields are already JSON strings in DatabaseResume
+        certifications: resume.certifications,
+        awards: resume.awards,
+        projects: resume.projects,
+        template: resume.template,
+      });
 
       queryClient.invalidateQueries({ queryKey: ['resumes'] });
       toast.success('Tailored version created!');

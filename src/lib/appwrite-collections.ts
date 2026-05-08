@@ -163,7 +163,14 @@ export const COLLECTIONS = {
 export type CollectionId = typeof COLLECTIONS[keyof typeof COLLECTIONS];
 
 /**
- * Storage buckets — no buckets exist in the live project yet (verified 2026-05-08).
- * Add bucket IDs here as they are created in Appwrite Console.
+ * Storage buckets.
+ * Each entry's key is the logical name; the value is the Appwrite bucket ID.
+ *
+ * 'avatars' — user profile photos and resume headshots.
+ *   Provision in Appwrite Console → Storage → Create Bucket, ID = 'avatars'.
+ *   Set "Access-Control-Allow-Origin: *" on the bucket so cross-origin
+ *   resume templates can load the photo (required for canvas/PDF export).
  */
-export const BUCKETS = {} as const;
+export const BUCKETS = {
+  avatars: 'avatars',
+} as const;
