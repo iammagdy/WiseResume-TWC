@@ -35,6 +35,11 @@
 - `src/lib/onboardingProfile.ts` (`saveOnboardingProfile` resume create payload): `template_id: templateId` → `template: templateId`; removed `is_primary: true` (attribute not in Appwrite `resumes` collection schema).
 - `src/lib/dataExport.ts` (`importResumes` payload): `template_id` → `template`; removed `target_job_title`, `target_company`, `job_match_score` (not in Appwrite `resumes` collection schema).
 
+**Intentional temporary degradations confirmed (pending Appwrite rebuild):**
+
+- `src/hooks/useAIKeyHydration.ts` — BYOK key hydration is a deliberate **no-op** for this phase. The hook's own JSDoc documents this: "BYOK is currently disabled (useIsBYOK always returns false). When BYOK is re-enabled, swap the queryFn to use the Appwrite `edgeFunctions`." Call sites are unchanged; no user-visible regression while BYOK is disabled. Rebuild tracked in a future task.
+- `src/hooks/useGuestMigration.ts` — Guest-draft migration pipeline is **disabled** for this phase. The file's own comment reads: "Pending Appwrite migration — the guest-migration pipeline currently throws at the first `apiFetch` call and will be rebuilt on Appwrite." The `apiFetch` import is from the throw-stub; it fails at first call, which means no guest drafts are silently lost — the migration simply doesn't run, and the guest data stays in localStorage until the pipeline is rebuilt on Appwrite. This is the safest degradation: no data is destroyed.
+
 **Additional fixes (same session):**
 
 - `src/lib/appwrite-collections.ts`: `BUCKETS = { avatars: 'avatars' }` added with provisioning note for Appwrite Console.
