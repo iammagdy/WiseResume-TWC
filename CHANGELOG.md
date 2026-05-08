@@ -1,3 +1,14 @@
+## 2026-05-08 — WiseHire + DevKit Appwrite migration — post-approval fixes (Task #3)
+
+**Files fixed following code review approval-with-comments:**
+
+- `src/components/dev-kit/DevKitRunner.tsx`: `import { edgeFunctions } from '@/integrations/supabase/edgeFunctions'` → `import { edgeFunctions } from '@/lib/edgeFunctions'`. Normalises DevKit to the canonical edge function client, consistent with `MissionControlPanel`, `UserDetailDrawer`, and all other migrated DevKit components.
+- `src/hooks/wisehire/useHRAnalytics.ts`: replaced single shared `dateFilters` array (always filtered on `created_at`) with three per-collection arrays — `candidateDateFilters` (`created_at`), `eventDateFilters` (`moved_at`, the actual Appwrite field on `wisehire_pipeline_events`), `genericDateFilters` (`created_at` for briefs, bulk jobs, talent views). The previous code applied `Query.greaterThanEqual('created_at', ...)` to pipeline events, which would never match because that collection's timestamp field is `moved_at`. Removed `supabaseReady` from `enabled` condition (it is a legacy field; only `isAuthenticated && !!userId` needed).
+
+**`tsc --noEmit`: 0 errors.**
+
+---
+
 ## 2026-05-08 — WiseHire + DevKit Appwrite migration — post-review fixes (Task #3)
 
 **Files fixed following code review rejection:**

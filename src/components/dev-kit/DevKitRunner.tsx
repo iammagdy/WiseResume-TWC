@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { edgeFunctions } from '@/lib/edgeFunctions';
 import { databases, account, Query } from '@/lib/appwrite';
 import { COLLECTIONS, DATABASE_ID } from '@/lib/appwrite-collections';
 import { useSettingsStore } from '@/store/settingsStore';

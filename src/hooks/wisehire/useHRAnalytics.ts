@@ -71,7 +71,7 @@ function docToEvent(doc: Models.Document): ServerEvent {
 }
 
 export function useHRAnalytics(dateRange: AnalyticsDateRange = 'all') {
-  const { isAuthenticated, supabaseReady, user } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const userId = user?.id;
 
   return useQuery({
@@ -79,33 +79,40 @@ export function useHRAnalytics(dateRange: AnalyticsDateRange = 'all') {
     queryFn: async (): Promise<HRAnalytics> => {
       if (!userId) throw new Error('Not authenticated');
 
-      const dateFilters: string[] = [];
+      // Per-collection date filters — each collection uses its own timestamp field.
+      // wisehire_pipeline_events stores the event timestamp in `moved_at`, not `created_at`.
+      const candidateDateFilters: string[] = [];
+      const eventDateFilters: string[] = [];
+      const genericDateFilters: string[] = [];
+
       if (dateRange !== 'all') {
         const days = dateRange === 'week' ? 7 : dateRange === 'month' ? 30 : 90;
         const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
-        dateFilters.push(Query.greaterThanEqual('created_at', startDate));
+        candidateDateFilters.push(Query.greaterThanEqual('created_at', startDate));
+        eventDateFilters.push(Query.greaterThanEqual('moved_at', startDate));
+        genericDateFilters.push(Query.greaterThanEqual('created_at', startDate));
       }
 
       const [candidatesRes, eventsRes, bulkRes, briefsRes, rolesRes, talentViewsRes] = await Promise.all([
         databases.listDocuments(DATABASE_ID, COLLECTIONS.wisehire_candidates, [
           Query.equal('owner_id', userId),
           Query.equal('is_deleted', false),
-          ...dateFilters,
+          ...candidateDateFilters,
           Query.limit(5000),
         ]),
         databases.listDocuments(DATABASE_ID, COLLECTIONS.wisehire_pipeline_events, [
           Query.equal('owner_id', userId),
-          ...dateFilters,
+          ...eventDateFilters,
           Query.limit(5000),
         ]),
         databases.listDocuments(DATABASE_ID, COLLECTIONS.wisehire_bulk_screen_jobs, [
           Query.equal('owner_id', userId),
-          ...dateFilters,
+          ...genericDateFilters,
           Query.limit(1000),
         ]),
         databases.listDocuments(DATABASE_ID, COLLECTIONS.wisehire_candidate_briefs, [
           Query.equal('owner_id', userId),
-          ...dateFilters,
+          ...genericDateFilters,
           Query.limit(5000),
         ]),
         databases.listDocuments(DATABASE_ID, COLLECTIONS.wisehire_roles, [
@@ -115,7 +122,7 @@ export function useHRAnalytics(dateRange: AnalyticsDateRange = 'all') {
           Query.limit(500),
         ]),
         databases.listDocuments(DATABASE_ID, COLLECTIONS.talent_pool_views, [
-          ...dateFilters,
+          ...genericDateFilters,
           Query.limit(5000),
         ]),
       ]);
@@ -286,7 +293,7 @@ export function useHRAnalytics(dateRange: AnalyticsDateRange = 'all') {
         avgDaysPerStage,
       };
     },
-    enabled: isAuthenticated && supabaseReady && !!userId,
+    enabled: isAuthenticated && !!userId,
     staleTime: 120_000,
   });
 }
