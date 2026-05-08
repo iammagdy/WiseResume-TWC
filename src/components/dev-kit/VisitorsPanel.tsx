@@ -179,7 +179,7 @@ function JourneyDrawer({
       setLoading(true);
       setError(null);
       try {
-        const { data, error: fnErr } = await edgeFunctions.functions.invoke('admin-visitor-analytics', {
+        const { data, error: fnErr } = await edgeFunctions.invoke('admin-visitor-analytics', {
           headers: devKitAuthHeaders(),
           body: { action: 'journey', session_id: sessionId, anon_id: anonId },
         });
@@ -270,7 +270,7 @@ export function VisitorsPanel() {
   const [journeySearch, setJourneySearch] = useState('');
 
   const invoke = useCallback(async (action: string, extra: Record<string, unknown> = {}) => {
-    const { data, error: fnErr } = await edgeFunctions.functions.invoke('admin-visitor-analytics', {
+    const { data, error: fnErr } = await edgeFunctions.invoke('admin-visitor-analytics', {
       headers: devKitAuthHeaders(),
       body: { action, range, ...extra },
     });

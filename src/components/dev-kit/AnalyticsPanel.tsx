@@ -58,7 +58,7 @@ export function AnalyticsPanel() {
     setLoading(true);
     setError(null);
     try {
-      const tuple = await edgeFunctions.functions.invoke('admin-devkit-data', {
+      const tuple = await edgeFunctions.invoke('admin-devkit-data', {
         headers: devKitAuthHeaders(),
         body: { action: 'analytics', range: r },
       });

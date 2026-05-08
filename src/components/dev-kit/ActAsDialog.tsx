@@ -165,7 +165,7 @@ export function ActAsDialog({ session, onClose }: Props) {
     if (!session) return;
     setRevoking(true);
     try {
-      const tuple = await edgeFunctions.functions.invoke('admin-impersonate', {
+      const tuple = await edgeFunctions.invoke('admin-impersonate', {
         headers: devKitAuthHeaders(),
         body: { action: 'revoke', target_user_id: session.userId },
       });

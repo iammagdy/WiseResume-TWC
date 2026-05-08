@@ -391,7 +391,7 @@ export function FeatureFlagsPanel() {
     setLoading(true);
     setError(null);
     try {
-      const tuple = await edgeFunctions.functions.invoke(
+      const tuple = await edgeFunctions.invoke(
         'admin-feature-flags',
         devKitInvokeOptions({ action: 'list' }),
       );
@@ -413,7 +413,7 @@ export function FeatureFlagsPanel() {
   const handleToggleGlobal = useCallback(async (flag: FeatureFlag) => {
     setSaving(flag.name);
     try {
-      const tuple = await edgeFunctions.functions.invoke(
+      const tuple = await edgeFunctions.invoke(
         'admin-feature-flags',
         devKitInvokeOptions({
           action: 'upsert',
@@ -447,7 +447,7 @@ export function FeatureFlagsPanel() {
       if (!name) return;
       setSaving(name);
       try {
-        const tuple = await edgeFunctions.functions.invoke(
+        const tuple = await edgeFunctions.invoke(
           'admin-feature-flags',
           devKitInvokeOptions({ action: 'upsert', ...data }),
         );
@@ -477,7 +477,7 @@ export function FeatureFlagsPanel() {
       if (!confirm(`Delete flag "${name}"? This cannot be undone.`)) return;
       setDeleting(name);
       try {
-        const tuple = await edgeFunctions.functions.invoke(
+        const tuple = await edgeFunctions.invoke(
           'admin-feature-flags',
           devKitInvokeOptions({ action: 'delete', name }),
         );

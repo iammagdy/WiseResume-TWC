@@ -136,7 +136,7 @@ export function ObservabilityPanel() {
     setTelemetryLoading(true);
     setTelemetryError(null);
     try {
-      const tuple = await edgeFunctions.functions.invoke('admin-devkit-data', {
+      const tuple = await edgeFunctions.invoke('admin-devkit-data', {
         headers: devKitAuthHeaders(),
         body: { action: 'observability', obs_action: 'get_telemetry' },
       });
@@ -168,7 +168,7 @@ export function ObservabilityPanel() {
     setErrorsError(null);
     try {
       const since = new Date(Date.now() - TIME_RANGE_MS[timeRange]).toISOString();
-      const tuple = await edgeFunctions.functions.invoke('admin-devkit-data', {
+      const tuple = await edgeFunctions.invoke('admin-devkit-data', {
         headers: devKitAuthHeaders(),
         body: {
           action: 'observability',
@@ -214,7 +214,7 @@ export function ObservabilityPanel() {
   const markReviewed = useCallback(async (errorId: string) => {
     setReviewingId(errorId);
     try {
-      const tuple = await edgeFunctions.functions.invoke('admin-devkit-data', {
+      const tuple = await edgeFunctions.invoke('admin-devkit-data', {
         headers: devKitAuthHeaders(),
         body: { action: 'observability', obs_action: 'mark_reviewed', error_id: errorId },
       });

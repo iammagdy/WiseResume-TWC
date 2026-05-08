@@ -126,7 +126,7 @@ async function invoke<T = unknown>(
   extra: Record<string, unknown> = {},
 ): Promise<{ data: T | null; error: string | null }> {
   try {
-    const tuple = await edgeFunctions.functions.invoke('admin-portfolio-usernames', {
+    const tuple = await edgeFunctions.invoke('admin-portfolio-usernames', {
       headers: devKitAuthHeaders(),
       body: { action, ...extra },
     });

@@ -73,7 +73,7 @@ export function OnboardingFunnelPanel() {
     setLoading(true);
     setError(null);
     try {
-      const tuple = await edgeFunctions.functions.invoke(
+      const tuple = await edgeFunctions.invoke(
         'admin-onboarding-funnel',
         { headers: devKitAuthHeaders(), body: { days, granularity } },
       );
