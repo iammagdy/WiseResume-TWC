@@ -2,6 +2,23 @@
 
 **Last verified:** 2026-05-08
 
+## Portfolio tracking, short links and interactions reconnected — Task #13 (2026-05-08)
+
+Visitor tracking, portfolio view analytics, short-link redirects, recruiter interest signals, and the portfolio chat session are all working again via direct Appwrite database calls — no broken middleware.
+
+**What changed:**
+- When a visitor gives GDPR consent, page views, clicks, section views, and feature usage events are now written directly to the analytics database (instead of silently failing to a dead URL).
+- Portfolio view data (which sections were viewed, how long, what device) is now written when a visitor leaves a portfolio page.
+- Short links (`/s/abc`) now resolve by querying the Appwrite database directly — faster and more reliable than calling an edge function.
+- The "I'm interested in this portfolio" recruiter button now writes directly to the database, so owners actually receive the signal.
+- The portfolio chat widget creates its rate-limiting session token by writing a document to the database, not by calling an external function.
+- OG image generation (the preview image when sharing a portfolio link on social media) is temporarily removed — it will be rebuilt as a proper cloud function. Titles and descriptions still appear correctly when sharing.
+- The LinkedIn URL importer now uses the local Express server as a CORS-bypass proxy instead of an Appwrite function, which works reliably in the development environment.
+
+**Last verified:** 2026-05-08
+
+---
+
 ## All AI features now talk directly to Appwrite — Task #12 (2026-05-08)
 
 Every AI feature in the app (resume tailoring, section enhancement, scoring, PDF parsing, job parsing, interview question generation, AI health badge, portfolio chat, and more) now calls Appwrite directly using the official SDK. The old pattern — where the app had to manually fetch a temporary token, attach it as an HTTP header, and call a URL that was only valid in one environment — is completely gone.

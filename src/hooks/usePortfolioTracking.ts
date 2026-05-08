@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { apiFnUrl } from '@/lib/apiFnUrl';
+import { databases, DATABASE_ID, ID } from '@/lib/appwrite';
+import { COLLECTIONS } from '@/lib/appwrite-collections';
 
 interface UsePortfolioTrackingProps {
   username?: string | null;
@@ -87,34 +88,21 @@ export function usePortfolioTracking({ username, refParam, abVariant }: UsePortf
       ? (/iPad/i.test(ua) ? 'tablet' : 'mobile')
       : 'desktop';
 
-    const body = JSON.stringify({
+    const payload: Record<string, unknown> = {
       username: snap.username,
-      ref: snap.refParam,
-      sectionsViewed: [...sectionsViewedRef.current],
-      sectionsTiming,
-      timeSpentSeconds,
+      ref: snap.refParam ?? null,
+      sections_viewed: [...sectionsViewedRef.current],
+      sections_timing: JSON.stringify(sectionsTiming),
+      time_spent_seconds: timeSpentSeconds,
       device,
-      abVariant: snap.abVariant ?? undefined,
-    });
+      ab_variant: snap.abVariant ?? null,
+    };
 
-    const url = apiFnUrl(`track-portfolio-view`);
-    // sendBeacon returns false when the browser refuses to enqueue the
-    // payload — most commonly because it exceeds the per-origin queue
-    // cap (~64 KB total for sendBeacon in Chromium/Firefox). Long
-    // visitor sessions with many sections viewed CAN exceed that, so a
-    // `false` return must fall through to the fetch keepalive path
-    // exactly the same as a missing-API path.
-    const enqueued =
-      typeof navigator.sendBeacon === 'function' &&
-      navigator.sendBeacon(url, new Blob([body], { type: 'application/json' }));
-    if (!enqueued) {
-      fetch(url, {
-        method: 'POST',
-        body,
-        keepalive: true,
-        headers: { 'Content-Type': 'application/json' },
-      }).catch(() => {});
-    }
+    // Write directly to Appwrite portfolio_visits collection.
+    // Fire-and-forget: errors are silently discarded.
+    databases
+      .createDocument(DATABASE_ID, COLLECTIONS.portfolio_visits, ID.unique(), payload)
+      .catch(() => {});
   }, []);
 
   // Public-API beacon — wraps sendBeaconCore with live ref values so

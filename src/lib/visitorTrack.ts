@@ -8,7 +8,8 @@
  * - All geo resolution happens server-side (CF headers); client only
  *   sends device/browser signals.
  */
-import { apiFnUrl } from '@/lib/apiFnUrl';
+import { databases, DATABASE_ID, ID } from '@/lib/appwrite';
+import { COLLECTIONS } from '@/lib/appwrite-collections';
 
 export const CONSENT_KEY = 'wise_tracking_consent';
 export const ANON_ID_KEY  = 'wise_anon_id';
@@ -127,23 +128,15 @@ function buildBaseEvent(): Omit<VisitorEvent, 'event_type' | 'page'> {
 async function flush(): Promise<void> {
   if (_queue.length === 0) return;
   const batch = _queue.splice(0, _queue.length);
-  const url = apiFnUrl('track-visitor-event');
-  const body = JSON.stringify({ events: batch });
-  try {
-    const enqueued =
-      typeof navigator.sendBeacon === 'function' &&
-      navigator.sendBeacon(url, new Blob([body], { type: 'application/json' }));
-    if (!enqueued) {
-      await fetch(url, {
-        method: 'POST',
-        body,
-        keepalive: true,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-  } catch {
-    // fire-and-forget; never surface tracking errors
-  }
+  // Write each event directly to the Appwrite visitor_events collection.
+  // Fire-and-forget: errors are silently discarded.
+  await Promise.allSettled(
+    batch.map((event) =>
+      databases
+        .createDocument(DATABASE_ID, COLLECTIONS.visitor_events, ID.unique(), event as unknown as Record<string, unknown>)
+        .catch(() => {}),
+    ),
+  );
 }
 
 function ensureFlushTimer(): void {

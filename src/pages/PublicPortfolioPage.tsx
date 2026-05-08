@@ -19,7 +19,8 @@ import { usePortfolioSEO } from '@/hooks/usePortfolioSEO';
 
 // Direct import for above-the-fold content
 import { PublicHero } from '@/components/portfolio/public/PublicHero';
-import { apiFnUrl } from '@/lib/apiFnUrl';
+import { databases, DATABASE_ID, ID } from '@/lib/appwrite';
+import { COLLECTIONS } from '@/lib/appwrite-collections';
 
 // Lazy load below-the-fold heavy sections
 const PublicSections = lazyWithRetry(() => import('@/components/portfolio/public/PublicSections').then(m => ({ default: m.PublicSections })));
@@ -260,23 +261,16 @@ function PublicPortfolioContent({ usernameOverride }: { usernameOverride?: strin
     }
 
     try {
-      const res = await fetch(apiFnUrl(`portfolio-interest`), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, token }),
+      await databases.createDocument(DATABASE_ID, COLLECTIONS.portfolio_interactions, ID.unique(), {
+        action: 'portfolio_interest',
+        username,
+        token,
       });
-
-      if (res.ok) {
-        setInterestSent(true);
-        localStorage.setItem(`portfolio-interest-sent:${username}`, '1');
-        toast.success('Your interest has been sent to the portfolio owner!');
-      } else {
-        const errBody = await res.json().catch(() => ({}));
-        const msg = (errBody as { error?: string }).error || `Request failed (${res.status})`;
-        toast.error(msg === 'Portfolio not found' ? 'Portfolio not found.' : 'Could not send interest — please try again.');
-      }
+      setInterestSent(true);
+      localStorage.setItem(`portfolio-interest-sent:${username}`, '1');
+      toast.success('Your interest has been sent to the portfolio owner!');
     } catch {
-      toast.error('Network error — please check your connection and try again.');
+      toast.error('Could not send interest — please try again.');
     } finally {
       setSendingInterest(false);
     }

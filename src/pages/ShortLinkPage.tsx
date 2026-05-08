@@ -3,10 +3,14 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Link2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { apiFnUrl } from '@/lib/apiFnUrl';
+import { databases, DATABASE_ID, Query } from '@/lib/appwrite';
+import { COLLECTIONS } from '@/lib/appwrite-collections';
 
-/** Maximum milliseconds to wait for the resolve-short-link edge function. */
-const RESOLVE_TIMEOUT_MS = 7000;
+interface ShortLinkDocument {
+  target_url?: string;
+  username?: string;
+  link_id?: string;
+}
 
 export default function ShortLinkPage() {
   const { linkId } = useParams<{ linkId: string }>();
@@ -20,52 +24,43 @@ export default function ShortLinkPage() {
     }
 
     let cancelled = false;
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), RESOLVE_TIMEOUT_MS);
 
     (async () => {
       try {
-        const res = await fetch(
-          apiFnUrl(`resolve-short-link?id=${encodeURIComponent(linkId)}`),
-          {
-            signal: controller.signal,
-          }
+        const result = await databases.listDocuments(
+          DATABASE_ID,
+          COLLECTIONS.short_links,
+          [Query.equal('link_id', linkId), Query.limit(1)],
         );
-
-        clearTimeout(timeoutId);
 
         if (cancelled) return;
 
-        if (!res.ok) {
+        if (result.documents.length === 0) {
           setNotFound(true);
           return;
         }
 
-        const result = await res.json();
-
-        if (cancelled) return;
+        const doc = result.documents[0] as unknown as ShortLinkDocument;
 
         // Security: only navigate to relative paths to prevent open redirects.
-        if (result?.target_url && typeof result.target_url === 'string' && result.target_url.startsWith('/')) {
+        if (doc.target_url && typeof doc.target_url === 'string' && doc.target_url.startsWith('/')) {
           // Always append ?ref=<linkId> so portfolio tracking can attribute the visit
           // to this short link (short_link_id is read from the query param on the portfolio page)
-          const sep = result.target_url.includes('?') ? '&' : '?';
-          navigate(`${result.target_url}${sep}ref=${encodeURIComponent(linkId)}`, { replace: true });
-        } else if (result?.username) {
+          const sep = doc.target_url.includes('?') ? '&' : '?';
+          navigate(`${doc.target_url}${sep}ref=${encodeURIComponent(linkId)}`, { replace: true });
+        } else if (doc.username) {
           // Legacy portfolio link fallback
-          navigate(`/p/${result.username}?ref=${linkId}`, { replace: true });
+          navigate(`/p/${doc.username}?ref=${linkId}`, { replace: true });
         } else {
           setNotFound(true);
         }
-      } catch (err: unknown) {
-        clearTimeout(timeoutId);
+      } catch {
         if (!cancelled) setNotFound(true);
       }
     })();
 
     return () => {
       cancelled = true;
-      controller.abort();
     };
   }, [linkId, navigate]);
 

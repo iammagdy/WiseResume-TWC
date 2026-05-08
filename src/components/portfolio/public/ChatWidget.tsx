@@ -4,6 +4,8 @@ import { MessageSquare, X, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import type { PublicProfile, PublicResume } from '@/hooks/usePublicPortfolio';
 import { edgeFunctions } from '@/lib/edgeFunctions';
+import { databases, DATABASE_ID, ID } from '@/lib/appwrite';
+import { COLLECTIONS } from '@/lib/appwrite-collections';
 
 interface ChatMessage { role: 'user' | 'assistant'; content: string; }
 
@@ -67,15 +69,13 @@ export function ChatWidget({ profile, resume, accentColor, pStyle }: {
 
     setSessionLoading(true);
     setSessionError(false);
-    edgeFunctions.invoke<{ token?: string }>('create-portfolio-session', {
-      body: { portfolioUsername: profile.username },
-    })
-      .then(({ data, error }) => {
-        if (!error && data?.token) {
-          setSessionToken(data.token);
-        } else {
-          setSessionError(true);
-        }
+    databases
+      .createDocument(DATABASE_ID, COLLECTIONS.chat_sessions, ID.unique(), {
+        portfolio_username: profile.username,
+        created_at: new Date().toISOString(),
+      })
+      .then((doc) => {
+        setSessionToken(doc.$id);
       })
       .catch(() => {
         setSessionError(true);

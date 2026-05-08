@@ -636,12 +636,16 @@ export async function probeLinkedInUrl(rawUrl: string): Promise<LinkedInProbeRes
     }
   }
 
-  // 2) Fall back to the OG-meta best-effort probe.
+  // 2) Fall back to the OG-meta best-effort probe via the Express proxy.
   try {
     {
-      const { edgeFunctions: ef } = await import('@/lib/edgeFunctions');
-      const { data: proxyBody, error: proxyError } = await ef.invoke<{ html?: string }>('fetch-url', { body: { url } });
-      if (!proxyError && proxyBody) {
+      const proxyRes = await fetch('/api/fetch-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      });
+      if (proxyRes.ok) {
+        const proxyBody = await proxyRes.json() as { html?: string };
         const body = proxyBody;
         const html = body.html || '';
         const titleMatch =

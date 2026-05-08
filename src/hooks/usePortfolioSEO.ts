@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 import type { PublicProfile } from '@/hooks/usePublicPortfolio';
-import { apiFnUrl } from '@/lib/apiFnUrl';
 
 export function usePortfolioSEO(profile: PublicProfile | undefined | null) {
   useEffect(() => {
@@ -44,18 +43,14 @@ export function usePortfolioSEO(profile: PublicProfile | undefined | null) {
       
       const ogTitle = profile.metaTitle || (profile.jobTitle ? `${name} — ${profile.jobTitle}` : `${name}'s Portfolio`);
       const ogDesc = profile.metaDescription || profile.portfolioBio || `${name}'s professional portfolio`;
-      const ogImageUrl = apiFnUrl(`og-image?username=${encodeURIComponent(profile.username)}`);
-      
+      // OG image generation is pending rebuild as an Appwrite Function.
+      // Until then, skip og:image / twitter:image meta tags.
       setMeta('og:title', ogTitle);
       setMeta('og:description', ogDesc);
       setMeta('og:type', 'profile');
-      setMeta('og:image', ogImageUrl);
-      setMeta('og:image:width', '1200');
-      setMeta('og:image:height', '630');
-      setMeta('twitter:card', 'summary_large_image', 'name');
+      setMeta('twitter:card', 'summary', 'name');
       setMeta('twitter:title', ogTitle, 'name');
       setMeta('twitter:description', ogDesc, 'name');
-      setMeta('twitter:image', ogImageUrl, 'name');
 
       // Load Google Fonts for premium themes
       const pStyle = profile.portfolioStyle || 'minimal';

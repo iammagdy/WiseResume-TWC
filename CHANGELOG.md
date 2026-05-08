@@ -1,3 +1,31 @@
+## 2026-05-08 — Task #13: Tracking, short-links & portfolio interactions → Appwrite DB
+
+**10 files changed.** All remaining `apiFnUrl()` + raw `fetch()` calls for non-AI operational features replaced with direct Appwrite Databases SDK writes/queries or the Express `/api/fetch-url` proxy. No new `any` casts. `tsc --noEmit` passes with zero errors.
+
+### Direct Appwrite DB writes — fire-and-forget tracking
+- **`src/lib/visitorTrack.ts`** — `flush()`: removed `sendBeacon`/`fetch` + `apiFnUrl('track-visitor-event')`. Now uses `Promise.allSettled` over `databases.createDocument(... COLLECTIONS.visitor_events ...)` per event. Import swapped from `apiFnUrl` to `{ databases, DATABASE_ID, ID }` + `COLLECTIONS`.
+- **`src/hooks/usePortfolioTracking.ts`** — `sendBeaconCore`: removed `sendBeacon`/`fetch` + `apiFnUrl('track-portfolio-view')`. Now calls `databases.createDocument(... COLLECTIONS.portfolio_visits ...)` with snake_case field names (`sections_viewed`, `sections_timing`, `time_spent_seconds`, `ab_variant`). Import swapped from `apiFnUrl` to `{ databases, DATABASE_ID, ID }` + `COLLECTIONS`.
+- **`src/pages/PublicPortfolioPage.tsx`** — `handleInterest`: removed `fetch(apiFnUrl('portfolio-interest'))`. Now calls `databases.createDocument(... COLLECTIONS.portfolio_interactions ...)` with `{ action: 'portfolio_interest', username, token }`. Import: `apiFnUrl` removed; `{ databases, DATABASE_ID, ID }` + `COLLECTIONS` added.
+- **`src/pages/PortfolioEditorPage.tsx`** — handle-interest tracking effect: removed `getToken()` + `fetch(apiFnUrl('track-handle-interest'))`. Now calls `databases.createDocument(... COLLECTIONS.portfolio_interactions ...)` with `{ action: 'handle_interest', user_id }`. Removed: `import { getToken }` (supabaseBridge) and `import { apiFnUrl }`. Added: `{ databases, DATABASE_ID, ID }` + `COLLECTIONS`.
+
+### Direct Appwrite DB read — short-link resolution
+- **`src/pages/ShortLinkPage.tsx`** — completely rewritten resolver. Removed `fetch(apiFnUrl('resolve-short-link?id=...'))`, `AbortController` timeout, and all HTTP-response-status checks. Now uses `databases.listDocuments(DATABASE_ID, COLLECTIONS.short_links, [Query.equal('link_id', linkId)])`. Redirect logic (target_url / username fallback) preserved unchanged. Import: `apiFnUrl` removed; `{ databases, DATABASE_ID, Query }` + `COLLECTIONS` added.
+
+### Direct Appwrite DB write — chat session creation
+- **`src/components/portfolio/public/ChatWidget.tsx`** — session provisioning: replaced `edgeFunctions.invoke('create-portfolio-session', ...)` with `databases.createDocument(... COLLECTIONS.chat_sessions ...)`. Returns `doc.$id` as the session token (used for rate-limit attribution on `ask-portfolio`). Imports `{ databases, DATABASE_ID, ID }` + `COLLECTIONS` added; `edgeFunctions` retained (still used for `ask-portfolio`).
+
+### OG image removed (pending Appwrite Function rebuild)
+- **`src/hooks/usePortfolioSEO.ts`** — removed `apiFnUrl('og-image?username=...')` and all `og:image` / `twitter:image` meta tag writes. `twitter:card` downgraded from `summary_large_image` to `summary`. `apiFnUrl` import removed.
+
+### Express server — fetch-url proxy added
+- **`server/index.ts`** — added `POST /api/fetch-url`: accepts `{ url }`, validates protocol (http/https only), fetches with a 10 s `AbortController` timeout and a bot User-Agent, returns `{ html }`. Placed before the catch-all 503 handler.
+
+### UploadPage + onboardingProfile — use Express proxy
+- **`src/pages/UploadPage.tsx`** — `handleUrlImport`: replaced `edgeFunctions.invoke('fetch-url', ...)` with `fetch('/api/fetch-url', ...)` relative-path call to the Express server. `edgeFunctions` import removed (was the only usage in this file).
+- **`src/lib/onboardingProfile.ts`** — OG-meta fallback: replaced dynamic `edgeFunctions` import + invoke with `fetch('/api/fetch-url', ...)`. No Appwrite SDK or auth dependency in this path.
+
+---
+
 ## 2026-05-08 — Task #12: All AI fetch() calls migrated to edgeFunctions.invoke()
 
 **17 files changed.** Every raw `fetch(apiFnUrl(...))` call that targets an AI or Appwrite Function has been replaced with `edgeFunctions.invoke()`. Supabase auth (`getSupabaseToken`, `getToken` from supabaseBridge, `refreshTokenIfNeeded`) and manual JWT headers have been removed from all migrated paths; the Appwrite SDK handles auth internally.

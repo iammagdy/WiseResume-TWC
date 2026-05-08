@@ -79,6 +79,46 @@ app.post('/api/export/pdf-native', (_req: Request, res: Response) => {
   });
 });
 
+// ── Fetch-URL proxy ───────────────────────────────────────────────────────────
+// Fetches a remote URL server-side and returns the HTML body, bypassing
+// browser CORS restrictions. Used by UploadPage and onboardingProfile to
+// import LinkedIn/resume pages.
+app.post('/api/fetch-url', async (req: Request, res: Response) => {
+  const { url } = req.body as { url?: string };
+  if (!url || typeof url !== 'string') {
+    res.status(400).json({ error: 'Missing or invalid url parameter.' });
+    return;
+  }
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(url);
+  } catch {
+    res.status(400).json({ error: 'Invalid URL.' });
+    return;
+  }
+  if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+    res.status(400).json({ error: 'Only http and https URLs are supported.' });
+    return;
+  }
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10_000);
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'WiseResume/4.0 (resume-import-bot; +https://thewise.cloud)',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      },
+    });
+    clearTimeout(timeout);
+    const html = await response.text();
+    res.json({ html });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Failed to fetch URL.';
+    res.status(502).json({ error: msg });
+  }
+});
+
 // ── Catch-all for removed routes ──────────────────────────────────────────────
 app.use('/api', (req: Request, res: Response) => {
   res.status(503).json({

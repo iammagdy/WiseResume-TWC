@@ -10,7 +10,6 @@ import { useResumes } from '@/hooks/useResumes';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { edgeFunctions } from '@/lib/edgeFunctions';
 import { getUserId } from '@/lib/supabaseBridge';
-import { apiFnUrl } from '@/lib/apiFnUrl';
 import { useQueryClient } from '@tanstack/react-query';
 import type { Profile } from '@/hooks/useProfile';
 import { toast } from 'sonner';
@@ -23,7 +22,8 @@ import { UnsavedChangesDialog } from '@/components/editor/UnsavedChangesDialog';
 import { UsernameRequestDialog } from '@/components/settings/UsernameRequestDialog';
 import { usePortfolioUsernameRules } from '@/hooks/usePortfolioUsernameRules';
 import { getPortfolioUrl, getPortfolioDisplayUrl } from '@/lib/portfolioUrl';
-import { getToken } from '@/lib/supabaseBridge';
+import { databases, DATABASE_ID, ID } from '@/lib/appwrite';
+import { COLLECTIONS } from '@/lib/appwrite-collections';
 import { openExternal } from '@/lib/openExternal';
 import { getSafeMatchMedia } from '@/lib/envUtils';
 import { normalizeUrl } from '@/lib/urlUtils';
@@ -323,17 +323,12 @@ export default function PortfolioEditorPage() {
     const DEDUP_KEY = 'handle-interest-tracked';
     if (sessionStorage.getItem(DEDUP_KEY)) return;
     sessionStorage.setItem(DEDUP_KEY, '1');
-    const token = getToken();
-    if (!token) return;
-    const trackUrl = import.meta.env.DEV ? '/api/track-handle-interest' : apiFnUrl('track-handle-interest');
-    fetch(trackUrl, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({}),
-    }).catch(() => { /* fire-and-forget — ignore errors */ });
+    databases
+      .createDocument(DATABASE_ID, COLLECTIONS.portfolio_interactions, ID.unique(), {
+        action: 'handle_interest',
+        user_id: user?.id ?? null,
+      })
+      .catch(() => { /* fire-and-forget — ignore errors */ });
   }, [premiumHandles]);
 
   // Capture snapshot after profile syncs to local state

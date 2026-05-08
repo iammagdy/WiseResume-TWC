@@ -31,7 +31,6 @@ import { ImportUploadSheet } from '@/components/upload/ImportUploadSheet';
 import { detectFileType, type FileType } from '@/lib/detectFileType';
 import { UploadZone } from '@/components/upload/UploadZone';
 import { toast } from 'sonner';
-import { edgeFunctions } from '@/lib/edgeFunctions';
 import type { ResumeData } from '@/types/resume';
 import { useATSScoreHistoryStore } from '@/store/atsScoreHistoryStore';
 
@@ -339,18 +338,21 @@ export default function UploadPage() {
     setParseStep('reading');
 
     try {
-      // Step 1: fetch the HTML via the Appwrite fetch-url function.
-      const { data: proxyData, error: proxyError } = await edgeFunctions.invoke<{ html?: string }>('fetch-url', {
-        body: { url },
+      // Step 1: fetch the HTML via the Express fetch-url proxy (avoids CORS).
+      const proxyRes = await fetch('/api/fetch-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
       });
-      if (proxyError) {
-        const msg = proxyError.message || `Could not fetch the page.`;
+      if (!proxyRes.ok) {
+        const errBody = await proxyRes.json().catch(() => ({}));
+        const msg = (errBody as { error?: string }).error || `Could not fetch the page (${proxyRes.status}).`;
         setUrlError(msg);
         toast.error(msg, { duration: 5000 });
         setIsProcessing(false);
         return;
       }
-      const html = proxyData?.html ?? '';
+      const { html } = await proxyRes.json() as { html: string };
 
       setParseStep('extracting');
       const text = extractTextFromHTML(html);
