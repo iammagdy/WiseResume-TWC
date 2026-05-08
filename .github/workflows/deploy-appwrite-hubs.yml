@@ -1,11 +1,9 @@
 name: 🧠 Deploy AI Hubs
 
 on:
-  push:
     paths:
       - 'appwrite-hubs/**'
       - 'scripts/deploy_hubs.cjs'
-    branches: [ main ]
   workflow_dispatch:
 
 jobs:
