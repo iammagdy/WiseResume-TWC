@@ -2,6 +2,19 @@
 
 **Last verified:** 2026-05-08
 
+## Email verification reconnected to Appwrite — Task #16 (2026-05-08)
+
+The "verify your email" page was calling a custom function that no longer exists. It now uses Appwrite's built-in email verification system directly.
+
+**What changed:**
+- Clicking **"Resend verification email"** now calls Appwrite's native API (`account.createVerification`), which sends the email through Appwrite's configured email provider. The link in that email now correctly includes `userId` and `secret` parameters that Appwrite expects.
+- When a user clicks the verification link in their email, the page now calls `account.updateVerification(userId, secret)` to confirm their address — this replaces a call to a deleted custom function that would have silently failed.
+- Error messages from Appwrite (e.g. "token expired") are now surfaced correctly to the user.
+
+**Last verified:** 2026-05-08
+
+---
+
 ## Portfolio editor fully reconnected to Appwrite — Task #15 (2026-05-08)
 
 The portfolio editor page (`/portfolio`) was still making several calls to the old Supabase database. All of those calls have been replaced so the editor now runs entirely on Appwrite.

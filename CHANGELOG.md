@@ -1,3 +1,18 @@
+## 2026-05-08 — Task #16: Fix email verification to use Appwrite native API
+
+**1 file changed.** `edgeFunctions.invoke('verify-email', ...)` replaced with Appwrite Account SDK calls. No new `any` casts. `tsc --noEmit` passes with zero errors.
+
+### `src/pages/AuthVerifyEmailPage.tsx`
+- Removed `import { edgeFunctions } from '@/lib/edgeFunctions'`.
+- Added `import { AppwriteException } from 'appwrite'` and `import { account } from '@/lib/appwrite'`.
+- URL param: `token` replaced by `secret` + `userId` (the params Appwrite embeds in the verification callback link).
+- Mode detection: `useState(token ? 'confirming' : 'pending')` → `useState(secret ? 'confirming' : 'pending')`.
+- **Confirm flow**: `edgeFunctions.invoke('verify-email', { body: { action: 'confirm', token } })` → `account.updateVerification(userId, secret)`. Effect dependency array updated (`token` → `secret, userId`).
+- **Resend flow**: `edgeFunctions.invoke('verify-email', { body: { action: 'resend' } })` → `account.createVerification(window.location.origin + '/auth/verify-email')`. Error handling now specifically catches `AppwriteException` for accurate error messages.
+- JSDoc comment block updated to describe Appwrite callback params (`?userId=...&secret=...`) instead of legacy `?token=...`.
+
+---
+
 ## 2026-05-08 — Task #15: Migrate PortfolioEditorPage to Appwrite SDK
 
 **1 file changed.** All `supabase` safeClient and `getUserId` calls removed from `PortfolioEditorPage.tsx`. No new `any` casts. `tsc --noEmit` passes with zero errors.

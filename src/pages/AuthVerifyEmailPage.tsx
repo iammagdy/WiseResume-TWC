@@ -4,12 +4,13 @@ import { CheckCircle, Mail, RotateCcw, AlertCircle, Loader2 } from 'lucide-react
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 
+import { AppwriteException } from 'appwrite';
 import { useAuth } from '@/hooks/useAuth';
 import { useMe } from '@/hooks/useMe';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { OfflineBanner } from '@/components/layout/OfflineBanner';
-import { edgeFunctions } from '@/lib/edgeFunctions';
+import { account } from '@/lib/appwrite';
 
 const HERO_GRADIENT = 'linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #0d0d1e 100%)';
 
@@ -18,13 +19,13 @@ type PageMode = 'pending' | 'confirming' | 'confirmed' | 'error';
 /**
  * AuthVerifyEmailPage — dual-mode email verification page.
  *
- * Mode 1 — Pending (no ?token= in URL):
+ * Mode 1 — Pending (no ?secret= in URL):
  *   User just signed up and needs to check their inbox.
- *   Provides a "Resend email" button that calls verify-email (action: resend).
+ *   Provides a "Resend email" button that calls account.createVerification().
  *
- * Mode 2 — Confirming (?token=... in URL):
- *   User clicked the link in their verification email.
- *   Calls verify-email (action: confirm), then shows success and redirects.
+ * Mode 2 — Confirming (?userId=...&secret=... in URL):
+ *   User clicked the link in their verification email (Appwrite callback).
+ *   Calls account.updateVerification(userId, secret), then redirects to dashboard.
  */
 export default function AuthVerifyEmailPage() {
   const navigate = useNavigate();
@@ -33,8 +34,9 @@ export default function AuthVerifyEmailPage() {
   const { data: meData, refetch: refetchMe } = useMe();
   const queryClient = useQueryClient();
 
-  const token = searchParams.get('token');
-  const [mode, setMode] = useState<PageMode>(token ? 'confirming' : 'pending');
+  const secret = searchParams.get('secret');
+  const userId = searchParams.get('userId');
+  const [mode, setMode] = useState<PageMode>(secret ? 'confirming' : 'pending');
   const [resending, setResending] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -49,18 +51,15 @@ export default function AuthVerifyEmailPage() {
     }
   }, [authLoading, isAuthenticated, meData, navigate]);
 
-  // Auto-confirm when token is present in the URL.
+  // Auto-confirm when Appwrite callback params are present in the URL.
   useEffect(() => {
-    if (!token || confirmedOnce.current) return;
+    if (!secret || !userId || confirmedOnce.current) return;
     confirmedOnce.current = true;
 
     void (async () => {
       try {
         setMode('confirming');
-        const { error } = await edgeFunctions.invoke('verify-email', {
-          body: { action: 'confirm', token },
-        });
-        if (error) throw new Error(typeof error === 'object' && 'message' in error ? (error as { message: string }).message : String(error));
+        await account.updateVerification(userId, secret);
         // Invalidate meData so the verified status propagates instantly.
         await queryClient.invalidateQueries({ queryKey: ['me'] });
         await refetchMe();
@@ -72,7 +71,7 @@ export default function AuthVerifyEmailPage() {
         setMode('error');
       }
     })();
-  }, [token, queryClient, refetchMe, navigate]);
+  }, [secret, userId, queryClient, refetchMe, navigate]);
 
   const startCooldown = useCallback((seconds: number) => {
     setResendCooldown(seconds);
@@ -94,14 +93,17 @@ export default function AuthVerifyEmailPage() {
     if (resending || resendCooldown > 0) return;
     setResending(true);
     try {
-      const { error } = await edgeFunctions.invoke('verify-email', {
-        body: { action: 'resend' },
-      });
-      if (error) throw new Error(typeof error === 'object' && 'message' in error ? (error as { message: string }).message : String(error));
+      const redirectUrl = `${window.location.origin}/auth/verify-email`;
+      await account.createVerification(redirectUrl);
       toast.success('Verification email sent — check your inbox.');
       startCooldown(60);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Could not send email. Please try again.';
+      const msg =
+        err instanceof AppwriteException
+          ? err.message
+          : err instanceof Error
+          ? err.message
+          : 'Could not send email. Please try again.';
       toast.error(msg);
     } finally {
       setResending(false);
