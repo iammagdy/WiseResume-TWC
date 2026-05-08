@@ -5,7 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { useAccountType } from '@/hooks/wisehire/useAccountType';
 import triggerHaptic from '@/lib/haptics';
-import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
+import { useAuth } from '@/hooks/useAuth';
 // Step 4 (B-3) — full lazy-load: framer-motion is NOT imported by this
 // page-level component anymore. The entire AnimatePresence + m.div tree
 // lives in `LandingMotionStage` which is loaded via `React.lazy`, and
@@ -113,7 +113,7 @@ const Index = () => {
     return 'jobseeker';
   });
   const [waitlistOpen, setWaitlistOpen] = useState(false);
-  const { register: kindeRegister } = useKindeAuth();
+  const { isAuthenticated } = useAuth();
 
   useEffect(() => { setLpProduct(mode); }, [mode, setLpProduct]);
 
@@ -225,7 +225,7 @@ const Index = () => {
     if (plan) {
       navigate(`/auth?mode=signup&plan=${plan}`);
     } else {
-      void Promise.resolve(kindeRegister()).catch(() => {
+      void Promise.resolve(navigate("/auth?mode=signup")).catch(() => {
         toast.error('Unable to start sign-up. Please try again or contact support.');
       });
     }

@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { databases, DATABASE_ID, Query, ID } from '@/lib/appwrite';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
 
@@ -13,16 +13,24 @@ export interface CoverLetterRecord {
   tone: string | null;
   template_style: string | null;
   resume_id: string | null;
-  /**
-   * Snapshot of the source resume's title at the time this letter was
-   * generated. Persisted server-side via a BEFORE-trigger so the row
-   * keeps a meaningful "from" label even if the resume is later
-   * deleted (FK is ON DELETE SET NULL). See migration
-   * 20260522000000_snapshot_resume_title_on_artifacts.sql.
-   */
-  resume_title: string | null;
   created_at: string | null;
   updated_at: string | null;
+}
+
+export function parseCoverLetter(doc: any): CoverLetterRecord {
+  return {
+    id: doc.$id,
+    user_id: doc.user_id,
+    title: doc.title,
+    job_title: doc.job_title,
+    company: doc.company,
+    content: doc.content,
+    tone: doc.tone,
+    template_style: doc.template_style,
+    resume_id: doc.resume_id,
+    created_at: doc.$createdAt,
+    updated_at: doc.$updatedAt
+  };
 }
 
 export function useCoverLetters() {
@@ -31,12 +39,12 @@ export function useCoverLetters() {
   return useQuery({
     queryKey: ['cover-letters', user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('cover_letters')
-        .select('*')
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      return (data || []) as unknown as CoverLetterRecord[];
+      if (!user) return [];
+      const response = await databases.listDocuments(DATABASE_ID, 'cover_letters', [
+        Query.equal('user_id', user.id),
+        Query.orderDesc('$createdAt')
+      ]);
+      return response.documents.map(parseCoverLetter);
     },
     enabled: !!user,
   });
@@ -48,13 +56,9 @@ export function useCoverLetter(id: string | null) {
   return useQuery({
     queryKey: ['cover-letters', id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('cover_letters')
-        .select('*')
-        .eq('id', id!)
-        .maybeSingle();
-      if (error) throw error;
-      return data as unknown as CoverLetterRecord | null;
+      if (!user || !id) return null;
+      const doc = await databases.getDocument(DATABASE_ID, 'cover_letters', id);
+      return parseCoverLetter(doc);
     },
     enabled: !!user && !!id,
   });
@@ -65,115 +69,29 @@ export function useCoverLetterMutations() {
   const queryClient = useQueryClient();
 
   const saveCoverLetter = useMutation({
-    mutationFn: async (input: {
-      title?: string;
-      job_title: string;
-      company?: string;
-      content: string;
-      tone?: string;
-      template_style?: string;
-      resume_id?: string;
-    }) => {
+    mutationFn: async (input: any) => {
       if (!user) throw new Error('Not authenticated');
-      const { data, error } = await supabase
-        .from('cover_letters')
-        .insert({
-          user_id: user.id,
-          title: input.title || null,
-          job_title: input.job_title,
-          company: input.company || null,
-          content: input.content,
-          tone: input.tone || 'professional',
-          template_style: input.template_style || 'professional',
-          resume_id: input.resume_id || null,
-        })
-        .select()
-        .single();
-      if (error) throw error;
-      return data as unknown as CoverLetterRecord;
+      const doc = await databases.createDocument(DATABASE_ID, 'cover_letters', ID.unique(), {
+        user_id: user.id,
+        ...input
+      });
+      return parseCoverLetter(doc);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cover-letters'] });
       toast.success('Cover letter saved!');
     },
-    onError: () => toast.error('Failed to save cover letter'),
-  });
-
-  const updateCoverLetter = useMutation({
-    mutationFn: async ({ id, ...updates }: Partial<CoverLetterRecord> & { id: string }) => {
-      if (!user) throw new Error('Not authenticated');
-      const { data, error } = await supabase
-        .from('cover_letters')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single();
-      if (error) throw error;
-      return data as unknown as CoverLetterRecord;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['cover-letters'] });
-    },
-    onError: () => toast.error('Failed to update cover letter'),
   });
 
   const deleteCoverLetter = useMutation({
     mutationFn: async (id: string) => {
-      if (!user) throw new Error('Not authenticated');
-      const { error } = await supabase
-        .from('cover_letters')
-        .delete()
-        .eq('id', id);
-      if (error) throw error;
+      await databases.deleteDocument(DATABASE_ID, 'cover_letters', id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cover-letters'] });
       toast.success('Cover letter deleted');
     },
-    onError: () => toast.error('Failed to delete cover letter'),
   });
 
-  const duplicateCoverLetter = useMutation({
-    mutationFn: async (id: string) => {
-      if (!user) throw new Error('Not authenticated');
-      const original = await supabase
-        .from('cover_letters')
-        .select('*')
-        .eq('id', id)
-        .single();
-      if (original.error) throw original.error;
-      const orig = original.data as unknown as CoverLetterRecord;
-      // Carry the snapshotted resume title forward. The trigger only
-      // refreshes resume_title when resume_id is set on the new row;
-      // for an orphan duplicate (resume_id IS NULL) we explicitly
-      // preserve the original snapshot so the duplicate still shows
-      // "From: …".
-      const { data, error } = await supabase
-        .from('cover_letters')
-        .insert({
-          user_id: user.id,
-          title: `${orig.title || orig.job_title} (Copy)`,
-          job_title: orig.job_title,
-          company: orig.company,
-          content: orig.content,
-          tone: orig.tone,
-          resume_id: orig.resume_id,
-          resume_title: orig.resume_title,
-          // Preserve template_style so duplicates keep the chosen look
-          // (otherwise the new row reverts to the column default).
-          ...(orig.template_style ? { template_style: orig.template_style } : {}),
-        })
-        .select()
-        .single();
-      if (error) throw error;
-      return data as unknown as CoverLetterRecord;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['cover-letters'] });
-      toast.success('Cover letter duplicated!');
-    },
-    onError: () => toast.error('Failed to duplicate cover letter'),
-  });
-
-  return { saveCoverLetter, updateCoverLetter, deleteCoverLetter, duplicateCoverLetter };
+  return { saveCoverLetter, deleteCoverLetter };
 }

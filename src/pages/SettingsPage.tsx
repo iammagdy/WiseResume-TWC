@@ -1,11 +1,7 @@
 import { useEffect, useState, useCallback, useRef, lazy, Suspense } from 'react';
-import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
 import { getAppUrl } from '@/lib/portfolioUrl';
-
 import { useNavigate } from 'react-router-dom';
-import {
-  ChevronRight, X, Check } from
-'lucide-react';
+import { ChevronRight, X, Check } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { openExternal } from '@/lib/openExternal';
 import { SettingsRow } from '@/components/settings/SettingsRow';
@@ -15,11 +11,10 @@ import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, A
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
-import { useProfile, calculateProfileCompletion } from '@/hooks/useProfile';
+import { useProfile } from '@/hooks/useProfile';
 import { usePlan } from '@/hooks/usePlan';
 import { PlanAvatar } from '@/components/ui/PlanAvatar';
 import { useSettingsStore } from '@/store/settingsStore';
-import { getSupabaseToken } from '@/lib/supabaseAuth';
 import { useResumeStore } from '@/store/resumeStore';
 import { useResumes } from '@/hooks/useResumes';
 import { haptics } from '@/lib/haptics';
@@ -85,7 +80,7 @@ function UserIdCard({ userId }: { userId: string }) {
 
 export default function SettingsPage() {
   const navigate = useNavigate();
-  const { user, loading, supabaseSettled, signOut } = useAuth();
+  const { user, loading, signOut } = useAuth();
   const { profile, updateProfile } = useProfile(user?.id, user);
   const { plan } = usePlan();
   const { data: resumes = [] } = useResumes();
@@ -112,7 +107,7 @@ export default function SettingsPage() {
   const [signOutConfirmOpen, setSignOutConfirmOpen] = useState(false);
 
   // Dynamic changelog
-  const [changelogData, setChangelogData] = useState<Array<{version: string;date: string;latest?: boolean;summary?: string;items: Array<{title: string;description: string;}>;}>>([]);
+  const [changelogData, setChangelogData] = useState<any[]>([]);
   const [changelogLoading, setChangelogLoading] = useState(false);
   const [changelogError, setChangelogError] = useState(false);
   const changelogFetchedAt = useRef<number>(0);
@@ -132,46 +127,8 @@ export default function SettingsPage() {
     });
   }, []);
 
-  useEffect(() => {
-    if (!changelogOpen) return;
-    const age = Date.now() - changelogFetchedAt.current;
-    if (changelogData.length > 0 && age < 5 * 60 * 1000) return;
-    setChangelogLoading(true);
-    setChangelogError(false);
-    fetch('/changelog.json').
-    then((r) => {if (!r.ok) throw new Error();return r.json();}).
-    then((data) => {setChangelogData(data);changelogFetchedAt.current = Date.now();}).
-    catch(() => {
-      setChangelogError(true);
-      toast.error('Failed to load changelog. Please check your connection.');
-    }).
-    finally(() => setChangelogLoading(false));
-  }, [changelogOpen, changelogData.length]);
+  const appVersion = changelogData[0]?.version || 'v3.12.0';
 
-  const appVersion = changelogData[0]?.version || 'v2.0.0';
-
-  const { getClaim } = useKindeAuth();
-  const [authProvider, setAuthProvider] = useState<string | undefined>(undefined);
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const claim = await getClaim?.('identity_provider');
-        const value = (claim?.value ?? '') as string;
-        if (cancelled || !value) return;
-        const v = value.toLowerCase();
-        if (v.includes('google')) setAuthProvider('google');
-        else if (v.includes('github')) setAuthProvider('github');
-        else if (v.includes('apple')) setAuthProvider('apple');
-        else if (v.includes('email') || v.includes('password')) setAuthProvider('email');
-      } catch {
-        // ignore — neutral copy will be shown
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [getClaim]);
-
-  // --- Handlers ---
   const handleBiometricToggle = useCallback(async (enabled: boolean) => {
     if (enabled) {
       setBiometricSetupOpen(true);
@@ -195,9 +152,7 @@ export default function SettingsPage() {
   const handleDataDeleted = useCallback(async () => {
     try {
       await signOut();
-    } catch {
-      /* Ignorable error during biometric or data deletion flow */
-    }
+    } catch {}
     toast.success('All data deleted');
     window.location.replace('/');
   }, [signOut]);
@@ -210,12 +165,12 @@ export default function SettingsPage() {
     };
     haptics.light();
     if (navigator.share) {
-      try { await navigator.share(shareData); } catch { /* User cancelled or sharing failed */ }
+      try { await navigator.share(shareData); } catch {}
     } else {
       try {
         await navigator.clipboard.writeText(shareData.url);
         toast.success('Link copied to clipboard');
-      } catch { /* Clipboard access denied or failed */ }
+      } catch {}
     }
   }, []);
 
@@ -226,14 +181,7 @@ export default function SettingsPage() {
 
   const getInitials = () => {
     if (profile?.fullName) {
-      return profile.fullName.
-      split(' ').
-      map((w: string) => w[0]).
-      filter(Boolean).
-      slice(0, 2).
-      join('').
-      toUpperCase().
-      slice(0, 2);
+      return profile.fullName.split(' ').map((w: string) => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
     }
     if (user?.email) {
       return user.email.charAt(0).toUpperCase();
@@ -243,13 +191,11 @@ export default function SettingsPage() {
 
   const displayName = profile?.fullName || user?.email || 'User';
 
-  // Use standard skeleton for loading (D-2)
-  if (loading || !supabaseSettled) return <SettingsSkeleton />;
+  if (loading) return <SettingsSkeleton />;
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
         <header className="pt-safe sticky top-0 z-10 pb-2 px-4 bg-background/95 backdrop-blur-sm border-b border-border">
           <div className="flex items-center gap-3">
             <BackButton />
@@ -257,24 +203,14 @@ export default function SettingsPage() {
           </div>
         </header>
 
-        {/* Content */}
         <div className="py-6 space-y-7 overflow-y-auto pb-24 lg:max-w-none mx-auto w-full">
-          {/* Guest CTA */}
           {!user && <div className="px-4"><GuestCtaCard navigate={navigate} /></div>}
 
-          {/* Profile Card */}
           <div className="px-4">
             <div
               role="button"
               tabIndex={0}
               onClick={() => navigate('/profile')}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  navigate('/profile');
-                }
-              }}
-              aria-label="Open profile"
               className="w-full flex items-center gap-4 p-4 rounded-2xl bg-card border border-border shadow-soft text-left active:scale-[0.98] transition-all touch-manipulation cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
               <PlanAvatar
@@ -301,18 +237,16 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* Account */}
           {user && (
             <div>
               <SectionLabel>Account</SectionLabel>
               <div className="mx-4 space-y-3">
-                <AccountSection authProvider={authProvider} />
+                <AccountSection authProvider="Appwrite" />
                 <UserIdCard userId={user.id} />
               </div>
             </div>
           )}
 
-          {/* AI Engine */}
           {user && (
             <div>
               <SectionLabel>AI Engine</SectionLabel>
@@ -329,7 +263,6 @@ export default function SettingsPage() {
             </div>
           )}
 
-          {/* Preferences (Appearance + Editor & Export merged) */}
           <div>
             <SectionLabel>Preferences</SectionLabel>
             <div className="mx-4 space-y-3">
@@ -342,7 +275,6 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* Notifications */}
           <div>
             <SectionLabel>Notifications</SectionLabel>
             <div className="mx-4">
@@ -350,7 +282,6 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* Privacy & Security (with Career Visibility merged in) */}
           <div>
             <SectionLabel>Privacy & Security</SectionLabel>
             <div className="mx-4 space-y-3">
@@ -362,7 +293,6 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* Support (renamed from About & Help) */}
           <div>
             <SectionLabel>Support</SectionLabel>
             <div className="mx-4">
@@ -394,7 +324,6 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* Danger Zone (Sign Out + Delete Account) */}
           {user && (
             <div>
               <SectionLabel>Danger Zone</SectionLabel>
@@ -407,7 +336,6 @@ export default function SettingsPage() {
             </div>
           )}
 
-          {/* Footer: Developer Credit + App version (consolidated at the bottom) */}
           <div className="pt-2 pb-10">
             <div className="px-4 flex flex-col items-center gap-5">
               <Suspense fallback={null}>
@@ -418,13 +346,8 @@ export default function SettingsPage() {
                   contactText="Contact Me"
                   showUserInfo={true}
                   enableTilt={true}
-                  enableMobileTilt={false}
                   behindGlowEnabled
-                  behindGlowColor="rgba(125, 190, 255, 0.67)"
-                  innerGradient="linear-gradient(145deg,#60496e8c 0%,#71C4FF44 100%)"
                   onContactClick={() => openExternal('mailto:contact@magdysaber.com')}
-                  onPortfolioClick={() => openExternal('https://magdysaber.com')}
-                  onGithubClick={() => openExternal('https://github.com/iammagdy')}
                 />
               </Suspense>
 
@@ -434,20 +357,15 @@ export default function SettingsPage() {
                 </div>
                 <div className="flex flex-col items-center gap-1">
                   <h2 className="text-sm font-semibold text-foreground">WiseResume</h2>
-                  <span className="text-xs text-muted-foreground font-mono">
-                    {appVersion}
-                  </span>
+                  <span className="text-xs text-muted-foreground font-mono">{appVersion}</span>
                 </div>
-                <p className="text-sm text-muted-foreground text-center">
-                  Made with <span className="text-red-500">❤️</span> in Egypt
-                </p>
+                <p className="text-sm text-muted-foreground text-center">Made with ❤️ in Egypt</p>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Sheets and Dialogs */}
       <Suspense fallback={null}>
         {editProfileOpen && user &&
         <EditProfileSheet
@@ -457,7 +375,6 @@ export default function SettingsPage() {
           userId={user?.id}
           userEmail={user?.email}
           onSave={updateProfile} />
-
         }
         {dataExportSheetOpen &&
         <DataExportSheet
@@ -467,7 +384,6 @@ export default function SettingsPage() {
           userEmail={user?.email ?? null}
           userName={profile?.fullName ?? null}
           currentResumeId={currentResumeId} />
-
         }
         {deleteDialogOpen && user &&
         <DeleteDataDialog
@@ -476,7 +392,6 @@ export default function SettingsPage() {
           userId={user.id}
           resumeCount={resumes.length}
           onDeleted={handleDataDeleted} />
-
         }
         {biometricSetupOpen &&
         <BiometricSetupSheet
@@ -484,7 +399,6 @@ export default function SettingsPage() {
           onOpenChange={setBiometricSetupOpen}
           biometryType={biometryType}
           onEnable={handleBiometricSetupConfirm} />
-
         }
         {biometricTimeoutOpen &&
         <BiometricTimeoutSheet
@@ -492,214 +406,47 @@ export default function SettingsPage() {
           onOpenChange={setBiometricTimeoutOpen}
           selectedTimeout={useSettingsStore.getState().biometricLockTimeout}
           onSelect={useSettingsStore.getState().setBiometricLockTimeout} />
-
         }
-        {helpSheetOpen &&
-        <HelpSheet
-          open={helpSheetOpen}
-          onOpenChange={setHelpSheetOpen} />
-        }
-        {aiSettingsOpen &&
-        <AISettingsSheet
-          open={aiSettingsOpen}
-          onOpenChange={setAISettingsOpen} />
-        }
+        {helpSheetOpen && <HelpSheet open={helpSheetOpen} onOpenChange={setHelpSheetOpen} />}
+        {aiSettingsOpen && <AISettingsSheet open={aiSettingsOpen} onOpenChange={setAISettingsOpen} />}
       </Suspense>
 
-      {/* Sign Out Confirmation */}
       <AlertDialog open={signOutConfirmOpen} onOpenChange={setSignOutConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Sign out?</AlertDialogTitle>
-            <AlertDialogDescription>
-              You'll need to sign in again to access your resumes, cover letters, and application data.
-            </AlertDialogDescription>
+            <AlertDialogDescription>You'll need to sign in again to access your data.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleSignOut} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Sign Out
-            </AlertDialogAction>
+            <AlertDialogAction onClick={handleSignOut} className="bg-destructive text-destructive-foreground">Sign Out</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* About Dialog */}
-      <Dialog open={aboutDialogOpen} onOpenChange={setAboutDialogOpen}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>About WiseResume</DialogTitle>
-            <DialogDescription>App information</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Version</span>
-              <span className="font-medium">{appVersion}</span>
-            </div>
-            <p className="text-muted-foreground text-xs leading-relaxed pt-2">
-              WiseResume helps you build, polish, and track your resume and job applications with the help of AI.
-            </p>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Changelog Dialog */}
-      <Dialog open={changelogOpen} onOpenChange={setChangelogOpen}>
-        <DialogContent className="max-w-sm" hideCloseButton={false}>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <span>What's New</span>
-            </DialogTitle>
-            <DialogDescription>WiseResume release history</DialogDescription>
-          </DialogHeader>
-          <div className="max-h-[min(60vh,calc(100dvh-10rem))] overflow-y-auto -mx-1 px-1">
-            {changelogLoading ?
-            <div className="space-y-6 pt-2">
-                {[1, 2, 3].map((i) =>
-              <div key={i} className="space-y-2">
-                    <Skeleton className="h-5 w-16" />
-                    <Skeleton className="h-3 w-full" />
-                    <Skeleton className="h-3 w-4/5" />
-                    <Skeleton className="h-3 w-2/3" />
-                  </div>
-              )}
-              </div> :
-            changelogError ?
-            <p className="text-sm text-muted-foreground text-center py-8">Could not load changelog.</p> :
-
-            <div className="relative pt-2">
-                <div className="absolute left-[7px] top-4 bottom-4 w-px bg-border" />
-                <div className="space-y-6">
-                  {changelogData.map((release, idx) =>
-                <div key={release.version} className="relative pl-6">
-                      <div className={cn(
-                    "absolute left-0 top-1 w-[15px] h-[15px] rounded-full border-2 flex items-center justify-center",
-                    idx === 0 ?
-                    "border-primary bg-primary" :
-                    "border-muted-foreground/40 bg-background"
-                  )}>
-                        {idx === 0 &&
-                    <div className="w-1.5 h-1.5 rounded-full bg-primary-foreground" />
-                    }
-                      </div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className={cn(
-                      "text-sm font-bold tracking-tight",
-                      idx === 0 ? "text-primary" : "text-foreground"
-                    )}>
-                          {release.version}
-                        </span>
-                        {release.latest &&
-                    <span className="text-[10px] font-semibold bg-primary/15 text-primary px-2 py-0.5 rounded-full uppercase tracking-wide">
-                            Latest
-                          </span>
-                    }
-                        <span className="text-[11px] text-muted-foreground ml-auto">
-                          {release.date}
-                        </span>
-                      </div>
-                      {release.summary &&
-                  <p className="text-xs text-muted-foreground mb-2.5 leading-relaxed">
-                          {release.summary}
-                        </p>
-                  }
-                      <ul className="space-y-1.5">
-                        {release.items.map((item, i) =>
-                    <li key={i} className="flex gap-2 text-xs">
-                            <span className="text-muted-foreground/50 mt-0.5 shrink-0">·</span>
-                            <span>
-                              <span className="font-medium text-foreground">{item.title}</span>
-                              <span className="text-muted-foreground"> — {item.description}</span>
-                            </span>
-                          </li>
-                    )}
-                      </ul>
-                    </div>
-                )}
-                </div>
-              </div>
-            }
-          </div>
-        </DialogContent>
-      </Dialog>
-    </div>);
-
+    </div>
+  );
 }
 
-// --- Guest CTA Card ---
-const GUEST_CTA_DISMISS_KEY = 'wr-settings-guest-cta-dismissed';
-
 function GuestCtaCard({ navigate }: {navigate: (path: string) => void;}) {
-  const [dismissed, setDismissed] = useState(() => localStorage.getItem(GUEST_CTA_DISMISS_KEY) === '1');
-
-  const handleDismiss = () => {
-    setDismissed(true);
-    localStorage.setItem(GUEST_CTA_DISMISS_KEY, '1');
-  };
-
+  const [dismissed, setDismissed] = useState(() => localStorage.getItem('wr-settings-guest-cta-dismissed') === '1');
   return (
     <AnimatePresence mode="wait">
       {!dismissed ?
-      <motion.div
-        key="full-cta"
-        initial={{ opacity: 1 }}
-        exit={{ opacity: 0, height: 0, marginBottom: 0 }}
-        transition={{ duration: 0.2 }}
-        className="rounded-2xl bg-card border border-border shadow-soft overflow-hidden relative">
-        
-          <button
-          onClick={handleDismiss}
-          className="absolute top-3 right-3 p-1 rounded-full hover:bg-muted transition-colors touch-manipulation min-w-[28px] min-h-[28px] flex items-center justify-center z-10"
-          aria-label="Dismiss">
-          
-            <X className="w-3.5 h-3.5 text-muted-foreground" />
-          </button>
-          <div className="h-1 bg-gradient-to-r from-primary via-primary/60 to-transparent" />
-          <div className="p-4">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                <AppIcon size={32} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-medium">Welcome, Guest</p>
-                <p className="text-sm text-muted-foreground">Create a free account to unlock:</p>
-              </div>
+      <motion.div initial={{ opacity: 1 }} exit={{ opacity: 0 }} className="rounded-2xl bg-card border border-border shadow-soft p-4 relative">
+          <button onClick={() => {setDismissed(true); localStorage.setItem('wr-settings-guest-cta-dismissed', '1');}} className="absolute top-3 right-3 p-1 rounded-full hover:bg-muted"><X size={14}/></button>
+          <div className="flex items-center gap-4">
+            <AppIcon size={32} />
+            <div>
+              <p className="font-medium">Welcome, Guest</p>
+              <p className="text-sm text-muted-foreground">Create a free account to unlock more.</p>
             </div>
-            <ul className="mt-3 space-y-1.5 ml-1">
-              <li className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Check className="w-3.5 h-3.5 text-primary shrink-0" />
-                Sync across devices
-              </li>
-              <li className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Check className="w-3.5 h-3.5 text-primary shrink-0" />
-                Export & backup resumes
-              </li>
-              <li className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Check className="w-3.5 h-3.5 text-primary shrink-0" />
-                AI-powered enhancements
-              </li>
-            </ul>
-            <Button size="sm" onClick={() => navigate('/auth?mode=signup')} className="w-full mt-4">
-              Get Started Free
-            </Button>
           </div>
+          <Button size="sm" onClick={() => navigate('/auth?mode=signup')} className="w-full mt-4">Get Started Free</Button>
         </motion.div> :
-
-      <motion.div
-        key="compact-cta"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.2 }}
-        className="rounded-2xl bg-card border border-border shadow-soft overflow-hidden">
-        
-          <SettingsRow
-          type="navigation"
-          label="Sign in to unlock all features"
-          icon={<AppIcon size={20} showSparkle={false} />}
-          onClick={() => navigate('/auth?mode=login')} />
-        
-        </motion.div>
+      <div className="rounded-2xl bg-card border border-border">
+          <SettingsRow type="navigation" label="Sign in to unlock all features" onClick={() => navigate('/auth?mode=login')} />
+        </div>
       }
-    </AnimatePresence>);
-
+    </AnimatePresence>
+  );
 }

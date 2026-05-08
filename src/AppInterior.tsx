@@ -16,7 +16,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import { JobSeekerRoute } from "@/components/layout/JobSeekerRoute";
 import { WiseHireGuard } from "@/components/wisehire/WiseHireGuard";
-import { AuthProvider, DegradedAuthProvider } from "@/contexts/AuthContext";
+import { AuthProvider } from "@/contexts/AuthContext";
 import { useSuspensionCheck } from "@/hooks/useSuspensionCheck";
 import { SuspendedScreen } from "@/components/layout/SuspendedScreen";
 import { MaintenanceScreen } from "@/components/layout/MaintenanceScreen";
@@ -29,10 +29,8 @@ import { useVisitorTracking } from "@/hooks/useVisitorTracking";
 import { ConsentBanner } from "@/components/layout/ConsentBanner";
 import { isAppHostname, usePublicPortfolioByDomain } from "@/hooks/usePublicPortfolio";
 import { AIPrivacyDisclosureProvider } from "@/components/ai/AIPrivacyDisclosureProvider";
-import { useAIKeyHydration } from "@/hooks/useAIKeyHydration";
 import { BottomSheetProvider } from "@/context/BottomSheetContext";
 
-import { KindeProvider, KindeContext } from "@kinde-oss/kinde-auth-react";
 import {
   DashboardSkeleton,
   EditorSkeleton,
@@ -60,152 +58,18 @@ import {
 import { PageLoadingSpinner } from "@/components/ui/PageLoadingSpinner";
 import { lazyWithRetry } from "@/lib/lazyWithRetry";
 
-// The Capacitor mobile shell was retired in favor of a standalone Expo
-// app under `mobile/`. The web bundle now always loads the real DevKit
-// page lazily — `DevToolsStub` is no longer wired in.
 const DevToolsPage = lazyWithRetry(() => import("./pages/DevToolsPage"));
-
 const CommandPalette = lazyWithRetry(() => import("@/components/layout/CommandPalette"));
-
 const BugReportDialog = lazyWithRetry(() => import("@/components/BugReportDialog"));
-/* Task #7 follow-up: the aurora is shared between AppLanding (the
-   lightweight chunk that serves `/` and `/enterprises`) and the full
-   AppInterior shell (which serves `/pricing`, `/sign-in`, etc.). The
-   route-aware orchestration lives in `AuroraLayer` so both shells
-   render an identical aurora without duplicating logic. */
 import { AuroraLayer } from "@/components/landing/AuroraLayer";
 import { getSafeMatchMedia, isBrowser } from "@/lib/envUtils";
 
-// Landing page is lazy-loaded — the HTML pre-paint splash covers first paint
-// so there's no need for Index to be in the entry chunk.
 const Index = lazyWithRetry(() => import("./pages/Index"));
 
-// Kinde SPA configuration.
-// These MUST be set as shared Replit env vars (VITE_KINDE_CLIENT_ID and
-// VITE_KINDE_DOMAIN). They are public SPA credentials — not secrets — and
-// are visible in the JS bundle by design.
-const KINDE_CLIENT_ID = import.meta.env.VITE_KINDE_CLIENT_ID as string | undefined;
-const KINDE_DOMAIN = import.meta.env.VITE_KINDE_DOMAIN as string | undefined;
-
-const PLACEHOLDER_PATTERNS = /^(your[-_]|placeholder|xxx|changeme|todo|<|undefined$)/i;
-
-function isPlaceholder(value: string | undefined): boolean {
-  if (!value || value.trim() === '') return true;
-  return PLACEHOLDER_PATTERNS.test(value.trim());
-}
-
-interface KindeConfigStatus {
-  valid: boolean;
-  missing: string[];
-}
-
-function validateKindeConfig(): KindeConfigStatus {
-  const missing: string[] = [];
-  if (isPlaceholder(KINDE_CLIENT_ID)) missing.push('VITE_KINDE_CLIENT_ID');
-  if (isPlaceholder(KINDE_DOMAIN)) missing.push('VITE_KINDE_DOMAIN');
-  return { valid: missing.length === 0, missing };
-}
-
-const kindeConfigStatus = validateKindeConfig();
-
-if (!kindeConfigStatus.valid) {
-  if (import.meta.env.PROD) {
-    console.error(
-      '[WiseResume] AUTH_CONFIG_INVALID: missing or placeholder Kinde env vars — auth is disabled.',
-      { errorCode: 'AUTH_CONFIG_INVALID', missing: kindeConfigStatus.missing }
-    );
-  }
-}
-
-function KindeMissingConfigOverlay({ missing }: { missing: string[] }) {
-  return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 9999,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'rgba(0,0,0,0.85)',
-        fontFamily: 'monospace',
-      }}
-    >
-      <div
-        style={{
-          background: '#1a1a1a',
-          border: '2px solid #ef4444',
-          borderRadius: '12px',
-          padding: '2rem',
-          maxWidth: '480px',
-          width: '90%',
-          color: '#f8f8f8',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-          <span style={{ fontSize: '1.5rem' }}>⚠️</span>
-          <strong style={{ fontSize: '1.1rem', color: '#ef4444' }}>Missing Kinde Configuration</strong>
-        </div>
-        <p style={{ margin: '0 0 1rem', lineHeight: 1.5, color: '#ccc', fontSize: '0.9rem' }}>
-          Auth cannot start because the following environment variables are missing or contain placeholder values:
-        </p>
-        <ul style={{ margin: '0 0 1rem', paddingLeft: '1.25rem' }}>
-          {missing.map((key) => (
-            <li key={key} style={{ color: '#fbbf24', fontWeight: 'bold', marginBottom: '0.25rem' }}>
-              {key}
-            </li>
-          ))}
-        </ul>
-        <p style={{ margin: 0, fontSize: '0.8rem', color: '#888', lineHeight: 1.5 }}>
-          Set these as Replit environment variables (Secrets tab) and restart the app.
-          Both are public SPA credentials from your Kinde application dashboard.
-        </p>
-      </div>
-    </div>
-  );
-}
-
-const noopAsync = async () => {};
-const noopAsyncUndefined = async () => undefined;
-
-const SAFE_KINDE_CONTEXT_VALUE = {
-  user: undefined,
-  isLoading: false,
-  isAuthenticated: false,
-  error: undefined,
-  login: noopAsync,
-  register: noopAsync,
-  logout: noopAsync,
-  getClaims: noopAsyncUndefined,
-  getIdToken: noopAsyncUndefined,
-  getToken: noopAsyncUndefined,
-  getAccessToken: noopAsyncUndefined,
-  getClaim: noopAsyncUndefined,
-  getOrganization: noopAsyncUndefined,
-  getCurrentOrganization: noopAsyncUndefined,
-  getFlag: noopAsyncUndefined,
-  getUserProfile: noopAsyncUndefined,
-  getPermission: noopAsyncUndefined,
-  getPermissions: noopAsyncUndefined,
-  getUserOrganizations: noopAsyncUndefined,
-  getRoles: noopAsyncUndefined,
-  refreshToken: noopAsyncUndefined,
-  generatePortalUrl: async () => ({ url: new URL(window.location.href) }),
-} as Parameters<typeof KindeContext.Provider>[0]['value'];
-
-function KindeSafeProvider({ children }: { children: React.ReactNode }) {
-  return (
-    <KindeContext.Provider value={SAFE_KINDE_CONTEXT_VALUE}>
-      {children}
-    </KindeContext.Provider>
-  );
-}
-
-// Lazy load other pages with retry
+// Lazy load other pages
 const UploadPage = lazyWithRetry(() => import("./pages/UploadPage"));
 const EditorPage = lazyWithRetry(() => import("./pages/EditorPage"));
 const PreviewPage = lazyWithRetry(() => import("./pages/PreviewPage"));
-
 const AuthPage = lazyWithRetry(() => import("./pages/AuthPage"));
 const DashboardPage = lazyWithRetry(() => import("./pages/DashboardPage"));
 const SettingsPage = lazyWithRetry(() => import("./pages/SettingsPage"));
@@ -220,7 +84,6 @@ const JobDetailPage = lazyWithRetry(() => import("./pages/JobDetailPage"));
 const ApplicationTrackerPage = lazyWithRetry(() => import("./pages/ApplicationTrackerPage"));
 const NotificationsPage = lazyWithRetry(() => import("./pages/NotificationsPage"));
 const PortfolioEditorPage = lazyWithRetry(() => import("./pages/PortfolioEditorPage"));
-
 const CoverLettersPage = lazyWithRetry(() => import("./pages/CoverLettersPage"));
 const CoverLetterNewPage = lazyWithRetry(() => import("./pages/CoverLetterNewPage"));
 const CoverLetterEditPage = lazyWithRetry(() => import("./pages/CoverLetterEditPage"));
@@ -234,12 +97,10 @@ const GuidesPage = lazyWithRetry(() => import("./pages/GuidesPage"));
 const GuidePage = lazyWithRetry(() => import("./pages/GuidePage"));
 const AIStudioPage = lazyWithRetry(() => import("./pages/AIStudioPage"));
 const NotFound = lazyWithRetry(() => import("./pages/NotFound"));
-
 const ShortLinkPage = lazyWithRetry(() => import("./pages/ShortLinkPage"));
 const AuthCallbackPage = lazyWithRetry(() => import("./pages/AuthCallbackPage"));
 const AuthVerifyEmailPage = lazyWithRetry(() => import("./pages/AuthVerifyEmailPage"));
 const AuthResetPasswordPage = lazyWithRetry(() => import("./pages/AuthResetPasswordPage"));
-
 const PrivacyPage = lazyWithRetry(() => import("./pages/PrivacyPage"));
 const TermsPage = lazyWithRetry(() => import("./pages/TermsPage"));
 const WiseHireTermsPage = lazyWithRetry(() => import("./pages/wisehire/WiseHireTermsPage"));
@@ -258,12 +119,9 @@ const ScreenshotsGalleryPage = lazyWithRetry(() => import("./pages/ScreenshotsGa
 const QrCodePage = lazyWithRetry(() => import("./pages/QrCodePage"));
 const QrBatchPage = lazyWithRetry(() => import("./pages/QrBatchPage"));
 const QrScanPage = lazyWithRetry(() => import("./pages/QrScanPage"));
-const KindeAuthTestPage = lazyWithRetry(() => import("./pages/KindeAuthTestPage"));
 const InviteRedirectPage = lazyWithRetry(() => import("./pages/InviteRedirectPage"));
 const SearchPage = lazyWithRetry(() => import("./pages/SearchPage"));
 const TailorPage = lazyWithRetry(() => import("./pages/TailorPage"));
-
-// WiseHire pages
 const EnterprisePage = lazyWithRetry(() => import("./pages/wisehire/EnterprisePage"));
 const WiseHireSignupPage = lazyWithRetry(() => import("./pages/wisehire/WiseHireSignupPage"));
 const WiseHireEarlyAccessPage = lazyWithRetry(() => import("./pages/wisehire/WiseHireEarlyAccessPage"));
@@ -313,13 +171,7 @@ function useIsPublicRoute() {
   );
 }
 
-function FeatureGate({
-  enabled,
-  children,
-}: {
-  enabled: boolean;
-  children: React.ReactNode;
-}) {
+function FeatureGate({ enabled, children }: { enabled: boolean; children: React.ReactNode }) {
   const navigate = useNavigate();
   useEffect(() => {
     if (!enabled) {
@@ -342,15 +194,11 @@ function AppRoutes() {
   useBackButton();
   useStatusBarThemeSync();
   useDeepLinking();
-  useAIKeyHydration();
 
   useEffect(() => {
     document.body.style.overflow = '';
   }, []);
 
-  // Atomic selectors instead of a single useShallow object — avoids
-  // recomputing & re-rendering the whole route tree when an unrelated
-  // settings field changes (e.g. AI provider, theme, hint flags).
   const shakeToReportEnabled = useSettingsStore((s) => s.shakeToReportEnabled);
   const biometricLockEnabled = useSettingsStore((s) => s.biometricLockEnabled);
   const biometricLockTimeout = useSettingsStore((s) => s.biometricLockTimeout);
@@ -362,10 +210,6 @@ function AppRoutes() {
     }
   });
 
-  // Theme persistence: settingsStore persists `theme` to localStorage via Zustand persist
-  // (key: 'wiseresume-settings'). On startup, Zustand hydrates from localStorage first.
-  // When theme === 'system', the resolved value falls back to matchMedia system preference.
-  // No additional localStorage read is needed — the store already handles localStorage-first behavior.
   const theme = useSettingsStore((s) => s.theme);
   useEffect(() => {
     if (!isBrowser) return;
@@ -388,26 +232,10 @@ function AppRoutes() {
   const { signOut, user } = useAuth();
   useVisitorTracking({ userId: user?.id ?? null });
   const location = useLocation();
-
   const isPublicStandalone = useIsPublicRoute();
-
   const { isSuspended, suspensionReason } = useSuspensionCheck();
   const appSettings = useAppSettings();
-
   const customDomainHostname = !isAppHostname(window.location.hostname) ? window.location.hostname : null;
-
-  useEffect(() => {
-    const handleRejection = (event: PromiseRejectionEvent) => {
-      console.error("Unhandled rejection:", event.reason);
-      toast.error("Something went wrong. Please try again.");
-      event.preventDefault();
-    };
-
-    window.addEventListener("unhandledrejection", handleRejection);
-    return () => window.removeEventListener("unhandledrejection", handleRejection);
-  }, []);
-
-  const isAdminRoute = location.pathname.startsWith('/devkit');
 
   if (customDomainHostname) {
     return <CustomDomainPortfolioWrapper hostname={customDomainHostname} />;
@@ -417,6 +245,7 @@ function AppRoutes() {
     return <SuspendedScreen reason={suspensionReason} onSignOut={signOut} />;
   }
 
+  const isAdminRoute = location.pathname.startsWith('/devkit');
   if (appSettings.maintenance_mode && !isPublicStandalone && !isAdminRoute) {
     return <MaintenanceScreen />;
   }
@@ -427,14 +256,12 @@ function AppRoutes() {
         biometryType={biometryType}
         isAuthenticating={isAuthenticating}
         onAuthenticate={authenticate} />);
-
-
   }
 
   return (
     <>
         <ConsentBanner />
-        <AuroraLayer />{/* shared with AppLanding via @/components/landing/AuroraLayer */}
+        <AuroraLayer />
         {appSettings.announcement_enabled && appSettings.announcement_banner && (
           <AnnouncementBanner message={appSettings.announcement_banner} />
         )}
@@ -444,36 +271,28 @@ function AppRoutes() {
           windowEnd={appSettings.maintenance_window_end}
         />
         <Routes>
-          {/* Public routes */}
           <Route path="/" element={<RouteEB><Suspense fallback={<LandingSkeleton />}><Index /></Suspense></RouteEB>} />
           <Route path="/enterprises" element={<RouteEB><Suspense fallback={<LandingSkeleton />}><Index /></Suspense></RouteEB>} />
            <Route element={<AppShell />}>
                <Route path="/auth" element={<RouteEB><Suspense fallback={<AuthSkeleton />}><AuthPage /></Suspense></RouteEB>} />
                <Route path="/sign-in" element={<RouteEB><Suspense fallback={<AuthSkeleton />}><AuthPage /></Suspense></RouteEB>} />
-               
               <Route path="/auth/callback" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><AuthCallbackPage /></Suspense></RouteEB>} />
               <Route path="/auth/verify-email" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><AuthVerifyEmailPage /></Suspense></RouteEB>} />
               <Route path="/auth/reset-password" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><AuthResetPasswordPage /></Suspense></RouteEB>} />
               <Route path="/privacy-policy" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><PrivacyPage /></Suspense></RouteEB>} />
                <Route path="/terms-of-service" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><TermsPage /></Suspense></RouteEB>} />
-               
            </Route>
 
-          {/* Public marketing routes — no AppShell, no auth required */}
           <Route path="/pricing" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><PricingPage /></Suspense></RouteEB>} />
           <Route path="/whats-new" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><WhatsNewPage /></Suspense></RouteEB>} />
           <Route path="/waitlist" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><WaitlistPage /></Suspense></RouteEB>} />
-
-          {/* WiseHire Enterprise page — public, no auth */}
           <Route path="/enterprise" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><EnterprisePage /></Suspense></RouteEB>} />
 
-          {/* WiseHire public routes */}
           <Route path="/wisehire/signup" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><WiseHireSignupPage /></Suspense></RouteEB>} />
           <Route path="/wisehire/signup-early-access/:code" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><WiseHireEarlyAccessPage /></Suspense></RouteEB>} />
           <Route path="/wisehire/terms-of-service" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><WiseHireTermsPage /></Suspense></RouteEB>} />
           <Route path="/wisehire/privacy-policy" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><WiseHirePrivacyPage /></Suspense></RouteEB>} />
 
-          {/* WiseHire protected routes — HR accounts only */}
           <Route element={<WiseHireGuard />}>
             <Route path="/wisehire/dashboard" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><WiseHireDashboardPage /></Suspense></RouteEB>} />
             <Route path="/wisehire/onboarding" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><WiseHireOnboardingPage /></Suspense></RouteEB>} />
@@ -493,7 +312,6 @@ function AppRoutes() {
             <Route path="/wisehire/roles" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><RolesPage /></Suspense></RouteEB>} />
           </Route>
 
-          {/* Protected routes */}
            <Route element={<ProtectedRoute />}>
              <Route element={<JobSeekerRoute />}>
              <Route element={<AppShell />}>
@@ -512,7 +330,6 @@ function AppRoutes() {
                 <Route path="/application/:id" element={<RouteEB><FeatureGate enabled={appSettings.feature_applications}><Suspense fallback={<DetailSkeleton />}><ApplicationTrackerPage /></Suspense></FeatureGate></RouteEB>} />
                  <Route path="/notifications" element={<RouteEB><Suspense fallback={<NotificationsSkeleton />}><NotificationsPage /></Suspense></RouteEB>} />
                  <Route path="/portfolio" element={<RouteEB><FeatureGate enabled={appSettings.feature_portfolio}><Suspense fallback={<PortfolioEditorSkeleton />}><PortfolioEditorPage /></Suspense></FeatureGate></RouteEB>} />
-                 
                  <Route path="/cover-letters" element={<RouteEB><FeatureGate enabled={appSettings.feature_cover_letters}><Suspense fallback={<CoverLettersSkeleton />}><CoverLettersPage /></Suspense></FeatureGate></RouteEB>} />
                 <Route path="/cover-letter/new" element={<RouteEB><FeatureGate enabled={appSettings.feature_cover_letters}><Suspense fallback={<DetailSkeleton />}><CoverLetterNewPage /></Suspense></FeatureGate></RouteEB>} />
                 <Route path="/cover-letter/edit/:id" element={<RouteEB><FeatureGate enabled={appSettings.feature_cover_letters}><Suspense fallback={<DetailSkeleton />}><CoverLetterEditPage /></Suspense></FeatureGate></RouteEB>} />
@@ -533,8 +350,6 @@ function AppRoutes() {
                  <Route path="/qr-code" element={<RouteEB><Suspense fallback={<DetailSkeleton />}><QrCodePage /></Suspense></RouteEB>} />
                  <Route path="/qr-batch" element={<RouteEB><Suspense fallback={<DetailSkeleton />}><QrBatchPage /></Suspense></RouteEB>} />
                  <Route path="/qr-scan" element={<RouteEB><Suspense fallback={<DetailSkeleton />}><QrScanPage /></Suspense></RouteEB>} />
-                 <Route path="/activity" element={<Navigate to="/applications" replace />} />
-                 <Route path="/resume" element={<Navigate to="/editor" replace />} />
                  <Route path="/search" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><SearchPage /></Suspense></RouteEB>} />
                  <Route path="/tailor" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><TailorPage /></Suspense></RouteEB>} />
                  <Route path="/tailor/:resumeId" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><TailorPage /></Suspense></RouteEB>} />
@@ -542,10 +357,7 @@ function AppRoutes() {
              </Route>
            </Route>
 
-        {/* Invite referral redirect — public so unauthenticated users can follow the link */}
         <Route path="/invite/:code" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><InviteRedirectPage /></Suspense></RouteEB>} />
-
-        {/* Public share page - outside AppShell */}
         <Route path="/share/:token" element={<RouteEB><Suspense fallback={<ShareSkeleton />}><SharePage /></Suspense></RouteEB>} />
         <Route path="/share/brief/:shareToken" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><PublicBriefPage /></Suspense></RouteEB>} />
         <Route path="/share/scorecard/:shareToken" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><PublicScorecardPage /></Suspense></RouteEB>} />
@@ -553,55 +365,16 @@ function AppRoutes() {
         <Route path="/p/:username" element={<RouteEB><Suspense fallback={<DetailSkeleton />}><PublicPortfolioPage /></Suspense></RouteEB>} />
         <Route path="/l/:linkId" element={<RouteEB><Suspense fallback={<DetailSkeleton />}><ShortLinkPage /></Suspense></RouteEB>} />
 
-        {/* Kinde auth test — isolated, no Supabase interaction */}
-        <Route path="/kinde-auth-test" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><KindeAuthTestPage /></Suspense></RouteEB>} />
-
-        {/* Internal tooling */}
         <Route element={<ProtectedRoute />}>
           <Route path="/store-screenshots" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><StoreScreenshotsPage /></Suspense></RouteEB>} />
           <Route path="/screenshots-gallery" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><ScreenshotsGalleryPage /></Suspense></RouteEB>} />
         </Route>
-
-        {/* DevKit — self-contained email+password auth, no Kinde/Supabase session required */}
         <Route path="/devkit" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><DevToolsPage /></Suspense></RouteEB>} />
-
-        {/* Compatibility redirects: brief / external links use /dashboard/<sub>
-            but the real route table is flat. Map each known nested path to
-            its canonical flat route so deep links / bookmarks / emails do
-            not dead-end on the 404 page. */}
-        <Route path="/dashboard/resumes" element={<Navigate replace to="/resume" />} />
-        <Route path="/dashboard/cover-letters" element={<Navigate replace to="/cover-letters" />} />
-        <Route path="/dashboard/resignation-letters" element={<Navigate replace to="/resignation-letters" />} />
-        <Route path="/dashboard/job-fit-analyzer" element={<Navigate replace to="/tailor" />} />
-        <Route path="/dashboard/tailor" element={<Navigate replace to="/tailor" />} />
-        <Route path="/dashboard/career" element={<Navigate replace to="/career" />} />
-        <Route path="/dashboard/career-coach" element={<Navigate replace to="/career" />} />
-        <Route path="/dashboard/portfolio" element={<Navigate replace to="/portfolio" />} />
-        <Route path="/dashboard/interview" element={<Navigate replace to="/interview" />} />
-        <Route path="/dashboard/templates" element={<Navigate replace to="/templates" />} />
-        <Route path="/dashboard/ai-studio" element={<Navigate replace to="/ai-studio" />} />
-        <Route path="/dashboard/onboarding" element={<Navigate replace to="/onboarding" />} />
-        <Route path="/dashboard/upload" element={<Navigate replace to="/upload" />} />
-        <Route path="/dashboard/settings" element={<Navigate replace to="/settings" />} />
-        <Route path="/dashboard/applications" element={<Navigate replace to="/applications" />} />
-        <Route path="/dashboard/profile" element={<Navigate replace to="/profile" />} />
-        <Route path="/dashboard/notifications" element={<Navigate replace to="/notifications" />} />
-        <Route path="/dashboard/achievements" element={<Navigate replace to="/achievements" />} />
-        <Route path="/dashboard/analytics" element={<Navigate replace to="/analytics" />} />
-        <Route path="/dashboard/help" element={<Navigate replace to="/help" />} />
-
         <Route path="*" element={<RouteEB><Suspense fallback={<DetailSkeleton />}><NotFound /></Suspense></RouteEB>} />
       </Routes>
-      
       <PrefetchOnIdle />
       </>);
-
 }
-
-/* AuroraLayer is now exported from `@/components/landing/AuroraLayer`
-   so both AppInterior and AppLanding can render it. The previous
-   inline implementation has been removed; see the imported module for
-   path matching, body backstop, and `aurora-active` class management. */
 
 function PrefetchOnIdle() {
   useEffect(() => {
@@ -630,46 +403,21 @@ function DeferredProviders() {
       <Suspense fallback={null}><CommandPalette /></Suspense>
       <Suspense fallback={null}><BugReportDialog /></Suspense>
     </>);
-
 }
 
 const AppInterior = () => {
-  if (!kindeConfigStatus.valid) {
-    return (
-      <>
-        <Toaster />
-        <KindeSafeProvider>
-          <DegradedAuthProvider>
-            <BottomSheetProvider>
-              <AIPrivacyDisclosureProvider>
-                <AppRoutes />
-                <DeferredProviders />
-              </AIPrivacyDisclosureProvider>
-            </BottomSheetProvider>
-          </DegradedAuthProvider>
-        </KindeSafeProvider>
-      </>
-    );
-  }
-
   return (
     <>
       <Toaster />
       <ActingAsBanner />
-      <KindeProvider
-        clientId={KINDE_CLIENT_ID ?? ''}
-        domain={KINDE_DOMAIN ?? ''}
-        redirectUri={window.location.origin + '/auth/callback'}
-        logoutUri={window.location.origin}>
-        <AuthProvider>
-          <BottomSheetProvider>
-            <AIPrivacyDisclosureProvider>
-              <AppRoutes />
-              <DeferredProviders />
-            </AIPrivacyDisclosureProvider>
-          </BottomSheetProvider>
-        </AuthProvider>
-      </KindeProvider>
+      <AuthProvider>
+        <BottomSheetProvider>
+          <AIPrivacyDisclosureProvider>
+            <AppRoutes />
+            <DeferredProviders />
+          </AIPrivacyDisclosureProvider>
+        </BottomSheetProvider>
+      </AuthProvider>
     </>
   );
 };

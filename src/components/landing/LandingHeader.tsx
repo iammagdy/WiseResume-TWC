@@ -36,7 +36,7 @@ export function LandingHeader({
   onModeChange, onThemeToggle, onOpenWaitlist, onSignOut,
 }: LandingHeaderProps) {
   const navigate = useNavigate();
-  const { login: kindeLogin } = useKindeAuth();
+  const { isAuthenticated } = useAuth();
   const { authAvailable } = useAuth();
 
   const getInitials = () => {

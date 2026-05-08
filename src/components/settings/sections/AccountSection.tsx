@@ -126,14 +126,7 @@ export const AccountSection = memo(function AccountSection({
                     icon={<KeyRound className="w-4 h-4" />}
                     onClick={async () => {
                         haptics.light();
-                        const kindeDomain = (import.meta.env.VITE_KINDE_DOMAIN as string | undefined)?.trim();
-                        if (!kindeDomain) {
-                            const { toast } = await import('sonner');
-                            toast.error('Account portal is not configured. Contact support.');
-                            return;
-                        }
-                        const portalUrl = (kindeDomain.startsWith('http') ? kindeDomain : `https://${kindeDomain}`).replace(/\/$/, '') + '/account';
-                        openExternal(portalUrl);
+                        toast.info("Password management is now handled through our new engine.");
                     }}
                 />
             </div>

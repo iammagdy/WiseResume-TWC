@@ -1,340 +1,77 @@
-import { useState, useCallback, useEffect } from 'react';
-import { RefreshCw, Settings, Save, Zap, RotateCcw, FileText } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { useResumeMutations, useResumes } from '@/hooks/useResumes';
-import { useAuth } from '@/hooks/useAuth';
-import { buildSampleResume } from '@/lib/devkit/sampleResume';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import { useState, useEffect } from 'react';
+import { databases, DATABASE_ID, Query, ID } from '@/lib/appwrite';
+import { Power, ShieldAlert, Rocket, CheckCircle2, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
-import { getDevKitToken } from '@/contexts/DevKitSessionContext';
-import { useIsMounted } from '@/lib/devkit/hooks';
-import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
-import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
-import { DevKitErrorCard } from './DevKitErrorCard';
 
+export const AppSettingsPanel = () => {
+  const [settings, setSettings] = useState<Record<string, any>>({});
+  const [loading, setLoading] = useState(true);
 
-export function AppSettingsPanel() {
-  const [settings, setSettings] = useState<Record<string, boolean | string | null>>({});
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [announcementText, setAnnouncementText] = useState('');
-  const [saving, setSaving] = useState<string | null>(null);
-  const [globalLimitInput, setGlobalLimitInput] = useState('');
-  const [creatingSampleResume, setCreatingSampleResume] = useState(false);
-
-  const { user } = useAuth();
-  const { createResume } = useResumeMutations();
-  const { data: resumes } = useResumes();
-  const sampleResumeTitle = 'Demo Resume';
-  const hasSampleResume = (resumes ?? []).some(r => r.title?.startsWith(sampleResumeTitle));
-
-  const handleCreateSampleResume = useCallback(async () => {
-    if (!user) {
-      toast.error('You must be signed in to create a sample resume.');
-      return;
-    }
-    setCreatingSampleResume(true);
+  const fetchSettings = async () => {
     try {
-      const displayName = user.name?.trim() || (user.email ? user.email.split('@')[0] : null);
-      const { resume, title } = buildSampleResume(displayName);
-      await createResume.mutateAsync({ resume, title });
-      toast.success('Sample resume created. Open AI Studio to start chatting with Wise AI.');
-    } catch (err) {
-      console.error('[devkit] Failed to create sample resume', err);
-      toast.error('Failed to create sample resume');
-    } finally {
-      setCreatingSampleResume(false);
-    }
-  }, [user, createResume]);
-  const [maintenanceDialogOpen, setMaintenanceDialogOpen] = useState(false);
+      const res = await databases.listDocuments(DATABASE_ID, 'app_settings');
+      const map: Record<string, any> = {};
+      res.documents.forEach(doc => { map[doc.key] = doc.value; });
+      setSettings(map);
+    } catch (e) {} finally { setLoading(false); }
+  };
 
-  const isMounted = useIsMounted();
+  useEffect(() => { fetchSettings(); }, []);
 
-  const fetchSettings = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  const toggleSetting = async (key: string, current: string) => {
+    const newValue = current === 'true' ? 'false' : 'true';
     try {
-      const tuple = await edgeFunctions.functions.invoke('admin-get-settings', {
-        headers: devKitAuthHeaders(),
-        body: {},
-      });
-      const result = unwrapAdminResponse<{ settings?: Record<string, unknown> }>(tuple, 'admin-get-settings');
-      if (!isMounted()) return;
-      const raw = result.settings ?? {};
-      const parsed: Record<string, boolean | string | null> = {};
-      for (const [k, v] of Object.entries(raw)) {
-        if (typeof v === 'boolean') parsed[k] = v;
-        else if (typeof v === 'string') parsed[k] = v;
-        else if (v === null) parsed[k] = null;
-        else parsed[k] = JSON.parse(JSON.stringify(v)) as boolean;
+      const res = await databases.listDocuments(DATABASE_ID, 'app_settings', [Query.equal('key', key)]);
+      if (res.total > 0) {
+        await databases.updateDocument(DATABASE_ID, 'app_settings', res.documents[0].$id, { value: newValue });
+      } else {
+        await databases.createDocument(DATABASE_ID, 'app_settings', ID.unique(), { key, value: newValue });
       }
-      setSettings(parsed);
-      const ann = raw['announcement_banner'];
-      setAnnouncementText(typeof ann === 'string' ? ann : (ann !== null && ann !== undefined ? String(ann) : ''));
-      const gl = raw['global_daily_limit'];
-      setGlobalLimitInput(gl != null && gl !== '' ? String(gl) : '');
-    } catch (e) {
-      if (!isMounted()) return;
-      setError(formatEdgeError(e, 'Failed to load settings'));
-    } finally {
-      if (isMounted()) setLoading(false);
-    }
-  }, [isMounted]);
-
-  useEffect(() => { fetchSettings(); }, [fetchSettings]);
-
-  const updateSetting = async (key: string, value: boolean | string | null) => {
-    setSaving(key);
-    try {
-      const tuple = await edgeFunctions.functions.invoke('admin-update-settings', {
-        headers: devKitAuthHeaders(),
-        body: { key, value },
-      });
-      unwrapAdminResponse(tuple, 'admin-update-settings');
-      if (!isMounted()) return;
-      setSettings((prev) => ({ ...prev, [key]: value }));
-      toast.success('Setting updated');
-    } catch (e) {
-      toast.error(formatEdgeError(e, 'Failed to update setting'));
-    } finally {
-      if (isMounted()) setSaving(null);
-    }
+      setSettings(prev => ({ ...prev, [key]: newValue }));
+      toast.success(`${key} updated successfully`);
+    } catch (e: any) { toast.error(e.message); }
   };
 
-  const handleSaveAnnouncement = () => {
-    updateSetting('announcement_banner', announcementText.trim() || null);
-  };
-
-  const handleSaveGlobalLimit = () => {
-    const val = globalLimitInput.trim();
-    if (val === '') {
-      updateSetting('global_daily_limit', null);
-    } else {
-      const n = Number(val);
-      if (isNaN(n) || n < -1) { toast.error('Enter a valid number (-1 for unlimited, 0+ for a limit)'); return; }
-      updateSetting('global_daily_limit', String(n));
-    }
-  };
-
-
-  const handleMaintenanceToggleConfirm = () => {
-    updateSetting('maintenance_mode', !settings.maintenance_mode);
-  };
+  if (loading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-blue-500" size={32}/></div>;
 
   return (
-    <div className="space-y-6">
-      {error && (
-        <DevKitErrorCard error={error} title="Couldn't load app settings" context={{ panel: 'App Settings', function: 'admin-app-settings' }} />
-      )}
-
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Settings className="w-4 h-4" />
-          <span>App-wide settings</span>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="p-8 rounded-3xl bg-red-500/5 border border-red-500/10 flex flex-col justify-between gap-6">
+        <div>
+           <div className="flex items-center gap-3 text-red-400 mb-2">
+             <ShieldAlert size={24}/> <h3 className="font-bold text-xl uppercase tracking-tighter">Maintenance Mode</h3>
+           </div>
+           <p className="text-sm text-red-200/50">Instantly lock the app for all users. Use only for critical updates.</p>
         </div>
-        <Button variant="outline" size="sm" onClick={fetchSettings} disabled={loading}>
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-        </Button>
-      </div>
-
-      {/* Maintenance Mode */}
-      <div className="rounded-xl border border-border p-4 space-y-3">
-        <h3 className="text-sm font-semibold">Maintenance Mode</h3>
-        <p className="text-xs text-muted-foreground">When enabled, shows a full-screen maintenance banner to all users.</p>
-        <div className="flex items-center justify-between">
-          <span className="text-sm">Enable maintenance mode</span>
-          <button
-            onClick={() => setMaintenanceDialogOpen(true)}
-            disabled={saving === 'maintenance_mode'}
-            className={`relative w-11 h-6 rounded-full transition-colors ${settings.maintenance_mode ? 'bg-destructive' : 'bg-muted'}`}
-          >
-            <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${settings.maintenance_mode ? 'translate-x-5' : 'translate-x-0'}`} />
-          </button>
-        </div>
-        {settings.maintenance_mode && (
-          <div className="p-2 rounded-md bg-destructive/10 text-xs text-destructive">
-            ⚠ Maintenance mode is ON — users will see a maintenance screen
-          </div>
-        )}
-      </div>
-
-      {/* Announcement Banner */}
-      <div className="rounded-xl border border-border p-4 space-y-3">
-        <h3 className="text-sm font-semibold">Announcement Banner</h3>
-        <p className="text-xs text-muted-foreground">Shows a dismissible banner at the top of the app for all users.</p>
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-sm">Show banner</span>
-          <button
-            onClick={() => updateSetting('announcement_enabled', !settings.announcement_enabled)}
-            disabled={saving === 'announcement_enabled'}
-            className={`relative w-11 h-6 rounded-full transition-colors ${settings.announcement_enabled ? 'bg-primary' : 'bg-muted'}`}
-          >
-            <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${settings.announcement_enabled ? 'translate-x-5' : 'translate-x-0'}`} />
-          </button>
-        </div>
-        <Textarea
-          placeholder="Enter announcement message for users…"
-          value={announcementText}
-          onChange={(e) => setAnnouncementText(e.target.value)}
-          rows={2}
-          className="text-xs resize-none"
-        />
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={handleSaveAnnouncement}
-          disabled={saving === 'announcement_banner'}
-          className="flex items-center gap-2"
+        <button 
+           onClick={() => toggleSetting('maintenance_mode', settings.maintenance_mode)}
+           className={`w-full py-4 rounded-2xl font-black uppercase tracking-widest transition-all ${
+             settings.maintenance_mode === 'true' ? 'bg-red-600 text-white shadow-[0_0_20px_rgba(220,38,38,0.5)]' : 'bg-white/5 text-red-400 border border-red-500/20'
+           }`}
         >
-          <Save className="w-3.5 h-3.5" />
-          {saving === 'announcement_banner' ? 'Saving…' : 'Save announcement'}
-        </Button>
+          {settings.maintenance_mode === 'true' ? 'DISABLE MAINTENANCE' : 'ACTIVATE MAINTENANCE'}
+        </button>
       </div>
 
-      {/* WiseResume AI Engine */}
-      <div className="rounded-xl border border-border p-4 space-y-3">
-        <h3 className="text-sm font-semibold">WiseResume AI Engine</h3>
-        <p className="text-xs text-muted-foreground">Select which AI backend powers WiseResume AI for all users. Changes take effect immediately.</p>
-        <div className="space-y-2">
-          {([
-            { value: 'auto', label: 'Auto (best available)', description: 'Tries OpenRouter → OpenRouter 2 → Groq in order' },
-            { value: 'openrouter', label: 'OpenRouter · Gemma 4', description: 'Google Gemma 4 via OpenRouter (free tier)' },
-            { value: 'openrouter2', label: 'OpenRouter 2 · GPT-OSS 120B', description: 'openai/gpt-oss-120b:free via the secondary OpenRouter account' },
-            { value: 'groq', label: 'Groq · Qwen 3 32B', description: 'Qwen 3 32B via Groq (free tier — primary Groq model in fallback chain)' },
-          ] as const).map((opt) => {
-            const current = (settings.wiseresume_ai_engine as string) ?? 'auto';
-            const isSelected = current === opt.value;
-            return (
-              <button
-                key={opt.value}
-                onClick={() => updateSetting('wiseresume_ai_engine', opt.value)}
-                disabled={saving === 'wiseresume_ai_engine' || loading}
-                className={`w-full text-left flex items-center gap-3 rounded-lg border p-3 transition-all ${
-                  isSelected ? 'border-primary/60 bg-primary/5' : 'border-border hover:border-muted-foreground/30'
-                }`}
-              >
-                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
-                  isSelected ? 'border-primary' : 'border-muted-foreground/40'
-                }`}>
-                  {isSelected && <div className="w-2 h-2 rounded-full bg-primary" />}
-                </div>
-                <div>
-                  <p className="text-sm font-medium">{opt.label}</p>
-                  <p className="text-xs text-muted-foreground">{opt.description}</p>
-                </div>
-              </button>
-            );
-          })}
+      <div className="p-8 rounded-3xl bg-blue-500/5 border border-blue-500/10 flex flex-col gap-6">
+        <h3 className="font-bold text-xl text-white flex items-center gap-3"><Rocket size={24} className="text-blue-400"/> Feature Toggles</h3>
+        <div className="space-y-3">
+           <ToggleItem label="AI Tailoring" icon={<CheckCircle2 size={16}/>} active={settings.feature_tailor === 'true'} onToggle={() => toggleSetting('feature_tailor', settings.feature_tailor)} />
+           <ToggleItem label="AI Chat & Assistant" icon={<CheckCircle2 size={16}/>} active={settings.feature_chat === 'true'} onToggle={() => toggleSetting('feature_chat', settings.feature_chat)} />
+           <ToggleItem label="Public Portfolios" icon={<CheckCircle2 size={16}/>} active={settings.feature_portfolio === 'true'} onToggle={() => toggleSetting('feature_portfolio', settings.feature_portfolio)} />
         </div>
       </div>
+    </div>
+  );
+};
 
-      {/* Global AI Credit Controls */}
-      <div className="rounded-xl border border-border p-4 space-y-4">
-        <div className="flex items-center gap-2">
-          <Zap className="w-4 h-4 text-yellow-500" />
-          <h3 className="text-sm font-semibold">Global AI Credit Controls</h3>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Apply a platform-wide daily AI usage limit to all users not on a custom per-user override. Use -1 for unlimited. Leave blank to use per-plan defaults.
-        </p>
-
-        <div className="space-y-2">
-          <p className="text-xs text-muted-foreground font-medium">Global daily AI limit (all users)</p>
-          <div className="flex gap-2">
-            <Input
-              type="number"
-              placeholder="-1 = unlimited, blank = per-plan default"
-              value={globalLimitInput}
-              onChange={(e) => setGlobalLimitInput(e.target.value)}
-              className="h-9 text-sm flex-1"
-              min="-1"
-            />
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleSaveGlobalLimit}
-              disabled={saving === 'global_daily_limit'}
-              className="flex items-center gap-1.5 shrink-0"
-            >
-              <Save className="w-3.5 h-3.5" />
-              {saving === 'global_daily_limit' ? 'Saving…' : 'Save'}
-            </Button>
-          </div>
-          {settings.global_daily_limit != null && settings.global_daily_limit !== '' && (
-            <p className="text-xs text-muted-foreground">
-              Current: <strong>{settings.global_daily_limit === '-1' ? 'Unlimited' : `${settings.global_daily_limit} / day`}</strong>
-            </p>
-          )}
-        </div>
-
-      </div>
-
-      {/* Demo Data */}
-      <div className="rounded-xl border border-border p-4 space-y-3">
-        <div className="flex items-center gap-2">
-          <FileText className="w-4 h-4 text-primary" />
-          <h3 className="text-sm font-semibold">Demo Data</h3>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Seed your own account with a realistic sample resume so you can test AI Studio chat, tailoring, cover letters, and interview prep end-to-end without filling in resume data manually.
-        </p>
-        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={handleCreateSampleResume}
-            disabled={creatingSampleResume || !user}
-            className="flex items-center gap-2"
-          >
-            {creatingSampleResume
-              ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" />Creating…</>
-              : <><FileText className="w-3.5 h-3.5" />Create sample resume</>
-            }
-          </Button>
-          {hasSampleResume && (
-            <span className="text-xs text-muted-foreground">
-              You already have a demo resume — clicking again creates another copy.
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Maintenance Mode Confirmation Dialog */}
-      <AlertDialog open={maintenanceDialogOpen} onOpenChange={setMaintenanceDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {settings.maintenance_mode ? 'Disable maintenance mode?' : 'Enable maintenance mode?'}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {settings.maintenance_mode
-                ? 'This will remove the maintenance banner and restore normal access for all users.'
-                : 'This will display a maintenance banner to all users, blocking access to the app until maintenance mode is disabled. To undo, click the toggle again to disable it.'}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleMaintenanceToggleConfirm}
-              className={settings.maintenance_mode ? '' : 'bg-destructive text-destructive-foreground hover:bg-destructive/90'}
-            >
-              {settings.maintenance_mode ? 'Disable maintenance mode' : 'Enable maintenance mode'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+function ToggleItem({ label, active, onToggle, icon }: any) {
+  return (
+    <div className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/5">
+      <div className="flex items-center gap-3 text-white/80 font-medium">{icon} {label}</div>
+      <button onClick={onToggle} className={`w-12 h-6 rounded-full relative transition-all ${active ? 'bg-blue-600' : 'bg-white/10'}`}>
+         <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${active ? 'right-1' : 'left-1'}`}></div>
+      </button>
     </div>
   );
 }

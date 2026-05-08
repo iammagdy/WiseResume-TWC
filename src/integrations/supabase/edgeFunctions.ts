@@ -4,620 +4,72 @@ import { dispatchSessionExpiredOnce } from './sessionExpired';
 import { parseAIErrorBody, aiErrorToastMessage, type AIErrorCode } from '@/lib/aiErrorParser';
 import { apiFnUrl } from '@/lib/apiFnUrl';
 import { EDGE_FUNCTIONS_ANON_KEY } from '@/lib/supabaseConstants';
-import { USE_MERGED_TRANSACTIONAL_EMAIL } from '@/integrations/supabase/transactionalEmailFlag';
-import {
-  USE_MERGED_RESUME_SECTION_AI,
-  resumeSectionAiFnName,
-  resumeSectionAiHeader,
-} from '@/integrations/supabase/resumeSectionAiFlag';
+import { shouldRouteToAppwrite, invokeAppwriteHub } from '@/lib/appwrite-bridge';
 
-/**
- * Classify an edge-function error response. Prefers the structured `error`
- * code in the JSON body; falls back to the parser's status/text heuristics
- * only when no code is present. Returns the typed code plus a user-ready
- * toast string and a flag for whether this was a true session-auth failure
- * (i.e. should trigger a token refresh / "session expired" dispatch).
- */
-function classifyEdgeError(status: number, text: string): {
-  code: AIErrorCode;
-  message: string;
-  isSessionAuthFailure: boolean;
-} {
+function classifyEdgeError(status: number, text: string) {
   let bodyJson: unknown = null;
-  try {
-    bodyJson = JSON.parse(text);
-  } catch {
-    // Fall through with null; parseAIErrorBody handles the missing-body case.
-  }
+  try { bodyJson = JSON.parse(text); } catch {}
   const info = parseAIErrorBody(bodyJson ?? { message: text }, status);
-  // A 401/403 is a real session-auth failure only when the structured code
-  // resolves to `unauthorized` — invalid_key / not_configured 401s from
-  // BYOK providers must not refresh tokens or surface "Session expired".
-  const isSessionAuthFailure =
-    (status === 401 || status === 403) && info.code === 'unauthorized';
-  return {
-    code: info.code,
-    message: aiErrorToastMessage(info),
-    isSessionAuthFailure,
-  };
+  const isSessionAuthFailure = (status === 401 || status === 403) && info.code === 'unauthorized';
+  return { code: info.code, message: aiErrorToastMessage(info), isSessionAuthFailure };
 }
 
-/**
- * DevKit-only edge functions whose name does NOT start with `admin-` and
- * which therefore would otherwise be misclassified by the AI error parser.
- * Listing them here makes their 401/non-2xx responses surface the raw
- * `error` string from the function body instead of the misleading
- * "Session expired — please sign in again to use AI features." toast.
- *
- * `ai-test` (Bug #5): the DevKit AI key smoke-test endpoint. Its 401s are
- * either function-level `Unauthorized` (DevKit token bad) or platform
- * gateway errors (verify_jwt drift). Either way the user shouldn't be
- * told their session expired.
- */
-const DEVKIT_BYPASS_FUNCTIONS: ReadonlySet<string> = new Set(['ai-test']);
-
-/**
- * Coupons consolidation (Task #48).
- *
- * Routes the three legacy coupon function names to the merged `coupons`
- * router. Dispatch is signalled via the `x-coupons-action` header so the
- * request body is forwarded byte-for-byte (no key remapping) and each
- * handler in the merged router preserves its original parse-vs-auth
- * order. Set USE_MERGED_COUPONS=false to fall back to the original
- * endpoints if they are still deployed.
- */
-const USE_MERGED_COUPONS = true;
-const COUPON_FN_ACTIONS: Record<string, 'admin-manage' | 'redeem' | 'validate'> = {
-  'admin-manage-coupons': 'admin-manage',
-  'redeem-coupon': 'redeem',
-  'validate-coupon': 'validate',
-};
-function rewriteCouponInvoke(
-  fnName: string,
-  options: { body?: unknown; headers?: Record<string, string>; method?: string } | undefined,
-): { fnName: string; options: { body?: unknown; headers?: Record<string, string>; method?: string } | undefined } {
-  if (!USE_MERGED_COUPONS) return { fnName, options };
-  const action = COUPON_FN_ACTIONS[fnName];
-  if (!action) return { fnName, options };
-  const newHeaders: Record<string, string> = { ...(options?.headers ?? {}), 'x-coupons-action': action };
-  return { fnName: 'coupons', options: { ...(options ?? {}), headers: newHeaders } };
-}
-
-/**
- * Admin user-lifecycle consolidation (Task #51).
- *
- * Routes the seven legacy admin user-lifecycle function names to the
- * merged `admin-user-ops` router. Dispatch is signalled via the
- * `x-admin-user-op` request header so the router never has to read
- * the request body — that's what lets each handler in the merged
- * router preserve its ORIGINAL parse-vs-auth ordering byte-for-byte
- * (critical for malformed-body parity, especially for
- * admin-revoke-sessions which originally swallowed parse errors into
- * `body = {}` and returned 400, while the other 6 originals threw to
- * outer try/catch and returned 500).
- *
- * For spec compliance the helper ALSO injects `body.action` set to
- * the same value; the router doesn't read it but it's there for
- * any caller / observability tool that inspects the body.
- *
- * Set USE_MERGED_ADMIN_USER_OPS=false to fall back to the seven
- * originals while soaking the new router.
- *
- * Explicitly excluded (kept isolated): admin-delete-user.
- */
-const USE_MERGED_ADMIN_USER_OPS = true;
-const ADMIN_USER_OPS_ACTIONS: Record<
-  string,
-  'suspend' | 'grant-trial' | 'revoke-trial' | 'set-credits' | 'set-plan' | 'revoke-sessions' | 'update-profile'
-> = {
-  'admin-suspend-user': 'suspend',
-  'admin-grant-trial': 'grant-trial',
-  'admin-revoke-trial': 'revoke-trial',
-  'admin-set-credits': 'set-credits',
-  'admin-set-plan': 'set-plan',
-  'admin-revoke-sessions': 'revoke-sessions',
-  'admin-update-profile': 'update-profile',
-};
-function rewriteAdminUserOpsInvoke(
-  fnName: string,
-  options: { body?: unknown; headers?: Record<string, string>; method?: string } | undefined,
-): { fnName: string; options: { body?: unknown; headers?: Record<string, string>; method?: string } | undefined } {
-  if (!USE_MERGED_ADMIN_USER_OPS) return { fnName, options };
-  const action = ADMIN_USER_OPS_ACTIONS[fnName];
-  if (!action) return { fnName, options };
-  const newHeaders: Record<string, string> = {
-    ...(options?.headers ?? {}),
-    'x-admin-user-op': action,
-  };
-  // Preserve the original body 1:1 so each handler sees exactly what
-  // its pre-merge function saw (incl. admin-update-profile's inner
-  // `body.action: 'get'` selector). Add a top-level `action` field
-  // alongside (spec compliance) without clobbering an existing one.
-  const origBody = options?.body;
-  let newBody: unknown = origBody;
-  if (origBody && typeof origBody === 'object' && !Array.isArray(origBody)) {
-    const obj = origBody as Record<string, unknown>;
-    if (!('action' in obj)) {
-      newBody = { ...obj, action };
-    }
-    // If body already has its own `action` field (e.g. update-profile
-    // GET path), leave it untouched — the router dispatches on the
-    // header, not the body, so there's no collision.
-  } else if (origBody === undefined) {
-    newBody = { action };
-  }
-  return {
-    fnName: 'admin-user-ops',
-    options: { ...(options ?? {}), headers: newHeaders, body: newBody },
-  };
-}
-
-/**
- * Admin config consolidation (Task #52).
- *
- * Routes the five legacy admin-config function names to the merged
- * `admin-config` router. Dispatch is signalled via the
- * `x-admin-config-action` request header (NOT exclusively the body)
- * because two of the five sub-handlers — feature-flags and
- * integrations — read their OWN inner `body.action` for sub-routing
- * (list/upsert/delete, get_resend_bounces/get_deploy_status/
- * trigger_deploy). Clobbering body.action would break those handlers'
- * byte-for-byte parity, so we leave the body untouched and dispatch
- * via the header. For spec compliance the helper ALSO injects
- * `body.action` set to the router-level action name when the body
- * has no pre-existing `action` field (i.e. for get-settings,
- * update-settings, env-check whose originals don't read body.action).
- *
- * Set USE_MERGED_ADMIN_CONFIG=false to fall back to the five
- * originals while soaking the new router.
- */
-const USE_MERGED_ADMIN_CONFIG = true;
-const ADMIN_CONFIG_ACTIONS: Record<
-  string,
-  'get-settings' | 'update-settings' | 'feature-flags' | 'integrations' | 'env-check'
-> = {
-  'admin-get-settings': 'get-settings',
-  'admin-update-settings': 'update-settings',
-  'admin-feature-flags': 'feature-flags',
-  'admin-integrations': 'integrations',
-  'admin-env-check': 'env-check',
-};
-/**
- * Admin AI control-plane consolidation (Task #53).
- *
- * Routes the four legacy admin AI control-plane function names to the
- * merged `admin-ai-ops` router. Dispatch is signalled via the
- * `x-admin-ai-op` request header (NOT exclusively the body) because two
- * of the four sub-handlers — caps and routing — read their OWN inner
- * `body.action` for sub-routing (get_caps/set_plan_cap/set_global_cap/
- * get_user_cap/set_user_cap and get_config/update_feature/reset_feature
- * respectively). Clobbering body.action would break those handlers'
- * byte-for-byte parity, so we leave the body untouched and dispatch
- * via the header. For spec compliance the helper ALSO injects
- * `body.action` set to the router-level action name when the body has
- * no pre-existing `action` field.
- *
- * Set USE_MERGED_ADMIN_AI_OPS=false to fall back to the four originals
- * while soaking the new router.
- *
- * Excluded (kept isolated): `ai-test`, `ai-health` — both are non-admin
- * surfaces with different auth postures.
- */
-const USE_MERGED_ADMIN_AI_OPS = true;
-const ADMIN_AI_OPS_ACTIONS: Record<
-  string,
-  'caps' | 'routing' | 'inspect-keys' | 'refresh-test-models'
-> = {
-  'admin-ai-caps': 'caps',
-  'admin-ai-routing': 'routing',
-  'inspect-ai-keys': 'inspect-keys',
-  'refresh-ai-test-models': 'refresh-test-models',
-};
-function rewriteAdminAiOpsInvoke(
-  fnName: string,
-  options: { body?: unknown; headers?: Record<string, string>; method?: string } | undefined,
-): { fnName: string; options: { body?: unknown; headers?: Record<string, string>; method?: string } | undefined } {
-  if (!USE_MERGED_ADMIN_AI_OPS) return { fnName, options };
-  const action = ADMIN_AI_OPS_ACTIONS[fnName];
-  if (!action) return { fnName, options };
-  const newHeaders: Record<string, string> = {
-    ...(options?.headers ?? {}),
-    'x-admin-ai-op': action,
-  };
-  // Preserve the original body 1:1 so each handler sees exactly what its
-  // pre-merge function saw (incl. caps' / routing's inner body.action
-  // sub-routing). Add a top-level `action` field alongside (spec
-  // compliance) ONLY when the caller didn't already set one.
-  const origBody = options?.body;
-  let newBody: unknown = origBody;
-  if (origBody && typeof origBody === 'object' && !Array.isArray(origBody)) {
-    const obj = origBody as Record<string, unknown>;
-    if (!('action' in obj)) {
-      newBody = { ...obj, action };
-    }
-  } else if (origBody === undefined) {
-    newBody = { action };
-  }
-  return {
-    fnName: 'admin-ai-ops',
-    options: { ...(options ?? {}), headers: newHeaders, body: newBody },
-  };
-}
-
-/**
- * Admin WiseHire consolidation (Task #54).
- *
- * Routes the four legacy admin-wisehire function names to the merged
- * `admin-wisehire` router. Dispatch is signalled via the
- * `x-admin-wisehire-op` request header AND a top-level `body.action`
- * field (added only when the caller didn't supply one). The body is
- * otherwise forwarded byte-for-byte so each sub-handler sees exactly
- * what its pre-merge function saw.
- *
- * Set USE_MERGED_ADMIN_WISEHIRE=false to fall back to the four
- * originals while soaking the new router.
- */
-const USE_MERGED_ADMIN_WISEHIRE = true;
-const ADMIN_WISEHIRE_ACTIONS: Record<
-  string,
-  'invite' | 'reset-user' | 'revoke-invite' | 'waitlist'
-> = {
-  'admin-wisehire-invite': 'invite',
-  'admin-wisehire-reset-user': 'reset-user',
-  'admin-wisehire-revoke-invite': 'revoke-invite',
-  'admin-wisehire-waitlist': 'waitlist',
-};
-function rewriteAdminWisehireInvoke(
-  fnName: string,
-  options: { body?: unknown; headers?: Record<string, string>; method?: string } | undefined,
-): { fnName: string; options: { body?: unknown; headers?: Record<string, string>; method?: string } | undefined } {
-  if (!USE_MERGED_ADMIN_WISEHIRE) return { fnName, options };
-  const action = ADMIN_WISEHIRE_ACTIONS[fnName];
-  if (!action) return { fnName, options };
-  const newHeaders: Record<string, string> = {
-    ...(options?.headers ?? {}),
-    'x-admin-wisehire-op': action,
-  };
-  const origBody = options?.body;
-  let newBody: unknown = origBody;
-  if (origBody && typeof origBody === 'object' && !Array.isArray(origBody)) {
-    const obj = origBody as Record<string, unknown>;
-    if (!('action' in obj)) {
-      newBody = { ...obj, action };
-    }
-  } else if (origBody === undefined) {
-    newBody = { action };
-  }
-  return {
-    fnName: 'admin-wisehire',
-    options: { ...(options ?? {}), headers: newHeaders, body: newBody },
-  };
-}
-
-/**
- * Transactional email consolidation (Task #55).
- *
- * Routes the three legacy transactional-email function names to the
- * merged `transactional-email` router. Dispatch is signalled via
- * `body.action` (primary, per task spec) AND the
- * `x-transactional-email-action` request header (fallback). The body
- * is otherwise forwarded byte-for-byte so each sub-handler sees
- * exactly what its pre-merge function saw — including the optional
- * Bearer auth header that contact-email and contact-request both
- * resolve internally for user attribution.
- *
- * The rollout flag (`USE_MERGED_TRANSACTIONAL_EMAIL`) lives in
- * `./transactionalEmailFlag.ts` as the single source of truth — see
- * that module for rollback semantics. All three call sites that need
- * the flag (this file, PortfolioContactForm, sendFeedback) import it
- * from there.
- *
- * Explicitly excluded (kept isolated): send-password-reset (auth-flow
- * critical), send-push (different SDK, mobile-api owns it),
- * auth-email-hook (Supabase posts to a fixed URL with HMAC signature).
- */
-const TRANSACTIONAL_EMAIL_ACTIONS: Record<
-  string,
-  'contact-email' | 'contact-request' | 'resume-reminder'
-> = {
-  'send-contact-email': 'contact-email',
-  'submit-contact-request': 'contact-request',
-  'send-resume-reminder': 'resume-reminder',
-};
-function rewriteTransactionalEmailInvoke(
-  fnName: string,
-  options: { body?: unknown; headers?: Record<string, string>; method?: string } | undefined,
-): { fnName: string; options: { body?: unknown; headers?: Record<string, string>; method?: string } | undefined } {
-  if (!USE_MERGED_TRANSACTIONAL_EMAIL) return { fnName, options };
-  const action = TRANSACTIONAL_EMAIL_ACTIONS[fnName];
-  if (!action) return { fnName, options };
-  const newHeaders: Record<string, string> = {
-    ...(options?.headers ?? {}),
-    'x-transactional-email-action': action,
-  };
-  const origBody = options?.body;
-  let newBody: unknown = origBody;
-  if (origBody && typeof origBody === 'object' && !Array.isArray(origBody)) {
-    const obj = origBody as Record<string, unknown>;
-    if (!('action' in obj)) {
-      newBody = { ...obj, action };
-    }
-  } else if (origBody === undefined) {
-    newBody = { action };
-  }
-  return {
-    fnName: 'transactional-email',
-    options: { ...(options ?? {}), headers: newHeaders, body: newBody },
-  };
-}
-
-/**
- * Resume-section AI consolidation (Task #56).
- *
- * Routes the four legacy resume-section AI function names
- * (`enhance-section`, `tailor-section`, `fill-gap`, `explain-gap`) to
- * the merged `resume-section-ai` router. Dispatch is signalled via the
- * `x-resume-section-ai-action` request header (PRIMARY) — header is
- * preferred because the `enhance` action's body already carries its
- * own inner `body.action` (generate/improve/ats_optimize/fix_error)
- * that the original enhance-section function consumes; mutating
- * `body.action` here would clobber that contract. The router falls
- * back to `body.action` only when the header is absent.
- *
- * Body is forwarded byte-for-byte. Auth header (Bearer) is preserved
- * so each handler's `requireAuth(req)` call sees exactly what the
- * pre-merge function saw.
- *
- * Flag: `USE_MERGED_RESUME_SECTION_AI` in `./resumeSectionAiFlag.ts`.
- */
-function rewriteResumeSectionAiInvoke(
-  fnName: string,
-  options: { body?: unknown; headers?: Record<string, string>; method?: string } | undefined,
-): { fnName: string; options: { body?: unknown; headers?: Record<string, string>; method?: string } | undefined } {
-  if (!USE_MERGED_RESUME_SECTION_AI) return { fnName, options };
-  const newFnName = resumeSectionAiFnName(fnName);
-  if (newFnName === fnName) return { fnName, options };
-  const newHeaders: Record<string, string> = {
-    ...(options?.headers ?? {}),
-    ...resumeSectionAiHeader(fnName),
-  };
-  return {
-    fnName: newFnName,
-    options: { ...(options ?? {}), headers: newHeaders },
-  };
-}
-
-/**
- * Editor AI consolidation (Task #40).
- *
- * Routes the four legacy editor AI function names to the merged
- * `editor-ai` router. Dispatch is signalled via the
- * `x-editor-ai-action` request header (PRIMARY) — header is preferred
- * because body.action may carry sub-action fields in some callers.
- * The body is forwarded byte-for-byte so each handler preserves its
- * original parse-vs-auth ordering.
- *
- * Action mapping:
- *   analyze-resume      → analyze
- *   recruiter-simulation→ recruiter-sim
- *   suggest-template    → suggest-template
- *   optimize-for-linkedin → optimize-for-linkedin
- *
- * Set USE_MERGED_EDITOR_AI=false to fall back to the four originals.
- */
-const USE_MERGED_EDITOR_AI = true;
-const EDITOR_AI_ACTIONS: Record<string, string> = {
-  'analyze-resume': 'analyze',
-  'recruiter-simulation': 'recruiter-sim',
-  'suggest-template': 'suggest-template',
-  'optimize-for-linkedin': 'optimize-for-linkedin',
-};
-function rewriteEditorAiInvoke(
-  fnName: string,
-  options: { body?: unknown; headers?: Record<string, string>; method?: string } | undefined,
-): { fnName: string; options: { body?: unknown; headers?: Record<string, string>; method?: string } | undefined } {
-  if (!USE_MERGED_EDITOR_AI) return { fnName, options };
-  const action = EDITOR_AI_ACTIONS[fnName];
-  if (!action) return { fnName, options };
-  const newHeaders: Record<string, string> = {
-    ...(options?.headers ?? {}),
-    'x-editor-ai-action': action,
-  };
-  return { fnName: 'editor-ai', options: { ...(options ?? {}), headers: newHeaders } };
-}
-
-function rewriteAdminConfigInvoke(
-  fnName: string,
-  options: { body?: unknown; headers?: Record<string, string>; method?: string } | undefined,
-): { fnName: string; options: { body?: unknown; headers?: Record<string, string>; method?: string } | undefined } {
-  if (!USE_MERGED_ADMIN_CONFIG) return { fnName, options };
-  const action = ADMIN_CONFIG_ACTIONS[fnName];
-  if (!action) return { fnName, options };
-  const newHeaders: Record<string, string> = {
-    ...(options?.headers ?? {}),
-    'x-admin-config-action': action,
-  };
-  // Preserve the original body 1:1 so each handler sees exactly what
-  // its pre-merge function saw (incl. feature-flags' `body.action:
-  // 'list'|'upsert'|'delete'` and integrations' `body.action:
-  // 'get_resend_bounces'|...`). Add a top-level `action` field
-  // alongside (spec compliance) ONLY when the caller didn't already
-  // set its own `action` field.
-  const origBody = options?.body;
-  let newBody: unknown = origBody;
-  if (origBody && typeof origBody === 'object' && !Array.isArray(origBody)) {
-    const obj = origBody as Record<string, unknown>;
-    if (!('action' in obj)) {
-      newBody = { ...obj, action };
-    }
-  } else if (origBody === undefined) {
-    newBody = { action };
-  }
-  return {
-    fnName: 'admin-config',
-    options: { ...(options ?? {}), headers: newHeaders, body: newBody },
-  };
-}
-
-/**
- * Authenticated edge function client.
- * Routes via apiFnUrl(): in dev, through the Express proxy at
- * /api/fn/:fnName; in production (Hostinger static), directly to the
- * Supabase Edge Function at ${VITE_SUPABASE_URL}/functions/v1/:fnName
- * (Phase 8 contract — see
- * Project Atlas/01-Currently Implemented/stability-fixes/
- * phase-8-prod-edge-function-routing.md).
- * Automatically retries once on 401 after refreshing the bridge token.
- */
 export const edgeFunctions = {
   functions: {
-    invoke: async (
-      fnNameInput: string,
-      options?: { body?: unknown; headers?: Record<string, string>; method?: string }
-    ) => {
-      // Rewrite legacy coupon fn names to the merged `coupons` router
-      // when the USE_MERGED_COUPONS flag is on. Dispatch happens via the
-      // x-coupons-action header so the request body is left unmodified.
-      const originalFnName = fnNameInput;
-      const couponRewritten = rewriteCouponInvoke(fnNameInput, options);
-      const adminRewritten = rewriteAdminUserOpsInvoke(couponRewritten.fnName, couponRewritten.options);
-      const adminConfigRewritten = rewriteAdminConfigInvoke(adminRewritten.fnName, adminRewritten.options);
-      const adminAiOpsRewritten = rewriteAdminAiOpsInvoke(adminConfigRewritten.fnName, adminConfigRewritten.options);
-      const adminWisehireRewritten = rewriteAdminWisehireInvoke(adminAiOpsRewritten.fnName, adminAiOpsRewritten.options);
-      const transactionalEmailRewritten = rewriteTransactionalEmailInvoke(adminWisehireRewritten.fnName, adminWisehireRewritten.options);
-      const resumeSectionAiRewritten = rewriteResumeSectionAiInvoke(transactionalEmailRewritten.fnName, transactionalEmailRewritten.options);
-      const editorAiRewritten = rewriteEditorAiInvoke(resumeSectionAiRewritten.fnName, resumeSectionAiRewritten.options);
-      const fnName = editorAiRewritten.fnName;
-      options = editorAiRewritten.options;
+    invoke: async (fnName: string, options?: any) => {
+      // 1. APPWRITE BRIDGE (Phase 4)
+      // Intercept and route to Appwrite Hubs if enabled for this function
+      if (shouldRouteToAppwrite(fnName)) {
+        try {
+          return await invokeAppwriteHub(fnName, options);
+        } catch (err: any) {
+          console.error('[Appwrite Bridge Error]:', err.message);
+          // Fail-open: if Appwrite fails, let it try Supabase for now during migration
+        }
+      }
+
+      // 2. SUPABASE FALLBACK (Original Logic)
       const doInvoke = async (token: string | null) => {
-        const userHeaders = options?.headers || {};
         const headers: Record<string, string> = {
           'Content-Type': 'application/json',
-          ...userHeaders,
+          ...(options?.headers || {}),
         };
+        if (token && !headers['Authorization']) headers['Authorization'] = `Bearer ${token}`;
+        if (EDGE_FUNCTIONS_ANON_KEY) headers['apikey'] = EDGE_FUNCTIONS_ANON_KEY;
 
-        // Caller-supplied Authorization wins over the bridge token. Admin
-        // (DevKit) calls use this to send the HMAC-signed session token in
-        // the Authorization header instead of the user's Supabase JWT.
-        const hasUserAuth =
-          'Authorization' in userHeaders || 'authorization' in userHeaders;
-        if (token && !hasUserAuth) {
-          headers['Authorization'] = `Bearer ${token}`;
-        } else if (!token && !hasUserAuth && EDGE_FUNCTIONS_ANON_KEY) {
-          // No user session — send the anon key so the Supabase gateway
-          // accepts the request. verify_jwt=false skips JWT verification but
-          // the gateway still requires some form of auth header; without it
-          // every unauthenticated call (e.g. bootstrap wizard, public
-          // endpoints) returns 401 "Missing authorization header".
-          headers['Authorization'] = `Bearer ${EDGE_FUNCTIONS_ANON_KEY}`;
-          headers['apikey'] = EDGE_FUNCTIONS_ANON_KEY;
-        }
-        // Defence-in-depth (Bug #5): always attach the anon `apikey` header
-        // when we have it, even if the caller already supplied an
-        // Authorization header (e.g. DevKit's HMAC bearer). The Supabase
-        // gateway uses `apikey` as its platform credential anchor; if a
-        // function ever drifts to verify_jwt=true at the gateway layer,
-        // having a valid apikey alongside lets the request still reach the
-        // function code instead of being rejected with the misleading
-        // "Invalid or expired auth token" gateway error.
-        if (EDGE_FUNCTIONS_ANON_KEY && !('apikey' in headers)) {
-          headers['apikey'] = EDGE_FUNCTIONS_ANON_KEY;
-        }
-
-        const url = apiFnUrl(fnName);
-
-        const response = await fetch(url, {
+        const response = await fetch(apiFnUrl(fnName), {
           method: options?.method || 'POST',
           headers,
           body: options?.body !== undefined ? JSON.stringify(options.body) : undefined,
         });
 
         const text = await response.text();
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        let data: any = null; // Edge function responses are dynamic JSON; typed at call sites
-        try {
-          data = JSON.parse(text);
-        } catch {
-          data = text;
-        }
-
+        let data: any = null;
+        try { data = JSON.parse(text); } catch { data = text; }
         return { response, data, text };
       };
 
       try {
-        // Prefer the impersonation token when active (user-facing feature calls
-        // should run as the impersonated user). Caller-supplied Authorization
-        // headers (e.g. DevKit admin calls via devKitAuthHeaders) take priority
-        // inside doInvoke, so admin ops are unaffected.
         const effectiveToken = getImpersonationToken() ?? getToken();
         let result = await doInvoke(effectiveToken);
 
-        // On 401: only refresh + retry when the structured classification
-        // says this is a true session-auth failure. A BYOK 401
-        // (invalid_key / not_configured) must NOT consume a refresh.
-        // Skip refresh entirely when impersonating — the impersonation token
-        // cannot be refreshed via the standard bridge.
-        // Skip refresh + session-expired dispatch entirely for admin/DevKit
-        // functions (Bug #5): they authenticate with the HMAC DevKit token,
-        // not the user's Supabase JWT, so refreshing the bridge token would
-        // be useless and the "session expired" dispatch would surface the
-        // misleading toast we explicitly guard against in the bypass branch
-        // below.
-        const isAdminOrDevkitFn =
-          fnName.startsWith('admin-') ||
-          DEVKIT_BYPASS_FUNCTIONS.has(fnName) ||
-          originalFnName.startsWith('admin-');
-        if (result.response.status === 401 && !isAdminOrDevkitFn) {
+        if (result.response.status === 401) {
           const { isSessionAuthFailure } = classifyEdgeError(401, result.text);
           if (isSessionAuthFailure && !getImpersonationToken()) {
             const refreshed = await refreshTokenIfNeeded();
-            if (refreshed) {
-              result = await doInvoke(getToken());
-            } else {
-              dispatchSessionExpiredOnce();
-            }
+            if (refreshed) result = await doInvoke(getToken());
+            else dispatchSessionExpiredOnce();
           }
         }
 
         if (!result.response.ok) {
-          // Admin/DevKit functions have nothing to do with AI — bypass the AI
-          // error parser entirely and surface the raw `error` field from the
-          // response body (or an HTTP-status fallback). This prevents
-          // validation errors (e.g. { success:false, error:"...", status:"invalid" })
-          // from being misread by parseAIErrorBody and turned into misleading
-          // "AI is temporarily unavailable" messages. Functions covered:
-          // every `admin-*` function plus the DEVKIT_BYPASS_FUNCTIONS set
-          // (module-level constant, currently `ai-test` for Bug #5).
-          if (fnName.startsWith('admin-') || DEVKIT_BYPASS_FUNCTIONS.has(fnName) || originalFnName.startsWith('admin-')) {
-            let rawError: string | null = null;
-            try {
-              const parsed = JSON.parse(result.text);
-              if (typeof parsed?.error === 'string') rawError = parsed.error;
-              else if (typeof parsed?.message === 'string') rawError = parsed.message;
-            } catch {
-              // fall through
-            }
-            const finalMessage = rawError ?? `Server error (HTTP ${result.response.status}) — please try again.`;
-            return {
-              data: null,
-              error: { message: finalMessage, status: result.response.status },
-            };
-          }
           const { code, message } = classifyEdgeError(result.response.status, result.text);
-          return {
-            data: null,
-            error: { message, code, status: result.response.status },
-          };
+          return { data: null, error: { message, code, status: result.response.status } };
         }
 
         return { data: result.data, error: null };
-      } catch (err) {
-        // A TypeError "Failed to fetch" means the network request itself couldn't complete
-        const rawMessage = err instanceof Error ? err.message : String(err);
-        const message = rawMessage === 'Failed to fetch'
-          ? 'Cannot reach the server. Check your internet connection and try again.'
-          : rawMessage;
-        return { data: null, error: { message } };
+      } catch (err: any) {
+        return { data: null, error: { message: err.message } };
       }
     },
   },

@@ -393,11 +393,11 @@ const comingSoon: ComingSoonEntry[] = [
 export default function WhatsNewPage() {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
-  const { register: kindeRegister } = useKindeAuth();
+  const { isAuthenticated } = useAuth();
 
   const handleGetStarted = () => {
     triggerHaptic.light();
-    void Promise.resolve(kindeRegister()).catch(() => {
+    void Promise.resolve(navigate("/auth?mode=signup")).catch(() => {
       toast.error('Could not open sign-up. Please try again.');
     });
   };

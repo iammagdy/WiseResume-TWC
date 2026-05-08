@@ -44,10 +44,10 @@ Both products share the same Supabase project, Kinde tenant, and AI provider poo
 ### Backend
 | Layer | Technology |
 |-------|-----------|
-| Database | Supabase (PostgreSQL) |
-| Edge functions | Supabase Edge Functions (Deno) — 73 functions |
+| Database | Appwrite Cloud (Frankfurt) |
+| Edge functions | Supabase Edge Functions (Deno) — 2 Smart Hubs (AI-Gateway, Auth-Master) |
 | Express server | Node.js server (`server/index.ts`) — handles BFF routes |
-| Authentication | Kinde Auth (JWT, JWKS-verified server-side) |
+| Authentication | Appwrite Auth (JWT, JWKS-verified server-side) |
 | AI providers | OpenRouter, Groq, DeepSeek (flat pool — up to 9 keys) |
 | Email | Resend |
 | Payments | RevenueCat (mobile) + Kinde-based plan management (web) |
