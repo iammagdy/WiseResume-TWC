@@ -213,18 +213,18 @@ export async function importResumes(file: File, userId: string): Promise<number>
   return imported;
 }
 
-/** Helper: list all document IDs in a collection matching a filter, paginating if needed */
+/** List all document IDs in a collection owned by a given owner, paginating as needed. */
 async function listAllIds(
   collectionId: string,
-  filter: Parameters<typeof Query.equal>,
-  ownerField = 'user_id',
-  ownerId = '',
+  ownerField: string,
+  ownerId: string,
 ): Promise<string[]> {
   const ids: string[] = [];
   let cursor: string | undefined;
   while (true) {
     const queries = [
       Query.equal(ownerField, ownerId),
+      Query.select(['$id']),
       Query.limit(100),
       ...(cursor ? [Query.cursorAfter(cursor)] : []),
     ];
@@ -234,7 +234,6 @@ async function listAllIds(
     cursor = res.documents[res.documents.length - 1].$id;
   }
   return ids;
-  void filter; // type-only usage
 }
 
 /** Delete all documents with a given ID list from a collection */
@@ -243,17 +242,35 @@ async function deleteByIds(collectionId: string, ids: string[]): Promise<void> {
 }
 
 export async function deleteAllUserData(userId: string): Promise<void> {
-  // Delete share_comments via share_ids (no user_id column on share_comments)
-  const shareIds = await listAllIds(COLLECTIONS.resume_shares, [], 'user_id', userId);
-  if (shareIds.length > 0) {
-    for (const shareId of shareIds) {
-      const commentIds = await listAllIds(COLLECTIONS.share_comments, [], 'share_id', shareId);
-      await deleteByIds(COLLECTIONS.share_comments, commentIds);
+  // share_comments have no user_id — cascade via share_id
+  try {
+    const shareIds = await listAllIds(COLLECTIONS.resume_shares, 'user_id', userId);
+    if (shareIds.length > 0) {
+      for (const shareId of shareIds) {
+        const commentIds = await listAllIds(COLLECTIONS.share_comments, 'share_id', shareId);
+        await deleteByIds(COLLECTIONS.share_comments, commentIds);
+      }
+      await deleteByIds(COLLECTIONS.resume_shares, shareIds);
     }
-    await deleteByIds(COLLECTIONS.resume_shares, shareIds);
+  } catch (e) {
+    console.error('Failed to delete resume_shares / share_comments:', e);
   }
 
-  // Tables with user_id field
+  // chat_messages have no user_id — cascade via session_id
+  try {
+    const sessionIds = await listAllIds(COLLECTIONS.chat_sessions, 'user_id', userId);
+    if (sessionIds.length > 0) {
+      for (const sessionId of sessionIds) {
+        const msgIds = await listAllIds(COLLECTIONS.chat_messages, 'session_id', sessionId);
+        await deleteByIds(COLLECTIONS.chat_messages, msgIds);
+      }
+      await deleteByIds(COLLECTIONS.chat_sessions, sessionIds);
+    }
+  } catch (e) {
+    console.error('Failed to delete chat_sessions / chat_messages:', e);
+  }
+
+  // All collections with a direct user_id field
   const userTables: string[] = [
     COLLECTIONS.tailor_history,
     COLLECTIONS.cover_letters,
@@ -269,11 +286,25 @@ export async function deleteAllUserData(userId: string): Promise<void> {
     COLLECTIONS.audit_logs,
     COLLECTIONS.contact_inquiries,
     COLLECTIONS.feature_requests,
+    COLLECTIONS.user_preferences,
+    COLLECTIONS.push_subscriptions,
+    COLLECTIONS.device_push_tokens,
+    COLLECTIONS.portfolio_settings,
+    COLLECTIONS.portfolio_history,
+    COLLECTIONS.portfolio_visits,
+    COLLECTIONS.portfolio_interactions,
+    COLLECTIONS.company_briefings,
+    COLLECTIONS.tool_cache,
+    COLLECTIONS.user_gamification,
+    COLLECTIONS.usage_events,
+    COLLECTIONS.resume_versions,
+    COLLECTIONS.resume_snapshots,
+    COLLECTIONS.linkedin_import_quota,
   ];
 
   for (const collectionId of userTables) {
     try {
-      const ids = await listAllIds(collectionId, [], 'user_id', userId);
+      const ids = await listAllIds(collectionId, 'user_id', userId);
       await deleteByIds(collectionId, ids);
     } catch (e) {
       console.error(`Failed to delete from collection ${collectionId}:`, e);
@@ -282,23 +313,23 @@ export async function deleteAllUserData(userId: string): Promise<void> {
 
   // short_links uses owner_user_id
   try {
-    const shortLinkIds = await listAllIds(COLLECTIONS.short_links, [], 'owner_user_id', userId);
+    const shortLinkIds = await listAllIds(COLLECTIONS.short_links, 'owner_user_id', userId);
     await deleteByIds(COLLECTIONS.short_links, shortLinkIds);
   } catch (e) {
     console.error('Failed to delete short_links:', e);
   }
 
-  // Resumes
+  // Resumes (and related sub-documents with resume_id are handled server-side or cascade)
   try {
-    const resumeIds = await listAllIds(COLLECTIONS.resumes, [], 'user_id', userId);
+    const resumeIds = await listAllIds(COLLECTIONS.resumes, 'user_id', userId);
     await deleteByIds(COLLECTIONS.resumes, resumeIds);
   } catch (e) {
     console.error('Failed to delete resumes:', e);
   }
 
-  // Profile last
+  // Profile last (anchor record)
   try {
-    const profileIds = await listAllIds(COLLECTIONS.profiles, [], 'user_id', userId);
+    const profileIds = await listAllIds(COLLECTIONS.profiles, 'user_id', userId);
     await deleteByIds(COLLECTIONS.profiles, profileIds);
   } catch (e) {
     console.error('Failed to delete profile:', e);

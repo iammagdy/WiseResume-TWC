@@ -48,9 +48,12 @@ export function usePublicShareComments(token: string | null) {
     queryKey: ['public-share-comments', token],
     queryFn: async () => {
       if (!token) return [];
-      // First resolve the share_id from the token
+      // Resolve the share document ID from the token.
+      // Query.select('$id') — only the document ID is needed; no sensitive
+      // fields (password, user_id, etc.) should be returned in this public call.
       const shareRes = await databases.listDocuments(DATABASE_ID, COLLECTIONS.resume_shares, [
         Query.equal('token', token),
+        Query.select(['$id']),
         Query.limit(1),
       ]);
       if (shareRes.documents.length === 0) return [];
@@ -77,9 +80,10 @@ export function useAddShareComment() {
       content: string;
       section?: string;
     }) => {
-      // Resolve share_id from token
+      // Resolve share_id from token — select only $id; no sensitive fields exposed.
       const shareRes = await databases.listDocuments(DATABASE_ID, COLLECTIONS.resume_shares, [
         Query.equal('token', input.shareToken),
+        Query.select(['$id']),
         Query.limit(1),
       ]);
       if (shareRes.documents.length === 0) throw new Error('Share not found');
