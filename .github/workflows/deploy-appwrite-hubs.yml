@@ -1,9 +1,7 @@
-name: Deploy Appwrite Smart Hubs
+name: 🧠 Deploy AI Hubs
 
 on:
   push:
-    paths:
-      - 'appwrite-hubs/**'
     branches: [ main ]
   workflow_dispatch:
 
@@ -22,7 +20,7 @@ jobs:
       - name: Install Appwrite SDK
         run: npm install node-appwrite
 
-      - name: Deploy Auth-Master Hub
+      - name: Deploy Hubs
         env:
           APPWRITE_ENDPOINT: ${{ secrets.VITE_APPWRITE_ENDPOINT }}
           APPWRITE_PROJECT_ID: ${{ secrets.VITE_APPWRITE_PROJECT_ID }}
@@ -30,28 +28,21 @@ jobs:
         run: |
           cd appwrite-hubs/auth-master
           tar -czf ../auth-master.tar.gz .
-          node -e "
-          const { Client, Functions, InputFile } = require('node-appwrite');
-          const client = new Client().setEndpoint('${process.env.APPWRITE_ENDPOINT}').setProject('${process.env.APPWRITE_PROJECT_ID}').setKey('${process.env.APPWRITE_API_KEY}');
-          const functions = new Functions(client);
-          functions.createDeployment('auth-master', InputFile.fromPath('../auth-master.tar.gz', 'code.tar.gz'), true, 'src/main.js')
-          .then(d => console.log('Auth-Master Deployed:', d.$id))
-          .catch(e => { console.error(e.message); process.exit(1); });
-          "
-
-      - name: Deploy AI-Gateway Hub
-        env:
-          APPWRITE_ENDPOINT: ${{ secrets.VITE_APPWRITE_ENDPOINT }}
-          APPWRITE_PROJECT_ID: ${{ secrets.VITE_APPWRITE_PROJECT_ID }}
-          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
-        run: |
-          cd appwrite-hubs/ai-gateway
+          cd ../ai-gateway
           tar -czf ../ai-gateway.tar.gz .
+          cd ..
           node -e "
           const { Client, Functions, InputFile } = require('node-appwrite');
-          const client = new Client().setEndpoint('${process.env.APPWRITE_ENDPOINT}').setProject('${process.env.APPWRITE_PROJECT_ID}').setKey('${process.env.APPWRITE_API_KEY}');
+          const client = new Client().setEndpoint(process.env.APPWRITE_ENDPOINT).setProject(process.env.APPWRITE_PROJECT_ID).setKey(process.env.APPWRITE_API_KEY);
           const functions = new Functions(client);
-          functions.createDeployment('ai-gateway', InputFile.fromPath('../ai-gateway.tar.gz', 'code.tar.gz'), true, 'src/main.js')
-          .then(d => console.log('AI-Gateway Deployed:', d.$id))
-          .catch(e => { console.error(e.message); process.exit(1); });
+          
+          async function run() {
+            try {
+              const d1 = await functions.createDeployment('auth-master', InputFile.fromPath('auth-master.tar.gz', 'code.tar.gz'), true, 'src/main.js');
+              console.log('Auth-Master Deployed:', d1.$id);
+              const d2 = await functions.createDeployment('ai-gateway', InputFile.fromPath('ai-gateway.tar.gz', 'code.tar.gz'), true, 'src/main.js');
+              console.log('AI-Gateway Deployed:', d2.$id);
+            } catch(e) { console.error(e.message); process.exit(1); }
+          }
+          run();
           "
