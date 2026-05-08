@@ -23,12 +23,15 @@ jobs:
       - name: Install Appwrite SDK
         run: npm install node-appwrite
 
-      - name: Deploy Hubs
+      - name: Package and Deploy Hubs
         env:
           APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
         run: |
-          cd appwrite-hubs/auth-master && tar -czf ../auth-master.tar.gz . && cd ..
-          cd appwrite-hubs/ai-gateway && tar -czf ../ai-gateway.tar.gz . && cd ..
+          # 1. Create Tarballs in Root
+          cd appwrite-hubs/auth-master && tar -czf ../../auth-master.tar.gz . && cd ../..
+          cd appwrite-hubs/ai-gateway && tar -czf ../../ai-gateway.tar.gz . && cd ../..
+          
+          # 2. Deploy using Fixed Script
           export APPWRITE_ENDPOINT="https://fra.cloud.appwrite.io/v1"
           export APPWRITE_PROJECT_ID="69fd362b001eb325a192"
           node scripts/deploy_hubs.cjs

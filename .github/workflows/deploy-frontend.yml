@@ -31,9 +31,12 @@ jobs:
           BUILD_TIME: ${{ github.event.repository.updated_at }}
 
       - name: Zip build artifacts
-        run: zip -r build.zip dist
+        run: cd dist && zip -r ../build.zip . && cd ..
 
-      - name: Upload to Hostinger (Single File Zip)
+      - name: Install lftp
+        run: sudo apt-get update && sudo apt-get install -y lftp
+
+      - name: Upload to Hostinger (Fast ZIP)
         env:
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
         run: |
