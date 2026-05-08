@@ -2,6 +2,15 @@
 
 **Last verified:** 2026-05-08
 
+## The agent can now read live Appwrite data directly — foundation for the rebuild (2026-05-08)
+
+As the next step after removing the old backend, we set up the building blocks needed for the agent to safely rebuild every broken feature.
+
+- **A secure API key** for the new backend (Appwrite) is now stored in the development environment. The agent and any server-side scripts can use it to read and write data directly.
+- **The agent's AI assistant tool** (`mcp-server-appwrite` v0.4.1) now runs successfully — it needed Python 3.12, which we installed. This lets the agent inspect the live database structure in real time while rebuilding features.
+- **A typed map of all 96 live collections** (`src/lib/appwrite-collections.ts`) was generated directly from the live Appwrite database — no guesswork. Every collection name and ID is now a verified constant the code can import. Tasks #2 and #3 (rebuilding the broken features) will use this file as their single source of truth instead of scattering string IDs through dozens of files.
+- **Confirmed zero old-backend secrets** remain in the development environment — the cleanup from the previous step is fully verified.
+
 ## We finished pulling out the old plumbing (2026-05-08)
 
 For months the website was running on **two backends at once** — the old one we were trying to leave behind, and the new one we wanted to move to. The new backend was already handling sign-in and every AI feature (resume writing, tailoring, scoring, interview practice, cover letters, and the rest). But the parts that fetch and save your data — your resume list, your profile, your saved jobs, your portfolio — were still quietly talking to the old backend.

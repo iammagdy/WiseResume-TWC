@@ -1,3 +1,24 @@
+## 2026-05-08 — Appwrite MCP server + secrets setup (Task #1)
+
+**Secrets / env vars:**
+- `APPWRITE_API_KEY` added to Replit secrets (used by server-side scripts and MCP server).
+- Confirmed zero `SUPABASE_*` or `KINDE_*` keys remain in Replit secrets or shared env vars.
+
+**Python 3.12 module:**
+- Installed `python-3.12` Replit module (replaces Python 3.11 as default interpreter).
+- `uvx mcp-server-appwrite` (v0.4.1) now installs and runs successfully — verified via JSON-RPC initialize handshake.
+
+**Collections verified from live API:**
+- Enumerated **96 collections** in the `main` Appwrite database using `node-appwrite` + `APPWRITE_API_KEY`.
+- Live count is 96, not 99 (previous estimate was approximate). Zero storage buckets exist yet.
+
+**New file — `src/lib/appwrite-collections.ts`:**
+- Exports typed `COLLECTIONS` const object: every collection ID mapped to its string literal, grouped by domain (Admin, AI, Auth, Career, Chat, Portfolio, Resumes, WiseHire, etc.).
+- Exports `DATABASE_ID = 'main'` and empty `BUCKETS` const (no buckets exist yet).
+- Exports `CollectionId` union type.
+- TypeScript strict-mode check passes (`tsc --noEmit` zero errors).
+- This file is the single import source for all database operations in tasks #2 and #3.
+
 ## 2026-05-08 — Scorched-earth removal of Supabase + Kinde from web app
 
 **Web-app code removed:**

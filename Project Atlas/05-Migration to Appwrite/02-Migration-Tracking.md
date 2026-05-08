@@ -6,11 +6,12 @@
 ## Completed Milestones
 - [x] **Phase 0:** Master Plan & Rules established.
 - [x] **Phase 1:** Kinde REMOVED from web app. Appwrite Auth ACTIVE. Claim-Account flow implemented.
-- [x] **Phase 2:** 99 Collections created. Initial production data migrated (21 users, 20 resumes).
+- [x] **Phase 2:** 96 Collections confirmed in `main` database (live API count; earlier estimate was 99). Initial production data migrated (21 users, 20 resumes).
 - [x] **Phase 3:** AI-Gateway Hub LIVE. 24 features routed via `appwrite-bridge.ts` `AI_HUB_FUNCTIONS` set. 7-key pool configured.
 - [x] **Phase 4 (corrected scope):** AI features migrated to direct Appwrite Function execution. *Note: the data layer (`/api/data/*`) and the ~60 non-AI edge functions were NOT migrated in Phase 4 despite the previous "99% COMPLETE" tracker entry.*
 - [x] **Cleanup:** GitHub Workflows reduced from 33 to 4 essentials.
-- [x] **2026-05-08 — Scorched-earth Supabase + Kinde removal from web app.** Top-level `supabase/` directory deleted. `@supabase/supabase-js` and `@kinde-oss/kinde-auth-react` uninstalled. Replit env vars (`VITE_KINDE_*`, `VITE_SUPABASE_*`, `SUPABASE_*`) deleted. Express server collapsed from 5 577 lines to a ~80-line minimal stub. The 9 legacy bridge files (`supabaseBridge.ts`, `supabaseAuth.ts`, `supabaseConstants.ts`, `apiFetch.ts`, `apiFnUrl.ts`, `safeClient.ts`, `edgeFunctions.ts`, `sessionExpired.ts`, integration `types.ts`) converted to throw-stubs that surface `pending_appwrite_migration` instead of silently calling Supabase. CSP, vite chunks, scripts, and tests cleaned up.
+- [x] **2026-05-08 — Scorched-earth Supabase + Kinde removal from web app.**
+- [x] **2026-05-08 — Task #1: Appwrite MCP server + secrets foundation.** `APPWRITE_API_KEY` added to Replit secrets. Python 3.12 installed so `uvx mcp-server-appwrite` (v0.4.1) runs. Zero Supabase/Kinde secrets remain. `src/lib/appwrite-collections.ts` created — typed `COLLECTIONS` const (96 IDs), `DATABASE_ID`, `BUCKETS`, `CollectionId` type; verified against live API. This is the single source of truth for all database operations. Top-level `supabase/` directory deleted. `@supabase/supabase-js` and `@kinde-oss/kinde-auth-react` uninstalled. Replit env vars (`VITE_KINDE_*`, `VITE_SUPABASE_*`, `SUPABASE_*`) deleted. Express server collapsed from 5 577 lines to a ~80-line minimal stub. The 9 legacy bridge files (`supabaseBridge.ts`, `supabaseAuth.ts`, `supabaseConstants.ts`, `apiFetch.ts`, `apiFnUrl.ts`, `safeClient.ts`, `edgeFunctions.ts`, `sessionExpired.ts`, integration `types.ts`) converted to throw-stubs that surface `pending_appwrite_migration` instead of silently calling Supabase. CSP, vite chunks, scripts, and tests cleaned up.
 
 ## Remaining (Phase 5 — Rebuild)
 - [ ] Rebuild data layer: replace every `apiFetch('/api/data/*')` call with an Appwrite SDK `databases.listDocuments()` / `createDocument()` / `updateDocument()` / `deleteDocument()` call against the matching collection.
