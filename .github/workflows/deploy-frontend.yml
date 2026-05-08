@@ -33,7 +33,7 @@ jobs:
       - name: Install lftp
         run: sudo apt-get update && sudo apt-get install -y lftp
 
-      - name: Production Deploy (Direct Root)
+      - name: Production Deploy (Direct Root Path)
         env:
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
         run: |
