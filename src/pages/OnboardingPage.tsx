@@ -171,12 +171,14 @@ export default function OnboardingPage() {
     let cancelled = false;
     (async () => {
       try {
-        const { apiFetch } = await import('@/lib/apiFetch');
-        const { profile } = await apiFetch<{ profile: { onboarding_completed?: boolean } | null }>(
-          '/api/data/profile',
-        );
+        const profileRes = await databases.listDocuments(DATABASE_ID, COLLECTIONS.profiles, [
+          Query.equal('user_id', userId),
+          Query.select(['$id', 'onboarding_completed']),
+          Query.limit(1),
+        ]);
         if (cancelled) return;
-        if (profile?.onboarding_completed) {
+        const profileDoc = profileRes.documents[0] as { $id: string; onboarding_completed?: boolean } | undefined;
+        if (profileDoc?.onboarding_completed) {
           localStorage.setItem(onboardingKey(userId), 'true');
           navigate('/dashboard', { replace: true });
           return;

@@ -26,6 +26,10 @@
   - Three `getSupabaseToken()` → `getAppwriteJWT()` callsites (pre-validate, fix-suggestions, validate-tailor fetches).
   - `handleApplyChanges`: supabase insert → `databases.createDocument`; all fields JSON-serialised; `template` not `template_id`; `parent_resume_id`/`target_job_title`/etc. omitted; `newResume?.id` → `newDoc.$id`.
 
+**Post-review fix (same session):**
+
+- `src/pages/OnboardingPage.tsx` (redirect/reconciliation effect, lines ~174–188): replaced the remaining `apiFetch('/api/data/profile')` dynamic import with `databases.listDocuments(DATABASE_ID, COLLECTIONS.profiles, [Query.equal('user_id', userId), Query.select(['$id', 'onboarding_completed']), Query.limit(1)])`. Profile doc typed inline as `{ $id: string; onboarding_completed?: boolean }`. Behaviour is identical: if `onboarding_completed` is true, sets localStorage flag and redirects to `/dashboard`. No `apiFetch` calls remain in `OnboardingPage.tsx`.
+
 **Additional fixes (same session):**
 
 - `src/lib/appwrite-collections.ts`: `BUCKETS = { avatars: 'avatars' }` added with provisioning note for Appwrite Console.
