@@ -90,6 +90,9 @@ export const COLLECTIONS = {
   linkedin_import_quota:             'linkedin_import_quota',
 
   // Migration
+  // NOTE: key uses underscore (migration_ledger) but the live Appwrite collection ID uses a
+  // hyphen ('migration-ledger'). This is intentional — JS property names cannot start with or
+  // contain hyphens without bracket notation, so the key is normalized to underscore convention.
   migration_ledger:                  'migration-ledger',
 
   // Mobile / Push
