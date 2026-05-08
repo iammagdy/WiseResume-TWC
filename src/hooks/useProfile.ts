@@ -24,7 +24,14 @@ export interface Profile {
   onboarding_completed: boolean;
 }
 
-export function useProfile(userId: string | undefined) {
+export function calculateProfileCompletion(profile: Profile | null): number {
+  if (!profile) return 0;
+  const fields: (keyof Profile)[] = ['fullName', 'jobTitle', 'industry', 'careerLevel', 'location'];
+  const filled = fields.filter(f => !!profile[f]).length;
+  return (filled / fields.length) * 100;
+}
+
+export function useProfile(userId: string | undefined, initialData?: any) {
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
@@ -67,19 +74,17 @@ export function useProfile(userId: string | undefined) {
     mutationFn: async (updates: Partial<Profile>) => {
       if (!userId) throw new Error('Identity not settled');
 
-      // Find existing doc ID
       const existing = await databases.listDocuments(DATABASE_ID, 'profiles', [
         Query.equal('user_id', userId)
       ]);
 
-      const data = {
-        full_name: updates.fullName,
-        job_title: updates.jobTitle,
-        industry: updates.industry,
-        career_level: updates.careerLevel,
-        location: updates.location,
-        onboarding_completed: updates.onboarding_completed
-      };
+      const data: any = {};
+      if (updates.fullName !== undefined) data.full_name = updates.fullName;
+      if (updates.jobTitle !== undefined) data.job_title = updates.jobTitle;
+      if (updates.industry !== undefined) data.industry = updates.industry;
+      if (updates.careerLevel !== undefined) data.career_level = updates.careerLevel;
+      if (updates.location !== undefined) data.location = updates.location;
+      if (updates.onboarding_completed !== undefined) data.onboarding_completed = updates.onboarding_completed;
 
       if (existing.total > 0) {
         await databases.updateDocument(DATABASE_ID, 'profiles', existing.documents[0].$id, data);
@@ -93,7 +98,7 @@ export function useProfile(userId: string | undefined) {
       return updates;
     },
     onSuccess: (updates) => {
-      queryClient.setQueryData(['profile', userId], (old: any) => old ? { ...old, ...updates } : old);
+      queryClient.invalidateQueries({ queryKey: ['profile', userId] });
       toast.success('Profile updated');
     },
   });
