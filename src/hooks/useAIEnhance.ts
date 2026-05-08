@@ -13,7 +13,7 @@ import { apiFnUrl } from '@/lib/apiFnUrl';
 import {
   resumeSectionAiFnName,
   resumeSectionAiHeader,
-} from '@/integrations/supabase/resumeSectionAiFlag';
+} from '@/lib/resumeSectionAiFlag';
 
 
 export type SectionType = 'summary' | 'experience' | 'education' | 'skills' | 'contact' | 'awards' | 'projects' | 'publications' | 'volunteering' | 'certifications' | 'languages';

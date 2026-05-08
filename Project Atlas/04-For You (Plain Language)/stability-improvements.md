@@ -2,6 +2,20 @@
 
 **Last verified:** 2026-05-08
 
+## AI editor tools fully reconnected — Task #3 closure (2026-05-08)
+
+The last batch of files that were still pulling from the old Supabase wiring have been fully reconnected. This covers the section-level AI tools in the resume editor and the username-request dialog.
+
+**What changed:**
+- The internal routing file that controls which AI function handles resume section work (`resumeSectionAiFlag`) has been moved out of the legacy Supabase folder into the correct shared location. No behaviour changes — it was already Appwrite-ready, just in the wrong place.
+- The "AI Enhance", "Quick Actions", and "Section AI Popover" components in the resume editor now use Appwrite JWT tokens for authentication instead of a stub that always returned null. This means authenticated AI calls from those panels now carry a valid token.
+- The AI tailoring library (`aiTailor`) now fetches a fresh Appwrite JWT automatically if a request is rejected as unauthorised, then retries once — matching the behaviour the old code intended but never delivered (the Supabase refresh was a no-op stub).
+- The Username Request dialog (under account settings) now calls the correct Appwrite edge function directly.
+
+**Last verified:** 2026-05-08
+
+---
+
 ## WiseHire + DevKit fully reconnected — Task #3 (2026-05-08)
 
 WiseHire (the HR hiring tool built into WiseResume) and the internal Admin DevKit are now fully running on the new backend. Everything that previously hit a dead-end stub now talks to Appwrite directly.

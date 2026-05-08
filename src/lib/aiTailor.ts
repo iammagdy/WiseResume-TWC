@@ -1,13 +1,13 @@
 import { ResumeData, TailorProgress, EnhancedTailorStep, EnhancedTailorProgress, SuperTailorResult } from '@/types/resume';
-import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
-import { getSupabaseToken } from '@/lib/supabaseAuth';
+import { edgeFunctions } from '@/lib/edgeFunctions';
+import { getAppwriteJWT, invalidateAppwriteJWT } from '@/lib/appwriteJWT';
 import { extractErrorMessage } from './errorToast';
 import { checkAIFallback } from './aiFallbackToast';
 import { apiFnUrl } from '@/lib/apiFnUrl';
 import {
   resumeSectionAiFnName,
   resumeSectionAiHeader,
-} from '@/integrations/supabase/resumeSectionAiFlag';
+} from '@/lib/resumeSectionAiFlag';
 
 export interface TailorError extends Error {
   /** Machine-readable code propagated from the edge function's `error` field. */
@@ -130,14 +130,14 @@ export async function tailorResumeWithProgress(
   };
 
   const invokeOnce = async () => {
-    let response = await doFetch(await getSupabaseToken());
+    let response = await doFetch(await getAppwriteJWT());
 
-    // On 401, refresh the bridge token once and retry before surfacing an error.
+    // On 401, invalidate the cached JWT and retry once with a fresh token.
     if (response.status === 401) {
-      const { refreshTokenIfNeeded } = await import('@/lib/supabaseBridge');
-      const refreshed = await refreshTokenIfNeeded();
-      if (refreshed) {
-        response = await doFetch(await getSupabaseToken());
+      invalidateAppwriteJWT();
+      const freshToken = await getAppwriteJWT();
+      if (freshToken) {
+        response = await doFetch(freshToken);
       }
     }
 
@@ -307,7 +307,7 @@ export async function tailorSection(params: {
   intensity?: string;
   projectItems?: Array<{ name: string; description: string; technologies?: string[]; role?: string }>;
 }): Promise<TailorSectionResult> {
-  const token = await getSupabaseToken();
+  const token = await getAppwriteJWT();
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',

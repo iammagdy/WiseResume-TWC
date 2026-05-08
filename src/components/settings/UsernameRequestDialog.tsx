@@ -5,9 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { AtSign, Send, CheckCircle2 } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
-import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { edgeFunctions } from '@/lib/edgeFunctions';
 import { useAuth } from '@/hooks/useAuth';
-import { getUserId } from '@/lib/supabaseBridge';
 
 interface UsernameRequestDialogProps {
   open: boolean;
@@ -42,7 +41,7 @@ export function UsernameRequestDialog({
     if (!requestedUsername.trim() || !reason.trim()) return;
     setStatus('sending');
 
-    const userId = getUserId() || undefined;
+    const userId = user?.id;
     const payload = {
       type: 'username-request',
       email: user?.email || email.trim(),
@@ -60,7 +59,7 @@ export function UsernameRequestDialog({
     };
 
     try {
-      const { data: res, error } = await edgeFunctions.functions.invoke('send-contact-email', {
+      const { data: res, error } = await edgeFunctions.invoke('send-contact-email', {
         body: payload,
       });
       if (error) throw error;

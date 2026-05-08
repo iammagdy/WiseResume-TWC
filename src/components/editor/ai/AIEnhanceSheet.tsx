@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
 import { useResumeStore } from '@/store/resumeStore';
-import { getSupabaseToken } from '@/lib/supabaseAuth';
+import { getAppwriteJWT } from '@/lib/appwriteJWT';
 import { useAICreditsMutations } from '@/hooks/useAICredits';
 import { toast } from 'sonner';
 import editorLogger from '@/lib/editorLogger';
@@ -24,7 +24,7 @@ import { apiFnUrl } from '@/lib/apiFnUrl';
 import {
   resumeSectionAiFnName,
   resumeSectionAiHeader,
-} from '@/integrations/supabase/resumeSectionAiFlag';
+} from '@/lib/resumeSectionAiFlag';
 import { formatDegreeAndField } from '@/lib/educationFormat';
 import { ExperienceDiffCard } from '@/components/editor/ai/ExperienceDiffCard';
 import type { Experience } from '@/types/resume';
@@ -262,9 +262,9 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
     // classifier (no global "AI temporarily unavailable" toast for transient
     // section failures). Privacy gate + credit cache invalidation still run.
     return executeAI(async () => {
-      const token = await getSupabaseToken();
+      const token = await getAppwriteJWT();
       if (!token) {
-        throw new AIError({ code: 'unauthorized', status: 401, message: 'No session' });
+        throw new AIError({ code: 'unauthorized', status: 401, message: 'Not authenticated' });
       }
 
       const res = await fetch(apiFnUrl(resumeSectionAiFnName('enhance-section')), {

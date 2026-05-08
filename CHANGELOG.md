@@ -1,3 +1,35 @@
+## 2026-05-08 — resumeSectionAiFlag + aiTailor + editor auth — Task #3 final closure
+
+**`src/lib/resumeSectionAiFlag.ts` created** — canonical home for the Task #56 resume-section-ai routing flag (previously misplaced under `src/integrations/supabase/`; has zero Supabase dependency). Exports unchanged: `USE_MERGED_RESUME_SECTION_AI`, `resumeSectionAiFnName`, `resumeSectionAiHeader`, `ResumeSectionAiAction`.
+
+**All 6 import sites updated** (`@/integrations/supabase/resumeSectionAiFlag` → `@/lib/resumeSectionAiFlag`):
+- `src/components/editor/SectionAIPopover.tsx`
+- `src/components/editor/ai/AIEnhanceSheet.tsx`
+- `src/components/editor/tailor/QuickActions.tsx`
+- `src/lib/aiTailor.ts`
+- `src/hooks/useATSSuggestions.ts`
+- `src/hooks/useAIEnhance.ts`
+
+**`getSupabaseToken` → `getAppwriteJWT` in all 3 editor call sites:**
+- `SectionAIPopover.tsx`: `getSupabaseToken()` → `getAppwriteJWT()`; import swapped.
+- `AIEnhanceSheet.tsx`: `getSupabaseToken()` → `getAppwriteJWT()`; error message `'No session'` → `'Not authenticated'`.
+- `QuickActions.tsx`: `getSupabaseToken()` → `getAppwriteJWT()`; error message `'No active Supabase session'` → `'Not authenticated'`.
+
+**`src/lib/aiTailor.ts` fully migrated:**
+- `edgeFunctions` import: `@/integrations/supabase/edgeFunctions` → `@/lib/edgeFunctions`.
+- `getSupabaseToken` (×2) → `getAppwriteJWT`; `invalidateAppwriteJWT` added for the 401-retry path.
+- Old retry used `refreshTokenIfNeeded` from `supabaseBridge` (stub — always returned false). New retry calls `invalidateAppwriteJWT()` then `getAppwriteJWT()` to force a fresh JWT before the second attempt.
+- `resumeSectionAiFlag` import fixed (see above).
+
+**`src/components/settings/UsernameRequestDialog.tsx` fully migrated:**
+- `edgeFunctions` import: `@/integrations/supabase/edgeFunctions` → `@/lib/edgeFunctions`.
+- `getUserId()` from `supabaseBridge` removed; replaced with `user?.id` from `useAuth()` (already imported).
+- `edgeFunctions.functions.invoke` → `edgeFunctions.invoke`.
+
+**Result:** `tsc --noEmit` — 0 errors. Zero legacy imports remain in any of the 7 targeted files.
+
+---
+
 ## 2026-05-08 — WiseHire + DevKit Appwrite migration — final stub cleanup (Task #3)
 
 **13 remaining files migrated from `@/integrations/supabase/edgeFunctions` throw-stub to `@/lib/edgeFunctions`:**

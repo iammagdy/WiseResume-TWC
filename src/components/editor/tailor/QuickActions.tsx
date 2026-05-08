@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Plus, ArrowUpDown, Hash } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Button } from '@/components/ui/button';
-import { getSupabaseToken } from '@/lib/supabaseAuth';
+import { getAppwriteJWT } from '@/lib/appwriteJWT';
 import { useAIAction } from '@/hooks/useAIAction';
 import { showErrorToast } from '@/lib/errorToast';
 import { toast } from 'sonner';
@@ -13,7 +13,7 @@ import { apiFnUrl } from '@/lib/apiFnUrl';
 import {
   resumeSectionAiFnName,
   resumeSectionAiHeader,
-} from '@/integrations/supabase/resumeSectionAiFlag';
+} from '@/lib/resumeSectionAiFlag';
 
 
 interface QuickActionsProps {
@@ -73,12 +73,12 @@ Return JSON: { "recommendedOrder": ["section1", "section2", ...], "reasoning": "
       }
 
       const result = await executeAI(async () => {
-        const token = await getSupabaseToken();
+        const token = await getAppwriteJWT();
         if (!token) {
           throw new AIError({
             code: 'unauthorized',
             status: 401,
-            message: 'No active Supabase session',
+            message: 'Not authenticated',
           });
         }
 

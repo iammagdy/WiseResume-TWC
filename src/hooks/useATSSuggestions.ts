@@ -11,7 +11,7 @@ import { apiFnUrl } from '@/lib/apiFnUrl';
 import {
   resumeSectionAiFnName,
   resumeSectionAiHeader,
-} from '@/integrations/supabase/resumeSectionAiFlag';
+} from '@/lib/resumeSectionAiFlag';
 
 
 export interface ATSSuggestion {

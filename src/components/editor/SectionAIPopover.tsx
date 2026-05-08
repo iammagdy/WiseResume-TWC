@@ -15,8 +15,8 @@ import { apiFnUrl } from '@/lib/apiFnUrl';
 import {
   resumeSectionAiFnName,
   resumeSectionAiHeader,
-} from '@/integrations/supabase/resumeSectionAiFlag';
-import { getSupabaseToken } from '@/lib/supabaseAuth';
+} from '@/lib/resumeSectionAiFlag';
+import { getAppwriteJWT } from '@/lib/appwriteJWT';
 import { parseAIErrorResponse, aiErrorToastMessage } from '@/lib/aiErrorParser';
 import { SECTION_LABELS } from './LivePreviewPanel';
 import type { ResumeData } from '@/types/resume';
@@ -141,7 +141,7 @@ export function SectionAIPopover({ open, onOpenChange, sectionName }: SectionAIP
     setErrorMsg(null);
 
     try {
-      const token = await getSupabaseToken();
+      const token = await getAppwriteJWT();
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
         ...resumeSectionAiHeader('enhance-section'),
