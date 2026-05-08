@@ -29,8 +29,20 @@ The project has undergone a complete architectural shift:
 - **CI/CD:** GitHub Actions are cleaned. Only `deploy-frontend.yml` and `deploy-appwrite-hubs.yml` should be triggered.
 
 ## 📍 Where We Stopped
-- **Current Task:** The last action was fixing the Hostinger deployment path and removing regional "Frankfurt" mentions.
-- **Next Steps:** Monitoring the current deployment runs and ensuring the site loads correctly at `https://resume.thewise.cloud/`.
+- **Current Task:** Migrated the development environment onto **Replit** so the project can be edited and previewed there.
+- **Replit Dev Environment Setup (May 2026):**
+  - Replit-provisioned **PostgreSQL** (Neon-compatible) is connected via `DATABASE_URL`; Drizzle schema pushed with `npx drizzle-kit push --force`. This DB is for *Replit-side dev only* — production data still lives in Appwrite Cloud.
+  - `npm install --legacy-peer-deps` runs cleanly; workflow `Start application` runs `npm run server:dev & npm run dev` and serves Vite on port 5000 (proxied to the Replit preview).
+  - **Removed the last dead Kinde imports** that were preventing the SPA from compiling on Replit:
+    - `src/pages/Index.tsx` — duplicate `useAuth` import + `kindeRegister` ref in `handleCTA` deps.
+    - `src/components/auth/SignInPromptDialog.tsx` — `useKindeAuth` replaced with `react-router` `navigate('/auth?...')`.
+    - `src/components/landing/LandingHeader.tsx` — `kindeLogin({ prompt: 'login' })` call replaced with `navigate('/auth?mode=login')`.
+    - `src/pages/WhatsNewPage.tsx` — stripped unused `useKindeAuth` import.
+  - `src/contexts/AuthContext.tsx` exposes `supabaseSettled` / `supabaseReady` as Appwrite-backed aliases (`!appwriteLoading` / `!appwriteLoading && (impersonating || !!appwriteUser)`) so the legacy hooks that still read those flag names compile against the Appwrite-Native context without a regression.
+  - **Security:** Removed plaintext `SUPABASE_SERVICE_ROLE_KEY` from `.replit` (`[userenv.shared]`). No Supabase secrets were re-issued — Appwrite-Native flow does not need them. The remaining `VITE_SUPABASE_*` plaintext entries are still in `.replit` because legacy bundles read them at module load; physical deletion of those modules is out-of-scope for this Replit setup task and tracked as a follow-up cleanup.
+- **Next Steps:**
+  - Continue monitoring Hostinger deployment at `https://resume.thewise.cloud/`.
+  - Follow-up task: physically delete `src/lib/supabaseBridge.ts`, `src/lib/apiFetch.ts` Supabase routing branches, and `server/index.ts` Supabase auth/proxy code now that nothing on the Appwrite-Native critical path depends on them.
 
 ---
 *Created by Wingman to ensure continuity and prevent technical regression.*
