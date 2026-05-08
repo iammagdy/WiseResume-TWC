@@ -1,7 +1,7 @@
 name: 🚀 Deploy Frontend
 
 on:
-  # workflow_dispatch:
+  workflow_dispatch:
 
 jobs:
   build-and-deploy:
@@ -31,13 +31,9 @@ jobs:
       - name: Install lftp
         run: sudo apt-get update && sudo apt-get install -y lftp
 
-      - name: Production Deploy (Root Strike)
+      - name: Sync to Hostinger
         env:
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
         run: |
-          lftp -d -u "u966279061.thewise.cloud,${FTP_PASSWORD}" "ftp://82.29.154.120:21" -e "
-            set ftp:ssl-force true; 
-            set ssl:verify-certificate no; 
-            mirror --reverse --delete --verbose --parallel=10 ./dist/ /public_html/;
-            bye
-          "
+          lftp -d -u "u966279061.thewise.cloud,${FTP_PASSWORD}" "ftp://82.29.154.120:21" \
+            -e "set ftp:ssl-force true; set ssl:verify-certificate no; mirror --reverse --delete --verbose --parallel=10 ./dist/ /public_html/; bye"
