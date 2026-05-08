@@ -3,7 +3,11 @@
 **Files changed:** `.github/workflows/deploy-frontend.yml`, `public/_headers`, `CHANGELOG.md`, `Project Atlas/04-For You (Plain Language)/stability-improvements.md`.
 
 ### Root-cause diagnosis
-The live domain `thewise.cloud` had served an old pre-Appwrite build (containing Supabase/Kinde chunks) indefinitely because the `deploy-frontend` GitHub Actions workflow had the **wrong FTP remote path**. The FTP session starts at `/public_html` (the Hostinger account root), so the correct FTP-relative mirror destination is `resume/` — but the workflow used `/public_html/resume/`, which resolved to the non-serving path `/public_html/public_html/resume/`. Every GitHub Actions deploy since the migration silently succeeded but wrote to the wrong directory.
+The live domain `thewise.cloud` had served an old pre-Appwrite build (containing Supabase/Kinde chunks) indefinitely because the `deploy-frontend` GitHub Actions workflow had the **wrong FTP remote path**.
+
+Hostinger FTP context: after login the FTP working directory is `/public_html`, which is the **web document root** for `thewise.cloud` (i.e. `.` in FTP-relative terms maps to the physical path the Apache vhost serves from). The previous workflow passed `/public_html/resume/` as the lftp absolute mirror target. Because the FTP virtual root is the account home (parent of `/public_html/`), that path resolved to the **non-served** ghost directory at the account-home level: `~/public_html/resume/` — a folder Apache never reads. Every deploy since the migration silently succeeded and wrote to the wrong directory, leaving the old build untouched in the actual web root.
+
+**Fix:** changed the lftp mirror remote from `/public_html/resume/` → `.` (the FTP working directory after login, which is the web document root `/public_html/`). Future deploys must target `.` (or equivalently `./`) as the FTP destination when using `u966279061.thewise.cloud@82.29.154.120`.
 
 ### `public/_headers`
 - Removed stale Supabase (`*.supabase.co`, `*.supabase.in`, `wss://*.supabase.co`) and Kinde (`*.kinde.com`) origins from `connect-src`.
