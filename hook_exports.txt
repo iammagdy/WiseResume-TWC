@@ -1,0 +1,177 @@
+src/hooks/useInterviewAnswers.ts:export function useInterviewAnswers(sessionId: string) {
+src/hooks/useInterviewAnswers.ts:export function useSaveInterviewAnswer() {
+src/hooks/useScrollFade.ts:export function useScrollFade<T extends HTMLElement>() {
+src/hooks/useBackNavigation.ts:export function useBackNavigation() {
+src/hooks/useExportProgress.ts:export function useExportProgress() {
+src/hooks/useEditorSectionScores.ts:export function useEditorSectionScores(currentResume: ResumeData | null): EditorSectionScoresResult {
+src/hooks/useResumes.ts:export function parseDbResume(doc: any): DatabaseResume {
+src/hooks/useResumes.ts:export function dbToResumeData(db: DatabaseResume): ResumeData {
+src/hooks/useResumes.ts:export function useResumes(options: { select?: (data: DatabaseResume[]) => any } = {}) {
+src/hooks/useResumes.ts:export function useResume(resumeId: string | null) {
+src/hooks/useResumes.ts:export function useResumeMutations() {
+src/hooks/useEditorShortcuts.ts:export function useEditorShortcuts({ onSave, onExport, onUndo, onRedo, resumeId }: UseEditorShortcutsOptions) {
+src/hooks/useJobs.ts:export function useJobs() {
+src/hooks/useJobs.ts:export function useJob(id: string | null) {
+src/hooks/useJobs.ts:export function useJobMutations() {
+src/hooks/useAICredits.ts:export function useAICredits() {
+src/hooks/useAICredits.ts:export function useAICreditsMutations() {
+src/hooks/useCareerMilestones.ts:export function useCareerMilestones() {
+src/hooks/useStatusBar.ts:export function useStatusBar(color?: string) {
+src/hooks/useStatusBar.ts:export function useStatusBarThemeSync() {
+src/hooks/useEditorSheets.ts:export function useEditorSheets(): UseEditorSheetsReturn {
+src/hooks/usePublicPortfolio.ts:export function usePublicPortfolio(username: string | undefined) {
+src/hooks/usePublicPortfolio.ts:export function isAppHostname(hostname: string): boolean {
+src/hooks/usePublicPortfolio.ts:export function usePublicPortfolioByDomain(domain: string | null) {
+src/hooks/useAIAction.ts:export function useAIAction({ operation }: UseAIActionOptions) {
+src/hooks/usePlan.ts:export function usePlan(): PlanResult {
+src/hooks/useFitToPages.ts:export function useFitToPages({ templateRef, resume, onScaleComputed }: UseFitToPagesArgs) {
+src/hooks/useActivityStreak.ts:export function weeklyGoalKey(userId: string) {
+src/hooks/useActivityStreak.ts:export function useActivityStreak() {
+src/hooks/usePortfolioUsernameRules.ts:export function clearPortfolioUsernameRulesCache() {
+src/hooks/usePortfolioUsernameRules.ts:export function usePortfolioUsernameRules(userId?: string | null): PortfolioUsernameRules {
+src/hooks/useWebMcp.ts:export function useWebMcp({ navigate, setMode }: UseWebMcpOpts): void {
+src/hooks/useTypewriter.ts:export function useTypewriterWord(words: string[]): string {
+src/hooks/useAIDraft.ts:export function useAIDraft<T>(sheetType: string, resumeId: string | null | undefined) {
+src/hooks/useResignationLetters.ts:export function parseResignationLetter(doc: any): ResignationLetterRecord {
+src/hooks/useResignationLetters.ts:export function useResignationLetters() {
+src/hooks/useResignationLetters.ts:export function useResignationLetterMutations() {
+src/hooks/useTierGate.ts:export function useTierGate(): UseTierGateResult {
+src/hooks/useInterviewHistory.ts:export function useInterviewHistory() {
+src/hooks/useInterviewHistory.ts:export function useSaveInterviewSession() {
+src/hooks/useInterviewHistory.ts:export function useDeleteInterviewSession() {
+src/hooks/useInterviewHistory.ts:export function useLatestInterviewDraft() {
+src/hooks/useInterviewHistory.ts:export function useUpsertInterviewDraft() {
+src/hooks/useInterviewHistory.ts:export function useDeleteInterviewDraft() {
+src/hooks/useVoiceInterview.ts:export function useVoiceInterview(
+src/hooks/useUndoRedo.ts:export function useUndoRedo(currentResume: ResumeData | null) {
+src/hooks/useJobActivityStats.ts:export function useJobActivityStats(): JobActivityStats {
+src/hooks/useResumeVersions.ts:export function useResumeVersions(resumeId: string | null) {
+src/hooks/useResumeVersions.ts:export function useResumeVersionMutations() {
+src/hooks/useIsDark.ts:export function useIsDark(): boolean {
+src/hooks/useInterviewReportToken.ts:export function useInterviewReportToken(token: string | undefined) {
+src/hooks/useInterviewReportToken.ts:export function useCreateInterviewReportToken() {
+src/hooks/useEditorAutosave.ts:export function useEditorAutosave({
+src/hooks/usePortfolioSEO.ts:export function usePortfolioSEO(profile: PublicProfile | undefined | null) {
+src/hooks/useShareComments.ts:export function useShareComments(shareId: string | null) {
+src/hooks/useShareComments.ts:export function usePublicShareComments(token: string | null) {
+src/hooks/useShareComments.ts:export function useAddShareComment() {
+src/hooks/useShareComments.ts:export function useResolveComment() {
+src/hooks/useBackButton.ts:export function useBackButton(_onBeforeBack?: () => boolean) {
+src/hooks/useCareerAssessment.ts:export function useCareerAssessment() {
+src/hooks/useCareerAssessment.ts:export function useCareerMutations() {
+src/hooks/useNetworkQuality.ts:export function useNetworkQuality(): NetworkQuality {
+src/hooks/useRateApp.ts: export function useRateApp() {
+src/hooks/useRateApp.ts: export function useRateAppCheck(onShouldPrompt: () => void) {
+src/hooks/useOnePageExport.ts:export function useOnePageExport({ resume, templateId, enabled }: UseOnePageExportArgs): OnePageExportApi {
+src/hooks/useChangelogBadge.ts:export function getChangelog(): Promise<{ version: string }[]> {
+src/hooks/useChangelogBadge.ts:export function useChangelogBadge() {
+src/hooks/useThemeLogo.ts:export function useThemeLogo() {
+src/hooks/useAIApplyEffects.ts:export function useAIApplyEffects(resumeId: string | undefined) {
+src/hooks/useToolCache.ts:export function useToolCache() {
+src/hooks/usePortfolioHistory.ts:export function usePortfolioHistory(userId: string | undefined) {
+src/hooks/useShakeDetect.ts:export function useShakeDetect(enabled: boolean) {
+src/hooks/useJobApplications.ts:export function parseJobApplication(doc: any): JobApplication {
+src/hooks/useJobApplications.ts:export function useJobApplications(statusFilter?: ApplicationStatus) {
+src/hooks/useJobApplications.ts:export function useJobApplicationMutations() {
+src/hooks/usePortfolioAnalytics.ts:export function usePortfolioAnalytics(username: string | undefined) {
+src/hooks/usePortfolioAnalytics.ts:export function useShortLinks(userId: string | undefined, _portfolioUsername?: string | undefined) {
+src/hooks/usePortfolioAnalytics.ts:export function useCreateShortLink() {
+src/hooks/usePortfolioAnalytics.ts:export function useDeleteShortLink() {
+src/hooks/useAgenticChat.ts:export function useAgenticChat(contextFilter?: string) {
+src/hooks/useRedactedResume.ts:export function useRedactedResume(resume: ResumeData | null | undefined): ResumeData | null | undefined {
+src/hooks/useAIEnhance.ts:export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
+src/hooks/useSuspensionCheck.ts:export function useSuspensionCheck(): SuspensionState {
+src/hooks/useATSSuggestions.ts:export function useATSSuggestions(resume: ResumeData | null, jobDescription: string) {
+src/hooks/usePortfolioTracking.ts:export function usePortfolioTracking({ username, refParam, abVariant }: UsePortfolioTrackingProps) {
+src/hooks/useResumeShares.ts:export function useResumeShares(resumeId: string | null) {
+src/hooks/useResumeShares.ts:export function usePublicResume(token: string | null, passwordAttempt?: string) {
+src/hooks/useResumeShares.ts:export function useResumeShareMutations() {
+src/hooks/useAuth.ts:export function useAuth() {
+src/hooks/useMe.ts:export function useMe() {
+src/hooks/wisehire/useOutreach.ts:export function useOutreachHistory(candidateId: string | undefined) {
+src/hooks/wisehire/useOutreach.ts:export function useAIDraftOutreach() {
+src/hooks/wisehire/useOutreach.ts:export function useSendOutreach() {
+src/hooks/wisehire/useAccountType.ts:export function useAccountType() {
+src/hooks/wisehire/useJDs.ts:export function useJDs() {
+src/hooks/wisehire/useSavedSearches.ts:export function useSavedSearches() {
+src/hooks/wisehire/useHRAnalytics.ts:export function useHRAnalytics(dateRange: AnalyticsDateRange = 'all') {
+src/hooks/wisehire/useMaskCVs.ts:export function useMaskCVs() {
+src/hooks/wisehire/useCandidateNotes.ts:export function useCandidateNotes(candidateId: string | undefined) {
+src/hooks/wisehire/useCandidateNotes.ts:export function useAddNote() {
+src/hooks/wisehire/useCandidateNotes.ts:export function useDeleteNote() {
+src/hooks/wisehire/useCandidateNotes.ts:export function useTogglePinNote() {
+src/hooks/wisehire/useBiasMode.ts:export function useBiasMode() {
+src/hooks/wisehire/useMaskSessions.ts:export function useMaskSessions() {
+src/hooks/wisehire/useMaskSessions.ts:export function useInvalidateMaskSessions() {
+src/hooks/wisehire/useWaitlist.ts:export function useWaitlist() {
+src/hooks/wisehire/useBulkScreen.ts:export function useLatestBulkJobs(roleId?: string) {
+src/hooks/wisehire/useBulkScreen.ts:export function useRunBulkScreen() {
+src/hooks/wisehire/useBulkScreen.ts:export function useAddCandidateFromScreen() {
+src/hooks/wisehire/useWiseHireAccount.ts:export function useWiseHireAccount() {
+src/hooks/wisehire/useTalentPoolProfile.ts:export function useMyTalentProfile() {
+src/hooks/wisehire/useTalentPoolProfile.ts:export function useMyTalentViews() {
+src/hooks/wisehire/useTalentPoolProfile.ts:export function useUpsertTalentProfile() {
+src/hooks/wisehire/usePipeline.ts:export function usePipeline(roleId?: string, clientId?: string) {
+src/hooks/wisehire/usePipeline.ts:export function useCandidateHistory(candidateId: string | null) {
+src/hooks/wisehire/useBriefs.ts:export function useBriefs() {
+src/hooks/wisehire/useBriefs.ts:export function useBrief(briefId: string | undefined) {
+src/hooks/wisehire/useScorecards.ts:export function useScorecards(candidateId: string) {
+src/hooks/wisehire/useScorecards.ts:export function useScorecard(scorecardId: string | undefined) {
+src/hooks/wisehire/useScorecards.ts:export function usePublicScorecard(shareToken: string | undefined) {
+src/hooks/wisehire/useScorecards.ts:export function useCreateScorecard() {
+src/hooks/wisehire/useScorecards.ts:export function useSaveScorecard() {
+src/hooks/wisehire/useScorecards.ts:export function useRevokeShareToken() {
+src/hooks/wisehire/useWaitlistEmailCheck.ts:export function useWaitlistEmailCheck() {
+src/hooks/wisehire/useTalentPool.ts:export function useTalentSearch(filters: TalentSearchFilters, enabled = true) {
+src/hooks/wisehire/useTalentPool.ts:export function useRecordTalentView() {
+src/hooks/wisehire/useTalentPool.ts:export function useAddTalentToPool() {
+src/hooks/wisehire/useRoles.ts:export function useRoles() {
+src/hooks/wisehire/useScorecardTemplates.ts:export function useScorecardTemplates() {
+src/hooks/wisehire/useClients.ts:export function useClients() {
+src/hooks/useCompanyBriefingLibrary.ts:export function useCompanyBriefingLibrary() {
+src/hooks/useCompanyBriefingLibrary.ts:export function useSaveCompanyBriefing() {
+src/hooks/useCompanyBriefingLibrary.ts:export function useDeleteCompanyBriefing() {
+src/hooks/useResumeSnapshots.ts:export function useResumeSnapshots(resumeId: string | null) {
+src/hooks/useResumeSnapshots.ts:export function useSaveResumeSnapshot() {
+src/hooks/useResumeSnapshots.ts:export function useDeleteResumeSnapshot() {
+src/hooks/useVisitorTracking.ts:export function useVisitorTracking({ userId }: UseVisitorTrackingOptions = {}): void {
+src/hooks/useInView.ts:export function useInView(options: UseInViewOptions = {}) {
+src/hooks/useCoverLetters.ts:export function parseCoverLetter(doc: any): CoverLetterRecord {
+src/hooks/useCoverLetters.ts:export function useCoverLetters() {
+src/hooks/useCoverLetters.ts:export function useCoverLetter(id: string | null) {
+src/hooks/useCoverLetters.ts:export function useCoverLetterMutations() {
+src/hooks/useResumeScore.ts:export function clearCachedScore(resumeId: string, updatedAt: string) {
+src/hooks/useResumeScore.ts:export function clearAllCachedScores() {
+src/hooks/useResumeScore.ts:export function backgroundScore(resumeId: string, resume: ResumeData, updatedAt: string): Promise<void> {
+src/hooks/useResumeScore.ts:export function useResumeScore() {
+src/hooks/useGuestMigration.ts:export function useGuestMigration(session: Session | null) {
+src/hooks/useKeyboardAwareScroll.ts:export function useKeyboardAwareScroll() {
+src/hooks/useOfflineSync.ts:export function useOfflineSync() {
+src/hooks/useDoubleTap.ts:export function useDoubleTap(
+src/hooks/useActiveStatus.ts:export function isActiveWithin24h(lastActiveAt: string | null): boolean {
+src/hooks/useActiveStatus.ts:export function useActiveStatus(username: string, initialLastActiveAt: string | null): string | null {
+src/hooks/useExpandedEntryRestore.ts:export function useExpandedEntryRestore(section: string) {
+src/hooks/useCompanyBriefing.ts:export function useCompanyBriefing() {
+src/hooks/useProfile.ts:export function calculateProfileCompletion(profile: Profile | null): number {
+src/hooks/useProfile.ts:export function useProfile(userId: string | undefined, initialData?: any) {
+src/hooks/useTilt.ts:export function useTilt(maxDeg = 3) {
+src/hooks/useWebSpeechFallback.ts:export function isWebSpeechSupported(): boolean {
+src/hooks/useWebSpeechFallback.ts:export function useWebSpeechFallback(options: WebSpeechFallbackOptions = {}) {
+src/hooks/usePlanUpgradeCelebration.ts:export function usePlanUpgradeCelebration() {
+src/hooks/useNotifications.ts:export function useNotifications() {
+src/hooks/useNotifications.ts:export function useNotificationMutations() {
+src/hooks/useEditorHydration.ts:export function useEditorHydration({
+src/hooks/useChatHistory.ts:export function useChatSessions() {
+src/hooks/useChatHistory.ts:export function useSessionMessages(sessionId: string | null) {
+src/hooks/useChatHistory.ts:export function useDeleteChatSession() {
+src/hooks/useAIHealth.ts:export function useAIHealth() {
+src/hooks/useAIKeyHydration.ts:export function useAIKeyHydration() {
+src/hooks/useUnsavedChangesGuard.ts:export function useUnsavedChangesGuard({
+src/hooks/useResumeNudges.ts:export function useResumeNudges({ resume, jobDescription, hasMissingSkills }: UseResumeNudgesOptions) {
+src/hooks/useBiometricLock.ts:export function useBiometricLock(_enabled: boolean, _lockTimeout: number = 30000): UseBiometricLockReturn {
+src/hooks/use-mobile.tsx:export function useIsMobile(breakpoint: number = MOBILE_BREAKPOINT) {
+src/hooks/useAppSettings.ts:export function useAppSettings(): AppSettings & { isLoading: boolean } {
+src/hooks/use-theme.ts:export function useTheme() {
+src/hooks/useNetworkStatus.ts:export function useNetworkStatus(): NetworkStatus {
+src/hooks/useDeepLinking.ts:export function useDeepLinking() {
+src/hooks/useAppLifecycle.ts:export function useAppLifecycle({ onBackground, onForeground }: UseAppLifecycleOptions) {

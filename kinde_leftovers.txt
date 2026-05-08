@@ -1,0 +1,97 @@
+src/pages/__tests__/Pages-D5.test.tsx:vi.mock("@kinde-oss/kinde-auth-react", () => ({
+src/pages/__tests__/Pages-D5.test.tsx:  kindeUser: null as any,
+src/pages/__tests__/Pages-D5.test.tsx:  kindeUser: null as any,
+src/pages/__tests__/Pages-D5.test.tsx:  kindeUser: null as any,
+src/pages/__tests__/ApplicationsAnalytics-D9.test.tsx:  kindeUser: { id: "u1", email: "test@example.com" } as any,
+src/pages/__tests__/ApplicationsTracker-D9.test.tsx:  kindeUser: { id: "u1", email: "test@example.com" } as any,
+src/pages/__tests__/ApplicationsDeadline-D9.test.tsx:  kindeUser: { id: "u1", email: "test@example.com" } as any,
+src/pages/WhatsNewPage.tsx:import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
+src/pages/Index.tsx:  }, [navigate, kindeRegister]);
+src/components/landing/LandingHeader.tsx:                void Promise.resolve(kindeLogin({ prompt: 'login' })).catch(() => {
+src/components/auth/SignInPromptDialog.tsx:import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
+src/components/auth/SignInPromptDialog.tsx:  const { login: kindeLogin, register: kindeRegister } = useKindeAuth();
+src/components/auth/SignInPromptDialog.tsx:    kindeRegister();
+src/components/auth/SignInPromptDialog.tsx:    kindeLogin({ prompt: 'login' });
+src/components/dev-kit/DevKitRunner.tsx:          const kindeToken = await auth.getKindeToken();
+src/components/dev-kit/DevKitRunner.tsx:          if (!kindeToken) throw new Error('No Kinde token available');
+src/components/dev-kit/DevKitRunner.tsx:          await exchangeToken(kindeToken);
+src/components/dev-kit/EmailManagementPanel.tsx:    // placeholder (kp_xxx@collision.kinde.placeholder). Fall back to
+src/components/dev-kit/EmailManagementPanel.tsx:    const isKindeShadow = (user.email ?? '').endsWith('@collision.kinde.placeholder');
+src/components/dev-kit/EmailManagementPanel.tsx:                            const isKindeShadow = (user.email ?? '').endsWith('@collision.kinde.placeholder');
+src/components/dev-kit/EmailManagementPanel.tsx:        ? ((selectedUser.email ?? '').endsWith('@collision.kinde.placeholder')
+src/components/dev-kit/UserDetailDrawer.tsx:    kinde_sub: string | null;
+src/components/dev-kit/UserDetailDrawer.tsx:    kinde_email: string | null;
+src/components/dev-kit/UserDetailDrawer.tsx:    kinde_email_status: 'found' | 'lookup_failed' | 'not_needed' | 'credentials_missing';
+src/components/dev-kit/UserDetailDrawer.tsx:          kinde_sub?: string | null;
+src/components/dev-kit/UserDetailDrawer.tsx:          kinde_email?: string | null;
+src/components/dev-kit/UserDetailDrawer.tsx:          kinde_email_status?: 'found' | 'lookup_failed' | 'not_needed' | 'credentials_missing';
+src/components/dev-kit/UserDetailDrawer.tsx:          kinde_sub: result.kinde_sub ?? null,
+src/components/dev-kit/UserDetailDrawer.tsx:          kinde_email: result.kinde_email ?? null,
+src/components/dev-kit/UserDetailDrawer.tsx:          kinde_email_status: result.kinde_email_status ?? 'not_needed',
+src/components/dev-kit/UserDetailDrawer.tsx:        kinde_deleted: boolean;
+src/components/dev-kit/UserDetailDrawer.tsx:          description: `Deleted from Supabase${result.kinde_deleted ? ' & Kinde' : ''}, ${result.invite_tokens_reset} invite token(s) revoked.`,
+src/components/dev-kit/UserDetailDrawer.tsx:                    {identityData?.kinde_sub ? 'Kinde (SSO)' : 'Email / password'}
+src/components/dev-kit/UserDetailDrawer.tsx:                  {(identityLoading || identityData?.kinde_email || (identityData?.kinde_email_status && identityData.kinde_email_status !== 'not_needed')) && (
+src/components/dev-kit/UserDetailDrawer.tsx:                      ) : identityData?.kinde_email ? (
+src/components/dev-kit/UserDetailDrawer.tsx:                        <span className="font-mono text-[10px] text-right break-all">{identityData.kinde_email}</span>
+src/components/dev-kit/UserDetailDrawer.tsx:                      ) : identityData?.kinde_email_status === 'lookup_failed' ? (
+src/components/dev-kit/UserDetailDrawer.tsx:                      ) : identityData?.kinde_email_status === 'credentials_missing' ? (
+src/components/dev-kit/UserDetailDrawer.tsx:                      {(identityData?.auth_email ?? user.email ?? '').endsWith('@kinde.placeholder') && (
+src/components/dev-kit/UserDetailDrawer.tsx:                    <span className="font-mono text-[10px] text-right break-all max-w-[200px] truncate" title={identityData?.kinde_sub ?? ''}>
+src/components/dev-kit/UserDetailDrawer.tsx:                      {identityLoading ? '…' : (identityData?.kinde_sub ?? '—')}
+src/components/layout/__tests__/ProtectedRoute.test.tsx:    kindeUser: null as unknown,
+src/components/layout/__tests__/ProtectedRoute.test.tsx:    // Kinde is NOT signed in (kindeAuthenticated would be false), but the
+src/components/layout/__tests__/ProtectedRoute.test.tsx:      kindeUser: null,
+src/components/layout/ProtectedRoute.tsx:  // SSO users have a @kinde.placeholder auth email — they never need email verification.
+src/components/layout/ProtectedRoute.tsx:  if (email.endsWith('@kinde.placeholder')) return true;
+src/contexts/__tests__/AuthContext.impersonation.test.tsx: * `isAuthenticated = kindeAuthenticated || impersonating` derivation would
+src/contexts/__tests__/AuthContext.impersonation.test.tsx:vi.mock('@kinde-oss/kinde-auth-react', () => ({
+src/contexts/__tests__/AuthContext.impersonation.test.tsx:      user: { id: 'kinde_admin_xyz', email: 'admin@example.com', givenName: 'A', familyName: 'D' } as any,
+src/contexts/__tests__/AuthContext.impersonation.test.tsx:      getToken: vi.fn().mockResolvedValue('admin-kinde-token'),
+src/contexts/__tests__/AuthContext.impersonation.test.tsx:      user: { id: 'kinde_admin_xyz', email: 'admin@example.com' } as any,
+src/contexts/__tests__/AuthContext.impersonation.test.tsx:      getToken: vi.fn().mockResolvedValue('admin-kinde-token'),
+src/contexts/__tests__/AuthContext.impersonation.test.tsx:    vi.doMock('@kinde-oss/kinde-auth-react', () => ({
+src/lib/__tests__/supabaseBridge.test.ts:        kindeSub: "kinde-sub-123",
+src/lib/__tests__/supabaseBridge.test.ts:    await exchangeToken("fake-kinde-token");
+src/lib/__tests__/supabaseBridge.test.ts:          "Authorization": "Bearer fake-kinde-token",
+src/lib/__tests__/supabaseBridge.test.ts:        kindeSub: "kinde-sub-123",
+src/lib/__tests__/supabaseBridge.test.ts:    await exchangeToken("fake-kinde-token");
+src/lib/__tests__/supabaseBridge.test.ts:  it("should attempt to refresh if kinde token getter is registered", async () => {
+src/lib/__tests__/supabaseBridge.test.ts:        kindeSub: "kinde-sub-123",
+src/lib/__tests__/supabaseBridge.test.ts:    const mockGetter = vi.fn().mockResolvedValue("new-kinde-token");
+src/lib/__tests__/apiFetch.test.ts:  getUserId: vi.fn(() => 'kinde-user-uuid'),
+src/lib/__tests__/apiFetch.test.ts:    vi.mocked(bridge.getUserId).mockReturnValue('kinde-user-uuid');
+src/lib/supabaseBridge.ts:  kindeSub: string | null;
+src/lib/supabaseBridge.ts:    kindeSub: null,
+src/lib/supabaseBridge.ts:      // Require kindeSub on persisted entries — entries without it predate
+src/lib/supabaseBridge.ts:        parsed.kindeSub
+src/lib/supabaseBridge.ts:          kindeSub: parsed.kindeSub,
+src/lib/supabaseBridge.ts:      kindeSub: s.kindeSub,
+src/lib/supabaseBridge.ts:async function hashKindeToken(kindeToken: string): Promise<string> {
+src/lib/supabaseBridge.ts:    return `plain:${kindeToken.length}:${kindeToken.slice(-12)}`;
+src/lib/supabaseBridge.ts:  const buf = new TextEncoder().encode(kindeToken);
+src/lib/supabaseBridge.ts: * AuthContext on every render. When this differs from `state.kindeSub`, the
+src/lib/supabaseBridge.ts:  if (sub && state.kindeSub && sub !== state.kindeSub) {
+src/lib/supabaseBridge.ts:    state.kindeSub = null;
+src/lib/supabaseBridge.ts:    // `exchangeToken(kindeTokenB)` call would await the previous account's
+src/lib/supabaseBridge.ts:  return state.kindeSub;
+src/lib/supabaseBridge.ts:  if (!state.kindeSub) return false;
+src/lib/supabaseBridge.ts:  return _currentKindeSub !== state.kindeSub;
+src/lib/supabaseBridge.ts:export async function exchangeToken(kindeToken: string): Promise<void> {
+src/lib/supabaseBridge.ts:  const tokenKey = await hashKindeToken(kindeToken);
+src/lib/supabaseBridge.ts:              'Authorization': `Bearer ${kindeToken}`,
+src/lib/supabaseBridge.ts:      if (!data.kindeSub) {
+src/lib/supabaseBridge.ts:        console.error('[SupabaseBridge] Exchange response missing kindeSub — refusing to cache');
+src/lib/supabaseBridge.ts:          message: 'Token exchange response did not include kindeSub binding',
+src/lib/supabaseBridge.ts:      if (_currentKindeSub && _currentKindeSub !== data.kindeSub) {
+src/lib/supabaseBridge.ts:      state.kindeSub = data.kindeSub;
+src/lib/supabaseBridge.ts:    const kindeToken = await _getKindeTokenFn();
+src/lib/supabaseBridge.ts:    if (!kindeToken) {
+src/lib/supabaseBridge.ts:    await exchangeToken(kindeToken);
+src/lib/supabaseBridge.ts:  state.kindeSub = null;
+src/integrations/supabase/types.ts:          kinde_sub: string
+src/integrations/supabase/types.ts:          kinde_sub: string
+src/integrations/supabase/types.ts:          kinde_sub?: string
+src/hooks/__tests__/Auth-D3.test.tsx:  kindeUser: null as any,
+src/hooks/__tests__/useAICredits.test.tsx:      data: { userId: 'uuid-123', kinde_sub: null, profile: null, preferences: null, subscription: null, ai_credits: mockAICredits },
+src/hooks/__tests__/useAICredits.test.tsx:      data: { userId: 'uuid-123', kinde_sub: null, profile: null, preferences: null, subscription: null, ai_credits: null },

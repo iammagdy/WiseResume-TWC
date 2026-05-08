@@ -6,41 +6,39 @@ import { toast } from 'sonner';
 export type ApplicationStatus = 'saved' | 'applied' | 'screening' | 'interviewing' | 'offer' | 'rejected';
 
 export interface JobApplication {
-  id: string;
+  $id: string;
   user_id: string;
   job_title: string;
   company: string;
   status: ApplicationStatus;
   applied_at: string;
-  created_at: string;
-}
-
-export function parseJobApplication(doc: any): JobApplication {
-  return {
-    id: doc.$id,
-    user_id: doc.user_id,
-    job_title: doc.job_title,
-    company: doc.company,
-    status: doc.status as ApplicationStatus,
-    applied_at: doc.applied_at || doc.$createdAt,
-    created_at: doc.$createdAt
-  };
+  $createdAt: string;
 }
 
 export function useJobApplications(statusFilter?: ApplicationStatus) {
   const { user } = useAuth();
-
   return useQuery({
     queryKey: ['job-applications', user?.id, statusFilter],
     queryFn: async () => {
       if (!user) return [];
       const queries = [Query.equal('user_id', user.id), Query.orderDesc('$createdAt')];
       if (statusFilter) queries.push(Query.equal('status', statusFilter));
-      
       const response = await databases.listDocuments(DATABASE_ID, 'job_applications', queries);
-      return response.documents.map(parseJobApplication);
+      return response.documents;
     },
     enabled: !!user,
+  });
+}
+
+export function useJobApplication(id: string | null) {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ['job-application', id],
+    queryFn: async () => {
+      if (!user || !id) return null;
+      return await databases.getDocument(DATABASE_ID, 'job_applications', id);
+    },
+    enabled: !!user && !!id,
   });
 }
 
@@ -51,12 +49,11 @@ export function useJobApplicationMutations() {
   const createApplication = useMutation({
     mutationFn: async (input: any) => {
       if (!user) throw new Error('Not authenticated');
-      const doc = await databases.createDocument(DATABASE_ID, 'job_applications', ID.unique(), {
+      return await databases.createDocument(DATABASE_ID, 'job_applications', ID.unique(), {
         user_id: user.id,
         ...input,
         status: input.status || 'applied'
       });
-      return parseJobApplication(doc);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['job-applications'] });
@@ -64,5 +61,25 @@ export function useJobApplicationMutations() {
     },
   });
 
-  return { createApplication };
+  const updateApplication = useMutation({
+    mutationFn: async ({ id, updates }: { id: string, updates: any }) => {
+      return await databases.updateDocument(DATABASE_ID, 'job_applications', id, updates);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['job-applications'] });
+      toast.success('Application updated');
+    }
+  });
+
+  const deleteApplication = useMutation({
+    mutationFn: async (id: string) => {
+      await databases.deleteDocument(DATABASE_ID, 'job_applications', id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['job-applications'] });
+      toast.success('Application deleted');
+    }
+  });
+
+  return { createApplication, updateApplication, deleteApplication };
 }

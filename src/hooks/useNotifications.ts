@@ -4,18 +4,17 @@ import { useAuth } from './useAuth';
 import { toast } from 'sonner';
 
 export interface Notification {
-  id: string;
+  $id: string;
   user_id: string;
   type: string;
   title: string;
   message: string;
   is_read: boolean;
-  created_at: string;
+  $createdAt: string;
 }
 
 export function useNotifications() {
   const { user } = useAuth();
-
   return useQuery({
     queryKey: ['notifications', user?.id],
     queryFn: async () => {
@@ -24,15 +23,23 @@ export function useNotifications() {
         Query.equal('user_id', user.id),
         Query.orderDesc('$createdAt')
       ]);
-      return response.documents.map(doc => ({
-        id: doc.$id,
-        user_id: doc.user_id,
-        type: doc.type,
-        title: doc.title,
-        message: doc.message,
-        is_read: !!doc.is_read,
-        created_at: doc.$createdAt
-      }));
+      return response.documents;
+    },
+    enabled: !!user,
+  });
+}
+
+export function useUnreadNotificationCount() {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ['notifications-unread-count', user?.id],
+    queryFn: async () => {
+      if (!user) return 0;
+      const response = await databases.listDocuments(DATABASE_ID, 'notifications', [
+        Query.equal('user_id', user.id),
+        Query.equal('is_read', false)
+      ]);
+      return response.total;
     },
     enabled: !!user,
   });
@@ -48,15 +55,14 @@ export function useNotificationMutations() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications-unread-count'] });
     },
   });
 
   const clearAll = useMutation({
     mutationFn: async () => {
       if (!user) return;
-      const response = await databases.listDocuments(DATABASE_ID, 'notifications', [
-        Query.equal('user_id', user.id)
-      ]);
+      const response = await databases.listDocuments(DATABASE_ID, 'notifications', [Query.equal('user_id', user.id)]);
       await Promise.all(response.documents.map(doc => databases.deleteDocument(DATABASE_ID, 'notifications', doc.$id)));
     },
     onSuccess: () => {

@@ -3,29 +3,8 @@ import { databases, DATABASE_ID, Query, ID } from '@/lib/appwrite';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
 
-export interface ResignationLetterRecord {
-  id: string;
-  user_id: string;
-  title: string | null;
-  content: string;
-  created_at: string | null;
-  updated_at: string | null;
-}
-
-export function parseResignationLetter(doc: any): ResignationLetterRecord {
-  return {
-    id: doc.$id,
-    user_id: doc.user_id,
-    title: doc.title,
-    content: doc.content,
-    created_at: doc.$createdAt,
-    updated_at: doc.$updatedAt
-  };
-}
-
 export function useResignationLetters() {
   const { user } = useAuth();
-
   return useQuery({
     queryKey: ['resignation-letters', user?.id],
     queryFn: async () => {
@@ -34,9 +13,21 @@ export function useResignationLetters() {
         Query.equal('user_id', user.id),
         Query.orderDesc('$createdAt')
       ]);
-      return response.documents.map(parseResignationLetter);
+      return response.documents;
     },
     enabled: !!user,
+  });
+}
+
+export function useResignationLetter(id: string | null) {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ['resignation-letter', id],
+    queryFn: async () => {
+      if (!user || !id) return null;
+      return await databases.getDocument(DATABASE_ID, 'resignation_letters', id);
+    },
+    enabled: !!user && !!id,
   });
 }
 
@@ -47,17 +38,36 @@ export function useResignationLetterMutations() {
   const saveLetter = useMutation({
     mutationFn: async (input: any) => {
       if (!user) throw new Error('Not authenticated');
-      const doc = await databases.createDocument(DATABASE_ID, 'resignation_letters', ID.unique(), {
+      return await databases.createDocument(DATABASE_ID, 'resignation_letters', ID.unique(), {
         user_id: user.id,
         ...input
       });
-      return parseResignationLetter(doc);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['resignation-letters'] });
-      toast.success('Resignation letter saved!');
+      toast.success('Letter saved!');
     },
   });
 
-  return { saveLetter };
+  const updateLetter = useMutation({
+    mutationFn: async ({ id, updates }: { id: string, updates: any }) => {
+      return await databases.updateDocument(DATABASE_ID, 'resignation_letters', id, updates);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['resignation-letters'] });
+      toast.success('Letter updated');
+    }
+  });
+
+  const deleteLetter = useMutation({
+    mutationFn: async (id: string) => {
+      await databases.deleteDocument(DATABASE_ID, 'resignation_letters', id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['resignation-letters'] });
+      toast.success('Letter deleted');
+    }
+  });
+
+  return { saveLetter, updateLetter, deleteLetter };
 }

@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { functions } from './appwrite';
 
 /**
@@ -33,4 +34,10 @@ export async function generateNativePdf(htmlContent: string, fileName: string) {
 
 export function getPdfEndpoint() {
   return '/api/appwrite/pdf-stub';
+}
+
+export async function generateCoverLetterNativePDF(content: string, fileName: string) {
+  toast.info('PDF export is not available right now. Opening print dialog.');
+  window.print();
+  return { success: true };
 }
