@@ -46,8 +46,7 @@ import { Monitor, Smartphone } from 'lucide-react';
 
 
 // Minimum portfolio-password length enforced both client- and server-side.
-// The server (set_portfolio_password RPC) rejects anything shorter; this
-// constant keeps the editor and the public unlock gate consistent.
+// The same constant is checked on the public unlock page so both sides stay in sync.
 const PORTFOLIO_PASSWORD_MIN_LENGTH = 8;
 
 // Hard byte budget for the portfolio_extras JSONB column at publish time AND
@@ -749,14 +748,13 @@ export default function PortfolioEditorPage() {
     }
     if (usernameError) return;
 
-    // ── Portfolio password validation (Phase 1: server-side bcrypt) ──
-    // Hashing happens entirely on the server (set_portfolio_password RPC).
+    // ── Portfolio password validation ──
     // Block save here so the user gets immediate feedback rather than a
-    // generic backend error after a network round-trip.  We read the
-    // CURRENT state from the live profile cache only as a fast-path hint;
-    // the authoritative read happens below before we compose the payload,
-    // so a stale cache cannot cause us to write `passwordHash: null` over
-    // a real hash that exists in the DB.
+    // silent failure after the Appwrite write.  We read the CURRENT state
+    // from the live profile cache only as a fast-path hint; the authoritative
+    // read happens below before we compose the payload, so a stale cache
+    // cannot cause us to write `passwordHash: null` over a real hash that
+    // exists in the DB.
     const cachedPasswordEnabled = !!profile?.portfolioExtras?.passwordEnabled;
     const cachedPasswordHash = (profile?.portfolioExtras?.passwordHash as string | undefined) || '';
     const hasNewPassword = portfolioPassword.length > 0;
@@ -765,9 +763,9 @@ export default function PortfolioEditorPage() {
 
     // Only enforce the 8-char rule when the user is actually trying to set
     // a password.  If protection is disabled, any leftover characters in
-    // the (now-hidden) input must not block the publish — the RPC call
-    // below is gated on pwdStateChanged + isEnablingPassword anyway, so a
-    // stale value cannot reach the server.  This check is purely on
+    // the (now-hidden) input must not block the publish — the password
+    // upsert below is gated on pwdStateChanged + isEnablingPassword anyway,
+    // so a stale value cannot reach the DB.  This check is purely on
     // user-typed input and does not depend on cached/DB state, so it can
     // safely fire before the authoritative DB read below.
     if (isEnablingPassword && hasNewPassword && portfolioPassword.length < PORTFOLIO_PASSWORD_MIN_LENGTH) {
@@ -892,9 +890,9 @@ export default function PortfolioEditorPage() {
           lastSyncedFromResumeAt: syncMode === 'auto' ? new Date().toISOString() : (
             profile?.portfolioExtras?.lastSyncedFromResumeAt ?? null
           ),
-          // Preserve existing password fields untouched — set_portfolio_password
-          // (called after updateProfile below) is the SOLE writer of these two
-          // keys.  We use the FRESH DB read above (not the React Query cache)
+          // Preserve existing password fields untouched — the portfolio_settings
+          // upsert (called after updateProfile below) is the SOLE writer of these
+          // two keys.  We use the FRESH DB read above (not the React Query cache)
           // so a stale snapshot can never overwrite a real hash with null.
           passwordEnabled: dbPasswordEnabled,
           passwordHash: dbPasswordHash || null,
@@ -935,7 +933,7 @@ export default function PortfolioEditorPage() {
       // Called only when the password state actually changed so a routine
       // save never regenerates the hash.
       const pwdStateChanged = passwordEnabled !== dbPasswordEnabled || hasNewPassword;
-      let pwdRpcFailed = false;
+      let pwdUpdateFailed = false;
       if (pwdStateChanged) {
         try {
           let finalHash = dbPasswordHash;
@@ -975,9 +973,9 @@ export default function PortfolioEditorPage() {
           setPortfolioPassword('');
           // Refresh the profile cache so next render reads back the merged extras.
           queryClient.invalidateQueries({ queryKey: ['profile'] });
-        } catch (rpcErr) {
-          console.error('set_portfolio_password failed', rpcErr);
-          pwdRpcFailed = true;
+        } catch (pwdErr) {
+          console.error('portfolio_settings password update failed', pwdErr);
+          pwdUpdateFailed = true;
           toast.error('Portfolio saved, but the password update failed. Please try again.');
         }
       }
@@ -1000,11 +998,11 @@ export default function PortfolioEditorPage() {
       if (overrides?.portfolioEnabled !== undefined) {
         setPortfolioEnabled(overrides.portfolioEnabled);
       }
-      // Suppress the generic success toast when the password RPC failed —
+      // Suppress the generic success toast when the password update failed —
       // the error toast emitted above is the authoritative outcome and a
       // contradictory "Published!" alongside it would confuse the user
       // about whether protection is actually in effect.
-      if (!pwdRpcFailed) {
+      if (!pwdUpdateFailed) {
         toast.success('Published! Your portfolio is now live.');
       }
 
