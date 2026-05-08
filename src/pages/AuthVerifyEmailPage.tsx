@@ -36,7 +36,7 @@ export default function AuthVerifyEmailPage() {
 
   const secret = searchParams.get('secret');
   const userId = searchParams.get('userId');
-  const [mode, setMode] = useState<PageMode>(secret ? 'confirming' : 'pending');
+  const [mode, setMode] = useState<PageMode>(secret && userId ? 'confirming' : 'pending');
   const [resending, setResending] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -68,6 +68,11 @@ export default function AuthVerifyEmailPage() {
         setTimeout(() => navigate('/dashboard', { replace: true }), 2200);
       } catch (err) {
         console.error('[AuthVerifyEmailPage] confirm failed:', err);
+        const msg =
+          err instanceof AppwriteException
+            ? err.message
+            : 'Verification failed. The link may have expired — request a new one below.';
+        toast.error(msg);
         setMode('error');
       }
     })();
