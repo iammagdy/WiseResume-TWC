@@ -155,11 +155,9 @@ export function usePipeline(roleId?: string, clientId?: string) {
     mutationFn: async ({ candidateIds, toStage }: { candidateIds: string[]; toStage: PipelineStage }) => {
       if (!userId) throw new Error('Not authenticated');
       if (candidateIds.length === 0) return 0;
-      await Promise.all(
-        candidateIds.map((id) =>
-          databases.updateDocument(DATABASE_ID, COLLECTIONS.wisehire_candidates, id, { pipeline_stage: toStage }),
-        ),
-      );
+      for (const id of candidateIds) {
+        await databases.updateDocument(DATABASE_ID, COLLECTIONS.wisehire_candidates, id, { pipeline_stage: toStage });
+      }
       return candidateIds.length;
     },
     onMutate: async ({ candidateIds, toStage }) => {

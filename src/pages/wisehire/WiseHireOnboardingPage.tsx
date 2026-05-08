@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/safeClient';
-import { getUserId } from '@/lib/supabaseBridge';
+import { databases, Query, ID } from '@/lib/appwrite';
+import { COLLECTIONS, DATABASE_ID } from '@/lib/appwrite-collections';
+import { useAuth } from '@/hooks/useAuth';
 import { useWiseHireAccount } from '@/hooks/wisehire/useWiseHireAccount';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -96,7 +97,8 @@ function clearDraft() {
 export default function WiseHireOnboardingPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const userId = getUserId();
+  const { user } = useAuth();
+  const userId = user?.id;
   const { data: account } = useWiseHireAccount();
 
   const [draft, setDraft] = useState<OnboardingDraft>(() => {
@@ -156,30 +158,39 @@ export default function WiseHireOnboardingPage() {
     setSubmitError('');
 
     try {
-      // Upsert wisehire_companies
-      const { error: companyErr } = await supabase
-        .from('wisehire_companies')
-        .upsert(
-          {
-            owner_id: userId,
-            name: draft.name.trim() || 'My Company',
-            size: draft.size || '1-10',
-            role_types: draft.roleTypes.length > 0 ? draft.roleTypes : null,
-            monthly_volume: draft.monthlyVolume || null,
-            onboarding_completed: true,
-          },
-          { onConflict: 'owner_id' },
-        );
+      // Upsert wisehire_companies: list first, then update or create
+      const companyData = {
+        owner_id: userId,
+        name: draft.name.trim() || 'My Company',
+        size: draft.size || '1-10',
+        role_types: draft.roleTypes.length > 0 ? draft.roleTypes : null,
+        monthly_volume: draft.monthlyVolume || null,
+        onboarding_completed: true,
+      };
 
-      if (companyErr) throw new Error(companyErr.message);
+      const existing = await databases.listDocuments(DATABASE_ID, COLLECTIONS.wisehire_companies, [
+        Query.equal('owner_id', userId!),
+        Query.limit(1),
+      ]);
+
+      if (existing.total > 0) {
+        await databases.updateDocument(DATABASE_ID, COLLECTIONS.wisehire_companies, existing.documents[0].$id, companyData);
+      } else {
+        await databases.createDocument(DATABASE_ID, COLLECTIONS.wisehire_companies, ID.unique(), companyData);
+      }
 
       // Mark profile onboarding complete
-      const { error: profileErr } = await supabase
-        .from('profiles')
-        .update({ onboarding_completed: true })
-        .eq('user_id', userId);
-
-      if (profileErr) console.warn('[WiseHireOnboarding] profile update failed:', profileErr.message);
+      try {
+        const profileRes = await databases.listDocuments(DATABASE_ID, COLLECTIONS.profiles, [
+          Query.equal('user_id', userId!),
+          Query.limit(1),
+        ]);
+        if (profileRes.total > 0) {
+          await databases.updateDocument(DATABASE_ID, COLLECTIONS.profiles, profileRes.documents[0].$id, { onboarding_completed: true });
+        }
+      } catch (profileErr) {
+        console.warn('[WiseHireOnboarding] profile update failed:', profileErr instanceof Error ? profileErr.message : profileErr);
+      }
 
       clearDraft();
       queryClient.invalidateQueries({ queryKey: ['wisehire-account', userId] });

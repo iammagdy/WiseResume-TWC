@@ -1,3 +1,17 @@
+## 2026-05-08 — WiseHire + DevKit Appwrite migration — post-review fixes (Task #3)
+
+**Files fixed following code review rejection:**
+
+- `src/pages/wisehire/WiseHireOnboardingPage.tsx`: removed `import { supabase }` and `import { getUserId }`; added `databases, Query, ID` from `@/lib/appwrite`, `COLLECTIONS, DATABASE_ID` from `@/lib/appwrite-collections`, `useAuth` from `@/hooks/useAuth`. `getUserId()` → `useAuth().user?.id`. `supabase.from('wisehire_companies').upsert(...)` replaced with `databases.listDocuments([Query.equal('owner_id', userId), Query.limit(1)])` + conditional `updateDocument`/`createDocument`. `supabase.from('profiles').update(...).eq('user_id', userId)` replaced with `databases.listDocuments([Query.equal('user_id', userId)])` + `databases.updateDocument`.
+- `src/pages/share/PublicBriefPage.tsx`: removed `import { supabase }`; added `databases, Query` from `@/lib/appwrite`, `COLLECTIONS, DATABASE_ID` from `@/lib/appwrite-collections`. `supabase.from('wisehire_candidate_briefs').select('*, candidate:(...), role:(...)').eq(...).maybeSingle()` replaced with `databases.listDocuments([Query.equal('share_token', ...), Query.equal('share_token_active', true), Query.limit(1)])` followed by parallel `databases.getDocument` calls for candidate and role (joined in JS).
+- `src/components/dev-kit/MissionControlPanel.tsx`: removed `import { edgeFunctions } from '@/integrations/supabase/edgeFunctions'`, `import { supabase }`, `import { SUPABASE_URL }`; added `import { edgeFunctions } from '@/lib/edgeFunctions'` and `import { client } from '@/lib/appwrite'`. All `edgeFunctions.functions.invoke(` → `edgeFunctions.invoke(`. Supabase Realtime channel (`supabase.channel('mission-control-live-visitors').on('postgres_changes', ...).subscribe()`) replaced with `client.subscribe('databases.main.collections.visitor_events.documents', ...)` Appwrite Realtime; `SUPABASE_URL` guard removed; `supabase.removeChannel(channel)` → `unsubscribe()`.
+- `src/components/dev-kit/UserDetailDrawer.tsx`: removed `import { edgeFunctions } from '@/integrations/supabase/edgeFunctions'` and `import { supabase }`; added `import { edgeFunctions } from '@/lib/edgeFunctions'`, `import { databases, Query } from '@/lib/appwrite'`, `import { COLLECTIONS, DATABASE_ID } from '@/lib/appwrite-collections'`. All 17 `edgeFunctions.functions.invoke(` → `edgeFunctions.invoke(`. Username availability check: `supabase.from('profiles').select('user_id').eq('username', ...).neq('user_id', ...).maybeSingle()` → `databases.listDocuments(COLLECTIONS.profiles, [Query.equal('username', ...), Query.notEqual('user_id', ...), Query.limit(1)])`.
+- `src/hooks/wisehire/usePipeline.ts` (`bulkUpdatePipelineStage`): replaced `Promise.all(candidateIds.map(id => databases.updateDocument(...)))` with a sequential `for (const id of candidateIds)` loop as required.
+
+**`tsc --noEmit`: 0 errors. No `any` casts introduced.**
+
+---
+
 ## 2026-05-08 — WiseHire + DevKit Appwrite migration — complete (Task #3)
 
 **Hooks migrated — all `supabase`/`getUserId()` throw-stubs replaced with live Appwrite Web SDK:**

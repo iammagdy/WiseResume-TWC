@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { databases, Query } from '@/lib/appwrite';
+import { COLLECTIONS, DATABASE_ID } from '@/lib/appwrite-collections';
 import { BriefOutput } from '@/components/wisehire/brief/BriefOutput';
 import { BriefSkeleton } from '@/components/wisehire/brief/BriefSkeleton';
 import type { CandidateBrief } from '@/hooks/wisehire/useBriefs';
@@ -16,15 +17,34 @@ export default function PublicBriefPage() {
 
     async function fetchBrief() {
       try {
-        const { data, error } = await supabase
-          .from('wisehire_candidate_briefs')
-          .select('*, candidate:wisehire_candidates(name, email), role:wisehire_roles(title)')
-          .eq('share_token', shareToken)
-          .eq('share_token_active', true)
-          .maybeSingle();
+        const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.wisehire_candidate_briefs, [
+          Query.equal('share_token', shareToken!),
+          Query.equal('share_token_active', true),
+          Query.limit(1),
+        ]);
 
-        if (error || !data) { setNotFound(true); return; }
-        setBrief(data as CandidateBrief);
+        if (res.total === 0) { setNotFound(true); return; }
+
+        const doc = res.documents[0];
+
+        let candidate: { name: string; email: string } | null = null;
+        let role: { title: string } | null = null;
+
+        if (doc.candidate_id) {
+          try {
+            const candidateDoc = await databases.getDocument(DATABASE_ID, COLLECTIONS.wisehire_candidates, doc.candidate_id as string);
+            candidate = { name: candidateDoc.name as string, email: candidateDoc.email as string };
+          } catch { /* ignore — show brief without candidate name */ }
+        }
+
+        if (doc.role_id) {
+          try {
+            const roleDoc = await databases.getDocument(DATABASE_ID, COLLECTIONS.wisehire_roles, doc.role_id as string);
+            role = { title: roleDoc.title as string };
+          } catch { /* ignore — show brief without role title */ }
+        }
+
+        setBrief({ ...doc, id: doc.$id, candidate, role } as unknown as CandidateBrief);
       } catch {
         setNotFound(true);
       } finally {

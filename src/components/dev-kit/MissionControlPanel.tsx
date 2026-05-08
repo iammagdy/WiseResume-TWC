@@ -20,9 +20,8 @@ import {
   Users,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
-import { supabase } from '@/integrations/supabase/safeClient';
-import { SUPABASE_URL } from '@/lib/supabaseConstants';
+import { edgeFunctions } from '@/lib/edgeFunctions';
+import { client } from '@/lib/appwrite';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
 import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
 import { useIsMounted, useVisibleInterval } from '@/lib/devkit/hooks';
@@ -303,7 +302,7 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
     setLoading(true);
     setError(null);
     try {
-      const tuple = await edgeFunctions.functions.invoke('admin-devkit-data', {
+      const tuple = await edgeFunctions.invoke('admin-devkit-data', {
         headers: devKitAuthHeaders(),
         body: { action: 'mission-control' },
       });
@@ -326,7 +325,7 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
     setEdgeDriftLoading(true);
     setEdgeDriftError(null);
     try {
-      const tuple = await edgeFunctions.functions.invoke('admin-devkit-data', {
+      const tuple = await edgeFunctions.invoke('admin-devkit-data', {
         headers: devKitAuthHeaders(),
         body: { action: 'edge-fn-drift' },
       });
@@ -343,7 +342,7 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
 
   const fetchLiveCount = useCallback(async () => {
     try {
-      const tuple = await edgeFunctions.functions.invoke('admin-visitor-analytics', {
+      const tuple = await edgeFunctions.invoke('admin-visitor-analytics', {
         headers: devKitAuthHeaders(),
         body: { action: 'live-count' },
       });
@@ -362,29 +361,20 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
   useEffect(() => {
     fetchLiveCount();
 
-    if (!SUPABASE_URL) {
-      return;
-    }
-
-    const channel = supabase
-      .channel('mission-control-live-visitors')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'visitor_events' },
-        () => { fetchLiveCount(); },
-      )
-      .subscribe((status) => {
+    const unsubscribe = client.subscribe(
+      'databases.main.collections.visitor_events.documents',
+      (response) => {
         if (!isMounted()) return;
-        if (status === 'SUBSCRIBED') {
-          setRealtimeConnected(true);
-        } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          setRealtimeConnected(false);
+        if (response.events.some((e) => e.includes('.create'))) {
+          fetchLiveCount();
         }
-      });
+      },
+    );
+    setRealtimeConnected(true);
 
     return () => {
       setRealtimeConnected(false);
-      supabase.removeChannel(channel).catch(() => undefined);
+      unsubscribe();
     };
   }, [fetchLiveCount, isMounted]);
 
