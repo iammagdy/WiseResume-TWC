@@ -2,36 +2,15 @@ const sdk = require('node-appwrite');
 const path = require('path');
 const fs = require('fs');
 
+// The most reliable way to get InputFile in any node-appwrite version
+const InputFile = sdk.InputFile || require('node-appwrite/lib/inputFile.js');
+
 const client = new sdk.Client()
     .setEndpoint('https://fra.cloud.appwrite.io/v1')
     .setProject('69fd362b001eb325a192')
     .setKey(process.env.APPWRITE_API_KEY);
 
 const functions = new sdk.Functions(client);
-
-// Surgical import for InputFile
-let InputFile;
-try {
-    InputFile = require('node-appwrite/lib/inputFile.js');
-} catch (e) {
-    try {
-        InputFile = require('node-appwrite').InputFile;
-    } catch (e2) {
-        console.error('❌ CRITICAL: Could not find InputFile in node-appwrite.');
-        process.exit(1);
-    }
-}
-
-if (!InputFile) {
-    // One last try for different paths
-    const possiblePaths = [
-        'node-appwrite/dist/inputFile.js',
-        'node-appwrite/lib/inputFile.js'
-    ];
-    for (const p of possiblePaths) {
-        try { InputFile = require(p); if (InputFile) break; } catch (e) {}
-    }
-}
 
 async function run() {
   try {
@@ -67,5 +46,4 @@ async function run() {
     process.exit(1);
   }
 }
-
 run();
