@@ -331,8 +331,8 @@ export default function PortfolioEditorPage() {
     if (sessionStorage.getItem(DEDUP_KEY)) return;
     sessionStorage.setItem(DEDUP_KEY, '1');
     databases
-      .createDocument(DATABASE_ID, COLLECTIONS.portfolio_interactions, ID.unique(), {
-        action: 'handle_interest',
+      .createDocument(DATABASE_ID, COLLECTIONS.usage_events, ID.unique(), {
+        event_name: 'handle_interest',
         user_id: user?.id ?? null,
       })
       .catch(() => { /* fire-and-forget — ignore errors */ });
@@ -356,11 +356,12 @@ export default function PortfolioEditorPage() {
   // every 3 s.  Resets only on full unmount (i.e. leaving the editor page).
   const draftOverflowToastedRef = useRef(false);
 
-  // Debounced autosave to portfolio_draft — persists working copy to DB so
+  // Debounced autosave to portfolioDraft — persists working copy to Appwrite so
   // drafts survive page closes.
-  // IMPORTANT: writes directly to Supabase (bypassing the mutation that would
-  // call queryClient.invalidateQueries) so the profile refetch → state sync
-  // effect is NOT triggered and can never roll back the user's active edits.
+  // IMPORTANT: writes directly via databases.updateDocument (bypassing the
+  // useProfile mutation / queryClient.invalidateQueries) so the profile
+  // refetch → state sync effect is NOT triggered and can never roll back the
+  // user's active edits.
   // The React Query cache is updated minimally (portfolioDraft only).
   // lastDraftPersistedSnapshotRef deduplicates repeated autosave writes for
   // the same snapshot content.
