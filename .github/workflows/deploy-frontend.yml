@@ -1,7 +1,7 @@
 name: 🚀 Deploy Frontend
 
 on:
-  workflow_dispatch:
+  # workflow_dispatch:
 
 jobs:
   build-and-deploy:

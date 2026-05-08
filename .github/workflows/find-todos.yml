@@ -1,7 +1,7 @@
 name: Find All TODOs & FIXMEs
 
 on:
-  workflow_dispatch:
+  # workflow_dispatch:
     inputs:
       confirm:
         description: >
