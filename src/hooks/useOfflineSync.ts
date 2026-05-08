@@ -3,7 +3,8 @@ import { useNetworkStatus } from './useNetworkStatus';
 import { useOfflineSyncStore } from '@/store/offlineSyncStore';
 import { useResumeMutations } from './useResumes';
 import { useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { databases, DATABASE_ID } from '@/lib/appwrite';
+import { COLLECTIONS } from '@/lib/appwrite-collections';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 
@@ -25,34 +26,34 @@ export function useOfflineSync() {
 
     let synced = 0;
     for (const change of changes) {
-      // 1. Fetch server timestamp
-      const { data: serverResume } = await supabase
-        .from('resumes')
-        .select('updated_at')
-        .eq('id', change.resumeId)
-        .maybeSingle();
-
-      // 2. If resume was deleted on server, discard local change
-      if (!serverResume) {
+      // 1. Fetch server document to get $updatedAt
+      let serverDoc: Record<string, unknown> | null = null;
+      try {
+        serverDoc = await databases.getDocument(
+          DATABASE_ID,
+          COLLECTIONS.resumes,
+          change.resumeId,
+        ) as unknown as Record<string, unknown>;
+      } catch {
+        // 404 — resume was deleted on server; discard local change
         removePendingChange(change.resumeId);
         continue;
       }
 
-      // 3. Conflict detection: if server is newer, discard local change and notify user.
+      // 2. Conflict detection: if server is newer, discard local change and notify user.
       //    Strategy: server-wins (last-write-wins by server timestamp).
-      //    The user is explicitly notified so they can manually re-apply changes if needed.
-      const serverTime = new Date(serverResume.updated_at!).getTime();
+      const serverTime = new Date(serverDoc.$updatedAt as string).getTime();
       if (serverTime > change.timestamp) {
         removePendingChange(change.resumeId);
         queryClient.invalidateQueries({ queryKey: ['resume', change.resumeId] });
         toast.warning(
           'A conflict was detected: your offline edits were overridden by a newer version saved elsewhere. Please review your resume.',
-          { duration: 8000 }
+          { duration: 8000 },
         );
         continue;
       }
 
-      // 4. No conflict -- sync normally
+      // 3. No conflict — sync normally
       try {
         await updateResume.mutateAsync({
           resumeId: change.resumeId,
@@ -69,7 +70,7 @@ export function useOfflineSync() {
 
     if (synced > 0) {
       haptics.success();
-      toast.success(`All changes synced`);
+      toast.success('All changes synced');
     }
   }, [updateResume, removePendingChange, queryClient]);
 

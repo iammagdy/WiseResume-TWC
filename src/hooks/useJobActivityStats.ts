@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { apiFetch } from '@/lib/apiFetch';
+import { databases, DATABASE_ID, Query } from '@/lib/appwrite';
+import { COLLECTIONS } from '@/lib/appwrite-collections';
 import { useAuth } from './useAuth';
 import { startOfWeek, endOfWeek, subWeeks, format } from 'date-fns';
 
@@ -26,31 +27,45 @@ export interface JobActivityStats {
   isLoading: boolean;
 }
 
-interface JobActivityRowsResponse {
-  resumes: { parent_resume_id: string | null }[];
-  coverLetters: { id: string }[];
-  jobApplications: { status: string | null; applied_at: string | null }[];
-  tailorHistory: { job_title?: string | null; company?: string | null }[];
-}
-
 export function useJobActivityStats(): JobActivityStats {
   const { user } = useAuth();
 
   const { data, isLoading } = useQuery({
     queryKey: ['job-activity-stats', user?.id],
     queryFn: async () => {
-      const res = await apiFetch<JobActivityRowsResponse>('/api/data/job-activity-rows');
+      if (!user) throw new Error('Not authenticated');
 
-      const resumes = res.resumes || [];
+      const [resumesRes, coverLettersRes, jobAppsRes, tailorRes] = await Promise.all([
+        databases.listDocuments(DATABASE_ID, COLLECTIONS.resumes, [
+          Query.equal('user_id', user.id),
+          Query.select(['parent_resume_id']),
+          Query.limit(500),
+        ]),
+        databases.listDocuments(DATABASE_ID, COLLECTIONS.cover_letters, [
+          Query.equal('user_id', user.id),
+          Query.select(['$id']),
+          Query.limit(500),
+        ]),
+        databases.listDocuments(DATABASE_ID, COLLECTIONS.job_applications, [
+          Query.equal('user_id', user.id),
+          Query.select(['status', 'applied_at']),
+          Query.limit(500),
+        ]),
+        databases.listDocuments(DATABASE_ID, COLLECTIONS.tailor_history, [
+          Query.equal('user_id', user.id),
+          Query.select(['job_title', 'company']),
+          Query.limit(500),
+        ]),
+      ]);
+
+      const resumes = resumesRes.documents as unknown as { parent_resume_id?: string | null }[];
       const originals = resumes.filter(r => !r.parent_resume_id).length;
       const tailored = resumes.filter(r => r.parent_resume_id).length;
 
-      const tailorEntries = res.tailorHistory || [];
-      const uniqueJobs = new Set(
-        tailorEntries.map(t => `${t.job_title ?? ''}||${t.company || ''}`)
-      );
+      const tailorEntries = tailorRes.documents as unknown as { job_title?: string | null; company?: string | null }[];
+      const uniqueJobs = new Set(tailorEntries.map(t => `${t.job_title ?? ''}||${t.company ?? ''}`));
 
-      const appsData = res.jobApplications || [];
+      const appsData = jobAppsRes.documents as unknown as { status?: string | null; applied_at?: string | null }[];
 
       const appliedCount = appsData.filter(a => a.status === 'applied').length;
       const screeningCount = appsData.filter(a => a.status === 'screening').length;
@@ -85,7 +100,7 @@ export function useJobActivityStats(): JobActivityStats {
         originals,
         tailored,
         jobsAnalyzed: uniqueJobs.size,
-        coverLetters: (res.coverLetters || []).length,
+        coverLetters: coverLettersRes.total,
         applicationsSubmitted,
         interviewsScheduled,
         offersReceived,

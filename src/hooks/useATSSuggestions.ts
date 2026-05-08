@@ -2,7 +2,7 @@ import { useMemo, useCallback, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { ResumeData, SectionId } from '@/types/resume';
-import { getSupabaseToken } from '@/lib/supabaseAuth';
+import { getAppwriteJWT } from '@/lib/appwriteJWT';
 import { showErrorToast } from '@/lib/errorToast';
 import { parseAIErrorResponse, aiErrorToastMessage, AIError } from '@/lib/aiErrorParser';
 import { hasPassiveVerbs, hasMetrics, hasLongBullets, findPassiveStarter } from '@/lib/contentAnalysis';
@@ -285,27 +285,17 @@ export function useATSSuggestions(resume: ResumeData | null, jobDescription: str
           body: fetchBody,
         });
 
-      let token = await getSupabaseToken();
+      const token = await getAppwriteJWT().catch(() => null);
       if (!token) {
         throw new AIError({
           code: 'unauthorized',
           status: 401,
-          message: 'No active Supabase session',
+          message: 'No active session — please sign in again.',
         });
       }
 
       console.log(`[useATSSuggestions] Starting deep analysis for ${section}...`);
-      let res = await doFetch(token);
-
-      // On 401: refresh the bridge token once and retry before surfacing an error.
-      if (res.status === 401) {
-        const { refreshTokenIfNeeded } = await import('@/lib/supabaseBridge');
-        const refreshed = await refreshTokenIfNeeded();
-        if (refreshed) {
-          token = await getSupabaseToken();
-          res = await doFetch(token);
-        }
-      }
+      const res = await doFetch(token);
 
       if (!res.ok) {
         const info = await parseAIErrorResponse(res);

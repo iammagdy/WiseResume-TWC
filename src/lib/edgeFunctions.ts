@@ -1,14 +1,13 @@
 /**
  * Edge Functions client — multipart/FormData-capable wrapper.
  *
- * Routes all edge function calls through the Express server proxy at
- * /api/fn/:fnName so Supabase keys never leave the server.
+ * Routes all edge function calls through Appwrite Functions via the
+ * proxy at /api/fn/:fnName so API keys never leave the server.
  *
- * Used by hooks that need to send file uploads (e.g. wisehire-bulk-screen).
- * Unlike the JSON-only client, this one does NOT force Content-Type so the
- * browser can set the correct multipart boundary for FormData uploads.
+ * Authorization uses an Appwrite JWT (replaces the legacy Supabase bridge
+ * token). A single in-flight JWT is shared and cached for 14 minutes.
  */
-import { getToken, refreshTokenIfNeeded } from '@/lib/supabaseBridge';
+import { getAppwriteJWT, invalidateAppwriteJWT } from '@/lib/appwriteJWT';
 import { dispatchSessionExpiredOnce } from '@/integrations/supabase/sessionExpired';
 import { apiFnUrl } from '@/lib/apiFnUrl';
 
@@ -31,16 +30,12 @@ async function doFetch(
   const isFormData = options?.body instanceof FormData;
 
   const userHeaders = options?.headers ?? {};
-  const headers: Record<string, string> = {
-    ...userHeaders,
-  };
+  const headers: Record<string, string> = { ...userHeaders };
 
   if (!isFormData) {
     headers['Content-Type'] = 'application/json';
   }
 
-  // Caller-supplied Authorization wins over the bridge token (admin/DevKit
-  // calls send the HMAC-signed session token in the Authorization header).
   const hasUserAuth =
     'Authorization' in userHeaders || 'authorization' in userHeaders;
   if (token && !hasUserAuth) {
@@ -66,15 +61,20 @@ export const edgeFunctions = {
     options?: InvokeOptions,
   ): Promise<InvokeResult<T>> {
     try {
-      let response = await doFetch(fnName, options, getToken());
+      let token = await getAppwriteJWT();
+      let response = await doFetch(fnName, options, token);
 
       if (response.status === 401) {
-        const refreshed = await refreshTokenIfNeeded();
-        if (refreshed) {
-          response = await doFetch(fnName, options, getToken());
+        invalidateAppwriteJWT();
+        token = await getAppwriteJWT();
+        if (token) {
+          response = await doFetch(fnName, options, token);
         } else {
           dispatchSessionExpiredOnce();
-          return { data: null, error: { message: 'Session expired — please sign in again.', status: 401 } };
+          return {
+            data: null,
+            error: { message: 'Session expired — please sign in again.', status: 401 },
+          };
         }
       }
 
@@ -108,5 +108,14 @@ export const edgeFunctions = {
           : rawMessage;
       return { data: null, error: { message } };
     }
+  },
+
+  functions: {
+    async invoke<T = unknown>(
+      fnName: string,
+      options?: InvokeOptions,
+    ): Promise<InvokeResult<T>> {
+      return edgeFunctions.invoke<T>(fnName, options);
+    },
   },
 };

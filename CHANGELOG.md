@@ -1,3 +1,26 @@
+## 2026-05-08 — Appwrite migration Batch 6 (Task #2)
+
+**Files migrated — all Supabase throw-stubs replaced with live Appwrite Web SDK calls:**
+
+- `src/lib/sendFeedback.ts`: removed `supabase.functions.invoke` / `edgeFunctions` from supabase stub; both email channels (`send-contact-email`, `submit-contact-request`) now route through `edgeFunctions` from `@/lib/edgeFunctions`. Sentry channel unchanged. `useDirectSupabase` option kept for call-site compat (now a no-op).
+- `src/lib/dataExport.ts`: `importResumes()` rewritten — per-resume Appwrite upsert (getDocument 404 → createDocument, else updateDocument). `deleteAllUserData()` rewritten — paginated `listDocuments` + `deleteDocument` loop across all user-owned collections.
+- `src/lib/onboardingProfile.ts`: `saveOnboardingProfile()` migrated — profile upsert via `listDocuments` + update/create, resume insert via `createDocument`, completion flag via `updateDocument`. `reconcileOnboardingCompletion()` migrated similarly. `probeLinkedInUrl()` swapped `getSupabaseToken()` → `getAppwriteJWT()`. Removed `supabase`, `getUserId`, `Json` imports.
+- `src/lib/shareUtils.ts`: cosmetic cleanup — was already Appwrite-native from Batch 5; removed stale comment.
+- `src/components/layout/BroadcastBanner.tsx`: replaced `supabase.from('broadcasts').select(...).eq('active', true)` with `databases.listDocuments(DATABASE_ID, COLLECTIONS.broadcasts, [Query.equal('active', true)])`.
+- `src/components/ai/CreditUsageSheet.tsx`: replaced `supabase.from('ai_usage_logs').select(...).eq(...).gte(...).order(...).limit(50)` with Appwrite `databases.listDocuments`. Removed `Json` import from supabase types.
+- `src/components/BugReportDialog.tsx`: removed `import { getUserId } from '@/lib/supabaseBridge'`; replaced `getUserId()` with `user?.id` from the already-imported `useAuth()` hook.
+- `src/hooks/useAIEnhance.ts`: replaced `getSupabaseToken()` + `refreshTokenIfNeeded()` retry block with `getAppwriteJWT()`. No retry — 401 surfaces immediately as `AIError`.
+- `src/hooks/useATSSuggestions.ts`: same pattern — `getAppwriteJWT()`, removed `refreshTokenIfNeeded` retry.
+- `src/hooks/useResumeScore.ts`: replaced `getSupabaseToken()` with `getAppwriteJWT()`; skip guard unchanged.
+- `src/hooks/useAgenticChat.ts` (907 lines, surgical edits): replaced all 5 supabase call sites:
+  - Session load on mount: `supabase.from('chat_sessions')` → `databases.listDocuments` + `databases.listDocuments('chat_messages')`.
+  - `loadSession()`: same migration.
+  - `createSession()`: `supabase.from('chat_sessions').insert()` → `databases.createDocument`.
+  - `persistMessage()`: `supabase.from('chat_messages').insert()` + session `updated_at` touch → single `databases.createDocument` (Appwrite auto-bumps `$updatedAt`). `function_call` serialised as JSON string.
+  - Import swapped: `supabase from safeClient` → `databases, DATABASE_ID, Query, ID from appwrite` + `COLLECTIONS`.
+
+**TypeScript:** `tsc --noEmit` passes with zero errors after all changes.
+
 ## 2026-05-08 — Appwrite MCP server + secrets setup (Task #1)
 
 **Secrets / env vars:**

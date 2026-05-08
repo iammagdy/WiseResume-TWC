@@ -1,14 +1,14 @@
 import { memo, useMemo } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Zap, Clock, History, Eye } from 'lucide-react';
+import { Zap, Clock, Eye } from 'lucide-react';
 import { useAICredits } from '@/hooks/useAICredits';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { databases, DATABASE_ID, Query } from '@/lib/appwrite';
+import { COLLECTIONS } from '@/lib/appwrite-collections';
 import { useAuth } from '@/hooks/useAuth';
 import { CreditRing } from './CreditRing';
 import { getAICost } from '@/lib/aiCostEstimates';
 import { format } from 'date-fns';
-import { Json } from '@/integrations/supabase/types';
 
 interface CreditUsageSheetProps {
   open: boolean;
@@ -44,13 +44,11 @@ const BACKGROUND_ACTION_TYPES: readonly string[] = [
   'ats-score',
 ];
 
-function isBackground(metadata: Json | null, actionType?: string): boolean {
+function isBackground(metadata: unknown, actionType?: string): boolean {
   if (metadata && typeof metadata === 'object' && !Array.isArray(metadata)) {
     if ((metadata as Record<string, unknown>).background === true) return true;
   }
-  // Secondary filter: known background-only action types, regardless of metadata flag
   if (actionType && BACKGROUND_ACTION_TYPES.includes(actionType)) return true;
-  // Defensive fallback: score entries with null metadata are background
   if (actionType === 'score' && metadata == null) return true;
   return false;
 }
@@ -83,35 +81,37 @@ export const CreditUsageSheet = memo(function CreditUsageSheet({
     queryFn: async () => {
       if (!user) return [];
       const today = new Date().toISOString().split('T')[0];
-      const { data, error } = await supabase
-        .from('ai_usage_logs')
-        .select('action_type, created_at, metadata')
-        .eq('user_id', user.id)
-        .gte('created_at', `${today}T00:00:00`)
-        .order('created_at', { ascending: false })
-        .limit(50);
-
-      if (error) throw error;
-      return (data ?? [])
-        .filter((log) => log.created_at)
-        .map((log): ActivityEntry => {
-          const bg = isBackground(log.metadata, log.action_type);
+      const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.ai_usage_logs, [
+        Query.equal('user_id', user.id),
+        Query.greaterThanEqual('$createdAt', `${today}T00:00:00.000+00:00`),
+        Query.orderDesc('$createdAt'),
+        Query.limit(50),
+      ]);
+      return res.documents
+        .map(doc => {
+          const d = doc as unknown as Record<string, unknown>;
+          const actionType = (d.action_type as string) ?? '';
+          const createdAt = (d.$createdAt as string) ?? '';
+          const raw = d.metadata;
+          const metadata: unknown = typeof raw === 'string' ? JSON.parse(raw) : raw;
+          const bg = isBackground(metadata, actionType);
           return {
-            type: log.action_type,
-            label: CATEGORY_LABELS[log.action_type] || log.action_type,
-            time: log.created_at,
+            type: actionType,
+            label: CATEGORY_LABELS[actionType] || actionType,
+            time: createdAt,
             isBackground: bg,
-            cost: bg ? 0 : getAICost(log.action_type),
-          };
-        });
+            cost: bg ? 0 : getAICost(actionType),
+          } as ActivityEntry;
+        })
+        .filter(e => e.time);
     },
     enabled: !!user && open,
     refetchOnMount: 'always',
     staleTime: 0,
   });
 
-  const credited = useMemo(() => allActivity?.filter((a) => !a.isBackground) ?? [], [allActivity]);
-  const background = useMemo(() => allActivity?.filter((a) => a.isBackground) ?? [], [allActivity]);
+  const credited = useMemo(() => allActivity?.filter(a => !a.isBackground) ?? [], [allActivity]);
+  const background = useMemo(() => allActivity?.filter(a => a.isBackground) ?? [], [allActivity]);
 
   const timeUntilReset = useMemo(() => {
     const now = new Date();
@@ -121,7 +121,7 @@ export const CreditUsageSheet = memo(function CreditUsageSheet({
     const hours = Math.floor(diff / 3600000);
     const minutes = Math.floor((diff % 3600000) / 60000);
     return `${hours}h ${minutes}m`;
-  }, [open]);
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>

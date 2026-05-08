@@ -2,6 +2,20 @@
 
 **Last verified:** 2026-05-08
 
+## More features reconnected to the new backend — Batch 6 (2026-05-08)
+
+Another round of reconnection work is done. The following parts of the app now talk directly to the new backend (Appwrite) instead of hitting a dead-end stub:
+
+- **Feedback & bug reports** — when you shake the device or click "Report a bug", the form now correctly routes your message through both the Sentry error channel and the email pipeline.
+- **Broadcasts banner** — the top-of-screen announcement bar (used for maintenance notices and platform news) now fetches live data from the new backend.
+- **AI credit usage sheet** — the sheet showing today's credit usage and activity log now reads from live data.
+- **Resume import (data export)** — restoring resumes from a `.json` backup file now correctly creates or updates each resume in the new backend. Deleting all account data also correctly cleans every table.
+- **Onboarding profile save** — the onboarding flow (where you confirm what to import from your CV or LinkedIn) now correctly saves your profile and first resume to the new backend, and reconciles incomplete saves if the network drops mid-flow.
+- **AI enhance, ATS deep analysis, resume health scoring** — these three AI features now use the correct Appwrite authentication token when calling the AI backend (instead of the old Supabase token). No user-visible behaviour change — these features were already working via the AI Hub; this fixes the auth handshake.
+- **AI Studio chat persistence** — session and message history for the AI chat (agentic chat) now reads from and writes to the new backend. Chat history across sessions should now correctly load and save.
+
+**Last verified:** 2026-05-08
+
 ## The agent can now read live Appwrite data directly — foundation for the rebuild (2026-05-08)
 
 As the next step after removing the old backend, we set up the building blocks needed for the agent to safely rebuild every broken feature.

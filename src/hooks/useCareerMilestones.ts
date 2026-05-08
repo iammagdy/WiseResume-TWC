@@ -2,7 +2,8 @@ import { useMemo } from 'react';
 import { useResumes } from '@/hooks/useResumes';
 import { useJobApplications } from '@/hooks/useJobApplications';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { databases, DATABASE_ID, Query } from '@/lib/appwrite';
+import { COLLECTIONS } from '@/lib/appwrite-collections';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 
@@ -25,11 +26,12 @@ export function useCareerMilestones() {
     queryKey: ['interview-count', user?.id],
     queryFn: async () => {
       if (!user?.id) return 0;
-      const { count } = await supabase
-        .from('interview_sessions')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', user.id);
-      return count ?? 0;
+      const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.interview_sessions, [
+        Query.equal('user_id', user.id),
+        Query.equal('status', 'completed'),
+        Query.limit(1),
+      ]);
+      return res.total;
     },
     enabled: !!user?.id,
     staleTime: 60_000,
@@ -39,11 +41,11 @@ export function useCareerMilestones() {
     queryKey: ['tailor-count', user?.id],
     queryFn: async () => {
       if (!user?.id) return 0;
-      const { count } = await supabase
-        .from('tailor_history')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', user.id);
-      return count ?? 0;
+      const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.tailor_history, [
+        Query.equal('user_id', user.id),
+        Query.limit(1),
+      ]);
+      return res.total;
     },
     enabled: !!user?.id,
     staleTime: 60_000,

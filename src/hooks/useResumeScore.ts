@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { getSupabaseToken } from '@/lib/supabaseAuth';
+import { getAppwriteJWT } from '@/lib/appwriteJWT';
 
 import { ResumeData } from '@/types/resume';
 import { toast } from 'sonner';
@@ -148,11 +148,11 @@ const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 async function invokeScoreResume(resume: ResumeData, isBackground = false): Promise<{ data: any; latencyMs: number }> {
   const { content: normalized, templateId } = normalizeForScoring(resume);
   const _start = Date.now();
-  const token = await getSupabaseToken();
+  const token = await getAppwriteJWT().catch(() => null);
 
   if (!token) {
-    // Bridge token not ready — silently skip scoring rather than showing a false session-expired error
-    throw Object.assign(new Error('Scoring skipped: bridge token not available'), { isSkip: true });
+    // JWT not ready — silently skip scoring rather than showing a false session-expired error
+    throw Object.assign(new Error('Scoring skipped: Appwrite JWT not available'), { isSkip: true });
   }
 
   const scoreUrl = apiFnUrl(`score-resume`);

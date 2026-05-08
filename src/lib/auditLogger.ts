@@ -1,11 +1,11 @@
-import { getToken, getUserId } from '@/lib/supabaseBridge';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { databases, DATABASE_ID, ID, account } from '@/lib/appwrite';
+import { COLLECTIONS } from '@/lib/appwrite-collections';
 
 type AuditCategory = 'migration' | 'account' | 'api_key' | 'auth' | 'onboarding';
 
 /**
  * Fire-and-forget audit logger. Inserts a row into `audit_logs`.
- * Never throws -- errors are silently logged to console.
+ * Never throws — errors are silently logged to console.
  */
 export function logAudit(
   category: AuditCategory,
@@ -14,14 +14,20 @@ export function logAudit(
 ): void {
   (async () => {
     try {
-      const userId = getUserId();
+      let userId: string | null = null;
+      try {
+        const user = await account.get();
+        userId = user.$id;
+      } catch {
+        return;
+      }
       if (!userId) return;
 
-      await (supabase.from('audit_logs' as never) as any).insert({
+      await databases.createDocument(DATABASE_ID, COLLECTIONS.audit_logs, ID.unique(), {
         user_id: userId,
         category,
         action,
-        metadata,
+        metadata: JSON.stringify(metadata),
       });
     } catch (e) {
       console.warn('Audit log failed:', e);

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { X, Info, AlertTriangle, AlertOctagon, Clock } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { databases, DATABASE_ID, Query } from '@/lib/appwrite';
+import { COLLECTIONS } from '@/lib/appwrite-collections';
 
 interface Broadcast {
   id: string;
@@ -65,14 +66,26 @@ export function BroadcastBanner() {
 
   useEffect(() => {
     let cancelled = false;
-    supabase
-      .from('broadcasts')
-      .select('id, title, body, severity')
-      .eq('active', true)
-      .then(({ data }) => {
+    databases
+      .listDocuments(DATABASE_ID, COLLECTIONS.broadcasts, [
+        Query.equal('active', true),
+        Query.select(['$id', 'title', 'body', 'severity']),
+        Query.limit(20),
+      ])
+      .then(res => {
         if (cancelled) return;
-        setBroadcasts((data as Broadcast[]) ?? []);
-      });
+        const items: Broadcast[] = res.documents.map(d => {
+          const doc = d as unknown as Record<string, unknown>;
+          return {
+            id: doc.$id as string,
+            title: (doc.title as string) ?? '',
+            body: (doc.body as string) ?? '',
+            severity: (doc.severity as Broadcast['severity']) ?? 'info',
+          };
+        });
+        setBroadcasts(items);
+      })
+      .catch(() => { /* not critical — silent fail */ });
     return () => { cancelled = true; };
   }, []);
 
@@ -83,12 +96,12 @@ export function BroadcastBanner() {
     saveDismissed(next);
   };
 
-  const visible = broadcasts.filter((b) => !dismissed.has(b.id));
+  const visible = broadcasts.filter(b => !dismissed.has(b.id));
   if (visible.length === 0) return null;
 
   return (
     <div className="flex flex-col gap-0.5">
-      {visible.map((b) => {
+      {visible.map(b => {
         const style = SEVERITY_STYLES[b.severity] ?? SEVERITY_STYLES.info;
         const Icon = style.icon;
         return (

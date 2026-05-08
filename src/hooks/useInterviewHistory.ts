@@ -1,30 +1,45 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { databases, DATABASE_ID, Query, ID } from '@/lib/appwrite';
+import { COLLECTIONS } from '@/lib/appwrite-collections';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
-import type { Json } from '@/integrations/supabase/types';
 
 export interface InterviewSessionRecord {
   id: string;
   user_id: string;
   resume_id: string | null;
-  /**
-   * Snapshot of the source resume's title at session start. Trigger-
-   * maintained so the row survives a resume delete with a meaningful
-   * label. See migration 20260522000000_snapshot_resume_title_on_artifacts.sql.
-   */
   resume_title: string | null;
   interview_type: string | null;
   job_title: string | null;
   job_description: string | null;
-  messages: Json | null;
+  messages: unknown | null;
   overall_score: number | null;
-  strengths: Json | null;
-  improvements: Json | null;
+  strengths: unknown | null;
+  improvements: unknown | null;
   duration_seconds: number | null;
   status: string | null;
   created_at: string | null;
   updated_at: string | null;
+}
+
+function docToRecord(doc: Record<string, unknown>): InterviewSessionRecord {
+  return {
+    id: doc.$id as string,
+    user_id: doc.user_id as string,
+    resume_id: (doc.resume_id as string | null) ?? null,
+    resume_title: (doc.resume_title as string | null) ?? null,
+    interview_type: (doc.interview_type as string | null) ?? null,
+    job_title: (doc.job_title as string | null) ?? null,
+    job_description: (doc.job_description as string | null) ?? null,
+    messages: doc.messages ?? null,
+    overall_score: (doc.overall_score as number | null) ?? null,
+    strengths: doc.strengths ?? null,
+    improvements: doc.improvements ?? null,
+    duration_seconds: (doc.duration_seconds as number | null) ?? null,
+    status: (doc.status as string | null) ?? null,
+    created_at: (doc.$createdAt as string) ?? null,
+    updated_at: (doc.$updatedAt as string) ?? null,
+  };
 }
 
 export function useInterviewHistory() {
@@ -33,13 +48,14 @@ export function useInterviewHistory() {
   return useQuery({
     queryKey: ['interview-sessions', user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('interview_sessions')
-        .select('*')
-        .eq('status', 'completed')
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      return (data || []) as InterviewSessionRecord[];
+      if (!user) return [];
+      const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.interview_sessions, [
+        Query.equal('user_id', user.id),
+        Query.equal('status', 'completed'),
+        Query.orderDesc('$createdAt'),
+        Query.limit(100),
+      ]);
+      return res.documents.map(d => docToRecord(d as unknown as Record<string, unknown>));
     },
     enabled: !!user,
   });
@@ -56,7 +72,7 @@ export function useSaveInterviewSession() {
       interview_type?: string;
       job_title?: string;
       job_description?: string;
-      messages?: Json;
+      messages?: unknown;
       overall_score?: number;
       strengths?: string[];
       improvements?: string[];
@@ -65,39 +81,39 @@ export function useSaveInterviewSession() {
       if (!user) throw new Error('Not authenticated');
       const payload = {
         user_id: user.id,
-        resume_id: input.resume_id || null,
-        interview_type: input.interview_type || 'general',
-        job_title: input.job_title || null,
-        job_description: input.job_description || null,
-        messages: input.messages || [],
-        overall_score: input.overall_score || null,
-        strengths: (input.strengths || []) as unknown as Json,
-        improvements: (input.improvements || []) as unknown as Json,
-        duration_seconds: input.duration_seconds || null,
-        status: 'completed' as const,
+        resume_id: input.resume_id ?? null,
+        interview_type: input.interview_type ?? 'general',
+        job_title: input.job_title ?? null,
+        job_description: input.job_description ?? null,
+        messages: JSON.stringify(input.messages ?? []),
+        overall_score: input.overall_score ?? null,
+        strengths: JSON.stringify(input.strengths ?? []),
+        improvements: JSON.stringify(input.improvements ?? []),
+        duration_seconds: input.duration_seconds ?? null,
+        status: 'completed',
       };
 
-      // If we have a draft id, promote it to a completed session in place so
-      // we don't end up with two rows (the draft and the final save).
       if (input.draft_id) {
-        const { data, error } = await supabase
-          .from('interview_sessions')
-          .update(payload)
-          .eq('id', input.draft_id)
-          .eq('user_id', user.id)
-          .select()
-          .single();
-        if (!error && data) return data as InterviewSessionRecord;
-        // Fall through to insert if the update failed (e.g., draft was pruned)
+        try {
+          const doc = await databases.updateDocument(
+            DATABASE_ID,
+            COLLECTIONS.interview_sessions,
+            input.draft_id,
+            payload,
+          );
+          return docToRecord(doc as unknown as Record<string, unknown>);
+        } catch {
+          // Draft was pruned — fall through to create
+        }
       }
 
-      const { data, error } = await supabase
-        .from('interview_sessions')
-        .insert(payload)
-        .select()
-        .single();
-      if (error) throw error;
-      return data as InterviewSessionRecord;
+      const doc = await databases.createDocument(
+        DATABASE_ID,
+        COLLECTIONS.interview_sessions,
+        ID.unique(),
+        payload,
+      );
+      return docToRecord(doc as unknown as Record<string, unknown>);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['interview-sessions'] });
@@ -114,11 +130,7 @@ export function useDeleteInterviewSession() {
   return useMutation({
     mutationFn: async (id: string) => {
       if (!user) throw new Error('Not authenticated');
-      const { error } = await supabase
-        .from('interview_sessions')
-        .delete()
-        .eq('id', id);
-      if (error) throw error;
+      await databases.deleteDocument(DATABASE_ID, COLLECTIONS.interview_sessions, id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['interview-sessions'] });
@@ -140,27 +152,16 @@ export function useLatestInterviewDraft() {
     queryFn: async () => {
       if (!user) return null;
       const cutoff = new Date(Date.now() - DRAFT_FRESHNESS_MS).toISOString();
-      const { data, error } = await supabase
-        .from('interview_sessions')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('status', 'draft')
-        .gte('updated_at', cutoff)
-        .order('updated_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (error) throw error;
-
-      // Opportunistic cleanup: prune this user's expired drafts so they don't
-      // pile up. Fire-and-forget; failure here is harmless.
-      void supabase
-        .from('interview_sessions')
-        .delete()
-        .eq('user_id', user.id)
-        .eq('status', 'draft')
-        .lt('updated_at', cutoff);
-
-      return (data || null) as InterviewSessionRecord | null;
+      const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.interview_sessions, [
+        Query.equal('user_id', user.id),
+        Query.equal('status', 'draft'),
+        Query.greaterThanEqual('$updatedAt', cutoff),
+        Query.orderDesc('$updatedAt'),
+        Query.limit(1),
+      ]);
+      return res.documents.length > 0
+        ? docToRecord(res.documents[0] as unknown as Record<string, unknown>)
+        : null;
     },
     enabled: !!user,
     staleTime: 30 * 1000,
@@ -174,7 +175,7 @@ export interface UpsertDraftInput {
   interview_type?: string;
   job_title?: string | null;
   job_description?: string | null;
-  messages?: Json;
+  messages?: unknown;
   duration_seconds?: number;
 }
 
@@ -187,33 +188,36 @@ export function useUpsertInterviewDraft() {
       if (!user) throw new Error('Not authenticated');
       const payload = {
         user_id: user.id,
-        resume_id: input.resume_id || null,
-        interview_type: input.interview_type || 'general',
-        job_title: input.job_title || null,
-        job_description: input.job_description || null,
-        messages: input.messages || [],
-        duration_seconds: input.duration_seconds || null,
-        status: 'draft' as const,
+        resume_id: input.resume_id ?? null,
+        interview_type: input.interview_type ?? 'general',
+        job_title: input.job_title ?? null,
+        job_description: input.job_description ?? null,
+        messages: JSON.stringify(input.messages ?? []),
+        duration_seconds: input.duration_seconds ?? null,
+        status: 'draft',
       };
 
       if (input.draft_id) {
-        const { data, error } = await supabase
-          .from('interview_sessions')
-          .update(payload)
-          .eq('id', input.draft_id)
-          .eq('user_id', user.id)
-          .select()
-          .single();
-        if (!error && data) return data as InterviewSessionRecord;
+        try {
+          const doc = await databases.updateDocument(
+            DATABASE_ID,
+            COLLECTIONS.interview_sessions,
+            input.draft_id,
+            payload,
+          );
+          return docToRecord(doc as unknown as Record<string, unknown>);
+        } catch {
+          // Fall through to create
+        }
       }
 
-      const { data, error } = await supabase
-        .from('interview_sessions')
-        .insert(payload)
-        .select()
-        .single();
-      if (error) throw error;
-      return data as InterviewSessionRecord;
+      const doc = await databases.createDocument(
+        DATABASE_ID,
+        COLLECTIONS.interview_sessions,
+        ID.unique(),
+        payload,
+      );
+      return docToRecord(doc as unknown as Record<string, unknown>);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['interview-draft'] });
@@ -228,13 +232,16 @@ export function useDeleteInterviewDraft() {
   return useMutation({
     mutationFn: async (id: string) => {
       if (!user) throw new Error('Not authenticated');
-      const { error } = await supabase
-        .from('interview_sessions')
-        .delete()
-        .eq('id', id)
-        .eq('user_id', user.id)
-        .eq('status', 'draft');
-      if (error) throw error;
+      // Verify it's a draft belonging to this user before deleting
+      const doc = await databases.getDocument(
+        DATABASE_ID,
+        COLLECTIONS.interview_sessions,
+        id,
+      ) as unknown as Record<string, unknown>;
+      if (doc.user_id !== user.id || doc.status !== 'draft') {
+        throw new Error('Not authorised to delete this draft');
+      }
+      await databases.deleteDocument(DATABASE_ID, COLLECTIONS.interview_sessions, id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['interview-draft'] });

@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { databases, DATABASE_ID, Query, ID } from '@/lib/appwrite';
+import { COLLECTIONS } from '@/lib/appwrite-collections';
 
 export interface PortfolioHistoryRecord {
   id: string;
@@ -8,81 +9,78 @@ export interface PortfolioHistoryRecord {
   created_at: string;
 }
 
+function docToRecord(doc: Record<string, unknown>): PortfolioHistoryRecord {
+  const raw = doc.portfolio_data;
+  return {
+    id: doc.$id as string,
+    user_id: doc.user_id as string,
+    portfolio_data: typeof raw === 'string'
+      ? (JSON.parse(raw) as Record<string, unknown>)
+      : (raw as Record<string, unknown>),
+    created_at: doc.$createdAt as string,
+  };
+}
+
 export function usePortfolioHistory(userId: string | undefined) {
   const queryClient = useQueryClient();
 
-  // Fetch history list
   const { data: history = [], isLoading: loading } = useQuery({
     queryKey: ['portfolio-history', userId],
     queryFn: async () => {
       if (!userId) return [];
-      const { data, error } = await supabase
-        .from('portfolio_history')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching portfolio history:', error);
-        throw error;
-      }
-      return data as PortfolioHistoryRecord[];
+      const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.portfolio_history, [
+        Query.equal('user_id', userId),
+        Query.orderDesc('$createdAt'),
+        Query.limit(50),
+      ]);
+      return res.documents.map(d => docToRecord(d as unknown as Record<string, unknown>));
     },
     enabled: !!userId,
   });
 
-  // Save history snapshot
   const saveSnapshotMutation = useMutation({
     mutationFn: async (portfolioData: Record<string, unknown>) => {
       if (!userId) throw new Error('No user ID');
 
       // Dedup: skip the insert when the payload is byte-identical to the most
-      // recent snapshot.  Repeated saves with no real change would otherwise
-      // pollute the history list with duplicate entries the user can't tell
-      // apart, push older meaningful snapshots off any retention window, and
-      // waste storage on the JSONB column.  Comparison is done over the full
-      // serialized payload so a key-order shuffle is treated as a no-op.
-      const { data: latestRows } = await supabase
-        .from('portfolio_history')
-        .select('portfolio_data')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(1);
-      const latest = latestRows?.[0]?.portfolio_data as Record<string, unknown> | undefined;
-      if (latest && JSON.stringify(latest) === JSON.stringify(portfolioData)) {
-        return null;
+      // recent snapshot so repeated saves don't pollute history.
+      const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.portfolio_history, [
+        Query.equal('user_id', userId),
+        Query.orderDesc('$createdAt'),
+        Query.limit(1),
+      ]);
+      const latest = res.documents[0] as unknown as Record<string, unknown> | undefined;
+      if (latest) {
+        const latestData = typeof latest.portfolio_data === 'string'
+          ? JSON.parse(latest.portfolio_data as string)
+          : latest.portfolio_data;
+        if (JSON.stringify(latestData) === JSON.stringify(portfolioData)) return null;
       }
 
-      const { data, error } = await supabase
-        .from('portfolio_history')
-        .insert({
+      const doc = await databases.createDocument(
+        DATABASE_ID,
+        COLLECTIONS.portfolio_history,
+        ID.unique(),
+        {
           user_id: userId,
-          portfolio_data: portfolioData
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data as PortfolioHistoryRecord;
+          portfolio_data: JSON.stringify(portfolioData),
+        },
+      );
+      return docToRecord(doc as unknown as Record<string, unknown>);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['portfolio-history', userId] });
-    }
+    },
   });
 
-  // Delete history snapshot (optional utility)
   const deleteSnapshotMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('portfolio_history')
-        .delete()
-        .eq('id', id);
-      if (error) throw error;
+      await databases.deleteDocument(DATABASE_ID, COLLECTIONS.portfolio_history, id);
       return id;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['portfolio-history', userId] });
-    }
+    },
   });
 
   return {
@@ -90,6 +88,6 @@ export function usePortfolioHistory(userId: string | undefined) {
     loading,
     saveSnapshot: saveSnapshotMutation.mutateAsync,
     isSaving: saveSnapshotMutation.isPending,
-    deleteSnapshot: deleteSnapshotMutation.mutateAsync
+    deleteSnapshot: deleteSnapshotMutation.mutateAsync,
   };
 }

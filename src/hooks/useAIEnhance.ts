@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import { getSupabaseToken } from '@/lib/supabaseAuth';
+import { getAppwriteJWT } from '@/lib/appwriteJWT';
 import { toast } from 'sonner';
 import { useAIAction } from '@/hooks/useAIAction';
 import { useAIHealthStore } from '@/store/aiHealthStore';
@@ -148,28 +148,18 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
             body,
           });
 
-        let token = await getSupabaseToken();
+        const token = await getAppwriteJWT().catch(() => null);
         if (!token) {
           // Surface as a structured AIError so useAIAction maps it to the
           // canonical "Session expired" toast (same as a real 401 response).
           throw new AIError({
             code: 'unauthorized',
             status: 401,
-            message: 'No active Supabase session',
+            message: 'No active session — please sign in again.',
           });
         }
 
-        let res = await doFetch(token);
-
-        // On 401: refresh the bridge token once and retry before surfacing an error.
-        if (res.status === 401) {
-          const { refreshTokenIfNeeded } = await import('@/lib/supabaseBridge');
-          const refreshed = await refreshTokenIfNeeded();
-          if (refreshed) {
-            token = await getSupabaseToken();
-            res = await doFetch(token);
-          }
-        }
+        const res = await doFetch(token);
 
         clearTimeout(slowTimer);
         const _latency = Date.now() - _start;

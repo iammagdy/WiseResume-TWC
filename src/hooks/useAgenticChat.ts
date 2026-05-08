@@ -8,7 +8,8 @@ import { useAIHealthStore } from '@/store/aiHealthStore';
 import { haptics } from '@/lib/haptics';
 import { useAICreditsMutations } from './useAICredits';
 import { useAuth } from './useAuth';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { databases, DATABASE_ID, Query, ID } from '@/lib/appwrite';
+import { COLLECTIONS } from '@/lib/appwrite-collections';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { ResumeData } from '@/types/resume';
@@ -160,32 +161,42 @@ export function useAgenticChat(contextFilter?: string) {
 
     (async () => {
       try {
-        const { data: sessions } = await supabase
-          .from('chat_sessions')
-          .select('id')
-          .order('updated_at', { ascending: false })
-          .limit(1);
+        const sessionRes = await databases.listDocuments(
+          DATABASE_ID,
+          COLLECTIONS.chat_sessions,
+          [Query.orderDesc('$updatedAt'), Query.limit(1)],
+        );
 
-        if (!sessions || sessions.length === 0) return;
-        const latestId = sessions[0].id as string;
+        if (sessionRes.documents.length === 0) return;
+        const latestId = sessionRes.documents[0].$id;
 
-        const { data: msgs } = await supabase
-          .from('chat_messages')
-          .select('*')
-          .eq('session_id', latestId)
-          .order('created_at', { ascending: true });
+        const msgRes = await databases.listDocuments(
+          DATABASE_ID,
+          COLLECTIONS.chat_messages,
+          [Query.equal('session_id', latestId), Query.orderAsc('$createdAt'), Query.limit(200)],
+        );
 
-        if (!msgs || msgs.length === 0) return;
+        if (msgRes.documents.length === 0) return;
 
-        const loaded: ChatMessage[] = msgs.map((m) => ({
-          id: uuidv4(),
-          role: m.role as 'user' | 'assistant',
-          content: m.content as string,
-          timestamp: new Date(m.created_at as string).getTime(),
-          ...(m.function_call
-            ? { functionCall: (m.function_call as Record<string, unknown>) as { name: string; args: Record<string, unknown> } }
-            : {}),
-        }));
+        const loaded: ChatMessage[] = msgRes.documents.map((doc) => {
+          const d = doc as unknown as Record<string, unknown>;
+          const rawFn = d.function_call;
+          const fnParsed: Record<string, unknown> | undefined =
+            typeof rawFn === 'string' && rawFn
+              ? (JSON.parse(rawFn) as Record<string, unknown>)
+              : typeof rawFn === 'object' && rawFn !== null
+                ? (rawFn as Record<string, unknown>)
+                : undefined;
+          return {
+            id: uuidv4(),
+            role: (d.role as 'user' | 'assistant') ?? 'assistant',
+            content: (d.content as string) ?? '',
+            timestamp: new Date((d.$createdAt as string) ?? '').getTime(),
+            ...(fnParsed
+              ? { functionCall: fnParsed as { name: string; args: Record<string, unknown> } }
+              : {}),
+          };
+        });
 
         setMessages(loaded);
         sessionIdRef.current = latestId;
@@ -199,21 +210,31 @@ export function useAgenticChat(contextFilter?: string) {
   // Public: load a specific historical session by ID
   const loadSession = useCallback(async (id: string) => {
     try {
-      const { data: msgs } = await supabase
-        .from('chat_messages')
-        .select('*')
-        .eq('session_id', id)
-        .order('created_at', { ascending: true });
+      const msgRes = await databases.listDocuments(
+        DATABASE_ID,
+        COLLECTIONS.chat_messages,
+        [Query.equal('session_id', id), Query.orderAsc('$createdAt'), Query.limit(200)],
+      );
 
-      const loaded: ChatMessage[] = (msgs ?? []).map((m) => ({
-        id: uuidv4(),
-        role: m.role as 'user' | 'assistant',
-        content: m.content as string,
-        timestamp: new Date(m.created_at as string).getTime(),
-        ...(m.function_call
-          ? { functionCall: (m.function_call as Record<string, unknown>) as { name: string; args: Record<string, unknown> } }
-          : {}),
-      }));
+      const loaded: ChatMessage[] = msgRes.documents.map((doc) => {
+        const d = doc as unknown as Record<string, unknown>;
+        const rawFn = d.function_call;
+        const fnParsed: Record<string, unknown> | undefined =
+          typeof rawFn === 'string' && rawFn
+            ? (JSON.parse(rawFn) as Record<string, unknown>)
+            : typeof rawFn === 'object' && rawFn !== null
+              ? (rawFn as Record<string, unknown>)
+              : undefined;
+        return {
+          id: uuidv4(),
+          role: (d.role as 'user' | 'assistant') ?? 'assistant',
+          content: (d.content as string) ?? '',
+          timestamp: new Date((d.$createdAt as string) ?? '').getTime(),
+          ...(fnParsed
+            ? { functionCall: fnParsed as { name: string; args: Record<string, unknown> } }
+            : {}),
+        };
+      });
 
       setMessages(loaded);
       sessionIdRef.current = id;
@@ -227,18 +248,18 @@ export function useAgenticChat(contextFilter?: string) {
   const createSession = useCallback(async (title: string): Promise<string | null> => {
     if (!user) return null;
     try {
-      const { data, error } = await supabase
-        .from('chat_sessions')
-        .insert({
+      const doc = await databases.createDocument(
+        DATABASE_ID,
+        COLLECTIONS.chat_sessions,
+        ID.unique(),
+        {
           user_id: user.id,
           resume_id: currentResumeId ?? null,
           title,
-        })
-        .select('id')
-        .single();
-      if (error || !data) return null;
+        },
+      );
       queryClient.invalidateQueries({ queryKey: ['chat_sessions'] });
-      return data.id as string;
+      return doc.$id;
     } catch {
       return null;
     }
@@ -251,22 +272,20 @@ export function useAgenticChat(contextFilter?: string) {
     content: string,
     functionCallData?: { name: string; args: Record<string, unknown> }
   ) => {
-    supabase
-      .from('chat_messages')
-      .insert({
+    // Fire-and-forget: create message doc.
+    // $updatedAt on the session is automatically bumped by Appwrite on any write,
+    // so we don't need to touch the session document separately.
+    void databases.createDocument(
+      DATABASE_ID,
+      COLLECTIONS.chat_messages,
+      ID.unique(),
+      {
         session_id: sessionId,
         role,
         content,
-        function_call: functionCallData ?? null,
-      })
-      .then(() => {
-        // Touch updated_at on session
-        supabase
-          .from('chat_sessions')
-          .update({ updated_at: new Date().toISOString() })
-          .eq('id', sessionId)
-          .then(() => {});
-      });
+        function_call: functionCallData ? JSON.stringify(functionCallData) : null,
+      },
+    ).catch(() => { /* persistence is best-effort */ });
   }, []);
 
   const hasPendingEditsForSection = useCallback((functionName: string): boolean => {

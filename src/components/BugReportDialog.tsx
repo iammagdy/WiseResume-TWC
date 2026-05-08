@@ -5,7 +5,6 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { HeartHandshake, Send, CheckCircle2, MapPin, Info, Wrench, AlertTriangle, ToggleLeft, ToggleRight } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
-import { getUserId } from '@/lib/supabaseBridge';
 import { sendFeedback } from '@/lib/sendFeedback';
 import { getLastSentryEventId } from '@/lib/captureErrorShim';
 import { useAuth } from '@/hooks/useAuth';
@@ -130,8 +129,8 @@ export function BugReportDialog() {
     if (!data) return;
     setStatus('sending');
 
-    // Get auth from the bridge
-    const userId = getUserId() || undefined;
+    // Get auth from the Appwrite session
+    const userId = user?.id || undefined;
     const userEmail = userId ? 'authenticated' : 'anonymous';
     const sessionId: string | undefined = undefined;
 

@@ -10,10 +10,9 @@
 
 import type { ResumeData } from '@/types/resume';
 import type { ProfileData } from '@/components/settings/ProfileImportSheet';
-import { supabase } from '@/integrations/supabase/safeClient';
-import { getUserId } from '@/lib/supabaseBridge';
+import { databases, DATABASE_ID, Query, ID, account } from '@/lib/appwrite';
+import { COLLECTIONS } from '@/lib/appwrite-collections';
 import { apiFnUrl } from '@/lib/apiFnUrl';
-import type { Json } from '@/integrations/supabase/types';
 
 export interface OnboardingExperience {
   id: string;
@@ -286,7 +285,7 @@ export function selectionCount(sel: ProfileSelection): number {
 
 export interface SaveProfileArgs {
   selectedProfile: ExtractedProfile;
-  /** Fallback userId used when getUserId() is not yet hydrated. */
+  /** Fallback userId used when account.get() is not yet hydrated. */
   fallbackUserId?: string | null;
   /** Title for the resume row when one is created. */
   resumeTitle?: string;
@@ -313,14 +312,18 @@ export async function saveOnboardingProfile({
   resumeTitle = 'My Resume',
   templateId = 'modern',
 }: SaveProfileArgs): Promise<SaveProfileResult> {
-  const userId = getUserId() || fallbackUserId;
+  let userId: string | null = null;
+  try {
+    const user = await account.get();
+    userId = user.$id;
+  } catch {
+    userId = fallbackUserId ?? null;
+  }
+
   if (!userId) {
     throw new Error('You must be signed in to save your profile.');
   }
 
-  // Decide up front whether we'll be inserting a resume — this controls
-  // whether we mark `onboarding_completed` now (no resume needed) or only
-  // after the resume insert succeeds (atomic: profile + resume + flag).
   const hasResumeContent =
     !!selectedProfile.summary ||
     selectedProfile.experience.length > 0 ||
@@ -331,9 +334,7 @@ export async function saveOnboardingProfile({
     selectedProfile.projects.length > 0 ||
     selectedProfile.volunteering.length > 0;
 
-  // 1) Upsert profile row. Defer the `onboarding_completed` flag when a
-  //    resume insert still has to succeed, so we never end up with a
-  //    completed profile pointing at a non-existent resume.
+  // 1) Upsert profile row.
   const profilePayload: Record<string, unknown> = { user_id: userId };
   if (!hasResumeContent) profilePayload.onboarding_completed = true;
   if (selectedProfile.fullName) profilePayload.full_name = selectedProfile.fullName;
@@ -341,11 +342,28 @@ export async function saveOnboardingProfile({
   if (selectedProfile.location) profilePayload.location = selectedProfile.location;
   if (selectedProfile.linkedinUrl) profilePayload.linkedin_url = selectedProfile.linkedinUrl;
 
-  const { error: upsertError } = await supabase
-    .from('profiles')
-    .upsert(profilePayload as never, { onConflict: 'user_id' });
-  if (upsertError) {
-    throw new Error(upsertError.message || 'Failed to save your profile.');
+  // Appwrite upsert: check if profile already exists, update or create
+  let profileDocId: string | null = null;
+  try {
+    const existing = await databases.listDocuments(DATABASE_ID, COLLECTIONS.profiles, [
+      Query.equal('user_id', userId),
+      Query.limit(1),
+    ]);
+    if (existing.documents.length > 0) {
+      profileDocId = existing.documents[0].$id;
+      await databases.updateDocument(DATABASE_ID, COLLECTIONS.profiles, profileDocId, profilePayload);
+    } else {
+      const created = await databases.createDocument(
+        DATABASE_ID,
+        COLLECTIONS.profiles,
+        ID.unique(),
+        profilePayload,
+      );
+      profileDocId = created.$id;
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Failed to save your profile.';
+    throw new Error(msg);
   }
 
   if (!hasResumeContent) {
@@ -413,41 +431,51 @@ export async function saveOnboardingProfile({
     description: v.description || '',
   }));
 
-  const { data: row, error } = await supabase
-    .from('resumes')
-    .insert({
-      user_id: userId,
-      title: resumeTitle,
-      contact_info: contactInfo as unknown as Json,
-      summary: selectedProfile.summary || '',
-      experience: experience as unknown as Json,
-      education: education as unknown as Json,
-      skills: selectedProfile.skills as unknown as Json,
-      certifications: certifications as unknown as Json,
-      languages: languages as unknown as Json,
-      projects: projects as unknown as Json,
-      volunteering: volunteering as unknown as Json,
-      template_id: templateId,
-      is_primary: true,
-    })
-    .select('id')
-    .single();
-
-  if (error || !row) {
-    throw new Error(error?.message || 'Failed to create your resume.');
+  // 2) Create resume row.
+  let resumeId: string;
+  try {
+    const resumeDoc = await databases.createDocument(
+      DATABASE_ID,
+      COLLECTIONS.resumes,
+      ID.unique(),
+      {
+        user_id: userId,
+        title: resumeTitle,
+        contact_info: JSON.stringify(contactInfo),
+        summary: selectedProfile.summary || '',
+        experience: JSON.stringify(experience),
+        education: JSON.stringify(education),
+        skills: JSON.stringify(selectedProfile.skills),
+        certifications: JSON.stringify(certifications),
+        languages: JSON.stringify(languages),
+        projects: JSON.stringify(projects),
+        volunteering: JSON.stringify(volunteering),
+        template_id: templateId,
+        is_primary: true,
+      },
+    );
+    resumeId = resumeDoc.$id;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Failed to create your resume.';
+    throw new Error(msg);
   }
 
-  // 3) Resume insert succeeded — only now mark onboarding complete so the
-  //    profile flag and the resume row land together.
-  const { error: completeError } = await supabase
-    .from('profiles')
-    .update({ onboarding_completed: true } as never)
-    .eq('user_id', userId);
-  if (completeError) {
-    throw new Error(completeError.message || 'Failed to finalize onboarding.');
+  // 3) Mark onboarding complete — only after resume insert succeeds.
+  try {
+    if (profileDocId) {
+      await databases.updateDocument(
+        DATABASE_ID,
+        COLLECTIONS.profiles,
+        profileDocId,
+        { onboarding_completed: true },
+      );
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Failed to finalize onboarding.';
+    throw new Error(msg);
   }
 
-  return { resumeId: row.id, hasResume: true };
+  return { resumeId, hasResume: true };
 }
 
 /**
@@ -467,35 +495,29 @@ export async function saveOnboardingProfile({
  * Never throws — failures are swallowed and logged so callers can use it
  * defensively on every page load.
  */
-export async function reconcileOnboardingCompletion(
-  userId: string,
-): Promise<boolean> {
+export async function reconcileOnboardingCompletion(userId: string): Promise<boolean> {
   if (!userId) return false;
   try {
-    const { data: profile, error: profileErr } = await supabase
-      .from('profiles')
-      .select('onboarding_completed')
-      .eq('user_id', userId)
-      .maybeSingle();
-    if (profileErr) return false;
-    // Already complete — nothing to do. (Profile missing is also fine; that
-    // means onboarding never ran, so don't synthesize completion for them.)
-    if (!profile || profile.onboarding_completed) return false;
+    const profileRes = await databases.listDocuments(DATABASE_ID, COLLECTIONS.profiles, [
+      Query.equal('user_id', userId),
+      Query.limit(1),
+    ]);
+    if (profileRes.documents.length === 0) return false;
 
-    const { data: resumes, error: resumesErr } = await supabase
-      .from('resumes')
-      .select('id')
-      .eq('user_id', userId)
-      .limit(1);
-    if (resumesErr) return false;
-    if (!resumes || resumes.length === 0) return false;
+    const profileDoc = profileRes.documents[0] as unknown as Record<string, unknown>;
+    if (profileDoc.onboarding_completed === true) return false;
+    const profileDocId = profileDoc.$id as string;
 
-    const { error: updateErr } = await supabase
-      .from('profiles')
-      .update({ onboarding_completed: true } as never)
-      .eq('user_id', userId);
-    if (updateErr) return false;
-    // Fire-and-forget telemetry so we can detect systemic recovery patterns.
+    const resumeRes = await databases.listDocuments(DATABASE_ID, COLLECTIONS.resumes, [
+      Query.equal('user_id', userId),
+      Query.limit(1),
+    ]);
+    if (resumeRes.documents.length === 0) return false;
+
+    await databases.updateDocument(DATABASE_ID, COLLECTIONS.profiles, profileDocId, {
+      onboarding_completed: true,
+    });
+
     try {
       const { logAudit } = await import('@/lib/auditLogger');
       logAudit('onboarding', 'reconciled', {});
@@ -546,7 +568,6 @@ export interface LinkedInProbeResult {
  */
 export async function probeLinkedInUrl(rawUrl: string): Promise<LinkedInProbeResult> {
   const url = /^https?:\/\//i.test(rawUrl.trim()) ? rawUrl.trim() : `https://${rawUrl.trim()}`;
-  // Derive a name from the slug as a fallback (linkedin.com/in/jane-doe → "Jane Doe").
   const slugMatch = url.match(/linkedin\.com\/in\/([^/?#]+)/i);
   const derivedName = slugMatch
     ? decodeURIComponent(slugMatch[1])
@@ -567,8 +588,9 @@ export async function probeLinkedInUrl(rawUrl: string): Promise<LinkedInProbeRes
   let quotaExhausted = false;
   let quota: LinkedInProbeResult['quota'] | undefined;
 
-  const { getSupabaseToken } = await import('@/lib/supabaseAuth');
-  const token = await getSupabaseToken().catch(() => null);
+  // Get Appwrite JWT for authenticated requests
+  const { getAppwriteJWT } = await import('@/lib/appwriteJWT');
+  const token = await getAppwriteJWT().catch(() => null);
 
   // 1) Try the rich server-side importer first.
   if (token) {
@@ -592,8 +614,6 @@ export async function probeLinkedInUrl(rawUrl: string): Promise<LinkedInProbeRes
             derivedHeadline = body.profile.headline;
             hadAnyData = true;
           }
-          // Build a richer profileText too — useful for the fallback caller
-          // and as a defensive payload if structured is unexpectedly empty.
           const lines: string[] = [];
           if (body.profile.fullName) lines.push(`Name: ${body.profile.fullName}`);
           if (body.profile.headline) lines.push(`Headline: ${body.profile.headline}`);
@@ -613,7 +633,6 @@ export async function probeLinkedInUrl(rawUrl: string): Promise<LinkedInProbeRes
         quotaExhausted = true;
         try { quota = (await r.json())?.quota; } catch { /* ignore */ }
       }
-      // 400/404/429/502/504 → fall through to OG-meta best effort.
     } catch {
       // Network error → fall through to best-effort probe below.
     }
@@ -641,7 +660,6 @@ export async function probeLinkedInUrl(rawUrl: string): Promise<LinkedInProbeRes
           html.match(/<meta\s+property=["']og:description["']\s+content=["']([^"']+)["']/i) ||
           html.match(/<meta\s+name=["']description["']\s+content=["']([^"']+)["']/i);
         if (titleMatch) {
-          // og:title is often "Jane Doe - Senior Engineer at Acme | LinkedIn"
           const t = titleMatch[1].replace(/\s*\|\s*LinkedIn\s*$/i, '').trim();
           if (t) {
             derivedHeadline = t;
@@ -661,15 +679,11 @@ export async function probeLinkedInUrl(rawUrl: string): Promise<LinkedInProbeRes
     // best-effort, fall through with whatever we derived
   }
 
-  // Synthesize text the existing parse-linkedin function can chew on.
-  // Padded so it doesn't trip the URL_ONLY_REJECTED guard (it requires the
-  // input not to look like a bare URL <500 chars / <=3 lines).
   const lines: string[] = [];
   if (derivedName) lines.push(`Name: ${derivedName}`);
   if (derivedHeadline) lines.push(`Headline: ${derivedHeadline}`);
   if (derivedSummary) lines.push('', 'About:', derivedSummary);
   lines.push('', 'Source URL:', url);
-  // Pad to ensure the AI gets enough context and to bypass the URL-only guard
   lines.push(
     '',
     '(Note: this is a public LinkedIn URL. Extract whatever profile data is plainly stated above. Do not invent data.)',

@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { databases, DATABASE_ID, Query, ID } from '@/lib/appwrite';
+import { COLLECTIONS } from '@/lib/appwrite-collections';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
 import type { CompanyBriefing } from '@/types/companyBriefing';
@@ -12,18 +13,32 @@ export interface SavedCompanyBriefing {
   created_at: string;
 }
 
+function docToBriefing(doc: Record<string, unknown>): SavedCompanyBriefing {
+  const raw = doc.briefing;
+  const briefing: CompanyBriefing =
+    typeof raw === 'string' ? JSON.parse(raw) : (raw as CompanyBriefing);
+  return {
+    id: doc.$id as string,
+    user_id: doc.user_id as string,
+    company_name: doc.company_name as string,
+    briefing,
+    created_at: doc.$createdAt as string,
+  };
+}
+
 export function useCompanyBriefingLibrary() {
   const { user } = useAuth();
 
   return useQuery({
     queryKey: ['company-briefings', user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('company_briefings')
-        .select('*')
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      return (data || []) as SavedCompanyBriefing[];
+      if (!user) return [];
+      const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.company_briefings, [
+        Query.equal('user_id', user.id),
+        Query.orderDesc('$createdAt'),
+        Query.limit(100),
+      ]);
+      return res.documents.map(d => docToBriefing(d as unknown as Record<string, unknown>));
     },
     enabled: !!user,
   });
@@ -36,17 +51,17 @@ export function useSaveCompanyBriefing() {
   return useMutation({
     mutationFn: async (input: { company_name: string; briefing: CompanyBriefing }) => {
       if (!user) throw new Error('Not authenticated');
-      const { data, error } = await supabase
-        .from('company_briefings')
-        .insert({
+      const doc = await databases.createDocument(
+        DATABASE_ID,
+        COLLECTIONS.company_briefings,
+        ID.unique(),
+        {
           user_id: user.id,
           company_name: input.company_name,
-          briefing: input.briefing as unknown as Record<string, unknown>,
-        })
-        .select()
-        .single();
-      if (error) throw error;
-      return data as SavedCompanyBriefing;
+          briefing: JSON.stringify(input.briefing),
+        },
+      );
+      return docToBriefing(doc as unknown as Record<string, unknown>);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['company-briefings'] });
@@ -63,11 +78,7 @@ export function useDeleteCompanyBriefing() {
   return useMutation({
     mutationFn: async (id: string) => {
       if (!user) throw new Error('Not authenticated');
-      const { error } = await supabase
-        .from('company_briefings')
-        .delete()
-        .eq('id', id);
-      if (error) throw error;
+      await databases.deleteDocument(DATABASE_ID, COLLECTIONS.company_briefings, id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['company-briefings'] });

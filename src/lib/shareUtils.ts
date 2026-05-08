@@ -2,8 +2,8 @@ import { downloadFile } from '@/lib/downloadUtils';
 import { formatDegreeAndField } from '@/lib/educationFormat';
 import { toast } from 'sonner';
 import type { ResumeData } from '@/types/resume';
-import { supabase } from '@/integrations/supabase/safeClient';
-import { getAuthUserId } from '@/lib/supabaseAuth';
+import { databases, DATABASE_ID, account } from '@/lib/appwrite';
+import { COLLECTIONS } from '@/lib/appwrite-collections';
 import { PORTFOLIO_DOMAIN } from '@/lib/portfolioUrl';
 
 export async function shareAsPDF(blob: Blob, fileName: string): Promise<boolean> {
@@ -40,26 +40,36 @@ function generateSlug(length = 5): string {
 /** Create a universal short URL for any app path */
 export async function createShortUrl(targetPath: string, label?: string): Promise<string | null> {
   try {
-    const userId = await getAuthUserId();
+    let userId: string | null = null;
+    try {
+      const user = await account.get();
+      userId = user.$id;
+    } catch {
+      return null;
+    }
     if (!userId) return null;
 
     for (let attempt = 0; attempt < 3; attempt++) {
       const slug = generateSlug(5);
-      const { error } = await supabase
-        .from('short_links')
-        .insert({
-          id: slug,
+      try {
+        await databases.createDocument(DATABASE_ID, COLLECTIONS.short_links, slug, {
           owner_user_id: userId,
           target_url: targetPath,
-          label: label || 'Shared Link',
-        } as any);
-
-      if (error) {
-        if (error.code === '23505') continue; // duplicate slug — retry
-        console.error('Short link creation error:', error);
-        return null;
+          label: label ?? 'Shared Link',
+          click_count: 0,
+          portfolio_id: null,
+        });
+        return `${PORTFOLIO_DOMAIN}/l/${slug}`;
+      } catch (err: unknown) {
+        // Appwrite throws 409 on duplicate document ID — retry with new slug
+        const isConflict =
+          err instanceof Error && (err.message.includes('409') || err.message.includes('already exists'));
+        if (!isConflict) {
+          console.error('Short link creation error:', err);
+          return null;
+        }
+        // else: retry
       }
-      return `${PORTFOLIO_DOMAIN}/l/${slug}`;
     }
     return null;
   } catch (err) {

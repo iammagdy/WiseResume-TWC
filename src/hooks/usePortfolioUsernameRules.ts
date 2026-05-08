@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { databases, DATABASE_ID, Query } from '@/lib/appwrite';
+import { COLLECTIONS } from '@/lib/appwrite-collections';
 
 export interface PortfolioUsernameRules {
   min_length: number;
@@ -21,18 +22,23 @@ async function fetchGlobalRules(): Promise<PortfolioUsernameRules> {
   if (globalInflight) return globalInflight;
   globalInflight = (async () => {
     try {
-      const { data } = await supabase
-        .from('portfolio_username_rules')
-        .select('min_length, max_length, allow_hyphens')
-        .eq('id', 1)
-        .maybeSingle();
-      const rules = data
-        ? {
-            min_length: Number(data.min_length ?? DEFAULT_RULES.min_length),
-            max_length: Number(data.max_length ?? DEFAULT_RULES.max_length),
-            allow_hyphens: Boolean(data.allow_hyphens ?? DEFAULT_RULES.allow_hyphens),
-          }
-        : DEFAULT_RULES;
+      // The global rules document is expected to live at a known document ID or
+      // be the only document in the collection.
+      const res = await databases.listDocuments(
+        DATABASE_ID,
+        COLLECTIONS.portfolio_username_rules,
+        [Query.limit(1)],
+      );
+      if (res.documents.length === 0) {
+        globalCache = DEFAULT_RULES;
+        return DEFAULT_RULES;
+      }
+      const doc = res.documents[0] as unknown as Record<string, unknown>;
+      const rules: PortfolioUsernameRules = {
+        min_length: Number(doc.min_length ?? DEFAULT_RULES.min_length),
+        max_length: Number(doc.max_length ?? DEFAULT_RULES.max_length),
+        allow_hyphens: Boolean(doc.allow_hyphens ?? DEFAULT_RULES.allow_hyphens),
+      };
       globalCache = rules;
       return rules;
     } catch {
@@ -47,16 +53,17 @@ async function fetchGlobalRules(): Promise<PortfolioUsernameRules> {
 
 async function fetchUserOverride(userId: string): Promise<Partial<PortfolioUsernameRules>> {
   try {
-    const { data } = await supabase
-      .from('portfolio_user_overrides')
-      .select('min_length, max_length, allow_hyphens')
-      .eq('user_id', userId)
-      .maybeSingle();
-    if (!data) return {};
+    const res = await databases.listDocuments(
+      DATABASE_ID,
+      COLLECTIONS.portfolio_user_overrides,
+      [Query.equal('user_id', userId), Query.limit(1)],
+    );
+    if (res.documents.length === 0) return {};
+    const doc = res.documents[0] as unknown as Record<string, unknown>;
     const out: Partial<PortfolioUsernameRules> = {};
-    if (data.min_length != null) out.min_length = Number(data.min_length);
-    if (data.max_length != null) out.max_length = Number(data.max_length);
-    if (data.allow_hyphens != null) out.allow_hyphens = Boolean(data.allow_hyphens);
+    if (doc.min_length != null) out.min_length = Number(doc.min_length);
+    if (doc.max_length != null) out.max_length = Number(doc.max_length);
+    if (doc.allow_hyphens != null) out.allow_hyphens = Boolean(doc.allow_hyphens);
     return out;
   } catch {
     return {};
@@ -70,8 +77,7 @@ export function clearPortfolioUsernameRulesCache() {
 /**
  * Returns the effective portfolio-username rules for the given user.
  * Per-user overrides from `portfolio_user_overrides` are merged on top of the
- * global rules so admin-granted exceptions (e.g. min_length=1) are honored
- * throughout the editor UI.
+ * global rules so admin-granted exceptions (e.g. min_length=1) are honoured.
  */
 export function usePortfolioUsernameRules(userId?: string | null): PortfolioUsernameRules {
   const [rules, setRules] = useState<PortfolioUsernameRules>(globalCache ?? DEFAULT_RULES);

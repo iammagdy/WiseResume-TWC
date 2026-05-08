@@ -1,8 +1,14 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/safeClient';
+/**
+ * Resume Versions — graceful no-op stubs.
+ *
+ * The `resume_versions` collection does not exist in the live Appwrite
+ * 'main' database (verified 2026-05-08). All hooks return empty results /
+ * no-ops until the collection is created in Appwrite Console.
+ */
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { useAuth } from './useAuth';
-import { ResumeData } from '@/types/resume';
 import { toast } from 'sonner';
+import { ResumeData } from '@/types/resume';
 
 export interface ResumeVersion {
   id: string;
@@ -14,89 +20,33 @@ export interface ResumeVersion {
   created_at: string;
 }
 
-export function useResumeVersions(resumeId: string | null) {
+export function useResumeVersions(_resumeId: string | null) {
   const { user } = useAuth();
-
   return useQuery({
-    queryKey: ['resume-versions', resumeId],
-    queryFn: async () => {
-      if (!resumeId) return [];
-      const { data, error } = await supabase
-        .from('resume_versions')
-        .select('*')
-        .eq('resume_id', resumeId)
-        .order('version_number', { ascending: false });
-      if (error) throw error;
-      return (data || []).map(v => ({
-        ...v,
-        snapshot: v.snapshot as unknown as ResumeData,
-      })) as ResumeVersion[];
-    },
-    enabled: !!user && !!resumeId,
+    queryKey: ['resume-versions', _resumeId],
+    queryFn: async (): Promise<ResumeVersion[]> => [],
+    enabled: !!user && !!_resumeId,
   });
 }
 
 export function useResumeVersionMutations() {
-  const { user } = useAuth();
-  const queryClient = useQueryClient();
-
   const saveVersion = useMutation({
-    mutationFn: async ({
-      resumeId,
-      snapshot,
-      changeSummary,
-    }: {
+    mutationFn: async (_input: {
       resumeId: string;
       snapshot: ResumeData;
       changeSummary?: string;
-    }) => {
-      if (!user) throw new Error('Not authenticated');
-
-      // Get the latest version number
-      const { data: latest } = await supabase
-        .from('resume_versions')
-        .select('version_number')
-        .eq('resume_id', resumeId)
-        .order('version_number', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      const nextVersion = (latest?.version_number || 0) + 1;
-
-      const insertData = {
-        resume_id: resumeId,
-        user_id: user.id,
-        version_number: nextVersion,
-        snapshot: JSON.parse(JSON.stringify(snapshot)),
-        change_summary: changeSummary || null,
-      };
-
-      const { data, error } = await supabase
-        .from('resume_versions')
-        .insert([insertData])
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['resume-versions', variables.resumeId] });
+    }): Promise<null> => {
+      console.warn('[useResumeVersions] resume_versions collection not yet created in Appwrite');
+      return null;
     },
   });
 
   const deleteVersion = useMutation({
-    mutationFn: async ({ versionId, resumeId: _resumeId }: { versionId: string; resumeId: string }) => {
-      if (!user) throw new Error('Not authenticated');
-      const { error } = await supabase
-        .from('resume_versions')
-        .delete()
-        .eq('id', versionId);
-      if (error) throw error;
+    mutationFn: async (_input: { versionId: string; resumeId: string }): Promise<void> => {
+      console.warn('[useResumeVersions] resume_versions collection not yet created in Appwrite');
     },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['resume-versions', variables.resumeId] });
-      toast.success('Version deleted');
+    onSuccess: () => {
+      toast.error('Version history is being rebuilt — try again soon');
     },
   });
 

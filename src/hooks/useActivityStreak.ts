@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { apiFetch } from '@/lib/apiFetch';
+import { databases, DATABASE_ID, Query } from '@/lib/appwrite';
+import { COLLECTIONS } from '@/lib/appwrite-collections';
 import { useAuth } from './useAuth';
 import { format, subDays, startOfDay, startOfWeek } from 'date-fns';
 
@@ -31,37 +32,60 @@ export function weeklyGoalKey(userId: string) {
   return `activity-weekly-goal-${userId}`;
 }
 
-interface ActivityRowsResponse {
-  resumes: { created_at: string }[];
-  jobApplications: { applied_at: string | null; status?: string }[];
-  coverLetters: { created_at: string }[];
-  tailorHistory: { created_at: string }[];
-}
-
 export function useActivityStreak() {
   const { user } = useAuth();
 
   return useQuery<ActivityStreakData>({
     queryKey: ['activity-streak', user?.id],
     queryFn: async () => {
+      if (!user) throw new Error('Not authenticated');
       const since = subDays(new Date(), 365).toISOString();
-      const data = await apiFetch<ActivityRowsResponse>('/api/data/activity-rows', {
-        query: { since },
-      });
+
+      // Fetch all four collections in parallel
+      const [resumesRes, jobAppsRes, coverLettersRes, tailorRes] = await Promise.all([
+        databases.listDocuments(DATABASE_ID, COLLECTIONS.resumes, [
+          Query.equal('user_id', user.id),
+          Query.greaterThanEqual('$createdAt', since),
+          Query.select(['$createdAt']),
+          Query.limit(500),
+        ]),
+        databases.listDocuments(DATABASE_ID, COLLECTIONS.job_applications, [
+          Query.equal('user_id', user.id),
+          Query.select(['applied_at', 'status']),
+          Query.limit(500),
+        ]),
+        databases.listDocuments(DATABASE_ID, COLLECTIONS.cover_letters, [
+          Query.equal('user_id', user.id),
+          Query.greaterThanEqual('$createdAt', since),
+          Query.select(['$createdAt']),
+          Query.limit(500),
+        ]),
+        databases.listDocuments(DATABASE_ID, COLLECTIONS.tailor_history, [
+          Query.equal('user_id', user.id),
+          Query.greaterThanEqual('$createdAt', since),
+          Query.select(['$createdAt']),
+          Query.limit(500),
+        ]),
+      ]);
 
       const activeDays = new Set<string>();
-      const addDates = (
-        rows: { created_at?: string | null }[] | null | undefined,
-      ) => {
-        (rows || []).forEach(r => {
-          if (r.created_at) activeDays.add(format(startOfDay(new Date(r.created_at)), 'yyyy-MM-dd'));
+
+      const addCreatedAt = (docs: { $createdAt?: string }[]) => {
+        docs.forEach(d => {
+          if (d.$createdAt) {
+            activeDays.add(format(startOfDay(new Date(d.$createdAt)), 'yyyy-MM-dd'));
+          }
         });
       };
-      addDates(data.resumes);
-      addDates(data.tailorHistory);
-      addDates(data.coverLetters);
-      (data.jobApplications || []).forEach(r => {
-        if (r.applied_at) activeDays.add(format(startOfDay(new Date(r.applied_at)), 'yyyy-MM-dd'));
+
+      addCreatedAt(resumesRes.documents as { $createdAt?: string }[]);
+      addCreatedAt(coverLettersRes.documents as { $createdAt?: string }[]);
+      addCreatedAt(tailorRes.documents as { $createdAt?: string }[]);
+
+      const jobApps = jobAppsRes.documents as unknown as { applied_at?: string | null; status?: string | null; $createdAt?: string }[];
+      jobApps.forEach(r => {
+        const dateStr = r.applied_at ?? r.$createdAt;
+        if (dateStr) activeDays.add(format(startOfDay(new Date(dateStr)), 'yyyy-MM-dd'));
       });
 
       const today = startOfDay(new Date());
@@ -85,11 +109,12 @@ export function useActivityStreak() {
       });
 
       const thisWeekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
-      const thisWeekApplications = (data.jobApplications || []).filter(
-        a => a.applied_at && new Date(a.applied_at) >= thisWeekStart,
-      ).length;
+      const thisWeekApplications = jobApps.filter(a => {
+        const dateStr = a.applied_at ?? null;
+        return dateStr && new Date(dateStr) >= thisWeekStart;
+      }).length;
 
-      const personalBest = updatePersonalBest(user!.id, streak);
+      const personalBest = updatePersonalBest(user.id, streak);
 
       return { streak, last7, thisWeekApplications, personalBest };
     },

@@ -2,6 +2,13 @@
 
 **Last verified:** 2026-05-08
 
+## Batch 6 reconnections — more live features on the new backend (2026-05-08)
+
+**What changed:** The following features moved from broken stubs to live Appwrite SDK calls: feedback & bug report submission, broadcast banners, AI credit usage sheet, resume data import/export, onboarding profile save, AI enhance/ATS/scoring auth tokens, and AI Studio chat persistence (sessions + messages).
+**What you'll notice:** Bug report submissions and feedback forms work end-to-end. Broadcast banners can now show live platform announcements. The AI credit sheet shows real usage. Onboarding correctly saves your profile. AI Studio chat history loads across sessions.
+
+---
+
 ## Behind-the-scenes documentation pass — no app changes (2026-05-08)
 **What was the situation:** Internal reference notes that the team uses to find and maintain things in the platform had fallen behind the live product.
 **What changed:** The reference notes were brought back up to date so they fully match what is actually running today.

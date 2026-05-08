@@ -1,8 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { databases, DATABASE_ID, Query, ID } from '@/lib/appwrite';
+import { COLLECTIONS } from '@/lib/appwrite-collections';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
-import type { Json } from '@/integrations/supabase/types';
 
 function generateToken(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -31,20 +31,39 @@ export interface InterviewReportToken {
   created_at: string;
 }
 
-/** Public lookup: uses the token-scoped RPC to avoid exposing unrelated rows to anon clients. */
+function docToToken(doc: Record<string, unknown>): InterviewReportToken {
+  const raw = doc.report_data;
+  const report_data: InterviewReportData =
+    typeof raw === 'string' ? JSON.parse(raw) : (raw as InterviewReportData);
+  return {
+    id: doc.$id as string,
+    user_id: doc.user_id as string,
+    session_id: (doc.session_id as string | null) ?? null,
+    token: doc.token as string,
+    report_data,
+    expires_at: doc.expires_at as string,
+    created_at: doc.$createdAt as string,
+  };
+}
+
+/**
+ * Public lookup by token — queries the interview_report_tokens collection
+ * directly. No auth required; the token itself is the access credential.
+ * Expired tokens are filtered out client-side.
+ */
 export function useInterviewReportToken(token: string | undefined) {
   return useQuery({
     queryKey: ['interview-report-token', token],
     queryFn: async () => {
       if (!token) throw new Error('No token');
-      const { data, error } = await supabase
-        .rpc('get_interview_report', { p_token: token });
-      if (error) throw error;
-      if (!data || (Array.isArray(data) && data.length === 0)) {
-        throw new Error('Report not found or has expired');
-      }
-      const row = Array.isArray(data) ? data[0] : data;
-      return row as InterviewReportToken;
+      const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.interview_report_tokens, [
+        Query.equal('token', token),
+        Query.limit(1),
+      ]);
+      if (res.documents.length === 0) throw new Error('Report not found or has expired');
+      const doc = docToToken(res.documents[0] as unknown as Record<string, unknown>);
+      if (new Date(doc.expires_at) < new Date()) throw new Error('Report not found or has expired');
+      return doc;
     },
     enabled: !!token,
     retry: false,
@@ -65,19 +84,19 @@ export function useCreateInterviewReportToken() {
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 30);
 
-      const { data, error } = await supabase
-        .from('interview_report_tokens')
-        .insert({
+      const doc = await databases.createDocument(
+        DATABASE_ID,
+        COLLECTIONS.interview_report_tokens,
+        ID.unique(),
+        {
           user_id: user.id,
-          session_id: input.session_id || null,
+          session_id: input.session_id ?? null,
           token,
-          report_data: input.report_data as unknown as Json,
+          report_data: JSON.stringify(input.report_data),
           expires_at: expiresAt.toISOString(),
-        })
-        .select()
-        .single();
-      if (error) throw error;
-      return data as InterviewReportToken;
+        },
+      );
+      return docToToken(doc as unknown as Record<string, unknown>);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['interview-report-token'] });

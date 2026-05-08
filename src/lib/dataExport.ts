@@ -1,5 +1,6 @@
 import { DatabaseResume, dbToResumeData } from '@/hooks/useResumes';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { databases, DATABASE_ID, Query, ID } from '@/lib/appwrite';
+import { COLLECTIONS } from '@/lib/appwrite-collections';
 import { useSettingsStore } from '@/store/settingsStore';
 import { TailorHistory } from '@/types/resume';
 import { downloadFile } from '@/lib/downloadUtils';
@@ -46,10 +47,10 @@ async function downloadJson(data: unknown, filename: string) {
 export async function exportAllResumes(
   resumes: DatabaseResume[],
   userEmail: string | null,
-  userName: string | null
+  userName: string | null,
 ): Promise<void> {
   const settings = useSettingsStore.getState();
-  
+
   const exportData: ExportData = {
     exportVersion: '1.0',
     exportDate: new Date().toISOString(),
@@ -57,7 +58,7 @@ export async function exportAllResumes(
       fullName: userName,
       email: userEmail,
     },
-    resumes: resumes.map((r) => {
+    resumes: resumes.map(r => {
       const resumeData = dbToResumeData(r);
       return {
         id: r.id,
@@ -92,7 +93,7 @@ export async function exportAllResumes(
 
 export async function exportSingleResume(resume: DatabaseResume): Promise<void> {
   const resumeData = dbToResumeData(resume);
-  
+
   const exportData = {
     exportVersion: '1.0',
     exportDate: new Date().toISOString(),
@@ -122,7 +123,7 @@ export async function exportTailorHistory(history: TailorHistory[]): Promise<voi
   const exportData = {
     exportVersion: '1.0',
     exportDate: new Date().toISOString(),
-    tailorHistory: history.map((entry) => ({
+    tailorHistory: history.map(entry => ({
       jobTitle: entry.jobTitle,
       company: entry.company,
       scoreBefore: entry.scoreBeforeAfter.before,
@@ -145,136 +146,163 @@ export async function exportTailorHistory(history: TailorHistory[]): Promise<voi
 /**
  * Validates and imports resumes from a backup JSON file.
  * Returns the number of resumes imported.
+ *
+ * Appwrite upsert pattern: try getDocument (existing → update), catch 404 → create.
  */
 export async function importResumes(file: File, userId: string): Promise<number> {
   const text = await file.text();
   let data: Record<string, unknown>;
-  
+
   try {
     data = JSON.parse(text) as Record<string, unknown>;
   } catch {
     throw new Error('Invalid JSON file. Please select a valid WiseResume backup.');
   }
 
-  // Validate export schema
   if (!data.exportVersion || typeof data.exportVersion !== 'string') {
     throw new Error('Not a valid WiseResume backup file (missing exportVersion).');
   }
 
-  const resumes = data.resumes || (data.resume ? [data.resume] : []);
-  
+  const resumes = data.resumes ?? (data.resume ? [data.resume] : []);
+
   if (!Array.isArray(resumes) || resumes.length === 0) {
     throw new Error('No resumes found in the backup file.');
   }
 
-  // Validate each resume has required fields
   for (const resume of resumes) {
     if (!resume.contactInfo || !resume.title) {
       throw new Error('Backup contains invalid resume data (missing contactInfo or title).');
     }
   }
 
-  // Upsert resumes into the database
-  const resumesToUpsert = resumes.map((resume: Record<string, unknown>) => ({
-    id: typeof resume.id === 'string' ? resume.id : undefined,
-    user_id: userId,
-    title: typeof resume.title === 'string' ? resume.title : 'Untitled Resume',
-    contact_info: resume.contactInfo,
-    summary: typeof resume.summary === 'string' ? resume.summary : '',
-    experience: Array.isArray(resume.experience) ? resume.experience : [],
-    education: Array.isArray(resume.education) ? resume.education : [],
-    skills: Array.isArray(resume.skills) ? resume.skills : [],
-    certifications: Array.isArray(resume.certifications) ? resume.certifications : [],
-    template_id: typeof resume.templateId === 'string' ? resume.templateId : 'modern',
-    target_job_title: typeof resume.targetJobTitle === 'string' ? resume.targetJobTitle : null,
-    target_company: typeof resume.targetCompany === 'string' ? resume.targetCompany : null,
-    job_match_score: typeof resume.jobMatchScore === 'number' ? resume.jobMatchScore : null,
-  }));
+  let imported = 0;
+  for (const resume of resumes as Record<string, unknown>[]) {
+    const payload = {
+      user_id: userId,
+      title: typeof resume.title === 'string' ? resume.title : 'Untitled Resume',
+      contact_info: JSON.stringify(resume.contactInfo),
+      summary: typeof resume.summary === 'string' ? resume.summary : '',
+      experience: JSON.stringify(Array.isArray(resume.experience) ? resume.experience : []),
+      education: JSON.stringify(Array.isArray(resume.education) ? resume.education : []),
+      skills: JSON.stringify(Array.isArray(resume.skills) ? resume.skills : []),
+      certifications: JSON.stringify(Array.isArray(resume.certifications) ? resume.certifications : []),
+      template_id: typeof resume.templateId === 'string' ? resume.templateId : 'modern',
+      target_job_title: typeof resume.targetJobTitle === 'string' ? resume.targetJobTitle : null,
+      target_company: typeof resume.targetCompany === 'string' ? resume.targetCompany : null,
+      job_match_score: typeof resume.jobMatchScore === 'number' ? resume.jobMatchScore : null,
+    };
 
-  const { error } = await supabase.from('resumes').upsert(resumesToUpsert, { onConflict: 'id' });
-
-  if (error) {
-    console.error('Failed to import resumes:', error);
-    return 0;
+    const existingId = typeof resume.id === 'string' ? resume.id : null;
+    try {
+      if (existingId) {
+        try {
+          await databases.updateDocument(DATABASE_ID, COLLECTIONS.resumes, existingId, payload);
+        } catch {
+          // 404 — resume doesn't exist yet, create with the original id
+          await databases.createDocument(DATABASE_ID, COLLECTIONS.resumes, existingId, payload);
+        }
+      } else {
+        await databases.createDocument(DATABASE_ID, COLLECTIONS.resumes, ID.unique(), payload);
+      }
+      imported++;
+    } catch (err) {
+      console.error('Failed to import resume:', err);
+    }
   }
 
-  return resumesToUpsert.length;
+  return imported;
+}
+
+/** Helper: list all document IDs in a collection matching a filter, paginating if needed */
+async function listAllIds(
+  collectionId: string,
+  filter: Parameters<typeof Query.equal>,
+  ownerField = 'user_id',
+  ownerId = '',
+): Promise<string[]> {
+  const ids: string[] = [];
+  let cursor: string | undefined;
+  while (true) {
+    const queries = [
+      Query.equal(ownerField, ownerId),
+      Query.limit(100),
+      ...(cursor ? [Query.cursorAfter(cursor)] : []),
+    ];
+    const res = await databases.listDocuments(DATABASE_ID, collectionId, queries);
+    for (const doc of res.documents) ids.push(doc.$id);
+    if (res.documents.length < 100) break;
+    cursor = res.documents[res.documents.length - 1].$id;
+  }
+  return ids;
+  void filter; // type-only usage
+}
+
+/** Delete all documents with a given ID list from a collection */
+async function deleteByIds(collectionId: string, ids: string[]): Promise<void> {
+  await Promise.allSettled(ids.map(id => databases.deleteDocument(DATABASE_ID, collectionId, id)));
 }
 
 export async function deleteAllUserData(userId: string): Promise<void> {
   // Delete share_comments via share_ids (no user_id column on share_comments)
-  const { data: shares } = await supabase
-    .from('resume_shares')
-    .select('id')
-    .eq('user_id', userId);
-
-  if (shares && shares.length > 0) {
-    const shareIds = shares.map(s => s.id);
-    const { error: commentsErr } = await supabase
-      .from('share_comments')
-      .delete()
-      .in('share_id', shareIds);
-    if (commentsErr) console.error('Failed to delete share_comments:', commentsErr);
+  const shareIds = await listAllIds(COLLECTIONS.resume_shares, [], 'user_id', userId);
+  if (shareIds.length > 0) {
+    for (const shareId of shareIds) {
+      const commentIds = await listAllIds(COLLECTIONS.share_comments, [], 'share_id', shareId);
+      await deleteByIds(COLLECTIONS.share_comments, commentIds);
+    }
+    await deleteByIds(COLLECTIONS.resume_shares, shareIds);
   }
 
-  // Delete dependent tables that have user_id
-  const dependentTables = [
-    'resume_shares',
-    'resume_versions',
-  ] as const;
+  // Tables with user_id field
+  const userTables: string[] = [
+    COLLECTIONS.tailor_history,
+    COLLECTIONS.cover_letters,
+    COLLECTIONS.interview_sessions,
+    COLLECTIONS.career_assessments,
+    COLLECTIONS.job_applications,
+    COLLECTIONS.jobs,
+    COLLECTIONS.ai_usage_logs,
+    COLLECTIONS.ai_credits,
+    COLLECTIONS.notifications,
+    COLLECTIONS.bug_reports,
+    COLLECTIONS.resignation_letters,
+    COLLECTIONS.audit_logs,
+    COLLECTIONS.contact_inquiries,
+    COLLECTIONS.feature_requests,
+  ];
 
-  for (const table of dependentTables) {
-    const { error } = await supabase.from(table).delete().eq('user_id', userId);
-    if (error) console.error(`Failed to delete from ${table}:`, error);
+  for (const collectionId of userTables) {
+    try {
+      const ids = await listAllIds(collectionId, [], 'user_id', userId);
+      await deleteByIds(collectionId, ids);
+    } catch (e) {
+      console.error(`Failed to delete from collection ${collectionId}:`, e);
+    }
   }
 
-  // Delete user-level tables
-  const userTables = [
-    'tailor_history',
-    'cover_letters',
-    'interview_sessions',
-    'career_assessments',
-    'job_applications',
-    'jobs',
-    'ai_usage_logs',
-    'ai_credits',
-    'notifications',
-    'push_subscriptions',
-    'user_api_keys', // table retained for legacy export compat; BYOK removed, rows are empty
-    'bug_reports',
-    'resignation_letters',
-    'user_preferences',
-    'audit_logs',
-    'contact_inquiries',
-    'feature_requests',
-  ] as const;
-
-  for (const table of userTables) {
-    const { error } = await supabase.from(table).delete().eq('user_id', userId);
-    if (error) console.error(`Failed to delete from ${table}:`, error);
+  // short_links uses owner_user_id
+  try {
+    const shortLinkIds = await listAllIds(COLLECTIONS.short_links, [], 'owner_user_id', userId);
+    await deleteByIds(COLLECTIONS.short_links, shortLinkIds);
+  } catch (e) {
+    console.error('Failed to delete short_links:', e);
   }
 
-  // Delete short_links (uses owner_user_id instead of user_id)
-  const { error: shortLinksError } = await supabase
-    .from('short_links')
-    .delete()
-    .eq('owner_user_id', userId);
-  if (shortLinksError) console.error('Failed to delete from short_links:', shortLinksError);
+  // Resumes
+  try {
+    const resumeIds = await listAllIds(COLLECTIONS.resumes, [], 'user_id', userId);
+    await deleteByIds(COLLECTIONS.resumes, resumeIds);
+  } catch (e) {
+    console.error('Failed to delete resumes:', e);
+  }
 
-  // Delete resumes
-  const { error: resumesError } = await supabase
-    .from('resumes')
-    .delete()
-    .eq('user_id', userId);
-  if (resumesError) console.error('Failed to delete resumes:', resumesError);
+  // Profile last
+  try {
+    const profileIds = await listAllIds(COLLECTIONS.profiles, [], 'user_id', userId);
+    await deleteByIds(COLLECTIONS.profiles, profileIds);
+  } catch (e) {
+    console.error('Failed to delete profile:', e);
+  }
 
-  // Delete profile last
-  const { error: profileError } = await supabase
-    .from('profiles')
-    .delete()
-    .eq('user_id', userId);
-  if (profileError) console.error('Failed to delete profile:', profileError);
-
-  // Clear all local storage
   localStorage.clear();
 }

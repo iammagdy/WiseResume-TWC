@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase, SUPABASE_URL } from '@/integrations/supabase/safeClient';
+import { databases, DATABASE_ID, Query } from '@/lib/appwrite';
+import { COLLECTIONS } from '@/lib/appwrite-collections';
 
 export interface AppSettings {
   maintenance_mode: boolean;
@@ -40,7 +41,8 @@ function parseSettings(obj: Record<string, unknown>): AppSettings {
   for (const [key, val] of Object.entries(obj)) {
     const k = key as keyof AppSettings;
     if (STRING_KEYS.includes(k)) {
-      (parsed as Record<string, unknown>)[k] = val === null || val === undefined ? null : String(val);
+      (parsed as Record<string, unknown>)[k] =
+        val === null || val === undefined ? null : String(val);
     } else {
       (parsed as Record<string, unknown>)[k] = val === true || val === 'true';
     }
@@ -52,32 +54,25 @@ export function useAppSettings(): AppSettings & { isLoading: boolean } {
   const { data, isLoading } = useQuery({
     queryKey: ['app-settings'],
     queryFn: async (): Promise<AppSettings> => {
-      if (!SUPABASE_URL) return DEFAULTS;
-
-      const { data, error } = await supabase.rpc('get_app_settings');
-
-      if (error) {
-        const { data: tableData, error: tableError } = await supabase
-          .from('app_settings')
-          .select('key, value');
-
-        if (tableError) {
-          console.warn('[useAppSettings] Could not load settings:', tableError.message);
-          return DEFAULTS;
-        }
+      try {
+        // app_settings is a key/value table: each document has { key, value }
+        const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.app_settings, [
+          Query.limit(100),
+        ]);
+        if (res.documents.length === 0) return DEFAULTS;
 
         const obj: Record<string, unknown> = {};
-        for (const row of tableData ?? []) {
-          obj[row.key] = row.value;
+        for (const doc of res.documents) {
+          const d = doc as unknown as { key?: string; value?: unknown };
+          if (d.key !== undefined) {
+            obj[d.key] = d.value;
+          }
         }
         return parseSettings(obj);
-      }
-
-      if (!data || typeof data !== 'object') {
+      } catch (e) {
+        console.warn('[useAppSettings] Could not load settings:', e);
         return DEFAULTS;
       }
-
-      return parseSettings(data as Record<string, unknown>);
     },
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,

@@ -1,4 +1,3 @@
-import { supabase } from '@/integrations/supabase/safeClient';
 import { logAudit } from '@/lib/auditLogger';
 
 const CLEANUP_KEY = 'wr-cleanup-last';
@@ -21,7 +20,7 @@ function pruneLocalStorageCheckpoints(): void {
         }
       }
     }
-    keysToRemove.forEach((k) => localStorage.removeItem(k));
+    keysToRemove.forEach(k => localStorage.removeItem(k));
   } catch {
     // localStorage may be unavailable (SSR, private browsing) — ignore
   }
@@ -30,8 +29,11 @@ function pruneLocalStorageCheckpoints(): void {
 /**
  * Run a daily cleanup cycle (debounced to once per 24 h).
  * - Prunes localStorage migration checkpoints
- * - Calls the server-side `cleanup_stale_data` RPC
  * - Logs the event to audit_logs
+ *
+ * The server-side `cleanup_stale_data` RPC was a Supabase function and has no
+ * Appwrite equivalent yet. The server-side portion is intentionally omitted
+ * until an Appwrite Function is built for it.
  *
  * Fire-and-forget — never throws.
  */
@@ -41,8 +43,6 @@ export async function runDailyCleanup(): Promise<void> {
     if (last && Date.now() - Number(last) < ONE_DAY_MS) return;
 
     pruneLocalStorageCheckpoints();
-
-    await (supabase.rpc as any)('cleanup_stale_data');
 
     localStorage.setItem(CLEANUP_KEY, String(Date.now()));
     logAudit('account', 'daily_cleanup_ran');
