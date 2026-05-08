@@ -1,64 +1,15 @@
 import { Suspense, useEffect, type ReactNode } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { AuthProvider, DegradedAuthProvider } from "@/contexts/AuthContext";
-import { KindeProvider, KindeContext } from "@kinde-oss/kinde-auth-react";
+import { AuthProvider } from "@/contexts/AuthContext";
 import { lazyWithRetry } from "@/lib/lazyWithRetry";
 import { useResumeStore } from "@/store/resumeStore";
-/* AuroraLayer is lazy-loaded so the ogl WebGL library (a large dep) is
-   excluded from the AppLanding critical modulepreload graph. This reduces
-   the bytes the browser must download before first paint on the landing
-   page, improving LCP/FCP. The aurora loads a split-second after the
-   hero text — visually imperceptible to users. */
+
 const AuroraLayerLazy = lazyWithRetry(() =>
   import("@/components/landing/AuroraLayer").then((m) => ({ default: m.AuroraLayer }))
 );
 
 const Index = lazyWithRetry(() => import("./pages/Index"));
-
-const KINDE_CLIENT_ID = import.meta.env.VITE_KINDE_CLIENT_ID as string | undefined;
-const KINDE_DOMAIN = import.meta.env.VITE_KINDE_DOMAIN as string | undefined;
-const PLACEHOLDER_PATTERNS = /^(your[-_]|placeholder|xxx|changeme|todo|<|undefined$)/i;
-function isPlaceholder(value: string | undefined): boolean {
-  if (!value || value.trim() === "") return true;
-  return PLACEHOLDER_PATTERNS.test(value.trim());
-}
-const kindeValid = !isPlaceholder(KINDE_CLIENT_ID) && !isPlaceholder(KINDE_DOMAIN);
-
-const noopAsync = async () => {};
-const noopAsyncUndefined = async () => undefined;
-const SAFE_KINDE_CONTEXT_VALUE = {
-  user: undefined,
-  isLoading: false,
-  isAuthenticated: false,
-  error: undefined,
-  login: noopAsync,
-  register: noopAsync,
-  logout: noopAsync,
-  getClaims: noopAsyncUndefined,
-  getIdToken: noopAsyncUndefined,
-  getToken: noopAsyncUndefined,
-  getAccessToken: noopAsyncUndefined,
-  getClaim: noopAsyncUndefined,
-  getOrganization: noopAsyncUndefined,
-  getCurrentOrganization: noopAsyncUndefined,
-  getFlag: noopAsyncUndefined,
-  getUserProfile: noopAsyncUndefined,
-  getPermission: noopAsyncUndefined,
-  getPermissions: noopAsyncUndefined,
-  getUserOrganizations: noopAsyncUndefined,
-  getRoles: noopAsyncUndefined,
-  refreshToken: noopAsyncUndefined,
-  generatePortalUrl: async () => ({ url: new URL(window.location.href) }),
-} as Parameters<typeof KindeContext.Provider>[0]["value"];
-
-function KindeSafeProvider({ children }: { children: React.ReactNode }) {
-  return (
-    <KindeContext.Provider value={SAFE_KINDE_CONTEXT_VALUE}>
-      {children}
-    </KindeContext.Provider>
-  );
-}
 
 function LandingFallback() {
   return (
@@ -104,12 +55,6 @@ function LandingRoutes() {
     document.body.style.overflow = "";
   }, []);
 
-  // Dispatch between `/` and `/enterprises` happens in the outer
-  // <Routes> in App.tsx — both paths render this component, and the
-  // Index page itself reads the URL to pick the active product mode.
-  // AuroraLayer is a sibling so the fixed-position aurora canvas
-  // paints behind whatever Index renders, including the suspense
-  // skeleton during initial chunk load.
   return (
     <>
       <Suspense fallback={null}>
@@ -125,33 +70,11 @@ function LandingRoutes() {
 }
 
 const AppLanding = () => {
-  if (!kindeValid) {
-    return (
-      <>
-        <Toaster />
-        <KindeSafeProvider>
-          <DegradedAuthProvider>
-            <LandingRoutes />
-          </DegradedAuthProvider>
-        </KindeSafeProvider>
-      </>
-    );
-  }
-
   return (
-    <>
+    <AuthProvider>
       <Toaster />
-      <KindeProvider
-        clientId={KINDE_CLIENT_ID ?? ""}
-        domain={KINDE_DOMAIN ?? ""}
-        redirectUri={window.location.origin + "/auth/callback"}
-        logoutUri={window.location.origin}
-      >
-        <AuthProvider>
-          <LandingRoutes />
-        </AuthProvider>
-      </KindeProvider>
-    </>
+      <LandingRoutes />
+    </AuthProvider>
   );
 };
 
