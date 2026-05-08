@@ -40,12 +40,17 @@ export function ApplicationDetailSheet({ application, open, onOpenChange }: Appl
     queryKey: ['resume-name', application?.resume_id],
     queryFn: async () => {
       if (!application?.resume_id) return null;
-      const doc = await databases.getDocument(
-        DATABASE_ID,
-        COLLECTIONS.resumes,
-        application.resume_id,
-      );
-      return { id: doc.$id, title: (doc as unknown as { title: string }).title };
+      try {
+        const doc = await databases.getDocument(
+          DATABASE_ID,
+          COLLECTIONS.resumes,
+          application.resume_id,
+        );
+        return { id: doc.$id, title: (doc as unknown as { title: string }).title };
+      } catch {
+        // Document missing or permission denied — treat as no linked resume
+        return null;
+      }
     },
     enabled: !!application?.resume_id,
   });
