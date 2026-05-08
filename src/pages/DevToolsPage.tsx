@@ -173,7 +173,7 @@ export default function DevToolsPage() {
          </div>
          <div className="flex items-center gap-3">
             <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]" />
-            <span className="text-[9px] font-black text-white/30 uppercase tracking-widest underline underline-offset-4 decoration-blue-500">v3.12 Live</span>
+            <span className="text-[9px] font-black text-white/30 uppercase tracking-widest underline underline-offset-4 decoration-blue-500">v4.0.0 Live</span>
          </div>
       </header>
 

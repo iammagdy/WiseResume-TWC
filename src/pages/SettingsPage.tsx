@@ -127,7 +127,7 @@ export default function SettingsPage() {
     });
   }, []);
 
-  const appVersion = changelogData[0]?.version || 'v3.12.0';
+  const appVersion = changelogData[0]?.version || 'v4.0.0-Native';
 
   const handleBiometricToggle = useCallback(async (enabled: boolean) => {
     if (enabled) {
