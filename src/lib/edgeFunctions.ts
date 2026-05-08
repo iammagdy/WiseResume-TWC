@@ -1,15 +1,18 @@
 /**
- * Edge Functions client — multipart/FormData-capable wrapper.
+ * Edge Functions client — Appwrite SDK direct.
  *
- * Routes all edge function calls through Appwrite Functions via the
- * proxy at /api/fn/:fnName so API keys never leave the server.
+ * Routes function calls through `functions.createExecution()` from the
+ * Appwrite SDK. The SDK uses the active Appwrite session automatically —
+ * no manual JWT headers needed.
  *
- * Authorization uses an Appwrite JWT (replaces the legacy Supabase bridge
- * token). A single in-flight JWT is shared and cached for 14 minutes.
+ * AI-Hub functions (anything in AI_HUB_FUNCTIONS) are forwarded to the
+ * single `ai-gateway` Appwrite Function with `featureName` in the body.
+ * All other functions are called directly by their function ID.
  */
-import { getAppwriteJWT, invalidateAppwriteJWT } from '@/lib/appwriteJWT';
+import { AppwriteException } from 'appwrite';
+import { functions } from '@/lib/appwrite';
+import { shouldRouteToAppwrite } from '@/lib/appwrite-bridge';
 import { dispatchSessionExpiredOnce } from '@/integrations/supabase/sessionExpired';
-import { apiFnUrl } from '@/lib/apiFnUrl';
 
 interface InvokeOptions {
   body?: FormData | Record<string, unknown> | unknown;
@@ -22,37 +25,17 @@ interface InvokeResult<T> {
   error: { message: string; status?: number } | null;
 }
 
-async function doFetch(
-  fnName: string,
-  options: InvokeOptions | undefined,
-  token: string | null,
-): Promise<Response> {
-  const isFormData = options?.body instanceof FormData;
-
-  const userHeaders = options?.headers ?? {};
-  const headers: Record<string, string> = { ...userHeaders };
-
-  if (!isFormData) {
-    headers['Content-Type'] = 'application/json';
+function buildBodyPayload(body: unknown): Record<string, unknown> {
+  if (body === undefined || body === null) return {};
+  if (body instanceof FormData) {
+    const obj: Record<string, unknown> = {};
+    body.forEach((value, key) => {
+      if (typeof value === 'string') obj[key] = value;
+    });
+    return obj;
   }
-
-  const hasUserAuth =
-    'Authorization' in userHeaders || 'authorization' in userHeaders;
-  if (token && !hasUserAuth) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-
-  const url = apiFnUrl(fnName);
-
-  return fetch(url, {
-    method: options?.method ?? 'POST',
-    headers,
-    body: isFormData
-      ? (options!.body as FormData)
-      : options?.body !== undefined
-      ? JSON.stringify(options.body)
-      : undefined,
-  });
+  if (typeof body === 'object') return body as Record<string, unknown>;
+  return {};
 }
 
 export const edgeFunctions = {
@@ -61,52 +44,76 @@ export const edgeFunctions = {
     options?: InvokeOptions,
   ): Promise<InvokeResult<T>> {
     try {
-      let token = await getAppwriteJWT();
-      let response = await doFetch(fnName, options, token);
+      const bodyPayload = buildBodyPayload(options?.body);
 
-      if (response.status === 401) {
-        invalidateAppwriteJWT();
-        token = await getAppwriteJWT();
-        if (token) {
-          response = await doFetch(fnName, options, token);
-        } else {
-          dispatchSessionExpiredOnce();
-          return {
-            data: null,
-            error: { message: 'Session expired — please sign in again.', status: 401 },
-          };
-        }
+      let functionId: string;
+      let executionBody: string;
+
+      if (shouldRouteToAppwrite(fnName)) {
+        functionId = 'ai-gateway';
+        executionBody = JSON.stringify({ featureName: fnName, ...bodyPayload });
+      } else {
+        functionId = fnName;
+        executionBody = JSON.stringify(bodyPayload);
       }
 
-      const text = await response.text();
+      const execution = await functions.createExecution(
+        functionId,
+        executionBody,
+        false,
+        '/',
+        'POST',
+      );
+
+      if (execution.status === 'failed') {
+        return {
+          data: null,
+          error: { message: execution.errors || 'Execution failed. Please try again.' },
+        };
+      }
+
       let parsed: unknown = null;
       try {
-        parsed = JSON.parse(text);
+        parsed = JSON.parse(execution.responseBody);
       } catch {
-        parsed = text;
+        parsed = execution.responseBody;
       }
 
-      if (!response.ok) {
+      const statusCode = execution.responseStatusCode;
+      if (statusCode >= 400) {
         let message = 'An error occurred. Please try again.';
-        if (response.status === 429) message = 'Too many requests — please wait a moment and try again.';
-        else if (response.status === 402) message = 'AI credits exhausted. Please check your account.';
-        else if (response.status === 401 || response.status === 403) message = 'Session expired — please sign in again.';
-        else if (typeof parsed === 'object' && parsed !== null) {
+        if (statusCode === 429) {
+          message = 'Too many requests — please wait a moment and try again.';
+        } else if (statusCode === 402) {
+          message = 'AI credits exhausted. Please check your account.';
+        } else if (statusCode === 401 || statusCode === 403) {
+          dispatchSessionExpiredOnce();
+          message = 'Session expired — please sign in again.';
+        } else if (typeof parsed === 'object' && parsed !== null) {
           const err = parsed as Record<string, unknown>;
           if (typeof err.error === 'string') message = err.error;
           else if (typeof err.message === 'string') message = err.message;
         }
-        return { data: null, error: { message, status: response.status } };
+        return { data: null, error: { message, status: statusCode } };
       }
 
       return { data: parsed as T, error: null };
     } catch (err) {
+      if (err instanceof AppwriteException) {
+        if (err.code === 401 || err.code === 403) {
+          dispatchSessionExpiredOnce();
+          return {
+            data: null,
+            error: { message: 'Session expired — please sign in again.', status: err.code },
+          };
+        }
+        return {
+          data: null,
+          error: { message: err.message, status: err.code },
+        };
+      }
       const rawMessage = err instanceof Error ? err.message : String(err);
-      const message =
-        rawMessage === 'Failed to fetch'
-          ? 'Cannot reach the server. Check your internet connection and try again.'
-          : rawMessage;
-      return { data: null, error: { message } };
+      return { data: null, error: { message: rawMessage } };
     }
   },
 
