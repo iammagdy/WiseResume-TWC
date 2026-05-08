@@ -1,3 +1,31 @@
+## 2026-05-08 — Project Atlas: full coverage of previously-undocumented surfaces
+
+**Files added (Project Atlas):**
+- `01-Currently Implemented/database-tables/` — 32 new reference cards: `admin_sessions`, `ai_key_migration_audit`, `ai_provider_breaker`, `ai_routing_config`, `analytics_sweep_lock`, `blocklist`, `broadcasts`, `company_briefings`, `device_push_tokens`, `edge_function_logs`, `email_verification_tokens`, `error_log`, `feature_flags`, `impersonation_revocations`, `interview_answers`, `interview_attempts`, `interview_question_bank`, `interview_report_tokens`, `kinde_events`, `linkedin_import_quota`, `mobile_app_versions`, `moderation_queue`, `ops_health_events`, `portfolio_exclusive_assignments`, `portfolio_interactions`, `portfolio_premium_usernames`, `portfolio_reserved_usernames`, `portfolio_username_rules`, `portfolio_user_overrides`, `resume_snapshots`, `signup_otps`, `visitor_events`. Each card cites the migration file, owner, columns, and hard rules drawn from `replit.md`.
+- `01-Currently Implemented/frontend-layer/contexts.md` — covers `src/contexts/` (plural) `AuthContext` + `DevKitSessionContext` and `src/context/` (singular) `BottomSheetContext` + `KeyboardContext`, including the directory-name distinction.
+- `01-Currently Implemented/frontend-layer/types.md` — catalogs `src/types/` (`resume.ts`, `resumeExamples.ts`, `aiStudio.ts`, `companyBriefing.ts`).
+- `01-Currently Implemented/frontend-layer/integrations-supabase.md` — covers `safeClient.ts`, `edgeFunctions.ts`, `sessionExpired.ts`, `transactionalEmailFlag.ts`, `resumeSectionAiFlag.ts`, `types.ts`, plus the `safeClient.test.ts` spec.
+- `01-Currently Implemented/frontend-layer/test-setup.md` — covers `src/test/` (Vitest setup) and `src/shims/pako.ts`.
+- `01-Currently Implemented/backend-layer/` (new dir) — `README.md`, `express-server.md` (server/index.ts 5 576 lines + db.ts + schema.ts), `edge-shared-helpers.md` (36 modules in `supabase/functions/_shared/`), `cloudflare-pages-middleware.md` (`functions/_middleware.ts`).
+- `01-Currently Implemented/repo/` (new dir) — `README.md`, `project-governance.md`, `routing-ai-providers.md`, `specs.md`, `docs.md`, `reports.md`, `scripts.md`, `tests.md`, `wise-templates.md`.
+- `01-Currently Implemented/public-surfaces/` (new dir) — `README.md`, `well-known.md` (MCP server card, agent skills, OAuth/OIDC discovery, universal links), `data-and-docs.md`.
+- `01-Currently Implemented/critical-systems/14-mcp-and-agent-skills.md` — discovery surface + skill manifest contract.
+- `01-Currently Implemented/critical-systems/15-cron-jobs.md` — scheduled fns + `requireCronSecretOrVault` contract.
+- `01-Currently Implemented/critical-systems/16-feature-flags-and-kill-switches.md` — server-side `feature_flags` resolver + frontend `*Flag.ts` rollout shims.
+- `01-Currently Implemented/critical-systems/17-ops-health-and-error-streams.md` — three-stream model: `ops_health_events`, `edge_function_logs`, `error_log`, with `scrubSecrets` contract.
+- `01-Currently Implemented/critical-systems/18-impersonation.md` — full flow incl. `impersonation_revocations` kill list.
+
+**Files updated (Project Atlas):**
+- `01-Currently Implemented/README.md` — added `backend-layer/`, `repo/`, `public-surfaces/` subdirs; added critical-systems #14–#18; corrected #13 to `13-mobile-expo.md`.
+- `01-Currently Implemented/critical-systems/README.md` — created (was missing); indexes all critical-system cards.
+- `01-Currently Implemented/database-tables/README.md` — appended "Newly carded (2026-05-08 reconciliation)" section linking the 32 new cards; clarified that `kill_switches` is the `kill_switch_function` column on `feature_flags`, not a separate table.
+- `01-Currently Implemented/frontend-layer/README.md` — added See-also links for `contexts.md`, `types.md`, `integrations-supabase.md`, `test-setup.md`.
+- `01-Currently Implemented/frontend-layer/components.md` — full rewrite: removed the stale `pwa/` reference (PWA was removed — see `docs/ops/pwa-removal-verification.md`), added 12 missing nested subfolders (`cover-letter/templates/`, `dev-kit/analytics/`, `editor/{ai,export,tailor}/`, `landing/wisehire/`, `portfolio/{editor,public,qr}/`, `settings/sections/`, `templates/shared/`, all 9 nested folders under `wisehire/`), added `__tests__/` enumeration and top-level component files. Restated PDF-capture `<img>` rules and account-type isolation rules.
+
+**Behavioral impact:** documentation only. Zero runtime change. No DB migrations, no edge-function changes, no frontend code changes.
+
+**Why:** the deployed system had drifted significantly from Atlas: ~33 production tables had no card, the entire `_shared/` helper layer (36 modules) was absent from Atlas, the `src/contexts/`/`src/context/` split was undocumented (and contained an architectural smell — two near-identical directory names), the `server/` Express bridge had no card despite handling all DevKit admin traffic, the agent-facing surface (`public/.well-known/mcp/`, `agent-skills/`, OAuth/OIDC discovery) was entirely missing from Atlas, and 5 cross-cutting systems (MCP, cron, feature flags + kill switches, ops health, impersonation) had no critical-system card.
+
 # Changelog
 
 ## 2026-05-08 — Project Atlas: comprehensive reconciliation against deployed code

@@ -1,6 +1,14 @@
 # What Wise Cloud Can Do Today
 
-**Last verified:** 2026-05-06 (Task #60)
+**Last verified:** 2026-05-08
+
+## Behind-the-scenes documentation pass — no app changes (2026-05-08)
+**What was the situation:** Internal reference notes that the team uses to find and maintain things in the platform had fallen behind the live product.
+**What changed:** The reference notes were brought back up to date so they fully match what is actually running today.
+**What you'll notice:** Nothing in the app changes. This is a behind-the-scenes documentation refresh — the benefit is faster, more accurate fixes and improvements to the things you do see, because the team can find what they need without guessing.
+
+---
+
 
 ## The Optimize screen now shows trust signals and clearer actions after tailoring (2026-05-06)
 **What was the situation:** After the AI finished optimizing your resume, the results panel gave you a score and a list of suggested fixes — but nothing that explained what the AI had actually done, and the "Apply (3)" button label was cryptic.

@@ -1,6 +1,6 @@
 # Database Tables Index
 
-  **Last verified:** 2026-04-17
+  **Last verified:** 2026-05-08
   **Type:** index
   **Sources:**
   - `src/integrations/supabase/types.ts` (UTF-8 encoded — generated from live Supabase schema. 61 tables + 1 view + 37 RPCs as of this regeneration)
@@ -59,6 +59,45 @@
 - [user_api_keys](./user_api_keys.md)
 - [user_gamification](./user_gamification.md)
 - [user_preferences](./user_preferences.md)
+
+### Newly carded (2026-05-08 reconciliation)
+
+Previously listed only in migrations / `types.ts`, now have reference cards:
+
+- [admin_sessions](./admin_sessions.md)
+- [ai_key_migration_audit](./ai_key_migration_audit.md)
+- [ai_provider_breaker](./ai_provider_breaker.md)
+- [ai_routing_config](./ai_routing_config.md)
+- [analytics_sweep_lock](./analytics_sweep_lock.md)
+- [blocklist](./blocklist.md)
+- [broadcasts](./broadcasts.md)
+- [company_briefings](./company_briefings.md)
+- [device_push_tokens](./device_push_tokens.md)
+- [edge_function_logs](./edge_function_logs.md)
+- [email_verification_tokens](./email_verification_tokens.md)
+- [error_log](./error_log.md)
+- [feature_flags](./feature_flags.md)
+- [impersonation_revocations](./impersonation_revocations.md)
+- [interview_answers](./interview_answers.md)
+- [interview_attempts](./interview_attempts.md)
+- [interview_question_bank](./interview_question_bank.md)
+- [interview_report_tokens](./interview_report_tokens.md)
+- [kinde_events](./kinde_events.md)
+- [linkedin_import_quota](./linkedin_import_quota.md)
+- [mobile_app_versions](./mobile_app_versions.md)
+- [moderation_queue](./moderation_queue.md)
+- [ops_health_events](./ops_health_events.md)
+- [portfolio_exclusive_assignments](./portfolio_exclusive_assignments.md)
+- [portfolio_interactions](./portfolio_interactions.md)
+- [portfolio_premium_usernames](./portfolio_premium_usernames.md)
+- [portfolio_reserved_usernames](./portfolio_reserved_usernames.md)
+- [portfolio_username_rules](./portfolio_username_rules.md)
+- [portfolio_user_overrides](./portfolio_user_overrides.md)
+- [resume_snapshots](./resume_snapshots.md)
+- [signup_otps](./signup_otps.md)
+- [visitor_events](./visitor_events.md)
+
+> `kill_switches` is **not** a separate table — it is the `kill_switch_function` column on [`feature_flags`](./feature_flags.md). See `critical-systems/16-feature-flags-and-kill-switches.md`.
 
 ### WiseHire (17)
 

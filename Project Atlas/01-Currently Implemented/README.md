@@ -1,6 +1,6 @@
 # 01 — Currently Implemented
 
-**Last verified:** 2026-04-18
+**Last verified:** 2026-05-08
 **Type:** index
 **Canonical owner:** Project Atlas maintainer (see `../MAINTENANCE.md`)
 **Sources (governance — supreme):**
@@ -19,7 +19,7 @@ If a feature is committed to but not yet built, it lives in `../02-Planned/`. If
 ## Contents
 
 - [`platform-overview.md`](./platform-overview.md) — one-page summary of WiseResume + WiseHire and the shared infrastructure
-- [`critical-systems/`](./critical-systems/) — 13 deep-dive docs for the systems every agent needs to understand
+- [`critical-systems/`](./critical-systems/) — deep-dive docs for the systems every agent needs to understand
   - [01 — Auth bridge (Kinde → Supabase)](./critical-systems/01-auth-bridge.md)
   - [02 — AI routing 8-step chain](./critical-systems/02-ai-routing-chain.md)
   - [03 — Credits + BYOK](./critical-systems/03-credits-and-byok.md)
@@ -30,9 +30,17 @@ If a feature is committed to but not yet built, it lives in `../02-Planned/`. If
   - [08 — Deployment](./critical-systems/08-deployment.md)
   - [09 — Security model (4-layer invariant)](./critical-systems/09-security-model.md)
   - [10 — WiseResume AI Studio + agentic chat](./critical-systems/10-ai-studio-and-agentic-chat.md)
-  - [13 — Mobile (Capacitor)](./critical-systems/13-mobile-capacitor.md)
+  - [13 — Mobile (Expo)](./critical-systems/13-mobile-expo.md)
+  - [14 — MCP server + Agent Skills](./critical-systems/14-mcp-and-agent-skills.md)
+  - [15 — Cron jobs + scheduled edge functions](./critical-systems/15-cron-jobs.md)
+  - [16 — Feature flags + kill switches](./critical-systems/16-feature-flags-and-kill-switches.md)
+  - [17 — Ops health + error streams](./critical-systems/17-ops-health-and-error-streams.md)
+  - [18 — Admin impersonation](./critical-systems/18-impersonation.md)
 - [`pages/`](./pages/) — one reference card per route
 - [`edge-functions/`](./edge-functions/) — one reference card per Supabase Edge Function
 - [`database-tables/`](./database-tables/) — one reference card per Postgres table
-- [`frontend-layer/`](./frontend-layer/) — Zustand stores, shared hooks, integration libraries
+- [`frontend-layer/`](./frontend-layer/) — Zustand stores, shared hooks, integration libraries, contexts, types, Supabase frontend integration, test setup
+- [`backend-layer/`](./backend-layer/) — Express server, edge-function shared helpers, Cloudflare Pages middleware
+- [`repo/`](./repo/) — top-level repo folders: project-governance, specs, docs, reports, scripts, tests, wise-templates, Routing AI Providers
+- [`public-surfaces/`](./public-surfaces/) — `public/` static surfaces: `.well-known/` (MCP, agent skills, OAuth/OIDC, universal links), `data/`, `docs/`, root assets
 - [`stability-fixes/`](./stability-fixes/) — cross-cutting hardening work (the 2026-Q2 stability initiative, Phases 1–5)
