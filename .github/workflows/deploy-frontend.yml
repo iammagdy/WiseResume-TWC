@@ -30,12 +30,12 @@ jobs:
           BUILD_COMMIT: ${{ github.sha }}
           BUILD_TIME: ${{ github.event.repository.updated_at }}
 
-      - name: Install lftp
-        run: sudo apt-get install -y lftp
+      - name: Zip build artifacts
+        run: zip -r build.zip dist
 
-      - name: Deploy to Hostinger via FTPS
+      - name: Upload to Hostinger (Single File Zip)
         env:
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
         run: |
           lftp -d -u "u966279061.thewise.cloud,${FTP_PASSWORD}" "ftp://82.29.154.120:21" \
-            -e "set ftp:ssl-force true; set ssl:verify-certificate no; mirror --reverse --delete --verbose --parallel=6 ./dist/ /public_html/resume/; bye"
+            -e "set ftp:ssl-force true; set ssl:verify-certificate no; put build.zip -o /public_html/resume/build.zip; bye"
