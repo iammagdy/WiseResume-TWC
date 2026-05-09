@@ -2,6 +2,16 @@
 
 **Last verified:** 2026-05-09
 
+## Dashboard no longer blocks after login — "Profile unavailable" fixed (2026-05-09)
+
+After successfully signing in, the dashboard was showing "Profile unavailable — We couldn't load your account details" with only a Refresh button. The app was waiting for internal account records that haven't been created yet on the new Appwrite backend. After 6 seconds of waiting it showed the error instead of the dashboard.
+
+**What changed:** The app now handles missing account records gracefully. If the records aren't there yet, it treats the account as a standard free user and lets you straight into the dashboard. There is no loss of security — email verification checks still run, and the records will be created progressively as the migration continues.
+
+**Last verified:** 2026-05-09
+
+---
+
 ## Replit preview working again — login fixed (2026-05-09)
 
 Two separate bugs were making it impossible to use the app in the Replit development preview:
