@@ -1,0 +1,9 @@
+{
+  "name": "admin-email",
+  "version": "1.0.0",
+  "description": "Appwrite Function — serves EmailManagementPanel and EmailAutomationsPanel",
+  "main": "src/main.js",
+  "dependencies": {
+    "node-appwrite": "^11.1.1"
+  }
+}

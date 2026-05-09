@@ -2,6 +2,26 @@
 
 **Last verified:** 2026-05-09
 
+## Email Management and Feature Flags panels now have a working backend (2026-05-09)
+
+Three more DevKit panels have been failing with "Function not found" since the Supabase cutover: **Email Management**, **Email Automations**, and **Feature Flags**.
+
+**What's been built:** Two new replacement Appwrite Functions are ready to deploy:
+
+- **admin-email** (`appwrite-hubs/admin-email/`) — handles everything email-related in the DevKit:
+  - *Audience stats* — checks which Resend audiences are configured (via `RESEND_AUDIENCE_*` variables), fetches contact counts and audience names from Resend, and pulls recent broadcast campaign stats (open rate, click rate).
+  - *Contact management* — lookup whether an email is in any audience; manually add or remove contacts from specific audiences.
+  - *All-users sync* — reads every profile from the Appwrite database and bulk-upserts them into the "All Users" Resend audience. Run this once after setting up the audience.
+  - *Transactional emails* — sends confirmation emails, magic sign-in links, one-time codes, password reset links, and custom admin-composed emails directly via Resend.
+
+- **admin-feature-flags** (`appwrite-hubs/admin-feature-flags/`) — full CRUD for the feature flags stored in Appwrite Databases. Supports listing all flags, creating or updating a flag (enabled globally, per-plan, per-user, by percentage rollout, or as a kill switch for a specific backend function), and deleting flags. Returns an empty list gracefully if the collection hasn't been created yet.
+
+**What still needs to happen:** Both functions must be deployed in the Appwrite Console (project `69fd362b001eb325a192`, fra region). The `feature_flags` database collection must also be created in Appwrite Console before the flags panel can write data. Step-by-step instructions are in each function's README.
+
+**Last verified:** 2026-05-09
+
+---
+
 ## Visitor Intelligence and Onboarding Funnel panels now have a working backend (2026-05-09)
 
 Two more DevKit panels have been failing with "Function not found" since the Supabase cutover: **Visitor Intelligence** (VisitorsPanel) and **Onboarding Funnel** (OnboardingFunnelPanel). Also, the live visitor count widget on Mission Control was broken.

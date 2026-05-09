@@ -1,3 +1,28 @@
+## 2026-05-09 — New Appwrite Functions: admin-email + admin-feature-flags
+
+### Files created
+- `appwrite-hubs/admin-email/package.json` — Node.js 18 manifest; dep: `node-appwrite ^11.1.1`.
+- `appwrite-hubs/admin-email/src/main.js` — Multi-module Appwrite Function (~310 lines):
+  - `resend-stats / stats` — reads `RESEND_AUDIENCE_*` Function Variables, fetches audience name and contact count from Resend API for each configured audience, fetches recent sent broadcasts with open/click rate metrics; returns `StatsResponse` (audiences, checklist, recentBroadcasts) matching `EmailAutomationsPanel`.
+  - `resend-stats / lookup` — searches an email across all configured Resend audiences; returns `{ foundIn: string[] }`.
+  - `resend-stats / add` | `remove` — upserts / removes a contact from a named Resend audience via `RESEND_AUDIENCE_<KEY>` variable.
+  - `resend-sync` — reads all `profiles` from Appwrite DB and bulk-upserts into `RESEND_AUDIENCE_ALL_USERS`; returns `{ total, added, failed }`.
+  - `email-actions` — sends transactional emails via Resend `POST /emails`: `resend_confirmation`, `send_magic_link`, `send_otp` (generates 6-digit code), `send_password_reset`, `send_custom` (admin-composed); returns `{ email, message_id }`.
+  - All email templates are inline HTML using a shared `baseTemplate()` helper with WiseResume branding.
+- `appwrite-hubs/admin-email/README.md` — deploy guide (Console + CLI), full variable table (RESEND_API_KEY, RESEND_FROM_*, RESEND_AUDIENCE_*, APPWRITE_API_KEY), all module/action request + response shapes.
+- `appwrite-hubs/admin-feature-flags/package.json` — Node.js 18 manifest; dep: `node-appwrite ^11.1.1`.
+- `appwrite-hubs/admin-feature-flags/src/main.js` — CRUD Appwrite Function (~180 lines):
+  - `list` — fetches all flag documents from `feature_flags` collection, sorted by name; returns empty array (not error) if collection doesn't exist yet.
+  - `upsert` — slugifies `name`, looks up existing document by name query, updates if found else creates; clamps `percentage_rollout` to 0–100; returns `{ flag: FeatureFlag }` matching panel type.
+  - `delete` — finds document by name, deletes it; returns `{ deleted: name }`.
+  - `FeatureFlag` shape: `id`, `name`, `description`, `enabled_globally`, `enabled_plans[]`, `enabled_user_ids[]`, `percentage_rollout`, `kill_switch_function`, `updated_by`, `updated_at`.
+- `appwrite-hubs/admin-feature-flags/README.md` — deploy guide, variable table, full `feature_flags` collection attribute spec (types, nullable, indexes), request/response examples.
+
+### What this unblocks
+`EmailAutomationsPanel` (Resend audience stats, contact lookup, audience management, broadcast stats, all-users sync) and `EmailManagementPanel` (resend confirmation, send magic link, OTP, password reset, custom email) call `admin-email`. `FeatureFlagsPanel` (list/upsert/delete flags) calls `admin-feature-flags`. All three panels have been failing with "Function not found" since the Supabase cutover.
+
+---
+
 ## 2026-05-09 — New Appwrite Functions: admin-visitor-analytics + admin-onboarding-funnel
 
 ### Files created
