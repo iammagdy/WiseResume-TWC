@@ -134,7 +134,7 @@ async function handleTestmailInbox(tag) {
     subject:    typeof e.subject === 'string' ? e.subject : '(no subject)',
     from:       coerceAddress(e.from),
     to:         coerceAddress(e.to),
-    receivedAt: e.timestamp   ? new Date(e.timestamp).toISOString() : null,
+    receivedAt: (() => { try { if (!e.timestamp) return null; const d = new Date(e.timestamp); return isNaN(d.getTime()) ? null : d.toISOString(); } catch { return null; } })(),
     tag:        typeof e.tag === 'string' ? e.tag : null,
     html:       typeof e.html === 'string' ? e.html : null,
     text:       typeof e.text === 'string' ? e.text : null,
