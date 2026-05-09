@@ -390,7 +390,7 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
   // the channel is unavailable.
   useVisibleInterval(fetchLiveCount, 30_000);
 
-  if (!data && loading) {
+  if (!data && (loading || !error)) {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">

@@ -2,6 +2,16 @@
 
 **Last verified:** 2026-05-09
 
+## DevKit panels isolated — one crash no longer breaks the whole page (2026-05-09)
+
+A production error (`TypeError: Cannot read properties of undefined (reading 'data')`) was crashing at least one DevKit panel and, because there was no panel-level crash boundary, the crash bubbled all the way up to the app's global error handler — making it look like the entire DevKit was down.
+
+**What changed:** Every one of the 20 DevKit panels is now individually wrapped in a crash boundary. If a single panel hits an unexpected error, only that panel shows a red error card with the error details and a "Try again" button. Every other panel and the whole DevKit shell (sidebar, navigation, session lock) keep working normally. A separate rendering fix in the Mission Control panel also eliminates a brief moment where it tried to display live data before any data had arrived.
+
+**Last verified:** 2026-05-09
+
+---
+
 ## DevKit panels no longer crash on load (2026-05-09)
 
 Most DevKit panels (Analytics, Visitors, Live Activity, Observability, Onboarding Funnel, and others) use a session-management system called `DevKitSessionContext` to check whether you're authenticated before showing live data. That context provider was never actually mounted in the app — so any panel that used it would throw a "must be used within DevKitSessionProvider" error the moment it was opened.

@@ -6,6 +6,7 @@ import {
   CheckCircle2, AlertCircle, ShieldBan, ListChecks, Link2,
   Flag, Play, Search, X, MoreHorizontal,
 } from 'lucide-react';
+import { DevKitPanelBoundary } from '@/components/dev-kit/DevKitPanelBoundary';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -213,28 +214,31 @@ function DevToolsInner() {
   const mobilePrimary   = MOBILE_PRIMARY_IDS.map(id => ALL_PANELS.find(p => p.id === id)!).filter(Boolean);
 
   const renderPanel = () => {
+    const wrap = (name: string, node: React.ReactNode) => (
+      <DevKitPanelBoundary panelName={name}>{node}</DevKitPanelBoundary>
+    );
     switch (activePanel) {
-      case 'overview':      return <OverviewPanel />;
-      case 'mission':       return <MissionControlPanel onNavigate={handleMissionNavigate} />;
-      case 'live':          return <LiveActivityPanel />;
-      case 'observability': return <ObservabilityPanel />;
-      case 'users':         return <AdminUsersPanel />;
-      case 'moderation':    return <ModerationPanel />;
-      case 'analytics':     return <AnalyticsPanel />;
-      case 'visitors':      return <VisitorsPanel />;
-      case 'funnel':        return <OnboardingFunnelPanel />;
-      case 'db':            return <DatabaseXRay />;
-      case 'portfolios':    return <PortfolioUsernamesPanel />;
-      case 'audit':         return <AuditLogPanel />;
-      case 'ai':            return <AIRadarPanel />;
-      case 'flags':         return <FeatureFlagsPanel />;
-      case 'runner':        return <DevKitRunner />;
-      case 'email':         return <EmailManagementPanel />;
-      case 'automations':   return <EmailAutomationsPanel />;
-      case 'coupons':       return <CouponsPanel />;
-      case 'wisehire':      return <WiseHireWaitlistPanel />;
-      case 'settings':      return <AppSettingsPanel />;
-      default:              return <OverviewPanel />;
+      case 'overview':      return wrap('Command',          <OverviewPanel />);
+      case 'mission':       return wrap('Mission Control',  <MissionControlPanel onNavigate={handleMissionNavigate} />);
+      case 'live':          return wrap('Live Activity',    <LiveActivityPanel />);
+      case 'observability': return wrap('Observability',    <ObservabilityPanel />);
+      case 'users':         return wrap('God Mode',         <AdminUsersPanel />);
+      case 'moderation':    return wrap('Moderation',       <ModerationPanel />);
+      case 'analytics':     return wrap('Analytics',        <AnalyticsPanel />);
+      case 'visitors':      return wrap('Visitors',         <VisitorsPanel />);
+      case 'funnel':        return wrap('Onboarding Funnel',<OnboardingFunnelPanel />);
+      case 'db':            return wrap('X-Ray',            <DatabaseXRay />);
+      case 'portfolios':    return wrap('Portfolios',       <PortfolioUsernamesPanel />);
+      case 'audit':         return wrap('History',          <AuditLogPanel />);
+      case 'ai':            return wrap('AI Radar',         <AIRadarPanel />);
+      case 'flags':         return wrap('Feature Flags',    <FeatureFlagsPanel />);
+      case 'runner':        return wrap('Test Runner',      <DevKitRunner />);
+      case 'email':         return wrap('Email',            <EmailManagementPanel />);
+      case 'automations':   return wrap('Automations',      <EmailAutomationsPanel />);
+      case 'coupons':       return wrap('Forge',            <CouponsPanel />);
+      case 'wisehire':      return wrap('Hiring',           <WiseHireWaitlistPanel />);
+      case 'settings':      return wrap('Core',             <AppSettingsPanel />);
+      default:              return wrap('Command',          <OverviewPanel />);
     }
   };
 
