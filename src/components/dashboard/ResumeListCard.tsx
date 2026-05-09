@@ -128,9 +128,9 @@ export const ResumeListCard = memo(function ResumeListCard({
   const getTailorHistoryForResume = useResumeStore(s => s.getTailorHistoryForResume);
 
   const latestTailor = useMemo(() => {
-    const history = getTailorHistoryForResume(resume.id);
+    const history = getTailorHistoryForResume(resume.$id);
     return history.length > 0 ? history[0] : null;
-  }, [resume.id, getTailorHistoryForResume]);
+  }, [resume.$id, getTailorHistoryForResume]);
 
   const x = useMotionValue(0);
   const deleteOpacity = useTransform(x, [-SWIPE_THRESHOLD, -20], [1, 0]);
@@ -141,15 +141,15 @@ export const ResumeListCard = memo(function ResumeListCard({
   const trialBadge = useMemo(() => {
     if (!resume.is_trial) return null;
     if (!resume.trial_expires_at) return { label: 'Trial', expired: false, hoursLeft: 0 };
-    const expiresAt = new Date(resume.trial_expires_at);
+    const expiresAt = new Date(resume.trial_expires_at || Date.now());
     const now = new Date();
     if (expiresAt <= now) return { label: 'Trial expired', expired: true, hoursLeft: 0 };
     const hoursLeft = Math.max(1, Math.round((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60)));
     return { label: `Trial · ${hoursLeft}h left`, expired: false, hoursLeft };
   }, [resume.is_trial, resume.trial_expires_at]);
-  const isPending = useOfflineSyncStore(s => s.pendingChanges.some(c => c.resumeId === resume.id));
+  const isPending = useOfflineSyncStore(s => s.pendingChanges.some(c => c.resumeId === resume.$id));
   const matchScore = resume.job_match_score;
-  const resumeForProgress = useMemo(() => dbToResumeData(resume), [resume.id, resume.updated_at]);
+  const resumeForProgress = useMemo(() => dbToResumeData(resume), [resume.$id, resume.$updatedAt]);
 
   const verifiedScoreClass = (score: number) => {
     if (score >= 75) return 'bg-success/10 text-success border-success/30';
@@ -184,17 +184,17 @@ export const ResumeListCard = memo(function ResumeListCard({
       haptics.warning();
       if (confirmSwipeActions) {
         animate(x, 0, { type: 'spring', stiffness: 500, damping: 30 });
-        onDelete(resume.id);
+        onDelete(resume.$id);
       } else {
-        animate(x, -300, { type: 'tween', duration: 0.2 }).then(() => onDelete(resume.id));
+        animate(x, -300, { type: 'tween', duration: 0.2 }).then(() => onDelete(resume.$id));
       }
     } else if (info.offset.x >= SWIPE_THRESHOLD) {
       haptics.success();
       if (confirmSwipeActions) {
         animate(x, 0, { type: 'spring', stiffness: 500, damping: 30 });
-        onDuplicate(resume.id);
+        onDuplicate(resume.$id);
       } else {
-        animate(x, 300, { type: 'tween', duration: 0.2 }).then(() => onDuplicate(resume.id));
+        animate(x, 300, { type: 'tween', duration: 0.2 }).then(() => onDuplicate(resume.$id));
       }
     } else {
       animate(x, 0, { type: 'spring', stiffness: 500, damping: 30 });
@@ -204,21 +204,21 @@ export const ResumeListCard = memo(function ResumeListCard({
   const handleSingleTap = useCallback(() => {
     if (selectionMode && onToggleSelect) {
       haptics.light();
-      onToggleSelect(resume.id);
+      onToggleSelect(resume.$id);
       return;
     }
     if (!isDragging) {
       haptics.light();
-      navigateToEditor(`/resume/${resume.id}`);
+      navigateToEditor(`/resume/${resume.$id}`);
     }
-  }, [selectionMode, onToggleSelect, isDragging, resume.id, navigateToEditor]);
+  }, [selectionMode, onToggleSelect, isDragging, resume.$id, navigateToEditor]);
 
   const handleDoubleTapAction = useCallback(() => {
     if (selectionMode || isDragging) return;
     haptics.medium();
     // Load resume and go directly to preview
     const { setCurrentResumeId, setCurrentResume } = useResumeStore.getState();
-    setCurrentResumeId(resume.id);
+    setCurrentResumeId(resume.$id);
     setCurrentResume(dbToResumeData(resume));
     navigateToEditor('/preview');
   }, [selectionMode, isDragging, resume, navigateToEditor]);
@@ -336,7 +336,7 @@ export const ResumeListCard = memo(function ResumeListCard({
               <div className="flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
                 <Checkbox
                   checked={selected}
-                  onCheckedChange={() => onToggleSelect?.(resume.id)}
+                  onCheckedChange={() => onToggleSelect?.(resume.$id)}
                   className="w-5 h-5"
                 />
               </div>
@@ -371,7 +371,7 @@ export const ResumeListCard = memo(function ResumeListCard({
                         if (val && val !== resume.title && onRename) {
                           setIsSavingRename(true);
                           try {
-                            await onRename(resume.id, val);
+                            await onRename(resume.$id, val);
                           } finally {
                             setIsSavingRename(false);
                           }
@@ -473,7 +473,7 @@ export const ResumeListCard = memo(function ResumeListCard({
               <div className="flex items-center gap-3">
                 <span className="text-[13px] text-muted-foreground flex items-center gap-1">
                   <Clock className="w-3 h-3" />
-                  Edited {formatDistanceToNow(new Date(resume.updated_at), { addSuffix: true })}
+                  Edited {formatDistanceToNow(new Date(resume.$updatedAt || resume.$createdAt || Date.now()), { addSuffix: true })}
                 </span>
                 {isPending && (
                   <span className="flex items-center gap-1 text-[10px] text-warning font-medium">
@@ -518,7 +518,7 @@ export const ResumeListCard = memo(function ResumeListCard({
           {/* View & Edit */}
           <div className="mt-4 space-y-1">
             <p className="text-xs text-muted-foreground font-medium px-2 mb-1">View & Edit</p>
-            <button className="flex items-center gap-3 w-full min-h-[48px] px-3 rounded-lg hover:bg-muted active:scale-95 touch-manipulation transition-colors" onClick={() => { haptics.light(); setShowActionsSheet(false); navigateToEditor(`/resume/${resume.id}`); }}>
+            <button className="flex items-center gap-3 w-full min-h-[48px] px-3 rounded-lg hover:bg-muted active:scale-95 touch-manipulation transition-colors" onClick={() => { haptics.light(); setShowActionsSheet(false); navigateToEditor(`/resume/${resume.$id}`); }}>
               <Eye className="w-5 h-5 text-muted-foreground" /><span className="text-sm">Preview</span>
             </button>
             {onRename && (
@@ -526,7 +526,7 @@ export const ResumeListCard = memo(function ResumeListCard({
                 <Pencil className="w-5 h-5 text-muted-foreground" /><span className="text-sm">Rename</span>
               </button>
             )}
-            <button className="flex items-center gap-3 w-full min-h-[48px] px-3 rounded-lg hover:bg-muted active:scale-95 touch-manipulation transition-colors" onClick={() => { haptics.light(); setShowActionsSheet(false); onEdit(resume.id); }}>
+            <button className="flex items-center gap-3 w-full min-h-[48px] px-3 rounded-lg hover:bg-muted active:scale-95 touch-manipulation transition-colors" onClick={() => { haptics.light(); setShowActionsSheet(false); onEdit(resume.$id); }}>
               <Edit2 className="w-5 h-5 text-muted-foreground" /><span className="text-sm">Edit</span>
             </button>
           </div>
@@ -540,7 +540,7 @@ export const ResumeListCard = memo(function ResumeListCard({
               haptics.light(); setShowActionsSheet(false);
               // Load resume into store and navigate to preview for download
               const { setCurrentResumeId, setCurrentResume, setSelectedTemplate } = useResumeStore.getState();
-              setCurrentResumeId(resume.id);
+              setCurrentResumeId(resume.$id);
               setCurrentResume(dbToResumeData(resume));
               if (resume.template_id) setSelectedTemplate(resume.template_id as import('@/types/resume').TemplateId);
               navigateToEditor('/preview?action=download');
@@ -550,17 +550,17 @@ export const ResumeListCard = memo(function ResumeListCard({
             <button className="flex items-center gap-3 w-full min-h-[48px] px-3 rounded-lg hover:bg-muted active:scale-95 touch-manipulation transition-colors" onClick={async () => {
               haptics.light(); setShowActionsSheet(false);
               try {
-                await navigator.clipboard.writeText(`${getAppUrl()}/resume/${resume.id}`);
+                await navigator.clipboard.writeText(`${getAppUrl()}/resume/${resume.$id}`);
                 toast.success('Link copied to clipboard');
               } catch { toast.error('Failed to copy link'); }
             }}>
               <Share2 className="w-5 h-5 text-muted-foreground" /><span className="text-sm">Share</span>
             </button>
-            <button className="flex items-center gap-3 w-full min-h-[48px] px-3 rounded-lg hover:bg-muted active:scale-95 touch-manipulation transition-colors" onClick={() => { haptics.light(); setShowActionsSheet(false); onDuplicate(resume.id); }}>
+            <button className="flex items-center gap-3 w-full min-h-[48px] px-3 rounded-lg hover:bg-muted active:scale-95 touch-manipulation transition-colors" onClick={() => { haptics.light(); setShowActionsSheet(false); onDuplicate(resume.$id); }}>
               <Copy className="w-5 h-5 text-muted-foreground" /><span className="text-sm">Duplicate</span>
             </button>
             {onInterview && (
-              <button className="flex items-center gap-3 w-full min-h-[48px] px-3 rounded-lg hover:bg-muted active:scale-95 touch-manipulation transition-colors" onClick={() => { haptics.light(); setShowActionsSheet(false); onInterview(resume.id); }}>
+              <button className="flex items-center gap-3 w-full min-h-[48px] px-3 rounded-lg hover:bg-muted active:scale-95 touch-manipulation transition-colors" onClick={() => { haptics.light(); setShowActionsSheet(false); onInterview(resume.$id); }}>
                 <Mic className="w-5 h-5 text-muted-foreground" /><span className="text-sm">Practice Interview</span>
               </button>
             )}
@@ -571,7 +571,7 @@ export const ResumeListCard = memo(function ResumeListCard({
           {/* Manage */}
           <div className="space-y-1 pb-2">
             <p className="text-xs text-muted-foreground font-medium px-2 mb-1">Manage</p>
-            <button className="flex items-center gap-3 w-full min-h-[48px] px-3 rounded-lg hover:bg-muted active:scale-95 touch-manipulation transition-colors text-destructive" onClick={() => { haptics.warning(); setShowActionsSheet(false); onDelete(resume.id); }}>
+            <button className="flex items-center gap-3 w-full min-h-[48px] px-3 rounded-lg hover:bg-muted active:scale-95 touch-manipulation transition-colors text-destructive" onClick={() => { haptics.warning(); setShowActionsSheet(false); onDelete(resume.$id); }}>
               <Trash2 className="w-5 h-5" /><span className="text-sm">Delete</span>
             </button>
           </div>
