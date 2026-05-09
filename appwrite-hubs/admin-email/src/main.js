@@ -107,8 +107,13 @@ async function getAudienceContactCount(audienceId) {
 
 // ─── Module: resend-stats / action: stats ────────────────────────────────────
 
-async function handleResendStats() {
+/**
+ * @param {number} days - rolling window for delivery stats (default 30)
+ */
+async function handleResendStats(days) {
+  const window = Math.max(1, Math.min(365, Number(days) || 30));
   const apiKey = process.env.RESEND_API_KEY;
+
   if (!apiKey) {
     return {
       audiences: AUDIENCE_DEFS.map(def => ({
@@ -121,59 +126,100 @@ async function handleResendStats() {
       checklist: buildChecklist(),
       recentBroadcasts: [],
       broadcastsNote: 'RESEND_API_KEY is not configured in Appwrite Function Variables.',
+      deliveryStats: { days: window, sent: 0, bounced: 0, complained: 0, opened: 0, clicked: 0, bounceRate: 0, openRate: 0, clickRate: 0 },
     };
   }
 
-  // Build audience stats in parallel
-  const audiences = await Promise.all(
-    AUDIENCE_DEFS.map(async (def) => {
-      const envKey  = `RESEND_AUDIENCE_${def.key}`;
-      const id      = process.env[envKey] || null;
-      const configured = !!id;
-      const contactCount = configured ? await getAudienceContactCount(id) : null;
+  const sinceDate = new Date(Date.now() - window * 86400000).toISOString().slice(0, 10);
 
-      // Try to get the audience name from Resend
-      let name;
-      if (id) {
-        try {
-          const res = await resendRequest('GET', `/audiences/${id}`);
-          name = res.name;
-        } catch {
-          name = undefined;
+  // Build audience stats and fetch delivery stats + broadcasts concurrently
+  const [audiences, deliveryStats, broadcastResult] = await Promise.all([
+    // Audience stats
+    Promise.all(
+      AUDIENCE_DEFS.map(async (def) => {
+        const envKey  = `RESEND_AUDIENCE_${def.key}`;
+        const id      = process.env[envKey] || null;
+        const configured = !!id;
+        const contactCount = configured ? await getAudienceContactCount(id) : null;
+
+        let name;
+        if (id) {
+          try {
+            const r = await resendRequest('GET', `/audiences/${id}`);
+            name = r.name;
+          } catch {
+            name = undefined;
+          }
         }
+
+        return { key: def.key, label: def.label, configured, id, contactCount, name };
+      }),
+    ),
+
+    // Delivery stats — aggregate from sent emails in the window
+    (async () => {
+      try {
+        // Resend's /emails endpoint returns a list of sent emails.
+        // We filter by created_at >= sinceDate in the response (no server-side date filter in v1 API).
+        const res = await resendRequest('GET', '/emails?limit=100');
+        const emails = res.data || [];
+
+        const inWindow = emails.filter(e => {
+          const created = (e.created_at || '').slice(0, 10);
+          return created >= sinceDate;
+        });
+
+        const sent       = inWindow.length;
+        const bounced    = inWindow.filter(e => e.last_event === 'bounced'   || e.status === 'bounced').length;
+        const complained = inWindow.filter(e => e.last_event === 'complained' || e.status === 'complained').length;
+        const opened     = inWindow.filter(e => e.last_event === 'opened'    || e.status === 'opened' || (e.opens && e.opens > 0)).length;
+        const clicked    = inWindow.filter(e => e.last_event === 'clicked'   || e.status === 'clicked' || (e.clicks && e.clicks > 0)).length;
+
+        return {
+          days:       window,
+          sent,
+          bounced,
+          complained,
+          opened,
+          clicked,
+          bounceRate: sent > 0 ? Math.round((bounced / sent) * 1000) / 10 : 0,
+          openRate:   sent > 0 ? Math.round((opened  / sent) * 1000) / 10 : 0,
+          clickRate:  sent > 0 ? Math.round((clicked / sent) * 1000) / 10 : 0,
+        };
+      } catch {
+        return { days: window, sent: 0, bounced: 0, complained: 0, opened: 0, clicked: 0, bounceRate: 0, openRate: 0, clickRate: 0 };
       }
+    })(),
 
-      return { key: def.key, label: def.label, configured, id, contactCount, name };
-    }),
-  );
-
-  // Fetch recent broadcasts
-  let recentBroadcasts = [];
-  let broadcastsNote;
-  try {
-    const res = await resendRequest('GET', '/broadcasts');
-    const items = res.data || [];
-    recentBroadcasts = items
-      .filter(b => b.status === 'sent')
-      .slice(0, 10)
-      .map(b => ({
-        id:         b.id,
-        name:       b.name || '(untitled)',
-        status:     b.status,
-        sentAt:     b.sent_at || null,
-        recipients: b.metrics?.recipients ?? null,
-        openRate:   b.metrics?.open_rate  ?? null,
-        clickRate:  b.metrics?.click_rate ?? null,
-      }));
-  } catch (e) {
-    broadcastsNote = `Could not fetch broadcasts: ${e.message}`;
-  }
+    // Recent broadcasts
+    (async () => {
+      try {
+        const res = await resendRequest('GET', '/broadcasts');
+        const items = (res.data || [])
+          .filter(b => b.status === 'sent' && (!b.sent_at || b.sent_at.slice(0, 10) >= sinceDate))
+          .slice(0, 10)
+          .map(b => ({
+            id:         b.id,
+            name:       b.name || '(untitled)',
+            status:     b.status,
+            sentAt:     b.sent_at || null,
+            recipients: b.metrics?.recipients ?? null,
+            openRate:   b.metrics?.open_rate  ?? null,
+            clickRate:  b.metrics?.click_rate ?? null,
+          }));
+        return { broadcasts: items, note: undefined };
+      } catch (e) {
+        return { broadcasts: [], note: `Could not fetch broadcasts: ${e.message}` };
+      }
+    })(),
+  ]);
 
   return {
     audiences,
-    checklist: buildChecklist(),
-    recentBroadcasts,
-    broadcastsNote,
+    checklist:        buildChecklist(),
+    recentBroadcasts: broadcastResult.broadcasts,
+    broadcastsNote:   broadcastResult.note,
+    deliveryStats,
   };
 }
 
@@ -285,9 +331,28 @@ async function handleSync(databases) {
   return { total: profiles.length, added, failed };
 }
 
+// ─── Module: email-actions / action: diagnose ────────────────────────────────
+
+/**
+ * Called by EmailManagementPanel on mount to check if RESEND_API_KEY is set.
+ * Returns { resend_api_key_configured: boolean, note?: string }.
+ */
+function handleDiagnose() {
+  const configured = !!process.env.RESEND_API_KEY;
+  return {
+    resend_api_key_configured: configured,
+    note: configured
+      ? 'RESEND_API_KEY is present. Verify thewise.cloud domain in Resend for delivery to work.'
+      : 'RESEND_API_KEY is not set. Add it in Appwrite Console → Functions → admin-email → Variables.',
+  };
+}
+
 // ─── Module: email-actions ────────────────────────────────────────────────────
 
 async function handleEmailAction(action, body) {
+  // diagnose doesn't need the API key — it just checks presence
+  if (action === 'diagnose') return handleDiagnose();
+
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) throw new Error('RESEND_API_KEY is not configured in Appwrite Function Variables');
 
@@ -447,7 +512,7 @@ module.exports = async ({ req, res, log, error }) => {
     if (mod === 'resend-stats') {
       switch (action) {
         case 'stats': {
-          const data = await handleResendStats();
+          const data = await handleResendStats(body.days);
           return res.json({ success: true, ...data });
         }
         case 'lookup': {
