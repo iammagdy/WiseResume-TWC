@@ -38,7 +38,7 @@ async function run() {
         console.log('✅ ai-health function exists.');
     } catch (e) {
         console.log('🔧 Creating ai-health function...');
-        await functions.create('ai-health', 'AI Health Check', 'any', 'node-18');
+        await functions.create('ai-health', 'AI Health Check', 'node-18.0', ['any']);
     }
 
     await deployFunction('auth-master', 'Auth Master Hub', 'auth-master.tar.gz');
