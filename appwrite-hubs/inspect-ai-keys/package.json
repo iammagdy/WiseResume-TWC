@@ -1,0 +1,9 @@
+{
+  "name": "inspect-ai-keys",
+  "version": "1.0.0",
+  "description": "DevKit admin function — inspect and manage per-slot AI provider keys",
+  "main": "src/main.js",
+  "dependencies": {
+    "node-appwrite": "^11.1.1"
+  }
+}

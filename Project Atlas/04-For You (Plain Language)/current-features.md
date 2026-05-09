@@ -1,6 +1,18 @@
 # What Wise Cloud Can Do Today
 
-**Last verified:** 2026-05-09 (NVIDIA NIM added)
+**Last verified:** 2026-05-09 (Task #9 — NVIDIA NIM key slots in AI Keys panel)
+
+## DevKit AI Keys panel — NVIDIA NIM slots added (2026-05-09, Task #9)
+
+The DevKit now has a dedicated **AI Keys** panel (under AI & Testing in the sidebar) showing all 12 key slots across every provider. NVIDIA NIM is now a full peer of OpenRouter, Groq, and DeepSeek in this panel.
+
+**What's new:**
+- The AI Keys panel shows four columns — OpenRouter (blue), Groq (orange), DeepSeek (purple), and NVIDIA NIM (green) — with 3 slots each.
+- Each slot shows whether the key is set, a masked hint of the last 4 characters, and the currently active test model.
+- You can type a model ID override for any slot and hit Save — it is written to `app_settings.ai_test_slot_models` immediately.
+- A new `inspect-ai-keys` Appwrite Function backs the panel; it reads `NVIDIA_KEY_1/2/3` from Function Variables and returns their masked hints alongside those for the other three providers.
+
+---
 
 ## NVIDIA NIM added as a fourth AI provider (2026-05-09)
 

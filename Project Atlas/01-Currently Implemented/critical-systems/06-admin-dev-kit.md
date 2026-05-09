@@ -181,7 +181,11 @@ The DevKit **AI Keys** panel shows a per-slot model picker for all nine AI test 
 
 ### Per-slot model persistence
 
-Saved choices live in `app_settings.ai_test_slot_models` (JSONB keyed `${provider}:${slot}`). Written by `set_ai_test_slot_model` RPC. Surfaced to the UI via `inspect-ai-keys` response fields `slotModels` (saved overrides) and `defaultModels` (provider defaults). Frontend: `src/lib/devkit/aiTestSlotModels.ts` + `src/components/dev-kit/AIKeySlotPanels.tsx` + `src/components/dev-kit/AITestSlotModelsCard.tsx`.
+Saved choices live in `app_settings.ai_test_slot_models` (JSON string keyed `${provider}:${slot}`). Written by the `inspect-ai-keys` Appwrite Function when `provider + slot + model` are present in the request body. Surfaced to the UI via `inspect-ai-keys` response fields `slotModels` (saved overrides) and `defaultModels` (provider defaults).
+
+Frontend: `src/lib/devkit/aiTestSlotModels.ts` (shared helper) + `src/components/dev-kit/AIKeysPanel.tsx` (full per-slot editor, Task #9) + `src/components/dev-kit/AITestSlotModelsCard.tsx` (read-only summary card).
+
+Appwrite Function: `appwrite-hubs/inspect-ai-keys/src/main.js` — reads and writes `app_settings.ai_test_slot_models`, returns masked key hints for all 12 slots (OpenRouter×3, Groq×3, DeepSeek×3, NVIDIA×3). Added in Task #9.
 
 → `supabase/functions/_shared/aiTestModelCatalog.ts`, `supabase/functions/_shared/modelDefaults.ts`, `supabase/functions/_shared/webhookAuth.ts`, `supabase/functions/admin-ai-ops/index.ts`, `supabase/migrations/20260606000000_configure_ai_model_catalog_cron.sql`
 

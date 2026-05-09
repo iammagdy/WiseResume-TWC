@@ -4,7 +4,7 @@ import {
   BrainCircuit, ShieldCheck, Cog, Mail, Ticket, History, Briefcase,
   Fingerprint, Lock, Zap, Loader2, Activity, BarChart2,
   CheckCircle2, AlertCircle, ShieldBan, ListChecks, Link2,
-  Flag, Play, Search, X, MoreHorizontal,
+  Flag, Play, Search, X, MoreHorizontal, KeyRound,
 } from 'lucide-react';
 import { DevKitPanelBoundary } from '@/components/dev-kit/DevKitPanelBoundary';
 import { useNavigate } from 'react-router-dom';
@@ -39,6 +39,7 @@ import { ModerationPanel } from '@/components/dev-kit/ModerationPanel';
 import { OnboardingFunnelPanel } from '@/components/dev-kit/OnboardingFunnelPanel';
 import { PortfolioUsernamesPanel } from '@/components/dev-kit/PortfolioUsernamesPanel';
 import { DevKitRunner } from '@/components/dev-kit/DevKitRunner';
+import { AIKeysPanel } from '@/components/dev-kit/AIKeysPanel';
 
 const PANEL_GROUPS = [
   {
@@ -76,9 +77,10 @@ const PANEL_GROUPS = [
   {
     label: 'AI & Testing',
     panels: [
-      { id: 'ai',     title: 'AI Radar',      icon: BrainCircuit },
-      { id: 'flags',  title: 'Feature Flags', icon: Flag },
-      { id: 'runner', title: 'Test Runner',   icon: Play },
+      { id: 'ai',      title: 'AI Radar',      icon: BrainCircuit },
+      { id: 'ai-keys', title: 'AI Keys',       icon: KeyRound },
+      { id: 'flags',   title: 'Feature Flags', icon: Flag },
+      { id: 'runner',  title: 'Test Runner',   icon: Play },
     ],
   },
   {
@@ -231,6 +233,7 @@ function DevToolsInner() {
       case 'portfolios':    return wrap('Portfolios',       <PortfolioUsernamesPanel />);
       case 'audit':         return wrap('History',          <AuditLogPanel />);
       case 'ai':            return wrap('AI Radar',         <AIRadarPanel />);
+      case 'ai-keys':       return wrap('AI Keys',          <AIKeysPanel />);
       case 'flags':         return wrap('Feature Flags',    <FeatureFlagsPanel />);
       case 'runner':        return wrap('Test Runner',      <DevKitRunner />);
       case 'email':         return wrap('Email',            <EmailManagementPanel />);

@@ -1,15 +1,12 @@
-# admin-ai-ops
+# admin-ai-ops / inspect-ai-keys
 
-**Last verified:** 2026-05-05 (Task #15)
+**Last verified:** 2026-05-09 (Task #9 — NVIDIA NIM key slots, new inspect-ai-keys hub)
 **Type:** reference card
 **Sources:**
-- `supabase/functions/admin-ai-ops/index.ts`
-- `supabase/functions/_shared/aiTestModelCatalog.ts`
-- `supabase/functions/_shared/modelDefaults.ts`
-- `supabase/functions/_shared/webhookAuth.ts`
-- `supabase/migrations/20260606000000_configure_ai_model_catalog_cron.sql`
-- `src/components/dev-kit/AIKeySlotPanels.tsx`
+- `appwrite-hubs/inspect-ai-keys/src/main.js` ← **new Appwrite Function (replaces Supabase legacy)**
+- `src/components/dev-kit/AIKeysPanel.tsx` ← **new — AI Keys panel UI**
 - `src/lib/devkit/aiTestSlotModels.ts`
+- Legacy (deleted/stubbed): `supabase/functions/admin-ai-ops/index.ts`, `supabase/functions/_shared/*`
 
 **Canonical owner:** `project-governance/ARCHITECTURE.md` §7 (Edge Functions)
 

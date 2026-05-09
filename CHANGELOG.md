@@ -1,3 +1,16 @@
+## 2026-05-09 — Task #9: NVIDIA NIM key slots added to AI Keys admin panel
+
+### What changed
+- `appwrite-hubs/inspect-ai-keys/src/main.js` — **New** Appwrite Function (`inspect-ai-keys`). Validates admin auth (`Authorization: Bearer <DEVKIT_PASSWORD>`). Reads `OPENROUTER_KEY_1/2/3`, `GROQ_KEY_1/2/3`, `DEEPSEEK_KEY`, and `NVIDIA_KEY_1/2/3` from `process.env`. Masks each key to last-4-chars format (`••••XXXX`). Reads/writes per-slot model overrides to `app_settings.ai_test_slot_models` (stored as JSON string). When `provider + slot + model` present in body, saves the override before returning. Response shape: `{ success, keys: [{ provider, slot, hint, present, model }], defaultModels, slotModels, modelCatalogRefreshedAt }`.
+- `appwrite-hubs/inspect-ai-keys/package.json` — Node.js 18 manifest; dep: `node-appwrite ^11.1.1`.
+- `src/components/dev-kit/AIKeysPanel.tsx` — **New** DevKit panel. Shows all 4 providers in columns (OpenRouter=blue, Groq=orange, DeepSeek=purple, NVIDIA NIM=green). Each of the 12 slots shows key presence indicator (✓/✗), masked key hint, active test model, and an inline text input + Save button for model override. Dirty-tracking prevents spurious saves. Per-slot save/error status icons shown inline. Save POSTs to `inspect-ai-keys` with `{ provider, slot, model }`.
+- `src/pages/DevToolsPage.tsx` — Added `AIKeysPanel` import; added `{ id: 'ai-keys', title: 'AI Keys', icon: KeyRound }` to the AI & Testing panel group; added `case 'ai-keys'` to `renderPanel()`; added `KeyRound` to lucide-react imports.
+
+### Deploy notes
+Deploy the new `inspect-ai-keys` function to Appwrite Console (project `69fd362b001eb325a192`, fra). Set `DEVKIT_PASSWORD` and `APPWRITE_API_KEY` in its Function Variables (same values as `admin-devkit-data`). NVIDIA slots will show "not set" until `NVIDIA_KEY_1/2/3` are added to Function Variables.
+
+---
+
 ## 2026-05-09 — Feature: NVIDIA NIM integrated as fourth AI provider + DevKit engine test card
 
 ### What changed
