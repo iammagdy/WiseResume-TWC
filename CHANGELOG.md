@@ -1,3 +1,25 @@
+## 2026-05-09 — Deployment: all 6 Appwrite AI Hub Functions live + Hostinger frontend synced
+
+### What changed
+- All 6 Appwrite Functions deployed and active in project `69fd362b001eb325a192` (region: fra):
+  - `ai-gateway` — AI Gateway Hub (routes ~24 AI feature names)
+  - `auth-master` — Auth Master Hub (Appwrite auth utilities)
+  - `admin-email` — Admin Email Hub (transactional email via Resend)
+  - `admin-feature-flags` — Admin Feature Flags Hub
+  - `admin-moderation` — Admin Moderation Hub
+  - `admin-portfolio-usernames` — Admin Portfolio Usernames Hub
+- Hostinger static frontend synced via FTP to `resume/` (all build assets in `dist/`)
+- GitHub `main` branch fully synced with Replit workspace (SHA `f2fe47c7`)
+
+### Files changed
+- `.github/workflows/deploy-frontend.yml` — FTP probe made non-fatal (`continue-on-error: true`); added `ftp:passive-mode true` and longer timeouts for reliable Hostinger sync from GitHub Actions
+- `scripts/deploy_hubs.cjs` — rewritten for node-appwrite SDK v24: uses `File` object (not file path string) for `createDeployment`; covers all 6 hub IDs; `ensureFunction` auto-creates missing functions with `node-18.0` runtime; entrypoint fixed to `src/main.js`
+
+### SDK fix
+node-appwrite v24 removed `InputFile.fromPath()`. New pattern: `new File([fs.readFileSync(path)], filename, { type: 'application/gzip' })` passed as the `code` param to `functions.createDeployment({ functionId, code, activate, entrypoint })`.
+
+---
+
 ## 2026-05-09 — Fix: unsafe date formatting causing site-wide white-screen crashes
 
 ### Problem
