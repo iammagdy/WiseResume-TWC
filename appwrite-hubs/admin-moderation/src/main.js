@@ -220,7 +220,12 @@ async function handleReviewQueueItem(databases, users, body) {
     throw new Error('decision must be "approved" or "removed"');
   }
 
-  // Fetch the item to get reporter_user_id for potential suspension
+  // Fetch the item to get the user ID for potential suspension.
+  // NOTE: `reporter_user_id` stores whoever filed the report. If your queue
+  // schema stores the content-owner ID in a separate field (e.g.
+  // `content_owner_user_id`), replace `reporter_user_id` below with that
+  // field so the correct account is suspended. Current schema only has one
+  // user-ID field, so "Remove + Suspend User" suspends the reporter.
   const item = await databases.getDocument(DB_ID, COL_MOD_QUEUE, id);
 
   const now = new Date().toISOString();

@@ -172,6 +172,46 @@ async function handleDirectoryList(databases, body) {
   return { rows: result.documents.map(mapProfile), total: result.total };
 }
 
+/**
+ * Resolve effective username rules for a user (global merged with per-user override).
+ * Override fields that are non-null take priority over the global rule.
+ */
+async function resolveEffectiveRules(databases, userId) {
+  const [globalRules, overrideDoc] = await Promise.allSettled([
+    getGlobalRules(databases),
+    databases.getDocument(DB_ID, COL_RULES_OVERRIDES, userId),
+  ]);
+
+  const base = globalRules.status === 'fulfilled' ? globalRules.value : DEFAULT_RULES;
+  if (overrideDoc.status !== 'fulfilled' || overrideDoc.value.code === 404) {
+    return base;
+  }
+  const ov = overrideDoc.value;
+  return {
+    id:            base.id,
+    min_length:    ov.min_length    !== null && ov.min_length    !== undefined ? ov.min_length    : base.min_length,
+    max_length:    ov.max_length    !== null && ov.max_length    !== undefined ? ov.max_length    : base.max_length,
+    allow_hyphens: ov.allow_hyphens !== null && ov.allow_hyphens !== undefined ? ov.allow_hyphens : base.allow_hyphens,
+  };
+}
+
+/** Validate a username slug against effective rules; throws a user-readable error on violation. */
+function validateUsernameSlug(slug, rules) {
+  if (slug.length < rules.min_length) {
+    throw new Error(`Username must be at least ${rules.min_length} characters`);
+  }
+  if (slug.length > rules.max_length) {
+    throw new Error(`Username must be at most ${rules.max_length} characters`);
+  }
+  if (!rules.allow_hyphens && slug.includes('-')) {
+    throw new Error('Hyphens are not allowed in usernames');
+  }
+  // Only lowercase letters, digits, hyphens, and underscores
+  if (!/^[a-z0-9_-]+$/.test(slug)) {
+    throw new Error('Username may only contain lowercase letters, numbers, hyphens, and underscores');
+  }
+}
+
 async function handleDirectoryRename(databases, body) {
   const userId      = body.user_id;
   const newUsername = body.new_username;
@@ -180,16 +220,21 @@ async function handleDirectoryRename(databases, body) {
 
   const slug = String(newUsername).trim().toLowerCase();
 
-  // Check username is not reserved
+  // Enforce global + per-user rules
+  const rules = await resolveEffectiveRules(databases, userId);
+  validateUsernameSlug(slug, rules);
+
+  // Check username is not reserved — Appwrite returns 404 when the doc doesn't exist
   try {
     await databases.getDocument(DB_ID, COL_RESERVED, slug);
+    // If we reach here, the doc exists → it IS reserved
     throw new Error(`@${slug} is a reserved username`);
   } catch (e) {
-    if (!e.message.startsWith('@')) { /* document not found = not reserved, fine */ }
-    else throw e;
+    // 404 = not reserved (good); anything else with our own message re-throws cleanly
+    if (e.code !== 404) throw e;
   }
 
-  // Check username is not already taken
+  // Check username is not already taken by someone else
   const existing = await databases.listDocuments(DB_ID, COL_PROFILES, [
     sdk.Query.equal('username', slug),
     sdk.Query.limit(1),
