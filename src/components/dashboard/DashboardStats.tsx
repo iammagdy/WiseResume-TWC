@@ -151,9 +151,9 @@ export const DashboardStats = memo(function DashboardStats({ totalResumes, healt
           )}
           {resumes && resumes.length > 0 && (() => {
             const oldest = resumes.reduce((a, b) =>
-              new Date(a.updated_at) < new Date(b.updated_at) ? a : b
+              new Date(a.$updatedAt || a.$createdAt) < new Date(b.$updatedAt || b.$createdAt) ? a : b
             );
-            const daysSince = Math.floor((Date.now() - new Date(oldest.updated_at).getTime()) / 86_400_000);
+            const daysSince = Math.floor((Date.now() - new Date(oldest.$updatedAt || oldest.$createdAt || Date.now()).getTime()) / 86_400_000);
             if (daysSince < 30) return null;
             return (
               <div className="flex items-center gap-1.5">
