@@ -1,6 +1,14 @@
 # What Wise Cloud Can Do Today
 
-**Last verified:** 2026-05-08
+**Last verified:** 2026-05-09
+
+## Forgot password now works (2026-05-09)
+
+There was no way to reset your password on the login page — the button simply didn't exist.
+
+**What changed:** A "Forgot password?" link now appears just below the password field on the login screen. Clicking it takes you to a short form where you enter your email. Appwrite sends you a secure reset link. Clicking that link takes you to a page where you set and confirm a new password — and you're done. The whole flow is handled end-to-end by Appwrite, so the reset link is time-limited and single-use for security.
+
+---
 
 ## Batch 6 reconnections — more live features on the new backend (2026-05-08)
 

@@ -1,3 +1,25 @@
+## 2026-05-09 — Forgot Password flow added via Appwrite
+
+**Files changed:** `src/pages/AuthPage.tsx`, `src/pages/AuthResetPasswordPage.tsx`.
+
+### What changed
+
+- Added `forgot-password` view to `AuthPage.tsx` — a "Forgot password?" link appears below the password field on the login form. Clicking it shows an email form that calls `appwriteAccount.createRecovery(email, resetUrl)`, directing the recovery email link to `/auth/reset-password`.
+- Rewrote `AuthResetPasswordPage.tsx` from a Kinde-era stub into a fully functional Appwrite reset page:
+  - Reads `userId` and `secret` query params that Appwrite injects into the recovery link.
+  - Validates both params are present; shows an "invalid link" state if either is missing.
+  - Renders a new-password + confirm-password form; calls `appwriteAccount.updateRecovery(userId, secret, password)`.
+  - On success shows a confirmation screen with a "Sign In" CTA; on error surfaces the Appwrite error message.
+- Removed all unused imports (`Lock`, `ArrowLeft`, `Mail`, `User`, `Key`) from `AuthPage.tsx`; replaced bare `err.message` casts with proper `unknown` typing.
+
+### Appwrite API used
+
+- `account.createRecovery(email, url)` — sends recovery email (Appwrite triggers the email from your SMTP/Mailgun config).
+- `account.updateRecovery(userId, secret, password)` — verifies the one-time secret and sets the new password.
+- Route: `/auth/reset-password` (already wired in `AppInterior.tsx` line 281).
+
+---
+
 ## 2026-05-09 — Replit preview: login fixed ("Portfolio not found" + "Failed to fetch")
 
 **Files changed:** `src/hooks/usePublicPortfolio.ts` (isAppHostname), Appwrite project platforms (API call).

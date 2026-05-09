@@ -1,56 +1,125 @@
-import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ShieldCheck } from 'lucide-react';
+import { useState, type FormEvent } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { toast } from 'sonner';
+import { motion } from 'framer-motion';
+import { Loader2, ShieldCheck, AlertTriangle } from 'lucide-react';
 
-import { useAuth } from '@/hooks/useAuth';
-import { Button } from '@/components/ui/button';
+import { account as appwriteAccount } from '@/lib/appwrite';
 import { OfflineBanner } from '@/components/layout/OfflineBanner';
+import { AppIcon } from '@/components/brand/AppIcon';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
-/**
- * Landing page for post-password-reset redirects from Kinde.
- *
- * Configure Kinde's "Post-password reset redirect URL" to point to
- * /auth/reset-password in the Kinde dashboard (Applications → Your App →
- * Authentication → Password reset → Redirect URL).
- *
- * - Authenticated users are immediately sent to /dashboard.
- * - Unauthenticated users (including direct navigators) see the success card
- *   with a "Sign In" CTA — a safe fallback that causes no harm.
- */
+const HERO_GRADIENT = 'linear-gradient(135deg, #0a0a1a 0%, #0f1525 25%, #12101e 50%, #0d1520 75%, #0a0a1a 100%)';
+
 export default function AuthResetPasswordPage() {
   const navigate = useNavigate();
-  const { isAuthenticated, loading: authLoading } = useAuth();
+  const [searchParams] = useSearchParams();
 
-  useEffect(() => {
-    if (authLoading) return;
-    if (isAuthenticated) {
-      navigate('/dashboard', { replace: true });
+  const userId = searchParams.get('userId') ?? '';
+  const secret = searchParams.get('secret') ?? '';
+
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [done, setDone] = useState(false);
+
+  const isValidLink = !!userId && !!secret;
+
+  const handleReset = async (e: FormEvent) => {
+    e.preventDefault();
+    if (password !== confirm) {
+      toast.error('Passwords do not match.');
+      return;
     }
-  }, [isAuthenticated, authLoading, navigate]);
-
-  if (authLoading) return null;
+    if (password.length < 8) {
+      toast.error('Password must be at least 8 characters.');
+      return;
+    }
+    setLoading(true);
+    try {
+      await appwriteAccount.updateRecovery(userId, secret, password);
+      setDone(true);
+      toast.success('Password updated! Please sign in.');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Reset failed. The link may have expired.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <div className="relative isolate min-h-[100dvh] flex flex-col overflow-hidden bg-background">
+    <div className="relative isolate min-h-[100dvh] flex flex-col overflow-hidden" style={{ background: HERO_GRADIENT }}>
       <OfflineBanner />
-      <div className="flex-1 flex flex-col items-center justify-center px-6">
-        <div className="flex flex-col items-center gap-6 px-8 py-10 rounded-2xl bg-card border border-border shadow-soft-lg max-w-sm w-full text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30">
-            <ShieldCheck className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+      <div className="flex-1 flex flex-col items-center justify-center px-6 relative z-10">
+        <motion.div
+          className="flex flex-col gap-6 px-8 py-10 rounded-2xl max-w-sm w-full"
+          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(12px)' }}
+          initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+        >
+          <div className="flex flex-col items-center gap-4">
+            <AppIcon size={48} />
+            <h1 className="text-2xl font-bold text-white text-center">
+              {done ? 'Password Updated' : 'Set New Password'}
+            </h1>
           </div>
-          <div className="space-y-2">
-            <h1 className="text-xl font-semibold text-foreground">Password reset successful</h1>
-            <p className="text-sm text-muted-foreground">
-              Your password has been reset. Sign in with your new password to continue.
-            </p>
-          </div>
-          <Button
-            className="w-full"
-            onClick={() => navigate('/auth?mode=login')}
-          >
-            Sign In
-          </Button>
-        </div>
+
+          {!isValidLink && (
+            <div className="flex flex-col items-center gap-3 text-center">
+              <AlertTriangle className="text-amber-400" size={32} />
+              <p className="text-sm text-white/60">
+                This link is invalid or has already been used. Please request a new password reset.
+              </p>
+              <Button className="w-full h-11" onClick={() => navigate('/auth?mode=login')}>
+                Back to Login
+              </Button>
+            </div>
+          )}
+
+          {isValidLink && done && (
+            <div className="flex flex-col items-center gap-4 text-center">
+              <ShieldCheck className="text-green-400" size={36} />
+              <p className="text-sm text-white/60">
+                Your password has been reset. Sign in with your new password to continue.
+              </p>
+              <Button className="w-full h-11" onClick={() => navigate('/auth?mode=login')}>
+                Sign In
+              </Button>
+            </div>
+          )}
+
+          {isValidLink && !done && (
+            <form onSubmit={handleReset} className="space-y-4">
+              <Input
+                type="password"
+                placeholder="New password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                required
+                minLength={8}
+                className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
+              />
+              <Input
+                type="password"
+                placeholder="Confirm new password"
+                value={confirm}
+                onChange={e => setConfirm(e.target.value)}
+                required
+                minLength={8}
+                className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
+              />
+              <Button type="submit" className="w-full h-11" disabled={loading}>
+                {loading ? <Loader2 className="animate-spin mr-2" size={18} /> : 'Update Password'}
+              </Button>
+              <p className="text-xs text-center text-white/30">
+                Remembered it?{' '}
+                <button type="button" onClick={() => navigate('/auth?mode=login')} className="text-primary hover:underline">
+                  Back to Login
+                </button>
+              </p>
+            </form>
+          )}
+        </motion.div>
       </div>
     </div>
   );

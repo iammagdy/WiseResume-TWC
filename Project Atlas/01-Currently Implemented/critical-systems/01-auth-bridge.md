@@ -1,56 +1,55 @@
-# Auth Bridge — Kinde → Supabase
+# Auth — Appwrite Account SDK
 
-**Last verified:** 2026-04-17
+**Last verified:** 2026-05-09
 **Type:** deep dive
 **Sources:**
-- `supabase/functions/token-exchange/`
-- `supabase/functions/_shared/authMiddleware.ts`
-- `src/lib/supabaseBridge.ts`
-- `src/contexts/AuthContext.tsx`
-- `project-governance/ARCHITECTURE.md` §4
-- `project-governance/DECISIONS.md` Decision #2 + Decision #4
-- `replit.md` (Auth System + wise-ai-chat full fix sections)
-
-**Canonical owner:** `project-governance/ARCHITECTURE.md` §4
+- `src/lib/appwrite.ts` — Appwrite client (`account`, `databases`, `functions`, `storage`)
+- `src/contexts/AuthContext.tsx` — Appwrite-only auth context (`AppUser` shape)
+- `src/pages/AuthPage.tsx` — sign-in, sign-up, forgot-password, claim-account views
+- `src/pages/AuthResetPasswordPage.tsx` — password reset completion page
+- `src/hooks/useAuth.ts` — thin hook over `AuthContext`
 
 ---
 
-## Why it exists
+## Overview
 
-WiseResume + WiseHire authenticate users through **Kinde** (the only approved auth provider — `project-governance/CONSTITUTION.md` §4) but persist all data in **Supabase**, which expects its own JWT. The bridge converts a Kinde session into a Supabase session deterministically, so the same Kinde user always maps to the same Supabase row, forever.
+Authentication is handled entirely by the **Appwrite Account SDK** (client-side, no proxy). The Kinde + Supabase token-exchange bridge documented in the previous version of this card has been removed.
 
-## The flow (seven steps)
+## Sign-in / Sign-up
 
-1. User authenticates with Kinde via OAuth **implicit** flow (not PKCE — chosen for custom-domain compatibility, → Decision #4).
-2. Kinde redirects back with a JWT.
-3. Frontend calls the `token-exchange` Edge Function with that Kinde JWT. → `supabase/functions/token-exchange/index.ts`
-4. The function verifies the Kinde JWT, derives a **deterministic UUID v5** from the Kinde user ID, then mints a Supabase JWT for that UUID.
-5. `src/lib/supabaseBridge.ts` (singleton) stores the bridge token in `localStorage` to avoid re-exchanging on every refresh.
-6. All authenticated Supabase calls use the bridge token.
-7. The `me` Edge Function returns the current profile, plan, and credits keyed off `auth.uid()` (which now equals the bridge UUID).
+`AuthPage.tsx` manages four views via local state (`'login' | 'register' | 'forgot-password' | 'claim-account'`):
 
-## Two non-obvious facts
+| View | Appwrite call |
+|------|---------------|
+| `login` | `account.createEmailPasswordSession(email, password)` |
+| `register` | `account.create(ID.unique(), email, password, name)` then `createEmailPasswordSession` |
+| `forgot-password` | `account.createRecovery(email, resetUrl)` — sends recovery email |
+| `claim-account` | same as forgot-password — for migrated users whose Appwrite account doesn't exist yet |
 
-- `user.id` everywhere in app code is the **bridge UUID**, never the raw Kinde `kp_xxx` ID. → `replit.md` (Auth System)
-- `authMiddleware.ts` deliberately delegates JWT verification to `supabase.auth.getUser(token)` (any algorithm) instead of verifying HS256 directly. This was the root-cause fix for the 2026-04-13 "AI is temporarily unavailable" incident, which broke when ES256 user tokens hit a HS256-only verifier. → `replit.md` lines describing the wise-ai-chat 2026-04-13 fix.
+## Password recovery flow
 
-## Files that must stay in sync
+1. User clicks "Forgot password?" → enters email → `account.createRecovery(email, '/auth/reset-password')`.
+2. Appwrite sends a recovery email containing a link like `https://thewise.cloud/auth/reset-password?userId=xxx&secret=yyy`.
+3. `AuthResetPasswordPage` reads `userId` + `secret` from query params, shows a new-password form.
+4. On submit → `account.updateRecovery(userId, secret, newPassword)`.
+5. Success state → user redirected to `/auth?mode=login`.
 
-| File | Role |
-|---|---|
-| `supabase/functions/token-exchange/index.ts` | Verifies Kinde JWT, mints Supabase JWT |
-| `supabase/functions/_shared/authMiddleware.ts` | Used by every authenticated edge function — `requireAuth` wraps it |
-| `src/lib/supabaseBridge.ts` | Frontend lifecycle: init, refresh, persist, clear |
-| `src/contexts/AuthContext.tsx` | React context that exposes the bridged user |
-| `supabase/functions/me/index.ts` | Returns the canonical user profile post-bridge |
+The secret is single-use and time-limited by Appwrite (default 1 hour). If either param is missing the page shows an "invalid link" fallback.
 
-## Invariants
+## Session management
 
-- All edge functions need `verify_jwt = false` in `supabase/config.toml` so they receive the bridged token without Supabase's gateway second-guessing the algorithm. → `replit.md` (Edge Function Status)
-- `src/integrations/supabase/types.ts` and `src/integrations/supabase/client.ts` are auto-generated / read-only — never edit manually. → `project-governance/ARCHITECTURE.md` §1.
+`AuthContext.tsx` calls `account.get()` on mount to restore the current session. Sign-out calls `account.deleteSession('current')` then hard-redirects to `/`.
 
-## Failure modes seen and fixed
+## AppUser shape
 
-- ES256 vs HS256 token mismatch (fixed 2026-04-13).
-- Custom-domain OAuth 404 — fixed by Decision #4 (implicit flow).
-- Redundant token exchanges on every page refresh — fixed by localStorage persistence in `supabaseBridge.ts`.
+```ts
+interface AppUser {
+  id: string;    // Appwrite $id
+  email: string;
+  name?: string;
+}
+```
+
+## Impersonation
+
+DevKit impersonation state is managed by `src/lib/impersonationStore.ts` and merged into `AuthContext` — if impersonating, `user.id` is the impersonated user's Appwrite `$id`.
