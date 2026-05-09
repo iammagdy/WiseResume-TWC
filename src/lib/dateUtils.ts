@@ -2,6 +2,8 @@
  * Date utilities for parsing resume dates, calculating durations, and detecting gaps
  */
 
+import { format as dateFnsFormat, formatDistanceToNow as dateFnsDistanceToNow, isValid, parseISO } from 'date-fns';
+
 const MONTH_MAP: Record<string, number> = {
   jan: 0, january: 0,
   feb: 1, february: 1,
@@ -247,8 +249,6 @@ export function getTotalGapMonths(gaps: GapInfo[]): number {
 // ---------------------------------------------------------------------------
 // Safe date-fns wrappers — never throw RangeError on null/undefined/invalid
 // ---------------------------------------------------------------------------
-
-import { format as dateFnsFormat, formatDistanceToNow as dateFnsDistanceToNow, isValid, parseISO } from 'date-fns';
 
 function toValidDate(value: string | number | Date | null | undefined): Date | null {
   if (value == null) return null;
