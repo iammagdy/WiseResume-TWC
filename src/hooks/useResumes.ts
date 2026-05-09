@@ -187,5 +187,41 @@ export function useResumeMutations() {
     },
   });
 
-  return { createResume, updateResume, deleteResume };
+  const deleteMultipleResumes = useMutation({
+    mutationFn: async (resumeIds: string[]) => {
+      await Promise.all(
+        resumeIds.map(id => databases.deleteDocument(DATABASE_ID, 'resumes', id))
+      );
+    },
+    onSuccess: (_data, resumeIds) => {
+      queryClient.invalidateQueries({ queryKey: ['resumes'] });
+      toast.success(`${resumeIds.length} resume${resumeIds.length === 1 ? '' : 's'} deleted`);
+    },
+    onError: () => {
+      toast.error('Failed to delete some resumes');
+    },
+  });
+
+  const duplicateResume = useMutation({
+    mutationFn: async (resumeId: string) => {
+      if (!user) throw new Error('Not authenticated');
+      const original = await databases.getDocument(DATABASE_ID, 'resumes', resumeId);
+      const { $id, $createdAt, $updatedAt, $permissions, $collectionId, $databaseId, ...rest } = original as Record<string, unknown>;
+      void $id; void $createdAt; void $updatedAt; void $permissions; void $collectionId; void $databaseId;
+      return await databases.createDocument(DATABASE_ID, 'resumes', ID.unique(), {
+        ...rest,
+        user_id: user.id,
+        title: `${(original as Record<string, unknown>).title as string} (Copy)`,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['resumes'] });
+      toast.success('Resume duplicated');
+    },
+    onError: () => {
+      toast.error('Failed to duplicate resume');
+    },
+  });
+
+  return { createResume, updateResume, deleteResume, deleteMultipleResumes, duplicateResume };
 }
