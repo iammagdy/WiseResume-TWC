@@ -3,7 +3,7 @@ const sdk = require('node-appwrite');
 
 const OPENROUTER_FREE_MODEL = 'meta-llama/llama-3.3-70b-instruct:free';
 const GROQ_FREE_MODEL = 'llama-3.3-70b-versatile';
-const DEEPSEEK_MODEL = 'deepseek-v4-flash';
+const DEEPSEEK_MODEL = 'deepseek-chat';
 
 const BASES = {
   openrouter: 'https://openrouter.ai/api/v1/chat/completions',
@@ -14,12 +14,10 @@ const BASES = {
 const DB_ID = 'main';
 
 function getDbClient() {
-  const endpoint = process.env.APPWRITE_FUNCTION_API_ENDPOINT || process.env.APPWRITE_FUNCTION_ENDPOINT;
+  const endpoint = process.env.APPWRITE_FUNCTION_API_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
   const projectId = process.env.APPWRITE_FUNCTION_PROJECT_ID;
   const apiKey = process.env.APPWRITE_API_KEY || process.env.APPWRITE_FUNCTION_API_KEY;
-  if (!endpoint || !projectId || !apiKey) {
-    throw new Error('Appwrite DB client env vars not configured (APPWRITE_FUNCTION_API_ENDPOINT, APPWRITE_FUNCTION_PROJECT_ID, APPWRITE_API_KEY)');
-  }
+  
   const client = new sdk.Client().setEndpoint(endpoint).setProject(projectId).setKey(apiKey);
   return new sdk.Databases(client);
 }
@@ -27,14 +25,14 @@ function getDbClient() {
 module.exports = async ({ req, res, log, error }) => {
   try {
     const opts = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body;
-    const { featureName, context, messages } = opts;
+    const { featureName, messages } = opts;
 
-    log('AI-Gateway Hub: Processing ' + (featureName || 'general') + ' request...');
+    log(`AI-Gateway Hub: Processing ${featureName || 'general'} request...`);
 
     // --- 1. EMAIL ROUTE ---
     if (featureName === 'send-email' || featureName === 'send-contact-email') {
-      const resendKey = process.env['RESEND_API_KEY'];
-      if (!resendKey) return res.json({ status: 'error', message: 'RESEND_API_KEY not found in Global Variables.' }, 500);
+      const resendKey = process.env.RESEND_API_KEY;
+      if (!resendKey) return res.json({ status: 'error', message: 'RESEND_API_KEY not found.' }, 500);
 
       const emailResponse = await axios.post('https://api.resend.com/emails', {
         from: opts.from || 'WiseResume <notifications@thewise.cloud>',
@@ -48,167 +46,40 @@ module.exports = async ({ req, res, log, error }) => {
       return res.json({ status: 'success', data: { id: emailResponse.data.id } });
     }
 
-    // --- 2. VALIDATE-COUPON ROUTE ---
-    if (featureName === 'validate-coupon') {
-      const userId = req.headers['x-appwrite-user-id'];
-      if (!userId) return res.json({ valid: false, error: 'Unauthenticated' }, 401);
-
-      const code = (opts.code || '').trim().toUpperCase();
-      if (!code) return res.json({ valid: false, error: 'Code is required' });
-
-      const db = getDbClient();
-
-      const codesRes = await db.listDocuments(DB_ID, 'discount_codes', [
-        sdk.Query.equal('code', code),
-        sdk.Query.equal('is_active', true),
-        sdk.Query.limit(1),
-      ]);
-
-      if (codesRes.total === 0) {
-        return res.json({ valid: false, error: 'Invalid or expired code' });
-      }
-
-      const couponDoc = codesRes.documents[0];
-
-      if (couponDoc.expires_at && new Date(couponDoc.expires_at) < new Date()) {
-        return res.json({ valid: false, error: 'This code has expired' });
-      }
-
-      const targetPlan = couponDoc.plan_override || couponDoc.target_plan || null;
-
-      if (targetPlan) {
-        const subsRes = await db.listDocuments(DB_ID, 'subscriptions', [
-          sdk.Query.equal('user_id', userId),
-          sdk.Query.limit(1),
-        ]);
-        if (subsRes.total > 0 && subsRes.documents[0].plan === targetPlan) {
-          return res.json({ valid: false, already_on_plan: true, error: `You already have the ${targetPlan} plan` });
-        }
-      }
-
-      let trial_ends_at = null;
-      if (couponDoc.plan_days) {
-        const d = new Date();
-        d.setDate(d.getDate() + Number(couponDoc.plan_days));
-        trial_ends_at = d.toISOString();
-      }
-
-      const coupon = {
-        code: couponDoc.code,
-        discount_type: couponDoc.discount_type || 'percent',
-        discount_value: couponDoc.discount_value || 0,
-        plan_override: couponDoc.plan_override || null,
-        plan_days: couponDoc.plan_days || null,
-        expires_at: couponDoc.expires_at || null,
-        target_plan: couponDoc.target_plan || null,
-      };
-
-      return res.json({ valid: true, coupon, trial_ends_at });
-    }
-
-    // --- 3. REDEEM-COUPON ROUTE ---
-    if (featureName === 'redeem-coupon') {
-      const userId = req.headers['x-appwrite-user-id'];
-      if (!userId) return res.json({ success: false, error: 'Unauthenticated' }, 401);
-
-      const code = (opts.code || '').trim().toUpperCase();
-      if (!code) return res.json({ success: false, error: 'Code is required' });
-
-      const db = getDbClient();
-
-      const codesRes = await db.listDocuments(DB_ID, 'discount_codes', [
-        sdk.Query.equal('code', code),
-        sdk.Query.equal('is_active', true),
-        sdk.Query.limit(1),
-      ]);
-
-      if (codesRes.total === 0) {
-        return res.json({ success: false, error: 'Invalid or expired code' });
-      }
-
-      const couponDoc = codesRes.documents[0];
-
-      if (couponDoc.expires_at && new Date(couponDoc.expires_at) < new Date()) {
-        return res.json({ success: false, error: 'This code has expired' });
-      }
-
-      const existingRedemption = await db.listDocuments(DB_ID, 'coupon_redemptions', [
-        sdk.Query.equal('user_id', userId),
-        sdk.Query.equal('code', code),
-        sdk.Query.limit(1),
-      ]);
-
-      if (existingRedemption.total > 0) {
-        return res.json({ success: false, error: 'You have already redeemed this code' });
-      }
-
-      const targetPlan = couponDoc.plan_override || couponDoc.target_plan || 'pro';
-
-      const subsRes = await db.listDocuments(DB_ID, 'subscriptions', [
-        sdk.Query.equal('user_id', userId),
-        sdk.Query.limit(1),
-      ]);
-
-      if (subsRes.total > 0 && subsRes.documents[0].plan === targetPlan) {
-        return res.json({ success: false, already_on_plan: true, error: `You already have the ${targetPlan} plan` });
-      }
-
-      await db.createDocument(DB_ID, 'coupon_redemptions', sdk.ID.unique(), {
-        user_id: userId,
-        code,
-        discount_code_id: couponDoc.$id,
-        redeemed_at: new Date().toISOString(),
-      });
-
-      const now = new Date().toISOString();
-      let trialEndsAt = null;
-      if (couponDoc.plan_days) {
-        const d = new Date();
-        d.setDate(d.getDate() + Number(couponDoc.plan_days));
-        trialEndsAt = d.toISOString();
-      }
-
-      const subData = {
-        user_id: userId,
-        plan: targetPlan,
-        updated_at: now,
-        ...(trialEndsAt ? { trial_plan: targetPlan, trial_expires_at: trialEndsAt } : {}),
-      };
-
-      if (subsRes.total > 0) {
-        await db.updateDocument(DB_ID, 'subscriptions', subsRes.documents[0].$id, subData);
-      } else {
-        await db.createDocument(DB_ID, 'subscriptions', sdk.ID.unique(), { ...subData, created_at: now });
-      }
-
-      const planLabel = targetPlan.charAt(0).toUpperCase() + targetPlan.slice(1);
-      const msg = trialEndsAt
-        ? `${planLabel} trial activated! Enjoy your access.`
-        : `${planLabel} plan activated! Welcome aboard.`;
-
-      return res.json({ success: true, message: msg });
-    }
-
-    // --- 4. AI ROUTE ---
+    // --- 2. AI ROUTE (DEFAULT) ---
     const pool = [];
+    // OpenRouter keys 1, 2, 3
     for (let i = 1; i <= 3; i++) {
-      if (process.env['OPENROUTER_KEY_' + i]) pool.push({ provider: 'openrouter', key: process.env['OPENROUTER_KEY_' + i], index: i });
-      if (process.env['GROQ_KEY_' + i]) pool.push({ provider: 'groq', key: process.env['GROQ_KEY_' + i], index: i });
+      const key = process.env[`OPENROUTER_KEY_${i}`];
+      if (key) pool.push({ provider: 'openrouter', key });
     }
-    const dkBase = process.env['DEEPSEEK_KEY'];
-    if (dkBase) pool.push({ provider: 'deepseek', key: dkBase, index: 1 });
+    // Groq keys 1, 2, 3
+    for (let i = 1; i <= 3; i++) {
+      const key = process.env[`GROQ_KEY_${i}`];
+      if (key) pool.push({ provider: 'groq', key });
+    }
+    // DeepSeek key
+    if (process.env.DEEPSEEK_KEY) {
+      pool.push({ provider: 'deepseek', key: process.env.DEEPSEEK_KEY });
+    }
 
-    if (pool.length === 0) return res.json({ status: 'error', message: 'No AI keys found.' }, 503);
+    if (pool.length === 0) {
+        error('No keys found in environment variables.');
+        return res.json({ status: 'error', message: 'No AI keys found on server.' }, 503);
+    }
 
     const picked = pool[Math.floor(Math.random() * pool.length)];
     const url = BASES[picked.provider];
-    const model = picked.provider === 'openrouter' ? OPENROUTER_FREE_MODEL : picked.provider === 'deepseek' ? DEEPSEEK_MODEL : GROQ_FREE_MODEL;
+    const defaultModel = picked.provider === 'openrouter' ? OPENROUTER_FREE_MODEL : 
+                         picked.provider === 'deepseek' ? DEEPSEEK_MODEL : GROQ_FREE_MODEL;
+
+    log(`Using provider: ${picked.provider}`);
 
     const response = await axios.post(url, {
-      model: opts.model || model,
+      model: opts.model || defaultModel,
       messages: messages || [{ role: 'user', content: 'hello' }],
       temperature: opts.temperature || 0.7,
-      max_tokens: opts.maxTokens || 200
+      max_tokens: opts.maxTokens || 1000
     }, {
       headers: { 'Authorization': `Bearer ${picked.key}`, 'Content-Type': 'application/json' },
       timeout: 30000
@@ -216,7 +87,10 @@ module.exports = async ({ req, res, log, error }) => {
 
     return res.json({
       status: 'success',
-      data: { content: response.data.choices[0].message.content, providerUsed: picked.provider }
+      data: { 
+        content: response.data.choices[0].message.content, 
+        providerUsed: picked.provider 
+      }
     });
 
   } catch (err) {
