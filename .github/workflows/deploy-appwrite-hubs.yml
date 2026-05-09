@@ -15,28 +15,30 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Install deployment dependencies
-        run: npm install node-appwrite
-
       - name: Deploy AI Hubs
         run: |
-          # Setup auth-master
+          # 1. Install dependencies for the deployment script itself
+          npm install node-appwrite
+
+          # 2. Setup auth-master
           cd appwrite-hubs/auth-master
-          npm install --production
+          npm install --omit=dev
           tar -czf ../../auth-master.tar.gz .
           cd ../..
 
-          # Setup ai-gateway
+          # 3. Setup ai-gateway
           cd appwrite-hubs/ai-gateway
-          npm install --production
+          npm install --omit=dev
           tar -czf ../../ai-gateway.tar.gz .
           cd ../..
 
-          # Setup ai-health
+          # 4. Setup ai-health
           cd appwrite-hubs/ai-health
+          # No npm install needed for health as it has no dependencies
           tar -czf ../../ai-health.tar.gz .
           cd ../..
 
+          # 5. Run the deployment script
           export APPWRITE_ENDPOINT="https://fra.cloud.appwrite.io/v1"
           export APPWRITE_PROJECT_ID="69fd362b001eb325a192"
           export APPWRITE_API_KEY="${{ secrets.APPWRITE_API_KEY }}"
