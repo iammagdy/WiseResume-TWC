@@ -224,7 +224,8 @@ async function computeFunnel(databases, days, granularity) {
     .sort((a, b) => b.count - a.count);
 
   const skipRates = Object.entries(skipCounts).map(([step, count]) => {
-    const denominator = (skipDenoms[step] || new Set()).size + count; // reached + skipped
+    // denominator = unique users that reached this step (as defined in panel copy)
+    const denominator = (skipDenoms[step] || new Set()).size;
     return {
       step,
       count,
@@ -274,7 +275,9 @@ module.exports = async ({ req, res, log, error }) => {
     return res.json({ success: false, error: 'Invalid JSON body' }, 400);
   }
 
-  const days        = Number(body.days)        || 14;
+  const ALLOWED_DAYS = new Set([1, 7, 14, 30, 90]);
+  const rawDays = Number(body.days);
+  const days    = ALLOWED_DAYS.has(rawDays) ? rawDays : 14;
   const granularity = body.granularity === 'week' ? 'week' : 'day';
   log(`admin-onboarding-funnel: days=${days} granularity=${granularity}`);
 
