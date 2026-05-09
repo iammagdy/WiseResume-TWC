@@ -1,6 +1,6 @@
 # Stability Improvements — What's Getting Better Behind the Scenes
 
-**Last verified:** 2026-05-09 (Task #19 — Datadog LLM Observability in AI gateway)
+**Last verified:** 2026-05-09 (Task #10 — Per-feature AI provider routing)
 
 ## AI calls are now observable in Datadog (2026-05-09, Task #19)
 
@@ -35,6 +35,30 @@ Until this function is created in Appwrite Console and the deployment is activat
 - Full step-by-step instructions are in `appwrite-hubs/admin-devkit-data/README.md` and in the CHANGELOG.
 
 **Status: DEPLOYED.** Function `admin-devkit-data` is live on Appwrite (deployment `69ffc4207cb8e8e3ab99`, status `ready`). It inherits all required variables from Appwrite's project-level global variables. Mission Control, Analytics, Observability, and Live Activity panels should now return real data.
+
+---
+
+## All AI Hub Functions deployed to Appwrite (2026-05-09)
+
+All 6 server-side functions that power the app's AI features, email, and admin tools are now live on Appwrite Cloud. Previously some of them had never been deployed, or deployments were failing silently.
+
+**What's now running in production:**
+- **AI Gateway** — the central router that handles all 24 AI features (resume tailor, interview coach, job match, etc.)
+- **Auth Master** — manages sign-in, sign-up, and session handling
+- **Admin Email** — sends transactional emails (welcome messages, notifications) via Resend
+- **Admin Feature Flags** — lets the team turn features on/off without a code deploy
+- **Admin Moderation** — content review tools for the admin team
+- **Admin Portfolio Usernames** — manages custom usernames for public portfolio pages
+
+**Why this matters:** The deploy script was written for an older version of the Appwrite SDK that has since been updated. The new SDK works differently for file uploads, which caused all deployments to fail with a cryptic error. The script has been rewritten to match the current SDK, so future deployments will work correctly from the same command.
+
+---
+
+## Hostinger frontend deploy workflow fixed (2026-05-09)
+
+The GitHub Actions workflow that pushes the built website to Hostinger was failing at the FTP connection step. The connection probe was set to fail the whole pipeline if it couldn't list the server's files — even though the actual file transfer step worked fine.
+
+**What changed:** The probe step is now marked non-fatal (it just logs a warning and moves on). Passive FTP mode was also enabled, which is more reliable when connecting from cloud CI servers. The sync now completes successfully.
 
 ---
 

@@ -1,7 +1,7 @@
 # AI Routing Rollout — unified per-feature routing layer
 
-**Status:** planned (design complete, not implemented)
-**Last verified:** 2026-04-17
+**Status:** Phase 1 shipped (2026-05-09, Task #10) — per-feature routing live in ai-gateway; streaming, cross-feature caching, and per-tier differentiation remain planned.
+**Last verified:** 2026-05-09
 **Sources:**
 - `Routing AI Providers/README.md`
 - `Routing AI Providers/01-current-state.md` through `Routing AI Providers/10-risks-and-rollback.md`

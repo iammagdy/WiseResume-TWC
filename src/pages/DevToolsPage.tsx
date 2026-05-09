@@ -4,7 +4,7 @@ import {
   BrainCircuit, ShieldCheck, Cog, Mail, Ticket, History, Briefcase,
   Fingerprint, Lock, Zap, Loader2, Activity, BarChart2,
   CheckCircle2, AlertCircle, ShieldBan, ListChecks, Link2,
-  Flag, Play, Search, X, MoreHorizontal, KeyRound, Inbox,
+  Flag, Play, Search, X, MoreHorizontal, KeyRound, Inbox, Route,
 } from 'lucide-react';
 import { DevKitPanelBoundary } from '@/components/dev-kit/DevKitPanelBoundary';
 import { useNavigate } from 'react-router-dom';
@@ -40,6 +40,7 @@ import { OnboardingFunnelPanel } from '@/components/dev-kit/OnboardingFunnelPane
 import { PortfolioUsernamesPanel } from '@/components/dev-kit/PortfolioUsernamesPanel';
 import { DevKitRunner } from '@/components/dev-kit/DevKitRunner';
 import { AIKeysPanel } from '@/components/dev-kit/AIKeysPanel';
+import { AIRoutingPanel } from '@/components/dev-kit/AIRoutingPanel';
 import { TestmailInboxPanel } from '@/components/dev-kit/TestmailInboxPanel';
 
 const PANEL_GROUPS = [
@@ -78,10 +79,11 @@ const PANEL_GROUPS = [
   {
     label: 'AI & Testing',
     panels: [
-      { id: 'ai',      title: 'AI Radar',      icon: BrainCircuit },
-      { id: 'ai-keys', title: 'AI Keys',       icon: KeyRound },
-      { id: 'flags',   title: 'Feature Flags', icon: Flag },
-      { id: 'runner',  title: 'Test Runner',   icon: Play },
+      { id: 'ai',         title: 'AI Radar',   icon: BrainCircuit },
+      { id: 'ai-keys',    title: 'AI Keys',    icon: KeyRound },
+      { id: 'ai-routing', title: 'AI Routing', icon: Route },
+      { id: 'flags',      title: 'Feature Flags', icon: Flag },
+      { id: 'runner',     title: 'Test Runner',   icon: Play },
     ],
   },
   {
@@ -236,6 +238,7 @@ function DevToolsInner() {
       case 'audit':         return wrap('History',          <AuditLogPanel />);
       case 'ai':            return wrap('AI Radar',         <AIRadarPanel />);
       case 'ai-keys':       return wrap('AI Keys',          <AIKeysPanel />);
+      case 'ai-routing':    return wrap('AI Routing',       <AIRoutingPanel />);
       case 'flags':         return wrap('Feature Flags',    <FeatureFlagsPanel />);
       case 'runner':        return wrap('Test Runner',      <DevKitRunner />);
       case 'email':         return wrap('Email',            <EmailManagementPanel />);

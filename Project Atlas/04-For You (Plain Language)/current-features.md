@@ -2,6 +2,22 @@
 
 **Last verified:** 2026-05-09 (Task #11 — NVIDIA NIM model dropdown updated)
 
+## AI gateway — per-feature provider routing (2026-05-09, Task #10)
+
+The AI gateway no longer picks a provider at random for every request. It now has a **per-feature routing table** that sends each AI task to the provider best suited for it.
+
+**What this means in practice:**
+- **Cover letters, resume tailoring, and recruiter simulation** now go to **NVIDIA NIM (Nemotron 70B)** — the highest-quality instruction-following model available in the pool. These were previously just as likely to land on a fast-but-weaker free-tier model.
+- **Chat features and fast rewrites** (Agentic Chat, Wise AI Chat, bullet rewrites, editor AI, Smart Fit Rewrite) now always go to **Groq's Llama 3.3 70B** — the lowest-latency option so the user sees results quickly.
+- **Template suggestions** go to Groq's tiny 8B model (fast, cheap, sufficient for a simple classifier).
+- **Resume analysis and fix suggestions** go to **DeepSeek** — strong at structured, multi-step reasoning.
+- **Parsing and long-context tasks** (parse resume, parse job, company briefing, question bank, LinkedIn optimizer) go to **OpenRouter's free Llama 70B**.
+- Features not in the routing table (score-resume, health checks, coupon ops) still use the original random-pool behaviour as a safety net.
+
+**DevKit visibility:** A new **AI Routing** panel has been added under AI & Testing in the DevKit sidebar. It shows the full routing table grouped by provider, so you can see at a glance which feature goes where and why.
+
+---
+
 ## DevKit — Testmail inbox viewer (2026-05-09, Task #14)
 
 The DevKit now has a **Testmail Inbox** panel under the Communications section. During development and staging, outgoing emails can be redirected to a Testmail catch-all inbox instead of reaching real users. This makes it easy to confirm that emails are being sent, formatted correctly, and tagged properly — without needing to use a real email account.

@@ -1,10 +1,10 @@
 # `Routing AI Providers/`
 
-**Last verified:** 2026-05-09
+**Last verified:** 2026-05-09 (Task #10 — per-feature routing shipped)
 **Type:** reference card
 **Sources:** `Routing AI Providers/`.
 
-**Canonical owner:** Original planning corpus for the AI routing rebuild (April 2026). Subsequent **implementation** lives in `_shared/aiClient.ts`, `_shared/modelRouter.ts`, `ai_routing_config` table, and the DevKit AI Routing tab.
+**Canonical owner:** Original planning corpus for the AI routing rebuild (April 2026). **Implementation (Task #10, 2026-05-09) lives in `appwrite-hubs/ai-gateway/src/main.js` (`FEATURE_ROUTES` + `pickProvider()`).** DevKit visibility: `src/components/dev-kit/AIRoutingPanel.tsx` (panel id `ai-routing`).
 
 ---
 
