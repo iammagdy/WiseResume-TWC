@@ -1,3 +1,30 @@
+## 2026-05-09 — Fix dashboard crash: duplicateResume and deleteMultipleResumes undefined
+
+**Files changed:** `src/hooks/useResumes.ts`.
+
+`useResumeMutations()` was missing `duplicateResume` and `deleteMultipleResumes` from its return value. `DashboardPage` destructures both at line 78 and calls `.isPending` / `.mutate` / `.mutateAsync` on them, causing an immediate `TypeError: Cannot read properties of undefined (reading 'isPending')` crash that triggered the ErrorBoundary on every dashboard load.
+
+Added both mutations to `useResumeMutations`:
+- **`duplicateResume`** — fetches the original document, strips Appwrite system fields (`$id`, `$createdAt`, etc.), creates a new document with title appended `(Copy)`.
+- **`deleteMultipleResumes`** — `Promise.all` over an array of IDs, each calling `databases.deleteDocument`. Toast shows count of deleted resumes.
+
+---
+
+## 2026-05-09 — Fix "Profile unavailable" block on dashboard after login
+
+**Files changed:** `src/hooks/useMe.ts`, `src/components/layout/ProtectedRoute.tsx`.
+
+### Root-cause
+
+`ProtectedRoute` uses `useMe()` to load a profile from Appwrite Databases before letting any protected page render. If the `profiles` collection query fails or returns no document (expected during migration — user has no profile row yet), `meData?.profile` stays null. After a 6-second timeout the route rendered a hard "Profile unavailable" error screen, blocking the entire app.
+
+### Fixes
+
+- **`useMe.ts`** — replaced direct `databases.listDocuments()` calls with a `safeList()` wrapper that catches any Appwrite error (404 collection missing, 401 permissions, network error) and returns an empty result instead of throwing. Collections that don't exist yet silently return zero documents; the caller gets a valid `MeData` with `profile: null` and sensible defaults for subscription/credits.
+- **`ProtectedRoute.tsx`** — removed the hard "Profile unavailable" error screen that fired on `loadingTimedOut && !meData?.profile`. Replaced with a comment explaining the fail-open choice: `isEmailVerifiedOrExempt(null)` already returns `true`, so blocking here provided no security benefit and only broke the experience for users without a profile row. Route now falls through to the email-verification check as normal.
+
+---
+
 ## 2026-05-09 — Forgot Password flow added via Appwrite
 
 **Files changed:** `src/pages/AuthPage.tsx`, `src/pages/AuthResetPasswordPage.tsx`.
