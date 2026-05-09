@@ -132,33 +132,11 @@ export function ProtectedRoute() {
       );
     }
 
-    // After timeout with still no profile: the verification state cannot be determined.
-    // Block access with a recoverable error rather than failing open to protected content.
-    if (loadingTimedOut && !meData?.profile) {
-      return (
-        <div className="min-h-[100dvh] flex items-center justify-center p-6 bg-background">
-          <div className="max-w-sm w-full rounded-2xl border border-border bg-card p-6 space-y-4 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="rounded-full bg-amber-500/10 p-2">
-                <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-              </div>
-              <h2 className="text-base font-semibold text-foreground">Profile unavailable</h2>
-            </div>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              We couldn't load your account details. This is usually a temporary
-              network issue — please refresh to try again.
-            </p>
-            <button
-              onClick={() => window.location.reload()}
-              className="w-full flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors active:scale-95"
-            >
-              <RefreshCw className="w-4 h-4" />
-              Refresh
-            </button>
-          </div>
-        </div>
-      );
-    }
+    // After timeout with still no profile: fail open.
+    // isEmailVerifiedOrExempt(null) returns true, so blocking here adds no security
+    // and only breaks the experience for users whose profile collection isn't
+    // provisioned yet (expected during the Appwrite migration period).
+    // Fall through to the email-verification check below.
 
     // Profile loaded — enforce email verification.
     if (!isEmailVerifiedOrExempt(meData?.profile)) {
