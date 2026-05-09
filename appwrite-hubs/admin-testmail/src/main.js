@@ -94,7 +94,7 @@ async function handleTestmailInbox(tag) {
     throw new Error('TESTMAIL_API_KEY is not configured in Appwrite Function Variables');
   }
 
-  let url = `https://api.testmail.app/api/json?namespace=${encodeURIComponent(namespace)}&limit=50&livequery=true`;
+  let url = `https://api.testmail.app/api/json?namespace=${encodeURIComponent(namespace)}&limit=50`;
   if (tag && tag !== 'all') {
     url += `&tag=${encodeURIComponent(tag)}`;
   }
@@ -111,15 +111,33 @@ async function handleTestmailInbox(tag) {
     throw new Error(json?.message || `Testmail API HTTP ${res.status}`);
   }
 
+  /**
+   * Coerce a Testmail address field (may be string, {address, name}, or array of either)
+   * to a guaranteed display string.
+   */
+  function coerceAddress(raw) {
+    if (!raw) return '';
+    if (typeof raw === 'string') return raw;
+    if (Array.isArray(raw)) {
+      return raw.map(coerceAddress).filter(Boolean).join(', ');
+    }
+    if (typeof raw === 'object') {
+      const name = raw.name || '';
+      const addr = raw.address || raw.email || '';
+      return name && addr ? `${name} <${addr}>` : (addr || name || JSON.stringify(raw));
+    }
+    return String(raw);
+  }
+
   const emails = (json.emails || []).map(e => ({
     id:         e.id    || e.envelope_from || `${Date.now()}-${Math.random()}`,
-    subject:    e.subject     || '(no subject)',
-    from:       e.from        || '',
-    to:         e.to          || '',
+    subject:    typeof e.subject === 'string' ? e.subject : '(no subject)',
+    from:       coerceAddress(e.from),
+    to:         coerceAddress(e.to),
     receivedAt: e.timestamp   ? new Date(e.timestamp).toISOString() : null,
-    tag:        e.tag         || null,
-    html:       e.html        || null,
-    text:       e.text        || null,
+    tag:        typeof e.tag === 'string' ? e.tag : null,
+    html:       typeof e.html === 'string' ? e.html : null,
+    text:       typeof e.text === 'string' ? e.text : null,
   }));
 
   return {
