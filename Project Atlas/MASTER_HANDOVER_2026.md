@@ -31,7 +31,7 @@
 - **FTP home after login:** `/public_html` (this IS the web document root)
 - **lftp mirror target:** `.` (FTP home = web root). Do NOT use `/public_html/resume/` — that resolves to a ghost directory the web server never reads.
 - **Workflow:** `deploy-frontend.yml` — build → lftp mirror `./dist/ .` — no subdirectory
-- **Last successful deploy:** run `25582827906` (2026-05-08 22:36 UTC), bundle `index-AQhfc8ts.js`
+- **Last successful deploy:** run 25603130088`25582827906` (2026-05-08 22:36 UTC), bundle `index-AQhfc8ts.js`
 
 ---
 
@@ -72,8 +72,8 @@ The following files are preserved only to keep 130+ legacy import sites compilin
 - `style-src` / `font-src`: removed stale Google Fonts entries
 
 **Outcome:**
-- `deploy-appwrite-hubs` run `25580008577` — SUCCESS
-- `deploy-frontend` run `25582827906` — SUCCESS
+- `deploy-appwrite-hubs` run 25603130088`25580008577` — SUCCESS
+- `deploy-frontend` run 25603130088`25582827906` — SUCCESS
 - Live: `https://thewise.cloud/` renders WiseResume landing page, bundle `index-AQhfc8ts.js`, `last-modified: 2026-05-08T22:35:30 UTC`
 
 ---
