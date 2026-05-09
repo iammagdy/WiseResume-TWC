@@ -15,6 +15,13 @@
 - `ai-engine-nvidia` test item `label` changed from `'Engine · NVIDIA (Nemotron 70B)'` to `'Engine · NVIDIA NIM (Mistral Medium 3)'`.
 - `description` updated from `…(nvidia/llama-3.1-nemotron-70b-instruct)…` to `…(mistral-medium-3-instruct)…`.
 
+#### Updated: `appwrite-hubs/inspect-ai-keys/src/main.js`
+- Changed `DEFAULT_MODELS.nvidia` from `'nvidia/llama-3.1-nemotron-70b-instruct'` to `'mistral-medium-3-instruct'`.
+- Added `NVIDIA_VALID_MODELS` constant (the same five IDs) so stale saved overrides are normalized to the new default at response time — prevents the panel from receiving an unrecognised model ID that would leave the `<select>` with no matching option.
+
+#### Client-side normalization added: `src/components/dev-kit/AIKeysPanel.tsx` (load function)
+- When building draft values after fetch, any NVIDIA slot whose resolved value is not in `NVIDIA_LLM_MODELS` is coerced to `'mistral-medium-3-instruct'` — guards against stale DB overrides that survived the backend normalization step.
+
 ---
 
 ## 2026-05-09 — Task #19: Datadog LLM Observability added to AI gateway

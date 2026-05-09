@@ -112,10 +112,16 @@ export function AIKeysPanel() {
       }
       setSavedOverrides(overrides);
 
+      const validNvidiaValues = new Set(NVIDIA_LLM_MODELS.map(m => m.value));
+      const nvidiaDefault = NVIDIA_LLM_MODELS[0].value;
+
       const drafts: Record<string, string> = {};
       for (const entry of keyList) {
         const k = `${entry.provider}:${entry.slot}`;
-        drafts[k] = overrides[k] ?? merged[entry.provider as AITestProvider] ?? '';
+        const raw = overrides[k] ?? merged[entry.provider as AITestProvider] ?? '';
+        drafts[k] = (entry.provider === 'nvidia' && raw && !validNvidiaValues.has(raw))
+          ? nvidiaDefault
+          : raw;
       }
       setDraftModels(drafts);
     } catch (e) {

@@ -29,8 +29,18 @@ const DEFAULT_MODELS = {
   openrouter: 'meta-llama/llama-3.3-70b-instruct:free',
   groq: 'llama-3.3-70b-versatile',
   deepseek: 'deepseek-v4-flash',
-  nvidia: 'nvidia/llama-3.1-nemotron-70b-instruct',
+  nvidia: 'mistral-medium-3-instruct',
 };
+
+/** Valid NVIDIA NIM LLM model IDs. Any saved override not in this list is
+ *  treated as stale and falls back to the first entry (the default). */
+const NVIDIA_VALID_MODELS = [
+  'mistral-medium-3-instruct',
+  'mistral-large-3-675b-instruct-2512',
+  'mistral-nemotron',
+  'gemma-3n-e4b-it',
+  'gemma-3n-e2b-it',
+];
 
 const PROVIDERS = ['openrouter', 'groq', 'deepseek', 'nvidia'];
 const SLOTS = [1, 2, 3];
@@ -145,7 +155,10 @@ module.exports = async ({ req, res, log }) => {
   for (const p of PROVIDERS) {
     for (const s of SLOTS) {
       const rawKey = getEnvKey(p, s);
-      const savedModel = slotModels[`${p}:${s}`];
+      const rawSaved = slotModels[`${p}:${s}`];
+      const savedModel = (p === 'nvidia' && rawSaved && !NVIDIA_VALID_MODELS.includes(rawSaved))
+        ? null
+        : rawSaved;
       const activeModel = savedModel || DEFAULT_MODELS[p];
       keys.push({
         provider: p,
