@@ -40,19 +40,23 @@ jobs:
       - name: Install lftp
         run: sudo apt-get update && sudo apt-get install -y lftp
 
-      - name: Probe FTP structure (non-fatal)
+      - name: Probe FTP connection (non-fatal)
         continue-on-error: true
         env:
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
         run: |
+          echo "--- Trying FTPS (explicit TLS) ---"
           lftp -u "u966279061.thewise.cloud,${FTP_PASSWORD}" "ftp://82.29.154.120:21" \
-            -e "set ftp:ssl-force true; \
-                set ssl:verify-certificate no; \
-                set net:timeout 15; \
-                set net:max-retries 2; \
-                pwd; \
-                ls -F; \
-                bye" 2>&1 || echo "⚠️ Probe failed (non-fatal) — continuing to sync"
+            -e "set ftp:ssl-force true; set ssl:verify-certificate no; set net:timeout 10; set net:max-retries 1; pwd; bye" \
+            2>&1 && echo "✅ FTPS works" || echo "⚠️ FTPS failed"
+          echo "--- Trying plain FTP ---"
+          lftp -u "u966279061.thewise.cloud,${FTP_PASSWORD}" "ftp://82.29.154.120:21" \
+            -e "set ftp:ssl-allow false; set net:timeout 10; set net:max-retries 1; pwd; bye" \
+            2>&1 && echo "✅ Plain FTP works" || echo "⚠️ Plain FTP failed"
+          echo "--- Trying FTPS passive mode ---"
+          lftp -u "u966279061.thewise.cloud,${FTP_PASSWORD}" "ftp://82.29.154.120:21" \
+            -e "set ftp:ssl-force true; set ssl:verify-certificate no; set ftp:passive-mode true; set net:timeout 10; set net:max-retries 1; pwd; bye" \
+            2>&1 && echo "✅ FTPS passive works" || echo "⚠️ FTPS passive failed"
 
       - name: Sync to Hostinger
         timeout-minutes: 20
@@ -62,8 +66,9 @@ jobs:
           lftp -u "u966279061.thewise.cloud,${FTP_PASSWORD}" "ftp://82.29.154.120:21" \
             -e "set ftp:ssl-force true; \
                 set ssl:verify-certificate no; \
-                set net:timeout 30; \
-                set net:max-retries 3; \
-                set net:reconnect-interval-base 5; \
-                mirror --reverse --delete --verbose --parallel=5 ./dist/ resume/; \
+                set ftp:passive-mode true; \
+                set net:timeout 60; \
+                set net:max-retries 5; \
+                set net:reconnect-interval-base 10; \
+                mirror --reverse --delete --verbose --parallel=3 ./dist/ resume/; \
                 bye"
