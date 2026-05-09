@@ -19,7 +19,7 @@ import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse'
 import { useIsMounted } from '@/lib/devkit/hooks';
 import { DevKitErrorCard } from './DevKitErrorCard';
 
-const TAG_FILTERS = ['all', 'welcome', 'signup', 'reset-password', 'otp', 'magic-link'] as const;
+const TAG_FILTERS = ['all', 'signup', 'reset-password', 'otp', 'magic-link', 'welcome'] as const;
 type TagFilter = (typeof TAG_FILTERS)[number];
 
 interface TestmailEmail {
@@ -94,7 +94,12 @@ function EmailRow({ email }: { email: TestmailEmail }) {
             <TagChip tag={email.tag} />
           </div>
           <div className="flex items-center gap-3 mt-0.5 flex-wrap">
-            <span className="text-xs text-muted-foreground truncate max-w-[200px]">
+            {email.from && (
+              <span className="text-xs text-muted-foreground truncate max-w-[180px]">
+                From: <span className="font-mono">{email.from}</span>
+              </span>
+            )}
+            <span className="text-xs text-muted-foreground truncate max-w-[180px]">
               To: <span className="font-mono">{email.to}</span>
             </span>
             {email.receivedAt && (
