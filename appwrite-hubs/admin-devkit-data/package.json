@@ -1,0 +1,10 @@
+{
+  "name": "admin-devkit-data",
+  "version": "1.0.0",
+  "description": "Appwrite Function — serves DevKit admin panels: Mission Control, Analytics, Observability, Live Activity",
+  "main": "src/main.js",
+  "dependencies": {
+    "node-appwrite": "^11.1.1",
+    "axios": "^1.4.0"
+  }
+}

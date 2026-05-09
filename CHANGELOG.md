@@ -1,3 +1,20 @@
+## 2026-05-09 — New Appwrite Function: admin-devkit-data
+
+### Files created
+- `appwrite-hubs/admin-devkit-data/package.json` — Node.js 18 package manifest; depends on `node-appwrite ^11.1.1` and `axios ^1.4.0`.
+- `appwrite-hubs/admin-devkit-data/src/main.js` — full multi-action Appwrite Function (5 actions, ~430 lines). Implements:
+  - `mission-control` — GitHub latest-commit fetch, production site ping, OpenRouter/Groq/Resend provider health pings, Appwrite DB connectivity check, secrets inventory from Function Variables, last 10 errors from `error_log`, last 5 admin actions from `admin_audit_logs`.
+  - `analytics` — range-bucketed (today/7d/30d/90d/all) aggregations over `usage_events`, `ai_usage_logs`, `portfolio_visits`, `profiles`; returns full `PremiumAnalyticsData` shape including `rangeKpis`, `activitySeries`, `dauRollingSeries`, `newVsReturning`, `heatmap`, `topFeaturesRanged`, `topReferrers`, `deviceBreakdown`, `countryRanking`.
+  - `observability` → `get_telemetry` (aggregates `edge_function_logs` into per-function p50/p95/error-rate/sparkline rows), `get_error_stream` (filters `error_log` by since/function_name/severity), `mark_reviewed` (updates a document in `error_log`).
+  - `live-activity` → `usage_events`, `error_log`, `contact_requests` resources.
+  - `edge-fn-drift` — lists all deployed Appwrite Functions; returns count, oldest/newest deploy timestamps, count older than 30 days.
+- `appwrite-hubs/admin-devkit-data/README.md` — deploy instructions (Console + CLI), full variable table, request/response shapes for all 5 actions, collection-permission matrix.
+
+### What this unblocks
+Mission Control, Analytics, Observability, and Live Activity panels all call `admin-devkit-data`. Until now every call returned "Function with the requested ID could not be found". Once this function is deployed in Appwrite Console (project `69fd362b001eb325a192`, fra), all four panels will become functional.
+
+---
+
 ## 2026-05-09 — DevKit: error messages migrated from Supabase → Appwrite references
 
 ### Files changed

@@ -2,6 +2,24 @@
 
 **Last verified:** 2026-05-09
 
+## Four DevKit admin panels now have a working backend (2026-05-09)
+
+Until now, opening Mission Control, Analytics, Observability, or Live Activity in the DevKit immediately showed an error: "Function with the requested ID could not be found." That's because those panels all call an Appwrite Function called `admin-devkit-data` that was removed when Supabase was decommissioned and hadn't been rebuilt yet.
+
+**What's been built:** The full replacement function now exists in the repository at `appwrite-hubs/admin-devkit-data/`. It covers all five data sources those panels need:
+
+- **Mission Control** — checks the latest GitHub commit, pings the live site, tests each AI provider (OpenRouter, Groq), verifies the Resend email key, confirms database connectivity, inventories all secrets, and lists recent errors and admin actions.
+- **Analytics** — queries real usage events, AI credit consumption, portfolio visit data, and signup counts; returns everything needed for all charts and KPI cards across all time ranges (today / 7 days / 30 days / 90 days / all time).
+- **Observability** — aggregates function call logs into per-function latency (P50/P95), error rates, and sparkline charts; surfaces the live error stream with filtering by time, severity, and function name; lets admins mark errors as reviewed.
+- **Live Activity** — streams the last 50 usage events, last 20 error log entries, and last 20 contact form requests.
+- **Edge-Function Drift** — lists all deployed Appwrite Functions and flags any that haven't been updated in over 30 days.
+
+**What still needs to happen:** The function must be deployed in the Appwrite Console (project `69fd362b001eb325a192`, fra region). The code is ready; it's waiting to be uploaded as a deployment. The README at `appwrite-hubs/admin-devkit-data/README.md` has step-by-step deploy instructions.
+
+**Last verified:** 2026-05-09
+
+---
+
 ## DevKit error messages now point to Appwrite, not Supabase (2026-05-09)
 
 When a DevKit panel hits a backend error, it shows a plain-English message and a "Copy AI fix prompt" button. Until now, every one of those copied prompts told the AI assistant to go check "production Supabase (project ref jnsfmkzgxsviuthaqlyy)" — which no longer exists. Supabase was fully decommissioned in May 2026.
