@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { databases, DATABASE_ID, Query } from '@/lib/appwrite';
-import { Database, Search, FileJson, Clock, Eye, Layout } from 'lucide-react';
+import { Database, Search, FileJson, Clock, Eye, Layout, User } from 'lucide-react';
 
 export const DatabaseXRay = () => {
   const [resumes, setResumes] = useState<any[]>([]);

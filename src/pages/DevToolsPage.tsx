@@ -131,7 +131,7 @@ export default function DevToolsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#05060f] text-white flex flex-col md:flex-row">
+    <div className="h-screen overflow-hidden bg-[#05060f] text-white flex flex-col md:flex-row">
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex w-72 border-r border-white/5 bg-[#080916] p-8 flex-col gap-10">
         <div className="flex items-center gap-3 px-2">
