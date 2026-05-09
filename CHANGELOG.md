@@ -1,3 +1,41 @@
+## 2026-05-09 — Task #14: Testmail DevKit integration — dev email catch-all + inbox viewer
+
+### What changed
+
+#### New: `appwrite-hubs/admin-testmail/src/main.js` + `package.json`
+New Appwrite Function `admin-testmail`. Auth: `Authorization: Bearer <DEVKIT_PASSWORD>`.
+
+- **`sendAppEmail({ to, subject, html, text, tag })`** helper: reads `EMAIL_TEST_MODE` from `process.env`; when `true`, replaces `to` with `{TESTMAIL_NAMESPACE}.{tag}@inbox.testmail.app` before calling Resend. Returns `{ sentTo, originalTo, testMode, tag, messageId }`.
+- **`testmail-inbox` module**: fetches `https://api.testmail.app/api/json?namespace=…&limit=50` with optional `&tag=…` filter. Normalises each email to `{ id, subject, from, to, receivedAt, tag, html, text }`. Returns `{ emails, total, namespace, testMode }`.
+- **`testmail-send-test` module**: calls `sendAppEmail` with a branded welcome email (tag: `welcome`) and returns the metadata so the DevKit panel can confirm delivery.
+
+#### Updated: `appwrite-hubs/admin-email/src/main.js`
+- Added `sendAppEmail({ to, subject, html, text, tag })` helper (mirrors `admin-testmail`).
+- `handleEmailAction` now calls `sendAppEmail` instead of `resendRequest` directly. Each action is assigned a tag: `signup` (confirmation), `magic-link`, `otp`, `reset-password`, `custom`.
+- Return shape unchanged (`{ email, message_id }`).
+- New optional variables: `EMAIL_TEST_MODE`, `TESTMAIL_NAMESPACE` (default `ajku9`).
+
+#### New: `src/components/dev-kit/TestmailInboxPanel.tsx`
+DevKit panel for the Testmail inbox. Registered under Communications in the DevToolsPage sidebar as `testmail` / title "Testmail".
+
+- Tag filter chips: all, welcome, signup, reset-password, otp, magic-link.
+- Scrollable email list, each row collapsible to show HTML preview (sandboxed `dangerouslySetInnerHTML`) or text fallback.
+- Refresh button + "Send test email" button (invokes `testmail-send-test`).
+- `EMAIL_TEST_MODE` status badge (green when ON, amber when OFF).
+- Uses `DevKitErrorCard`, `devKitAuthHeaders`, `unwrapAdminResponse`, `useIsMounted` — consistent with all other DevKit panels.
+
+#### Updated: `src/pages/DevToolsPage.tsx`
+- Imported `TestmailInboxPanel` and `Inbox` icon.
+- Added `{ id: 'testmail', title: 'Testmail', icon: Inbox }` to the Communications panel group.
+- Added `case 'testmail': return wrap('Testmail Inbox', <TestmailInboxPanel />)` to `renderPanel()`.
+
+### New Appwrite Function Variables required
+- `TESTMAIL_NAMESPACE` — e.g. `ajku9` (already in Appwrite, used as default fallback)
+- `TESTMAIL_API_KEY` — Testmail API key (already in Appwrite)
+- `EMAIL_TEST_MODE` — set to `"true"` in dev/staging to redirect emails to Testmail inbox
+
+---
+
 ## 2026-05-09 — Task #9: NVIDIA NIM key slots added to AI Keys admin panel
 
 ### What changed

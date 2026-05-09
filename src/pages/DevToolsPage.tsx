@@ -4,7 +4,7 @@ import {
   BrainCircuit, ShieldCheck, Cog, Mail, Ticket, History, Briefcase,
   Fingerprint, Lock, Zap, Loader2, Activity, BarChart2,
   CheckCircle2, AlertCircle, ShieldBan, ListChecks, Link2,
-  Flag, Play, Search, X, MoreHorizontal, KeyRound,
+  Flag, Play, Search, X, MoreHorizontal, KeyRound, Inbox,
 } from 'lucide-react';
 import { DevKitPanelBoundary } from '@/components/dev-kit/DevKitPanelBoundary';
 import { useNavigate } from 'react-router-dom';
@@ -40,6 +40,7 @@ import { OnboardingFunnelPanel } from '@/components/dev-kit/OnboardingFunnelPane
 import { PortfolioUsernamesPanel } from '@/components/dev-kit/PortfolioUsernamesPanel';
 import { DevKitRunner } from '@/components/dev-kit/DevKitRunner';
 import { AIKeysPanel } from '@/components/dev-kit/AIKeysPanel';
+import { TestmailInboxPanel } from '@/components/dev-kit/TestmailInboxPanel';
 
 const PANEL_GROUPS = [
   {
@@ -88,6 +89,7 @@ const PANEL_GROUPS = [
     panels: [
       { id: 'email',       title: 'Email',       icon: Mail },
       { id: 'automations', title: 'Automations', icon: Zap },
+      { id: 'testmail',    title: 'Testmail',    icon: Inbox },
       { id: 'coupons',     title: 'Forge',       icon: Ticket },
     ],
   },
@@ -238,6 +240,7 @@ function DevToolsInner() {
       case 'runner':        return wrap('Test Runner',      <DevKitRunner />);
       case 'email':         return wrap('Email',            <EmailManagementPanel />);
       case 'automations':   return wrap('Automations',      <EmailAutomationsPanel />);
+      case 'testmail':      return wrap('Testmail Inbox',   <TestmailInboxPanel />);
       case 'coupons':       return wrap('Forge',            <CouponsPanel />);
       case 'wisehire':      return wrap('Hiring',           <WiseHireWaitlistPanel />);
       case 'settings':      return wrap('Core',             <AppSettingsPanel />);

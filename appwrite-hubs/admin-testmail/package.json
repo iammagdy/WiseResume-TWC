@@ -1,0 +1,7 @@
+{
+  "name": "admin-testmail",
+  "version": "1.0.0",
+  "description": "Appwrite Function — Testmail.app inbox viewer + sendAppEmail helper with EMAIL_TEST_MODE routing",
+  "main": "src/main.js",
+  "dependencies": {}
+}

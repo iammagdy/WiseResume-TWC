@@ -15,6 +15,11 @@ The frontend will be available on port 5000 and a minimal Express health/PDF stu
 - `VITE_APPWRITE_PROJECT_ID` — Appwrite project id (`69fd362b001eb325a192`).
 - `API_PORT` — Express dev port (default `5001`).
 
+**Appwrite Function Variables (set per-Function in Appwrite Console — not Replit):**
+- `EMAIL_TEST_MODE` — set to `"true"` on `admin-email` and `admin-testmail` in dev/staging to redirect all outgoing Resend emails to the Testmail catch-all inbox (`{TESTMAIL_NAMESPACE}.{tag}@inbox.testmail.app`) instead of real recipients.
+- `TESTMAIL_NAMESPACE` — Testmail namespace (e.g. `ajku9`); already configured.
+- `TESTMAIL_API_KEY` — Testmail API key; already configured.
+
 All other secrets (AI provider keys, Resend, devkit password, cron secret, etc.) live in Appwrite Function variables and are never present in Replit env. If a former Supabase/Kinde secret is missing from `process.env`, that is expected and correct.
 
 ## Stack

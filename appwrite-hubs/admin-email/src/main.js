@@ -347,6 +347,36 @@ function handleDiagnose() {
   };
 }
 
+// ─── sendAppEmail helper ──────────────────────────────────────────────────────
+// Mirrors the same helper in admin-testmail/src/main.js.
+// When EMAIL_TEST_MODE=true, replaces `to` with `{namespace}.{tag}@inbox.testmail.app`
+// so outgoing emails land in Testmail instead of the real inbox.
+
+async function sendAppEmail({ to, subject, html, text, tag }) {
+  const apiKey    = process.env.RESEND_API_KEY || '';
+  const fromEmail = process.env.RESEND_FROM_EMAIL || 'hello@thewise.cloud';
+  const fromName  = process.env.RESEND_FROM_NAME  || 'WiseResume';
+  const from      = `${fromName} <${fromEmail}>`;
+  const namespace = process.env.TESTMAIL_NAMESPACE || 'ajku9';
+  const testMode  = process.env.EMAIL_TEST_MODE === 'true';
+
+  const sentTo = testMode
+    ? `${namespace}.${tag}@inbox.testmail.app`
+    : to;
+
+  const payload = { from, to: sentTo, subject, html };
+  if (text) payload.text = text;
+
+  const result = await resendRequest('POST', '/emails', payload);
+  return {
+    email:      to,
+    sentTo,
+    testMode,
+    tag,
+    message_id: result.id || null,
+  };
+}
+
 // ─── Module: email-actions ────────────────────────────────────────────────────
 
 async function handleEmailAction(action, body) {
@@ -356,34 +386,34 @@ async function handleEmailAction(action, body) {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) throw new Error('RESEND_API_KEY is not configured in Appwrite Function Variables');
 
-  const fromEmail = process.env.RESEND_FROM_EMAIL || 'hello@thewise.cloud';
-  const fromName  = process.env.RESEND_FROM_NAME  || 'WiseResume';
-  const from      = `${fromName} <${fromEmail}>`;
-
   const to = body.target_email;
   if (!to) throw new Error('target_email is required');
 
-  let subject, html;
+  let subject, html, tag;
 
   switch (action) {
     case 'resend_confirmation':
       subject = 'Confirm your WiseResume email address';
       html    = confirmationEmailHtml(to);
+      tag     = 'signup';
       break;
 
     case 'send_magic_link':
       subject = 'Your WiseResume sign-in link';
       html    = magicLinkEmailHtml(to);
+      tag     = 'magic-link';
       break;
 
     case 'send_otp':
       subject = 'Your WiseResume verification code';
       html    = otpEmailHtml();
+      tag     = 'otp';
       break;
 
     case 'send_password_reset':
       subject = 'Reset your WiseResume password';
       html    = passwordResetEmailHtml(to);
+      tag     = 'reset-password';
       break;
 
     case 'send_custom': {
@@ -394,6 +424,7 @@ async function handleEmailAction(action, body) {
       }
       subject = customSubject;
       html    = `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;"><p style="white-space:pre-wrap">${escapeHtml(customBody)}</p></div>`;
+      tag     = 'custom';
       break;
     }
 
@@ -401,8 +432,8 @@ async function handleEmailAction(action, body) {
       throw new Error(`Unknown email action: ${action}`);
   }
 
-  const result = await resendRequest('POST', '/emails', { from, to, subject, html });
-  return { email: to, message_id: result.id || null };
+  const result = await sendAppEmail({ to, subject, html, tag });
+  return { email: result.email, message_id: result.message_id };
 }
 
 // ─── Email HTML templates ─────────────────────────────────────────────────────

@@ -1,6 +1,21 @@
 # What Wise Cloud Can Do Today
 
-**Last verified:** 2026-05-09 (Task #9 — NVIDIA NIM key slots in AI Keys panel)
+**Last verified:** 2026-05-09 (Task #14 — Testmail inbox viewer in DevKit)
+
+## DevKit — Testmail inbox viewer (2026-05-09, Task #14)
+
+The DevKit now has a **Testmail Inbox** panel under the Communications section. During development and staging, outgoing emails can be redirected to a Testmail catch-all inbox instead of reaching real users. This makes it easy to confirm that emails are being sent, formatted correctly, and tagged properly — without needing to use a real email account.
+
+**What's there:**
+- A tag filter bar to filter by email type: all, welcome, signup, reset-password, otp, magic-link.
+- A scrollable email list showing subject, recipient, tag, and time received.
+- Each email expands to show the full HTML content (or plain text).
+- A "Send test email" button that fires a sample welcome email through the system and routes it to the catch-all inbox.
+- A status badge showing whether `EMAIL_TEST_MODE` is ON or OFF. When ON, all outgoing emails go to Testmail instead of real inboxes.
+
+**How the test mode works:** A new environment variable `EMAIL_TEST_MODE=true` on the Appwrite Functions tells both the Email panel and the new Testmail function to rewrite the recipient address to `ajku9.{tag}@inbox.testmail.app`. No real users are emailed. When the flag is off (production), emails go to the real address as normal.
+
+---
 
 ## DevKit AI Keys panel — NVIDIA NIM slots added (2026-05-09, Task #9)
 
