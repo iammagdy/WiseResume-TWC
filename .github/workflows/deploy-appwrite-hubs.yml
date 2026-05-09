@@ -15,6 +15,9 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Install deployment dependencies
+        run: npm install node-appwrite
+
       - name: Deploy AI Hubs
         run: |
           # Setup auth-master
