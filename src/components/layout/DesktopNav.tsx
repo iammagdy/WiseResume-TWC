@@ -131,7 +131,7 @@ export function DesktopNav() {
       <div className="flex items-center gap-0.5">
         {tabs.map((tab) => {
           const active = isActive(tab);
-          const Icon = tab.icon;
+          const Icon = tab.icon || Home;
           return (
             <button
               key={tab.path}
