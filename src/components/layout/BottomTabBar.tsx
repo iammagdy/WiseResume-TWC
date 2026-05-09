@@ -203,7 +203,7 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
         >
           {tabs.slice(0, 4).map((tab) => {
             const active = isActive(tab);
-            const Icon = tab.icon as React.ElementType;
+            const Icon = (tab.icon || Home) as React.ElementType;
             return (
               <button
                 key={tab.path}
@@ -395,7 +395,7 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
               <div className="overflow-y-auto flex-1">
                 <div className="grid grid-cols-4 gap-1 p-3">
                   {moreItems.map((item) => {
-                    const Icon = item.icon as React.ElementType;
+                    const Icon = (item.icon || Home) as React.ElementType;
                     return (
                       <button
                         key={item.path}
