@@ -104,6 +104,11 @@ export function DevKitRunner() {
     if (s.includes('gemini_api_key') && s.includes('not configured')) {
       return 'GEMINI_API_KEY not configured — required for headshot generation. Set it in Appwrite → Function Variables';
     }
+    if (s.includes('nvidia') || s.includes('integrate.api.nvidia.com')) {
+      if (s.includes('invalid api key') || s.includes('invalid_key') || s.includes('401') || s.includes('unauthorized')) {
+        return 'NVIDIA NIM API key is invalid or expired — set NVIDIA_KEY_1 in Appwrite → Function Variables';
+      }
+    }
     if (
       s.includes('invalid_key') ||
       s.includes('invalid api key') ||
@@ -262,6 +267,18 @@ export function DevKitRunner() {
           if (res.error) throw new Error(toRunnerError(res.error).message || 'ai-test error');
           if (!res.data?.success) throw new Error(res.data?.error || 'ai-test returned failure');
           return { engine: 'groq', model: res.data.model, latencyMs: res.data.latencyMs, response: res.data.response };
+        });
+      },
+    },
+    {
+      id: 'ai-engine-nvidia', label: 'Engine · NVIDIA (Nemotron 70B)', description: 'Directly test WiseResume managed NVIDIA NIM endpoint (nvidia/llama-3.1-nemotron-70b-instruct) — admin only', section: 'ai',
+      run: async (): Promise<TestResult> => {
+        if (!auth.isAuthenticated) return { status: 'warn' as const, summary: 'Skipped — sign in first', durationMs: 0 };
+        return strictInvoke('ai-engine-nvidia', async () => {
+          const res = await edgeFunctions.invoke('ai-test', { body: { wiseresumeSubProvider: 'nvidia' } });
+          if (res.error) throw new Error(toRunnerError(res.error).message || 'ai-test error');
+          if (!res.data?.success) throw new Error(res.data?.error || 'ai-test returned failure');
+          return { engine: 'nvidia', model: res.data.model, latencyMs: res.data.latencyMs, response: res.data.response };
         });
       },
     },

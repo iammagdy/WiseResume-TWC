@@ -21,12 +21,14 @@ const PROVIDER_COLOR: Record<AITestProvider, string> = {
   openrouter: 'text-blue-400',
   groq:       'text-orange-400',
   deepseek:   'text-purple-400',
+  nvidia:     'text-green-400',
 };
 
 const PROVIDER_BG: Record<AITestProvider, string> = {
   openrouter: 'bg-blue-500/10 border-blue-500/20',
   groq:       'bg-orange-500/10 border-orange-500/20',
   deepseek:   'bg-purple-500/10 border-purple-500/20',
+  nvidia:     'bg-green-500/10 border-green-500/20',
 };
 
 export function AITestSlotModelsCard({ onNavigateToKeys }: AITestSlotModelsCardProps) {
@@ -56,7 +58,7 @@ export function AITestSlotModelsCard({ onNavigateToKeys }: AITestSlotModelsCardP
           <BrainCircuit className="w-4 h-4 text-muted-foreground" />
           <p className="text-sm font-semibold text-foreground">AI Test Slot Models</p>
           <span className="text-[10px] font-medium px-2 py-0.5 rounded-full border bg-muted/30 text-muted-foreground border-border">
-            9 slots
+            12 slots
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -92,7 +94,7 @@ export function AITestSlotModelsCard({ onNavigateToKeys }: AITestSlotModelsCardP
       )}
 
       {map && !loading && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {AI_TEST_PROVIDERS.map(provider => (
             <div key={provider} className={`rounded-lg border p-3 space-y-2 ${PROVIDER_BG[provider]}`}>
               <p className={`text-[11px] font-black uppercase tracking-wider ${PROVIDER_COLOR[provider]}`}>

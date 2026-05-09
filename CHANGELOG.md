@@ -1,3 +1,19 @@
+## 2026-05-09 — Feature: NVIDIA NIM integrated as fourth AI provider + DevKit engine test card
+
+### What changed
+- `appwrite-hubs/ai-gateway/src/main.js` — Added `NVIDIA_DEFAULT_MODEL = 'nvidia/llama-3.1-nemotron-70b-instruct'` constant. Added `nvidia: 'https://integrate.api.nvidia.com/v1/chat/completions'` to `BASES`. Extended pool-building loop to read `NVIDIA_KEY_1`, `NVIDIA_KEY_2`, `NVIDIA_KEY_3` from `process.env`. Extended `defaultModel` ternary to return `NVIDIA_DEFAULT_MODEL` when provider is `'nvidia'`. NVIDIA uses the same OpenAI-compatible request shape; no other changes needed.
+- `src/lib/devkit/aiTestSlotModels.ts` — Added `'nvidia'` to `AITestProvider` union and `AI_TEST_PROVIDERS` array. Added `nvidia: 'nvidia/llama-3.1-nemotron-70b-instruct'` to `FALLBACK_AI_TEST_DEFAULT_MODELS`. Extended `isProvider()` guard and `providerDisplayName()` (returns `'NVIDIA NIM'`).
+- `src/components/dev-kit/AITestSlotModelsCard.tsx` — Added `nvidia` entries to `PROVIDER_COLOR` (`text-green-400`) and `PROVIDER_BG` (`bg-green-500/10 border-green-500/20`). Updated slot badge from "9 slots" to "12 slots". Changed grid from `sm:grid-cols-3` to `sm:grid-cols-2 lg:grid-cols-4` to accommodate four providers.
+- `src/components/dev-kit/DevKitRunner.tsx` — Added `ai-engine-nvidia` test in the `'ai'` section; invokes `edgeFunctions.invoke('ai-test', { body: { wiseresumeSubProvider: 'nvidia' } })` and surfaces `engine`, `model`, `latencyMs`, `response`. Extended `friendlyAIKeyError` to recognise NVIDIA key errors (`nvidia`, `integrate.api.nvidia.com`, `invalid api key`/`401`/`unauthorized`).
+
+### Provider details
+- Endpoint: `https://integrate.api.nvidia.com/v1/chat/completions` (OpenAI-compatible)
+- Default model: `nvidia/llama-3.1-nemotron-70b-instruct`
+- Key env vars: `NVIDIA_KEY_1`, `NVIDIA_KEY_2`, `NVIDIA_KEY_3` (set in Appwrite Function Variables)
+- Load-balanced alongside OpenRouter, Groq, and DeepSeek in the random pool
+
+---
+
 ## 2026-05-09 — Deployment: all 6 Appwrite AI Hub Functions live + Hostinger frontend synced
 
 ### What changed

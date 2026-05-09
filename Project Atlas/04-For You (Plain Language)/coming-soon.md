@@ -57,7 +57,7 @@ Some of this already shipped (the "Add with AI" button, the company briefing too
 
 ## AI routing rollout
 
-Today the platform tries 8 AI providers in a fixed order. Planned: a smarter router where every feature picks the right provider for the job (e.g. "use the fast cheap one for grammar fixes, use the smart expensive one for cover letters"), with streaming, caching, and a dashboard so we can see what's working.
+Today the platform load-balances across 4 AI providers (OpenRouter, Groq, DeepSeek, and NVIDIA NIM — added 2026-05-09) in a random pool. Planned: a smarter router where every feature picks the right provider for the job (e.g. "use the fast cheap one for grammar fixes, use the smart expensive one for cover letters"), with streaming, caching, and a dashboard so we can see what's working.
 
 ## Eight more AI features (designed, not built)
 

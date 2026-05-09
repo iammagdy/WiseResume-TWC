@@ -19,10 +19,10 @@ import { edgeFunctions } from '@/lib/edgeFunctions';
 import { devKitAuthHeaders } from './devKitAuth';
 import { unwrapAdminResponse } from './edgeResponse';
 
-export type AITestProvider = 'openrouter' | 'groq' | 'deepseek';
+export type AITestProvider = 'openrouter' | 'groq' | 'deepseek' | 'nvidia';
 export type AITestSlot = 1 | 2 | 3;
 
-export const AI_TEST_PROVIDERS: readonly AITestProvider[] = ['openrouter', 'groq', 'deepseek'] as const;
+export const AI_TEST_PROVIDERS: readonly AITestProvider[] = ['openrouter', 'groq', 'deepseek', 'nvidia'] as const;
 export const AI_TEST_SLOTS: readonly AITestSlot[] = [1, 2, 3] as const;
 
 /**
@@ -36,6 +36,7 @@ export const FALLBACK_AI_TEST_DEFAULT_MODELS: Record<AITestProvider, string> = {
   openrouter: 'meta-llama/llama-3.3-70b-instruct:free',
   groq: 'llama-3.3-70b-versatile',
   deepseek: 'deepseek-v4-flash',
+  nvidia: 'nvidia/llama-3.1-nemotron-70b-instruct',
 };
 
 export function aiTestSlotKey(provider: AITestProvider, slot: AITestSlot): string {
@@ -45,6 +46,7 @@ export function aiTestSlotKey(provider: AITestProvider, slot: AITestSlot): strin
 export function providerDisplayName(provider: AITestProvider): string {
   if (provider === 'openrouter') return 'OpenRouter';
   if (provider === 'groq') return 'Groq';
+  if (provider === 'nvidia') return 'NVIDIA NIM';
   return 'DeepSeek';
 }
 
@@ -87,7 +89,7 @@ export interface AITestModelOption {
 }
 
 function isProvider(value: unknown): value is AITestProvider {
-  return value === 'openrouter' || value === 'groq' || value === 'deepseek';
+  return value === 'openrouter' || value === 'groq' || value === 'deepseek' || value === 'nvidia';
 }
 
 function isSlot(value: unknown): value is AITestSlot {

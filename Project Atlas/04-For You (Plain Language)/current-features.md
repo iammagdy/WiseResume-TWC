@@ -1,6 +1,17 @@
 # What Wise Cloud Can Do Today
 
-**Last verified:** 2026-05-09
+**Last verified:** 2026-05-09 (NVIDIA NIM added)
+
+## NVIDIA NIM added as a fourth AI provider (2026-05-09)
+
+The AI gateway that powers all of WiseResume's AI features now has a fourth provider in its pool: NVIDIA NIM, running on NVIDIA's own cloud at `integrate.api.nvidia.com`. The default model is Llama 3.1 Nemotron 70B — NVIDIA's flagship instruction-following model.
+
+**What this means for you:**
+- When `NVIDIA_KEY_1` (or `_2`/`_3`) is set in Appwrite Function Variables, some AI requests will be served by NVIDIA's infrastructure automatically — no other configuration needed.
+- The DevKit AI section now has an **Engine · NVIDIA (Nemotron 70B)** live test card so you can confirm the key is working and see real latency from the admin panel.
+- The AI Test Slot Models card in Mission Control now shows a fourth green-coloured column for NVIDIA alongside the existing OpenRouter (blue), Groq (orange), and DeepSeek (purple) columns.
+
+---
 
 ## DevKit Command Center — massively expanded (2026-05-09)
 

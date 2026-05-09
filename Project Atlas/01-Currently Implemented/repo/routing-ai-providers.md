@@ -1,6 +1,6 @@
 # `Routing AI Providers/`
 
-**Last verified:** 2026-05-08
+**Last verified:** 2026-05-09
 **Type:** reference card
 **Sources:** `Routing AI Providers/`.
 
@@ -15,7 +15,7 @@
 | `README.md` | Status / ownership / "no code until reviewed" gate. |
 | `01-current-state.md` | Inventory of what already existed in the codebase before the rebuild. |
 | `02-target-architecture.md` | Target architecture description. |
-| `03-providers-and-models.md` | Catalog of OpenRouter + Groq + DeepSeek models, free-tier limits (limits dated; re-verify before launch). |
+| `03-providers-and-models.md` | Catalog of OpenRouter + Groq + DeepSeek + NVIDIA NIM models, free-tier limits (limits dated; re-verify before launch). |
 | `04-feature-routing-map.md` | Per-feature primary + fallback model + streaming + cache + credit cost. **The policy.** `ai_routing_config` rows are a 1-to-1 translation of this map. |
 | `05-implementation-plan.md` | Phased rollout — phases must run in order, never break existing features. |
 | `06-streaming-design.md` | End-to-end streaming across 3 providers + edge fns + React. |

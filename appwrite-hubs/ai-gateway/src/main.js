@@ -4,11 +4,13 @@ const sdk = require('node-appwrite');
 const OPENROUTER_FREE_MODEL = 'meta-llama/llama-3.3-70b-instruct:free';
 const GROQ_FREE_MODEL = 'llama-3.3-70b-versatile';
 const DEEPSEEK_MODEL = 'deepseek-chat';
+const NVIDIA_DEFAULT_MODEL = 'nvidia/llama-3.1-nemotron-70b-instruct';
 
 const BASES = {
   openrouter: 'https://openrouter.ai/api/v1/chat/completions',
   groq: 'https://api.groq.com/openai/v1/chat/completions',
-  deepseek: 'https://api.deepseek.com/v1/chat/completions'
+  deepseek: 'https://api.deepseek.com/v1/chat/completions',
+  nvidia: 'https://integrate.api.nvidia.com/v1/chat/completions'
 };
 
 const DB_ID = 'main';
@@ -62,6 +64,11 @@ module.exports = async ({ req, res, log, error }) => {
     if (process.env.DEEPSEEK_KEY) {
       pool.push({ provider: 'deepseek', key: process.env.DEEPSEEK_KEY });
     }
+    // NVIDIA NIM keys 1, 2, 3
+    for (let i = 1; i <= 3; i++) {
+      const key = process.env[`NVIDIA_KEY_${i}`];
+      if (key) pool.push({ provider: 'nvidia', key });
+    }
 
     if (pool.length === 0) {
         error('No keys found in environment variables.');
@@ -70,8 +77,9 @@ module.exports = async ({ req, res, log, error }) => {
 
     const picked = pool[Math.floor(Math.random() * pool.length)];
     const url = BASES[picked.provider];
-    const defaultModel = picked.provider === 'openrouter' ? OPENROUTER_FREE_MODEL : 
-                         picked.provider === 'deepseek' ? DEEPSEEK_MODEL : GROQ_FREE_MODEL;
+    const defaultModel = picked.provider === 'openrouter' ? OPENROUTER_FREE_MODEL :
+                         picked.provider === 'deepseek' ? DEEPSEEK_MODEL :
+                         picked.provider === 'nvidia' ? NVIDIA_DEFAULT_MODEL : GROQ_FREE_MODEL;
 
     log(`Using provider: ${picked.provider}`);
 
