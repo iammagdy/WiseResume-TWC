@@ -1,6 +1,21 @@
 # Stability Improvements — What's Getting Better Behind the Scenes
 
-**Last verified:** 2026-05-08
+**Last verified:** 2026-05-09
+
+## Git history reconnected between Replit and GitHub — Task #29 (2026-05-09)
+
+The code in Replit and the code on GitHub had drifted apart at the history level — the files themselves were identical, but each side had a different "trail of saves" that didn't connect to the other. This meant future pushes from Replit to GitHub would fail with a confusing error, making deployments unreliable.
+
+**What changed:**
+- A special reconciliation step was run that created a single merge point in the history, permanently linking the two separate trails into one. Both sides' full histories are preserved — nothing was deleted or rewritten.
+- GitHub's `main` branch now sits one step ahead of Replit (the merge point itself), and Replit's commits are fully reachable from that point. A future `git pull` will cleanly close the gap.
+- A backup snapshot (`sync-from-replit-2026-05-09` branch on GitHub) was saved as a safety net and can be deleted from the GitHub UI once the merge is confirmed working in production.
+
+**Verified:** `origin/main` on GitHub correctly shows the merge commit (`3021159`) with both Replit and GitHub-side tips as parents, and local Replit tree contents match byte-for-byte.
+
+**Last verified:** 2026-05-09
+
+---
 
 ## Live site restored — blank page fixed and production re-deployed — Task #25 (2026-05-08)
 

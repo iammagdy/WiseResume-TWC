@@ -1,3 +1,35 @@
+## 2026-05-09 — Task #29: Reconcile split git history between Replit and GitHub
+
+**Files changed:** `CHANGELOG.md`, `Project Atlas/04-For You (Plain Language)/stability-improvements.md`, `Project Atlas/01-Currently Implemented/stability-fixes/github-origin-sync-task-29.md`.
+
+### Root-cause
+
+After Task #28 (file-content parity via GitHub Contents API), the Replit local repo and GitHub `origin/main` had diverged commit histories. The true common ancestor is `d299df3` — the first shared commit at the base of the Appwrite migration. Both sides traced the same file changes but via separate commit-object chains (Replit's platform generates twin commits for every task). A plain `git push` fails as non-fast-forward because GitHub has no knowledge of the Replit-side chain.
+
+### Resolution (same Data API approach as Task #70 v2)
+
+Two rounds were required because Replit's platform committed the documentation changes automatically between rounds:
+
+**Round 1 — pre-docs divergence:**
+1. Pushed local main (`501797c`, tree `c57556e2`) to `sync-from-replit-2026-05-09` (3063 objects uploaded).
+2. Created merge commit `302115996d8…` — parents `[b9be562 (GitHub), 501797c (Replit)]`, tree `c57556e2` (identical on both sides, no file conflicts).
+3. Fast-forwarded `origin/main` to `3021159` with `force: false`.
+
+**Round 2 — documentation commit:**
+Replit auto-committed docs as `5c61781` on top of `501797c`, creating a new divergence.
+1. Pushed docs commit to `sync-from-replit-2026-05-09-v2` (9 objects uploaded).
+2. Created merge commit `2ffb68e75f6e…` — parents `[3021159 (Round 1 merge), 5c61781 (docs)]`, tree `8df4d2c6` (docs included).
+3. Fast-forwarded `origin/main` to `2ffb68e` with `force: false`.
+
+### Verification
+
+- `GET /repos/.../git/commits/2ffb68e...` → parents `[3021159, 5c61781]`, tree `8df4d2c6`.
+- `GET /repos/.../compare/5c61781...main` → `status: ahead, ahead_by: 11, behind_by: 0` — local tip is a true ancestor of `origin/main`; zero behind means future Replit pushes will be non-conflicting.
+- No force-push, no history rewriting, both full chains reachable from `origin/main`.
+- Backup branches `sync-from-replit-2026-05-09` and `sync-from-replit-2026-05-09-v2` safe to delete via GitHub UI.
+
+---
+
 ## 2026-05-08 — Task #25: Fix live blank page and deploy to production
 
 **Files changed:** `.github/workflows/deploy-frontend.yml`, `public/_headers`, `CHANGELOG.md`, `Project Atlas/04-For You (Plain Language)/stability-improvements.md`.
