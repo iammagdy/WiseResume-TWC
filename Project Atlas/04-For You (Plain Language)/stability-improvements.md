@@ -1,6 +1,27 @@
 # Stability Improvements — What's Getting Better Behind the Scenes
 
-**Last verified:** 2026-05-09 (Task #6 — admin-devkit-data deployment package)
+**Last verified:** 2026-05-09 (Task #19 — Datadog LLM Observability in AI gateway)
+
+## AI calls are now observable in Datadog (2026-05-09, Task #19)
+
+Every AI request routed through the platform is now instrumented with **Datadog LLM Observability**. This means you can see exactly what the AI is doing in production — which feature triggered it, which provider handled it, how many tokens were used, how long it took, and whether it failed.
+
+**What's captured for each AI call:**
+- Which feature triggered the call (e.g. resume tailoring, interview practice, job match).
+- Which AI provider was used (OpenRouter, Groq, DeepSeek, or NVIDIA NIM) and which specific model.
+- The full input (messages sent to the AI) and the full output (what the AI replied).
+- Token usage: how many tokens went in, how many came back, total.
+- Whether the call succeeded or errored — with the error message captured if it failed.
+
+**Where to see it:**
+Datadog → LLM Observability → Traces → filter by `ml_app: wiseresumeai`. Tags `feature_name`, `provider`, and `model` are available for filtering and grouping.
+
+**What wasn't changed:**
+- Email sends (`send-email`, `send-contact-email`) are not traced as AI spans — they were never AI calls.
+- If the `DD_API_KEY` environment variable is not set, the AI gateway continues working exactly as before with no observability overhead.
+- Response format to the frontend is unchanged.
+
+---
 
 ## admin-devkit-data ready to deploy — Mission Control, Analytics, and Observability will return real data (2026-05-09)
 

@@ -1,3 +1,31 @@
+## 2026-05-09 — Task #19: Datadog LLM Observability added to AI gateway
+
+### What changed
+
+#### Updated: `appwrite-hubs/ai-gateway/src/main.js`
+- Added `dd-trace` v5 import and tracer initialisation at module level (`ddTrace.init({ logInjection: false })`).
+- `enableLLMObs()` function: called once per cold start; reads `DD_API_KEY` and `DD_SITE` from `process.env`, then calls `tracer.llmobs.enable({ mlApp: 'wiseresumeai', agentlessEnabled: true, ddApiKey, site })`. Agentless mode is required — Appwrite Functions cannot run a Datadog agent sidecar. If `DD_API_KEY` is absent, LLMObs is silently skipped and all AI calls continue working normally.
+- `flushDD()` async helper: calls `llmobs.flush()` + awaits `tracer.flush()` wrapped in a promise. Called before every `res.json()` return so spans are not lost when the container exits.
+- **Email route** (`send-email`, `send-contact-email`): not traced as LLM spans (as specified). `flushDD()` still called before each return.
+- **AI route**: when LLMObs is enabled, the `axios.post` call is wrapped in `llmobs.trace({ kind: 'llm', name: featureName, modelName: model, modelProvider: provider }, async (span) => { ... })`. Annotations:
+  - Before the call: `llmobs.annotate(span, { inputData: messages, metadata: { temperature, max_tokens, feature_name }, tags: { feature_name, provider, model } })`.
+  - On success: `llmobs.annotate(span, { outputData: [{ content, role: 'assistant' }], metrics: { input_tokens, output_tokens, total_tokens } })`.
+  - On error: `span.setTag('error', err)` + `span.setTag('error.message', err.message)`, then the error is surfaced via the normal `aiError` path → `res.json({ status: 'error', ... }, 500)`.
+  - If LLMObs is not enabled, the AI call is executed directly without any observability overhead (same behaviour as before).
+- Traces appear in Datadog LLM Observability > Traces grouped by `ml_app: wiseresumeai`, tagged with `feature_name`, `provider`, and `model`.
+
+#### Updated: `appwrite-hubs/ai-gateway/package.json`
+- Added `"dd-trace": "^5.102.0"` to dependencies.
+
+#### Rebuilt: `appwrite-hubs/ai-gateway.tar.gz`
+- Deployment archive rebuilt from updated source including `node_modules/dd-trace`.
+
+### New Appwrite Function Variables required
+- `DD_API_KEY` — Datadog API key (already in Appwrite global variables per task spec).
+- `DD_SITE` — Datadog site (e.g. `datadoghq.com`); optional, defaults to `datadoghq.com`.
+
+---
+
 ## 2026-05-09 — Task #14: Testmail DevKit integration — dev email catch-all + inbox viewer
 
 ### What changed
