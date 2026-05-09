@@ -28,7 +28,7 @@ import {
 } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
 import { useOfflineSyncStore } from '@/store/offlineSyncStore';
-import { formatDistanceToNow } from 'date-fns';
+import { safeFormatDistanceToNow } from '@/lib/dateUtils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
@@ -473,7 +473,7 @@ export const ResumeListCard = memo(function ResumeListCard({
               <div className="flex items-center gap-3">
                 <span className="text-[13px] text-muted-foreground flex items-center gap-1">
                   <Clock className="w-3 h-3" />
-                  Edited {formatDistanceToNow(new Date(resume.$updatedAt || resume.$createdAt || Date.now()), { addSuffix: true })}
+                  Edited {safeFormatDistanceToNow(resume.$updatedAt || resume.$createdAt || Date.now(), { addSuffix: true })}
                 </span>
                 {isPending && (
                   <span className="flex items-center gap-1 text-[10px] text-warning font-medium">

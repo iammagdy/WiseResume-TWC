@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { formatDistanceToNow } from 'date-fns';
+import { safeFormatDistanceToNow } from '@/lib/dateUtils';
 import { Pin, Trash2, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -114,7 +114,7 @@ export function CandidateNotes({ candidateId }: Props) {
               <div className="flex items-center gap-2 mt-2">
                 <NoteTagBadge tag={note.tag as NoteTag} />
                 <span className="text-slate-400 dark:text-slate-500 ml-auto">
-                  {formatDistanceToNow(new Date(note.created_at), { addSuffix: true })}
+                  {safeFormatDistanceToNow(note.created_at, { addSuffix: true })}
                 </span>
               </div>
             </div>

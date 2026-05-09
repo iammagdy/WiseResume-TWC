@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { FileText, Copy, Trash2, CheckCheck, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { formatDistanceToNow } from 'date-fns';
+import { safeFormatDistanceToNow } from '@/lib/dateUtils';
 import type { WiseHireRole } from '@/hooks/wisehire/useJDs';
 import { toast } from 'sonner';
 
@@ -80,7 +80,7 @@ export function JDLibrary({ roles, isLoading, onDelete, isDeleting, highlightedR
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">{role.title}</p>
             <p className="text-xs text-slate-400 dark:text-slate-500">
-              {formatDistanceToNow(new Date(role.updated_at), { addSuffix: true })}
+              {safeFormatDistanceToNow(role.updated_at, { addSuffix: true })}
               {role.jd_text && ` · ${role.jd_text.split('\n').length} lines`}
             </p>
           </div>

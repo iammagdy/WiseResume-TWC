@@ -1,4 +1,4 @@
-import { formatDistanceToNow } from 'date-fns';
+import { safeFormatDistanceToNow } from '@/lib/dateUtils';
 import { Mail, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
 import { useOutreachHistory } from '@/hooks/wisehire/useOutreach';
 import { cn } from '@/lib/utils';
@@ -46,7 +46,7 @@ export function OutreachHistory({ candidateId }: Props) {
                 <span className="text-[10px] font-medium">{cfg.label}</span>
               </div>
               <span className="text-[10px] text-slate-400">
-                {formatDistanceToNow(new Date(email.created_at), { addSuffix: true })}
+                {safeFormatDistanceToNow(email.created_at, { addSuffix: true })}
               </span>
             </div>
           </div>

@@ -1,3 +1,32 @@
+## 2026-05-09 — Fix: unsafe date formatting causing site-wide white-screen crashes
+
+### Problem
+Calling `format(new Date(value), ...)` or `formatDistanceToNow(new Date(value), ...)` where `value` is `null`, `undefined`, or an unparseable string throws `RangeError: Invalid time value`, crashing the React tree at that ErrorBoundary. This caused white-screen page crashes on the Resume Detail page and any other route that renders dates from data that may be absent or malformed.
+
+### New file
+- `src/lib/dateUtils.ts` — appended two safe wrappers (existing resume-date utilities preserved):
+  - `safeFormatDate(value, fmt, fallback?)` — wraps `date-fns` `format`; returns `fallback` (default `'—'`) instead of throwing when `value` is null/undefined/invalid.
+  - `safeFormatDistanceToNow(value, opts?, fallback?)` — wraps `date-fns` `formatDistanceToNow`; same guard. Both accept `string | number | Date | null | undefined` and validate with `isValid()` before delegating.
+
+### Files changed (call sites replaced)
+- `src/pages/ResumeDetailPage.tsx` — `formatDistanceToNow(new Date(dbResume.updated_at), ...)` → `safeFormatDistanceToNow(dbResume.updated_at, ...)`
+- `src/pages/ApplicationsPage.tsx` — two `format(new Date(...), ...)` calls on `applied_at` / `deadline` → `safeFormatDate`
+- `src/pages/ApplicationTrackerPage.tsx` — same two fields → `safeFormatDate`
+- `src/pages/JobDetailPage.tsx` — `format(new Date(job.posted_date), ...)` → `safeFormatDate`
+- `src/pages/AnalyticsPage.tsx` — `formatDistanceToNow(new Date(stats.lastUpdated), ...)` → `safeFormatDistanceToNow`; unused `format` import removed
+- `src/components/dashboard/ResumeListCard.tsx` — `formatDistanceToNow(new Date(resume.$updatedAt || ...), ...)` → `safeFormatDistanceToNow`
+- `src/components/cover-letter/CoverLetterCard.tsx` — `formatDistanceToNow(new Date(letter.created_at), ...)` → `safeFormatDistanceToNow`
+- `src/components/wisehire/pipeline/CandidateDetailPanel.tsx` — two calls (`ev.moved_at`, `candidate.created_at`) → `safeFormatDistanceToNow`
+- `src/components/wisehire/outreach/OutreachHistory.tsx` — `email.created_at` → `safeFormatDistanceToNow`
+- `src/components/wisehire/notes/CandidateNotes.tsx` — `note.created_at` → `safeFormatDistanceToNow`
+- `src/components/wisehire/jd-writer/JDLibrary.tsx` — `role.updated_at` → `safeFormatDistanceToNow`
+- `src/components/wisehire/dashboard/RecentBriefs.tsx` — `brief.created_at` → `safeFormatDistanceToNow`
+- `src/components/wisehire/dashboard/RecentActivity.tsx` — `ev.moved_at` → `safeFormatDistanceToNow`
+
+All bare `date-fns` imports for `format`/`formatDistanceToNow` replaced with imports from `@/lib/dateUtils`.
+
+---
+
 ## 2026-05-09 — New Appwrite Functions: admin-moderation + admin-portfolio-usernames
 
 ### Files created

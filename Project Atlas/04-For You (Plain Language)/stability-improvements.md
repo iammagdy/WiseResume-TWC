@@ -2,6 +2,18 @@
 
 **Last verified:** 2026-05-09
 
+## Date display no longer crashes pages (2026-05-09)
+
+Several screens were causing a full white-screen crash whenever a date value was missing or stored in an unexpected format. This affected the Resume Detail page and could affect the Applications list, Job Details, Analytics, and parts of the WiseHire module.
+
+**What was happening:** JavaScript's built-in date parser is strict. If a date field from the database comes back blank or in an unusual format, trying to display it with the formatting library threw an error that knocked out the whole screen rather than just showing a dash.
+
+**What's been fixed:** A pair of safe date-formatting helpers have been added to the codebase. Every place in the app that displayed a date or "time ago" label now goes through these helpers. If a date is missing or unreadable, the screen shows a dash (`—`) instead of crashing. Affected screens: Resume Detail, Applications list, Application Tracker, Job Detail, Analytics, Resume card timestamps, Cover Letter card timestamps, and the WiseHire pipeline, outreach, notes, JD Library, and dashboard.
+
+**Last verified:** 2026-05-09
+
+---
+
 ## Moderation and Portfolio Usernames panels now have a working backend (2026-05-09)
 
 Two more DevKit panels have been failing since the Supabase cutover: **ModerationPanel** and **PortfolioUsernamesPanel**. Both have been returning "Function not found" on every action.

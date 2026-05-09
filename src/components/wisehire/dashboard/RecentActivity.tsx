@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { databases, Query } from '@/lib/appwrite';
 import { COLLECTIONS, DATABASE_ID } from '@/lib/appwrite-collections';
 import { useAuth } from '@/hooks/useAuth';
-import { formatDistanceToNow } from 'date-fns';
+import { safeFormatDistanceToNow } from '@/lib/dateUtils';
 import { ArrowRight, Clock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -142,7 +142,7 @@ export function RecentActivity() {
                 </p>
               </div>
               <span className="text-[10px] text-slate-400 shrink-0">
-                {formatDistanceToNow(new Date(ev.moved_at), { addSuffix: true })}
+                {safeFormatDistanceToNow(ev.moved_at, { addSuffix: true })}
               </span>
             </li>
           );

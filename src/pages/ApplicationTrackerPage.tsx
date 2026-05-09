@@ -3,7 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Check, Circle, Briefcase, FileText, Bell, Calendar, Trash2, Mail, Mic, AlertTriangle } from 'lucide-react';
 import { BackButton } from '@/components/ui/BackButton';
 import { motion } from 'framer-motion';
-import { format } from 'date-fns';
+import { safeFormatDate } from '@/lib/dateUtils';
 import { Button } from '@/components/ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Textarea } from '@/components/ui/textarea';
@@ -141,13 +141,13 @@ export default function ApplicationTrackerPage() {
           {app.applied_at && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Calendar className="w-3 h-3" />
-              Applied {format(new Date(app.applied_at), 'MMM d, yyyy')}
+              Applied {safeFormatDate(app.applied_at, 'MMM d, yyyy')}
             </div>
           )}
           {app.deadline && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Calendar className="w-3 h-3" />
-              Deadline: {format(new Date(app.deadline), 'MMM d, yyyy')}
+              Deadline: {safeFormatDate(app.deadline, 'MMM d, yyyy')}
             </div>
           )}
         </div>

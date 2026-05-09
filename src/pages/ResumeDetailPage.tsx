@@ -24,7 +24,7 @@ import { useResume, useResumes, useResumeMutations, dbToResumeData } from '@/hoo
 import { useResumeScore, clearCachedScore } from '@/hooks/useResumeScore';
 import { useResumeStore } from '@/store/resumeStore';
 import { templates } from '@/lib/templateData';
-import { formatDistanceToNow } from 'date-fns';
+import { safeFormatDistanceToNow } from '@/lib/dateUtils';
 import { useResumeShareMutations } from '@/hooks/useResumeShares';
 import { toast } from 'sonner';
 import { TemplateId } from '@/types/resume';
@@ -297,7 +297,7 @@ export default function ResumeDetailPage() {
                     {completedSections}/{totalSections} sections · {completionScore}%
                   </p>
                   <p className="text-[11px] text-muted-foreground/70">
-                    Edited {formatDistanceToNow(new Date(dbResume.updated_at), { addSuffix: true })}
+                    Edited {safeFormatDistanceToNow(dbResume.updated_at, { addSuffix: true })}
                   </p>
                 </div>
               </div>

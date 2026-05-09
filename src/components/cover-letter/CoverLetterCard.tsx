@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { motion, useMotionValue, useTransform, animate, PanInfo } from 'framer-motion';
 import { MoreVertical, FileText, Trash2, Copy } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { safeFormatDistanceToNow } from '@/lib/dateUtils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { CoverLetterRecord } from '@/hooks/useCoverLetters';
@@ -134,7 +134,7 @@ export const CoverLetterCard = memo(function CoverLetterCard({
           <div className="flex-1 min-w-0">
             <h3 className="font-semibold text-foreground truncate">{letter.title || letter.job_title}</h3>
             <p className="text-sm text-muted-foreground truncate">
-              {letter.company || 'No company'} · {letter.created_at ? formatDistanceToNow(new Date(letter.created_at), { addSuffix: true }) : ''}
+              {letter.company || 'No company'} · {safeFormatDistanceToNow(letter.created_at, { addSuffix: true }, '')}
             </p>
             {letter.resume_title && (
               <p className="text-[11px] text-muted-foreground/80 truncate mt-0.5">

@@ -31,7 +31,8 @@ import { PullToRefresh } from '@/components/ui/pull-to-refresh';
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
 
-import { format, isBefore, addDays, differenceInDays } from 'date-fns';
+import { isBefore, addDays, differenceInDays } from 'date-fns';
+import { safeFormatDate } from '@/lib/dateUtils';
 import { scoreJobMatch, scoreJobMatchAI, getCachedAIScore, JobMatchResult } from '@/lib/jobMatchScorer';
 
 type TabKey = 'applications' | 'jobs';
@@ -419,13 +420,13 @@ export default function ApplicationsPage() {
                             {app.applied_at &&
                         <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
                                 <Calendar className="w-3 h-3" />
-                                Applied {format(new Date(app.applied_at), 'MMM d, yyyy')}
+                                Applied {safeFormatDate(app.applied_at, 'MMM d, yyyy')}
                               </p>
                         }
                             {app.deadline && isInterviewing &&
                         <p className="text-[11px] text-primary flex items-center gap-1 mt-0.5">
                                 <Calendar className="w-3 h-3" />
-                                Interview: {format(new Date(app.deadline), 'MMM d, h:mm a')}
+                                Interview: {safeFormatDate(app.deadline, 'MMM d, h:mm a')}
                               </p>
                         }
                             {deadlineSoon &&

@@ -243,3 +243,49 @@ export function getTotalGapMonths(gaps: GapInfo[]): number {
   if (!gaps || !Array.isArray(gaps)) return 0;
   return gaps.reduce((sum, gap) => sum + Math.max(0, gap.months), 0);
 }
+
+// ---------------------------------------------------------------------------
+// Safe date-fns wrappers — never throw RangeError on null/undefined/invalid
+// ---------------------------------------------------------------------------
+
+import { format as dateFnsFormat, formatDistanceToNow as dateFnsDistanceToNow, isValid, parseISO } from 'date-fns';
+
+function toValidDate(value: string | number | Date | null | undefined): Date | null {
+  if (value == null) return null;
+  let d: Date;
+  if (value instanceof Date) {
+    d = value;
+  } else if (typeof value === 'number') {
+    d = new Date(value);
+  } else {
+    d = parseISO(String(value));
+    if (!isValid(d)) d = new Date(String(value));
+  }
+  return isValid(d) ? d : null;
+}
+
+/**
+ * Safe wrapper around date-fns `format`. Returns `fallback` when `value` is
+ * null, undefined, or cannot be parsed into a valid Date.
+ */
+export function safeFormatDate(
+  value: string | number | Date | null | undefined,
+  fmt: string,
+  fallback = '—',
+): string {
+  const d = toValidDate(value);
+  return d ? dateFnsFormat(d, fmt) : fallback;
+}
+
+/**
+ * Safe wrapper around date-fns `formatDistanceToNow`. Returns `fallback` when
+ * `value` is null, undefined, or cannot be parsed into a valid Date.
+ */
+export function safeFormatDistanceToNow(
+  value: string | number | Date | null | undefined,
+  opts?: Parameters<typeof dateFnsDistanceToNow>[1],
+  fallback = '—',
+): string {
+  const d = toValidDate(value);
+  return d ? dateFnsDistanceToNow(d, opts) : fallback;
+}

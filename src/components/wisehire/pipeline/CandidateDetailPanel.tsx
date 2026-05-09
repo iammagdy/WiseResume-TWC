@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { X, Mail, FileText, Clock, Loader2, MessageSquare, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { formatDistanceToNow } from 'date-fns';
+import { safeFormatDistanceToNow } from '@/lib/dateUtils';
 import { KeyboardPipelineMover } from './KeyboardPipelineMover';
 import { useCandidateHistory } from '@/hooks/wisehire/usePipeline';
 import { PIPELINE_STAGES } from '@/hooks/wisehire/usePipeline';
@@ -190,7 +190,7 @@ export function CandidateDetailPanel({
                       <Clock className="h-3 w-3 shrink-0" />
                       <span>{from} → {to}</span>
                       <span className="ml-auto text-slate-400 dark:text-slate-600">
-                        {formatDistanceToNow(new Date(ev.moved_at), { addSuffix: true })}
+                        {safeFormatDistanceToNow(ev.moved_at, { addSuffix: true })}
                       </span>
                     </div>
                   );
@@ -201,7 +201,7 @@ export function CandidateDetailPanel({
 
           <div>
             <p className="text-xs text-slate-400 dark:text-slate-600">
-              Added {formatDistanceToNow(new Date(candidate.created_at), { addSuffix: true })}
+              Added {safeFormatDistanceToNow(candidate.created_at, { addSuffix: true })}
             </p>
           </div>
         </div>

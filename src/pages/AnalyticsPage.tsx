@@ -16,7 +16,7 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Toolti
 import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
-import { format, formatDistanceToNow } from 'date-fns';
+import { safeFormatDistanceToNow } from '@/lib/dateUtils';
 
 export default function AnalyticsPage() {
   const { isPremium, isLoading: planLoading } = usePlan();
@@ -227,7 +227,7 @@ export default function AnalyticsPage() {
                     <Calendar className="w-4 h-4 text-muted-foreground" />
                     <span className="text-xs font-medium text-muted-foreground">Last Activity</span>
                   </div>
-                  <p className="text-sm font-bold">{formatDistanceToNow(new Date(stats.lastUpdated), { addSuffix: true })}</p>
+                  <p className="text-sm font-bold">{safeFormatDistanceToNow(stats.lastUpdated, { addSuffix: true })}</p>
                   <p className="text-xs text-muted-foreground">Resume updated</p>
                 </CardContent>
               </Card>

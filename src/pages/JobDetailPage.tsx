@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ExternalLink, Calendar, MapPin, Share2, Briefcase, Bookmark, BookmarkCheck, Trash2, DollarSign, Clock } from 'lucide-react';
 import { openExternal } from '@/lib/openExternal';
 import { motion } from 'framer-motion';
-import { format } from 'date-fns';
+import { safeFormatDate } from '@/lib/dateUtils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -101,7 +101,7 @@ export default function JobDetailPage() {
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Clock className="w-3 h-3" />
-            Posted {format(new Date(job.posted_date), 'MMM d, yyyy')}
+            Posted {safeFormatDate(job.posted_date, 'MMM d, yyyy')}
           </div>
         </div>
 

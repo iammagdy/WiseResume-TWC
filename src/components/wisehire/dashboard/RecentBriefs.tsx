@@ -4,7 +4,7 @@ import { databases, Query } from '@/lib/appwrite';
 import { COLLECTIONS, DATABASE_ID } from '@/lib/appwrite-collections';
 import { useAuth } from '@/hooks/useAuth';
 import { Sparkles, ChevronRight, ArrowRight } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { safeFormatDistanceToNow } from '@/lib/dateUtils';
 
 interface BriefRow {
   id: string;
@@ -144,7 +144,7 @@ export function RecentBriefs() {
                   </p>
                   <p className="text-xs text-slate-400 dark:text-slate-500 truncate">
                     {brief.role?.title ?? 'Unknown role'} ·{' '}
-                    {formatDistanceToNow(new Date(brief.created_at), { addSuffix: true })}
+                    {safeFormatDistanceToNow(brief.created_at, { addSuffix: true })}
                   </p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
