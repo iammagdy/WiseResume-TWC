@@ -508,6 +508,94 @@ async function handleAnalytics(range = '7d') {
     .slice(0, 20)
     .map(([country, count]) => ({ country, count }));
 
+  // ── Signups over time (last 14 days from profiles collection) ────────────
+  const fourteenDaysAgo = new Date(Date.now() - 14 * 86400000).toISOString();
+  const recentProfiles = await safeList(databases, 'profiles', [
+    sdk.Query.greaterThanEqual('$createdAt', fourteenDaysAgo),
+    sdk.Query.orderAsc('$createdAt'),
+    sdk.Query.limit(500),
+  ]);
+  // Build a day-keyed map for last 14 days
+  const signupDayMap = {};
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date(Date.now() - i * 86400000);
+    signupDayMap[d.toISOString().slice(0, 10)] = 0;
+  }
+  for (const p of recentProfiles) {
+    const day = p.$createdAt.slice(0, 10);
+    if (signupDayMap[day] !== undefined) signupDayMap[day]++;
+  }
+  const signupsLast14Days = Object.entries(signupDayMap).map(([date, count]) => ({ date, count }));
+
+  // ── Plan distribution from subscriptions ─────────────────────────────────
+  const subscriptionDocs = await safeList(databases, 'subscriptions', [
+    sdk.Query.limit(1000),
+  ]);
+  const planCounts = {};
+  for (const sub of subscriptionDocs) {
+    const plan = sub.plan || sub.plan_id || 'free';
+    planCounts[plan] = (planCounts[plan] || 0) + 1;
+  }
+  const planDistribution = Object.entries(planCounts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([plan, count]) => ({ plan, count }));
+
+  // ── Revenue metrics (MRR proxy from active paid subscriptions) ───────────
+  // We don't have price data in the DB, so we return subscription counts per plan
+  // scoped to range for trend purposes. Actual $MRR is calculated outside DB.
+  const rangeSubDocs = rangeStart ? await safeList(databases, 'subscriptions', [
+    sdk.Query.greaterThanEqual('$createdAt', rangeStart),
+    sdk.Query.limit(500),
+  ]) : subscriptionDocs;
+
+  const paidSubsInRange = rangeSubDocs.filter(s => s.plan && s.plan !== 'free').length;
+  const revenueMetrics = {
+    paidSubscriptionsInRange: paidSubsInRange,
+    totalPaidSubscriptions: subscriptionDocs.filter(s => s.plan && s.plan !== 'free').length,
+    planDistribution,
+    note: 'MRR in $ requires price data not stored in Appwrite — use plan counts as proxy',
+  };
+
+  // ── Cohort data: week-0 retention proxy ──────────────────────────────────
+  // Group new users by signup week, then check if they had activity in the
+  // following week (simple D7 retention proxy using usage_events).
+  const cohortMap = {};
+  for (const p of recentProfiles) {
+    const uid = p.user_id || p.$id;
+    const signupWeek = p.$createdAt.slice(0, 10);
+    cohortMap[uid] = { signupDate: p.$createdAt, signupWeek, hadActivity: false };
+  }
+  for (const e of usageEvents) {
+    if (cohortMap[e.user_id]) {
+      const signupTs = new Date(cohortMap[e.user_id].signupDate).getTime();
+      const eventTs  = new Date(e.$createdAt).getTime();
+      const daysDiff = (eventTs - signupTs) / 86400000;
+      if (daysDiff >= 1 && daysDiff <= 7) {
+        cohortMap[e.user_id].hadActivity = true;
+      }
+    }
+  }
+  // Aggregate by signup week: cohort size and D7-retained count
+  const cohortWeekMap = {};
+  for (const { signupWeek, hadActivity } of Object.values(cohortMap)) {
+    if (!cohortWeekMap[signupWeek]) cohortWeekMap[signupWeek] = { week: signupWeek, cohortSize: 0, retained: 0 };
+    cohortWeekMap[signupWeek].cohortSize++;
+    if (hadActivity) cohortWeekMap[signupWeek].retained++;
+  }
+  const cohortData = Object.values(cohortWeekMap)
+    .sort((a, b) => a.week.localeCompare(b.week))
+    .map(c => ({
+      week: c.week,
+      cohortSize: c.cohortSize,
+      retained: c.retained,
+      retentionRate: c.cohortSize > 0 ? Math.round((c.retained / c.cohortSize) * 100) : 0,
+    }));
+
+  // ── Resume creates in range ───────────────────────────────────────────────
+  const resumeCreates = await safeCount(databases, 'resumes', rangeStart ? [
+    sdk.Query.greaterThanEqual('$createdAt', rangeStart),
+  ] : []);
+
   return {
     // Back-compat
     pageViewsAllTime: usageEvents.length,
@@ -516,7 +604,7 @@ async function handleAnalytics(range = '7d') {
     activeUsersYesterday: 0,
     topFeatures,
     portfolioViewsTotal: portfolioVisits.length,
-    signupsLast14Days: [],
+    signupsLast14Days,
     aiCreditsToday: aiCredits,
     aiCreditsYesterday: prevAiCredits,
     countryDistribution: countryRanking,
@@ -543,6 +631,12 @@ async function handleAnalytics(range = '7d') {
     countryRanking,
     totalCountries: Object.keys(countryCounts).length,
     lastUpdatedAt: new Date().toISOString(),
+    // Extended business metrics
+    signupsLast14Days,
+    planDistribution,
+    revenueMetrics,
+    cohortData,
+    resumeCreatesInRange: resumeCreates,
   };
 }
 
@@ -740,20 +834,67 @@ async function handleEdgeFnDrift() {
   let newestDeployedAt = null;
   let olderThan30d = 0;
 
+  // Functions that are intentionally public (execute: ['any']) — these are
+  // expected to allow unauthenticated calls and should not be flagged as drift.
+  const KNOWN_PUBLIC_FUNCTIONS = new Set([
+    'ai-gateway',
+    'auth-master',
+  ]);
+
+  // Expected default: admin-* functions should NOT have 'any' or 'guests' execute access.
+  const PUBLIC_PRINCIPALS = new Set(['any', 'guests', 'guest']);
+
+  const failures = [];
+  const knownDrifts = [];
+  let passCount = 0;
+  let failCount = 0;
+  let fnList = [];
+
   try {
     const fns = await functions.list();
     deployedCount = fns.total;
+    fnList = fns.functions || [];
 
-    for (const fn of fns.functions) {
+    for (const fn of fnList) {
       const updatedAt = fn.$updatedAt;
-      if (!updatedAt) continue;
-      if (!oldestDeployedAt || updatedAt < oldestDeployedAt) oldestDeployedAt = updatedAt;
-      if (!newestDeployedAt || updatedAt > newestDeployedAt) newestDeployedAt = updatedAt;
-      if (updatedAt < thirtyDaysAgo) olderThan30d++;
+      if (updatedAt) {
+        if (!oldestDeployedAt || updatedAt < oldestDeployedAt) oldestDeployedAt = updatedAt;
+        if (!newestDeployedAt || updatedAt > newestDeployedAt) newestDeployedAt = updatedAt;
+        if (updatedAt < thirtyDaysAgo) olderThan30d++;
+      }
+
+      // Inspect execute permissions for unexpected public access.
+      // Appwrite stores execute as an array of role strings, e.g. ["users", "any"].
+      const executePerms = fn.execute || [];
+      const hasPublicAccess = executePerms.some(p => {
+        const lower = (typeof p === 'string' ? p : '').toLowerCase();
+        return PUBLIC_PRINCIPALS.has(lower) || lower.startsWith('any') || lower.startsWith('guests');
+      });
+
+      if (hasPublicAccess) {
+        const entry = {
+          name: fn.$id || fn.name || 'unknown',
+          expected: 0, // 0 = restricted (no public execute)
+          got: 1,      // 1 = public execute found
+          note: `execute permissions include public role: [${executePerms.join(', ')}]`,
+        };
+
+        if (KNOWN_PUBLIC_FUNCTIONS.has(fn.$id) || KNOWN_PUBLIC_FUNCTIONS.has(fn.name)) {
+          knownDrifts.push(entry);
+        } else {
+          failures.push(entry);
+          failCount++;
+        }
+      } else {
+        passCount++;
+      }
     }
   } catch (e) {
-    // Listing functions may fail if key lacks functions.read scope
+    // Listing functions may fail if key lacks functions.read scope.
+    // Return a degraded but structurally valid response.
   }
+
+  const total = fnList.length;
 
   return {
     checkedAt: now,
@@ -765,13 +906,13 @@ async function handleEdgeFnDrift() {
       olderThan30d,
     },
     authPosture: {
-      total: deployedCount,
-      pass: deployedCount,
-      fail: 0,
-      knownDriftCount: 0,
-      failures: [],
-      knownDrifts: [],
-      defaultExpected: 0,
+      total,
+      pass: passCount,
+      fail: failCount,
+      knownDriftCount: knownDrifts.length,
+      failures,
+      knownDrifts,
+      defaultExpected: 0, // admin functions default: no public execute access
     },
   };
 }
