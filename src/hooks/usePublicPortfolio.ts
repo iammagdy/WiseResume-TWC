@@ -24,7 +24,7 @@ export function usePublicPortfolio(username: string | undefined) {
 export function validateCustomDomain(domain: string) { return true; }
 export function usePortfolioGate() { return { isAllowed: true, loading: false }; }
 export function isAppHostname(hostname: string): boolean {
-  return ['localhost', '127.0.0.1', 'thewise.cloud'].some(h => hostname.includes(h));
+  return ['localhost', '127.0.0.1', 'thewise.cloud', 'replit.dev', 'replit.co'].some(h => hostname.includes(h));
 }
 export function usePublicPortfolioByDomain(domain: string | null) {
   return useQuery({
