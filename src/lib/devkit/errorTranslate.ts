@@ -104,7 +104,7 @@ const PATTERNS: Pattern[] = [
 
   // ── Missing / invalid DevKit session token ───────────────────────────────
   {
-    test: (r) => /missing authorization header|jwt expired|invalid jwt|no authorization|unauthorized|401/i.test(r),
+    test: (r) => /missing authorization header|jwt expired|invalid jwt|no authorization|unauthorized|http 401/i.test(r),
     build: () => ({
       humanMessage:
         'The Appwrite Function rejected the request — the DevKit session token is missing, expired, or incorrect.',
