@@ -2,6 +2,14 @@
 
 **Last verified:** 2026-05-09
 
+## DevKit panels no longer crash on load (2026-05-09)
+
+Most DevKit panels (Analytics, Visitors, Live Activity, Observability, Onboarding Funnel, and others) use a session-management system called `DevKitSessionContext` to check whether you're authenticated before showing live data. That context provider was never actually mounted in the app — so any panel that used it would throw a "must be used within DevKitSessionProvider" error the moment it was opened.
+
+**What changed:** The `DevKitSessionProvider` now wraps the entire DevKit shell. Password login and passkey login both call the context's `unlock()` method, which starts the inactivity timer and marks the session as live. All panels that check `isUnlocked` now receive the correct signal. The missing `AITestSlotModelsCard` component (imported by Mission Control) was also created — without it the entire DevKit page failed to load.
+
+---
+
 ## Dashboard no longer blocks after login — "Profile unavailable" fixed (2026-05-09)
 
 After successfully signing in, the dashboard was showing "Profile unavailable — We couldn't load your account details" with only a Refresh button. The app was waiting for internal account records that haven't been created yet on the new Appwrite backend. After 6 seconds of waiting it showed the error instead of the dashboard.

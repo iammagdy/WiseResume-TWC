@@ -2,6 +2,20 @@
 
 **Last verified:** 2026-05-09
 
+## DevKit Command Center — massively expanded (2026-05-09)
+
+The internal admin dashboard (DevKit) previously showed only 8 panels in its sidebar. In reality, 12 more fully-built panels were sitting there unused because a critical piece of setup was missing. All of them are now wired up and accessible.
+
+**What's new:**
+- **20 panels total** across 7 organised groups: Operations, Users, Analytics, Content, AI & Testing, Communications, and Platform.
+- **All 12 hidden panels now live:** Live Activity, Mission Control, Observability, Moderation, Analytics, Visitors, Onboarding Funnel, X-Ray, Portfolios, Email Management, Email Automations, Feature Flags, and the full Test Runner.
+- **Cmd+K command palette** — press ⌘K (Mac) or Ctrl+K (Windows/Linux) anywhere inside the DevKit to search and jump to any panel instantly.
+- **Mobile "More" drawer** — the mobile bottom bar shows 4 pinned panels; tapping "More" opens a full-screen grid of all 20 panels grouped by category.
+- **Session lock** — the sidebar now shows a countdown warning when your session is about to lock due to inactivity, plus an explicit "Lock Session" button.
+- **Auto session restore** — if you authenticated recently (within 7 days), DevKit reopens without asking for the password again.
+
+---
+
 ## Forgot password now works (2026-05-09)
 
 There was no way to reset your password on the login page — the button simply didn't exist.
