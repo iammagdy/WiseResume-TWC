@@ -1,3 +1,38 @@
+## 2026-05-09 — New Appwrite Functions: admin-moderation + admin-portfolio-usernames
+
+### Files created
+- `appwrite-hubs/admin-moderation/package.json` — Node.js 18 manifest; dep: `node-appwrite ^11.1.1`.
+- `appwrite-hubs/admin-moderation/src/main.js` — Multi-action Appwrite Function (~210 lines):
+  - `list_bug_reports` — paginates `bug_reports` collection with optional `status_filter` (open/in-progress/resolved/wont-fix/all); returns `{ bug_reports: BugReport[], total }`.
+  - `update_bug_report` — patches `status` and/or `private_note` on a bug report document by `report_id`.
+  - `list_blocklist` — lists all `blocklist` entries (type: email/user_id/pattern, value, reason, added_at); returns `{ entries }`.
+  - `add_blocklist` — creates a blocklist entry with type validation; returns `{ ok, id }`.
+  - `remove_blocklist` — deletes a blocklist entry by `entry_id`.
+  - `list_moderation_queue` — paginates `moderation_queue` with optional `status_filter` (pending/approved/removed/all).
+  - `review_queue_item` — sets queue item status to `approved` or `removed`; when `suspend_user: true`, calls Appwrite Users API `updateStatus(userId, false)` to disable the reported account.
+- `appwrite-hubs/admin-moderation/README.md` — action reference table, required collection attribute specs (bug_reports, blocklist, moderation_queue), Function Variable table, Console + CLI deploy steps.
+- `appwrite-hubs/admin-portfolio-usernames/package.json` — Node.js 18 manifest; dep: `node-appwrite ^11.1.1`.
+- `appwrite-hubs/admin-portfolio-usernames/src/main.js` — Multi-action Appwrite Function (~420 lines):
+  - `directory_list` — paginated list of profiles with a username; supports `search` (parallel full-text queries on email/full_name/username merged in memory), `sort` (newest/oldest/username_asc/username_desc), `page`, `per_page`.
+  - `directory_rename` — validates uniqueness and reserved status, then writes new username to `profiles`.
+  - `directory_toggle_enabled` — flips `portfolio_enabled` for a user.
+  - `directory_release` — clears `username` and disables portfolio; accepts single `user_id` or bulk `user_ids` array.
+  - `directory_bulk_disable` — sets `portfolio_enabled = false` for a list of user IDs.
+  - `rules_get` — returns global `username_rules` doc (defaults if missing) plus all per-user `username_rules_overrides` with joined profile snippets.
+  - `rules_update` — upserts the `username_rules` global doc (`$id = "global"`).
+  - `rules_override_upsert` / `rules_override_delete` — upsert/delete a per-user rule override.
+  - `reserved_list` / `reserved_add` / `reserved_delete` — CRUD on `username_reserved` (doc `$id` = the username).
+  - `exclusive_list` / `exclusive_add` / `exclusive_delete` — CRUD on `username_exclusive`; list joins profile snippets.
+  - `premium_list` / `premium_add` / `premium_delete` — CRUD on `username_premium` (price_cents, currency, status, note); list joins assigned-user profile.
+  - `premium_assign` — marks a premium handle as `assigned`, writes `assigned_to_user_id` + `assigned_at`, and also sets the username on the user's `profiles` doc with `portfolio_enabled: true`.
+  - `user_search` — parallel full-text search on email/full_name/username (≥2 chars); merges and deduplicates results.
+- `appwrite-hubs/admin-portfolio-usernames/README.md` — full action/response table for all 19 actions, complete attribute specs for all 6 collections, Function Variable table, deploy steps.
+
+### What this unblocks
+`ModerationPanel` (bug inbox, blocklist, moderation queue with user suspension) and `PortfolioUsernamesPanel` (directory with search/sort/pagination, rename, enable/disable/release, rules + per-user overrides, reserved/exclusive/premium username management with user search) have been failing with "Function not found" since the Supabase cutover.
+
+---
+
 ## 2026-05-09 — New Appwrite Functions: admin-email + admin-feature-flags
 
 ### Files created

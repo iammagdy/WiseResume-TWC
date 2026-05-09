@@ -1,0 +1,15 @@
+{
+  "name": "admin-moderation",
+  "version": "1.0.0",
+  "description": "Appwrite Function — ModerationPanel: bug reports, blocklist, moderation queue",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "node src/main.js"
+  },
+  "dependencies": {
+    "node-appwrite": "^11.1.1"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

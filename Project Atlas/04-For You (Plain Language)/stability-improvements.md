@@ -2,6 +2,30 @@
 
 **Last verified:** 2026-05-09
 
+## Moderation and Portfolio Usernames panels now have a working backend (2026-05-09)
+
+Two more DevKit panels have been failing since the Supabase cutover: **ModerationPanel** and **PortfolioUsernamesPanel**. Both have been returning "Function not found" on every action.
+
+**What's been built:** Two new Appwrite Functions are ready to deploy:
+
+- **admin-moderation** (`appwrite-hubs/admin-moderation/`) — powers the three tabs inside the Moderation panel:
+  - *Bug Inbox* — lists submitted bug reports with status filtering (open / in-progress / resolved / won't fix). Admins can change the status and add a private note on any report.
+  - *Blocklist* — lists, adds, and removes blocked emails, user IDs, and patterns. Useful for banning specific accounts or preventing sign-ups from spam domains.
+  - *Moderation Queue* — lists user-reported content items with status filtering. Admins can approve or remove an item, and optionally suspend the user's account at the same time (calls Appwrite Users API to disable the account).
+
+- **admin-portfolio-usernames** (`appwrite-hubs/admin-portfolio-usernames/`) — powers all five tabs inside the Portfolio Usernames panel:
+  - *Directory* — paginated list of all users who have claimed a portfolio username, with search (by name, email, or username), sort, bulk-select, enable/disable toggle, rename, and username-release (which clears the username and disables the portfolio).
+  - *Rules* — global min/max length and hyphen rules, plus per-user overrides for giving specific accounts looser or stricter validation.
+  - *Reserved* — usernames that no one can claim (e.g. `admin`, `support`, `blog`). Full add/remove management.
+  - *Exclusive* — usernames reserved for one specific user account. The holder can claim it; everyone else sees it as taken.
+  - *Premium* — username marketplace management. Admins set a price, track availability status, and manually assign after payment is confirmed (which also sets the username on the user's profile and enables their portfolio).
+
+**What still needs to happen:** Both functions must be deployed in the Appwrite Console (project `69fd362b001eb325a192`, fra region). The five new database collections (`bug_reports`, `blocklist`, `moderation_queue`, `username_rules`, `username_rules_overrides`, `username_reserved`, `username_exclusive`, `username_premium`) must be created in Appwrite Console — full attribute specs are in each function's README.
+
+**Last verified:** 2026-05-09
+
+---
+
 ## Email Management and Feature Flags panels now have a working backend (2026-05-09)
 
 Three more DevKit panels have been failing with "Function not found" since the Supabase cutover: **Email Management**, **Email Automations**, and **Feature Flags**.
