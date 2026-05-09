@@ -1,0 +1,9 @@
+{
+  "name": "admin-visitor-analytics",
+  "version": "1.0.0",
+  "description": "Appwrite Function — serves VisitorsPanel and MissionControl live-count with visitor intelligence",
+  "main": "src/main.js",
+  "dependencies": {
+    "node-appwrite": "^11.1.1"
+  }
+}

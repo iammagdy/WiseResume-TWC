@@ -1,3 +1,32 @@
+## 2026-05-09 — New Appwrite Functions: admin-visitor-analytics + admin-onboarding-funnel
+
+### Files created
+- `appwrite-hubs/admin-visitor-analytics/package.json` — Node.js 18 manifest; depends on `node-appwrite ^11.1.1`.
+- `appwrite-hubs/admin-visitor-analytics/src/main.js` — Multi-action Appwrite Function (~290 lines) implementing:
+  - `live-count` — counts unique `anon_id`s with activity in the last 5 minutes; returns `{ liveCount, topCountries }` (top-level, no `data` wrapper, matching `MissionControlPanel` expectation).
+  - `kpis` — aggregates today + range page-views, unique visitors, device/browser breakdown, top country from `visitor_events`.
+  - `country-dist` — visit counts grouped by 2-letter country code.
+  - `top-pages` — most visited page paths with session count.
+  - `click-targets` — most-clicked `data-track` elements; optionally filtered by `page`.
+  - `sections` — most-viewed page sections with unique-visitor count.
+  - `sessions` — paginated (50/page) session list built by grouping events; returns `{ sessions, total, page }`.
+  - `cohort` — unique visitors grouped by ISO week label.
+  - `journey` — all events for a `session_id` or `anon_id`, sorted chronologically.
+- `appwrite-hubs/admin-visitor-analytics/README.md` — deploy guide (Console + CLI), variable table, collection schema, action reference.
+- `appwrite-hubs/admin-onboarding-funnel/package.json` — Node.js 18 manifest; depends on `node-appwrite ^11.1.1`.
+- `appwrite-hubs/admin-onboarding-funnel/src/main.js` — Single-action Appwrite Function (~220 lines):
+  - Accepts `{ days, granularity }` from `OnboardingFunnelPanel`.
+  - Fetches `audit_logs` documents with `category = 'onboarding'` in the requested rolling window.
+  - Computes per-step unique-user funnel (`started → path_selected → review_opened → completed`).
+  - Computes `methodBreakdown` (CV upload / LinkedIn / manual), `skipRates` (skip events ÷ users that reached the step), `saveFailures` (grouped error messages), and a time-series `series` array bucketed by day or week with all gaps filled as 0.
+  - Sets `truncated: true` when event volume ≥ 9 999.
+- `appwrite-hubs/admin-onboarding-funnel/README.md` — deploy guide, variable table, collection schema, funnel-step reference.
+
+### What this unblocks
+`VisitorsPanel` and the `MissionControlPanel` live-count call `admin-visitor-analytics`. `OnboardingFunnelPanel` calls `admin-onboarding-funnel`. Both panels have been failing with "Function not found" since the Supabase cutover. Once these functions are deployed in Appwrite Console (project `69fd362b001eb325a192`, fra), both panels become operational.
+
+---
+
 ## 2026-05-09 — New Appwrite Function: admin-devkit-data
 
 ### Files created

@@ -1,0 +1,9 @@
+{
+  "name": "admin-onboarding-funnel",
+  "version": "1.0.0",
+  "description": "Appwrite Function — serves OnboardingFunnelPanel with funnel drop-off metrics",
+  "main": "src/main.js",
+  "dependencies": {
+    "node-appwrite": "^11.1.1"
+  }
+}

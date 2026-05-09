@@ -2,6 +2,22 @@
 
 **Last verified:** 2026-05-09
 
+## Visitor Intelligence and Onboarding Funnel panels now have a working backend (2026-05-09)
+
+Two more DevKit panels have been failing with "Function not found" since the Supabase cutover: **Visitor Intelligence** (VisitorsPanel) and **Onboarding Funnel** (OnboardingFunnelPanel). Also, the live visitor count widget on Mission Control was broken.
+
+**What's been built:** Two new replacement Appwrite Functions are ready to deploy:
+
+- **admin-visitor-analytics** (`appwrite-hubs/admin-visitor-analytics/`) — covers every data call VisitorsPanel makes: live active-visitor count (for Mission Control too), KPI summary (visits today, unique visitors, device split, top country), country map, top pages, click heatmap, section engagement, paginated session list, cohort chart by week, and full per-session event journey. All queries read from a `visitor_events` collection in Appwrite Databases.
+
+- **admin-onboarding-funnel** (`appwrite-hubs/admin-onboarding-funnel/`) — computes the 4-step funnel (Started → Path picked → Review opened → Completed) from `audit_logs` events tagged `category = 'onboarding'`. Also returns method breakdown (CV upload / LinkedIn / manual), skip rates per step, save-failure error messages, and a time-series chart bucketed by day or week with all date gaps filled to zero.
+
+**What still needs to happen:** Both functions must be deployed in the Appwrite Console (project `69fd362b001eb325a192`, fra region). Code and step-by-step READMEs are ready at `appwrite-hubs/admin-visitor-analytics/README.md` and `appwrite-hubs/admin-onboarding-funnel/README.md`.
+
+**Last verified:** 2026-05-09
+
+---
+
 ## Four DevKit admin panels now have a working backend (2026-05-09)
 
 Until now, opening Mission Control, Analytics, Observability, or Live Activity in the DevKit immediately showed an error: "Function with the requested ID could not be found." That's because those panels all call an Appwrite Function called `admin-devkit-data` that was removed when Supabase was decommissioned and hadn't been rebuilt yet.
