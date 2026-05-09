@@ -1,3 +1,22 @@
+## 2026-05-09 — Task #11: NVIDIA NIM model dropdown updated to 5 Mistral/Gemma models
+
+### What changed
+
+#### Updated: `src/lib/devkit/aiTestSlotModels.ts`
+- Added `NVIDIA_LLM_MODELS` (exported `ReadonlyArray<{ label, value }>`) with exactly five entries: `mistral-medium-3-instruct`, `mistral-large-3-675b-instruct-2512`, `mistral-nemotron`, `gemma-3n-e4b-it`, `gemma-3n-e2b-it`.
+- Changed `FALLBACK_AI_TEST_DEFAULT_MODELS.nvidia` from `'nvidia/llama-3.1-nemotron-70b-instruct'` to `'mistral-medium-3-instruct'`.
+
+#### Updated: `src/components/dev-kit/AIKeysPanel.tsx`
+- Imported `NVIDIA_LLM_MODELS` from `aiTestSlotModels`.
+- Changed local `DEFAULT_MODELS.nvidia` from `'nvidia/llama-3.1-nemotron-70b-instruct'` to `'mistral-medium-3-instruct'`.
+- Replaced the free-text `<input>` for NVIDIA slots with a `<select>` dropdown populated by `NVIDIA_LLM_MODELS`. Other providers (OpenRouter, Groq, DeepSeek) keep the free-text input. The dropdown sends the model `value` (ID) to the backend, not the label.
+
+#### Updated: `src/components/dev-kit/DevKitRunner.tsx`
+- `ai-engine-nvidia` test item `label` changed from `'Engine · NVIDIA (Nemotron 70B)'` to `'Engine · NVIDIA NIM (Mistral Medium 3)'`.
+- `description` updated from `…(nvidia/llama-3.1-nemotron-70b-instruct)…` to `…(mistral-medium-3-instruct)…`.
+
+---
+
 ## 2026-05-09 — Task #19: Datadog LLM Observability added to AI gateway
 
 ### What changed

@@ -271,7 +271,7 @@ export function DevKitRunner() {
       },
     },
     {
-      id: 'ai-engine-nvidia', label: 'Engine · NVIDIA (Nemotron 70B)', description: 'Directly test WiseResume managed NVIDIA NIM endpoint (nvidia/llama-3.1-nemotron-70b-instruct) — admin only', section: 'ai',
+      id: 'ai-engine-nvidia', label: 'Engine · NVIDIA NIM (Mistral Medium 3)', description: 'Directly test WiseResume managed NVIDIA NIM endpoint (mistral-medium-3-instruct) — admin only', section: 'ai',
       run: async (): Promise<TestResult> => {
         if (!auth.isAuthenticated) return { status: 'warn' as const, summary: 'Skipped — sign in first', durationMs: 0 };
         return strictInvoke('ai-engine-nvidia', async () => {

@@ -1,6 +1,6 @@
 # What Wise Cloud Can Do Today
 
-**Last verified:** 2026-05-09 (Task #14 — Testmail inbox viewer in DevKit)
+**Last verified:** 2026-05-09 (Task #11 — NVIDIA NIM model dropdown updated)
 
 ## DevKit — Testmail inbox viewer (2026-05-09, Task #14)
 
@@ -17,14 +17,26 @@ The DevKit now has a **Testmail Inbox** panel under the Communications section. 
 
 ---
 
+## DevKit AI Keys panel — NVIDIA model list updated (2026-05-09, Task #11)
+
+The NVIDIA NIM model selector in the AI Keys panel now shows a curated dropdown of five current models instead of the old free-text field that defaulted to Nemotron 70B (now retired from this list).
+
+**What changed:**
+- The NVIDIA slot now has a **dropdown** with exactly five choices: Mistral Medium 3 Instruct, Mistral Large 3 675B Instruct, Mistral Nemotron, Gemma 3n E4B IT, and Gemma 3n E2B IT.
+- The default (when no custom override is saved) is **Mistral Medium 3 Instruct** (`mistral-medium-3-instruct`).
+- The DevKit Runner's NVIDIA engine test label now reads "Engine · NVIDIA NIM (Mistral Medium 3)" to match.
+- OpenRouter, Groq, and DeepSeek slots are unchanged — they still use a free-text field.
+
+---
+
 ## DevKit AI Keys panel — NVIDIA NIM slots added (2026-05-09, Task #9)
 
 The DevKit now has a dedicated **AI Keys** panel (under AI & Testing in the sidebar) showing all 12 key slots across every provider. NVIDIA NIM is now a full peer of OpenRouter, Groq, and DeepSeek in this panel.
 
-**What's new:**
+**What's there:**
 - The AI Keys panel shows four columns — OpenRouter (blue), Groq (orange), DeepSeek (purple), and NVIDIA NIM (green) — with 3 slots each.
 - Each slot shows whether the key is set, a masked hint of the last 4 characters, and the currently active test model.
-- You can type a model ID override for any slot and hit Save — it is written to `app_settings.ai_test_slot_models` immediately.
+- You can type a model ID override for any slot (or pick from the NVIDIA dropdown) and hit Save — it is written to `app_settings.ai_test_slot_models` immediately.
 - A new `inspect-ai-keys` Appwrite Function backs the panel; it reads `NVIDIA_KEY_1/2/3` from Function Variables and returns their masked hints alongside those for the other three providers.
 
 ---

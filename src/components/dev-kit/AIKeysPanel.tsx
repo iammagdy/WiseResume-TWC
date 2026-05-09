@@ -10,6 +10,7 @@ import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse'
 import {
   AI_TEST_PROVIDERS,
   AI_TEST_SLOTS,
+  NVIDIA_LLM_MODELS,
   providerDisplayName,
   type AITestProvider,
   type AITestSlot,
@@ -19,7 +20,7 @@ const DEFAULT_MODELS: Record<AITestProvider, string> = {
   openrouter: 'meta-llama/llama-3.3-70b-instruct:free',
   groq: 'llama-3.3-70b-versatile',
   deepseek: 'deepseek-v4-flash',
-  nvidia: 'nvidia/llama-3.1-nemotron-70b-instruct',
+  nvidia: 'mistral-medium-3-instruct',
 };
 
 const PROVIDER_COLOR: Record<AITestProvider, string> = {
@@ -255,13 +256,25 @@ export function AIKeysPanel() {
                         <label className="text-[9px] text-muted-foreground uppercase tracking-wider font-bold flex items-center gap-1">
                           <ChevronDown className="w-2.5 h-2.5" /> Test model
                         </label>
-                        <input
-                          type="text"
-                          value={draft}
-                          onChange={e => setDraftModels(prev => ({ ...prev, [k]: e.target.value }))}
-                          placeholder={defaults[provider]}
-                          className="w-full text-[10px] font-mono bg-black/30 border border-white/10 rounded-lg px-2.5 py-1.5 text-foreground placeholder:text-muted-foreground/40 outline-none focus:border-white/20 transition-colors"
-                        />
+                        {provider === 'nvidia' ? (
+                          <select
+                            value={draft}
+                            onChange={e => setDraftModels(prev => ({ ...prev, [k]: e.target.value }))}
+                            className="w-full text-[10px] font-mono bg-black/30 border border-white/10 rounded-lg px-2.5 py-1.5 text-foreground outline-none focus:border-white/20 transition-colors appearance-none cursor-pointer"
+                          >
+                            {NVIDIA_LLM_MODELS.map(m => (
+                              <option key={m.value} value={m.value}>{m.label}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <input
+                            type="text"
+                            value={draft}
+                            onChange={e => setDraftModels(prev => ({ ...prev, [k]: e.target.value }))}
+                            placeholder={defaults[provider]}
+                            className="w-full text-[10px] font-mono bg-black/30 border border-white/10 rounded-lg px-2.5 py-1.5 text-foreground placeholder:text-muted-foreground/40 outline-none focus:border-white/20 transition-colors"
+                          />
+                        )}
                         <div className="flex items-center gap-1.5">
                           <Button
                             size="sm"

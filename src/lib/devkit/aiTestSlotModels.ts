@@ -32,11 +32,20 @@ export const AI_TEST_SLOTS: readonly AITestSlot[] = [1, 2, 3] as const;
  * authoritative; this exists only so the UI never renders blanks if the
  * function is briefly unavailable.
  */
+/** The five NVIDIA NIM LLM models available in the DevKit model selector. */
+export const NVIDIA_LLM_MODELS: ReadonlyArray<{ label: string; value: string }> = [
+  { label: 'Mistral Medium 3 Instruct',       value: 'mistral-medium-3-instruct' },
+  { label: 'Mistral Large 3 675B Instruct',   value: 'mistral-large-3-675b-instruct-2512' },
+  { label: 'Mistral Nemotron',                value: 'mistral-nemotron' },
+  { label: 'Gemma 3n E4B IT',                 value: 'gemma-3n-e4b-it' },
+  { label: 'Gemma 3n E2B IT',                 value: 'gemma-3n-e2b-it' },
+] as const;
+
 export const FALLBACK_AI_TEST_DEFAULT_MODELS: Record<AITestProvider, string> = {
   openrouter: 'meta-llama/llama-3.3-70b-instruct:free',
   groq: 'llama-3.3-70b-versatile',
   deepseek: 'deepseek-v4-flash',
-  nvidia: 'nvidia/llama-3.1-nemotron-70b-instruct',
+  nvidia: 'mistral-medium-3-instruct',
 };
 
 export function aiTestSlotKey(provider: AITestProvider, slot: AITestSlot): string {
