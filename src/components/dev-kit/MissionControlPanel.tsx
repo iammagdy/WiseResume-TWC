@@ -35,7 +35,7 @@ interface SecretItem {
   key: string;
   label: string;
   present: boolean;
-  source: 'replit_env' | 'supabase_vault' | 'optional';
+  source: 'replit_env' | 'supabase_vault' | 'optional' | 'appwrite_function_variable';
   lastRotatedAt: string | null;
   stale: boolean;
   daysSinceRotation: number | null;
