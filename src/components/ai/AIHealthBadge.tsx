@@ -211,7 +211,7 @@ export function AIHealthBadge() {
   const useStoreStatus = lastStoreEventAt > 0 && lastStoreEventAt > pingResultAt;
   const displayStatus: AIHealthStatus =
     useStoreStatus ? storeStatus : (pingResult ? pingResult.status : storeStatus);
-  const config = STATUS_CONFIG[displayStatus];
+  const config = STATUS_CONFIG[displayStatus] || STATUS_CONFIG.healthy;
   const Icon = config.icon;
 
   const displayLatency = pingResult?.latencyMs ?? null;
