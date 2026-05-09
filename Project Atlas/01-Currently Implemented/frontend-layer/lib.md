@@ -1,8 +1,11 @@
 # Library (`src/lib/`)
 
-**Last verified:** 2026-05-08 (Batch 7)
+**Last verified:** 2026-05-09
 **Type:** reference card
 **Sources:** `src/lib/` (≈90 root files + 6 subfolders).
+
+**2026-05-09 changes:**
+- `dateUtils.ts`: appended `safeFormatDate(value, fmt, fallback?)` and `safeFormatDistanceToNow(value, opts?, fallback?)` — null-safe wrappers around `date-fns` `format` / `formatDistanceToNow`. Both accept `string | number | Date | null | undefined` and return `fallback` (default `'—'`) instead of throwing `RangeError: Invalid time value` when the input is null, undefined, or unparseable.
 
 **Batch 7 changes:**
 - `planConfig.ts`: removed broken JSON import (`supabase/functions/_shared/creditLimits.json` deleted with supabase dir); credit limits now hardcoded (`free: 5`, `pro: 50`, `premium: Infinity`).
