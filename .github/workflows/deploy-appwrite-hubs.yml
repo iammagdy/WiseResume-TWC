@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  deploy-hubs:
+  deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -15,12 +15,7 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Install Appwrite SDK
-        run: npm install node-appwrite
-
-      - name: Package and Deploy Hubs
-        env:
-          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+      - name: Deploy AI Hubs
         run: |
           # Setup auth-master
           cd appwrite-hubs/auth-master
@@ -34,6 +29,12 @@ jobs:
           tar -czf ../../ai-gateway.tar.gz .
           cd ../..
 
+          # Setup ai-health
+          cd appwrite-hubs/ai-health
+          tar -czf ../../ai-health.tar.gz .
+          cd ../..
+
           export APPWRITE_ENDPOINT="https://fra.cloud.appwrite.io/v1"
           export APPWRITE_PROJECT_ID="69fd362b001eb325a192"
+          export APPWRITE_API_KEY="${{ secrets.APPWRITE_API_KEY }}"
           node scripts/deploy_hubs.cjs
