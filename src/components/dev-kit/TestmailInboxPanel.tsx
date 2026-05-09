@@ -121,10 +121,14 @@ function EmailRow({ email }: { email: TestmailEmail }) {
             <div className="rounded-lg border border-border overflow-hidden">
               <div className="flex items-center justify-between px-3 py-1.5 bg-muted/40 border-b border-border">
                 <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">HTML Preview</span>
+                <span className="text-[9px] text-muted-foreground">sandboxed · scripts disabled</span>
               </div>
-              <div
-                className="p-4 text-sm max-h-80 overflow-auto bg-white dark:bg-zinc-900 prose prose-sm dark:prose-invert max-w-none"
-                dangerouslySetInnerHTML={{ __html: email.html }}
+              <iframe
+                srcDoc={email.html}
+                sandbox="allow-same-origin"
+                className="w-full border-0 bg-white"
+                style={{ height: '320px' }}
+                title={`Email preview: ${email.subject}`}
               />
             </div>
           ) : email.text ? (
