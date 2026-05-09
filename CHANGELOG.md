@@ -1,3 +1,19 @@
+## 2026-05-09 — Replit preview: login fixed ("Portfolio not found" + "Failed to fetch")
+
+**Files changed:** `src/hooks/usePublicPortfolio.ts` (isAppHostname), Appwrite project platforms (API call).
+
+### Root-cause (two separate bugs)
+
+1. **Wrong route rendered** — `isAppHostname()` did not include `replit.dev` or `replit.co`, so the Replit preview domain was treated as a custom portfolio domain, rendering `CustomDomainPortfolioWrapper` instead of the normal app routes. Result: every URL showed "Portfolio not found for this domain".
+2. **Login "Failed to fetch"** — Appwrite blocks auth requests from unregistered Web Platform origins. `*.replit.dev` was not registered in the Appwrite project, so `POST /v1/account/sessions/email` returned `403 general_unknown_origin`.
+
+### Fixes
+
+- Added `'replit.dev'` and `'replit.co'` to the `isAppHostname()` allowlist in `src/hooks/usePublicPortfolio.ts`.
+- Registered `*.replit.dev` as a Web Platform in Appwrite project `69fd362b001eb325a192` via `POST /v1/projects/{id}/platforms` using the project API key. Platform id: `69ff12a22ab4a137e3b0`.
+
+---
+
 ## 2026-05-09 — Task #29: Reconcile split git history between Replit and GitHub
 
 **Files changed:** `CHANGELOG.md`, `Project Atlas/04-For You (Plain Language)/stability-improvements.md`, `Project Atlas/01-Currently Implemented/stability-fixes/github-origin-sync-task-29.md`.

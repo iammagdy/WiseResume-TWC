@@ -2,6 +2,24 @@
 
 **Last verified:** 2026-05-09
 
+## Replit preview working again — login fixed (2026-05-09)
+
+Two separate bugs were making it impossible to use the app in the Replit development preview:
+
+**Bug 1 — "Portfolio not found for this domain"**
+Every page in the preview (including the sign-in page) was showing a "Portfolio not found" error instead of the real app. The app has logic to detect whether it's running on thewise.cloud or on a visitor's custom domain, and it was misidentifying the Replit preview address as a custom domain belonging to a portfolio visitor.
+
+**What changed:** The list of "known app addresses" now correctly includes `*.replit.dev` and `*.replit.co`, so the Replit preview is treated as a normal app environment.
+
+**Bug 2 — "Failed to fetch" on login**
+Even after the screen showed correctly, trying to sign in produced a "Failed to fetch" error. Appwrite (the backend) requires every website that talks to it to be registered by name for security. The Replit preview domain had never been registered.
+
+**What changed:** `*.replit.dev` was registered as an approved Web Platform in the Appwrite project console. Sign-in now works from the Replit preview environment.
+
+**Last verified:** 2026-05-09
+
+---
+
 ## Git history reconnected between Replit and GitHub — Task #29 (2026-05-09)
 
 The code in Replit and the code on GitHub had drifted apart at the history level — the files themselves were identical, but each side had a different "trail of saves" that didn't connect to the other. This meant future pushes from Replit to GitHub would fail with a confusing error, making deployments unreliable.
