@@ -34,6 +34,19 @@ DevKit panel for the Testmail inbox. Registered under Communications in the DevT
 - `TESTMAIL_API_KEY` — Testmail API key (already in Appwrite)
 - `EMAIL_TEST_MODE` — set to `"true"` in dev/staging to redirect emails to Testmail inbox
 
+## 2026-05-09 — Task #6: admin-devkit-data packaged for Appwrite deployment
+
+### What changed
+- `appwrite-hubs/admin-devkit-data/` — Existing Appwrite Function source confirmed complete. Contains `src/main.js` (Node.js 18, ~700 lines) and `package.json` (deps: `node-appwrite ^11.1.1`, `axios ^1.4.0`). Handles 5 actions: `mission-control`, `analytics`, `observability`, `live-activity`, `edge-fn-drift`. Auth via `Authorization: Bearer <DEVKIT_PASSWORD>`.
+- `appwrite-hubs/admin-devkit-data.tar.gz` — **New** deployment archive created from the function directory (with `node_modules` after `npm install`). Upload this zip to Appwrite Console → Functions → `admin-devkit-data` → Deployments → Create Deployment. Entrypoint: `src/main.js`.
+- `Project Atlas/01-Currently Implemented/edge-functions/admin-devkit-data.md` — Updated to reflect Appwrite migration: new source file path, removed Supabase/Deno references, documented all 5 current actions and required Function Variables.
+
+### Deploy outcome
+- Function created via Appwrite REST API: ID `admin-devkit-data`, runtime `node-18.0`, project `69fd362b001eb325a192` (fra).
+- Deployment `69ffc4207cb8e8e3ab99` built, activated (status `ready`), entrypoint `src/main.js`.
+- All required Function Variables (`DEVKIT_PASSWORD`, `APPWRITE_API_KEY`, `GITHUB_TOKEN`, `RESEND_API_KEY`, `OPENROUTER_KEY_1`, `OPENROUTER_KEY_2`, `GROQ_KEY_1`) are inherited automatically from Appwrite project-level global variables — no per-function variable configuration needed.
+- Live verification: POST to the function returns `401 {"success":false,"error":"Unauthorized"}` — proves the function is running and auth guard is active (not "Function not found").
+
 ---
 
 ## 2026-05-09 — Task #9: NVIDIA NIM key slots added to AI Keys admin panel

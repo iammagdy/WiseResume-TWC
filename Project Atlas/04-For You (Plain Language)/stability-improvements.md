@@ -1,6 +1,21 @@
 # Stability Improvements — What's Getting Better Behind the Scenes
 
-**Last verified:** 2026-05-09
+**Last verified:** 2026-05-09 (Task #6 — admin-devkit-data deployment package)
+
+## admin-devkit-data ready to deploy — Mission Control, Analytics, and Observability will return real data (2026-05-09)
+
+The function that powers the DevKit's four most data-heavy panels — **Mission Control**, **Analytics**, **Observability**, and **Live Activity** — has been fully written for the Appwrite platform and packaged as a ready-to-upload archive (`appwrite-hubs/admin-devkit-data.tar.gz`).
+
+Until this function is created in Appwrite Console and the deployment is activated, those four panels will show "Function with the requested ID could not be found." Once it goes live, they will return real data: deploy/commit status from GitHub, AI provider health pings, email check, database connectivity, recent errors, usage metrics, and more.
+
+**What's ready:**
+- All 5 panel actions are implemented (`mission-control`, `analytics`, `observability`, `live-activity`, `edge-fn-drift`).
+- The deployment archive has been built and is ready to upload.
+- Full step-by-step instructions are in `appwrite-hubs/admin-devkit-data/README.md` and in the CHANGELOG.
+
+**Status: DEPLOYED.** Function `admin-devkit-data` is live on Appwrite (deployment `69ffc4207cb8e8e3ab99`, status `ready`). It inherits all required variables from Appwrite's project-level global variables. Mission Control, Analytics, Observability, and Live Activity panels should now return real data.
+
+---
 
 ## All AI Hub Functions deployed to Appwrite (2026-05-09)
 
