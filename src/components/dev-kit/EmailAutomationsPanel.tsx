@@ -154,12 +154,12 @@ function AudienceCard({
         <p className="text-xs text-muted-foreground pl-6 leading-relaxed">
           Set <code className="font-mono bg-muted px-1 py-0.5 rounded text-[10px]">{envKey}</code> in{' '}
           <a
-            href="https://supabase.com/dashboard"
+            href="https://cloud.appwrite.io"
             target="_blank"
             rel="noopener noreferrer"
             className="text-primary hover:underline"
           >
-            Supabase Edge Function Secrets
+            Appwrite Function Variables
           </a>{' '}
           to enable this audience.
         </p>

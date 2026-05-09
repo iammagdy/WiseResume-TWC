@@ -2,6 +2,21 @@
 
 **Last verified:** 2026-05-09
 
+## DevKit error messages now point to Appwrite, not Supabase (2026-05-09)
+
+When a DevKit panel hits a backend error, it shows a plain-English message and a "Copy AI fix prompt" button. Until now, every one of those copied prompts told the AI assistant to go check "production Supabase (project ref jnsfmkzgxsviuthaqlyy)" — which no longer exists. Supabase was fully decommissioned in May 2026.
+
+**What changed:** All error messages, hints, and AI fix prompts now correctly reference Appwrite (project `69fd362b001eb325a192`, fra region). Two new error types are also recognized:
+
+- **"Function not yet deployed"** — when the Appwrite Function ID doesn't exist yet, the error card now says exactly that and tells the admin to deploy it via the Appwrite Console. This covers Mission Control and most other panels in the current state, since their Appwrite Functions are still being built.
+- **"Appwrite collection not found"** — when the function can't find a Database collection, the card names the likely cause (wrong collection ID in Function Variables) and points to the Appwrite Console to check.
+
+Two panel-level warning messages have also been corrected: the "RESEND_API_KEY is not configured" banner in Email Management and the audience setup hint in Email Automations both now link to the Appwrite Console instead of the old Supabase dashboard.
+
+**Last verified:** 2026-05-09
+
+---
+
 ## DevKit panels isolated — one crash no longer breaks the whole page (2026-05-09)
 
 A production error (`TypeError: Cannot read properties of undefined (reading 'data')`) was crashing at least one DevKit panel and, because there was no panel-level crash boundary, the crash bubbled all the way up to the app's global error handler — making it look like the entire DevKit was down.
