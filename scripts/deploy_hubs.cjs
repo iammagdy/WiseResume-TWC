@@ -3,47 +3,67 @@ const fs = require('fs');
 const path = require('path');
 
 const client = new sdk.Client()
-    .setEndpoint(process.env.APPWRITE_ENDPOINT)
-    .setProject(process.env.APPWRITE_PROJECT_ID)
+    .setEndpoint(process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1')
+    .setProject(process.env.APPWRITE_PROJECT_ID || '69fd362b001eb325a192')
     .setKey(process.env.APPWRITE_API_KEY);
 
 const functions = new sdk.Functions(client);
 
-async function deployFunction(id, name, fileName) {
-    const filePath = path.join(process.cwd(), fileName);
-    console.log(`🚀 Deploying ${name} (${id}) from ${filePath}...`);
-    
-    if (!fs.existsSync(filePath)) {
-        console.error(`❌ Error: File ${fileName} NOT FOUND in ${process.cwd()}`);
+async function ensureFunction(id, name) {
+    try {
+        await functions.get(id);
+        console.log(`  ✅ ${id} already exists`);
+    } catch (e) {
+        if (e.code === 404) {
+            console.log(`  🔧 Creating ${id} with node-18.0...`);
+            await functions.create(id, name, 'node-18.0', []);
+            console.log(`  ✅ Created ${id}`);
+        } else throw e;
+    }
+}
+
+async function deployFunction(id, name, filePath) {
+    const absPath = path.isAbsolute(filePath) ? filePath : path.join(process.cwd(), filePath);
+    console.log(`\n🚀 Deploying ${name} (${id})...`);
+
+    if (!fs.existsSync(absPath)) {
+        console.error(`❌ File not found: ${absPath}`);
         return;
     }
 
     try {
-        const deployment = await functions.createDeployment(
-            id,
-            filePath,
-            true // Activate
-        );
-        console.log(`✅ ${name} deployed. ID: ${deployment.$id}`);
+        await ensureFunction(id, name);
+        const fileBuffer = fs.readFileSync(absPath);
+        const fileName = path.basename(absPath);
+        // SDK v24 accepts File/Blob for the code parameter
+        const file = new File([fileBuffer], fileName, { type: 'application/gzip' });
+        const deployment = await functions.createDeployment({
+            functionId: id,
+            code: file,
+            activate: true,
+            entrypoint: 'src/main.js',
+        });
+        console.log(`  ✅ Deployed — ID: ${deployment.$id}, status: ${deployment.status}`);
     } catch (e) {
-        console.error(`❌ Error deploying ${name}:`, e.message);
-        if (e.response) console.error(JSON.stringify(e.response, null, 2));
+        console.error(`  ❌ Failed: ${e.message}`);
+        if (e.response) console.error(JSON.stringify(e.response, null, 2).slice(0, 400));
     }
 }
 
 async function run() {
-    // 1. Check/Create ai-health (using correct runtime node-18)
-    try {
-        await functions.get('ai-health');
-        console.log('✅ ai-health function exists.');
-    } catch (e) {
-        console.log('🔧 Creating ai-health function...');
-        await functions.create('ai-health', 'AI Health Check', 'node-18.0', ['any']);
-    }
+    const hubs = [
+        { id: 'ai-gateway',                name: 'AI Gateway Hub',                file: 'ai-gateway.tar.gz' },
+        { id: 'auth-master',               name: 'Auth Master Hub',               file: 'auth-master.tar.gz' },
+        { id: 'admin-email',               name: 'Admin Email Hub',               file: 'admin-email.tar.gz' },
+        { id: 'admin-feature-flags',       name: 'Admin Feature Flags Hub',       file: 'admin-feature-flags.tar.gz' },
+        { id: 'admin-moderation',          name: 'Admin Moderation Hub',          file: 'admin-moderation.tar.gz' },
+        { id: 'admin-portfolio-usernames', name: 'Admin Portfolio Usernames Hub', file: 'admin-portfolio-usernames.tar.gz' },
+    ];
 
-    await deployFunction('auth-master', 'Auth Master Hub', 'auth-master.tar.gz');
-    await deployFunction('ai-gateway', 'AI Gateway Hub', 'ai-gateway.tar.gz');
-    await deployFunction('ai-health', 'AI Health Check', 'ai-health.tar.gz');
+    for (const hub of hubs) {
+        await deployFunction(hub.id, hub.name, hub.file);
+    }
+    console.log('\n🎉 All hubs processed.');
 }
 
-run();
+run().catch(e => { console.error('Fatal:', e.message); process.exit(1); });
