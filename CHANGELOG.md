@@ -1,3 +1,15 @@
+## 2026-05-10 — Version bump to 4.1.1 + deploy pipeline fix
+
+### What changed
+
+#### `package.json`
+- Version changed from `"4.1.0-Appwrite-Native"` to `"4.1.1"`. Removes the internal "Appwrite-Native" label from the user-visible footer version string (`v{__APP_VERSION__}` in `Footer.tsx`).
+
+#### `.github/workflows/deploy-frontend.yml`
+- Fixed `lftp mirror` target from `resume/` (a wrong subdirectory that had silently re-appeared after a prior git reconciliation) back to `.` (the FTP home = Hostinger web root `/public_html/`).
+- Added `rm -f index.html` before the mirror so `index.html` is always re-uploaded, even when its content hash is unchanged.
+- Both fixes committed via GitHub Contents API and deployed via workflow run `25615530667` (SUCCESS). Live site now serves `index-nwWBJNno.js` + `Footer-DDOOkJOz.js` containing `"4.1.1"` (last-modified `2026-05-10T00:29:26Z`).
+
 ## 2026-05-09 — Task #11: NVIDIA NIM model dropdown updated to 5 Mistral/Gemma models
 
 ### What changed
