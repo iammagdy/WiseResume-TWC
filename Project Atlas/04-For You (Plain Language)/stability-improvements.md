@@ -1,6 +1,6 @@
 # Stability Improvements — What's Getting Better Behind the Scenes
 
-**Last verified:** 2026-05-10 (v4.1.1 deploy pipeline fix)
+**Last verified:** 2026-05-10 (thewise.cloud landing page + deploy pipeline corrections)
 
 ## AI calls are now observable in Datadog (2026-05-09, Task #19)
 
