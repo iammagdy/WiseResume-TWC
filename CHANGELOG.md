@@ -24,6 +24,11 @@ v4.1.3 — Task #48: Fix AI health badge (always red) and resume scoring toast (
 #### `src/components/dashboard/ResumeGroup.tsx`
 - Master card: `healthScores[masterResume.id]` / `scoringId === masterResume.id` → `$id` variants.
 - Tailored list: `key={resume.id}`, `healthScores[resume.id]`, `scoringId === resume.id` → `$id` variants.
+- `onCreateTailored(masterResume.id)` → `onCreateTailored(masterResume.$id)`.
+- `organizeResumeHierarchy` orphan detection: `m.id === parentId` → `m.$id === parentId`.
+
+#### `src/hooks/useResumeScore.ts`
+- `buildLocalResumeScore`: added defensive null-guard at the top of the function — if `resume` is `null`/`undefined` (race condition or corrupt `dbToResumeData` output), returns a zero score instead of throwing. This prevents `runBackgroundScore` accumulating `backgroundFailureStreak` from a non-AI error path and showing the "score may be out of date" toast incorrectly.
 
 ---
 

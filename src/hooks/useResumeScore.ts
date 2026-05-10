@@ -2,7 +2,13 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { ResumeData } from '@/types/resume';
 import { toast } from 'sonner';
 import { useATSScoreHistoryStore } from '@/store/atsScoreHistoryStore';
-import { edgeFunctions } from '@/lib/edgeFunctions';
+import {
+  calcContactScore,
+  calcSummaryScore,
+  calcExperienceScore,
+  calcEducationScore,
+  calcSkillsScore,
+} from '@/lib/resumeCompletionRules';
 
 export interface WeakBullet {
   text: string;
@@ -130,57 +136,85 @@ export function clearAllCachedScores() {
   }
 }
 
-/** Strip non-content fields so identical content always produces identical requests */
-function normalizeForScoring(resume: ResumeData): { content: Partial<ResumeData>; templateId?: string } {
-  const { id, createdAt, updatedAt, templateId, customization, ...content } = resume;
-  // Sort skills for consistent ordering
-  if (content.skills) {
-    content.skills = [...content.skills].sort();
+/**
+ * Build a full ResumeHealthScore locally — no network call, no AI.
+ * score-resume was always deterministic; this replaces the Appwrite edge
+ * function call that was (a) routed through ai-gateway producing wrong
+ * response shapes, and (b) unnecessary since all signals are local.
+ */
+function buildLocalResumeScore(resume: ResumeData): ResumeHealthScore {
+  // Defensive guard: if resume is null/undefined (e.g. race condition or
+  // corrupt dbToResumeData output), return a zero score rather than throwing.
+  // This prevents runBackgroundScore from accumulating backgroundFailureStreak
+  // and showing the "score may be out of date" toast for a non-AI failure.
+  if (!resume) {
+    return {
+      overallScore: 0,
+      categories: {
+        contactCompleteness: 0, contentQuality: 0, sectionStructure: 0,
+        parsability: 0, keywordOptimization: 0, lengthDensity: 0, templateFriendliness: 85,
+      },
+      topStrength: 'No resume data available',
+      topImprovement: 'Add your contact information and a professional summary',
+      scoredAt: new Date().toISOString(),
+    };
   }
-  return { content, templateId };
+
+  const contactScore    = calcContactScore(resume.contactInfo    ?? { fullName: '', email: '', phone: '', location: '' });
+  const summaryScore    = calcSummaryScore(resume.summary        ?? '');
+  const experienceScore = calcExperienceScore(resume.experience  ?? []);
+  const educationScore  = calcEducationScore(resume.education    ?? []);
+  const skillsScore     = calcSkillsScore(resume.skills          ?? []);
+
+  const overall = Math.round(
+    (contactScore + summaryScore + experienceScore + educationScore + skillsScore) / 5,
+  );
+
+  const categories = {
+    contactCompleteness:  contactScore,
+    contentQuality:       Math.round((summaryScore + experienceScore) / 2),
+    sectionStructure:     Math.round((educationScore + skillsScore) / 2),
+    parsability:          Math.min(100, overall + 5),
+    keywordOptimization:  skillsScore,
+    lengthDensity:        summaryScore,
+    templateFriendliness: 85,
+  };
+
+  const sectionScores: Record<string, number> = {
+    contact: contactScore, summary: summaryScore, experience: experienceScore,
+    education: educationScore, skills: skillsScore,
+  };
+  const sorted = Object.entries(sectionScores).sort((a, b) => b[1] - a[1]);
+  const [bestKey]  = sorted[0];
+  const [worstKey] = sorted[sorted.length - 1];
+
+  const STRENGTHS: Record<string, string> = {
+    contact:    'Contact information is complete',
+    summary:    'Professional summary is well-written',
+    experience: 'Work experience section is detailed',
+    education:  'Education section is complete',
+    skills:     'Strong skills list',
+  };
+  const IMPROVEMENTS: Record<string, string> = {
+    contact:    'Add missing contact details (phone, LinkedIn, location)',
+    summary:    'Write a compelling professional summary (2–4 sentences)',
+    experience: 'Add more work experience with bullet points and metrics',
+    education:  'Complete your education section with degree and graduation date',
+    skills:     'Add at least 5–10 relevant skills',
+  };
+
+  return {
+    overallScore:   overall,
+    categories,
+    topStrength:    STRENGTHS[bestKey]     ?? 'Well-structured resume',
+    topImprovement: IMPROVEMENTS[worstKey] ?? 'Continue improving your resume',
+    scoredAt:       new Date().toISOString(),
+  };
 }
 
-/** Helper: wait ms */
-const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-async function invokeScoreResume(resume: ResumeData, isBackground = false): Promise<{ data: ResumeHealthScore; latencyMs: number }> {
-  const { content: normalized, templateId } = normalizeForScoring(resume);
+async function invokeScoreResume(resume: ResumeData, _isBackground = false): Promise<{ data: ResumeHealthScore; latencyMs: number }> {
   const _start = Date.now();
-
-  const { data, error } = await edgeFunctions.invoke<ResumeHealthScore>('score-resume', {
-    body: { resume: normalized, templateId, ...(isBackground ? { source: 'background' } : {}) },
-  });
-
-  if (error) {
-    const status = error.status;
-    const msg = error.message;
-    if (status === 401 || status === 403) {
-      throw Object.assign(new Error('Session expired. Please sign in again.'), { isAuth: true });
-    }
-    if (status === 429) {
-      throw Object.assign(new Error('Rate limit reached. Try again shortly.'), { isRateLimit: true });
-    }
-    if (status === 503) {
-      console.error('[ScoreResume] Service configuration error (503):', msg);
-      throw Object.assign(new Error(`Scoring service misconfigured: ${msg}`), { isConfigError: true });
-    }
-    if (!status && (msg.includes('fetch') || msg.includes('network'))) {
-      throw Object.assign(new Error(`Scoring unavailable: network error — ${msg}`), { isNetworkError: true });
-    }
-    console.error('[ScoreResume] Error:', status, msg);
-    throw new Error(`Scoring failed: ${msg}`);
-  }
-
-  if (!data) {
-    throw new Error('Scoring returned empty response');
-  }
-
-  const rawData = data as unknown as Record<string, unknown>;
-  if (rawData.error) {
-    console.error('[ScoreResume] API body error:', rawData.error);
-    throw new Error(String(rawData.error));
-  }
-
+  const data = buildLocalResumeScore(resume);
   return { data, latencyMs: Date.now() - _start };
 }
 

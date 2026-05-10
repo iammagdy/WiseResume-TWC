@@ -360,7 +360,7 @@ function DashboardPageContent() {
 
   const handleEdit = useCallback((resumeId: string) => {
     haptics.light();
-    const resume = resumes?.find(r => r.id === resumeId);
+    const resume = resumes?.find(r => r.$id === resumeId);
     if (resume) {
       setCurrentResumeId(resumeId);
       setCurrentResume(dbToResumeData(resume));
@@ -386,7 +386,7 @@ function DashboardPageContent() {
   }, [duplicateResumeId, duplicateResume]);
 
   const handleInterview = useCallback((resumeId: string) => {
-    const resume = resumes?.find(r => r.id === resumeId);
+    const resume = resumes?.find(r => r.$id === resumeId);
     if (resume) {
       haptics.light();
       setCurrentResumeId(resumeId);
@@ -410,9 +410,9 @@ function DashboardPageContent() {
 
   const confirmDelete = useCallback(async () => {
     if (!deleteResumeId) return;
-    const resumeToDelete = resumes?.find(r => r.id === deleteResumeId);
+    const resumeToDelete = resumes?.find(r => r.$id === deleteResumeId);
     if (resumeToDelete) {
-      setDeletedResume({ id: resumeToDelete.id, title: resumeToDelete.title });
+      setDeletedResume({ id: resumeToDelete.$id, title: resumeToDelete.title });
     }
     haptics.warning();
     try {

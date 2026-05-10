@@ -141,7 +141,7 @@ export function ResumeGroup({
               transition={{ delay: tailoredVersions.length * 0.05 }}
               onClick={() => {
                 haptics.light();
-                onCreateTailored(masterResume.id);
+                onCreateTailored(masterResume.$id);
               }}
               className={cn(
                 'w-full py-3 px-4 rounded-xl',
@@ -188,7 +188,7 @@ export function organizeResumeHierarchy(resumes: DatabaseResume[]) {
 
   // Check for orphaned tailored resumes (parent was deleted)
   Object.entries(tailoredByParent).forEach(([parentId, tailored]) => {
-    const parentExists = masterResumes.some((m) => m.id === parentId);
+    const parentExists = masterResumes.some((m) => m.$id === parentId);
     if (!parentExists) {
       // Promote orphaned resumes to master level
       orphanTailored.push(...tailored);
