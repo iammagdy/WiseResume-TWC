@@ -1,7 +1,7 @@
 {
   "name": "wise-resume",
   "private": true,
-  "version": "4.1.0-Appwrite-Native",
+  "version": "4.1.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
