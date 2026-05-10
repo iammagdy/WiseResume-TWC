@@ -1,0 +1,30 @@
+name: 🌐 Deploy thewise.cloud Landing
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy-landing:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install lftp
+        run: sudo apt-get update && sudo apt-get install -y lftp
+
+      - name: Upload landing page to thewise.cloud root
+        timeout-minutes: 8
+        env:
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+        run: |
+          lftp -u "u966279061.thewise.cloud,${FTP_PASSWORD}" "ftp://82.29.154.120:21" \
+            -e "set ftp:ssl-force true; \
+                set ssl:verify-certificate no; \
+                set ftp:passive-mode true; \
+                set net:timeout 60; \
+                set net:max-retries 5; \
+                put -O . thewise-cloud-landing/index.html; \
+                bye"
+          echo "✅ Landing page uploaded to thewise.cloud root"
