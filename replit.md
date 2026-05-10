@@ -78,6 +78,17 @@ All other secrets (AI provider keys, Resend, devkit password, cron secret, etc.)
 - **Portfolio `pf-*` CSS** — never touch; used by public portfolio pages.
 - **Template photo elements** — `<img>` tags inside `[data-resume-template]` (currently `CreativeTemplate` and `DesignerTemplate`) MUST set `crossOrigin="anonymous"` and MUST NOT use `loading="lazy"`. The Appwrite Storage bucket serving `photoUrl` must respond with `Access-Control-Allow-Origin: *`.
 
+## Deployment — Read This Before Touching Workflows
+
+> **Before modifying any GitHub Actions workflow, FTP path, or deploy config, read:**
+> **`Project Atlas/DEPLOYMENT_GUIDE.md`**
+
+Quick summary:
+- `resume.thewise.cloud` ← WiseResume app ← `deploy-frontend.yml` mirrors `dist/` to **`resume/`** (not `.`)
+- `thewise.cloud` ← Static landing page ← `deploy-landing.yml` uploads `thewise-cloud-landing/index.html` to FTP root
+- `quran.thewise.cloud` ← WiseQuran PWA ← separate repo `iammagdy/wisequran`, its own workflow
+- **Never run `mirror --delete` against `.` (the FTP root) from this repo** — it wipes all three subdomain directories
+
 ## Gotchas
 
 - **Most data-layer features are intentionally broken right now.** `/api/data/*` and most `edgeFunctions.invoke()` calls return `pending_appwrite_migration`. This is the expected post-cutover state until the Appwrite Functions are written.
