@@ -10,18 +10,18 @@
  * All other functions are called directly by their function ID.
  *
  * Behavioral notes vs. former HTTP-proxy path:
- * - `InvokeOptions.headers` and `InvokeOptions.method` are intentional
- *   no-ops. Appwrite SDK executions always use POST; custom headers belong
- *   in the body payload or in Function-level config, not the client call.
+ * - `InvokeOptions.headers` are now mapped into the execution body as 
+ *   a `__headers` property. This allows Appwrite Functions to receive 
+ *   the DevKit Bearer token since Appwrite SDK executions don't support 
+ *   custom HTTP headers.
+ * - `InvokeOptions.method` remains an intentional no-op.
  * - The former 401-JWT-refresh retry loop is replaced by catching
  *   `AppwriteException` with code 401/403 and dispatching a
- *   session-expired event. The SDK handles token refresh internally;
- *   a client-side retry is no longer needed.
+ *   session-expired event.
  */
 import { AppwriteException } from 'appwrite';
 import { functions } from '@/lib/appwrite';
 import { shouldRouteToAppwrite } from '@/lib/appwrite-bridge';
-// Session expired handling is now integrated into AuthContext
 
 interface InvokeOptions {
   body?: FormData | Record<string, unknown> | unknown;
@@ -54,16 +54,23 @@ export const appwriteFunctions = {
   ): Promise<InvokeResult<T>> {
     try {
       const bodyPayload = buildBodyPayload(options?.body);
+      
+      // FIX: Since Appwrite SDK doesn't support custom headers, 
+      // we pass them inside the body as a special property.
+      const finalPayload = {
+        ...bodyPayload,
+        __headers: options?.headers || {}
+      };
 
       let functionId: string;
       let executionBody: string;
 
       if (shouldRouteToAppwrite(fnName)) {
         functionId = 'ai-gateway';
-        executionBody = JSON.stringify({ featureName: fnName, ...bodyPayload });
+        executionBody = JSON.stringify({ featureName: fnName, ...finalPayload });
       } else {
         functionId = fnName;
-        executionBody = JSON.stringify(bodyPayload);
+        executionBody = JSON.stringify(finalPayload);
       }
 
       const execution = await functions.createExecution(

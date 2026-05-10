@@ -1,4 +1,4 @@
-import { Client, Users, Databases, Query } from 'node-appwrite';
+import { Client, Users, Databases } from 'node-appwrite';
 
 export default async ({ req, res, log, error }) => {
   const client = new Client()
@@ -7,24 +7,30 @@ export default async ({ req, res, log, error }) => {
     .setKey(process.env.APPWRITE_API_KEY || process.env.APPWRITE_FUNCTION_API_KEY);
 
   const users = new Users(client);
-  const databases = new Databases(client);
 
   const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
-  const { action, target_user_id } = body;
+  const { action, target_user_id, __headers } = body;
+
+  // 0. AUTH CHECK
+  // Appwrite SDK executions don't support custom headers, so the frontend
+  // passes them in the body as __headers.
+  const authHeader = __headers?.Authorization || req.headers?.authorization;
+  const token = authHeader?.replace('Bearer ', '');
+  const correctPass = process.env.DEVKIT_PASSWORD;
+
+  if (!token || token !== correctPass) {
+    error('Unauthorized: Invalid DevKit Token');
+    return res.json({ status: 'error', message: 'Unauthorized: Session expired or invalid' }, 401);
+  }
 
   log(`Admin-Impersonate: Action=${action} for Target=${target_user_id}`);
 
   try {
     // 1. CLAIM - Generate an impersonation link
     if (action === 'claim') {
-      // In Appwrite, we use the SDK to generate a token for the user
-      // or we return a payload that the frontend uses to set the session.
-      // Since we are using the 'Act As' dialog, we return a signed payload.
-      
       const targetUser = await users.get(target_user_id);
       const expiresAt = Date.now() + (15 * 60 * 1000); // 15 minutes
       
-      // The URL format expected by the frontend: /act-as#<payload>
       const payload = Buffer.from(JSON.stringify({
         u: target_user_id,
         e: targetUser.email,

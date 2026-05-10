@@ -3,20 +3,6 @@
  *
  * DevKit admin panel: inspect per-slot AI provider key status and manage
  * per-slot test model overrides stored in app_settings.ai_test_slot_models.
- *
- * Actions:
- *   GET  (no body)             → return key hints, default models, saved overrides
- *   POST { provider, slot, model } → save model override for that slot, then return
- *
- * Auth: every request must carry  Authorization: Bearer <DEVKIT_PASSWORD>
- *
- * Environment variables:
- *   DEVKIT_PASSWORD     — shared admin password validated on every request
- *   APPWRITE_API_KEY    — server-side key with databases.read + databases.write
- *   OPENROUTER_KEY_1..3 — OpenRouter API keys
- *   GROQ_KEY_1..3       — Groq API keys
- *   DEEPSEEK_KEY        — DeepSeek API key
- *   NVIDIA_KEY_1..3     — NVIDIA NIM API keys
  */
 
 const sdk = require('node-appwrite');
@@ -32,8 +18,6 @@ const DEFAULT_MODELS = {
   nvidia: 'mistral-medium-3-instruct',
 };
 
-/** Valid NVIDIA NIM LLM model IDs. Any saved override not in this list is
- *  treated as stale and falls back to the first entry (the default). */
 const NVIDIA_VALID_MODELS = [
   'mistral-medium-3-instruct',
   'mistral-large-3-675b-instruct-2512',
@@ -53,11 +37,14 @@ function getDb() {
   return new sdk.Databases(client);
 }
 
-function checkAuth(req) {
+function checkAuth(req, body) {
   const password = process.env.DEVKIT_PASSWORD;
   if (!password) return false;
-  const header = req.headers['authorization'] || req.headers['Authorization'] || '';
-  const token = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
+  
+  // Appwrite SDK executions don't support custom headers, so the frontend
+  // passes them in the body as __headers.
+  const authHeader = body?.__headers?.Authorization || req.headers['authorization'] || req.headers['Authorization'] || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
   return token === password;
 }
 
@@ -90,22 +77,13 @@ async function readSlotModels(databases) {
   }
 }
 
-/**
- * Write slot models to the app_settings doc. Tries update first, falls back
- * to create when the document doesn't exist yet. Throws on any real failure
- * so the caller can return a 5xx rather than silently succeeding.
- */
 async function writeSlotModels(databases, slotModels) {
   const payload = { ai_test_slot_models: JSON.stringify(slotModels) };
   try {
     await databases.updateDocument(DB_ID, SETTINGS_COLLECTION, SETTINGS_DOC_ID, payload);
     return;
   } catch (updateErr) {
-    if (
-      updateErr &&
-      typeof updateErr.code === 'number' &&
-      updateErr.code === 404
-    ) {
+    if (updateErr && typeof updateErr.code === 'number' && updateErr.code === 404) {
       await databases.createDocument(DB_ID, SETTINGS_COLLECTION, SETTINGS_DOC_ID, payload);
       return;
     }
@@ -114,16 +92,15 @@ async function writeSlotModels(databases, slotModels) {
 }
 
 module.exports = async ({ req, res, log }) => {
-  if (!checkAuth(req)) {
-    return res.json({ success: false, error: 'Unauthorized' }, 401);
-  }
-
-  const databases = getDb();
-
   const body = typeof req.body === 'string'
     ? (() => { try { return JSON.parse(req.body || '{}'); } catch { return {}; } })()
     : (req.body || {});
 
+  if (!checkAuth(req, body)) {
+    return res.json({ success: false, error: 'Unauthorized' }, 401);
+  }
+
+  const databases = getDb();
   const { provider, slot, model } = body;
 
   if (provider && slot && model) {
@@ -150,7 +127,6 @@ module.exports = async ({ req, res, log }) => {
   }
 
   const slotModels = await readSlotModels(databases);
-
   const keys = [];
   for (const p of PROVIDERS) {
     for (const s of SLOTS) {
