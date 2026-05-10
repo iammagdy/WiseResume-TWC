@@ -26,12 +26,29 @@
 
 ## Deployment (Hostinger — CRITICAL)
 
-- **Live domain:** `https://thewise.cloud/` (NOT `resume.thewise.cloud`)
-- **FTP server:** `ftp://82.29.154.120:21`, user `u966279061.thewise.cloud`
-- **FTP home after login:** `/public_html` (this IS the web document root)
-- **lftp mirror target:** `.` (FTP home = web root). Do NOT use `/public_html/resume/` — that resolves to a ghost directory the web server never reads.
-- **Workflow:** `deploy-frontend.yml` — build → lftp mirror `./dist/ .` — no subdirectory
-- **Last successful deploy:** run 25603130088`25582827906` (2026-05-08 22:36 UTC), bundle `index-AQhfc8ts.js`
+> ⚠️ **Read `Project Atlas/DEPLOYMENT_GUIDE.md` before touching any workflow or FTP config.**
+> The information below is a quick summary only — the guide is the authoritative source.
+
+### Three domains, three separate deploys
+
+| Domain | Deploy target | Workflow / Repo |
+|---|---|---|
+| `resume.thewise.cloud` | `resume/` subdirectory via FTP | `deploy-frontend.yml` in this repo |
+| `thewise.cloud` | FTP root (`.`) via `put` | `deploy-landing.yml` in this repo |
+| `quran.thewise.cloud` | `quran/` via SFTP | `deploy.yml` in `iammagdy/wisequran` |
+
+### Hostinger layout
+```
+/public_html/           ← thewise.cloud root (landing page)
+/public_html/resume/    ← resume.thewise.cloud (WiseResume app)
+/public_html/quran/     ← quran.thewise.cloud (WiseQuran app)
+```
+
+### deploy-frontend.yml — WiseResume app
+- FTP: `ftp://82.29.154.120:21`, user `u966279061.thewise.cloud`, secret `FTP_PASSWORD`
+- lftp mirror target: **`resume/`** — this is correct and intentional
+- **NEVER change `resume/` to `.`** — doing so overwrites the landing page and the `--delete` flag will wipe `quran/` too
+- Workflow ID: `273053817` | Last successful deploy: run `25615721678` (2026-05-10), bundle `index-nwWBJNno.js`, version `4.1.1`
 
 ---
 
