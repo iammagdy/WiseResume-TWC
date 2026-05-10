@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquare, X, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import type { PublicProfile, PublicResume } from '@/hooks/usePublicPortfolio';
-import { edgeFunctions } from '@/lib/edgeFunctions';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { databases, DATABASE_ID, ID } from '@/lib/appwrite';
 import { COLLECTIONS } from '@/lib/appwrite-collections';
 
@@ -124,7 +124,7 @@ export function ChatWidget({ profile, resume, accentColor, pStyle }: {
     setLoading(true);
 
     try {
-      const { data, error } = await edgeFunctions.invoke<{
+      const { data, error } = await appwriteFunctions.invoke<{
         answer?: string;
         isFallback?: boolean;
         chatDisabled?: boolean;

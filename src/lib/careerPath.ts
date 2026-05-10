@@ -1,6 +1,6 @@
 import { ResumeData } from '@/types/resume';
 import { checkAIRateLimit } from './rateLimiter';
-import { edgeFunctions } from '@/lib/edgeFunctions';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { extractErrorMessage } from './errorToast';
 
 export interface NextRole {
@@ -73,7 +73,7 @@ export async function analyzeCareerPath(
     throw new Error(`Too many requests. Please wait ${rateCheck.waitSeconds}s.`);
   }
 
-  const { data, error } = await edgeFunctions.invoke('career-assessment', {
+  const { data, error } = await appwriteFunctions.invoke('career-assessment', {
     body: { resume },
   });
 

@@ -12,7 +12,7 @@ import { extractTextFromPDF, PDFParseError, ExtractionResult } from './pdf/textE
 import { extractTextWithOCR, OCRProgressCallback, estimateOCRTime } from './pdf/ocrExtractor';
 import { parseResumeText } from './pdf/sectionParsers';
 import { preprocessResumeText, extractContactHints } from './pdf/textPreprocessor';
-import { edgeFunctions } from '@/lib/edgeFunctions';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 
 export { PDFParseError, estimateOCRTime };
 export type { ExtractionResult, OCRProgressCallback };
@@ -53,7 +53,7 @@ export async function parseTextWithAI(text: string): Promise<ResumeData> {
 
     // fileType: 'text/plain' because the function receives pre-extracted plain text
     // regardless of the source document format (PDF, DOCX, etc).
-    const { data, error } = await edgeFunctions.invoke<ResumeData>('parse-resume', {
+    const { data, error } = await appwriteFunctions.invoke<ResumeData>('parse-resume', {
       body: { text, fileType: 'text/plain' },
     });
 

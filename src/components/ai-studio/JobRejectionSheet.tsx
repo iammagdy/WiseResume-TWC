@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { useAIAction } from '@/hooks/useAIAction';
 import { useAIDraft } from '@/hooks/useAIDraft';
-import { edgeFunctions } from '@/lib/edgeFunctions';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { useResumeStore } from '@/store/resumeStore';
 import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
 import { AICostBadge } from '@/components/ai/AICostBadge';
@@ -65,7 +65,7 @@ export function JobRejectionSheet({ open, onOpenChange }: JobRejectionSheetProps
       const data = await execute(async () => {
         const candidateName = currentResume?.contactInfo?.fullName ?? '';
         const summary = currentResume?.summary ?? '';
-        const { data: responseData, error } = await edgeFunctions.invoke('wise-ai-chat', {
+        const { data: responseData, error } = await appwriteFunctions.invoke('wise-ai-chat', {
           body: {
             type: 'job_rejection',
             payload: {

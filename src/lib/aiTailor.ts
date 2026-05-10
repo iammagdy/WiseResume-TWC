@@ -1,5 +1,5 @@
 import { ResumeData, TailorProgress, EnhancedTailorStep, EnhancedTailorProgress, SuperTailorResult } from '@/types/resume';
-import { edgeFunctions } from '@/lib/edgeFunctions';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { extractErrorMessage } from './errorToast';
 import { checkAIFallback } from './aiFallbackToast';
 import {
@@ -115,7 +115,7 @@ export async function tailorResumeWithProgress(
   }, 25_000);
 
   const invokeOnce = async (): Promise<SuperTailorResult> => {
-    const { data, error } = await edgeFunctions.invoke<SuperTailorResult>('tailor-resume', {
+    const { data, error } = await appwriteFunctions.invoke<SuperTailorResult>('tailor-resume', {
       body: { resume, jobDescription, intensity, ...(userInstructions ? { userInstructions } : {}) },
     });
 
@@ -217,7 +217,7 @@ export interface ParsedJobData {
 }
 
 export async function parseJobUrl(url: string): Promise<ParsedJobData> {
-  const { data, error } = await edgeFunctions.invoke('parse-job', {
+  const { data, error } = await appwriteFunctions.invoke('parse-job', {
     body: { action: 'url', url },
   });
   if (error) throw new Error(extractErrorMessage(error, data, 'Failed to parse job URL'));
@@ -226,7 +226,7 @@ export async function parseJobUrl(url: string): Promise<ParsedJobData> {
 }
 
 export async function parseJobText(text: string): Promise<ParsedJobData> {
-  const { data, error } = await edgeFunctions.invoke('parse-job', {
+  const { data, error } = await appwriteFunctions.invoke('parse-job', {
     body: { action: 'text', text },
   });
   if (error) {
@@ -243,7 +243,7 @@ export async function generateCoverLetter(
   tone: 'professional' | 'enthusiastic' | 'conversational' = 'professional',
   signal?: AbortSignal
 ): Promise<string> {
-  const { data, error } = await edgeFunctions.invoke('generate-cover-letter', {
+  const { data, error } = await appwriteFunctions.invoke('generate-cover-letter', {
     body: { resume, jobDescription, tone },
     ...(signal ? { options: { signal } } : {}),
   } as any);
@@ -278,7 +278,7 @@ export async function tailorSection(params: {
   intensity?: string;
   projectItems?: Array<{ name: string; description: string; technologies?: string[]; role?: string }>;
 }): Promise<TailorSectionResult> {
-  const { data, error } = await edgeFunctions.invoke<TailorSectionResult>(
+  const { data, error } = await appwriteFunctions.invoke<TailorSectionResult>(
     resumeSectionAiFnName('tailor-section'),
     {
       body: {

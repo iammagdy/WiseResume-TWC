@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { RefreshCw, Activity, AlertCircle, AlertTriangle, ChevronDown, ChevronRight, CheckCircle2, Clock, Loader2, Lock, Filter, TrendingUp, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { edgeFunctions } from '@/lib/edgeFunctions';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
 import { unwrapAdminResponse, formatEdgeError, EdgeFunctionError } from '@/lib/devkit/edgeResponse';
 import { useIsMounted, useVisibleInterval } from '@/lib/devkit/hooks';
@@ -136,7 +136,7 @@ export function ObservabilityPanel() {
     setTelemetryLoading(true);
     setTelemetryError(null);
     try {
-      const tuple = await edgeFunctions.invoke('admin-devkit-data', {
+      const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
         headers: devKitAuthHeaders(),
         body: { action: 'observability', obs_action: 'get_telemetry' },
       });
@@ -168,7 +168,7 @@ export function ObservabilityPanel() {
     setErrorsError(null);
     try {
       const since = new Date(Date.now() - TIME_RANGE_MS[timeRange]).toISOString();
-      const tuple = await edgeFunctions.invoke('admin-devkit-data', {
+      const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
         headers: devKitAuthHeaders(),
         body: {
           action: 'observability',
@@ -214,7 +214,7 @@ export function ObservabilityPanel() {
   const markReviewed = useCallback(async (errorId: string) => {
     setReviewingId(errorId);
     try {
-      const tuple = await edgeFunctions.invoke('admin-devkit-data', {
+      const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
         headers: devKitAuthHeaders(),
         body: { action: 'observability', obs_action: 'mark_reviewed', error_id: errorId },
       });

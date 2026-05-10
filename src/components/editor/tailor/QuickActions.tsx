@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import editorLogger from '@/lib/editorLogger';
 import { parseAIErrorBody, aiErrorToastMessage, AIError } from '@/lib/aiErrorParser';
 import { ResumeData, SuperTailorResult } from '@/types/resume';
-import { edgeFunctions } from '@/lib/edgeFunctions';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 import {
   resumeSectionAiFnName,
   resumeSectionAiBodyProps,
@@ -72,7 +72,7 @@ Return JSON: { "recommendedOrder": ["section1", "section2", ...], "reasoning": "
       }
 
       const result = await executeAI(async () => {
-        const { data, error: invokeError } = await edgeFunctions.invoke<Record<string, unknown>>(
+        const { data, error: invokeError } = await appwriteFunctions.invoke<Record<string, unknown>>(
           resumeSectionAiFnName('enhance-section'),
           {
             body: {

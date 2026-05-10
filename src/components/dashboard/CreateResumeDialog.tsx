@@ -25,7 +25,7 @@ import haptics from '@/lib/haptics';
 import { useResumeStore } from '@/store/resumeStore';
 import { databases, DATABASE_ID, ID } from '@/lib/appwrite';
 import { COLLECTIONS } from '@/lib/appwrite-collections';
-import { edgeFunctions } from '@/lib/edgeFunctions';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { usePlan } from '@/hooks/usePlan';
@@ -336,7 +336,7 @@ export function CreateResumeDialog({
     setIsCreating(true);
     setPasteError(null);
     try {
-      const { data, error: fnError } = await edgeFunctions.invoke('parse-job', {
+      const { data, error: fnError } = await appwriteFunctions.invoke('parse-job', {
         body: { action: 'linkedin', profileText: pasteText.trim(), platform: 'generic' },
       });
       if (fnError) throw fnError;

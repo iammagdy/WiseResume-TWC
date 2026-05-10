@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useResumeStore } from '@/store/resumeStore';
-import { edgeFunctions } from '@/lib/edgeFunctions';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 import {
   resumeSectionAiFnName,
   resumeSectionAiBodyProps,
@@ -140,7 +140,7 @@ export function SectionAIPopover({ open, onOpenChange, sectionName }: SectionAIP
     setErrorMsg(null);
 
     try {
-      const { data, error: invokeError } = await edgeFunctions.invoke<{ improved?: unknown }>(
+      const { data, error: invokeError } = await appwriteFunctions.invoke<{ improved?: unknown }>(
         resumeSectionAiFnName('enhance-section'),
         {
           body: {

@@ -1,5 +1,5 @@
 import { captureFeedback } from './captureErrorShim';
-import { edgeFunctions } from '@/lib/edgeFunctions';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 
 export type FeedbackType = 'bug' | 'feature' | 'contact' | 'auto-crash-report';
 
@@ -98,7 +98,7 @@ export async function sendFeedback(
     err?: unknown;
   }> => {
     try {
-      const { data, error } = await edgeFunctions.invoke<EdgeResponse>(
+      const { data, error } = await appwriteFunctions.invoke<EdgeResponse>(
         'send-contact-email',
         { body: emailBody },
       );
@@ -119,7 +119,7 @@ export async function sendFeedback(
     } catch (err) {
       if (opts.skipFallback) return { ok: false, saved: false, err };
       try {
-        const { data: fbData, error: fbError } = await edgeFunctions.invoke<EdgeResponse>(
+        const { data: fbData, error: fbError } = await appwriteFunctions.invoke<EdgeResponse>(
           'submit-contact-request',
           { body: emailBody },
         );

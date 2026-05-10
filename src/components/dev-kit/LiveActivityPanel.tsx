@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { RefreshCw, Activity, CheckCircle, AlertCircle, Clock, PlayCircle, Loader2, XCircle, AlertTriangle, Mail, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { edgeFunctions } from '@/lib/edgeFunctions';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { useAuth } from '@/hooks/useAuth';
 import { getDevKitToken, useDevKitSession, onDevKitLock } from '@/contexts/DevKitSessionContext';
 import { useVisibleInterval, useIsMounted } from '@/lib/devkit/hooks';
@@ -303,7 +303,7 @@ export function LiveActivityPanel() {
     setEventsLoading(true);
     setEventsError(null);
     try {
-      const tuple = await edgeFunctions.invoke('admin-devkit-data', {
+      const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
         headers: devKitAuthHeaders(),
         body: { action: 'live-activity', resource: 'usage_events' },
       });
@@ -322,7 +322,7 @@ export function LiveActivityPanel() {
   const fetchErrorLogs = useCallback(async () => {
     const token = getDevKitToken();
     if (!token) return;
-    const tuple = await edgeFunctions.invoke('admin-devkit-data', {
+    const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
       headers: devKitAuthHeaders(),
       body: { action: 'live-activity', resource: 'error_log' },
     });
@@ -342,7 +342,7 @@ export function LiveActivityPanel() {
     if (!token) return;
     setContactRequestsLoading(true);
     try {
-      const tuple = await edgeFunctions.invoke('admin-devkit-data', {
+      const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
         headers: devKitAuthHeaders(),
         body: { action: 'live-activity', resource: 'contact_requests' },
       });
@@ -387,7 +387,7 @@ export function LiveActivityPanel() {
       try {
         const body = def.buildBody(getDevKitToken() ?? '');
         const isAdminFn = def.name.startsWith('admin-');
-        const { data, error } = await edgeFunctions.invoke(def.name, {
+        const { data, error } = await appwriteFunctions.invoke(def.name, {
           ...(isAdminFn ? { headers: devKitAuthHeaders() } : {}),
           body,
         });

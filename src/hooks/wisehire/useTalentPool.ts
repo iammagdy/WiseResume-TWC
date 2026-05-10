@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { databases, ID, Query } from '@/lib/appwrite';
 import { COLLECTIONS, DATABASE_ID } from '@/lib/appwrite-collections';
-import { edgeFunctions } from '@/lib/edgeFunctions';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
@@ -30,7 +30,7 @@ export interface TalentSearchFilters {
 }
 
 async function callEdge<T>(name: string, body: object): Promise<T> {
-  const { data, error } = await edgeFunctions.invoke<T>(name, { body });
+  const { data, error } = await appwriteFunctions.invoke<T>(name, { body });
   if (error) {
     const e = new Error((error as { message?: string }).message ?? 'Request failed') as Error & { status?: number };
     e.status = (error as { status?: number }).status;

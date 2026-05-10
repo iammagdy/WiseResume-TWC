@@ -16,7 +16,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { edgeFunctions } from '@/lib/edgeFunctions';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
 import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
 import { useIsMounted } from '@/lib/devkit/hooks';
@@ -191,7 +191,7 @@ export function EmailAutomationsPanel() {
     setLoading(true);
     setError(null);
     try {
-      const tuple = await edgeFunctions.invoke('admin-email', {
+      const tuple = await appwriteFunctions.invoke('admin-email', {
         headers: devKitAuthHeaders(),
         body: { module: 'resend-stats', action: 'stats' },
       });
@@ -217,7 +217,7 @@ export function EmailAutomationsPanel() {
     setLookupLoading(true);
     setLookupResult(null);
     try {
-      const tuple = await edgeFunctions.invoke('admin-email', {
+      const tuple = await appwriteFunctions.invoke('admin-email', {
         headers: devKitAuthHeaders(),
         body: { module: 'resend-stats', action: 'lookup', email },
       });
@@ -253,7 +253,7 @@ export function EmailAutomationsPanel() {
     const loadingKey = audienceKey.replace('RESEND_AUDIENCE_', '') + '_' + action;
     setActionLoading(loadingKey);
     try {
-      const tuple = await edgeFunctions.invoke('admin-email', {
+      const tuple = await appwriteFunctions.invoke('admin-email', {
         headers: devKitAuthHeaders(),
         body: { module: 'resend-stats', action, audienceKey, email },
       });
@@ -278,7 +278,7 @@ export function EmailAutomationsPanel() {
     setSyncLoading(true);
     setSyncResult(null);
     try {
-      const tuple = await edgeFunctions.invoke('admin-email', {
+      const tuple = await appwriteFunctions.invoke('admin-email', {
         headers: devKitAuthHeaders(),
         body: { module: 'resend-sync' },
       });

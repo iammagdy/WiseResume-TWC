@@ -54,7 +54,7 @@ export function resumeSectionAiHeader(originalFn: string): Record<string, string
 /**
  * Returns the dispatch key/value that should be spread into the **body**
  * payload for a given legacy function name. Use this instead of
- * `resumeSectionAiHeader` when calling via `edgeFunctions.invoke()` /
+ * `resumeSectionAiHeader` when calling via `appwriteFunctions.invoke()` /
  * `functions.createExecution()`, where custom HTTP request headers are
  * not forwarded to the Appwrite Function.
  */

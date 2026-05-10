@@ -54,7 +54,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { edgeFunctions } from '@/lib/edgeFunctions';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { getDevKitToken } from '@/contexts/DevKitSessionContext';
 import { cn } from '@/lib/utils';
 import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
@@ -126,7 +126,7 @@ async function invoke<T = unknown>(
   extra: Record<string, unknown> = {},
 ): Promise<{ data: T | null; error: string | null }> {
   try {
-    const tuple = await edgeFunctions.invoke('admin-portfolio-usernames', {
+    const tuple = await appwriteFunctions.invoke('admin-portfolio-usernames', {
       headers: devKitAuthHeaders(),
       body: { action, ...extra },
     });

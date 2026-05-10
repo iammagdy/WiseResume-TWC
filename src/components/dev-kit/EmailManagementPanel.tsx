@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { edgeFunctions } from '@/lib/edgeFunctions';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { getDevKitToken } from '@/contexts/DevKitSessionContext';
 import type { AdminUser } from './AdminUsersPanel';
 import { useIsMounted } from '@/lib/devkit/hooks';
@@ -68,7 +68,7 @@ function UnconfirmedUsersSection({ onSendToUser }: UnconfirmedUsersProps) {
     setLoading(true);
     if (!append) setError(null);
     try {
-      const tuple = await edgeFunctions.invoke('admin-list-users', {
+      const tuple = await appwriteFunctions.invoke('admin-list-users', {
         headers: devKitAuthHeaders(),
         body: { page: pageNum,
           per_page: UNCONFIRMED_PER_PAGE,
@@ -116,7 +116,7 @@ function UnconfirmedUsersSection({ onSendToUser }: UnconfirmedUsersProps) {
       ? (user.contact_email ?? user.email)
       : user.email;
     try {
-      const tuple = await edgeFunctions.invoke('admin-email', {
+      const tuple = await appwriteFunctions.invoke('admin-email', {
         headers: devKitAuthHeaders(),
         body: { module: 'email-actions', action: 'resend_confirmation',
           target_user_id: user.user_id,
@@ -357,7 +357,7 @@ function ComposeEmailForm({
       if (!isMounted()) return;
       setSearching(true);
       try {
-        const tuple = await edgeFunctions.invoke('admin-list-users', {
+        const tuple = await appwriteFunctions.invoke('admin-list-users', {
           headers: devKitAuthHeaders(),
           body: { page: 1,
             per_page: 10,
@@ -427,7 +427,7 @@ function ComposeEmailForm({
       const recipientEmail = resolvedUserEmail ?? emailSearch.trim();
 
       if (isWiseHireInvite) {
-        const tuple = await edgeFunctions.invoke('admin-wisehire-invite', {
+        const tuple = await appwriteFunctions.invoke('admin-wisehire-invite', {
           headers: devKitAuthHeaders(),
           body: { recipient_email: recipientEmail },
         });
@@ -450,7 +450,7 @@ function ComposeEmailForm({
         body.custom_body = customBody.trim();
       }
 
-      const tuple = await edgeFunctions.invoke('admin-email', { headers: devKitAuthHeaders(), body });
+      const tuple = await appwriteFunctions.invoke('admin-email', { headers: devKitAuthHeaders(), body });
       const result = unwrapAdminResponse<{ email?: string; message_id?: string }>(tuple, 'admin-email');
       if (!isMounted()) return;
 
@@ -645,7 +645,7 @@ function RecentSendsSection() {
   const fetchRecentSends = useCallback(async () => {
     setLoading(true);
     try {
-      const tuple = await edgeFunctions.invoke('admin-audit-logs', {
+      const tuple = await appwriteFunctions.invoke('admin-audit-logs', {
         headers: devKitAuthHeaders(),
         body: { limit: 20, category_filter: 'admin_email' },
       });
@@ -734,7 +734,7 @@ export function EmailManagementPanel() {
     let cancelled = false;
     (async () => {
       try {
-        const tuple = await edgeFunctions.invoke('admin-email', {
+        const tuple = await appwriteFunctions.invoke('admin-email', {
           headers: devKitAuthHeaders(),
           body: { module: 'email-actions', action: 'diagnose' },
         });

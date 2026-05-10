@@ -13,7 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { edgeFunctions } from '@/lib/edgeFunctions';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { devKitInvokeOptions } from '@/lib/devkit/devKitAuth';
 import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
 import { useIsMounted } from '@/lib/devkit/hooks';
@@ -111,7 +111,7 @@ function BugInboxTab({ onCountChange }: { onCountChange?: (n: number) => void })
     setLoading(true);
     setError(null);
     try {
-      const tuple = await edgeFunctions.invoke(
+      const tuple = await appwriteFunctions.invoke(
         'admin-moderation',
         devKitInvokeOptions({ action: 'list_bug_reports', status_filter: statusFilter }),
       );
@@ -134,7 +134,7 @@ function BugInboxTab({ onCountChange }: { onCountChange?: (n: number) => void })
   const updateBug = useCallback(async (id: string, updates: { status?: string; private_note?: string }) => {
     setSaving(id);
     try {
-      const tuple = await edgeFunctions.invoke(
+      const tuple = await appwriteFunctions.invoke(
         'admin-moderation',
         devKitInvokeOptions({ action: 'update_bug_report', report_id: id, ...updates }),
       );
@@ -305,7 +305,7 @@ function BlocklistTab() {
     setLoading(true);
     setError(null);
     try {
-      const tuple = await edgeFunctions.invoke(
+      const tuple = await appwriteFunctions.invoke(
         'admin-moderation',
         devKitInvokeOptions({ action: 'list_blocklist' }),
       );
@@ -326,7 +326,7 @@ function BlocklistTab() {
     if (!form.value.trim()) return toast.error('Value is required');
     setAdding(true);
     try {
-      const tuple = await edgeFunctions.invoke(
+      const tuple = await appwriteFunctions.invoke(
         'admin-moderation',
         devKitInvokeOptions({ action: 'add_blocklist', type: form.type, value: form.value, reason: form.reason }),
       );
@@ -344,7 +344,7 @@ function BlocklistTab() {
   const removeEntry = useCallback(async (id: string) => {
     setRemoving(id);
     try {
-      const tuple = await edgeFunctions.invoke(
+      const tuple = await appwriteFunctions.invoke(
         'admin-moderation',
         devKitInvokeOptions({ action: 'remove_blocklist', entry_id: id }),
       );
@@ -461,7 +461,7 @@ function ModerationQueueTab() {
     setLoading(true);
     setError(null);
     try {
-      const tuple = await edgeFunctions.invoke(
+      const tuple = await appwriteFunctions.invoke(
         'admin-moderation',
         devKitInvokeOptions({ action: 'list_moderation_queue', status_filter: statusFilter }),
       );
@@ -482,7 +482,7 @@ function ModerationQueueTab() {
   const review = useCallback(async (id: string, decision: 'approved' | 'removed', suspendUser = false) => {
     setReviewing(id);
     try {
-      const tuple = await edgeFunctions.invoke(
+      const tuple = await appwriteFunctions.invoke(
         'admin-moderation',
         devKitInvokeOptions({ action: 'review_queue_item', item_id: id, decision, suspend_user: suspendUser }),
       );
@@ -606,7 +606,7 @@ export function ModerationPanel() {
     let active = true;
     async function fetchOpenCount() {
       try {
-        const tuple = await edgeFunctions.invoke(
+        const tuple = await appwriteFunctions.invoke(
           'admin-moderation',
           devKitInvokeOptions({ action: 'list_bug_reports', status_filter: 'open', per_page: 1 }),
         );

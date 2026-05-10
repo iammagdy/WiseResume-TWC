@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
-import { edgeFunctions } from '@/lib/edgeFunctions';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { toast } from 'sonner';
 
 export interface MaskResult {
@@ -15,7 +15,7 @@ export function useMaskCVs() {
       const form = new FormData();
       files.forEach((f) => form.append('files', f));
 
-      const { data, error } = await edgeFunctions.invoke<{
+      const { data, error } = await appwriteFunctions.invoke<{
         results: MaskResult[];
         requiresApiKey?: boolean;
         rateLimited?: boolean;

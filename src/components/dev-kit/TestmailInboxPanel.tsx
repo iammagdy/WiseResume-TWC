@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { edgeFunctions } from '@/lib/edgeFunctions';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
 import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
 import { useIsMounted } from '@/lib/devkit/hooks';
@@ -166,7 +166,7 @@ export function TestmailInboxPanel() {
     setLoading(true);
     setError(null);
     try {
-      const tuple = await edgeFunctions.invoke('admin-testmail', {
+      const tuple = await appwriteFunctions.invoke('admin-testmail', {
         headers: devKitAuthHeaders(),
         body: { module: 'testmail-inbox', tag: activeTag === 'all' ? null : activeTag },
       });
@@ -190,7 +190,7 @@ export function TestmailInboxPanel() {
   const handleSendTest = async () => {
     setSending(true);
     try {
-      const tuple = await edgeFunctions.invoke('admin-testmail', {
+      const tuple = await appwriteFunctions.invoke('admin-testmail', {
         headers: devKitAuthHeaders(),
         body: { module: 'testmail-send-test' },
       });

@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { useResignationLetter, useResignationLetterMutations } from '@/hooks/useResignationLetters';
 import { ResignationChecklist } from '@/components/resignation/ResignationChecklist';
 import { useAuth } from '@/hooks/useAuth';
-import { edgeFunctions } from '@/lib/edgeFunctions';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { haptics } from '@/lib/haptics';
 
 import { toast } from 'sonner';
@@ -128,7 +128,7 @@ export default function ResignationLetterEditPage() {
     if (!letter) return;
     setRegenerating(true);
     try {
-      const { data, error } = await edgeFunctions.invoke('generate-resignation-letter', {
+      const { data, error } = await appwriteFunctions.invoke('generate-resignation-letter', {
         body: {
           recipientName: letter.recipient_name,
           company: letter.company,

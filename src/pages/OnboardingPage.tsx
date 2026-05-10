@@ -14,7 +14,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useMe } from '@/hooks/useMe';
 import { toast } from 'sonner';
 import { parseResumePDF, parseResumePDFWithOCR, parseTextWithAI } from '@/lib/pdfParser';
-import { edgeFunctions } from '@/lib/edgeFunctions';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { databases, DATABASE_ID, Query } from '@/lib/appwrite';
 import { COLLECTIONS } from '@/lib/appwrite-collections';
 import {
@@ -350,7 +350,7 @@ export default function OnboardingPage() {
         }
       } else if (probe.profileText.trim().length > 50) {
         try {
-          const { data, error: fnError } = await edgeFunctions.invoke('parse-job', {
+          const { data, error: fnError } = await appwriteFunctions.invoke('parse-job', {
             body: { action: 'linkedin', profileText: probe.profileText, platform: 'linkedin' },
           });
           if (fnError) throw fnError;

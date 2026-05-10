@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { databases, ID, Query } from '@/lib/appwrite';
 import { COLLECTIONS, DATABASE_ID } from '@/lib/appwrite-collections';
-import { edgeFunctions } from '@/lib/edgeFunctions';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import type { Models } from 'appwrite';
@@ -69,7 +69,7 @@ export function useRunBulkScreen() {
       if (roleId) form.append('role_id', roleId);
       files.forEach((f) => form.append('files', f));
 
-      const { data, error } = await edgeFunctions.invoke<{
+      const { data, error } = await appwriteFunctions.invoke<{
         jobId: string | null;
         results: ScreenResult[];
         requiresApiKey?: boolean;

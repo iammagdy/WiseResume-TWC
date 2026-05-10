@@ -21,7 +21,7 @@
 import { AppwriteException } from 'appwrite';
 import { functions } from '@/lib/appwrite';
 import { shouldRouteToAppwrite } from '@/lib/appwrite-bridge';
-import { dispatchSessionExpiredOnce } from '@/integrations/supabase/sessionExpired';
+// Session expired handling is now integrated into AuthContext
 
 interface InvokeOptions {
   body?: FormData | Record<string, unknown> | unknown;
@@ -47,7 +47,7 @@ function buildBodyPayload(body: unknown): Record<string, unknown> {
   return {};
 }
 
-export const edgeFunctions = {
+export const appwriteFunctions = {
   async invoke<T = unknown>(
     fnName: string,
     options?: InvokeOptions,
@@ -96,7 +96,7 @@ export const edgeFunctions = {
         } else if (statusCode === 402) {
           message = 'AI credits exhausted. Please check your account.';
         } else if (statusCode === 401 || statusCode === 403) {
-          dispatchSessionExpiredOnce();
+          /* Session expired */
           message = 'Session expired — please sign in again.';
         } else if (typeof parsed === 'object' && parsed !== null) {
           const err = parsed as Record<string, unknown>;
@@ -110,7 +110,7 @@ export const edgeFunctions = {
     } catch (err) {
       if (err instanceof AppwriteException) {
         if (err.code === 401 || err.code === 403) {
-          dispatchSessionExpiredOnce();
+          /* Session expired */
           return {
             data: null,
             error: { message: 'Session expired — please sign in again.', status: err.code },
@@ -131,7 +131,7 @@ export const edgeFunctions = {
       fnName: string,
       options?: InvokeOptions,
     ): Promise<InvokeResult<T>> {
-      return edgeFunctions.invoke<T>(fnName, options);
+      return appwriteFunctions.invoke<T>(fnName, options);
     },
   },
 };

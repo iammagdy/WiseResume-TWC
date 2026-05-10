@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { UserX, X, Loader2 } from 'lucide-react';
 import { getImpersonationState, exitImpersonation, subscribe, isImpersonating, isNewTabSession } from '@/lib/impersonationStore';
-import { edgeFunctions } from '@/lib/edgeFunctions';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
 import { toast } from 'sonner';
 
@@ -9,7 +9,7 @@ const ACT_AS_CHANNEL = 'wr_act_as';
 
 async function callExit(userId: string | null): Promise<void> {
   try {
-    await edgeFunctions.invoke('admin-impersonate', {
+    await appwriteFunctions.invoke('admin-impersonate', {
       headers: devKitAuthHeaders(),
       body: { action: 'exit', target_user_id: userId },
     });

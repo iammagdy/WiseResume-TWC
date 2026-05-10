@@ -47,7 +47,7 @@ import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
 import { AISheetErrorBoundary } from '@/components/ai/AISheetErrorBoundary';
 import { useResumeMutations, resumeDataToDb, useResumes, dbToResumeData, DatabaseResume } from '@/hooks/useResumes';
 import { useAuth } from '@/hooks/useAuth';
-import { edgeFunctions } from '@/lib/edgeFunctions';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { databases, DATABASE_ID, ID } from '@/lib/appwrite';
 import { COLLECTIONS } from '@/lib/appwrite-collections';
 import { useRedactedResume } from '@/hooks/useRedactedResume';
@@ -792,10 +792,10 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
       };
 
       const [beforeResult, afterResult] = await Promise.all([
-        edgeFunctions.invoke<{ overallScore?: number }>('score-resume', {
+        appwriteFunctions.invoke<{ overallScore?: number }>('score-resume', {
           body: { resume: originalResume, source: 'background' },
         }),
-        edgeFunctions.invoke<{ overallScore?: number }>('score-resume', {
+        appwriteFunctions.invoke<{ overallScore?: number }>('score-resume', {
           body: { resume: tailoredResume, source: 'background' },
         }),
       ]);

@@ -5,7 +5,7 @@ import { useAIHealth, AIHealthStatus } from '@/hooks/useAIHealth';
 import { useAIHealthStore } from '@/store/aiHealthStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { cn } from '@/lib/utils';
-import { edgeFunctions } from '@/lib/edgeFunctions';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 
 type PingState = 'idle' | 'pinging' | 'done';
 
@@ -103,7 +103,7 @@ export function AIHealthBadge() {
   const runPing = useCallback(async () => {
     setPingState('pinging');
     try {
-      const { data, error } = await edgeFunctions.invoke<{
+      const { data, error } = await appwriteFunctions.invoke<{
         latencyMs?: number;
         status?: AIHealthStatus;
         errorCode?: number | null;

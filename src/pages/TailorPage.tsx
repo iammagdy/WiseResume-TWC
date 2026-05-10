@@ -33,7 +33,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { databases, DATABASE_ID, ID } from '@/lib/appwrite';
 import { COLLECTIONS } from '@/lib/appwrite-collections';
 import { useRedactedResume } from '@/hooks/useRedactedResume';
-import { edgeFunctions } from '@/lib/edgeFunctions';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 import {
   SuperTailorResult,
   TailorProgress,
@@ -440,7 +440,7 @@ export default function TailorPage() {
           const thisAbort = new AbortController();
           preValidateAbortRef.current = thisAbort;
           try {
-            const { data: vResult, error: vError } = await edgeFunctions.invoke<ValidatorResult>('validate-tailor', {
+            const { data: vResult, error: vError } = await appwriteFunctions.invoke<ValidatorResult>('validate-tailor', {
               body: {
                 originalResume: currentResume,
                 jobDescription,
@@ -513,7 +513,7 @@ export default function TailorPage() {
         return;
       }
       try {
-        const { data: fixes, error: fixError } = await edgeFunctions.invoke<FixSuggestion[]>('generate-fix-suggestions', {
+        const { data: fixes, error: fixError } = await appwriteFunctions.invoke<FixSuggestion[]>('generate-fix-suggestions', {
           body: {
             finalResume: preValidateMergedRef.current,
             jobDescription,
@@ -583,7 +583,7 @@ export default function TailorPage() {
       // On timeout or error we fall back to the generator's estimated score.
       let validatorResult: ValidatorResult | null = null;
       try {
-        const { data: vResult, error: vError } = await edgeFunctions.invoke<ValidatorResult>('validate-tailor', {
+        const { data: vResult, error: vError } = await appwriteFunctions.invoke<ValidatorResult>('validate-tailor', {
           body: {
             originalResume: currentResume,
             jobDescription,

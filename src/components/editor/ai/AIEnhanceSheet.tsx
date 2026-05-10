@@ -19,7 +19,7 @@ import { activityTracker } from '@/lib/activityTracker';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import type { ActionType, SectionType } from '@/hooks/useAIEnhance';
 import { useAIAction } from '@/hooks/useAIAction';
-import { edgeFunctions } from '@/lib/edgeFunctions';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 import {
   resumeSectionAiFnName,
   resumeSectionAiBodyProps,
@@ -261,7 +261,7 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
     // classifier (no global "AI temporarily unavailable" toast for transient
     // section failures). Privacy gate + credit cache invalidation still run.
     return executeAI(async () => {
-      const { data: respData, error: invokeError } = await edgeFunctions.invoke<Record<string, unknown>>(
+      const { data: respData, error: invokeError } = await appwriteFunctions.invoke<Record<string, unknown>>(
         resumeSectionAiFnName('enhance-section'),
         {
           body: {

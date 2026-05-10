@@ -5,7 +5,7 @@ import { WiseHireShell } from '@/components/wisehire/WiseHireShell';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { edgeFunctions } from '@/lib/edgeFunctions';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { useWiseHireAccount } from '@/hooks/wisehire/useWiseHireAccount';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
@@ -96,7 +96,7 @@ export default function WiseHireSubscriptionPage() {
     setCouponError('');
 
     try {
-      const { data, error } = await edgeFunctions.invoke<{ success: boolean; error?: string }>('coupons', {
+      const { data, error } = await appwriteFunctions.invoke<{ success: boolean; error?: string }>('coupons', {
         body: { code: couponCode.trim() },
         headers: { 'x-coupons-action': 'redeem' },
       });

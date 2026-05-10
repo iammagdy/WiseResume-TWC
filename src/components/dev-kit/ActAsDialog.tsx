@@ -32,7 +32,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { edgeFunctions } from '@/lib/edgeFunctions';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
 import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
 
@@ -165,7 +165,7 @@ export function ActAsDialog({ session, onClose }: Props) {
     if (!session) return;
     setRevoking(true);
     try {
-      const tuple = await edgeFunctions.invoke('admin-impersonate', {
+      const tuple = await appwriteFunctions.invoke('admin-impersonate', {
         headers: devKitAuthHeaders(),
         body: { action: 'revoke', target_user_id: session.userId },
       });

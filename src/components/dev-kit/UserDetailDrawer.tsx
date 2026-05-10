@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
-import { edgeFunctions } from '@/lib/edgeFunctions';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { databases, Query } from '@/lib/appwrite';
 import { COLLECTIONS, DATABASE_ID } from '@/lib/appwrite-collections';
 import { useAuth } from '@/hooks/useAuth';
@@ -234,7 +234,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     if (!open) return;
     let cancelled = false;
     setHistoryLoading(true);
-    edgeFunctions.invoke('admin-audit-logs', {
+    appwriteFunctions.invoke('admin-audit-logs', {
       headers: devKitAuthHeaders(),
       body: { limit: 500, target_user_id: user.user_id },
     }).then((tuple) => {
@@ -250,7 +250,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
       }
     });
 
-    edgeFunctions.invoke('admin-save-note', {
+    appwriteFunctions.invoke('admin-save-note', {
       headers: devKitAuthHeaders(),
       body: { target_user_id: user.user_id, action: 'list' },
     }).then((tuple) => {
@@ -278,7 +278,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     setActivityLoading(true);
     setActivityError(null);
 
-    const eventsPromise = edgeFunctions.invoke('admin-devkit-data', {
+    const eventsPromise = appwriteFunctions.invoke('admin-devkit-data', {
       headers: devKitAuthHeaders(),
       body: { action: 'live-activity', resource: 'usage_events', user_id: user.user_id },
     }).then((tuple) => {
@@ -292,7 +292,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
       }
     });
 
-    const statsPromise = edgeFunctions.invoke('admin-devkit-data', {
+    const statsPromise = appwriteFunctions.invoke('admin-devkit-data', {
       headers: devKitAuthHeaders(),
       body: { action: 'live-activity', resource: 'user_content_stats', user_id: user.user_id },
     }).then((tuple) => {
@@ -326,7 +326,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     let cancelled = false;
     setResumesLoading(true);
     setSelectedResume(null);
-    edgeFunctions.invoke('admin-list-user-content', {
+    appwriteFunctions.invoke('admin-list-user-content', {
       headers: devKitAuthHeaders(),
       body: { target_user_id: user.user_id },
     }).then((tuple) => {
@@ -357,7 +357,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     setUsernameAvailable(null);
     setUsernameChangedOldValue(null);
 
-    edgeFunctions.invoke('admin-update-profile', {
+    appwriteFunctions.invoke('admin-update-profile', {
       headers: devKitAuthHeaders(),
       body: {
         target_user_id: user.user_id,
@@ -390,7 +390,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     setIdentityData(null);
     setIdentityLoading(true);
     setShowMergeConfirm(false);
-    edgeFunctions.invoke('admin-get-identity', {
+    appwriteFunctions.invoke('admin-get-identity', {
       headers: devKitAuthHeaders(),
       body: { target_user_id: user.user_id },
     }).then((tuple) => {
@@ -434,7 +434,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
   const handleMergeIdentity = async () => {
     setMergingIdentity(true);
     try {
-      const tuple = await edgeFunctions.invoke('admin-merge-identity', {
+      const tuple = await appwriteFunctions.invoke('admin-merge-identity', {
         headers: devKitAuthHeaders(),
         body: { collision_user_id: user.user_id },
       });
@@ -488,7 +488,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
       const trimmedUsername = profileUsername.trim().toLowerCase();
       const trimmedName = profileFullName.trim();
 
-      const tuple = await edgeFunctions.invoke('admin-update-profile', {
+      const tuple = await appwriteFunctions.invoke('admin-update-profile', {
         headers: devKitAuthHeaders(),
         body: {
           target_user_id: user.user_id,
@@ -536,7 +536,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     if (selectedPlan === user.plan_name) { toast.info('Plan unchanged'); return; }
     setSavingPlan(true);
     try {
-      const tuple = await edgeFunctions.invoke('admin-set-plan', {
+      const tuple = await appwriteFunctions.invoke('admin-set-plan', {
         headers: devKitAuthHeaders(),
         body: { target_user_id: user.user_id, plan: selectedPlan },
       });
@@ -559,7 +559,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
   const handleGrantTrial = async () => {
     setSavingTrial(true);
     try {
-      const tuple = await edgeFunctions.invoke('admin-grant-trial', {
+      const tuple = await appwriteFunctions.invoke('admin-grant-trial', {
         headers: devKitAuthHeaders(),
         body: { target_user_id: user.user_id, plan: trialPlan, days: trialDays },
       });
@@ -579,7 +579,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
   const handleRevokeTrial = async () => {
     setRevokingTrial(true);
     try {
-      const tuple = await edgeFunctions.invoke('admin-revoke-trial', {
+      const tuple = await appwriteFunctions.invoke('admin-revoke-trial', {
         headers: devKitAuthHeaders(),
         body: { target_user_id: user.user_id },
       });
@@ -599,7 +599,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     setSavingSuspend(true);
     try {
       const suspend = !user.is_suspended;
-      const tuple = await edgeFunctions.invoke('admin-suspend-user', {
+      const tuple = await appwriteFunctions.invoke('admin-suspend-user', {
         headers: devKitAuthHeaders(),
         body: { target_user_id: user.user_id, suspend, reason: suspend ? suspendReason : null },
       });
@@ -624,7 +624,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     try {
       const parsedLimit = newDailyLimit !== '' ? Number(newDailyLimit) : undefined;
       const parsedBonus = bonusCredits ? Number(bonusCredits) : 0;
-      const tuple = await edgeFunctions.invoke('admin-set-credits', {
+      const tuple = await appwriteFunctions.invoke('admin-set-credits', {
         headers: devKitAuthHeaders(),
         body: {
           target_user_id: user.user_id,
@@ -655,7 +655,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     if (!noteText.trim()) return;
     setSavingNote(true);
     try {
-      const tuple = await edgeFunctions.invoke('admin-save-note', {
+      const tuple = await appwriteFunctions.invoke('admin-save-note', {
         headers: devKitAuthHeaders(),
         body: { target_user_id: user.user_id, note_text: noteText },
       });
@@ -675,7 +675,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
   const handleDeleteNote = async (noteId: string) => {
     setDeletingNoteId(noteId);
     try {
-      const tuple = await edgeFunctions.invoke('admin-save-note', {
+      const tuple = await appwriteFunctions.invoke('admin-save-note', {
         headers: devKitAuthHeaders(),
         body: {
           target_user_id: user.user_id,
@@ -699,7 +699,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
   const handleRevokeSessions = async () => {
     setRevokingSessions(true);
     try {
-      const tuple = await edgeFunctions.invoke('admin-revoke-sessions', {
+      const tuple = await appwriteFunctions.invoke('admin-revoke-sessions', {
         headers: devKitAuthHeaders(),
         body: {
           target_user_id: user.user_id,
@@ -720,7 +720,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     if (deleteEmailConfirm !== user.email) return;
     setDeletingUser(true);
     try {
-      const tuple = await edgeFunctions.invoke('admin-delete-user', {
+      const tuple = await appwriteFunctions.invoke('admin-delete-user', {
         headers: devKitAuthHeaders(),
         body: {
           target_user_id: user.user_id,
@@ -744,7 +744,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     if (resetConfirmText !== 'RESET') return;
     setResettingUser(true);
     try {
-      const tuple = await edgeFunctions.invoke('admin-wisehire-reset-user', {
+      const tuple = await appwriteFunctions.invoke('admin-wisehire-reset-user', {
         headers: devKitAuthHeaders(),
         body: {
           target_user_id: user.user_id,
@@ -784,7 +784,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
   const handleLoadResumeDetail = async (resumeId: string) => {
     setResumeDetailLoading(true);
     try {
-      const tuple = await edgeFunctions.invoke('admin-list-user-content', {
+      const tuple = await appwriteFunctions.invoke('admin-list-user-content', {
         headers: devKitAuthHeaders(),
         body: { target_user_id: user.user_id, resume_id: resumeId },
       });

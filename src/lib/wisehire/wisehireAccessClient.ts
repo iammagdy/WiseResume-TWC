@@ -1,4 +1,4 @@
-import { edgeFunctions } from '@/lib/edgeFunctions';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 
 /**
  * Task #50 — wisehire-access merge (5 → 1).
@@ -37,5 +37,5 @@ export function invokeWisehireAccess<T = unknown>(
     ? { action, ...body }
     : body;
 
-  return edgeFunctions.invoke<T>(fnName, { body: payload });
+  return appwriteFunctions.invoke<T>(fnName, { body: payload });
 }

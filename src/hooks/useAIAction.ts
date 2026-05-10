@@ -25,7 +25,7 @@ function coerceToAIError(err: unknown): AIError {
   }
   // Pull any structured fields off the thrown value (works for both plain
   // objects AND Error subclasses that carry status/code/body, e.g. the
-  // shapes that `edgeFunctions.functions.invoke` and our own fetch wrapper
+  // shapes that `appwriteFunctions.functions.invoke` and our own fetch wrapper
   // throw). We *prefer* explicit status/code over message sniffing.
   if (err && typeof err === 'object') {
     const obj = err as Record<string, unknown>;

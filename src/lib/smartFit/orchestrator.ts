@@ -251,12 +251,12 @@ async function defaultRewriteFn(
   candidates: RewriteRequest[],
   jobDescription?: string,
 ): Promise<RewriteOutcome[]> {
-  const { edgeFunctions } = await import('@/lib/edgeFunctions');
-  const { data, error } = await edgeFunctions.invoke('smart-fit-rewrite', {
+  const { appwriteFunctions } = await import('@/lib/appwrite-functions');
+  const { data, error } = await appwriteFunctions.invoke('smart-fit-rewrite', {
     body: { candidates, jobDescription },
   });
   if (error) {
-    // edgeFunctions wrapper catches fetch failures and returns { data: null, error: { message } }
+    // appwriteFunctions wrapper catches fetch failures and returns { data: null, error: { message } }
     // with no status field — those are network errors.
     const e = error as { message?: string; status?: number };
     const status = e.status ?? 0;

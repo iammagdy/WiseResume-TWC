@@ -8,7 +8,7 @@ import { checkAIFallback } from '@/lib/aiFallbackToast';
 import { redactResumeForAI } from '@/lib/piiRedact';
 import { useSettingsStore } from '@/store/settingsStore';
 import { parseAIErrorBody, aiErrorToastMessage, AIError } from '@/lib/aiErrorParser';
-import { edgeFunctions } from '@/lib/edgeFunctions';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 import {
   resumeSectionAiFnName,
   resumeSectionAiBodyProps,
@@ -126,7 +126,7 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
           redactPiiBeforeAI,
         );
 
-        const { data: respData, error: invokeError } = await edgeFunctions.invoke<Record<string, unknown>>(
+        const { data: respData, error: invokeError } = await appwriteFunctions.invoke<Record<string, unknown>>(
           resumeSectionAiFnName('enhance-section'),
           {
             body: {

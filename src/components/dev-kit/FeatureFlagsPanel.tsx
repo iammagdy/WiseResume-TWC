@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { edgeFunctions } from '@/lib/edgeFunctions';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { devKitInvokeOptions } from '@/lib/devkit/devKitAuth';
 import { useIsMounted } from '@/lib/devkit/hooks';
 import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
@@ -391,7 +391,7 @@ export function FeatureFlagsPanel() {
     setLoading(true);
     setError(null);
     try {
-      const tuple = await edgeFunctions.invoke(
+      const tuple = await appwriteFunctions.invoke(
         'admin-feature-flags',
         devKitInvokeOptions({ action: 'list' }),
       );
@@ -413,7 +413,7 @@ export function FeatureFlagsPanel() {
   const handleToggleGlobal = useCallback(async (flag: FeatureFlag) => {
     setSaving(flag.name);
     try {
-      const tuple = await edgeFunctions.invoke(
+      const tuple = await appwriteFunctions.invoke(
         'admin-feature-flags',
         devKitInvokeOptions({
           action: 'upsert',
@@ -447,7 +447,7 @@ export function FeatureFlagsPanel() {
       if (!name) return;
       setSaving(name);
       try {
-        const tuple = await edgeFunctions.invoke(
+        const tuple = await appwriteFunctions.invoke(
           'admin-feature-flags',
           devKitInvokeOptions({ action: 'upsert', ...data }),
         );
@@ -477,7 +477,7 @@ export function FeatureFlagsPanel() {
       if (!confirm(`Delete flag "${name}"? This cannot be undone.`)) return;
       setDeleting(name);
       try {
-        const tuple = await edgeFunctions.invoke(
+        const tuple = await appwriteFunctions.invoke(
           'admin-feature-flags',
           devKitInvokeOptions({ action: 'delete', name }),
         );

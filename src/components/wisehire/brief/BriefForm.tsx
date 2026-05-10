@@ -6,7 +6,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { Loader2, Sparkles, KeyRound, AlertCircle } from 'lucide-react';
-import { edgeFunctions } from '@/lib/edgeFunctions';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 import type { CandidateBrief } from '@/hooks/wisehire/useBriefs';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
@@ -45,7 +45,7 @@ export function BriefForm({ candidates, defaultCandidateId, defaultJd, onResult 
     setRequiresKey(false);
 
     try {
-      const { data, error: fnErr } = await edgeFunctions.invoke('wisehire-generate-brief', {
+      const { data, error: fnErr } = await appwriteFunctions.invoke('wisehire-generate-brief', {
         body: { candidate_id: candidateId, jd_text: jdText.trim() },
       });
 

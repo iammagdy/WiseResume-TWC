@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { edgeFunctions } from '@/lib/edgeFunctions';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { databases, account, Query } from '@/lib/appwrite';
 import { COLLECTIONS, DATABASE_ID } from '@/lib/appwrite-collections';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -210,14 +210,14 @@ export function DevKitRunner() {
       id: 'who-am-i', label: 'Who am I?', description: 'Call /me edge function', section: 'auth',
       run: async (): Promise<TestResult> => {
         if (!auth.isAuthenticated) return { status: 'warn' as const, summary: 'Skipped — sign in to the main app first', durationMs: 0 };
-        return strictInvoke('who-am-i', () => edgeFunctions.invoke('me'));
+        return strictInvoke('who-am-i', () => appwriteFunctions.invoke('me'));
       },
     },
     // === EMAIL ===
     {
       id: 'email-service', label: 'Email Service Test', description: 'Validates the email pipeline configuration using dry_run mode — no real email is sent.', section: 'email',
       run: () => strictInvoke('email-service', async () => {
-        const res = await edgeFunctions.invoke('send-contact-email', {
+        const res = await appwriteFunctions.invoke('send-contact-email', {
           body: { type: 'contact', email: 'contact@thewise.cloud', subject: '[HC] Email Service Test', message: 'Dev Kit smoke test — email pipeline verification.', metadata: { source: 'dev-kit' }, dry_run: true }
         });
         if (res.error) throw new Error(toRunnerError(res.error).message || 'Email function error');
@@ -231,19 +231,19 @@ export function DevKitRunner() {
     {
       id: 'tailor-resume', label: 'Tailor Resume (smoke)', description: 'Smoke-test tailor-resume edge function — no AI call, no credit deduction', section: 'ai',
       run: async (): Promise<TestResult> => {
-        return strictInvoke('tailor-resume', () => edgeFunctions.invoke('tailor-resume', { headers: { 'x-smoke-test': 'true', ...devKitAuthHeaders() }, body: { resume: MINIMAL_RESUME, jobDescription: SAMPLE_JD, intensity: 'light' } }));
+        return strictInvoke('tailor-resume', () => appwriteFunctions.invoke('tailor-resume', { headers: { 'x-smoke-test': 'true', ...devKitAuthHeaders() }, body: { resume: MINIMAL_RESUME, jobDescription: SAMPLE_JD, intensity: 'light' } }));
       },
     },
     {
       id: 'agentic-chat', label: 'Agentic Chat (smoke)', description: 'Smoke-test agentic-chat edge function — no AI call, no credit deduction', section: 'ai',
       run: async (): Promise<TestResult> => {
-        return strictInvoke('agentic-chat', () => edgeFunctions.invoke('agentic-chat', { headers: { 'x-smoke-test': 'true', ...devKitAuthHeaders() }, body: { message: 'What can you help me with?', conversationHistory: [], currentResume: null } }));
+        return strictInvoke('agentic-chat', () => appwriteFunctions.invoke('agentic-chat', { headers: { 'x-smoke-test': 'true', ...devKitAuthHeaders() }, body: { message: 'What can you help me with?', conversationHistory: [], currentResume: null } }));
       },
     },
     {
       id: 'smart-fit-rewrite', label: 'Smart Fit Rewrite (smoke)', description: 'Smoke-test smart-fit-rewrite edge function — no AI call, no credit deduction', section: 'ai',
       run: async (): Promise<TestResult> => {
-        return strictInvoke('smart-fit-rewrite', () => edgeFunctions.invoke('smart-fit-rewrite', { headers: { 'x-smoke-test': 'true', ...devKitAuthHeaders() }, body: { mode: 'rewrite', candidates: [], jobDescription: SAMPLE_JD } }));
+        return strictInvoke('smart-fit-rewrite', () => appwriteFunctions.invoke('smart-fit-rewrite', { headers: { 'x-smoke-test': 'true', ...devKitAuthHeaders() }, body: { mode: 'rewrite', candidates: [], jobDescription: SAMPLE_JD } }));
       },
     },
     {
@@ -251,7 +251,7 @@ export function DevKitRunner() {
       run: async (): Promise<TestResult> => {
         if (!auth.isAuthenticated) return { status: 'warn' as const, summary: 'Skipped — sign in first', durationMs: 0 };
         return strictInvoke('ai-engine-openrouter', async () => {
-          const res = await edgeFunctions.invoke('ai-test', { body: { wiseresumeSubProvider: 'openrouter' } });
+          const res = await appwriteFunctions.invoke('ai-test', { body: { wiseresumeSubProvider: 'openrouter' } });
           if (res.error) throw new Error(toRunnerError(res.error).message || 'ai-test error');
           if (!res.data?.success) throw new Error(res.data?.error || 'ai-test returned failure');
           return { engine: 'openrouter', model: res.data.model, latencyMs: res.data.latencyMs, response: res.data.response };
@@ -263,7 +263,7 @@ export function DevKitRunner() {
       run: async (): Promise<TestResult> => {
         if (!auth.isAuthenticated) return { status: 'warn' as const, summary: 'Skipped — sign in first', durationMs: 0 };
         return strictInvoke('ai-engine-groq', async () => {
-          const res = await edgeFunctions.invoke('ai-test', { body: { wiseresumeSubProvider: 'groq' } });
+          const res = await appwriteFunctions.invoke('ai-test', { body: { wiseresumeSubProvider: 'groq' } });
           if (res.error) throw new Error(toRunnerError(res.error).message || 'ai-test error');
           if (!res.data?.success) throw new Error(res.data?.error || 'ai-test returned failure');
           return { engine: 'groq', model: res.data.model, latencyMs: res.data.latencyMs, response: res.data.response };
@@ -275,7 +275,7 @@ export function DevKitRunner() {
       run: async (): Promise<TestResult> => {
         if (!auth.isAuthenticated) return { status: 'warn' as const, summary: 'Skipped — sign in first', durationMs: 0 };
         return strictInvoke('ai-engine-nvidia', async () => {
-          const res = await edgeFunctions.invoke('ai-test', { body: { wiseresumeSubProvider: 'nvidia' } });
+          const res = await appwriteFunctions.invoke('ai-test', { body: { wiseresumeSubProvider: 'nvidia' } });
           if (res.error) throw new Error(toRunnerError(res.error).message || 'ai-test error');
           if (!res.data?.success) throw new Error(res.data?.error || 'ai-test returned failure');
           return { engine: 'nvidia', model: res.data.model, latencyMs: res.data.latencyMs, response: res.data.response };
@@ -289,7 +289,7 @@ export function DevKitRunner() {
         if (!auth.isAuthenticated) return { status: 'warn', summary: 'Skipped — sign in first', durationMs: 0 };
         return strictInvoke('byok-status', async () => {
           const s = useSettingsStore.getState();
-          const res = await edgeFunctions.invoke('manage-api-keys', { method: 'GET' } as Parameters<typeof edgeFunctions.invoke>[1]);
+          const res = await appwriteFunctions.invoke('manage-api-keys', { method: 'GET' } as Parameters<typeof appwriteFunctions.invoke>[1]);
           if (res.error) throw new Error((res.error as { message?: string }).message || 'manage-api-keys error');
           const keys: Array<{ provider: string; hint: string }> = Array.isArray(res.data?.keys) ? res.data.keys : [];
           return {
@@ -309,7 +309,7 @@ export function DevKitRunner() {
       run: async (): Promise<TestResult> => {
         if (!auth.isAuthenticated) return { status: 'warn', summary: 'Skipped — sign in first', durationMs: 0 };
         return strictInvoke(`byok-probe-${provider}`, async () => {
-          const res = await edgeFunctions.invoke('manage-api-keys', { method: 'GET' } as Parameters<typeof edgeFunctions.invoke>[1]);
+          const res = await appwriteFunctions.invoke('manage-api-keys', { method: 'GET' } as Parameters<typeof appwriteFunctions.invoke>[1]);
           if (res.error) throw new Error((res.error as { message?: string }).message || 'manage-api-keys error');
           const keys: Array<{ provider: string; hint: string }> = Array.isArray(res.data?.keys) ? res.data.keys : [];
           const match = keys.find((k) => k.provider === provider);
@@ -372,38 +372,38 @@ export function DevKitRunner() {
     {
       id: 'resume-section-ai', label: 'Resume Section AI (smoke)', description: 'Smoke-test resume-section-ai edge function (enhance action) — no AI call, no credit deduction', section: 'ai',
       run: async (): Promise<TestResult> => {
-        return strictInvoke('resume-section-ai', () => edgeFunctions.invoke('resume-section-ai', { headers: { 'x-smoke-test': 'true', 'x-resume-section-ai-action': 'enhance', ...devKitAuthHeaders() }, body: { section: 'summary', currentContent: MINIMAL_RESUME.summary, context: { resume: MINIMAL_RESUME } } }));
+        return strictInvoke('resume-section-ai', () => appwriteFunctions.invoke('resume-section-ai', { headers: { 'x-smoke-test': 'true', 'x-resume-section-ai-action': 'enhance', ...devKitAuthHeaders() }, body: { section: 'summary', currentContent: MINIMAL_RESUME.summary, context: { resume: MINIMAL_RESUME } } }));
       },
     },
     {
       id: 'editor-ai-analyze', label: 'Editor AI — Analyze (smoke)', description: 'Smoke-test editor-ai router, analyze action — no AI call, no credit deduction', section: 'ai',
       run: async (): Promise<TestResult> => {
-        return strictInvoke('editor-ai-analyze', () => edgeFunctions.invoke('editor-ai', { headers: { 'x-smoke-test': 'true', 'x-editor-ai-action': 'analyze', ...devKitAuthHeaders() }, body: { resume: MINIMAL_RESUME, jobDescription: SAMPLE_JD } }));
+        return strictInvoke('editor-ai-analyze', () => appwriteFunctions.invoke('editor-ai', { headers: { 'x-smoke-test': 'true', 'x-editor-ai-action': 'analyze', ...devKitAuthHeaders() }, body: { resume: MINIMAL_RESUME, jobDescription: SAMPLE_JD } }));
       },
     },
     {
       id: 'editor-ai-recruiter-sim', label: 'Editor AI — Recruiter Sim (smoke)', description: 'Smoke-test editor-ai router, recruiter-sim action — no AI call, no credit deduction', section: 'ai',
       run: async (): Promise<TestResult> => {
-        return strictInvoke('editor-ai-recruiter-sim', () => edgeFunctions.invoke('editor-ai', { headers: { 'x-smoke-test': 'true', 'x-editor-ai-action': 'recruiter-sim', ...devKitAuthHeaders() }, body: { resume: MINIMAL_RESUME, persona: 'startup' } }));
+        return strictInvoke('editor-ai-recruiter-sim', () => appwriteFunctions.invoke('editor-ai', { headers: { 'x-smoke-test': 'true', 'x-editor-ai-action': 'recruiter-sim', ...devKitAuthHeaders() }, body: { resume: MINIMAL_RESUME, persona: 'startup' } }));
       },
     },
     {
       id: 'editor-ai-suggest-template', label: 'Editor AI — Suggest Template (smoke)', description: 'Smoke-test editor-ai router, suggest-template action — no AI call, no credit deduction', section: 'ai',
       run: async (): Promise<TestResult> => {
-        return strictInvoke('editor-ai-suggest-template', () => edgeFunctions.invoke('editor-ai', { headers: { 'x-smoke-test': 'true', 'x-editor-ai-action': 'suggest-template', ...devKitAuthHeaders() }, body: { jobTitle: 'Software Engineer', industry: 'Technology', skills: ['TypeScript', 'React'] } }));
+        return strictInvoke('editor-ai-suggest-template', () => appwriteFunctions.invoke('editor-ai', { headers: { 'x-smoke-test': 'true', 'x-editor-ai-action': 'suggest-template', ...devKitAuthHeaders() }, body: { jobTitle: 'Software Engineer', industry: 'Technology', skills: ['TypeScript', 'React'] } }));
       },
     },
     {
       id: 'editor-ai-optimize-linkedin', label: 'Editor AI — LinkedIn Optimizer (smoke)', description: 'Smoke-test editor-ai router, optimize-for-linkedin action — no AI call, no credit deduction', section: 'ai',
       run: async (): Promise<TestResult> => {
-        return strictInvoke('editor-ai-optimize-linkedin', () => edgeFunctions.invoke('editor-ai', { headers: { 'x-smoke-test': 'true', 'x-editor-ai-action': 'optimize-for-linkedin', ...devKitAuthHeaders() }, body: { resume: MINIMAL_RESUME } }));
+        return strictInvoke('editor-ai-optimize-linkedin', () => appwriteFunctions.invoke('editor-ai', { headers: { 'x-smoke-test': 'true', 'x-editor-ai-action': 'optimize-for-linkedin', ...devKitAuthHeaders() }, body: { resume: MINIMAL_RESUME } }));
       },
     },
     {
       id: 'cover-letter', label: 'Cover Letter', description: 'Call generate-cover-letter edge function', section: 'ai',
       run: async (): Promise<TestResult> => {
         if (!auth.isAuthenticated) return { status: 'warn' as const, summary: 'Skipped — sign in first', durationMs: 0 };
-        return strictInvoke('cover-letter', () => edgeFunctions.invoke('generate-cover-letter', { body: { resume: MINIMAL_RESUME, jobDescription: SAMPLE_JD, tone: 'professional' } }));
+        return strictInvoke('cover-letter', () => appwriteFunctions.invoke('generate-cover-letter', { body: { resume: MINIMAL_RESUME, jobDescription: SAMPLE_JD, tone: 'professional' } }));
       },
     },
     // === DB ===

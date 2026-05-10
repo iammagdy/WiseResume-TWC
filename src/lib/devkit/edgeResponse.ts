@@ -6,7 +6,7 @@
  *   { success: false, error: '...' } / { error: '...' } / 4xx-5xx upstream
  *
  * `unwrapAdminResponse` accepts the `{ data, error }` tuple returned by
- * `edgeFunctions.invoke(...)` and either returns a typed payload
+ * `appwriteFunctions.invoke(...)` and either returns a typed payload
  * or throws an `EdgeFunctionError` whose message is safe to surface.
  *
  * This replaces dozens of unchecked `as { success?; error?; … }` casts
@@ -51,7 +51,7 @@ function looksLikeNotDeployed(err: InvokeError): boolean {
   //
   // Signatures that DO mean "function/transport unreachable":
   //   • Browser network failure → "failed to fetch" (Fetch API) or
-  //     edgeFunctions.invoke's friendlier rewrite "cannot reach the server".
+  //     appwriteFunctions.invoke's friendlier rewrite "cannot reach the server".
   //   • Gateway 404 with non-JSON body → the admin-invoker's HTTP-status
   //     fallback "Server error (HTTP 404) — please try again." (the body was
   //     HTML so no `.error` field was found to override the fallback).
@@ -133,7 +133,7 @@ export function formatEdgeError(e: unknown, fallback = 'Unknown error'): string 
 /**
  * Counterpart to `unwrapAdminResponse` for the local Express admin API
  * (i.e. `/api/admin/...` routes — these are NOT Appwrite Functions and
- * therefore can't go through `edgeFunctions.invoke`). Performs the
+ * therefore can't go through `appwriteFunctions.invoke`). Performs the
  * same error normalization so DevKit panels never call `fetch` directly:
  *   - non-2xx response → throws EdgeFunctionError with `{ error }` body or
  *     `HTTP <status>` fallback (sets `notDeployed` for 404).

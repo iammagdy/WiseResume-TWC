@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { edgeFunctions } from '@/lib/edgeFunctions';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { toast } from 'sonner';
 import editorLogger from '@/lib/editorLogger';
 import { GapInfo, formatDuration } from '@/lib/dateUtils';
@@ -98,7 +98,7 @@ export function GapExplainerSheet({ isOpen, onClose, gap, experiences, onAddToSu
       const { previousJob, nextJob } = getSurroundingJobs();
 
       const result = await executeAI(async () => {
-        const { data, error } = await edgeFunctions.invoke('explain-gap', {
+        const { data, error } = await appwriteFunctions.invoke('explain-gap', {
           body: {
             gap: {
               startDate: formatGapDate(gap.startDate),

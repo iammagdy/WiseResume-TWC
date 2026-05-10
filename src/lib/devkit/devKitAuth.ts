@@ -27,7 +27,7 @@ export function devKitAuthHeaders(): Record<string, string> {
  * attached as `Authorization: Bearer …`. Use this for every admin-* /
  * DevKit edge call:
  *
- *     await edgeFunctions.invoke(
+ *     await appwriteFunctions.invoke(
  *       'admin-list-users',
  *       devKitInvokeOptions({ page: 1 }),
  *     );

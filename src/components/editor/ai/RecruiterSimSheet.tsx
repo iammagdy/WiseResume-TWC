@@ -27,7 +27,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useResumeStore } from '@/store/resumeStore';
 import { useShallow } from 'zustand/react/shallow';
-import { edgeFunctions } from '@/lib/edgeFunctions';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { toast } from 'sonner';
 import editorLogger from '@/lib/editorLogger';
 import {
@@ -91,7 +91,7 @@ export function RecruiterSimSheet({ open, onOpenChange }: RecruiterSimSheetProps
 
     try {
       const result = await executeAI(async () => {
-        const { data, error } = await edgeFunctions.invoke('recruiter-simulation', {
+        const { data, error } = await appwriteFunctions.invoke('recruiter-simulation', {
           body: {
             resume: currentResume,
             persona: persona.id,
@@ -164,13 +164,13 @@ export function RecruiterSimSheet({ open, onOpenChange }: RecruiterSimSheetProps
       }
 
       // 2. Call AI to apply the fix (with credit check).
-      // Note: `edgeFunctions.invoke('enhance-section', …)` is
+      // Note: `appwriteFunctions.invoke('enhance-section', …)` is
       // transparently rewritten to `resume-section-ai` with the correct
       // `x-resume-section-ai-action: enhance` header by
-      // `rewriteResumeSectionAiInvoke` in edgeFunctions.ts. No manual
+      // `rewriteResumeSectionAiInvoke` in appwriteFunctions.ts. No manual
       // URL change needed here.
       const result = await executeAI(async () => {
-        const { data, error } = await edgeFunctions.invoke('enhance-section', {
+        const { data, error } = await appwriteFunctions.invoke('enhance-section', {
           body: {
             section: target.section,
             action: 'fix_error',

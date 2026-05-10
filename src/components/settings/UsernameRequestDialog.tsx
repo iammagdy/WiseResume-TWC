@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { AtSign, Send, CheckCircle2 } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
-import { edgeFunctions } from '@/lib/edgeFunctions';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { useAuth } from '@/hooks/useAuth';
 
 interface UsernameRequestDialogProps {
@@ -59,7 +59,7 @@ export function UsernameRequestDialog({
     };
 
     try {
-      const { data: res, error } = await edgeFunctions.invoke('send-contact-email', {
+      const { data: res, error } = await appwriteFunctions.invoke('send-contact-email', {
         body: payload,
       });
       if (error) throw error;

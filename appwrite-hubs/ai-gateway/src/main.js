@@ -71,16 +71,10 @@ const DB_ID = 'main';
  *  • Reasoning / analysis   → deepseek
  *  • Lightweight classifier  → groq (llama-3.1-8b-instant)
  */
-const FEATURE_ROUTES = {
-  // ── Quality-critical: cover letters, resume tailoring, recruiter sim ──
-  // NVIDIA Nemotron 70B gives the strongest instruction-following for long
-  // generative tasks where quality matters more than raw speed.
+let FEATURE_ROUTES = {
   'generate-cover-letter':      { provider: 'nvidia', model: 'nvidia/llama-3.1-nemotron-70b-instruct' },
   'tailor-resume':              { provider: 'nvidia', model: 'nvidia/llama-3.1-nemotron-70b-instruct' },
   'recruiter-simulation':       { provider: 'nvidia', model: 'nvidia/llama-3.1-nemotron-70b-instruct' },
-
-  // ── Speed-critical: chat, bullet/section rewrites, quick transforms ──
-  // Groq inference is the fastest available; streaming UX benefits most here.
   'agentic-chat':               { provider: 'groq', model: 'llama-3.3-70b-versatile' },
   'wise-ai-chat':               { provider: 'groq', model: 'llama-3.3-70b-versatile' },
   'resume-section-ai':          { provider: 'groq', model: 'llama-3.3-70b-versatile' },
@@ -91,23 +85,26 @@ const FEATURE_ROUTES = {
   'generate-portfolio-bio':     { provider: 'groq', model: 'llama-3.3-70b-versatile' },
   'generate-resignation-letter':{ provider: 'groq', model: 'llama-3.3-70b-versatile' },
   'validate-tailor':            { provider: 'groq', model: 'llama-3.3-70b-versatile' },
-
-  // Lightweight template classifier — tiny model is sufficient
   'suggest-template':           { provider: 'groq', model: 'llama-3.1-8b-instant' },
-
-  // ── Reasoning / analysis ──
-  // DeepSeek excels at structured analysis and multi-step reasoning.
   'analyze-resume':             { provider: 'deepseek', model: 'deepseek-chat' },
   'generate-fix-suggestions':   { provider: 'deepseek', model: 'deepseek-chat' },
-
-  // ── Long-context / parsing / general ──
-  // OpenRouter gives broad free-tier access; good for parsing & factual tasks.
   'parse-resume':               { provider: 'openrouter', model: 'meta-llama/llama-3.3-70b-instruct:free' },
   'parse-job':                  { provider: 'openrouter', model: 'meta-llama/llama-3.3-70b-instruct:free' },
   'optimize-for-linkedin':      { provider: 'openrouter', model: 'meta-llama/llama-3.3-70b-instruct:free' },
   'generate-question-bank':     { provider: 'openrouter', model: 'meta-llama/llama-3.3-70b-instruct:free' },
   'company-briefing':           { provider: 'openrouter', model: 'meta-llama/llama-3.3-70b-instruct:free' },
 };
+
+async function syncDynamicRoutes(db) {
+  try {
+    const res = await db.listDocuments(DB_ID, 'ai_routing_config');
+    res.documents.forEach(doc => {
+      FEATURE_ROUTES[doc.feature_id] = { provider: doc.provider, model: doc.model };
+    });
+  } catch (e) {
+    // Silently fallback to static routes if collection doesn't exist yet
+  }
+}
 
 function getDbClient() {
   const endpoint  = process.env.APPWRITE_FUNCTION_API_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
@@ -179,6 +176,8 @@ function pickProvider(featureName, pool) {
 
 module.exports = async ({ req, res, log, error }) => {
   enableLLMObs();
+  const db = getDbClient();
+  await syncDynamicRoutes(db);
 
   // Broad outer catch — preserves the JSON error contract on any unexpected failure.
   try {

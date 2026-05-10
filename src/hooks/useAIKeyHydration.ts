@@ -3,8 +3,8 @@
  *
  * BYOK is currently disabled (useIsBYOK always returns false).
  * This hook is kept as a no-op so call sites don't need to change.
- * When BYOK is re-enabled, swap the queryFn to use the Appwrite `edgeFunctions`
- * from `@/lib/edgeFunctions` (already migrated to Appwrite JWT auth).
+ * When BYOK is re-enabled, swap the queryFn to use the Appwrite `appwriteFunctions`
+ * from `@/lib/appwrite-functions` (already migrated to Appwrite JWT auth).
  */
 import { useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';

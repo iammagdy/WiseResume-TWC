@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { databases, DATABASE_ID, Query, ID } from '@/lib/appwrite';
 import { COLLECTIONS } from '@/lib/appwrite-collections';
-import { edgeFunctions } from '@/lib/edgeFunctions';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
 
@@ -143,7 +143,7 @@ export function usePublicResume(token: string | null, passwordAttempt?: string) 
           return { requires_password: true, authenticated: false };
         }
         // Delegate comparison to the server-side Appwrite Function.
-        const { data, error } = await edgeFunctions.invoke<{ authenticated: boolean }>(
+        const { data, error } = await appwriteFunctions.invoke<{ authenticated: boolean }>(
           'verify-share-password',
           { body: { token, password: passwordAttempt } },
         );

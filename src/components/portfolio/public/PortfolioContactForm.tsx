@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Send, CheckCircle2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import { edgeFunctions } from '@/lib/edgeFunctions';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 
 interface PortfolioContactFormProps {
   username: string;
@@ -46,7 +46,7 @@ export function PortfolioContactForm({ username, accentColor, ownerName }: Portf
           visitor_name: name.trim(),
         },
       };
-      const { error } = await edgeFunctions.invoke('send-contact-email', { body });
+      const { error } = await appwriteFunctions.invoke('send-contact-email', { body });
 
       if (!error) {
         setStatus('success');

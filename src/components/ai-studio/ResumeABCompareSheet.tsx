@@ -7,7 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ScoreRing } from '@/components/dashboard/ScoreRing';
 import { useResumes, dbToResumeData, DatabaseResume } from '@/hooks/useResumes';
 import { useAuth } from '@/hooks/useAuth';
-import { edgeFunctions } from '@/lib/edgeFunctions';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { activityTracker } from '@/lib/activityTracker';
@@ -93,10 +93,10 @@ export default function ResumeABCompareSheet({ open, onOpenChange }: Props) {
     try {
       const compared = await execute(async () => {
         const [atsResA, atsResB, matchResA, matchResB] = await Promise.all([
-          edgeFunctions.invoke('score-resume', { body: { resume: dataA } }),
-          edgeFunctions.invoke('score-resume', { body: { resume: dataB } }),
-          edgeFunctions.invoke('analyze-resume', { body: { resume: dataA, jobDescription } }),
-          edgeFunctions.invoke('analyze-resume', { body: { resume: dataB, jobDescription } }),
+          appwriteFunctions.invoke('score-resume', { body: { resume: dataA } }),
+          appwriteFunctions.invoke('score-resume', { body: { resume: dataB } }),
+          appwriteFunctions.invoke('analyze-resume', { body: { resume: dataA, jobDescription } }),
+          appwriteFunctions.invoke('analyze-resume', { body: { resume: dataB, jobDescription } }),
         ]);
 
         for (const res of [atsResA, atsResB, matchResA, matchResB]) {

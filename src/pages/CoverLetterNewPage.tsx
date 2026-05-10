@@ -13,7 +13,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useResumes, dbToResumeData } from '@/hooks/useResumes';
 import { usePlan } from '@/hooks/usePlan';
 import { UpgradeWall } from '@/components/plan/UpgradeWall';
-import { edgeFunctions } from '@/lib/edgeFunctions';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { useQueryClient } from '@tanstack/react-query';
 import type { TemplateStyle } from '@/lib/coverLetterPdfGenerator';
 import { COVER_LETTER_TEMPLATE_OPTIONS } from '@/components/cover-letter/templates/registry';
@@ -97,7 +97,7 @@ export default function CoverLetterNewPage() {
     haptics.light();
     try {
       const resumeData = dbToResumeData(selectedResume);
-      const { data, error } = await edgeFunctions.invoke('generate-cover-letter', {
+      const { data, error } = await appwriteFunctions.invoke('generate-cover-letter', {
         body: {
           resume: resumeData,
           jobDescription,

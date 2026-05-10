@@ -16,7 +16,7 @@ import { useMe } from '@/hooks/useMe';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { Skeleton } from '@/components/ui/skeleton';
-import { edgeFunctions } from '@/lib/edgeFunctions';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 import {
   Dialog,
   DialogContent,
@@ -145,7 +145,7 @@ export default function SubscriptionPage() {
     haptics.light();
     setChecking(true);
     try {
-      const { data, error } = await edgeFunctions.invoke('validate-coupon', {
+      const { data, error } = await appwriteFunctions.invoke('validate-coupon', {
         body: { code: couponCode.trim().toUpperCase() },
       });
       if (error) throw new Error(error.message);
@@ -173,7 +173,7 @@ export default function SubscriptionPage() {
     haptics.medium();
     setActivating(true);
     try {
-      const { data, error } = await edgeFunctions.invoke('redeem-coupon', {
+      const { data, error } = await appwriteFunctions.invoke('redeem-coupon', {
         body: { code: couponCode.trim().toUpperCase() },
       });
       if (error) throw new Error(error.message);

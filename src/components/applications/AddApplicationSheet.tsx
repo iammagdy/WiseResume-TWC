@@ -10,7 +10,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { toast } from 'sonner';
-import { edgeFunctions } from '@/lib/edgeFunctions';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 
 interface AddApplicationSheetProps {
   open: boolean;
@@ -67,7 +67,7 @@ export function AddApplicationSheet({ open, onOpenChange, defaultValues }: AddAp
 
     setIsParsingUrl(true);
     try {
-      const { data: parsed, error } = await edgeFunctions.invoke<{
+      const { data: parsed, error } = await appwriteFunctions.invoke<{
         title?: string;
         company?: string;
         deadline?: string;

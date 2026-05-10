@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
-import { edgeFunctions } from '@/lib/edgeFunctions';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 
 interface Question {
   question: string;
@@ -61,7 +61,7 @@ export function QuestionBankSheet({
     setLoading(true);
     haptics.light();
     try {
-      const { data: result, error } = await edgeFunctions.invoke<{ categories: QuestionCategory[] }>('generate-question-bank', {
+      const { data: result, error } = await appwriteFunctions.invoke<{ categories: QuestionCategory[] }>('generate-question-bank', {
         body: {
           jobTitle,
           company: company || '',

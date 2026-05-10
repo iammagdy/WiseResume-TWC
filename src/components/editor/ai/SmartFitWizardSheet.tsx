@@ -44,7 +44,7 @@ import { runSmartFit, applySmartFitPlan, retrySmartFitRewrites } from '@/lib/sma
 import { convergeSmartFitPlan, runLayoutOnlyFit, type ConvergeProgress } from '@/lib/smartFit/converge';
 import { buildDiffHighlight, type HighlightSegment } from '@/lib/smartFit/diffHighlight';
 import type { SmartFitPlan, SmartFitSelection, LayoutFitProposal, RewriteFailureInfo } from '@/lib/smartFit/types';
-import { edgeFunctions } from '@/lib/edgeFunctions';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 import editorLogger from '@/lib/editorLogger';
 
 interface SmartFitWizardSheetProps {
@@ -728,7 +728,7 @@ interface TelemetryPayload {
 
 async function postTelemetry(payload: TelemetryPayload): Promise<void> {
   try {
-    await edgeFunctions.invoke('smart-fit-rewrite', {
+    await appwriteFunctions.invoke('smart-fit-rewrite', {
       body: { mode: 'telemetry', telemetry: payload },
     });
   } catch (e) {

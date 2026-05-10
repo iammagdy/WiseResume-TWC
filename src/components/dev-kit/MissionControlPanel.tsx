@@ -20,7 +20,7 @@ import {
   Users,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { edgeFunctions } from '@/lib/edgeFunctions';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { client } from '@/lib/appwrite';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
 import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
@@ -302,7 +302,7 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
     setLoading(true);
     setError(null);
     try {
-      const tuple = await edgeFunctions.invoke('admin-devkit-data', {
+      const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
         headers: devKitAuthHeaders(),
         body: { action: 'mission-control' },
       });
@@ -325,7 +325,7 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
     setEdgeDriftLoading(true);
     setEdgeDriftError(null);
     try {
-      const tuple = await edgeFunctions.invoke('admin-devkit-data', {
+      const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
         headers: devKitAuthHeaders(),
         body: { action: 'edge-fn-drift' },
       });
@@ -342,7 +342,7 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
 
   const fetchLiveCount = useCallback(async () => {
     try {
-      const tuple = await edgeFunctions.invoke('admin-visitor-analytics', {
+      const tuple = await appwriteFunctions.invoke('admin-visitor-analytics', {
         headers: devKitAuthHeaders(),
         body: { action: 'live-count' },
       });

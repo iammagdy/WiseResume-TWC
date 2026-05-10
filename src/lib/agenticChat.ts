@@ -1,6 +1,6 @@
 import { ResumeData } from '@/types/resume';
 import { checkAIRateLimit } from './rateLimiter';
-import { edgeFunctions } from '@/lib/edgeFunctions';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 
 export type ChatErrorKind =
   | 'rate_limit_client'
@@ -225,7 +225,7 @@ export async function sendChatMessage(
     content: m.content,
   }));
 
-  const { data, error } = await edgeFunctions.invoke('agentic-chat', {
+  const { data, error } = await appwriteFunctions.invoke('agentic-chat', {
     body: {
       message,
       conversationHistory: historyForApi,

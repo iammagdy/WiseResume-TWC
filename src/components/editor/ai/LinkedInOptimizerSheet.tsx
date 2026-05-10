@@ -26,7 +26,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { useResumeStore } from '@/store/resumeStore';
 import { useShallow } from 'zustand/react/shallow';
-import { edgeFunctions } from '@/lib/edgeFunctions';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { toast } from 'sonner';
 import editorLogger from '@/lib/editorLogger';
 import { haptics } from '@/lib/haptics';
@@ -136,7 +136,7 @@ export function LinkedInOptimizerSheet({ open, onOpenChange }: LinkedInOptimizer
 
     try {
       const data = await executeAI(async () => {
-        const { data, error } = await edgeFunctions.invoke('optimize-for-linkedin', {
+        const { data, error } = await appwriteFunctions.invoke('optimize-for-linkedin', {
           body: {
             resume: currentResume,
             region: selectedRegion,

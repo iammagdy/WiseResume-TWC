@@ -35,7 +35,7 @@
 ---
 
 ## 🏗️ Major Update: Migration to Appwrite
-WiseResume and WiseHire have been completely rebuilt as **Appwrite-Native** applications. We have fully deprecated and removed Supabase and Kinde from the platform infrastructure.
+WiseResume and WiseHire have been completely rebuilt as **Appwrite-Native** applications. The platform is now fully Appwrite-native.
 
 - **Unified Auth:** Appwrite Auth (Email/Password + Passkeys + Future OAuth).
 - **Consolidated AI Hub:** 84 legacy Edge Functions are now managed via a single **AI-Gateway Hub** in Appwrite.
@@ -57,7 +57,7 @@ The complete AI toolkit for job seekers, career changers, and high-volume applic
 
 ## 🔧 Admin Dev Kit 2.1
 An internal operations console accessible only to administrators.
-- **User Management:** Full control over users migrated from Supabase/Kinde.
+- **User Management:** Full control over users and permissions.
 - **AI Health:** Real-time monitoring of providers (OpenRouter, Groq, DeepSeek).
 - **Audit Logs:** Full system transparency with "Cloud Feed".
 - **Passkey Security:** Admin access secured via WebAuthn/Biometrics.

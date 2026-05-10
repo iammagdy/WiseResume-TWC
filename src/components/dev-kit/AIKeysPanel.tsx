@@ -4,7 +4,7 @@ import {
   XCircle, Save, ChevronDown,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { edgeFunctions } from '@/lib/edgeFunctions';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
 import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
 import {
@@ -88,7 +88,7 @@ export function AIKeysPanel() {
     setLoading(true);
     setError(null);
     try {
-      const tuple = await edgeFunctions.invoke<InspectResponse>('inspect-ai-keys', {
+      const tuple = await appwriteFunctions.invoke<InspectResponse>('inspect-ai-keys', {
         headers: devKitAuthHeaders(),
       });
       const data = unwrapAdminResponse<InspectResponse>(tuple, 'inspect-ai-keys');
@@ -141,7 +141,7 @@ export function AIKeysPanel() {
     setSaving(prev => ({ ...prev, [k]: true }));
     setSaveStatus(prev => { const n = { ...prev }; delete n[k]; return n; });
     try {
-      const tuple = await edgeFunctions.invoke<InspectResponse>('inspect-ai-keys', {
+      const tuple = await appwriteFunctions.invoke<InspectResponse>('inspect-ai-keys', {
         headers: devKitAuthHeaders(),
         body: { provider, slot, model },
       });

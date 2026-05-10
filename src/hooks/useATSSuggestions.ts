@@ -6,7 +6,7 @@ import { showErrorToast } from '@/lib/errorToast';
 import { aiErrorToastMessage, AIError } from '@/lib/aiErrorParser';
 import { hasPassiveVerbs, hasMetrics, hasLongBullets, findPassiveStarter } from '@/lib/contentAnalysis';
 import { useAICreditsMutations } from './useAICredits';
-import { edgeFunctions } from '@/lib/edgeFunctions';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 import {
   resumeSectionAiFnName,
   resumeSectionAiBodyProps,
@@ -267,7 +267,7 @@ export function useATSSuggestions(resume: ResumeData | null, jobDescription: str
       const currentContent = getSectionContent(resume, section);
 
       console.log(`[useATSSuggestions] Starting deep analysis for ${section}...`);
-      const { data, error: invokeError } = await edgeFunctions.invoke<Record<string, unknown>>(
+      const { data, error: invokeError } = await appwriteFunctions.invoke<Record<string, unknown>>(
         resumeSectionAiFnName('enhance-section'),
         {
           body: {

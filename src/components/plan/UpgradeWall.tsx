@@ -6,7 +6,7 @@ import { LoadingButton } from '@/components/ui/LoadingButton';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { useNavigate } from 'react-router-dom';
-import { edgeFunctions } from '@/lib/edgeFunctions';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { usePlan } from '@/hooks/usePlan';
 
 interface UpgradeWallProps {
@@ -32,7 +32,7 @@ function InlineCoupon({ onSuccess }: { onSuccess?: () => void }) {
     haptics.light();
     setRedeeming(true);
     try {
-      const { data, error } = await edgeFunctions.invoke('redeem-coupon', {
+      const { data, error } = await appwriteFunctions.invoke('redeem-coupon', {
         body: { code: code.trim().toUpperCase() },
       });
       if (error) throw new Error(error.message);
