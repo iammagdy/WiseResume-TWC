@@ -70,5 +70,6 @@ jobs:
                 set net:timeout 60; \
                 set net:max-retries 5; \
                 set net:reconnect-interval-base 10; \
-                mirror --reverse --delete --verbose --parallel=3 ./dist/ resume/; \
+                rm -f index.html; \
+                mirror --reverse --delete --verbose --parallel=3 ./dist/ .; \
                 bye"
