@@ -11,6 +11,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { toast } from 'sonner';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
+import { databases, DATABASE_ID } from '@/lib/appwrite';
+import { Query } from 'appwrite';
 
 interface AddApplicationSheetProps {
   open: boolean;
@@ -46,11 +48,19 @@ export function AddApplicationSheet({ open, onOpenChange, defaultValues }: AddAp
   const { data: resumes } = useQuery({
     queryKey: ['resumes-list', user?.id],
     queryFn: async () => {
-      const { data } = await (await import('@/integrations/supabase/safeClient')).supabase
-        .from('resumes')
-        .select('id, title')
-        .order('updated_at', { ascending: false });
-      return data || [];
+      if (!user?.id) return [];
+      const response = await databases.listDocuments(
+        DATABASE_ID,
+        'resumes',
+        [
+          Query.equal('user_id', user.id),
+          Query.orderDesc('updated_at')
+        ]
+      );
+      return response.documents.map(doc => ({
+        id: doc.$id,
+        title: doc.title || 'Untitled Resume'
+      })) || [];
     },
     enabled: !!user && open,
   });
