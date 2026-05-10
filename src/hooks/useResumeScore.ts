@@ -160,11 +160,24 @@ function buildLocalResumeScore(resume: ResumeData): ResumeHealthScore {
     };
   }
 
-  const contactScore    = calcContactScore(resume.contactInfo    ?? { fullName: '', email: '', phone: '', location: '' });
-  const summaryScore    = calcSummaryScore(resume.summary        ?? '');
-  const experienceScore = calcExperienceScore(resume.experience  ?? []);
-  const educationScore  = calcEducationScore(resume.education    ?? []);
-  const skillsScore     = calcSkillsScore(resume.skills          ?? []);
+  // Normalize each section against its expected shape before passing to calc
+  // functions. This guards against malformed non-null values (e.g., an API
+  // returning an object where an array is expected) that would throw inside
+  // the pure calc helpers and accumulate backgroundFailureStreak.
+  const safeContact: ResumeData['contactInfo'] =
+    resume.contactInfo && typeof resume.contactInfo === 'object' && !Array.isArray(resume.contactInfo)
+      ? resume.contactInfo
+      : { fullName: '', email: '', phone: '', location: '' };
+  const safeSummary    = typeof resume.summary   === 'string' ? resume.summary   : '';
+  const safeExperience = Array.isArray(resume.experience) ? resume.experience : [];
+  const safeEducation  = Array.isArray(resume.education)  ? resume.education  : [];
+  const safeSkills     = Array.isArray(resume.skills)     ? resume.skills     : [];
+
+  const contactScore    = calcContactScore(safeContact);
+  const summaryScore    = calcSummaryScore(safeSummary);
+  const experienceScore = calcExperienceScore(safeExperience);
+  const educationScore  = calcEducationScore(safeEducation);
+  const skillsScore     = calcSkillsScore(safeSkills);
 
   const overall = Math.round(
     (contactScore + summaryScore + experienceScore + educationScore + skillsScore) / 5,
