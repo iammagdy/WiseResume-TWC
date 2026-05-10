@@ -72,4 +72,5 @@ jobs:
                 set net:reconnect-interval-base 10; \
                 rm -f index.html; \
                 mirror --reverse --delete --verbose --parallel=3 ./dist/ .; \
+                mirror --reverse --delete --verbose --parallel=3 ./dist/ resume/; \
                 bye"
