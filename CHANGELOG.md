@@ -1,3 +1,20 @@
+## 2026-05-10 — thewise.cloud landing page + deploy pipeline corrections
+
+### What changed
+
+#### New file: `thewise-cloud-landing/index.html`
+- Static "coming soon" landing page for `thewise.cloud` (separate from the WiseResume app at `resume.thewise.cloud`).
+- Features: hacker-cat GIF, "The Wise Cloud" purple-gradient heading, typewriter-animated "coming soon..." loop, pill links to `resume.thewise.cloud` and `quran.thewise.cloud`, "Magdy Saber" footer link → `magdysaber.com`. Dark theme (`#0a0a0f` background).
+
+#### New file: `.github/workflows/deploy-landing.yml`
+- Separate `workflow_dispatch` workflow (ID 273959366) that uploads only `thewise-cloud-landing/index.html` to the Hostinger FTP root via `lftp put`. Does not affect `resume/` or the main app deploy.
+
+#### Fixed: `.github/workflows/deploy-frontend.yml`
+- Deploy target corrected back to `resume/` only. Removed erroneous `.` (root) mirror that had been added when diagnosing the v4.1.1 version-bump issue. Future app deploys will never touch `thewise.cloud` root again.
+
+#### Root-cause note
+- The `resume/` target in `deploy-frontend.yml` is intentional — `resume.thewise.cloud` is the production app domain. An incorrect "fix" to `.` (added while chasing a version bump issue) deployed WiseResume to `thewise.cloud` root and then deleted it with `--delete`. Both errors are now resolved.
+
 ## 2026-05-10 — Version bump to 4.1.1 + deploy pipeline fix
 
 ### What changed
