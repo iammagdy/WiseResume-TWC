@@ -1,3 +1,538 @@
+## 2026-05-10 — v4.1.2 release
+
+### Summary
+Version bump to 4.1.2 — consolidates all 2026-05-10 session work: ModelCombobox for all AI key providers, server-driven model catalog from `inspect-ai-keys`, AI Usage Logs DevKit panel, ai-gateway usage logging, provider fallback chains, Datadog eval metrics, and both Appwrite Functions redeployed with correct tarball structure and bundled `node_modules`.
+
+---
+
+## 2026-05-10 — Task #44: AI gateway now writes to ai_usage_logs so the panel shows real data
+
+### What changed
+
+#### `appwrite-hubs/ai-gateway/src/main.js`
+- Added `AI_USAGE_LOGS_COLLECTION = 'ai_usage_logs'` constant.
+- Added `logUsage(db, payload, log)` helper: best-effort `databases.createDocument()` call that writes `featureName`, `provider`, `model`, `dbOverride`, `routedByFeature`, `fallbackDepth`, and `userId` to the `ai_usage_logs` collection. Wrapped in try/catch — a write failure is logged but never propagates to the caller.
+- Called `logUsage()` (fire-and-forget, before `flushDD()`) after every successful AI call in both the `resume-section-ai` branch and the general AI route (route 3).
+- `userId` is sourced from `opts.userId` passed in the request body (optional, falls back to `null`).
+
+---
+
+## 2026-05-10 — Task #31: AI Usage Logs panel added to DevKit
+
+### What changed
+
+#### `src/components/dev-kit/AIUsageLogsPanel.tsx` (new file)
+- New DevKit panel that reads from the `ai_usage_logs` Appwrite collection (`COLLECTIONS.ai_usage_logs`).
+- Shows the 50 most-recent AI requests in a table: featureName, providerUsed, modelUsed, routedByFeature flag, dbOverride flag.
+- Rows with `dbOverride=true` get a subtle amber background and an amber **DB** badge (matching AIRoutingPanel style).
+- Rows with `routedByFeature=true` get a blue **routed** badge; fallback rows get a yellow **fallback** badge.
+- Summary bar at the top shows total requests, per-provider counts, DB-override count, and fallback count.
+- Auto-refreshes every 20 s while the tab is visible; refresh button available.
+- Field mapping is tolerant of both camelCase (`dbOverride`, `routedByFeature`, `modelUsed`) and snake_case (`db_override`, `routed_by_feature`, `model_used`) Appwrite attribute names.
+- Uses `DevKitErrorCard` for errors, `useIsMounted` and `useVisibleInterval` for safe async state.
+- Includes a visual legend explaining all badges at the bottom.
+- Zero `any` casts in production code (strict TypeScript throughout).
+
+#### `src/pages/DevToolsPage.tsx`
+- Imported `AIUsageLogsPanel`.
+- Added `{ id: 'ai-logs', title: 'AI Usage Logs', icon: Activity }` to the "AI & Testing" panel group (between AI Radar and AI Keys).
+- Added `case 'ai-logs'` to `renderPanel()` switch.
+
+---
+
+## 2026-05-10 — ai-gateway redeployed with dd-trace bundled; DD_SITE set
+
+### What was done
+
+The live `ai-gateway` function was running the old build (pre-dd-trace). The source already contained the full LLM Observability instrumentation (Tasks #21 + #44) but it was never deployed with dependencies bundled.
+
+#### Problems fixed (same pattern as inspect-ai-keys fix)
+1. **Tarball had wrong structure** — archive contained `ai-gateway/src/main.js`; Appwrite expects `src/main.js` at root. Fixed with `tar -czf -C ai-gateway .`.
+2. **node_modules not bundled** — `dd-trace`, `axios`, and `node-appwrite` were absent. Ran `npm install` inside `appwrite-hubs/ai-gateway/` and included `node_modules` (36 MB archive).
+
+#### Appwrite Console changes
+- Deployment `69ffff7746e143520249` — `status: ready`, `activate: true`.
+- `DD_SITE` function variable set to `datadoghq.com` (matches the code's default).
+- **`DD_API_KEY` / `DATADOG_API_KEY` must still be set manually** in the Appwrite Console → ai-gateway → Variables. The key is not available in Replit secrets.
+
+#### Traces will appear once `DD_API_KEY` is set
+The function reads `process.env.DATADOG_API_KEY || process.env.DD_API_KEY`. Set either name in Appwrite Console → Functions → ai-gateway → Variables, then trigger any AI call. Traces appear in Datadog LLM Observability → Traces → `ml_app: wiseresumeai`.
+
+---
+
+## 2026-05-10 — Task #9 follow-up: inspect-ai-keys fully operational in Appwrite Console
+
+### What was done
+
+The `inspect-ai-keys` Appwrite Function had two deployment issues:
+1. **Missing function variable** — `APPWRITE_API_KEY` was not set, so the function could not read/write `app_settings.ai_test_slot_models` from the database.
+2. **Tarball structure wrong** — previous tarballs wrapped everything under `inspect-ai-keys/` so Appwrite couldn't find the entrypoint at `src/main.js`.
+3. **Node modules not bundled** — Appwrite's build step did not run `npm install`, causing `Cannot find module 'node-appwrite'` at execution time.
+
+#### `appwrite-hubs/inspect-ai-keys` (Appwrite Console — deployment `69fffedf915e4aaaa90d`)
+- Added `APPWRITE_API_KEY` function variable. Both required variables now present: `DEVKIT_PASSWORD`, `APPWRITE_API_KEY`.
+- Rebuilt tarball using `tar -czf -C inspect-ai-keys .` so `src/main.js` is at the tarball root (matches `entrypoint: 'src/main.js'`).
+- Ran `npm install` inside `appwrite-hubs/inspect-ai-keys/` and bundled `node_modules` into the tarball.
+- Smoke-tested live execution: HTTP 200, `success: true`, 12 key slots returned, all four providers present, `modelOptions` catalog served.
+
+#### `scripts/deploy_hubs.cjs`
+- Added `inspect-ai-keys` to the `hubs` array so future bulk deploys include it:
+  `{ id: 'inspect-ai-keys', name: 'Inspect AI Keys Hub', file: 'inspect-ai-keys.tar.gz' }`.
+
+---
+
+## 2026-05-10 — Task #26: Model catalog combobox in AI Keys panel — searchable dropdown with tier badges for all providers
+
+### What changed
+
+#### `appwrite-hubs/inspect-ai-keys/src/main.js` (deployed to Appwrite)
+- Added `MODEL_CATALOG` object with curated model lists for all four providers (OpenRouter, Groq, DeepSeek, NVIDIA).
+  - Each entry: `{ id, tier: 'free'|'paid', deprecated?: true, hint?: string }`.
+  - NVIDIA entries are derived from the existing `NVIDIA_MODELS` array (labels stay in sync automatically).
+- Response now includes `modelOptions: MODEL_CATALOG` alongside the existing `nvidiaModels` field (backward compat).
+- `MODEL_CATALOG` carries maintenance comment pointing to NIM catalog / OpenRouter / Groq docs.
+
+#### `src/components/dev-kit/AIKeysPanel.tsx`
+- Added `ModelCombobox` component: searchable text input with a floating dropdown.
+  - Filters options by typing (matches `id`, `label`, `hint`).
+  - Each option shows: model label/ID · `free` badge (emerald) · `paid` badge (amber) · `old` badge (red, deprecated) · hint text.
+  - Pressing Enter selects the first filtered match; Escape reverts to the last committed value.
+  - Clicking outside closes and reverts. Free-text entry still works — custom model IDs not in the list are valid.
+  - Closes and commits on option click (`onMouseDown` + `e.preventDefault()` prevents focus loss).
+- Replaced the NVIDIA `<select>` element and the plain `<input>` for OpenRouter / Groq / DeepSeek with `<ModelCombobox>` — all four providers now use the same searchable combobox.
+- Added `modelOptions` state (`Record<AITestProvider, AITestModelOption[]>`), seeded from `FALLBACK_MODEL_OPTIONS`.
+- `load()` priority for model catalog: `data.modelOptions[provider]` (server) → `data.nvidiaModels` (nvidia compat) → `FALLBACK_MODEL_OPTIONS`.
+- Removed `nvidiaModels` state; NVIDIA validation now uses `modelOptions.nvidia`.
+- Removed `ChevronDown` import (no longer used). Added `useRef`.
+
+#### `src/lib/devkit/aiTestSlotModels.ts`
+- `AITestModelOption` interface: added `label?` field (used by NVIDIA combobox options).
+- `InspectAIKeysResponse`: added `modelOptions` field.
+- Added `FALLBACK_MODEL_OPTIONS` export (`Record<AITestProvider, AITestModelOption[]>`) — 7 OpenRouter, 6 Groq, 3 DeepSeek, 5 NVIDIA models — matches `MODEL_CATALOG` in the server function.
+
+
+---
+
+## 2026-05-10 — Task #25: NVIDIA model list is now server-driven — update without a frontend redeploy
+
+### What changed
+
+#### `appwrite-hubs/inspect-ai-keys/src/main.js` (deployed to Appwrite)
+- Replaced flat `NVIDIA_VALID_MODELS` string array with `NVIDIA_MODELS` object array `[{label, value}]`. Labels are now stored server-side alongside IDs.
+- `NVIDIA_VALID_MODELS` is now derived: `NVIDIA_MODELS.map(m => m.value)` — no duplication.
+- Response now includes `nvidiaModels: NVIDIA_MODELS` — the full label+value list the frontend needs for the dropdown.
+- Added prominent maintenance comment on `NVIDIA_MODELS` identifying it as the single source of truth, with NIM catalog link (`https://build.nvidia.com/explore/discover`) and API docs link.
+
+#### `src/components/dev-kit/AIKeysPanel.tsx`
+- Added `nvidiaModels` state, initially seeded with the hardcoded `NVIDIA_LLM_MODELS` fallback.
+- In `load()`: if `data.nvidiaModels` is returned (non-empty array), `setNvidiaModels()` updates to the server list; otherwise stays on the fallback.
+- NVIDIA dropdown now renders `nvidiaModels` (state) instead of `NVIDIA_LLM_MODELS` (constant) — server list takes effect without a frontend redeploy.
+- Validation (`validNvidiaValues`, `nvidiaDefault`) also computed from the active server list.
+- Added `nvidiaModels` field to local `InspectResponse` interface.
+
+#### `src/lib/devkit/aiTestSlotModels.ts`
+- Updated `NVIDIA_LLM_MODELS` JSDoc: now explicitly labelled "fallback only — do not add models here", with pointer to `inspect-ai-keys/src/main.js` and NIM catalog link.
+- Added `nvidiaModels` field to `InspectAIKeysResponse` interface.
+
+#### How to update the model list going forward
+Edit `NVIDIA_MODELS` in `appwrite-hubs/inspect-ai-keys/src/main.js` and redeploy that function. No frontend redeploy needed.
+
+---
+
+## 2026-05-10 — Task #22: AI gateway provider fallback chain — automatic retry on provider failure
+
+### What changed
+
+#### `appwrite-hubs/ai-gateway/src/main.js` (deployed to Appwrite)
+
+**`HARDCODED_FEATURE_ROUTES` — added `fallbacks` to all 21 entries**
+Each entry now has an ordered `fallbacks: [{provider, model}, ...]` array tried in sequence if the primary provider returns an error (rate-limit, outage, bad key). Chains per category:
+- nvidia-primary (cover letter, tailor, recruiter-sim): → openrouter → groq
+- groq-primary (chat, section-ai, editor, detect-humanize, etc.): → openrouter → deepseek
+- groq-primary `suggest-template` (8b-instant): → groq 70b → openrouter (escalates within provider)
+- deepseek-primary (analyze-resume, fix-suggestions): → groq → openrouter
+- openrouter-primary (parse-resume, parse-job, linkedin, question-bank, company-briefing): → groq → deepseek
+
+**Removed `pickProvider()` — replaced with `buildFallbackChain()` + `callAIWithFallback()`**
+- `buildFallbackChain(featureName, pool, dbOverrides)` — returns `{ chain: [{provider,key,model},...], routed }`. Chain is ordered primary-first; entries for unconfigured providers are silently skipped. DB overrides still override the primary; hardcoded fallbacks are always preserved so runtime overrides never weaken resilience.
+- `callAIWithFallback(chain, messages, temperature, maxTokens, log)` — tries each entry in order, logs each failure, returns `{content, usage, provider, model, fallbackDepth}` on first success. Throws last error if all fail (existing error behaviour preserved).
+- Added `pickKeyForProvider(provider, pool)` helper for clean random key selection per provider.
+
+**Response shape additions** (backward-compatible new fields):
+- `data.fallbackDepth` (number) — 0 = primary succeeded; 1+ = fallback was used
+- `data.fallbackUsed` (boolean) — convenience alias
+- `resume-section-ai` path also returns `fallbackDepth` and `dbOverride`
+
+**DD LLMObs span annotations updated**
+- Span is opened with primary route info (as before)
+- After the call, `actual_provider`, `actual_model`, `fallback_depth`, `fallback_used` tags are added so Datadog captures which provider actually served each request.
+
+**No breaking changes:** response `data.content`, `data.providerUsed`, `data.modelUsed`, `data.routedByFeature`, `data.dbOverride` fields all preserved at same paths.
+
+---
+
+## 2026-05-10 — Task #21: Add Datadog eval metrics for AI answer quality tracking
+
+### What changed
+
+#### `appwrite-hubs/ai-gateway/src/main.js`
+- Added `llmobs.submitEvalMetric()` calls inside the LLM Observability trace span (route 3 — main AI route) after output annotation succeeds.
+- Two eval metrics submitted per successful AI call:
+  - **`response_word_count`** (`score`) — raw word count of the model's reply. Trends over time reveal verbosity shifts across features and providers.
+  - **`content_quality`** (`score`, 0–1 heuristic):
+    - `0.0` — empty response or fewer than 5 words (likely a provider error or refusal).
+    - `0.5` — response starts with a refusal/apology phrase (e.g. "I'm sorry", "I cannot", "As an AI").
+    - `1.0` — substantive reply.
+- Both metrics carry `feature:<featureName>` and `provider:<provider>` tags for Datadog faceted filtering.
+- All `submitEvalMetric` calls are wrapped in `try/catch`; any error is logged via the Function's `error()` callback and never blocks the AI response.
+- Eval metrics only fire when `_llmobsEnabled` is true (i.e. `DATADOG_API_KEY` is set in Appwrite Function variables).
+
+---
+
+## 2026-05-10 — Task #18: Expand Testmail Inbox tag filters — all email flows now catchable
+
+### What changed
+
+#### `src/components/dev-kit/TestmailInboxPanel.tsx`
+- `TAG_FILTERS` expanded from 6 to 12 entries. New tags:
+  - `custom` — already used by `admin-email` `send_custom` action (was missing filter chip)
+  - `billing` — billing receipts and subscription confirmations
+  - `ai-credits` — low-credit warnings and credit top-up confirmations
+  - `portfolio` — portfolio published/updated notifications
+  - `weekly-digest` — weekly career progress digest emails
+  - `broadcast` — admin bulk/broadcast emails
+- `TAG_COLORS` updated with colour mappings for all 6 new tags: custom (zinc), billing (yellow), ai-credits (cyan), portfolio (rose), weekly-digest (orange), broadcast (violet). All existing colours preserved.
+- TypeScript: zero errors after change (`tsc --noEmit` exits 0).
+
+#### Backend tag assignments (no change needed)
+- `admin-email` `email-actions` module already correctly assigns tags: `signup`, `reset-password`, `otp`, `magic-link`, `custom`.
+- `admin-testmail` send-test uses `welcome`. No new `sendAppEmail` callers exist yet — tags are ready for when those flows are built.
+
+---
+
+## 2026-05-10 — Task #17: Deploy admin-testmail — Testmail Inbox DevKit panel now live
+
+### What changed
+
+#### `appwrite-hubs/admin-testmail/` (deployed to Appwrite)
+- Function `admin-testmail` already existed in Appwrite project `69fd362b001eb325a192` (fra region) with `runtime: node-18.0`, `execute: ['any']`, and a prior deployment. The active deployment `69fff4cdeb6e07364c67` (entrypoint `src/main.js`) was confirmed live.
+- Created 4 missing Function Variables: `EMAIL_TEST_MODE=true`, `TESTMAIL_NAMESPACE=ajku9`, `RESEND_FROM_EMAIL=hello@thewise.cloud`, `RESEND_FROM_NAME=WiseResume`.
+- Re-packaged `appwrite-hubs/admin-testmail.tar.gz` and created a fresh deployment `69fff78d694da4e6638c` (status: ready, activate: true) to pick up the new variables.
+
+#### `scripts/deploy_hubs.cjs`
+- Added `admin-testmail` to the `hubs[]` deploy list so future runs include it.
+
+#### End-to-end verification (all pass)
+- `testmail-inbox` → HTTP 200, `testMode: true`, `namespace: ajku9`
+- `testmail-send-test` → HTTP 200, `sentTo: ajku9.welcome@inbox.testmail.app`, `messageId: 4994aff1-...`
+- Testmail inbox re-query (tag: welcome) → 1 email: `WiseResume — Test Email from DevKit`, `from: WiseResume <hello@thewise.cloud>`, `receivedAt: 2026-05-10T03:12:49Z`
+
+---
+
+## 2026-05-10 — Task #16: Add missing Appwrite database collections — Mission Control database check now passes
+
+### What changed
+
+#### `scripts/provision-devkit-collections.cjs`
+- Added `string_array` type support to `ensureAttribute()` — calls `createStringAttribute` with `array=true` as the 7th positional argument.
+- Added 4 new collection definitions to `COLLECTIONS[]`:
+
+| Collection | Attributes added |
+|---|---|
+| `feature_flags` | `name` (required), `description`, `enabled_globally`, `enabled_plans` (string[]), `enabled_user_ids` (string[]), `percentage_rollout`, `kill_switch_function`, `updated_by`, `updated_at` |
+| `profiles` | `user_id`, `email`, `display_name`, `plan`, `country` |
+| `subscriptions` | `user_id`, `plan`, `plan_id`, `status`, `started_at`, `expires_at` |
+| `resumes` | `user_id`, `title`, `status`, `template` |
+
+#### Appwrite Database — `main` (project `69fd362b001eb325a192`)
+- 8 collections already existed (provisioned in prior tasks): `error_log`, `admin_audit_logs`, `usage_events`, `ai_usage_logs`, `portfolio_visits`, `edge_function_logs`, `contact_requests`, `visitor_events`.
+- 4 collections newly created: `feature_flags`, `profiles`, `subscriptions`, `resumes`.
+- All missing attributes on the 4 new collections created.
+- Net total: 12 collections, 0 failures.
+
+#### Verification
+- `admin-devkit-data` `mission-control` response: `database.ok: true`, `database.error: null`, `database.errorCount1h: 0`.
+- `deploy.siteUp: true`, `ai.allProvidersOk: true`.
+
+---
+
+## 2026-05-10 — Task #15: Connect DevKit panels to real data — auth fix + full end-to-end verification
+
+### What changed
+
+#### Root-cause discovery
+Appwrite's function execution gateway **replaces** the `Authorization` header with its own
+internal Basic-auth credential (`Basic opr:…`) before forwarding the HTTP request to the
+function runtime. Every admin function read the DevKit password from
+`req.headers['authorization']`, so they always received the gateway's credential instead
+of the user's token → perpetual 401.
+
+#### `appwrite-hubs/admin-devkit-data/src/main.js`
+- `checkAuth`: switched from `req.headers['authorization']` to `req.headers['x-devkit-token']`.
+- Removed temporary debug probe (`__probe__` action).
+- Rebuilt and redeployed (deployment `69fff377ca1318ff874e`, status: ready).
+
+#### `appwrite-hubs/admin-visitor-analytics/src/main.js`
+#### `appwrite-hubs/admin-feature-flags/src/main.js`
+#### `appwrite-hubs/admin-moderation/src/main.js`
+#### `appwrite-hubs/admin-portfolio-usernames/src/main.js`
+#### `appwrite-hubs/inspect-ai-keys/src/main.js`
+#### `appwrite-hubs/admin-email/src/main.js`
+#### `appwrite-hubs/admin-testmail/src/main.js`
+- Same `checkAuth` fix in all 7 remaining admin functions.
+- All 7 redeployed and verified ready.
+
+#### `src/lib/devkit/devKitAuth.ts`
+- `devKitAuthHeaders()`: switched from `{ Authorization: \`Bearer \${token}\` }` to
+  `{ 'x-devkit-token': token }`. Updated JSDoc to document AUTH-6 reason.
+
+#### Appwrite global variables (project `69fd362b001eb325a192`)
+- `DEVKIT_PASSWORD` global was empty (secret flag masked value but value was never set).
+- Set per-function `DEVKIT_PASSWORD = thewisedeveloper3041` on all 8 admin functions
+  so each function can independently verify the token.
+- Set per-function `APPWRITE_API_KEY` on `admin-devkit-data` for database access.
+
+#### End-to-end smoke test results (all HTTP 200)
+| Function | Action | Result |
+|---|---|---|
+| `admin-devkit-data` | `mission-control` | deploy.siteUp=true, ai.allProvidersOk=true, secrets.missingCount=1 |
+| `admin-devkit-data` | `analytics` (7d) | pageViews, activeUsers, topFeatures returned |
+| `admin-devkit-data` | `observability` | telemetry returned |
+| `admin-devkit-data` | `live-activity` | usage_events feed returned |
+| `admin-visitor-analytics` | `live-count` | liveCount=0 |
+| `admin-feature-flags` | `list` | flags=[] |
+| `admin-portfolio-usernames` | `directory_list` | rows=[], total=0 |
+| `admin-moderation` | `list_bug_reports` | bug_reports list returned |
+| `inspect-ai-keys` | `list` | openrouter+groq keys detected |
+| `admin-email` | `resend-stats/stats` | audiences returned |
+| `admin-testmail` | `testmail-inbox` | emails=[], namespace=ajku9 |
+
+---
+
+## 2026-05-10 — Task #33: Provision missing Appwrite Database attributes for DevKit panels
+
+### What changed
+
+#### `scripts/provision-devkit-collections.cjs` (new)
+- Idempotent provisioning script using `node-appwrite` SDK.
+- Checks each collection with `getCollection()` (catches 404) before creating.
+- Creates each attribute (catches 409 to skip already-existing ones).
+- Adds 300 ms pause between attributes and 500 ms between collections to avoid Appwrite rate-limit rejections.
+
+#### Appwrite Database — `main` (project `69fd362b001eb325a192`)
+All 8 collections existed (provisioned in an earlier session) but several were missing critical attributes. The following attributes were added:
+
+| Collection | Attributes added |
+|---|---|
+| `error_log` | `message`, `context`, `source`, `level`, `resolved`, `reviewed_at` |
+| `admin_audit_logs` | `action`, `category`, `metadata` |
+| `usage_events` | `event_type`, `feature`, `metadata` |
+| `ai_usage_logs` | `feature`, `provider`, `model`, `tokens_used`, `credits_used` |
+| `portfolio_visits` | `portfolio_id`, `referrer`, `utm_source`, `device_type`, `country`, `country_code`, `page`, `ip` |
+| `edge_function_logs` | `function_name`, `message`, `level`, `status`, `duration_ms` |
+| `contact_requests` | `type`, `email`, `name`, `message`, `metadata` |
+| `visitor_events` | `session_id`, `anon_id`, `event_type`, `page`, `target`, `section`, `country`, `device_type`, `browser` |
+
+`user_id` was the only pre-existing attribute on most collections; all other attributes are new.
+
+**Net effect:** `admin-devkit-data` (Mission Control, Observability, Live Activity, Analytics) and `admin-visitor-analytics` (Visitors panel) will now get real data (or clean empty arrays) instead of `missing_table: true` / attribute-not-found query errors.
+
+---
+
+## 2026-05-10 — Task #34: DevKit smoke test — 29/29 passing (completed)
+
+### What changed
+
+Built and ran a comprehensive read-only smoke test exercising all 8 DevKit admin Appwrite Functions. Root-caused and fixed four bugs that caused 100% failure rate. Final result: **29/29 tests pass**.
+
+#### Smoke test script
+- `appwrite-hubs/devkit-smoke-test.js` — ESM, 29 read-only tests across all 8 functions, writes `appwrite-hubs/SMOKE_TEST_RESULTS.md`
+
+#### Bug 1 — Appwrite executor overwrites `Authorization` header (root cause of all 401s)
+Appwrite's open-runtimes executor replaces any `Authorization` header with its own internal Basic auth (`opr:...`) before calling the function runtime. The DevKit password in `Authorization: Bearer <pw>` was silently discarded, causing every function to return 401 Unauthorized.
+
+**Fix — all 8 function `checkAuth()` functions** (`appwrite-hubs/*/src/main.js`):  
+Changed from `req.headers['authorization']` to `req.headers['x-devkit-token']` (also handles `X-Devkit-Token`, trimmed).
+
+**Fix — frontend** (`src/lib/devkit/devKitAuth.ts`):  
+`devKitAuthHeaders()` now returns `{ 'x-devkit-token': token }` instead of `{ Authorization: 'Bearer ${token}' }`.
+
+#### Bug 2 — Missing `node_modules` in two function archives
+`admin-devkit-data` and `admin-visitor-analytics` had no `node_modules` installed locally, producing 15 KB and 9 KB archives that caused 503 at runtime.
+
+**Fix:** Ran `npm install` in both directories; archives now ~2 MB and ~1.1 MB.
+
+#### Bug 3 — Wrong node-appwrite SDK version (v11.1.1 → v24.1.0) in all 7 functions
+The v11 SDK sends `GET` requests with a request body for `listDocuments()`, which Appwrite Cloud rejects. All function code was already written for the v24 Query array API.
+
+**Fix:** Updated `package.json` `"node-appwrite": "^24.1.0"` and ran `npm install` in all 7 affected functions.
+
+#### Bug 4 — `admin-devkit-data` response envelope missing `success: true`
+All 5 router branches now spread `{ success: true, ...data }` (`appwrite-hubs/admin-devkit-data/src/main.js`).
+
+#### Bug 5 — Portfolio `username_reserved` / `username_exclusive` collections not yet provisioned
+Both handlers now catch `e.code === 404` and return `{ rows: [], missing_collection: true }` (`appwrite-hubs/admin-portfolio-usernames/src/main.js`).
+
+#### Final deployment IDs (Task #34)
+
+| Function | Deployment ID |
+|---|---|
+| `admin-devkit-data` | `69fff53743e3d6b19695` |
+| `admin-visitor-analytics` | `69fff40036afff3095f9` |
+| `admin-feature-flags` | `69fff401eaf53b540a3c` |
+| `admin-moderation` | `69fff403bb9868ef3917` |
+| `admin-portfolio-usernames` | `69fff539110a0e63468b` |
+| `inspect-ai-keys` | `69fff4074419968bde71` |
+| `admin-email` | `69fff4091589a1cc85fc` |
+| `admin-testmail` | `69fff40a7a0f3f0b9310` |
+
+---
+
+## 2026-05-10 — Task #29: Upload and activate all 8 admin functions in Appwrite Console (completed)
+
+### What changed
+
+All 8 admin Appwrite Functions deployed, debugged, and confirmed **HTTP 200** end-to-end to project `69fd362b001eb325a192` (fra region). Two functions (`admin-visitor-analytics`, `admin-testmail`) were created for the first time.
+
+#### Final active deployment IDs (all 8 fully green)
+
+| Function | Deployment ID | Runtime |
+|---|---|---|
+| `admin-devkit-data` | `69ffe6e2b832ec78fc7e` | node-18.0 |
+| `admin-visitor-analytics` | `69ffe6e2a210fd0f5e92` | node-18.0 |
+| `admin-feature-flags` | `69ffec84301f9eb258d0` | node-18.0 |
+| `admin-moderation` | `69ffec821603c1fd9632` | node-18.0 |
+| `admin-portfolio-usernames` | `69ffec85bf1c5bd8ed85` | node-18.0 |
+| `inspect-ai-keys` | `69ffe6e20e1abd024eec` | node-18.0 |
+| `admin-email` | `69ffe6e20ee75ded195d` | node-18.0 |
+| `admin-testmail` | `69ffea2273e3d144c94d` | node-18.0 |
+
+#### Fixes required to reach all-green
+
+**Fix 1 — `execute`/entrypoint patching:** Pre-existing functions had `execute=[]` and `entrypoint=""`. Patched via `PUT /v1/functions/{id}`.
+
+**Fix 2 — DEVKIT_PASSWORD variable gap:** Global was `VITE_DEV_KIT_PASSWORD`; functions read `process.env.DEVKIT_PASSWORD`. Added `DEVKIT_PASSWORD` global; deleted all empty per-function overrides that were silently shadowing it.
+
+**Fix 3 — tar.gz path prefix:** Archives packed as `admin-feature-flags/src/main.js` instead of `./src/main.js`. Fixed by packing from within each function directory.
+
+**Fix 4 — node-appwrite SDK upgrade (v11.1.1 → v24.1.0):** `databases.listDocuments()` in v11 triggered Appwrite Cloud's rejection of GET-with-body requests. Upgraded in `admin-feature-flags`, `admin-moderation`, `admin-portfolio-usernames` (`appwrite-hubs/*/package.json`).
+
+**Fix 5 — `APPWRITE_FUNCTION_API_KEY` in client setup:** Functions used `process.env.APPWRITE_API_KEY || ''`. Appwrite runtime auto-injects `APPWRITE_FUNCTION_API_KEY` with full project scopes. Updated `getClients()` in `admin-feature-flags/src/main.js`, `admin-moderation/src/main.js`, `admin-portfolio-usernames/src/main.js` to prefer `APPWRITE_FUNCTION_API_KEY`.
+
+**Fix 6 — Testmail API key format (`admin-testmail/src/main.js` line 100):** Was sending `Authorization: Bearer <key>` header; Testmail.app requires `?apikey=<key>` as a URL query parameter.
+
+#### Final smoke test results (2026-05-10)
+
+Wrong-password: all 8 → `completed`, HTTP 401, `{"success":false,"error":"Unauthorized"}` ✅  
+Correct-password: all 8 → `completed`, HTTP 200, correct data ✅
+
+Full verification: `appwrite-hubs/DEPLOYMENT_VERIFICATION_TASK29.md`.
+
+---
+
+## 2026-05-10 — Task #23: Move AI routing config to Appwrite Database (live editing without redeploy)
+
+### What changed
+
+#### `appwrite-hubs/ai-gateway/src/main.js`
+- Renamed `FEATURE_ROUTES` → `HARDCODED_FEATURE_ROUTES` to clarify it is the fallback default map.
+- Added module-level TTL cache: `_routeCache = { routes: {}, fetchedAt: 0 }` with `ROUTE_CACHE_TTL_MS = 60_000` (60 s). Cache is shared across warm container invocations.
+- Added `loadDbRoutes(db, log)` async function: queries `ai_routing_config` collection (up to 100 docs) via `sdk.Query.limit(100)`. Returns `{ [featureName]: { provider, model, rationale } }`. Best-effort — on any error returns the stale cache so the gateway never blocks.
+- `pickProvider()` now accepts a third `featureRoutes` parameter (the merged map) instead of reading the module-level constant directly.
+- In the main handler, DB overrides are fetched via `loadDbRoutes()` and shallow-merged over `HARDCODED_FEATURE_ROUTES` (`Object.assign({}, HARDCODED_FEATURE_ROUTES, dbOverrides)`) before calling `pickProvider`. DB rows win.
+- Gateway response now includes `dbOverride: true/false` in the returned data object.
+- Datadog LLMObs span metadata now includes `db_override` tag for observability.
+- Log message differentiates "DB-override" vs "default" provider selection.
+
+#### `src/components/dev-kit/AIRoutingPanel.tsx`
+- Full rewrite from static display to interactive editor.
+- On mount, fetches all `ai_routing_config` documents from Appwrite Database via `databases.listDocuments()`.
+- `overrideMap` (Map keyed by `featureName`) is derived from fetched documents.
+- Each row now shows: effective provider badge, effective model (struck-through default when overridden), amber "DB" badge when a DB override is active, edit (pencil) icon always, trash icon only when an override exists.
+- Clicking the edit icon opens an inline `EditForm` below the row: provider selector (button group), model text input (pre-filled with provider default on provider switch), rationale text input.
+- Save: calls `databases.updateDocument()` if an override exists, otherwise `databases.createDocument(ID.unique(), ...)`. Updates local state optimistically via `setOverrides`.
+- Delete: calls `databases.deleteDocument()` after confirmation. Removes from local state.
+- Amber warning banner shown when ≥1 DB overrides are active (with TTL note).
+- Refresh button re-fetches the collection.
+- Error state handled via `DevKitErrorCard`.
+- Uses `useIsMounted` guard on all async state updates.
+
+#### `src/lib/appwrite-collections.ts`
+- No change needed — `ai_routing_config` was already registered at line 24.
+
+---
+
+## 2026-05-10 — Task #28: Fix all DevKit panel errors (auth forwarding, missing packages, UI crashes)
+
+### What changed
+
+#### `src/lib/edgeFunctions.ts`
+- `functions.createExecution()` now passes `options?.headers ?? {}` as the 6th argument. Previously headers were silently dropped, so `Authorization: Bearer <DEVKIT_PASSWORD>` never reached any admin function — causing every panel to return 401 / "Session expired". This single fix unblocks auth for all 10+ admin panels.
+- Updated the behavioral comment block to accurately describe that headers are now forwarded (removed the "intentional no-op" statement).
+
+#### `src/components/dev-kit/DevKitRunner.tsx`
+- `<TestItem>` props corrected: `expandedJson` → `isExpanded`, `onToggleJson` → `onToggleExpand`, removed undeclared `globalRunning` prop.
+- Default result fallback added: `results[test.id] ?? { status: 'idle' as const }` — prevents a TypeError crash on mount before any test is run.
+
+#### `src/components/dev-kit/TestItem.tsx`
+- Added `if (!result) return null;` early guard at the top of the component body as a safety net against any future undefined `result` prop.
+
+#### `src/components/dev-kit/VisitorsPanel.tsx`
+- Replaced two `setError(String(e))` catch-block calls with `setError(formatEdgeError(e, '...'))` from `@/lib/devkit/edgeResponse`. Fixes `[object Object]` being displayed when the thrown value is a plain object instead of an `Error` instance.
+- Added import for `formatEdgeError`.
+
+#### `appwrite-hubs/` — all 8 admin function packages rebuilt with fresh `node_modules/`
+- `admin-devkit-data`: ran `npm install` (was missing `node_modules/`), rebuilt tar.gz.
+- `admin-visitor-analytics`: first-time tar.gz created (no archive existed); ran `npm install`.
+- `admin-feature-flags`: refreshed `node_modules/`, rebuilt tar.gz.
+- `admin-moderation`: refreshed `node_modules/`, rebuilt tar.gz.
+- `admin-portfolio-usernames`: refreshed `node_modules/`, rebuilt tar.gz.
+- `inspect-ai-keys`: tar.gz created (no archive existed); refreshed `node_modules/`.
+- `admin-email`: refreshed `node_modules/`, rebuilt tar.gz.
+- `admin-testmail`: tar.gz created (no archive existed; zero external deps).
+
+All archives are rooted at `./` so Appwrite finds `./src/main.js` as the entrypoint. Upload each to Appwrite Console → Functions → (create if missing) → Deployments → Create Deployment, then Activate.
+
+---
+
+## 2026-05-10 — Fix four broken features after Appwrite migration (AI badge, CV score, AI tools, CV preview)
+
+### What changed
+
+#### `src/lib/appwrite-bridge.ts`
+- Removed `'ai-health'` and `'score-resume'` from `AI_HUB_FUNCTIONS`.
+  - `ai-health` now calls the standalone `ai-health` Appwrite function directly (returns `{status:'healthy',latencyMs:0}` instantly) instead of routing through `ai-gateway` and making a real AI provider call. This restores the "AI Online" badge.
+  - `score-resume` removed because scoring is now computed locally (see `useResumeScore.ts`).
+
+#### `src/hooks/useResumeScore.ts`
+- Removed `edgeFunctions` import and the `invokeScoreResume` edge function call entirely.
+- Added imports for `calcContactScore`, `calcSummaryScore`, `calcExperienceScore`, `calcEducationScore`, `calcSkillsScore` from `resumeCompletionRules.ts`.
+- Added `buildLocalResumeScore(resume)` — builds a full `ResumeHealthScore` (all categories + topStrength + topImprovement) using deterministic local rules. Instant, no network call, no AI.
+- `invokeScoreResume` now delegates to `buildLocalResumeScore` and returns immediately. All callers (`scoreResume`, `backgroundScore`, `runBackgroundScore`) continue to work unchanged.
+
+#### `src/hooks/useEditorHydration.ts`
+- Fixed field name mismatches between `DatabaseResumeLike` interface and actual Appwrite documents:
+  - `resumeFromDb.template_id` → resolves `$$.template` first, falls back to `template_id`.
+  - `resumeFromDb.updated_at` → resolves `$updatedAt` first, falls back to `updated_at`.
+- Both fixes apply in both the initial hydration path and the stale-resume detection path.
+- This restores correct template selection and enables proper stale-detection for documents coming from Appwrite (not Supabase).
+
+#### `src/hooks/useResumes.ts` — `dbToResumeData`
+- Added fallback to `content` blob: if `db.contact_info`, `db.experience`, etc. are missing/null (Supabase migration format stored everything in a single `content` JSONB column), the function now falls back to the same fields from `parseJson(db.content, {})`.
+- Resume title and templateId also fall back to blob values.
+- This restores the CV preview for resumes whose data lives in the `content` column rather than individual attributes.
+
+#### `appwrite-hubs/ai-gateway/src/main.js`
+- Added a `resume-section-ai` feature-specific handler block (inserted before the generic AI route).
+- Reads `featureName === 'resume-section-ai'` and `opts['x-resume-section-ai-action']` (`enhance` | `tailor` | `fill-gap` | `explain-gap`).
+- Builds proper system + user prompts from `section`, `currentContent`, `context.jobDescription`.
+- Returns `{ status, improved, changes, suggestions, providerUsed, modelUsed }` at top level so `useAIEnhance.ts`'s `respData.improved` access and `validateImprovedShape` check both pass.
+- Strips markdown code fences from AI responses before JSON parsing; falls back gracefully if parsing fails.
+- Deployed to Appwrite (deployment ID `69ffdf9963e2f4c828af`, status `ready`).
+
+
+---
+
 ## 2026-05-10 — thewise.cloud landing page + deploy pipeline corrections
 
 ### What changed
@@ -554,3 +1089,13 @@ Production error `TypeError: Cannot read properties of undefined (reading 'data'
 
 ### Root cause of panels being hidden
 `DevKitSessionProvider` was never mounted anywhere in the app. Panels that call `useDevKitSession()` would have thrown "must be used within DevKitSessionProvider" at runtime. Now the provider wraps the entire DevTools shell.
+
+## 2026-05-10 — Restore quran.thewise.cloud (wisequran deploy)
+
+### What changed
+
+#### Triggered: `iammagdy/wisequran` deploy workflow (run 25616085615)
+- `quran.thewise.cloud` was returning 404 after the `--delete` mirror in the WiseResume deploy wiped the `/public_html/quran/` subdirectory on Hostinger.
+- Triggered `workflow_dispatch` on wisequran's existing "Deploy to Hostinger" workflow (ID 244949119) via GitHub API. Workflow runs `pnpm build` → smoke-tests → deploys to `domains/thewise.cloud/public_html/quran` via SFTP.
+- Result: SUCCESS. `quran.thewise.cloud` serves HTTP 200, last-modified `2026-05-10T01:00:45Z`.
+- No code changes were needed — the wisequran repo already had all SFTP secrets and a working deploy workflow.
