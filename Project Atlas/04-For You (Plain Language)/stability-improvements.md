@@ -1,6 +1,6 @@
 # Stability Improvements — What's Getting Better Behind the Scenes
 
-**Last verified:** 2026-05-09 (Task #10 — Per-feature AI provider routing)
+**Last verified:** 2026-05-10 (v4.1.1 deploy pipeline fix)
 
 ## AI calls are now observable in Datadog (2026-05-09, Task #19)
 
