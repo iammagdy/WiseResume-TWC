@@ -1,3 +1,32 @@
+## 2026-05-10 — v4.1.3 release
+
+### Summary
+v4.1.3 — Task #48: Fix AI health badge (always red) and resume scoring toast ("Resume score may be out of date"). Two root causes fixed: (1) `ai-health` Appwrite Function was never deployed (missing from `deploy_hubs.cjs`) — badge pinged a non-existent function and always got an error. (2) Dashboard scoring and display used `resume.id` (undefined on Appwrite documents) instead of `resume.$id` — scores were computed correctly but stored/looked up under wrong keys, so health scores never displayed and selection/bulk-delete were broken.
+
+---
+
+## 2026-05-10 — Task #48: Fix AI health badge and resume scoring dashboard bugs
+
+### What changed
+
+#### `scripts/deploy_hubs.cjs`
+- Added `{ id: 'ai-health', name: 'AI Health Hub', file: 'ai-health.tar.gz' }` to the `hubs` array.
+- The CI workflow (`.github/workflows/deploy-appwrite-hubs.yml`) already built and uploaded `ai-health.tar.gz`; it was simply never deployed to Appwrite. This was the sole cause of the "AI Unavailable" badge — the function invocation always received a 404.
+
+#### `src/pages/DashboardPage.tsx`
+- `scoreOne` effect: replaced `resume.id` / `resume.updated_at` with `resume.$id` / `resume.$updatedAt` (correct Appwrite document field names) for `getCachedScore`, `backgroundScore`, and `setHealthScores` key.
+- Filter section: `healthScores[resume.id]` → `healthScores[resume.$id]`.
+- Sort section: `healthScores[a.id]` / `healthScores[b.id]` → `healthScores[a.$id]` / `healthScores[b.$id]`.
+- My CVs render: `key`, `showMasterBadge` hierarchy lookup, `healthScore`, `isScoring`, `selected`, `isProcessing` all updated from `resume.id` → `resume.$id`.
+- Tailored CVs render: same set of props updated to `resume.$id`.
+- `handleSelectAll`: `filteredResumes.map(r => r.id)` → `filteredResumes.map(r => r.$id)`.
+
+#### `src/components/dashboard/ResumeGroup.tsx`
+- Master card: `healthScores[masterResume.id]` / `scoringId === masterResume.id` → `$id` variants.
+- Tailored list: `key={resume.id}`, `healthScores[resume.id]`, `scoringId === resume.id` → `$id` variants.
+
+---
+
 ## 2026-05-10 — v4.1.2 release
 
 ### Summary

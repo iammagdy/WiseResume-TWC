@@ -57,8 +57,8 @@ export function ResumeGroup({
           onRename={onRename}
           onInterview={onInterview}
           showMasterBadge={hasTailored}
-          healthScore={healthScores[masterResume.id]}
-          isScoring={scoringId === masterResume.id}
+          healthScore={healthScores[masterResume.$id]}
+          isScoring={scoringId === masterResume.$id}
         />
         
         {/* Tailored count badge - static below card */}
@@ -115,7 +115,7 @@ export function ResumeGroup({
           >
             {tailoredVersions.map((resume, index) => (
               <motion.div
-                key={resume.id}
+                key={resume.$id}
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.05 }}
@@ -128,8 +128,8 @@ export function ResumeGroup({
                   onRename={onRename}
                   onInterview={onInterview}
                   showTailoredBadge
-                  healthScore={healthScores[resume.id]}
-                  isScoring={scoringId === resume.id}
+                  healthScore={healthScores[resume.$id]}
+                  isScoring={scoringId === resume.$id}
                 />
               </motion.div>
             ))}

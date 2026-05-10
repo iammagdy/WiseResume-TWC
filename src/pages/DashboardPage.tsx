@@ -301,16 +301,18 @@ function DashboardPageContent() {
 
     const scoreOne = async (resume: typeof resumes[0]) => {
       if (cancelled) return;
-      const cached = getCachedScore(resume.id, resume.updated_at);
+      const rid = resume.$id;
+      const rUpdatedAt = resume.$updatedAt;
+      const cached = getCachedScore(rid, rUpdatedAt);
       if (cached) {
-        setHealthScores(prev => ({ ...prev, [resume.id]: cached }));
+        setHealthScores(prev => ({ ...prev, [rid]: cached }));
         return;
       }
       const resumeData = dbToResumeData(resume);
-      await backgroundScore(resume.id, resumeData, resume.updated_at);
-      const newCached = getCachedScore(resume.id, resume.updated_at);
+      await backgroundScore(rid, resumeData, rUpdatedAt);
+      const newCached = getCachedScore(rid, rUpdatedAt);
       if (newCached && !cancelled) {
-        setHealthScores(prev => ({ ...prev, [resume.id]: newCached }));
+        setHealthScores(prev => ({ ...prev, [rid]: newCached }));
       }
     };
 
@@ -453,7 +455,7 @@ function DashboardPageContent() {
     // Score filter
     if (scoreFilters.length > 0) {
       result = result.filter(resume => {
-        const score = healthScores[resume.id]?.overallScore;
+        const score = healthScores[resume.$id]?.overallScore;
         if (score == null) return false;
         return scoreFilters.some(f =>
           f === 'needs-work' ? score < 50 :
@@ -467,7 +469,7 @@ function DashboardPageContent() {
     if (sortOption === 'alpha') {
       result = [...result].sort((a, b) => a.title.localeCompare(b.title));
     } else if (sortOption === 'score') {
-      result = [...result].sort((a, b) => (healthScores[b.id]?.overallScore ?? -1) - (healthScores[a.id]?.overallScore ?? -1));
+      result = [...result].sort((a, b) => (healthScores[b.$id]?.overallScore ?? -1) - (healthScores[a.$id]?.overallScore ?? -1));
     }
     // 'updated' is the default order from the query
 
@@ -512,7 +514,7 @@ function DashboardPageContent() {
 
   const handleSelectAll = useCallback(() => {
     if (!filteredResumes) return;
-    setSelectedIds(new Set(filteredResumes.map(r => r.id)));
+    setSelectedIds(new Set(filteredResumes.map(r => r.$id)));
   }, [filteredResumes]);
 
   const exitSelectionMode = useCallback(() => {
@@ -999,7 +1001,7 @@ function DashboardPageContent() {
                           {myCVsSlice.map((resume) => {
                             const isMaster = !resume.parent_resume_id;
                             return (
-                              <motion.div key={resume.id} variants={itemVariants}>
+                              <motion.div key={resume.$id} variants={itemVariants}>
                                 <ResumeListCard
                                   resume={resume}
                                   onEdit={handleEdit}
@@ -1007,16 +1009,16 @@ function DashboardPageContent() {
                                   onDelete={handleDelete}
                                   onRename={handleRename}
                                   onInterview={handleInterview}
-                                  showMasterBadge={isMaster && !!resumeHierarchy.tailoredByParent[resume.id]?.length}
+                                  showMasterBadge={isMaster && !!resumeHierarchy.tailoredByParent[resume.$id]?.length}
                                   showTailoredBadge={!isMaster}
-                                  healthScore={healthScores[resume.id]}
-                                  isScoring={scoringId === resume.id}
+                                  healthScore={healthScores[resume.$id]}
+                                  isScoring={scoringId === resume.$id}
                                   selectionMode={selectionMode}
-                                  selected={selectedIds.has(resume.id)}
+                                  selected={selectedIds.has(resume.$id)}
                                   onToggleSelect={toggleSelection}
                                   isProcessing={
-                                    (deleteResume.isPending && deleteResume.variables === resume.id) ||
-                                    (duplicateResume.isPending && duplicateResume.variables === resume.id)
+                                    (deleteResume.isPending && deleteResume.variables === resume.$id) ||
+                                    (duplicateResume.isPending && duplicateResume.variables === resume.$id)
                                   }
                                 />
                               </motion.div>
@@ -1071,7 +1073,7 @@ function DashboardPageContent() {
                         variants={{ visible: { transition: { staggerChildren: 0.05 } } }}
                       >
                         {tailoredSlice.map((resume) => (
-                          <motion.div key={resume.id} variants={itemVariants}>
+                          <motion.div key={resume.$id} variants={itemVariants}>
                             <div className="rounded-xl bg-card border border-border shadow-soft p-3 space-y-2">
                               {(resume.target_job_title || resume.target_company) && (
                                 <div className="flex items-center gap-2 flex-wrap">
@@ -1100,14 +1102,14 @@ function DashboardPageContent() {
                                 onRename={handleRename}
                                 onInterview={handleInterview}
                                 showTailoredBadge
-                                healthScore={healthScores[resume.id]}
-                                isScoring={scoringId === resume.id}
+                                healthScore={healthScores[resume.$id]}
+                                isScoring={scoringId === resume.$id}
                                 selectionMode={selectionMode}
-                                selected={selectedIds.has(resume.id)}
+                                selected={selectedIds.has(resume.$id)}
                                 onToggleSelect={toggleSelection}
                                 isProcessing={
-                                  (deleteResume.isPending && deleteResume.variables === resume.id) ||
-                                  (duplicateResume.isPending && duplicateResume.variables === resume.id)
+                                  (deleteResume.isPending && deleteResume.variables === resume.$id) ||
+                                  (duplicateResume.isPending && duplicateResume.variables === resume.$id)
                                 }
                               />
                             </div>

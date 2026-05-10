@@ -53,11 +53,14 @@ async function deployFunction(id, name, filePath) {
 async function run() {
     const hubs = [
         { id: 'ai-gateway',                name: 'AI Gateway Hub',                file: 'ai-gateway.tar.gz' },
+        { id: 'ai-health',                 name: 'AI Health Hub',                 file: 'ai-health.tar.gz' },
         { id: 'auth-master',               name: 'Auth Master Hub',               file: 'auth-master.tar.gz' },
         { id: 'admin-email',               name: 'Admin Email Hub',               file: 'admin-email.tar.gz' },
+        { id: 'admin-testmail',            name: 'Admin Testmail Hub',            file: 'admin-testmail.tar.gz' },
         { id: 'admin-feature-flags',       name: 'Admin Feature Flags Hub',       file: 'admin-feature-flags.tar.gz' },
         { id: 'admin-moderation',          name: 'Admin Moderation Hub',          file: 'admin-moderation.tar.gz' },
         { id: 'admin-portfolio-usernames', name: 'Admin Portfolio Usernames Hub', file: 'admin-portfolio-usernames.tar.gz' },
+        { id: 'inspect-ai-keys',           name: 'Inspect AI Keys Hub',           file: 'inspect-ai-keys.tar.gz' },
     ];
 
     for (const hub of hubs) {
