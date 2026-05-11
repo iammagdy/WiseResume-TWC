@@ -159,29 +159,28 @@ async function handleListUsersPage(body, log) {
 async function handleOverviewStats(log) {
   const { databases, users: usersClient } = getClients();
 
-  // Paginate through ALL Appwrite Auth accounts (max 500 per request)
+  // Paginate through ALL Appwrite Auth accounts (max 500 per request).
+  // Failure is intentionally propagated — partial Auth data would produce
+  // misleading counts (e.g. all resumes appearing "orphaned").
   let totalAuthUsers  = 0;
   let verifiedUsers   = 0;
   const allAuthUserIds = [];
-  try {
-    const BATCH = 500;
-    let offset = 0;
-    let isFirstPage = true;
-    while (true) {
-      const batch = await usersClient.list([sdk.Query.limit(BATCH), sdk.Query.offset(offset)]);
-      if (isFirstPage) {
-        totalAuthUsers = batch.total; // authoritative total from first response
-        isFirstPage = false;
-      }
-      const ids = batch.users.map(u => u.$id);
-      allAuthUserIds.push(...ids);
-      verifiedUsers += batch.users.filter(u => u.emailVerification).length;
-      if (ids.length < BATCH) break; // last page
-      offset += ids.length;
+  const BATCH = 500;
+  let offset = 0;
+  let isFirstPage = true;
+  while (true) {
+    const batch = await usersClient.list([sdk.Query.limit(BATCH), sdk.Query.offset(offset)]);
+    if (isFirstPage) {
+      totalAuthUsers = batch.total; // authoritative total from first response
+      isFirstPage = false;
     }
-  } catch (e) {
-    log(`overview-stats: users.list failed: ${e.message}`);
+    const ids = batch.users.map(u => u.$id);
+    allAuthUserIds.push(...ids);
+    verifiedUsers += batch.users.filter(u => u.emailVerification).length;
+    if (ids.length < BATCH) break; // last page
+    offset += ids.length;
   }
+  log(`overview-stats: loaded ${allAuthUserIds.length} of ${totalAuthUsers} auth users`);
 
   // Total resumes in DB (including any orphaned ones)
   let totalAllResumes = 0;
