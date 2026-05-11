@@ -1,6 +1,4 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { databases, DATABASE_ID, Query } from '@/lib/appwrite';
-import { COLLECTIONS } from '@/lib/appwrite-collections';
 import {
   User, Shield, Crown, Trash2, Search, Loader2, FileText,
   ExternalLink, RefreshCw, ChevronDown, Ban, SlidersHorizontal,
@@ -126,32 +124,17 @@ export const AdminUsersPanel = () => {
 
   const fetchGlobalStats = useCallback(async () => {
     try {
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
-      const todayISO = todayStart.toISOString();
-
-      const [premiumRes, proRes, suspendedRes, activeTodayRes] = await Promise.allSettled([
-        databases.listDocuments(DATABASE_ID, COLLECTIONS.subscriptions, [
-          Query.equal('plan', 'premium'), Query.limit(1),
-        ]),
-        databases.listDocuments(DATABASE_ID, COLLECTIONS.subscriptions, [
-          Query.equal('plan', 'pro'), Query.limit(1),
-        ]),
-        databases.listDocuments(DATABASE_ID, COLLECTIONS.profiles, [
-          Query.equal('is_suspended', true), Query.limit(1),
-        ]),
-        databases.listDocuments(DATABASE_ID, COLLECTIONS.profiles, [
-          Query.greaterThan('$updatedAt', todayISO), Query.limit(1),
-        ]),
-      ]);
-
-      setGlobalStats(prev => ({
-        total: prev?.total ?? 0,
-        premium: premiumRes.status === 'fulfilled' ? premiumRes.value.total : (prev?.premium ?? 0),
-        pro: proRes.status === 'fulfilled' ? proRes.value.total : (prev?.pro ?? 0),
-        suspended: suspendedRes.status === 'fulfilled' ? suspendedRes.value.total : (prev?.suspended ?? 0),
-        activeToday: activeTodayRes.status === 'fulfilled' ? activeTodayRes.value.total : (prev?.activeToday ?? 0),
-      }));
+      const tuple = await appwriteFunctions.invoke<GlobalStats>(
+        'admin-devkit-data',
+        {
+          headers: devKitAuthHeaders(),
+          body: { action: 'global-stats' },
+        },
+      );
+      const result = unwrapAdminResponse<{ data?: GlobalStats }>(tuple, 'admin-devkit-data');
+      if (result.data) {
+        setGlobalStats(result.data);
+      }
     } catch {
       // silently ignore — stats bar will show page-local fallback
     }

@@ -6,6 +6,17 @@ Added a `purge-orphans` action to `admin-devkit-data` that finds and hard-delete
 Auth. The Overview panel now surfaces a "Preview & clean" workflow when orphaned
 resumes are detected.
 
+---
+
+## 2026-05-11 — Move God Mode global stats bar to server-side
+
+### Summary
+Replaced the four direct `databases.listDocuments` calls inside `fetchGlobalStats()`
+in `AdminUsersPanel.tsx` with a single server-side invoke of the new `global-stats`
+action on `admin-devkit-data`. This ensures the stats bar (premium/pro/suspended/
+activeToday counts) is not blocked by Appwrite's document-level permissions if those
+collections are ever tightened to disallow cross-user reads from the browser SDK.
+
 ### What changed
 
 #### `appwrite-hubs/admin-devkit-data/src/main.js`
@@ -34,6 +45,22 @@ resumes are detected.
 ### Deploy
 GitHub Actions "Deploy AI Hubs" dispatched (HTTP 204, workflow id 273053815).
 TypeScript: `tsc --noEmit` passes with zero errors.
+
+---
+
+#### `appwrite-hubs/admin-devkit-data/src/main.js`
+- Added `handleGlobalStats(log)`: fires five `Promise.allSettled` queries (total
+  profiles, premium subs, pro subs, suspended profiles, today-active profiles)
+  using the server admin API key; returns `{ total, premium, pro, suspended, activeToday }`.
+- Wired action `'global-stats'` into the main dispatch chain.
+
+#### `src/components/dev-kit/AdminUsersPanel.tsx`
+- `fetchGlobalStats()`: replaced four direct `databases.listDocuments` calls for
+  `subscriptions` (×2) and `profiles` (×2) with a single
+  `appwriteFunctions.invoke('admin-devkit-data', { action: 'global-stats' })`
+  call, unwrapped via `unwrapAdminResponse`.
+- Removed now-unused `databases`, `DATABASE_ID`, `Query` and `COLLECTIONS` imports
+  — no direct `databases.*` calls remain anywhere in `AdminUsersPanel.tsx`.
 
 ---
 

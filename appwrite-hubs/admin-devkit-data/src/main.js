@@ -514,6 +514,51 @@ async function handleMissionControl(log, error) {
   };
 }
 
+// ─── GLOBAL STATS ─────────────────────────────────────────────────────────────
+
+/**
+ * Returns aggregate counts for the God Mode stats bar.
+ * Runs server-side (admin API key) so it is not blocked by Appwrite
+ * document-level permissions — the client SDK cannot do cross-user reads on
+ * subscriptions / profiles.
+ *
+ * Returns: { total, premium, pro, suspended, activeToday }
+ */
+async function handleGlobalStats(log) {
+  const { databases } = getClients();
+
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const todayISO = todayStart.toISOString();
+
+  const [totalRes, premiumRes, proRes, suspendedRes, activeTodayRes] = await Promise.allSettled([
+    databases.listDocuments(DB_ID, 'profiles',      [sdk.Query.limit(1)]),
+    databases.listDocuments(DB_ID, 'subscriptions', [sdk.Query.equal('plan', 'premium'), sdk.Query.limit(1)]),
+    databases.listDocuments(DB_ID, 'subscriptions', [sdk.Query.equal('plan', 'pro'),     sdk.Query.limit(1)]),
+    databases.listDocuments(DB_ID, 'profiles',      [sdk.Query.equal('is_suspended', true), sdk.Query.limit(1)]),
+    databases.listDocuments(DB_ID, 'profiles',      [sdk.Query.greaterThan('$updatedAt', todayISO), sdk.Query.limit(1)]),
+  ]);
+
+  const labels  = ['total', 'premium', 'pro', 'suspended', 'activeToday'];
+  const settled = [totalRes, premiumRes, proRes, suspendedRes, activeTodayRes];
+  settled.forEach((r, i) => {
+    if (r.status === 'rejected') {
+      log(`global-stats WARNING: query "${labels[i]}" failed — count will show 0 (reason: ${r.reason?.message ?? r.reason})`);
+    }
+  });
+
+  const stats = {
+    total:       totalRes.status       === 'fulfilled' ? totalRes.value.total       : 0,
+    premium:     premiumRes.status     === 'fulfilled' ? premiumRes.value.total     : 0,
+    pro:         proRes.status         === 'fulfilled' ? proRes.value.total         : 0,
+    suspended:   suspendedRes.status   === 'fulfilled' ? suspendedRes.value.total   : 0,
+    activeToday: activeTodayRes.status === 'fulfilled' ? activeTodayRes.value.total : 0,
+  };
+
+  log(`global-stats: total=${stats.total} premium=${stats.premium} pro=${stats.pro} suspended=${stats.suspended} activeToday=${stats.activeToday}`);
+  return stats;
+}
+
 // ─── MAIN HANDLER ────────────────────────────────────────────────────────────
 
 module.exports = async ({ req, res, log, error }) => {
@@ -564,6 +609,11 @@ module.exports = async ({ req, res, log, error }) => {
 
     if (action === 'overview-stats') {
       const data = await handleOverviewStats(log);
+      return res.json({ success: true, data });
+    }
+
+    if (action === 'global-stats') {
+      const data = await handleGlobalStats(log);
       return res.json({ success: true, data });
     }
 

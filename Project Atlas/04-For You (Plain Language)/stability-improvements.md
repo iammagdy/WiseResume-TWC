@@ -1,6 +1,27 @@
 # Stability Improvements — What's Getting Better Behind the Scenes
 
-**Last verified:** 2026-05-11 (Fix God Mode user loading & OverviewPanel accuracy)
+**Last verified:** 2026-05-11 (God Mode stats bar moved to secure server-side fetch)
+
+## Admin panel: God Mode stats bar now uses a secure server-side call (2026-05-11)
+
+The counts shown in the top bar of God Mode — total users, premium subscribers, pro
+subscribers, suspended accounts, and users active today — were still being fetched
+directly from the browser using the regular user SDK. While this worked because they
+only fetched totals (not individual rows), stricter Appwrite permission settings
+would have silently broken them the same way the user list broke before.
+
+**What changed:**
+
+- The stats bar now calls a dedicated `global-stats` action on the secure server
+  function (`admin-devkit-data`), which uses the admin API key and is not affected
+  by permission settings.
+- The browser no longer makes any direct database calls from the God Mode panel at
+  all — all data now flows through the server-side admin function.
+- This also means the counts will be accurate even if database permissions are
+  tightened in the future.
+
+No visible change to what you see on screen — the same five numbers appear in the
+same places, they just arrive via the more reliable path.
 
 ## Admin panel: orphaned database rows can now be cleaned up with one click (2026-05-11)
 
