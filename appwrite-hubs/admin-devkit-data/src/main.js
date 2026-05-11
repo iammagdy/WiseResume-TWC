@@ -182,14 +182,11 @@ async function handleOverviewStats(log) {
   }
   log(`overview-stats: loaded ${allAuthUserIds.length} of ${totalAuthUsers} auth users`);
 
-  // Total resumes in DB (including any orphaned ones)
-  let totalAllResumes = 0;
-  try {
-    const allRes    = await databases.listDocuments(DB_ID, 'resumes', [sdk.Query.limit(1)]);
-    totalAllResumes = allRes.total;
-  } catch (e) {
-    log(`overview-stats: resumes total failed: ${e.message}`);
-  }
+  // Total resumes in DB (including any orphaned ones).
+  // Failure is intentionally propagated — a zero fallback would make orphaned
+  // count negative or hide real orphan numbers.
+  const allResumesRes = await databases.listDocuments(DB_ID, 'resumes', [sdk.Query.limit(1)]);
+  const totalAllResumes = allResumesRes.total;
 
   // Count resumes owned by current Auth users — chunk into ≤100 IDs per
   // query to respect the Appwrite Query.equal array limit.
