@@ -200,20 +200,17 @@ async function handleOverviewStats(log) {
     for (let i = 0; i < allAuthUserIds.length; i += CHUNK) {
       chunks.push(allAuthUserIds.slice(i, i + CHUNK));
     }
-    try {
-      const results = await Promise.all(
-        chunks.map(ids =>
-          databases.listDocuments(DB_ID, 'resumes', [
-            sdk.Query.equal('user_id', ids),
-            sdk.Query.limit(1),
-          ])
-        )
-      );
-      activeResumes = results.reduce((sum, r) => sum + r.total, 0);
-    } catch (e) {
-      log(`overview-stats: active resumes chunked query failed: ${e.message}`);
-      activeResumes = totalAllResumes; // fallback: assume no orphans
-    }
+    // Failure is intentionally propagated — falling back to totalAllResumes
+    // would report zero orphans even when Auth data is stale/partial.
+    const results = await Promise.all(
+      chunks.map(ids =>
+        databases.listDocuments(DB_ID, 'resumes', [
+          sdk.Query.equal('user_id', ids),
+          sdk.Query.limit(1),
+        ])
+      )
+    );
+    activeResumes = results.reduce((sum, r) => sum + r.total, 0);
   }
 
   const orphanedResumes = Math.max(0, totalAllResumes - activeResumes);
