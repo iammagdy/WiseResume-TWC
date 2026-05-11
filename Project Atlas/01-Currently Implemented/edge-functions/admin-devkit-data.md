@@ -13,14 +13,16 @@
 
 **What it does:** Multi-action Appwrite Function serving the DevKit admin panels. Routes on `body.action`:
 
-| Action | Panel served |
-|---|---|
-| `mission-control` | Mission Control — deploy status, AI provider pings, email check, DB health, secrets inventory, recent errors and admin actions |
-| `update-plan` | God Mode — upserts a user's `subscriptions` document using the admin API key; body: `{ user_id, plan }` |
-| `analytics` | Analytics — usage event aggregates, DAU/WAU, top features, portfolio visits, country breakdown, cohort retention, plan distribution |
-| `observability` | Observability — edge function telemetry, error stream, mark-reviewed write |
-| `live-activity` | Live Activity — recent `usage_events`, `error_log`, and `contact_requests` docs |
-| `edge-fn-drift` | Mission Control sub-panel — deployed function count, oldest/newest deploy timestamps, auth posture |
+| Action | Status | Panel served |
+|---|---|---|
+| `mission-control` | ✅ Implemented | Mission Control — deploy status, AI provider pings, email check, DB health, secrets inventory, recent errors and admin actions |
+| `update-plan` | ✅ Implemented | God Mode — upserts a user's `subscriptions` document using the admin API key; body: `{ user_id, plan }` |
+| `analytics` | ⏳ Pending migration | Analytics — usage event aggregates, DAU/WAU, top features, portfolio visits, country breakdown, cohort retention, plan distribution |
+| `observability` | ⏳ Pending migration | Observability — edge function telemetry, error stream, mark-reviewed write |
+| `live-activity` | ⏳ Pending migration | Live Activity — recent `usage_events`, `error_log`, and `contact_requests` docs |
+| `edge-fn-drift` | ⏳ Pending migration | Mission Control sub-panel — deployed function count, oldest/newest deploy timestamps, auth posture |
+
+**Note:** Unimplemented actions return `400 { success: false, error: "Unknown action: ..." }`. The AnalyticsPanel, ObservabilityPanel, and LiveActivityPanel all call unimplemented actions and will display error states until those handlers are added.
 
 **Auth:** `Authorization: Bearer <DEVKIT_PASSWORD>` on every request. Missing or wrong token → 401.
 
