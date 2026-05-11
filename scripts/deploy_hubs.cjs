@@ -55,6 +55,7 @@ async function run() {
         { id: 'ai-gateway',                name: 'AI Gateway Hub',                file: 'ai-gateway.tar.gz' },
         { id: 'ai-health',                 name: 'AI Health Hub',                 file: 'ai-health.tar.gz' },
         { id: 'auth-master',               name: 'Auth Master Hub',               file: 'auth-master.tar.gz' },
+        { id: 'admin-devkit-data',         name: 'Admin DevKit Data Hub',         file: 'admin-devkit-data.tar.gz' },
         { id: 'admin-email',               name: 'Admin Email Hub',               file: 'admin-email.tar.gz' },
         { id: 'admin-testmail',            name: 'Admin Testmail Hub',            file: 'admin-testmail.tar.gz' },
         { id: 'admin-feature-flags',       name: 'Admin Feature Flags Hub',       file: 'admin-feature-flags.tar.gz' },
