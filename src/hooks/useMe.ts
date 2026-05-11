@@ -35,8 +35,7 @@ export function useMe() {
     queryFn: async (): Promise<MeData> => {
       if (!user?.id) throw new Error('Not authenticated');
 
-      const [pRes, sRes, cRes] = await Promise.all([
-        safeList('profiles', [Query.equal('user_id', user.id)]),
+      const [sRes, cRes] = await Promise.all([
         safeList('subscriptions', [Query.equal('user_id', user.id)]),
         safeList('ai_credits', [Query.equal('user_id', user.id)]),
       ]);
@@ -46,7 +45,7 @@ export function useMe() {
 
       return {
         userId: user.id,
-        profile: (pRes.documents[0] as Record<string, unknown>) ?? null,
+        profile: null, // Profile is handled by useProfile hook to avoid redundancy
         subscription: sub
           ? {
               plan: (sub.plan as string) ?? 'free',

@@ -21,7 +21,11 @@ export function useJobApplications(statusFilter?: ApplicationStatus) {
     queryKey: ['job-applications', user?.id, statusFilter],
     queryFn: async () => {
       if (!user) return [];
-      const queries = [Query.equal('user_id', user.id), Query.orderDesc('$createdAt')];
+      const queries = [
+        Query.equal('user_id', user.id),
+        Query.orderDesc('$createdAt'),
+        Query.limit(100)
+      ];
       if (statusFilter) queries.push(Query.equal('status', statusFilter));
       const response = await databases.listDocuments(DATABASE_ID, 'job_applications', queries);
       return response.documents;

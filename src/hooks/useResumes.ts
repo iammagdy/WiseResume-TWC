@@ -88,7 +88,8 @@ export function useResumes(options: { select?: (data: any[]) => any } = {}) {
       if (!user) return [];
       const response = await databases.listDocuments(DATABASE_ID, 'resumes', [
         Query.equal('user_id', user.id),
-        Query.orderDesc('$updatedAt')
+        Query.orderDesc('$updatedAt'),
+        Query.limit(50)
       ]);
       writePersistedCache(`resumes:${user.id}`, response.documents);
       return response.documents;
