@@ -150,10 +150,11 @@ async function handleListUsersPage(body, log) {
  *   - totalResumes     — resumes owned by current Auth users (orphans excluded)
  *   - orphanedResumes  — resumes whose owner no longer exists in Appwrite Auth
  *
- * Note: authUserIds is capped at 500 and the Appwrite Query.equal array limit
- * is 100, so activeResumes is computed against the first 100 user IDs. For
- * typical early-stage apps this is sufficient; a chunked approach would be
- * needed for larger user bases.
+ * Implementation notes:
+ *   - Auth users are paginated in 500-per-request batches until all are loaded.
+ *   - Resume counting chunks collected user IDs into groups of 100 (Appwrite
+ *     Query.equal array limit) and sums totals across all chunks, so every
+ *     user is covered regardless of platform size.
  */
 async function handleOverviewStats(log) {
   const { databases, users: usersClient } = getClients();
