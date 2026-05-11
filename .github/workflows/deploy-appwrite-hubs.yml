@@ -48,3 +48,4 @@ jobs:
           export APPWRITE_PROJECT_ID="69fd362b001eb325a192"
           export APPWRITE_API_KEY="${{ secrets.APPWRITE_API_KEY }}"
           node scripts/deploy_hubs.cjs
+
