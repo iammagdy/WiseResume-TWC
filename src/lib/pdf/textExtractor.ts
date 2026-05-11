@@ -245,6 +245,15 @@ async function extractOnce(file: File, forceSystemFonts: boolean): Promise<Extra
 
   let pdf;
   try {
+    // Basic health check for assets on the current domain. If these 404,
+    // extraction will fail silently or hang.
+    if (import.meta.env.PROD) {
+      try {
+        const check = await fetch('/pdfjs/cmaps/Adobe-Japan1-1.bcmap', { method: 'HEAD' });
+        if (!check.ok) console.warn('[textExtractor] PDF assets (cmaps) missing from server');
+      } catch { /* ignore */ }
+    }
+
     pdf = await pdfjsLib.getDocument({
       data: arrayBuffer,
       cMapUrl: '/pdfjs/cmaps/',

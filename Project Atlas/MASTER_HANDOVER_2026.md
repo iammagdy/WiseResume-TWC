@@ -54,7 +54,9 @@
 - AI Hub — 24+ features via `ai-gateway` Appwrite Function
 - DevKit AIKeysPanel — NVIDIA slots use `<select>` dropdown with 5 Mistral/Gemma models
 - DevKit AIRoutingPanel — new panel showing full `FEATURE_ROUTES` table by provider
-- GitHub repo (`iammagdy/WiseResume-TWC`, `main`) — remote HEAD `2ffb68e`
+- **Fix (2026-05-11):** Profile name persistence and reflection issue resolved by mapping snake_case Appwrite fields to camelCase UI fields in `useProfile.ts`.
+- **Fix (2026-05-11):** iOS CV parsing stability improved by ensuring `prebuild` script runs to generate necessary PDF.js and Tesseract assets, and adding asset health checks in `textExtractor.ts`.
+- GitHub repo (`iammagdy/WiseResume-TWC`, `main`) — remote HEAD `2ffb68e` (plus local fixes)
 
 ### Active Task Queue (pending)
 - **#15** — Deploy admin-testmail to Appwrite
@@ -86,4 +88,4 @@
 | `CHANGELOG.md` | Technical change log |
 
 ---
-*Last updated: 2026-05-10*
+*Last updated: 2026-05-11*

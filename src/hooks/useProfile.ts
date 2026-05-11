@@ -51,7 +51,28 @@ export function useProfile(userId: string | undefined, initialData?: any) {
       const response = await databases.listDocuments(DATABASE_ID, 'profiles', [
         Query.equal('user_id', userId)
       ]);
-      return response.documents[0] || null;
+      const doc = response.documents[0];
+      if (!doc) return null;
+
+      // Map snake_case to camelCase for the UI
+      return {
+        id: doc.$id,
+        user_id: doc.user_id,
+        email: doc.email,
+        fullName: doc.full_name,
+        avatarUrl: doc.avatar_url,
+        jobTitle: doc.job_title,
+        industry: doc.industry,
+        careerLevel: doc.career_level,
+        location: doc.location,
+        linkedinUrl: doc.linkedin_url,
+        profileCompleted: doc.profile_completed ?? false,
+        username: doc.username,
+        portfolioBio: doc.portfolio_bio,
+        portfolioEnabled: doc.portfolio_enabled ?? false,
+        onboarding_completed: doc.onboarding_completed ?? false,
+        updatedAt: doc.$updatedAt,
+      } as Profile;
     },
     enabled: !!userId,
   });
@@ -66,6 +87,12 @@ export function useProfile(userId: string | undefined, initialData?: any) {
     if (updates.careerLevel !== undefined) data.career_level = updates.careerLevel;
     if (updates.location !== undefined) data.location = updates.location;
     if (updates.onboarding_completed !== undefined) data.onboarding_completed = updates.onboarding_completed;
+    if (updates.avatarUrl !== undefined) data.avatar_url = updates.avatarUrl;
+    if (updates.linkedinUrl !== undefined) data.linkedin_url = updates.linkedinUrl;
+    if (updates.profileCompleted !== undefined) data.profile_completed = updates.profileCompleted;
+    if (updates.portfolioBio !== undefined) data.portfolio_bio = updates.portfolioBio;
+    if (updates.portfolioEnabled !== undefined) data.portfolio_enabled = updates.portfolioEnabled;
+    if (updates.username !== undefined) data.username = updates.username;
 
     if (existing.total > 0) {
       await databases.updateDocument(DATABASE_ID, 'profiles', existing.documents[0].$id, data);
