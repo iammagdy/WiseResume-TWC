@@ -158,65 +158,27 @@ export const AdminUsersPanel = () => {
     setLoading(true);
     try {
       const sortField = sortBy === 'joined' ? '$createdAt' : '$updatedAt';
-      const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.profiles, [
-        Query.orderDesc(sortField),
-        Query.limit(PAGE_SIZE),
-        Query.offset(p * PAGE_SIZE),
-      ]);
-      const profiles = res.documents;
-      const newTotal = res.total;
+      // Use the server-side admin-devkit-data action so the subscriptions +
+      // ai_credits join runs with the server API key and is not blocked by
+      // Appwrite's document-level permissions (which prevent cross-user reads
+      // when called from the client SDK).
+      const tuple = await appwriteFunctions.invoke<{ users?: AdminUser[]; total?: number }>(
+        'admin-devkit-data',
+        {
+          headers: devKitAuthHeaders(),
+          body: { action: 'list-users-page', page: p, pageSize: PAGE_SIZE, sortField },
+        },
+      );
+      const result = unwrapAdminResponse<{ users?: AdminUser[]; total?: number }>(tuple, 'admin-devkit-data');
+      const fetchedUsers = result.users ?? [];
+      const newTotal = result.total ?? 0;
       setTotalCount(newTotal);
       setGlobalStats(prev => ({ ...prev ?? { premium: 0, pro: 0, suspended: 0, activeToday: 0 }, total: newTotal }));
-
-      if (profiles.length === 0) {
-        setUsers([]);
-        return;
-      }
-
-      const userIds = profiles.map(doc => doc.user_id as string);
-
-      const [subsRes, creditsRes] = await Promise.all([
-        databases.listDocuments(DATABASE_ID, COLLECTIONS.subscriptions, [
-          Query.equal('user_id', userIds),
-          Query.limit(PAGE_SIZE),
-        ]),
-        databases.listDocuments(DATABASE_ID, COLLECTIONS.ai_credits, [
-          Query.equal('user_id', userIds),
-          Query.limit(PAGE_SIZE),
-        ]),
-      ]);
-
-      const subsMap = new Map(subsRes.documents.map(s => [s.user_id as string, s]));
-      const creditsMap = new Map(creditsRes.documents.map(c => [c.user_id as string, c]));
-
-      const enriched: AdminUser[] = profiles.map(doc => {
-        const sub = subsMap.get(doc.user_id as string);
-        const credit = creditsMap.get(doc.user_id as string);
-        const rawPlan = (sub?.plan as string) || 'free';
-        const planName = (['free', 'pro', 'premium'].includes(rawPlan) ? rawPlan : 'free') as 'free' | 'pro' | 'premium';
-        return {
-          $id: doc.$id,
-          $createdAt: doc.$createdAt,
-          user_id: doc.user_id as string,
-          email: (doc.email as string) ?? null,
-          full_name: (doc.full_name as string) ?? null,
-          contact_email: (doc.contact_email as string) ?? null,
-          plan_name: planName,
-          plan_updated_at: sub?.$updatedAt ?? null,
-          is_suspended: (doc.is_suspended as boolean) ?? false,
-          suspension_reason: (doc.suspension_reason as string) ?? null,
-          daily_limit: credit?.daily_limit != null ? (credit.daily_limit as number) : null,
-          credits_used_today: (credit?.credits_used_today as number) ?? 0,
-          trial_plan: (doc.trial_plan as string) ?? null,
-          trial_expires_at: (doc.trial_expires_at as string) ?? null,
-          resumeCount: 0,
-        };
-      });
-
-      setUsers(enriched);
+      setUsers(fetchedUsers);
     } catch (err) {
       console.error('[AdminUsersPanel] fetch failed:', err);
       toast.error('Failed to load users');
+      setUsers([]); // reset table so stale data does not linger
     } finally {
       setLoading(false);
     }

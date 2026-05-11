@@ -1,3 +1,50 @@
+## 2026-05-11 — Fix God Mode user loading & OverviewPanel accuracy
+
+### Summary
+Routed God Mode's per-page user fetch and the OverviewPanel stats through
+`admin-devkit-data` server-side actions so they run with the Appwrite admin API
+key, bypassing document-level permission restrictions that blocked the client
+SDK from reading cross-user `subscriptions` and `ai_credits` documents.
+
+### What changed
+
+#### `appwrite-hubs/admin-devkit-data/src/main.js`
+- Added `handleListUsersPage`: fetches a profiles page with `Query.orderDesc` +
+  `limit` + `offset`, then in one parallel round-trip joins `subscriptions` and
+  `ai_credits` by `user_id` array; returns `{ users: AdminUser[], total }`.
+- Added `handleOverviewStats`: calls Appwrite Users SDK `users.list()` for real
+  Auth account count + `emailVerification` count; queries `resumes` twice (all
+  vs user-id-filtered) to compute `activeResumes` and `orphanedResumes`.
+- Wired both new handlers into the main action-dispatch `if` chain before the
+  unknown-action fallback.
+
+#### `src/components/dev-kit/AdminUsersPanel.tsx`
+- `fetchPage()`: replaced direct `databases.listDocuments()` calls for
+  `subscriptions` + `ai_credits` with `appwriteFunctions.invoke('admin-devkit-data',
+  { action: 'list-users-page', ... })` + `unwrapAdminResponse`.
+- Added `setUsers([])` in the catch block so the table resets on failure instead
+  of keeping stale rows.
+
+#### `src/components/dev-kit/OverviewPanel.tsx`
+- Full rewrite: removed `databases` / `DATABASE_ID` / `client as appwriteClient`
+  imports; now calls `admin-devkit-data` `overview-stats` action.
+- Label "Active Users" → "Auth Users"; sub-label shows verified count.
+- "Total Resumes" now shows only active-user resumes; orphan count shown as
+  sub-label when > 0.
+- `StatCard` `any` prop type replaced with typed `StatCardProps` interface.
+- `catch (err: any)` → `catch (err: unknown)`.
+
+#### `src/lib/appwrite-functions.ts`
+- 401/403 response from `admin-*` / `inspect-ai-keys` functions now yields
+  "DevKit session unauthorised — re-enter the DevKit password." instead of
+  "Session expired — please sign in again."
+
+### Deploy
+GitHub Actions "Deploy AI Hubs" dispatched (HTTP 204, workflow id 273053815).
+TypeScript: `tsc --noEmit` passes with zero errors.
+
+---
+
 ## 2026-05-11 — Appwrite integration audit: hooks & type safety pass
 
 ### Summary

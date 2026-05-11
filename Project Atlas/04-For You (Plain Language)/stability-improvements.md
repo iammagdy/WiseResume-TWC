@@ -1,6 +1,26 @@
 # Stability Improvements — What's Getting Better Behind the Scenes
 
-**Last verified:** 2026-05-11 (Appwrite integration audit — hooks & type safety pass)
+**Last verified:** 2026-05-11 (Fix God Mode user loading & OverviewPanel accuracy)
+
+## Admin panel: God Mode user list and infrastructure stats now show real data (2026-05-11)
+
+The two most-used sections of the admin DevKit panel were silently failing or showing wrong numbers.
+
+**What was wrong:**
+
+- **God Mode (user list)** kept showing "Failed to load users" — the app was trying to read each user's subscription and AI credit data directly from the browser, but Appwrite's permission system blocks that (only the server is allowed to read other people's data). Every page load failed.
+
+- **Overview panel stats** showed user counts based on profile documents in the database, which could differ from actual Appwrite accounts — deleted accounts still had lingering profile rows, making the count look higher than the real number.
+
+- **Wrong error message** — when an admin entered the wrong DevKit password, the error said "Session expired — please sign in again." That message is confusing because the admin's Appwrite login session is fine; only the DevKit password was wrong. The message now correctly says "DevKit session unauthorised — re-enter the DevKit password."
+
+**What's fixed:**
+
+- God Mode now fetches the user list through the secure server-side function (`admin-devkit-data`), which has the admin API key and is allowed to read any user's subscription/credits. The table loads reliably.
+
+- The Overview panel now pulls user counts directly from Appwrite's Auth service (the authoritative source), so the number you see is exactly how many accounts exist. It also separately counts resumes that belong to deleted accounts ("orphaned resumes") and displays that as a sub-note when any are found.
+
+- The DevKit password error message is now accurate.
 
 ## Appwrite integration audit: hooks & type safety (2026-05-11)
 

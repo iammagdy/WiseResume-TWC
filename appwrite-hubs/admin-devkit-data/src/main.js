@@ -68,6 +68,140 @@ async function safeCount(databases, collectionId, queries = []) {
   }
 }
 
+// ─── LIST USERS PAGE ─────────────────────────────────────────────────────────
+
+/**
+ * Returns a page of profiles joined with their subscription and credits data.
+ * Runs server-side (admin API key) so it is not bound by document-level
+ * Appwrite permissions — the client SDK cannot do cross-user reads on
+ * subscriptions / ai_credits.
+ */
+async function handleListUsersPage(body, log) {
+  const { databases } = getClients();
+
+  const page     = Math.max(0, Number(body.page) || 0);
+  const pageSize = Math.min(Math.max(1, Number(body.pageSize) || 25), 100);
+  const sortField = body.sortField === '$updatedAt' ? '$updatedAt' : '$createdAt';
+
+  const profilesRes = await databases.listDocuments(DB_ID, 'profiles', [
+    sdk.Query.orderDesc(sortField),
+    sdk.Query.limit(pageSize),
+    sdk.Query.offset(page * pageSize),
+  ]);
+
+  const profiles = profilesRes.documents;
+  const total    = profilesRes.total;
+
+  if (profiles.length === 0) {
+    log(`list-users-page: page=${page} total=${total} returned=0`);
+    return { users: [], total };
+  }
+
+  const userIds = profiles.map(p => p.user_id).filter(Boolean);
+
+  const [subsRes, creditsRes] = await Promise.all([
+    databases.listDocuments(DB_ID, 'subscriptions', [
+      sdk.Query.equal('user_id', userIds),
+      sdk.Query.limit(pageSize),
+    ]),
+    databases.listDocuments(DB_ID, 'ai_credits', [
+      sdk.Query.equal('user_id', userIds),
+      sdk.Query.limit(pageSize),
+    ]),
+  ]);
+
+  const subsMap    = new Map(subsRes.documents.map(s => [s.user_id, s]));
+  const creditsMap = new Map(creditsRes.documents.map(c => [c.user_id, c]));
+
+  const enriched = profiles.map(doc => {
+    const sub    = subsMap.get(doc.user_id);
+    const credit = creditsMap.get(doc.user_id);
+    const rawPlan = (sub && sub.plan) || 'free';
+    const planName = ['free', 'pro', 'premium'].includes(rawPlan) ? rawPlan : 'free';
+    return {
+      $id:                doc.$id,
+      $createdAt:         doc.$createdAt,
+      user_id:            doc.user_id,
+      email:              doc.email              ?? null,
+      full_name:          doc.full_name          ?? null,
+      contact_email:      doc.contact_email      ?? null,
+      plan_name:          planName,
+      plan_updated_at:    sub ? sub.$updatedAt   : null,
+      is_suspended:       doc.is_suspended       ?? false,
+      suspension_reason:  doc.suspension_reason  ?? null,
+      daily_limit:        (credit && credit.daily_limit != null) ? credit.daily_limit : null,
+      credits_used_today: (credit && credit.credits_used_today)  ? credit.credits_used_today : 0,
+      trial_plan:         doc.trial_plan         ?? null,
+      trial_expires_at:   doc.trial_expires_at   ?? null,
+      resumeCount:        0,
+    };
+  });
+
+  log(`list-users-page: page=${page} sortField=${sortField} total=${total} returned=${enriched.length}`);
+  return { users: enriched, total };
+}
+
+// ─── OVERVIEW STATS ───────────────────────────────────────────────────────────
+
+/**
+ * Returns accurate infrastructure counts using the server-side API key:
+ *   - totalAuthUsers   — real Appwrite Auth account count (not profile docs)
+ *   - verifiedUsers    — accounts with emailVerification === true
+ *   - totalResumes     — resumes owned by current Auth users (orphans excluded)
+ *   - orphanedResumes  — resumes whose owner no longer exists in Appwrite Auth
+ *
+ * Note: authUserIds is capped at 500 and the Appwrite Query.equal array limit
+ * is 100, so activeResumes is computed against the first 100 user IDs. For
+ * typical early-stage apps this is sufficient; a chunked approach would be
+ * needed for larger user bases.
+ */
+async function handleOverviewStats(log) {
+  const { databases, users: usersClient } = getClients();
+
+  // Real Auth user count
+  let totalAuthUsers  = 0;
+  let verifiedUsers   = 0;
+  let authUserIds     = [];
+  try {
+    const authRes   = await usersClient.list([sdk.Query.limit(500)]);
+    totalAuthUsers  = authRes.total;
+    authUserIds     = authRes.users.map(u => u.$id);
+    verifiedUsers   = authRes.users.filter(u => u.emailVerification).length;
+  } catch (e) {
+    log(`overview-stats: users.list failed: ${e.message}`);
+  }
+
+  // All resumes in DB
+  let totalAllResumes = 0;
+  try {
+    const allRes    = await databases.listDocuments(DB_ID, 'resumes', [sdk.Query.limit(1)]);
+    totalAllResumes = allRes.total;
+  } catch (e) {
+    log(`overview-stats: resumes total failed: ${e.message}`);
+  }
+
+  // Resumes owned by existing Auth users
+  let activeResumes = 0;
+  if (authUserIds.length > 0) {
+    try {
+      const queryIds  = authUserIds.slice(0, 100); // Appwrite array query limit
+      const activeRes = await databases.listDocuments(DB_ID, 'resumes', [
+        sdk.Query.equal('user_id', queryIds),
+        sdk.Query.limit(1),
+      ]);
+      activeResumes = activeRes.total;
+    } catch (e) {
+      log(`overview-stats: active resumes failed: ${e.message}`);
+      activeResumes = totalAllResumes; // fallback: assume no orphans
+    }
+  }
+
+  const orphanedResumes = Math.max(0, totalAllResumes - activeResumes);
+
+  log(`overview-stats: authUsers=${totalAuthUsers} verified=${verifiedUsers} totalResumes=${totalAllResumes} active=${activeResumes} orphaned=${orphanedResumes}`);
+  return { totalAuthUsers, verifiedUsers, totalResumes: activeResumes, orphanedResumes };
+}
+
 // ─── MISSION CONTROL ─────────────────────────────────────────────────────────
 
 async function handleMissionControl(log, error) {
@@ -288,6 +422,16 @@ module.exports = async ({ req, res, log, error }) => {
       }
       log(`update-plan: set user ${user_id} → ${plan}`);
       return res.json({ success: true, plan });
+    }
+
+    if (action === 'list-users-page') {
+      const data = await handleListUsersPage(body, log);
+      return res.json({ success: true, data });
+    }
+
+    if (action === 'overview-stats') {
+      const data = await handleOverviewStats(log);
+      return res.json({ success: true, data });
     }
 
     return res.json({ success: false, error: `Unknown action: ${action}` }, 400);

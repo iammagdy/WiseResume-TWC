@@ -103,8 +103,12 @@ export const appwriteFunctions = {
         } else if (statusCode === 402) {
           message = 'AI credits exhausted. Please check your account.';
         } else if (statusCode === 401 || statusCode === 403) {
-          /* Session expired */
-          message = 'Session expired — please sign in again.';
+          // Admin DevKit functions return 401 when the DevKit password is wrong,
+          // not when the Appwrite user session is expired — show a distinct message.
+          const isAdminFn = fnName.startsWith('admin-') || fnName === 'inspect-ai-keys';
+          message = isAdminFn
+            ? 'DevKit session unauthorised — re-enter the DevKit password.'
+            : 'Session expired — please sign in again.';
         } else if (typeof parsed === 'object' && parsed !== null) {
           const err = parsed as Record<string, unknown>;
           if (typeof err.error === 'string') message = err.error;
