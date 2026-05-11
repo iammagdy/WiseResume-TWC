@@ -43,7 +43,25 @@ export function BoostAllExperienceSheet({ open, onOpenChange }: BoostAllExperien
     setSuggestions([]);
     setError(false);
 
-    const result = await enhance('ats_improve', experience, currentResume);
+    // Skip entries that have no description and no achievements — sending
+    // blank entries to the AI wastes credits and produces unhelpful results.
+    const filledEntries = experience.filter(e => {
+      const desc = (e.description ?? '').trim();
+      const ach = (e.achievements ?? []).filter(a => a.trim() !== '');
+      return desc !== '' || ach.length > 0;
+    });
+
+    if (filledEntries.length === 0) {
+      toast.info('Add descriptions or bullet points to your experience entries first — then AI can improve them.');
+      return;
+    }
+
+    const skippedCount = experience.length - filledEntries.length;
+    if (skippedCount > 0) {
+      toast.info(`Skipping ${skippedCount} empty entr${skippedCount === 1 ? 'y' : 'ies'} — add content to include them.`, { duration: 4000 });
+    }
+
+    const result = await enhance('ats_improve', filledEntries, currentResume);
     if (!result) {
       setError(true);
       return;
