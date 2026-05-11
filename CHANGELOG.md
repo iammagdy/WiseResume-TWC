@@ -1,3 +1,38 @@
+## 2026-05-11 — Task #5: God Mode redesign + data accuracy fixes
+
+### Summary
+Full redesign of the God Mode admin panel (`AdminUsersPanel`) to match the approved mockup, plus five data-accuracy fixes: credits display (used/limit instead of capacity), pagination (removes 100-user cap), N+1 query elimination (batch fetches), login streak persistence (Appwrite profile with localStorage fallback), and `AdminUser` type export (fixes missing-type compile error).
+
+### What changed
+
+#### `src/components/dev-kit/AdminUsersPanel.tsx` (complete rewrite)
+- **Exported `AdminUser` interface** — was missing entirely; `UserDetailDrawer` and `EmailManagementPanel` both import it. Fields: `$id`, `$createdAt`, `user_id`, `email`, `full_name`, `contact_email`, `plan_name`, `plan_updated_at`, `is_suspended`, `suspension_reason`, `daily_limit`, `credits_used_today`, `trial_plan`, `trial_expires_at`, `resumeCount`.
+- **Stats pills bar** — live counts for Total / Premium / Pro / Suspended / Trial derived from the loaded page.
+- **Filter tabs** — ALL / PREMIUM / PRO / FREE / SUSPENDED filter with instant client-side narrowing; sort toggle between Joined-date and Last-updated.
+- **Table layout with checkboxes** — compact table replacing the former card grid. Select-all / per-row checkboxes with bulk "Set Plan" (dropdown) and "Suspend" actions.
+- **Batch data fetching** — replaces the N+1 `Promise.all` loop. Fetches profiles page, then a single `Query.equal('user_id', [array])` call for subscriptions and ai_credits; joins in memory.
+- **Pagination** — `PAGE_SIZE = 50`, `Query.offset(page * PAGE_SIZE)`; Prev/Next controls; displays "Showing X–Y of N".
+- **Credits column** — pulls both `credits_used_today` and `daily_limit` from `ai_credits`; renders a colour-coded progress bar (green → yellow → red at 50%/80%) with `used/limit` label. Shows `∞` for unlimited (`-1`).
+- **Expandable rows** — click any row to reveal four inline action panels:
+  - *Plan & Billing*: permanent plan toggle (calls `admin-set-plan`); trial grant with plan+days picker (calls `admin-grant-trial` / `admin-revoke-trial`).
+  - *AI Credits*: daily limit input + bonus credits input (calls `admin-set-credits`); shows live progress bar.
+  - *Access & Identity*: Act As button (calls `admin-impersonate`); user ID + email display; resume/joined metadata.
+  - *Moderation*: Suspend/Unsuspend with reason input (calls `admin-suspend-user`); Admin note textarea (calls `admin-save-note`); Delete profile with confirm dialog (calls `admin-delete-user`).
+- All action handlers share per-user loading state to prevent double-fires.
+- Zero `any` types in new code (strict TypeScript throughout).
+
+#### `src/components/dashboard/DashboardStats.tsx`
+- `useLoginStreak` hook updated to accept optional `userId`.
+- When `userId` is provided: reads `last_login_date` and `streak_count` from the Appwrite `profiles` collection on mount; writes back on new-day login via `databases.updateDocument`. Falls back to localStorage if the profile fetch fails or if the `streak_count`/`last_login_date` attributes don't yet exist on the collection.
+- When `userId` is absent (unauthenticated): behaves exactly as before (localStorage only).
+- `synced` ref prevents double-write on strict-mode double-render.
+- `DashboardStatsProps` extended with optional `userId?: string | null`.
+
+#### `src/pages/DashboardPage.tsx`
+- `<DashboardStats>` call updated: replaced `loginStreak={profile?.loginStreak}` (always undefined, stale) with `userId={user?.id}` so the hook reads real per-device streak data from Appwrite.
+
+---
+
 ## 2026-05-11 — Task #1: Fix all 7 post-Appwrite-migration bugs
 
 ### Summary

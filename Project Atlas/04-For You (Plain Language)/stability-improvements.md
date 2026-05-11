@@ -1,6 +1,29 @@
 # Stability Improvements — What's Getting Better Behind the Scenes
 
-**Last verified:** 2026-05-11 (Task #1 — 7 post-migration bugs fixed)
+**Last verified:** 2026-05-11 (Task #5 — God Mode redesign + data accuracy fixes)
+
+## God Mode panel redesigned + data accuracy fixed (2026-05-11, Task #5)
+
+The admin God Mode panel has been fully redesigned and five data-accuracy issues have been corrected.
+
+**What the panel looks like now:**
+- A stats bar at the top shows live counts: total users, premium count, pro count, suspended count, and trial count — all from the current page.
+- Filter tabs (ALL / PREMIUM / PRO / FREE / SUSPENDED) let you narrow the list instantly. A Sort button toggles between newest-joined and most-recently-active.
+- Users appear in a compact table. Tick the checkbox next to any user (or all users) and bulk "Set Plan" or "Suspend" buttons appear at the top.
+- Clicking any row expands it to reveal four action panels side-by-side:
+  - **Plan & Billing** — switch between Free / Pro / Premium in one click; grant or revoke a timed trial.
+  - **AI Credits** — shows a colour-coded progress bar of credits used vs. the daily limit (green → yellow → red as they fill up); set a custom limit or add bonus credits.
+  - **Access & Identity** — "Act As" button, user ID and email, resume count, join date.
+  - **Moderation** — Suspend/Unsuspend with an optional reason; add an admin note; delete the profile (with confirmation).
+
+**Data accuracy fixes:**
+1. **Credits now show used vs. limit** — previously the credits column showed only the capacity (e.g. "85 credits"), not how many had been used. It now shows a progress bar like "47/85" and turns red when the user is close to their limit.
+2. **No more 100-user cap** — the panel used to silently stop at 100 users. It now paginates 50 at a time with Prev/Next controls, showing all users regardless of how many there are.
+3. **Much faster loading (N+1 fix)** — previously, opening the panel triggered one API call per user (100 users = 300 API calls). It now fetches subscriptions and credit data in two batch calls total, joining the results locally.
+4. **Login streak now persists across devices** — the day-streak counter on the dashboard was stored only in the browser's local storage, so it reset whenever you logged in from a different device or browser. The streak is now read from and written to your Appwrite profile, so it follows you across devices. Local storage is still used as a fallback if the profile read fails.
+5. **Missing type definition fixed** — an internal type used by three admin panels was not being exported, causing a silent compile error. This is now correctly exported.
+
+---
 
 ## Seven post-migration bugs fixed (2026-05-11, Task #1)
 

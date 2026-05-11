@@ -768,7 +768,7 @@ function DashboardPageContent() {
             userName={profile?.fullName}
             isScoring={scoringId !== null || (resumes != null && resumes.length > 0 && Object.keys(healthScores).length < resumes.length)}
             resumes={resumes ?? undefined}
-            loginStreak={profile?.loginStreak}
+            userId={user?.id}
           />
           </div>
 

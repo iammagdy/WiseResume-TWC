@@ -1,35 +1,84 @@
-import { useMemo, useEffect, useState, memo } from 'react';
+import { useMemo, useEffect, useState, useRef, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FileText, Flame, AlertCircle, Lightbulb, X } from 'lucide-react';
 import { ResumeHealthScore } from '@/hooks/useResumeScore';
 import { DatabaseResume } from '@/hooks/useResumes';
+import { databases, DATABASE_ID, Query } from '@/lib/appwrite';
+import { COLLECTIONS } from '@/lib/appwrite-collections';
 
-function useLoginStreak() {
+function useLoginStreak(userId?: string | null) {
   const [streak, setStreak] = useState(1);
+  const synced = useRef(false);
 
   useEffect(() => {
-    const key = 'wise_resume_streak';
-    const lastKey = 'wise_resume_last_login';
-    const today = new Date().toDateString();
-    const lastLogin = localStorage.getItem(lastKey);
+    if (synced.current) return;
+    synced.current = true;
 
-    if (lastLogin === today) {
-      setStreak(parseInt(localStorage.getItem(key) || '1', 10));
+    const LS_KEY = 'wise_resume_streak';
+    const LS_LAST = 'wise_resume_last_login';
+    const today = new Date().toDateString();
+
+    const computeNewStreak = (lastLogin: string | null, currentStreak: number): number => {
+      if (lastLogin === today) return currentStreak;
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      if (lastLogin === yesterday.toDateString()) return currentStreak + 1;
+      return 1;
+    };
+
+    if (!userId) {
+      const lastLogin = localStorage.getItem(LS_LAST);
+      const stored = parseInt(localStorage.getItem(LS_KEY) || '1', 10);
+      if (lastLogin === today) { setStreak(stored); return; }
+      const newStreak = computeNewStreak(lastLogin, stored);
+      localStorage.setItem(LS_KEY, String(newStreak));
+      localStorage.setItem(LS_LAST, today);
+      setStreak(newStreak);
       return;
     }
 
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
+    const runWithProfile = async () => {
+      try {
+        const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.profiles, [
+          Query.equal('user_id', userId),
+          Query.select(['$id', 'last_login_date', 'streak_count']),
+          Query.limit(1),
+        ]);
+        const doc = res.documents[0];
+        if (!doc) throw new Error('no profile');
 
-    let newStreak = 1;
-    if (lastLogin === yesterday.toDateString()) {
-      newStreak = parseInt(localStorage.getItem(key) || '0', 10) + 1;
-    }
+        const lastLogin = (doc.last_login_date as string) ?? null;
+        const storedCount = (doc.streak_count as number) ?? 1;
 
-    localStorage.setItem(key, String(newStreak));
-    localStorage.setItem(lastKey, today);
-    setStreak(newStreak);
-  }, []);
+        if (lastLogin === today) {
+          setStreak(storedCount);
+          localStorage.setItem(LS_KEY, String(storedCount));
+          localStorage.setItem(LS_LAST, today);
+          return;
+        }
+
+        const newStreak = computeNewStreak(lastLogin, storedCount);
+        setStreak(newStreak);
+        localStorage.setItem(LS_KEY, String(newStreak));
+        localStorage.setItem(LS_LAST, today);
+
+        await databases.updateDocument(DATABASE_ID, COLLECTIONS.profiles, doc.$id, {
+          last_login_date: today,
+          streak_count: newStreak,
+        });
+      } catch {
+        const lastLogin = localStorage.getItem(LS_LAST);
+        const stored = parseInt(localStorage.getItem(LS_KEY) || '1', 10);
+        if (lastLogin === today) { setStreak(stored); return; }
+        const newStreak = computeNewStreak(lastLogin, stored);
+        localStorage.setItem(LS_KEY, String(newStreak));
+        localStorage.setItem(LS_LAST, today);
+        setStreak(newStreak);
+      }
+    };
+
+    runWithProfile();
+  }, [userId]);
 
   return streak;
 }
@@ -60,11 +109,15 @@ interface DashboardStatsProps {
   isScoring?: boolean;
   resumes?: DatabaseResume[];
   loginStreak?: number;
+  userId?: string | null;
 }
 
-export const DashboardStats = memo(function DashboardStats({ totalResumes, healthScores, userName, isScoring = false, resumes, loginStreak: externalStreak }: DashboardStatsProps) {
-  const localStreak = useLoginStreak();
-  const streak = externalStreak ?? localStreak;
+export const DashboardStats = memo(function DashboardStats({
+  totalResumes, healthScores, userName, isScoring = false, resumes,
+  loginStreak: externalStreak, userId,
+}: DashboardStatsProps) {
+  const appwriteStreak = useLoginStreak(userId);
+  const streak = externalStreak ?? appwriteStreak;
   const [subtitleIndex, setSubtitleIndex] = useState(0);
   const [tipDismissed, setTipDismissed] = useState(() => !!localStorage.getItem('wr-tip-dismissed'));
 
