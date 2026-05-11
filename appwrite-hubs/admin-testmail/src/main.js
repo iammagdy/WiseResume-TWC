@@ -24,10 +24,12 @@
 
 // ─── Auth ───────────────────────────────────────────────────────────────────
 
-function checkAuth(req) {
+function checkAuth(req, body) {
   const expected = process.env.DEVKIT_PASSWORD;
   if (!expected) return false;
-  const authHeader = req.headers['authorization'] || req.headers['Authorization'] || '';
+  // Appwrite SDK executions don't support custom headers, so the frontend
+  // passes them in the body as __headers.
+  const authHeader = body?.__headers?.Authorization || req.headers['authorization'] || req.headers['Authorization'] || '';
   if (!authHeader.startsWith('Bearer ')) return false;
   return authHeader.slice(7) === expected;
 }
@@ -181,15 +183,15 @@ async function handleTestmailSendTest() {
 // ─── Main entry point ────────────────────────────────────────────────────────
 
 module.exports = async ({ req, res, log, error }) => {
-  if (!checkAuth(req)) {
-    return res.json({ success: false, error: 'Unauthorized' }, 401);
-  }
-
   let body = {};
   try {
     body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
   } catch {
     return res.json({ success: false, error: 'Invalid JSON body' }, 400);
+  }
+
+  if (!checkAuth(req, body)) {
+    return res.json({ success: false, error: 'Unauthorized' }, 401);
   }
 
   const mod = body.module;
