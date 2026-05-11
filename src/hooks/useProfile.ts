@@ -22,6 +22,7 @@ export interface Profile {
   portfolioBio: string | null;
   portfolioEnabled: boolean;
   onboarding_completed: boolean;
+  updatedAt?: string;
 }
 
 export function calculateProfileCompletion(profile: any): number {
