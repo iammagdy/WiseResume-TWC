@@ -310,7 +310,11 @@ async function handlePurgeOrphans(body, log) {
   const deletedResumes  = orphanedResumeDocs.length;
   const deletedProfiles = orphanedProfileDocs.length;
 
-  // Write audit log — non-fatal if the collection is missing or schema differs.
+  // Write audit log — intentionally non-fatal. If the admin_audit_logs
+  // collection is unavailable (schema mismatch, wrong permissions, missing in
+  // this Appwrite project), the purge has already succeeded and we do not want
+  // to roll back deletions because of a logging failure. Monitor the function
+  // log output for "audit log write failed" warnings if auditability matters.
   try {
     await databases.createDocument(DB_ID, 'admin_audit_logs', sdk.ID.unique(), {
       action:   'purge-orphans',

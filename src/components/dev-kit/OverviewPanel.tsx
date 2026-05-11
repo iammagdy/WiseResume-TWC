@@ -218,14 +218,31 @@ export const OverviewPanel = () => {
 
           {purgePreview.sampleResumes.length > 0 && (
             <div className="space-y-0.5">
+              <p className="text-xs text-white/40 font-medium mt-1">Resumes:</p>
               {purgePreview.sampleResumes.slice(0, 3).map(r => (
                 <p key={r.$id} className="text-xs font-mono text-white/30">
-                  resume …{r.$id.slice(-8)}{r.title ? ` "${r.title}"` : ''} (user: …{r.user_id?.slice(-8) ?? '?'})
+                  …{r.$id.slice(-8)}{r.title ? ` "${r.title}"` : ''} (user: …{r.user_id?.slice(-8) ?? '?'})
                 </p>
               ))}
               {purgePreview.orphanedResumes > 3 && (
                 <p className="text-xs font-mono text-white/30">
-                  …and {purgePreview.orphanedResumes - 3} more resume{purgePreview.orphanedResumes - 3 !== 1 ? 's' : ''}
+                  …and {purgePreview.orphanedResumes - 3} more
+                </p>
+              )}
+            </div>
+          )}
+
+          {purgePreview.sampleProfiles.length > 0 && (
+            <div className="space-y-0.5">
+              <p className="text-xs text-white/40 font-medium">Profiles:</p>
+              {purgePreview.sampleProfiles.slice(0, 3).map(p => (
+                <p key={p.$id} className="text-xs font-mono text-white/30">
+                  …{p.$id.slice(-8)}{p.email ? ` ${p.email}` : ''} (user: …{p.user_id?.slice(-8) ?? '?'})
+                </p>
+              ))}
+              {purgePreview.orphanedProfiles > 3 && (
+                <p className="text-xs font-mono text-white/30">
+                  …and {purgePreview.orphanedProfiles - 3} more
                 </p>
               )}
             </div>
