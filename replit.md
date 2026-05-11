@@ -95,6 +95,7 @@ Quick summary:
 - **Mobile app targets the legacy backend.** Do not delete or stub anything under `mobile/` while doing further Supabase/Kinde cleanup on the web app.
 - **PDF export returns 503.** Until the Puppeteer worker is rebuilt as an Appwrite Function, expect "PDF export is being rebuilt" toasts.
 - **Express server is minimal.** It only serves `/api/health` and a `503` PDF placeholder. Anything else under `/api/*` is a `503 pending_appwrite_migration` catch-all.
+- **Appwrite Functions must be redeployed after every `src/main.js` change.** Editing code under `appwrite-hubs/<function-name>/` in Replit does **not** automatically update the live Appwrite Function. After merging changes, redeploy via the Appwrite CLI: `appwrite functions create-deployment --function-id <function-id> --code appwrite-hubs/<function-name> --activate true --entrypoint src/main.js --commands "npm install"`. This applies to `admin-devkit-data` and every other function under `appwrite-hubs/`.
 
 ## Pointers
 
