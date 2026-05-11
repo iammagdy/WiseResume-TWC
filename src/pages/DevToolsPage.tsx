@@ -85,7 +85,9 @@ function DevToolsInner() {
     e.preventDefault();
     const correctPass = import.meta.env.VITE_DEV_KIT_PASSWORD;
     if (password === correctPass) {
-      unlock('dk-session-' + Date.now(), {
+      // FIX: Use the actual password as the session token, as the backend
+      // compares the Bearer token directly against DEVKIT_PASSWORD.
+      unlock(password, {
         rememberMe: true,
         expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
         email: 'admin@thewise.cloud',
