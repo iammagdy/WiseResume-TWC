@@ -7,6 +7,8 @@ import { useAIApplyEffects } from '@/hooks/useAIApplyEffects';
 import type { Experience, Education, ContactInfo, ResumeData } from '@/types/resume';
 import { AIEnhanceDialog, type EntryDiff, type FieldDiff, type ListLineDiff, type FieldDiffStatus } from './ai/AIEnhanceDialog';
 import { useSectionAIBridge } from '@/store/sectionAIBridge';
+import { isSectionContentEmpty, isGenerativeAction, emptySectionToastMessage } from '@/lib/ai/sectionContentGuard';
+import { toast } from 'sonner';
 
 const SignInPromptDialog = lazy(() => import('@/components/auth/SignInPromptDialog').then(m => ({ default: m.SignInPromptDialog })));
 
@@ -597,6 +599,14 @@ export const SectionAIAction = memo(function SectionAIAction({ section, onApplie
       languages: currentResume.languages || [],
     };
 
+    // Block improve/enhance actions when the section has no content.
+    // Generate and suggest actions are allowed through — they're designed
+    // to work on blank sections. This prevents wasteful API calls.
+    if (!isGenerativeAction(actionId) && isSectionContentEmpty(section, contentMap[section])) {
+      toast.info(emptySectionToastMessage(section), { duration: 3500 });
+      return;
+    }
+
     const enhanceResult = await enhance(
       actionId as ActionType,
       contentMap[section],
@@ -810,6 +820,23 @@ export const SectionAIAction = memo(function SectionAIAction({ section, onApplie
     }
   })();
 
+  // Compute whether the section has content so the button can reflect an
+  // appropriate dimmed/generate-only state before the user clicks.
+  const sectionContent: Record<SectionType, unknown> = {
+    contact: currentResume?.contactInfo,
+    summary: currentResume?.summary,
+    experience: currentResume?.experience,
+    education: currentResume?.education,
+    skills: currentResume?.skills,
+    awards: currentResume?.awards || [],
+    projects: currentResume?.projects || [],
+    publications: currentResume?.publications || [],
+    volunteering: currentResume?.volunteering || [],
+    certifications: currentResume?.certifications || [],
+    languages: currentResume?.languages || [],
+  };
+  const hasContent = !isSectionContentEmpty(section, sectionContent[section]);
+
   return (
     <>
       <InlineAIButton
@@ -818,6 +845,7 @@ export const SectionAIAction = memo(function SectionAIAction({ section, onApplie
         isLoading={isEnhancing}
         isAuthenticated={isAuthenticated}
         onLockedClick={() => setShowSignIn(true)}
+        hasContent={hasContent}
       />
 
       <AIEnhanceDialog
