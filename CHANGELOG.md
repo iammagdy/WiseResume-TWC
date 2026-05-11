@@ -1,3 +1,189 @@
+## 2026-05-11 — Curated model lists updated for all four AI providers (Task #23)
+
+### Summary
+Reviewed and updated `DEEPSEEK_LLM_MODELS`, `NVIDIA_LLM_MODELS`, `OPENROUTER_LLM_MODELS`, and `GROQ_LLM_MODELS` in `src/lib/devkit/aiTestSlotModels.ts` against live provider catalogs as of 2026-05-11.
+
+### Changes by provider
+
+**DeepSeek**
+- Added `deepseek-v4-flash` and `deepseek-v4-pro` as the current production models.
+- Marked `deepseek-chat` and `deepseek-reasoner` as `deprecated: true`; DeepSeek will remove these aliases on 2026-07-24 (they currently map to `deepseek-v4-flash` non-thinking and thinking mode respectively).
+- `FALLBACK_AI_TEST_DEFAULT_MODELS.deepseek` was already `'deepseek-v4-flash'`; no change needed.
+
+**NVIDIA NIM**
+- Added `meta/llama-4-maverick-17b-128e-instruct` and `meta/llama-4-scout-17b-16e-instruct` (new Llama 4 models available on NVIDIA hosted inference).
+- Added `nvidia/llama-3.1-nemotron-ultra-253b-v1` (flagship Nemotron reasoning model, 253B).
+- Retained all existing Mistral and Gemma entries (confirmed still live).
+
+**OpenRouter — free tier**
+- Added `meta-llama/llama-4-maverick:free` and `meta-llama/llama-4-scout:free`.
+- Added `qwen/qwen3-235b-a22b:free` (flagship Qwen3 MoE) and `qwen/qwq-32b:free` (reasoning).
+- Added `google/gemini-2.0-flash-exp:free`.
+- `mistralai/mistral-7b-instruct:free` already marked `deprecated: true`; kept.
+
+**OpenRouter — paid tier**
+- Added `anthropic/claude-opus-4` (Anthropic flagship, released May 2025).
+- Added `meta-llama/llama-3.3-70b-instruct` (paid).
+- Marked `meta-llama/llama-3.1-70b-instruct` as `deprecated: true`.
+
+**Groq**
+- Added `meta-llama/llama-4-maverick-17b-128e-instruct` and `meta-llama/llama-4-scout-17b-16e-instruct`.
+- Added `qwen-qwq-32b` (reasoning) and `qwen/qwen3-32b`.
+- Marked `llama-3.2-90b-vision-preview` as `deprecated: true` (decommissioned April 2025; replaced by Llama 4 Scout).
+- Marked `deepseek-r1-distill-llama-70b` as `deprecated: true` (Groq deprecation announced in favour of `llama-3.3-70b-versatile` / `openai/gpt-oss-120b`).
+- Existing deprecated entries (`llama-3.1-70b-versatile`, `mixtral-8x7b-32768`) retained.
+
+### Documentation
+- Added "Last verified: 2026-05-11" comment + source URL to every curated list.
+- `Project Atlas/04-For You (Plain Language)/stability-improvements.md` — new entry.
+- `Project Atlas/01-Currently Implemented/stability-fixes/task-15-ai-model-catalog-cron.md` — "Last verified" timestamp updated to 2026-05-11.
+
+---
+
+## 2026-05-11 — DevKit AI routing: per-feature model picker
+
+### Summary
+`AIRoutingSwitcher` now lets admins choose a **specific model** (not just a provider) for each AI feature override. When a provider button is clicked, a styled dropdown appears populated from the same curated model lists used in the AI Keys panel. Each option shows `[FREE]` / `[PAID]` prefix text and a matching tier badge chip (green/amber) next to the currently selected model. The saved override writes both `provider` and `model` to `ai_routing_config`, and the "active model" chip in the feature row reflects the exact chosen model.
+
+### What changed
+
+#### `src/lib/devkit/aiTestSlotModels.ts`
+- Added `DEEPSEEK_LLM_MODELS`: `deepseek-chat` and `deepseek-reasoner`, both `paid`.
+- Changed `getCuratedModels()` return type from `ReadonlyArray<CuratedLLMModel> | null` to `ReadonlyArray<CuratedLLMModel>` — now covers all four providers; deepseek previously returned null.
+
+#### `src/components/dev-kit/AIRoutingSwitcher.tsx`
+- Imported `getCuratedModels` and `AITestProvider` from `aiTestSlotModels`.
+- `handleUpdateRoute()` now picks the first curated model for the selected provider (instead of the PROVIDERS `defaultModel`) so the dropdown always starts on a valid entry.
+- Added `handleUpdateModel(featureId, model)` — updates only the model field of an override without touching the provider.
+- Each feature row now renders a `<select>` model dropdown (below the provider toggle) when an override is active. Options include `[FREE]`/`[PAID]` prefix and `⚠` for deprecated models. A CUSTOM option is appended when the saved model isn't in the curated list. A tier badge chip shows Free (emerald) or Paid (amber) for the currently selected model.
+
+---
+
+## 2026-05-11 — DevKit AI panels: full routing control + model catalog
+
+### Summary
+Two DevKit admin panels significantly upgraded:
+
+**AI Master Switch (AIRoutingSwitcher):** Expanded from 6 to 23 features covering
+every AI button in the app. Features are grouped into 5 collapsible categories
+(Resume Editor AI, Tailoring & Job Match, Chat & Analysis, Document Generation,
+Portfolio & Other). Each row shows: user-facing label, feature ID in mono, plain-language
+description, current active provider+model badge, gateway hardcoded default (when an
+override is active), and a 4-provider toggle. Admins can also reset any override back to
+the gateway default. Category headers show override counts.
+
+**AI Keys (AIKeysPanel):** OpenRouter and Groq model slots now use a curated dropdown
+instead of a free-text input, matching the existing NVIDIA pattern. Each option shows a
+`Free` / `Paid` label in the dropdown text. A tier badge (green `Free` or amber `Paid`)
+appears below the select for the currently selected model. Deprecated models are labelled
+`(deprecated)` in the option text.
+
+### What changed
+
+#### `src/lib/devkit/aiTestSlotModels.ts`
+- Added `CuratedLLMModel` interface: `{ label, value, tier: 'free' | 'paid', deprecated? }`.
+- Updated `NVIDIA_LLM_MODELS` to use `CuratedLLMModel[]` type (all NVIDIA models are `paid`).
+- Added `OPENROUTER_LLM_MODELS`: 12 models; free-tier ones carry a `:free` suffix.
+  Includes Claude 3.5, GPT-4o, Gemini 2.0 Flash, LLaMA 3.3 70B:free, DeepSeek R1:free, etc.
+  Mistral 7B Instruct marked `deprecated`.
+- Added `GROQ_LLM_MODELS`: 7 models including LLaMA 3.3 70B, DeepSeek R1 distill, Gemma2 9B.
+  LLaMA 3.1 70B and Mixtral 8×7B marked `deprecated`.
+- Added `DROPDOWN_PROVIDERS = new Set(['nvidia', 'openrouter', 'groq'])` — providers
+  that use a curated dropdown rather than free-text input.
+- Added `getCuratedModels(provider)` helper.
+- Added `resolveToValidModel` logic: if a previously-saved slot model is no longer in the
+  curated list, snaps silently to the first entry rather than showing an unknown value.
+
+#### `src/components/dev-kit/AIRoutingSwitcher.tsx`
+- Full rewrite. `FEATURES` expanded from 6 to 23 entries.
+- `GATEWAY_DEFAULTS` map mirrors `FEATURE_ROUTES` in `appwrite-hubs/ai-gateway/src/main.js`
+  so the UI stays in sync with the gateway hardcoded defaults without an API call.
+- Categories: `resume-editor`, `tailoring`, `chat`, `documents`, `portfolio` — each
+  collapsible with `ChevronDown/Up` toggle; override count badge on each header.
+- Per-feature row: label, feature ID, description, active model chip (purple when
+  overridden, muted when default), gateway default chip (only visible when there is
+  an active override so both are shown side-by-side), provider toggle, reset button.
+- Provider toggle now calls `handleUpdateRoute(featureId, provider)` and auto-selects
+  the first model for that provider.
+- `clearOverride(featureId)` removes a draft override (pending save).
+- No `any` casts — `RouteState`, `FeatureDef`, `FeatureCategory`, `ProviderId` types added.
+
+#### `src/components/dev-kit/AIKeysPanel.tsx`
+- Imports `OPENROUTER_LLM_MODELS`, `GROQ_LLM_MODELS`, `DROPDOWN_PROVIDERS`,
+  `getCuratedModels`, `CuratedLLMModel` from updated `aiTestSlotModels`.
+- `load()` draft initialisation now calls `resolveToValidModel()` for all dropdown
+  providers, not just nvidia.
+- Render: `useDropdown` flag (true for nvidia, openrouter, groq). When true: renders
+  `<select>` with curated options; each option includes `[Free]` or `[Paid]` suffix;
+  deprecated options prefixed with `(deprecated)`. Below the select: tier badge
+  (`bg-green-500/15 text-green-400` for Free, `bg-amber-500/15 text-amber-400` for Paid)
+  and a `deprecated` pill when applicable. DeepSeek retains free-text input.
+
+---
+
+## 2026-05-11 — Guard AI buttons against empty resume content
+
+### Summary
+AI "improve/enhance" actions now require the target section to have actual
+content before firing a request to the AI gateway. Previously, clicking
+"Improve Summary" on a blank summary or "Improve Bullets" on an experience
+entry with no description would send a real API call and burn credits
+for nothing. Generate/suggest actions are still allowed on empty sections —
+that is their purpose.
+
+### What changed
+
+#### `src/lib/ai/sectionContentGuard.ts` (new file)
+- `isSectionContentEmpty(section, content)` — returns `true` when a section
+  has nothing worth improving: whitespace-only summary, all experience entries
+  with blank description and no achievements, empty arrays for list sections,
+  blank name/email/phone for contact, etc.
+- `isGenerativeAction(actionId)` — returns `true` for `generate`,
+  `generate_bullets`, and `suggest_*` action IDs that are valid on blank
+  sections.
+- `emptySectionToastMessage(section)` — returns a user-friendly explanation
+  per section type.
+
+#### `src/components/editor/SectionAIAction.tsx`
+- Added imports: `isSectionContentEmpty`, `isGenerativeAction`,
+  `emptySectionToastMessage` from guard module; `toast` from sonner.
+- In `handleAction`: added pre-flight check before calling `enhance()` —
+  if content is empty and the action is not generative, shows a
+  `toast.info` message and returns early. Zero gateway requests fired.
+
+#### `src/components/editor/BoostAllExperienceSheet.tsx`
+- In `runAnalysis`: filters `experience` down to entries that have a
+  non-empty description or at least one non-empty achievement bullet.
+- If all entries are empty: shows `toast.info` "Add descriptions first…"
+  and returns without calling the AI.
+- If some entries are empty: shows `toast.info("Skipping N empty entries…")`
+  and proceeds with only the filled entries.
+
+---
+
+## 2026-05-11 — Fix admin-devkit-data execution errors + redeploy
+
+### Summary
+Two fixes for the "Execution failed. Please try again." error that blocked
+AdminUsersPanel (God Mode) from loading any users.
+
+### What changed
+
+#### `src/lib/appwrite-functions.ts`
+- In the `execution.status === 'failed'` branch, added `console.error('[appwriteFunctions] execution failed', execution.errors)` so the real Appwrite crash output always appears in the browser console.
+- Changed the fallback message from `'Execution failed. Please try again.'` to `'Execution failed (no details from Appwrite runtime)'` — makes it clear when Appwrite returned no error details, versus swallowing a real message.
+
+#### `appwrite-hubs/admin-devkit-data` (production redeployment)
+- Redeployed to Appwrite production (project `69fd362b001eb325a192`, region `fra`) via REST API upload.
+- Deployment ID `6a020cb5da0ed1a95a5f`, status `ready`, activated immediately.
+- Node.js dependencies (`node-appwrite`, `axios`) installed as part of build (`npm install`).
+- The deployed code now matches the current `src/main.js` that includes all handler fixes from tasks #5, #9, #10, #11, #12.
+
+#### `replit.md`
+- Added Gotcha: all `appwrite-hubs/*` functions must be manually redeployed via Appwrite CLI or REST API after every `src/main.js` change — local edits in Replit do not auto-update the live Appwrite Function.
+
+---
+
 ## 2026-05-11 — Orphan cleanup: purge-orphans action + OverviewPanel UI
 
 ### Summary
