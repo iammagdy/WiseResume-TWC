@@ -11,9 +11,14 @@ import {
   AI_TEST_PROVIDERS,
   AI_TEST_SLOTS,
   NVIDIA_LLM_MODELS,
+  OPENROUTER_LLM_MODELS,
+  GROQ_LLM_MODELS,
+  DROPDOWN_PROVIDERS,
+  getCuratedModels,
   providerDisplayName,
   type AITestProvider,
   type AITestSlot,
+  type CuratedLLMModel,
 } from '@/lib/devkit/aiTestSlotModels';
 
 const DEFAULT_MODELS: Record<AITestProvider, string> = {
@@ -73,6 +78,21 @@ function slotKey(provider: AITestProvider, slot: AITestSlot): SlotKey {
   return `${provider}:${slot}`;
 }
 
+/** Resolves a raw model value to a valid curated model or the first in the list. */
+function resolveToValidModel(provider: AITestProvider, raw: string): string {
+  const list = getCuratedModels(provider);
+  if (!list) return raw;
+  const validValues = new Set(list.map(m => m.value));
+  return raw && validValues.has(raw) ? raw : list[0].value;
+}
+
+/** Returns the tier badge label for a model in a given provider's curated list. */
+function getModelTier(provider: AITestProvider, modelValue: string): CuratedLLMModel['tier'] | null {
+  const list = getCuratedModels(provider);
+  if (!list) return null;
+  return list.find(m => m.value === modelValue)?.tier ?? null;
+}
+
 export function AIKeysPanel() {
   const [entries, setEntries] = useState<KeyEntry[]>([]);
   const [defaults, setDefaults] = useState<Record<AITestProvider, string>>(DEFAULT_MODELS);
@@ -112,16 +132,14 @@ export function AIKeysPanel() {
       }
       setSavedOverrides(overrides);
 
-      const validNvidiaValues = new Set(NVIDIA_LLM_MODELS.map(m => m.value));
-      const nvidiaDefault = NVIDIA_LLM_MODELS[0].value;
-
       const drafts: Record<string, string> = {};
       for (const entry of keyList) {
         const k = `${entry.provider}:${entry.slot}`;
         const raw = overrides[k] ?? merged[entry.provider as AITestProvider] ?? '';
-        drafts[k] = (entry.provider === 'nvidia' && raw && !validNvidiaValues.has(raw))
-          ? nvidiaDefault
-          : raw;
+        // For providers with curated model lists, snap any unknown value to the
+        // first model in the list so the select always has a valid selection.
+        const prov = entry.provider as AITestProvider;
+        drafts[k] = DROPDOWN_PROVIDERS.has(prov) ? resolveToValidModel(prov, raw) : raw;
       }
       setDraftModels(drafts);
     } catch (e) {
@@ -131,7 +149,7 @@ export function AIKeysPanel() {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { void load(); }, [load]);
 
   const saveSlot = async (provider: AITestProvider, slot: AITestSlot) => {
     const k = slotKey(provider, slot);
@@ -234,6 +252,10 @@ export function AIKeysPanel() {
                   const dirty = isDirty(provider, slot);
                   const isSaving = saving[k] ?? false;
                   const status = saveStatus[k];
+                  const curatedList = getCuratedModels(provider);
+                  const useDropdown = DROPDOWN_PROVIDERS.has(provider);
+                  const selectedTier = useDropdown ? getModelTier(provider, draft) : null;
+                  const selectedModel = curatedList?.find(m => m.value === draft);
 
                   return (
                     <div
@@ -262,16 +284,46 @@ export function AIKeysPanel() {
                         <label className="text-[9px] text-muted-foreground uppercase tracking-wider font-bold flex items-center gap-1">
                           <ChevronDown className="w-2.5 h-2.5" /> Test model
                         </label>
-                        {provider === 'nvidia' ? (
-                          <select
-                            value={draft}
-                            onChange={e => setDraftModels(prev => ({ ...prev, [k]: e.target.value }))}
-                            className="w-full text-[10px] font-mono bg-black/30 border border-white/10 rounded-lg px-2.5 py-1.5 text-foreground outline-none focus:border-white/20 transition-colors appearance-none cursor-pointer"
-                          >
-                            {NVIDIA_LLM_MODELS.map(m => (
-                              <option key={m.value} value={m.value}>{m.label}</option>
-                            ))}
-                          </select>
+
+                        {useDropdown ? (
+                          <>
+                            <select
+                              value={draft}
+                              onChange={e => setDraftModels(prev => ({ ...prev, [k]: e.target.value }))}
+                              className="w-full text-[10px] font-mono bg-black/30 border border-white/10 rounded-lg px-2.5 py-1.5 text-foreground outline-none focus:border-white/20 transition-colors appearance-none cursor-pointer"
+                            >
+                              {(provider === 'nvidia'
+                                ? NVIDIA_LLM_MODELS
+                                : provider === 'openrouter'
+                                ? OPENROUTER_LLM_MODELS
+                                : GROQ_LLM_MODELS
+                              ).map(m => (
+                                <option key={m.value} value={m.value}>
+                                  {m.deprecated ? `(deprecated) ${m.label}` : m.label}
+                                  {' '}[{m.tier === 'free' ? 'Free' : 'Paid'}]
+                                </option>
+                              ))}
+                            </select>
+
+                            {/* Selected-model tier badge + deprecated warning */}
+                            <div className="flex items-center gap-1.5 min-h-[14px]">
+                              {selectedTier === 'free' && (
+                                <span className="px-1.5 py-0.5 rounded-md bg-green-500/15 text-green-400 text-[8px] font-black uppercase tracking-wider">
+                                  Free
+                                </span>
+                              )}
+                              {selectedTier === 'paid' && (
+                                <span className="px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-400 text-[8px] font-black uppercase tracking-wider">
+                                  Paid
+                                </span>
+                              )}
+                              {selectedModel?.deprecated && (
+                                <span className="px-1.5 py-0.5 rounded-md bg-red-500/10 text-red-400/70 text-[8px] font-mono">
+                                  deprecated
+                                </span>
+                              )}
+                            </div>
+                          </>
                         ) : (
                           <input
                             type="text"
@@ -281,10 +333,11 @@ export function AIKeysPanel() {
                             className="w-full text-[10px] font-mono bg-black/30 border border-white/10 rounded-lg px-2.5 py-1.5 text-foreground placeholder:text-muted-foreground/40 outline-none focus:border-white/20 transition-colors"
                           />
                         )}
+
                         <div className="flex items-center gap-1.5">
                           <Button
                             size="sm"
-                            onClick={() => saveSlot(provider, slot)}
+                            onClick={() => void saveSlot(provider, slot)}
                             disabled={!dirty || isSaving || !draft.trim()}
                             className={`h-6 px-2.5 text-[9px] font-bold flex-1 border rounded-lg transition-all ${PROVIDER_SAVE_BTN[provider]} ${(!dirty || !draft.trim()) ? 'opacity-40 cursor-not-allowed' : ''}`}
                           >
