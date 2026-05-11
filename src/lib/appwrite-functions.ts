@@ -82,9 +82,10 @@ export const appwriteFunctions = {
       );
 
       if (execution.status === 'failed') {
+        console.error('[appwriteFunctions] execution failed', execution.errors);
         return {
           data: null,
-          error: { message: execution.errors || 'Execution failed. Please try again.' },
+          error: { message: execution.errors || 'Execution failed (no details from Appwrite runtime)' },
         };
       }
 
