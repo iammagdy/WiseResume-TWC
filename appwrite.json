@@ -1,0 +1,16 @@
+{
+  "projectId": "69fd362b001eb325a192",
+  "projectName": "WiseResume",
+  "endpoint": "https://fra.cloud.appwrite.io/v1",
+  "functions": [
+    {
+      "functionId": "admin-devkit-data",
+      "name": "admin-devkit-data",
+      "runtime": "node-18.0",
+      "path": "appwrite-hubs/admin-devkit-data",
+      "entrypoint": "src/main.js",
+      "commands": "npm install",
+      "ignore": [".git", ".gitignore", "*.tar.gz"]
+    }
+  ]
+}
