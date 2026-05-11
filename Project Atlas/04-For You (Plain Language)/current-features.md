@@ -1,6 +1,6 @@
 # What Wise Cloud Can Do Today
 
-**Last verified:** 2026-05-09 (Task #11 — NVIDIA NIM model dropdown updated)
+**Last verified:** 2026-05-11 (Task #21 — Per-feature model picker in AI Master Switch)
 
 ## AI gateway — per-feature provider routing (2026-05-09, Task #10)
 
@@ -14,7 +14,9 @@ The AI gateway no longer picks a provider at random for every request. It now ha
 - **Parsing and long-context tasks** (parse resume, parse job, company briefing, question bank, LinkedIn optimizer) go to **OpenRouter's free Llama 70B**.
 - Features not in the routing table (score-resume, health checks, coupon ops) still use the original random-pool behaviour as a safety net.
 
-**DevKit visibility:** A new **AI Routing** panel has been added under AI & Testing in the DevKit sidebar. It shows the full routing table grouped by provider, so you can see at a glance which feature goes where and why.
+**DevKit visibility:** The **AI Routing** panel (AI Master Switch) now lists all 23 AI features grouped into 5 collapsible categories. Each row shows what the feature does in plain English, which provider handles it by default, and lets you override the provider for any feature individually. Once you pick a provider, a **model dropdown** appears so you can choose the exact model — for example, routing Cover Letter to Groq but using the lightweight `llama-3.1-8b-instant` instead of the default heavy model. Each model option shows a green **Free** or amber **Paid** badge. You can also reset any override back to the gateway default. A count of active overrides appears on each category header.
+
+The **AI Keys** panel now uses a proper dropdown for OpenRouter and Groq slots (same as the existing NVIDIA dropdown). Each model option clearly shows whether it's **Free** or **Paid**, and deprecated models are labelled so you know not to use them for new configurations.
 
 ---
 
