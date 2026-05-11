@@ -34,7 +34,7 @@ if (typeof Promise.withResolvers !== 'function') {
  * If URL.createObjectURL is not available (e.g. SSR / test environment) we
  * fall back to the raw worker URL so callers are never broken.
  */
-function buildPolyfillWorkerSrc(rawWorkerUrl: string): string {
+export function buildPolyfillWorkerSrc(rawWorkerUrl: string): string {
   if (typeof URL === 'undefined' || typeof Blob === 'undefined' || typeof URL.createObjectURL !== 'function') {
     return rawWorkerUrl;
   }

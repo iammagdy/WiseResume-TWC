@@ -11,10 +11,12 @@ import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { createWorker, Worker } from 'tesseract.js';
 
 import { preprocessResumeText } from './textPreprocessor';
-import { isIOSWebKit } from './textExtractor';
+import { isIOSWebKit, buildPolyfillWorkerSrc } from './textExtractor';
 
 // pdfjs-dist v4: configure worker via GlobalWorkerOptions (disableWorker was removed).
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+// We use the same polyfill-injected worker source as textExtractor to ensure
+// iOS < 17.4 compatibility.
+pdfjsLib.GlobalWorkerOptions.workerSrc = buildPolyfillWorkerSrc(pdfWorkerUrl);
 
 /**
  * Categorised OCR failure. Lets the UI show a real cause instead of the

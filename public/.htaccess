@@ -6,3 +6,8 @@
   RewriteCond %{REQUEST_FILENAME} !-d
   RewriteRule . /index.html [L]
 </IfModule>
+
+# Fix MIME types for ESM workers on Hostinger
+<IfModule mod_mime.c>
+  AddType application/javascript .mjs
+</IfModule>
