@@ -273,7 +273,7 @@ export const ExperienceItem = memo(function ExperienceItem({
                   onAction={handleInlineAIAction}
                   isLoading={isEnhancing}
                   disabled={!exp.position}
-                  hasContent={!!exp.description?.trim()}
+                  hasContent={!!(exp.description?.trim() || (exp.achievements ?? []).some(a => a.trim() !== ''))}
                 />
               </div>
               {!exp.description?.trim() && (
