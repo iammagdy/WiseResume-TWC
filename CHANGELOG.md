@@ -1387,3 +1387,28 @@ Production error `TypeError: Cannot read properties of undefined (reading 'data'
 - `src/components/dev-kit/AuditLogPanel.tsx`: removed direct `databases.listDocuments` call; now uses `admin-devkit-data` → `list-audit-logs`. Added `DevKitErrorCard` on failure, refresh button, total count.
 - `src/components/dev-kit/CouponsPanel.tsx`: removed direct `databases.listDocuments`/`createDocument` calls; now uses `admin-devkit-data` → `list-discount-codes` + `add-discount-code`. Added `DevKitErrorCard` on failure, loading state, Enter-key shortcut.
 - `src/components/dev-kit/DatabaseXRay.tsx`: removed direct `databases.listDocuments` call; now uses `admin-devkit-data` → `list-all-resumes`. Added client-side search, `DevKitErrorCard`, refresh button, total count.
+
+## [2026-05-11] DevKit always requires auth on open; real WebAuthn biometric
+
+### Problem
+DevKit opened without any auth prompt when a remembered session existed.
+- `DevToolsInner` had a `useEffect` that called `unlock(remembered.token)` on mount — instantly bypassing the lock screen.
+- `handleBiometricLogin` was fake: it waited 1 second then used the stored token with no biometric challenge whatsoever (`window.PublicKeyCredential` was only checked for presence, never called).
+
+### Changes
+- `src/contexts/DevKitSessionContext.tsx`:
+  - Added `isBiometricAvailable()` — async check via `PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()`
+  - Added `hasBiometricCredential()` — reads stored credential ID from localStorage
+  - Added `clearBiometricCredential()` — called on explicit lock so user must re-register
+  - Added `registerBiometricCredential()` — calls `navigator.credentials.create()` with `authenticatorAttachment: 'platform'` and `userVerification: 'required'`; stores `rawId` as base64url in localStorage
+  - Added `verifyBiometricCredential()` — calls `navigator.credentials.get()` with the stored credential ID and `userVerification: 'required'`; returns true only on assertion success
+  - `lock()` now also calls `clearBiometricCredential()` so Terminate Session resets everything
+  - On-mount `useEffect` now only populates `rememberedEmail`/`hasRememberedSession` state — **does NOT auto-unlock**
+- `src/pages/DevToolsPage.tsx`:
+  - **Removed** auto-unlock `useEffect` (the line `if (remembered) unlock(remembered.token)`)
+  - On mount: checks `isBiometricAvailable()` + `hasBiometricCredential()` to determine whether to show the biometric button
+  - `handlePasswordLogin`: after successful unlock, calls `registerBiometricCredential()` if device supports it and no credential is registered yet; shows success toast if registration succeeds
+  - `handleBiometricLogin`: now calls real `verifyBiometricCredential()` — if assertion passes, THEN uses the remembered token to unlock; if assertion fails or is cancelled, shows error
+  - Lock screen biometric button is only rendered when `biometricReady && hasCred && hasRememberedSession` are all true
+  - Biometric button uses `<button>` (not `<div>`) with proper `aria-label`, `disabled` during verification, `active:scale-95` press feedback
+  - `autoFocus` on password field only when biometric is NOT available (so mobile users see the biometric prompt first)
