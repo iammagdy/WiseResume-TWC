@@ -39,8 +39,21 @@ SDK from reading cross-user `subscriptions` and `ai_credits` documents.
   "DevKit session unauthorised — re-enter the DevKit password." instead of
   "Session expired — please sign in again."
 
+### Corrective fixes (code-review round 2)
+- **`AdminUsersPanel.tsx` response contract** — `unwrapAdminResponse` returns the full
+  body `{ success, data: { users, total } }`; changed type param to
+  `{ data?: { users?, total? } }` and reads `result.data?.users` / `result.data?.total`.
+- **`AdminUsersPanel.tsx` error card** — Added `fetchError` state; on first-load failure
+  renders `<DevKitErrorCard>` with "Failed to load users" + retry handler instead of
+  only a toast. On success `setFetchError(null)` clears any prior error.
+- **`handleOverviewStats` accuracy** — Replaced single `users.list([limit(500)])` call with
+  a paginated while-loop (500-per-page batches) so all Auth users are counted regardless
+  of total size. Resume active-count query now chunks `allAuthUserIds` into ≤100-ID
+  groups and `Promise.all`-s them, accumulating the total — covers any number of users
+  rather than being capped at 100.
+
 ### Deploy
-GitHub Actions "Deploy AI Hubs" dispatched (HTTP 204, workflow id 273053815).
+GitHub Actions "Deploy AI Hubs" dispatched twice (HTTP 204 each, workflow id 273053815).
 TypeScript: `tsc --noEmit` passes with zero errors.
 
 ---

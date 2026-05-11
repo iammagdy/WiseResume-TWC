@@ -158,20 +158,31 @@ async function handleListUsersPage(body, log) {
 async function handleOverviewStats(log) {
   const { databases, users: usersClient } = getClients();
 
-  // Real Auth user count
+  // Paginate through ALL Appwrite Auth accounts (max 500 per request)
   let totalAuthUsers  = 0;
   let verifiedUsers   = 0;
-  let authUserIds     = [];
+  const allAuthUserIds = [];
   try {
-    const authRes   = await usersClient.list([sdk.Query.limit(500)]);
-    totalAuthUsers  = authRes.total;
-    authUserIds     = authRes.users.map(u => u.$id);
-    verifiedUsers   = authRes.users.filter(u => u.emailVerification).length;
+    const BATCH = 500;
+    let offset = 0;
+    let isFirstPage = true;
+    while (true) {
+      const batch = await usersClient.list([sdk.Query.limit(BATCH), sdk.Query.offset(offset)]);
+      if (isFirstPage) {
+        totalAuthUsers = batch.total; // authoritative total from first response
+        isFirstPage = false;
+      }
+      const ids = batch.users.map(u => u.$id);
+      allAuthUserIds.push(...ids);
+      verifiedUsers += batch.users.filter(u => u.emailVerification).length;
+      if (ids.length < BATCH) break; // last page
+      offset += ids.length;
+    }
   } catch (e) {
     log(`overview-stats: users.list failed: ${e.message}`);
   }
 
-  // All resumes in DB
+  // Total resumes in DB (including any orphaned ones)
   let totalAllResumes = 0;
   try {
     const allRes    = await databases.listDocuments(DB_ID, 'resumes', [sdk.Query.limit(1)]);
@@ -180,25 +191,34 @@ async function handleOverviewStats(log) {
     log(`overview-stats: resumes total failed: ${e.message}`);
   }
 
-  // Resumes owned by existing Auth users
+  // Count resumes owned by current Auth users — chunk into ≤100 IDs per
+  // query to respect the Appwrite Query.equal array limit.
   let activeResumes = 0;
-  if (authUserIds.length > 0) {
+  if (allAuthUserIds.length > 0) {
+    const CHUNK = 100;
+    const chunks = [];
+    for (let i = 0; i < allAuthUserIds.length; i += CHUNK) {
+      chunks.push(allAuthUserIds.slice(i, i + CHUNK));
+    }
     try {
-      const queryIds  = authUserIds.slice(0, 100); // Appwrite array query limit
-      const activeRes = await databases.listDocuments(DB_ID, 'resumes', [
-        sdk.Query.equal('user_id', queryIds),
-        sdk.Query.limit(1),
-      ]);
-      activeResumes = activeRes.total;
+      const results = await Promise.all(
+        chunks.map(ids =>
+          databases.listDocuments(DB_ID, 'resumes', [
+            sdk.Query.equal('user_id', ids),
+            sdk.Query.limit(1),
+          ])
+        )
+      );
+      activeResumes = results.reduce((sum, r) => sum + r.total, 0);
     } catch (e) {
-      log(`overview-stats: active resumes failed: ${e.message}`);
+      log(`overview-stats: active resumes chunked query failed: ${e.message}`);
       activeResumes = totalAllResumes; // fallback: assume no orphans
     }
   }
 
   const orphanedResumes = Math.max(0, totalAllResumes - activeResumes);
 
-  log(`overview-stats: authUsers=${totalAuthUsers} verified=${verifiedUsers} totalResumes=${totalAllResumes} active=${activeResumes} orphaned=${orphanedResumes}`);
+  log(`overview-stats: authUsers=${totalAuthUsers} verified=${verifiedUsers} dbResumes=${totalAllResumes} active=${activeResumes} orphaned=${orphanedResumes}`);
   return { totalAuthUsers, verifiedUsers, totalResumes: activeResumes, orphanedResumes };
 }
 

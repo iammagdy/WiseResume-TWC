@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { ActAsDialog, type ActAsSession } from './ActAsDialog';
 import { UserDetailDrawer } from './UserDetailDrawer';
+import { DevKitErrorCard } from './DevKitErrorCard';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
 import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
@@ -98,6 +99,8 @@ export const AdminUsersPanel = () => {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
 
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
   const [actAsSession, setActAsSession] = useState<ActAsSession | null>(null);
   const [drawerUser, setDrawerUser] = useState<AdminUser | null>(null);
 
@@ -169,15 +172,20 @@ export const AdminUsersPanel = () => {
           body: { action: 'list-users-page', page: p, pageSize: PAGE_SIZE, sortField },
         },
       );
-      const result = unwrapAdminResponse<{ users?: AdminUser[]; total?: number }>(tuple, 'admin-devkit-data');
-      const fetchedUsers = result.users ?? [];
-      const newTotal = result.total ?? 0;
+      // The function returns { success: true, data: { users, total } }, so
+      // unwrapAdminResponse returns the full body — access via result.data.*
+      const result = unwrapAdminResponse<{ data?: { users?: AdminUser[]; total?: number } }>(tuple, 'admin-devkit-data');
+      const fetchedUsers = result.data?.users ?? [];
+      const newTotal = result.data?.total ?? 0;
       setTotalCount(newTotal);
       setGlobalStats(prev => ({ ...prev ?? { premium: 0, pro: 0, suspended: 0, activeToday: 0 }, total: newTotal }));
+      setFetchError(null);
       setUsers(fetchedUsers);
     } catch (err) {
+      const msg = formatEdgeError(err);
       console.error('[AdminUsersPanel] fetch failed:', err);
-      toast.error('Failed to load users');
+      setFetchError(msg);
+      toast.error(msg);
       setUsers([]); // reset table so stale data does not linger
     } finally {
       setLoading(false);
@@ -472,6 +480,17 @@ export const AdminUsersPanel = () => {
         <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
         <p className="text-sm text-muted-foreground font-mono">Loading Real-Time User Data…</p>
       </div>
+    );
+  }
+
+  if (fetchError && users.length === 0) {
+    return (
+      <DevKitErrorCard
+        error={fetchError}
+        title="Failed to load users"
+        onRetry={() => { setFetchError(null); fetchPage(page); }}
+        context={{ panel: 'AdminUsersPanel', action: 'list-users-page' }}
+      />
     );
   }
 
