@@ -8,11 +8,11 @@ import { COLLECTIONS } from '@/lib/appwrite-collections';
 
 function useLoginStreak(userId?: string | null) {
   const [streak, setStreak] = useState(1);
-  const synced = useRef(false);
+  const syncedForUserId = useRef<string | null | undefined>(undefined);
 
   useEffect(() => {
-    if (synced.current) return;
-    synced.current = true;
+    if (syncedForUserId.current === userId) return;
+    syncedForUserId.current = userId;
 
     const LS_KEY = 'wise_resume_streak';
     const LS_LAST = 'wise_resume_last_login';

@@ -2,12 +2,13 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { databases, DATABASE_ID, Query } from '@/lib/appwrite';
 import { COLLECTIONS } from '@/lib/appwrite-collections';
 import {
-  User, Shield, Crown, Trash2, Search, Zap, Loader2, FileText,
-  ExternalLink, RefreshCw, ChevronDown, Ban, Activity, SlidersHorizontal,
-  CheckSquare, Square, Gift, DollarSign, TrendingUp, MessageSquare,
-  Merge, Star, Check, X,
+  User, Shield, Crown, Trash2, Search, Loader2, FileText,
+  ExternalLink, RefreshCw, ChevronDown, Ban, SlidersHorizontal,
+  CheckSquare, Square, Gift, TrendingUp, MessageSquare,
+  Merge, Check, X, Activity, LayoutList,
 } from 'lucide-react';
 import { ActAsDialog, type ActAsSession } from './ActAsDialog';
+import { UserDetailDrawer } from './UserDetailDrawer';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
 import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
@@ -33,6 +34,14 @@ export interface AdminUser {
   trial_plan: string | null;
   trial_expires_at: string | null;
   resumeCount: number;
+}
+
+interface GlobalStats {
+  total: number;
+  premium: number;
+  pro: number;
+  suspended: number;
+  activeToday: number;
 }
 
 type FilterTab = 'all' | 'premium' | 'pro' | 'free' | 'suspended';
@@ -81,6 +90,7 @@ export const AdminUsersPanel = () => {
   const [loading, setLoading] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
   const [page, setPage] = useState(0);
+  const [globalStats, setGlobalStats] = useState<GlobalStats | null>(null);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState<FilterTab>('all');
@@ -89,6 +99,7 @@ export const AdminUsersPanel = () => {
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
 
   const [actAsSession, setActAsSession] = useState<ActAsSession | null>(null);
+  const [drawerUser, setDrawerUser] = useState<AdminUser | null>(null);
 
   const [impersonatingId, setImpersonatingId] = useState<string | null>(null);
   const [savingPlanId, setSavingPlanId] = useState<string | null>(null);
@@ -97,6 +108,7 @@ export const AdminUsersPanel = () => {
   const [savingCreditsId, setSavingCreditsId] = useState<string | null>(null);
   const [savingNoteId, setSavingNoteId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [mergingId, setMergingId] = useState<string | null>(null);
   const [bulkActing, setBulkActing] = useState(false);
 
   const [trialDays, setTrialDays] = useState<Record<string, number>>({});
@@ -105,21 +117,56 @@ export const AdminUsersPanel = () => {
   const [newLimit, setNewLimit] = useState<Record<string, string>>({});
   const [bonusCredits, setBonusCredits] = useState<Record<string, string>>({});
   const [noteText, setNoteText] = useState<Record<string, string>>({});
+  const [mergeConfirming, setMergeConfirming] = useState<Record<string, boolean>>({});
   const [bulkPlan, setBulkPlan] = useState<BulkPlan>('pro');
   const [showBulkMenu, setShowBulkMenu] = useState(false);
+
+  const fetchGlobalStats = useCallback(async () => {
+    try {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const todayISO = todayStart.toISOString();
+
+      const [premiumRes, proRes, suspendedRes, activeTodayRes] = await Promise.allSettled([
+        databases.listDocuments(DATABASE_ID, COLLECTIONS.subscriptions, [
+          Query.equal('plan', 'premium'), Query.limit(1),
+        ]),
+        databases.listDocuments(DATABASE_ID, COLLECTIONS.subscriptions, [
+          Query.equal('plan', 'pro'), Query.limit(1),
+        ]),
+        databases.listDocuments(DATABASE_ID, COLLECTIONS.profiles, [
+          Query.equal('is_suspended', true), Query.limit(1),
+        ]),
+        databases.listDocuments(DATABASE_ID, COLLECTIONS.profiles, [
+          Query.greaterThan('$updatedAt', todayISO), Query.limit(1),
+        ]),
+      ]);
+
+      setGlobalStats(prev => ({
+        total: prev?.total ?? 0,
+        premium: premiumRes.status === 'fulfilled' ? premiumRes.value.total : (prev?.premium ?? 0),
+        pro: proRes.status === 'fulfilled' ? proRes.value.total : (prev?.pro ?? 0),
+        suspended: suspendedRes.status === 'fulfilled' ? suspendedRes.value.total : (prev?.suspended ?? 0),
+        activeToday: activeTodayRes.status === 'fulfilled' ? activeTodayRes.value.total : (prev?.activeToday ?? 0),
+      }));
+    } catch {
+      // silently ignore — stats bar will show page-local fallback
+    }
+  }, []);
 
   const fetchPage = useCallback(async (p: number) => {
     setLoading(true);
     try {
-      const queries = [
-        Query.orderDesc(sortBy === 'joined' ? '$createdAt' : '$updatedAt'),
+      const sortField = sortBy === 'joined' ? '$createdAt' : '$updatedAt';
+      const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.profiles, [
+        Query.orderDesc(sortField),
         Query.limit(PAGE_SIZE),
         Query.offset(p * PAGE_SIZE),
-      ];
-
-      const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.profiles, queries);
+      ]);
       const profiles = res.documents;
-      setTotalCount(res.total);
+      const newTotal = res.total;
+      setTotalCount(newTotal);
+      setGlobalStats(prev => ({ ...prev ?? { premium: 0, pro: 0, suspended: 0, activeToday: 0 }, total: newTotal }));
 
       if (profiles.length === 0) {
         setUsers([]);
@@ -175,12 +222,22 @@ export const AdminUsersPanel = () => {
     }
   }, [sortBy]);
 
-  useEffect(() => { fetchPage(page); }, [fetchPage, page]);
+  useEffect(() => {
+    fetchPage(page);
+    fetchGlobalStats();
+  }, [fetchPage, fetchGlobalStats, page]);
 
-  const refresh = () => { setSelected(new Set()); fetchPage(page); };
+  const refresh = () => {
+    setSelected(new Set());
+    fetchPage(page);
+    fetchGlobalStats();
+  };
 
   const updateUser = (userId: string, patch: Partial<AdminUser>) => {
     setUsers(prev => prev.map(u => u.user_id === userId ? { ...u, ...patch } : u));
+    if (drawerUser?.user_id === userId) {
+      setDrawerUser(prev => prev ? { ...prev, ...patch } : prev);
+    }
   };
 
   const handleSetPlan = async (userId: string, plan: 'free' | 'pro' | 'premium') => {
@@ -193,6 +250,7 @@ export const AdminUsersPanel = () => {
       unwrapAdminResponse(tuple, 'admin-set-plan');
       updateUser(userId, { plan_name: plan, plan_updated_at: new Date().toISOString() });
       toast.success(`Plan set to ${plan.toUpperCase()}`);
+      fetchGlobalStats();
     } catch (e) {
       toast.error(formatEdgeError(e, 'Failed to update plan'));
     } finally {
@@ -256,6 +314,7 @@ export const AdminUsersPanel = () => {
         suspension_reason: suspend ? (suspendReason[userId] || null) : null,
       });
       toast.success(suspend ? 'User suspended' : 'User unsuspended');
+      fetchGlobalStats();
     } catch (e) {
       toast.error(formatEdgeError(e, 'Failed to update suspension'));
     } finally {
@@ -280,8 +339,8 @@ export const AdminUsersPanel = () => {
       const patch: Partial<AdminUser> = {};
       if (limit) patch.daily_limit = parseInt(limit, 10);
       if (bonus) {
-        const user = users.find(u => u.user_id === userId);
-        if (user) patch.credits_used_today = Math.max(0, user.credits_used_today - parseInt(bonus, 10));
+        const u = users.find(x => x.user_id === userId);
+        if (u) patch.credits_used_today = Math.max(0, u.credits_used_today - parseInt(bonus, 10));
       }
       updateUser(userId, patch);
       setNewLimit(prev => ({ ...prev, [userId]: '' }));
@@ -329,6 +388,27 @@ export const AdminUsersPanel = () => {
     }
   };
 
+  const handleMergeIdentity = async (userId: string) => {
+    setMergingId(userId);
+    try {
+      const tuple = await appwriteFunctions.invoke('admin-merge-identity', {
+        headers: devKitAuthHeaders(),
+        body: { collision_user_id: userId },
+      });
+      unwrapAdminResponse<{ merge_log?: string[] }>(tuple, 'admin-merge-identity');
+      toast.success('Identity merged', {
+        description: 'The orphan account has been suspended and merged into this account.',
+        duration: 6000,
+      });
+      setMergeConfirming(prev => ({ ...prev, [userId]: false }));
+      refresh();
+    } catch (e) {
+      toast.error(formatEdgeError(e, 'Failed to merge identity'));
+    } finally {
+      setMergingId(null);
+    }
+  };
+
   const handleDeleteUser = async (userId: string, profileId: string) => {
     if (!window.confirm('Permanently delete this user? This cannot be undone.')) return;
     setDeletingId(userId);
@@ -339,7 +419,9 @@ export const AdminUsersPanel = () => {
       });
       unwrapAdminResponse(tuple, 'admin-delete-user');
       setUsers(prev => prev.filter(u => u.$id !== profileId));
+      setTotalCount(c => c - 1);
       toast.success('User deleted');
+      fetchGlobalStats();
     } catch (e) {
       toast.error(formatEdgeError(e, 'Failed to delete user'));
     } finally {
@@ -366,6 +448,7 @@ export const AdminUsersPanel = () => {
     toast.success(`Plan set to ${bulkPlan.toUpperCase()} for ${ok} user${ok !== 1 ? 's' : ''}`);
     setSelected(new Set());
     setBulkActing(false);
+    fetchGlobalStats();
   };
 
   const handleBulkSuspend = async () => {
@@ -373,8 +456,8 @@ export const AdminUsersPanel = () => {
     setBulkActing(true);
     let ok = 0;
     for (const uid of selected) {
-      const user = users.find(u => u.user_id === uid);
-      if (!user || user.is_suspended) continue;
+      const u = users.find(x => x.user_id === uid);
+      if (!u || u.is_suspended) continue;
       try {
         const tuple = await appwriteFunctions.invoke('admin-suspend-user', {
           headers: devKitAuthHeaders(),
@@ -388,6 +471,7 @@ export const AdminUsersPanel = () => {
     toast.success(`Suspended ${ok} user${ok !== 1 ? 's' : ''}`);
     setSelected(new Set());
     setBulkActing(false);
+    fetchGlobalStats();
   };
 
   const filtered = users.filter(u => {
@@ -401,12 +485,12 @@ export const AdminUsersPanel = () => {
     return u.plan_name === filter;
   });
 
-  const stats = {
-    total: users.length,
-    premium: users.filter(u => u.plan_name === 'premium').length,
-    pro: users.filter(u => u.plan_name === 'pro').length,
-    suspended: users.filter(u => u.is_suspended).length,
-    trial: users.filter(u => !!u.trial_plan).length,
+  const displayStats = {
+    total: globalStats?.total ?? totalCount,
+    premium: globalStats?.premium ?? users.filter(u => u.plan_name === 'premium').length,
+    pro: globalStats?.pro ?? users.filter(u => u.plan_name === 'pro').length,
+    suspended: globalStats?.suspended ?? users.filter(u => u.is_suspended).length,
+    activeToday: globalStats?.activeToday ?? 0,
   };
 
   const allSelected = filtered.length > 0 && filtered.every(u => selected.has(u.user_id));
@@ -432,12 +516,20 @@ export const AdminUsersPanel = () => {
   return (
     <div className="space-y-5 min-h-0">
       <ActAsDialog session={actAsSession} onClose={() => setActAsSession(null)} />
+      {drawerUser && (
+        <UserDetailDrawer
+          open={!!drawerUser}
+          user={drawerUser}
+          onClose={() => setDrawerUser(null)}
+          onUserUpdated={() => { refresh(); setDrawerUser(null); }}
+        />
+      )}
 
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-black tracking-tight text-white">God Mode</h2>
-          <p className="text-xs text-white/40 mt-0.5">Full platform control · {totalCount.toLocaleString()} users total</p>
+          <p className="text-xs text-white/40 mt-0.5">Full platform control · {displayStats.total.toLocaleString()} users total</p>
         </div>
         <div className="flex items-center gap-2">
           {selected.size > 0 && (
@@ -483,21 +575,27 @@ export const AdminUsersPanel = () => {
         </div>
       </div>
 
-      {/* Stats pills */}
+      {/* Stats pills — global totals from Appwrite, not page-local */}
       <div className="flex gap-2 flex-wrap">
         {([
-          { label: 'Total', value: stats.total, icon: <User size={12} />, cls: 'text-white' },
-          { label: 'Premium', value: stats.premium, icon: <Crown size={12} />, cls: 'text-amber-400' },
-          { label: 'Pro', value: stats.pro, icon: <Shield size={12} />, cls: 'text-blue-400' },
-          { label: 'Suspended', value: stats.suspended, icon: <Ban size={12} />, cls: 'text-red-400' },
-          { label: 'Trial', value: stats.trial, icon: <Gift size={12} />, cls: 'text-violet-400' },
+          { label: 'Total', value: displayStats.total, icon: <User size={12} />, cls: 'text-white' },
+          { label: 'Premium', value: displayStats.premium, icon: <Crown size={12} />, cls: 'text-amber-400' },
+          { label: 'Pro', value: displayStats.pro, icon: <Shield size={12} />, cls: 'text-blue-400' },
+          { label: 'Suspended', value: displayStats.suspended, icon: <Ban size={12} />, cls: 'text-red-400' },
+          { label: 'Active Today', value: displayStats.activeToday, icon: <Activity size={12} />, cls: 'text-emerald-400' },
         ] as const).map(s => (
           <div key={s.label} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white/5 border border-white/10">
             <span className={s.cls}>{s.icon}</span>
             <span className="text-[11px] text-white/40">{s.label}</span>
-            <span className={cn('text-sm font-bold', s.cls)}>{s.value}</span>
+            <span className={cn('text-sm font-bold', s.cls)}>{s.value.toLocaleString()}</span>
           </div>
         ))}
+        {globalStats === null && (
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white/5 border border-white/10">
+            <Loader2 size={12} className="animate-spin text-white/30" />
+            <span className="text-[11px] text-white/30">Loading global stats…</span>
+          </div>
+        )}
       </div>
 
       {/* Search + filter tabs */}
@@ -511,7 +609,7 @@ export const AdminUsersPanel = () => {
             onChange={e => setSearchTerm(e.target.value)}
           />
         </div>
-        <div className="flex gap-1.5">
+        <div className="flex gap-1.5 flex-wrap">
           {(['all', 'premium', 'pro', 'free', 'suspended'] as FilterTab[]).map(f => (
             <button
               key={f}
@@ -529,9 +627,10 @@ export const AdminUsersPanel = () => {
           <button
             onClick={() => setSortBy(s => s === 'joined' ? 'active' : 'joined')}
             className="px-2.5 py-1.5 text-[10px] font-black uppercase rounded-xl border border-white/10 bg-white/5 text-white/40 hover:text-white/60 flex items-center gap-1"
+            title={sortBy === 'active' ? 'Sorting by last profile update (proxy for activity)' : 'Sorting by join date'}
           >
             <SlidersHorizontal size={11} />
-            {sortBy === 'joined' ? 'Joined' : 'Active'}
+            {sortBy === 'joined' ? 'Joined' : 'Last Active'}
           </button>
         </div>
       </div>
@@ -568,6 +667,8 @@ export const AdminUsersPanel = () => {
             savingCreditsId={savingCreditsId}
             savingNoteId={savingNoteId}
             deletingId={deletingId}
+            mergingId={mergingId}
+            mergeConfirming={!!mergeConfirming[u.user_id]}
             trialDays={trialDays[u.user_id] ?? 7}
             trialPlanValue={trialPlan[u.user_id] ?? 'pro'}
             suspendReasonValue={suspendReason[u.user_id] ?? ''}
@@ -588,6 +689,9 @@ export const AdminUsersPanel = () => {
             onSaveNote={handleSaveNote}
             onImpersonate={handleImpersonate}
             onDeleteUser={handleDeleteUser}
+            onMergeIdentity={handleMergeIdentity}
+            onSetMergeConfirming={v => setMergeConfirming(prev => ({ ...prev, [u.user_id]: v }))}
+            onOpenDrawer={() => setDrawerUser(u)}
             onTrialDaysChange={v => setTrialDays(prev => ({ ...prev, [u.user_id]: v }))}
             onTrialPlanChange={v => setTrialPlan(prev => ({ ...prev, [u.user_id]: v }))}
             onSuspendReasonChange={v => setSuspendReason(prev => ({ ...prev, [u.user_id]: v }))}
@@ -638,6 +742,8 @@ interface UserRowProps {
   savingCreditsId: string | null;
   savingNoteId: string | null;
   deletingId: string | null;
+  mergingId: string | null;
+  mergeConfirming: boolean;
   trialDays: number;
   trialPlanValue: 'pro' | 'premium';
   suspendReasonValue: string;
@@ -654,6 +760,9 @@ interface UserRowProps {
   onSaveNote: (userId: string) => void;
   onImpersonate: (userId: string) => void;
   onDeleteUser: (userId: string, profileId: string) => void;
+  onMergeIdentity: (userId: string) => void;
+  onSetMergeConfirming: (v: boolean) => void;
+  onOpenDrawer: () => void;
   onTrialDaysChange: (v: number) => void;
   onTrialPlanChange: (v: 'pro' | 'premium') => void;
   onSuspendReasonChange: (v: string) => void;
@@ -665,21 +774,23 @@ interface UserRowProps {
 function UserRow({
   user, selected, expanded,
   impersonatingId, savingPlanId, savingTrialId, savingSuspendId,
-  savingCreditsId, savingNoteId, deletingId,
+  savingCreditsId, savingNoteId, deletingId, mergingId, mergeConfirming,
   trialDays, trialPlanValue, suspendReasonValue, newLimitValue, bonusCreditsValue, noteTextValue,
   onToggleSelect, onToggleExpand,
   onSetPlan, onGrantTrial, onRevokeTrial, onToggleSuspend, onSetCredits, onSaveNote,
-  onImpersonate, onDeleteUser,
+  onImpersonate, onDeleteUser, onMergeIdentity, onSetMergeConfirming, onOpenDrawer,
   onTrialDaysChange, onTrialPlanChange, onSuspendReasonChange,
   onNewLimitChange, onBonusCreditsChange, onNoteTextChange,
 }: UserRowProps) {
   const isTrialActive = user.trial_plan && user.trial_expires_at && new Date(user.trial_expires_at) > new Date();
+  const isCollision = (user.email ?? '').endsWith('@collision.kinde.placeholder');
   const planSaving = savingPlanId === user.user_id;
   const trialSaving = savingTrialId === user.user_id;
   const suspendSaving = savingSuspendId === user.user_id;
   const creditsSaving = savingCreditsId === user.user_id;
   const noteSaving = savingNoteId === user.user_id;
   const deleting = deletingId === user.user_id;
+  const merging = mergingId === user.user_id;
   const impersonating = impersonatingId === user.user_id;
 
   return (
@@ -755,7 +866,7 @@ function UserRow({
                   user.plan_name === p ? 'bg-white text-black' : 'text-white/30 hover:text-white/60',
                 )}
               >
-                {planSaving && user.plan_name === p ? <Loader2 size={9} className="animate-spin" /> : p[0]}
+                {planSaving && user.plan_name !== p ? p[0] : planSaving && user.plan_name === p ? <Loader2 size={9} className="animate-spin" /> : p[0]}
               </button>
             ))}
           </div>
@@ -839,14 +950,13 @@ function UserRow({
                       disabled={trialSaving}
                       className="flex-1 py-1.5 text-[10px] font-semibold rounded-lg bg-red-500/10 border border-red-500/15 text-red-400/70 hover:bg-red-500/20 transition-all flex items-center justify-center gap-1"
                     >
-                      {trialSaving ? <Loader2 size={10} className="animate-spin" /> : <X size={10} />}
-                      Revoke
+                      <X size={10} /> Revoke
                     </button>
                   )}
                 </div>
                 {isTrialActive && (
                   <p className="text-[10px] text-violet-400/70">
-                    Trial active: {user.trial_plan} · expires {new Date(user.trial_expires_at!).toLocaleDateString()}
+                    Trial: {user.trial_plan} · expires {new Date(user.trial_expires_at!).toLocaleDateString()}
                   </p>
                 )}
               </div>
@@ -893,6 +1003,8 @@ function UserRow({
             {/* Access & Identity */}
             <div className="bg-white/4 rounded-xl p-3 border border-white/8 space-y-2">
               <p className="text-[9px] uppercase tracking-widest text-white/30 font-bold">Access & Identity</p>
+
+              {/* Act As */}
               <button
                 onClick={() => onImpersonate(user.user_id)}
                 disabled={impersonating}
@@ -901,15 +1013,65 @@ function UserRow({
                 {impersonating ? <Loader2 size={11} className="animate-spin" /> : <ExternalLink size={11} />}
                 {impersonating ? 'Generating…' : 'Act As this user'}
               </button>
-              <div className="text-[10px] text-white/30 space-y-1">
+
+              {/* View Resumes — opens full drawer */}
+              <button
+                onClick={onOpenDrawer}
+                className="w-full py-2 text-[10px] font-semibold rounded-lg bg-white/5 border border-white/10 text-white/60 hover:bg-white/10 transition-all flex items-center justify-center gap-1.5"
+              >
+                <LayoutList size={11} />
+                View Resumes &amp; Full Profile
+              </button>
+
+              {/* Merge Identity — shown for all accounts, critical for Kinde collision accounts */}
+              {mergeConfirming ? (
+                <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-2 space-y-1.5">
+                  <p className="text-[10px] text-amber-400 font-semibold">Confirm identity merge?</p>
+                  <p className="text-[10px] text-white/40 leading-tight">
+                    This will suspend the orphan account and transfer all data to this account. Cannot be undone.
+                  </p>
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => onMergeIdentity(user.user_id)}
+                      disabled={merging}
+                      className="flex-1 py-1.5 text-[10px] font-bold rounded-lg bg-amber-500 text-black flex items-center justify-center gap-1"
+                    >
+                      {merging ? <Loader2 size={10} className="animate-spin" /> : <Check size={10} />}
+                      {merging ? 'Merging…' : 'Confirm'}
+                    </button>
+                    <button
+                      onClick={() => onSetMergeConfirming(false)}
+                      className="flex-1 py-1.5 text-[10px] font-bold rounded-lg bg-white/5 border border-white/10 text-white/40"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => onSetMergeConfirming(true)}
+                  className={cn(
+                    'w-full py-1.5 text-[10px] font-semibold rounded-lg border transition-all flex items-center justify-center gap-1.5',
+                    isCollision
+                      ? 'bg-amber-500/20 border-amber-500/30 text-amber-400 hover:bg-amber-500/30'
+                      : 'bg-white/4 border-white/8 text-white/30 hover:bg-white/8 hover:text-white/50',
+                  )}
+                  title="Merge this account's data into its canonical identity"
+                >
+                  <Merge size={11} />
+                  {isCollision ? 'Fix Identity (Collision)' : 'Merge Identity'}
+                </button>
+              )}
+
+              {/* Metadata */}
+              <div className="text-[10px] text-white/30 space-y-0.5 pt-1">
                 <p className="font-mono truncate">{user.user_id}</p>
-                {user.email && <p className="truncate">{user.email}</p>}
-              </div>
-              <div className="flex items-center gap-1 text-[10px] text-white/30">
-                <FileText size={10} />
-                <span>{user.resumeCount} resumes</span>
-                <span className="mx-1 text-white/10">·</span>
-                <span>Joined {new Date(user.$createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
+                <div className="flex items-center gap-2">
+                  <FileText size={10} />
+                  <span>{user.resumeCount} resumes</span>
+                  <span className="text-white/15">·</span>
+                  <span>Joined {new Date(user.$createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
+                </div>
               </div>
             </div>
 
