@@ -1,6 +1,6 @@
 # Components (`src/components/`)
 
-**Last verified:** 2026-05-11 (Task #5)
+**Last verified:** 2026-05-11 (Task #21 — per-feature model picker in AIRoutingSwitcher)
 **Type:** reference card
 **Sources:** `src/components/`, `replit.md`.
 
