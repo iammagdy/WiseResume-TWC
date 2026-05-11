@@ -79,7 +79,7 @@ function DashboardPageContent() {
 
   const { setCurrentResume, setCurrentResumeId } = useResumeStore();
   const { scoreResume, getCachedScore, scoringId } = useResumeScore();
-  const { profile } = useProfile(user?.id, user);
+  const { profile } = useProfile(user?.id);
   const { plan, trialPlan, trialExpiresAt } = usePlan();
   const { isDark, toggleTheme } = useTheme();
   const { hasNew: hasNewChangelog } = useChangelogBadge();

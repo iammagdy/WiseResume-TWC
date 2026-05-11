@@ -49,7 +49,7 @@ const ACHIEVEMENTS: Achievement[] = [
 
 export default function AchievementsPage() {
   const { user } = useAuth();
-  const { profile } = useProfile(user?.id, user);
+  const { profile } = useProfile(user?.id);
   const { data: resumes = [] } = useResumes();
   const { data: applications = [] } = useJobApplications();
   const { getCachedScore } = useResumeScore();

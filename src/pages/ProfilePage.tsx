@@ -41,7 +41,7 @@ import { ProfileSkeleton } from '@/components/profile/ProfileSkeleton';
 export default function ProfilePage() {
   const navigate = useNavigate();
   const { user, supabaseSettled } = useAuth();
-  const { profile, loading: profileLoading, updateProfile } = useProfile(user?.id, user);
+  const { profile, loading: profileLoading, updateProfile } = useProfile(user?.id);
   const { plan } = usePlan();
   const { data: resumes = [] } = useResumes();
   const { data: applications = [] } = useJobApplications();

@@ -83,7 +83,7 @@ function UserIdCard({ userId }: { userId: string }) {
 export default function SettingsPage() {
   const navigate = useNavigate();
   const { user, loading, signOut } = useAuth();
-  const { profile, updateProfile } = useProfile(user?.id, user);
+  const { profile, updateProfile } = useProfile(user?.id);
   const { plan } = usePlan();
   const { data: resumes = [] } = useResumes();
   const { currentResumeId } = useResumeStore();

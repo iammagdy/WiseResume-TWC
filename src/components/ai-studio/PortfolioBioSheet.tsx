@@ -73,7 +73,7 @@ export function PortfolioBioSheet({ open, onOpenChange }: PortfolioBioSheetProps
   const currentResume = useResumeStore(s => s.currentResume);
   const redactedResume = useRedactedResume(currentResume as ResumeData | null);
   const { user } = useAuth();
-  const { updateProfile } = useProfile(user?.id, user);
+  const { updateProfile } = useProfile(user?.id);
   const [result, setResult] = useState<BioResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [selected, setSelected] = useState<keyof BioResult | null>(null);

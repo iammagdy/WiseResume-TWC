@@ -63,7 +63,7 @@ export default function PortfolioEditorPage() {
   const { user } = useAuth();
   const { isPro, isPremium } = usePlan();
   const isPaidUser = isPro || isPremium;
-  const { profile, loading, updateProfile } = useProfile(user?.id, user);
+  const { profile, loading, updateProfile } = useProfile(user?.id);
   const { data: resumes = [] } = useResumes();
   const usernameRules = usePortfolioUsernameRules(user?.id);
   const { saveSnapshot } = usePortfolioHistory(user?.id);

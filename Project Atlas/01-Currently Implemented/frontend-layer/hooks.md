@@ -1,6 +1,6 @@
 # Hooks (`src/hooks/`)
 
-**Last verified:** 2026-05-11 (Task #1 — staleTime added to useProfile, useResumes, useJobApplications)
+**Last verified:** 2026-05-11 (Appwrite integration audit — hooks & type safety pass)
 **Type:** reference card
 **Sources:**
 - `src/hooks/` (84 files at root + `src/hooks/wisehire/` 21 files)
@@ -14,11 +14,11 @@
 
 | Hook | What it owns | Notes |
 |---|---|---|
-| `useMe` | User identity, plan, credits, preferences, account_type | Backed by `me` Edge Function. queryKey `['me', user?.id]`. **Used everywhere.** |
-| `useAuth` | Kinde auth state | Wrapped on top of `KindeProvider`. |
+| `useMe` | User identity, plan, credits, preferences, account_type | Reads `subscriptions` + `ai_credits` Appwrite collections. `MeData` includes `trial_plan`, `total_usage`, `usage_date`, `effective_plan`. queryKey `['me', user?.id]`. **Used everywhere.** |
+| `useAuth` | Appwrite auth state | `account.get()` / `account.deleteSession()`. `user.id` = Appwrite `$id`. |
 | `usePlan` | Derived plan tier + caps | Reads from `useMe`. |
-| `useAICredits` | Live credit balance | Reads from `useMe`. |
-| `useProfile` | Profile row + mutations | Profile-specific updates. |
+| `useAICredits` | Live credit balance | Reads from `useMe`; uses `trial_plan`/`total_usage`/`usage_date`. |
+| `useProfile` | Full profile row + mutations | All core + portfolio fields mapped. `updateProfile` accepts camelCase `ProfileUpdates`; maps to snake_case for Appwrite. Includes `loginStreak`, `hiredAt`, `openToWork`, all portfolio-specific fields. No `Query.select` — full document fetched. |
 | `useTierGate` | Plan-gate evaluator | Returns `{allowed, reason, upgradeTo}` for any feature key; reads from `useMe`. |
 | `useSuspensionCheck` | Detects suspended account state and triggers logout + toast. |
 | `useChangelogBadge` | Unread changelog item count for the topbar bell. |

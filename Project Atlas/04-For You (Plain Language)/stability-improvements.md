@@ -1,6 +1,26 @@
 # Stability Improvements — What's Getting Better Behind the Scenes
 
-**Last verified:** 2026-05-11 (Task #5 — God Mode redesign + data accuracy fixes)
+**Last verified:** 2026-05-11 (Appwrite integration audit — hooks & type safety pass)
+
+## Appwrite integration audit: hooks & type safety (2026-05-11)
+
+A full pass over the core data hooks that sit between the app and Appwrite fixed several silent bugs and eliminated all unsafe `any` types in production code.
+
+**What was fixed:**
+
+- **Portfolio saves no longer silently fail.** The Profile hook was not mapping portfolio fields (theme, sections, GitHub URL, open-to-work, etc.) to the database. Every portfolio-specific field is now correctly saved and loaded, so the Portfolio Editor page works end to end.
+
+- **"Hired" celebration now records and clears correctly.** The HiredCelebrationModal was passing database column names in the wrong format; now it correctly saves the hired date and clears the "Open to Work" flag when you mark a job as won.
+
+- **Login streak is now available everywhere it's used.** The streak counter is properly loaded from your Appwrite profile and exposed to the Achievements page, Analytics page, and career milestone checks.
+
+- **Plan and credit tracking fixed.** The `useMe` data hub now correctly reads the `trial_plan`, `total_usage`, and `usage_date` fields that drive the trial countdown badge, credit limits, and subscription page displays.
+
+- **Interview answers, resignation letters, and cover letters** — all three document hooks now have proper TypeScript types so they can't silently accept or return malformed data.
+
+**For developers:** `npx tsc --noEmit` now returns zero errors across the entire codebase after these changes.
+
+---
 
 ## God Mode panel redesigned + data accuracy fixed (2026-05-11, Task #5)
 

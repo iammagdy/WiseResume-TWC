@@ -21,7 +21,7 @@ import { safeFormatDistanceToNow } from '@/lib/dateUtils';
 export default function AnalyticsPage() {
   const { isPremium, isLoading: planLoading } = usePlan();
   const { user } = useAuth();
-  const { profile } = useProfile(user?.id, user);
+  const { profile } = useProfile(user?.id);
   const { data: resumes = [] } = useResumes();
   const { data: applications = [] } = useJobApplications();
   const { getCachedScore } = useResumeScore();

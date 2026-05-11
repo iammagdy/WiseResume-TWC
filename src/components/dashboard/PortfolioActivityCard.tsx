@@ -33,7 +33,7 @@ function SparkBar({ data }: { data: DayCount[] }) {
 
 export function PortfolioActivityCard() {
   const { user } = useAuth();
-  const { profile } = useProfile(user?.id, user);
+  const { profile } = useProfile(user?.id);
   const navigate = useNavigate();
 
   const username = profile?.username;

@@ -72,7 +72,7 @@ function resolveIsDark(theme: 'light' | 'dark' | 'system'): boolean {
 const Index = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated, loading: authLoading, signOut } = useAuth();
-  const { profile } = useProfile(isAuthenticated ? user?.id : undefined, user);
+  const { profile } = useProfile(isAuthenticated ? user?.id : undefined);
   const { isHR } = useAccountType();
   const prefersReducedMotion = usePrefersReducedMotion();
   const themeLogo = useThemeLogo();

@@ -8,16 +8,32 @@ export interface MeData {
   subscription: {
     plan: string;
     effective_plan: string;
-    trial_expires_at?: string;
+    trial_plan?: string | null;
+    trial_expires_at?: string | null;
   } | null;
   ai_credits: {
     daily_usage: number;
     daily_limit: number;
+    total_usage: number;
+    usage_date: string;
   } | null;
 }
 
-const DEFAULT_SUBSCRIPTION = { plan: 'free', effective_plan: 'free' } as const;
-const DEFAULT_CREDITS = { daily_usage: 0, daily_limit: 5 } as const;
+const TODAY = () => new Date().toISOString().split('T')[0];
+
+const DEFAULT_SUBSCRIPTION = {
+  plan: 'free',
+  effective_plan: 'free',
+  trial_plan: null,
+  trial_expires_at: null,
+} as const;
+
+const DEFAULT_CREDITS = {
+  daily_usage: 0,
+  daily_limit: 5,
+  total_usage: 0,
+  usage_date: TODAY(),
+} as const;
 
 async function safeList(collectionId: string, queries: string[]) {
   try {
@@ -49,16 +65,21 @@ export function useMe() {
         subscription: sub
           ? {
               plan: (sub.plan as string) ?? 'free',
-              effective_plan: (sub.plan as string) ?? 'free',
-              trial_expires_at: sub.trial_expires_at as string | undefined,
+              // Use server-computed effective_plan when present (accounts for active
+              // trials); fall back to plan when the field hasn't been provisioned yet.
+              effective_plan: (sub.effective_plan as string | undefined) ?? (sub.plan as string) ?? 'free',
+              trial_plan: (sub.trial_plan as string | null | undefined) ?? null,
+              trial_expires_at: (sub.trial_expires_at as string | null | undefined) ?? null,
             }
           : DEFAULT_SUBSCRIPTION,
         ai_credits: creds
           ? {
               daily_usage: (creds.daily_usage as number) ?? 0,
               daily_limit: (creds.daily_limit as number) ?? 5,
+              total_usage: (creds.total_usage as number) ?? 0,
+              usage_date: (creds.usage_date as string) ?? TODAY(),
             }
-          : DEFAULT_CREDITS,
+          : { ...DEFAULT_CREDITS, usage_date: TODAY() },
       };
     },
     enabled: !!user && isAuthenticated,

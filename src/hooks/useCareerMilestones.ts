@@ -20,7 +20,7 @@ export function useCareerMilestones() {
   const { user } = useAuth();
   const { data: resumes } = useResumes();
   const { data: applications } = useJobApplications();
-  const { profile } = useProfile(user?.id, user);
+  const { profile } = useProfile(user?.id);
 
   const { data: interviewCount } = useQuery({
     queryKey: ['interview-count', user?.id],

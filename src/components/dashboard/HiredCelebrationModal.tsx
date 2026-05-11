@@ -61,7 +61,7 @@ interface HiredCelebrationModalProps {
 export function HiredCelebrationModal({ open, onClose, jobTitle, company, resumeId }: HiredCelebrationModalProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { profile, updateProfile } = useProfile(user?.id, user);
+  const { profile, updateProfile } = useProfile(user?.id);
   const [didFireHaptics, setDidFireHaptics] = useState(false);
   const [isTogglingOpenToWork, setIsTogglingOpenToWork] = useState(false);
   const [isSettingReminder, setIsSettingReminder] = useState(false);
@@ -72,7 +72,7 @@ export function HiredCelebrationModal({ open, onClose, jobTitle, company, resume
       setDidFireHaptics(true);
       // Record hired_at on the profile
       if (user?.id) {
-        updateProfile({ hired_at: new Date().toISOString() } as Parameters<typeof updateProfile>[0]);
+        updateProfile({ hiredAt: new Date().toISOString() });
       }
     }
     if (!open) setDidFireHaptics(false);
@@ -83,7 +83,7 @@ export function HiredCelebrationModal({ open, onClose, jobTitle, company, resume
     haptics.light();
     setIsTogglingOpenToWork(true);
     try {
-      await updateProfile({ open_to_work: false } as Parameters<typeof updateProfile>[0]);
+      await updateProfile({ openToWork: false });
       toast.success('Open to Work turned off on your portfolio');
       onClose();
     } finally {

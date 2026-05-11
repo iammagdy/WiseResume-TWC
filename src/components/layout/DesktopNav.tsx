@@ -75,7 +75,7 @@ export function DesktopNav() {
   const { hasNew, markSeen } = useChangelogBadge();
   const { isDark, toggleTheme } = useTheme();
   const { user, signOut } = useAuth();
-  const { profile } = useProfile(user?.id, user);
+  const { profile } = useProfile(user?.id);
   const { plan, isPro, trialPlan, trialExpiresAt } = usePlan();
   const [wiseAIOpen, setWiseAIOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);

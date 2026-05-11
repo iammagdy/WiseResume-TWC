@@ -1,3 +1,42 @@
+## 2026-05-11 — Appwrite integration audit: hooks & type safety pass
+
+### Summary
+Comprehensive audit and fix of all frontend-to-Appwrite integration points across the core data hooks. Zero TypeScript errors confirmed throughout.
+
+### What changed
+
+#### `src/hooks/useMe.ts`
+- Added missing `trial_plan`, `total_usage`, `usage_date` fields to `MeData` type and `queryFn` mapping.
+- Fixed `effective_plan` to use server-computed value from the `subscriptions` document with fallback to `plan`, matching what `usePlan` expects.
+
+#### `src/hooks/useProfile.ts` (major expansion)
+- Added `loginStreak` field (maps from `login_streak` DB column); consumed by `useCareerMilestones`, `AchievementsPage`, `AnalyticsPage`.
+- Added all portfolio-specific fields to `Profile` type: `githubUrl`, `websiteUrl`, `twitterUrl`, `contactEmail`, `theme`, `portfolioSections`, `portfolioMetaTitle`, `portfolioMetaDescription`, `portfolioStyle`, `portfolioLayout`, `portfolioAccentColor`, `portfolioFont`, `openToWork`, `portfolioExtras`, `availabilityHeadline`, `portfolioSyncMode`, `portfolioDraft`, `portfolioDraftSavedAt`, `portfolioResumeId`, `phoneNumber`, `views`, `lastLoginDate`, `digestEnabled`, `hiredAt`.
+- Extended `ProfileUpdates` and `updateProfile` camelCase→snake_case mapping for all portfolio fields — fixes `PortfolioEditorPage` silently dropping all portfolio saves.
+- Removed `Query.select` from `queryFn` so all columns are returned without needing per-column enumeration.
+- Replaced all `any` casts with typed `ProfileCompletionFields`, `ProfileUpdates`, and `ProfileCompletionFields` interfaces; `calculateProfileCompletion` and `getNextMissingField` updated to use camelCase keys matching actual `Profile` shape.
+- Added `parseJsonField` helper for JSON columns that Appwrite may return as string or object.
+- Second `user` argument removed from all 14 `useProfile(userId)` call sites.
+
+#### `src/components/dashboard/HiredCelebrationModal.tsx`
+- Fixed two `updateProfile` calls that passed snake_case keys (`hired_at`, `open_to_work`) via unsafe `as Parameters<>` casts; now passes camelCase `hiredAt` and `openToWork` directly, matching `ProfileUpdates`.
+
+#### `src/hooks/useInterviewAnswers.ts`
+- Added `InterviewAnswerInput` and `InterviewAnswerUpdates` interfaces.
+- Added `docToAnswer` mapper; all three mutations (`useSaveInterviewAnswer`, `useUpdateInterviewAnswer`, `useDeleteInterviewAnswer`) now fully typed — zero `any`.
+
+#### `src/hooks/useResignationLetters.ts`
+- Added `ResignationLetter`, `ResignationLetterInput`, `ResignationLetterUpdates` interfaces.
+- Added `docToLetter` mapper; `useResignationLetters`, `useResignationLetter`, and all three mutations now fully typed — zero `any`.
+- `useResignationLetter` return type fixed from `Models.Document` to `ResignationLetter | null`.
+
+#### `src/hooks/useCoverLetters.ts`
+- Added `CoverLetterInput` interface.
+- `parseCoverLetter` parameter typed as `Record<string, unknown>` instead of `any`.
+- `saveCoverLetter` mutationFn typed with `CoverLetterInput` → `CoverLetterRecord` — zero `any`.
+
+---
+
 ## 2026-05-11 — Task #5: God Mode redesign + data accuracy fixes
 
 ### Summary

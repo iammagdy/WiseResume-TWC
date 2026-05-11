@@ -70,7 +70,7 @@ export default function PreviewPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
-  const { profile } = useProfile(user?.id, user);
+  const { profile } = useProfile(user?.id);
   const {
     currentResume,
     selectedTemplate,
