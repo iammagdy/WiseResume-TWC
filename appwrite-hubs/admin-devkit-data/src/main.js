@@ -270,10 +270,27 @@ module.exports = async ({ req, res, log, error }) => {
       const data = await handleMissionControl(log, error);
       return res.json({ success: true, data });
     }
-    
-    // Add other handlers (analytics, live-activity, etc.) as needed
-    // For now, return a generic success for other actions to prevent crashes
-    return res.json({ success: true, message: `Action ${action} processed` });
+
+    if (action === 'update-plan') {
+      const { user_id, plan } = body;
+      if (!user_id || !plan) {
+        return res.json({ success: false, error: 'Missing user_id or plan' }, 400);
+      }
+      const { databases } = getClients();
+      const existing = await databases.listDocuments(DB_ID, 'subscriptions', [
+        sdk.Query.equal('user_id', user_id),
+        sdk.Query.limit(1),
+      ]);
+      if (existing.total > 0) {
+        await databases.updateDocument(DB_ID, 'subscriptions', existing.documents[0].$id, { plan });
+      } else {
+        await databases.createDocument(DB_ID, 'subscriptions', sdk.ID.unique(), { user_id, plan });
+      }
+      log(`update-plan: set user ${user_id} → ${plan}`);
+      return res.json({ success: true, plan });
+    }
+
+    return res.json({ success: false, error: `Unknown action: ${action}` }, 400);
   } catch (err) {
     error(`DevKit Data Error: ${err.message}`);
     return res.json({ success: false, error: err.message }, 500);

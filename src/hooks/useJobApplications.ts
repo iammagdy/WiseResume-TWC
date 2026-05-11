@@ -19,6 +19,7 @@ export function useJobApplications(statusFilter?: ApplicationStatus) {
   const { user } = useAuth();
   return useQuery({
     queryKey: ['job-applications', user?.id, statusFilter],
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       if (!user) return [];
       const queries = [

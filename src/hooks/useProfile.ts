@@ -47,10 +47,12 @@ export function useProfile(userId: string | undefined, initialData?: any) {
 
   const { data: profile = null, isLoading: loading } = useQuery({
     queryKey: ['profile', userId],
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       if (!userId) return null;
       const response = await databases.listDocuments(DATABASE_ID, 'profiles', [
-        Query.equal('user_id', userId)
+        Query.equal('user_id', userId),
+        Query.select(['$id', '$updatedAt', 'user_id', 'email', 'full_name', 'avatar_url', 'job_title', 'industry', 'career_level', 'location', 'linkedin_url', 'profile_completed', 'username', 'portfolio_bio', 'portfolio_enabled', 'onboarding_completed']),
       ]);
       const doc = response.documents[0];
       if (!doc) return null;

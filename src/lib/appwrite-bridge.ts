@@ -6,8 +6,8 @@ import { functions as appwriteFunctions } from '@/lib/appwrite';
  */
 const AI_HUB_FUNCTIONS = new Set([
   // Core AI
-  'agentic-chat', 'wise-ai-chat', 'analyze-resume', 'score-resume', 
-  'resume-section-ai', 'editor-ai', 'recruiter-simulation', 'ai-health',
+  'agentic-chat', 'wise-ai-chat', 'analyze-resume', 'score-resume',
+  'resume-section-ai', 'editor-ai', 'recruiter-simulation',
   
   // Document Generation
   'generate-cover-letter', 'generate-portfolio-bio', 'generate-question-bank', 

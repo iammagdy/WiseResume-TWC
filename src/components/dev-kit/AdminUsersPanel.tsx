@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { databases, DATABASE_ID, Query, ID } from '@/lib/appwrite';
+import { databases, DATABASE_ID, Query } from '@/lib/appwrite';
 import { COLLECTIONS } from '@/lib/appwrite-collections';
 import { User, Shield, Trash2, Search, Zap, Crown, Loader2, FileText, ExternalLink, RefreshCw } from 'lucide-react';
 import { ActAsDialog, type ActAsSession } from './ActAsDialog';
@@ -71,15 +71,16 @@ export const AdminUsersPanel = () => {
 
   const handleUpdatePlan = async (userId: string, plan: string) => {
     try {
-      const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.subscriptions, [Query.equal('user_id', userId)]);
-      if (res.total > 0) {
-        await databases.updateDocument(DATABASE_ID, COLLECTIONS.subscriptions, res.documents[0].$id, { plan });
-      } else {
-        await databases.createDocument(DATABASE_ID, COLLECTIONS.subscriptions, ID.unique(), { user_id: userId, plan });
-      }
+      const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
+        headers: devKitAuthHeaders(),
+        body: { action: 'update-plan', user_id: userId, plan },
+      });
+      unwrapAdminResponse(tuple, 'admin-devkit-data/update-plan');
       toast.success(`Plan set to ${plan.toUpperCase()}`);
-      fetchUsers(); // Refresh to show real plan
-    } catch (e: any) { toast.error(e.message); }
+      fetchUsers();
+    } catch (e: unknown) {
+      toast.error(formatEdgeError(e, 'Failed to update plan'));
+    }
   };
 
   const handleImpersonate = async (userId: string, email: string) => {

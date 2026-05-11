@@ -65,7 +65,7 @@ export const appwriteFunctions = {
       let functionId: string;
       let executionBody: string;
 
-      if (shouldRouteToAppwrite(fnName) && fnName !== 'ai-health') {
+      if (shouldRouteToAppwrite(fnName)) {
         functionId = 'ai-gateway';
         executionBody = JSON.stringify({ featureName: fnName, ...finalPayload });
       } else {

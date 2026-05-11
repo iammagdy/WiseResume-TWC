@@ -1,3 +1,40 @@
+## 2026-05-11 — Task #1: Fix all 7 post-Appwrite-migration bugs
+
+### Summary
+Full audit of post-Appwrite-migration issues followed by targeted fixes across the frontend, Appwrite Function layer, and Appwrite Cloud configuration.
+
+### What changed
+
+#### `src/lib/appwrite-bridge.ts`
+- Removed `'ai-health'` from `AI_HUB_FUNCTIONS` set. The heartbeat function was being routed to `ai-gateway` as a `featureName`, which `ai-gateway` cannot handle as a heartbeat — causing the AI badge to show "Unavailable" whenever `invokeAppwriteHub()` callers used it. The dedicated `ai-health` function (already excluded in `appwrite-functions.ts`) now handles all health-check traffic correctly.
+
+#### `src/lib/appwrite-functions.ts`
+- Removed the now-dead `&& fnName !== 'ai-health'` guard from the `shouldRouteToAppwrite` branch. `ai-health` is no longer in `AI_HUB_FUNCTIONS` so the special-case is unnecessary.
+
+#### `src/components/dev-kit/AdminUsersPanel.tsx`
+- `handleUpdatePlan`: replaced direct `databases.updateDocument / createDocument` calls against the `subscriptions` collection with `appwriteFunctions.invoke('admin-devkit-data', { headers: devKitAuthHeaders(), body: { action: 'update-plan', ... } })`. The Appwrite client SDK cannot write to collections whose permissions require an API key (server-side); routing through an admin Function resolves the "not authorized" error.
+- Removed unused `ID` import from `@/lib/appwrite`.
+
+#### `src/hooks/useProfile.ts`
+- Added `staleTime: 5 * 60 * 1000` — prevents redundant Frankfurt RTTs when navigating back to the profile page within 5 minutes.
+- Added `Query.select([...])` listing all 16 fields actually used by the UI — avoids pulling unused columns on every profile fetch.
+
+#### `src/hooks/useResumes.ts`
+- Added `staleTime: 5 * 60 * 1000` to `useResumes`.
+
+#### `src/hooks/useJobApplications.ts`
+- Added `staleTime: 5 * 60 * 1000` to `useJobApplications`.
+
+#### `appwrite-hubs/admin-devkit-data/src/main.js`
+- Added `update-plan` action: reads `user_id` + `plan` from body, upserts `subscriptions` collection document using the Admin API key (bypasses user-level collection permissions), returns `{ success: true, plan }`. Unknown action names now return `400 { success: false, error: 'Unknown action: ...' }` instead of a misleading 200.
+
+#### Appwrite Cloud (via REST API)
+- Deployed updated `admin-devkit-data` function (deployment `6a0147becead9e32fd4d`, status `ready`, active).
+- Created `GITHUB_TOKEN` variable on `admin-devkit-data` from the `GUTHUB_PAT` Replit secret — Mission Control can now report the latest commit SHA and date from GitHub.
+- **Pending (manual):** `admin-impersonate` is missing `DEVKIT_PASSWORD` in its Appwrite Function Variables — must be set in Appwrite Console → Functions → admin-impersonate → Variables, matching the value already set on `admin-devkit-data`. Until then, "Act As" returns 401.
+
+---
+
 ## 2026-05-10 — v4.1.3 release
 
 ### Summary

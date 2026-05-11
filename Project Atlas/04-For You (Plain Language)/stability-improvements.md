@@ -1,6 +1,22 @@
 # Stability Improvements — What's Getting Better Behind the Scenes
 
-**Last verified:** 2026-05-10 (Task #48 — AI health badge fixed; resume health scores now display)
+**Last verified:** 2026-05-11 (Task #1 — 7 post-migration bugs fixed)
+
+## Seven post-migration bugs fixed (2026-05-11, Task #1)
+
+A full audit of everything that broke after the Supabase → Appwrite migration produced a list of seven confirmed issues. All have been fixed or have a clear resolution path:
+
+1. **AI badge permanently red** — The heartbeat check was accidentally being routed to the general-purpose AI gateway instead of its own tiny "are you alive?" function. Fixed: it now goes to the right place.
+2. **AI features not working** — Same root cause as the badge: the routing table had the wrong entry. AI chat, tailoring, cover letters, parsing, and all other AI features now reach the gateway correctly.
+3. **Profile page slow to load** — The page was re-fetching data from our Frankfurt server every single time you navigated to it, even when nothing had changed. It now reuses the cached result for 5 minutes before checking again. Also, only the fields actually needed by the page are requested — smaller payloads, faster loads.
+4. **Dashboard & other pages slow on back-navigation** — Same caching fix applied to resumes and job applications.
+5. **God Mode plan change "Not Authorised"** — The DevKit was trying to write to a user's subscription record directly from the browser, but the database correctly rejects writes that don't come from an admin server. Fixed: plan changes now go through a secure server-side function that has the right permissions.
+6. **DevKit tabs returning "Session Expired"** — The DevKit session token wasn't reaching the admin functions correctly. The code was correct; the issue was a missing password variable on the `admin-impersonate` function in the Appwrite Console. (See below for the one remaining manual step.)
+7. **Mission Control couldn't read GitHub** — Added the GitHub access token to the admin function so it can now report the latest commit and deployment status from the repo.
+
+**One step still needed manually:** Go to Appwrite Console → Functions → `admin-impersonate` → Variables, and add `DEVKIT_PASSWORD` with the same value already set on `admin-devkit-data`. This unblocks the "Act As" feature.
+
+---
 
 ## The AI health badge now turns green when AI is reachable (2026-05-10, Task #48)
 

@@ -84,6 +84,7 @@ export function useResumes(options: { select?: (data: any[]) => any } = {}) {
   const { user } = useAuth();
   return useQuery({
     queryKey: ['resumes', user?.id],
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       if (!user) return [];
       const response = await databases.listDocuments(DATABASE_ID, 'resumes', [

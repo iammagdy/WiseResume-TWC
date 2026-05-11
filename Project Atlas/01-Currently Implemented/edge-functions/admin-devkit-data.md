@@ -1,6 +1,6 @@
 # admin-devkit-data
 
-**Last verified:** 2026-05-09 (Task #6 — packaged for Appwrite deployment)
+**Last verified:** 2026-05-11 (Task #1 — update-plan action added, GITHUB_TOKEN set, redeployed)
 **Type:** reference card
 **Sources:**
 - `appwrite-hubs/admin-devkit-data/src/main.js`
@@ -16,6 +16,7 @@
 | Action | Panel served |
 |---|---|
 | `mission-control` | Mission Control — deploy status, AI provider pings, email check, DB health, secrets inventory, recent errors and admin actions |
+| `update-plan` | God Mode — upserts a user's `subscriptions` document using the admin API key; body: `{ user_id, plan }` |
 | `analytics` | Analytics — usage event aggregates, DAU/WAU, top features, portfolio visits, country breakdown, cohort retention, plan distribution |
 | `observability` | Observability — edge function telemetry, error stream, mark-reviewed write |
 | `live-activity` | Live Activity — recent `usage_events`, `error_log`, and `contact_requests` docs |
@@ -29,7 +30,7 @@
 
 **Function Variables:** All required variables (`DEVKIT_PASSWORD`, `APPWRITE_API_KEY`, `GITHUB_TOKEN`, `RESEND_API_KEY`, `OPENROUTER_KEY_1`, `OPENROUTER_KEY_2`, `GROQ_KEY_1`) are inherited from Appwrite project-level global variables — no per-function variable configuration is needed. `APPWRITE_FUNCTION_API_ENDPOINT` and `APPWRITE_FUNCTION_PROJECT_ID` are injected automatically by the runtime. `PRODUCTION_URL` defaults to `https://thewise.cloud` if not set.
 
-**Deployment:** `69ffc4207cb8e8e3ab99` — status `ready`, active, built 2026-05-09. Live verification: returns `401 {"success":false,"error":"Unauthorized"}` for unauthenticated calls (function running correctly).
+**Deployment:** `6a0147becead9e32fd4d` — status `ready`, active, built 2026-05-11. Live verification: returns `401 {"success":false,"error":"Unauthorized"}` for unauthenticated calls (function running correctly).
 
 **Appwrite database collections read (all in `main` DB):**
 `feature_flags`, `error_log`, `admin_audit_logs`, `usage_events`, `ai_usage_logs`, `portfolio_visits`, `profiles`, `edge_function_logs`, `contact_requests`, `subscriptions`, `resumes`
