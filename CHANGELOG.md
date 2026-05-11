@@ -31,7 +31,7 @@ Full audit of post-Appwrite-migration issues followed by targeted fixes across t
 #### Appwrite Cloud (via REST API)
 - Deployed updated `admin-devkit-data` function (deployment `6a0147becead9e32fd4d`, status `ready`, active).
 - Created `GITHUB_TOKEN` variable on `admin-devkit-data` from the `GUTHUB_PAT` Replit secret — Mission Control can now report the latest commit SHA and date from GitHub.
-- **Pending (manual):** `admin-impersonate` is missing `DEVKIT_PASSWORD` in its Appwrite Function Variables — must be set in Appwrite Console → Functions → admin-impersonate → Variables, matching the value already set on `admin-devkit-data`. Until then, "Act As" returns 401.
+- Set `DEVKIT_PASSWORD` on `admin-impersonate` — the function had no variables at all, causing every "Act As" attempt to return 401. Variable confirmed present (HTTP 201, resourceType: function).
 
 ---
 

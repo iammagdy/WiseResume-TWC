@@ -11,10 +11,8 @@ A full audit of everything that broke after the Supabase → Appwrite migration 
 3. **Profile page slow to load** — The page was re-fetching data from our Frankfurt server every single time you navigated to it, even when nothing had changed. It now reuses the cached result for 5 minutes before checking again. Also, only the fields actually needed by the page are requested — smaller payloads, faster loads.
 4. **Dashboard & other pages slow on back-navigation** — Same caching fix applied to resumes and job applications.
 5. **God Mode plan change "Not Authorised"** — The DevKit was trying to write to a user's subscription record directly from the browser, but the database correctly rejects writes that don't come from an admin server. Fixed: plan changes now go through a secure server-side function that has the right permissions.
-6. **DevKit tabs returning "Session Expired"** — The DevKit session token wasn't reaching the admin functions correctly. The code was correct; the issue was a missing password variable on the `admin-impersonate` function in the Appwrite Console. (See below for the one remaining manual step.)
+6. **DevKit "Act As" returning 401** — The `admin-impersonate` function had no variables set at all, so its auth check always failed. Fixed: the DevKit password variable has been added to the function in Appwrite and "Act As" now works.
 7. **Mission Control couldn't read GitHub** — Added the GitHub access token to the admin function so it can now report the latest commit and deployment status from the repo.
-
-**One step still needed manually:** Go to Appwrite Console → Functions → `admin-impersonate` → Variables, and add `DEVKIT_PASSWORD` with the same value already set on `admin-devkit-data`. This unblocks the "Act As" feature.
 
 ---
 
