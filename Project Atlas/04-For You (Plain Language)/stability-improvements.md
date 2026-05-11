@@ -1,6 +1,49 @@
 # Stability Improvements — What's Getting Better Behind the Scenes
 
-**Last verified:** 2026-05-11 (God Mode stats bar moved to secure server-side fetch)
+**Last verified:** 2026-05-11 (AI model lists updated for all four providers)
+
+## Admin panel: AI model dropdowns reflect current models from all providers (2026-05-11)
+
+When an admin picks a model to test an AI key slot in the DevKit, the dropdown lists
+were showing some models that no longer exist and missing newer ones released since the
+lists were last reviewed.
+
+**What changed:**
+
+- **DeepSeek**: The two old model names (`deepseek-chat`, `deepseek-reasoner`) are now
+  marked as deprecated — they work today but DeepSeek has announced they will be removed
+  on 24 July 2026. The two current models (`deepseek-v4-flash` and `deepseek-v4-pro`)
+  are now listed first.
+- **Groq**: Added Llama 4 Maverick and Llama 4 Scout (released April 2025, replacing the
+  old 90B vision model which is now decommissioned). Added two Qwen3 reasoning models.
+  The old `llama-3.2-90b-vision-preview` and `deepseek-r1-distill-llama-70b` are now
+  shown as deprecated since Groq has announced their removal.
+- **OpenRouter (free tier)**: Added Llama 4 Maverick, Llama 4 Scout, Qwen3 235B, Qwen
+  QwQ 32B, and Google Gemini 2.0 Flash Experimental — all confirmed free as of May 2026.
+- **OpenRouter (paid tier)**: Added Claude Opus 4 (Anthropic's May 2025 flagship). Moved
+  the older Llama 3.1 70B entry to deprecated and added Llama 3.3 70B as its replacement.
+- **NVIDIA NIM**: Added Nemotron Ultra 253B and both Llama 4 models now available via
+  NVIDIA's hosted inference API.
+- Each list now carries a "Last verified" date in the source code so future reviewers
+  know when to check again.
+
+## Admin panel: God Mode errors now show the real reason (2026-05-11)
+
+God Mode (the admin user list) was showing "Execution failed. Please try again." every
+time it loaded, with no indication of why it failed. The actual error from the server
+was being silently dropped.
+
+**What changed:**
+
+- The error handling code now surfaces the real crash message from the Appwrite server
+  to both the error card shown in the panel and the browser developer console. You (or
+  your developer) can now see exactly what went wrong.
+- The admin server function (`admin-devkit-data`) was redeployed to production with all
+  the recent code fixes from the past several updates. The deployed version was months
+  behind the code, causing it to crash on startup.
+- After the fix, God Mode successfully loads the user list without errors.
+
+
 
 ## Admin panel: God Mode stats bar now uses a secure server-side call (2026-05-11)
 
