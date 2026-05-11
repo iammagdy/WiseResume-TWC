@@ -31,7 +31,7 @@ function checkAuth(req, body) {
   // passes them in the body as __headers.
   const authHeader = body?.__headers?.Authorization || req.headers['authorization'] || req.headers['Authorization'] || '';
   if (!authHeader.startsWith('Bearer ')) return false;
-  return authHeader.slice(7) === expected;
+  return authHeader.slice(7).trim() === expected;
 }
 
 // ─── sendAppEmail helper ─────────────────────────────────────────────────────
