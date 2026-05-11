@@ -1370,3 +1370,20 @@ Production error `TypeError: Cannot read properties of undefined (reading 'data'
 - Triggered `workflow_dispatch` on wisequran's existing "Deploy to Hostinger" workflow (ID 244949119) via GitHub API. Workflow runs `pnpm build` → smoke-tests → deploys to `domains/thewise.cloud/public_html/quran` via SFTP.
 - Result: SUCCESS. `quran.thewise.cloud` serves HTTP 200, last-modified `2026-05-10T01:00:45Z`.
 - No code changes were needed — the wisequran repo already had all SFTP secrets and a working deploy workflow.
+
+## [2026-05-11] DevKit panel fixes — God Mode crash + 3 panels routed server-side
+
+### Root causes fixed
+- **`list-users-page` crash**: `Query.equal('user_id', [])` (empty array) is invalid in Appwrite and throws. Also `Query.equal('user_id', userIds)` on `subscriptions`/`ai_credits` throws when `user_id` is not indexed in those collections. Either path crashed `handleListUsersPage` → outer catch → HTTP 500 → God Mode showed "Failed to load users" and an empty user list.
+- **`AuditLogPanel`, `CouponsPanel`, `DatabaseXRay`**: Direct browser `databases.listDocuments` calls — client SDK is scoped to the current user's session, so cross-user reads return empty results silently. All three panels appeared blank even when data existed.
+
+### Changes
+- `appwrite-hubs/admin-devkit-data/src/main.js`:
+  - `handleListUsersPage`: added empty-`userIds` guard; switched `Promise.all` → `Promise.allSettled` for subs/credits join so the user list loads even when those collections lack a `user_id` index (plan data falls back to 'free', credits to 0, with a log warning).
+  - Added `handleListAuditLogs`: paginates `admin_audit_logs` (falls back to `audit_logs`) with admin API key; wired to action `list-audit-logs`.
+  - Added `handleListDiscountCodes`: reads all discount codes with admin API key; wired to action `list-discount-codes`.
+  - Added `handleAddDiscountCode`: creates a discount code document with admin API key; wired to action `add-discount-code`.
+  - Added `handleListAllResumes`: reads all resumes (not just current user's) with admin API key; wired to action `list-all-resumes`.
+- `src/components/dev-kit/AuditLogPanel.tsx`: removed direct `databases.listDocuments` call; now uses `admin-devkit-data` → `list-audit-logs`. Added `DevKitErrorCard` on failure, refresh button, total count.
+- `src/components/dev-kit/CouponsPanel.tsx`: removed direct `databases.listDocuments`/`createDocument` calls; now uses `admin-devkit-data` → `list-discount-codes` + `add-discount-code`. Added `DevKitErrorCard` on failure, loading state, Enter-key shortcut.
+- `src/components/dev-kit/DatabaseXRay.tsx`: removed direct `databases.listDocuments` call; now uses `admin-devkit-data` → `list-all-resumes`. Added client-side search, `DevKitErrorCard`, refresh button, total count.

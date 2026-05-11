@@ -117,6 +117,21 @@ When Appwrite Auth accounts are deleted, their `profiles` and `resumes` document
 - Mobile app still targets legacy backend (do not touch `mobile/`)
 - WiseHire, Admin DevKit non-data panels — throw `pending_appwrite_migration`
 
+### Task (2026-05-11 follow-up) — Fix God Mode crash + 3 more panels routed server-side
+
+**Problem:**
+- God Mode still showed "Failed to load users". Root cause was two separate bugs in `handleListUsersPage`: (1) `Query.equal('user_id', [])` — Appwrite rejects an empty array, throws if all profile `user_id` fields are null. (2) `Query.equal('user_id', userIds)` on `subscriptions` and `ai_credits` throws if `user_id` is not indexed in those collections. Either path propagated to the outer catch → HTTP 500 → client showed the error card.
+- `AuditLogPanel`, `CouponsPanel`, `DatabaseXRay` all called `databases.listDocuments` directly from the browser. The client SDK returns only documents scoped to the current user's session — cross-user reads return empty results silently. All three panels appeared blank even when data existed. `CouponsPanel`'s `databases.createDocument` also failed silently for the same reason.
+
+**Fixes:**
+- `appwrite-hubs/admin-devkit-data/src/main.js` — `handleListUsersPage`: added empty-`userIds` guard (skip join when array is empty); switched `Promise.all` → `Promise.allSettled` for subs/credits join so profiles still load when those collections lack a `user_id` index (falls back to `plan:'free'`, `credits:0`, logs a warning).
+- `appwrite-hubs/admin-devkit-data/src/main.js` — added `handleListAuditLogs`, `handleListDiscountCodes`, `handleAddDiscountCode`, `handleListAllResumes`; all wired to their respective action names in the main handler.
+- `src/components/dev-kit/AuditLogPanel.tsx` — removed direct `databases.listDocuments`; now uses `admin-devkit-data` → `list-audit-logs`. Added `DevKitErrorCard`, refresh button, total count.
+- `src/components/dev-kit/CouponsPanel.tsx` — removed direct `databases.listDocuments` / `createDocument`; now uses `list-discount-codes` + `add-discount-code`. Added `DevKitErrorCard`, loading state, Enter-key shortcut.
+- `src/components/dev-kit/DatabaseXRay.tsx` — removed direct `databases.listDocuments`; now uses `list-all-resumes`. Added client-side search, `DevKitErrorCard`, refresh button, total count.
+
+---
+
 ### Active Task Queue
 - **#13** — Show live subscription counts in the admin stats bar without a page refresh
 - **#14** — Extend orphan cleanup to cover other stale collections (subscriptions, AI credits, cover letters, etc.)

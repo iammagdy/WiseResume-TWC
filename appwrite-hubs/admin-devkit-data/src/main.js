@@ -75,6 +75,14 @@ async function safeCount(databases, collectionId, queries = []) {
  * Runs server-side (admin API key) so it is not bound by document-level
  * Appwrite permissions — the client SDK cannot do cross-user reads on
  * subscriptions / ai_credits.
+ *
+ * Resilience notes:
+ *   - userIds guard: Appwrite rejects Query.equal('field', []) (empty array).
+ *     When no profiles have a user_id (rare edge case) we skip the join and
+ *     return profiles with default plan/credits data.
+ *   - Promise.allSettled: if subscriptions or ai_credits are missing a
+ *     user_id index the query throws — we fall back to empty maps and log a
+ *     warning rather than failing the entire user-list request.
  */
 async function handleListUsersPage(body, log) {
   const { databases } = getClients();
@@ -97,21 +105,39 @@ async function handleListUsersPage(body, log) {
     return { users: [], total };
   }
 
+  // Guard: only query by user_id when we actually have IDs.
+  // Appwrite throws on Query.equal('user_id', []) — empty array is invalid.
   const userIds = profiles.map(p => p.user_id).filter(Boolean);
 
-  const [subsRes, creditsRes] = await Promise.all([
-    databases.listDocuments(DB_ID, 'subscriptions', [
-      sdk.Query.equal('user_id', userIds),
-      sdk.Query.limit(pageSize),
-    ]),
-    databases.listDocuments(DB_ID, 'ai_credits', [
-      sdk.Query.equal('user_id', userIds),
-      sdk.Query.limit(pageSize),
-    ]),
-  ]);
+  let subsMap    = new Map();
+  let creditsMap = new Map();
 
-  const subsMap    = new Map(subsRes.documents.map(s => [s.user_id, s]));
-  const creditsMap = new Map(creditsRes.documents.map(c => [c.user_id, c]));
+  if (userIds.length > 0) {
+    const [subsResult, creditsResult] = await Promise.allSettled([
+      databases.listDocuments(DB_ID, 'subscriptions', [
+        sdk.Query.equal('user_id', userIds),
+        sdk.Query.limit(pageSize),
+      ]),
+      databases.listDocuments(DB_ID, 'ai_credits', [
+        sdk.Query.equal('user_id', userIds),
+        sdk.Query.limit(pageSize),
+      ]),
+    ]);
+
+    if (subsResult.status === 'fulfilled') {
+      subsMap = new Map(subsResult.value.documents.map(s => [s.user_id, s]));
+    } else {
+      log(`list-users-page WARNING: subscriptions join failed — plan data shows as 'free'. Reason: ${subsResult.reason?.message ?? subsResult.reason}`);
+    }
+
+    if (creditsResult.status === 'fulfilled') {
+      creditsMap = new Map(creditsResult.value.documents.map(c => [c.user_id, c]));
+    } else {
+      log(`list-users-page WARNING: ai_credits join failed — credits show as 0. Reason: ${creditsResult.reason?.message ?? creditsResult.reason}`);
+    }
+  } else {
+    log(`list-users-page: all ${profiles.length} profiles have null user_id — skipping join queries`);
+  }
 
   const enriched = profiles.map(doc => {
     const sub    = subsMap.get(doc.user_id);
@@ -328,6 +354,88 @@ async function handlePurgeOrphans(body, log) {
 
   log(`purge-orphans: deleted ${deletedResumes} resumes, ${deletedProfiles} profiles`);
   return { dryRun: false, deletedProfiles, deletedResumes };
+}
+
+// ─── LIST AUDIT LOGS ──────────────────────────────────────────────────────────
+
+/**
+ * Returns recent admin audit log entries from the server-side API key.
+ * Replaces the direct databases.listDocuments call in AuditLogPanel which
+ * is blocked by document-level permissions in the client SDK.
+ */
+async function handleListAuditLogs(body, log) {
+  const { databases } = getClients();
+  const limit  = Math.min(Math.max(1, Number(body.limit)  || 25), 100);
+  const offset = Math.max(0, Number(body.offset) || 0);
+
+  // Try admin_audit_logs first (DevKit writes go here); fall back to audit_logs.
+  let res;
+  try {
+    res = await databases.listDocuments(DB_ID, 'admin_audit_logs', [
+      sdk.Query.orderDesc('$createdAt'),
+      sdk.Query.limit(limit),
+      sdk.Query.offset(offset),
+    ]);
+  } catch {
+    res = await databases.listDocuments(DB_ID, 'audit_logs', [
+      sdk.Query.orderDesc('$createdAt'),
+      sdk.Query.limit(limit),
+      sdk.Query.offset(offset),
+    ]);
+  }
+
+  log(`list-audit-logs: total=${res.total} returned=${res.documents.length}`);
+  return { documents: res.documents, total: res.total };
+}
+
+// ─── LIST DISCOUNT CODES ──────────────────────────────────────────────────────
+
+async function handleListDiscountCodes(log) {
+  const { databases } = getClients();
+  const res = await databases.listDocuments(DB_ID, 'discount_codes', [
+    sdk.Query.orderDesc('$createdAt'),
+    sdk.Query.limit(100),
+  ]);
+  log(`list-discount-codes: total=${res.total}`);
+  return { codes: res.documents, total: res.total };
+}
+
+// ─── ADD DISCOUNT CODE ────────────────────────────────────────────────────────
+
+async function handleAddDiscountCode(body, log) {
+  const { databases } = getClients();
+  const { code, percent_off = 100, active = true } = body;
+  if (!code || typeof code !== 'string' || !code.trim()) {
+    throw new Error('Missing or empty code');
+  }
+  const upper = code.trim().toUpperCase();
+  const doc = await databases.createDocument(DB_ID, 'discount_codes', sdk.ID.unique(), {
+    code: upper,
+    active,
+    percent_off: Number(percent_off) || 100,
+  });
+  log(`add-discount-code: ${upper}`);
+  return { code: doc };
+}
+
+// ─── LIST ALL RESUMES ─────────────────────────────────────────────────────────
+
+/**
+ * Returns a page of resumes from all users — requires admin API key.
+ * Replaces DatabaseXRay's direct databases.listDocuments call which is
+ * scoped to the current user only.
+ */
+async function handleListAllResumes(body, log) {
+  const { databases } = getClients();
+  const limit  = Math.min(Math.max(1, Number(body.limit)  || 20), 100);
+  const offset = Math.max(0, Number(body.offset) || 0);
+  const res = await databases.listDocuments(DB_ID, 'resumes', [
+    sdk.Query.orderDesc('$createdAt'),
+    sdk.Query.limit(limit),
+    sdk.Query.offset(offset),
+  ]);
+  log(`list-all-resumes: total=${res.total} returned=${res.documents.length}`);
+  return { documents: res.documents, total: res.total };
 }
 
 // ─── MISSION CONTROL ─────────────────────────────────────────────────────────
@@ -614,6 +722,26 @@ module.exports = async ({ req, res, log, error }) => {
 
     if (action === 'global-stats') {
       const data = await handleGlobalStats(log);
+      return res.json({ success: true, data });
+    }
+
+    if (action === 'list-audit-logs') {
+      const data = await handleListAuditLogs(body, log);
+      return res.json({ success: true, data });
+    }
+
+    if (action === 'list-discount-codes') {
+      const data = await handleListDiscountCodes(log);
+      return res.json({ success: true, data });
+    }
+
+    if (action === 'add-discount-code') {
+      const data = await handleAddDiscountCode(body, log);
+      return res.json({ success: true, data });
+    }
+
+    if (action === 'list-all-resumes') {
+      const data = await handleListAllResumes(body, log);
       return res.json({ success: true, data });
     }
 

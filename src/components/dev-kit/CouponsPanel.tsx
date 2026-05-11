@@ -1,66 +1,138 @@
-import { useState, useEffect } from 'react';
-import { databases, DATABASE_ID, Query, ID } from '@/lib/appwrite';
-import { Ticket, Plus, Trash2, CheckCircle2, XCircle } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Ticket, Plus, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
+import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
+import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
+import { DevKitErrorCard } from './DevKitErrorCard';
+
+interface DiscountCode {
+  $id: string;
+  $createdAt: string;
+  code: string;
+  active: boolean;
+  percent_off: number;
+}
 
 export const CouponsPanel = () => {
-  const [coupons, setCoupons] = useState<any[]>([]);
+  const [coupons, setCoupons] = useState<DiscountCode[]>([]);
   const [newCode, setNewCode] = useState('');
   const [loading, setLoading] = useState(true);
+  const [adding, setAdding] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const fetchCoupons = async () => {
+  const fetchCoupons = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     try {
-      const res = await databases.listDocuments(DATABASE_ID, 'discount_codes');
-      setCoupons(res.documents);
-    } catch (e) {} finally { setLoading(false); }
-  };
+      const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
+        headers: devKitAuthHeaders(),
+        body: { action: 'list-discount-codes' },
+      });
+      const result = unwrapAdminResponse<{ data?: { codes?: DiscountCode[]; total?: number } }>(
+        tuple,
+        'admin-devkit-data',
+      );
+      setCoupons(result.data?.codes ?? []);
+    } catch (e) {
+      setError(formatEdgeError(e, 'Failed to load discount codes'));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  useEffect(() => { fetchCoupons(); }, []);
+  useEffect(() => { fetchCoupons(); }, [fetchCoupons]);
 
   const handleAdd = async () => {
-    if (!newCode) return;
+    const code = newCode.trim();
+    if (!code) { toast.info('Enter a coupon code'); return; }
+    setAdding(true);
     try {
-      await databases.createDocument(DATABASE_ID, 'discount_codes', ID.unique(), {
-        code: newCode.toUpperCase(),
-        active: true,
-        percent_off: 100 // Default for beta users
+      const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
+        headers: devKitAuthHeaders(),
+        body: { action: 'add-discount-code', code, percent_off: 100, active: true },
       });
+      unwrapAdminResponse(tuple, 'admin-devkit-data');
       setNewCode('');
+      toast.success(`Coupon ${code.toUpperCase()} created`);
       fetchCoupons();
-      toast.success('Coupon code generated!');
-    } catch (e: any) { toast.error(e.message); }
+    } catch (e) {
+      toast.error(formatEdgeError(e, 'Failed to create coupon'));
+    } finally {
+      setAdding(false);
+    }
   };
 
   return (
     <div className="space-y-6">
       <div className="p-6 rounded-3xl bg-blue-500/5 border border-blue-500/10 flex items-center gap-4">
-        <Input 
-          placeholder="ENTER NEW CODE (e.g. BETA2026)" 
+        <Input
+          placeholder="ENTER NEW CODE (e.g. BETA2026)"
           className="bg-white/5 border-white/10 rounded-xl uppercase font-black tracking-widest"
           value={newCode}
           onChange={e => setNewCode(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && handleAdd()}
+          disabled={adding}
         />
-        <Button onClick={handleAdd} className="rounded-xl h-11 px-8 bg-blue-600 hover:bg-blue-500 font-bold uppercase italic">
-          <Plus size={18} className="mr-2"/> Generate
+        <Button
+          onClick={handleAdd}
+          disabled={adding || !newCode.trim()}
+          className="rounded-xl h-11 px-8 bg-blue-600 hover:bg-blue-500 font-bold uppercase italic shrink-0"
+        >
+          {adding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus size={18} className="mr-2" />}
+          {adding ? 'Adding…' : 'Generate'}
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {coupons.map(c => (
-          <div key={c.$id} className="p-5 rounded-2xl bg-card border border-border flex items-center justify-between">
-            <div className="flex items-center gap-4">
-               <div className="p-2.5 bg-white/5 rounded-xl text-yellow-400"><Ticket size={20}/></div>
-               <div>
+      {loading && (
+        <div className="flex items-center justify-center py-12 gap-3 text-white/40">
+          <Loader2 className="w-5 h-5 animate-spin" />
+          <span className="text-sm">Loading discount codes…</span>
+        </div>
+      )}
+
+      {!loading && error && (
+        <DevKitErrorCard
+          error={error}
+          title="Failed to load discount codes"
+          onRetry={fetchCoupons}
+          context={{ panel: 'CouponsPanel', action: 'list-discount-codes' }}
+        />
+      )}
+
+      {!loading && !error && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {coupons.map(c => (
+            <div
+              key={c.$id}
+              className="p-5 rounded-2xl bg-card border border-border flex items-center justify-between"
+            >
+              <div className="flex items-center gap-4">
+                <div className="p-2.5 bg-white/5 rounded-xl text-yellow-400">
+                  <Ticket size={20} />
+                </div>
+                <div>
                   <p className="font-black text-lg tracking-tighter text-white uppercase">{c.code}</p>
-                  <p className="text-[10px] text-muted-foreground uppercase font-bold">{c.percent_off}% OFF • ACTIVE</p>
-               </div>
+                  <p className="text-[10px] text-muted-foreground uppercase font-bold">
+                    {c.percent_off}% OFF •{' '}
+                    <span className={c.active ? 'text-emerald-400' : 'text-red-400'}>
+                      {c.active ? 'ACTIVE' : 'INACTIVE'}
+                    </span>
+                  </p>
+                </div>
+              </div>
             </div>
-            <button className="p-2 hover:bg-red-500/10 rounded-lg text-red-400"><Trash2 size={16}/></button>
-          </div>
-        ))}
-      </div>
+          ))}
+
+          {coupons.length === 0 && (
+            <div className="col-span-2 p-12 text-center text-muted-foreground border border-dashed border-border rounded-3xl">
+              No discount codes yet. Generate your first one above.
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
