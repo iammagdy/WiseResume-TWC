@@ -1,6 +1,6 @@
 # Task #15 — DevKit AI Model Catalog: Cron Fix, Per-Provider Caps, Non-Chat Filter
 
-**Last verified:** 2026-05-05
+**Last verified:** 2026-05-11
 **Type:** reference card
 **Sources:**
 - `supabase/functions/_shared/aiTestModelCatalog.ts`
