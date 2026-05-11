@@ -216,6 +216,116 @@ async function handleOverviewStats(log) {
   return { totalAuthUsers, verifiedUsers, totalResumes: activeResumes, orphanedResumes };
 }
 
+// ─── PURGE ORPHANS ───────────────────────────────────────────────────────────
+
+/**
+ * Finds and optionally deletes `profiles` and `resumes` documents whose
+ * `user_id` no longer exists in Appwrite Auth.
+ *
+ * Parameters (body):
+ *   dryRun: boolean  — default true. When true, returns a preview without
+ *                      deleting anything. Set to false to permanently delete.
+ *
+ * Returns (dryRun=true):
+ *   { dryRun: true, orphanedProfiles, orphanedResumes, sampleProfiles, sampleResumes }
+ *
+ * Returns (dryRun=false):
+ *   { dryRun: false, deletedProfiles, deletedResumes }
+ *
+ * Failure is intentionally propagated — silent fallbacks would give false
+ * confidence that no orphans exist.
+ */
+async function handlePurgeOrphans(body, log) {
+  const dryRun = body.dryRun !== false; // default: true (safe preview)
+  const { databases, users: usersClient } = getClients();
+
+  // ── Step 1: Collect ALL Auth user IDs (paginated 500/batch) ──────────────
+  const authUserIds = new Set();
+  const BATCH = 500;
+  let uOffset = 0;
+  while (true) {
+    const batch = await usersClient.list([sdk.Query.limit(BATCH), sdk.Query.offset(uOffset)]);
+    batch.users.forEach(u => authUserIds.add(u.$id));
+    if (batch.users.length < BATCH) break;
+    uOffset += batch.users.length;
+  }
+  log(`purge-orphans: loaded ${authUserIds.size} auth user IDs`);
+
+  // ── Step 2: Scan profiles for orphans ─────────────────────────────────────
+  const orphanedProfileDocs = [];
+  let pOffset = 0;
+  while (true) {
+    const batch = await databases.listDocuments(DB_ID, 'profiles', [
+      sdk.Query.limit(100),
+      sdk.Query.offset(pOffset),
+    ]);
+    for (const doc of batch.documents) {
+      if (!doc.user_id || !authUserIds.has(doc.user_id)) {
+        orphanedProfileDocs.push({ $id: doc.$id, user_id: doc.user_id ?? null, email: doc.email ?? null });
+      }
+    }
+    if (batch.documents.length < 100) break;
+    pOffset += batch.documents.length;
+  }
+
+  // ── Step 3: Scan resumes for orphans ──────────────────────────────────────
+  const orphanedResumeDocs = [];
+  let rOffset = 0;
+  while (true) {
+    const batch = await databases.listDocuments(DB_ID, 'resumes', [
+      sdk.Query.limit(100),
+      sdk.Query.offset(rOffset),
+    ]);
+    for (const doc of batch.documents) {
+      if (!doc.user_id || !authUserIds.has(doc.user_id)) {
+        orphanedResumeDocs.push({ $id: doc.$id, user_id: doc.user_id ?? null, title: doc.title ?? null });
+      }
+    }
+    if (batch.documents.length < 100) break;
+    rOffset += batch.documents.length;
+  }
+
+  log(`purge-orphans: found ${orphanedProfileDocs.length} orphaned profiles, ${orphanedResumeDocs.length} orphaned resumes (dryRun=${dryRun})`);
+
+  // ── Dry-run: return preview without deleting ───────────────────────────────
+  if (dryRun) {
+    return {
+      dryRun: true,
+      orphanedProfiles: orphanedProfileDocs.length,
+      orphanedResumes:  orphanedResumeDocs.length,
+      sampleProfiles:   orphanedProfileDocs.slice(0, 5),
+      sampleResumes:    orphanedResumeDocs.slice(0, 5),
+    };
+  }
+
+  // ── Live run: delete orphans then audit-log ───────────────────────────────
+  // Resumes first so profiles (which may be referenced by resume FK) go last.
+  for (const doc of orphanedResumeDocs) {
+    await databases.deleteDocument(DB_ID, 'resumes', doc.$id);
+  }
+  for (const doc of orphanedProfileDocs) {
+    await databases.deleteDocument(DB_ID, 'profiles', doc.$id);
+  }
+
+  const deletedResumes  = orphanedResumeDocs.length;
+  const deletedProfiles = orphanedProfileDocs.length;
+
+  // Write audit log — non-fatal if the collection is missing or schema differs.
+  try {
+    await databases.createDocument(DB_ID, 'admin_audit_logs', sdk.ID.unique(), {
+      action:   'purge-orphans',
+      category: 'data-cleanup',
+      metadata: JSON.stringify({ deletedProfiles, deletedResumes }),
+      user_id:  null,
+    });
+  } catch (e) {
+    log(`purge-orphans: audit log write failed (non-fatal): ${e.message}`);
+  }
+
+  log(`purge-orphans: deleted ${deletedResumes} resumes, ${deletedProfiles} profiles`);
+  return { dryRun: false, deletedProfiles, deletedResumes };
+}
+
 // ─── MISSION CONTROL ─────────────────────────────────────────────────────────
 
 async function handleMissionControl(log, error) {
@@ -436,6 +546,11 @@ module.exports = async ({ req, res, log, error }) => {
       }
       log(`update-plan: set user ${user_id} → ${plan}`);
       return res.json({ success: true, plan });
+    }
+
+    if (action === 'purge-orphans') {
+      const data = await handlePurgeOrphans(body, log);
+      return res.json({ success: true, data });
     }
 
     if (action === 'list-users-page') {

@@ -2,6 +2,18 @@
 
 **Last verified:** 2026-05-11 (Fix God Mode user loading & OverviewPanel accuracy)
 
+## Admin panel: orphaned database rows can now be cleaned up with one click (2026-05-11)
+
+When a user deletes their account, Appwrite removes the login credential but the resume and profile documents they created stay in the database. These "orphaned" rows waste storage and make user counts look larger than reality.
+
+**What's new:**
+
+- The Overview panel now detects orphaned resumes automatically whenever it loads. If any are found, an amber warning banner appears: "X orphaned resumes from deleted accounts detected".
+- Clicking "Preview & clean" runs a safe dry-run scan that finds every orphaned resume and profile without deleting anything. The panel shows you exactly how many were found and displays a few sample IDs so you can verify before proceeding.
+- Clicking "Delete N documents permanently" executes the cleanup. Resumes are deleted first, then profiles. A green confirmation banner shows how many were removed and the stats refresh automatically.
+- The action is logged to the admin audit trail so there is a record of what was deleted.
+- If anything goes wrong, a clear error message appears with a "Try again" button — nothing is silently swallowed.
+
 ## Admin panel: God Mode user list and infrastructure stats now show real data (2026-05-11)
 
 The two most-used sections of the admin DevKit panel were silently failing or showing wrong numbers.

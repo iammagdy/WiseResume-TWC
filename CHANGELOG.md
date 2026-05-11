@@ -1,3 +1,42 @@
+## 2026-05-11 — Orphan cleanup: purge-orphans action + OverviewPanel UI
+
+### Summary
+Added a `purge-orphans` action to `admin-devkit-data` that finds and hard-deletes
+`profiles` and `resumes` documents whose `user_id` no longer exists in Appwrite
+Auth. The Overview panel now surfaces a "Preview & clean" workflow when orphaned
+resumes are detected.
+
+### What changed
+
+#### `appwrite-hubs/admin-devkit-data/src/main.js`
+- Added `handlePurgeOrphans`: paginates all Auth user IDs (500/batch), then
+  scans all `profiles` + `resumes` (100/batch) client-side filtering for docs
+  whose `user_id` is absent from the Auth set.
+  - `dryRun: true` (default): returns `{ orphanedProfiles, orphanedResumes,
+    sampleProfiles[0..4], sampleResumes[0..4] }` without deleting.
+  - `dryRun: false`: deletes resumes first (then profiles), writes an audit
+    entry to `admin_audit_logs` (non-fatal if collection unavailable), returns
+    `{ deletedProfiles, deletedResumes }`. Failure is intentionally propagated
+    throughout — no silent fallbacks that could mask errors.
+- Wired `purge-orphans` into the main action-dispatch switch.
+
+#### `src/components/dev-kit/OverviewPanel.tsx`
+- Added `PurgePhase` state machine (`idle → previewing → confirm → purging → done`).
+- When `orphanedResumes > 0`: amber warning banner with "Preview & clean" button.
+- "Previewing" and "Purging" states show inline spinners.
+- "Confirm" state renders a card with orphan counts, sample doc IDs, a permanent-
+  deletion warning, and "Delete N documents permanently" / "Cancel" buttons.
+- "Done" state shows a green success banner with counts; triggers `fetchStats()`
+  to refresh numbers. Admin can dismiss it.
+- Purge errors render an inline `DevKitErrorCard` with retry.
+- Added `AlertTriangle`, `Loader2`, `Check` imports; added `formatEdgeError` import.
+
+### Deploy
+GitHub Actions "Deploy AI Hubs" dispatched (HTTP 204, workflow id 273053815).
+TypeScript: `tsc --noEmit` passes with zero errors.
+
+---
+
 ## 2026-05-11 — Fix God Mode user loading & OverviewPanel accuracy
 
 ### Summary
