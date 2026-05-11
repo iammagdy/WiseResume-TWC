@@ -214,5 +214,3 @@ export const AdminUsersPanel = () => {
     </div>
   );
 };
-
-import { RefreshCw } from 'lucide-react';
