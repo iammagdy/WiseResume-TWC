@@ -42,7 +42,9 @@ export const TEMPLATE_CONFIGS: Record<TemplateId, TemplateConfig> = {
 
 /**
  * Gets the configuration for a template.
+ * Always returns a valid config — falls back to 'modern' for unknown/stale IDs
+ * so a bad value in persisted storage never causes a runtime crash.
  */
 export function getTemplateConfig(templateId: TemplateId): TemplateConfig {
-  return TEMPLATE_CONFIGS[templateId];
+  return TEMPLATE_CONFIGS[templateId] ?? TEMPLATE_CONFIGS['modern'];
 }
