@@ -34,6 +34,8 @@ import { CouponsPanel } from '@/components/dev-kit/CouponsPanel';
 import { FeatureFlagsPanel } from '@/components/dev-kit/FeatureFlagsPanel';
 import { ModerationPanel } from '@/components/dev-kit/ModerationPanel';
 import { VisitorsPanel } from '@/components/dev-kit/VisitorsPanel';
+import { EmailManagementPanel } from '@/components/dev-kit/EmailManagementPanel';
+import { TestmailInboxPanel } from '@/components/dev-kit/TestmailInboxPanel';
 
 type PanelStatus = 'Live' | 'Needs Appwrite Function' | 'Needs Schema' | 'Planned';
 
@@ -67,8 +69,8 @@ const PANEL_GROUPS: { label: string; panels: PanelDef[] }[] = [
   ]},
   { label: 'Support & Business Ops', panels: [
     { id: 'moderation', title: 'Moderation', icon: ShieldCheck, status: 'Live' },
-    { id: 'email', title: 'Email Center', icon: Mail, status: 'Needs Appwrite Function', blockers: ['admin-email lacks RESEND_API_KEY in Appwrite audit'] },
-    { id: 'testmail', title: 'Testmail Inbox', icon: Inbox, status: 'Needs Appwrite Function', blockers: ['admin-testmail lacks TESTMAIL_API_KEY in Appwrite audit'] },
+    { id: 'email', title: 'Email Center', icon: Mail, status: 'Live' },
+    { id: 'testmail', title: 'Testmail Inbox', icon: Inbox, status: 'Live' },
     { id: 'coupons', title: 'Coupons', icon: Ticket, status: 'Live' },
     { id: 'portfolios', title: 'Portfolios', icon: Link2, status: 'Live' },
     { id: 'audit', title: 'History', icon: History, status: 'Live' },
@@ -186,6 +188,8 @@ function DevToolsInner() {
       case 'flags': return wrap('Feature Control', <FeatureFlagsPanel />);
       case 'visitors': return wrap('Visitor Analytics', <VisitorsPanel />);
       case 'moderation': return wrap('Moderation', <ModerationPanel />);
+      case 'email': return wrap('Email Center', <EmailManagementPanel />);
+      case 'testmail': return wrap('Testmail Inbox', <TestmailInboxPanel />);
       case 'portfolios': return wrap('Portfolios', <PortfolioUsernamesPanel />);
       case 'audit': return wrap('History', <AuditLogPanel />);
       case 'settings': return wrap('Core Settings', <AppSettingsPanel />);
