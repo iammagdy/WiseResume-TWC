@@ -1,359 +1,221 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  ArrowLeft, Users, Globe, LayoutDashboard, Database,
-  BrainCircuit, ShieldCheck, Cog, Mail, Ticket, History, Briefcase,
-  Fingerprint, Lock, Zap, Loader2, Activity, BarChart2,
-  CheckCircle2, AlertCircle, ShieldBan, ListChecks, Link2,
-  Flag, Play, Search, X, MoreHorizontal, KeyRound, Inbox, Route, Menu
+  Activity, ArrowLeft, BarChart2, BrainCircuit, CheckCircle2, Cog, Database,
+  Fingerprint, Flag, History, Inbox, KeyRound, LayoutDashboard, Link2, Loader2,
+  Lock, Mail, Menu, Play, Route, ServerCog, ShieldCheck, Ticket, Users, X, Zap,
 } from 'lucide-react';
-import { DevKitPanelBoundary } from '@/components/dev-kit/DevKitPanelBoundary';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Button } from '@/components/ui/button';
+import { AnimatePresence, motion } from 'framer-motion';
 import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
-  DevKitSessionProvider,
-  useDevKitSession,
-  loadRememberedToken,
-  isBiometricAvailable,
-  hasBiometricCredential,
-  registerBiometricCredential,
+  DevKitSessionProvider, useDevKitSession, loadRememberedToken,
+  isBiometricAvailable, hasBiometricCredential, registerBiometricCredential,
   verifyBiometricCredential,
 } from '@/contexts/DevKitSessionContext';
-
-// Working panels
-import { OverviewPanel }           from '@/components/dev-kit/OverviewPanel';
-import { AdminUsersPanel }         from '@/components/dev-kit/AdminUsersPanel';
-import { AppSettingsPanel }        from '@/components/dev-kit/AppSettingsPanel';
-import { AIRadarPanel }            from '@/components/dev-kit/AIRadarPanel';
-import { DatabaseXRay }            from '@/components/dev-kit/DatabaseXRay';
-import { AuditLogPanel }           from '@/components/dev-kit/AuditLogPanel';
-import { AIKeysPanel }             from '@/components/dev-kit/AIKeysPanel';
-import { AIRoutingSwitcher }       from '@/components/dev-kit/AIRoutingSwitcher';
+import { devKitLogin } from '@/lib/devkit/devKitClient';
+import { DevKitPanelBoundary } from '@/components/dev-kit/DevKitPanelBoundary';
+import { OverviewPanel } from '@/components/dev-kit/OverviewPanel';
+import { AdminUsersPanel } from '@/components/dev-kit/AdminUsersPanel';
+import { AppSettingsPanel } from '@/components/dev-kit/AppSettingsPanel';
+import { AIRadarPanel } from '@/components/dev-kit/AIRadarPanel';
+import { DatabaseXRay } from '@/components/dev-kit/DatabaseXRay';
+import { AuditLogPanel } from '@/components/dev-kit/AuditLogPanel';
+import { AIKeysPanel } from '@/components/dev-kit/AIKeysPanel';
+import { AIRoutingSwitcher } from '@/components/dev-kit/AIRoutingSwitcher';
 import { PortfolioUsernamesPanel } from '@/components/dev-kit/PortfolioUsernamesPanel';
+import { DiagnosticsPanel } from '@/components/dev-kit/DiagnosticsPanel';
+import { MissionControlPanel } from '@/components/dev-kit/MissionControlPanel';
+import { DevKitRunner } from '@/components/dev-kit/DevKitRunner';
 
-const PANEL_GROUPS = [
-  {
-    label: 'Command Center',
-    panels: [
-      { id: 'overview',  title: 'Infrastructure',    icon: LayoutDashboard },
-      { id: 'users',     title: 'God Mode (Users)',   icon: Users },
-      { id: 'db',        title: 'Database X-Ray',     icon: Database },
-    ],
-  },
-  {
-    label: 'AI Management',
-    panels: [
-      { id: 'ai',         title: 'AI Radar',         icon: BrainCircuit },
-      { id: 'ai-keys',    title: 'AI Keys',          icon: KeyRound },
-      { id: 'ai-routing', title: 'AI Master Switch', icon: Zap },
-    ],
-  },
-  {
-    label: 'Content & Logs',
-    panels: [
-      { id: 'portfolios', title: 'Portfolios',     icon: Link2 },
-      { id: 'audit',      title: 'History',        icon: History },
-      { id: 'settings',   title: 'Core Settings',  icon: ShieldCheck },
-    ],
-  },
+type PanelStatus = 'Live' | 'Needs Appwrite Function' | 'Needs Schema' | 'Planned';
+
+interface PanelDef {
+  id: string;
+  title: string;
+  icon: React.ElementType;
+  status: PanelStatus;
+  blockers?: string[];
+}
+
+const PANEL_GROUPS: { label: string; panels: PanelDef[] }[] = [
+  { label: 'Operations Hub', panels: [
+    { id: 'diagnostics', title: 'Diagnostics', icon: ServerCog, status: 'Live' },
+    { id: 'mission', title: 'Mission Control', icon: Activity, status: 'Live' },
+    { id: 'observability', title: 'Observability', icon: BarChart2, status: 'Needs Schema', blockers: ['error_log collection is missing'] },
+    { id: 'live', title: 'Live Activity', icon: Zap, status: 'Needs Schema', blockers: ['visitor_events and contact_requests collections are missing'] },
+    { id: 'runner', title: 'Smoke Runner', icon: Play, status: 'Live' },
+  ]},
+  { label: 'Command Center', panels: [
+    { id: 'overview', title: 'Infrastructure', icon: LayoutDashboard, status: 'Live' },
+    { id: 'users', title: 'God Mode (Users)', icon: Users, status: 'Live' },
+    { id: 'db', title: 'Database X-Ray', icon: Database, status: 'Live' },
+    { id: 'flags', title: 'Feature Control', icon: Flag, status: 'Needs Schema', blockers: ['feature_flags collection is missing'] },
+  ]},
+  { label: 'AI Command Center', panels: [
+    { id: 'ai', title: 'AI Radar', icon: BrainCircuit, status: 'Live' },
+    { id: 'ai-keys', title: 'AI Keys', icon: KeyRound, status: 'Live' },
+    { id: 'ai-routing', title: 'AI Master Switch', icon: Route, status: 'Live' },
+  ]},
+  { label: 'Support & Business Ops', panels: [
+    { id: 'email', title: 'Email Center', icon: Mail, status: 'Needs Appwrite Function', blockers: ['admin-email lacks RESEND_API_KEY in Appwrite audit'] },
+    { id: 'testmail', title: 'Testmail Inbox', icon: Inbox, status: 'Needs Appwrite Function', blockers: ['admin-testmail lacks TESTMAIL_API_KEY in Appwrite audit'] },
+    { id: 'coupons', title: 'Coupons', icon: Ticket, status: 'Needs Schema', blockers: ['discount_codes collection is missing'] },
+    { id: 'portfolios', title: 'Portfolios', icon: Link2, status: 'Live' },
+    { id: 'audit', title: 'History', icon: History, status: 'Live' },
+    { id: 'settings', title: 'Core Settings', icon: ShieldCheck, status: 'Live' },
+  ]},
 ];
 
-export default function DevToolsPage() {
+const STATUS_CLASSES: Record<PanelStatus, string> = {
+  Live: 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400',
+  'Needs Appwrite Function': 'border-amber-500/20 bg-amber-500/10 text-amber-400',
+  'Needs Schema': 'border-blue-500/20 bg-blue-500/10 text-blue-400',
+  Planned: 'border-white/10 bg-white/5 text-white/35',
+};
+
+function allPanels() { return PANEL_GROUPS.flatMap(g => g.panels); }
+function statusShort(status: PanelStatus) { return status === 'Needs Appwrite Function' ? 'Function' : status === 'Needs Schema' ? 'Schema' : status; }
+
+function NotReadyPanel({ panel }: { panel: PanelDef }) {
   return (
-    <DevKitSessionProvider>
-      <DevToolsInner />
-    </DevKitSessionProvider>
+    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 space-y-5">
+      <div className="flex items-center gap-3">
+        <panel.icon className="h-6 w-6 text-blue-400" />
+        <div>
+          <h2 className="text-xl font-black text-white">{panel.title}</h2>
+          <p className="text-xs text-white/45">This surface is visible in the Operations Hub, but intentionally blocked from executing until its backend prerequisites are ready.</p>
+        </div>
+      </div>
+      <span className={cn('inline-flex rounded-full border px-3 py-1 text-xs font-black uppercase', STATUS_CLASSES[panel.status])}>{panel.status}</span>
+      {panel.blockers && panel.blockers.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-xs font-black uppercase tracking-widest text-white/35">Blockers from live Appwrite audit</p>
+          {panel.blockers.map(blocker => (
+            <div key={blocker} className="rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white/65">{blocker}</div>
+          ))}
+        </div>
+      )}
+      <p className="rounded-xl border border-blue-500/20 bg-blue-500/5 px-4 py-3 text-xs leading-relaxed text-blue-300">
+        The Diagnostics panel remains the source of truth for current deployment, schema, and environment readiness.
+      </p>
+    </div>
   );
+}
+
+export default function DevToolsPage() {
+  return <DevKitSessionProvider><DevToolsInner /></DevKitSessionProvider>;
 }
 
 function DevToolsInner() {
   const navigate = useNavigate();
-  const { isUnlocked, unlock, lock, hasRememberedSession } = useDevKitSession();
-
-  const [activePanel,      setActivePanel]      = useState('overview');
-  const [password,         setPassword]         = useState('');
-  const [isVerifying,      setIsVerifying]      = useState(false);
+  const { isUnlocked, unlock, lock, hasRememberedSession, secondsUntilLock } = useDevKitSession();
+  const [activePanel, setActivePanel] = useState('diagnostics');
+  const [password, setPassword] = useState('');
+  const [isVerifying, setIsVerifying] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [biometricReady, setBiometricReady] = useState(false);
+  const [hasCred, setHasCred] = useState(false);
 
-  // Biometric state — resolved async on mount
-  const [biometricReady,   setBiometricReady]   = useState(false); // device supports it
-  const [hasCred,          setHasCred]          = useState(false); // credential registered
+  useEffect(() => { isBiometricAvailable().then(ok => { setBiometricReady(ok); setHasCred(hasBiometricCredential()); }); }, []);
+  useEffect(() => { if (!isUnlocked) setHasCred(hasBiometricCredential()); }, [isUnlocked]);
 
-  useEffect(() => {
-    isBiometricAvailable().then(ok => {
-      setBiometricReady(ok);
-      setHasCred(hasBiometricCredential());
-    });
-  }, []);
-
-  // Refresh hasCred whenever the panel re-renders after lock
-  useEffect(() => {
-    if (!isUnlocked) setHasCred(hasBiometricCredential());
-  }, [isUnlocked]);
-
-  // ── Password login ────────────────────────────────────────────────────────
   const handlePasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const correctPass = import.meta.env.VITE_DEV_KIT_PASSWORD;
-    if (password !== correctPass) {
-      toast.error('Access Denied.');
-      return;
-    }
-
-    unlock(password, {
-      rememberMe: true,
-      expiresAt:  Date.now() + 7 * 24 * 60 * 60 * 1000,
-      email:      'admin@thewise.cloud',
-    });
-    toast.success('Access Granted. Welcome back, Master.');
-
-    // Offer biometric registration if the device supports it and no cred yet
-    if (biometricReady && !hasBiometricCredential()) {
-      const registered = await registerBiometricCredential();
-      if (registered) {
+    if (isVerifying) return;
+    setIsVerifying(true);
+    try {
+      const result = await devKitLogin(password);
+      if (!result.success) { toast.error(result.code === 'CONFIG_MISSING' ? 'DevKit auth is not configured on Appwrite.' : 'Access denied.'); return; }
+      unlock(result.session.token, { rememberMe: true, expiresAt: new Date(result.session.expiresAt).getTime(), email: result.session.email ?? 'admin@thewise.cloud' });
+      setPassword('');
+      toast.success('Access granted. DevKit session issued by Appwrite.');
+      if (biometricReady && !hasBiometricCredential() && await registerBiometricCredential()) {
         setHasCred(true);
-        toast.success('Biometric shortcut registered — use it next time.', { duration: 4000 });
+        toast.success('Biometric shortcut registered for this device.', { duration: 4000 });
       }
-    }
+    } catch (err) { toast.error(err instanceof Error ? err.message : 'DevKit login failed.'); }
+    finally { setIsVerifying(false); }
   };
 
-  // ── Biometric unlock ──────────────────────────────────────────────────────
   const handleBiometricLogin = async () => {
     if (isVerifying) return;
     setIsVerifying(true);
     try {
-      const verified = await verifyBiometricCredential();
-      if (!verified) {
-        toast.error('Biometric verification failed or was cancelled.');
-        return;
-      }
+      if (!await verifyBiometricCredential()) { toast.error('Biometric verification failed or was cancelled.'); return; }
       const remembered = loadRememberedToken();
-      if (!remembered) {
-        toast.error('Session expired — please enter your password.');
-        return;
-      }
+      if (!remembered) { toast.error('DevKit session expired. Please enter your password.'); return; }
       unlock(remembered.token);
-      toast.success('Biometric Access Granted.');
-    } catch {
-      toast.error('Biometric error — please use your password instead.');
-    } finally {
-      setIsVerifying(false);
-    }
+      toast.success('Biometric access granted.');
+    } catch { toast.error('Biometric error. Please use your password instead.'); }
+    finally { setIsVerifying(false); }
   };
 
-  // ── Panel renderer ────────────────────────────────────────────────────────
+  const navigatePanel = (id: string) => {
+    const aliases: Record<string, string> = { deployment: 'diagnostics', openrouter: 'ai-keys', visitors: 'live', email: 'email', overview: 'overview', live: 'live' };
+    setActivePanel(aliases[id] ?? id);
+    setIsMobileMenuOpen(false);
+  };
+
   const renderPanel = () => {
-    const wrap = (name: string, node: React.ReactNode) => (
-      <DevKitPanelBoundary panelName={name}>{node}</DevKitPanelBoundary>
-    );
+    const wrap = (name: string, node: React.ReactNode) => <DevKitPanelBoundary panelName={name}>{node}</DevKitPanelBoundary>;
+    const panel = allPanels().find(p => p.id === activePanel) ?? allPanels()[0];
+    if (panel.status !== 'Live') return wrap(panel.title, <NotReadyPanel panel={panel} />);
     switch (activePanel) {
-      case 'overview':    return wrap('Infrastructure',   <OverviewPanel />);
-      case 'users':       return wrap('God Mode',         <AdminUsersPanel />);
-      case 'db':          return wrap('Database X-Ray',   <DatabaseXRay />);
-      case 'portfolios':  return wrap('Portfolios',       <PortfolioUsernamesPanel />);
-      case 'audit':       return wrap('History',          <AuditLogPanel />);
-      case 'ai':          return wrap('AI Radar',         <AIRadarPanel />);
-      case 'ai-keys':     return wrap('AI Keys',          <AIKeysPanel />);
-      case 'ai-routing':  return wrap('AI Master Switch', <AIRoutingSwitcher />);
-      case 'settings':    return wrap('Core Settings',    <AppSettingsPanel />);
-      default:            return wrap('Infrastructure',   <OverviewPanel />);
+      case 'diagnostics': return wrap('Diagnostics', <DiagnosticsPanel />);
+      case 'mission': return wrap('Mission Control', <MissionControlPanel onNavigate={navigatePanel} />);
+      case 'runner': return wrap('Smoke Runner', <DevKitRunner />);
+      case 'overview': return wrap('Infrastructure', <OverviewPanel />);
+      case 'users': return wrap('God Mode', <AdminUsersPanel />);
+      case 'db': return wrap('Database X-Ray', <DatabaseXRay />);
+      case 'ai': return wrap('AI Radar', <AIRadarPanel />);
+      case 'ai-keys': return wrap('AI Keys', <AIKeysPanel />);
+      case 'ai-routing': return wrap('AI Master Switch', <AIRoutingSwitcher />);
+      case 'portfolios': return wrap('Portfolios', <PortfolioUsernamesPanel />);
+      case 'audit': return wrap('History', <AuditLogPanel />);
+      case 'settings': return wrap('Core Settings', <AppSettingsPanel />);
+      default: return wrap('Diagnostics', <DiagnosticsPanel />);
     }
   };
 
-  // ── Lock screen ───────────────────────────────────────────────────────────
   const canUseBiometric = biometricReady && hasCred && hasRememberedSession;
-
   if (!isUnlocked) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center p-6">
+      <div className="flex min-h-screen items-center justify-center bg-black p-6">
         <div className="w-full max-w-md space-y-8">
-          <div className="text-center space-y-2">
-            {/* Biometric button — only shown when device + credential are ready */}
+          <div className="space-y-2 text-center">
             {canUseBiometric ? (
-              <button
-                type="button"
-                onClick={handleBiometricLogin}
-                disabled={isVerifying}
-                className="inline-flex p-4 rounded-3xl bg-blue-500/10 border border-blue-500/20 mb-4 cursor-pointer hover:bg-blue-500/20 active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                aria-label="Unlock with biometrics"
-              >
-                {isVerifying
-                  ? <Loader2 className="w-10 h-10 text-blue-500 animate-spin" />
-                  : <Fingerprint className="w-10 h-10 text-blue-500" />}
+              <button type="button" onClick={handleBiometricLogin} disabled={isVerifying} className="mb-4 inline-flex rounded-3xl border border-blue-500/20 bg-blue-500/10 p-4 transition-all hover:bg-blue-500/20 active:scale-95 focus:outline-none focus:ring-2 focus:ring-blue-500/50" aria-label="Unlock with biometrics">
+                {isVerifying ? <Loader2 className="h-10 w-10 animate-spin text-blue-500" /> : <Fingerprint className="h-10 w-10 text-blue-500" />}
               </button>
-            ) : (
-              <div className="inline-flex p-4 rounded-3xl bg-white/5 border border-white/10 mb-4">
-                <Lock className="w-10 h-10 text-white/30" />
-              </div>
-            )}
-
-            <h1 className="text-3xl font-black text-white tracking-tight">DEV-KIT 2026</h1>
-            <p className="text-muted-foreground font-mono text-xs uppercase tracking-widest">
-              Authorized Personnel Only
-            </p>
+            ) : <div className="mb-4 inline-flex rounded-3xl border border-white/10 bg-white/5 p-4"><Lock className="h-10 w-10 text-white/30" /></div>}
+            <h1 className="text-3xl font-black tracking-tight text-white">DEV-KIT 2026</h1>
+            <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Server-issued admin session required</p>
           </div>
-
-          {/* Biometric shortcut label */}
-          {canUseBiometric && (
-            <button
-              type="button"
-              onClick={handleBiometricLogin}
-              disabled={isVerifying}
-              className="w-full h-14 rounded-2xl border border-blue-500/30 bg-blue-500/10 text-blue-400 font-bold text-sm hover:bg-blue-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-3 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-            >
-              {isVerifying ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <Fingerprint className="w-5 h-5" />
-              )}
-              {isVerifying ? 'Verifying…' : 'Unlock with Face ID / Touch ID / PIN'}
-            </button>
-          )}
-
+          {canUseBiometric && <button type="button" onClick={handleBiometricLogin} disabled={isVerifying} className="flex h-14 w-full items-center justify-center gap-3 rounded-2xl border border-blue-500/30 bg-blue-500/10 text-sm font-bold text-blue-400 transition-all hover:bg-blue-500/20 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-blue-500/50">{isVerifying ? <Loader2 className="h-5 w-5 animate-spin" /> : <Fingerprint className="h-5 w-5" />}{isVerifying ? 'Verifying...' : 'Unlock with Face ID / Touch ID / PIN'}</button>}
           <form onSubmit={handlePasswordLogin} className="space-y-4">
-            {canUseBiometric && (
-              <div className="flex items-center gap-3">
-                <div className="flex-1 h-px bg-white/10" />
-                <span className="text-[10px] text-white/30 uppercase tracking-widest">or password</span>
-                <div className="flex-1 h-px bg-white/10" />
-              </div>
-            )}
-
-            <div className="relative group">
-              <Lock className="absolute left-4 top-4 h-5 w-5 text-white/20 group-focus-within:text-blue-500 transition-colors" />
-              <input
-                type="password"
-                placeholder="Terminal Access Key"
-                className="w-full h-14 bg-white/5 border border-white/10 rounded-2xl pl-12 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all font-mono"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                autoFocus={!canUseBiometric}
-              />
-            </div>
-            <Button
-              type="submit"
-              className="w-full h-14 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-lg shadow-xl shadow-blue-500/20"
-            >
-              Unlock Terminal
-            </Button>
+            {canUseBiometric && <div className="flex items-center gap-3"><div className="h-px flex-1 bg-white/10" /><span className="text-[10px] uppercase tracking-widest text-white/30">or password</span><div className="h-px flex-1 bg-white/10" /></div>}
+            <div className="group relative"><Lock className="absolute left-4 top-4 h-5 w-5 text-white/20 transition-colors group-focus-within:text-blue-500" /><input type="password" placeholder="DevKit access key" className="h-14 w-full rounded-2xl border border-white/10 bg-white/5 pl-12 pr-4 font-mono text-white transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50" value={password} onChange={e => setPassword(e.target.value)} autoFocus={!canUseBiometric} /></div>
+            <Button type="submit" disabled={isVerifying || !password.trim()} className="h-14 w-full rounded-2xl bg-blue-600 text-lg font-bold text-white shadow-xl shadow-blue-500/20 hover:bg-blue-500">{isVerifying ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}Issue DevKit Session</Button>
           </form>
         </div>
       </div>
     );
   }
 
-  // ── Main DevKit UI ────────────────────────────────────────────────────────
+  const activeDef = allPanels().find(p => p.id === activePanel) ?? allPanels()[0];
   return (
-    <div className="min-h-screen bg-[#050505] text-white flex flex-col lg:flex-row overflow-hidden h-screen">
-      {/* Mobile Header */}
-      <div className="lg:hidden p-4 border-b border-white/5 bg-black flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center">
-            <Cog size={18} className="text-white" />
-          </div>
-          <span className="font-black tracking-tighter text-lg">DEV-KIT</span>
-        </div>
-        <Button
-          variant="ghost" size="icon"
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="rounded-xl"
-        >
-          {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
-        </Button>
-      </div>
-
-      {/* Sidebar */}
-      <aside className={cn(
-        "w-full lg:w-80 border-r border-white/5 bg-black/50 backdrop-blur-xl flex flex-col z-50 transition-all duration-300 lg:static fixed inset-0",
-        isMobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-      )}>
-        <div className="p-6 border-b border-white/5 hidden lg:flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center">
-              <Cog size={18} className="text-white" />
-            </div>
-            <span className="font-black tracking-tighter text-xl">DEV-KIT</span>
-          </div>
-          <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')} className="rounded-xl">
-            <ArrowLeft size={20} />
-          </Button>
-        </div>
-
-        <nav className="flex-1 overflow-y-auto p-4 space-y-8">
-          {PANEL_GROUPS.map(group => (
-            <div key={group.label} className="space-y-2">
-              <h3 className="px-4 text-[10px] font-black uppercase tracking-widest text-white/30">{group.label}</h3>
-              <div className="space-y-1">
-                {group.panels.map(panel => (
-                  <button
-                    key={panel.id}
-                    onClick={() => { setActivePanel(panel.id); setIsMobileMenuOpen(false); }}
-                    className={cn(
-                      "w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all group",
-                      activePanel === panel.id
-                        ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20"
-                        : "text-white/50 hover:bg-white/5 hover:text-white"
-                    )}
-                  >
-                    <panel.icon
-                      size={18}
-                      className={cn(activePanel === panel.id ? "text-white" : "text-white/20 group-hover:text-white/40")}
-                    />
-                    <span className="font-bold text-sm">{panel.title}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          ))}
+    <div className="flex h-screen min-h-screen flex-col overflow-hidden bg-[#050505] text-white lg:flex-row">
+      <div className="flex items-center justify-between border-b border-white/5 bg-black p-4 lg:hidden"><div className="flex items-center gap-2"><div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-600"><Cog size={18} className="text-white" /></div><span className="text-lg font-black tracking-tighter">DEV-KIT</span></div><Button variant="ghost" size="icon" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="rounded-xl">{isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}</Button></div>
+      <aside className={cn('fixed inset-0 z-50 flex w-full flex-col border-r border-white/5 bg-black/90 backdrop-blur-xl transition-all duration-300 lg:static lg:w-80 lg:translate-x-0 lg:bg-black/50', isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full')}>
+        <div className="hidden items-center justify-between border-b border-white/5 p-6 lg:flex"><div className="flex items-center gap-3"><div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-600"><Cog size={18} className="text-white" /></div><span className="text-xl font-black tracking-tighter">DEV-KIT</span></div><Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')} className="rounded-xl"><ArrowLeft size={20} /></Button></div>
+        <nav className="flex-1 space-y-8 overflow-y-auto p-4">
+          {PANEL_GROUPS.map(group => <div key={group.label} className="space-y-2"><h3 className="px-4 text-[10px] font-black uppercase tracking-widest text-white/30">{group.label}</h3><div className="space-y-1">{group.panels.map(panel => <button key={panel.id} onClick={() => navigatePanel(panel.id)} className={cn('group flex w-full items-center gap-3 rounded-2xl px-4 py-3 transition-all', activePanel === panel.id ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-white/50 hover:bg-white/5 hover:text-white')}><panel.icon size={18} className={cn(activePanel === panel.id ? 'text-white' : 'text-white/20 group-hover:text-white/40')} /><span className="min-w-0 flex-1 truncate text-left text-sm font-bold">{panel.title}</span><span className={cn('rounded-full border px-1.5 py-0.5 text-[9px] font-black uppercase', STATUS_CLASSES[panel.status])}>{statusShort(panel.status)}</span></button>)}</div></div>)}
         </nav>
-
-        <div className="p-4 border-t border-white/5">
-          <Button
-            variant="ghost"
-            className="w-full justify-start text-red-400 hover:text-red-300 hover:bg-red-400/10 rounded-2xl"
-            onClick={lock}
-          >
-            <Lock size={18} className="mr-3" /> Terminate Session
-          </Button>
-        </div>
+        <div className="space-y-3 border-t border-white/5 p-4">{secondsUntilLock !== null && <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-mono uppercase tracking-widest text-white/35">Auto-lock in {Math.ceil(secondsUntilLock / 60)}m</div>}<Button variant="ghost" className="w-full justify-start rounded-2xl text-red-400 hover:bg-red-400/10 hover:text-red-300" onClick={lock}><Lock size={18} className="mr-3" /> Terminate Session</Button></div>
       </aside>
-
-      {/* Main Content */}
-      <main className="flex-1 overflow-y-auto bg-black/20 h-full">
-        <div className="max-w-6xl mx-auto p-4 lg:p-12">
-          <header className="mb-8 lg:mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
-            <div className="space-y-2">
-              <h1 className="text-2xl lg:text-4xl font-black tracking-tighter">
-                {PANEL_GROUPS.flatMap(g => g.panels).find(p => p.id === activePanel)?.title}
-              </h1>
-              <p className="text-muted-foreground font-mono text-[10px] uppercase tracking-widest">
-                Control Panel / {activePanel}
-              </p>
-            </div>
-            <div className="hidden md:flex items-center gap-3">
-              <div className="px-4 py-2 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-[10px] font-black text-emerald-500 uppercase">System Online</span>
-              </div>
-            </div>
-          </header>
-
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={activePanel}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.2 }}
-            >
-              {renderPanel()}
-            </motion.div>
-          </AnimatePresence>
-        </div>
-      </main>
+      <main className="h-full flex-1 overflow-y-auto bg-black/20"><div className="mx-auto max-w-6xl p-4 lg:p-12"><header className="mb-8 flex flex-col justify-between gap-6 lg:mb-12 md:flex-row md:items-end"><div className="space-y-2"><div className="flex items-center gap-3"><h1 className="text-2xl font-black tracking-tighter lg:text-4xl">{activeDef.title}</h1><span className={cn('rounded-full border px-2 py-1 text-[10px] font-black uppercase', STATUS_CLASSES[activeDef.status])}>{activeDef.status}</span></div><p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Operations Hub / {activePanel}</p></div><div className="hidden items-center gap-3 md:flex"><div className="flex items-center gap-2 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-2"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /><span className="text-[10px] font-black uppercase text-emerald-500">Diagnostics Enabled</span></div></div></header><AnimatePresence mode="wait"><motion.div key={activePanel} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}>{renderPanel()}</motion.div></AnimatePresence></div></main>
     </div>
   );
 }
-
