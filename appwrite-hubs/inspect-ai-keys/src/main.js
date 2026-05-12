@@ -1,11 +1,7 @@
-/**
- * inspect-ai-keys — Appwrite Function
- *
- * DevKit admin panel: inspect per-slot AI provider key status and manage
- * per-slot test model overrides stored in app_settings.ai_test_slot_models.
- */
+'use strict';
 
 const sdk = require('node-appwrite');
+const crypto = require('crypto');
 
 const DB_ID = 'main';
 const SETTINGS_COLLECTION = 'app_settings';
@@ -30,27 +26,37 @@ const PROVIDERS = ['openrouter', 'groq', 'deepseek', 'nvidia'];
 const SLOTS = [1, 2, 3];
 
 function getDb() {
-  const endpoint = process.env.APPWRITE_FUNCTION_API_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
-  const projectId = process.env.APPWRITE_FUNCTION_PROJECT_ID;
+  const endpoint = process.env.APPWRITE_FUNCTION_API_ENDPOINT || process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
+  const projectId = process.env.APPWRITE_FUNCTION_PROJECT_ID || process.env.APPWRITE_PROJECT_ID || '69fd362b001eb325a192';
   const apiKey = process.env.APPWRITE_API_KEY || process.env.APPWRITE_FUNCTION_API_KEY;
-  const client = new sdk.Client().setEndpoint(endpoint).setProject(projectId).setKey(apiKey);
+  const client = new sdk.Client().setEndpoint(endpoint).setProject(projectId).setKey(apiKey || '');
   return new sdk.Databases(client);
+}
+
+function verifySignedToken(token) {
+  const secret = process.env.DEVKIT_PASSWORD;
+  if (!secret || !token || !token.includes('.')) return false;
+  const [encoded, sig] = token.split('.');
+  const expected = crypto.createHmac('sha256', secret).update(encoded).digest('base64url');
+  try {
+    if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return false;
+  } catch { return false; }
+  let payload;
+  try { payload = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8')); } catch { return false; }
+  return payload.purpose === 'devkit' && typeof payload.exp === 'number' && Date.now() < payload.exp;
 }
 
 function checkAuth(req, body) {
   const password = process.env.DEVKIT_PASSWORD;
   if (!password) return false;
-  
-  // Appwrite SDK executions don't support custom headers, so the frontend
-  // passes them in the body as __headers.
   const authHeader = body?.__headers?.Authorization || req.headers['authorization'] || req.headers['Authorization'] || '';
   const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
-  return token === password;
+  return token === password || verifySignedToken(token);
 }
 
 function maskKey(key) {
-  if (!key || key.length < 4) return key ? '••••' : null;
-  return '••••' + key.slice(-4);
+  if (!key || key.length < 4) return key ? '****' : null;
+  return '****' + key.slice(-4);
 }
 
 function getEnvKey(provider, slot) {
@@ -65,23 +71,16 @@ async function readSlotModels(databases) {
   try {
     const doc = await databases.getDocument(DB_ID, SETTINGS_COLLECTION, SETTINGS_DOC_ID);
     const raw = doc.ai_test_slot_models;
-    if (typeof raw === 'string' && raw.trim()) {
-      return JSON.parse(raw);
-    }
-    if (typeof raw === 'object' && raw !== null) {
-      return raw;
-    }
+    if (typeof raw === 'string' && raw.trim()) return JSON.parse(raw);
+    if (typeof raw === 'object' && raw !== null) return raw;
     return {};
-  } catch {
-    return {};
-  }
+  } catch { return {}; }
 }
 
 async function writeSlotModels(databases, slotModels) {
   const payload = { ai_test_slot_models: JSON.stringify(slotModels) };
   try {
     await databases.updateDocument(DB_ID, SETTINGS_COLLECTION, SETTINGS_DOC_ID, payload);
-    return;
   } catch (updateErr) {
     if (updateErr && typeof updateErr.code === 'number' && updateErr.code === 404) {
       await databases.createDocument(DB_ID, SETTINGS_COLLECTION, SETTINGS_DOC_ID, payload);
@@ -104,23 +103,16 @@ module.exports = async ({ req, res, log }) => {
   const { provider, slot, model } = body;
 
   if (provider && slot && model) {
-    if (!PROVIDERS.includes(provider)) {
-      return res.json({ success: false, error: `Unknown provider: ${provider}` }, 400);
-    }
+    if (!PROVIDERS.includes(provider)) return res.json({ success: false, error: `Unknown provider: ${provider}` }, 400);
     const slotNum = Number(slot);
-    if (![1, 2, 3].includes(slotNum)) {
-      return res.json({ success: false, error: `Slot must be 1, 2, or 3` }, 400);
-    }
-    if (typeof model !== 'string' || !model.trim()) {
-      return res.json({ success: false, error: 'model must be a non-empty string' }, 400);
-    }
+    if (![1, 2, 3].includes(slotNum)) return res.json({ success: false, error: 'Slot must be 1, 2, or 3' }, 400);
+    if (typeof model !== 'string' || !model.trim()) return res.json({ success: false, error: 'model must be a non-empty string' }, 400);
 
-    log(`Saving model override: ${provider}:${slotNum} = ${model.trim()}`);
+    log(`Saving model override: ${provider}:${slotNum}`);
     const slotModelsBeforeSave = await readSlotModels(databases);
     slotModelsBeforeSave[`${provider}:${slotNum}`] = model.trim();
-    try {
-      await writeSlotModels(databases, slotModelsBeforeSave);
-    } catch (writeErr) {
+    try { await writeSlotModels(databases, slotModelsBeforeSave); }
+    catch (writeErr) {
       const msg = writeErr instanceof Error ? writeErr.message : String(writeErr);
       return res.json({ success: false, error: `Failed to save model override: ${msg}` }, 500);
     }
@@ -132,25 +124,10 @@ module.exports = async ({ req, res, log }) => {
     for (const s of SLOTS) {
       const rawKey = getEnvKey(p, s);
       const rawSaved = slotModels[`${p}:${s}`];
-      const savedModel = (p === 'nvidia' && rawSaved && !NVIDIA_VALID_MODELS.includes(rawSaved))
-        ? null
-        : rawSaved;
-      const activeModel = savedModel || DEFAULT_MODELS[p];
-      keys.push({
-        provider: p,
-        slot: s,
-        hint: rawKey ? maskKey(rawKey) : null,
-        present: !!rawKey,
-        model: activeModel,
-      });
+      const savedModel = (p === 'nvidia' && rawSaved && !NVIDIA_VALID_MODELS.includes(rawSaved)) ? null : rawSaved;
+      keys.push({ provider: p, slot: s, hint: rawKey ? maskKey(rawKey) : null, present: !!rawKey, model: savedModel || DEFAULT_MODELS[p] });
     }
   }
 
-  return res.json({
-    success: true,
-    keys,
-    defaultModels: DEFAULT_MODELS,
-    slotModels,
-    modelCatalogRefreshedAt: null,
-  });
+  return res.json({ success: true, keys, defaultModels: DEFAULT_MODELS, slotModels, modelCatalogRefreshedAt: null });
 };
