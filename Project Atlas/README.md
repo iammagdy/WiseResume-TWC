@@ -3,6 +3,7 @@
 **Last verified:** 2026-05-12
 **Type:** index
 **Sources:**
+- `Project Atlas/SOURCE_OF_TRUTH_MAP.md`
 - `Project Atlas/MASTER_HANDOVER_2026.md`
 - `Project Atlas/GOVERNANCE.md`
 - `Project Atlas/RULES.md`
@@ -19,10 +20,11 @@ Welcome to the central knowledge base for The Wise Cloud.
 
 If you are an AI agent or a new developer, read these first, in order:
 
-1. `Project Atlas/MASTER_HANDOVER_2026.md` - current project state and active queue.
-2. `Project Atlas/GOVERNANCE.md` - canonical governance and source-of-truth rules.
-3. `Project Atlas/RULES.md` - short execution rules and definition of done.
-4. `Project Atlas/DEPLOYMENT_GUIDE.md` - mandatory before touching deployment or Hostinger paths.
+1. `Project Atlas/SOURCE_OF_TRUTH_MAP.md` - A-to-Z map of where every kind of app truth lives.
+2. `Project Atlas/MASTER_HANDOVER_2026.md` - current project state and active queue.
+3. `Project Atlas/GOVERNANCE.md` - canonical governance and source-of-truth rules.
+4. `Project Atlas/RULES.md` - short execution rules and definition of done.
+5. `Project Atlas/DEPLOYMENT_GUIDE.md` - mandatory before touching deployment or Hostinger paths.
 
 ## Directory Structure
 
@@ -32,6 +34,7 @@ If you are an AI agent or a new developer, read these first, in order:
 - `03-Ideas/` - sketches and deferred ideas, if present.
 - `04-For You (Plain Language)/` - owner-facing plain-language explanations.
 - `05-Migration to Appwrite/` - Appwrite migration records and verification notes.
+- `SOURCE_OF_TRUTH_MAP.md` - A-to-Z map for future agents and contributors.
 - `CHANGELOG.md` - Atlas changelog for accepted project/documentation changes.
 - `GOVERNANCE.md` - canonical governance rules.
 - `MAINTENANCE.md` - how to keep the Atlas accurate.
