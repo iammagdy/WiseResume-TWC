@@ -55,13 +55,9 @@ function verifySignedToken(token) {
 }
 
 function checkAuth(req, body) {
-  const expected = process.env.DEVKIT_PASSWORD;
-  if (!expected) return false;
   const authHeader = body?.__headers?.Authorization || req.headers['authorization'] || req.headers['Authorization'] || '';
   if (!authHeader.startsWith('Bearer ')) return false;
-  const token = authHeader.slice(7).trim();
-  if (token === expected) return true; // backwards compat for older panels
-  return verifySignedToken(token);
+  return verifySignedToken(authHeader.slice(7).trim());
 }
 
 // ─── SDK client ──────────────────────────────────────────────────────────────

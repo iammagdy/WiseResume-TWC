@@ -161,7 +161,7 @@ function DevToolsInner() {
   };
 
   const navigatePanel = (id: string) => {
-    const aliases: Record<string, string> = { deployment: 'diagnostics', openrouter: 'ai-keys', visitors: 'live', email: 'email', overview: 'overview', live: 'live' };
+    const aliases: Record<string, string> = { deployment: 'diagnostics', openrouter: 'ai-keys', email: 'email', overview: 'overview', live: 'live' };
     setActivePanel(aliases[id] ?? id);
     setIsMobileMenuOpen(false);
   };
