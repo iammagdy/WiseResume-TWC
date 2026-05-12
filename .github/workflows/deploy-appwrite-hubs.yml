@@ -56,5 +56,8 @@ jobs:
           node scripts/setup_observability_schema.cjs
 
           # 7. Execute deployment script from the root
+          export OPENROUTER_KEY_2="${{ secrets.OPENROUTER_KEY_2 }}"
+          export OPENROUTER_KEY_1="${{ secrets.OPENROUTER_KEY_1 }}"
+          export GROQ_KEY_1="${{ secrets.GROQ_KEY_1 }}"
           node scripts/deploy_hubs.cjs
 

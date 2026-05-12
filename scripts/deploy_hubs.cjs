@@ -11,14 +11,38 @@ const functions = new sdk.Functions(client);
 
 async function ensureFunction(id, name) {
     try {
-        await functions.get(id);
+        const fn = await functions.get(id);
+        // Ensure execute permissions are set — some functions were created with []
+        if (!fn.execute || fn.execute.length === 0) {
+            await functions.update(id, name, fn.runtime || 'node-18.0', ['any']);
+            console.log(`  🔧 Fixed execute permissions for ${id}`);
+        }
         console.log(`  ✅ ${id} already exists`);
     } catch (e) {
         if (e.code === 404) {
             console.log(`  🔧 Creating ${id} with node-18.0...`);
-            await functions.create(id, name, 'node-18.0', []);
+            await functions.create(id, name, 'node-18.0', ['any']);
             console.log(`  ✅ Created ${id}`);
         } else throw e;
+    }
+}
+
+async function ensureVariable(fnId, key, value) {
+    if (!value) return; // skip if no value provided
+    try {
+        const vars = await functions.listVariables(fnId);
+        const existing = vars.variables.find(v => v.key === key);
+        if (existing) {
+            if (existing.value !== value) {
+                await functions.updateVariable(fnId, existing.$id, key, value);
+                console.log(`  🔑 Updated ${key} on ${fnId}`);
+            }
+        } else {
+            await functions.createVariable(fnId, key, value);
+            console.log(`  🔑 Created ${key} on ${fnId}`);
+        }
+    } catch (e) {
+        console.warn(`  ⚠️  Could not set ${key} on ${fnId}: ${e.message}`);
     }
 }
 
@@ -68,6 +92,19 @@ async function run() {
     for (const hub of hubs) {
         await deployFunction(hub.id, hub.name, hub.file);
     }
+
+    // Ensure resume-section-ai has at least one AI provider key so it can call LLMs.
+    // Keys are read from env vars (set in CI via GitHub secrets).
+    console.log('\n🔑 Ensuring resume-section-ai provider keys...');
+    const rsaKeys = [
+        ['OPENROUTER_KEY_1', process.env.OPENROUTER_KEY_1],
+        ['OPENROUTER_KEY_2', process.env.OPENROUTER_KEY_2],
+        ['GROQ_KEY_1',       process.env.GROQ_KEY_1],
+    ];
+    for (const [key, value] of rsaKeys) {
+        await ensureVariable('resume-section-ai', key, value);
+    }
+
     console.log('\n🎉 All hubs processed.');
 }
 
