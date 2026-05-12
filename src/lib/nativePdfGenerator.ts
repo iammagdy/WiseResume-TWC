@@ -1,43 +1,73 @@
-import { toast } from "sonner";
-import { functions } from './appwrite';
+import type { ContactInfo } from '@/types/resume';
+import type { OnProgressCallback } from '@/hooks/useExportProgress';
 
 /**
- * Custom Error for PDF Server issues during migration.
+ * Thrown when the Puppeteer / server-side PDF pipeline is unavailable.
+ * PreviewPage catches this and falls back to window.print() with a friendly
+ * message — "PDF export is not available right now. Opening print dialog…"
+ *
+ * During the Appwrite Functions migration all three exports below throw this
+ * error unconditionally so users always get the print-dialog fallback instead
+ * of a broken "Failed to generate PDF." toast (which happens when the wrong
+ * function name is exported and the import resolves to `undefined`).
  */
 export class PDFServerUnavailableError extends Error {
-  constructor(message = 'PDF Service is currently being migrated to Appwrite.') {
+  constructor(message = 'PDF export is being migrated to Appwrite Functions. Please use the print dialog for now.') {
     super(message);
     this.name = 'PDFServerUnavailableError';
   }
 }
 
+export interface GenerateNativePDFOptions {
+  pageFormat?: 'letter' | 'a4';
+  showPageNumbers?: boolean;
+  showBranding?: boolean;
+  onePage?: boolean;
+  atsMode?: boolean;
+  customBreakPositions?: number[];
+  onProgress?: OnProgressCallback;
+}
+
+export interface GenerateCoverLetterNativePDFOptions {
+  pageFormat?: 'letter' | 'a4';
+  showPageNumbers?: boolean;
+  showBranding?: boolean;
+  onProgress?: OnProgressCallback;
+}
+
 /**
- * PDF Generation logic now routes to Appwrite AI-Gateway Hub.
- * During migration, we trigger a client-side print fallback.
+ * Generate a resume PDF from a live DOM template element.
+ * Puppeteer pipeline pending Appwrite Functions migration — falls back to
+ * window.print() via PDFServerUnavailableError caught in PreviewPage.
  */
-export async function generateNativePdf(htmlContent: string, fileName: string) {
-  try {
-    console.log('Requesting PDF generation from Appwrite Hub...');
-    
-    // Always trigger fallback during Appwrite transition Phase
-    throw new PDFServerUnavailableError();
-    
-  } catch (err) {
-    if (err instanceof PDFServerUnavailableError) {
-       // Re-throw to be handled by UI components
-       throw err;
-    }
-    console.error('PDF Error:', err);
-    throw err;
-  }
+export async function generateNativePDF(
+  _templateEl: HTMLElement,
+  _options: GenerateNativePDFOptions = {},
+): Promise<Blob> {
+  throw new PDFServerUnavailableError();
 }
 
-export function getPdfEndpoint() {
-  return '/api/appwrite/pdf-stub';
+/**
+ * Generate a cover-letter PDF from a cover letter record + contact info.
+ * Puppeteer pipeline pending Appwrite Functions migration — falls back to
+ * window.print() via PDFServerUnavailableError caught in PreviewPage.
+ */
+export async function generateCoverLetterNativePDF(
+  _letter: unknown,
+  _contactInfo: ContactInfo | undefined,
+  _options: GenerateCoverLetterNativePDFOptions = {},
+): Promise<Blob> {
+  throw new PDFServerUnavailableError();
 }
 
-export async function generateCoverLetterNativePDF(content: string, fileName: string) {
-  toast.info('PDF export is not available right now. Opening print dialog.');
-  window.print();
-  return { success: true };
+/**
+ * Merge two PDF blobs into one (resume + cover letter combined export).
+ * Puppeteer pipeline pending Appwrite Functions migration — falls back to
+ * window.print() via PDFServerUnavailableError caught in PreviewPage.
+ */
+export async function mergePDFBlobs(
+  _blobA: Blob,
+  _blobB: Blob,
+): Promise<Blob> {
+  throw new PDFServerUnavailableError();
 }
