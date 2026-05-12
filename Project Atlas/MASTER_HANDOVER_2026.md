@@ -15,7 +15,7 @@
 | AI | Appwrite `ai-gateway` Function | Routes 24+ features; per-feature routing via `FEATURE_ROUTES` (22 entries); provider pool: OpenRouter, Groq, DeepSeek, NVIDIA NIM |
 | Storage | Appwrite Storage | `photoUrl` bucket needs `Access-Control-Allow-Origin: *` |
 | Frontend | React 18 + Vite 6, served from Hostinger `/public_html/` | SPA, base path `/` |
-| Server | Express stub (`server/index.ts`, ~80 lines) | Health probe + PDF 503 placeholder |
+| Server | Express (`server/index.ts`) | Health probe + Puppeteer PDF endpoint (`/api/export/pdf-native`) |
 | CI/CD | GitHub Actions | `deploy-frontend.yml` + `deploy-appwrite-hubs.yml` |
 | Repo | `https://github.com/iammagdy/WiseResume-TWC` | main branch |
 
@@ -101,21 +101,25 @@ When Appwrite Auth accounts are deleted, their `profiles` and `resumes` document
 
 ## Where We Stand Now
 
-### Working (as of 2026-05-11, post-session)
-- `https://resume.thewise.cloud/` — live, Appwrite-native build (frontend deploy triggered)
+### Working (as of 2026-05-12, post-session)
+- `https://resume.thewise.cloud/` — live, Appwrite-native build
 - Auth (sign-in/sign-up/sign-out via Appwrite Account SDK)
 - AI Hub — 24+ features via `ai-gateway` Appwrite Function
-- **DevKit God Mode** — user list loads reliably; all data reads are server-side via `admin-devkit-data`
-- **DevKit Overview panel** — user count sourced from real Appwrite Auth (not profile rows); orphan detection + one-click cleanup workflow
+- **DevKit God Mode** — user list loads reliably; all data reads server-side via `admin-devkit-data`
+- **DevKit Overview panel** — user count sourced from real Appwrite Auth; orphan detection + one-click cleanup
 - **DevKit global stats bar** — premium / pro / suspended / active-today counts are server-side
 - **No direct browser `databases.*` calls remain in any DevKit admin panel**
 - DevKit AIKeysPanel, AIRoutingPanel, MissionControl, Analytics, LiveActivity (existing, unchanged)
+- **PDF export (`/api/export/pdf-native`)** — real Puppeteer implementation; selectable text confirmed; Chrome installed at `~/.cache/puppeteer/chrome/linux-147.0.7727.57`
+- **`nativePdfGenerator.ts`** — full implementation (DOM serialiser → server → Blob); cover letter via pdf-lib; merge via pdf-lib
+- **`PreviewPage` crash** — fixed: `getTemplateConfig` has `'modern'` fallback; Zustand rehydration always migrates `selectedTemplate`
 
-### Broken / Pending (unchanged from before this session)
+### Broken / Pending
 - Most `/api/data/*` endpoints throw `pending_appwrite_migration` — data layer not yet rebuilt on Appwrite Functions
-- PDF export returns 503 — Puppeteer worker not yet rebuilt
+- **PDF export in production (Hostinger)** — Express server has no public URL yet; frontend falls back to print dialog. Fix: deploy server, add `VITE_API_URL` GitHub secret, re-run `deploy-frontend.yml`
 - Mobile app still targets legacy backend (do not touch `mobile/`)
 - WiseHire, Admin DevKit non-data panels — throw `pending_appwrite_migration`
+- Datadog `DD_API_KEY` not set in Appwrite Console — AI features work, tracing dormant
 
 ### Task (2026-05-11 follow-up) — Fix God Mode crash + 3 more panels routed server-side
 
@@ -185,4 +189,34 @@ When Appwrite Auth accounts are deleted, their `profiles` and `resumes` document
 All actions require `Authorization: Bearer <DEVKIT_PASSWORD>` in `body.__headers` (Appwrite SDK packs custom headers into the body).
 
 ---
-*Last updated: 2026-05-11 — DevKit admin panel overhaul (Tasks #10, #11, #12)*
+---
+
+## Session Summary — 2026-05-12 (Puppeteer PDF + PreviewPage crash fix)
+
+### Work Item 1 — Real Puppeteer PDF export
+
+**Problem:** `/api/export/pdf-native` returned 503; `nativePdfGenerator.ts` threw `PDFServerUnavailableError` on all three exports, falling back to `window.print()`. Legacy pdf-lib path produces image-only PDFs (no selectable text).
+
+**Fixes:**
+- `server/index.ts` — replaced 503 stub with full async Puppeteer implementation: `puppeteer.launch()` with `--no-sandbox` / `--disable-dev-shm-usage` / `--disable-gpu` flags; `page.setContent(html, { waitUntil: 'networkidle0', timeout: 30_000 })`; `page.pdf({ format, printBackground: true, margin: 0 })`; always closes browser in `finally`.
+- `src/lib/nativePdfGenerator.ts` — full rewrite: `collectDocumentStyles()` inlines all CSS rules and makes relative `url(...)` absolute; `buildSelfContainedHTML()` wraps template `outerHTML` with embedded CSS and ATS-mode override; `generateNativePDF()` serialises live DOM → POSTs to `${VITE_API_URL}/api/export/pdf-native` → returns Blob; `generateCoverLetterNativePDF()` delegates to `coverLetterPdfGenerator.ts` (no server round-trip); `mergePDFBlobs()` merges via pdf-lib client-side.
+- `.github/workflows/deploy-frontend.yml` — added `VITE_API_URL: ${{ secrets.VITE_API_URL }}` to build env.
+- Chrome installed: `npx puppeteer browsers install chrome` → `~/.cache/puppeteer/chrome/linux-147.0.7727.57`.
+
+**Verification:** HTTP 200, 26 KB PDF, 2.4 s. `pdftotext` confirmed full selectable text layer.
+
+---
+
+### Work Item 2 — PreviewPage crash: `Cannot read properties of undefined (reading 'supportsPhoto')`
+
+**Root cause (two bugs):**
+1. `getTemplateConfig(templateId)` did bare `TEMPLATE_CONFIGS[templateId]` with no fallback — any unknown/stale ID returned `undefined`.
+2. Zustand `onRehydrateStorage` guard `if (state && state.selectedTemplate)` skipped `migrateTemplateId` when `selectedTemplate` was falsy (old localStorage format) — leaving an un-migrated value reaching the component tree.
+
+**Fixes:**
+- `src/lib/templateConfig.ts` — `getTemplateConfig` returns `TEMPLATE_CONFIGS['modern']` as fallback.
+- `src/store/resumeStore.ts` — removed falsy guard; `migrateTemplateId()` always runs on hydration.
+
+---
+
+*Last updated: 2026-05-12 — Puppeteer PDF implementation + PreviewPage crash fix*
