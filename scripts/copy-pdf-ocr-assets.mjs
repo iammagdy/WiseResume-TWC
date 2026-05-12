@@ -58,22 +58,14 @@ function sha256OfFile(p) {
   return createHash('sha256').update(readFileSync(p)).digest('hex');
 }
 
-function downloadOnce(url, dst, expectedSha256) {
+/**
+ * Attempt a single HTTPS download with redirect following.
+ * Resolves with the downloaded Buffer on success; rejects on failure.
+ */
+function httpDownload(url) {
   return new Promise((res, rej) => {
-    if (existsSync(dst) && statSync(dst).size > 1_000_000) {
-      // Already cached — re-verify integrity in case the cache is corrupt
-      // or stale from an older release.
-      const have = sha256OfFile(dst);
-      if (have === expectedSha256) {
-        res(false);
-        return;
-      }
-      console.warn(`[copy-pdf-ocr-assets] cached ${relative(ROOT, dst)} sha256 mismatch (have ${have}, want ${expectedSha256}) — re-downloading`);
-      unlinkSync(dst);
-    }
-    ensureDir(dirname(dst));
     const get = (u, redirectsLeft = 5) => {
-      https.get(u, (response) => {
+      const req = https.get(u, (response) => {
         if ([301, 302, 303, 307, 308].includes(response.statusCode) && response.headers.location && redirectsLeft > 0) {
           response.resume();
           get(response.headers.location, redirectsLeft - 1);
@@ -85,26 +77,57 @@ function downloadOnce(url, dst, expectedSha256) {
         }
         const chunks = [];
         response.on('data', (c) => chunks.push(c));
-        response.on('end', () => {
-          const buf = Buffer.concat(chunks);
-          const got = createHash('sha256').update(buf).digest('hex');
-          if (got !== expectedSha256) {
-            rej(new Error(
-              `Integrity check FAILED for ${u}\n` +
-              `  expected sha256: ${expectedSha256}\n` +
-              `  got sha256:      ${got}\n` +
-              `Refusing to write — refuse to bundle untrusted bytes into the OCR engine.`
-            ));
-            return;
-          }
-          writeFileSync(dst, buf);
-          res(true);
-        });
+        response.on('end', () => res(Buffer.concat(chunks)));
         response.on('error', rej);
-      }).on('error', rej);
+      });
+      req.on('error', rej);
+      req.setTimeout(120_000, () => { req.destroy(); rej(new Error(`Request timed out after 120s: ${u}`)); });
     };
     get(url);
   });
+}
+
+/**
+ * Download url → dst, verifying sha256, with up to maxAttempts retries and
+ * exponential back-off.  Returns true when the file was (re)downloaded, false
+ * when the cached copy was already valid.  Throws only after all retries are
+ * exhausted — callers decide whether to treat that as fatal.
+ */
+async function downloadWithRetry(url, dst, expectedSha256, maxAttempts = 3) {
+  if (existsSync(dst) && statSync(dst).size > 1_000_000) {
+    const have = sha256OfFile(dst);
+    if (have === expectedSha256) return false;
+    console.warn(`[copy-pdf-ocr-assets] cached ${relative(ROOT, dst)} sha256 mismatch — re-downloading`);
+    unlinkSync(dst);
+  }
+  ensureDir(dirname(dst));
+
+  let lastErr;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      console.log(`[copy-pdf-ocr-assets] downloading ${url} (attempt ${attempt}/${maxAttempts})…`);
+      const buf = await httpDownload(url);
+      const got = createHash('sha256').update(buf).digest('hex');
+      if (got !== expectedSha256) {
+        throw new Error(
+          `Integrity check FAILED\n` +
+          `  expected: ${expectedSha256}\n` +
+          `  got:      ${got}\n` +
+          `Refusing to write — untrusted bytes.`
+        );
+      }
+      writeFileSync(dst, buf);
+      return true;
+    } catch (err) {
+      lastErr = err;
+      if (attempt < maxAttempts) {
+        const wait = 2 ** (attempt - 1) * 3_000; // 3s, 6s
+        console.warn(`[copy-pdf-ocr-assets] attempt ${attempt} failed: ${err.message} — retrying in ${wait / 1000}s…`);
+        await new Promise(r => setTimeout(r, wait));
+      }
+    }
+  }
+  throw lastErr;
 }
 
 async function main() {
@@ -146,16 +169,31 @@ async function main() {
   // 5) English language data — fetched once from the canonical URL that
   // Tesseract.js itself uses, then cached in scripts/.cache/ so reruns are
   // offline. The file is also placed under public/tesseract/lang/.
+  //
+  // Non-fatal: if the CDN is unreachable after 3 attempts (e.g. Hostinger's
+  // build environment has outbound network restrictions or the CDN is briefly
+  // unavailable), the rest of the build still succeeds. Camera-scan / OCR
+  // features will be silently disabled at runtime for that deployment, but
+  // all other app functionality deploys correctly. The warning is loud so it
+  // shows up prominently in the build log.
   const langCachePath = join(CACHE, 'eng.traineddata.gz');
   console.log(`[copy-pdf-ocr-assets] verifying eng.traineddata.gz (sha256 ${ENG_SHA256.slice(0, 16)}…) …`);
-  await downloadOnce(
-    'https://cdn.jsdelivr.net/npm/@tesseract.js-data/eng/4.0.0/eng.traineddata.gz',
-    langCachePath,
-    ENG_SHA256,
-  );
-  const langDst = join(PUB, 'tesseract', 'lang', 'eng.traineddata.gz');
-  const langCopied = copyIfNewer(langCachePath, langDst);
-  console.log(`[copy-pdf-ocr-assets] tesseract lang: ${langCopied ? 'updated' : 'unchanged'} → public/tesseract/lang/eng.traineddata.gz`);
+  try {
+    await downloadWithRetry(
+      'https://cdn.jsdelivr.net/npm/@tesseract.js-data/eng/4.0.0/eng.traineddata.gz',
+      langCachePath,
+      ENG_SHA256,
+    );
+    const langDst = join(PUB, 'tesseract', 'lang', 'eng.traineddata.gz');
+    const langCopied = copyIfNewer(langCachePath, langDst);
+    console.log(`[copy-pdf-ocr-assets] tesseract lang: ${langCopied ? 'updated' : 'unchanged'} → public/tesseract/lang/eng.traineddata.gz`);
+  } catch (langErr) {
+    console.warn(
+      `\n[copy-pdf-ocr-assets] WARNING: could not download eng.traineddata.gz after 3 attempts: ${langErr.message}\n` +
+      `  Camera-scan / OCR will not work in this deployment.\n` +
+      `  All other app features are unaffected. Build continuing.\n`
+    );
+  }
 
   console.log('[copy-pdf-ocr-assets] Done.');
 }
