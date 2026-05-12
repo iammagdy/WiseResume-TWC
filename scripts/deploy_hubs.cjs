@@ -12,7 +12,10 @@ const functions = new sdk.Functions(client);
 async function ensureFunction(id, name) {
     try {
         const fn = await functions.get(id);
-        // Ensure execute permissions are set — some functions were created with []
+        // Ensure execute permissions are set — some functions were created with [].
+        // All hubs here use ['any'] because Appwrite client SDK requires it for
+        // browser-initiated invocations. Admin hubs enforce their own in-function
+        // authentication (DEVKIT_PASSWORD) independently of the Appwrite execute role.
         if (!fn.execute || fn.execute.length === 0) {
             await functions.update(id, name, fn.runtime || 'node-18.0', ['any']);
             console.log(`  🔧 Fixed execute permissions for ${id}`);
