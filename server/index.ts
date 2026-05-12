@@ -20,6 +20,7 @@ import express from 'express';
 import type { Request, Response } from 'express';
 import cors from 'cors';
 import dns from 'dns';
+import puppeteer from 'puppeteer';
 
 const app = express();
 const PORT = parseInt(process.env.API_PORT || '5001', 10);
@@ -70,14 +71,59 @@ app.get('/api/health', (_req: Request, res: Response) => {
   res.json({ ok: true, server: 'wise-resume', stack: 'appwrite-native' });
 });
 
-app.post('/api/export/pdf-native', (_req: Request, res: Response) => {
-  // PDF export will be re-implemented on Appwrite Functions (Puppeteer
-  // worker). Until then, surface a clear 503 so the client can show a
-  // friendly "PDF temporarily unavailable" toast instead of hanging.
-  res.status(503).json({
-    error: 'pending_appwrite_migration',
-    message: 'PDF export is being rebuilt on Appwrite. Please try again later.',
-  });
+app.post('/api/export/pdf-native', async (req: Request, res: Response) => {
+  const { html, pageFormat = 'letter', onePage = false } = req.body as {
+    html?: string;
+    pageFormat?: string;
+    onePage?: boolean;
+  };
+
+  if (!html || typeof html !== 'string') {
+    res.status(400).json({ error: 'bad_request', message: 'Missing html body' });
+    return;
+  }
+
+  let browser;
+  try {
+    browser = await puppeteer.launch({
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        '--disable-gpu',
+      ],
+    });
+
+    const page = await browser.newPage();
+
+    // Match the PDF format's printable width so layout is identical to the browser
+    const isA4 = pageFormat === 'a4';
+    await page.setViewport({ width: isA4 ? 794 : 816, height: 1123, deviceScaleFactor: 2 });
+
+    // Load the self-contained HTML; waitUntil:'networkidle0' lets Puppeteer
+    // fetch external assets (Google Fonts, CDN images) before snapping the PDF.
+    await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30_000 });
+
+    const pdfBuffer = await page.pdf({
+      format: isA4 ? 'A4' : 'Letter',
+      printBackground: true,
+      margin: { top: '0', right: '0', bottom: '0', left: '0' },
+      ...(onePage ? { pageRanges: '1' } : {}),
+    });
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename="resume.pdf"');
+    res.send(Buffer.from(pdfBuffer));
+  } catch (err) {
+    console.error('[pdf] Puppeteer error:', err);
+    res.status(500).json({ error: 'pdf_failed', message: String(err) });
+  } finally {
+    await browser?.close();
+  }
 });
 
 // ── SSRF helpers ─────────────────────────────────────────────────────────────
