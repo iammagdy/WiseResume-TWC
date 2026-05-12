@@ -123,12 +123,12 @@ function getDbClient() {
 function buildPool() {
   const pool = [];
   for (let i = 1; i <= 3; i++) {
-    const key = process.env[`OPENROUTER_KEY_${i}`];
-    if (key) pool.push({ provider: 'openrouter', key });
-  }
-  for (let i = 1; i <= 3; i++) {
     const key = process.env[`GROQ_KEY_${i}`];
     if (key) pool.push({ provider: 'groq', key });
+  }
+  for (let i = 1; i <= 3; i++) {
+    const key = process.env[`OPENROUTER_KEY_${i}`];
+    if (key) pool.push({ provider: 'openrouter', key });
   }
   if (process.env.DEEPSEEK_KEY) {
     pool.push({ provider: 'deepseek', key: process.env.DEEPSEEK_KEY });
@@ -140,36 +140,61 @@ function buildPool() {
   return pool;
 }
 
+function getProviderAvailability() {
+  return {
+    groq:        [1, 2, 3].some(i => !!process.env[`GROQ_KEY_${i}`]),
+    openrouter:  [1, 2, 3].some(i => !!process.env[`OPENROUTER_KEY_${i}`]),
+    deepseek:    !!process.env.DEEPSEEK_KEY,
+    nvidia:      [1, 2, 3].some(i => !!process.env[`NVIDIA_KEY_${i}`]),
+  };
+}
+
 /**
- * Pick the best provider entry for a given featureName.
+ * Build an ordered candidate list for a given featureName.
  *
- * Priority:
- *  1. If featureName has an entry in FEATURE_ROUTES AND the preferred
- *     provider has at least one key configured → use any key for that
- *     provider together with the preferred model.
- *  2. Otherwise → random pick from the full pool (original behaviour).
+ * The list is tried in sequence by the call loop; the first successful
+ * response wins. Order:
+ *  1. Preferred provider from FEATURE_ROUTES (if configured and has keys).
+ *  2. Remaining pool entries in buildPool() order (groq → openrouter →
+ *     deepseek → nvidia), excluding any already used as primary.
  *
- * Returns { provider, key, model, routed } or null when the pool is empty.
+ * Returns an array of { provider, key, model, routed } objects, or [] when
+ * the pool is empty.
  */
-function pickProvider(featureName, pool) {
+function buildCandidates(featureName, pool) {
+  if (pool.length === 0) return [];
+
+  const defaultModelFor = p =>
+    p === 'openrouter' ? OPENROUTER_FREE_MODEL :
+    p === 'deepseek'   ? DEEPSEEK_MODEL :
+    p === 'nvidia'     ? NVIDIA_DEFAULT_MODEL :
+    GROQ_FREE_MODEL;
+
+  const candidates = [];
+  const usedKeys   = new Set();
+
   const route = FEATURE_ROUTES[featureName];
   if (route) {
-    const candidates = pool.filter(e => e.provider === route.provider);
-    if (candidates.length > 0) {
-      const entry = candidates[Math.floor(Math.random() * candidates.length)];
-      return { provider: entry.provider, key: entry.key, model: route.model, routed: true };
+    const preferred = pool.filter(e => e.provider === route.provider);
+    if (preferred.length > 0) {
+      const entry = preferred[Math.floor(Math.random() * preferred.length)];
+      candidates.push({ provider: entry.provider, key: entry.key, model: route.model, routed: true });
+      usedKeys.add(entry.key);
     }
-    // Preferred provider has no key configured — fall through to random pool
   }
 
-  if (pool.length === 0) return null;
-  const entry = pool[Math.floor(Math.random() * pool.length)];
-  const defaultModel =
-    entry.provider === 'openrouter' ? OPENROUTER_FREE_MODEL :
-    entry.provider === 'deepseek'   ? DEEPSEEK_MODEL :
-    entry.provider === 'nvidia'     ? NVIDIA_DEFAULT_MODEL :
-    GROQ_FREE_MODEL;
-  return { provider: entry.provider, key: entry.key, model: defaultModel, routed: false };
+  for (const entry of pool) {
+    if (usedKeys.has(entry.key)) continue;
+    candidates.push({
+      provider: entry.provider,
+      key:      entry.key,
+      model:    defaultModelFor(entry.provider),
+      routed:   false,
+    });
+    usedKeys.add(entry.key);
+  }
+
+  return candidates;
 }
 
 // ─── Main handler ─────────────────────────────────────────────────────────────
@@ -185,6 +210,13 @@ module.exports = async ({ req, res, log, error }) => {
     const { featureName, messages } = opts;
 
     log(`AI-Gateway Hub: Processing ${featureName || 'general'} request...`);
+
+    // ── 0. SMOKE-TEST SHORT-CIRCUIT ──────────────────────────────────────────
+    if (opts['x-smoke-test'] === 'true' || req.headers?.['x-smoke-test'] === 'true') {
+      log('Smoke test ping — returning OK');
+      await flushDD();
+      return res.json({ status: 'ok', _smokeTest: true, providers: getProviderAvailability() });
+    }
 
     // ── 1. EMAIL ROUTE (never traced as LLM span) ───────────────────────────
     if (featureName === 'send-email' || featureName === 'send-contact-email') {
@@ -208,41 +240,27 @@ module.exports = async ({ req, res, log, error }) => {
     }
 
     // ── 2. AI ROUTE ─────────────────────────────────────────────────────────
-    const pool = buildPool();
+    const pool       = buildPool();
+    const candidates = buildCandidates(featureName, pool);
 
-    if (pool.length === 0) {
+    if (candidates.length === 0) {
       error('No keys found in environment variables.');
       await flushDD();
       return res.json({ status: 'error', message: 'No AI keys found on server.' }, 503);
     }
 
-    const picked = pickProvider(featureName, pool);
-    if (!picked) {
-      error('No AI provider could be selected.');
-      await flushDD();
-      return res.json({ status: 'error', message: 'No AI keys found on server.' }, 503);
-    }
-
-    const url         = BASES[picked.provider];
-    const model       = opts.model       || picked.model;
     const temperature = opts.temperature || 0.7;
     const maxTokens   = opts.maxTokens   || 1000;
 
-    if (picked.routed) {
-      log(`Using preferred provider: ${picked.provider} (model: ${model}) for feature: ${featureName}`);
-    } else {
-      log(`Using random provider: ${picked.provider} (model: ${model}) — no route for: ${featureName || 'general'}`);
-    }
-
-    /** Shared AI caller — called from inside the trace span or directly. */
-    async function callProvider() {
-      const response = await axios.post(url, {
-        model,
-        messages:    messages || [{ role: 'user', content: 'hello' }],
+    /** Call a single provider candidate. */
+    async function callCandidate(candidate) {
+      const response = await axios.post(BASES[candidate.provider], {
+        model:      opts.model || candidate.model,
+        messages:   messages || [{ role: 'user', content: 'hello' }],
         temperature,
         max_tokens: maxTokens,
       }, {
-        headers: { 'Authorization': `Bearer ${picked.key}`, 'Content-Type': 'application/json' },
+        headers: { 'Authorization': `Bearer ${candidate.key}`, 'Content-Type': 'application/json' },
         timeout: 30000,
       });
       return {
@@ -252,84 +270,97 @@ module.exports = async ({ req, res, log, error }) => {
     }
 
     let content      = null;
-    let providerUsed = picked.provider;
+    let providerUsed = null;
+    let modelUsed    = null;
+    let routedBy     = false;
 
-    if (_llmobsEnabled) {
-      // Track whether the trace callback was entered so we can distinguish
-      // "llmobs.trace() setup failed" from "provider call inside the trace failed".
-      let callbackExecuted = false;
+    // Try each candidate in priority order; stop at first success.
+    for (let i = 0; i < candidates.length; i++) {
+      const candidate = candidates[i];
+      const isFirst   = i === 0;
+      const label     = candidate.routed ? 'preferred' : 'fallback';
+      log(`Trying ${label} provider: ${candidate.provider} (model: ${opts.model || candidate.model}) for ${featureName || 'general'}${isFirst ? '' : ` [attempt ${i + 1}]`}`);
 
       try {
-        await llmobs.trace(
-          {
-            kind:          'llm',
-            name:          featureName || 'ai-gateway',
-            modelName:     model,
-            modelProvider: picked.provider,
-          },
-          async (span) => {
-            callbackExecuted = true;
+        let result;
 
-            // Annotate input before the call
-            llmobs.annotate(span, {
-              inputData: messages || [{ role: 'user', content: 'hello' }],
-              metadata: {
-                temperature,
-                max_tokens:        maxTokens,
-                feature_name:      featureName || 'general',
-                routed_by_feature: picked.routed,
-              },
-              tags: {
-                feature_name:      featureName || 'general',
-                provider:          picked.provider,
-                model,
-                routed_by_feature: String(picked.routed),
-              },
-            });
+        if (isFirst && _llmobsEnabled) {
+          // Only trace the primary attempt via LLMObs.
+          let callbackExecuted = false;
+          await llmobs.trace(
+            {
+              kind:          'llm',
+              name:          featureName || 'ai-gateway',
+              modelName:     opts.model || candidate.model,
+              modelProvider: candidate.provider,
+            },
+            async (span) => {
+              callbackExecuted = true;
+              llmobs.annotate(span, {
+                inputData: messages || [{ role: 'user', content: 'hello' }],
+                metadata: {
+                  temperature,
+                  max_tokens:        maxTokens,
+                  feature_name:      featureName || 'general',
+                  routed_by_feature: candidate.routed,
+                },
+                tags: {
+                  feature_name:      featureName || 'general',
+                  provider:          candidate.provider,
+                  model:             opts.model || candidate.model,
+                  routed_by_feature: String(candidate.routed),
+                },
+              });
 
-            let result;
-            try {
-              result = await callProvider();
-            } catch (providerErr) {
-              // Mark the span as errored then re-throw so the outer catch handles it.
-              span.setTag('error', providerErr);
-              span.setTag('error.message', providerErr.message);
-              throw providerErr;
+              try {
+                result = await callCandidate(candidate);
+              } catch (providerErr) {
+                span.setTag('error', providerErr);
+                span.setTag('error.message', providerErr.message);
+                throw providerErr;
+              }
+
+              llmobs.annotate(span, {
+                outputData: [{ role: 'assistant', content: result.content }],
+                metrics: {
+                  input_tokens:  result.usage.prompt_tokens     || 0,
+                  output_tokens: result.usage.completion_tokens || 0,
+                  total_tokens:  result.usage.total_tokens      || 0,
+                },
+              });
+            },
+          ).catch(async traceErr => {
+            if (!callbackExecuted) {
+              // trace() setup itself failed (e.g. bad kind value) — fall back
+              // to a direct untraced call for this same candidate rather than
+              // skipping it entirely and moving to the next fallback.
+              error('DD LLMObs trace setup error, retrying untraced: ' + traceErr.message);
+              result = await callCandidate(candidate);
+            } else {
+              // Provider call inside the trace threw — re-throw so the outer
+              // catch handles it and moves to the next candidate.
+              throw traceErr;
             }
-
-            // Annotate output + token metrics on success
-            llmobs.annotate(span, {
-              outputData: [{ role: 'assistant', content: result.content }],
-              metrics: {
-                input_tokens:  result.usage.prompt_tokens     || 0,
-                output_tokens: result.usage.completion_tokens || 0,
-                total_tokens:  result.usage.total_tokens      || 0,
-              },
-            });
-
-            content = result.content;
-          },
-        );
-
-      } catch (traceErr) {
-        if (!callbackExecuted) {
-          // llmobs.trace() setup itself failed (e.g. bad kind value).
-          // Fall back to a direct AI call so the response contract is preserved.
-          error('DD LLMObs trace setup error, falling back: ' + traceErr.message);
-          const result = await callProvider();
-          content = result.content;
+          });
         } else {
-          // The provider call inside the trace threw. Surface the error.
-          await flushDD();
-          error('AI-Gateway Error: ' + traceErr.message);
-          return res.json({ status: 'error', message: traceErr.message }, 500);
+          result = await callCandidate(candidate);
         }
-      }
 
-    } else {
-      // LLMObs not enabled — direct call with no overhead
-      const result = await callProvider();
-      content = result.content;
+        content      = result.content;
+        providerUsed = candidate.provider;
+        modelUsed    = opts.model || candidate.model;
+        routedBy     = candidate.routed;
+        break;
+
+      } catch (candidateErr) {
+        error(`Provider ${candidate.provider} failed: ${candidateErr.message}`);
+        if (i === candidates.length - 1) {
+          // All candidates exhausted.
+          await flushDD();
+          return res.json({ status: 'error', message: candidateErr.message }, 500);
+        }
+        // Continue to next candidate.
+      }
     }
 
     await flushDD();
@@ -338,8 +369,8 @@ module.exports = async ({ req, res, log, error }) => {
       data: {
         content,
         providerUsed,
-        modelUsed:       model,
-        routedByFeature: picked.routed,
+        modelUsed,
+        routedByFeature: routedBy,
       },
     });
 

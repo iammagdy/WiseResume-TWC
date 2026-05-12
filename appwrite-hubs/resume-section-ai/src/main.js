@@ -23,19 +23,34 @@ function buildPool() {
   return pool;
 }
 
+function getProviderAvailability() {
+  return {
+    groq:       [1, 2, 3].some(i => !!process.env[`GROQ_KEY_${i}`]),
+    openrouter: [1, 2, 3].some(i => !!process.env[`OPENROUTER_KEY_${i}`]),
+    deepseek:   !!process.env.DEEPSEEK_KEY,
+  };
+}
+
 async function callLLM(messages, pool) {
   if (pool.length === 0) throw new Error('No AI provider keys configured');
-  const entry = pool[Math.floor(Math.random() * pool.length)];
-  const response = await axios.post(entry.url, {
-    model:       entry.model,
-    messages,
-    temperature: 0.7,
-    max_tokens:  1200,
-  }, {
-    headers: { 'Authorization': `Bearer ${entry.key}`, 'Content-Type': 'application/json' },
-    timeout: 55000,
-  });
-  return response.data.choices[0].message.content;
+  let lastError;
+  for (const entry of pool) {
+    try {
+      const response = await axios.post(entry.url, {
+        model:       entry.model,
+        messages,
+        temperature: 0.7,
+        max_tokens:  1200,
+      }, {
+        headers: { 'Authorization': `Bearer ${entry.key}`, 'Content-Type': 'application/json' },
+        timeout: 55000,
+      });
+      return response.data.choices[0].message.content;
+    } catch (err) {
+      lastError = err;
+    }
+  }
+  throw lastError;
 }
 
 // ─── Action-specific prompt builders ─────────────────────────────────────────
@@ -197,7 +212,7 @@ module.exports = async ({ req, res, log, error }) => {
   // Smoke-test short-circuit (used by DevKit health checks)
   if (req.headers?.['x-smoke-test'] === 'true' || body['x-smoke-test'] === 'true') {
     log('Smoke test ping — returning OK');
-    return res.json({ improved: body.currentContent || '', changes: [], suggestions: ['Smoke test OK'], _smokeTest: true });
+    return res.json({ improved: body.currentContent || '', changes: [], suggestions: ['Smoke test OK'], _smokeTest: true, providers: getProviderAvailability() });
   }
 
   // Action is sent in the body (Appwrite SDK doesn't forward custom headers)
