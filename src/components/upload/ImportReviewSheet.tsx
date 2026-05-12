@@ -106,15 +106,23 @@ function SectionCard({
               ? 'border-amber-500/40 bg-amber-500/5'
               : 'border-primary/50 bg-primary/5'
             : 'border-border bg-card'
-      }`}
+      } ${canExpand ? 'cursor-pointer active:scale-[0.99]' : ''}`}
+      onClick={canExpand ? () => setIsExpanded(v => !v) : undefined}
+      role={canExpand ? 'button' : undefined}
+      tabIndex={canExpand ? 0 : undefined}
+      aria-expanded={canExpand ? isExpanded : undefined}
+      onKeyDown={canExpand ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setIsExpanded(v => !v); } } : undefined}
     >
-      <label className="flex items-start gap-3 p-4 cursor-pointer touch-manipulation min-h-[72px]">
-        <div className="flex items-center justify-center w-10 h-10 -m-2 shrink-0">
+      <div className="flex items-start gap-3 p-4 min-h-[72px]">
+        <div
+          className="flex items-center justify-center w-10 h-10 -m-2 shrink-0 touch-manipulation"
+          onClick={(e) => e.stopPropagation()}
+        >
           <Checkbox
             checked={isSelected}
             disabled={isEmpty}
             onCheckedChange={() => onToggle(id)}
-            className="h-6 w-6 rounded-md"
+            className="h-6 w-6 rounded-md cursor-pointer"
           />
         </div>
         <div className="flex-1 min-w-0 pt-0.5">
@@ -131,19 +139,14 @@ function SectionCard({
           </p>
         </div>
         {canExpand && (
-          <button
-            type="button"
-            onClick={(e) => { e.preventDefault(); setIsExpanded(v => !v); }}
-            className="shrink-0 p-1 rounded-lg hover:bg-muted transition-colors min-w-[32px] min-h-[32px] flex items-center justify-center touch-manipulation"
-            aria-label={isExpanded ? 'Collapse section' : 'Expand section'}
-          >
+          <div className="shrink-0 flex items-center justify-center min-w-[32px] min-h-[32px]" aria-hidden>
             {isExpanded
               ? <ChevronUp className="w-4 h-4 text-muted-foreground" />
               : <ChevronDown className="w-4 h-4 text-muted-foreground" />
             }
-          </button>
+          </div>
         )}
-      </label>
+      </div>
 
       <AnimatePresence>
         {isExpanded && canExpand && (
@@ -485,10 +488,10 @@ export function ImportReviewSheet({
 
   const nonEmptySections = useMemo(() => sections.filter(s => !s.isEmpty), [sections]);
   const selectedCount = useMemo(
-    () => nonEmptySections.filter(s => selectedSections[s.id]).length,
-    [nonEmptySections, selectedSections]
+    () => sections.filter(s => !s.isEmpty && selectedSections[s.id]).length,
+    [sections, selectedSections]
   );
-  const totalSections = nonEmptySections.length;
+  const totalSections = sections.length;
   const lowConfidenceCount = useMemo(
     () => nonEmptySections.filter(s => s.hasLowConfidence).length,
     [nonEmptySections]

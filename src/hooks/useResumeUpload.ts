@@ -45,6 +45,7 @@ export interface UploadError {
 
 export interface UseResumeUploadReturn {
   processFile: (file: File, fileType?: FileType | null) => Promise<void>;
+  processText: (text: string, sourceLabel: string, source?: 'url' | 'word' | 'image' | 'json' | 'html' | 'pdf') => Promise<void>;
   isProcessing: boolean;
   parseStep: ParseStep;
   fileName: string | null;
@@ -434,8 +435,53 @@ export function useResumeUpload(): UseResumeUploadReturn {
     }
   }, [handleWordFile, handleImageFile]);
 
+  const processText = useCallback(async (
+    text: string,
+    sourceLabel: string,
+    source: 'url' | 'word' | 'image' | 'json' | 'html' | 'pdf' = 'url',
+  ) => {
+    setIsProcessing(true);
+    setFileName(sourceLabel);
+    setError(null);
+    setParsedData(null);
+    setParseStep('extracting');
+
+    try {
+      let cleanedText: string;
+      try { cleanedText = preprocessResumeText(text); } catch { cleanedText = text; }
+      let textWithHints: string;
+      try {
+        const hints = extractContactHints(cleanedText);
+        textWithHints = hints ? cleanedText + hints : cleanedText;
+      } catch { textWithHints = cleanedText; }
+
+      setParseStep('analyzing');
+      const resumeData = await parseTextWithAI(textWithHints);
+      if (resumeData._meta) resumeData._meta.source = source;
+
+      const extraction = getExtractionSummary(resumeData);
+      if (extraction.isEmpty) {
+        setError({ type: 'NO_TEXT', warnings: [] });
+        setIsProcessing(false);
+        return;
+      }
+
+      setParseStep('complete');
+      await new Promise(r => setTimeout(r, 300));
+      setParsedData(resumeData);
+    } catch (err) {
+      setError({
+        type: err instanceof Error && err.message === 'AI_UNREACHABLE' ? 'AI_UNREACHABLE' : 'CORRUPTED',
+        warnings: [],
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  }, []);
+
   return {
     processFile,
+    processText,
     isProcessing,
     parseStep,
     fileName,
