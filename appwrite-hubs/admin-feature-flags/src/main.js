@@ -39,14 +39,29 @@ const FLAGS_COLL    = 'feature_flags';
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
 
+const crypto = require('crypto');
+
+function verifySignedToken(token) {
+  const secret = process.env.DEVKIT_PASSWORD;
+  if (!secret || !token || !token.includes('.')) return false;
+  const [encoded, sig] = token.split('.');
+  let expected;
+  try { expected = crypto.createHmac('sha256', secret).update(encoded).digest('base64url'); } catch { return false; }
+  if (sig.length !== expected.length) return false;
+  try { if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return false; } catch { return false; }
+  let payload;
+  try { payload = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8')); } catch { return false; }
+  return payload.purpose === 'devkit' && typeof payload.exp === 'number' && Date.now() < payload.exp;
+}
+
 function checkAuth(req, body) {
   const expected = process.env.DEVKIT_PASSWORD;
   if (!expected) return false;
-  // Appwrite SDK executions don't support custom headers, so the frontend
-  // passes them in the body as __headers.
   const authHeader = body?.__headers?.Authorization || req.headers['authorization'] || req.headers['Authorization'] || '';
   if (!authHeader.startsWith('Bearer ')) return false;
-  return authHeader.slice(7).trim() === expected;
+  const token = authHeader.slice(7).trim();
+  if (token === expected) return true; // backwards compat for older panels
+  return verifySignedToken(token);
 }
 
 // ─── SDK client ──────────────────────────────────────────────────────────────

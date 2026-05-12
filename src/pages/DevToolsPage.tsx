@@ -54,7 +54,7 @@ const PANEL_GROUPS: { label: string; panels: PanelDef[] }[] = [
     { id: 'overview', title: 'Infrastructure', icon: LayoutDashboard, status: 'Live' },
     { id: 'users', title: 'God Mode (Users)', icon: Users, status: 'Live' },
     { id: 'db', title: 'Database X-Ray', icon: Database, status: 'Live' },
-    { id: 'flags', title: 'Feature Control', icon: Flag, status: 'Needs Appwrite Function', blockers: ['admin-feature-flags not deployed with signed-token auth'] },
+    { id: 'flags', title: 'Feature Control', icon: Flag, status: 'Live' },
   ]},
   { label: 'AI Command Center', panels: [
     { id: 'ai', title: 'AI Radar', icon: BrainCircuit, status: 'Live' },
