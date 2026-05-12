@@ -1,18 +1,13 @@
 import type { ContactInfo } from '@/types/resume';
 import type { OnProgressCallback } from '@/hooks/useExportProgress';
+import { PDFDocument } from 'pdf-lib';
 
 /**
- * Thrown when the Puppeteer / server-side PDF pipeline is unavailable.
- * PreviewPage catches this and falls back to window.print() with a friendly
- * message — "PDF export is not available right now. Opening print dialog…"
- *
- * During the Appwrite Functions migration all three exports below throw this
- * error unconditionally so users always get the print-dialog fallback instead
- * of a broken "Failed to generate PDF." toast (which happens when the wrong
- * function name is exported and the import resolves to `undefined`).
+ * Thrown when the server PDF pipeline is explicitly unavailable (503).
+ * PreviewPage catches this and opens window.print() with a friendly message.
  */
 export class PDFServerUnavailableError extends Error {
-  constructor(message = 'PDF export is being migrated to Appwrite Functions. Please use the print dialog for now.') {
+  constructor(message = 'PDF export is temporarily unavailable. Please use the print dialog.') {
     super(message);
     this.name = 'PDFServerUnavailableError';
   }
@@ -35,39 +30,216 @@ export interface GenerateCoverLetterNativePDFOptions {
   onProgress?: OnProgressCallback;
 }
 
+// ── Style collection ──────────────────────────────────────────────────────────
+
 /**
- * Generate a resume PDF from a live DOM template element.
- * Puppeteer pipeline pending Appwrite Functions migration — falls back to
- * window.print() via PDFServerUnavailableError caught in PreviewPage.
+ * Collects all CSS rules from document.styleSheets into a single string.
+ * - Same-origin sheets: all rules are inlined with relative URLs made absolute.
+ * - Cross-origin sheets (Google Fonts, CDN): added as @import so Puppeteer
+ *   fetches them directly (Puppeteer is a full browser and CAN load external URLs).
+ */
+function collectDocumentStyles(): string {
+  const parts: string[] = [];
+  const origin = window.location.origin;
+
+  for (const sheet of Array.from(document.styleSheets)) {
+    try {
+      const rules = sheet.cssRules;
+      if (!rules) continue;
+      for (const rule of Array.from(rules)) {
+        let text = rule.cssText;
+        // Make any relative url(...) references absolute so Puppeteer can fetch them
+        text = text.replace(
+          /url\((['"]?)(?!data:|https?:|ftp:|\/\/)(\/?[^'")]+)\1\)/g,
+          (_match, quote, path) => {
+            try {
+              const abs = new URL(path.startsWith('/') ? path : '/' + path, origin).href;
+              return `url(${quote}${abs}${quote})`;
+            } catch {
+              return _match;
+            }
+          },
+        );
+        parts.push(text);
+      }
+    } catch {
+      // Cross-origin sheet — Puppeteer will load it via @import
+      if (sheet.href) {
+        parts.push(`@import url('${sheet.href}');`);
+      }
+    }
+  }
+  return parts.join('\n');
+}
+
+/**
+ * Builds a self-contained HTML document from a resume template element.
+ * Embeds all document CSS so Puppeteer renders it identically to the browser.
+ */
+function buildSelfContainedHTML(
+  templateHTML: string,
+  css: string,
+  pageFormat: 'letter' | 'a4',
+  opts: { onePage?: boolean; atsMode?: boolean } = {},
+): string {
+  // Match the page width Puppeteer will use for the PDF format
+  const pageWidthPx = pageFormat === 'a4' ? 794 : 816;
+
+  const atsModeStyle = opts.atsMode
+    ? `
+      * { color: #000 !important; background: #fff !important;
+          box-shadow: none !important; text-shadow: none !important;
+          border-color: #000 !important; }
+      [class*="bg-"], [class*="text-"] { color: inherit !important; background: inherit !important; }
+    `
+    : '';
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=${pageWidthPx}, initial-scale=1.0">
+  <style>
+    *, *::before, *::after {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      box-sizing: border-box;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: ${pageWidthPx}px;
+      background: #fff;
+    }
+    ${atsModeStyle}
+    ${css}
+  </style>
+</head>
+<body>
+  <div style="width:${pageWidthPx}px; overflow:hidden;">
+    ${templateHTML}
+  </div>
+</body>
+</html>`;
+}
+
+// ── API call ──────────────────────────────────────────────────────────────────
+
+/**
+ * Posts the serialised HTML to the Express server's Puppeteer PDF endpoint.
+ * Uses VITE_API_URL in production (set it to the server's public URL).
+ * Falls back to a relative URL in dev (the Vite proxy forwards /api/* → :5001).
+ */
+async function callPdfServer(
+  payload: {
+    html: string;
+    pageFormat: string;
+    onePage?: boolean;
+    atsMode?: boolean;
+  },
+  onProgress?: OnProgressCallback,
+): Promise<Blob> {
+  const apiBase = (import.meta.env.VITE_API_URL as string | undefined) ?? '';
+  const url = `${apiBase}/api/export/pdf-native`;
+
+  onProgress?.('finalizing', 70);
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  if (response.status === 503) {
+    throw new PDFServerUnavailableError();
+  }
+
+  if (!response.ok) {
+    let msg = `Server error ${response.status}`;
+    try {
+      const j = await response.json();
+      if (j.message) msg = j.message;
+    } catch { /* ignore */ }
+    throw new Error(msg);
+  }
+
+  onProgress?.('downloading', 90);
+  return response.blob();
+}
+
+// ── Public API ────────────────────────────────────────────────────────────────
+
+/**
+ * Generate a resume PDF via Puppeteer (server-side) from a live DOM element.
+ * Produces a real PDF with selectable text, full colour, and hyperlinks.
  */
 export async function generateNativePDF(
-  _templateEl: HTMLElement,
-  _options: GenerateNativePDFOptions = {},
+  templateEl: HTMLElement,
+  options: GenerateNativePDFOptions = {},
 ): Promise<Blob> {
-  throw new PDFServerUnavailableError();
+  const {
+    pageFormat = 'letter',
+    onePage = false,
+    atsMode = false,
+    onProgress,
+  } = options;
+
+  onProgress?.('preparing', 5);
+
+  // Collect all page CSS (inline + linked stylesheets)
+  const css = collectDocumentStyles();
+
+  onProgress?.('capturing', 20);
+
+  // Serialise the live template element to HTML
+  const templateHTML = templateEl.outerHTML;
+  const html = buildSelfContainedHTML(templateHTML, css, pageFormat, { onePage, atsMode });
+
+  onProgress?.('finalizing', 50);
+
+  return callPdfServer({ html, pageFormat, onePage, atsMode }, onProgress);
 }
 
 /**
- * Generate a cover-letter PDF from a cover letter record + contact info.
- * Puppeteer pipeline pending Appwrite Functions migration — falls back to
- * window.print() via PDFServerUnavailableError caught in PreviewPage.
+ * Generate a cover letter PDF.
+ * Uses the client-side pdf-lib generator (already produces selectable text).
  */
 export async function generateCoverLetterNativePDF(
-  _letter: unknown,
+  letter: unknown,
   _contactInfo: ContactInfo | undefined,
-  _options: GenerateCoverLetterNativePDFOptions = {},
+  options: GenerateCoverLetterNativePDFOptions = {},
 ): Promise<Blob> {
-  throw new PDFServerUnavailableError();
+  const { onProgress } = options;
+  onProgress?.('preparing', 10);
+
+  const { generateCoverLetterPDF } = await import('@/lib/coverLetterPdfGenerator');
+  const bytes = await generateCoverLetterPDF(letter as Parameters<typeof generateCoverLetterPDF>[0]);
+
+  onProgress?.('downloading', 90);
+  return new Blob([bytes.buffer as ArrayBuffer], { type: 'application/pdf' });
 }
 
 /**
- * Merge two PDF blobs into one (resume + cover letter combined export).
- * Puppeteer pipeline pending Appwrite Functions migration — falls back to
- * window.print() via PDFServerUnavailableError caught in PreviewPage.
+ * Merge two PDF blobs into one document (for combined resume + cover letter export).
+ * Uses pdf-lib on the client — no server round-trip needed.
  */
-export async function mergePDFBlobs(
-  _blobA: Blob,
-  _blobB: Blob,
-): Promise<Blob> {
-  throw new PDFServerUnavailableError();
+export async function mergePDFBlobs(blobA: Blob, blobB: Blob): Promise<Blob> {
+  const [bytesA, bytesB] = await Promise.all([
+    blobA.arrayBuffer(),
+    blobB.arrayBuffer(),
+  ]);
+
+  const [docA, docB] = await Promise.all([
+    PDFDocument.load(bytesA),
+    PDFDocument.load(bytesB),
+  ]);
+
+  const merged = await PDFDocument.create();
+  const pagesA = await merged.copyPages(docA, docA.getPageIndices());
+  pagesA.forEach(p => merged.addPage(p));
+  const pagesB = await merged.copyPages(docB, docB.getPageIndices());
+  pagesB.forEach(p => merged.addPage(p));
+
+  const mergedBytes = await merged.save();
+  return new Blob([mergedBytes.buffer as ArrayBuffer], { type: 'application/pdf' });
 }
