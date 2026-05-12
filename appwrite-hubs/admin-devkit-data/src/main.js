@@ -50,7 +50,7 @@ function checkAuth(req, body) {
   const token = bearerToken(req, body);
   const password = process.env.DEVKIT_PASSWORD;
   if (!password || !token) return false;
-  if (token === password) return true; // temporary backwards compatibility for older deployed panels
+  if (token === password) return true;
   return verifySignedToken(token);
 }
 
@@ -250,6 +250,110 @@ async function handleMissionControl(log, error) {
   };
 }
 
+async function handleEdgeFnDrift(log) {
+  const now = isoNow();
+  log('edge-fn-drift: returning stub (real drift scanner not yet wired)');
+  return {
+    checkedAt: now,
+    projectRef: PROJECT_ID,
+    deployedCount: 0,
+    freshness: {
+      oldestDeployedAt: null,
+      newestDeployedAt: null,
+      olderThan30d: 0,
+    },
+    authPosture: {
+      total: 0,
+      pass: 0,
+      fail: 0,
+      knownDriftCount: 0,
+      failures: [],
+      knownDrifts: [],
+      defaultExpected: 200,
+    },
+  };
+}
+
+async function handleObservability(body, log) {
+  const { databases } = getClients();
+  const obs = body.obs_action;
+
+  if (obs === 'get_telemetry') {
+    const res = await safeList(databases, 'admin_audit_logs', [
+      sdk.Query.orderDesc('$createdAt'),
+      sdk.Query.limit(500),
+    ]);
+    if (res.error) {
+      return { telemetry: [], missing_table: false };
+    }
+    const counts = {};
+    for (const doc of res.documents) {
+      const fn = doc.action || 'unknown';
+      if (!counts[fn]) counts[fn] = { total: 0, last1h: 0 };
+      counts[fn].total += 1;
+      const age = Date.now() - new Date(doc.$createdAt).getTime();
+      if (age < 60 * 60 * 1000) counts[fn].last1h += 1;
+    }
+    const telemetry = Object.entries(counts).map(([function_name, c]) => ({
+      function_name,
+      total_count: c.total,
+      last_1h_count: c.last1h,
+      error_count: 0,
+      error_rate: 0,
+      p50_ms: 0,
+      p95_ms: 0,
+      sparkline: [],
+    }));
+    log(`observability/get_telemetry: ${telemetry.length} rows from audit log`);
+    return { telemetry, missing_table: false };
+  }
+
+  if (obs === 'get_error_stream') {
+    const queries = [sdk.Query.orderDesc('$createdAt'), sdk.Query.limit(100)];
+    if (body.since) {
+      try { queries.push(sdk.Query.greaterThanEqual('$createdAt', body.since)); } catch (_) {}
+    }
+    const res = await safeList(databases, 'error_log', queries);
+    if (res.error && res.error.includes('not found')) {
+      return { errors: [], missing_table: true };
+    }
+    let docs = res.documents || [];
+    if (body.severity && body.severity !== 'all') {
+      docs = docs.filter(d => (d.level || 'error').toLowerCase().startsWith(body.severity));
+    }
+    if (body.function_name) {
+      const fn = body.function_name.toLowerCase();
+      docs = docs.filter(d => (d.source || '').toLowerCase().includes(fn) || (d.context || '').toLowerCase().includes(fn));
+    }
+    const errors = docs.map(d => ({
+      id: d.$id,
+      message: d.message || '',
+      context: (() => { try { return JSON.parse(d.context || 'null'); } catch { return d.context || null; } })(),
+      source: d.source || null,
+      level: d.level || 'error',
+      user_id: d.user_id || null,
+      resolved: d.resolved ?? false,
+      reviewed_at: d.reviewed_at || null,
+      created_at: d.$createdAt,
+    }));
+    log(`observability/get_error_stream: ${errors.length} entries`);
+    return { errors, missing_table: false };
+  }
+
+  if (obs === 'mark_reviewed') {
+    const errorId = body.error_id;
+    if (!errorId) throw new Error('Missing error_id');
+    await databases.updateDocument(DB_ID, 'error_log', errorId, {
+      resolved: true,
+      reviewed_at: isoNow(),
+    });
+    log(`observability/mark_reviewed: ${errorId}`);
+    return { ok: true };
+  }
+
+  throw new Error(`Unknown obs_action: ${obs}`);
+}
+
 async function handleOverviewStats(log) {
   const { databases, users } = getClients();
   const auth = await users.list([sdk.Query.limit(500)]);
@@ -361,6 +465,8 @@ module.exports = async ({ req, res, log, error }) => {
     let data;
     if (action === 'diagnostics') data = await handleDiagnostics(log, error);
     else if (action === 'mission-control') data = await handleMissionControl(log, error);
+    else if (action === 'edge-fn-drift') data = await handleEdgeFnDrift(log);
+    else if (action === 'observability') data = await handleObservability(body, log);
     else if (action === 'overview-stats') data = await handleOverviewStats(log);
     else if (action === 'global-stats') data = await handleGlobalStats(log);
     else if (action === 'list-users-page') data = await handleListUsersPage(body, log);
@@ -372,7 +478,7 @@ module.exports = async ({ req, res, log, error }) => {
     else if (action === 'list-errors') data = await handleListErrors(body);
     else return json(res, rid, { success: false, code: 'UNKNOWN_ACTION', error: `Unknown action: ${action}` }, 400);
 
-    return json(res, rid, { success: true, data });
+    return json(res, rid, { success: true, ...data });
   } catch (err) {
     error(`DevKit Data Error [${rid}]: ${err.message}`);
     return json(res, rid, { success: false, code: 'FUNCTION_RUNTIME_FAILED', error: err.message }, 500);
