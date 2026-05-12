@@ -39,6 +39,7 @@ import { useChangelogBadge } from '@/hooks/useChangelogBadge';
 const CreateResumeDialog = lazy(() => import('@/components/dashboard/CreateResumeDialog').then(m => ({ default: m.CreateResumeDialog })));
 const LinkedInImportSheet = lazy(() => import('@/components/settings/LinkedInImportSheet').then(m => ({ default: m.LinkedInImportSheet })));
 const AnalyzeJobSheet = lazy(() => import('@/components/dashboard/AnalyzeJobSheet').then(m => ({ default: m.AnalyzeJobSheet })));
+const DashboardUploadWidget = lazy(() => import('@/components/dashboard/DashboardUploadWidget').then(m => ({ default: m.DashboardUploadWidget })));
 
 import { useAuth } from '@/hooks/useAuth';
 import { useGuestMigration } from '@/hooks/useGuestMigration';
@@ -772,8 +773,16 @@ function DashboardPageContent() {
           />
           </div>
 
+          {/* Upload Resume widget — inline parsing, no navigation */}
+          <div className="px-4 pt-3 pb-1" data-section="dashboard-upload">
+            <p className="text-xs font-medium text-muted-foreground mb-2.5 px-1">Import Resume</p>
+            <Suspense fallback={null}>
+              <DashboardUploadWidget />
+            </Suspense>
+          </div>
+
           {/* Explore — secondary discovery links only */}
-          <div className="px-4 pt-1 pb-1" data-section="dashboard-explore">
+          <div className="px-4 pt-3 pb-1" data-section="dashboard-explore">
             <p className="text-xs font-medium text-muted-foreground mb-2.5 px-1">Explore</p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {[

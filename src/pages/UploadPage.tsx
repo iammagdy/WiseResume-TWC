@@ -25,7 +25,7 @@ import { validateAndCleanResumeData, extractTextFromHTML } from '@/lib/jsonResum
 import { OCRPromptDialog } from '@/components/upload/OCRPromptDialog';
 import { UploadErrorRecovery, UploadErrorType } from '@/components/upload/UploadErrorRecovery';
 import { UploadProgressSteps, ParseStep } from '@/components/upload/UploadProgressSteps';
-import { ImportReviewSheet, SelectedSections } from '@/components/upload/ImportReviewSheet';
+import { ImportReviewSheet, SelectedSections, ContactEdits } from '@/components/upload/ImportReviewSheet';
 import { ATSValidationChecklist } from '@/components/upload/ATSValidationChecklist';
 import { ImportUploadSheet } from '@/components/upload/ImportUploadSheet';
 import { detectFileType, type FileType } from '@/lib/detectFileType';
@@ -181,11 +181,15 @@ export default function UploadPage() {
   }, []);
 
   // Handle import confirmation — show validation checklist instead of navigating directly
-  const handleImportConfirm = useCallback(async (data: ResumeData, sections: SelectedSections) => {
+  const handleImportConfirm = useCallback(async (data: ResumeData, sections: SelectedSections, contactEdits?: ContactEdits) => {
     // Filter data based on selected sections
     const filteredData: ResumeData = {
       ...data,
-      contactInfo: sections.contactInfo ? data.contactInfo : {
+      contactInfo: sections.contactInfo ? {
+        ...data.contactInfo,
+        ...(contactEdits?.fullName ? { fullName: contactEdits.fullName } : {}),
+        ...(contactEdits?.email ? { email: contactEdits.email } : {}),
+      } : {
         fullName: '',
         email: '',
         phone: '',
@@ -196,6 +200,11 @@ export default function UploadPage() {
       education: sections.education ? data.education : [],
       skills: sections.skills ? data.skills : [],
       certifications: sections.certifications ? data.certifications : [],
+      projects: sections.projects ? (data.projects || []) : [],
+      awards: sections.awards ? (data.awards || []) : [],
+      languages: sections.languages ? (data.languages || []) : [],
+      volunteering: sections.volunteering ? (data.volunteering || []) : [],
+      publications: sections.publications ? (data.publications || []) : [],
     };
 
     // Store filtered data and show validation checklist
