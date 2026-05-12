@@ -26,13 +26,19 @@ jobs:
           tar -czf ../../auth-master.tar.gz .
           cd ../..
 
-          # 3. Setup ai-gateway
+          # 3. Setup resume-section-ai
+          cd appwrite-hubs/resume-section-ai
+          npm install --omit=dev
+          tar -czf ../../resume-section-ai.tar.gz .
+          cd ../..
+
+          # 4. Setup ai-gateway
           cd appwrite-hubs/ai-gateway
           npm install --omit=dev
           tar -czf ../../ai-gateway.tar.gz .
           cd ../..
 
-          # 4. Setup ai-health
+          # 5. Setup ai-health
           cd appwrite-hubs/ai-health
           tar -czf ../../ai-health.tar.gz .
           cd ../..

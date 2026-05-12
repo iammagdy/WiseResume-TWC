@@ -52,6 +52,7 @@ async function deployFunction(id, name, filePath) {
 
 async function run() {
     const hubs = [
+        { id: 'resume-section-ai',         name: 'Resume Section AI Hub',         file: 'resume-section-ai.tar.gz' },
         { id: 'ai-gateway',                name: 'AI Gateway Hub',                file: 'ai-gateway.tar.gz' },
         { id: 'ai-health',                 name: 'AI Health Hub',                 file: 'ai-health.tar.gz' },
         { id: 'auth-master',               name: 'Auth Master Hub',               file: 'auth-master.tar.gz' },
