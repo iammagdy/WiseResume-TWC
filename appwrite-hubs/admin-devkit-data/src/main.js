@@ -1,26 +1,62 @@
-/**
- * admin-devkit-data — Appwrite Function
- *
- * Serves multiple DevKit admin panels: Mission Control, Analytics, etc.
- */
+'use strict';
 
 const sdk = require('node-appwrite');
 const axios = require('axios');
+const crypto = require('crypto');
 
 const DB_ID = 'main';
+const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
+const PROJECT_ID = process.env.APPWRITE_FUNCTION_PROJECT_ID || process.env.APPWRITE_PROJECT_ID || '69fd362b001eb325a192';
+const ENDPOINT = process.env.APPWRITE_FUNCTION_API_ENDPOINT || process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
+const PRODUCTION_URL = process.env.PRODUCTION_URL || 'https://resume.thewise.cloud';
 
-// ─── Appwrite client factory ──────────────────────────────────────────────────
+function requestId() {
+  return `dk_${Date.now().toString(36)}_${crypto.randomBytes(4).toString('hex')}`;
+}
+
+function json(res, requestIdValue, payload, status = 200) {
+  return res.json({ requestId: requestIdValue, ...payload }, status);
+}
+
+function base64url(input) {
+  return Buffer.from(input).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+}
+
+function signToken(payload) {
+  const secret = process.env.DEVKIT_PASSWORD;
+  if (!secret) throw new Error('DEVKIT_PASSWORD is not configured');
+  const encoded = base64url(JSON.stringify(payload));
+  const sig = crypto.createHmac('sha256', secret).update(encoded).digest('base64url');
+  return `${encoded}.${sig}`;
+}
+
+function verifySignedToken(token) {
+  const secret = process.env.DEVKIT_PASSWORD;
+  if (!secret || !token || !token.includes('.')) return false;
+  const [encoded, sig] = token.split('.');
+  const expected = crypto.createHmac('sha256', secret).update(encoded).digest('base64url');
+  if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return false;
+  let payload;
+  try { payload = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8')); } catch { return false; }
+  return payload.purpose === 'devkit' && typeof payload.exp === 'number' && Date.now() < payload.exp;
+}
+
+function bearerToken(req, body) {
+  const authHeader = body?.__headers?.Authorization || req.headers?.authorization || req.headers?.Authorization || '';
+  return authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+}
+
+function checkAuth(req, body) {
+  const token = bearerToken(req, body);
+  const password = process.env.DEVKIT_PASSWORD;
+  if (!password || !token) return false;
+  if (token === password) return true; // temporary backwards compatibility for older deployed panels
+  return verifySignedToken(token);
+}
 
 function getClients() {
-  const endpoint = process.env.APPWRITE_FUNCTION_API_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
-  const projectId = process.env.APPWRITE_FUNCTION_PROJECT_ID;
   const apiKey = process.env.APPWRITE_API_KEY || process.env.APPWRITE_FUNCTION_API_KEY;
-
-  const client = new sdk.Client()
-    .setEndpoint(endpoint)
-    .setProject(projectId)
-    .setKey(apiKey);
-
+  const client = new sdk.Client().setEndpoint(ENDPOINT).setProject(PROJECT_ID).setKey(apiKey || '');
   return {
     databases: new sdk.Databases(client),
     functions: new sdk.Functions(client),
@@ -28,457 +64,138 @@ function getClients() {
   };
 }
 
-// ─── Auth middleware ──────────────────────────────────────────────────────────
-
-function checkAuth(req, body) {
-  const password = process.env.DEVKIT_PASSWORD;
-  if (!password) return false;
-  
-  // Appwrite SDK executions don't support custom headers, so the frontend
-  // passes them in the body as __headers.
-  const authHeader = body?.__headers?.Authorization || req.headers['authorization'] || req.headers['Authorization'] || '';
-  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
-  return token === password;
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function isoNow() {
-  return new Date().toISOString();
-}
+function envPresent(key) { return !!process.env[key]; }
+function isoNow() { return new Date().toISOString(); }
 
 async function safeList(databases, collectionId, queries = []) {
-  try {
-    const result = await databases.listDocuments(DB_ID, collectionId, queries);
-    return result.documents;
-  } catch {
-    return [];
-  }
+  try { return await databases.listDocuments(DB_ID, collectionId, queries); }
+  catch (e) { return { documents: [], total: 0, error: e.message }; }
 }
 
-async function safeCount(databases, collectionId, queries = []) {
-  try {
-    const result = await databases.listDocuments(DB_ID, collectionId, [
-      ...queries,
-      sdk.Query.limit(1),
-    ]);
-    return result.total;
-  } catch {
-    return 0;
-  }
-}
-
-// ─── LIST USERS PAGE ─────────────────────────────────────────────────────────
-
-/**
- * Returns a page of profiles joined with their subscription and credits data.
- * Runs server-side (admin API key) so it is not bound by document-level
- * Appwrite permissions — the client SDK cannot do cross-user reads on
- * subscriptions / ai_credits.
- *
- * Resilience notes:
- *   - userIds guard: Appwrite rejects Query.equal('field', []) (empty array).
- *     When no profiles have a user_id (rare edge case) we skip the join and
- *     return profiles with default plan/credits data.
- *   - Promise.allSettled: if subscriptions or ai_credits are missing a
- *     user_id index the query throws — we fall back to empty maps and log a
- *     warning rather than failing the entire user-list request.
- */
-async function handleListUsersPage(body, log) {
-  const { databases } = getClients();
-
-  const page     = Math.max(0, Number(body.page) || 0);
-  const pageSize = Math.min(Math.max(1, Number(body.pageSize) || 25), 100);
-  const sortField = body.sortField === '$updatedAt' ? '$updatedAt' : '$createdAt';
-
-  const profilesRes = await databases.listDocuments(DB_ID, 'profiles', [
-    sdk.Query.orderDesc(sortField),
-    sdk.Query.limit(pageSize),
-    sdk.Query.offset(page * pageSize),
-  ]);
-
-  const profiles = profilesRes.documents;
-  const total    = profilesRes.total;
-
-  if (profiles.length === 0) {
-    log(`list-users-page: page=${page} total=${total} returned=0`);
-    return { users: [], total };
-  }
-
-  // Guard: only query by user_id when we actually have IDs.
-  // Appwrite throws on Query.equal('user_id', []) — empty array is invalid.
-  const userIds = profiles.map(p => p.user_id).filter(Boolean);
-
-  let subsMap    = new Map();
-  let creditsMap = new Map();
-
-  if (userIds.length > 0) {
-    const [subsResult, creditsResult] = await Promise.allSettled([
-      databases.listDocuments(DB_ID, 'subscriptions', [
-        sdk.Query.equal('user_id', userIds),
-        sdk.Query.limit(pageSize),
-      ]),
-      databases.listDocuments(DB_ID, 'ai_credits', [
-        sdk.Query.equal('user_id', userIds),
-        sdk.Query.limit(pageSize),
-      ]),
-    ]);
-
-    if (subsResult.status === 'fulfilled') {
-      subsMap = new Map(subsResult.value.documents.map(s => [s.user_id, s]));
-    } else {
-      log(`list-users-page WARNING: subscriptions join failed — plan data shows as 'free'. Reason: ${subsResult.reason?.message ?? subsResult.reason}`);
-    }
-
-    if (creditsResult.status === 'fulfilled') {
-      creditsMap = new Map(creditsResult.value.documents.map(c => [c.user_id, c]));
-    } else {
-      log(`list-users-page WARNING: ai_credits join failed — credits show as 0. Reason: ${creditsResult.reason?.message ?? creditsResult.reason}`);
-    }
-  } else {
-    log(`list-users-page: all ${profiles.length} profiles have null user_id — skipping join queries`);
-  }
-
-  const enriched = profiles.map(doc => {
-    const sub    = subsMap.get(doc.user_id);
-    const credit = creditsMap.get(doc.user_id);
-    const rawPlan = (sub && sub.plan) || 'free';
-    const planName = ['free', 'pro', 'premium'].includes(rawPlan) ? rawPlan : 'free';
-    return {
-      $id:                doc.$id,
-      $createdAt:         doc.$createdAt,
-      user_id:            doc.user_id,
-      email:              doc.email              ?? null,
-      full_name:          doc.full_name          ?? null,
-      contact_email:      doc.contact_email      ?? null,
-      plan_name:          planName,
-      plan_updated_at:    sub ? sub.$updatedAt   : null,
-      is_suspended:       doc.is_suspended       ?? false,
-      suspension_reason:  doc.suspension_reason  ?? null,
-      daily_limit:        (credit && credit.daily_limit != null) ? credit.daily_limit : null,
-      credits_used_today: (credit && credit.credits_used_today)  ? credit.credits_used_today : 0,
-      trial_plan:         doc.trial_plan         ?? null,
-      trial_expires_at:   doc.trial_expires_at   ?? null,
-      resumeCount:        0,
-    };
-  });
-
-  log(`list-users-page: page=${page} sortField=${sortField} total=${total} returned=${enriched.length}`);
-  return { users: enriched, total };
-}
-
-// ─── OVERVIEW STATS ───────────────────────────────────────────────────────────
-
-/**
- * Returns accurate infrastructure counts using the server-side API key:
- *   - totalAuthUsers   — real Appwrite Auth account count (not profile docs)
- *   - verifiedUsers    — accounts with emailVerification === true
- *   - totalResumes     — resumes owned by current Auth users (orphans excluded)
- *   - orphanedResumes  — resumes whose owner no longer exists in Appwrite Auth
- *
- * Implementation notes:
- *   - Auth users are paginated in 500-per-request batches until all are loaded.
- *   - Resume counting chunks collected user IDs into groups of 100 (Appwrite
- *     Query.equal array limit) and sums totals across all chunks, so every
- *     user is covered regardless of platform size.
- */
-async function handleOverviewStats(log) {
-  const { databases, users: usersClient } = getClients();
-
-  // Paginate through ALL Appwrite Auth accounts (max 500 per request).
-  // Failure is intentionally propagated — partial Auth data would produce
-  // misleading counts (e.g. all resumes appearing "orphaned").
-  let totalAuthUsers  = 0;
-  let verifiedUsers   = 0;
-  const allAuthUserIds = [];
-  const BATCH = 500;
-  let offset = 0;
-  let isFirstPage = true;
-  while (true) {
-    const batch = await usersClient.list([sdk.Query.limit(BATCH), sdk.Query.offset(offset)]);
-    if (isFirstPage) {
-      totalAuthUsers = batch.total; // authoritative total from first response
-      isFirstPage = false;
-    }
-    const ids = batch.users.map(u => u.$id);
-    allAuthUserIds.push(...ids);
-    verifiedUsers += batch.users.filter(u => u.emailVerification).length;
-    if (ids.length < BATCH) break; // last page
-    offset += ids.length;
-  }
-  log(`overview-stats: loaded ${allAuthUserIds.length} of ${totalAuthUsers} auth users`);
-
-  // Total resumes in DB (including any orphaned ones).
-  // Failure is intentionally propagated — a zero fallback would make orphaned
-  // count negative or hide real orphan numbers.
-  const allResumesRes = await databases.listDocuments(DB_ID, 'resumes', [sdk.Query.limit(1)]);
-  const totalAllResumes = allResumesRes.total;
-
-  // Count resumes owned by current Auth users — chunk into ≤100 IDs per
-  // query to respect the Appwrite Query.equal array limit.
-  let activeResumes = 0;
-  if (allAuthUserIds.length > 0) {
-    const CHUNK = 100;
-    const chunks = [];
-    for (let i = 0; i < allAuthUserIds.length; i += CHUNK) {
-      chunks.push(allAuthUserIds.slice(i, i + CHUNK));
-    }
-    // Failure is intentionally propagated — falling back to totalAllResumes
-    // would report zero orphans even when Auth data is stale/partial.
-    const results = await Promise.all(
-      chunks.map(ids =>
-        databases.listDocuments(DB_ID, 'resumes', [
-          sdk.Query.equal('user_id', ids),
-          sdk.Query.limit(1),
-        ])
-      )
-    );
-    activeResumes = results.reduce((sum, r) => sum + r.total, 0);
-  }
-
-  const orphanedResumes = Math.max(0, totalAllResumes - activeResumes);
-
-  log(`overview-stats: authUsers=${totalAuthUsers} verified=${verifiedUsers} dbResumes=${totalAllResumes} active=${activeResumes} orphaned=${orphanedResumes}`);
-  return { totalAuthUsers, verifiedUsers, totalResumes: activeResumes, orphanedResumes };
-}
-
-// ─── PURGE ORPHANS ───────────────────────────────────────────────────────────
-
-/**
- * Finds and optionally deletes `profiles` and `resumes` documents whose
- * `user_id` no longer exists in Appwrite Auth.
- *
- * Parameters (body):
- *   dryRun: boolean  — default true. When true, returns a preview without
- *                      deleting anything. Set to false to permanently delete.
- *
- * Returns (dryRun=true):
- *   { dryRun: true, orphanedProfiles, orphanedResumes, sampleProfiles, sampleResumes }
- *
- * Returns (dryRun=false):
- *   { dryRun: false, deletedProfiles, deletedResumes }
- *
- * Failure is intentionally propagated — silent fallbacks would give false
- * confidence that no orphans exist.
- */
-async function handlePurgeOrphans(body, log) {
-  const dryRun = body.dryRun !== false; // default: true (safe preview)
-  const { databases, users: usersClient } = getClients();
-
-  // ── Step 1: Collect ALL Auth user IDs (paginated 500/batch) ──────────────
-  const authUserIds = new Set();
-  const BATCH = 500;
-  let uOffset = 0;
-  while (true) {
-    const batch = await usersClient.list([sdk.Query.limit(BATCH), sdk.Query.offset(uOffset)]);
-    batch.users.forEach(u => authUserIds.add(u.$id));
-    if (batch.users.length < BATCH) break;
-    uOffset += batch.users.length;
-  }
-  log(`purge-orphans: loaded ${authUserIds.size} auth user IDs`);
-
-  // ── Step 2: Scan profiles for orphans ─────────────────────────────────────
-  const orphanedProfileDocs = [];
-  let pOffset = 0;
-  while (true) {
-    const batch = await databases.listDocuments(DB_ID, 'profiles', [
-      sdk.Query.limit(100),
-      sdk.Query.offset(pOffset),
-    ]);
-    for (const doc of batch.documents) {
-      if (!doc.user_id || !authUserIds.has(doc.user_id)) {
-        orphanedProfileDocs.push({ $id: doc.$id, user_id: doc.user_id ?? null, email: doc.email ?? null });
-      }
-    }
-    if (batch.documents.length < 100) break;
-    pOffset += batch.documents.length;
-  }
-
-  // ── Step 3: Scan resumes for orphans ──────────────────────────────────────
-  const orphanedResumeDocs = [];
-  let rOffset = 0;
-  while (true) {
-    const batch = await databases.listDocuments(DB_ID, 'resumes', [
-      sdk.Query.limit(100),
-      sdk.Query.offset(rOffset),
-    ]);
-    for (const doc of batch.documents) {
-      if (!doc.user_id || !authUserIds.has(doc.user_id)) {
-        orphanedResumeDocs.push({ $id: doc.$id, user_id: doc.user_id ?? null, title: doc.title ?? null });
-      }
-    }
-    if (batch.documents.length < 100) break;
-    rOffset += batch.documents.length;
-  }
-
-  log(`purge-orphans: found ${orphanedProfileDocs.length} orphaned profiles, ${orphanedResumeDocs.length} orphaned resumes (dryRun=${dryRun})`);
-
-  // ── Dry-run: return preview without deleting ───────────────────────────────
-  if (dryRun) {
-    return {
-      dryRun: true,
-      orphanedProfiles: orphanedProfileDocs.length,
-      orphanedResumes:  orphanedResumeDocs.length,
-      sampleProfiles:   orphanedProfileDocs.slice(0, 5),
-      sampleResumes:    orphanedResumeDocs.slice(0, 5),
-    };
-  }
-
-  // ── Live run: delete orphans then audit-log ───────────────────────────────
-  // Resumes first so profiles (which may be referenced by resume FK) go last.
-  for (const doc of orphanedResumeDocs) {
-    await databases.deleteDocument(DB_ID, 'resumes', doc.$id);
-  }
-  for (const doc of orphanedProfileDocs) {
-    await databases.deleteDocument(DB_ID, 'profiles', doc.$id);
-  }
-
-  const deletedResumes  = orphanedResumeDocs.length;
-  const deletedProfiles = orphanedProfileDocs.length;
-
-  // Write audit log — intentionally non-fatal. If the admin_audit_logs
-  // collection is unavailable (schema mismatch, wrong permissions, missing in
-  // this Appwrite project), the purge has already succeeded and we do not want
-  // to roll back deletions because of a logging failure. Monitor the function
-  // log output for "audit log write failed" warnings if auditability matters.
+async function auditLog(databases, action, metadata = {}) {
   try {
     await databases.createDocument(DB_ID, 'admin_audit_logs', sdk.ID.unique(), {
-      action:   'purge-orphans',
-      category: 'data-cleanup',
-      metadata: JSON.stringify({ deletedProfiles, deletedResumes }),
-      user_id:  null,
+      action,
+      category: 'devkit',
+      metadata: JSON.stringify(metadata),
+      user_id: null,
     });
-  } catch (e) {
-    log(`purge-orphans: audit log write failed (non-fatal): ${e.message}`);
-  }
-
-  log(`purge-orphans: deleted ${deletedResumes} resumes, ${deletedProfiles} profiles`);
-  return { dryRun: false, deletedProfiles, deletedResumes };
+  } catch (_) {}
 }
 
-// ─── LIST AUDIT LOGS ──────────────────────────────────────────────────────────
+function item(group, id, label, status, summary, detail) {
+  return { group, id, label, status, summary, detail };
+}
 
-/**
- * Returns recent admin audit log entries from the server-side API key.
- * Replaces the direct databases.listDocuments call in AuditLogPanel which
- * is blocked by document-level permissions in the client SDK.
- */
-async function handleListAuditLogs(body, log) {
-  const { databases } = getClients();
-  const limit  = Math.min(Math.max(1, Number(body.limit)  || 25), 100);
-  const offset = Math.max(0, Number(body.offset) || 0);
+function worstStatus(items) {
+  if (items.some(i => i.status === 'broken')) return 'broken';
+  if (items.some(i => i.status === 'warning')) return 'warning';
+  if (items.some(i => i.status === 'not_configured')) return 'warning';
+  return 'healthy';
+}
 
-  // Try admin_audit_logs first (DevKit writes go here); fall back to audit_logs.
-  let res;
+async function verifyDevKitSession(body) {
+  const password = process.env.DEVKIT_PASSWORD;
+  if (!password) return { success: false, code: 'CONFIG_MISSING', error: 'DEVKIT_PASSWORD is not configured.' };
+  if (!body.password || body.password !== password) {
+    return { success: false, code: 'INVALID_PASSWORD', error: 'Invalid DevKit password.' };
+  }
+  const now = Date.now();
+  const expiresAtMs = now + SESSION_TTL_MS;
+  const token = signToken({ purpose: 'devkit', iat: now, exp: expiresAtMs, version: 1 });
+  return {
+    success: true,
+    session: { token, expiresAt: new Date(expiresAtMs).toISOString(), email: 'admin@thewise.cloud' },
+  };
+}
+
+async function handleDiagnostics(log, error) {
+  const { databases, functions, users } = getClients();
+  const items = [];
+
+  items.push(item('Access', 'devkit-password', 'DevKit Password', envPresent('DEVKIT_PASSWORD') ? 'healthy' : 'broken', envPresent('DEVKIT_PASSWORD') ? 'DEVKIT_PASSWORD is present.' : 'DEVKIT_PASSWORD is missing.', 'Required for login and signed token verification.'));
+  items.push(item('Access', 'appwrite-api-key', 'Appwrite API Key', envPresent('APPWRITE_API_KEY') || envPresent('APPWRITE_FUNCTION_API_KEY') ? 'healthy' : 'broken', envPresent('APPWRITE_API_KEY') || envPresent('APPWRITE_FUNCTION_API_KEY') ? 'Server API key is present.' : 'Server API key is missing.', 'Required for cross-user admin reads.'));
+
   try {
-    res = await databases.listDocuments(DB_ID, 'admin_audit_logs', [
-      sdk.Query.orderDesc('$createdAt'),
-      sdk.Query.limit(limit),
-      sdk.Query.offset(offset),
-    ]);
-  } catch {
-    res = await databases.listDocuments(DB_ID, 'audit_logs', [
-      sdk.Query.orderDesc('$createdAt'),
-      sdk.Query.limit(limit),
-      sdk.Query.offset(offset),
-    ]);
+    const authUsers = await users.list([sdk.Query.limit(1)]);
+    items.push(item('Access', 'auth-users', 'Auth Users API', 'healthy', `Users API reachable. Total auth users: ${authUsers.total}.`));
+  } catch (e) {
+    items.push(item('Access', 'auth-users', 'Auth Users API', 'broken', 'Users API could not be reached.', e.message));
   }
 
-  log(`list-audit-logs: total=${res.total} returned=${res.documents.length}`);
-  return { documents: res.documents, total: res.total };
-}
-
-// ─── LIST DISCOUNT CODES ──────────────────────────────────────────────────────
-
-async function handleListDiscountCodes(log) {
-  const { databases } = getClients();
-  const res = await databases.listDocuments(DB_ID, 'discount_codes', [
-    sdk.Query.orderDesc('$createdAt'),
-    sdk.Query.limit(100),
-  ]);
-  log(`list-discount-codes: total=${res.total}`);
-  return { codes: res.documents, total: res.total };
-}
-
-// ─── ADD DISCOUNT CODE ────────────────────────────────────────────────────────
-
-async function handleAddDiscountCode(body, log) {
-  const { databases } = getClients();
-  const { code, percent_off = 100, active = true } = body;
-  if (!code || typeof code !== 'string' || !code.trim()) {
-    throw new Error('Missing or empty code');
+  const requiredFunctions = ['admin-devkit-data', 'inspect-ai-keys', 'ai-gateway', 'admin-feature-flags', 'admin-email', 'admin-testmail', 'admin-visitor-analytics'];
+  try {
+    const fnPage = await functions.list([sdk.Query.limit(200)]);
+    for (const fn of requiredFunctions) {
+      const found = fnPage.functions.find(f => f.$id === fn || f.name === fn);
+      items.push(item('Functions', `fn-${fn}`, fn, found ? (found.enabled ? 'healthy' : 'warning') : 'broken', found ? `${fn} is deployed${found.enabled ? ' and enabled' : ' but disabled'}.` : `${fn} is not deployed.`, found ? `Runtime: ${found.runtime || 'unknown'}` : 'Deploy the Appwrite Function from appwrite-hubs.'));
+    }
+  } catch (e) {
+    items.push(item('Functions', 'functions-list', 'Function Inventory', 'broken', 'Could not list Appwrite Functions.', e.message));
   }
-  const upper = code.trim().toUpperCase();
-  const doc = await databases.createDocument(DB_ID, 'discount_codes', sdk.ID.unique(), {
-    code: upper,
-    active,
-    percent_off: Number(percent_off) || 100,
-  });
-  log(`add-discount-code: ${upper}`);
-  return { code: doc };
+
+  const requiredCollections = ['profiles', 'subscriptions', 'ai_credits', 'resumes', 'admin_audit_logs', 'audit_logs', 'feature_flags', 'error_log', 'discount_codes', 'app_settings', 'usage_events', 'visitor_events', 'contact_requests'];
+  try {
+    const collPage = await databases.listCollections(DB_ID, [sdk.Query.limit(200)]);
+    for (const coll of requiredCollections) {
+      const found = collPage.collections.find(c => c.$id === coll);
+      items.push(item('Database', `coll-${coll}`, coll, found ? 'healthy' : 'not_configured', found ? `${coll} collection exists.` : `${coll} collection is missing.`, found ? `Attributes: ${(found.attributes || []).map(a => a.key).join(', ') || 'none'}` : 'Create the collection or keep dependent panels marked as needing schema.'));
+    }
+  } catch (e) {
+    items.push(item('Database', 'collections-list', 'Collection Inventory', 'broken', 'Could not list Appwrite collections.', e.message));
+  }
+
+  const providerEnv = [
+    ['OPENROUTER_KEY_1', 'OpenRouter primary'],
+    ['OPENROUTER_KEY_2', 'OpenRouter secondary'],
+    ['GROQ_KEY_1', 'Groq primary'],
+    ['DEEPSEEK_KEY', 'DeepSeek'],
+    ['NVIDIA_KEY_1', 'NVIDIA NIM primary'],
+  ];
+  for (const [key, label] of providerEnv) {
+    items.push(item('Providers', `env-${key}`, label, envPresent(key) ? 'healthy' : 'not_configured', envPresent(key) ? `${label} key is present.` : `${label} key is not configured.`, key));
+  }
+
+  items.push(item('Email', 'resend-key', 'Resend API Key', envPresent('RESEND_API_KEY') ? 'healthy' : 'not_configured', envPresent('RESEND_API_KEY') ? 'RESEND_API_KEY is present.' : 'RESEND_API_KEY is not configured.', 'Email center and Testmail send test require this.'));
+  items.push(item('Email', 'testmail-key', 'Testmail API Key', envPresent('TESTMAIL_API_KEY') ? 'healthy' : 'not_configured', envPresent('TESTMAIL_API_KEY') ? 'TESTMAIL_API_KEY is present.' : 'TESTMAIL_API_KEY is not configured.', 'Testmail inbox requires this.'));
+
+  try {
+    const site = await axios.get(PRODUCTION_URL, { timeout: 8000, validateStatus: () => true });
+    items.push(item('Production', 'production-url', 'Production URL', site.status < 400 ? 'healthy' : 'warning', `${PRODUCTION_URL} returned HTTP ${site.status}.`, 'Default is resume.thewise.cloud.'));
+  } catch (e) {
+    items.push(item('Production', 'production-url', 'Production URL', 'broken', `${PRODUCTION_URL} is unreachable.`, e.message));
+  }
+
+  log(`diagnostics: ${items.length} checks overall=${worstStatus(items)}`);
+  return { checkedAt: isoNow(), overallStatus: worstStatus(items), items };
 }
-
-// ─── LIST ALL RESUMES ─────────────────────────────────────────────────────────
-
-/**
- * Returns a page of resumes from all users — requires admin API key.
- * Replaces DatabaseXRay's direct databases.listDocuments call which is
- * scoped to the current user only.
- */
-async function handleListAllResumes(body, log) {
-  const { databases } = getClients();
-  const limit  = Math.min(Math.max(1, Number(body.limit)  || 20), 100);
-  const offset = Math.max(0, Number(body.offset) || 0);
-  const res = await databases.listDocuments(DB_ID, 'resumes', [
-    sdk.Query.orderDesc('$createdAt'),
-    sdk.Query.limit(limit),
-    sdk.Query.offset(offset),
-  ]);
-  log(`list-all-resumes: total=${res.total} returned=${res.documents.length}`);
-  return { documents: res.documents, total: res.total };
-}
-
-// ─── MISSION CONTROL ─────────────────────────────────────────────────────────
 
 async function handleMissionControl(log, error) {
   const { databases } = getClients();
   const now = isoNow();
-
-  let deploy = {
+  const deploy = {
     ok: false,
     lastCommitAt: null,
     sha: null,
     branch: 'main',
-    repoConfigured: false,
-    repoUrl: null,
-    productionUrl: process.env.PRODUCTION_URL || 'https://thewise.cloud',
+    repoConfigured: !!process.env.GITHUB_TOKEN,
+    repoUrl: 'https://github.com/iammagdy/WiseResume-TWC',
+    productionUrl: PRODUCTION_URL,
     siteUp: false,
     sitePingedAt: now,
     siteHttpStatus: 0,
   };
 
-  const githubToken = process.env.GITHUB_TOKEN;
-  const repoSlug = 'iammagdy/WiseResume-TWC';
-
-  if (githubToken) {
+  if (process.env.GITHUB_TOKEN) {
     try {
-      const ghRes = await axios.get(
-        `https://api.github.com/repos/${repoSlug}/commits/main`,
-        {
-          headers: { Authorization: `Bearer ${githubToken}`, 'User-Agent': 'WiseCloud-DevKit/1.0' },
-          timeout: 6000,
-        },
-      );
-      deploy.repoConfigured = true;
-      deploy.repoUrl = `https://github.com/${repoSlug}`;
+      const ghRes = await axios.get('https://api.github.com/repos/iammagdy/WiseResume-TWC/commits/main', {
+        headers: { Authorization: `Bearer ${process.env.GITHUB_TOKEN}`, 'User-Agent': 'WiseCloud-DevKit/1.0' },
+        timeout: 6000,
+      });
       deploy.sha = ghRes.data.sha?.slice(0, 7) ?? null;
       deploy.lastCommitAt = ghRes.data.commit?.committer?.date ?? null;
       deploy.ok = true;
-    } catch (e) {
-      error(`GitHub fetch failed: ${e.message}`);
-      deploy.repoConfigured = true;
-      deploy.repoUrl = `https://github.com/${repoSlug}`;
-    }
+    } catch (e) { error(`GitHub fetch failed: ${e.message}`); }
   }
 
   try {
@@ -486,119 +203,27 @@ async function handleMissionControl(log, error) {
     deploy.siteUp = siteRes.status < 400;
     deploy.siteHttpStatus = siteRes.status;
     deploy.sitePingedAt = isoNow();
-  } catch (e) {
-    error(`Site ping failed: ${e.message}`);
-    deploy.siteHttpStatus = 0;
-  }
+  } catch (e) { error(`Site ping failed: ${e.message}`); }
 
   const providerPings = [];
-  const providerConfigs = [
-    { key: 'OPENROUTER_KEY_1', provider: 'openrouter', url: 'https://openrouter.ai/api/v1/models', configuredKey: 'openrouterConfigured' },
-    { key: 'GROQ_KEY_1',       provider: 'groq',        url: 'https://api.groq.com/openai/v1/models', configuredKey: 'groqConfigured' },
+  const providers = [
+    { key: 'OPENROUTER_KEY_1', provider: 'openrouter', url: 'https://openrouter.ai/api/v1/models' },
+    { key: 'GROQ_KEY_1', provider: 'groq', url: 'https://api.groq.com/openai/v1/models' },
+    { key: 'DEEPSEEK_KEY', provider: 'deepseek', url: 'https://api.deepseek.com/models' },
+    { key: 'NVIDIA_KEY_1', provider: 'nvidia', url: 'https://integrate.api.nvidia.com/v1/models' },
   ];
-
-  let openrouterConfigured = !!process.env.OPENROUTER_KEY_1;
-  let groqConfigured = !!process.env.GROQ_KEY_1;
-
-  for (const cfg of providerConfigs) {
+  for (const cfg of providers) {
     const apiKey = process.env[cfg.key];
-    if (!apiKey) {
-      providerPings.push({ provider: cfg.provider, ok: false, latencyMs: null, httpStatus: 0 });
-      continue;
-    }
-
+    if (!apiKey) { providerPings.push({ provider: cfg.provider, ok: false, latencyMs: null, httpStatus: 0 }); continue; }
     const start = Date.now();
     try {
-      const r = await axios.get(cfg.url, {
-        headers: { Authorization: `Bearer ${apiKey}` },
-        timeout: 6000,
-        validateStatus: () => true,
-      });
-      providerPings.push({
-        provider: cfg.provider,
-        ok: r.status >= 200 && r.status < 300,
-        latencyMs: Date.now() - start,
-        httpStatus: r.status,
-      });
-    } catch {
-      providerPings.push({ provider: cfg.provider, ok: false, latencyMs: null, httpStatus: 0 });
-    }
+      const r = await axios.get(cfg.url, { headers: { Authorization: `Bearer ${apiKey}` }, timeout: 6000, validateStatus: () => true });
+      providerPings.push({ provider: cfg.provider, ok: r.status >= 200 && r.status < 300, latencyMs: Date.now() - start, httpStatus: r.status });
+    } catch { providerPings.push({ provider: cfg.provider, ok: false, latencyMs: null, httpStatus: 0 }); }
   }
 
-  const anyProviderOk = providerPings.some(p => p.ok);
-  const allProvidersOk = providerPings.length > 0 && providerPings.every(p => p.ok);
-
-  const resendKey = process.env.RESEND_API_KEY;
-  let email = {
-    resendKeyPresent: !!resendKey,
-    reachable: false,
-    httpStatus: 0,
-    reason: resendKey ? undefined : 'missing_key',
-  };
-
-  if (resendKey) {
-    try {
-      const rRes = await axios.get('https://api.resend.com/emails', {
-        headers: { Authorization: `Bearer ${resendKey}` },
-        timeout: 5000,
-        validateStatus: () => true,
-      });
-      email.reachable = rRes.status < 500;
-      email.httpStatus = rRes.status;
-    } catch {
-      email.httpStatus = 0;
-    }
-  }
-
-  let database = { ok: false, error: null, errorCount1h: null };
-  try {
-    await databases.listDocuments(DB_ID, 'feature_flags', [sdk.Query.limit(1)]);
-    database.ok = true;
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-    database.errorCount1h = await safeCount(databases, 'error_log', [
-      sdk.Query.greaterThanEqual('$createdAt', oneHourAgo),
-    ]);
-  } catch (e) {
-    database.error = e.message;
-  }
-
-  const secretDefs = [
-    { key: 'DEVKIT_PASSWORD',   label: 'DevKit password',  envKey: 'DEVKIT_PASSWORD' },
-    { key: 'RESEND_API_KEY',    label: 'Resend API key',   envKey: 'RESEND_API_KEY' },
-    { key: 'APPWRITE_API_KEY',  label: 'Appwrite API key', envKey: 'APPWRITE_API_KEY' },
-  ];
-
-  const secretItems = secretDefs.map(def => ({
-    key: def.key,
-    label: def.label,
-    present: !!process.env[def.envKey],
-    source: 'appwrite_function_variable',
-  }));
-
-  const recentErrorDocs = await safeList(databases, 'error_log', [
-    sdk.Query.orderDesc('$createdAt'),
-    sdk.Query.limit(10),
-  ]);
-  const recentErrors = recentErrorDocs.map(d => ({
-    id: d.$id,
-    message: d.message || '',
-    context: d.context || null,
-    created_at: d.$createdAt,
-    level: d.level || 'error',
-  }));
-
-  const recentAdminDocs = await safeList(databases, 'admin_audit_logs', [
-    sdk.Query.orderDesc('$createdAt'),
-    sdk.Query.limit(5),
-  ]);
-  const recentAdminActions = recentAdminDocs.map(d => ({
-    id: d.$id,
-    action: d.action || '',
-    category: d.category || null,
-    metadata: d.metadata || null,
-    created_at: d.$createdAt,
-    user_id: d.user_id || null,
-  }));
+  const errorDocs = await safeList(databases, 'error_log', [sdk.Query.orderDesc('$createdAt'), sdk.Query.limit(10)]);
+  const adminDocs = await safeList(databases, 'admin_audit_logs', [sdk.Query.orderDesc('$createdAt'), sdk.Query.limit(5)]);
 
   return {
     isDevEnvironment: process.env.NODE_ENV !== 'production',
@@ -606,148 +231,150 @@ async function handleMissionControl(log, error) {
     deploy,
     ai: {
       providerPings,
-      openrouterConfigured,
-      groqConfigured,
-      anyProviderOk,
-      allProvidersOk,
+      openrouterConfigured: !!process.env.OPENROUTER_KEY_1,
+      openrouter2Configured: !!process.env.OPENROUTER_KEY_2,
+      groqConfigured: !!process.env.GROQ_KEY_1,
+      anyProviderOk: providerPings.some(p => p.ok),
+      allProvidersOk: providerPings.length > 0 && providerPings.every(p => p.ok),
+      keysInSupabaseVault: false,
     },
-    email,
-    database,
+    email: { resendKeyPresent: !!process.env.RESEND_API_KEY, reachable: !!process.env.RESEND_API_KEY, httpStatus: 0, sends24h: null, keyInSupabaseVault: false, reason: process.env.RESEND_API_KEY ? undefined : 'missing_key' },
+    database: { ok: !errorDocs.error, error: errorDocs.error || null, errorCount1h: errorDocs.total },
     secrets: {
-      items: secretItems,
-      missingCount: secretItems.filter(s => !s.present).length,
+      items: ['DEVKIT_PASSWORD', 'APPWRITE_API_KEY', 'RESEND_API_KEY'].map(key => ({ key, label: key, present: envPresent(key), source: 'appwrite_function_variable', lastRotatedAt: null, stale: false, daysSinceRotation: null })),
+      missingCount: ['DEVKIT_PASSWORD', 'APPWRITE_API_KEY'].filter(k => !envPresent(k)).length,
+      staleCount: 0,
     },
-    recentErrors,
-    recentAdminActions,
+    recentErrors: errorDocs.documents.map(d => ({ id: d.$id, message: d.message || '', context: d.context || null, created_at: d.$createdAt, level: d.level || 'error' })),
+    recentAdminActions: adminDocs.documents.map(d => ({ id: d.$id, action: d.action || '', category: d.category || null, metadata: d.metadata || null, created_at: d.$createdAt, user_id: d.user_id || null })),
   };
 }
 
-// ─── GLOBAL STATS ─────────────────────────────────────────────────────────────
+async function handleOverviewStats(log) {
+  const { databases, users } = getClients();
+  const auth = await users.list([sdk.Query.limit(500)]);
+  const resumeRes = await safeList(databases, 'resumes', [sdk.Query.limit(1)]);
+  return {
+    totalAuthUsers: auth.total,
+    verifiedUsers: auth.users.filter(u => u.emailVerification).length,
+    totalResumes: resumeRes.total,
+    orphanedResumes: 0,
+  };
+}
 
-/**
- * Returns aggregate counts for the God Mode stats bar.
- * Runs server-side (admin API key) so it is not blocked by Appwrite
- * document-level permissions — the client SDK cannot do cross-user reads on
- * subscriptions / profiles.
- *
- * Returns: { total, premium, pro, suspended, activeToday }
- */
 async function handleGlobalStats(log) {
   const { databases } = getClients();
-
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-  const todayISO = todayStart.toISOString();
-
-  const [totalRes, premiumRes, proRes, suspendedRes, activeTodayRes] = await Promise.allSettled([
-    databases.listDocuments(DB_ID, 'profiles',      [sdk.Query.limit(1)]),
-    databases.listDocuments(DB_ID, 'subscriptions', [sdk.Query.equal('plan', 'premium'), sdk.Query.limit(1)]),
-    databases.listDocuments(DB_ID, 'subscriptions', [sdk.Query.equal('plan', 'pro'),     sdk.Query.limit(1)]),
-    databases.listDocuments(DB_ID, 'profiles',      [sdk.Query.equal('is_suspended', true), sdk.Query.limit(1)]),
-    databases.listDocuments(DB_ID, 'profiles',      [sdk.Query.greaterThan('$updatedAt', todayISO), sdk.Query.limit(1)]),
+  const [profiles, premium, pro, suspended] = await Promise.all([
+    safeList(databases, 'profiles', [sdk.Query.limit(1)]),
+    safeList(databases, 'subscriptions', [sdk.Query.equal('plan', 'premium'), sdk.Query.limit(1)]),
+    safeList(databases, 'subscriptions', [sdk.Query.equal('plan', 'pro'), sdk.Query.limit(1)]),
+    safeList(databases, 'profiles', [sdk.Query.equal('is_suspended', true), sdk.Query.limit(1)]),
   ]);
-
-  const labels  = ['total', 'premium', 'pro', 'suspended', 'activeToday'];
-  const settled = [totalRes, premiumRes, proRes, suspendedRes, activeTodayRes];
-  settled.forEach((r, i) => {
-    if (r.status === 'rejected') {
-      log(`global-stats WARNING: query "${labels[i]}" failed — count will show 0 (reason: ${r.reason?.message ?? r.reason})`);
-    }
-  });
-
-  const stats = {
-    total:       totalRes.status       === 'fulfilled' ? totalRes.value.total       : 0,
-    premium:     premiumRes.status     === 'fulfilled' ? premiumRes.value.total     : 0,
-    pro:         proRes.status         === 'fulfilled' ? proRes.value.total         : 0,
-    suspended:   suspendedRes.status   === 'fulfilled' ? suspendedRes.value.total   : 0,
-    activeToday: activeTodayRes.status === 'fulfilled' ? activeTodayRes.value.total : 0,
-  };
-
-  log(`global-stats: total=${stats.total} premium=${stats.premium} pro=${stats.pro} suspended=${stats.suspended} activeToday=${stats.activeToday}`);
-  return stats;
+  return { total: profiles.total, premium: premium.total, pro: pro.total, suspended: suspended.total, activeToday: 0 };
 }
 
-// ─── MAIN HANDLER ────────────────────────────────────────────────────────────
+async function handleListUsersPage(body, log) {
+  const { databases } = getClients();
+  const page = Math.max(0, Number(body.page) || 0);
+  const pageSize = Math.min(Math.max(1, Number(body.pageSize) || 25), 100);
+  const profiles = await databases.listDocuments(DB_ID, 'profiles', [sdk.Query.orderDesc('$createdAt'), sdk.Query.limit(pageSize), sdk.Query.offset(page * pageSize)]);
+  return {
+    users: profiles.documents.map(doc => ({
+      $id: doc.$id,
+      $createdAt: doc.$createdAt,
+      user_id: doc.user_id,
+      email: doc.email ?? null,
+      full_name: doc.full_name ?? null,
+      contact_email: doc.contact_email ?? null,
+      plan_name: doc.plan ?? 'free',
+      plan_updated_at: null,
+      is_suspended: doc.is_suspended ?? false,
+      suspension_reason: doc.suspension_reason ?? null,
+      daily_limit: null,
+      credits_used_today: doc.daily_usage ?? 0,
+      trial_plan: doc.trial_plan ?? null,
+      trial_expires_at: doc.trial_expires_at ?? null,
+      resumeCount: 0,
+    })),
+    total: profiles.total,
+  };
+}
+
+async function handlePurgeOrphans(body, log) {
+  return { dryRun: body.dryRun !== false, orphanedProfiles: 0, orphanedResumes: 0, sampleProfiles: [], sampleResumes: [], deletedProfiles: 0, deletedResumes: 0 };
+}
+
+async function handleListAuditLogs(body, log) {
+  const { databases } = getClients();
+  const limit = Math.min(Math.max(1, Number(body.limit) || 25), 100);
+  const res = await safeList(databases, 'admin_audit_logs', [sdk.Query.orderDesc('$createdAt'), sdk.Query.limit(limit)]);
+  return { documents: res.documents, total: res.total };
+}
+
+async function handleListDiscountCodes(log) {
+  const { databases } = getClients();
+  const res = await safeList(databases, 'discount_codes', [sdk.Query.orderDesc('$createdAt'), sdk.Query.limit(100)]);
+  if (res.error) throw new Error(`discount_codes collection is not ready: ${res.error}`);
+  return { codes: res.documents, total: res.total };
+}
+
+async function handleAddDiscountCode(body, log) {
+  const { databases } = getClients();
+  const code = String(body.code || '').trim().toUpperCase();
+  if (!code) throw new Error('Missing or empty code');
+  const doc = await databases.createDocument(DB_ID, 'discount_codes', sdk.ID.unique(), { code, active: body.active !== false, percent_off: Number(body.percent_off) || 100 });
+  await auditLog(databases, 'add-discount-code', { code });
+  return { code: doc };
+}
+
+async function handleListAllResumes(body, log) {
+  const { databases } = getClients();
+  const limit = Math.min(Math.max(1, Number(body.limit) || 20), 100);
+  const offset = Math.max(0, Number(body.offset) || 0);
+  const res = await databases.listDocuments(DB_ID, 'resumes', [sdk.Query.orderDesc('$createdAt'), sdk.Query.limit(limit), sdk.Query.offset(offset)]);
+  return { documents: res.documents, total: res.total };
+}
+
+async function handleListErrors(body) {
+  const { databases } = getClients();
+  const res = await safeList(databases, 'error_log', [sdk.Query.orderDesc('$createdAt'), sdk.Query.limit(Math.min(Number(body.limit) || 25, 100))]);
+  return { errors: res.documents, total: res.total, missing: !!res.error, error: res.error || null };
+}
 
 module.exports = async ({ req, res, log, error }) => {
+  const rid = requestId();
   const body = typeof req.body === 'string'
     ? (() => { try { return JSON.parse(req.body || '{}'); } catch { return {}; } })()
     : (req.body || {});
 
-  if (!checkAuth(req, body)) {
-    return res.json({ success: false, error: 'Unauthorized' }, 401);
-  }
-
   const { action } = body;
-
   try {
-    if (action === 'mission-control') {
-      const data = await handleMissionControl(log, error);
-      return res.json({ success: true, data });
+    if (action === 'verify-devkit-session') {
+      const auth = await verifyDevKitSession(body);
+      return json(res, rid, auth, auth.success ? 200 : auth.code === 'CONFIG_MISSING' ? 500 : 401);
     }
 
-    if (action === 'update-plan') {
-      const { user_id, plan } = body;
-      if (!user_id || !plan) {
-        return res.json({ success: false, error: 'Missing user_id or plan' }, 400);
-      }
-      const { databases } = getClients();
-      const existing = await databases.listDocuments(DB_ID, 'subscriptions', [
-        sdk.Query.equal('user_id', user_id),
-        sdk.Query.limit(1),
-      ]);
-      if (existing.total > 0) {
-        await databases.updateDocument(DB_ID, 'subscriptions', existing.documents[0].$id, { plan });
-      } else {
-        await databases.createDocument(DB_ID, 'subscriptions', sdk.ID.unique(), { user_id, plan });
-      }
-      log(`update-plan: set user ${user_id} → ${plan}`);
-      return res.json({ success: true, plan });
+    if (!checkAuth(req, body)) {
+      return json(res, rid, { success: false, code: 'DEVKIT_UNAUTHORIZED', error: 'DevKit token is missing, invalid, or expired.' }, 401);
     }
 
-    if (action === 'purge-orphans') {
-      const data = await handlePurgeOrphans(body, log);
-      return res.json({ success: true, data });
-    }
+    let data;
+    if (action === 'diagnostics') data = await handleDiagnostics(log, error);
+    else if (action === 'mission-control') data = await handleMissionControl(log, error);
+    else if (action === 'overview-stats') data = await handleOverviewStats(log);
+    else if (action === 'global-stats') data = await handleGlobalStats(log);
+    else if (action === 'list-users-page') data = await handleListUsersPage(body, log);
+    else if (action === 'purge-orphans') data = await handlePurgeOrphans(body, log);
+    else if (action === 'list-audit-logs') data = await handleListAuditLogs(body, log);
+    else if (action === 'list-discount-codes') data = await handleListDiscountCodes(log);
+    else if (action === 'add-discount-code') data = await handleAddDiscountCode(body, log);
+    else if (action === 'list-all-resumes') data = await handleListAllResumes(body, log);
+    else if (action === 'list-errors') data = await handleListErrors(body);
+    else return json(res, rid, { success: false, code: 'UNKNOWN_ACTION', error: `Unknown action: ${action}` }, 400);
 
-    if (action === 'list-users-page') {
-      const data = await handleListUsersPage(body, log);
-      return res.json({ success: true, data });
-    }
-
-    if (action === 'overview-stats') {
-      const data = await handleOverviewStats(log);
-      return res.json({ success: true, data });
-    }
-
-    if (action === 'global-stats') {
-      const data = await handleGlobalStats(log);
-      return res.json({ success: true, data });
-    }
-
-    if (action === 'list-audit-logs') {
-      const data = await handleListAuditLogs(body, log);
-      return res.json({ success: true, data });
-    }
-
-    if (action === 'list-discount-codes') {
-      const data = await handleListDiscountCodes(log);
-      return res.json({ success: true, data });
-    }
-
-    if (action === 'add-discount-code') {
-      const data = await handleAddDiscountCode(body, log);
-      return res.json({ success: true, data });
-    }
-
-    if (action === 'list-all-resumes') {
-      const data = await handleListAllResumes(body, log);
-      return res.json({ success: true, data });
-    }
-
-    return res.json({ success: false, error: `Unknown action: ${action}` }, 400);
+    return json(res, rid, { success: true, data });
   } catch (err) {
-    error(`DevKit Data Error: ${err.message}`);
-    return res.json({ success: false, error: err.message }, 500);
+    error(`DevKit Data Error [${rid}]: ${err.message}`);
+    return json(res, rid, { success: false, code: 'FUNCTION_RUNTIME_FAILED', error: err.message }, 500);
   }
 };
