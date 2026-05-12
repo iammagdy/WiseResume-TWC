@@ -6,7 +6,26 @@
 - `Project Atlas/GOVERNANCE.md`
 - `Project Atlas/RULES.md`
 - `Project Atlas/MASTER_HANDOVER_2026.md`
+- `Project Atlas/SOURCE_OF_TRUTH_MAP.md`
 **Canonical owner:** this file
+
+---
+
+## 2026-05-12 - Atlas A-to-Z source map
+
+### Summary
+Added `Project Atlas/SOURCE_OF_TRUTH_MAP.md` so future agents and contributors have one clear map for product identity, architecture, AI, DevKit, deployment, implemented features, planned work, governance, and conflict resolution.
+
+### What changed
+- Added the A-to-Z Atlas source map.
+- Updated `Project Atlas/README.md` so the source map is the first file agents read.
+- Re-verified the map against current code references: `package.json`, `src/lib/appwrite.ts`, `src/lib/appwrite-collections.ts`, and `src/lib/appwrite-bridge.ts`.
+
+### Why
+After removing competing external documents, the Atlas needed a single orientation page that tells agents exactly where each kind of truth lives and what must not be reintroduced.
+
+### Verification
+Documentation-only change. Key deleted outside docs were checked against `main` and returned not found. No runtime tests were required.
 
 ---
 
