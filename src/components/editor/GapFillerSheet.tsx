@@ -127,11 +127,12 @@ export function GapFillerSheet({ isOpen, onClose, gap, experiences, onAddExperie
       const { previousJob, nextJob } = getSurroundingJobs();
 
       const result = await executeAI(async () => {
-        const { data, error } = await appwriteFunctions.invoke('fill-gap', {
+        const { data, error } = await appwriteFunctions.invoke('resume-section-ai', {
           body: {
+            'x-resume-section-ai-action': 'fill-gap',
             gap: {
-              startDate: formatParsedDate(gap.startDate),
-              endDate: formatParsedDate(gap.endDate),
+              start: formatParsedDate(gap.startDate),
+              end: formatParsedDate(gap.endDate),
               months: gap.months,
             },
             category,

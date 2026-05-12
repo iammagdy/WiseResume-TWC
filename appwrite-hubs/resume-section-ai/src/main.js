@@ -129,16 +129,20 @@ Generate 3 professional resume entries for this period.`;
 }
 
 function buildExplainGapMessages(body) {
-  const { gap, experiences } = body;
+  const { gap, reason, targetRole, previousJob, nextJob, additionalContext } = body;
   const systemPrompt = `You are a career coach helping someone write a brief, professional explanation for a resume gap.
 The explanation should be positive, honest, and forward-looking.
 Return ONLY valid JSON, no markdown:
 {
   "explanation": "<2-3 sentence professional gap explanation>",
-  "talking_points": ["<point 1>", "<point 2>", "<point 3>"]
+  "talking_points": ["<interview tip 1>", "<interview tip 2>", "<interview tip 3>"]
 }`;
-  const userPrompt = `Career gap: ${gap ? JSON.stringify(gap) : 'unspecified'}
-Surrounding experience context: ${experiences ? JSON.stringify(experiences).slice(0, 800) : 'none'}`;
+  let userPrompt = `Career gap: ${gap ? JSON.stringify(gap) : 'unspecified'}
+Gap reason: ${reason || 'unspecified'}`;
+  if (previousJob) userPrompt += `\nPrevious role: ${previousJob.position} at ${previousJob.company}`;
+  if (nextJob) userPrompt += `\nNext role: ${nextJob.position} at ${nextJob.company}`;
+  if (targetRole) userPrompt += `\nTarget role: ${targetRole}`;
+  if (additionalContext) userPrompt += `\nAdditional context: ${additionalContext}`;
   return [
     { role: 'system', content: systemPrompt },
     { role: 'user', content: userPrompt },

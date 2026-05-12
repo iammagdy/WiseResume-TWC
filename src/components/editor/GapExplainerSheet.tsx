@@ -98,8 +98,9 @@ export function GapExplainerSheet({ isOpen, onClose, gap, experiences, onAddToSu
       const { previousJob, nextJob } = getSurroundingJobs();
 
       const result = await executeAI(async () => {
-        const { data, error } = await appwriteFunctions.invoke('explain-gap', {
+        const { data, error } = await appwriteFunctions.invoke('resume-section-ai', {
           body: {
+            'x-resume-section-ai-action': 'explain-gap',
             gap: {
               startDate: formatGapDate(gap.startDate),
               endDate: formatGapDate(gap.endDate),
@@ -121,7 +122,7 @@ export function GapExplainerSheet({ isOpen, onClose, gap, experiences, onAddToSu
       if (!result) return;
 
       setExplanation(result.explanation);
-      setTips(result.tips || []);
+      setTips(result.tips || result.talking_points || []);
       setIsEdited(false);
     } catch (err) {
       editorLogger.error('Error generating explanation:', err);
