@@ -31,6 +31,9 @@ import { DevKitRunner } from '@/components/dev-kit/DevKitRunner';
 import { ObservabilityPanel } from '@/components/dev-kit/ObservabilityPanel';
 import { LiveActivityPanel } from '@/components/dev-kit/LiveActivityPanel';
 import { CouponsPanel } from '@/components/dev-kit/CouponsPanel';
+import { FeatureFlagsPanel } from '@/components/dev-kit/FeatureFlagsPanel';
+import { ModerationPanel } from '@/components/dev-kit/ModerationPanel';
+import { VisitorsPanel } from '@/components/dev-kit/VisitorsPanel';
 
 type PanelStatus = 'Live' | 'Needs Appwrite Function' | 'Needs Schema' | 'Planned';
 
@@ -48,6 +51,7 @@ const PANEL_GROUPS: { label: string; panels: PanelDef[] }[] = [
     { id: 'mission', title: 'Mission Control', icon: Activity, status: 'Live' },
     { id: 'observability', title: 'Observability', icon: BarChart2, status: 'Live' },
     { id: 'live', title: 'Live Activity', icon: Zap, status: 'Live' },
+    { id: 'visitors', title: 'Visitor Analytics', icon: Route, status: 'Live' },
     { id: 'runner', title: 'Smoke Runner', icon: Play, status: 'Live' },
   ]},
   { label: 'Command Center', panels: [
@@ -62,12 +66,13 @@ const PANEL_GROUPS: { label: string; panels: PanelDef[] }[] = [
     { id: 'ai-routing', title: 'AI Master Switch', icon: Route, status: 'Live' },
   ]},
   { label: 'Support & Business Ops', panels: [
+    { id: 'moderation', title: 'Moderation', icon: ShieldCheck, status: 'Live' },
     { id: 'email', title: 'Email Center', icon: Mail, status: 'Needs Appwrite Function', blockers: ['admin-email lacks RESEND_API_KEY in Appwrite audit'] },
     { id: 'testmail', title: 'Testmail Inbox', icon: Inbox, status: 'Needs Appwrite Function', blockers: ['admin-testmail lacks TESTMAIL_API_KEY in Appwrite audit'] },
     { id: 'coupons', title: 'Coupons', icon: Ticket, status: 'Live' },
     { id: 'portfolios', title: 'Portfolios', icon: Link2, status: 'Live' },
     { id: 'audit', title: 'History', icon: History, status: 'Live' },
-    { id: 'settings', title: 'Core Settings', icon: ShieldCheck, status: 'Live' },
+    { id: 'settings', title: 'Core Settings', icon: Cog, status: 'Live' },
   ]},
 ];
 
@@ -178,6 +183,9 @@ function DevToolsInner() {
       case 'ai': return wrap('AI Radar', <AIRadarPanel />);
       case 'ai-keys': return wrap('AI Keys', <AIKeysPanel />);
       case 'ai-routing': return wrap('AI Master Switch', <AIRoutingSwitcher />);
+      case 'flags': return wrap('Feature Control', <FeatureFlagsPanel />);
+      case 'visitors': return wrap('Visitor Analytics', <VisitorsPanel />);
+      case 'moderation': return wrap('Moderation', <ModerationPanel />);
       case 'portfolios': return wrap('Portfolios', <PortfolioUsernamesPanel />);
       case 'audit': return wrap('History', <AuditLogPanel />);
       case 'settings': return wrap('Core Settings', <AppSettingsPanel />);
