@@ -29,6 +29,7 @@ jobs:
           VITE_APPWRITE_PROJECT_ID: 69fd362b001eb325a192
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
           VITE_DEV_KIT_PASSWORD: ${{ secrets.VITE_DEV_KIT_PASSWORD }}
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
           BUILD_COMMIT: ${{ github.sha }}
           BUILD_TIME: ${{ github.event.repository.updated_at }}
 
