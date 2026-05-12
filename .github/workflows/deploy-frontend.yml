@@ -2,11 +2,13 @@ name: 🚀 Deploy Frontend
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -36,39 +38,47 @@ jobs:
           grep -o 'src="/assets/index-[^"]*"' dist/index.html || echo "No index bundle found"
           echo "=== dist/index.html size (bytes) ==="
           wc -c dist/index.html
+          echo "=== large asset directories ==="
+          du -sh dist/tesseract dist/pdfjs 2>/dev/null || true
 
       - name: Install lftp
         run: sudo apt-get update && sudo apt-get install -y lftp
 
-      - name: Probe FTP connection (non-fatal)
-        continue-on-error: true
+      - name: Sync large static assets (Tesseract / pdf.js — only-newer)
+        timeout-minutes: 30
         env:
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
         run: |
-          echo "--- Trying FTPS (explicit TLS) ---"
+          # Tesseract WASM cores + OCR lang data + pdf.js fonts/cmaps are large
+          # binary files that rarely change. Upload only when newer than what is
+          # already on the server so subsequent deploys skip them entirely.
           lftp -u "u966279061.thewise.cloud,${FTP_PASSWORD}" "ftp://82.29.154.120:21" \
-            -e "set ftp:ssl-force true; set ssl:verify-certificate no; set net:timeout 10; set net:max-retries 1; pwd; bye" \
-            2>&1 && echo "✅ FTPS works" || echo "⚠️ FTPS failed"
-          echo "--- Trying plain FTP ---"
-          lftp -u "u966279061.thewise.cloud,${FTP_PASSWORD}" "ftp://82.29.154.120:21" \
-            -e "set ftp:ssl-allow false; set net:timeout 10; set net:max-retries 1; pwd; bye" \
-            2>&1 && echo "✅ Plain FTP works" || echo "⚠️ Plain FTP failed"
-          echo "--- Trying FTPS passive mode ---"
-          lftp -u "u966279061.thewise.cloud,${FTP_PASSWORD}" "ftp://82.29.154.120:21" \
-            -e "set ftp:ssl-force true; set ssl:verify-certificate no; set ftp:passive-mode true; set net:timeout 10; set net:max-retries 1; pwd; bye" \
-            2>&1 && echo "✅ FTPS passive works" || echo "⚠️ FTPS passive failed"
+            -e "set ftp:ssl-force true; \
+                set ssl:verify-certificate no; \
+                set ftp:passive-mode true; \
+                set net:timeout 120; \
+                set net:max-retries 5; \
+                set net:reconnect-interval-base 5; \
+                set ftp:use-mdtm true; \
+                mirror --reverse --verbose --parallel=8 --only-newer ./dist/tesseract/ resume/tesseract/; \
+                mirror --reverse --verbose --parallel=8 --only-newer ./dist/pdfjs/    resume/pdfjs/; \
+                bye"
 
-      - name: Sync to Hostinger
-        timeout-minutes: 20
+      - name: Sync app bundle (JS / CSS / HTML — with delete)
+        timeout-minutes: 10
         env:
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
         run: |
+          # Sync everything except the large binary dirs (already handled above).
+          # --delete removes stale chunks from previous builds.
           lftp -u "u966279061.thewise.cloud,${FTP_PASSWORD}" "ftp://82.29.154.120:21" \
             -e "set ftp:ssl-force true; \
                 set ssl:verify-certificate no; \
                 set ftp:passive-mode true; \
                 set net:timeout 60; \
                 set net:max-retries 5; \
-                set net:reconnect-interval-base 10; \
-                mirror --reverse --delete --verbose --parallel=3 ./dist/ resume/; \
+                set net:reconnect-interval-base 5; \
+                mirror --reverse --delete --verbose --parallel=8 \
+                  --exclude tesseract/ --exclude pdfjs/ \
+                  ./dist/ resume/; \
                 bye"
