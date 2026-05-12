@@ -65,21 +65,19 @@ export const OverviewPanel = () => {
     setLoading(true);
     const start = Date.now();
     try {
-      const tuple = await appwriteFunctions.invoke<{ data?: OverviewStatsData }>(
+      const tuple = await appwriteFunctions.invoke<OverviewStatsData>(
         'admin-devkit-data',
         {
           headers: devKitAuthHeaders(),
           body: { action: 'overview-stats' },
         },
       );
-      const result = unwrapAdminResponse<{ data?: OverviewStatsData }>(tuple, 'admin-devkit-data');
-      const d = result.data;
-      if (!d) throw new Error('No data returned from overview-stats');
+      const result = unwrapAdminResponse<OverviewStatsData>(tuple, 'admin-devkit-data');
       setStats({
-        totalAuthUsers:  d.totalAuthUsers  ?? 0,
-        verifiedUsers:   d.verifiedUsers   ?? 0,
-        totalResumes:    d.totalResumes    ?? 0,
-        orphanedResumes: d.orphanedResumes ?? 0,
+        totalAuthUsers:  result.totalAuthUsers  ?? 0,
+        verifiedUsers:   result.verifiedUsers   ?? 0,
+        totalResumes:    result.totalResumes    ?? 0,
+        orphanedResumes: result.orphanedResumes ?? 0,
         region:          'Appwrite Cloud (fra)',
         latency:         Date.now() - start,
         lastUpdate:      new Date(),

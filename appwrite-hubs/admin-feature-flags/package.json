@@ -4,6 +4,6 @@
   "description": "Appwrite Function — CRUD for feature flags stored in Appwrite Databases",
   "main": "src/main.js",
   "dependencies": {
-    "node-appwrite": "^11.1.1"
+    "node-appwrite": "^14.0.0"
   }
 }

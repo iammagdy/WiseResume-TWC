@@ -131,10 +131,14 @@ export const AdminUsersPanel = () => {
           body: { action: 'global-stats' },
         },
       );
-      const result = unwrapAdminResponse<{ data?: GlobalStats }>(tuple, 'admin-devkit-data');
-      if (result.data) {
-        setGlobalStats(result.data);
-      }
+      const result = unwrapAdminResponse<GlobalStats>(tuple, 'admin-devkit-data');
+      setGlobalStats({
+        total:      result.total      ?? 0,
+        premium:    result.premium    ?? 0,
+        pro:        result.pro        ?? 0,
+        suspended:  result.suspended  ?? 0,
+        activeToday: result.activeToday ?? 0,
+      });
     } catch {
       // silently ignore — stats bar will show page-local fallback
     }
@@ -155,11 +159,9 @@ export const AdminUsersPanel = () => {
           body: { action: 'list-users-page', page: p, pageSize: PAGE_SIZE, sortField },
         },
       );
-      // The function returns { success: true, data: { users, total } }, so
-      // unwrapAdminResponse returns the full body — access via result.data.*
-      const result = unwrapAdminResponse<{ data?: { users?: AdminUser[]; total?: number } }>(tuple, 'admin-devkit-data');
-      const fetchedUsers = result.data?.users ?? [];
-      const newTotal = result.data?.total ?? 0;
+      const result = unwrapAdminResponse<{ users?: AdminUser[]; total?: number }>(tuple, 'admin-devkit-data');
+      const fetchedUsers = result.users ?? [];
+      const newTotal = result.total ?? 0;
       setTotalCount(newTotal);
       setGlobalStats(prev => ({ ...prev ?? { premium: 0, pro: 0, suspended: 0, activeToday: 0 }, total: newTotal }));
       setFetchError(null);
