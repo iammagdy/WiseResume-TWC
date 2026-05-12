@@ -1,28 +1,61 @@
-# 📜 WiseResume Developer & AI Agent Rules
+# WiseResume Developer & AI Agent Rules
 
-To maintain the integrity of WiseResume, every agent or developer MUST follow these rules. Documentation is NOT optional.
-
-## 1. The "Definition of Done"
-A task is NOT finished until:
-- The code is verified to work (no guessing).
-- All regional references (e.g., "Frankfurt") are removed from user-facing UI.
-- **Documentation is updated:** The relevant file in `Project Atlas/` must reflect the changes.
-- **Commit & Push:** Changes are pushed to the `main` branch with a clear commit message.
-
-## 2. No Hallucinations (Strict)
-- If you don't know the root cause of an error, DO NOT guess. 
-- Search the codebase, read the logs, and verify file paths.
-- Every fix must address the **Root Cause**, not just the symptom.
-
-## 3. Project Atlas Integrity
-- `Project Atlas` is the source of truth. 
-- If you change an architectural pattern (e.g., how AI Hub works), you MUST update `MASTER_HANDOVER_2026.md`.
-- After every session, update the "Where We Stopped" section in the handover.
-
-## 4. Technology Constraints
-- **Stack:** React, Vite, Appwrite, Tailwind.
-- **Auth:** Appwrite-Native (No Kinde/Supabase).
-- **AI:** All AI calls go through the consolidated Appwrite AI Hub.
+**Last verified:** 2026-05-12
+**Type:** governance
+**Sources:**
+- `Project Atlas/GOVERNANCE.md`
+- `Project Atlas/MASTER_HANDOVER_2026.md`
+- `Project Atlas/DEPLOYMENT_GUIDE.md`
+**Canonical owner:** `Project Atlas/GOVERNANCE.md`
 
 ---
-*Failure to follow these rules results in technical debt and token waste. Stick to the Atlas.*
+
+Every agent or developer working on this repository must follow these rules.
+
+## 1. Source Of Truth
+
+`Project Atlas/` is the only documentation source of truth.
+
+Do not rely on old root docs, deleted governance folders, external planning folders, chat memory, or stale Markdown outside the Atlas. If a useful rule or plan is discovered outside the Atlas, move or summarize it into the Atlas and remove the outside document.
+
+The current codebase and live logs still matter. If the Atlas and implementation disagree, inspect the code and logs, fix the Atlas, and record the correction.
+
+## 2. Definition Of Done
+
+A task is not finished until:
+
+- the root cause is verified, not guessed;
+- the change is verified to work, or the verification blocker is clearly reported;
+- user-facing UI contains no unnecessary regional references such as provider regions;
+- relevant files in `Project Atlas/` are updated;
+- `Project Atlas/CHANGELOG.md` has a dated entry for accepted changes;
+- deployment-sensitive changes follow `Project Atlas/DEPLOYMENT_GUIDE.md`.
+
+## 3. Architecture Constraints
+
+- Stack: React, TypeScript, Vite, Tailwind, Radix UI, shadcn/ui.
+- Auth: Appwrite Auth only for the Appwrite-native web app.
+- Backend: Appwrite Databases, Storage, and Functions.
+- AI: all AI calls go through the consolidated Appwrite `ai-gateway` unless an Atlas file explicitly documents an exception.
+- Admin DevKit: cross-user reads/writes must run through server-side Appwrite Functions such as `admin-devkit-data`, not direct browser database calls.
+- Mobile: still legacy and out of scope unless explicitly targeted.
+
+## 4. No Guessing
+
+If you do not know the root cause of an error, do not guess.
+
+Search the codebase, read the relevant Atlas files, inspect logs, and verify file paths before proposing or applying fixes. Every fix must address the root cause, not only the symptom.
+
+## 5. Deployment Safety
+
+Before touching GitHub Actions workflows, FTP config, Hostinger paths, deploy scripts, or domain routing, read `Project Atlas/DEPLOYMENT_GUIDE.md`.
+
+Never run a deleting FTP mirror against the Hostinger root path `.` from this repo. The WiseResume app deploys to `resume/`; the landing page uploads a single file to root; WiseQuran belongs to a separate repo.
+
+## 6. Communication
+
+The owner is non-technical. Explain high-risk changes in plain language before implementing them. Recommend the best path clearly, with trade-offs only where they matter.
+
+---
+
+Failure to follow these rules creates confusion and technical debt. Stick to the Atlas.
