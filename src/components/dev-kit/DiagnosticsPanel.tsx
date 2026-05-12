@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { ElementType } from 'react';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -35,7 +36,7 @@ interface DiagnosticsResponse {
   requestId?: string;
 }
 
-const STATUS_META: Record<DiagnosticStatus, { title: string; icon: React.ElementType; className: string }> = {
+const STATUS_META: Record<DiagnosticStatus, { title: string; icon: ElementType; className: string }> = {
   healthy: {
     title: 'Healthy',
     icon: CheckCircle2,
@@ -58,7 +59,7 @@ const STATUS_META: Record<DiagnosticStatus, { title: string; icon: React.Element
   },
 };
 
-const GROUP_ICONS: Record<DiagnosticItem['group'], React.ElementType> = {
+const GROUP_ICONS: Record<DiagnosticItem['group'], ElementType> = {
   Access: ShieldCheck,
   Functions: ServerCog,
   Database: Database,
@@ -86,17 +87,12 @@ export function DiagnosticsPanel() {
     setLoading(true);
     setError(null);
     const result = await devKitCall<DiagnosticsResponse>({ action: 'diagnostics' });
-    if (result.ok) {
-      setData(result.data);
-    } else {
-      setError(result.error);
-    }
+    if (result.ok) setData(result.data);
+    else setError(result.error);
     setLoading(false);
   }, []);
 
-  useEffect(() => {
-    runDiagnostics();
-  }, [runDiagnostics]);
+  useEffect(() => { runDiagnostics(); }, [runDiagnostics]);
 
   const grouped = useMemo(() => {
     const groups = new Map<DiagnosticItem['group'], DiagnosticItem[]>();
@@ -193,11 +189,7 @@ export function DiagnosticsPanel() {
                       </div>
                       <StatusPill status={item.status} />
                     </div>
-                    {item.detail && (
-                      <p className="mt-2 rounded-lg bg-black/30 px-3 py-2 text-[11px] leading-relaxed text-white/45">
-                        {item.detail}
-                      </p>
-                    )}
+                    {item.detail && <p className="mt-2 rounded-lg bg-black/30 px-3 py-2 text-[11px] leading-relaxed text-white/45">{item.detail}</p>}
                   </div>
                 ))}
               </div>
