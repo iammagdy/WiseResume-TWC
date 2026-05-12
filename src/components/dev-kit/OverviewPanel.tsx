@@ -94,24 +94,22 @@ export const OverviewPanel = () => {
     setPurgePhase(dryRun ? 'previewing' : 'purging');
     setPurgeError(null);
     try {
-      const tuple = await appwriteFunctions.invoke<{ data?: PurgePreview | PurgeResult }>(
+      const tuple = await appwriteFunctions.invoke<PurgePreview | PurgeResult>(
         'admin-devkit-data',
         {
           headers: devKitAuthHeaders(),
           body: { action: 'purge-orphans', dryRun },
         },
       );
-      const result = unwrapAdminResponse<{ data?: PurgePreview | PurgeResult }>(
+      const result = unwrapAdminResponse<PurgePreview | PurgeResult>(
         tuple,
         'admin-devkit-data',
       );
-      const d = result.data;
-      if (!d) throw new Error('No data returned from purge-orphans');
       if (dryRun) {
-        setPurgePreview(d as PurgePreview);
+        setPurgePreview(result as PurgePreview);
         setPurgePhase('confirm');
       } else {
-        setPurgeResult(d as PurgeResult);
+        setPurgeResult(result as PurgeResult);
         setPurgePhase('done');
         fetchStats();
       }
