@@ -314,7 +314,7 @@ async function handleObservability(body, log) {
       try { queries.push(sdk.Query.greaterThanEqual('$createdAt', body.since)); } catch (_) {}
     }
     const res = await safeList(databases, 'error_log', queries);
-    if (res.error && res.error.includes('not found')) {
+    if (res.error && /not\s+found|could not be found|collection.*missing|does not exist/i.test(res.error)) {
       return { errors: [], missing_table: true };
     }
     let docs = res.documents || [];
