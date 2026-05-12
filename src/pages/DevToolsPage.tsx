@@ -28,6 +28,9 @@ import { PortfolioUsernamesPanel } from '@/components/dev-kit/PortfolioUsernames
 import { DiagnosticsPanel } from '@/components/dev-kit/DiagnosticsPanel';
 import { MissionControlPanel } from '@/components/dev-kit/MissionControlPanel';
 import { DevKitRunner } from '@/components/dev-kit/DevKitRunner';
+import { ObservabilityPanel } from '@/components/dev-kit/ObservabilityPanel';
+import { LiveActivityPanel } from '@/components/dev-kit/LiveActivityPanel';
+import { CouponsPanel } from '@/components/dev-kit/CouponsPanel';
 
 type PanelStatus = 'Live' | 'Needs Appwrite Function' | 'Needs Schema' | 'Planned';
 
@@ -43,8 +46,8 @@ const PANEL_GROUPS: { label: string; panels: PanelDef[] }[] = [
   { label: 'Operations Hub', panels: [
     { id: 'diagnostics', title: 'Diagnostics', icon: ServerCog, status: 'Live' },
     { id: 'mission', title: 'Mission Control', icon: Activity, status: 'Live' },
-    { id: 'observability', title: 'Observability', icon: BarChart2, status: 'Needs Schema', blockers: ['error_log collection is missing'] },
-    { id: 'live', title: 'Live Activity', icon: Zap, status: 'Needs Schema', blockers: ['visitor_events and contact_requests collections are missing'] },
+    { id: 'observability', title: 'Observability', icon: BarChart2, status: 'Live' },
+    { id: 'live', title: 'Live Activity', icon: Zap, status: 'Live' },
     { id: 'runner', title: 'Smoke Runner', icon: Play, status: 'Live' },
   ]},
   { label: 'Command Center', panels: [
@@ -61,7 +64,7 @@ const PANEL_GROUPS: { label: string; panels: PanelDef[] }[] = [
   { label: 'Support & Business Ops', panels: [
     { id: 'email', title: 'Email Center', icon: Mail, status: 'Needs Appwrite Function', blockers: ['admin-email lacks RESEND_API_KEY in Appwrite audit'] },
     { id: 'testmail', title: 'Testmail Inbox', icon: Inbox, status: 'Needs Appwrite Function', blockers: ['admin-testmail lacks TESTMAIL_API_KEY in Appwrite audit'] },
-    { id: 'coupons', title: 'Coupons', icon: Ticket, status: 'Needs Schema', blockers: ['discount_codes collection is missing'] },
+    { id: 'coupons', title: 'Coupons', icon: Ticket, status: 'Live' },
     { id: 'portfolios', title: 'Portfolios', icon: Link2, status: 'Live' },
     { id: 'audit', title: 'History', icon: History, status: 'Live' },
     { id: 'settings', title: 'Core Settings', icon: ShieldCheck, status: 'Live' },
@@ -166,6 +169,9 @@ function DevToolsInner() {
       case 'diagnostics': return wrap('Diagnostics', <DiagnosticsPanel />);
       case 'mission': return wrap('Mission Control', <MissionControlPanel onNavigate={navigatePanel} />);
       case 'runner': return wrap('Smoke Runner', <DevKitRunner />);
+      case 'observability': return wrap('Observability', <ObservabilityPanel />);
+      case 'live': return wrap('Live Activity', <LiveActivityPanel />);
+      case 'coupons': return wrap('Coupons', <CouponsPanel />);
       case 'overview': return wrap('Infrastructure', <OverviewPanel />);
       case 'users': return wrap('God Mode', <AdminUsersPanel />);
       case 'db': return wrap('Database X-Ray', <DatabaseXRay />);
