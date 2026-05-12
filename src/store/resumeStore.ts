@@ -420,7 +420,9 @@ export const useResumeStore = create<ResumeState>()(
       }),
       onRehydrateStorage: () => {
         return (state) => {
-          if (state && state.selectedTemplate) {
+          if (state) {
+            // Always migrate — even if selectedTemplate is falsy (undefined / '')
+            // so that stale persisted storage never produces an unrecognised ID.
             state.selectedTemplate = migrateTemplateId(state.selectedTemplate);
           }
           hasHydrated = true;
