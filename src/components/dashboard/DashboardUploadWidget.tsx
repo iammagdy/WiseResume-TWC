@@ -400,14 +400,15 @@ export function DashboardUploadWidget({ compact = false }: DashboardUploadWidget
                   </Button>
                 )}
                 <Button
-                  variant="outline"
+                  variant="default"
                   size="sm"
                   onClick={(e) => { e.stopPropagation(); haptics.light(); fileInputRef.current?.click(); }}
                   disabled={isProcessing}
-                  className="h-9 touch-manipulation active:scale-95 hidden sm:flex"
-                  aria-label="Browse files"
+                  className="h-9 gap-1.5 touch-manipulation active:scale-95"
+                  aria-label="Upload resume"
                 >
-                  Browse
+                  <Upload className="w-3.5 h-3.5" />
+                  Upload Resume
                 </Button>
               </div>
             </motion.div>

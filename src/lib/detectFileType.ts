@@ -16,7 +16,7 @@ export type FileType = 'pdf' | 'word' | 'image' | 'json' | 'html';
 export const ALL_ACCEPT_STRING =
   '.pdf,application/pdf,' +
   '.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,' +
-  '.jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp,' +
+  'image/*,.jpg,.jpeg,.png,.webp,.heic,.heif,image/jpeg,image/png,image/webp,image/heic,image/heif,' +
   '.json,application/json,' +
   '.html,.htm,text/html';
 

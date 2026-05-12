@@ -132,6 +132,24 @@ export const appwriteFunctions = {
         };
       }
 
+      // Unwrap AI-gateway envelope { status, data, message } when the call was
+      // routed through ai-gateway. Non-AI functions return data directly.
+      if (
+        shouldRouteToAppwrite(fnName) &&
+        parsed !== null &&
+        typeof parsed === 'object' &&
+        'data' in (parsed as object)
+      ) {
+        const envelope = parsed as { status?: string; data: unknown; message?: string };
+        if (envelope.status === 'error') {
+          return {
+            data: null,
+            error: { message: envelope.message || 'AI function returned an error.', raw: parsed },
+          };
+        }
+        return { data: envelope.data as T, error: null };
+      }
+
       return { data: parsed as T, error: null };
     } catch (err) {
       if (err instanceof AppwriteException) {
