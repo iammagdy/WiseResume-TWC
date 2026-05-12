@@ -1,0 +1,183 @@
+import { appwriteFunctions } from '@/lib/appwrite-functions';
+import { devKitInvokeOptions } from '@/lib/devkit/devKitAuth';
+
+export type DevKitErrorCode =
+  | 'APPWRITE_SESSION_EXPIRED'
+  | 'DEVKIT_UNAUTHORIZED'
+  | 'FUNCTION_NOT_FOUND'
+  | 'FUNCTION_RUNTIME_FAILED'
+  | 'MISSING_ENV'
+  | 'SCHEMA_OR_INDEX_ERROR'
+  | 'UNKNOWN_ACTION'
+  | 'NETWORK_ERROR'
+  | 'UNKNOWN';
+
+export interface DevKitError {
+  code: DevKitErrorCode;
+  message: string;
+  status?: number;
+  functionId?: string;
+  action?: string;
+  requestId?: string;
+  raw?: unknown;
+}
+
+export type DevKitResult<T> =
+  | { ok: true; data: T; requestId?: string }
+  | { ok: false; error: DevKitError };
+
+export interface DevKitCallOptions {
+  action: string;
+  payload?: Record<string, unknown>;
+  functionId?: string;
+}
+
+export interface DevKitSessionToken {
+  token: string;
+  expiresAt: string;
+  email?: string;
+}
+
+export type DevKitAuthResponse =
+  | { success: true; session: DevKitSessionToken; requestId?: string }
+  | { success: false; error: string; code: 'INVALID_PASSWORD' | 'CONFIG_MISSING'; requestId?: string };
+
+interface AdminEnvelope<T> {
+  success?: boolean;
+  data?: T;
+  error?: string;
+  code?: DevKitErrorCode | string;
+  requestId?: string;
+  session?: DevKitSessionToken;
+}
+
+function classifyMessage(message: string, status?: number): DevKitErrorCode {
+  const raw = (message || '').toLowerCase();
+  if (status === 401 || status === 403 || /unauthori[sz]ed|invalid devkit|expired devkit|token expired/.test(raw)) {
+    return 'DEVKIT_UNAUTHORIZED';
+  }
+  if (/session expired|user.*session|login again|sign in again/.test(raw)) return 'APPWRITE_SESSION_EXPIRED';
+  if (/function.*could not be found|not deployed|function_not_found|requested id could not be found/.test(raw)) return 'FUNCTION_NOT_FOUND';
+  if (/unknown action|action is required/.test(raw)) return 'UNKNOWN_ACTION';
+  if (/missing.*env|missing.*variable|not configured|config_missing|devkit_password|appwrite_api_key/.test(raw)) return 'MISSING_ENV';
+  if (/index|attribute|collection|document.*could not be found|invalid query|schema/.test(raw)) return 'SCHEMA_OR_INDEX_ERROR';
+  if (/failed to fetch|network|cannot reach/.test(raw)) return 'NETWORK_ERROR';
+  if (status && status >= 500) return 'FUNCTION_RUNTIME_FAILED';
+  return 'UNKNOWN';
+}
+
+export function toDevKitError(input: unknown, context: { functionId?: string; action?: string } = {}): DevKitError {
+  if (typeof input === 'object' && input !== null && 'code' in input && 'message' in input) {
+    const err = input as Partial<DevKitError>;
+    return {
+      code: (err.code as DevKitErrorCode) ?? classifyMessage(String(err.message ?? ''), err.status),
+      message: String(err.message ?? 'Unknown DevKit error'),
+      status: err.status,
+      functionId: err.functionId ?? context.functionId,
+      action: err.action ?? context.action,
+      requestId: err.requestId,
+      raw: err.raw ?? input,
+    };
+  }
+
+  const message = input instanceof Error ? input.message : String(input ?? 'Unknown DevKit error');
+  const status = input instanceof Error ? (input as Error & { status?: number }).status : undefined;
+  return {
+    code: classifyMessage(message, status),
+    message,
+    status,
+    functionId: context.functionId,
+    action: context.action,
+    raw: input,
+  };
+}
+
+export async function devKitLogin(password: string): Promise<DevKitAuthResponse> {
+  const result = await appwriteFunctions.invoke<AdminEnvelope<never>>('admin-devkit-data', {
+    body: { action: 'verify-devkit-session', password },
+  });
+
+  if (result.error) {
+    const code = classifyMessage(result.error.message, result.error.status);
+    return {
+      success: false,
+      code: code === 'MISSING_ENV' ? 'CONFIG_MISSING' : 'INVALID_PASSWORD',
+      error: result.error.message,
+    };
+  }
+
+  const payload = result.data;
+  if (payload?.success && payload.session?.token && payload.session.expiresAt) {
+    return { success: true, session: payload.session, requestId: payload.requestId };
+  }
+
+  return {
+    success: false,
+    code: payload?.code === 'CONFIG_MISSING' ? 'CONFIG_MISSING' : 'INVALID_PASSWORD',
+    error: payload?.error || 'DevKit login failed.',
+    requestId: payload?.requestId,
+  };
+}
+
+export async function devKitCall<T = unknown>({
+  action,
+  payload,
+  functionId = 'admin-devkit-data',
+}: DevKitCallOptions): Promise<DevKitResult<T>> {
+  const body = { ...(payload ?? {}), action };
+  const tuple = await appwriteFunctions.invoke<AdminEnvelope<T>>(functionId, devKitInvokeOptions(body));
+
+  if (tuple.error) {
+    return {
+      ok: false,
+      error: toDevKitError(
+        { message: tuple.error.message, status: tuple.error.status },
+        { functionId, action },
+      ),
+    };
+  }
+
+  const response = tuple.data;
+  if (!response) {
+    return {
+      ok: false,
+      error: {
+        code: 'FUNCTION_RUNTIME_FAILED',
+        message: `${functionId} returned no response body.`,
+        functionId,
+        action,
+      },
+    };
+  }
+
+  if (response.success === false) {
+    return {
+      ok: false,
+      error: {
+        code: classifyMessage(response.error || String(response.code || ''), tuple.error?.status),
+        message: response.error || `${functionId} reported failure.`,
+        functionId,
+        action,
+        requestId: response.requestId,
+        raw: response,
+      },
+    };
+  }
+
+  return {
+    ok: true,
+    data: (response.data ?? response) as T,
+    requestId: response.requestId,
+  };
+}
+
+export async function devKitCallOrThrow<T = unknown>(options: DevKitCallOptions): Promise<T> {
+  const result = await devKitCall<T>(options);
+  if (!result.ok) {
+    const err = new Error(result.error.message) as Error & { devKitError?: DevKitError; status?: number };
+    err.devKitError = result.error;
+    err.status = result.error.status;
+    throw err;
+  }
+  return result.data;
+}
