@@ -134,7 +134,7 @@ async function handleDiagnostics(log, error) {
     items.push(item('Functions', 'functions-list', 'Function Inventory', 'broken', 'Could not list Appwrite Functions.', e.message));
   }
 
-  const requiredCollections = ['profiles', 'subscriptions', 'ai_credits', 'resumes', 'admin_audit_logs', 'audit_logs', 'feature_flags', 'error_log', 'discount_codes', 'app_settings', 'usage_events', 'visitor_events', 'contact_requests'];
+  const requiredCollections = ['profiles', 'subscriptions', 'ai_credits', 'resumes', 'admin_audit_logs', 'audit_logs', 'feature_flags', 'error_log', 'edge_function_logs', 'discount_codes', 'app_settings', 'usage_events', 'visitor_events', 'contact_requests'];
   try {
     const collPage = await databases.listCollections(DB_ID, [sdk.Query.limit(200)]);
     for (const coll of requiredCollections) {
@@ -279,32 +279,55 @@ async function handleObservability(body, log) {
   const obs = body.obs_action;
 
   if (obs === 'get_telemetry') {
-    const res = await safeList(databases, 'admin_audit_logs', [
+    const res = await safeList(databases, 'edge_function_logs', [
       sdk.Query.orderDesc('$createdAt'),
       sdk.Query.limit(500),
     ]);
+    if (res.error && /not\s+found|could not be found|collection.*missing|does not exist/i.test(res.error)) {
+      return { telemetry: [], missing_table: true };
+    }
     if (res.error) {
       return { telemetry: [], missing_table: false };
     }
-    const counts = {};
+
+    const now = Date.now();
+    const ONE_HOUR = 60 * 60 * 1000;
+    const BUCKET_COUNT = 12;
+    const BUCKET_MS = ONE_HOUR / BUCKET_COUNT;
+
+    const byFn = {};
     for (const doc of res.documents) {
-      const fn = doc.action || 'unknown';
-      if (!counts[fn]) counts[fn] = { total: 0, last1h: 0 };
-      counts[fn].total += 1;
-      const age = Date.now() - new Date(doc.$createdAt).getTime();
-      if (age < 60 * 60 * 1000) counts[fn].last1h += 1;
+      const fn = doc.function_name || 'unknown';
+      if (!byFn[fn]) byFn[fn] = { total: 0, last1h: 0, errors: 0, durations: [], buckets: new Array(BUCKET_COUNT).fill(0) };
+      byFn[fn].total += 1;
+      const age = now - new Date(doc.$createdAt).getTime();
+      if (age < ONE_HOUR) {
+        byFn[fn].last1h += 1;
+        const bucketIdx = Math.min(BUCKET_COUNT - 1, Math.floor(age / BUCKET_MS));
+        byFn[fn].buckets[BUCKET_COUNT - 1 - bucketIdx] += 1;
+      }
+      const isError = (doc.status_code && doc.status_code >= 400) || (doc.level || '').toLowerCase() === 'error';
+      if (isError) byFn[fn].errors += 1;
+      if (typeof doc.duration_ms === 'number' && doc.duration_ms >= 0) byFn[fn].durations.push(doc.duration_ms);
     }
-    const telemetry = Object.entries(counts).map(([function_name, c]) => ({
-      function_name,
-      total_count: c.total,
-      last_1h_count: c.last1h,
-      error_count: 0,
-      error_rate: 0,
-      p50_ms: 0,
-      p95_ms: 0,
-      sparkline: [],
-    }));
-    log(`observability/get_telemetry: ${telemetry.length} rows from audit log`);
+
+    const telemetry = Object.entries(byFn).map(([function_name, c]) => {
+      const sorted = [...c.durations].sort((a, b) => a - b);
+      const p50 = sorted.length ? sorted[Math.floor(sorted.length * 0.5)] : 0;
+      const p95 = sorted.length ? sorted[Math.floor(sorted.length * 0.95)] : 0;
+      return {
+        function_name,
+        total_count: c.total,
+        last_1h_count: c.last1h,
+        error_count: c.errors,
+        error_rate: c.total > 0 ? Math.round((c.errors / c.total) * 10000) / 100 : 0,
+        p50_ms: p50,
+        p95_ms: p95,
+        sparkline: c.buckets,
+      };
+    });
+
+    log(`observability/get_telemetry: ${telemetry.length} rows from edge_function_logs`);
     return { telemetry, missing_table: false };
   }
 

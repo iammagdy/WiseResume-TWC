@@ -43,9 +43,12 @@ jobs:
           tar -czf ../../admin-devkit-data.tar.gz .
           cd ../..
 
-          # 6. Execute deployment script from the root
+          # 6. Run schema setup (idempotent — safe to re-run)
           export APPWRITE_ENDPOINT="https://fra.cloud.appwrite.io/v1"
           export APPWRITE_PROJECT_ID="69fd362b001eb325a192"
           export APPWRITE_API_KEY="${{ secrets.APPWRITE_API_KEY }}"
+          node scripts/setup_observability_schema.cjs
+
+          # 7. Execute deployment script from the root
           node scripts/deploy_hubs.cjs
 
