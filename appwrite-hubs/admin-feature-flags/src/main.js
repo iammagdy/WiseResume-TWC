@@ -4,7 +4,10 @@
  * CRUD for feature flags stored in Appwrite Databases.
  * Serves FeatureFlagsPanel (list / upsert / delete).
  *
- * Auth: Authorization: Bearer <DEVKIT_PASSWORD>
+ * Auth: Authorization: Bearer <signed-HMAC-SHA256-token>
+ *   Token format: base64url(payload).hmac-sha256-sig
+ *   where payload = { purpose: "devkit", exp: <ms> }
+ *   Issued by the DevKit session on the frontend; verified via verifySignedToken().
  * Runtime: Node.js 18
  *
  * Required Function Variables:
