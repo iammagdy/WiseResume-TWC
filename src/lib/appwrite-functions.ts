@@ -1,23 +1,10 @@
 /**
- * Edge Functions client — Appwrite SDK direct.
+ * Appwrite Functions client.
  *
- * Routes function calls through `functions.createExecution()` from the
- * Appwrite SDK. The SDK uses the active Appwrite session automatically —
- * no manual JWT headers needed.
- *
- * AI-Hub functions (anything in AI_HUB_FUNCTIONS) are forwarded to the
- * single `ai-gateway` Appwrite Function with `featureName` in the body.
- * All other functions are called directly by their function ID.
- *
- * Behavioral notes vs. former HTTP-proxy path:
- * - `InvokeOptions.headers` are now mapped into the execution body as 
- *   a `__headers` property. This allows Appwrite Functions to receive 
- *   the DevKit Bearer token since Appwrite SDK executions don't support 
- *   custom HTTP headers.
- * - `InvokeOptions.method` remains an intentional no-op.
- * - The former 401-JWT-refresh retry loop is replaced by catching
- *   `AppwriteException` with code 401/403 and dispatching a
- *   session-expired event.
+ * Routes function calls through `functions.createExecution()` from the Appwrite
+ * SDK. AI-Hub feature calls are forwarded to the single `ai-gateway` function.
+ * Custom headers are packed into `__headers` because SDK executions do not send
+ * arbitrary HTTP headers to function runtimes.
  */
 import { AppwriteException } from 'appwrite';
 import { functions } from '@/lib/appwrite';
@@ -31,7 +18,7 @@ interface InvokeOptions {
 
 interface InvokeResult<T> {
   data: T | null;
-  error: { message: string; status?: number } | null;
+  error: { message: string; status?: number; code?: string; raw?: unknown } | null;
 }
 
 function buildBodyPayload(body: unknown): Record<string, unknown> {
@@ -47,6 +34,48 @@ function buildBodyPayload(body: unknown): Record<string, unknown> {
   return {};
 }
 
+function isAdminFunction(fnName: string): boolean {
+  return fnName.startsWith('admin-') || fnName === 'inspect-ai-keys';
+}
+
+function messageFromPayload(parsed: unknown): string | null {
+  if (typeof parsed === 'string' && parsed.trim()) return parsed;
+  if (typeof parsed !== 'object' || parsed === null) return null;
+  const obj = parsed as Record<string, unknown>;
+  if (typeof obj.error === 'string') return obj.error;
+  if (typeof obj.message === 'string') return obj.message;
+  return null;
+}
+
+function classifyHttpError(fnName: string, statusCode: number, parsed: unknown): string {
+  const payloadMessage = messageFromPayload(parsed);
+  if (payloadMessage) return payloadMessage;
+
+  if (statusCode === 429) return 'Too many requests - please wait a moment and try again.';
+  if (statusCode === 402) return 'AI credits exhausted. Please check your account.';
+  if (statusCode === 401 || statusCode === 403) {
+    return isAdminFunction(fnName)
+      ? 'DevKit session unauthorized or expired - re-enter the DevKit password.'
+      : 'Appwrite session expired - please sign in again.';
+  }
+  if (statusCode === 404) return `Appwrite Function not found or not deployed: ${fnName}`;
+  if (statusCode >= 500) return `Appwrite Function runtime failed for ${fnName}.`;
+  return 'An error occurred. Please try again.';
+}
+
+function classifyAppwriteException(fnName: string, err: AppwriteException): string {
+  const raw = err.message || '';
+  if (err.code === 401 || err.code === 403) {
+    return isAdminFunction(fnName)
+      ? 'Appwrite refused to execute the DevKit function. Check the Appwrite user session, function execute permissions, and DevKit token.'
+      : 'Appwrite session expired - please sign in again.';
+  }
+  if (err.code === 404 || /function.*could not be found|requested id could not be found/i.test(raw)) {
+    return `Appwrite Function not found or not deployed: ${fnName}`;
+  }
+  return raw || `Appwrite Function request failed for ${fnName}.`;
+}
+
 export const appwriteFunctions = {
   async invoke<T = unknown>(
     fnName: string,
@@ -54,24 +83,15 @@ export const appwriteFunctions = {
   ): Promise<InvokeResult<T>> {
     try {
       const bodyPayload = buildBodyPayload(options?.body);
-      
-      // FIX: Since Appwrite SDK doesn't support custom headers, 
-      // we pass them inside the body as a special property.
       const finalPayload = {
         ...bodyPayload,
-        __headers: options?.headers || {}
+        __headers: options?.headers || {},
       };
 
-      let functionId: string;
-      let executionBody: string;
-
-      if (shouldRouteToAppwrite(fnName)) {
-        functionId = 'ai-gateway';
-        executionBody = JSON.stringify({ featureName: fnName, ...finalPayload });
-      } else {
-        functionId = fnName;
-        executionBody = JSON.stringify(finalPayload);
-      }
+      const functionId = shouldRouteToAppwrite(fnName) ? 'ai-gateway' : fnName;
+      const executionBody = shouldRouteToAppwrite(fnName)
+        ? JSON.stringify({ featureName: fnName, ...finalPayload })
+        : JSON.stringify(finalPayload);
 
       const execution = await functions.createExecution(
         functionId,
@@ -85,7 +105,11 @@ export const appwriteFunctions = {
         console.error('[appwriteFunctions] execution failed', execution.errors);
         return {
           data: null,
-          error: { message: execution.errors || 'Execution failed (no details from Appwrite runtime)' },
+          error: {
+            message: execution.errors || `Appwrite Function runtime failed for ${functionId}.`,
+            code: 'FUNCTION_RUNTIME_FAILED',
+            raw: execution,
+          },
         };
       }
 
@@ -98,39 +122,26 @@ export const appwriteFunctions = {
 
       const statusCode = execution.responseStatusCode;
       if (statusCode >= 400) {
-        let message = 'An error occurred. Please try again.';
-        if (statusCode === 429) {
-          message = 'Too many requests — please wait a moment and try again.';
-        } else if (statusCode === 402) {
-          message = 'AI credits exhausted. Please check your account.';
-        } else if (statusCode === 401 || statusCode === 403) {
-          // Admin DevKit functions return 401 when the DevKit password is wrong,
-          // not when the Appwrite user session is expired — show a distinct message.
-          const isAdminFn = fnName.startsWith('admin-') || fnName === 'inspect-ai-keys';
-          message = isAdminFn
-            ? 'DevKit session unauthorised — re-enter the DevKit password.'
-            : 'Session expired — please sign in again.';
-        } else if (typeof parsed === 'object' && parsed !== null) {
-          const err = parsed as Record<string, unknown>;
-          if (typeof err.error === 'string') message = err.error;
-          else if (typeof err.message === 'string') message = err.message;
-        }
-        return { data: null, error: { message, status: statusCode } };
+        return {
+          data: null,
+          error: {
+            message: classifyHttpError(fnName, statusCode, parsed),
+            status: statusCode,
+            raw: parsed,
+          },
+        };
       }
 
       return { data: parsed as T, error: null };
     } catch (err) {
       if (err instanceof AppwriteException) {
-        if (err.code === 401 || err.code === 403) {
-          /* Session expired */
-          return {
-            data: null,
-            error: { message: 'Session expired — please sign in again.', status: err.code },
-          };
-        }
         return {
           data: null,
-          error: { message: err.message, status: err.code },
+          error: {
+            message: classifyAppwriteException(fnName, err),
+            status: err.code,
+            raw: err,
+          },
         };
       }
       const rawMessage = err instanceof Error ? err.message : String(err);
