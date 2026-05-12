@@ -1,38 +1,66 @@
-# AI Routing Rollout — unified per-feature routing layer
+# AI Routing Rollout - Unified Per-Feature Routing Layer
 
-**Status:** Phase 1 shipped (2026-05-09, Task #10) — per-feature routing live in ai-gateway; streaming, cross-feature caching, and per-tier differentiation remain planned.
-**Last verified:** 2026-05-09
+**Status:** Partially shipped. Per-feature routing is live in Appwrite `ai-gateway`; streaming, cross-feature caching, per-tier differentiation, and fuller DevKit observability remain planned.
+**Last verified:** 2026-05-12
+**Type:** planned reference
 **Sources:**
-- `Routing AI Providers/README.md`
-- `Routing AI Providers/01-current-state.md` through `Routing AI Providers/10-risks-and-rollback.md`
-- `project-governance/ARCHITECTURE.md` §8 (current 8-step chain)
-
-**Canonical owner:** `Routing AI Providers/` folder.
+- `appwrite-hubs/ai-gateway/src/main.js`
+- `src/lib/appwrite-bridge.ts`
+- `Project Atlas/MASTER_HANDOVER_2026.md`
+- `Project Atlas/GOVERNANCE.md`
+**Canonical owner:** this file
 
 ---
 
-**What's planned:** A unified per-feature routing module that wraps the existing 8-step chain with smart fallback policies, streaming support, output caching, and a Dev Kit dashboard for routing health. Each AI feature (e.g. Tailor, Cover Letter, Brief Generator) gets a configurable routing profile (preferred model class, fallback chain, cache key, cost budget).
+This file is the Atlas-owned source of truth for AI provider routing plans. The old external `Routing AI Providers/` folder has been removed so agents have one place to trust.
 
-**What's already done (current state):**
-- 8-step priority chain (`_shared/aiClient.ts`)
-- BYOK strict mode (`_shared/creditUtils.ts`)
-- Tool output caching for `agentic-chat` (`tool_cache` table, 7-day TTL on `get_company_briefing`)
-- Fail-closed credit deduction (Decision #6)
+## Current State
 
-**What's missing (target state):**
-- Per-feature routing profiles
-- Streaming responses end-to-end
-- Cross-feature output cache layer
-- Routing health dashboard in Dev Kit
-- Per-tier (Pro vs Premium) routing differentiation
+- Frontend AI feature names are routed by `src/lib/appwrite-bridge.ts`.
+- AI feature calls are forwarded to the Appwrite `ai-gateway` Function.
+- The gateway owns feature-level provider routing and fallback behavior.
+- Current provider pool documented in the handover: OpenRouter, Groq, DeepSeek, and NVIDIA NIM.
+- DevKit work already exists for provider/model visibility, routing controls, usage logs, and health checks.
 
-**Read these before starting work:**
-1. `Routing AI Providers/01-current-state.md` — what we have today
-2. `Routing AI Providers/02-target-architecture.md` — what we want
-3. `Routing AI Providers/04-feature-routing-map.md` — feature-by-feature requirements
-4. `Routing AI Providers/10-risks-and-rollback.md` — phased rollout plan, risks, and rollback steps
+## Target State
 
-**Hard constraints (will not change):**
-- Rule B: `score-resume` stays AI-free, 0 credits.
-- Four-Layer Security Invariant (critical-system 09) applies to every new endpoint.
-- BYOK allowlist must stay in sync between `aiClient.ts` and `creditUtils.ts`.
+The platform should continue moving toward:
+
+- per-feature routing profiles for every AI use case;
+- ordered provider fallback chains;
+- provider/model attribution on every AI result;
+- routing configuration stored in Appwrite Database so it can be edited without redeploying gateway code;
+- streaming support for chat-like features where it improves UX;
+- safe output caching only for deterministic or reusable calls;
+- DevKit observability showing real usage, provider, model, latency, fallback, and error data.
+
+## Durable Rules
+
+- No multi-account or key-rotation tricks. Each provider gets legitimate managed keys per environment.
+- No breaking changes during rollout. New routing behavior should be additive, phased, or guarded.
+- No hardcoded model names inside feature UI code. Models belong in routing configuration or curated provider catalogs.
+- Cache only what is safe to reuse. Personalized/generated creative outputs should stay fresh unless a specific Atlas rule says otherwise.
+- Dashboards must surface recorded truth, not estimates.
+- Provider availability must be based on real errors, health checks, and logs.
+- BYOK keys must never leak to the browser or logs.
+
+## Known Remaining Work
+
+From the active queue in `MASTER_HANDOVER_2026.md`:
+
+- AI gateway provider failover improvements.
+- Move AI routing config to Appwrite Database.
+- Show which provider was actually used on each AI result.
+- Keep provider model lists current as providers add or retire models.
+
+## Before Implementation
+
+Before changing AI routing behavior, read:
+
+1. `Project Atlas/MASTER_HANDOVER_2026.md`
+2. `Project Atlas/GOVERNANCE.md`
+3. `src/lib/appwrite-bridge.ts`
+4. `appwrite-hubs/ai-gateway/src/main.js`
+5. current DevKit AI panel code under `src/components/dev-kit/`
+
+Then verify the live Appwrite Function deployment state. Editing `appwrite-hubs/ai-gateway/src/main.js` does not update production until the Function is redeployed.
