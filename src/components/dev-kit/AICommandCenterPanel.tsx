@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import {
   BrainCircuit, KeyRound, Route, RefreshCw, Loader2,
-  Zap, CheckCircle2, XCircle, BarChart3, Activity, Clock,
+  CheckCircle2, XCircle, BarChart3, Activity, Clock,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { devKitCall, type DevKitError } from '@/lib/devkit/devKitClient';
