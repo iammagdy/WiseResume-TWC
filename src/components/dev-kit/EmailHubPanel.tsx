@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { ElementType } from 'react';
 import { Mail, Inbox } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { EmailManagementPanel } from './EmailManagementPanel';
@@ -6,7 +7,7 @@ import { TestmailInboxPanel } from './TestmailInboxPanel';
 
 type EmailSubTab = 'send' | 'inbox';
 
-const TABS: { id: EmailSubTab; label: string; Icon: React.ElementType }[] = [
+const TABS: { id: EmailSubTab; label: string; Icon: ElementType }[] = [
   { id: 'send',  label: 'Send',  Icon: Mail },
   { id: 'inbox', label: 'Inbox', Icon: Inbox },
 ];
