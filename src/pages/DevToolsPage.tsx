@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   Activity, ArrowLeft, BarChart2, BrainCircuit, CheckCircle2, Cog, Database,
-  Fingerprint, Flag, History, Inbox, KeyRound, LayoutDashboard, Link2, Loader2,
+  Fingerprint, Flag, History, Inbox, LayoutDashboard, Link2, Loader2,
   Lock, Mail, Menu, Play, Route, ServerCog, ShieldCheck, Ticket, Users, X, Zap,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -19,11 +19,9 @@ import { DevKitPanelBoundary } from '@/components/dev-kit/DevKitPanelBoundary';
 import { OverviewPanel } from '@/components/dev-kit/OverviewPanel';
 import { AdminUsersPanel } from '@/components/dev-kit/AdminUsersPanel';
 import { AppSettingsPanel } from '@/components/dev-kit/AppSettingsPanel';
-import { AIRadarPanel } from '@/components/dev-kit/AIRadarPanel';
+import { AICommandCenterPanel } from '@/components/dev-kit/AICommandCenterPanel';
 import { DatabaseXRay } from '@/components/dev-kit/DatabaseXRay';
 import { AuditLogPanel } from '@/components/dev-kit/AuditLogPanel';
-import { AIKeysPanel } from '@/components/dev-kit/AIKeysPanel';
-import { AIRoutingSwitcher } from '@/components/dev-kit/AIRoutingSwitcher';
 import { PortfolioUsernamesPanel } from '@/components/dev-kit/PortfolioUsernamesPanel';
 import { DiagnosticsPanel } from '@/components/dev-kit/DiagnosticsPanel';
 import { MissionControlPanel } from '@/components/dev-kit/MissionControlPanel';
@@ -63,9 +61,7 @@ const PANEL_GROUPS: { label: string; panels: PanelDef[] }[] = [
     { id: 'flags', title: 'Feature Control', icon: Flag, status: 'Live' },
   ]},
   { label: 'AI Command Center', panels: [
-    { id: 'ai', title: 'AI Radar', icon: BrainCircuit, status: 'Live' },
-    { id: 'ai-keys', title: 'AI Keys', icon: KeyRound, status: 'Live' },
-    { id: 'ai-routing', title: 'AI Master Switch', icon: Route, status: 'Live' },
+    { id: 'ai-center', title: 'AI Command Center', icon: BrainCircuit, status: 'Live' },
   ]},
   { label: 'Support & Business Ops', panels: [
     { id: 'moderation', title: 'Moderation', icon: ShieldCheck, status: 'Live' },
@@ -163,7 +159,7 @@ function DevToolsInner() {
   };
 
   const navigatePanel = (id: string) => {
-    const aliases: Record<string, string> = { deployment: 'diagnostics', openrouter: 'ai-keys', email: 'email', overview: 'overview', live: 'live' };
+    const aliases: Record<string, string> = { deployment: 'diagnostics', openrouter: 'ai-center', 'ai-keys': 'ai-center', ai: 'ai-center', 'ai-routing': 'ai-center', email: 'email', overview: 'overview', live: 'live' };
     setActivePanel(aliases[id] ?? id);
     setIsMobileMenuOpen(false);
   };
@@ -182,9 +178,7 @@ function DevToolsInner() {
       case 'overview': return wrap('Infrastructure', <OverviewPanel />);
       case 'users': return wrap('God Mode', <AdminUsersPanel />);
       case 'db': return wrap('Database X-Ray', <DatabaseXRay />);
-      case 'ai': return wrap('AI Radar', <AIRadarPanel />);
-      case 'ai-keys': return wrap('AI Keys', <AIKeysPanel />);
-      case 'ai-routing': return wrap('AI Master Switch', <AIRoutingSwitcher />);
+      case 'ai-center': return wrap('AI Command Center', <AICommandCenterPanel />);
       case 'flags': return wrap('Feature Control', <FeatureFlagsPanel />);
       case 'visitors': return wrap('Visitor Analytics', <VisitorsPanel />);
       case 'moderation': return wrap('Moderation', <ModerationPanel />);
