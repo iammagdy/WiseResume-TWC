@@ -701,7 +701,7 @@ async function handleSetPlan(body, log) {
 
   const subRes = await safeList(databases, 'subscriptions', [sdk.Query.equal('user_id', target_user_id), sdk.Query.limit(1)]);
   const subDoc = subRes.documents[0] || null;
-  const patch = { plan, status: 'active', trial_plan: null, trial_expires_at: null };
+  const patch = { plan, effective_plan: plan, status: 'active', trial_plan: null, trial_expires_at: null };
   if (subDoc) {
     await databases.updateDocument(DB_ID, 'subscriptions', subDoc.$id, patch);
   } else {
@@ -734,9 +734,9 @@ async function handleGrantTrial(body, log) {
   const subRes = await safeList(databases, 'subscriptions', [sdk.Query.equal('user_id', target_user_id), sdk.Query.limit(1)]);
   const subDoc = subRes.documents[0] || null;
   if (subDoc) {
-    await databases.updateDocument(DB_ID, 'subscriptions', subDoc.$id, { trial_plan: plan, trial_expires_at: expiresAt, status: 'active' });
+    await databases.updateDocument(DB_ID, 'subscriptions', subDoc.$id, { trial_plan: plan, effective_plan: plan, trial_expires_at: expiresAt, status: 'active' });
   } else {
-    await databases.createDocument(DB_ID, 'subscriptions', sdk.ID.unique(), { user_id: target_user_id, plan: 'free', trial_plan: plan, trial_expires_at: expiresAt, status: 'active' }, [
+    await databases.createDocument(DB_ID, 'subscriptions', sdk.ID.unique(), { user_id: target_user_id, plan: 'free', effective_plan: plan, trial_plan: plan, trial_expires_at: expiresAt, status: 'active' }, [
       sdk.Permission.read(sdk.Role.user(target_user_id)),
       sdk.Permission.update(sdk.Role.user(target_user_id)),
     ]);
@@ -763,7 +763,8 @@ async function handleRevokeTrial(body, log) {
   const subRes = await safeList(databases, 'subscriptions', [sdk.Query.equal('user_id', target_user_id), sdk.Query.limit(1)]);
   const subDoc = subRes.documents[0] || null;
   if (subDoc) {
-    await databases.updateDocument(DB_ID, 'subscriptions', subDoc.$id, { trial_plan: null, trial_expires_at: null });
+    const basePlan = subDoc.plan || 'free';
+    await databases.updateDocument(DB_ID, 'subscriptions', subDoc.$id, { trial_plan: null, trial_expires_at: null, effective_plan: basePlan });
   }
 
   await auditLog(databases, 'revoke-trial', { target_user_id });
