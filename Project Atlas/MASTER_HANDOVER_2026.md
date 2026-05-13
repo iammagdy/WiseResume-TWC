@@ -1,5 +1,30 @@
 # WiseResume Master Handover & State (May 2026)
 
+## Session Summary - 2026-05-13 (Appwrite DevKit + CV Parsing Stabilization)
+
+**Detailed log:** `Project Atlas/05-Migration to Appwrite/12-Session-Log-2026-05-13.md`
+
+### Fixed
+- Local app origin mismatch: `127.0.0.1` redirects to `localhost` so Appwrite auth uses the configured origin.
+- CV upload parsing: replaced broken PDF.js worker bootstrap with module-worker-safe bootstrap and runtime asset guards. Root cause was PDF.js worker initialization failing before AI parsing, then being misreported as a damaged file.
+- Live `ai-gateway` `parse-resume`: added/verified structured resume parsing route returning normalized resume data instead of generic chat output.
+- DevKit login: rebuilt/redeployed `admin-devkit-data` after bad Appwrite artifact shape caused `Cannot find module 'node-appwrite'`; added frontend timeouts so login/panel calls cannot spin forever.
+- DevKit data accuracy: Appwrite Auth is now the source of truth for admin users. Verified live state is 2 Auth users, 1 verified, 1 profile, 34 raw resume docs, 3 active-user-owned resumes, 31 orphaned resume docs.
+- DevKit operations: `admin-devkit-data` now uses REST GET helpers for list/read paths because the installed `node-appwrite` SDK sends bodies with GET requests that Appwrite Cloud rejects.
+- Plan updates: fixed `set-plan` schema failures by writing only existing fields and computing effective trial/plan state in `useMe`.
+- Atlas naming: renamed current backend cards from `edge-functions/` to `functions/` for the Appwrite-native architecture.
+
+### Current State
+- GitHub `main` is synced at commit `aba3ec1eb211aaee0c2b908778821628fe039c3a`.
+- Live `admin-devkit-data` deployment `6a0415154ff4ed2b537e` is `ready`.
+- `npm exec tsc -- --noEmit` passed during verification.
+- Local frontend runs on `http://localhost:5000`.
+
+### Where We Stopped
+- This handover update is the session closeout after `aba3ec1`.
+- Next agent must pull latest `main`, read `Project Atlas/RULES.md`, then verify local status before coding.
+- Recommended next verification: test a real PDF upload on `/upload` and dashboard widget, test `/devkit` with the real DevKit password, and review remaining DevKit panels for stale/no-op Appwrite migration gaps.
+
 ## MANDATORY CONTEXT FOR AI AGENTS
 - **Environment:** Replit is the **development environment only**. Production is Hostinger (static frontend) + Appwrite Cloud Feed (backend). Never store production secrets in Replit.
 - **Rule:** Do not guess. Check logs and verify root cause before suggesting any fix.
