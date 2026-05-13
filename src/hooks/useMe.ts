@@ -50,9 +50,14 @@ export function useMe() {
 
   useEffect(() => {
     if (!user?.id) return;
+    const userId = user.id;
     const unsubscribe = client.subscribe(
       'databases.main.collections.subscriptions.documents',
-      () => { queryClient.invalidateQueries({ queryKey: ['me', user.id] }); },
+      (event: { payload?: { user_id?: string } }) => {
+        if (event.payload?.user_id === userId) {
+          queryClient.invalidateQueries({ queryKey: ['me', userId] });
+        }
+      },
     );
     return () => { unsubscribe(); };
   }, [user?.id, queryClient]);
