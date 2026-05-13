@@ -1028,6 +1028,76 @@ async function handleImpersonate(body, log) {
   return { url: `/act-as#${payload}`, email: targetUser.email, userId: target_user_id, expiresAt };
 }
 
+async function handleListAppSettings(log) {
+  const res = await safeList(null, 'app_settings', [sdk.Query.limit(100)]);
+  if (res.error && /not\s+found|could not be found|collection.*missing|does not exist/i.test(res.error)) {
+    return { settings: [], missing_collection: true };
+  }
+  if (res.error) throw new Error(`app_settings collection error: ${res.error}`);
+  return { settings: res.documents, total: res.total };
+}
+
+async function handleToggleAppSetting(body, log) {
+  const { databases } = getClients();
+  const { key, value } = body;
+  if (!key) throw new Error('Missing key');
+  if (typeof value !== 'string') throw new Error('value must be a string');
+  const res = await safeList(databases, 'app_settings', [sdk.Query.equal('key', key), sdk.Query.limit(1)]);
+  if (res.documents.length > 0) {
+    const doc = await databases.updateDocument(DB_ID, 'app_settings', res.documents[0].$id, { value });
+    await auditLog(databases, 'toggle-app-setting', { key, value });
+    log(`toggle-app-setting: ${key} -> ${value}`);
+    return { setting: { $id: doc.$id, key: doc.key, value: doc.value } };
+  } else {
+    const doc = await databases.createDocument(DB_ID, 'app_settings', sdk.ID.unique(), { key, value });
+    await auditLog(databases, 'toggle-app-setting', { key, value, created: true });
+    log(`toggle-app-setting (created): ${key} -> ${value}`);
+    return { setting: { $id: doc.$id, key: doc.key, value: doc.value } };
+  }
+}
+
+async function handleListWisehireWaitlist(log) {
+  const res = await safeList(null, 'wisehire_waitlist', [sdk.Query.orderDesc('$createdAt'), sdk.Query.limit(100)]);
+  if (res.error && /not\s+found|could not be found|collection.*missing|does not exist/i.test(res.error)) {
+    return { entries: [], total: 0, missing_collection: true };
+  }
+  if (res.error) throw new Error(`wisehire_waitlist error: ${res.error}`);
+  return { entries: res.documents, total: res.total };
+}
+
+async function handleListAiGatewayActivity(body, log) {
+  const { functions } = getClients();
+  const limit = Math.min(Math.max(1, Number(body.limit) || 10), 25);
+
+  let executions = [];
+  try {
+    const execRes = await functions.listExecutions('ai-gateway', [sdk.Query.limit(limit), sdk.Query.orderDesc('$createdAt')]);
+    executions = (execRes.executions || []).map(e => ({
+      $id: e.$id,
+      status: e.status,
+      trigger: e.trigger,
+      duration: e.duration,
+      $createdAt: e.$createdAt,
+    }));
+  } catch (e) {
+    log(`list-ai-gateway-activity: executions fetch failed: ${e.message}`);
+  }
+
+  const usageRes = await safeList(null, 'ai_usage_logs', [sdk.Query.limit(50), sdk.Query.orderDesc('$createdAt')]);
+  const counts = { total: usageRes.total || 0, openrouter: 0, groq: 0, deepseek: 0, nvidia: 0 };
+  for (const d of (usageRes.documents || [])) {
+    const p = (d.provider || '').toLowerCase();
+    if (p.includes('openrouter')) counts.openrouter++;
+    else if (p.includes('groq')) counts.groq++;
+    else if (p.includes('deepseek')) counts.deepseek++;
+    else if (p.includes('nvidia')) counts.nvidia++;
+  }
+
+  const missingUsageCollection = !!usageRes.error && /not\s+found|could not be found|collection.*missing|does not exist/i.test(usageRes.error);
+  log(`list-ai-gateway-activity: ${executions.length} executions, ${counts.total} usage logs`);
+  return { executions, usageStats: counts, missingUsageCollection };
+}
+
 async function handleSendVerificationEmail(body, log) {
   const { users } = getClients();
   const { target_user_id } = body;
@@ -1133,6 +1203,10 @@ module.exports = async ({ req, res, log, error }) => {
     else if (action === 'get-resume-detail') data = await handleListUserContent(body, log);
     else if (action === 'impersonate') data = await handleImpersonate(body, log);
     else if (action === 'send-verification-email') data = await handleSendVerificationEmail(body, log);
+    else if (action === 'list-app-settings') data = await handleListAppSettings(log);
+    else if (action === 'toggle-app-setting') data = await handleToggleAppSetting(body, log);
+    else if (action === 'list-wisehire-waitlist') data = await handleListWisehireWaitlist(log);
+    else if (action === 'list-ai-gateway-activity') data = await handleListAiGatewayActivity(body, log);
     else return json(res, rid, { success: false, code: 'UNKNOWN_ACTION', error: `Unknown action: ${action}` }, 400);
 
     return json(res, rid, { success: true, ...data });
