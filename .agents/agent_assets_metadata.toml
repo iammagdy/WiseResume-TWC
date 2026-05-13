@@ -54,3 +54,9 @@ id = "2y_hYmEv7lpFUbCqZ7uXx"
 uri = "file://attached_assets/screenshots/e88cece3-8294-46bc-a013-242fb7b3e96d-00-18258hwhbzglw_spock_replit_dev_8000_mockup_preview_numbers-plan_AccuracyPlan.png"
 type = "image"
 title = "Numbers & Data Accuracy — Fix Plan"
+
+[[outputs]]
+id = "1ZLDIOnKKBpUPlGZiMWm4"
+uri = "file://Project Atlas/WiseCloud-App-Brief.md"
+type = "text"
+title = "WiseCloud App Brief — LLM Reference"
