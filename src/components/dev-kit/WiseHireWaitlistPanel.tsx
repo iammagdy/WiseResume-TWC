@@ -19,11 +19,18 @@ interface WaitlistResponse {
   missing_collection?: boolean;
 }
 
+interface ApproveResponse {
+  approved: boolean;
+  email?: string;
+  emailSent: boolean;
+}
+
 export const WiseHireWaitlistPanel = () => {
   const [entries, setEntries] = useState<WaitlistEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [missingCollection, setMissingCollection] = useState(false);
+  const [approvingIds, setApprovingIds] = useState<Set<string>>(new Set());
 
   const fetchWaitlist = useCallback(async () => {
     setLoading(true);
@@ -40,8 +47,24 @@ export const WiseHireWaitlistPanel = () => {
 
   useEffect(() => { fetchWaitlist(); }, [fetchWaitlist]);
 
-  const handleApprove = (id: string) => {
-    toast.success('User invited to WiseHire!');
+  const handleApprove = async (id: string) => {
+    setApprovingIds(prev => new Set(prev).add(id));
+    const result = await devKitCall<ApproveResponse>({ action: 'approve-wisehire-waitlist', payload: { waitlist_id: id } });
+    if (result.ok) {
+      setEntries(prev => prev.filter(e => e.$id !== id));
+      if (result.data.emailSent) {
+        toast.success('Access granted — invite email sent!');
+      } else {
+        toast.success('Access granted — entry removed from waitlist.');
+      }
+    } else {
+      toast.error(`Failed to grant access: ${result.error.message}`);
+    }
+    setApprovingIds(prev => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
   };
 
   if (loading) {
@@ -94,9 +117,14 @@ export const WiseHireWaitlistPanel = () => {
           </div>
           <Button
             onClick={() => handleApprove(e.$id)}
-            className="rounded-2xl h-10 px-6 bg-white text-black hover:bg-white/90 font-bold uppercase italic"
+            disabled={approvingIds.has(e.$id)}
+            className="rounded-2xl h-10 px-6 bg-white text-black hover:bg-white/90 font-bold uppercase italic disabled:opacity-50"
           >
-            <UserPlus size={16} className="mr-2" /> Grant Access
+            {approvingIds.has(e.$id)
+              ? <Loader2 size={16} className="mr-2 animate-spin" />
+              : <UserPlus size={16} className="mr-2" />
+            }
+            {approvingIds.has(e.$id) ? 'Approving…' : 'Grant Access'}
           </Button>
         </div>
       ))}

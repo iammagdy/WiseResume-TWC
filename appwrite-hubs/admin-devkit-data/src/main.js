@@ -1065,6 +1065,51 @@ async function handleListWisehireWaitlist(log) {
   return { entries: res.documents, total: res.total };
 }
 
+async function handleApproveWisehireWaitlist(body, log) {
+  const { databases } = getClients();
+  const { waitlist_id } = body;
+  if (!waitlist_id) throw new Error('Missing waitlist_id');
+
+  let entry;
+  try {
+    entry = await getDocument('wisehire_waitlist', waitlist_id);
+  } catch (e) {
+    throw new Error(`Waitlist entry not found: ${e.message}`);
+  }
+
+  const email = entry.email;
+  const name = entry.name || 'there';
+
+  let emailSent = false;
+  if (email && process.env.RESEND_API_KEY) {
+    const fromEmail = process.env.RESEND_FROM_EMAIL || 'hello@thewise.cloud';
+    const fromName  = process.env.RESEND_FROM_NAME  || 'WiseHire';
+    const appUrl = `${PRODUCTION_URL}/auth/sign-in`;
+    await resendRequest('POST', '/emails', {
+      from: `${fromName} <${fromEmail}>`,
+      to: email,
+      subject: 'Your WiseHire access has been approved!',
+      html: `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;"><div style="max-width:560px;margin:40px auto;background:#ffffff;border-radius:12px;border:1px solid #e5e7eb;padding:40px;"><h2 style="margin:0 0 16px;font-size:20px;font-weight:700;color:#111827;">You're in! Welcome to WiseHire</h2><p style="margin:0 0 16px;color:#374151;">Hi ${name},</p><p style="margin:0 0 16px;color:#374151;">Great news — your WiseHire waitlist application has been approved! You can now sign in and start using WiseHire to find and screen top talent.</p><p style="margin:0 0 24px;color:#6b7280;font-size:14px;">If you have any questions, reply to this email and we'll be happy to help.</p><a href="${appUrl}" style="display:inline-block;background:#6366f1;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;">Access WiseHire</a></div></body></html>`,
+    });
+    emailSent = true;
+    log(`approve-wisehire-waitlist: invite email sent to ${email}`);
+  } else {
+    log(`approve-wisehire-waitlist: RESEND_API_KEY not set, skipping email for ${email}`);
+  }
+
+  try {
+    await databases.deleteDocument(DB_ID, 'wisehire_waitlist', waitlist_id);
+    log(`approve-wisehire-waitlist: deleted waitlist entry ${waitlist_id}`);
+  } catch (e) {
+    log(`approve-wisehire-waitlist: could not delete waitlist entry: ${e.message}`);
+    throw new Error(`Waitlist entry could not be removed: ${e.message}`);
+  }
+
+  await auditLog(databases, 'approve-wisehire-waitlist', { waitlist_id, email, emailSent });
+  log(`approve-wisehire-waitlist: approved ${waitlist_id} (${email})`);
+  return { approved: true, email, emailSent };
+}
+
 async function handleListAiGatewayActivity(body, log) {
   const { functions } = getClients();
   const limit = Math.min(Math.max(1, Number(body.limit) || 10), 25);
@@ -1216,6 +1261,7 @@ module.exports = async ({ req, res, log, error }) => {
     else if (action === 'list-app-settings') data = await handleListAppSettings(log);
     else if (action === 'toggle-app-setting') data = await handleToggleAppSetting(body, log);
     else if (action === 'list-wisehire-waitlist') data = await handleListWisehireWaitlist(log);
+    else if (action === 'approve-wisehire-waitlist') data = await handleApproveWisehireWaitlist(body, log);
     else if (action === 'list-ai-gateway-activity') data = await handleListAiGatewayActivity(body, log);
     else return json(res, rid, { success: false, code: 'UNKNOWN_ACTION', error: `Unknown action: ${action}` }, 400);
 
