@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   Activity, ArrowLeft, BarChart2, BrainCircuit, CheckCircle2, Cog, Database,
-  Fingerprint, Flag, History, Inbox, LayoutDashboard, Link2, Loader2,
+  Fingerprint, Flag, History, LayoutDashboard, Link2, Loader2,
   Lock, Mail, Menu, Play, Route, ServerCog, ShieldCheck, Ticket, Users, X, Zap,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -32,8 +32,7 @@ import { CouponsPanel } from '@/components/dev-kit/CouponsPanel';
 import { FeatureFlagsPanel } from '@/components/dev-kit/FeatureFlagsPanel';
 import { ModerationPanel } from '@/components/dev-kit/ModerationPanel';
 import { VisitorsPanel } from '@/components/dev-kit/VisitorsPanel';
-import { EmailManagementPanel } from '@/components/dev-kit/EmailManagementPanel';
-import { TestmailInboxPanel } from '@/components/dev-kit/TestmailInboxPanel';
+import { EmailHubPanel } from '@/components/dev-kit/EmailHubPanel';
 
 type PanelStatus = 'Live' | 'Needs Appwrite Function' | 'Needs Schema' | 'Planned';
 
@@ -65,8 +64,7 @@ const PANEL_GROUPS: { label: string; panels: PanelDef[] }[] = [
   ]},
   { label: 'Support & Business Ops', panels: [
     { id: 'moderation', title: 'Moderation', icon: ShieldCheck, status: 'Live' },
-    { id: 'email', title: 'Email Center', icon: Mail, status: 'Live' },
-    { id: 'testmail', title: 'Testmail Inbox', icon: Inbox, status: 'Live' },
+    { id: 'email-hub', title: 'Email', icon: Mail, status: 'Live' },
     { id: 'coupons', title: 'Coupons', icon: Ticket, status: 'Live' },
     { id: 'portfolios', title: 'Portfolios', icon: Link2, status: 'Live' },
     { id: 'audit', title: 'History', icon: History, status: 'Live' },
@@ -159,7 +157,7 @@ function DevToolsInner() {
   };
 
   const navigatePanel = (id: string) => {
-    const aliases: Record<string, string> = { deployment: 'diagnostics', openrouter: 'ai-center', 'ai-keys': 'ai-center', ai: 'ai-center', 'ai-routing': 'ai-center', email: 'email', overview: 'overview', live: 'live' };
+    const aliases: Record<string, string> = { deployment: 'diagnostics', openrouter: 'ai-center', 'ai-keys': 'ai-center', ai: 'ai-center', 'ai-routing': 'ai-center', email: 'email-hub', testmail: 'email-hub', overview: 'overview', live: 'live' };
     setActivePanel(aliases[id] ?? id);
     setIsMobileMenuOpen(false);
   };
@@ -182,8 +180,7 @@ function DevToolsInner() {
       case 'flags': return wrap('Feature Control', <FeatureFlagsPanel />);
       case 'visitors': return wrap('Visitor Analytics', <VisitorsPanel />);
       case 'moderation': return wrap('Moderation', <ModerationPanel />);
-      case 'email': return wrap('Email Center', <EmailManagementPanel />);
-      case 'testmail': return wrap('Testmail Inbox', <TestmailInboxPanel />);
+      case 'email-hub': return wrap('Email', <EmailHubPanel />);
       case 'portfolios': return wrap('Portfolios', <PortfolioUsernamesPanel />);
       case 'audit': return wrap('History', <AuditLogPanel />);
       case 'settings': return wrap('Core Settings', <AppSettingsPanel />);
