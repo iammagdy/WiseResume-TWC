@@ -1080,23 +1080,86 @@ async function handleApproveWisehireWaitlist(body, log) {
   const email = entry.email;
   const name = entry.name || 'there';
 
+  // Step 1: Look up existing Appwrite Auth user by email.
+  // Fails closed — any lookup error aborts before we modify anything.
+  let existingUserId = null;
+  const userSearch = await listUsers([sdk.Query.equal('email', email), sdk.Query.limit(1)]);
+  const foundUser = (userSearch.users || [])[0] || null;
+  if (foundUser) {
+    existingUserId = foundUser.$id;
+    log(`approve-wisehire-waitlist: found existing user ${existingUserId} for ${email}`);
+  } else {
+    log(`approve-wisehire-waitlist: no existing user for ${email}, will send sign-up invite`);
+  }
+
+  // Step 2: Provision WiseHire access for an existing user.
+  // Errors here are fatal — the waitlist entry is preserved for admin retry.
+  let approvalOutcome = 'fresh_invite_sent';
+  if (existingUserId) {
+    const profile = await getProfileDoc(databases, existingUserId);
+    if (profile) {
+      await databases.updateDocument(DB_ID, 'profiles', profile.$id, { account_type: 'recruiter' });
+      log(`approve-wisehire-waitlist: set account_type=recruiter on profile ${profile.$id}`);
+    } else {
+      log(`approve-wisehire-waitlist: no profile found for ${existingUserId} — skipping account_type update`);
+    }
+
+    // Require approved_at to be present in the wisehire_accounts Appwrite collection schema.
+    const whRes = await safeList(databases, 'wisehire_accounts', [
+      sdk.Query.equal('user_id', existingUserId),
+      sdk.Query.limit(1),
+    ]);
+    if (whRes.error) {
+      throw new Error(`Could not check wisehire_accounts for ${existingUserId}: ${whRes.error}`);
+    }
+    if (whRes.documents && whRes.documents[0]) {
+      log(`approve-wisehire-waitlist: wisehire_accounts doc already exists for ${existingUserId}`);
+    } else {
+      await databases.createDocument(DB_ID, 'wisehire_accounts', sdk.ID.unique(), {
+        user_id: existingUserId,
+        email,
+        approved_at: isoNow(),
+      });
+      log(`approve-wisehire-waitlist: created wisehire_accounts doc for ${existingUserId}`);
+    }
+
+    approvalOutcome = 'existing_user_upgraded';
+  }
+
+  // Step 3: Send approval email — sign-in link for existing users, sign-up link for new.
   let emailSent = false;
   if (email && process.env.RESEND_API_KEY) {
     const fromEmail = process.env.RESEND_FROM_EMAIL || 'hello@thewise.cloud';
     const fromName  = process.env.RESEND_FROM_NAME  || 'WiseHire';
-    const appUrl = `${PRODUCTION_URL}/auth/sign-in`;
+    const fromAddr  = `${fromName} <${fromEmail}>`;
+
+    let actionUrl;
+    let actionLabel;
+    let bodyText;
+
+    if (existingUserId) {
+      actionUrl   = `${PRODUCTION_URL}/auth/sign-in`;
+      actionLabel = 'Sign in to WiseHire';
+      bodyText    = `Great news — your WiseHire waitlist application has been approved! Your existing account has been upgraded with recruiter access. Sign in now to start finding and screening top talent.`;
+    } else {
+      actionUrl   = `${PRODUCTION_URL}/auth/sign-up?email=${encodeURIComponent(email)}&product=wisehire`;
+      actionLabel = 'Create your WiseHire account';
+      bodyText    = `Great news — your WiseHire waitlist application has been approved! Click the link below to create your account and start using WiseHire to find and screen top talent.`;
+    }
+
     await resendRequest('POST', '/emails', {
-      from: `${fromName} <${fromEmail}>`,
+      from: fromAddr,
       to: email,
       subject: 'Your WiseHire access has been approved!',
-      html: `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;"><div style="max-width:560px;margin:40px auto;background:#ffffff;border-radius:12px;border:1px solid #e5e7eb;padding:40px;"><h2 style="margin:0 0 16px;font-size:20px;font-weight:700;color:#111827;">You're in! Welcome to WiseHire</h2><p style="margin:0 0 16px;color:#374151;">Hi ${name},</p><p style="margin:0 0 16px;color:#374151;">Great news — your WiseHire waitlist application has been approved! You can now sign in and start using WiseHire to find and screen top talent.</p><p style="margin:0 0 24px;color:#6b7280;font-size:14px;">If you have any questions, reply to this email and we'll be happy to help.</p><a href="${appUrl}" style="display:inline-block;background:#6366f1;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;">Access WiseHire</a></div></body></html>`,
+      html: `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;"><div style="max-width:560px;margin:40px auto;background:#ffffff;border-radius:12px;border:1px solid #e5e7eb;padding:40px;"><h2 style="margin:0 0 16px;font-size:20px;font-weight:700;color:#111827;">You're in! Welcome to WiseHire</h2><p style="margin:0 0 16px;color:#374151;">Hi ${name},</p><p style="margin:0 0 16px;color:#374151;">${bodyText}</p><p style="margin:0 0 24px;color:#6b7280;font-size:14px;">If you have any questions, reply to this email and we'll be happy to help.</p><a href="${actionUrl}" style="display:inline-block;background:#6366f1;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;">${actionLabel}</a></div></body></html>`,
     });
     emailSent = true;
-    log(`approve-wisehire-waitlist: invite email sent to ${email}`);
+    log(`approve-wisehire-waitlist: approval email sent to ${email} (outcome: ${approvalOutcome})`);
   } else {
     log(`approve-wisehire-waitlist: RESEND_API_KEY not set, skipping email for ${email}`);
   }
 
+  // Step 4: Delete the waitlist entry (only reached after successful provisioning).
   try {
     await databases.deleteDocument(DB_ID, 'wisehire_waitlist', waitlist_id);
     log(`approve-wisehire-waitlist: deleted waitlist entry ${waitlist_id}`);
@@ -1105,9 +1168,15 @@ async function handleApproveWisehireWaitlist(body, log) {
     throw new Error(`Waitlist entry could not be removed: ${e.message}`);
   }
 
-  await auditLog(databases, 'approve-wisehire-waitlist', { waitlist_id, email, emailSent });
-  log(`approve-wisehire-waitlist: approved ${waitlist_id} (${email})`);
-  return { approved: true, email, emailSent };
+  await auditLog(databases, 'approve-wisehire-waitlist', {
+    waitlist_id,
+    email,
+    emailSent,
+    outcome: approvalOutcome,
+    existing_user_id: existingUserId,
+  });
+  log(`approve-wisehire-waitlist: approved ${waitlist_id} (${email}) → ${approvalOutcome}`);
+  return { approved: true, email, emailSent, outcome: approvalOutcome, existingUserId };
 }
 
 async function handleListAiGatewayActivity(body, log) {
