@@ -26,6 +26,8 @@ interface AiActivityData {
   executions: Execution[];
   usageStats: UsageStats;
   missingUsageCollection: boolean;
+  executionsFetchError: string | null;
+  usageFetchError: string | null;
 }
 
 export const AIRadarPanel = () => {
@@ -102,7 +104,15 @@ export const AIRadarPanel = () => {
               <RefreshCw className={cn('h-3.5 w-3.5', loading && 'animate-spin')} />
             </Button>
           </div>
-          {data?.missingUsageCollection ? (
+          {data?.usageFetchError ? (
+            <DevKitErrorCard
+              error={data.usageFetchError}
+              title="Usage data fetch failed"
+              onRetry={fetchRadar}
+              compact
+              context={{ panel: 'AI Radar', action: 'list-ai-gateway-activity' }}
+            />
+          ) : data?.missingUsageCollection ? (
             <p className="text-xs text-white/30 italic">ai_usage_logs collection not found — no traffic data available.</p>
           ) : totalTracked === 0 ? (
             <p className="text-xs text-white/30 italic">No recent usage data in ai_usage_logs.</p>
@@ -120,7 +130,15 @@ export const AIRadarPanel = () => {
 
         <div className="p-8 rounded-3xl bg-white/[0.03] border border-white/10">
           <h3 className="text-white font-bold flex items-center gap-2 mb-6"><Activity size={20} /> Recent Executions</h3>
-          {executions.length === 0 ? (
+          {data?.executionsFetchError ? (
+            <DevKitErrorCard
+              error={data.executionsFetchError}
+              title="Execution log fetch failed"
+              onRetry={fetchRadar}
+              compact
+              context={{ panel: 'AI Radar', action: 'list-ai-gateway-activity' }}
+            />
+          ) : executions.length === 0 ? (
             <p className="text-xs text-white/30 italic">No recent AI gateway executions found.</p>
           ) : (
             <div className="space-y-3">

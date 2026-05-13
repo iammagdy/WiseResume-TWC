@@ -1070,6 +1070,7 @@ async function handleListAiGatewayActivity(body, log) {
   const limit = Math.min(Math.max(1, Number(body.limit) || 10), 25);
 
   let executions = [];
+  let executionsFetchError = null;
   try {
     const execRes = await functions.listExecutions('ai-gateway', [sdk.Query.limit(limit), sdk.Query.orderDesc('$createdAt')]);
     executions = (execRes.executions || []).map(e => ({
@@ -1080,10 +1081,14 @@ async function handleListAiGatewayActivity(body, log) {
       $createdAt: e.$createdAt,
     }));
   } catch (e) {
+    executionsFetchError = e.message;
     log(`list-ai-gateway-activity: executions fetch failed: ${e.message}`);
   }
 
   const usageRes = await safeList(null, 'ai_usage_logs', [sdk.Query.limit(50), sdk.Query.orderDesc('$createdAt')]);
+  const missingUsageCollection = !!usageRes.error && /not\s+found|could not be found|collection.*missing|does not exist/i.test(usageRes.error);
+  const usageFetchError = usageRes.error && !missingUsageCollection ? usageRes.error : null;
+
   const counts = { total: usageRes.total || 0, openrouter: 0, groq: 0, deepseek: 0, nvidia: 0 };
   for (const d of (usageRes.documents || [])) {
     const p = (d.provider || '').toLowerCase();
@@ -1093,9 +1098,14 @@ async function handleListAiGatewayActivity(body, log) {
     else if (p.includes('nvidia')) counts.nvidia++;
   }
 
-  const missingUsageCollection = !!usageRes.error && /not\s+found|could not be found|collection.*missing|does not exist/i.test(usageRes.error);
-  log(`list-ai-gateway-activity: ${executions.length} executions, ${counts.total} usage logs`);
-  return { executions, usageStats: counts, missingUsageCollection };
+  log(`list-ai-gateway-activity: ${executions.length} executions, ${counts.total} usage logs${executionsFetchError ? ` (exec error: ${executionsFetchError})` : ''}${usageFetchError ? ` (usage error: ${usageFetchError})` : ''}`);
+  return {
+    executions,
+    usageStats: counts,
+    missingUsageCollection,
+    executionsFetchError,
+    usageFetchError,
+  };
 }
 
 async function handleSendVerificationEmail(body, log) {
