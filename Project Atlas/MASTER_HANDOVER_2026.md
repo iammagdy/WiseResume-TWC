@@ -396,3 +396,68 @@ Systemic failures in the DevKit were caused by infrastructure drift (missing col
 - DevKit is 100% stable with real data.
 - All 10 admin functions are deployed and synchronized.
 - **Next Step:** Verify live visitor analytics population after user traffic occurs.
+
+---
+---
+
+## Session Summary — 2026-05-13 (CV Parsing Stabilization + iOS OCR Fix)
+
+**App version bumped: 4.2.0 → 4.3.0**
+
+---
+
+### Fix 1 — AI parse-resume: job titles parsed as "Position 1, Position 2…" on all platforms
+
+**Root cause:** The system prompt sent to the AI in `appwrite-hubs/ai-gateway/src/main.js` (`buildMessages()`) provided an empty `"experience": []` array with no example item and no instruction about what the `position` field should contain. With no schema example, the model invented generic placeholder labels when the resume text was ambiguous.
+
+**Fix:**
+- `appwrite-hubs/ai-gateway/src/main.js` — added an explicit example experience item in the system prompt showing `"position": "<exact job title from resume>"`.
+- Added a hard rule: *"NEVER use generic placeholders like 'Position 1', 'Job 1', or 'Role'. Use the closest job title text visible in that section."*
+- The user message now repeats the same instruction.
+- **Requires redeploy of `ai-gateway` to take effect on live.**
+
+---
+
+### Fix 2 — PDF export downloads as HTML on mobile (production)
+
+**Root cause:** The Express/Puppeteer server (`/api/export/pdf-native`) does not exist on Hostinger. Hostinger's SPA rewrite serves `index.html` for any unknown path with `200 OK`. `callPdfServer` in `src/lib/nativePdfGenerator.ts` checked only `response.ok`, saw `true`, turned the HTML response body into a blob, and downloaded it as `Resume.pdf` — which was an HTML file.
+
+**Fix:**
+- `src/lib/nativePdfGenerator.ts` (`callPdfServer`) — after `response.ok`, check `Content-Type` header. If it is not `application/pdf`, throw `PDFServerUnavailableError`.
+- This routes mobile users into the existing fallback: opens the browser print dialog with the message *"PDF export is not available right now. Opening print dialog — choose 'Save as PDF' to download your resume."*
+
+---
+
+### Fix 3 — iOS OCR crash: `getOrInsertComputed is not a function`
+
+**Root cause:** `pdfjs-dist@5.6.205` uses `Map.prototype.getOrInsertComputed` — a new TC39 Map proposal that shipped in Chrome 137+ and Node.js 24+ but is **not supported in iOS Safari/WebKit**. The method appears 11 times in `pdf.mjs` and 2 times in `pdf.worker.min.mjs`. Because the PDF.js worker runs as an ES module Web Worker with its own isolated JS context, a main-thread polyfill alone would not fix the worker-side calls. The error fires inside PDF.js's `MessageHandler` on page 1, before any OCR page is processed — which is why it failed 100% consistently on iOS.
+
+**Why desktop/Android worked:** Chrome 137+ (Android and desktop) supports `getOrInsertComputed` natively.
+
+**Fix:**
+- `package.json` — downgraded `pdfjs-dist` from `5.6.205` to `4.10.38` (last stable 4.x release, pinned exact). v4 build artifacts contain zero calls to `getOrInsertComputed` (confirmed by grep).
+- `scripts/copy-pdf-ocr-assets.mjs` — re-ran to refresh `public/pdfjs/cmaps/` (169 files) and `public/pdfjs/standard_fonts/` (16 files) from the v4 package.
+- No source code changes required. The three PDF.js APIs the app uses (`getDocument`, `PDFDocumentProxy`, `GlobalWorkerOptions.workerPort`) are identical between v4 and v5.
+- TypeScript passes clean with v4 type definitions. App starts cleanly.
+
+---
+
+### Deployment state after this session
+
+| Commit | What it contains |
+|--------|-----------------|
+| `28e205b` | Fix 1 (parse-resume prompt) + Fix 2 (PDF content-type guard) |
+| `28ab2c9` | Fix 3 (pdfjs-dist downgrade) + version bump to 4.3.0 |
+
+Both commits pushed to `origin/main`. Both deploy workflows triggered:
+- `deploy-frontend.yml` — triggered automatically by push (Fixes 2 + 3 go live on Hostinger).
+- `deploy-appwrite-hubs.yml` — triggered manually via `gh workflow run` (Fix 1 goes live on `ai-gateway`).
+
+---
+
+### Where We Stopped
+- `ai-gateway` redeploy required for Fix 1 (parse-resume prompt) to be live — handled by this session's `deploy-appwrite-hubs.yml` run.
+- `admin-devkit-data` still needs `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `RESEND_FROM_NAME` added manually in Appwrite Console (plan-change email notifications, from Task #28).
+- iOS OCR is now unblocked — next step is user verification on a real iPhone.
+- Desktop/Android parsing unaffected by pdfjs downgrade.
+- **Next agent:** pull `main`, read `RULES.md`, no migrations or schema changes needed.
