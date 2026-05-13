@@ -11,6 +11,28 @@
 
 ---
 
+## 2026-05-13 - Deploy admin-devkit-data: Resend Vars + Redeployment Wiring
+
+### Summary
+Wired the CI deploy pipeline so that the `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, and `RESEND_FROM_NAME` environment variables are automatically provisioned on the `admin-devkit-data` Appwrite Function when the GitHub Actions workflow runs. This unblocks the plan-change notification and email side-effects added in the previous entry.
+
+### What changed
+- `scripts/deploy_hubs.cjs` — added `ensureVariable` calls for `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, and `RESEND_FROM_NAME` on `admin-devkit-data` after the hub deployment loop.
+- `.github/workflows/deploy-appwrite-hubs.yml` — exports `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, and `RESEND_FROM_NAME` from GitHub secrets into the deploy step so the deploy script can read them.
+
+### Manual steps still required (one-time)
+Add the three secrets to the GitHub repository (`Settings → Secrets and variables → Actions`):
+- `RESEND_API_KEY` — same Resend API key already used by `admin-email`
+- `RESEND_FROM_EMAIL` — e.g. `hello@thewise.cloud`
+- `RESEND_FROM_NAME` — e.g. `WiseResume`
+
+Then trigger the **Deploy AI Hubs** workflow (`workflow_dispatch`) from GitHub Actions. The script will deploy `admin-devkit-data` and set all three variables in one run.
+
+### Smoke test
+After the workflow completes: set a test user's plan in DevKit → confirm the user's notification appears in their bell icon and a transactional email arrives in their inbox.
+
+---
+
 ## 2026-05-13 - Plan Change: Realtime Reflect + Notify User
 
 ### Summary

@@ -108,6 +108,17 @@ async function run() {
         await ensureVariable('resume-section-ai', key, value);
     }
 
+    // Ensure admin-devkit-data has the Resend vars needed for plan-change emails.
+    console.log('\n🔑 Ensuring admin-devkit-data Resend vars...');
+    const devkitResendKeys = [
+        ['RESEND_API_KEY',    process.env.RESEND_API_KEY],
+        ['RESEND_FROM_EMAIL', process.env.RESEND_FROM_EMAIL],
+        ['RESEND_FROM_NAME',  process.env.RESEND_FROM_NAME],
+    ];
+    for (const [key, value] of devkitResendKeys) {
+        await ensureVariable('admin-devkit-data', key, value);
+    }
+
     console.log('\n🎉 All hubs processed.');
 }
 

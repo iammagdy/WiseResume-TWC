@@ -59,5 +59,8 @@ jobs:
           export OPENROUTER_KEY_2="${{ secrets.OPENROUTER_KEY_2 }}"
           export OPENROUTER_KEY_1="${{ secrets.OPENROUTER_KEY_1 }}"
           export GROQ_KEY_1="${{ secrets.GROQ_KEY_1 }}"
+          export RESEND_API_KEY="${{ secrets.RESEND_API_KEY }}"
+          export RESEND_FROM_EMAIL="${{ secrets.RESEND_FROM_EMAIL }}"
+          export RESEND_FROM_NAME="${{ secrets.RESEND_FROM_NAME }}"
           node scripts/deploy_hubs.cjs
 
