@@ -334,12 +334,21 @@ function buildMessages(featureName, opts) {
         role: 'system',
         content:
           `${PARSE_RESUME_SYSTEM_PROMPT}\n\n` +
+          '=== EXPERIENCE FIELD RULES ===\n' +
+          '- `position`: the EXACT job title as written in the resume (e.g. "Senior Software Engineer", "Marketing Manager"). NEVER use generic placeholders like "Position 1", "Job 1", "Role", or "Title". If the job title is unclear, use the closest title text you can find in that section.\n' +
+          '- `company`: the EXACT employer/organization name as written.\n' +
+          '- `startDate` / `endDate`: extract the date range exactly as written (e.g. "Jan 2021", "2019", "March 2020 – Present"). For current roles set endDate="Present" and current=true.\n' +
+          '- `responsibilities`: copy each bullet point verbatim from the resume — do NOT summarize or combine.\n\n' +
           'Return ONLY valid JSON with this exact shape:\n' +
           '{\n' +
           '  "contactInfo": {"fullName":"","email":"","email2":"","phone":"","location":"","linkedin":"","github":"","portfolio":"","photoUrl":""},\n' +
           '  "summary": "",\n' +
-          '  "experience": [],\n' +
-          '  "education": [],\n' +
+          '  "experience": [\n' +
+          '    {"company":"<employer name>","position":"<exact job title from resume>","startDate":"","endDate":"","current":false,"description":"","responsibilities":[],"achievements":[],"isProject":false}\n' +
+          '  ],\n' +
+          '  "education": [\n' +
+          '    {"institution":"","degree":"","field":"","startDate":"","endDate":"","gpa":""}\n' +
+          '  ],\n' +
           '  "skills": [],\n' +
           '  "certifications": [],\n' +
           '  "awards": [],\n' +
@@ -356,7 +365,8 @@ function buildMessages(featureName, opts) {
         role: 'user',
         content:
           `File type: ${asString(opts.fileType) || 'text/plain'}\n\n` +
-          'Extract the full resume into structured JSON. Keep bullet points verbatim.\n\n' +
+          'Extract the full resume into structured JSON. Copy all bullet points verbatim. ' +
+          'For each work experience entry, "position" must be the exact job title text from the resume — never a generic label.\n\n' +
           `RESUME TEXT:\n${text.slice(0, 60000)}`,
       },
     ];

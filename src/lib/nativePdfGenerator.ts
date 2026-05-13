@@ -163,6 +163,16 @@ async function callPdfServer(
     throw new Error(msg);
   }
 
+  // Guard: if the server returned HTML instead of a PDF (e.g. SPA fallback
+  // from Hostinger when the Express server is not deployed), treat it as
+  // unavailable rather than downloading an HTML file named .pdf
+  const contentType = response.headers.get('content-type') ?? '';
+  if (!contentType.includes('application/pdf')) {
+    throw new PDFServerUnavailableError(
+      'PDF server is not available in this environment. Use the print dialog to save your resume as PDF.',
+    );
+  }
+
   onProgress?.('downloading', 90);
   return response.blob();
 }
