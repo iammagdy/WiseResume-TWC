@@ -593,6 +593,103 @@ async function getProfileDoc(databases, userId) {
 
 // ─── Admin mutation handlers ─────────────────────────────────────────────────
 
+// ─── Plan change helpers: notification + email ────────────────────────────────
+
+const PLAN_LABELS = { free: 'Free', pro: 'Pro', premium: 'Premium' };
+
+async function resendRequest(method, path, body) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) throw new Error('RESEND_API_KEY not configured');
+  const response = await fetch(`https://api.resend.com${path}`, {
+    method,
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const text = await response.text();
+  let payload;
+  try { payload = text ? JSON.parse(text) : {}; } catch { payload = { message: text }; }
+  if (!response.ok) throw new Error(payload?.message || `Resend ${method} ${path} failed HTTP ${response.status}`);
+  return payload;
+}
+
+function planUpgradeEmailHtml(userEmail, planLabel, durationLabel) {
+  const heading = durationLabel
+    ? `Your ${planLabel} trial has started`
+    : `You've been upgraded to ${planLabel}`;
+  const body = durationLabel
+    ? `<p style="margin:0 0 16px">Your account has been granted a <strong>${planLabel} trial</strong> for <strong>${durationLabel}</strong>. All ${planLabel} features are now unlocked — enjoy!</p>`
+    : `<p style="margin:0 0 16px">Your WiseResume plan has been set to <strong>${planLabel}</strong>. All ${planLabel} features are now active on your account.</p>`;
+  const content = `
+    <h2 style="margin:0 0 16px;font-size:20px;font-weight:700;color:#111827;">${heading}</h2>
+    ${body}
+    <p style="margin:0 0 24px;color:#6b7280;font-size:14px;">If you have any questions, reply to this email and we'll be happy to help.</p>
+    <a href="https://resume.thewise.cloud/dashboard" style="display:inline-block;background:#6366f1;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;">Go to Dashboard</a>`;
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>WiseResume</title></head>
+<body style="margin:0;padding:0;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+<div style="max-width:560px;margin:40px auto;background:#ffffff;border-radius:12px;border:1px solid #e5e7eb;overflow:hidden;">
+  <div style="background:#6366f1;padding:24px 32px;">
+    <span style="color:#fff;font-size:20px;font-weight:700;letter-spacing:-0.5px;">WiseResume</span>
+  </div>
+  <div style="padding:32px;">${content}</div>
+  <div style="padding:16px 32px;background:#f9fafb;border-top:1px solid #e5e7eb;font-size:12px;color:#9ca3af;">
+    This email was sent to ${userEmail} by the WiseResume admin panel. thewise.cloud
+  </div>
+</div>
+</body></html>`;
+}
+
+async function createPlanNotification(databases, userId, planLabel, durationLabel, log) {
+  try {
+    const title = durationLabel
+      ? `Your ${planLabel} trial has started`
+      : `Your plan has been upgraded to ${planLabel}`;
+    const message = durationLabel
+      ? `You now have access to all ${planLabel} features for ${durationLabel}. Enjoy!`
+      : `Your WiseResume plan is now ${planLabel}. All features are active on your account.`;
+    await databases.createDocument(DB_ID, 'notifications', sdk.ID.unique(), {
+      user_id: userId,
+      type: 'system',
+      title,
+      message,
+      is_read: false,
+    }, [
+      sdk.Permission.read(sdk.Role.user(userId)),
+      sdk.Permission.update(sdk.Role.user(userId)),
+      sdk.Permission.delete(sdk.Role.user(userId)),
+    ]);
+  } catch (err) {
+    log(`[warn] createPlanNotification failed (non-fatal): ${err.message}`);
+  }
+}
+
+async function sendPlanUpgradeEmail(userId, planLabel, durationLabel, log) {
+  try {
+    if (!process.env.RESEND_API_KEY) {
+      log('[warn] sendPlanUpgradeEmail: RESEND_API_KEY not set — skipping email');
+      return;
+    }
+    const user = await getUser(userId);
+    const email = user.email;
+    if (!email) { log('[warn] sendPlanUpgradeEmail: user has no email — skipping'); return; }
+    const fromEmail = process.env.RESEND_FROM_EMAIL || 'hello@thewise.cloud';
+    const fromName  = process.env.RESEND_FROM_NAME  || 'WiseResume';
+    const subject = durationLabel
+      ? `Your ${planLabel} trial has started — WiseResume`
+      : `You've been upgraded to ${planLabel} — WiseResume`;
+    await resendRequest('POST', '/emails', {
+      from: `${fromName} <${fromEmail}>`,
+      to:   email,
+      subject,
+      html: planUpgradeEmailHtml(email, planLabel, durationLabel),
+    });
+    log(`sendPlanUpgradeEmail: sent to ${email} (plan=${planLabel}, duration=${durationLabel || 'permanent'})`);
+  } catch (err) {
+    log(`[warn] sendPlanUpgradeEmail failed (non-fatal): ${err.message}`);
+  }
+}
+
+// ─── Handlers ─────────────────────────────────────────────────────────────────
+
 async function handleSetPlan(body, log) {
   const { databases } = getClients();
   const { target_user_id, plan, actor_email } = body;
@@ -616,6 +713,13 @@ async function handleSetPlan(body, log) {
 
   await auditLog(databases, 'set-plan', { target_user_id, plan, actor_email });
   log(`set-plan: ${target_user_id} -> ${plan}`);
+
+  const planLabel = PLAN_LABELS[plan] || plan;
+  await Promise.allSettled([
+    createPlanNotification(databases, target_user_id, planLabel, null, log),
+    sendPlanUpgradeEmail(target_user_id, planLabel, null, log),
+  ]);
+
   return { plan };
 }
 
@@ -640,6 +744,14 @@ async function handleGrantTrial(body, log) {
 
   await auditLog(databases, 'grant-trial', { target_user_id, plan, days });
   log(`grant-trial: ${target_user_id} -> ${plan} for ${days}d`);
+
+  const planLabel = PLAN_LABELS[plan] || plan;
+  const durationLabel = `${days} day${Number(days) === 1 ? '' : 's'}`;
+  await Promise.allSettled([
+    createPlanNotification(databases, target_user_id, planLabel, durationLabel, log),
+    sendPlanUpgradeEmail(target_user_id, planLabel, durationLabel, log),
+  ]);
+
   return { trial_plan: plan, trial_expires_at: expiresAt };
 }
 

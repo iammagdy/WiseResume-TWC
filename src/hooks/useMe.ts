@@ -1,6 +1,7 @@
-import { useQuery } from '@tanstack/react-query';
-import { databases, DATABASE_ID, Query } from '@/lib/appwrite';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { databases, client, DATABASE_ID, Query } from '@/lib/appwrite';
 import { useAuth } from './useAuth';
+import { useEffect } from 'react';
 
 export interface MeData {
   userId: string;
@@ -45,6 +46,16 @@ async function safeList(collectionId: string, queries: string[]) {
 
 export function useMe() {
   const { user, isAuthenticated } = useAuth();
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const unsubscribe = client.subscribe(
+      'databases.main.collections.subscriptions.documents',
+      () => { queryClient.invalidateQueries({ queryKey: ['me', user.id] }); },
+    );
+    return () => { unsubscribe(); };
+  }, [user?.id, queryClient]);
 
   return useQuery({
     queryKey: ['me', user?.id],

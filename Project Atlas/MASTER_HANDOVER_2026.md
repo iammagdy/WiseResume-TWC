@@ -174,6 +174,12 @@ When Appwrite Auth accounts are deleted, their `profiles` and `resumes` document
 - **#26** — Post-deploy smoke test in `deploy-frontend.yml`
 - **#27** — Wire `public/_headers` CSP into `.htaccess`
 
+### Completed (2026-05-13) — Task #28
+Plan changes made via God Mode DevKit now reflect immediately on the target user's frontend (~2s via Appwrite Realtime) and trigger both an in-app notification and a transactional email.
+- `useMe` subscribes to `subscriptions` Realtime channel; invalidates `['me']` query on any event.
+- `admin-devkit-data` `handleSetPlan` + `handleGrantTrial` now call `createPlanNotification` + `sendPlanUpgradeEmail` via `Promise.allSettled` after the DB write (non-fatal side effects).
+- **Action required before live:** add `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `RESEND_FROM_NAME` to `admin-devkit-data` function variables in Appwrite Console, then redeploy the function.
+
 ---
 
 ## Key Files

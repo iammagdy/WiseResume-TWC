@@ -11,6 +11,37 @@
 
 ---
 
+## 2026-05-13 - Plan Change: Realtime Reflect + Notify User
+
+### Summary
+Three-part fix so that when God Mode DevKit sets a permanent plan or grants a trial, the target user's browser reflects the change immediately and they receive both an in-app notification and a transactional email.
+
+### Root causes addressed
+1. **Stale frontend cache** — `useMe` had `staleTime: 5 * 60 * 1000` with no push invalidation. `invalidateQueries(['me'])` in the admin's browser only cleared the admin's cache.
+2. **No notification** — `handleSetPlan` and `handleGrantTrial` in `admin-devkit-data` never wrote to `notifications`.
+3. **No email** — neither handler called Resend.
+
+### What changed
+- `src/hooks/useMe.ts` — added Appwrite Realtime subscription on `databases.main.collections.subscriptions.documents`. On any event the hook calls `queryClient.invalidateQueries({ queryKey: ['me', user.id] })` and unsubscribes on cleanup. Plan reflects in ~2 seconds without polling.
+- `appwrite-hubs/admin-devkit-data/src/main.js` — added:
+  - `resendRequest(method, path, body)` — minimal Resend REST helper (same pattern as `admin-email`)
+  - `planUpgradeEmailHtml(email, planLabel, durationLabel)` — styled email template matching `baseTemplate` (indigo header, 560px max-width)
+  - `createPlanNotification(databases, userId, planLabel, durationLabel, log)` — writes to `notifications` collection with `type: 'system'`, correct title/message, `is_read: false`, permissions scoped to `Role.user(userId)`. Non-fatal (try/catch + warning log).
+  - `sendPlanUpgradeEmail(userId, planLabel, durationLabel, log)` — fetches user email via `getUser()`, sends via Resend. Skips gracefully when `RESEND_API_KEY` is absent. Non-fatal.
+  - Both `handleSetPlan` and `handleGrantTrial` now call both helpers via `Promise.allSettled` after the DB write succeeds, so neither can block or fail the primary plan change.
+
+### Env vars required in `admin-devkit-data` Appwrite Function
+Add these in Appwrite Console → Functions → `admin-devkit-data` → Variables:
+- `RESEND_API_KEY` — Resend API key (same value already used in `admin-email`)
+- `RESEND_FROM_EMAIL` — sender address (e.g. `hello@thewise.cloud`)
+- `RESEND_FROM_NAME` — sender name (e.g. `WiseResume`)
+
+### Verification
+- `npm exec tsc -- --noEmit` passed.
+- `admin-devkit-data` must be redeployed after this commit for changes to take effect on live.
+
+---
+
 ## 2026-05-13 - DevKit Login Spinner And Profile Action Fix
 
 ### Summary
