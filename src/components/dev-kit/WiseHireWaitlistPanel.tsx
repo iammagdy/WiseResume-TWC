@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Briefcase, UserPlus, Clock, Loader2 } from 'lucide-react';
+import { Briefcase, UserPlus, Clock, Loader2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { devKitCall } from '@/lib/devkit/devKitClient';
@@ -31,6 +31,7 @@ export const WiseHireWaitlistPanel = () => {
   const [error, setError] = useState<string | null>(null);
   const [missingCollection, setMissingCollection] = useState(false);
   const [approvingIds, setApprovingIds] = useState<Set<string>>(new Set());
+  const [dismissingIds, setDismissingIds] = useState<Set<string>>(new Set());
 
   const fetchWaitlist = useCallback(async () => {
     setLoading(true);
@@ -46,6 +47,22 @@ export const WiseHireWaitlistPanel = () => {
   }, []);
 
   useEffect(() => { fetchWaitlist(); }, [fetchWaitlist]);
+
+  const handleDismiss = async (id: string) => {
+    setDismissingIds(prev => new Set(prev).add(id));
+    const result = await devKitCall<{ dismissed: boolean; email?: string }>({ action: 'dismiss-wisehire-waitlist', payload: { waitlist_id: id } });
+    if (result.ok) {
+      setEntries(prev => prev.filter(e => e.$id !== id));
+      toast.success('Applicant dismissed.');
+    } else {
+      toast.error(`Failed to dismiss: ${result.error.message}`);
+    }
+    setDismissingIds(prev => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  };
 
   const handleApprove = async (id: string) => {
     setApprovingIds(prev => new Set(prev).add(id));
@@ -115,17 +132,31 @@ export const WiseHireWaitlistPanel = () => {
               </div>
             </div>
           </div>
-          <Button
-            onClick={() => handleApprove(e.$id)}
-            disabled={approvingIds.has(e.$id)}
-            className="rounded-2xl h-10 px-6 bg-white text-black hover:bg-white/90 font-bold uppercase italic disabled:opacity-50"
-          >
-            {approvingIds.has(e.$id)
-              ? <Loader2 size={16} className="mr-2 animate-spin" />
-              : <UserPlus size={16} className="mr-2" />
-            }
-            {approvingIds.has(e.$id) ? 'Approving…' : 'Grant Access'}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => handleDismiss(e.$id)}
+              disabled={dismissingIds.has(e.$id) || approvingIds.has(e.$id)}
+              variant="outline"
+              className="rounded-2xl h-10 px-4 border-white/10 bg-white/5 text-white/50 hover:bg-red-500/10 hover:border-red-500/30 hover:text-red-400 font-bold uppercase italic disabled:opacity-30"
+            >
+              {dismissingIds.has(e.$id)
+                ? <Loader2 size={14} className="mr-1.5 animate-spin" />
+                : <X size={14} className="mr-1.5" />
+              }
+              {dismissingIds.has(e.$id) ? 'Dismissing…' : 'Dismiss'}
+            </Button>
+            <Button
+              onClick={() => handleApprove(e.$id)}
+              disabled={approvingIds.has(e.$id) || dismissingIds.has(e.$id)}
+              className="rounded-2xl h-10 px-6 bg-white text-black hover:bg-white/90 font-bold uppercase italic disabled:opacity-50"
+            >
+              {approvingIds.has(e.$id)
+                ? <Loader2 size={16} className="mr-2 animate-spin" />
+                : <UserPlus size={16} className="mr-2" />
+              }
+              {approvingIds.has(e.$id) ? 'Approving…' : 'Grant Access'}
+            </Button>
+          </div>
         </div>
       ))}
       {entries.length === 0 && (

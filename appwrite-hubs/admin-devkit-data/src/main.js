@@ -1179,6 +1179,32 @@ async function handleApproveWisehireWaitlist(body, log) {
   return { approved: true, email, emailSent, outcome: approvalOutcome, existingUserId };
 }
 
+async function handleDismissWisehireWaitlist(body, log) {
+  const { databases } = getClients();
+  const { waitlist_id } = body;
+  if (!waitlist_id) throw new Error('Missing waitlist_id');
+
+  let entry;
+  try {
+    entry = await getDocument('wisehire_waitlist', waitlist_id);
+  } catch (e) {
+    throw new Error(`Waitlist entry not found: ${e.message}`);
+  }
+
+  const email = entry.email;
+
+  try {
+    await databases.deleteDocument(DB_ID, 'wisehire_waitlist', waitlist_id);
+    log(`dismiss-wisehire-waitlist: deleted waitlist entry ${waitlist_id} (${email})`);
+  } catch (e) {
+    throw new Error(`Could not delete waitlist entry: ${e.message}`);
+  }
+
+  await auditLog(databases, 'dismiss-wisehire-waitlist', { waitlist_id, email });
+  log(`dismiss-wisehire-waitlist: dismissed ${waitlist_id} (${email})`);
+  return { dismissed: true, email };
+}
+
 async function handleListAiGatewayActivity(body, log) {
   const { functions } = getClients();
   const limit = Math.min(Math.max(1, Number(body.limit) || 10), 25);
@@ -1331,6 +1357,7 @@ module.exports = async ({ req, res, log, error }) => {
     else if (action === 'toggle-app-setting') data = await handleToggleAppSetting(body, log);
     else if (action === 'list-wisehire-waitlist') data = await handleListWisehireWaitlist(log);
     else if (action === 'approve-wisehire-waitlist') data = await handleApproveWisehireWaitlist(body, log);
+    else if (action === 'dismiss-wisehire-waitlist') data = await handleDismissWisehireWaitlist(body, log);
     else if (action === 'list-ai-gateway-activity') data = await handleListAiGatewayActivity(body, log);
     else return json(res, rid, { success: false, code: 'UNKNOWN_ACTION', error: `Unknown action: ${action}` }, 400);
 
