@@ -5,9 +5,10 @@ import { getSafeMatchMedia } from '@/lib/envUtils';
 
 interface AuroraBackgroundProps {
   product?: 'jobseeker' | 'wisehire';
+  forceCssFallback?: boolean;
 }
 
-export function AuroraBackground({ product }: AuroraBackgroundProps = {}) {
+export function AuroraBackground({ product, forceCssFallback = false }: AuroraBackgroundProps = {}) {
   const theme = useSettingsStore((s) => s.theme);
   const storeLpProduct = useSettingsStore((s) => s.lpProduct);
   const lpProduct = product ?? storeLpProduct;
@@ -40,6 +41,7 @@ export function AuroraBackground({ product }: AuroraBackgroundProps = {}) {
         blend={isDark ? 0.47 : 0.55}
         amplitude={isDark ? 1.0 : 1.3}
         speed={1.3}
+        forceCssFallback={forceCssFallback}
       />
     </div>
   );

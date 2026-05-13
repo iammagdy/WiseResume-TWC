@@ -1,25 +1,24 @@
 import { useState } from 'react';
 import type { ElementType } from 'react';
-import { Inbox, Mail, Workflow } from 'lucide-react';
+import { Filter, Route, TrendingUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { EmailAutomationsPanel } from './EmailAutomationsPanel';
-import { EmailManagementPanel } from './EmailManagementPanel';
-import { TestmailInboxPanel } from './TestmailInboxPanel';
+import { AnalyticsPanel } from './AnalyticsPanel';
+import { OnboardingFunnelPanel } from './OnboardingFunnelPanel';
+import { VisitorsPanel } from './VisitorsPanel';
 
-type EmailSubTab = 'send' | 'automations' | 'inbox';
+type GrowthTab = 'visitors' | 'analytics' | 'onboarding';
 
-const TABS: { id: EmailSubTab; label: string; Icon: ElementType }[] = [
-  { id: 'send', label: 'Send', Icon: Mail },
-  { id: 'automations', label: 'Automations', Icon: Workflow },
-  { id: 'inbox', label: 'Inbox', Icon: Inbox },
+const TABS: { id: GrowthTab; label: string; Icon: ElementType }[] = [
+  { id: 'visitors', label: 'Visitors', Icon: Route },
+  { id: 'analytics', label: 'Analytics', Icon: TrendingUp },
+  { id: 'onboarding', label: 'Onboarding', Icon: Filter },
 ];
 
-export function EmailHubPanel() {
-  const [activeTab, setActiveTab] = useState<EmailSubTab>('send');
+export function GrowthTrafficPanel() {
+  const [activeTab, setActiveTab] = useState<GrowthTab>('visitors');
 
   return (
     <div className="space-y-6">
-      {/* Sub-tab bar */}
       <div className="flex gap-1 rounded-2xl border border-white/10 bg-white/[0.03] p-1">
         {TABS.map(tab => (
           <button
@@ -38,10 +37,9 @@ export function EmailHubPanel() {
         ))}
       </div>
 
-      {/* Tab content */}
-      {activeTab === 'send' && <EmailManagementPanel />}
-      {activeTab === 'automations' && <EmailAutomationsPanel />}
-      {activeTab === 'inbox' && <TestmailInboxPanel />}
+      {activeTab === 'visitors' && <VisitorsPanel />}
+      {activeTab === 'analytics' && <AnalyticsPanel />}
+      {activeTab === 'onboarding' && <OnboardingFunnelPanel />}
     </div>
   );
 }

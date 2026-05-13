@@ -54,11 +54,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { appwriteFunctions } from '@/lib/appwrite-functions';
-import { getDevKitToken } from '@/contexts/DevKitSessionContext';
 import { cn } from '@/lib/utils';
-import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
-import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
+import { devKitCall, toDevKitError } from '@/lib/devkit/devKitClient';
 
 type DirectoryRow = {
   user_id: string;
@@ -126,14 +123,15 @@ async function invoke<T = unknown>(
   extra: Record<string, unknown> = {},
 ): Promise<{ data: T | null; error: string | null }> {
   try {
-    const tuple = await appwriteFunctions.invoke('admin-portfolio-usernames', {
-      headers: devKitAuthHeaders(),
-      body: { action, ...extra },
+    const result = await devKitCall<T>({
+      functionId: 'admin-portfolio-usernames',
+      action,
+      payload: extra,
     });
-    const result = unwrapAdminResponse<T>(tuple, 'admin-portfolio-usernames');
-    return { data: result, error: null };
+    if (!result.ok) throw result.error;
+    return { data: result.data, error: null };
   } catch (e) {
-    return { data: null, error: formatEdgeError(e, 'Request failed') };
+    return { data: null, error: toDevKitError(e, { functionId: 'admin-portfolio-usernames', action }).message || 'Request failed' };
   }
 }
 

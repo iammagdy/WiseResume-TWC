@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import {
   Activity, ArrowLeft, BarChart2, Briefcase, BrainCircuit, CheckCircle2, Cog, Database,
-  Filter, Fingerprint, Flag, History, LayoutDashboard, Link2, Loader2,
-  Lock, Mail, Menu, Play, Route, ServerCog, ShieldCheck, Ticket, TrendingUp, Users,
-  Workflow, X, Zap,
+  Fingerprint, Flag, History, LayoutDashboard, Link2, Loader2,
+  Lock, Mail, Menu, Play, ServerCog, ShieldCheck, Ticket, TrendingUp, Users,
+  X, Zap,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -31,11 +31,8 @@ import { LiveActivityPanel } from '@/components/dev-kit/LiveActivityPanel';
 import { CouponsPanel } from '@/components/dev-kit/CouponsPanel';
 import { FeatureFlagsPanel } from '@/components/dev-kit/FeatureFlagsPanel';
 import { ModerationPanel } from '@/components/dev-kit/ModerationPanel';
-import { VisitorsPanel } from '@/components/dev-kit/VisitorsPanel';
 import { EmailHubPanel } from '@/components/dev-kit/EmailHubPanel';
-import { AnalyticsPanel } from '@/components/dev-kit/AnalyticsPanel';
-import { OnboardingFunnelPanel } from '@/components/dev-kit/OnboardingFunnelPanel';
-import { EmailAutomationsPanel } from '@/components/dev-kit/EmailAutomationsPanel';
+import { GrowthTrafficPanel } from '@/components/dev-kit/GrowthTrafficPanel';
 import { WiseHireWaitlistPanel } from '@/components/dev-kit/WiseHireWaitlistPanel';
 
 type PanelStatus = 'Live' | 'Needs Appwrite Function' | 'Needs Schema' | 'Planned';
@@ -54,9 +51,7 @@ const PANEL_GROUPS: { label: string; panels: PanelDef[] }[] = [
     { id: 'mission', title: 'Mission Control', icon: Activity, status: 'Live' },
     { id: 'observability', title: 'Observability', icon: BarChart2, status: 'Live' },
     { id: 'live', title: 'Live Activity', icon: Zap, status: 'Live' },
-    { id: 'visitors', title: 'Visitor Analytics', icon: Route, status: 'Live' },
-    { id: 'analytics', title: 'Analytics', icon: TrendingUp, status: 'Live' },
-    { id: 'onboarding-funnel', title: 'Onboarding Funnel', icon: Filter, status: 'Live' },
+    { id: 'growth', title: 'Growth & Traffic', icon: TrendingUp, status: 'Live' },
     { id: 'runner', title: 'Smoke Runner', icon: Play, status: 'Live' },
   ]},
   { label: 'Command Center', panels: [
@@ -71,7 +66,6 @@ const PANEL_GROUPS: { label: string; panels: PanelDef[] }[] = [
   { label: 'Support & Business Ops', panels: [
     { id: 'moderation', title: 'Moderation', icon: ShieldCheck, status: 'Live' },
     { id: 'email-hub', title: 'Email', icon: Mail, status: 'Live' },
-    { id: 'email-automations', title: 'Email Automations', icon: Workflow, status: 'Live' },
     { id: 'coupons', title: 'Coupons', icon: Ticket, status: 'Live' },
     { id: 'portfolios', title: 'Portfolios', icon: Link2, status: 'Live' },
     { id: 'wisehire-waitlist', title: 'WiseHire Waitlist', icon: Briefcase, status: 'Live' },
@@ -167,7 +161,7 @@ function DevToolsInner() {
   };
 
   const navigatePanel = (id: string) => {
-    const aliases: Record<string, string> = { deployment: 'diagnostics', openrouter: 'ai-center', 'ai-keys': 'ai-center', ai: 'ai-center', 'ai-routing': 'ai-center', email: 'email-hub', testmail: 'email-hub', settings: 'flags', overview: 'overview', live: 'live' };
+    const aliases: Record<string, string> = { deployment: 'diagnostics', openrouter: 'ai-center', 'ai-keys': 'ai-center', ai: 'ai-center', 'ai-routing': 'ai-center', email: 'email-hub', testmail: 'email-hub', 'email-automations': 'email-hub', visitors: 'growth', analytics: 'growth', 'onboarding-funnel': 'growth', settings: 'flags', overview: 'overview', live: 'live' };
     setActivePanel(aliases[id] ?? id);
     setIsMobileMenuOpen(false);
   };
@@ -182,18 +176,15 @@ function DevToolsInner() {
       case 'runner': return wrap('Smoke Runner', <DevKitRunner />);
       case 'observability': return wrap('Observability', <ObservabilityPanel />);
       case 'live': return wrap('Live Activity', <LiveActivityPanel />);
-      case 'analytics': return wrap('Analytics', <AnalyticsPanel />);
-      case 'onboarding-funnel': return wrap('Onboarding Funnel', <OnboardingFunnelPanel />);
+      case 'growth': return wrap('Growth & Traffic', <GrowthTrafficPanel />);
       case 'coupons': return wrap('Coupons', <CouponsPanel />);
       case 'overview': return wrap('Infrastructure', <OverviewPanel />);
       case 'users': return wrap('God Mode', <AdminUsersPanel />);
       case 'db': return wrap('Database X-Ray', <DatabaseXRay />);
       case 'ai-center': return wrap('AI Center', <AICommandCenterPanel />);
       case 'flags': return wrap('Feature Control', <FeatureFlagsPanel />);
-      case 'visitors': return wrap('Visitor Analytics', <VisitorsPanel />);
       case 'moderation': return wrap('Moderation', <ModerationPanel />);
       case 'email-hub': return wrap('Email', <EmailHubPanel />);
-      case 'email-automations': return wrap('Email Automations', <EmailAutomationsPanel />);
       case 'portfolios': return wrap('Portfolios', <PortfolioUsernamesPanel />);
       case 'wisehire-waitlist': return wrap('WiseHire Waitlist', <WiseHireWaitlistPanel />);
       case 'audit': return wrap('History', <AuditLogPanel />);

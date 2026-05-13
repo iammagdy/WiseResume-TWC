@@ -5,9 +5,8 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { useDevKitSession } from '@/contexts/DevKitSessionContext';
-import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
+import { devKitCall, toDevKitError } from '@/lib/devkit/devKitClient';
 import { DevKitErrorCard } from './DevKitErrorCard';
 import { SectionCard } from './analytics/SectionCard';
 import { KpiCard } from './analytics/KpiCard';
@@ -179,20 +178,15 @@ function JourneyDrawer({
       setLoading(true);
       setError(null);
       try {
-        const { data, error: fnErr } = await appwriteFunctions.invoke('admin-visitor-analytics', {
-          headers: devKitAuthHeaders(),
-          body: { action: 'journey', session_id: sessionId, anon_id: anonId },
+        const result = await devKitCall<JourneyEvent[]>({
+          functionId: 'admin-visitor-analytics',
+          action: 'journey',
+          payload: { session_id: sessionId, anon_id: anonId },
         });
-        if (fnErr) {
-          const msg = typeof fnErr === 'string' ? fnErr
-            : (fnErr as { message?: string }).message || JSON.stringify(fnErr);
-          throw new Error(msg);
-        }
-        const result = data as { success: boolean; data?: JourneyEvent[] };
-        if (!result.success) throw new Error('Failed to load journey');
+        if (!result.ok) throw result.error;
         setEvents(result.data ?? []);
       } catch (e) {
-        setError(e instanceof Error ? e.message : String(e));
+        setError(toDevKitError(e, { functionId: 'admin-visitor-analytics', action: 'journey' }).message);
       } finally {
         setLoading(false);
       }
@@ -274,16 +268,13 @@ export function VisitorsPanel() {
   const [journeySearch, setJourneySearch] = useState('');
 
   const invoke = useCallback(async (action: string, extra: Record<string, unknown> = {}) => {
-    const { data, error: fnErr } = await appwriteFunctions.invoke('admin-visitor-analytics', {
-      headers: devKitAuthHeaders(),
-      body: { action, range, ...extra },
+    const result = await devKitCall<unknown>({
+      functionId: 'admin-visitor-analytics',
+      action,
+      payload: { range, ...extra },
     });
-    if (fnErr) {
-      const msg = typeof fnErr === 'string' ? fnErr
-        : (fnErr as { message?: string }).message || JSON.stringify(fnErr);
-      throw new Error(msg);
-    }
-    return data as { success: boolean; data?: unknown };
+    if (!result.ok) throw result.error;
+    return { success: true, data: result.data } as { success: boolean; data?: unknown };
   }, [range]);
 
   const fetchAll = useCallback(async () => {
@@ -313,7 +304,7 @@ export function VisitorsPanel() {
       }
       if (cohortRes.success)   setCohort(cohortRes.data as NamedCount[]);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(toDevKitError(e, { functionId: 'admin-visitor-analytics' }).message);
     } finally {
       setLoading(false);
     }

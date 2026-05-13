@@ -12,57 +12,53 @@ const functions = new sdk.Functions(client);
 async function ensureFunction(id, name) {
     try {
         const fn = await functions.get(id);
-        // Ensure execute permissions are set — some functions were created with [].
-        // All hubs here use ['any'] because Appwrite client SDK requires it for
-        // browser-initiated invocations. Admin hubs enforce their own in-function
-        // authentication (DEVKIT_PASSWORD) independently of the Appwrite execute role.
+        // Browser-initiated executions require Appwrite execute permission.
+        // Admin hubs enforce their own DevKit token inside the function.
         if (!fn.execute || fn.execute.length === 0) {
             await functions.update(id, name, fn.runtime || 'node-18.0', ['any']);
-            console.log(`  🔧 Fixed execute permissions for ${id}`);
+            console.log(`  Fixed execute permissions for ${id}`);
         }
-        console.log(`  ✅ ${id} already exists`);
+        console.log(`  ${id} already exists`);
     } catch (e) {
         if (e.code === 404) {
-            console.log(`  🔧 Creating ${id} with node-18.0...`);
+            console.log(`  Creating ${id} with node-18.0...`);
             await functions.create(id, name, 'node-18.0', ['any']);
-            console.log(`  ✅ Created ${id}`);
+            console.log(`  Created ${id}`);
         } else throw e;
     }
 }
 
 async function ensureVariable(fnId, key, value) {
-    if (!value) return; // skip if no value provided
+    if (!value) return;
     try {
         const vars = await functions.listVariables(fnId);
         const existing = vars.variables.find(v => v.key === key);
         if (existing) {
             if (existing.value !== value) {
                 await functions.updateVariable(fnId, existing.$id, key, value);
-                console.log(`  🔑 Updated ${key} on ${fnId}`);
+                console.log(`  Updated ${key} on ${fnId}`);
             }
         } else {
             await functions.createVariable(fnId, key, value);
-            console.log(`  🔑 Created ${key} on ${fnId}`);
+            console.log(`  Created ${key} on ${fnId}`);
         }
     } catch (e) {
-        console.warn(`  ⚠️  Could not set ${key} on ${fnId}: ${e.message}`);
+        console.warn(`  Could not set ${key} on ${fnId}: ${e.message}`);
     }
 }
 
 async function deployFunction(id, name, filePath) {
     const absPath = path.isAbsolute(filePath) ? filePath : path.join(process.cwd(), filePath);
-    console.log(`\n🚀 Deploying ${name} (${id})...`);
+    console.log(`\nDeploying ${name} (${id})...`);
 
     if (!fs.existsSync(absPath)) {
-        console.error(`❌ File not found: ${absPath}`);
-        return;
+        throw new Error(`File not found: ${absPath}`);
     }
 
     try {
         await ensureFunction(id, name);
         const fileBuffer = fs.readFileSync(absPath);
         const fileName = path.basename(absPath);
-        // SDK v24 accepts File/Blob for the code parameter
         const file = new File([fileBuffer], fileName, { type: 'application/gzip' });
         const deployment = await functions.createDeployment({
             functionId: id,
@@ -70,10 +66,33 @@ async function deployFunction(id, name, filePath) {
             activate: true,
             entrypoint: 'src/main.js',
         });
-        console.log(`  ✅ Deployed — ID: ${deployment.$id}, status: ${deployment.status}`);
+        console.log(`  Deployed: ${deployment.$id}, status=${deployment.status}`);
     } catch (e) {
-        console.error(`  ❌ Failed: ${e.message}`);
+        console.error(`  Failed: ${e.message}`);
         if (e.response) console.error(JSON.stringify(e.response, null, 2).slice(0, 400));
+        throw e;
+    }
+}
+
+async function smokeFunction(id, body) {
+    if (!process.env.DEVKIT_PASSWORD) return;
+    try {
+        const execution = await functions.createExecution({
+            functionId: id,
+            body: JSON.stringify({
+                ...body,
+                __headers: { Authorization: `Bearer ${process.env.DEVKIT_PASSWORD}` },
+            }),
+            async: false,
+            path: '/',
+            method: 'POST',
+        });
+        if (execution.status === 'failed' || execution.responseStatusCode >= 500) {
+            throw new Error(execution.errors || `HTTP ${execution.responseStatusCode}`);
+        }
+        console.log(`  Smoke ${id}: HTTP ${execution.responseStatusCode}`);
+    } catch (e) {
+        console.warn(`  Smoke ${id} failed: ${e.message}`);
     }
 }
 
@@ -89,6 +108,9 @@ async function run() {
         { id: 'admin-feature-flags',       name: 'Admin Feature Flags Hub',       file: 'admin-feature-flags.tar.gz' },
         { id: 'admin-moderation',          name: 'Admin Moderation Hub',          file: 'admin-moderation.tar.gz' },
         { id: 'admin-portfolio-usernames', name: 'Admin Portfolio Usernames Hub', file: 'admin-portfolio-usernames.tar.gz' },
+        { id: 'admin-visitor-analytics',   name: 'Admin Visitor Analytics Hub',   file: 'admin-visitor-analytics.tar.gz' },
+        { id: 'admin-onboarding-funnel',   name: 'Admin Onboarding Funnel Hub',   file: 'admin-onboarding-funnel.tar.gz' },
+        { id: 'admin-impersonate',         name: 'Admin Impersonate Hub',         file: 'admin-impersonate.tar.gz' },
         { id: 'inspect-ai-keys',           name: 'Inspect AI Keys Hub',           file: 'inspect-ai-keys.tar.gz' },
     ];
 
@@ -96,31 +118,61 @@ async function run() {
         await deployFunction(hub.id, hub.name, hub.file);
     }
 
-    // Ensure resume-section-ai has at least one AI provider key so it can call LLMs.
-    // Keys are read from env vars (set in CI via GitHub secrets).
-    console.log('\n🔑 Ensuring resume-section-ai provider keys...');
-    const rsaKeys = [
+    console.log('\nEnsuring resume-section-ai provider keys...');
+    for (const [key, value] of [
         ['OPENROUTER_KEY_1', process.env.OPENROUTER_KEY_1],
         ['OPENROUTER_KEY_2', process.env.OPENROUTER_KEY_2],
-        ['GROQ_KEY_1',       process.env.GROQ_KEY_1],
-    ];
-    for (const [key, value] of rsaKeys) {
+        ['GROQ_KEY_1', process.env.GROQ_KEY_1],
+    ]) {
         await ensureVariable('resume-section-ai', key, value);
     }
 
-    // Ensure admin-devkit-data has the Resend vars needed for plan-change emails.
-    console.log('\n🔑 Ensuring admin-devkit-data Resend vars...');
-    const devkitResendKeys = [
-        ['RESEND_API_KEY',    process.env.RESEND_API_KEY],
-        ['RESEND_FROM_EMAIL', process.env.RESEND_FROM_EMAIL],
-        ['RESEND_FROM_NAME',  process.env.RESEND_FROM_NAME],
+    console.log('\nEnsuring shared admin hub variables...');
+    const adminFunctionIds = [
+        'admin-devkit-data',
+        'admin-email',
+        'admin-testmail',
+        'admin-feature-flags',
+        'admin-moderation',
+        'admin-portfolio-usernames',
+        'admin-visitor-analytics',
+        'admin-onboarding-funnel',
+        'admin-impersonate',
+        'inspect-ai-keys',
     ];
-    for (const [key, value] of devkitResendKeys) {
-        await ensureVariable('admin-devkit-data', key, value);
+    for (const fnId of adminFunctionIds) {
+        for (const [key, value] of [
+            ['DEVKIT_PASSWORD', process.env.DEVKIT_PASSWORD],
+            ['APPWRITE_API_KEY', process.env.APPWRITE_API_KEY],
+            ['APPWRITE_ENDPOINT', process.env.APPWRITE_ENDPOINT],
+            ['APPWRITE_PROJECT_ID', process.env.APPWRITE_PROJECT_ID],
+        ]) {
+            await ensureVariable(fnId, key, value);
+        }
     }
 
-    console.log('\n🎉 All hubs processed.');
+    console.log('\nEnsuring email hub variables...');
+    for (const fnId of ['admin-email', 'admin-testmail', 'admin-devkit-data']) {
+        for (const [key, value] of [
+            ['RESEND_API_KEY', process.env.RESEND_API_KEY],
+            ['RESEND_FROM_EMAIL', process.env.RESEND_FROM_EMAIL],
+            ['RESEND_FROM_NAME', process.env.RESEND_FROM_NAME],
+        ]) {
+            await ensureVariable(fnId, key, value);
+        }
+    }
+
+    console.log('\nRunning safe admin hub smoke checks...');
+    await smokeFunction('admin-devkit-data', { action: 'diagnostics' });
+    await smokeFunction('admin-email', { module: 'resend-stats', action: 'stats' });
+    await smokeFunction('admin-testmail', { module: 'testmail-inbox', tag: null });
+    await smokeFunction('admin-portfolio-usernames', { action: 'directory_list', page: 1, per_page: 1 });
+    await smokeFunction('admin-visitor-analytics', { action: 'kpis', range: '7d' });
+    await smokeFunction('admin-onboarding-funnel', { days: 7, granularity: 'day' });
+    await smokeFunction('admin-feature-flags', { action: 'list' });
+    await smokeFunction('admin-moderation', { action: 'list_bug_reports', page: 1, per_page: 1 });
+
+    console.log('\nAll hubs processed.');
 }
 
 run().catch(e => { console.error('Fatal:', e.message); process.exit(1); });
-

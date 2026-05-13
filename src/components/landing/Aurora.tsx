@@ -142,6 +142,7 @@ interface AuroraProps {
   blend?: number;
   amplitude?: number;
   speed?: number;
+  forceCssFallback?: boolean;
 }
 
 export default function Aurora(props: AuroraProps) {
@@ -149,6 +150,7 @@ export default function Aurora(props: AuroraProps) {
     colorStops = ['#5227FF', '#7cff67', '#5227FF'],
     amplitude = 1.0,
     blend = 0.5,
+    forceCssFallback = false,
   } = props;
 
   const propsRef = useRef(props);
@@ -265,7 +267,7 @@ export default function Aurora(props: AuroraProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [amplitude, hasWebGL]);
 
-  if (!hasWebGL) {
+  if (forceCssFallback || !hasWebGL) {
     return (
       <div
         className="aurora-container"

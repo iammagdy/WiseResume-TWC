@@ -1,6 +1,6 @@
 # admin-devkit-data
 
-**Last verified:** 2026-05-13 (DevKit login spinner recovery and profile sub-action fix; deployment `6a0415154ff4ed2b537e` ready)
+**Last verified:** 2026-05-14 (admin hub deploy drift fix)
 **Type:** reference card
 **Sources:**
 - `appwrite-hubs/admin-devkit-data/src/main.js`
@@ -52,6 +52,8 @@
 `profiles`, `subscriptions`, `ai_credits`, `resumes`, `admin_audit_logs`, `audit_logs`, `feature_flags`, `error_log`, `discount_codes`, `app_settings`, plus observability/usage collections used by diagnostics and live activity.
 
 **Deployment artifact:** `admin-devkit-data.tar.gz` at repo root or `appwrite-hubs/admin-devkit-data.tar.gz`, but the archive must contain `package.json`, `src/main.js`, and `node_modules/` at the archive root. Upload to Appwrite Console or `functions.createDeployment`, entrypoint `src/main.js`, commands `npm install --omit=dev`.
+
+**2026-05-14 deploy drift fix:** The Deploy AI Hubs workflow now rebuilds all deployed hubs from source before upload, including standalone admin hubs used by DevKit panels. `scripts/deploy_hubs.cjs` now also deploys `admin-visitor-analytics`, `admin-onboarding-funnel`, and `admin-impersonate`, syncs shared admin variables to each admin hub, syncs Resend variables to email hubs, and runs safe smoke executions when `DEVKIT_PASSWORD` is available.
 
 ---
 

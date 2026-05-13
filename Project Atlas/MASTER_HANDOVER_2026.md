@@ -1,5 +1,39 @@
 # WiseResume Master Handover & State (May 2026)
 
+## Session Summary - 2026-05-14 (Public Navigation + DevKit Operations Hub)
+
+**Detailed logs:**
+- `Project Atlas/05-Migration to Appwrite/14-Session-Log-2026-05-14-DevKit-Ops-Hub.md`
+- `Project Atlas/01-Currently Implemented/stability-fixes/public-page-navigation-webgl-aurora-fix.md`
+
+### Fixed
+- Public page navigation stall: `/pricing` rendered but Dashboard/navigation clicks could hang. Root cause was the WebGL Aurora renderer running on non-landing utility pages and triggering Chromium GPU stalls. WebGL Aurora is now limited to `/` and `/enterprises`; utility public pages use the CSS Aurora fallback.
+- DevKit `Unauthorized` risk on Email Automations, Portfolios, Visitors, Testmail, and Mission Control live visitors: panels now use the shared DevKit client path for the affected standalone admin functions.
+- DevKit sidebar simplification:
+  - `Growth & Traffic` now contains Visitors, Analytics, and Onboarding Funnel.
+  - `Email` now contains Send, Automations, and Testmail Inbox.
+  - Old deep links for merged panels route to the new container panels.
+- Appwrite hub deployment drift: `deploy-appwrite-hubs.yml` now rebuilds every deployed hub from source and validates `src/main.js` at archive root before deployment.
+- `scripts/deploy_hubs.cjs` now deploys missing admin hubs (`admin-visitor-analytics`, `admin-onboarding-funnel`, `admin-impersonate`), syncs shared admin variables across admin hubs, syncs Resend variables to email hubs, and runs safe smoke executions when `DEVKIT_PASSWORD` is available.
+
+### Verification
+- `npm exec tsc -- --noEmit` passed.
+- `node --check scripts/deploy_hubs.cjs` passed.
+- `git diff --check` passed.
+- In-app browser verified `/pricing` -> Dashboard navigation locally.
+- `/devkit` browser E2E reached the lock screen, but full tab-by-tab DevKit E2E is blocked until the DevKit password is provided or an unlocked session exists.
+
+### Current state
+- Public navigation fix, DevKit Operations Hub changes, deployment workflow changes, and Atlas updates were committed and pushed to GitHub `main` at `6d25d71`.
+- Root `README.md` was not present before the follow-up README task.
+- Updated Deploy AI Hubs workflow still needs a live run with GitHub secrets present: `APPWRITE_API_KEY`, `DEVKIT_PASSWORD`, Resend vars, and AI provider keys.
+
+### Where we stopped
+- Next agent must pull latest `main`, unlock `/devkit` with the DevKit password, then run tab-by-tab E2E for Growth & Traffic, Email, Portfolios, Feature Control, Moderation, God Mode, AI Center, Coupons, Audit, WiseHire Waitlist, and Smoke Runner.
+- After E2E, run the updated Deploy AI Hubs workflow or manually deploy rebuilt hub artifacts, then verify no panel shows unexplained `Unauthorized`.
+
+---
+
 ## Session Summary — 2026-05-13 session 2 (DevKit Panel Consolidation, Tasks #13–17)
 
 **Detailed log:** `Project Atlas/05-Migration to Appwrite/13-Session-Log-2026-05-13-DevKit-Consolidation.md`

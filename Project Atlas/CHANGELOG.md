@@ -11,6 +11,62 @@
 
 ---
 
+## 2026-05-14 - Root README Added
+
+### Summary
+Added a professional root `README.md` for the GitHub repository so the project has a clear SaaS-grade entry point for developers, operators, and AI agents.
+
+### What changed
+- Created a root README covering product positioning, platform surfaces, architecture, repository map, local setup, commands, environment notes, deployment path, and Atlas rules.
+- Linked the README to the canonical Atlas files instead of duplicating deployment-sensitive operational truth.
+
+### Verification
+- Markdown file created at repo root.
+- Atlas changelog updated to record the documentation change.
+
+---
+
+## 2026-05-14 - DevKit Operations Hub Auth/Deploy Stabilization
+
+### Summary
+Stabilized the DevKit panel auth path and deployment workflow for the panels that were showing `Unauthorized`, then simplified the sidebar into fewer operations surfaces.
+
+### Root cause
+DevKit login returns a signed token from `admin-devkit-data`, but several panels depend on standalone admin Appwrite Functions. The local standalone sources accept signed tokens, but the deploy workflow rebuilt only a subset of hubs and could leave live functions stale. Stale standalone functions reject the signed token and show `Unauthorized`.
+
+### What changed
+- Email Automations, Portfolios, Visitors, Testmail Inbox, and Mission Control live-visitors now use the shared DevKit client path for their standalone admin functions.
+- DevKit sidebar now merges Visitors + Analytics + Onboarding into Growth & Traffic, and merges Email Automations into the Email hub.
+- The Appwrite hub deploy workflow now rebuilds every deployed hub from source and validates archive shape before deployment.
+- `scripts/deploy_hubs.cjs` now includes missing admin hubs, syncs shared admin variables to every admin hub, syncs Resend variables to email hubs, and runs safe smoke executions when `DEVKIT_PASSWORD` is available.
+
+### Verification
+- `npm exec tsc -- --noEmit` passed.
+- `git diff --check` passed.
+- Browser E2E reached `/devkit`, but full tab-by-tab testing is blocked until the DevKit password is supplied because the local DevKit session is locked.
+
+---
+
+## 2026-05-14 - Public Page Navigation Stall Fixed
+
+### Summary
+Fixed `/pricing` and other public utility pages appearing to load but then failing to navigate when the Dashboard button or similar links were clicked.
+
+### Root cause
+The routes were valid and rendered. The failure was a browser runtime stall caused by the animated WebGL Aurora background running on non-landing public pages. Chromium logged GPU `ReadPixels` stall warnings, and the in-app browser could render `/pricing` while click execution timed out. This made navigation look broken even though React routing was present.
+
+### What changed
+- `src/components/landing/AuroraLayer.tsx` now keeps WebGL Aurora only on the real landing pages (`/` and `/enterprises`).
+- `src/components/landing/AuroraBackground.tsx` and `src/components/landing/Aurora.tsx` support `forceCssFallback`, so utility pages keep the branded background without starting the WebGL renderer.
+- `/pricing`, `/sign-in`, `/whats-new`, `/auth*`, and `/p/*` now use the CSS fallback background.
+
+### Verification
+- In-app browser: loaded `http://localhost:5000/pricing`, clicked `Dashboard`, and landed on `http://localhost:5000/dashboard`.
+- Headless browser smoke: `/pricing` rendered with zero fresh WebGL/GPU stall warnings; unauthenticated `/dashboard` redirected to `/auth?mode=login`.
+- `npm exec tsc -- --noEmit` passed.
+
+---
+
 ## 2026-05-13 - Deploy admin-devkit-data: Resend Vars + Redeployment Wiring
 
 ### Summary

@@ -1,6 +1,6 @@
 # Admin Dev Kit
 
-**Last verified:** 2026-05-13 (Appwrite `admin-devkit-data` login recovery and operations data restored)
+**Last verified:** 2026-05-14 (Operations Hub sidebar consolidation and admin hub deploy drift fix)
 
 ## Current operations data truth
 
@@ -18,6 +18,18 @@ Verified live state on 2026-05-13:
 God Mode now pages Auth users first and joins profiles, subscriptions, AI credits, and per-user resume counts. The Infrastructure/Overview card shows active-user-owned resumes as the main count and reports orphaned documents separately.
 
 `admin-devkit-data` read paths use Appwrite REST GET helpers instead of `node-appwrite` list/get helpers because the installed SDK version sends bodies with GET requests. Write paths still use the SDK where appropriate.
+
+## 2026-05-14 Operations Hub stabilization
+
+DevKit is now organized around fewer operations surfaces:
+- Operations Hub: Diagnostics, Mission Control, Observability, Live Activity, Growth & Traffic, Smoke Runner.
+- User & Support: God Mode, Email, Portfolios, Coupons, Audit History.
+- AI Command Center: AI Center.
+- Controls: Feature Control, Moderation, WiseHire Waitlist, Database X-Ray.
+
+Growth & Traffic contains Visitors, Analytics, and Onboarding Funnel as internal tabs. Email contains Send, Automations, and Testmail Inbox as internal tabs. Old deep links for the merged panels route to the new container panels.
+
+Root cause for `Unauthorized` on Email Automations, Portfolios, and Visitors: those panels depended on standalone Appwrite Functions whose live deployments could drift from local source because the deploy workflow rebuilt only a subset of hubs. The local function source accepts signed DevKit tokens, but stale live deployments can still reject them. The Deploy AI Hubs workflow now rebuilds every deployed hub from source, validates archive shape, deploys the missing admin hubs, syncs shared admin variables, and runs safe smoke executions when `DEVKIT_PASSWORD` is available.
 
 ## Current Appwrite login recovery
 

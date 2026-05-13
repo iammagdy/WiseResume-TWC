@@ -1,4 +1,4 @@
-name: 🧠 Deploy AI Hubs
+name: Deploy AI Hubs
 
 on:
   workflow_dispatch:
@@ -20,47 +20,50 @@ jobs:
           # 1. Install deployment script dependencies
           npm install node-appwrite
 
-          # 2. Setup auth-master
-          cd appwrite-hubs/auth-master
-          npm install --omit=dev
-          tar -czf ../../auth-master.tar.gz .
-          cd ../..
+          # 2. Build every deployed hub from source. Do not reuse stale root
+          # tarballs; DevKit admin panels depend on these functions staying
+          # aligned with the signed-token frontend contract.
+          build_hub() {
+            local dir="$1"
+            local archive="$2"
+            echo "Building ${dir} -> ${archive}"
+            cd "appwrite-hubs/${dir}"
+            if [ -f package.json ]; then npm install --omit=dev; fi
+            tar -czf "../../${archive}" .
+            cd ../..
+            tar -tzf "${archive}" | head -20 | grep -q '^./src/main.js$' || {
+              echo "::error::${archive} does not contain src/main.js at archive root"
+              exit 1
+            }
+          }
 
-          # 3. Setup resume-section-ai
-          cd appwrite-hubs/resume-section-ai
-          npm install --omit=dev
-          tar -czf ../../resume-section-ai.tar.gz .
-          cd ../..
+          build_hub auth-master auth-master.tar.gz
+          build_hub resume-section-ai resume-section-ai.tar.gz
+          build_hub ai-gateway ai-gateway.tar.gz
+          build_hub ai-health ai-health.tar.gz
+          build_hub admin-devkit-data admin-devkit-data.tar.gz
+          build_hub admin-email admin-email.tar.gz
+          build_hub admin-testmail admin-testmail.tar.gz
+          build_hub admin-feature-flags admin-feature-flags.tar.gz
+          build_hub admin-moderation admin-moderation.tar.gz
+          build_hub admin-portfolio-usernames admin-portfolio-usernames.tar.gz
+          build_hub admin-visitor-analytics admin-visitor-analytics.tar.gz
+          build_hub admin-onboarding-funnel admin-onboarding-funnel.tar.gz
+          build_hub admin-impersonate admin-impersonate.tar.gz
+          build_hub inspect-ai-keys inspect-ai-keys.tar.gz
 
-          # 4. Setup ai-gateway
-          cd appwrite-hubs/ai-gateway
-          npm install --omit=dev
-          tar -czf ../../ai-gateway.tar.gz .
-          cd ../..
-
-          # 5. Setup ai-health
-          cd appwrite-hubs/ai-health
-          tar -czf ../../ai-health.tar.gz .
-          cd ../..
-
-          # 5. Setup admin-devkit-data
-          cd appwrite-hubs/admin-devkit-data
-          npm install --omit=dev
-          tar -czf ../../admin-devkit-data.tar.gz .
-          cd ../..
-
-          # 6. Run schema setup (idempotent — safe to re-run)
+          # 3. Run schema setup (idempotent - safe to re-run)
           export APPWRITE_ENDPOINT="https://fra.cloud.appwrite.io/v1"
           export APPWRITE_PROJECT_ID="69fd362b001eb325a192"
           export APPWRITE_API_KEY="${{ secrets.APPWRITE_API_KEY }}"
           node scripts/setup_observability_schema.cjs
 
-          # 7. Execute deployment script from the root
+          # 4. Execute deployment script from the root
           export OPENROUTER_KEY_2="${{ secrets.OPENROUTER_KEY_2 }}"
           export OPENROUTER_KEY_1="${{ secrets.OPENROUTER_KEY_1 }}"
           export GROQ_KEY_1="${{ secrets.GROQ_KEY_1 }}"
+          export DEVKIT_PASSWORD="${{ secrets.DEVKIT_PASSWORD }}"
           export RESEND_API_KEY="${{ secrets.RESEND_API_KEY }}"
           export RESEND_FROM_EMAIL="${{ secrets.RESEND_FROM_EMAIL }}"
           export RESEND_FROM_NAME="${{ secrets.RESEND_FROM_NAME }}"
           node scripts/deploy_hubs.cjs
-

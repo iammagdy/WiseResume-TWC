@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/button';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { client } from '@/lib/appwrite';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
+import { devKitCall } from '@/lib/devkit/devKitClient';
 import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
 import { useIsMounted, useVisibleInterval } from '@/lib/devkit/hooks';
 import { cn } from '@/lib/utils';
@@ -342,14 +343,14 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
 
   const fetchLiveCount = useCallback(async () => {
     try {
-      const tuple = await appwriteFunctions.invoke('admin-visitor-analytics', {
-        headers: devKitAuthHeaders(),
-        body: { action: 'live-count' },
+      const result = await devKitCall<{ liveCount: number; topCountries?: { country: string; count: number }[] }>({
+        functionId: 'admin-visitor-analytics',
+        action: 'live-count',
       });
-      const result = unwrapAdminResponse<{ liveCount: number; topCountries?: { country: string; count: number }[] }>(tuple, 'admin-visitor-analytics');
+      if (!result.ok) return;
       if (!isMounted()) return;
-      setLiveCount(result.liveCount);
-      setLiveTopCountries(result.topCountries ?? []);
+      setLiveCount(result.data.liveCount);
+      setLiveTopCountries(result.data.topCountries ?? []);
     } catch {
       // fail-open: keep showing last known value
     }

@@ -13,9 +13,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { appwriteFunctions } from '@/lib/appwrite-functions';
-import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
-import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
+import { devKitCall, toDevKitError } from '@/lib/devkit/devKitClient';
 import { useIsMounted } from '@/lib/devkit/hooks';
 import { DevKitErrorCard } from './DevKitErrorCard';
 
@@ -166,20 +164,21 @@ export function TestmailInboxPanel() {
     setLoading(true);
     setError(null);
     try {
-      const tuple = await appwriteFunctions.invoke('admin-testmail', {
-        headers: devKitAuthHeaders(),
-        body: { module: 'testmail-inbox', tag: activeTag === 'all' ? null : activeTag },
+      const result = await devKitCall<InboxResponse>({
+        functionId: 'admin-testmail',
+        action: 'inbox',
+        payload: { module: 'testmail-inbox', tag: activeTag === 'all' ? null : activeTag },
       });
-      const result = unwrapAdminResponse<InboxResponse>(tuple, 'admin-testmail');
+      if (!result.ok) throw result.error;
       if (!isMounted()) return;
-      setEmails(result.emails ?? []);
-      setTotal(result.total ?? 0);
-      setNamespace(result.namespace ?? '');
-      setTestMode(result.testMode ?? false);
+      setEmails(result.data.emails ?? []);
+      setTotal(result.data.total ?? 0);
+      setNamespace(result.data.namespace ?? '');
+      setTestMode(result.data.testMode ?? false);
       setLoaded(true);
     } catch (e) {
       if (!isMounted()) return;
-      setError(formatEdgeError(e, 'Failed to load Testmail inbox'));
+      setError(toDevKitError(e, { functionId: 'admin-testmail', action: 'inbox' }).message || 'Failed to load Testmail inbox');
     } finally {
       if (isMounted()) setLoading(false);
     }
@@ -190,21 +189,22 @@ export function TestmailInboxPanel() {
   const handleSendTest = async () => {
     setSending(true);
     try {
-      const tuple = await appwriteFunctions.invoke('admin-testmail', {
-        headers: devKitAuthHeaders(),
-        body: { module: 'testmail-send-test' },
+      const result = await devKitCall<{ sentTo: string; testMode: boolean; tag: string }>({
+        functionId: 'admin-testmail',
+        action: 'send-test',
+        payload: { module: 'testmail-send-test' },
       });
-      const result = unwrapAdminResponse<{ sentTo: string; testMode: boolean; tag: string }>(tuple, 'admin-testmail');
+      if (!result.ok) throw result.error;
       if (!isMounted()) return;
       toast.success('Test email sent', {
-        description: result.testMode
-          ? `Routed to Testmail inbox → ${result.sentTo}`
-          : `Sent to real address → ${result.sentTo}`,
+        description: result.data.testMode
+          ? `Routed to Testmail inbox → ${result.data.sentTo}`
+          : `Sent to real address → ${result.data.sentTo}`,
       });
       setTimeout(() => { if (isMounted()) fetchInbox(tag); }, 2000);
     } catch (e) {
       if (!isMounted()) return;
-      toast.error(formatEdgeError(e, 'Failed to send test email'));
+      toast.error(toDevKitError(e, { functionId: 'admin-testmail', action: 'send-test' }).message || 'Failed to send test email');
     } finally {
       if (isMounted()) setSending(false);
     }

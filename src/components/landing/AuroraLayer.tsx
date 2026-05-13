@@ -79,5 +79,6 @@ export function AuroraLayer() {
   }, [isPublicPage, theme, effectiveLpProduct]);
 
   if (!isPublicPage) return null;
-  return <AuroraBackground product={effectiveLpProduct} />;
+  const forceCssFallback = !isLandingPage;
+  return <AuroraBackground product={effectiveLpProduct} forceCssFallback={forceCssFallback} />;
 }

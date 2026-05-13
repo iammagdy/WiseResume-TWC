@@ -16,9 +16,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { appwriteFunctions } from '@/lib/appwrite-functions';
-import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
-import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
+import { devKitCall, toDevKitError } from '@/lib/devkit/devKitClient';
 import { useIsMounted } from '@/lib/devkit/hooks';
 import { DevKitErrorCard } from './DevKitErrorCard';
 
@@ -191,19 +189,20 @@ export function EmailAutomationsPanel() {
     setLoading(true);
     setError(null);
     try {
-      const tuple = await appwriteFunctions.invoke('admin-email', {
-        headers: devKitAuthHeaders(),
-        body: { module: 'resend-stats', action: 'stats' },
+      const result = await devKitCall<StatsResponse>({
+        functionId: 'admin-email',
+        action: 'stats',
+        payload: { module: 'resend-stats' },
       });
-      const result = unwrapAdminResponse<StatsResponse>(tuple, 'admin-email');
+      if (!result.ok) throw result.error;
       if (!isMounted()) return;
-      setStats(result.audiences ?? []);
-      setChecklist(result.checklist ?? []);
-      setBroadcasts(result.recentBroadcasts ?? []);
+      setStats(result.data.audiences ?? []);
+      setChecklist(result.data.checklist ?? []);
+      setBroadcasts(result.data.recentBroadcasts ?? []);
       setLoaded(true);
     } catch (e) {
       if (!isMounted()) return;
-      setError(formatEdgeError(e, 'Failed to load audience stats'));
+      setError(toDevKitError(e, { functionId: 'admin-email', action: 'stats' }).message || 'Failed to load audience stats');
     } finally {
       if (isMounted()) setLoading(false);
     }
@@ -217,16 +216,17 @@ export function EmailAutomationsPanel() {
     setLookupLoading(true);
     setLookupResult(null);
     try {
-      const tuple = await appwriteFunctions.invoke('admin-email', {
-        headers: devKitAuthHeaders(),
-        body: { module: 'resend-stats', action: 'lookup', email },
+      const result = await devKitCall<{ foundIn: string[] }>({
+        functionId: 'admin-email',
+        action: 'lookup',
+        payload: { module: 'resend-stats', email },
       });
-      const result = unwrapAdminResponse<{ foundIn: string[] }>(tuple, 'admin-email');
+      if (!result.ok) throw result.error;
       if (!isMounted()) return;
-      setLookupResult(result.foundIn ?? []);
+      setLookupResult(result.data.foundIn ?? []);
     } catch (e) {
       if (!isMounted()) return;
-      toast.error(formatEdgeError(e, 'Lookup failed'));
+      toast.error(toDevKitError(e, { functionId: 'admin-email', action: 'lookup' }).message || 'Lookup failed');
     } finally {
       if (isMounted()) setLookupLoading(false);
     }
@@ -253,11 +253,12 @@ export function EmailAutomationsPanel() {
     const loadingKey = audienceKey.replace('RESEND_AUDIENCE_', '') + '_' + action;
     setActionLoading(loadingKey);
     try {
-      const tuple = await appwriteFunctions.invoke('admin-email', {
-        headers: devKitAuthHeaders(),
-        body: { module: 'resend-stats', action, audienceKey, email },
+      const result = await devKitCall({
+        functionId: 'admin-email',
+        action,
+        payload: { module: 'resend-stats', audienceKey, email },
       });
-      unwrapAdminResponse(tuple, 'admin-email');
+      if (!result.ok) throw result.error;
       if (!isMounted()) return;
       toast.success(
         action === 'add'
@@ -267,7 +268,7 @@ export function EmailAutomationsPanel() {
       fetchStats();
     } catch (e) {
       if (!isMounted()) return;
-      toast.error(formatEdgeError(e, `Failed to ${action} contact`));
+      toast.error(toDevKitError(e, { functionId: 'admin-email', action }).message || `Failed to ${action} contact`);
     } finally {
       if (isMounted()) setActionLoading(null);
     }
@@ -278,18 +279,19 @@ export function EmailAutomationsPanel() {
     setSyncLoading(true);
     setSyncResult(null);
     try {
-      const tuple = await appwriteFunctions.invoke('admin-email', {
-        headers: devKitAuthHeaders(),
-        body: { module: 'resend-sync' },
+      const result = await devKitCall<{ total: number; added: number; failed: number }>({
+        functionId: 'admin-email',
+        action: 'sync',
+        payload: { module: 'resend-sync' },
       });
-      const result = unwrapAdminResponse<{ total: number; added: number; failed: number }>(tuple, 'admin-email');
+      if (!result.ok) throw result.error;
       if (!isMounted()) return;
-      setSyncResult(result);
-      toast.success(`Sync complete: ${result.added} of ${result.total} contacts upserted`);
+      setSyncResult(result.data);
+      toast.success(`Sync complete: ${result.data.added} of ${result.data.total} contacts upserted`);
       fetchStats();
     } catch (e) {
       if (!isMounted()) return;
-      toast.error(formatEdgeError(e, 'Sync failed'));
+      toast.error(toDevKitError(e, { functionId: 'admin-email', action: 'sync' }).message || 'Sync failed');
     } finally {
       if (isMounted()) setSyncLoading(false);
     }
