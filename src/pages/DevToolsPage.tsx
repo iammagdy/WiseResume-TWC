@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Activity, ArrowLeft, BarChart2, BrainCircuit, CheckCircle2, Cog, Database,
-  Fingerprint, Flag, History, LayoutDashboard, Link2, Loader2,
-  Lock, Mail, Menu, Play, Route, ServerCog, ShieldCheck, Ticket, Users, X, Zap,
+  Activity, ArrowLeft, BarChart2, Briefcase, BrainCircuit, CheckCircle2, Cog, Database,
+  Filter, Fingerprint, Flag, History, LayoutDashboard, Link2, Loader2,
+  Lock, Mail, Menu, Play, Route, ServerCog, ShieldCheck, Ticket, TrendingUp, Users,
+  Workflow, X, Zap,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -32,6 +33,10 @@ import { FeatureFlagsPanel } from '@/components/dev-kit/FeatureFlagsPanel';
 import { ModerationPanel } from '@/components/dev-kit/ModerationPanel';
 import { VisitorsPanel } from '@/components/dev-kit/VisitorsPanel';
 import { EmailHubPanel } from '@/components/dev-kit/EmailHubPanel';
+import { AnalyticsPanel } from '@/components/dev-kit/AnalyticsPanel';
+import { OnboardingFunnelPanel } from '@/components/dev-kit/OnboardingFunnelPanel';
+import { EmailAutomationsPanel } from '@/components/dev-kit/EmailAutomationsPanel';
+import { WiseHireWaitlistPanel } from '@/components/dev-kit/WiseHireWaitlistPanel';
 
 type PanelStatus = 'Live' | 'Needs Appwrite Function' | 'Needs Schema' | 'Planned';
 
@@ -50,6 +55,8 @@ const PANEL_GROUPS: { label: string; panels: PanelDef[] }[] = [
     { id: 'observability', title: 'Observability', icon: BarChart2, status: 'Live' },
     { id: 'live', title: 'Live Activity', icon: Zap, status: 'Live' },
     { id: 'visitors', title: 'Visitor Analytics', icon: Route, status: 'Live' },
+    { id: 'analytics', title: 'Analytics', icon: TrendingUp, status: 'Live' },
+    { id: 'onboarding-funnel', title: 'Onboarding Funnel', icon: Filter, status: 'Live' },
     { id: 'runner', title: 'Smoke Runner', icon: Play, status: 'Live' },
   ]},
   { label: 'Command Center', panels: [
@@ -64,8 +71,10 @@ const PANEL_GROUPS: { label: string; panels: PanelDef[] }[] = [
   { label: 'Support & Business Ops', panels: [
     { id: 'moderation', title: 'Moderation', icon: ShieldCheck, status: 'Live' },
     { id: 'email-hub', title: 'Email', icon: Mail, status: 'Live' },
+    { id: 'email-automations', title: 'Email Automations', icon: Workflow, status: 'Live' },
     { id: 'coupons', title: 'Coupons', icon: Ticket, status: 'Live' },
     { id: 'portfolios', title: 'Portfolios', icon: Link2, status: 'Live' },
+    { id: 'wisehire-waitlist', title: 'WiseHire Waitlist', icon: Briefcase, status: 'Live' },
     { id: 'audit', title: 'History', icon: History, status: 'Live' },
   ]},
 ];
@@ -79,6 +88,9 @@ const STATUS_CLASSES: Record<PanelStatus, string> = {
 
 function allPanels() { return PANEL_GROUPS.flatMap(g => g.panels); }
 function statusShort(status: PanelStatus) { return status === 'Needs Appwrite Function' ? 'Function' : status === 'Needs Schema' ? 'Schema' : status; }
+function groupForPanel(panelId: string): string {
+  return PANEL_GROUPS.find(g => g.panels.some(p => p.id === panelId))?.label ?? 'DevKit';
+}
 
 function NotReadyPanel({ panel }: { panel: PanelDef }) {
   return (
@@ -170,6 +182,8 @@ function DevToolsInner() {
       case 'runner': return wrap('Smoke Runner', <DevKitRunner />);
       case 'observability': return wrap('Observability', <ObservabilityPanel />);
       case 'live': return wrap('Live Activity', <LiveActivityPanel />);
+      case 'analytics': return wrap('Analytics', <AnalyticsPanel />);
+      case 'onboarding-funnel': return wrap('Onboarding Funnel', <OnboardingFunnelPanel />);
       case 'coupons': return wrap('Coupons', <CouponsPanel />);
       case 'overview': return wrap('Infrastructure', <OverviewPanel />);
       case 'users': return wrap('God Mode', <AdminUsersPanel />);
@@ -179,7 +193,9 @@ function DevToolsInner() {
       case 'visitors': return wrap('Visitor Analytics', <VisitorsPanel />);
       case 'moderation': return wrap('Moderation', <ModerationPanel />);
       case 'email-hub': return wrap('Email', <EmailHubPanel />);
+      case 'email-automations': return wrap('Email Automations', <EmailAutomationsPanel />);
       case 'portfolios': return wrap('Portfolios', <PortfolioUsernamesPanel />);
+      case 'wisehire-waitlist': return wrap('WiseHire Waitlist', <WiseHireWaitlistPanel />);
       case 'audit': return wrap('History', <AuditLogPanel />);
       default: return wrap('Diagnostics', <DiagnosticsPanel />);
     }
@@ -211,6 +227,7 @@ function DevToolsInner() {
   }
 
   const activeDef = allPanels().find(p => p.id === activePanel) ?? allPanels()[0];
+  const activeGroup = groupForPanel(activePanel);
   return (
     <div className="flex h-screen min-h-screen flex-col overflow-hidden bg-[#050505] text-white lg:flex-row">
       <div className="flex items-center justify-between border-b border-white/5 bg-black p-4 lg:hidden"><div className="flex items-center gap-2"><div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-600"><Cog size={18} className="text-white" /></div><span className="text-lg font-black tracking-tighter">DEV-KIT</span></div><Button variant="ghost" size="icon" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="rounded-xl">{isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}</Button></div>
@@ -221,7 +238,7 @@ function DevToolsInner() {
         </nav>
         <div className="space-y-3 border-t border-white/5 p-4">{secondsUntilLock !== null && <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-mono uppercase tracking-widest text-white/35">Auto-lock in {Math.ceil(secondsUntilLock / 60)}m</div>}<Button variant="ghost" className="w-full justify-start rounded-2xl text-red-400 hover:bg-red-400/10 hover:text-red-300" onClick={lock}><Lock size={18} className="mr-3" /> Terminate Session</Button></div>
       </aside>
-      <main className="h-full flex-1 overflow-y-auto bg-black/20"><div className="mx-auto max-w-6xl p-4 lg:p-12"><header className="mb-8 flex flex-col justify-between gap-6 lg:mb-12 md:flex-row md:items-end"><div className="space-y-2"><div className="flex items-center gap-3"><h1 className="text-2xl font-black tracking-tighter lg:text-4xl">{activeDef.title}</h1><span className={cn('rounded-full border px-2 py-1 text-[10px] font-black uppercase', STATUS_CLASSES[activeDef.status])}>{activeDef.status}</span></div><p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Operations Hub / {activePanel}</p></div><div className="hidden items-center gap-3 md:flex"><div className="flex items-center gap-2 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-2"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /><span className="text-[10px] font-black uppercase text-emerald-500">Diagnostics Enabled</span></div></div></header><AnimatePresence mode="wait"><motion.div key={activePanel} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}>{renderPanel()}</motion.div></AnimatePresence></div></main>
+      <main className="h-full flex-1 overflow-y-auto bg-black/20"><div className="mx-auto max-w-6xl p-4 lg:p-12"><header className="mb-8 flex flex-col justify-between gap-6 lg:mb-12 md:flex-row md:items-end"><div className="space-y-2"><div className="flex items-center gap-3"><h1 className="text-2xl font-black tracking-tighter lg:text-4xl">{activeDef.title}</h1><span className={cn('rounded-full border px-2 py-1 text-[10px] font-black uppercase', STATUS_CLASSES[activeDef.status])}>{activeDef.status}</span></div><p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">{activeGroup} / {activeDef.title}</p></div><div className="hidden items-center gap-3 md:flex"><div className="flex items-center gap-2 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-2"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /><span className="text-[10px] font-black uppercase text-emerald-500">Diagnostics Enabled</span></div></div></header><AnimatePresence mode="wait"><motion.div key={activePanel} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}>{renderPanel()}</motion.div></AnimatePresence></div></main>
     </div>
   );
 }
