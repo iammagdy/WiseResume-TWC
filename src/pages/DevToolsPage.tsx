@@ -61,7 +61,7 @@ const PANEL_GROUPS: { label: string; panels: PanelDef[] }[] = [
     { id: 'flags', title: 'Feature Control', icon: Flag, status: 'Live' },
   ]},
   { label: 'AI Command Center', panels: [
-    { id: 'ai-center', title: 'AI Command Center', icon: BrainCircuit, status: 'Live' },
+    { id: 'ai-center', title: 'AI Center', icon: BrainCircuit, status: 'Live' },
   ]},
   { label: 'Support & Business Ops', panels: [
     { id: 'moderation', title: 'Moderation', icon: ShieldCheck, status: 'Live' },
@@ -178,7 +178,7 @@ function DevToolsInner() {
       case 'overview': return wrap('Infrastructure', <OverviewPanel />);
       case 'users': return wrap('God Mode', <AdminUsersPanel />);
       case 'db': return wrap('Database X-Ray', <DatabaseXRay />);
-      case 'ai-center': return wrap('AI Command Center', <AICommandCenterPanel />);
+      case 'ai-center': return wrap('AI Center', <AICommandCenterPanel />);
       case 'flags': return wrap('Feature Control', <FeatureFlagsPanel />);
       case 'visitors': return wrap('Visitor Analytics', <VisitorsPanel />);
       case 'moderation': return wrap('Moderation', <ModerationPanel />);

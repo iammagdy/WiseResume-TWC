@@ -86,6 +86,7 @@ function AIOverviewTab() {
   const [actLoading, setActLoading] = useState(true);
 
   const fetchMissionControl = useCallback(async () => {
+    setMcLoading(true);
     setMcError(null);
     const result = await devKitCall<MissionControlData>({ action: 'mission-control' });
     if (result.ok) setMcData(result.data);
@@ -94,6 +95,7 @@ function AIOverviewTab() {
   }, []);
 
   const fetchActivity = useCallback(async () => {
+    setActLoading(true);
     setActError(null);
     const result = await devKitCall<AiActivityData>({ action: 'list-ai-gateway-activity', payload: { limit: 10 } });
     if (result.ok) setActData(result.data);
