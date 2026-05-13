@@ -1,5 +1,53 @@
 # WiseResume Master Handover & State (May 2026)
 
+## Session Summary — 2026-05-13 session 2 (DevKit Panel Consolidation, Tasks #13–17)
+
+**Detailed log:** `Project Atlas/05-Migration to Appwrite/13-Session-Log-2026-05-13-DevKit-Consolidation.md`
+
+### What changed
+
+**Task #13 — Merge Core Settings into Feature Control**
+- `FeatureFlagsPanel.tsx` now contains an "App-Wide Gates" section (Maintenance Mode + AI Tailoring / AI Chat / Public Portfolios toggles) above the existing feature flags list. Both sections separated by labelled dividers.
+- All logic uses `devKitCall({ action: 'list-app-settings' / 'toggle-app-setting' })` — same secured backend as before.
+- `AppSettingsPanel.tsx` **deleted**. `settings` sidebar entry removed. `settings→flags` alias added for deep-links.
+- Net: **−1 sidebar entry**.
+
+**Task #14 — Wire orphaned panels, fix breadcrumb, delete dead code**
+- Four panels that existed in code but were unreachable now have sidebar entries:
+  - Operations Hub: `analytics` (AnalyticsPanel, TrendingUp icon), `onboarding-funnel` (OnboardingFunnelPanel, Filter icon)
+  - Support & Business Ops: `email-automations` (EmailAutomationsPanel, Workflow icon), `wisehire-waitlist` (WiseHireWaitlistPanel, Briefcase icon)
+- Breadcrumb fixed: replaced hardcoded `"Operations Hub / {panelId}"` with `groupForPanel(activePanel)` helper that resolves the correct group label, and uses `activeDef.title` not the raw ID string. Correct for all 24 panels.
+- `AIRoutingPanel.tsx` **deleted** (superseded by `AIRoutingSwitcher` inside `AICommandCenterPanel`).
+- Net: **+4 reachable panels**, 24 total.
+
+**Task #15 — WiseHire Waitlist approve button (was a stub)**
+- Backend (`admin-devkit-data`): new `approve-wisehire-waitlist` action — fetches entry, sends Resend invite email (skips gracefully if no key), deletes document (throws on DB failure so approval is never falsely reported), writes audit log.
+- Frontend: real `devKitCall` with per-row `approvingIds` loading state, removes row on success, shows error toast on failure.
+
+**Task #16 — Auto-provision WiseHire account on approval**
+- Backend updated: checks Appwrite Auth for existing account by email (fail-closed — any lookup error throws).
+  - **Existing user:** sets `account_type='recruiter'` on profile; creates `wisehire_accounts` doc; all steps fail-hard so waitlist entry survives as retry source of truth.
+  - **New user:** invite email includes `?email=...&product=wisehire` sign-up link.
+- Audit log captures `{ outcome: 'existing_user_upgraded' | 'fresh_invite_sent', existing_user_id, emailSent }`.
+
+**Task #17 — Dismiss action for waitlist applicants**
+- Backend: `dismiss-wisehire-waitlist` action — confirms entry exists, deletes, writes audit log, returns `{ dismissed, email }`. No email sent.
+- Frontend: `dismissingIds` state mirrors `approvingIds`; "Dismiss" button (ghost/red-hover, X icon) added left of "Grant Access"; both buttons disable each other while either is in-flight.
+
+### Current state
+- DevKit sidebar: **24 panels, all reachable**, across 4 groups (Operations Hub, Command Center, AI Command Center, Support & Business Ops)
+- `npx tsc --noEmit` — zero errors; all tasks code-review approved
+- `AppSettingsPanel.tsx` and `AIRoutingPanel.tsx` are gone
+- WiseHire Waitlist: full approve (with Appwrite account provisioning) + dismiss, both with audit logging
+- Proposed follow-ups: Task #18 (recruiter confirmation screen), Task #19 (surface approval outcome in waitlist panel)
+
+### Where we stopped
+- All work is in Replit `main`. No GitHub push has been done from this session.
+- Next agent: run `npx tsc --noEmit` to confirm clean, restart the "Start application" workflow, then verify `/devkit` sidebar shows all 24 panels and breadcrumb shows the correct group for panels outside Operations Hub.
+- Recommended: deploy `admin-devkit-data` to Appwrite Cloud so `approve-wisehire-waitlist` and `dismiss-wisehire-waitlist` are live.
+
+---
+
 ## Session Summary - 2026-05-13 (Appwrite DevKit + CV Parsing Stabilization)
 
 **Detailed log:** `Project Atlas/05-Migration to Appwrite/12-Session-Log-2026-05-13.md`
