@@ -95,8 +95,14 @@ export default function AuthPage() {
     try {
       await appwriteAccount.create(ID.unique(), email, password, name);
       await appwriteAccount.createEmailPasswordSession(email, password);
-      toast.success('Account created successfully!');
-      window.location.reload();
+      try {
+        const verifyUrl = `${window.location.origin}/auth/verify-email`;
+        await appwriteAccount.createVerification(verifyUrl);
+      } catch {
+        // Non-fatal — user can resend from the verify-email page
+      }
+      toast.success('Account created! Check your email to verify your account.');
+      navigate('/auth/verify-email', { replace: true });
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Registration failed');
     } finally {

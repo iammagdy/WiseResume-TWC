@@ -64,8 +64,12 @@ export default function AuthVerifyEmailPage() {
         await queryClient.invalidateQueries({ queryKey: ['me'] });
         await refetchMe();
         setMode('confirmed');
-        // Redirect to dashboard after a brief "confirmed" flash.
-        setTimeout(() => navigate('/dashboard', { replace: true }), 2200);
+        // Hard reload after the "confirmed" flash so AuthContext re-fetches
+        // account.get() with the fresh emailVerification: true state.
+        setTimeout(() => {
+          try { sessionStorage.removeItem('wr_auth_user'); } catch {}
+          window.location.replace('/dashboard');
+        }, 2200);
       } catch (err) {
         console.error('[AuthVerifyEmailPage] confirm failed:', err);
         const msg =

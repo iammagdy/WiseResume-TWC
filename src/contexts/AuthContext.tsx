@@ -17,6 +17,7 @@ export interface AppUser {
   id: string;
   email: string;
   name?: string;
+  emailVerification: boolean;
 }
 
 export interface AuthContextType {
@@ -68,7 +69,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           try {
             sessionStorage.setItem(
               'wr_auth_user',
-              JSON.stringify({ $id: user.$id, email: user.email, name: user.name })
+              JSON.stringify({ $id: user.$id, email: user.email, name: user.name, emailVerification: user.emailVerification })
             );
           } catch {}
         }
@@ -117,6 +118,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         id: impersonationState.userId,
         email: impersonationState.email ?? '',
         name: undefined,
+        emailVerification: true,
       };
     }
 
@@ -125,6 +127,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         id: appwriteUser.$id,
         email: appwriteUser.email,
         name: appwriteUser.name,
+        emailVerification: appwriteUser.emailVerification === true,
       };
     }
     return null;

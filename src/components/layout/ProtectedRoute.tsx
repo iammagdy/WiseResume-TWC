@@ -6,7 +6,7 @@ import { AlertTriangle } from 'lucide-react';
 const FALLBACK_TIMEOUT_MS = 8_000;
 
 export function ProtectedRoute() {
-  const { isAuthenticated, isImpersonating, loading, authSettled, authReady, signOut } = useAuth();
+  const { isAuthenticated, isImpersonating, loading, authSettled, authReady, signOut, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const isAuthenticatedRef = useRef(isAuthenticated);
@@ -55,6 +55,10 @@ export function ProtectedRoute() {
       ? `&redirect=${encodeURIComponent(intendedPath)}`
       : '';
     return <Navigate to={`/auth?mode=login${redirectParam}`} replace />;
+  }
+
+  if (!isImpersonating && user?.emailVerification === false && location.pathname !== '/auth/verify-email') {
+    return <Navigate to="/auth/verify-email" replace />;
   }
 
   if (authSettled && !authReady) {
