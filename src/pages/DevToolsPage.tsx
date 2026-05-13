@@ -18,7 +18,6 @@ import { devKitLogin } from '@/lib/devkit/devKitClient';
 import { DevKitPanelBoundary } from '@/components/dev-kit/DevKitPanelBoundary';
 import { OverviewPanel } from '@/components/dev-kit/OverviewPanel';
 import { AdminUsersPanel } from '@/components/dev-kit/AdminUsersPanel';
-import { AppSettingsPanel } from '@/components/dev-kit/AppSettingsPanel';
 import { AICommandCenterPanel } from '@/components/dev-kit/AICommandCenterPanel';
 import { DatabaseXRay } from '@/components/dev-kit/DatabaseXRay';
 import { AuditLogPanel } from '@/components/dev-kit/AuditLogPanel';
@@ -68,7 +67,6 @@ const PANEL_GROUPS: { label: string; panels: PanelDef[] }[] = [
     { id: 'coupons', title: 'Coupons', icon: Ticket, status: 'Live' },
     { id: 'portfolios', title: 'Portfolios', icon: Link2, status: 'Live' },
     { id: 'audit', title: 'History', icon: History, status: 'Live' },
-    { id: 'settings', title: 'Core Settings', icon: Cog, status: 'Live' },
   ]},
 ];
 
@@ -157,7 +155,7 @@ function DevToolsInner() {
   };
 
   const navigatePanel = (id: string) => {
-    const aliases: Record<string, string> = { deployment: 'diagnostics', openrouter: 'ai-center', 'ai-keys': 'ai-center', ai: 'ai-center', 'ai-routing': 'ai-center', email: 'email-hub', testmail: 'email-hub', overview: 'overview', live: 'live' };
+    const aliases: Record<string, string> = { deployment: 'diagnostics', openrouter: 'ai-center', 'ai-keys': 'ai-center', ai: 'ai-center', 'ai-routing': 'ai-center', email: 'email-hub', testmail: 'email-hub', settings: 'flags', overview: 'overview', live: 'live' };
     setActivePanel(aliases[id] ?? id);
     setIsMobileMenuOpen(false);
   };
@@ -183,7 +181,6 @@ function DevToolsInner() {
       case 'email-hub': return wrap('Email', <EmailHubPanel />);
       case 'portfolios': return wrap('Portfolios', <PortfolioUsernamesPanel />);
       case 'audit': return wrap('History', <AuditLogPanel />);
-      case 'settings': return wrap('Core Settings', <AppSettingsPanel />);
       default: return wrap('Diagnostics', <DiagnosticsPanel />);
     }
   };

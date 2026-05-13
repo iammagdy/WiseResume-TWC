@@ -10,6 +10,10 @@ import {
   X,
   Zap,
   AlertTriangle,
+  ShieldAlert,
+  Rocket,
+  CheckCircle2,
+  Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,9 +21,26 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { devKitInvokeOptions } from '@/lib/devkit/devKitAuth';
+import { devKitCall } from '@/lib/devkit/devKitClient';
 import { useIsMounted } from '@/lib/devkit/hooks';
 import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
 import { DevKitErrorCard } from './DevKitErrorCard';
+
+// ─── App-wide settings types ──────────────────────────────────────────────────
+
+interface AppSetting {
+  $id: string;
+  key: string;
+  value: string;
+}
+
+interface AppSettingsResponse {
+  settings: AppSetting[];
+  total: number;
+  missing_collection?: boolean;
+}
+
+// ─── Feature-flag types ───────────────────────────────────────────────────────
 
 interface FeatureFlag {
   id: string;
@@ -45,6 +66,8 @@ const EMPTY_FLAG: Omit<FeatureFlag, 'id' | 'updated_by' | 'updated_at'> = {
   percentage_rollout: 0,
   kill_switch_function: null,
 };
+
+// ─── Shared Toggle ────────────────────────────────────────────────────────────
 
 function Toggle({
   checked,
@@ -78,6 +101,129 @@ function Toggle({
     </button>
   );
 }
+
+// ─── App-wide settings section ────────────────────────────────────────────────
+
+function AppWideSettingsSection() {
+  const [settings, setSettings] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [toggling, setToggling] = useState<string | null>(null);
+
+  const fetchSettings = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const result = await devKitCall<AppSettingsResponse>({ action: 'list-app-settings' });
+    if (result.ok) {
+      const map: Record<string, string> = {};
+      for (const doc of result.data.settings) {
+        map[doc.key] = doc.value;
+      }
+      setSettings(map);
+    } else {
+      setError(result.error.message);
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { fetchSettings(); }, [fetchSettings]);
+
+  const toggleSetting = async (key: string, current: string | undefined) => {
+    const newValue = current === 'true' ? 'false' : 'true';
+    setToggling(key);
+    const result = await devKitCall<{ setting: AppSetting }>({
+      action: 'toggle-app-setting',
+      payload: { key, value: newValue },
+    });
+    if (result.ok) {
+      setSettings(prev => ({ ...prev, [key]: newValue }));
+      toast.success(`${key} updated`);
+    } else {
+      toast.error(result.error.message);
+    }
+    setToggling(null);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center gap-3 py-6 text-muted-foreground text-sm">
+        <Loader2 className="w-4 h-4 animate-spin" />
+        Loading app-wide settings…
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <DevKitErrorCard
+        error={error}
+        title="Failed to load app settings"
+        onRetry={fetchSettings}
+        context={{ panel: 'Feature Control', action: 'list-app-settings' }}
+      />
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Maintenance Mode */}
+      <div className="p-6 rounded-2xl bg-red-500/5 border border-red-500/15 flex flex-col justify-between gap-5">
+        <div>
+          <div className="flex items-center gap-2.5 text-red-400 mb-1.5">
+            <ShieldAlert size={20} />
+            <h4 className="font-bold text-base uppercase tracking-tight">Maintenance Mode</h4>
+          </div>
+          <p className="text-xs text-red-200/50">Instantly locks the app for all users. Use only for critical updates.</p>
+        </div>
+        <button
+          onClick={() => toggleSetting('maintenance_mode', settings.maintenance_mode)}
+          disabled={toggling === 'maintenance_mode'}
+          className={`w-full py-3 rounded-xl font-black text-sm uppercase tracking-widest transition-all disabled:opacity-50 ${
+            settings.maintenance_mode === 'true'
+              ? 'bg-red-600 text-white shadow-[0_0_16px_rgba(220,38,38,0.4)]'
+              : 'bg-white/5 text-red-400 border border-red-500/20'
+          }`}
+        >
+          {toggling === 'maintenance_mode' ? (
+            <span className="flex items-center justify-center gap-2">
+              <Loader2 size={14} className="animate-spin" /> Saving…
+            </span>
+          ) : (
+            settings.maintenance_mode === 'true' ? 'Disable Maintenance' : 'Activate Maintenance'
+          )}
+        </button>
+      </div>
+
+      {/* App-wide feature gates */}
+      <div className="p-6 rounded-2xl bg-blue-500/5 border border-blue-500/15 flex flex-col gap-4">
+        <h4 className="font-bold text-base text-white flex items-center gap-2.5">
+          <Rocket size={18} className="text-blue-400" /> Feature Gates
+        </h4>
+        <div className="space-y-2">
+          {([
+            { key: 'feature_tailor',    label: 'AI Tailoring' },
+            { key: 'feature_chat',      label: 'AI Chat & Assistant' },
+            { key: 'feature_portfolio', label: 'Public Portfolios' },
+          ] as const).map(({ key, label }) => (
+            <div key={key} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/[0.06]">
+              <div className="flex items-center gap-2.5 text-white/80 text-sm font-medium">
+                <CheckCircle2 size={14} className="text-blue-400/70" />
+                {label}
+              </div>
+              <Toggle
+                checked={settings[key] === 'true'}
+                onChange={() => toggleSetting(key, settings[key])}
+                disabled={toggling === key}
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Feature-flag sub-components ──────────────────────────────────────────────
 
 function PlanBadge({ plan, selected, onClick }: { plan: string; selected: boolean; onClick: () => void }) {
   return (
@@ -377,6 +523,8 @@ function FlagRow({ flag, onToggleGlobal, onEdit, onDelete, toggling, deleting }:
   );
 }
 
+// ─── Main panel ───────────────────────────────────────────────────────────────
+
 export function FeatureFlagsPanel() {
   const [flags, setFlags] = useState<FeatureFlag[]>([]);
   const [loading, setLoading] = useState(false);
@@ -498,115 +646,134 @@ export function FeatureFlagsPanel() {
   const killCount = flags.filter((f) => f.kill_switch_function && f.enabled_globally).length;
 
   return (
-    <div className="space-y-6">
-      {error && (
-        <DevKitErrorCard
-          error={error}
-          title="Couldn't load feature flags"
-          context={{ panel: 'Feature Flags', function: 'admin-feature-flags' }}
-        />
-      )}
+    <div className="space-y-8">
 
-      <div className="flex items-center justify-between">
+      {/* ── App-wide gates section ──────────────────────────────────────── */}
+      <section className="space-y-4">
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Flag className="w-4 h-4" />
-            <span>
-              {flags.length} flag{flags.length !== 1 ? 's' : ''} ·{' '}
-              <span className="text-foreground font-medium">{activeCount} globally on</span>
-              {killCount > 0 && (
-                <>
-                  {' '}·{' '}
-                  <span className="text-destructive font-medium">
-                    {killCount} kill switch{killCount !== 1 ? 'es' : ''} active
-                  </span>
-                </>
-              )}
-            </span>
-          </div>
+          <h3 className="text-xs font-black uppercase tracking-widest text-white/40">App-Wide Gates</h3>
+          <div className="flex-1 h-px bg-white/5" />
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setShowNewForm(true);
-              setEditingFlag(null);
-            }}
-            disabled={loading || showNewForm}
-          >
-            <Plus className="w-4 h-4 mr-1" />
-            New flag
-          </Button>
-          <Button variant="outline" size="sm" onClick={fetchFlags} disabled={loading}>
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          </Button>
-        </div>
+        <AppWideSettingsSection />
+      </section>
+
+      {/* ── Divider ─────────────────────────────────────────────────────── */}
+      <div className="flex items-center gap-3">
+        <h3 className="text-xs font-black uppercase tracking-widest text-white/40">Feature Flags</h3>
+        <div className="flex-1 h-px bg-white/5" />
       </div>
 
-      {showNewForm && (
-        <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
-          <h3 className="text-sm font-semibold mb-1">New feature flag</h3>
-          <FlagForm
-            initial={EMPTY_FLAG}
-            onSave={handleSave}
-            onCancel={() => setShowNewForm(false)}
-            saving={!!saving}
-            isNew
+      {/* ── Feature flags section ────────────────────────────────────────── */}
+      <div className="space-y-6 -mt-2">
+        {error && (
+          <DevKitErrorCard
+            error={error}
+            title="Couldn't load feature flags"
+            context={{ panel: 'Feature Control', function: 'admin-feature-flags' }}
           />
-        </div>
-      )}
-
-      {loading && flags.length === 0 && (
-        <div className="space-y-2">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-16 rounded-lg bg-muted/40 animate-pulse" />
-          ))}
-        </div>
-      )}
-
-      {!loading && flags.length === 0 && !showNewForm && (
-        <div className="rounded-xl border border-dashed border-border p-8 text-center">
-          <Flag className="w-8 h-8 text-muted-foreground/40 mx-auto mb-3" />
-          <p className="text-sm text-muted-foreground">No feature flags defined yet.</p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Click "New flag" to create your first one.
-          </p>
-        </div>
-      )}
-
-      <div className="space-y-2">
-        {flags.map((flag) =>
-          editingFlag?.name === flag.name ? (
-            <div key={flag.name} className="rounded-xl border border-primary/30 bg-primary/5 p-4">
-              <h3 className="text-sm font-semibold font-mono mb-1">{flag.name}</h3>
-              <FlagForm
-                initial={{
-                  name: flag.name,
-                  description: flag.description,
-                  enabled_globally: flag.enabled_globally,
-                  enabled_plans: flag.enabled_plans,
-                  enabled_user_ids: flag.enabled_user_ids,
-                  percentage_rollout: flag.percentage_rollout,
-                  kill_switch_function: flag.kill_switch_function,
-                }}
-                onSave={handleSave}
-                onCancel={() => setEditingFlag(null)}
-                saving={saving === flag.name}
-              />
-            </div>
-          ) : (
-            <FlagRow
-              key={flag.name}
-              flag={flag}
-              onToggleGlobal={handleToggleGlobal}
-              onEdit={setEditingFlag}
-              onDelete={handleDelete}
-              toggling={saving === flag.name}
-              deleting={deleting === flag.name}
-            />
-          ),
         )}
+
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Flag className="w-4 h-4" />
+              <span>
+                {flags.length} flag{flags.length !== 1 ? 's' : ''} ·{' '}
+                <span className="text-foreground font-medium">{activeCount} globally on</span>
+                {killCount > 0 && (
+                  <>
+                    {' '}·{' '}
+                    <span className="text-destructive font-medium">
+                      {killCount} kill switch{killCount !== 1 ? 'es' : ''} active
+                    </span>
+                  </>
+                )}
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setShowNewForm(true);
+                setEditingFlag(null);
+              }}
+              disabled={loading || showNewForm}
+            >
+              <Plus className="w-4 h-4 mr-1" />
+              New flag
+            </Button>
+            <Button variant="outline" size="sm" onClick={fetchFlags} disabled={loading}>
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            </Button>
+          </div>
+        </div>
+
+        {showNewForm && (
+          <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
+            <h3 className="text-sm font-semibold mb-1">New feature flag</h3>
+            <FlagForm
+              initial={EMPTY_FLAG}
+              onSave={handleSave}
+              onCancel={() => setShowNewForm(false)}
+              saving={!!saving}
+              isNew
+            />
+          </div>
+        )}
+
+        {loading && flags.length === 0 && (
+          <div className="space-y-2">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-16 rounded-lg bg-muted/40 animate-pulse" />
+            ))}
+          </div>
+        )}
+
+        {!loading && flags.length === 0 && !showNewForm && (
+          <div className="rounded-xl border border-dashed border-border p-8 text-center">
+            <Flag className="w-8 h-8 text-muted-foreground/40 mx-auto mb-3" />
+            <p className="text-sm text-muted-foreground">No feature flags defined yet.</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Click "New flag" to create your first one.
+            </p>
+          </div>
+        )}
+
+        <div className="space-y-2">
+          {flags.map((flag) =>
+            editingFlag?.name === flag.name ? (
+              <div key={flag.name} className="rounded-xl border border-primary/30 bg-primary/5 p-4">
+                <h3 className="text-sm font-semibold font-mono mb-1">{flag.name}</h3>
+                <FlagForm
+                  initial={{
+                    name: flag.name,
+                    description: flag.description,
+                    enabled_globally: flag.enabled_globally,
+                    enabled_plans: flag.enabled_plans,
+                    enabled_user_ids: flag.enabled_user_ids,
+                    percentage_rollout: flag.percentage_rollout,
+                    kill_switch_function: flag.kill_switch_function,
+                  }}
+                  onSave={handleSave}
+                  onCancel={() => setEditingFlag(null)}
+                  saving={saving === flag.name}
+                />
+              </div>
+            ) : (
+              <FlagRow
+                key={flag.name}
+                flag={flag}
+                onToggleGlobal={handleToggleGlobal}
+                onEdit={setEditingFlag}
+                onDelete={handleDelete}
+                toggling={saving === flag.name}
+                deleting={deleting === flag.name}
+              />
+            ),
+          )}
+        </div>
       </div>
     </div>
   );
