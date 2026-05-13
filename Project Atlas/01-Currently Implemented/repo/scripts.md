@@ -24,7 +24,7 @@
 | `verify-live-deploy.mjs` | End-to-end live-deploy verification. |
 | `probe-webhooks-signed.mjs` | Live signed-payload probes for `auth-email-hook` (standard webhooks) + `kinde-webhook` (Kinde HMAC). |
 | `preview-waitlist-emails.mjs` | Generates HTML previews of WiseHire waitlist emails; optionally sends to Resend sandbox without DB writes. |
-| `copy-pdf-ocr-assets.mjs` | Copies pinned `eng.traineddata.gz` (SHA-256 verified) for PDF OCR. |
+| `copy-pdf-ocr-assets.mjs` | Copies PDF.js cmaps/fonts and Tesseract worker/core/lang assets into `public/` for local and production CV parsing. |
 | `ensure-puppeteer-chrome.mjs` | Ensures Puppeteer's bundled Chrome is installed (Replit / CI safety). |
 | `deploy-functions.sh` | Bulk Supabase edge-function deploy. |
 | `refresh-devkit-secrets.sh` | Refreshes DevKit secret material. |
@@ -34,5 +34,6 @@
 
 ## Hard rules
 - Scripts that talk to Supabase require `SUPABASE_ACCESS_TOKEN` in env — never hard-code tokens.
+- `copy-pdf-ocr-assets.mjs` is now part of normal local setup through `postinstall`, `dev`, `start`, and `prebuild`. If it does not run, PDF and OCR upload flows may fail locally even when the code is correct.
 - `check-edge-function-db-refs.mjs`, `check-edge-functions-deployed.mjs`, and `check-supabase-migration-drift.mjs` should run in CI on every PR touching `supabase/`.
 - `smoke-test-edge-functions.mjs` runs post-deploy via the GitHub Actions workflow.

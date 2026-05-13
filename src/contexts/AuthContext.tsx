@@ -27,8 +27,8 @@ export interface AuthContextType {
   isImpersonating: boolean;
   appwriteUser: any | null;
   authAvailable: boolean;
-  supabaseSettled: boolean;
-  supabaseReady: boolean;
+  authSettled: boolean;
+  authReady: boolean;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -37,8 +37,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
   const lastSeenUserIdRef = useRef<string | null>(null);
 
-  const [appwriteUser, setAppwriteUser] = useState<any>(null);
-  const [appwriteLoading, setAppwriteLoading] = useState(true);
+  const cachedUser = (() => {
+    try {
+      const raw = sessionStorage.getItem('wr_auth_user');
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  })();
+
+  const [appwriteUser, setAppwriteUser] = useState<any>(cachedUser);
+  const [appwriteLoading, setAppwriteLoading] = useState(!cachedUser);
 
   // Check Appwrite Session
   useEffect(() => {
@@ -46,17 +55,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setAppwriteLoading(false);
       return;
     }
-    
+
+    let settled = false;
+
     (async () => {
       try {
         const user = await appwriteAccount.get();
-        setAppwriteUser(user);
+        if (!settled) {
+          setAppwriteUser(user);
+          setAppwriteLoading(false);
+          settled = true;
+          try {
+            sessionStorage.setItem(
+              'wr_auth_user',
+              JSON.stringify({ $id: user.$id, email: user.email, name: user.name })
+            );
+          } catch {}
+        }
       } catch (err) {
-        setAppwriteUser(null);
-      } finally {
-        setAppwriteLoading(false);
+        if (!settled) {
+          setAppwriteUser(null);
+          setAppwriteLoading(false);
+          settled = true;
+          try { sessionStorage.removeItem('wr_auth_user'); } catch {}
+        }
       }
     })();
+
+    const timeout = setTimeout(() => {
+      if (!settled) {
+        setAppwriteUser(null);
+        setAppwriteLoading(false);
+        settled = true;
+      }
+    }, 5_000);
+
+    return () => {
+      settled = true;
+      clearTimeout(timeout);
+    };
   }, []);
 
   useSyncExternalStore(
@@ -99,7 +136,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (lastSeenUserIdRef.current !== currentId) {
       const previousId = lastSeenUserIdRef.current;
       lastSeenUserIdRef.current = currentId;
-      if (previousId !== null || currentId !== null) {
+      // Only clear caches on actual user switch or sign-out,
+      // not on the initial transition from null to authenticated.
+      if (previousId !== null && previousId !== currentId) {
         queryClient.clear();
         clearAllPersistedCaches();
         clearAllCachedScores();
@@ -116,6 +155,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     clearAllEditorSessions();
     lastSeenUserIdRef.current = null;
     setAppwriteUser(null);
+    try { sessionStorage.removeItem('wr_auth_user'); } catch {}
     useSettingsStore.getState().resetUserSettings();
     
     try {
@@ -124,8 +164,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     window.location.replace('/');
   }, [queryClient]);
 
-  const supabaseSettled = !appwriteLoading;
-  const supabaseReady = !appwriteLoading && (impersonating || !!appwriteUser);
+  const authSettled = !appwriteLoading;
+  const authReady = !appwriteLoading && (impersonating || !!appwriteUser);
 
   const value = useMemo<AuthContextType>(() => ({
     user,
@@ -135,9 +175,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isImpersonating: impersonating,
     appwriteUser,
     authAvailable: isAppwriteEnabled,
-    supabaseSettled,
-    supabaseReady,
-  }), [user, loading, signOut, isAuthenticated, impersonating, appwriteUser, supabaseSettled, supabaseReady]);
+    authSettled,
+    authReady,
+  }), [user, loading, signOut, isAuthenticated, impersonating, appwriteUser, authSettled, authReady]);
 
   return (
     <AuthContext.Provider value={value}>

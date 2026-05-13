@@ -25,6 +25,7 @@
 'use strict';
 
 const sdk = require('node-appwrite');
+const crypto = require('crypto');
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -37,14 +38,32 @@ const MAX_PER_PAGE     = 200;
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
+function base64url(input) {
+  return Buffer.from(input).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+}
+
+function verifySignedToken(token) {
+  const secret = process.env.DEVKIT_PASSWORD;
+  if (!secret || !token || !token.includes('.')) return false;
+  const [encoded, sig] = token.split('.');
+  const expected = crypto.createHmac('sha256', secret).update(encoded).digest('base64url');
+  if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return false;
+  let payload;
+  try { payload = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8')); } catch { return false; }
+  return payload.purpose === 'devkit' && typeof payload.exp === 'number' && Date.now() < payload.exp;
+}
+
+function bearerToken(req, body) {
+  const authHeader = body?.__headers?.Authorization || req.headers?.authorization || req.headers?.Authorization || '';
+  return authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+}
+
 function checkAuth(req, body) {
-  const expected = process.env.DEVKIT_PASSWORD;
-  if (!expected) return false;
-  // Appwrite SDK executions don't support custom headers, so the frontend
-  // passes them in the body as __headers.
-  const authHeader = body?.__headers?.Authorization || req.headers['authorization'] || req.headers['Authorization'] || '';
-  if (!authHeader.startsWith('Bearer ')) return false;
-  return authHeader.slice(7).trim() === expected;
+  const token = bearerToken(req, body);
+  const password = process.env.DEVKIT_PASSWORD;
+  if (!password || !token) return false;
+  if (token === password) return true;
+  return verifySignedToken(token);
 }
 
 // ─── SDK clients ─────────────────────────────────────────────────────────────

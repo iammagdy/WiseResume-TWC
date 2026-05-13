@@ -8,7 +8,7 @@
 
 ---
 
-> The Express server is **dev infrastructure + DevKit bridge + PDF renderer**, not production API. All production API traffic is served by Supabase Edge Functions (`replit.md` user preference). Never reposition this server as production infrastructure.
+> The Express server is **dev infrastructure + DevKit bridge + PDF renderer**, not production API. All production API traffic is served by Appwrite Functions and the Appwrite-native web stack. Never reposition this server as production infrastructure.
 
 ## Files
 
@@ -25,8 +25,8 @@
 | Health | `GET /api/health`, `GET /api/ai-health`, `GET /api/db-health` | Open. |
 | Auth | `POST /api/fn/token-exchange`, `POST /api/auth/reset-password` | Token-exchange is the canonical Kinde→Supabase JWT bridge (`replit.md` Gotcha). |
 | PDF export | `POST /api/export/pdf-native` (50 MB body limit) | Server-side Puppeteer (`replit.md` architecture decision). |
-| DevKit admin bridge | `app.all('/api/fn/admin-*')` (~50 routes) | Forwards to the matching Supabase edge fn with admin auth header from `requireAdminAuth`. Exhaustive list in `server/index.ts`. |
-| Generic edge bridge | `app.all('/api/fn/:fnName')` | Catch-all proxy for any non-admin edge fn. |
+| DevKit admin bridge | `app.all('/api/fn/admin-*')` (~50 routes) | Forwards to backend admin handlers used for local/dev bridging. Exhaustive list in `server/index.ts`. |
+| Generic edge bridge | `app.all('/api/fn/:fnName')` | Catch-all proxy for non-admin local bridge traffic. |
 | Data API | `app.get/post/delete('/api/data/*')` (resumes, jobs, notifications, profile, portfolios, hr-analytics, …) | Reads via `db.ts` Drizzle. Auth via `requireAuthHeader`. |
 | Tooling | `POST /api/fetch-url` (rate-limited), `POST /api/linkedin-profile` (quota-tracked via `linkedin_import_quota`), `POST /api/track-handle-interest` | |
 
@@ -35,4 +35,4 @@
 - PDF export is the **only** server-side rendering path (`POST /api/export/pdf-native`). The portfolio + resume PDF flows must continue to use it (`replit.md` architecture decision).
 - Express must allow all hosts so the Replit preview iframe works (`replit.md` preview-debugging rules).
 - DevKit admin routes must enforce `requireAdminAuth` server-side — bridge cannot trust the client.
-- Drizzle `schema.ts` is a **subset** mirror; never declare authoritative schema here — it lives in `supabase/migrations/`.
+- Drizzle `schema.ts` is a **subset** mirror; never declare authoritative schema here — authoritative production schema lives in Appwrite.

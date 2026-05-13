@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { FileWarning, ScanText, PenLine, Upload, RefreshCw, HelpCircle } from 'lucide-react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { haptics } from '@/lib/haptics';
 import {
@@ -7,17 +8,93 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { useState } from 'react';
 
-export type UploadErrorType = 
-  | 'NO_TEXT' 
-  | 'CORRUPTED' 
-  | 'PASSWORD_PROTECTED' 
+export type UploadErrorType =
+  | 'NO_TEXT'
+  | 'CORRUPTED'
+  | 'PASSWORD_PROTECTED'
   | 'PARTIAL_EXTRACTION'
   | 'AI_UNREACHABLE'
+  | 'PARSER_ASSETS_MISSING'
+  | 'PARSER_RUNTIME_FAILED'
   | 'IOS_BROWSER_INCOMPATIBLE'
   | 'OCR_ENGINE_FAILED'
   | 'UNKNOWN';
+
+export function getUploadErrorCopy(errorType: UploadErrorType): {
+  title: string;
+  description: string;
+  compactDescription: string;
+} {
+  switch (errorType) {
+    case 'NO_TEXT':
+      return {
+        title: 'We had trouble reading this file',
+        description:
+          'This file appears to be scanned, image-based, or too sparse to read cleanly. Try OCR, a Word file, or a clearer export.',
+        compactDescription: 'No readable text found. Try a Word file, a text-based PDF, or a clearer scan.',
+      };
+    case 'CORRUPTED':
+      return {
+        title: 'This file seems damaged',
+        description: "We couldn't open this file properly. It may be corrupted or in an unsupported format.",
+        compactDescription: 'This file looks damaged or unsupported. Try a different export.',
+      };
+    case 'PASSWORD_PROTECTED':
+      return {
+        title: 'This PDF is protected',
+        description: 'Please upload an unprotected version of your resume.',
+        compactDescription: 'This PDF is password-protected. Remove the password first.',
+      };
+    case 'PARTIAL_EXTRACTION':
+      return {
+        title: 'We found most of your resume',
+        description: 'Some sections were extracted, but a few need attention.',
+        compactDescription: 'Part of the resume was extracted, but some sections still need review.',
+      };
+    case 'AI_UNREACHABLE':
+      return {
+        title: "Couldn't reach the AI parser",
+        description: 'There was a temporary parser outage. Your file may still be fine, so retry in a moment.',
+        compactDescription: 'The AI parser is temporarily unavailable. Please try again in a moment.',
+      };
+    case 'PARSER_ASSETS_MISSING':
+      return {
+        title: "Upload tools aren't ready on this environment",
+        description:
+          'This device or environment is missing the local PDF/OCR assets needed for CV parsing. Refresh setup, then try again.',
+        compactDescription: 'This environment is missing local upload assets. Refresh setup and try again.',
+      };
+    case 'PARSER_RUNTIME_FAILED':
+      return {
+        title: "This browser couldn't start the PDF reader",
+        description:
+          'Your file may be fine, but this browser environment failed to start the PDF parsing worker. Refresh and try again, or switch browsers if it keeps happening.',
+        compactDescription: "This browser couldn't start the PDF reader. Refresh and try again.",
+      };
+    case 'IOS_BROWSER_INCOMPATIBLE':
+      return {
+        title: "iPhone couldn't read this PDF",
+        description:
+          'Your file may be fine, but iPhone Safari struggles with some PDF fonts. Try a desktop browser, or convert your CV to a Word (.docx) or JSON file first.',
+        compactDescription: "This PDF format isn't supported well on iPhone Safari. Try desktop or Word.",
+      };
+    case 'OCR_ENGINE_FAILED':
+      return {
+        title: "Text scanning isn't supported on this browser",
+        description:
+          "We couldn't start the OCR engine in this browser. Try uploading from a desktop browser, or upload a Word (.docx) or JSON file instead.",
+        compactDescription: 'Text scanning failed on this browser. Try desktop or a Word file.',
+      };
+    default:
+      return {
+        title: "We couldn't read this file on this device",
+        description:
+          'The file might be unsupported, the parser may have returned unusable data, or this browser may not handle the document cleanly. Try a different export or the full upload page.',
+        compactDescription: 'We could not read this file on this device. Try a different export or the full upload page.',
+      };
+  }
+}
 
 interface ExtractedSections {
   contact?: boolean;
@@ -39,6 +116,19 @@ interface UploadErrorRecoveryProps {
   hasOCROption?: boolean;
 }
 
+function getIconTone(errorType: UploadErrorType): string {
+  if (errorType === 'NO_TEXT') return 'text-secondary';
+  if (
+    errorType === 'PASSWORD_PROTECTED' ||
+    errorType === 'PARTIAL_EXTRACTION' ||
+    errorType === 'AI_UNREACHABLE' ||
+    errorType === 'IOS_BROWSER_INCOMPATIBLE'
+  ) {
+    return 'text-warning';
+  }
+  return 'text-destructive';
+}
+
 export function UploadErrorRecovery({
   errorType,
   extractedSections,
@@ -51,65 +141,8 @@ export function UploadErrorRecovery({
   hasOCROption = true,
 }: UploadErrorRecoveryProps) {
   const [showHelp, setShowHelp] = useState(false);
-
-  const getErrorContent = () => {
-    switch (errorType) {
-      case 'NO_TEXT':
-        return {
-          icon: <FileWarning className="w-8 h-8 text-secondary" />,
-          title: "We had trouble reading this PDF",
-          description: "This PDF appears to be scanned or image-based. Don't worry—we have options!",
-        };
-      case 'CORRUPTED':
-        return {
-          icon: <FileWarning className="w-8 h-8 text-destructive" />,
-          title: "This PDF seems damaged",
-          description: "We couldn't open this file properly. It may be corrupted or in an unsupported format.",
-        };
-      case 'PASSWORD_PROTECTED':
-        return {
-          icon: <FileWarning className="w-8 h-8 text-warning" />,
-          title: "This PDF is protected",
-          description: "Please upload an unprotected version of your resume.",
-        };
-      case 'PARTIAL_EXTRACTION':
-        return {
-          icon: <FileWarning className="w-8 h-8 text-warning" />,
-          title: "We found most of your resume!",
-          description: "Some sections were extracted, but a few need attention.",
-        };
-      case 'AI_UNREACHABLE':
-        return {
-          icon: <FileWarning className="w-8 h-8 text-warning" />,
-          title: "Couldn't reach the AI parser",
-          description: "There was a connectivity issue. Your file is fine — please retry in a moment.",
-        };
-      case 'IOS_BROWSER_INCOMPATIBLE':
-        return {
-          icon: <FileWarning className="w-8 h-8 text-warning" />,
-          title: "iPhone couldn't read this PDF",
-          description:
-            "Your file looks fine, but iPhone Safari struggles with some PDF fonts. " +
-            "Try uploading from a desktop browser, or convert your CV to a Word (.docx) or JSON file first.",
-        };
-      case 'OCR_ENGINE_FAILED':
-        return {
-          icon: <FileWarning className="w-8 h-8 text-destructive" />,
-          title: "Text scanning isn't supported on this browser",
-          description:
-            "We couldn't start the OCR engine in this browser. " +
-            "Try uploading from a desktop browser, or upload a Word (.docx) or JSON file instead.",
-        };
-      default:
-        return {
-          icon: <FileWarning className="w-8 h-8 text-destructive" />,
-          title: "This PDF couldn't be read",
-          description: "The file may be corrupted, use an unsupported format, or be incompatible with this browser. Try re-exporting it or use a different file.",
-        };
-    }
-  };
-
-  const { icon, title, description } = getErrorContent();
+  const { title, description } = getUploadErrorCopy(errorType);
+  const icon = <FileWarning className={`w-8 h-8 ${getIconTone(errorType)}`} />;
 
   const handleAction = (action: () => void) => {
     haptics.light();
@@ -122,7 +155,6 @@ export function UploadErrorRecovery({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
     >
-      {/* Icon */}
       <motion.div
         className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4"
         initial={{ scale: 0 }}
@@ -132,13 +164,11 @@ export function UploadErrorRecovery({
         {icon}
       </motion.div>
 
-      {/* Title & Description */}
       <h2 className="text-xl font-display font-semibold mb-2">{title}</h2>
       <p className="text-muted-foreground text-sm mb-6 max-w-[280px]">
         {description}
       </p>
 
-      {/* Partial Extraction Summary */}
       {errorType === 'PARTIAL_EXTRACTION' && extractedSections && (
         <motion.div
           className="w-full p-4 rounded-xl bg-muted border border-border mb-6"
@@ -150,18 +180,18 @@ export function UploadErrorRecovery({
           <div className="space-y-2 text-left">
             <SectionStatus label="Contact info" found={extractedSections.contact} />
             <SectionStatus label="Summary" found={extractedSections.summary} />
-            <SectionStatus 
-              label="Work experience" 
+            <SectionStatus
+              label="Work experience"
               found={(extractedSections.experience ?? 0) > 0}
               count={extractedSections.experience}
             />
-            <SectionStatus 
-              label="Education" 
+            <SectionStatus
+              label="Education"
               found={(extractedSections.education ?? 0) > 0}
               count={extractedSections.education}
             />
-            <SectionStatus 
-              label="Skills" 
+            <SectionStatus
+              label="Skills"
               found={(extractedSections.skills ?? 0) > 0}
               count={extractedSections.skills}
             />
@@ -169,25 +199,20 @@ export function UploadErrorRecovery({
         </motion.div>
       )}
 
-      {/* Action Buttons */}
       <div className="w-full space-y-3">
-        {/* OCR Option - Primary for NO_TEXT errors */}
         {hasOCROption && onTryOCR && errorType === 'NO_TEXT' && (
           <Button
             variant="default"
             size="lg"
             className="w-full h-14 gap-3 gradient-primary"
             onClick={() => handleAction(onTryOCR)}
-            style={{
-              boxShadow: '0 8px 32px -8px hsl(var(--primary) / 0.5)',
-            }}
+            style={{ boxShadow: '0 8px 32px -8px hsl(var(--primary) / 0.5)' }}
           >
             <ScanText className="w-5 h-5" />
             Try OCR Scanning
           </Button>
         )}
 
-        {/* Partial: Continue with what we have */}
         {errorType === 'PARTIAL_EXTRACTION' && onContinuePartial && (
           <Button
             variant="outline"
@@ -200,16 +225,13 @@ export function UploadErrorRecovery({
           </Button>
         )}
 
-        {/* Partial: Let AI fill gaps - Recommended */}
         {errorType === 'PARTIAL_EXTRACTION' && onAIFillGaps && (
           <Button
             variant="default"
             size="lg"
             className="w-full h-14 gap-3 gradient-primary"
             onClick={() => handleAction(onAIFillGaps)}
-            style={{
-              boxShadow: '0 8px 32px -8px hsl(var(--primary) / 0.5)',
-            }}
+            style={{ boxShadow: '0 8px 32px -8px hsl(var(--primary) / 0.5)' }}
           >
             <ScanText className="w-5 h-5" />
             Let AI Help Fill Gaps
@@ -217,8 +239,7 @@ export function UploadErrorRecovery({
           </Button>
         )}
 
-        {/* Start with blank resume — for unreadable file error states */}
-        {onStartBlankResume && (errorType === 'CORRUPTED' || errorType === 'PASSWORD_PROTECTED' || errorType === 'NO_TEXT' || errorType === 'UNKNOWN' || errorType === 'IOS_BROWSER_INCOMPATIBLE' || errorType === 'OCR_ENGINE_FAILED') && (
+        {onStartBlankResume && (
           <Button
             variant="outline"
             size="lg"
@@ -230,7 +251,6 @@ export function UploadErrorRecovery({
           </Button>
         )}
 
-        {/* Start Fresh */}
         {!onStartBlankResume && (
           <Button
             variant={errorType === 'PARTIAL_EXTRACTION' ? 'ghost' : 'outline'}
@@ -243,7 +263,6 @@ export function UploadErrorRecovery({
           </Button>
         )}
 
-        {/* Try Different File */}
         <Button
           variant="ghost"
           size="lg"
@@ -255,7 +274,6 @@ export function UploadErrorRecovery({
         </Button>
       </div>
 
-      {/* Help Collapsible */}
       {errorType === 'NO_TEXT' && (
         <Collapsible open={showHelp} onOpenChange={setShowHelp} className="w-full mt-6">
           <CollapsibleTrigger className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mx-auto">
@@ -266,11 +284,11 @@ export function UploadErrorRecovery({
             <div className="p-4 rounded-xl bg-muted border border-border text-left text-sm text-muted-foreground space-y-2">
               <p>PDFs can contain text in two ways:</p>
               <ul className="list-disc pl-4 space-y-1">
-                <li><strong>Text-based:</strong> The text is embedded and searchable. These work best!</li>
+                <li><strong>Text-based:</strong> The text is embedded and searchable. These work best.</li>
                 <li><strong>Scanned/Image:</strong> The text is actually an image. We need OCR to read it.</li>
               </ul>
               <p className="pt-2">
-                If you have the original document (Word, Google Docs), try exporting it as a PDF again for best results.
+                If you have the original document, exporting it again from Word or Google Docs usually gives the cleanest result.
               </p>
             </div>
           </CollapsibleContent>
@@ -280,19 +298,19 @@ export function UploadErrorRecovery({
   );
 }
 
-function SectionStatus({ 
-  label, 
-  found, 
-  count 
-}: { 
-  label: string; 
-  found?: boolean; 
+function SectionStatus({
+  label,
+  found,
+  count,
+}: {
+  label: string;
+  found?: boolean;
   count?: number;
 }) {
   return (
     <div className="flex items-center gap-2 text-sm">
       <span className={found ? 'text-success' : 'text-muted-foreground'}>
-        {found ? '✓' : '✗'}
+        {found ? '✓' : '✕'}
       </span>
       <span className={found ? 'text-foreground' : 'text-muted-foreground'}>
         {label}

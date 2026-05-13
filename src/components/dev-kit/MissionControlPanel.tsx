@@ -453,7 +453,7 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
       ? 'green'
       : 'yellow'
     : data.ai.keysInSupabaseVault
-    ? 'yellow'   // keys exist in Supabase vault — works in production
+    ? 'yellow'   // keys exist in Appwrite variables — works in production
     : 'red';
 
   const emailStatus: StatusDot = !data
@@ -461,7 +461,7 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
     : data.email.resendKeyPresent && data.email.reachable
     ? 'green'
     : data.email.keyInSupabaseVault
-    ? 'yellow'   // key exists in Supabase vault — works in production
+    ? 'yellow'   // key exists in Appwrite variables — works in production
     : data.email.resendKeyPresent
     ? 'yellow'
     : 'red';
@@ -514,7 +514,7 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
 
   const aiSummary = data
     ? data.ai.keysInSupabaseVault
-      ? 'Keys in Supabase vault · operational in production'
+      ? 'Keys in Appwrite variables · operational in production'
       : [
           data.ai.openrouterConfigured
             ? `OpenRouter: ${orPing?.ok ? `OK ${orPing.latencyMs ? `(${orPing.latencyMs}ms)` : ''}` : 'unreachable'}`
@@ -566,9 +566,9 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
           <span>
             <strong>Dev environment</strong> — secrets marked with{' '}
             <span className="inline-flex items-center gap-1 font-mono px-1 py-0.5 rounded bg-blue-500/10 border border-blue-500/20 text-[10px]">
-              <Lock className="w-2.5 h-2.5" /> Supabase vault
+              <Lock className="w-2.5 h-2.5" /> Appwrite variables
             </span>{' '}
-            live in Supabase's secret store and are only visible to edge functions in production.
+            live in Appwrite Function variables and are only visible to Appwrite Functions in production.
             {vaultCount > 0 && ` (${vaultCount} secrets)`}
           </span>
         </div>
@@ -639,7 +639,7 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
               {data.ai.keysInSupabaseVault ? (
                 <span className="text-[10px] font-medium px-2 py-0.5 rounded-full border bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20 flex items-center gap-1">
                   <Lock className="w-2.5 h-2.5" />
-                  Supabase vault · prod only
+                  Appwrite variables · prod only
                 </span>
               ) : (
                 <>
@@ -662,7 +662,7 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
               ? data.email.reason === 'restricted_key'
                 ? 'RESEND_API_KEY is restricted (send-only) — replace with a full-access key to enable read APIs'
                 : data.email.keyInSupabaseVault
-                ? 'RESEND_API_KEY in Supabase vault · operational in production'
+                ? 'RESEND_API_KEY in Appwrite variables · operational in production'
                 : data.email.resendKeyPresent
                 ? data.email.reachable
                   ? `Resend reachable${data.email.sends24h !== null ? ` · ${data.email.sends24h} sent (24h)` : ''}`
@@ -676,7 +676,7 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
           {data && data.email.keyInSupabaseVault && (
             <span className="text-[10px] font-medium px-2 py-0.5 rounded-full border bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20 flex items-center gap-1 w-fit">
               <Lock className="w-2.5 h-2.5" />
-              Supabase vault · prod only
+              Appwrite variables · prod only
             </span>
           )}
           {data && !data.email.keyInSupabaseVault && data.email.sends24h !== null && (
@@ -697,7 +697,7 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
           summary={
             data
               ? data.database.ok
-                ? `Supabase reachable${data.database.errorCount1h !== null ? ` · ${data.database.errorCount1h} error${data.database.errorCount1h !== 1 ? 's' : ''} (1h)` : ''}`
+                ? `Appwrite database reachable${data.database.errorCount1h !== null ? ` · ${data.database.errorCount1h} error${data.database.errorCount1h !== 1 ? 's' : ''} (1h)` : ''}`
                 : `DB error: ${data.database.error ?? 'unknown'}`
               : 'Loading…'
           }
@@ -727,7 +727,7 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
                 : secretsStaleCount > 0
                 ? `${secretsStaleCount} secret${secretsStaleCount !== 1 ? 's' : ''} not rotated in 90+ days`
                 : isDevEnv && vaultCount > 0
-                ? `All core secrets configured · ${vaultCount} in Supabase vault`
+                ? `All core secrets configured · ${vaultCount} in Appwrite variables`
                 : `All ${data.secrets.items.length} secrets configured`
               : 'Loading…'
           }
@@ -745,8 +745,7 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
                     <div className="min-w-0">
                       <p className="font-mono text-[10px] text-foreground truncate">{s.key}</p>
                       <p className="text-[10px] text-muted-foreground leading-tight">
-                        Set as a Replit secret in dev (Tools → Secrets) and as a Supabase
-                        Edge Function secret in production. Mission Control only flags
+                        Set as a Replit secret in dev (Tools → Secrets) and as an Appwrite Function variable. Mission Control only flags
                         secrets that are also listed in REQUIRED_ENV_VARS.
                       </p>
                     </div>
@@ -934,7 +933,7 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
             {vaultCount > 0 && (
               <span className="text-[10px] font-medium px-2 py-0.5 rounded-full border bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20 flex items-center gap-1">
                 <Lock className="w-2.5 h-2.5" />
-                {vaultCount} in Supabase vault
+                {vaultCount} in Appwrite variables
               </span>
             )}
           </div>

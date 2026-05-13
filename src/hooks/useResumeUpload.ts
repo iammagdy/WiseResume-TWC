@@ -198,7 +198,11 @@ export function useResumeUpload(): UseResumeUploadReturn {
       if (msg === 'AI_UNREACHABLE') {
         setError({ type: 'AI_UNREACHABLE', warnings: [] });
       } else if (err instanceof OCRError) {
-        if (err.code === 'WORKER_INIT_FAILED' || err.code === 'PAGE_RENDER_FAILED') {
+        if (err.code === 'ASSETS_MISSING') {
+          setError({ type: 'PARSER_ASSETS_MISSING', warnings: [err.message] });
+        } else if (err.code === 'PDF_WORKER_FAILED') {
+          setError({ type: 'PARSER_RUNTIME_FAILED', warnings: [err.message] });
+        } else if (err.code === 'WORKER_INIT_FAILED' || err.code === 'PAGE_RENDER_FAILED') {
           setError({ type: 'OCR_ENGINE_FAILED', warnings: [err.message] });
         } else {
           toast.error(err.message, { duration: 6000 });
@@ -246,7 +250,11 @@ export function useResumeUpload(): UseResumeUploadReturn {
       if (err instanceof Error && err.message === 'AI_UNREACHABLE') {
         setError({ type: 'AI_UNREACHABLE', warnings: [] });
       } else if (err instanceof OCRError) {
-        if (err.code === 'WORKER_INIT_FAILED' || err.code === 'PAGE_RENDER_FAILED') {
+        if (err.code === 'ASSETS_MISSING') {
+          setError({ type: 'PARSER_ASSETS_MISSING', warnings: [err.message] });
+        } else if (err.code === 'PDF_WORKER_FAILED') {
+          setError({ type: 'PARSER_RUNTIME_FAILED', warnings: [err.message] });
+        } else if (err.code === 'WORKER_INIT_FAILED' || err.code === 'PAGE_RENDER_FAILED') {
           setError({ type: 'OCR_ENGINE_FAILED', warnings: [err.message] });
         } else {
           toast.error(err.message, { duration: 6000 });
@@ -422,6 +430,8 @@ export function useResumeUpload(): UseResumeUploadReturn {
         const map: Record<string, UploadErrorType> = {
           PASSWORD_PROTECTED: 'PASSWORD_PROTECTED',
           CORRUPTED: 'CORRUPTED',
+          WORKER_RUNTIME_FAILED: 'PARSER_RUNTIME_FAILED',
+          ASSETS_MISSING: 'PARSER_ASSETS_MISSING',
           NO_TEXT: 'NO_TEXT',
         };
         setError({ type: map[err.code] ?? 'UNKNOWN', warnings: [] });

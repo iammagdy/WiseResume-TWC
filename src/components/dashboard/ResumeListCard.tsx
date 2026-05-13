@@ -98,7 +98,7 @@ export const ResumeListCard = memo(function ResumeListCard({
   const SWIPE_HINT_KEY = 'wr-swipe-hint-seen';
   const [showSwipeHint, setShowSwipeHint] = useState(() => {
     try {
-      return !localStorage.getItem(SWIPE_HINT_KEY);
+      return !sessionStorage.getItem(SWIPE_HINT_KEY);
     } catch {
       return false;
     }
@@ -108,7 +108,7 @@ export const ResumeListCard = memo(function ResumeListCard({
     if (showSwipeHint) {
       const timer = setTimeout(() => {
         setShowSwipeHint(false);
-        try { localStorage.setItem(SWIPE_HINT_KEY, '1'); } catch {}
+        try { sessionStorage.setItem(SWIPE_HINT_KEY, '1'); } catch {}
       }, 3000);
       return () => clearTimeout(timer);
     }
@@ -182,20 +182,14 @@ export const ResumeListCard = memo(function ResumeListCard({
 
     if (info.offset.x <= -SWIPE_THRESHOLD) {
       haptics.warning();
-      if (confirmSwipeActions) {
-        animate(x, 0, { type: 'spring', stiffness: 500, damping: 30 });
-        onDelete(resume.$id);
-      } else {
-        animate(x, -300, { type: 'tween', duration: 0.2 }).then(() => onDelete(resume.$id));
-      }
+      // Always spring back and trigger confirmation dialog (never direct delete)
+      animate(x, 0, { type: 'spring', stiffness: 500, damping: 30 });
+      onDelete(resume.$id);
     } else if (info.offset.x >= SWIPE_THRESHOLD) {
       haptics.success();
-      if (confirmSwipeActions) {
-        animate(x, 0, { type: 'spring', stiffness: 500, damping: 30 });
-        onDuplicate(resume.$id);
-      } else {
-        animate(x, 300, { type: 'tween', duration: 0.2 }).then(() => onDuplicate(resume.$id));
-      }
+      // Always spring back and trigger duplicate
+      animate(x, 0, { type: 'spring', stiffness: 500, damping: 30 });
+      onDuplicate(resume.$id);
     } else {
       animate(x, 0, { type: 'spring', stiffness: 500, damping: 30 });
     }
@@ -228,7 +222,7 @@ export const ResumeListCard = memo(function ResumeListCard({
   return (
     <div className={cn(
       "relative overflow-hidden rounded-2xl border-l-4 transition-colors duration-500",
-      "border-l-primary/20",
+      showTailoredBadge ? "border-l-success/20" : "border-l-primary/20",
     )}>
       {/* Swipe action backgrounds */}
       <div className="absolute inset-0 flex">
@@ -510,7 +504,16 @@ export const ResumeListCard = memo(function ResumeListCard({
 
       {/* Actions Bottom Sheet */}
       <Sheet open={showActionsSheet} onOpenChange={setShowActionsSheet}>
-        <SheetContent side="bottom" className="pb-safe max-h-[80dvh] overflow-y-auto">
+        <SheetContent
+          side="bottom"
+          className="pb-safe max-h-[80dvh] overflow-y-auto"
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              e.preventDefault();
+              setShowActionsSheet(false);
+            }
+          }}
+        >
           <SheetHeader>
             <SheetTitle className="text-base">{resume.title}</SheetTitle>
           </SheetHeader>

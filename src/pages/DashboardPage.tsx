@@ -5,7 +5,6 @@ import { LazyMotion, domAnimation, m as motion, AnimatePresence } from 'framer-m
 import { Search, User, Settings, LogOut, FileText as FileTextIcon, Sparkles, CheckSquare, X, Trash2, WifiOff, ShieldCheck, ExternalLink, HelpCircle, AlertCircle, RefreshCw, LayoutTemplate, BookOpen, Users, Map, Sun, Moon } from 'lucide-react';
 import { DashboardSkeleton } from '@/components/layout/PageSkeletons';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { SortOption, CategoryFilter, ScoreFilter } from '@/components/dashboard/ResumeFilters';
 import { templates } from '@/lib/templateData';
 import { Button } from '@/components/ui/button';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
@@ -19,7 +18,6 @@ import { EmptyState } from '@/components/dashboard/EmptyState';
 import { SkeletonCardList } from '@/components/ui/skeleton-card';
 import { DashboardStats } from '@/components/dashboard/DashboardStats';
 // DailyTipCard removed - tip merged into DashboardStats
-import { FloatingCreateButton } from '@/components/dashboard/FloatingCreateButton';
 import { DashboardHero } from '@/components/dashboard/DashboardHero';
 import { FeatureMapSheet } from '@/components/layout/FeatureMapSheet';
 import { trackSession } from '@/lib/discoveryManager';
@@ -51,7 +49,7 @@ import { useATSScoreHistoryStore } from '@/store/atsScoreHistoryStore';
 import { NextStepBanner } from '@/components/editor/NextStepBanner';
 import { useProfile } from '@/hooks/useProfile';
 import { haptics } from '@/lib/haptics';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui/sonner';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -67,7 +65,7 @@ import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 function DashboardPageContent() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { user, supabaseReady, supabaseSettled, signOut } = useAuth();
+  const { user, authReady, authSettled, signOut } = useAuth();
   const { isMigrating } = useGuestMigration();
   const { 
     data: resumes = [], 
@@ -90,9 +88,6 @@ function DashboardPageContent() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [createTailoredParentId, setCreateTailoredParentId] = useState<string | null>(null);
   // searchQuery state moved below with sessionStorage initializer
-  const [sortOption, setSortOption] = useState<SortOption>('updated');
-  const [categoryFilters, setCategoryFilters] = useState<CategoryFilter[]>([]);
-  const [scoreFilters, setScoreFilters] = useState<ScoreFilter[]>([]);
   const [deleteResumeId, setDeleteResumeId] = useState<string | null>(null);
   const [duplicateResumeId, setDuplicateResumeId] = useState<string | null>(null);
   const [deletedResume, setDeletedResume] = useState<{ id: string; title: string } | null>(null);
@@ -445,37 +440,8 @@ function DashboardPageContent() {
       );
     }
 
-    // Category filter
-    if (categoryFilters.length > 0) {
-      result = result.filter(resume => {
-        const tpl = templates.find(t => t.id === resume.template_id);
-        return tpl && categoryFilters.includes(tpl.category as CategoryFilter);
-      });
-    }
-
-    // Score filter
-    if (scoreFilters.length > 0) {
-      result = result.filter(resume => {
-        const score = healthScores[resume.$id]?.overallScore;
-        if (score == null) return false;
-        return scoreFilters.some(f =>
-          f === 'needs-work' ? score < 50 :
-            f === 'good' ? score >= 50 && score < 80 :
-              score >= 80
-        );
-      });
-    }
-
-    // Sort
-    if (sortOption === 'alpha') {
-      result = [...result].sort((a, b) => a.title.localeCompare(b.title));
-    } else if (sortOption === 'score') {
-      result = [...result].sort((a, b) => (healthScores[b.$id]?.overallScore ?? -1) - (healthScores[a.$id]?.overallScore ?? -1));
-    }
-    // 'updated' is the default order from the query
-
     return result;
-  }, [resumes, deferredSearch, categoryFilters, scoreFilters, sortOption, healthScores]);
+  }, [resumes, deferredSearch]);
 
   // Organize resumes into hierarchy
   const resumeHierarchy = useMemo(() => {
@@ -483,27 +449,11 @@ function DashboardPageContent() {
     return organizeResumeHierarchy(filteredResumes);
   }, [filteredResumes]);
 
-  // Reset visible counts whenever filters, search, or active tab change
+  // Reset visible counts whenever search or active tab changes
   useEffect(() => {
     setVisibleMyCVs(PAGE_SIZE);
     setVisibleTailored(PAGE_SIZE);
-  }, [deferredSearch, activeTab, categoryFilters, scoreFilters, sortOption]);
-
-  const hasActiveFilters = sortOption !== 'updated' || categoryFilters.length > 0 || scoreFilters.length > 0;
-
-  const handleCategoryToggle = useCallback((cat: CategoryFilter) => {
-    setCategoryFilters(prev => prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]);
-  }, []);
-
-  const handleScoreToggle = useCallback((score: ScoreFilter) => {
-    setScoreFilters(prev => prev.includes(score) ? prev.filter(s => s !== score) : [...prev, score]);
-  }, []);
-
-  const handleClearFilters = useCallback(() => {
-    setSortOption('updated');
-    setCategoryFilters([]);
-    setScoreFilters([]);
-  }, []);
+  }, [deferredSearch, activeTab]);
 
   const toggleSelection = useCallback((id: string) => {
     setSelectedIds(prev => {
@@ -523,16 +473,40 @@ function DashboardPageContent() {
     setSelectedIds(new Set());
   }, []);
 
+  const pendingDeleteRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const confirmBulkDelete = useCallback(() => {
     if (selectedIds.size === 0) return;
     haptics.warning();
-    deleteMultipleResumes.mutate([...selectedIds], {
-      onSuccess: () => {
-        selectedIds.forEach(id => useATSScoreHistoryStore.getState().clearHistory(id));
-        exitSelectionMode();
+    setShowBulkDeleteConfirm(false);
+
+    const count = selectedIds.size;
+    const idsToDelete = [...selectedIds];
+
+    // Show undo toast immediately
+    toast.success(`${count} resume${count > 1 ? 's' : ''} deleted`, {
+      description: 'You can undo this action within 5 seconds.',
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          if (pendingDeleteRef.current) {
+            clearTimeout(pendingDeleteRef.current);
+            pendingDeleteRef.current = null;
+          }
+          toast.info('Delete cancelled');
+        },
       },
     });
-    setShowBulkDeleteConfirm(false);
+
+    // Buffer the actual delete for 5 seconds
+    pendingDeleteRef.current = setTimeout(() => {
+      deleteMultipleResumes.mutate(idsToDelete, {
+        onSuccess: () => {
+          idsToDelete.forEach(id => useATSScoreHistoryStore.getState().clearHistory(id));
+          exitSelectionMode();
+        },
+      });
+    }, 5000);
   }, [selectedIds, deleteMultipleResumes, exitSelectionMode]);
 
   const hasResumes = filteredResumes && filteredResumes.length > 0;
@@ -550,14 +524,14 @@ function DashboardPageContent() {
 
   // Auth guard handled by ProtectedRoute
 
-  const isLoading = !supabaseSettled;
+  const isLoading = !authSettled;
 
   if (isLoading) {
     return <DashboardSkeleton />;
   }
 
   // Only show error if we're online and the fetch actually failed after the bridge was ready
-  if (resumesError && !isOffline && supabaseReady) {
+  if (resumesError && !isOffline && authReady) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-4">
         <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center text-destructive">
@@ -730,10 +704,10 @@ function DashboardPageContent() {
                 </div>
                 <button
                   onClick={() => { setShowTrustBanner(false); localStorage.setItem('wr-trust-banner-seen', 'true'); }}
-                  className="shrink-0 active:scale-95 min-w-[44px] min-h-[44px] flex items-center justify-center"
+                  className="shrink-0 active:scale-95 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl hover:bg-muted/50 transition-colors"
                   aria-label="Dismiss"
                 >
-                  <X className="w-3.5 h-3.5 text-muted-foreground/50" />
+                  <X className="w-4 h-4 text-muted-foreground hover:text-foreground" />
                 </button>
               </div>
             </div>
@@ -752,10 +726,10 @@ function DashboardPageContent() {
                 </Button>
                 <button
                   onClick={() => { setShowProfileBanner(false); sessionStorage.setItem('wr-dismissed-profile-banner', 'true'); }}
-                  className="shrink-0 active:scale-95 min-w-[44px] min-h-[44px] flex items-center justify-center"
+                  className="shrink-0 active:scale-95 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl hover:bg-muted/50 transition-colors"
                   aria-label="Dismiss"
                 >
-                  <X className="w-4 h-4 text-muted-foreground/70" />
+                  <X className="w-5 h-5 text-muted-foreground" />
                 </button>
               </div>
             </div>
@@ -852,7 +826,7 @@ function DashboardPageContent() {
                 <div className="relative flex-1">
                   <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
-                    placeholder={`Search in ${activeTab === 'my-cvs' ? 'My CVs' : 'Tailored'}...`}
+                    placeholder="Search all resumes..."
                     value={searchQuery}
                     onChange={(e) => handleSetSearchQuery(e.target.value)}
                     className="pl-10 rounded-full h-10 sm:h-11 text-base bg-input border border-border"

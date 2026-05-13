@@ -51,6 +51,20 @@ interface AdminEnvelope<T> {
   session?: DevKitSessionToken;
 }
 
+function withDevKitTimeout<T>(
+  promise: Promise<T>,
+  ms: number,
+  message = 'DevKit request timed out. Appwrite did not return a response. Check network access and Appwrite function availability.',
+): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(message)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timeoutId) clearTimeout(timeoutId);
+  });
+}
+
 function classifyMessage(message: string, status?: number): DevKitErrorCode {
   const raw = (message || '').toLowerCase();
   if (status === 401 || status === 403 || /unauthori[sz]ed|invalid devkit|expired devkit|token expired/.test(raw)) {
@@ -61,7 +75,7 @@ function classifyMessage(message: string, status?: number): DevKitErrorCode {
   if (/unknown action|action is required/.test(raw)) return 'UNKNOWN_ACTION';
   if (/missing.*env|missing.*variable|not configured|config_missing|devkit_password|appwrite_api_key/.test(raw)) return 'MISSING_ENV';
   if (/index|attribute|collection|document.*could not be found|invalid query|schema/.test(raw)) return 'SCHEMA_OR_INDEX_ERROR';
-  if (/failed to fetch|network|cannot reach/.test(raw)) return 'NETWORK_ERROR';
+  if (/failed to fetch|network|cannot reach|timed out|timeout/.test(raw)) return 'NETWORK_ERROR';
   if (status && status >= 500) return 'FUNCTION_RUNTIME_FAILED';
   return 'UNKNOWN';
 }
@@ -93,9 +107,13 @@ export function toDevKitError(input: unknown, context: { functionId?: string; ac
 }
 
 export async function devKitLogin(password: string): Promise<DevKitAuthResponse> {
-  const result = await appwriteFunctions.invoke<AdminEnvelope<never>>('admin-devkit-data', {
-    body: { action: 'verify-devkit-session', password },
-  });
+  const result = await withDevKitTimeout(
+    appwriteFunctions.invoke<AdminEnvelope<never>>('admin-devkit-data', {
+      body: { action: 'verify-devkit-session', password },
+    }),
+    15000,
+    'DevKit login timed out. Appwrite did not answer the session request.',
+  );
 
   if (result.error) {
     const code = classifyMessage(result.error.message, result.error.status);
@@ -125,7 +143,19 @@ export async function devKitCall<T = unknown>({
   functionId = 'admin-devkit-data',
 }: DevKitCallOptions): Promise<DevKitResult<T>> {
   const body = { ...(payload ?? {}), action };
-  const tuple = await appwriteFunctions.invoke<AdminEnvelope<T>>(functionId, devKitInvokeOptions(body));
+  let tuple: Awaited<ReturnType<typeof appwriteFunctions.invoke<AdminEnvelope<T>>>>;
+  try {
+    tuple = await withDevKitTimeout(
+      appwriteFunctions.invoke<AdminEnvelope<T>>(functionId, devKitInvokeOptions(body)),
+      20000,
+      `${functionId} timed out while running ${action}.`,
+    );
+  } catch (err) {
+    return {
+      ok: false,
+      error: toDevKitError(err, { functionId, action }),
+    };
+  }
 
   if (tuple.error) {
     return {

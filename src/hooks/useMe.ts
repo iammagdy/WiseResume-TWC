@@ -58,18 +58,21 @@ export function useMe() {
 
       const sub = sRes.documents[0] as Record<string, unknown> | undefined;
       const creds = cRes.documents[0] as Record<string, unknown> | undefined;
+      const basePlan = (sub?.plan as string | undefined) ?? 'free';
+      const trialPlan = (sub?.trial_plan as string | null | undefined) ?? null;
+      const trialExpiresAt = (sub?.trial_expires_at as string | null | undefined) ?? null;
+      const trialActive = !!trialPlan && !!trialExpiresAt && new Date(trialExpiresAt).getTime() > Date.now();
+      const effectivePlan = (sub?.effective_plan as string | undefined) ?? (trialActive ? trialPlan : basePlan);
 
       return {
         userId: user.id,
         profile: null, // Profile is handled by useProfile hook to avoid redundancy
         subscription: sub
           ? {
-              plan: (sub.plan as string) ?? 'free',
-              // Use server-computed effective_plan when present (accounts for active
-              // trials); fall back to plan when the field hasn't been provisioned yet.
-              effective_plan: (sub.effective_plan as string | undefined) ?? (sub.plan as string) ?? 'free',
-              trial_plan: (sub.trial_plan as string | null | undefined) ?? null,
-              trial_expires_at: (sub.trial_expires_at as string | null | undefined) ?? null,
+              plan: basePlan,
+              effective_plan: effectivePlan,
+              trial_plan: trialPlan,
+              trial_expires_at: trialExpiresAt,
             }
           : DEFAULT_SUBSCRIPTION,
         ai_credits: creds

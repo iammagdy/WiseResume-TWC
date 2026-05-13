@@ -63,6 +63,14 @@ function classifyHttpError(fnName: string, statusCode: number, parsed: unknown):
   return 'An error occurred. Please try again.';
 }
 
+function inferStatusFromMessage(message: string | undefined): number | undefined {
+  if (!message) return undefined;
+  const match = message.match(/\bstatus code (\d{3})\b/i) || message.match(/\bHTTP (\d{3})\b/i);
+  if (!match) return undefined;
+  const parsed = Number(match[1]);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
 function classifyAppwriteException(fnName: string, err: AppwriteException): string {
   const raw = err.message || '';
   if (err.code === 401 || err.code === 403) {
@@ -142,9 +150,17 @@ export const appwriteFunctions = {
       ) {
         const envelope = parsed as { status?: string; data: unknown; message?: string };
         if (envelope.status === 'error') {
+          const inferredStatus = inferStatusFromMessage(envelope.message);
           return {
             data: null,
-            error: { message: envelope.message || 'AI function returned an error.', raw: parsed },
+            error: {
+              message:
+                inferredStatus !== undefined
+                  ? classifyHttpError(fnName, inferredStatus, parsed)
+                  : (envelope.message || 'AI function returned an error.'),
+              status: inferredStatus,
+              raw: parsed,
+            },
           };
         }
         return { data: envelope.data as T, error: null };

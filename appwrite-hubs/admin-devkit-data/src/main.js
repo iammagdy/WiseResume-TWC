@@ -66,9 +66,87 @@ function getClients() {
 
 function envPresent(key) { return !!process.env[key]; }
 function isoNow() { return new Date().toISOString(); }
+function asQuery(query) { return typeof query === 'string' ? query : JSON.stringify(query); }
+
+async function appwriteGet(path, queries = []) {
+  const apiKey = process.env.APPWRITE_API_KEY || process.env.APPWRITE_FUNCTION_API_KEY;
+  if (!apiKey) throw new Error('APPWRITE_API_KEY is not configured');
+  const url = new URL(`${ENDPOINT}${path}`);
+  for (const query of queries) url.searchParams.append('queries[]', asQuery(query));
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'X-Appwrite-Project': PROJECT_ID,
+      'X-Appwrite-Key': apiKey,
+    },
+  });
+  const text = await response.text();
+  let payload;
+  try { payload = text ? JSON.parse(text) : {}; } catch { payload = { message: text }; }
+  if (!response.ok) {
+    const message = payload?.message || `Appwrite GET ${path} failed with HTTP ${response.status}`;
+    const err = new Error(message);
+    err.status = response.status;
+    err.type = payload?.type;
+    throw err;
+  }
+  return payload;
+}
+
+async function listUsers(queries = []) {
+  return appwriteGet('/users', queries);
+}
+
+async function getUser(userId) {
+  return appwriteGet(`/users/${encodeURIComponent(userId)}`);
+}
+
+async function listFunctions(queries = []) {
+  return appwriteGet('/functions', queries);
+}
+
+async function listCollections(queries = []) {
+  return appwriteGet(`/databases/${encodeURIComponent(DB_ID)}/collections`, queries);
+}
+
+async function listDocuments(collectionId, queries = []) {
+  return appwriteGet(`/databases/${encodeURIComponent(DB_ID)}/collections/${encodeURIComponent(collectionId)}/documents`, queries);
+}
+
+async function getDocument(collectionId, documentId) {
+  return appwriteGet(`/databases/${encodeURIComponent(DB_ID)}/collections/${encodeURIComponent(collectionId)}/documents/${encodeURIComponent(documentId)}`);
+}
+
+function chunk(values, size) {
+  const chunks = [];
+  for (let i = 0; i < values.length; i += size) chunks.push(values.slice(i, i + size));
+  return chunks;
+}
+
+async function listAllAuthUsers() {
+  const users = [];
+  let offset = 0;
+  let total = 0;
+  do {
+    const page = await listUsers([sdk.Query.limit(100), sdk.Query.offset(offset)]);
+    total = page.total || 0;
+    users.push(...(page.users || []));
+    offset += 100;
+  } while (users.length < total);
+  return { users, total };
+}
+
+async function countDocumentsForUserIds(collectionId, userIds) {
+  if (!userIds.length) return 0;
+  const counts = await Promise.all(chunk(userIds, 100).map(async ids => {
+    const page = await safeList(null, collectionId, [sdk.Query.equal('user_id', ids), sdk.Query.limit(1)]);
+    return page.total || 0;
+  }));
+  return counts.reduce((sum, count) => sum + count, 0);
+}
 
 async function safeList(databases, collectionId, queries = []) {
-  try { return await databases.listDocuments(DB_ID, collectionId, queries); }
+  try { return await listDocuments(collectionId, queries); }
   catch (e) { return { documents: [], total: 0, error: e.message }; }
 }
 
@@ -110,22 +188,25 @@ async function verifyDevKitSession(body) {
 }
 
 async function handleDiagnostics(log, error) {
-  const { databases, functions, users } = getClients();
   const items = [];
 
   items.push(item('Access', 'devkit-password', 'DevKit Password', envPresent('DEVKIT_PASSWORD') ? 'healthy' : 'broken', envPresent('DEVKIT_PASSWORD') ? 'DEVKIT_PASSWORD is present.' : 'DEVKIT_PASSWORD is missing.', 'Required for login and signed token verification.'));
   items.push(item('Access', 'appwrite-api-key', 'Appwrite API Key', envPresent('APPWRITE_API_KEY') || envPresent('APPWRITE_FUNCTION_API_KEY') ? 'healthy' : 'broken', envPresent('APPWRITE_API_KEY') || envPresent('APPWRITE_FUNCTION_API_KEY') ? 'Server API key is present.' : 'Server API key is missing.', 'Required for cross-user admin reads.'));
 
   try {
-    const authUsers = await users.list([sdk.Query.limit(1)]);
+    const authUsers = await listUsers([sdk.Query.limit(1)]);
     items.push(item('Access', 'auth-users', 'Auth Users API', 'healthy', `Users API reachable. Total auth users: ${authUsers.total}.`));
   } catch (e) {
     items.push(item('Access', 'auth-users', 'Auth Users API', 'broken', 'Users API could not be reached.', e.message));
   }
 
-  const requiredFunctions = ['admin-devkit-data', 'inspect-ai-keys', 'ai-gateway', 'admin-feature-flags', 'admin-email', 'admin-testmail', 'admin-visitor-analytics'];
+  const requiredFunctions = [
+    'admin-devkit-data', 'inspect-ai-keys', 'ai-gateway', 'admin-feature-flags',
+    'admin-email', 'admin-testmail', 'admin-visitor-analytics',
+    'admin-impersonate', 'admin-onboarding-funnel', 'admin-portfolio-usernames', 'admin-moderation',
+  ];
   try {
-    const fnPage = await functions.list([sdk.Query.limit(200)]);
+    const fnPage = await listFunctions([sdk.Query.limit(200)]);
     for (const fn of requiredFunctions) {
       const found = fnPage.functions.find(f => f.$id === fn || f.name === fn);
       items.push(item('Functions', `fn-${fn}`, fn, found ? (found.enabled ? 'healthy' : 'warning') : 'broken', found ? `${fn} is deployed${found.enabled ? ' and enabled' : ' but disabled'}.` : `${fn} is not deployed.`, found ? `Runtime: ${found.runtime || 'unknown'}` : 'Deploy the Appwrite Function from appwrite-hubs.'));
@@ -136,7 +217,7 @@ async function handleDiagnostics(log, error) {
 
   const requiredCollections = ['profiles', 'subscriptions', 'ai_credits', 'resumes', 'admin_audit_logs', 'audit_logs', 'feature_flags', 'error_log', 'edge_function_logs', 'discount_codes', 'app_settings', 'usage_events', 'visitor_events', 'contact_requests'];
   try {
-    const collPage = await databases.listCollections(DB_ID, [sdk.Query.limit(200)]);
+    const collPage = await listCollections([sdk.Query.limit(200)]);
     for (const coll of requiredCollections) {
       const found = collPage.collections.find(c => c.$id === coll);
       items.push(item('Database', `coll-${coll}`, coll, found ? 'healthy' : 'not_configured', found ? `${coll} collection exists.` : `${coll} collection is missing.`, found ? `Attributes: ${(found.attributes || []).map(a => a.key).join(', ') || 'none'}` : 'Create the collection or keep dependent panels marked as needing schema.'));
@@ -236,7 +317,7 @@ async function handleMissionControl(log, error) {
       groqConfigured: !!process.env.GROQ_KEY_1,
       anyProviderOk: providerPings.some(p => p.ok),
       allProvidersOk: providerPings.length > 0 && providerPings.every(p => p.ok),
-      keysInSupabaseVault: false,
+      keysConfigured: providerPings.some(p => p.ok),
     },
     email: { resendKeyPresent: !!process.env.RESEND_API_KEY, reachable: !!process.env.RESEND_API_KEY, httpStatus: 0, sends24h: null, keyInSupabaseVault: false, reason: process.env.RESEND_API_KEY ? undefined : 'missing_key' },
     database: { ok: !errorDocs.error, error: errorDocs.error || null, errorCount1h: errorDocs.total },
@@ -378,52 +459,88 @@ async function handleObservability(body, log) {
 }
 
 async function handleOverviewStats(log) {
-  const { databases, users } = getClients();
-  const auth = await users.list([sdk.Query.limit(500)]);
-  const resumeRes = await safeList(databases, 'resumes', [sdk.Query.limit(1)]);
+  const auth = await listAllAuthUsers();
+  const authUserIds = auth.users.map(u => u.$id);
+  const resumeRes = await safeList(null, 'resumes', [sdk.Query.limit(1)]);
+  const activeUserOwnedResumes = await countDocumentsForUserIds('resumes', authUserIds);
+  const orphanedResumes = Math.max(0, (resumeRes.total || 0) - activeUserOwnedResumes);
   return {
     totalAuthUsers: auth.total,
     verifiedUsers: auth.users.filter(u => u.emailVerification).length,
-    totalResumes: resumeRes.total,
-    orphanedResumes: 0,
+    totalResumes: activeUserOwnedResumes,
+    rawResumeDocuments: resumeRes.total || 0,
+    orphanedResumes,
+    unverifiedUsers: auth.users
+      .filter(u => !u.emailVerification)
+      .map(u => ({ user_id: u.$id, email: u.email || null, name: u.name || null, created_at: u.$createdAt }))
+      .slice(0, 10),
   };
 }
 
 async function handleGlobalStats(log) {
-  const { databases } = getClients();
   const [profiles, premium, pro, suspended] = await Promise.all([
-    safeList(databases, 'profiles', [sdk.Query.limit(1)]),
-    safeList(databases, 'subscriptions', [sdk.Query.equal('plan', 'premium'), sdk.Query.limit(1)]),
-    safeList(databases, 'subscriptions', [sdk.Query.equal('plan', 'pro'), sdk.Query.limit(1)]),
-    safeList(databases, 'profiles', [sdk.Query.equal('is_suspended', true), sdk.Query.limit(1)]),
+    safeList(null, 'profiles', [sdk.Query.limit(1)]),
+    safeList(null, 'subscriptions', [sdk.Query.equal('plan', 'premium'), sdk.Query.limit(1)]),
+    safeList(null, 'subscriptions', [sdk.Query.equal('plan', 'pro'), sdk.Query.limit(1)]),
+    safeList(null, 'profiles', [sdk.Query.equal('is_suspended', true), sdk.Query.limit(1)]),
   ]);
-  return { total: profiles.total, premium: premium.total, pro: pro.total, suspended: suspended.total, activeToday: 0 };
+  const auth = await listUsers([sdk.Query.limit(1)]);
+  return { total: auth.total, profilesTotal: profiles.total, premium: premium.total, pro: pro.total, suspended: suspended.total, activeToday: 0 };
 }
 
 async function handleListUsersPage(body, log) {
-  const { databases } = getClients();
   const page = Math.max(0, Number(body.page) || 0);
   const pageSize = Math.min(Math.max(1, Number(body.pageSize) || 25), 100);
-  const profiles = await databases.listDocuments(DB_ID, 'profiles', [sdk.Query.orderDesc('$createdAt'), sdk.Query.limit(pageSize), sdk.Query.offset(page * pageSize)]);
+  const authPage = await listUsers([sdk.Query.limit(pageSize), sdk.Query.offset(page * pageSize)]);
+
+  const userIds = authPage.users.map(u => u.$id);
+  let profiles = [];
+  let subs = [];
+  let creds = [];
+  let resumeCounts = new Map();
+  if (userIds.length > 0) {
+    const [pRes, sRes, cRes, ...resumePages] = await Promise.all([
+      safeList(null, 'profiles', [sdk.Query.equal('user_id', userIds), sdk.Query.limit(pageSize)]),
+      safeList(null, 'subscriptions', [sdk.Query.equal('user_id', userIds), sdk.Query.limit(pageSize)]),
+      safeList(null, 'ai_credits', [sdk.Query.equal('user_id', userIds), sdk.Query.limit(pageSize)]),
+      ...userIds.map(userId => safeList(null, 'resumes', [sdk.Query.equal('user_id', userId), sdk.Query.limit(1)])),
+    ]);
+    profiles = pRes.documents || [];
+    subs = sRes.documents || [];
+    creds = cRes.documents || [];
+    resumeCounts = new Map(userIds.map((userId, index) => [userId, resumePages[index]?.total || 0]));
+  }
+  const profileMap = new Map(profiles.map(p => [p.user_id, p]));
+  const subMap = new Map(subs.map(s => [s.user_id, s]));
+  const credMap = new Map(creds.map(c => [c.user_id, c]));
+
   return {
-    users: profiles.documents.map(doc => ({
-      $id: doc.$id,
-      $createdAt: doc.$createdAt,
-      user_id: doc.user_id,
-      email: doc.email ?? null,
-      full_name: doc.full_name ?? null,
-      contact_email: doc.contact_email ?? null,
-      plan_name: doc.plan ?? 'free',
-      plan_updated_at: null,
-      is_suspended: doc.is_suspended ?? false,
-      suspension_reason: doc.suspension_reason ?? null,
-      daily_limit: null,
-      credits_used_today: doc.daily_usage ?? 0,
-      trial_plan: doc.trial_plan ?? null,
-      trial_expires_at: doc.trial_expires_at ?? null,
-      resumeCount: 0,
-    })),
-    total: profiles.total,
+    users: authPage.users.map(authUser => {
+      const doc = profileMap.get(authUser.$id) || {};
+      const s = subMap.get(authUser.$id) || {};
+      const c = credMap.get(authUser.$id) || {};
+      return {
+        $id: doc.$id || authUser.$id,
+        $createdAt: authUser.$createdAt || doc.$createdAt,
+        user_id: authUser.$id,
+        email: authUser.email || doc.email || null,
+        full_name: doc.full_name || authUser.name || null,
+        contact_email: doc.contact_email ?? null,
+        plan_name: s.plan ?? doc.plan ?? 'free',
+        plan_updated_at: s.$updatedAt ?? null,
+        is_suspended: doc.is_suspended ?? false,
+        suspension_reason: doc.suspension_reason ?? null,
+        daily_limit: c.daily_limit ?? null,
+        credits_used_today: c.daily_usage ?? 0,
+        trial_plan: s.trial_plan ?? null,
+        trial_expires_at: s.trial_expires_at ?? null,
+        resumeCount: resumeCounts.get(authUser.$id) || 0,
+        email_verified: !!authUser.emailVerification,
+        auth_status: authUser.status === false ? 'disabled' : 'active',
+        profile_missing: !doc.$id,
+      };
+    }),
+    total: authPage.total,
   };
 }
 
@@ -455,10 +572,9 @@ async function handleAddDiscountCode(body, log) {
 }
 
 async function handleListAllResumes(body, log) {
-  const { databases } = getClients();
   const limit = Math.min(Math.max(1, Number(body.limit) || 20), 100);
   const offset = Math.max(0, Number(body.offset) || 0);
-  const res = await databases.listDocuments(DB_ID, 'resumes', [sdk.Query.orderDesc('$createdAt'), sdk.Query.limit(limit), sdk.Query.offset(offset)]);
+  const res = await listDocuments('resumes', [sdk.Query.orderDesc('$createdAt'), sdk.Query.limit(limit), sdk.Query.offset(offset)]);
   return { documents: res.documents, total: res.total };
 }
 
@@ -466,6 +582,360 @@ async function handleListErrors(body) {
   const { databases } = getClients();
   const res = await safeList(databases, 'error_log', [sdk.Query.orderDesc('$createdAt'), sdk.Query.limit(Math.min(Number(body.limit) || 25, 100))]);
   return { errors: res.documents, total: res.total, missing: !!res.error, error: res.error || null };
+}
+
+// ─── Helper: find profile doc by user_id ────────────────────────────────────
+
+async function getProfileDoc(databases, userId) {
+  const res = await safeList(databases, 'profiles', [sdk.Query.equal('user_id', userId), sdk.Query.limit(1)]);
+  return res.documents[0] || null;
+}
+
+// ─── Admin mutation handlers ─────────────────────────────────────────────────
+
+async function handleSetPlan(body, log) {
+  const { databases } = getClients();
+  const { target_user_id, plan, actor_email } = body;
+  if (!target_user_id || !plan) throw new Error('Missing target_user_id or plan');
+  if (!['free', 'pro', 'premium'].includes(plan)) throw new Error(`Invalid plan: ${plan}`);
+  await getUser(target_user_id);
+  const profile = await getProfileDoc(databases, target_user_id);
+  if (profile) await databases.updateDocument(DB_ID, 'profiles', profile.$id, { plan });
+
+  const subRes = await safeList(databases, 'subscriptions', [sdk.Query.equal('user_id', target_user_id), sdk.Query.limit(1)]);
+  const subDoc = subRes.documents[0] || null;
+  const patch = { plan, status: 'active', trial_plan: null, trial_expires_at: null };
+  if (subDoc) {
+    await databases.updateDocument(DB_ID, 'subscriptions', subDoc.$id, patch);
+  } else {
+    await databases.createDocument(DB_ID, 'subscriptions', sdk.ID.unique(), { user_id: target_user_id, ...patch }, [
+      sdk.Permission.read(sdk.Role.user(target_user_id)),
+      sdk.Permission.update(sdk.Role.user(target_user_id)),
+    ]);
+  }
+
+  await auditLog(databases, 'set-plan', { target_user_id, plan, actor_email });
+  log(`set-plan: ${target_user_id} -> ${plan}`);
+  return { plan };
+}
+
+async function handleGrantTrial(body, log) {
+  const { databases } = getClients();
+  const { target_user_id, plan, days } = body;
+  if (!target_user_id || !plan || !days) throw new Error('Missing required fields');
+  if (!['pro', 'premium'].includes(plan)) throw new Error(`Invalid trial plan: ${plan}`);
+  await getUser(target_user_id);
+  const expiresAt = new Date(Date.now() + Number(days) * 86400000).toISOString();
+
+  const subRes = await safeList(databases, 'subscriptions', [sdk.Query.equal('user_id', target_user_id), sdk.Query.limit(1)]);
+  const subDoc = subRes.documents[0] || null;
+  if (subDoc) {
+    await databases.updateDocument(DB_ID, 'subscriptions', subDoc.$id, { trial_plan: plan, trial_expires_at: expiresAt, status: 'active' });
+  } else {
+    await databases.createDocument(DB_ID, 'subscriptions', sdk.ID.unique(), { user_id: target_user_id, plan: 'free', trial_plan: plan, trial_expires_at: expiresAt, status: 'active' }, [
+      sdk.Permission.read(sdk.Role.user(target_user_id)),
+      sdk.Permission.update(sdk.Role.user(target_user_id)),
+    ]);
+  }
+
+  await auditLog(databases, 'grant-trial', { target_user_id, plan, days });
+  log(`grant-trial: ${target_user_id} -> ${plan} for ${days}d`);
+  return { trial_plan: plan, trial_expires_at: expiresAt };
+}
+
+async function handleRevokeTrial(body, log) {
+  const { databases } = getClients();
+  const { target_user_id } = body;
+  if (!target_user_id) throw new Error('Missing target_user_id');
+
+  const subRes = await safeList(databases, 'subscriptions', [sdk.Query.equal('user_id', target_user_id), sdk.Query.limit(1)]);
+  const subDoc = subRes.documents[0] || null;
+  if (subDoc) {
+    await databases.updateDocument(DB_ID, 'subscriptions', subDoc.$id, { trial_plan: null, trial_expires_at: null });
+  }
+
+  await auditLog(databases, 'revoke-trial', { target_user_id });
+  log(`revoke-trial: ${target_user_id}`);
+  return { ok: true };
+}
+
+async function handleSuspendUser(body, log) {
+  const { databases, users } = getClients();
+  const { target_user_id, suspend, reason, actor_email } = body;
+  if (!target_user_id || typeof suspend !== 'boolean') throw new Error('Missing target_user_id or suspend');
+  const profile = await getProfileDoc(databases, target_user_id);
+  if (!profile) throw new Error('Profile not found for user');
+  const patch = { is_suspended: suspend, suspension_reason: suspend ? (reason || null) : null };
+  await databases.updateDocument(DB_ID, 'profiles', profile.$id, patch);
+
+  await users.updateStatus(target_user_id, !suspend);
+
+  await auditLog(databases, suspend ? 'suspend-user' : 'unsuspend-user', { target_user_id, reason, actor_email });
+  log(`suspend-user: ${target_user_id} -> ${suspend}`);
+  return { is_suspended: suspend };
+}
+
+async function handleSetCredits(body, log) {
+  const { databases } = getClients();
+  const { target_user_id, daily_limit, bonus_credits, actor_email } = body;
+  if (!target_user_id) throw new Error('Missing target_user_id');
+  const credRes = await safeList(databases, 'ai_credits', [sdk.Query.equal('user_id', target_user_id), sdk.Query.limit(1)]);
+  const credDoc = credRes.documents[0] || null;
+  if (credDoc) {
+    const patch = {};
+    if (daily_limit !== undefined && daily_limit !== null) patch.daily_limit = Number(daily_limit);
+    if (bonus_credits && Number(bonus_credits) > 0) {
+      patch.daily_usage = Math.max(0, (credDoc.daily_usage || 0) - Number(bonus_credits));
+    }
+    if (Object.keys(patch).length > 0) {
+      await databases.updateDocument(DB_ID, 'ai_credits', credDoc.$id, patch);
+    }
+  } else {
+    const patch = { user_id: target_user_id, daily_limit: Number(daily_limit) || 5, daily_usage: 0, total_usage: 0 };
+    await databases.createDocument(DB_ID, 'ai_credits', sdk.ID.unique(), patch, [sdk.Permission.read(sdk.Role.user(target_user_id))]);
+  }
+  await auditLog(databases, 'set-credits', { target_user_id, daily_limit, bonus_credits, actor_email });
+  log(`set-credits: ${target_user_id}`);
+  return { ok: true };
+}
+
+async function handleSaveNote(body, log) {
+  const { databases } = getClients();
+  const { target_user_id, action: noteAction, note_text, note_id, actor_email } = body;
+  if (noteAction === 'list') {
+    const res = await safeList(databases, 'admin_audit_logs', [
+      sdk.Query.equal('user_id', target_user_id || ''),
+      sdk.Query.equal('category', 'admin_note'),
+      sdk.Query.orderDesc('$createdAt'),
+      sdk.Query.limit(50),
+    ]);
+    const notes = res.documents.map(d => ({ id: d.$id, note_text: d.action || '', created_at: d.$createdAt }));
+    return { notes };
+  }
+  if (noteAction === 'delete') {
+    if (!note_id) throw new Error('Missing note_id');
+    await databases.deleteDocument(DB_ID, 'admin_audit_logs', note_id);
+    return { ok: true };
+  }
+  if (!note_text) throw new Error('Missing note_text');
+  const doc = await databases.createDocument(DB_ID, 'admin_audit_logs', sdk.ID.unique(), {
+    action: note_text, category: 'admin_note', user_id: target_user_id,
+    metadata: JSON.stringify({ actor_email: actor_email || 'admin' }),
+  });
+  log(`save-note: added for ${target_user_id}`);
+  return { note: { id: doc.$id, note_text, created_at: doc.$createdAt } };
+}
+
+async function handleDeleteUser(body, log) {
+  const { databases, users } = getClients();
+  const { target_user_id, actor_email } = body;
+  if (!target_user_id) throw new Error('Missing target_user_id');
+  await auditLog(databases, 'delete-user', { target_user_id, actor_email });
+  const profile = await getProfileDoc(databases, target_user_id);
+  if (profile) { try { await databases.deleteDocument(DB_ID, 'profiles', profile.$id); } catch (_) {} }
+  await users.delete(target_user_id);
+  log(`delete-user: ${target_user_id}`);
+  return { ok: true };
+}
+
+async function handleMergeIdentity(body, log) {
+  const { databases } = getClients();
+  const { collision_user_id } = body;
+  if (!collision_user_id) throw new Error('Missing collision_user_id');
+  const mergeLog = [];
+  const profile = await getProfileDoc(databases, collision_user_id);
+  if (profile) {
+    await databases.updateDocument(DB_ID, 'profiles', profile.$id, {
+      is_suspended: true, suspension_reason: 'identity-collision-merged',
+    });
+    mergeLog.push(`Suspended collision profile ${profile.$id}`);
+  } else {
+    mergeLog.push('No profile found for collision user');
+  }
+  await auditLog(databases, 'merge-identity', { collision_user_id });
+  log(`merge-identity: ${collision_user_id}`);
+  return { merge_log: mergeLog };
+}
+
+async function handleRevokeSessions(body, log) {
+  const { databases, users } = getClients();
+  const { target_user_id, actor_email } = body;
+  if (!target_user_id) throw new Error('Missing target_user_id');
+  await users.deleteSessions(target_user_id);
+  await auditLog(databases, 'revoke-sessions', { target_user_id, actor_email });
+  log(`revoke-sessions: ${target_user_id}`);
+  return { ok: true };
+}
+
+async function handleListUserContent(body, log) {
+  const { databases } = getClients();
+  const { target_user_id, resume_id } = body;
+  if (!target_user_id) throw new Error('Missing target_user_id');
+  if (resume_id) {
+    const doc = await getDocument('resumes', resume_id);
+    return { resume: { id: doc.$id, title: doc.title, updated_at: doc.$updatedAt, content: doc.resume_data || null } };
+  }
+  const res = await safeList(databases, 'resumes', [
+    sdk.Query.equal('user_id', target_user_id),
+    sdk.Query.orderDesc('$updatedAt'), sdk.Query.limit(50),
+  ]);
+  const resumes = res.documents.map(d => ({
+    id: d.$id, title: d.title || 'Untitled',
+    updated_at: d.$updatedAt, created_at: d.$createdAt, template_id: d.template_id || null,
+  }));
+  log(`list-user-content: ${resumes.length} resumes for ${target_user_id}`);
+  return { resumes };
+}
+
+async function handleUpdateProfile(body, log) {
+  const { databases } = getClients();
+  const { target_user_id, profile_action, full_name, username, portfolio_enabled, actor_email } = body;
+  if (!target_user_id) throw new Error('Missing target_user_id');
+  const profile = await getProfileDoc(databases, target_user_id);
+  if (profile_action === 'get') {
+    return { profile: profile ? { username: profile.username || null, portfolio_enabled: profile.portfolio_enabled ?? false, full_name: profile.full_name || null } : null };
+  }
+  if (!profile) throw new Error('Profile not found');
+  const patch = {};
+  const changed_fields = {};
+  if (full_name !== undefined) {
+    const v = (full_name || '').trim() || null;
+    if (v !== profile.full_name) { patch.full_name = v; changed_fields.full_name = { old: profile.full_name, new: v }; }
+  }
+  if (username !== undefined && username !== null) {
+    const v = (username || '').trim().toLowerCase() || null;
+    if (v !== profile.username) { patch.username = v; changed_fields.username = { old: profile.username, new: v }; }
+  }
+  if (portfolio_enabled !== undefined) {
+    if (portfolio_enabled !== profile.portfolio_enabled) {
+      patch.portfolio_enabled = portfolio_enabled;
+      changed_fields.portfolio_enabled = { old: profile.portfolio_enabled, new: portfolio_enabled };
+    }
+  }
+  if (Object.keys(patch).length > 0) {
+    await databases.updateDocument(DB_ID, 'profiles', profile.$id, patch);
+    await auditLog(databases, 'update-profile', { target_user_id, changed_fields, actor_email });
+  }
+  log(`update-profile: ${target_user_id} changed=${JSON.stringify(Object.keys(changed_fields))}`);
+  return { changed_fields };
+}
+
+async function handleGetIdentity(body, log) {
+  const { databases } = getClients();
+  const { target_user_id } = body;
+  if (!target_user_id) throw new Error('Missing target_user_id');
+  const profile = await getProfileDoc(databases, target_user_id);
+  let authUser = null;
+  try { authUser = await getUser(target_user_id); } catch (_) {}
+  const is_collision = (profile?.email || '').includes('@collision.') || (profile?.email || '').includes('@placeholder.');
+  log(`get-identity: ${target_user_id}`);
+  return {
+    auth_email: authUser?.email || profile?.email || null,
+    contact_email: profile?.contact_email || null,
+    kinde_sub: null, kinde_email: null, kinde_email_status: 'not_needed',
+    last_exchange_at: null,
+    signed_up_at: authUser?.$createdAt || profile?.$createdAt || null,
+    last_sign_in_at: authUser?.accessedAt || null,
+    is_collision,
+  };
+}
+
+async function handleUserAuditLogs(body, log) {
+  const { databases } = getClients();
+  const { target_user_id, limit } = body;
+  const safeLimit = Math.min(Math.max(1, Number(limit) || 100), 500);
+  const res = await safeList(databases, 'admin_audit_logs', [
+    sdk.Query.equal('user_id', target_user_id || ''),
+    sdk.Query.orderDesc('$createdAt'), sdk.Query.limit(safeLimit),
+  ]);
+  const logs = res.documents.map(d => ({
+    id: d.$id, action: d.action || '', category: d.category || null,
+    metadata: d.metadata || null, created_at: d.$createdAt, user_id: d.user_id || null,
+  }));
+  log(`user-audit-logs: ${logs.length} entries for ${target_user_id}`);
+  return { logs };
+}
+
+async function handleWisehireResetUser(body, log) {
+  const { databases } = getClients();
+  const { target_user_id, actor_email } = body;
+  if (!target_user_id) throw new Error('Missing target_user_id');
+  const warnings = [];
+  const profile = await getProfileDoc(databases, target_user_id);
+  if (profile) {
+    try { await databases.updateDocument(DB_ID, 'profiles', profile.$id, { account_type: 'job_seeker' }); }
+    catch (e) { warnings.push(`Could not reset account_type: ${e.message}`); }
+  } else { warnings.push('No profile found'); }
+  try {
+    const whRes = await safeList(databases, 'wisehire_accounts', [sdk.Query.equal('user_id', target_user_id), sdk.Query.limit(1)]);
+    if (whRes.documents[0]) { await databases.deleteDocument(DB_ID, 'wisehire_accounts', whRes.documents[0].$id); }
+  } catch (e) { warnings.push(`Could not delete wisehire account: ${e.message}`); }
+  await auditLog(databases, 'wisehire-reset-user', { target_user_id, actor_email });
+  log(`wisehire-reset-user: ${target_user_id}`);
+  return { kinde_deleted: false, invite_tokens_reset: 0, warnings };
+}
+
+async function handleLiveActivity(body, log) {
+  const { databases } = getClients();
+  const { resource, user_id } = body;
+  if (resource === 'usage_events') {
+    const res = await safeList(databases, 'usage_events', [
+      sdk.Query.equal('user_id', user_id || ''),
+      sdk.Query.orderDesc('$createdAt'), sdk.Query.limit(50),
+    ]);
+    return { data: res.documents };
+  }
+  if (resource === 'user_content_stats') {
+    const [resumeRes, credRes] = await Promise.all([
+      safeList(databases, 'resumes', [sdk.Query.equal('user_id', user_id || ''), sdk.Query.limit(1)]),
+      safeList(databases, 'ai_credits', [sdk.Query.equal('user_id', user_id || ''), sdk.Query.limit(1)]),
+    ]);
+    const profile = await getProfileDoc(databases, user_id || '');
+    const cred = credRes.documents[0];
+    return {
+      resumeCount: resumeRes.total, coverLetterCount: null,
+      hasPortfolio: !!(profile?.username), portfolioEnabled: profile?.portfolio_enabled ?? null,
+      portfolioUsername: profile?.username ?? null,
+      aiCredits30d: cred ? (cred.credits_used || 0) : null, planHistory: [],
+    };
+  }
+  throw new Error(`Unknown resource: ${resource}`);
+}
+
+async function handleImpersonate(body, log) {
+  const { target_user_id } = body;
+  if (!target_user_id) throw new Error('Missing target_user_id');
+  const targetUser = await getUser(target_user_id);
+  const expiresAt = Date.now() + 15 * 60 * 1000;
+  const payload = Buffer.from(JSON.stringify({
+    u: target_user_id, e: targetUser.email, x: expiresAt,
+    t: 'admin-token-' + Math.random().toString(36).substring(7),
+  })).toString('base64');
+  log(`impersonate: ${target_user_id}`);
+  return { url: `/act-as#${payload}`, email: targetUser.email, userId: target_user_id, expiresAt };
+}
+
+async function handleSendVerificationEmail(body, log) {
+  const { users } = getClients();
+  const { target_user_id } = body;
+  if (!target_user_id) throw new Error('Missing target_user_id');
+
+  // Fetch user to confirm they exist and get their email
+  const targetUser = await getUser(target_user_id);
+  if (!targetUser) throw new Error('User not found');
+
+  // Use Appwrite Users SDK to send a verification email
+  // This creates a verification token and sends it to the user's email
+  const token = await users.createEmailToken(target_user_id, targetUser.email);
+  log(`send-verification-email: token created for ${target_user_id} (${targetUser.email})`);
+
+  return {
+    ok: true,
+    user_id: target_user_id,
+    email: targetUser.email,
+    token_id: token.$id,
+    expires_at: token.expire,
+  };
 }
 
 module.exports = async ({ req, res, log, error }) => {
@@ -499,6 +969,24 @@ module.exports = async ({ req, res, log, error }) => {
     else if (action === 'add-discount-code') data = await handleAddDiscountCode(body, log);
     else if (action === 'list-all-resumes') data = await handleListAllResumes(body, log);
     else if (action === 'list-errors') data = await handleListErrors(body);
+    else if (action === 'set-plan') data = await handleSetPlan(body, log);
+    else if (action === 'grant-trial') data = await handleGrantTrial(body, log);
+    else if (action === 'revoke-trial') data = await handleRevokeTrial(body, log);
+    else if (action === 'suspend-user') data = await handleSuspendUser(body, log);
+    else if (action === 'set-credits') data = await handleSetCredits(body, log);
+    else if (action === 'save-note') data = await handleSaveNote(body, log);
+    else if (action === 'delete-user') data = await handleDeleteUser(body, log);
+    else if (action === 'merge-identity') data = await handleMergeIdentity(body, log);
+    else if (action === 'revoke-sessions') data = await handleRevokeSessions(body, log);
+    else if (action === 'list-user-content') data = await handleListUserContent(body, log);
+    else if (action === 'update-profile') data = await handleUpdateProfile(body, log);
+    else if (action === 'get-identity') data = await handleGetIdentity(body, log);
+    else if (action === 'user-audit-logs') data = await handleUserAuditLogs(body, log);
+    else if (action === 'wisehire-reset-user') data = await handleWisehireResetUser(body, log);
+    else if (action === 'live-activity') data = await handleLiveActivity(body, log);
+    else if (action === 'get-resume-detail') data = await handleListUserContent(body, log);
+    else if (action === 'impersonate') data = await handleImpersonate(body, log);
+    else if (action === 'send-verification-email') data = await handleSendVerificationEmail(body, log);
     else return json(res, rid, { success: false, code: 'UNKNOWN_ACTION', error: `Unknown action: ${action}` }, 400);
 
     return json(res, rid, { success: true, ...data });

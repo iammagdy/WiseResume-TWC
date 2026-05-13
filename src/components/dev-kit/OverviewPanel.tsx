@@ -14,6 +14,13 @@ interface OverviewStatsData {
   verifiedUsers: number;
   totalResumes: number;
   orphanedResumes: number;
+  rawResumeDocuments?: number;
+  unverifiedUsers?: Array<{
+    user_id: string;
+    email: string | null;
+    name: string | null;
+    created_at: string;
+  }>;
 }
 
 interface OverviewStats {
@@ -21,7 +28,9 @@ interface OverviewStats {
   verifiedUsers: number;
   totalResumes: number;
   orphanedResumes: number;
-  region: string;
+  rawResumeDocuments: number;
+  unverifiedUsers: NonNullable<OverviewStatsData['unverifiedUsers']>;
+  backend: string;
   latency: number;
   lastUpdate: Date;
 }
@@ -78,7 +87,9 @@ export const OverviewPanel = () => {
         verifiedUsers:   result.verifiedUsers   ?? 0,
         totalResumes:    result.totalResumes    ?? 0,
         orphanedResumes: result.orphanedResumes ?? 0,
-        region:          'Appwrite Cloud (fra)',
+        rawResumeDocuments: result.rawResumeDocuments ?? result.totalResumes ?? 0,
+        unverifiedUsers: result.unverifiedUsers ?? [],
+        backend:         'Appwrite',
         latency:         Date.now() - start,
         lastUpdate:      new Date(),
       });
@@ -127,8 +138,8 @@ export const OverviewPanel = () => {
 
   const orphaned = stats?.orphanedResumes ?? 0;
   const resumeSub = orphaned > 0
-    ? `${orphaned} orphaned (deleted users)`
-    : 'Active users only';
+    ? `${orphaned} orphaned hidden from active count`
+    : 'Active auth users only';
 
   const totalOrphans = (purgePreview?.orphanedProfiles ?? 0) + (purgePreview?.orphanedResumes ?? 0);
 
@@ -163,11 +174,29 @@ export const OverviewPanel = () => {
         />
         <StatCard
           icon={<ShieldCheck size={20} />}
-          label="Region"
-          value={stats?.region ?? '---'}
+          label="Backend"
+          value={stats?.backend ?? '---'}
           sub={`Latency: ${stats?.latency ?? '?'}ms`}
         />
       </div>
+
+      {stats && stats.unverifiedUsers.length > 0 && (
+        <div className="p-4 rounded-2xl bg-white/4 border border-white/8 space-y-2">
+          <div className="flex items-center gap-2 text-amber-300">
+            <AlertTriangle size={14} />
+            <h3 className="text-xs font-bold uppercase tracking-wider">Unverified Auth Users</h3>
+          </div>
+          <div className="space-y-1">
+            {stats.unverifiedUsers.map(user => (
+              <div key={user.user_id} className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-white/55">
+                <span className="font-medium text-white/80">{user.email ?? user.name ?? 'No email'}</span>
+                <span className="font-mono text-white/30">{user.user_id}</span>
+                <span className="text-white/25">joined {new Date(user.created_at).toLocaleDateString()}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Orphan cleanup — warning prompt */}
       {orphaned > 0 && purgePhase === 'idle' && !purgeResult && (
@@ -308,7 +337,7 @@ export const OverviewPanel = () => {
       {/* System note */}
       <div className="p-4 rounded-2xl bg-blue-500/5 border border-blue-500/10">
         <p className="text-xs text-blue-400 font-mono">
-          [System Note]: Project is 100% Appwrite-Native. Supabase references have been decommissioned.
+          [System Note]: Project is Appwrite-native. Admin data reads and writes use Appwrite Functions.
         </p>
       </div>
     </div>

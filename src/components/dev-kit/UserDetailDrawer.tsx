@@ -234,13 +234,13 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     if (!open) return;
     let cancelled = false;
     setHistoryLoading(true);
-    appwriteFunctions.invoke('admin-audit-logs', {
+    appwriteFunctions.invoke('admin-devkit-data', {
       headers: devKitAuthHeaders(),
-      body: { limit: 500, target_user_id: user.user_id },
+      body: { action: 'user-audit-logs', limit: 500, target_user_id: user.user_id },
     }).then((tuple) => {
       if (cancelled) return;
       try {
-        const result = unwrapAdminResponse<{ logs?: AuditEntry[] }>(tuple, 'admin-audit-logs');
+        const result = unwrapAdminResponse<{ logs?: AuditEntry[] }>(tuple, 'admin-devkit-data');
         setAuditHistory(result.logs ?? []);
       } catch (e) {
         const msg = formatEdgeError(e, 'Unknown error');
@@ -250,13 +250,13 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
       }
     });
 
-    appwriteFunctions.invoke('admin-save-note', {
+    appwriteFunctions.invoke('admin-devkit-data', {
       headers: devKitAuthHeaders(),
-      body: { target_user_id: user.user_id, action: 'list' },
+      body: { action: 'save-note', target_user_id: user.user_id },
     }).then((tuple) => {
       if (cancelled) return;
       try {
-        const result = unwrapAdminResponse<{ notes?: NoteEntry[] }>(tuple, 'admin-save-note (list)');
+        const result = unwrapAdminResponse<{ notes?: NoteEntry[] }>(tuple, 'admin-devkit-data');
         setNotesHistory(result.notes ?? []);
       } catch (e) {
         const msg = formatEdgeError(e, 'Unknown error');
@@ -357,16 +357,17 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     setUsernameAvailable(null);
     setUsernameChangedOldValue(null);
 
-    appwriteFunctions.invoke('admin-update-profile', {
+    appwriteFunctions.invoke('admin-devkit-data', {
       headers: devKitAuthHeaders(),
       body: {
+        action: 'update-profile',
         target_user_id: user.user_id,
-        action: 'get',
+        profile_action: 'get',
       },
     }).then((tuple) => {
       if (cancelled) return;
       try {
-        const result = unwrapAdminResponse<{ profile?: { username?: string | null; portfolio_enabled?: boolean | null } | null }>(tuple, 'admin-update-profile (get)');
+        const result = unwrapAdminResponse<{ profile?: { username?: string | null; portfolio_enabled?: boolean | null } | null }>(tuple, 'admin-devkit-data');
         const profileData = result.profile ?? null;
         setProfileUsername(profileData?.username ?? '');
         setProfileEnabled(profileData?.portfolio_enabled ?? false);
@@ -390,9 +391,9 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     setIdentityData(null);
     setIdentityLoading(true);
     setShowMergeConfirm(false);
-    appwriteFunctions.invoke('admin-get-identity', {
+    appwriteFunctions.invoke('admin-devkit-data', {
       headers: devKitAuthHeaders(),
-      body: { target_user_id: user.user_id },
+      body: { action: 'get-identity', target_user_id: user.user_id },
     }).then((tuple) => {
       if (cancelled) return;
       try {
@@ -406,7 +407,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
           signed_up_at?: string | null;
           last_sign_in_at?: string | null;
           is_collision?: boolean;
-        }>(tuple, 'admin-get-identity');
+        }>(tuple, 'admin-devkit-data');
         setIdentityData({
           auth_email: result.auth_email ?? null,
           contact_email: result.contact_email ?? null,
@@ -434,11 +435,11 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
   const handleMergeIdentity = async () => {
     setMergingIdentity(true);
     try {
-      const tuple = await appwriteFunctions.invoke('admin-merge-identity', {
+      const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
         headers: devKitAuthHeaders(),
-        body: { collision_user_id: user.user_id },
+        body: { action: 'merge-identity', collision_user_id: user.user_id },
       });
-      unwrapAdminResponse<{ merge_log?: string[] }>(tuple, 'admin-merge-identity');
+      unwrapAdminResponse<{ merge_log?: string[] }>(tuple, 'admin-devkit-data');
       if (!isMounted()) return;
       toast.success('Identity merged successfully', {
         description: 'The orphan account has been suspended and merged into this account.',
@@ -488,9 +489,10 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
       const trimmedUsername = profileUsername.trim().toLowerCase();
       const trimmedName = profileFullName.trim();
 
-      const tuple = await appwriteFunctions.invoke('admin-update-profile', {
+      const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
         headers: devKitAuthHeaders(),
         body: {
+          action: 'update-profile',
           target_user_id: user.user_id,
           full_name: trimmedName || null,
           username: trimmedUsername || undefined,
@@ -498,7 +500,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
           admin_bypass_validation: true,
         },
       });
-      const result = unwrapAdminResponse<{ changed_fields?: Record<string, { old: unknown; new: unknown }> }>(tuple, 'admin-update-profile');
+      const result = unwrapAdminResponse<{ changed_fields?: Record<string, { old: unknown; new: unknown }> }>(tuple, 'admin-devkit-data');
       if (!isMounted()) return;
 
       const changed = result.changed_fields ?? {};
@@ -536,11 +538,11 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     if (selectedPlan === user.plan_name) { toast.info('Plan unchanged'); return; }
     setSavingPlan(true);
     try {
-      const tuple = await appwriteFunctions.invoke('admin-set-plan', {
+      const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
         headers: devKitAuthHeaders(),
-        body: { target_user_id: user.user_id, plan: selectedPlan },
+        body: { action: 'set-plan', target_user_id: user.user_id, plan: selectedPlan },
       });
-      unwrapAdminResponse(tuple, 'admin-set-plan');
+      unwrapAdminResponse(tuple, 'admin-devkit-data');
       if (!isMounted()) return;
       toast.success(`Plan set to ${selectedPlan}`, {
         description: "The user's app will reflect this within 10 seconds.",
@@ -559,11 +561,11 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
   const handleGrantTrial = async () => {
     setSavingTrial(true);
     try {
-      const tuple = await appwriteFunctions.invoke('admin-grant-trial', {
+      const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
         headers: devKitAuthHeaders(),
-        body: { target_user_id: user.user_id, plan: trialPlan, days: trialDays },
+        body: { action: 'grant-trial', target_user_id: user.user_id, plan: trialPlan, days: trialDays },
       });
-      unwrapAdminResponse(tuple, 'admin-grant-trial');
+      unwrapAdminResponse(tuple, 'admin-devkit-data');
       if (!isMounted()) return;
       const expiresAt = new Date(Date.now() + trialDays * 86400000).toISOString();
       toast.success(`${trialPlan} trial granted for ${trialDays} days`);
@@ -579,11 +581,11 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
   const handleRevokeTrial = async () => {
     setRevokingTrial(true);
     try {
-      const tuple = await appwriteFunctions.invoke('admin-revoke-trial', {
+      const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
         headers: devKitAuthHeaders(),
-        body: { target_user_id: user.user_id },
+        body: { action: 'revoke-trial', target_user_id: user.user_id },
       });
-      unwrapAdminResponse(tuple, 'admin-revoke-trial');
+      unwrapAdminResponse(tuple, 'admin-devkit-data');
       if (!isMounted()) return;
       toast.success('Trial revoked');
       setUser(prev => ({ ...prev, trial_plan: null, trial_expires_at: null }));
@@ -599,11 +601,11 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     setSavingSuspend(true);
     try {
       const suspend = !user.is_suspended;
-      const tuple = await appwriteFunctions.invoke('admin-suspend-user', {
+      const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
         headers: devKitAuthHeaders(),
-        body: { target_user_id: user.user_id, suspend, reason: suspend ? suspendReason : null },
+        body: { action: 'suspend-user', target_user_id: user.user_id, suspend, reason: suspend ? suspendReason : null },
       });
-      unwrapAdminResponse(tuple, 'admin-suspend-user');
+      unwrapAdminResponse(tuple, 'admin-devkit-data');
       if (!isMounted()) return;
       toast.success(suspend ? 'User suspended' : 'User unsuspended');
       setUser(prev => ({
@@ -624,15 +626,16 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     try {
       const parsedLimit = newDailyLimit !== '' ? Number(newDailyLimit) : undefined;
       const parsedBonus = bonusCredits ? Number(bonusCredits) : 0;
-      const tuple = await appwriteFunctions.invoke('admin-set-credits', {
+      const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
         headers: devKitAuthHeaders(),
         body: {
+          action: 'set-credits',
           target_user_id: user.user_id,
           daily_limit: parsedLimit,
           bonus_credits: parsedBonus,
         },
       });
-      unwrapAdminResponse(tuple, 'admin-set-credits');
+      unwrapAdminResponse(tuple, 'admin-devkit-data');
       if (!isMounted()) return;
       toast.success('Credits updated');
       setUser(prev => ({
@@ -655,11 +658,11 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     if (!noteText.trim()) return;
     setSavingNote(true);
     try {
-      const tuple = await appwriteFunctions.invoke('admin-save-note', {
+      const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
         headers: devKitAuthHeaders(),
-        body: { target_user_id: user.user_id, note_text: noteText },
+        body: { action: 'save-note', target_user_id: user.user_id, note_text: noteText },
       });
-      unwrapAdminResponse(tuple, 'admin-save-note');
+      unwrapAdminResponse(tuple, 'admin-devkit-data');
       if (!isMounted()) return;
       toast.success('Note saved');
       setNoteText('');
@@ -675,16 +678,16 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
   const handleDeleteNote = async (noteId: string) => {
     setDeletingNoteId(noteId);
     try {
-      const tuple = await appwriteFunctions.invoke('admin-save-note', {
+      const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
         headers: devKitAuthHeaders(),
         body: {
+          action: 'save-note',
           target_user_id: user.user_id,
-          action: 'delete',
           note_id: noteId,
           actor_email: authUser?.email ?? 'admin (dev-kit)',
         },
       });
-      unwrapAdminResponse(tuple, 'admin-save-note (delete)');
+      unwrapAdminResponse(tuple, 'admin-devkit-data');
       if (!isMounted()) return;
       toast.success('Note deleted');
       setNotesHistory(prev => prev.filter(n => n.id !== noteId));
@@ -699,14 +702,15 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
   const handleRevokeSessions = async () => {
     setRevokingSessions(true);
     try {
-      const tuple = await appwriteFunctions.invoke('admin-revoke-sessions', {
+      const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
         headers: devKitAuthHeaders(),
         body: {
+          action: 'revoke-sessions',
           target_user_id: user.user_id,
           actor_email: authUser?.email ?? 'admin (dev-kit)',
         },
       });
-      unwrapAdminResponse(tuple, 'admin-revoke-sessions');
+      unwrapAdminResponse(tuple, 'admin-devkit-data');
       if (!isMounted()) return;
       toast.success('All sessions revoked', { description: 'The user has been signed out from all devices.' });
     } catch (e) {
@@ -720,14 +724,15 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     if (deleteEmailConfirm !== user.email) return;
     setDeletingUser(true);
     try {
-      const tuple = await appwriteFunctions.invoke('admin-delete-user', {
+      const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
         headers: devKitAuthHeaders(),
         body: {
+          action: 'delete-user',
           target_user_id: user.user_id,
           actor_email: authUser?.email ?? 'admin (dev-kit)',
         },
       });
-      unwrapAdminResponse(tuple, 'admin-delete-user');
+      unwrapAdminResponse(tuple, 'admin-devkit-data');
       if (!isMounted()) return;
       toast.success('User account permanently deleted');
       setShowDeleteDialog(false);
@@ -744,9 +749,10 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     if (resetConfirmText !== 'RESET') return;
     setResettingUser(true);
     try {
-      const tuple = await appwriteFunctions.invoke('admin-wisehire-reset-user', {
+      const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
         headers: devKitAuthHeaders(),
         body: {
+          action: 'wisehire-reset-user',
           target_user_id: user.user_id,
           actor_email: authUser?.email ?? 'admin (dev-kit)',
         },
@@ -755,7 +761,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
         kinde_deleted: boolean;
         invite_tokens_reset: number;
         warnings: string[];
-      }>(tuple, 'admin-wisehire-reset-user');
+      }>(tuple, 'admin-devkit-data');
 
       if (!isMounted()) return;
 
@@ -767,7 +773,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
         });
       } else {
         toast.success('WiseHire user fully reset', {
-          description: `Deleted from Supabase${result.kinde_deleted ? ' & Kinde' : ''}, ${result.invite_tokens_reset} invite token(s) revoked.`,
+          description: `Deleted from Appwrite${result.kinde_deleted ? ' & legacy identity provider' : ''}, ${result.invite_tokens_reset} invite token(s) revoked.`,
           duration: 7000,
         });
       }
@@ -784,11 +790,11 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
   const handleLoadResumeDetail = async (resumeId: string) => {
     setResumeDetailLoading(true);
     try {
-      const tuple = await appwriteFunctions.invoke('admin-list-user-content', {
+      const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
         headers: devKitAuthHeaders(),
-        body: { target_user_id: user.user_id, resume_id: resumeId },
+        body: { action: 'get-resume-detail', target_user_id: user.user_id, resume_id: resumeId },
       });
-      const result = unwrapAdminResponse<{ resume?: ResumeDetail }>(tuple, 'admin-list-user-content (detail)');
+      const result = unwrapAdminResponse<{ resume?: ResumeDetail }>(tuple, 'admin-devkit-data');
       if (!isMounted()) return;
       setSelectedResume(result.resume ?? null);
     } catch (e) {
@@ -1215,7 +1221,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
                       {identityLoading ? '…' : (identityData?.contact_email ?? user.contact_email ?? '—')}
                     </span>
                   </div>
-                  {/* Auth email (internal Supabase record — may be a placeholder) */}
+                  {/* Auth email (internal Appwrite Auth record — may be a placeholder) */}
                   <div className="flex items-start justify-between gap-2">
                     <span className="text-xs text-muted-foreground font-medium shrink-0">Auth email (internal)</span>
                     <span className="font-mono text-[10px] text-right break-all">
@@ -1349,7 +1355,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
                       <div>
                         <p className="text-xs font-medium text-blue-700 dark:text-blue-400">Reset for Testing</p>
                         <p className="text-[10px] text-muted-foreground">
-                          Removes from Supabase + Kinde, revokes invite token. WiseHire only.
+	                          Removes Appwrite account data and revokes invite token. WiseHire only.
                         </p>
                       </div>
                       <Button
@@ -1711,8 +1717,8 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
             <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20 text-xs text-blue-700 dark:text-blue-400 space-y-1.5">
               <p className="font-semibold">This will:</p>
               <ul className="list-disc list-inside space-y-0.5 pl-1 opacity-90">
-                <li>Delete <strong>{user.email}</strong> from Supabase (cascades all data)</li>
-                <li>Delete their Kinde account via the Management API</li>
+	                <li>Delete <strong>{user.email}</strong> from Appwrite and related app data</li>
+	                <li>Clear legacy identity-provider references when present</li>
                 <li>Revoke &amp; un-mark all WiseHire invite tokens for this email</li>
                 <li>Write an audit log entry (<code className="font-mono text-[10px]">wisehire_test_reset</code>)</li>
               </ul>

@@ -23,18 +23,27 @@ Serves four DevKit admin panels via a single multi-action Appwrite Function:
 5. Go to **Deployments** → **Create Deployment** → upload a zip of this directory.
 6. The zip must contain `package.json` and `src/main.js` at the root level (not nested in a subdirectory).
 
-### Via Appwrite CLI
+### Via Appwrite CLI / SDK
 
 ```bash
 cd appwrite-hubs/admin-devkit-data
-npm install
-zip -r ../admin-devkit-data.zip .
+npm install --omit=dev
+tar -czf ../../admin-devkit-data.tar.gz .
 appwrite functions createDeployment \
   --functionId admin-devkit-data \
   --entrypoint src/main.js \
-  --code ../admin-devkit-data.zip \
+  --code ../../admin-devkit-data.tar.gz \
+  --commands "npm install --omit=dev" \
   --activate true
 ```
+
+Before deploying, verify the archive shape:
+
+```bash
+tar -tzf ../../admin-devkit-data.tar.gz | head
+```
+
+The first entries must include `package.json`, `src/main.js`, and `node_modules/` at the archive root. If the archive starts with a nested repo folder, the live runtime can fail with `Cannot find module 'node-appwrite'`.
 
 ---
 
@@ -59,14 +68,16 @@ Set these in Appwrite Console → Functions → `admin-devkit-data` → **Variab
 
 ## Request / Response Shapes
 
-All requests use `POST` with a JSON body. The frontend calls this function via `edgeFunctions.invoke('admin-devkit-data', { headers, body })`.
+All requests use `POST` with a JSON body. The frontend calls this function through the Appwrite Functions client and the shared DevKit backend helper.
 
 ### Auth
 
-Every request must include:
+Login uses `action: "verify-devkit-session"` and returns a short-lived signed token. Protected requests include:
 ```
-Authorization: Bearer <DEVKIT_PASSWORD>
+Authorization: Bearer <signed-devkit-token>
 ```
+
+The function still accepts the raw `DEVKIT_PASSWORD` as a legacy bearer token for server-side smoke checks, but the browser must store only the signed token.
 Missing or incorrect token → `401 { success: false, error: "Unauthorized" }`.
 
 ---

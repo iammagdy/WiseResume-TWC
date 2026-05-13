@@ -7,7 +7,13 @@ import { databases, DATABASE_ID, Query } from '@/lib/appwrite';
 import { COLLECTIONS } from '@/lib/appwrite-collections';
 
 function useLoginStreak(userId?: string | null) {
-  const [streak, setStreak] = useState(1);
+  const cacheKey = userId ? `wr-streak-${userId}` : 'wr-streak-guest';
+  const [streak, setStreak] = useState(() => {
+    try {
+      const cached = localStorage.getItem(cacheKey);
+      return cached ? parseInt(cached, 10) : 1;
+    } catch { return 1; }
+  });
   const syncedForUserId = useRef<string | null | undefined>(undefined);
 
   useEffect(() => {
@@ -80,6 +86,10 @@ function useLoginStreak(userId?: string | null) {
     runWithProfile();
   }, [userId]);
 
+  useEffect(() => {
+    try { localStorage.setItem(cacheKey, String(streak)); } catch { /* ignore */ }
+  }, [streak, cacheKey]);
+
   return streak;
 }
 
@@ -129,7 +139,7 @@ export const DashboardStats = memo(function DashboardStats({
   };
 
   useEffect(() => {
-    if (totalResumes > 0) return;
+    if (totalResumes > 0) return undefined;
     const interval = setInterval(() => {
       setSubtitleIndex(prev => (prev + 1) % motivationalSubtitles.length);
     }, 4000);

@@ -33,6 +33,9 @@ export interface AdminUser {
   trial_plan: string | null;
   trial_expires_at: string | null;
   resumeCount: number;
+  email_verified?: boolean;
+  auth_status?: 'active' | 'disabled';
+  profile_missing?: boolean;
 }
 
 interface GlobalStats {
@@ -198,11 +201,11 @@ export const AdminUsersPanel = () => {
   const handleSetPlan = async (userId: string, plan: 'free' | 'pro' | 'premium') => {
     setSavingPlanId(userId);
     try {
-      const tuple = await appwriteFunctions.invoke('admin-set-plan', {
+      const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
         headers: devKitAuthHeaders(),
-        body: { target_user_id: userId, plan, actor_email: authUser?.email ?? 'admin (dev-kit)' },
+        body: { action: 'set-plan', target_user_id: userId, plan, actor_email: authUser?.email ?? 'admin (dev-kit)' },
       });
-      unwrapAdminResponse(tuple, 'admin-set-plan');
+      unwrapAdminResponse(tuple, 'admin-devkit-data');
       updateUser(userId, { plan_name: plan, plan_updated_at: new Date().toISOString() });
       toast.success(`Plan set to ${plan.toUpperCase()}`);
       fetchGlobalStats();
@@ -218,11 +221,11 @@ export const AdminUsersPanel = () => {
     const plan = trialPlan[userId] ?? 'pro';
     setSavingTrialId(userId);
     try {
-      const tuple = await appwriteFunctions.invoke('admin-grant-trial', {
+      const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
         headers: devKitAuthHeaders(),
-        body: { target_user_id: userId, plan, days },
+        body: { action: 'grant-trial', target_user_id: userId, plan, days },
       });
-      unwrapAdminResponse(tuple, 'admin-grant-trial');
+      unwrapAdminResponse(tuple, 'admin-devkit-data');
       const expiresAt = new Date(Date.now() + days * 86_400_000).toISOString();
       updateUser(userId, { trial_plan: plan, trial_expires_at: expiresAt });
       toast.success(`${plan} trial granted for ${days} days`);
@@ -236,11 +239,11 @@ export const AdminUsersPanel = () => {
   const handleRevokeTrial = async (userId: string) => {
     setSavingTrialId(userId);
     try {
-      const tuple = await appwriteFunctions.invoke('admin-revoke-trial', {
+      const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
         headers: devKitAuthHeaders(),
-        body: { target_user_id: userId },
+        body: { action: 'revoke-trial', target_user_id: userId },
       });
-      unwrapAdminResponse(tuple, 'admin-revoke-trial');
+      unwrapAdminResponse(tuple, 'admin-devkit-data');
       updateUser(userId, { trial_plan: null, trial_expires_at: null });
       toast.success('Trial revoked');
     } catch (e) {
@@ -254,16 +257,17 @@ export const AdminUsersPanel = () => {
     setSavingSuspendId(userId);
     try {
       const suspend = !currentlySuspended;
-      const tuple = await appwriteFunctions.invoke('admin-suspend-user', {
+      const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
         headers: devKitAuthHeaders(),
         body: {
+          action: 'suspend-user',
           target_user_id: userId,
           suspend,
           reason: suspend ? (suspendReason[userId] || null) : null,
           actor_email: authUser?.email ?? 'admin (dev-kit)',
         },
       });
-      unwrapAdminResponse(tuple, 'admin-suspend-user');
+      unwrapAdminResponse(tuple, 'admin-devkit-data');
       updateUser(userId, {
         is_suspended: suspend,
         suspension_reason: suspend ? (suspendReason[userId] || null) : null,
@@ -283,14 +287,14 @@ export const AdminUsersPanel = () => {
     if (!limit && !bonus) { toast.info('Enter a limit or bonus amount'); return; }
     setSavingCreditsId(userId);
     try {
-      const body: Record<string, unknown> = { target_user_id: userId, actor_email: authUser?.email ?? 'admin (dev-kit)' };
+      const body: Record<string, unknown> = { action: 'set-credits', target_user_id: userId, actor_email: authUser?.email ?? 'admin (dev-kit)' };
       if (limit) body.daily_limit = parseInt(limit, 10);
       if (bonus) body.bonus_credits = parseInt(bonus, 10);
-      const tuple = await appwriteFunctions.invoke('admin-set-credits', {
+      const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
         headers: devKitAuthHeaders(),
         body,
       });
-      unwrapAdminResponse(tuple, 'admin-set-credits');
+      unwrapAdminResponse(tuple, 'admin-devkit-data');
       const patch: Partial<AdminUser> = {};
       if (limit) patch.daily_limit = parseInt(limit, 10);
       if (bonus) {
@@ -308,16 +312,39 @@ export const AdminUsersPanel = () => {
     }
   };
 
+  const [sendingVerificationId, setSendingVerificationId] = useState<string | null>(null);
+
+  const handleSendVerificationEmail = async (userId: string, email: string | null) => {
+    setSendingVerificationId(userId);
+    try {
+      const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
+        headers: devKitAuthHeaders(),
+        body: {
+          action: 'send-verification-email',
+          target_user_id: userId,
+          actor_email: authUser?.email ?? 'admin (dev-kit)',
+        },
+      });
+      unwrapAdminResponse(tuple, 'admin-devkit-data');
+      toast.success(`Verification email sent to ${email ?? userId}`);
+    } catch (e) {
+      toast.error(formatEdgeError(e, 'Failed to send verification email'));
+    } finally {
+      setSendingVerificationId(null);
+    }
+  };
+
   const handleSaveNote = async (userId: string) => {
+
     const text = noteText[userId]?.trim();
     if (!text) { toast.info('Enter a note'); return; }
     setSavingNoteId(userId);
     try {
-      const tuple = await appwriteFunctions.invoke('admin-save-note', {
+      const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
         headers: devKitAuthHeaders(),
-        body: { target_user_id: userId, action: 'add', note_text: text, actor_email: authUser?.email ?? 'admin (dev-kit)' },
+        body: { action: 'save-note', target_user_id: userId, note_text: text, actor_email: authUser?.email ?? 'admin (dev-kit)' },
       });
-      unwrapAdminResponse(tuple, 'admin-save-note');
+      unwrapAdminResponse(tuple, 'admin-devkit-data');
       setNoteText(prev => ({ ...prev, [userId]: '' }));
       toast.success('Note saved');
     } catch (e) {
@@ -330,11 +357,11 @@ export const AdminUsersPanel = () => {
   const handleImpersonate = async (userId: string) => {
     setImpersonatingId(userId);
     try {
-      const tuple = await appwriteFunctions.invoke('admin-impersonate', {
+      const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
         headers: devKitAuthHeaders(),
-        body: { action: 'claim', target_user_id: userId },
+        body: { action: 'impersonate', target_user_id: userId },
       });
-      const session = unwrapAdminResponse<ActAsSession>(tuple, 'admin-impersonate');
+      const session = unwrapAdminResponse<ActAsSession>(tuple, 'admin-devkit-data');
       setActAsSession(session);
     } catch (e) {
       toast.error('Impersonation failed', { description: formatEdgeError(e, 'Failed to generate session link') });
@@ -346,11 +373,11 @@ export const AdminUsersPanel = () => {
   const handleMergeIdentity = async (userId: string) => {
     setMergingId(userId);
     try {
-      const tuple = await appwriteFunctions.invoke('admin-merge-identity', {
+      const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
         headers: devKitAuthHeaders(),
-        body: { collision_user_id: userId },
+        body: { action: 'merge-identity', collision_user_id: userId },
       });
-      unwrapAdminResponse<{ merge_log?: string[] }>(tuple, 'admin-merge-identity');
+      unwrapAdminResponse<{ merge_log?: string[] }>(tuple, 'admin-devkit-data');
       toast.success('Identity merged', {
         description: 'The orphan account has been suspended and merged into this account.',
         duration: 6000,
@@ -368,11 +395,11 @@ export const AdminUsersPanel = () => {
     if (!window.confirm('Permanently delete this user? This cannot be undone.')) return;
     setDeletingId(userId);
     try {
-      const tuple = await appwriteFunctions.invoke('admin-delete-user', {
+      const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
         headers: devKitAuthHeaders(),
-        body: { target_user_id: userId, actor_email: authUser?.email ?? 'admin (dev-kit)' },
+        body: { action: 'delete-user', target_user_id: userId, actor_email: authUser?.email ?? 'admin (dev-kit)' },
       });
-      unwrapAdminResponse(tuple, 'admin-delete-user');
+      unwrapAdminResponse(tuple, 'admin-devkit-data');
       setUsers(prev => prev.filter(u => u.$id !== profileId));
       setTotalCount(c => c - 1);
       toast.success('User deleted');
@@ -391,11 +418,11 @@ export const AdminUsersPanel = () => {
     let ok = 0;
     for (const uid of selected) {
       try {
-        const tuple = await appwriteFunctions.invoke('admin-set-plan', {
+        const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
           headers: devKitAuthHeaders(),
-          body: { target_user_id: uid, plan: bulkPlan, actor_email: authUser?.email ?? 'admin (dev-kit)' },
+          body: { action: 'set-plan', target_user_id: uid, plan: bulkPlan, actor_email: authUser?.email ?? 'admin (dev-kit)' },
         });
-        unwrapAdminResponse(tuple, 'admin-set-plan');
+        unwrapAdminResponse(tuple, 'admin-devkit-data');
         updateUser(uid, { plan_name: bulkPlan });
         ok++;
       } catch { /* continue */ }
@@ -414,11 +441,11 @@ export const AdminUsersPanel = () => {
       const u = users.find(x => x.user_id === uid);
       if (!u || u.is_suspended) continue;
       try {
-        const tuple = await appwriteFunctions.invoke('admin-suspend-user', {
+        const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
           headers: devKitAuthHeaders(),
-          body: { target_user_id: uid, suspend: true, actor_email: authUser?.email ?? 'admin (dev-kit)' },
+          body: { action: 'suspend-user', target_user_id: uid, suspend: true, actor_email: authUser?.email ?? 'admin (dev-kit)' },
         });
-        unwrapAdminResponse(tuple, 'admin-suspend-user');
+        unwrapAdminResponse(tuple, 'admin-devkit-data');
         updateUser(uid, { is_suspended: true });
         ok++;
       } catch { /* continue */ }
@@ -653,6 +680,7 @@ export const AdminUsersPanel = () => {
             onToggleSuspend={handleToggleSuspend}
             onSetCredits={handleSetCredits}
             onSaveNote={handleSaveNote}
+            onSendVerificationEmail={handleSendVerificationEmail}
             onImpersonate={handleImpersonate}
             onDeleteUser={handleDeleteUser}
             onMergeIdentity={handleMergeIdentity}
@@ -735,6 +763,7 @@ interface UserRowProps {
   onNewLimitChange: (v: string) => void;
   onBonusCreditsChange: (v: string) => void;
   onNoteTextChange: (v: string) => void;
+  onSendVerificationEmail: (userId: string, email: string | null) => void;
 }
 
 function UserRow({
@@ -746,7 +775,7 @@ function UserRow({
   onSetPlan, onGrantTrial, onRevokeTrial, onToggleSuspend, onSetCredits, onSaveNote,
   onImpersonate, onDeleteUser, onMergeIdentity, onSetMergeConfirming, onOpenDrawer,
   onTrialDaysChange, onTrialPlanChange, onSuspendReasonChange,
-  onNewLimitChange, onBonusCreditsChange, onNoteTextChange,
+  onNewLimitChange, onBonusCreditsChange, onNoteTextChange, onSendVerificationEmail,
 }: UserRowProps) {
   const isTrialActive = user.trial_plan && user.trial_expires_at && new Date(user.trial_expires_at) > new Date();
   const isCollision = (user.email ?? '').endsWith('@collision.kinde.placeholder');
@@ -758,6 +787,9 @@ function UserRow({
   const deleting = deletingId === user.user_id;
   const merging = mergingId === user.user_id;
   const impersonating = impersonatingId === user.user_id;
+
+  const sendingVerification = false; // Managed externally via sendingVerificationId prop-less approach
+  const isEmailUnverified = !!user.email && user.email_verified === false;
 
   return (
     <div className={cn('rounded-2xl border overflow-hidden transition-all', expanded ? 'border-blue-500/20' : 'border-white/8')}>
@@ -792,6 +824,18 @@ function UserRow({
               {user.full_name || 'Anonymous'}
             </p>
             <p className="text-[11px] text-white/30 truncate leading-tight">{user.email}</p>
+            <div className="mt-1 flex items-center gap-1 flex-wrap">
+              {user.email_verified === false && (
+                <span className="px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-300 text-[9px] font-bold uppercase">
+                  unverified
+                </span>
+              )}
+              {user.profile_missing && (
+                <span className="px-1.5 py-0.5 rounded-md bg-white/8 text-white/35 text-[9px] font-bold uppercase">
+                  no profile
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
@@ -979,6 +1023,18 @@ function UserRow({
                 {impersonating ? <Loader2 size={11} className="animate-spin" /> : <ExternalLink size={11} />}
                 {impersonating ? 'Generating…' : 'Act As this user'}
               </button>
+
+              {/* Send Verification Email — only shown for unverified non-collision accounts */}
+              {isEmailUnverified && (
+                <button
+                  onClick={() => onSendVerificationEmail(user.user_id, user.email)}
+                  className="w-full py-2 text-[10px] font-semibold rounded-lg bg-amber-500/15 border border-amber-500/20 text-amber-400 hover:bg-amber-500/25 transition-all flex items-center justify-center gap-1.5"
+                  title="Send email verification link to this user"
+                >
+                  <Activity size={11} />
+                  Send Verification Email
+                </button>
+              )}
 
               {/* View Resumes — opens full drawer */}
               <button

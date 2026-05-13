@@ -7,16 +7,14 @@
  */
 
 import * as pdfjsLib from 'pdfjs-dist';
-import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { createWorker, Worker } from 'tesseract.js';
 
 import { preprocessResumeText } from './textPreprocessor';
-import { isIOSWebKit, buildPolyfillWorkerSrc } from './textExtractor';
+import { isIOSWebKit } from './textExtractor';
+import { ensureOcrRuntimeAssets, ensurePdfRuntimeAssets, ParserAssetError } from './runtimeAssets';
+import { configurePdfJsWorker } from './pdfjsWorkerBootstrap';
 
-// pdfjs-dist v4: configure worker via GlobalWorkerOptions (disableWorker was removed).
-// We use the same polyfill-injected worker source as textExtractor to ensure
-// iOS < 17.4 compatibility.
-pdfjsLib.GlobalWorkerOptions.workerSrc = buildPolyfillWorkerSrc(pdfWorkerUrl);
+configurePdfJsWorker();
 
 /**
  * Categorised OCR failure. Lets the UI show a real cause instead of the
@@ -24,7 +22,9 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = buildPolyfillWorkerSrc(pdfWorkerUrl);
  * iPhone users (Task #25).
  */
 export type OCRErrorCode =
+  | 'ASSETS_MISSING'      // OCR/PDF runtime assets are missing from this environment
   | 'WORKER_INIT_FAILED'   // createWorker rejected (worker.min.js fetch / WASM init / langdata fetch)
+  | 'PDF_WORKER_FAILED'    // pdf.js worker failed before the PDF could even load
   | 'PDF_LOAD_FAILED'      // getDocument failed before OCR even started
   | 'PAGE_RENDER_FAILED'   // page.render or canvas.toDataURL failed (often iOS canvas memory)
   | 'RECOGNITION_FAILED'   // worker.recognize threw on a page
@@ -123,6 +123,15 @@ export async function extractTextWithOCR(
   const isIOS = isIOSWebKit();
   const arrayBuffer = await file.arrayBuffer();
 
+  try {
+    await Promise.all([ensurePdfRuntimeAssets(), ensureOcrRuntimeAssets()]);
+  } catch (error) {
+    if (error instanceof ParserAssetError) {
+      throw new OCRError(error.message, 'ASSETS_MISSING', error);
+    }
+    throw error;
+  }
+
   // Load PDF document with locally-bundled cmaps and standard fonts so iOS
   // WebKit can decode embedded-font PDFs without falling back to OCR.
   let pdf: pdfjsLib.PDFDocumentProxy;
@@ -134,6 +143,14 @@ export async function extractTextWithOCR(
       standardFontDataUrl: '/pdfjs/standard_fonts/',
     }).promise;
   } catch (error) {
+    const cause = describeCause(error);
+    if (/fake worker|importscripts|worker/i.test(cause)) {
+      throw new OCRError(
+        'The PDF reader could not start in this browser environment.',
+        'PDF_WORKER_FAILED',
+        error,
+      );
+    }
     console.error('[ocrExtractor] PDF load failed before OCR', { isIOS, error });
     throw new OCRError(
       'We couldn\'t open this PDF for scanning. The file may be damaged or in an unsupported format.',
@@ -364,6 +381,14 @@ export async function extractTextFromImage(
   onProgress?: OCRProgressCallback
 ): Promise<string> {
   const isIOS = isIOSWebKit();
+  try {
+    await ensureOcrRuntimeAssets();
+  } catch (error) {
+    if (error instanceof ParserAssetError) {
+      throw new OCRError(error.message, 'ASSETS_MISSING', error);
+    }
+    throw error;
+  }
   onProgress?.({ page: 1, total: 1, status: 'Loading image...' });
 
   // Load image

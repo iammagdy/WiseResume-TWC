@@ -1,51 +1,33 @@
 import { useEffect, useRef, useState } from 'react';
 import { Navigate, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { useMe } from '@/hooks/useMe';
-import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 
-const LOADING_TIMEOUT_MS = 6_000;
-const SLOW_HINT_MS = 3_000;
-
-/**
- * Returns true when a profile row indicates the user's email does NOT need
- * verification — i.e., they are already verified, use SSO (placeholder email),
- * or email_verified has not been provisioned yet (null/undefined guard).
- */
-function isEmailVerifiedOrExempt(profile: Record<string, unknown> | null | undefined): boolean {
-  if (!profile) return true; // profile not loaded yet — don't block
-  if (profile.email_verified === true) return true;
-  // SSO users have a @kinde.placeholder auth email — they never need email verification.
-  const email = (profile.contact_email as string | undefined) || (profile.email as string | undefined) || '';
-  if (email.endsWith('@kinde.placeholder')) return true;
-  if (!email) return true; // no email on file — can't verify
-  // email_verified is explicitly false and email is a real address → needs verification
-  return profile.email_verified !== false;
-}
+const FALLBACK_TIMEOUT_MS = 8_000;
 
 export function ProtectedRoute() {
-  const { isAuthenticated, isImpersonating, loading, supabaseSettled, supabaseReady, signOut } = useAuth();
+  const { isAuthenticated, isImpersonating, loading, authSettled, authReady, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const isAuthenticatedRef = useRef(isAuthenticated);
-  const [loadingTimedOut, setLoadingTimedOut] = useState(false);
-  const [showSlowHint, setShowSlowHint] = useState(false);
-
-  // Load user profile data — used for email-verified gate.
-  // isLoading is true only on the initial fetch (not on background refetches).
-  const { data: meData, isLoading: meLoading } = useMe();
+  const [timedOut, setTimedOut] = useState(false);
 
   useEffect(() => {
     isAuthenticatedRef.current = isAuthenticated;
   }, [isAuthenticated]);
 
+  // Safety fallback: if auth is still loading after 8s, force redirect to login
   useEffect(() => {
-    setLoadingTimedOut(false);
-    setShowSlowHint(false);
-    const hintTimer = setTimeout(() => setShowSlowHint(true), SLOW_HINT_MS);
-    const timeoutTimer = setTimeout(() => setLoadingTimedOut(true), LOADING_TIMEOUT_MS);
-    return () => { clearTimeout(hintTimer); clearTimeout(timeoutTimer); };
-  }, [location.key]);
+    if (!loading) return;
+    const timer = setTimeout(() => setTimedOut(true), FALLBACK_TIMEOUT_MS);
+    return () => clearTimeout(timer);
+  }, [loading]);
+
+  useEffect(() => {
+    if (timedOut && !isAuthenticated) {
+      navigate('/auth?mode=login', { replace: true });
+    }
+  }, [timedOut, isAuthenticated, navigate]);
 
   useEffect(() => {
     const handleSessionExpired = () => {
@@ -56,7 +38,7 @@ export function ProtectedRoute() {
     return () => window.removeEventListener('app:session-expired', handleSessionExpired);
   }, [navigate]);
 
-  if (loading || (!loadingTimedOut && isAuthenticated && !supabaseSettled)) return (
+  if (loading && !timedOut) return (
     <div className="min-h-[100dvh] bg-background p-4 space-y-4 animate-pulse">
       <div className="h-10 w-32 rounded-lg bg-muted" />
       <div className="h-6 w-48 rounded bg-muted" />
@@ -64,11 +46,6 @@ export function ProtectedRoute() {
         <div className="h-24 rounded-xl bg-muted" />
         <div className="h-24 rounded-xl bg-muted" />
       </div>
-      {showSlowHint && (
-        <p className="text-xs text-muted-foreground text-center pt-2 animate-in fade-in duration-500">
-          Still setting up your session…
-        </p>
-      )}
     </div>
   );
 
@@ -80,7 +57,7 @@ export function ProtectedRoute() {
     return <Navigate to={`/auth?mode=login${redirectParam}`} replace />;
   }
 
-  if (supabaseSettled && !supabaseReady) {
+  if (authSettled && !authReady) {
     return (
       <div className="min-h-[100dvh] flex items-center justify-center p-6 bg-background">
         <div className="max-w-sm w-full rounded-2xl border border-border bg-card p-6 space-y-4 shadow-sm">
@@ -103,45 +80,6 @@ export function ProtectedRoute() {
         </div>
       </div>
     );
-  }
-
-  // Email verification gate — only applies to authenticated, session-ready users.
-  // Fail closed: hold the Outlet behind the loading skeleton until meData has
-  // loaded so the verified/unverified state is always known before content renders.
-  // SKIP entirely while impersonating — the admin operator is responsible for
-  // who they impersonate, and the impersonated user's verification state is
-  // not a meaningful gate for an admin-driven session.
-  const alreadyOnVerifyPage = location.pathname === '/auth/verify-email';
-  if (!alreadyOnVerifyPage && !isImpersonating) {
-    // Fail closed: hold behind skeleton while profile is loading (initial fetch only).
-    if ((meLoading || !meData?.profile) && !loadingTimedOut) {
-      return (
-        <div className="min-h-[100dvh] bg-background p-4 space-y-4 animate-pulse">
-          <div className="h-10 w-32 rounded-lg bg-muted" />
-          <div className="h-6 w-48 rounded bg-muted" />
-          <div className="space-y-3 mt-6">
-            <div className="h-24 rounded-xl bg-muted" />
-            <div className="h-24 rounded-xl bg-muted" />
-          </div>
-          {showSlowHint && (
-            <p className="text-xs text-muted-foreground text-center pt-2 animate-in fade-in duration-500">
-              Still setting up your session…
-            </p>
-          )}
-        </div>
-      );
-    }
-
-    // After timeout with still no profile: fail open.
-    // isEmailVerifiedOrExempt(null) returns true, so blocking here adds no security
-    // and only breaks the experience for users whose profile collection isn't
-    // provisioned yet (expected during the Appwrite migration period).
-    // Fall through to the email-verification check below.
-
-    // Profile loaded — enforce email verification.
-    if (!isEmailVerifiedOrExempt(meData?.profile)) {
-      return <Navigate to="/auth/verify-email" replace />;
-    }
   }
 
   return <Outlet />;

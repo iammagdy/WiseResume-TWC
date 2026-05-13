@@ -183,12 +183,16 @@ function JourneyDrawer({
           headers: devKitAuthHeaders(),
           body: { action: 'journey', session_id: sessionId, anon_id: anonId },
         });
-        if (fnErr) throw fnErr;
+        if (fnErr) {
+          const msg = typeof fnErr === 'string' ? fnErr
+            : (fnErr as { message?: string }).message || JSON.stringify(fnErr);
+          throw new Error(msg);
+        }
         const result = data as { success: boolean; data?: JourneyEvent[] };
         if (!result.success) throw new Error('Failed to load journey');
         setEvents(result.data ?? []);
       } catch (e) {
-        setError(String(e));
+        setError(e instanceof Error ? e.message : String(e));
       } finally {
         setLoading(false);
       }
@@ -274,7 +278,11 @@ export function VisitorsPanel() {
       headers: devKitAuthHeaders(),
       body: { action, range, ...extra },
     });
-    if (fnErr) throw fnErr;
+    if (fnErr) {
+      const msg = typeof fnErr === 'string' ? fnErr
+        : (fnErr as { message?: string }).message || JSON.stringify(fnErr);
+      throw new Error(msg);
+    }
     return data as { success: boolean; data?: unknown };
   }, [range]);
 
@@ -305,7 +313,7 @@ export function VisitorsPanel() {
       }
       if (cohortRes.success)   setCohort(cohortRes.data as NamedCount[]);
     } catch (e) {
-      setError(String(e));
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }

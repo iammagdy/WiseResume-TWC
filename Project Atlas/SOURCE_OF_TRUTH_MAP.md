@@ -1,6 +1,6 @@
 # Atlas Source Of Truth Map
 
-**Last verified:** 2026-05-12
+**Last verified:** 2026-05-13
 **Type:** index
 **Sources:**
 - `package.json`
@@ -65,7 +65,7 @@ Use `Project Atlas/01-Currently Implemented/` for verified live or partially-liv
 Main areas include:
 
 - pages and flows under `01-Currently Implemented/pages/`;
-- Appwrite Function cards under `01-Currently Implemented/edge-functions/`;
+- Appwrite Function cards under `01-Currently Implemented/functions/`;
 - collection/table cards under `01-Currently Implemented/database-tables/`;
 - frontend structure under `01-Currently Implemented/frontend-layer/`;
 - backend and critical systems under the matching folders.

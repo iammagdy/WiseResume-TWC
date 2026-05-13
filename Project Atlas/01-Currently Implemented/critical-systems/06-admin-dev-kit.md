@@ -1,6 +1,43 @@
 # Admin Dev Kit
 
-**Last verified:** 2026-05-07 (DevKit panel proxy fixes)
+**Last verified:** 2026-05-13 (Appwrite `admin-devkit-data` login recovery and operations data restored)
+
+## Current operations data truth
+
+DevKit user administration must use Appwrite Auth as the user source of truth. Profiles are joined metadata, not the user inventory.
+
+Verified live state on 2026-05-13:
+- Auth users: 2
+- Verified Auth users: 1
+- Unverified Auth user visible in DevKit: `test@thewise.cloud`
+- Profiles: 1
+- Raw resume documents: 34
+- Active-user-owned resumes: 3
+- Orphaned resume documents: 31
+
+God Mode now pages Auth users first and joins profiles, subscriptions, AI credits, and per-user resume counts. The Infrastructure/Overview card shows active-user-owned resumes as the main count and reports orphaned documents separately.
+
+`admin-devkit-data` read paths use Appwrite REST GET helpers instead of `node-appwrite` list/get helpers because the installed SDK version sends bodies with GET requests. Write paths still use the SDK where appropriate.
+
+## Current Appwrite login recovery
+
+The DevKit is Appwrite-native. `/devkit` login is handled by `admin-devkit-data` action `verify-devkit-session`, not Supabase Edge Functions.
+
+**Verified 2026-05-13 incident:** `/devkit` showed "Access denied" because the live Appwrite deployment failed before it could check the password. The runtime error was `Cannot find module 'node-appwrite'`. The stored `DEVKIT_PASSWORD` was present; the function package was the blocker.
+
+**Fix applied:** Rebuilt `admin-devkit-data.tar.gz` from `appwrite-hubs/admin-devkit-data/` so `package.json`, `src/main.js`, and `node_modules/` are at archive root, then redeployed Appwrite deployment `6a0407d342fbb7593d4d` as active. A deliberately wrong password now returns completed execution, HTTP `401`, code `INVALID_PASSWORD`, and empty runtime stderr, proving the function boots.
+
+**Latest verification:** Deployment `6a0415154ff4ed2b537e` is active and `ready`. `/devkit` no longer leaves the login button spinning forever when Appwrite/browser execution stalls: `devKitLogin` has a 15 second timeout and DevKit panel calls have a 20 second timeout mapped to `NETWORK_ERROR`. A local browser smoke test on `localhost:5000/devkit` with a deliberately wrong password re-enabled the submit button after the request path completed.
+
+**Profile drawer sub-action contract:** Profile field reads use `admin-devkit-data` with `action: "update-profile"` and `profile_action: "get"`. Do not send duplicate `action` keys; JavaScript will keep only the later key and can route to the wrong backend action.
+
+**If `/devkit` rejects access again:**
+1. Execute `admin-devkit-data` with `{"action":"verify-devkit-session","password":"__wrong__"}`.
+2. If the execution fails or stderr mentions a missing module, rebuild and redeploy the function artifact; do not rotate the password first.
+3. If the execution completes with `INVALID_PASSWORD`, the function is healthy and the entered password is wrong or `DEVKIT_PASSWORD` needs intentional rotation.
+4. Verify the artifact root before deployment with `tar -tzf admin-devkit-data.tar.gz`; the first entries must include `package.json`, `src/main.js`, and `node_modules/`, not a nested repo folder.
+
+The older Supabase recovery notes below are historical and should not be used for the current Appwrite DevKit.
 
 ## Login recovery — what to do when /devkit rejects the admin
 

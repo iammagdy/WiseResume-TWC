@@ -2,6 +2,7 @@
 
 const axios = require('axios');
 const sdk = require('node-appwrite');
+const extractedPrompts = require('./extracted_prompts.json');
 
 // ─── Datadog LLM Observability ────────────────────────────────────────────────
 // Initialise dd-trace at module level (once per cold start).
@@ -54,6 +55,315 @@ const BASES = {
 };
 
 const DB_ID = 'main';
+const PARSE_RESUME_SYSTEM_PROMPT =
+  extractedPrompts?.['parse-resume']?.system ||
+  'You are an expert resume parser. Return only valid JSON.';
+
+function isRecord(value) {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function asString(value) {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function asOptionalString(value) {
+  const str = asString(value);
+  return str || undefined;
+}
+
+function asBoolean(value) {
+  return value === true;
+}
+
+function toStringArray(value) {
+  if (Array.isArray(value)) {
+    return value
+      .map(item => typeof item === 'string' ? item.trim() : '')
+      .filter(Boolean);
+  }
+  if (typeof value === 'string') {
+    return value
+      .split(/[,\n|]/)
+      .map(item => item.trim())
+      .filter(Boolean);
+  }
+  return [];
+}
+
+function parseJsonObject(text) {
+  if (typeof text !== 'string' || !text.trim()) {
+    throw new Error('Resume parser returned an empty response.');
+  }
+
+  const cleaned = text
+    .replace(/^```json\s*/i, '')
+    .replace(/^```\s*/i, '')
+    .replace(/\s*```$/i, '')
+    .trim();
+
+  try {
+    return JSON.parse(cleaned);
+  } catch (_) {
+    const start = cleaned.indexOf('{');
+    const end = cleaned.lastIndexOf('}');
+    if (start === -1 || end === -1 || end <= start) {
+      throw new Error('Resume parser did not return JSON.');
+    }
+    return JSON.parse(cleaned.slice(start, end + 1));
+  }
+}
+
+function normalizeExperienceItem(item) {
+  if (!isRecord(item)) return null;
+  return {
+    id: '',
+    company: asString(item.company),
+    position: asString(item.position),
+    account: asOptionalString(item.account),
+    startDate: asString(item.startDate),
+    endDate: asString(item.endDate),
+    current: asBoolean(item.current),
+    description: asString(item.description),
+    achievements: toStringArray(item.achievements),
+    responsibilities: toStringArray(item.responsibilities),
+    isProject: asBoolean(item.isProject),
+  };
+}
+
+function normalizeEducationItem(item) {
+  if (!isRecord(item)) return null;
+  return {
+    id: '',
+    institution: asString(item.institution),
+    degree: asString(item.degree),
+    field: asString(item.field),
+    startDate: asString(item.startDate),
+    endDate: asString(item.endDate),
+    gpa: asOptionalString(item.gpa),
+    description: asOptionalString(item.description),
+  };
+}
+
+function normalizeCertificationItem(item) {
+  if (!isRecord(item)) return null;
+  return {
+    id: '',
+    name: asString(item.name),
+    issuer: asString(item.issuer),
+    date: asString(item.date),
+    expiryDate: asOptionalString(item.expiryDate),
+    credentialId: asOptionalString(item.credentialId),
+  };
+}
+
+function normalizeAwardItem(item) {
+  if (!isRecord(item)) return null;
+  return {
+    id: '',
+    title: asString(item.title),
+    issuer: asString(item.issuer),
+    date: asString(item.date),
+    description: asOptionalString(item.description),
+  };
+}
+
+function normalizeProjectItem(item) {
+  if (!isRecord(item)) return null;
+  return {
+    id: '',
+    name: asString(item.name),
+    role: asString(item.role),
+    startDate: asString(item.startDate),
+    endDate: asString(item.endDate),
+    technologies: toStringArray(item.technologies),
+    description: asString(item.description),
+    url: asOptionalString(item.url),
+    githubUrl: asOptionalString(item.githubUrl),
+  };
+}
+
+function normalizePublicationItem(item) {
+  if (!isRecord(item)) return null;
+  return {
+    id: '',
+    title: asString(item.title),
+    publisher: asString(item.publisher),
+    date: asString(item.date),
+    coAuthors: asOptionalString(item.coAuthors),
+    url: asOptionalString(item.url),
+    description: asOptionalString(item.description),
+  };
+}
+
+function normalizeVolunteeringItem(item) {
+  if (!isRecord(item)) return null;
+  return {
+    id: '',
+    organization: asString(item.organization),
+    role: asString(item.role),
+    startDate: asString(item.startDate),
+    endDate: asString(item.endDate),
+    description: asString(item.description),
+    hours: asOptionalString(item.hours),
+  };
+}
+
+function normalizeHobbyItem(item) {
+  if (typeof item === 'string') {
+    return { id: '', name: item.trim(), visible: true };
+  }
+  if (!isRecord(item)) return null;
+  return {
+    id: '',
+    name: asString(item.name),
+    description: asOptionalString(item.description),
+    visible: item.visible !== false,
+  };
+}
+
+function normalizeLanguageItem(item) {
+  if (typeof item === 'string') {
+    return { id: '', name: item.trim(), proficiency: 'professional' };
+  }
+  if (!isRecord(item)) return null;
+  const proficiency = asString(item.proficiency).toLowerCase();
+  const allowed = new Set(['native', 'fluent', 'professional', 'basic']);
+  return {
+    id: '',
+    name: asString(item.name),
+    proficiency: allowed.has(proficiency) ? proficiency : 'professional',
+  };
+}
+
+function normalizeReferenceItem(item) {
+  if (!isRecord(item)) return null;
+  return {
+    id: '',
+    name: asString(item.name),
+    title: asString(item.title),
+    company: asString(item.company),
+    email: asString(item.email),
+    phone: asString(item.phone),
+    relationship: asString(item.relationship),
+    availableOnRequest: asBoolean(item.availableOnRequest),
+  };
+}
+
+function normalizeArray(value, itemNormalizer) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map(itemNormalizer)
+    .filter(Boolean);
+}
+
+function hasMeaningfulResumeContent(data) {
+  const contact = data.contactInfo || {};
+  return Boolean(
+    contact.fullName ||
+    contact.email ||
+    contact.phone ||
+    data.summary ||
+    data.skills.length ||
+    data.experience.length ||
+    data.education.length ||
+    data.certifications.length ||
+    data.awards.length ||
+    data.projects.length ||
+    data.publications.length ||
+    data.volunteering.length ||
+    data.hobbies.length ||
+    data.references.length ||
+    data.languages.length
+  );
+}
+
+function normalizeResumeData(raw) {
+  const parsed = isRecord(raw) ? raw : parseJsonObject(raw);
+  if (!isRecord(parsed)) {
+    throw new Error('Resume parser returned malformed JSON.');
+  }
+
+  const contact = isRecord(parsed.contactInfo) ? parsed.contactInfo : {};
+  const data = {
+    contactInfo: {
+      fullName: asString(contact.fullName),
+      email: asString(contact.email),
+      email2: asOptionalString(contact.email2),
+      phone: asString(contact.phone),
+      location: asString(contact.location),
+      linkedin: asOptionalString(contact.linkedin),
+      github: asOptionalString(contact.github),
+      portfolio: asOptionalString(contact.portfolio),
+      photoUrl: asOptionalString(contact.photoUrl),
+    },
+    summary: asString(parsed.summary),
+    experience: normalizeArray(parsed.experience, normalizeExperienceItem),
+    education: normalizeArray(parsed.education, normalizeEducationItem),
+    skills: toStringArray(parsed.skills),
+    certifications: normalizeArray(parsed.certifications, normalizeCertificationItem),
+    awards: normalizeArray(parsed.awards, normalizeAwardItem),
+    projects: normalizeArray(parsed.projects, normalizeProjectItem),
+    publications: normalizeArray(parsed.publications, normalizePublicationItem),
+    volunteering: normalizeArray(parsed.volunteering, normalizeVolunteeringItem),
+    hobbies: normalizeArray(parsed.hobbies, normalizeHobbyItem),
+    references: normalizeArray(parsed.references, normalizeReferenceItem),
+    languages: normalizeArray(parsed.languages, normalizeLanguageItem),
+    templateId: 'modern',
+    _meta: {
+      aiCleaned: true,
+      multiPass: false,
+    },
+  };
+
+  if (!hasMeaningfulResumeContent(data)) {
+    throw new Error('Resume parser returned an empty resume.');
+  }
+
+  return data;
+}
+
+function buildMessages(featureName, opts) {
+  if (featureName === 'parse-resume') {
+    const text = asString(opts.text);
+    if (!text) {
+      throw new Error('parse-resume requires extracted resume text.');
+    }
+    return [
+      {
+        role: 'system',
+        content:
+          `${PARSE_RESUME_SYSTEM_PROMPT}\n\n` +
+          'Return ONLY valid JSON with this exact shape:\n' +
+          '{\n' +
+          '  "contactInfo": {"fullName":"","email":"","email2":"","phone":"","location":"","linkedin":"","github":"","portfolio":"","photoUrl":""},\n' +
+          '  "summary": "",\n' +
+          '  "experience": [],\n' +
+          '  "education": [],\n' +
+          '  "skills": [],\n' +
+          '  "certifications": [],\n' +
+          '  "awards": [],\n' +
+          '  "projects": [],\n' +
+          '  "publications": [],\n' +
+          '  "volunteering": [],\n' +
+          '  "hobbies": [],\n' +
+          '  "references": [],\n' +
+          '  "languages": [],\n' +
+          '  "templateId": "modern"\n' +
+          '}',
+      },
+      {
+        role: 'user',
+        content:
+          `File type: ${asString(opts.fileType) || 'text/plain'}\n\n` +
+          'Extract the full resume into structured JSON. Keep bullet points verbatim.\n\n' +
+          `RESUME TEXT:\n${text.slice(0, 60000)}`,
+      },
+    ];
+  }
+
+  return opts.messages || [{ role: 'user', content: 'hello' }];
+}
 
 /**
  * Per-feature routing config.
@@ -207,7 +517,8 @@ module.exports = async ({ req, res, log, error }) => {
   // Broad outer catch — preserves the JSON error contract on any unexpected failure.
   try {
     const opts = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
-    const { featureName, messages } = opts;
+    const { featureName } = opts;
+    const requestMessages = buildMessages(featureName, opts);
 
     log(`AI-Gateway Hub: Processing ${featureName || 'general'} request...`);
 
@@ -249,14 +560,18 @@ module.exports = async ({ req, res, log, error }) => {
       return res.json({ status: 'error', message: 'No AI keys found on server.' }, 503);
     }
 
-    const temperature = opts.temperature || 0.7;
-    const maxTokens   = opts.maxTokens   || 1000;
+    const temperature = featureName === 'parse-resume'
+      ? (opts.temperature ?? 0.1)
+      : (opts.temperature || 0.7);
+    const maxTokens   = featureName === 'parse-resume'
+      ? (opts.maxTokens ?? 4000)
+      : (opts.maxTokens || 1000);
 
     /** Call a single provider candidate. */
     async function callCandidate(candidate) {
       const response = await axios.post(BASES[candidate.provider], {
         model:      opts.model || candidate.model,
-        messages:   messages || [{ role: 'user', content: 'hello' }],
+        messages:   requestMessages,
         temperature,
         max_tokens: maxTokens,
       }, {
@@ -297,7 +612,7 @@ module.exports = async ({ req, res, log, error }) => {
             async (span) => {
               callbackExecuted = true;
               llmobs.annotate(span, {
-                inputData: messages || [{ role: 'user', content: 'hello' }],
+                inputData: requestMessages,
                 metadata: {
                   temperature,
                   max_tokens:        maxTokens,
@@ -350,6 +665,28 @@ module.exports = async ({ req, res, log, error }) => {
         providerUsed = candidate.provider;
         modelUsed    = opts.model || candidate.model;
         routedBy     = candidate.routed;
+
+        if (featureName === 'parse-resume') {
+          try {
+            const parsedResume = normalizeResumeData(result.content);
+            await flushDD();
+            return res.json({
+              status: 'success',
+              data: parsedResume,
+            });
+          } catch (parseErr) {
+            error(`Provider ${candidate.provider} returned malformed resume JSON: ${parseErr.message}`);
+            if (i === candidates.length - 1) {
+              await flushDD();
+              return res.json({
+                status: 'error',
+                message: 'AI resume parser returned malformed data.',
+              }, 500);
+            }
+            continue;
+          }
+        }
+
         break;
 
       } catch (candidateErr) {

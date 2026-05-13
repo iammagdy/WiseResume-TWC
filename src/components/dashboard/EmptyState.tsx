@@ -67,7 +67,7 @@ function MiniTemplateThumbnail({ templateId }: { templateId: TemplateId }) {
   return (
     <div
       ref={containerRef}
-      className="w-full h-full overflow-hidden bg-white rounded-xl"
+      className="w-full h-full overflow-hidden bg-background rounded-xl"
     >
       <Suspense fallback={<div className="w-full h-full bg-gray-100 animate-pulse rounded-xl" />}>
         <div

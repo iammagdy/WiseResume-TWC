@@ -39,6 +39,7 @@ import { usePlan } from '@/hooks/usePlan';
 import { UpgradeWall } from '@/components/plan/UpgradeWall';
 
 type InterviewPhase = 'setup' | 'preview' | 'active' | 'summary';
+type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
 function InterviewPageContent() {
   useEffect(() => {
@@ -46,7 +47,7 @@ function InterviewPageContent() {
     return () => { activityTracker.setActiveFeature(null); };
   }, []);
   const navigate = useNavigate();
-  const { user, loading, supabaseReady, supabaseSettled } = useAuth();
+  const { user, loading, authReady, authSettled } = useAuth();
   const { currentResume, currentResumeId, setCurrentResume, setCurrentResumeId } = useResumeStore();
   const hydrated = useResumeStoreHydration();
   const { isPro, isLoading: planLoading } = usePlan();
@@ -249,7 +250,7 @@ function InterviewPageContent() {
         resume_id: currentResumeId ?? undefined,
         interview_type: activeInterviewTypeRef.current,
         job_description: activeJobDescriptionRef.current ?? null,
-        messages: messages as unknown as import('@/integrations/supabase/types').Json,
+        messages: messages as unknown as Json,
         duration_seconds: elapsedSeconds,
       },
       {
@@ -422,7 +423,7 @@ function InterviewPageContent() {
   const backTriggeredRef = useRef(false);
 
   // Show loading while auth, store, or plan data hydrates
-  if (loading || !supabaseSettled || !hydrated || planLoading) {
+  if (loading || !authSettled || !hydrated || planLoading) {
     return <InterviewSkeleton />;
   }
 

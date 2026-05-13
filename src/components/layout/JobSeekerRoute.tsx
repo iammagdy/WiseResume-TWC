@@ -9,14 +9,14 @@ import { useAccountType } from '@/hooks/wisehire/useAccountType';
  * users never see a blank page after sign-in.
  */
 export function JobSeekerRoute() {
-  const { isAuthenticated, supabaseSettled } = useAuth();
+  const { isAuthenticated, authSettled } = useAuth();
   const { accountType, isLoading, timedOut } = useAccountType();
 
   // Not authenticated — let ProtectedRoute handle it upstream
   if (!isAuthenticated) return <Outlet />;
 
   // Wait for bridge + account type, but show a skeleton instead of null
-  if (!supabaseSettled || (isLoading && !timedOut)) {
+  if (!authSettled || (isLoading && !timedOut)) {
     return (
       <div className="min-h-[100dvh] bg-transparent p-4 space-y-4 animate-pulse">
         <div className="h-10 w-32 rounded-lg bg-muted" />

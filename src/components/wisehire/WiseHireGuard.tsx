@@ -17,7 +17,7 @@ const LOADING_TIMEOUT_MS = 12_000;
  *  4. HR user on active trial or paid plan → render children
  */
 export function WiseHireGuard() {
-  const { isAuthenticated, loading, supabaseSettled } = useAuth();
+  const { isAuthenticated, loading, authSettled } = useAuth();
   const { accountType, isLoading: accountTypeLoading } = useAccountType();
   const { data: whAccount, isLoading: whAccountLoading } = useWiseHireAccount();
   const navigate = useNavigate();
@@ -57,7 +57,7 @@ export function WiseHireGuard() {
   }
 
   // Wait for Supabase bridge + account type (with timeout)
-  if (!loadingTimedOut && (!supabaseSettled || accountTypeLoading)) {
+  if (!loadingTimedOut && (!authSettled || accountTypeLoading)) {
     return <WiseHireLoadingSkeleton />;
   }
 

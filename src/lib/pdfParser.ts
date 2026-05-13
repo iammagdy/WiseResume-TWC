@@ -20,6 +20,40 @@ export type { ExtractionResult, OCRProgressCallback };
 /** Timeout for AI parsing requests (20 seconds - falls back to local parser quickly) */
 const PARSE_TIMEOUT = 20000;
 
+function isResumeDataShape(value: unknown): value is ResumeData {
+  if (!isRecord(value)) return false;
+  if (!isRecord(value.contactInfo)) return false;
+  return (
+    typeof value.summary === 'string' &&
+    Array.isArray(value.experience) &&
+    Array.isArray(value.education) &&
+    Array.isArray(value.skills) &&
+    Array.isArray(value.certifications) &&
+    typeof value.templateId === 'string'
+  );
+}
+
+function hasMeaningfulResumeData(data: ResumeData): boolean {
+  const contact = data.contactInfo ?? { fullName: '', email: '', phone: '', location: '' };
+  return Boolean(
+    contact.fullName?.trim() ||
+    contact.email?.trim() ||
+    contact.phone?.trim() ||
+    data.summary?.trim() ||
+    data.skills.length ||
+    data.experience.length ||
+    data.education.length ||
+    data.certifications.length ||
+    (data.awards?.length || 0) ||
+    (data.projects?.length || 0) ||
+    (data.publications?.length || 0) ||
+    (data.volunteering?.length || 0) ||
+    (data.hobbies?.length || 0) ||
+    (data.references?.length || 0) ||
+    (data.languages?.length || 0)
+  );
+}
+
 /**
  * Result from initial PDF parsing attempt.
  * If needsOCR is true, call parseResumePDFWithOCR to try OCR extraction.
@@ -50,6 +84,7 @@ export interface ParseResult {
 export async function parseTextWithAI(text: string): Promise<ResumeData> {
   try {
     if (import.meta.env.DEV) console.log('Calling AI to parse resume text...');
+    if (import.meta.env.DEV) console.log(`AI parse timeout budget: ${PARSE_TIMEOUT}ms`);
 
     // fileType: 'text/plain' because the function receives pre-extracted plain text
     // regardless of the source document format (PDF, DOCX, etc).
@@ -71,6 +106,14 @@ export async function parseTextWithAI(text: string): Promise<ResumeData> {
 
     if (!data) {
       throw new Error('AI parsing returned empty response');
+    }
+
+    if (!isResumeDataShape(data)) {
+      throw new Error('Malformed AI resume response');
+    }
+
+    if (!hasMeaningfulResumeData(data)) {
+      throw new Error('AI parser returned an empty resume');
     }
 
     if (import.meta.env.DEV) console.log('AI parsing successful');

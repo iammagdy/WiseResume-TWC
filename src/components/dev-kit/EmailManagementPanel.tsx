@@ -645,19 +645,29 @@ function RecentSendsSection() {
   const fetchRecentSends = useCallback(async () => {
     setLoading(true);
     try {
-      const tuple = await appwriteFunctions.invoke('admin-audit-logs', {
-        headers: devKitAuthHeaders(),
-        body: { limit: 20, category_filter: 'admin_email' },
-      });
-      const result = unwrapAdminResponse<{ logs?: RecentSendEntry[] }>(tuple, 'admin-audit-logs');
+      // Query admin_audit_logs directly — 'admin-audit-logs' function is not deployed.
+      // logAudit() writes category='admin_email' entries here after each send.
+      const { databases } = await import('@/lib/appwrite');
+      const { Query } = await import('appwrite');
+      const res = await databases.listDocuments('main', 'admin_audit_logs', [
+        Query.equal('category', 'admin_email'),
+        Query.orderDesc('$createdAt'),
+        Query.limit(20),
+      ]);
       if (!isMounted()) return;
-      const all = (result?.logs ?? []) as RecentSendEntry[];
+      const all = res.documents.map(d => ({
+        id: d.$id,
+        action: d.action ?? '',
+        metadata: typeof d.metadata === 'string' ? JSON.parse(d.metadata || '{}') : (d.metadata ?? {}),
+        created_at: d.$createdAt,
+      })) as RecentSendEntry[];
       setEntries(all.filter(l => l.action?.startsWith('send') || l.action === 'resend_confirmation' || l.action?.startsWith('resend')));
       setLoaded(true);
     } catch (e) {
       if (!isMounted()) return;
       setLoaded(true);
-      toast.error(formatEdgeError(e, 'Failed to load recent email sends'));
+      // Silently hide — recent sends is non-critical; don't block the rest of the panel
+      console.warn('[EmailManagementPanel] RecentSends query failed:', e);
     } finally {
       if (isMounted()) setLoading(false);
     }

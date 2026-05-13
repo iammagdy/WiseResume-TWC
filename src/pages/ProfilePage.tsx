@@ -40,7 +40,7 @@ import { ProfileSkeleton } from '@/components/profile/ProfileSkeleton';
 
 export default function ProfilePage() {
   const navigate = useNavigate();
-  const { user, supabaseSettled } = useAuth();
+  const { user, authSettled } = useAuth();
   const { profile, loading: profileLoading, updateProfile } = useProfile(user?.id);
   const { plan } = usePlan();
   const { data: resumes = [] } = useResumes();
@@ -55,7 +55,7 @@ export default function ProfilePage() {
   const [isResyncing, setIsResyncing] = useState(false);
   const [isGoingLive, setIsGoingLive] = useState(false);
 
-  const isLoading = !supabaseSettled || (profileLoading && !profile);
+  const isLoading = !authSettled || (profileLoading && !profile);
 
   if (isLoading) return <ProfileSkeleton />;
   if (!user) return null;

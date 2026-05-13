@@ -22,6 +22,7 @@ import { Button } from '@/components/ui/button';
 import { ImportReviewSheet, SelectedSections, ContactEdits } from '@/components/upload/ImportReviewSheet';
 import { OCRPromptDialog } from '@/components/upload/OCRPromptDialog';
 import { UploadProgressSteps } from '@/components/upload/UploadProgressSteps';
+import { getUploadErrorCopy } from '@/components/upload/UploadErrorRecovery';
 import { useResumeUpload } from '@/hooks/useResumeUpload';
 import { useResumeMutations } from '@/hooks/useResumes';
 import { useResumeStore } from '@/store/resumeStore';
@@ -186,6 +187,8 @@ export function DashboardUploadWidget({ compact = false }: DashboardUploadWidget
     clearError();
   }, [clearError]);
 
+  const compactErrorCopy = error ? getUploadErrorCopy(error.type) : null;
+
   if (compact) {
     return (
       <>
@@ -327,12 +330,7 @@ export function DashboardUploadWidget({ compact = false }: DashboardUploadWidget
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-foreground">Couldn't read this file</p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {error.type === 'NO_TEXT' && 'No readable text found. Try a Word or text-based PDF.'}
-                  {error.type === 'AI_UNREACHABLE' && 'AI parser is temporarily unavailable. Try again in a moment.'}
-                  {error.type === 'PASSWORD_PROTECTED' && 'This PDF is password-protected. Remove the password first.'}
-                  {error.type === 'IOS_BROWSER_INCOMPATIBLE' && 'This PDF format isn\'t supported on Safari. Try a desktop browser or Word file.'}
-                  {error.type === 'OCR_ENGINE_FAILED' && 'Text scanning failed on this browser. Try a desktop browser.'}
-                  {(error.type === 'CORRUPTED' || error.type === 'UNKNOWN') && 'The file may be damaged. Try a different file.'}
+                  {compactErrorCopy?.compactDescription}
                 </p>
                 <div className="flex gap-2 mt-2.5">
                   <button

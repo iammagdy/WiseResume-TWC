@@ -12,7 +12,7 @@ interface TestItemProps {
   onToggleExpand: () => void;
 }
 
-export function TestItem({ test, result, isExpanded, onRun, onToggleExpand }: TestItemProps) {
+export function TestItem({ test, result = { status: 'idle' }, isExpanded, onRun, onToggleExpand }: TestItemProps) {
   const [copied, setCopied] = useState(false);
   const resultText = result.data ? JSON.stringify(result.data, null, 2) : result.error || '';
 

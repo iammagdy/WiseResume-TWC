@@ -1,5 +1,6 @@
 import { useMe } from './useMe';
 import { useAuth } from './useAuth';
+import { useQuery } from '@tanstack/react-query';
 
 export interface SuspensionState {
   isSuspended: boolean;
@@ -7,38 +8,38 @@ export interface SuspensionState {
   isLoading: boolean;
 }
 
-/**
- * Derives suspension state from the shared `useMe` query — no additional
- * network calls. When `/api/data/me` returns a 403 with `{ suspended: true }`,
- * React Query stores the thrown ApiFetchError on the `useMe` query's `error`
- * property. We read that error here instead of making a duplicate request.
- */
 export function useSuspensionCheck(): SuspensionState {
   const { user, isAuthenticated } = useAuth();
-  const { isLoading, isError, error } = useMe();
 
-  if (!user || !isAuthenticated) {
-    return { isSuspended: false, suspensionReason: null, isLoading: false };
-  }
-
-  let isSuspended = false;
-  let suspensionReason: string | null = null;
-
-  if (isError && error) {
-    const e = error as { status?: number; body?: unknown };
-    if (e.status === 403) {
-      const body = e.body;
-      if (
-        body &&
-        typeof body === 'object' &&
-        'suspended' in body &&
-        (body as { suspended: unknown }).suspended === true
-      ) {
-        isSuspended = true;
-        suspensionReason = (body as { reason?: string }).reason ?? null;
+  const { data, isLoading } = useQuery({
+    queryKey: ['suspension-check', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return { is_suspended: false, suspension_reason: null };
+      try {
+        const { databases, DATABASE_ID, Query } = await import('@/lib/appwrite');
+        const res = await databases.listDocuments(DATABASE_ID, 'profiles', [
+          Query.equal('user_id', user.id),
+          Query.limit(1)
+        ]);
+        const doc = res.documents[0];
+        if (doc) {
+          return {
+            is_suspended: (doc.is_suspended as boolean) ?? false,
+            suspension_reason: (doc.suspension_reason as string | null) ?? null,
+          };
+        }
+      } catch (e) {
+        // Fallback gracefully
       }
-    }
-  }
+      return { is_suspended: false, suspension_reason: null };
+    },
+    enabled: !!user && isAuthenticated,
+    staleTime: 5 * 60 * 1000,
+  });
 
-  return { isSuspended, suspensionReason, isLoading };
+  return {
+    isSuspended: data?.is_suspended ?? false,
+    suspensionReason: data?.suspension_reason ?? null,
+    isLoading,
+  };
 }

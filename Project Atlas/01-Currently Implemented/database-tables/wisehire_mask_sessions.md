@@ -30,6 +30,6 @@
 **Usage pattern:** `wisehire-mask-cvs` edge function writes one row per masking run. The frontend reads the most recent session for the logged-in recruiter and restores it on page load, so masking work isn't lost on refresh.
 
 **Related:**
-- `Project Atlas/01-Currently Implemented/edge-functions/wisehire-mask-cvs.md` (not yet written — add if the edge function card is missing)
+- `Project Atlas/01-Currently Implemented/functions/wisehire-mask-cvs.md` (not yet written — add if the edge function card is missing)
 - `Project Atlas/01-Currently Implemented/critical-systems/05-wisehire-phase-1.md`
 - `Project Atlas/01-Currently Implemented/pages/wisehire/candidatemasking.md`
