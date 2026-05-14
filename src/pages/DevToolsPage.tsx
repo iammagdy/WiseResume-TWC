@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   Activity, ArrowLeft, BarChart2, Briefcase, BrainCircuit, CheckCircle2, Cog, Database,
   Fingerprint, Flag, History, Home, LayoutDashboard, Link2, Loader2,
-  Lock, Mail, Menu, Play, ServerCog, ShieldCheck, Ticket, TrendingUp, Users,
+  Lock, Mail, Menu, Play, Search, ServerCog, ShieldCheck, Ticket, TrendingUp, Users,
   Wrench, X,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -128,9 +128,28 @@ function DevToolsInner() {
   const [biometricReady, setBiometricReady] = useState(false);
   const [hasCred, setHasCred] = useState(false);
   const [badgeCounts, setBadgeCounts] = useState<Record<string, number>>({});
+  const [cmdKOpen, setCmdKOpen] = useState(false);
+  const [cmdKQuery, setCmdKQuery] = useState('');
+  const [cmdKIndex, setCmdKIndex] = useState(0);
 
   useEffect(() => { isBiometricAvailable().then(ok => { setBiometricReady(ok); setHasCred(hasBiometricCredential()); }); }, []);
   useEffect(() => { if (!isUnlocked) setHasCred(hasBiometricCredential()); }, [isUnlocked]);
+
+  // Cmd+K / Ctrl+K global shortcut
+  useEffect(() => {
+    if (!isUnlocked) return;
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setCmdKOpen(o => !o);
+        setCmdKQuery('');
+        setCmdKIndex(0);
+      }
+      if (e.key === 'Escape') setCmdKOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isUnlocked]);
 
   // Fetch sidebar badge counts once the session is unlocked
   useEffect(() => {
@@ -318,6 +337,13 @@ function DevToolsInner() {
               Auto-lock in {Math.ceil(secondsUntilLock / 60)}m
             </div>
           )}
+          <button
+            onClick={() => { setCmdKOpen(true); setCmdKQuery(''); setCmdKIndex(0); }}
+            className="flex w-full items-center justify-between rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-2.5 text-[11px] text-white/30 hover:border-white/15 hover:bg-white/5 hover:text-white/50 transition-all"
+          >
+            <span className="font-medium">Jump to panel…</span>
+            <kbd className="rounded-md border border-white/10 bg-white/5 px-1.5 py-0.5 font-mono text-[9px]">⌘K</kbd>
+          </button>
           <Button variant="ghost" className="w-full justify-start rounded-2xl text-red-400 hover:bg-red-400/10 hover:text-red-300" onClick={lock}>
             <Lock size={18} className="mr-3" /> Terminate Session
           </Button>
@@ -359,6 +385,82 @@ function DevToolsInner() {
           </AnimatePresence>
         </div>
       </main>
+
+      {/* Cmd+K Command Palette */}
+      {cmdKOpen && (() => {
+        const query = cmdKQuery.toLowerCase().trim();
+        const results = PANEL_GROUPS.flatMap(g =>
+          g.panels
+            .filter(p => p.status === 'Live' && (
+              !query ||
+              p.title.toLowerCase().includes(query) ||
+              g.label.toLowerCase().includes(query)
+            ))
+            .map(p => ({ ...p, group: g.label }))
+        );
+
+        const handleKey = (e: React.KeyboardEvent) => {
+          if (e.key === 'ArrowDown') { e.preventDefault(); setCmdKIndex(i => Math.min(i + 1, results.length - 1)); }
+          else if (e.key === 'ArrowUp') { e.preventDefault(); setCmdKIndex(i => Math.max(i - 1, 0)); }
+          else if (e.key === 'Enter') {
+            if (results[cmdKIndex]) { navigatePanel(results[cmdKIndex].id); setCmdKOpen(false); }
+          }
+          else if (e.key === 'Escape') setCmdKOpen(false);
+        };
+
+        return (
+          <div
+            className="fixed inset-0 z-[100] flex items-start justify-center pt-24 bg-black/60 backdrop-blur-sm"
+            onClick={() => setCmdKOpen(false)}
+          >
+            <div
+              className="w-full max-w-lg rounded-2xl border border-white/10 bg-[#0a0a0a] shadow-2xl shadow-black/80 overflow-hidden"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-3 border-b border-white/8 px-4 py-3.5">
+                <Search size={16} className="text-white/30 shrink-0" />
+                <input
+                  autoFocus
+                  value={cmdKQuery}
+                  onChange={e => { setCmdKQuery(e.target.value); setCmdKIndex(0); }}
+                  onKeyDown={handleKey}
+                  placeholder="Jump to panel…"
+                  className="flex-1 bg-transparent text-sm font-medium text-white placeholder:text-white/25 focus:outline-none"
+                />
+                <kbd className="rounded border border-white/10 bg-white/5 px-1.5 py-0.5 font-mono text-[9px] text-white/30">ESC</kbd>
+              </div>
+              <div className="max-h-72 overflow-y-auto py-2">
+                {results.length === 0 ? (
+                  <div className="px-4 py-8 text-center text-sm text-white/25">No panels match "{cmdKQuery}"</div>
+                ) : results.map((p, i) => {
+                  const Icon = p.icon;
+                  const isHighlighted = i === cmdKIndex;
+                  return (
+                    <button
+                      key={p.id}
+                      className={cn(
+                        'flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors',
+                        isHighlighted ? 'bg-blue-600/25 text-white' : 'text-white/50 hover:bg-white/5 hover:text-white',
+                      )}
+                      onClick={() => { navigatePanel(p.id); setCmdKOpen(false); }}
+                      onMouseEnter={() => setCmdKIndex(i)}
+                    >
+                      <Icon size={15} className={cn(isHighlighted ? 'text-blue-400' : 'text-white/25')} />
+                      <span className="flex-1 text-sm font-bold">{p.title}</span>
+                      <span className="text-[10px] font-mono text-white/25">{p.group}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="border-t border-white/8 px-4 py-2 flex items-center gap-4 text-[10px] text-white/20">
+                <span><kbd className="font-mono">↑↓</kbd> navigate</span>
+                <span><kbd className="font-mono">↵</kbd> open</span>
+                <span><kbd className="font-mono">esc</kbd> close</span>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
