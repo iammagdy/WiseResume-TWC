@@ -1,5 +1,58 @@
 # WiseResume Master Handover & State (May 2026)
 
+## Session Summary — 2026-05-14 session 2 (Onboarding Goal Routing — Tasks #22 & #25)
+
+### What changed
+
+**Task #22 — Goal-based onboarding routing**
+
+`src/lib/onboardingProfile.ts`
+- `SaveProfileArgs` now has `goal?: string`
+- `saveOnboardingProfile()` writes `onboarding_goal` into the Appwrite `profiles` upsert payload when provided
+
+`src/pages/OnboardingPage.tsx`
+- `Step` type: inserted `'goal'` between `'welcome'` and `'choice'`
+- New `GoalStep` component — 5 cards: `create_resume`, `improve_resume`, `tailor_resume`, `portfolio`, `recruiter`
+- Goal card tap: caches to `localStorage('wr-onboarding-goal')`, fires `logAudit('onboarding','goal_selected',{goal})`, advances to `'choice'`
+- Recruiter path: saves `emptyProfile()` with `goal:'recruiter'` to DB (best-effort), sets per-user onboarding key, navigates to `/wisehire/signup`
+- "Skip for now" link: defaults goal to `create_resume` and also fires `goal_selected` audit event
+- `handleBack`: `choice→goal`, `goal→welcome` (was `choice→welcome`)
+- `completeWith()`: passes `selectedGoal || localStorage fallback` to `saveOnboardingProfile()`; logs `goal` on `completed` event
+- `WhatsNextStep`: accepts `goal` prop; primary card title/description/action adapts to goal
+- Whatsnext footer CTA: routes by `selectedGoal || localStorage || 'create_resume'` → `/editor?new=1`, `/upload`, `/tailor`, `/portfolio`; button label adapts accordingly
+
+`src/pages/DashboardPage.tsx`
+- **Fixed:** template-consumption `useEffect` no longer removes `wr-onboarding-goal` from localStorage
+- Compact goal nudge card: `useEffect` gated on `onboarding_completed === true` (localStorage per-user flag OR `profile.onboarding_completed`) AND goal set (localStorage first, `profile.onboarding_goal` fallback) AND session-dismiss key `wr-goal-card-dismissed` not set
+- Dismissal writes `sessionStorage('wr-goal-card-dismissed','1')`; CTA navigates to goal destination and hides card
+
+**Task #25 — Permanent nudge card dismissal on goal destination visit**
+
+`src/pages/DashboardPage.tsx`
+- `useEffect` checks `localStorage('wr-goal-card-dismissed-permanent-${user.id}')` before showing card — if set, card is permanently suppressed for that user
+
+`EditorPage.tsx`, `UploadPage.tsx`, `TailorPage.tsx`, `PortfolioEditorPage.tsx`
+- Each goal destination page writes `wr-goal-card-dismissed-permanent-${user.id}` on first authenticated visit
+- Covers: `create_resume→/editor`, `improve_resume→/upload`, `tailor_resume→/tailor`, `portfolio→/portfolio`
+- Key is user-scoped to prevent cross-account bleed on shared browsers
+
+### Prerequisites before deploying
+- **Add `onboarding_goal` String attribute (size 64, not required) to `profiles` collection in Appwrite Console** (project `69fd362b001eb325a192`, database `main`) — tracked as Task #23. Until this is done, the DB write silently fails on the Appwrite side; localStorage caching still works.
+
+### Verification
+- `npx tsc --noEmit` — zero errors (both tasks)
+- Code review: APPROVED (Task #22 approved with minor comments, all addressed; Task #25 approved)
+
+### Version
+- Bumped `4.3.0` → `4.4.0`
+
+### Where we stopped
+- `onboarding_goal` attribute must be created in Appwrite Console (see above) before goal persistence to DB is live
+- Goal-aware dashboard hero copy and editor template pre-selection are deferred to Task #24
+- Task #26 (clear permanent dismiss on goal change) was proposed then cancelled — not needed for current scope
+
+---
+
 ## Session Summary - 2026-05-14 (Public Navigation + DevKit Operations Hub)
 
 **Detailed logs:**
