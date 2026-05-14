@@ -204,6 +204,7 @@ async function handleDiagnostics(log, error) {
     'admin-devkit-data', 'inspect-ai-keys', 'ai-gateway', 'admin-feature-flags',
     'admin-email', 'admin-testmail', 'admin-visitor-analytics',
     'admin-impersonate', 'admin-onboarding-funnel', 'admin-portfolio-usernames', 'admin-moderation',
+    'coupons', 'wisehire-gateway', 'public-share',
   ];
   try {
     const fnPage = await listFunctions([sdk.Query.limit(200)]);
@@ -489,9 +490,32 @@ async function handleGlobalStats(log) {
 }
 
 async function handleListUsersPage(body, log) {
-  const page = Math.max(0, Number(body.page) || 0);
-  const pageSize = Math.min(Math.max(1, Number(body.pageSize) || 25), 100);
-  const authPage = await listUsers([sdk.Query.limit(pageSize), sdk.Query.offset(page * pageSize)]);
+  const pageSize = Math.min(Math.max(1, Number(body.pageSize || body.per_page) || 25), 100);
+  const requestedPage = Number(body.page);
+  const page = Number.isFinite(requestedPage)
+    ? Math.max(0, requestedPage > 0 && body.per_page ? requestedPage - 1 : requestedPage)
+    : 0;
+  const search = String(body.search || body.query || '').trim().toLowerCase();
+  const filterUnconfirmed = body.filter_unconfirmed === true;
+
+  let authPage;
+  if (search || filterUnconfirmed) {
+    const all = await listAllAuthUsers();
+    let users = all.users || [];
+    if (filterUnconfirmed) users = users.filter(u => !u.emailVerification);
+    if (search) {
+      users = users.filter(u =>
+        String(u.email || '').toLowerCase().includes(search) ||
+        String(u.name || '').toLowerCase().includes(search)
+      );
+    }
+    authPage = {
+      users: users.slice(page * pageSize, page * pageSize + pageSize),
+      total: users.length,
+    };
+  } else {
+    authPage = await listUsers([sdk.Query.limit(pageSize), sdk.Query.offset(page * pageSize)]);
+  }
 
   const userIds = authPage.users.map(u => u.$id);
   let profiles = [];
@@ -542,6 +566,48 @@ async function handleListUsersPage(body, log) {
     }),
     total: authPage.total,
   };
+}
+
+async function handleSendWisehireInvite(body, log) {
+  const { databases } = getClients();
+  const email = String(body.recipient_email || body.target_email || '').trim().toLowerCase();
+  if (!email) throw new Error('Missing recipient email');
+
+  const token = crypto.randomBytes(24).toString('base64url');
+  const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString();
+  const inviteUrl = `${PRODUCTION_URL}/wisehire/signup?invite=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
+
+  await databases.createDocument(DB_ID, 'wisehire_invites', sdk.ID.unique(), {
+    email,
+    token,
+    status: 'pending',
+    expires_at: expiresAt,
+    created_at: isoNow(),
+    target_user_id: body.target_user_id || null,
+  }).catch(async () => {
+    await databases.createDocument(DB_ID, 'wisehire_invites', sdk.ID.unique(), {
+      email,
+      token,
+      expires_at: expiresAt,
+    });
+  });
+
+  let emailSent = false;
+  if (process.env.RESEND_API_KEY) {
+    const fromEmail = process.env.RESEND_FROM_EMAIL || 'hello@thewise.cloud';
+    const fromName = process.env.RESEND_FROM_NAME || 'WiseHire';
+    await resendRequest('POST', '/emails', {
+      from: `${fromName} <${fromEmail}>`,
+      to: email,
+      subject: 'Your WiseHire invite',
+      html: `<p>You have been invited to WiseHire.</p><p><a href="${inviteUrl}">Accept your invite</a></p><p>This link expires in 72 hours.</p>`,
+    });
+    emailSent = true;
+  }
+
+  await auditLog(databases, 'send-wisehire-invite', { email, emailSent, target_user_id: body.target_user_id || null });
+  log(`send-wisehire-invite: ${email} emailSent=${emailSent}`);
+  return { invite_url: inviteUrl, expires_at: expiresAt, emailSent };
 }
 
 async function handlePurgeOrphans(body, log) {
@@ -1424,6 +1490,7 @@ module.exports = async ({ req, res, log, error }) => {
     else if (action === 'list-wisehire-waitlist') data = await handleListWisehireWaitlist(log);
     else if (action === 'approve-wisehire-waitlist') data = await handleApproveWisehireWaitlist(body, log);
     else if (action === 'dismiss-wisehire-waitlist') data = await handleDismissWisehireWaitlist(body, log);
+    else if (action === 'send-wisehire-invite') data = await handleSendWisehireInvite(body, log);
     else if (action === 'list-ai-gateway-activity') data = await handleListAiGatewayActivity(body, log);
     else return json(res, rid, { success: false, code: 'UNKNOWN_ACTION', error: `Unknown action: ${action}` }, 400);
 

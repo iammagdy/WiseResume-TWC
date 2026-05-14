@@ -6,18 +6,23 @@ import { useEffect } from 'react';
 export interface MeData {
   userId: string;
   profile: Record<string, unknown> | null;
-  subscription: {
-    plan: string;
-    effective_plan: string;
-    trial_plan?: string | null;
-    trial_expires_at?: string | null;
-  } | null;
+  subscription: MeSubscription | null;
   ai_credits: {
     daily_usage: number;
     daily_limit: number;
     total_usage: number;
     usage_date: string;
   } | null;
+}
+
+export interface MeSubscription {
+  plan: string;
+  plan_name?: string;
+  effective_plan: string;
+  status?: string | null;
+  trial_plan?: string | null;
+  trial_expires_at?: string | null;
+  coupon_code?: string | null;
 }
 
 const TODAY = () => new Date().toISOString().split('T')[0];
@@ -86,9 +91,12 @@ export function useMe() {
         subscription: sub
           ? {
               plan: basePlan,
+              plan_name: (sub?.plan_name as string | undefined) ?? basePlan,
               effective_plan: effectivePlan,
+              status: (sub?.status as string | null | undefined) ?? null,
               trial_plan: trialPlan,
               trial_expires_at: trialExpiresAt,
+              coupon_code: (sub?.coupon_code as string | null | undefined) ?? null,
             }
           : DEFAULT_SUBSCRIPTION,
         ai_credits: creds

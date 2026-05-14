@@ -3,8 +3,9 @@ import { appwriteFunctions } from '@/lib/appwrite-functions';
 /**
  * Task #50 — wisehire-access merge (5 → 1).
  *
- * Routes all WiseHire onboarding actions through the consolidated
- * `wisehire-access` Appwrite Function via the edge-functions invoker.
+ * Routes all WiseHire onboarding actions through the consolidated Appwrite
+ * WiseHire gateway. The public interface remains `wisehire-access`, and
+ * `appwriteFunctions.invoke` maps it to the owned `wisehire-gateway` hub.
  */
 export const USE_MERGED_WISEHIRE_ACCESS = true;
 

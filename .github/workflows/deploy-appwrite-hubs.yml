@@ -40,6 +40,9 @@ jobs:
           build_hub auth-master auth-master.tar.gz
           build_hub resume-section-ai resume-section-ai.tar.gz
           build_hub ai-gateway ai-gateway.tar.gz
+          build_hub coupons coupons.tar.gz
+          build_hub wisehire-gateway wisehire-gateway.tar.gz
+          build_hub public-share public-share.tar.gz
           build_hub ai-health ai-health.tar.gz
           build_hub admin-devkit-data admin-devkit-data.tar.gz
           build_hub admin-email admin-email.tar.gz
@@ -62,6 +65,8 @@ jobs:
           export OPENROUTER_KEY_2="${{ secrets.OPENROUTER_KEY_2 }}"
           export OPENROUTER_KEY_1="${{ secrets.OPENROUTER_KEY_1 }}"
           export GROQ_KEY_1="${{ secrets.GROQ_KEY_1 }}"
+          export DEEPSEEK_KEY="${{ secrets.DEEPSEEK_KEY }}"
+          export NVIDIA_KEY_1="${{ secrets.NVIDIA_KEY_1 }}"
           export DEVKIT_PASSWORD="${{ secrets.DEVKIT_PASSWORD }}"
           export RESEND_API_KEY="${{ secrets.RESEND_API_KEY }}"
           export RESEND_FROM_EMAIL="${{ secrets.RESEND_FROM_EMAIL }}"

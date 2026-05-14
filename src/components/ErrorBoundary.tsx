@@ -264,8 +264,7 @@ export class ErrorBoundary extends Component<Props, State> {
           error_name: this.state.error?.name ?? 'Error',
         },
       },
-      // Skip the submit-contact-request fallback since a 429 from the primary
-      // function will re-trigger the same rate limit on the fallback.
+      // Keep the public report on the single owned Appwrite contact route.
       { skipFallback: true },
     );
 

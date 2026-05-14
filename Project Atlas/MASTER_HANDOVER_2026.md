@@ -1,5 +1,37 @@
 # WiseResume Master Handover & State (May 2026)
 
+## Session Summary - 2026-05-15 (Function Ownership Implementation)
+
+**Detailed log:** `Project Atlas/05-Migration to Appwrite/17-Session-Log-2026-05-15-Function-Ownership-Implementation.md`
+
+### Fixed
+- Added repo-owned Appwrite hubs for `coupons`, `wisehire-gateway`, and `public-share`.
+- Updated frontend routing so coupon, WiseHire, and protected-share calls no longer target unowned local function inventory.
+- Added typed structured AI handling in `ai-gateway` for high-risk AI tools while preserving the dedicated normalized `parse-resume` route.
+- Moved audited DevKit direct calls and Live Activity probes to owned `admin-devkit-data` / `resume-section-ai` paths.
+- Added `send-wisehire-invite` to `admin-devkit-data`; improved `list-users-page` search/filter paging.
+- Removed the active unowned `submit-contact-request` fallback from feedback reporting.
+- Rewrote `scripts/README.md` to make Appwrite hub deployment canonical and mark Supabase/edge scripts as legacy audit aids.
+- Updated Appwrite deploy inventory and manifest for the new hubs.
+- Removed two performance warnings caused by mixed static/dynamic imports: `captureErrorShim` and `pdf/textPreprocessor`.
+
+### Verification
+- `node --check` passed for modified/new Appwrite hubs and `scripts/deploy_hubs.cjs`.
+- `npm exec tsc -- --noEmit` passed.
+- `npm run build` passed.
+- Remaining build warning: large chunks still exist for OCR, doc export, monitoring, DevKit, and charts.
+
+### Current State
+- Local source owns the audited coupon, WiseHire, public-share, DevKit, and high-risk AI contracts.
+- Live Appwrite was not redeployed in this session. Do not claim live fixes until the updated hubs are deployed and smoke-tested.
+
+### Where We Stopped
+- Next agent should deploy the updated Appwrite hubs through the updated GitHub workflow or `scripts/deploy_hubs.cjs`.
+- After deployment, smoke-test coupon validate/redeem, WiseHire flows, protected share password verification, DevKit Email/User/Live Activity, and the structured AI tools.
+- Continue performance work only with regression checks for OCR, document export, DevKit, charts, and monitoring.
+
+---
+
 ## Session Summary — 2026-05-14 session 3 (DevKit Dashboard Improvement Plan, Phases 1–3)
 
 **Detailed log:** `Project Atlas/05-Migration to Appwrite/15-Session-Log-2026-05-14-DevKit-Dashboard-Phases-1-3.md`

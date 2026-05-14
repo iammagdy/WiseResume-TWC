@@ -43,6 +43,7 @@ import { useAIDraft } from '@/hooks/useAIDraft';
 import { activityTracker } from '@/lib/activityTracker';
 import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
 import { useAIApplyEffects } from '@/hooks/useAIApplyEffects';
+import { resumeSectionAiBodyProps, resumeSectionAiFnName } from '@/lib/resumeSectionAiFlag';
 
 
 interface RecruiterSimSheetProps {
@@ -163,15 +164,12 @@ export function RecruiterSimSheet({ open, onOpenChange }: RecruiterSimSheetProps
         return;
       }
 
-      // 2. Call AI to apply the fix (with credit check).
-      // Note: `appwriteFunctions.invoke('enhance-section', …)` is
-      // transparently rewritten to `resume-section-ai` with the correct
-      // `x-resume-section-ai-action: enhance` header by
-      // `rewriteResumeSectionAiInvoke` in appwriteFunctions.ts. No manual
-      // URL change needed here.
+      // 2. Call AI to apply the fix (with credit check) through the merged
+      // resume-section-ai router.
       const result = await executeAI(async () => {
-        const { data, error } = await appwriteFunctions.invoke('enhance-section', {
+        const { data, error } = await appwriteFunctions.invoke(resumeSectionAiFnName('enhance-section'), {
           body: {
+            ...resumeSectionAiBodyProps('enhance-section'),
             section: target.section,
             action: 'fix_error',
             currentContent: target.content,

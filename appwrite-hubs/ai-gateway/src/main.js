@@ -323,6 +323,154 @@ function normalizeResumeData(raw) {
   return data;
 }
 
+const STRUCTURED_AI_FEATURES = new Set([
+  'analyze-resume',
+  'score-resume',
+  'tailor-resume',
+  'generate-cover-letter',
+  'recruiter-simulation',
+  'detect-and-humanize',
+  'optimize-for-linkedin',
+  'parse-job',
+  'validate-tailor',
+  'generate-fix-suggestions',
+  'generate-portfolio-bio',
+  'career-assessment',
+  'company-briefing',
+  'suggest-template',
+  'generate-question-bank',
+  'generate-resignation-letter',
+]);
+
+function clampScore(value, fallback = 70) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(0, Math.min(100, Math.round(n)));
+}
+
+function normalizeStructuredFeatureData(featureName, raw, opts) {
+  const parsed = isRecord(raw) ? raw : parseJsonObject(raw);
+  if (!isRecord(parsed)) throw new Error(`${featureName} returned malformed JSON.`);
+
+  if (featureName === 'score-resume') {
+    return {
+      overallScore: clampScore(parsed.overallScore ?? parsed.overall),
+      skillsMatch: clampScore(parsed.skillsMatch ?? parsed.skills),
+      experienceRelevance: clampScore(parsed.experienceRelevance ?? parsed.experience),
+      keywordAlignment: clampScore(parsed.keywordAlignment ?? parsed.keywords),
+      atsCompatibility: clampScore(parsed.atsCompatibility),
+      strengths: toStringArray(parsed.strengths),
+      improvements: toStringArray(parsed.improvements),
+    };
+  }
+
+  if (featureName === 'analyze-resume') {
+    const score = isRecord(parsed.score) ? parsed.score : parsed;
+    return {
+      score: {
+        overallScore: clampScore(score.overallScore ?? score.overall),
+        overall: clampScore(score.overall ?? score.overallScore),
+        skillsMatch: clampScore(score.skillsMatch ?? score.skills),
+        skills: clampScore(score.skills ?? score.skillsMatch),
+        experienceRelevance: clampScore(score.experienceRelevance ?? score.experience),
+        experience: clampScore(score.experience ?? score.experienceRelevance),
+        keywordAlignment: clampScore(score.keywordAlignment ?? score.keywords),
+        keywords: clampScore(score.keywords ?? score.keywordAlignment),
+        atsCompatibility: clampScore(score.atsCompatibility),
+        strengths: toStringArray(score.strengths),
+        improvements: toStringArray(score.improvements),
+      },
+      gaps: isRecord(parsed.gaps) ? {
+        missingKeywords: toStringArray(parsed.gaps.missingKeywords),
+        missingSkills: toStringArray(parsed.gaps.missingSkills),
+        suggestedSections: toStringArray(parsed.gaps.suggestedSections),
+        recommendedPhrases: toStringArray(parsed.gaps.recommendedPhrases),
+        priorityImprovements: Array.isArray(parsed.gaps.priorityImprovements) ? parsed.gaps.priorityImprovements : [],
+      } : {
+        missingKeywords: [],
+        missingSkills: [],
+        suggestedSections: [],
+        recommendedPhrases: [],
+        priorityImprovements: [],
+      },
+    };
+  }
+
+  if (featureName === 'tailor-resume') {
+    const resume = isRecord(opts.resume) ? opts.resume : {};
+    return {
+      summary: asString(parsed.summary) || asString(resume.summary),
+      skills: toStringArray(parsed.skills).length ? toStringArray(parsed.skills) : toStringArray(resume.skills),
+      experience: Array.isArray(parsed.experience) ? parsed.experience : (Array.isArray(resume.experience) ? resume.experience : []),
+      education: Array.isArray(parsed.education) ? parsed.education : (Array.isArray(resume.education) ? resume.education : []),
+      projects: Array.isArray(parsed.projects) ? parsed.projects : (Array.isArray(resume.projects) ? resume.projects : []),
+      certifications: Array.isArray(parsed.certifications) ? parsed.certifications : (Array.isArray(resume.certifications) ? resume.certifications : []),
+      awards: Array.isArray(parsed.awards) ? parsed.awards : (Array.isArray(resume.awards) ? resume.awards : []),
+      keyChanges: Array.isArray(parsed.keyChanges) ? parsed.keyChanges : toStringArray(parsed.keyChanges),
+      sectionScores: parsed.sectionScores || null,
+      overallScore: parsed.overallScore || { before: clampScore(parsed.beforeScore, 55), after: clampScore(parsed.afterScore, 78) },
+      missingSkills: Array.isArray(parsed.missingSkills) ? parsed.missingSkills : [],
+      boostableSkills: Array.isArray(parsed.boostableSkills) ? parsed.boostableSkills : [],
+      jobParsed: isRecord(parsed.jobParsed) ? parsed.jobParsed : { title: '', company: '', keywords: [] },
+      jobIntelligence: parsed.jobIntelligence,
+      interviewTalkingPoints: Array.isArray(parsed.interviewTalkingPoints) ? parsed.interviewTalkingPoints : [],
+      atsAnalysis: parsed.atsAnalysis || { criticalKeywords: [], stuffingWarnings: [], originalKeywordDensity: 0, optimizedKeywordDensity: 0 },
+      bulletTransformations: Array.isArray(parsed.bulletTransformations) ? parsed.bulletTransformations : [],
+      strengthsAnalysis: Array.isArray(parsed.strengthsAnalysis) ? parsed.strengthsAnalysis : [],
+    };
+  }
+
+  if (featureName === 'generate-cover-letter') return { coverLetter: asString(parsed.coverLetter || parsed.content || parsed.letter) };
+  if (featureName === 'recruiter-simulation') return { success: true, persona: parsed.persona || { id: opts.persona || 'general' }, analysis: parsed.analysis || parsed };
+  if (featureName === 'detect-and-humanize') {
+    return opts.action === 'humanize'
+      ? { success: true, humanized: parsed.humanized || parsed }
+      : { success: true, detection: parsed.detection || parsed };
+  }
+  if (featureName === 'optimize-for-linkedin') return { success: true, ...parsed };
+  if (featureName === 'parse-job') return parsed;
+  if (featureName === 'validate-tailor') {
+    return {
+      score: clampScore(parsed.score),
+      matched_keywords: toStringArray(parsed.matched_keywords || parsed.matchedKeywords),
+      missing_keywords: toStringArray(parsed.missing_keywords || parsed.missingKeywords),
+      issues: toStringArray(parsed.issues),
+      strengths: toStringArray(parsed.strengths),
+      verdict: parsed.verdict || null,
+    };
+  }
+  if (featureName === 'generate-fix-suggestions') return Array.isArray(parsed) ? parsed : (Array.isArray(parsed.suggestions) ? parsed.suggestions : []);
+  if (featureName === 'generate-portfolio-bio') return parsed;
+  if (featureName === 'career-assessment') return parsed;
+  if (featureName === 'company-briefing') return { briefing: parsed.briefing || parsed };
+  if (featureName === 'suggest-template') return parsed;
+  if (featureName === 'generate-question-bank') return parsed;
+  if (featureName === 'generate-resignation-letter') return parsed;
+  return parsed;
+}
+
+function schemaPrompt(featureName, opts) {
+  const schemas = {
+    'score-resume': '{"overallScore":0,"skillsMatch":0,"experienceRelevance":0,"keywordAlignment":0,"atsCompatibility":0,"strengths":[],"improvements":[]}',
+    'analyze-resume': '{"score":{"overallScore":0,"overall":0,"skillsMatch":0,"skills":0,"experienceRelevance":0,"experience":0,"keywordAlignment":0,"keywords":0,"atsCompatibility":0,"strengths":[],"improvements":[]},"gaps":{"missingKeywords":[],"missingSkills":[],"suggestedSections":[],"recommendedPhrases":[],"priorityImprovements":[]}}',
+    'tailor-resume': '{"summary":"","skills":[],"experience":[],"education":[],"projects":[],"certifications":[],"awards":[],"keyChanges":[],"sectionScores":null,"overallScore":{"before":0,"after":0},"missingSkills":[],"boostableSkills":[],"jobParsed":{"title":"","company":"","keywords":[]},"atsAnalysis":{"criticalKeywords":[],"stuffingWarnings":[],"originalKeywordDensity":0,"optimizedKeywordDensity":0},"interviewTalkingPoints":[],"bulletTransformations":[],"strengthsAnalysis":[]}',
+    'generate-cover-letter': '{"coverLetter":""}',
+    'recruiter-simulation': '{"analysis":{"hireabilityScore":0,"scoreExplanation":"","firstImpression":"","redFlags":[],"questionsIdAsk":[],"callMeFactors":[],"overallVerdict":"maybe_call","verdictReasoning":"","topPriorityFix":""}}',
+    'detect-and-humanize': opts.action === 'humanize' ? '{"humanized":{"original":"","humanized":"","changes":[]}}' : '{"detection":{"aiScore":0,"humanScore":0,"confidence":"medium","flags":[],"verdict":""}}',
+    'optimize-for-linkedin': '{"headlines":[],"aboutSections":{"short":"","medium":"","long":""},"experienceRewrites":[],"suggestedSkills":[],"keywords":[],"tips":[]}',
+    'parse-job': '{"title":"","company":"","description":"","experienceLevel":"unknown","salaryRange":null,"workMode":"unknown","mustHaveSkills":[],"niceToHaveSkills":[],"yearsExperience":null,"companyCultureSignals":[],"benefits":[],"applicationDeadline":null,"redFlags":[]}',
+    'validate-tailor': '{"score":0,"matched_keywords":[],"missing_keywords":[],"issues":[],"strengths":[],"verdict":"average"}',
+    'generate-fix-suggestions': '{"suggestions":[{"type":"add_skill","section":"skills","after":"","reason":""}]}',
+    'generate-portfolio-bio': '{"bio":"","metaTitle":"","metaDescription":"","translations":{}}',
+    'career-assessment': '{"summary":"","recommendedRoles":[],"strengths":[],"gaps":[],"milestones":[]}',
+    'company-briefing': '{"briefing":{"overview":"","talkingPoints":[],"risks":[],"questions":[]}}',
+    'suggest-template': '{"templateId":"modern","reason":""}',
+    'generate-question-bank': '{"categories":[]}',
+    'generate-resignation-letter': '{"letter":""}',
+  };
+  return schemas[featureName] || '{}';
+}
+
 function buildMessages(featureName, opts) {
   if (featureName === 'parse-resume') {
     const text = asString(opts.text);
@@ -368,6 +516,32 @@ function buildMessages(featureName, opts) {
           'Extract the full resume into structured JSON. Copy all bullet points verbatim. ' +
           'For each work experience entry, "position" must be the exact job title text from the resume — never a generic label.\n\n' +
           `RESUME TEXT:\n${text.slice(0, 60000)}`,
+      },
+    ];
+  }
+
+  if (STRUCTURED_AI_FEATURES.has(featureName)) {
+    return [
+      {
+        role: 'system',
+        content: `You are the WiseResume AI backend. Return ONLY valid JSON matching this schema exactly, with no markdown:\n${schemaPrompt(featureName, opts)}`,
+      },
+      {
+        role: 'user',
+        content: JSON.stringify({ featureName, payload: opts }).slice(0, 60000),
+      },
+    ];
+  }
+
+  if (featureName === 'wise-ai-chat') {
+    return [
+      {
+        role: 'system',
+        content: 'You are WiseResume AI Studio. Answer the requested tool task directly. If the user payload asks for JSON, return only JSON; otherwise return concise useful content.',
+      },
+      {
+        role: 'user',
+        content: JSON.stringify(opts).slice(0, 60000),
       },
     ];
   }
@@ -691,6 +865,27 @@ module.exports = async ({ req, res, log, error }) => {
               return res.json({
                 status: 'error',
                 message: 'AI resume parser returned malformed data.',
+              }, 500);
+            }
+            continue;
+          }
+        }
+
+        if (STRUCTURED_AI_FEATURES.has(featureName)) {
+          try {
+            const structuredData = normalizeStructuredFeatureData(featureName, result.content, opts);
+            await flushDD();
+            return res.json({
+              status: 'success',
+              data: structuredData,
+            });
+          } catch (parseErr) {
+            error(`Provider ${candidate.provider} returned malformed ${featureName} JSON: ${parseErr.message}`);
+            if (i === candidates.length - 1) {
+              await flushDD();
+              return res.json({
+                status: 'error',
+                message: `${featureName} returned malformed data.`,
               }, 500);
             }
             continue;

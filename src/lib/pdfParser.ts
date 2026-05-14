@@ -11,7 +11,7 @@ import { ResumeData, ParseMeta } from '@/types/resume';
 import { extractTextFromPDF, PDFParseError, ExtractionResult } from './pdf/textExtractor';
 import { extractTextWithOCR, OCRProgressCallback, estimateOCRTime } from './pdf/ocrExtractor';
 import { parseResumeText } from './pdf/sectionParsers';
-import { preprocessResumeText, extractContactHints } from './pdf/textPreprocessor';
+import { preprocessResumeText, extractContactHints, computeTextConfidence } from './pdf/textPreprocessor';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 
 export { PDFParseError, estimateOCRTime };
@@ -631,7 +631,6 @@ export async function parseResumePDFWithOCR(
   const text = await extractTextWithOCR(file, onProgress);
 
   // Confidence gate: if OCR produced near-nothing, do not waste AI credits
-  const { computeTextConfidence } = await import('./pdf/textPreprocessor');
   const { confidence } = computeTextConfidence(text);
 
   if (confidence < 0.25) {

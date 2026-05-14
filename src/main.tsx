@@ -22,7 +22,14 @@ import { reportWebVitals } from "./lib/reportWebVitals";
    createRoot — errors in that ~1-frame window are caught by the global
    handlers below via the dependency-free shim, buffered, and flushed once
    monitoring.ts loads and wires the real Sentry-backed capturer. */
-import { captureError } from "./lib/captureErrorShim";
+import {
+  captureError,
+  earlyCaptureBuffer,
+  earlyFeedbackBuffer,
+  setRealCaptureError,
+  setRealCaptureFeedback,
+  setRealLastEventId,
+} from "./lib/captureErrorShim";
 import { activityTracker } from "./lib/activityTracker";
 
 // Appwrite is configured to allow localhost during local development, but
@@ -97,20 +104,17 @@ if (import.meta.env.DEV && window.location.hostname === "127.0.0.1") {
        capturer is wired in via setRealCaptureError, then the buffer is
        drained through it. */
     const loadMonitoring = () => {
-      void Promise.all([
-        import("./lib/monitoring"),
-        import("./lib/captureErrorShim"),
-      ]).then(([mon, shim]) => {
+      void import("./lib/monitoring").then((mon) => {
         mon.initMonitoring();
-        shim.setRealCaptureError(mon.captureError);
-        shim.setRealCaptureFeedback(mon.captureFeedback);
-        shim.setRealLastEventId(mon.getLastSentryEventId);
-        while (shim.earlyCaptureBuffer.length > 0) {
-          const entry = shim.earlyCaptureBuffer.shift();
+        setRealCaptureError(mon.captureError);
+        setRealCaptureFeedback(mon.captureFeedback);
+        setRealLastEventId(mon.getLastSentryEventId);
+        while (earlyCaptureBuffer.length > 0) {
+          const entry = earlyCaptureBuffer.shift();
           if (entry) mon.captureError(entry.err, entry.context);
         }
-        while (shim.earlyFeedbackBuffer.length > 0) {
-          const fb = shim.earlyFeedbackBuffer.shift();
+        while (earlyFeedbackBuffer.length > 0) {
+          const fb = earlyFeedbackBuffer.shift();
           if (fb) mon.captureFeedback(fb);
         }
       }).catch(() => undefined);

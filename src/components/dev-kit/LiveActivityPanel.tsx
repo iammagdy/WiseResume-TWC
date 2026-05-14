@@ -9,6 +9,7 @@ import { unwrapAdminResponse, tryUnwrapAdminResponse, formatEdgeError } from '@/
 import { DevKitRunner } from './DevKitRunner';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
 import { DevKitErrorCard, redactSecrets } from './DevKitErrorCard';
+import { resumeSectionAiBodyProps } from '@/lib/resumeSectionAiFlag';
 
 interface UsageEvent {
   id: string;
@@ -106,9 +107,9 @@ const LIGHTWEIGHT_FN_DEFS: EdgeFunctionDef[] = [
     errMsg: extractErrMsg,
   },
   {
-    name: 'admin-list-users',
-    label: 'admin-list-users',
-    buildBody: (pw: string) => ({ page: 1, per_page: 1 }),
+    name: 'admin-devkit-data',
+    label: 'admin-devkit-data:list-users-page',
+    buildBody: () => ({ action: 'list-users-page', page: 0, pageSize: 1 }),
     classify: classifyEdgeFunctionResponse,
     errMsg: extractErrMsg,
   },
@@ -144,9 +145,9 @@ const AI_FN_DEFS: EdgeFunctionDef[] = [
     errMsg: extractAiErrMsg,
   },
   {
-    name: 'enhance-section',
-    label: 'enhance-section',
-    buildBody: () => ({ section: 'summary', action: 'improve', currentContent: '', context: {} }),
+    name: 'resume-section-ai',
+    label: 'resume-section-ai:enhance',
+    buildBody: () => ({ ...resumeSectionAiBodyProps('enhance-section'), section: 'summary', sectionName: 'summary', content: '', currentContent: '', context: {} }),
     classify: classifyAiEndpointResponse,
     errMsg: extractAiErrMsg,
   },
@@ -371,7 +372,7 @@ export function LiveActivityPanel() {
       //   authorization header" entry into error_log via the outer catch.
       //   The outer catch is now AuthError-aware, but skipping these probes
       //   cleanly when unauthenticated keeps the DevKit health card honest.
-      const requiresUserSession = def.name === 'me' || def.name === 'agentic-chat' || def.name === 'analyze-resume' || def.name === 'generate-cover-letter' || def.name === 'parse-job';
+      const requiresUserSession = def.name === 'me' || def.name === 'agentic-chat' || def.name === 'analyze-resume' || def.name === 'generate-cover-letter' || def.name === 'parse-job' || def.name === 'resume-section-ai';
       if (requiresUserSession && !isAuthenticated) {
         checkedResults.push({
           name: def.name,

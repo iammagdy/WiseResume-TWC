@@ -22,7 +22,7 @@ export interface SendFeedbackOptions {
    * route through the same Appwrite Functions pathway, so this option is a no-op.
    */
   useDirectSupabase?: boolean;
-  /** Skip the submit-contact-request fallback when send-contact-email fails. */
+  /** Deprecated no-op. Contact requests now use the owned send-contact-email route only. */
   skipFallback?: boolean;
 }
 
@@ -56,13 +56,13 @@ interface EdgeResponse {
  * in one does not abort the other. Callers should treat the operation as
  * successful when `result.anyDelivered === true`.
  *
- * Note: the email Functions (`send-contact-email`, `submit-contact-request`)
- * are being rebuilt on Appwrite. Until they are deployed, the email channel
- * will return `emailOk: false` while Sentry continues to work.
+ * Note: the email Function (`send-contact-email`) is the only owned Appwrite
+ * route for public feedback. The old secondary contact-request fallback was
+ * removed because it is not part of the local Appwrite hub inventory.
  */
 export async function sendFeedback(
   input: SendFeedbackInput,
-  opts: SendFeedbackOptions = {},
+  _opts: SendFeedbackOptions = {},
 ): Promise<SendFeedbackResult> {
   const tags: Record<string, string> = {
     feedback_type: input.type,
@@ -117,19 +117,7 @@ export async function sendFeedback(
       }
       return { ok: false, saved: false, res, err: new Error('Unknown response shape') };
     } catch (err) {
-      if (opts.skipFallback) return { ok: false, saved: false, err };
-      try {
-        const { data: fbData, error: fbError } = await appwriteFunctions.invoke<EdgeResponse>(
-          'submit-contact-request',
-          { body: emailBody },
-        );
-        if (!fbError && fbData?.success) {
-          return { ok: true, saved: true, res: fbData ?? undefined };
-        }
-        return { ok: false, saved: false, err: fbError ?? err };
-      } catch (fallbackErr) {
-        return { ok: false, saved: false, err: fallbackErr };
-      }
+      return { ok: false, saved: false, err };
     }
   })();
 

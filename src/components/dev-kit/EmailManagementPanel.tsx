@@ -68,15 +68,17 @@ function UnconfirmedUsersSection({ onSendToUser }: UnconfirmedUsersProps) {
     setLoading(true);
     if (!append) setError(null);
     try {
-      const tuple = await appwriteFunctions.invoke('admin-list-users', {
+      const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
         headers: devKitAuthHeaders(),
-        body: { page: pageNum,
+        body: {
+          action: 'list-users-page',
+          page: pageNum,
           per_page: UNCONFIRMED_PER_PAGE,
           filter_unconfirmed: true,
           sort: 'newest',
         },
       });
-      const result = unwrapAdminResponse<{ users?: AdminUser[]; total?: number }>(tuple, 'admin-list-users');
+      const result = unwrapAdminResponse<{ users?: AdminUser[]; total?: number }>(tuple, 'admin-devkit-data');
       if (!isMounted()) return;
       const list = result.users ?? [];
       const tot = result.total ?? list.length;
@@ -357,15 +359,17 @@ function ComposeEmailForm({
       if (!isMounted()) return;
       setSearching(true);
       try {
-        const tuple = await appwriteFunctions.invoke('admin-list-users', {
+        const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
           headers: devKitAuthHeaders(),
-          body: { page: 1,
+          body: {
+            action: 'list-users-page',
+            page: 1,
             per_page: 10,
             search: q.trim(),
             sort: 'newest',
           },
         });
-        const result = tryUnwrapAdminResponse<{ users?: AdminUser[] }>(tuple, 'admin-list-users');
+        const result = tryUnwrapAdminResponse<{ users?: AdminUser[] }>(tuple, 'admin-devkit-data');
         if (!isMounted()) return;
         setSearchResults(result?.users ?? []);
         setShowDropdown(true);
@@ -427,11 +431,11 @@ function ComposeEmailForm({
       const recipientEmail = resolvedUserEmail ?? emailSearch.trim();
 
       if (isWiseHireInvite) {
-        const tuple = await appwriteFunctions.invoke('admin-wisehire-invite', {
+        const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
           headers: devKitAuthHeaders(),
-          body: { recipient_email: recipientEmail },
+          body: { action: 'send-wisehire-invite', recipient_email: recipientEmail, target_user_id: selectedUser?.user_id },
         });
-        const result = unwrapAdminResponse<{ invite_url?: string; expires_at?: string }>(tuple, 'admin-wisehire-invite');
+        const result = unwrapAdminResponse<{ invite_url?: string; expires_at?: string }>(tuple, 'admin-devkit-data');
         if (!isMounted()) return;
         toast.success(`WiseHire invite sent to ${recipientEmail}`);
         setInviteUrl(result.invite_url ?? null);

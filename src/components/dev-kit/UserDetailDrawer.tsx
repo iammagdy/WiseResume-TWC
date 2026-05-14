@@ -326,12 +326,12 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     let cancelled = false;
     setResumesLoading(true);
     setSelectedResume(null);
-    appwriteFunctions.invoke('admin-list-user-content', {
+    appwriteFunctions.invoke('admin-devkit-data', {
       headers: devKitAuthHeaders(),
-      body: { target_user_id: user.user_id },
+      body: { action: 'list-user-content', target_user_id: user.user_id },
     }).then((tuple) => {
       if (cancelled) return;
-      const result = tryUnwrapAdminResponse<{ resumes?: ResumeItem[] }>(tuple, 'admin-list-user-content');
+      const result = tryUnwrapAdminResponse<{ resumes?: ResumeItem[] }>(tuple, 'admin-devkit-data');
       if (!result) {
         setResumes([]);
         toast.error('Could not load user content');

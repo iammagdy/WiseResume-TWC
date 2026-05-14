@@ -100,6 +100,9 @@ async function run() {
     const hubs = [
         { id: 'resume-section-ai',         name: 'Resume Section AI Hub',         file: 'resume-section-ai.tar.gz' },
         { id: 'ai-gateway',                name: 'AI Gateway Hub',                file: 'ai-gateway.tar.gz' },
+        { id: 'coupons',                   name: 'Coupons Hub',                   file: 'coupons.tar.gz' },
+        { id: 'wisehire-gateway',          name: 'WiseHire Gateway Hub',          file: 'wisehire-gateway.tar.gz' },
+        { id: 'public-share',              name: 'Public Share Hub',              file: 'public-share.tar.gz' },
         { id: 'ai-health',                 name: 'AI Health Hub',                 file: 'ai-health.tar.gz' },
         { id: 'auth-master',               name: 'Auth Master Hub',               file: 'auth-master.tar.gz' },
         { id: 'admin-devkit-data',         name: 'Admin DevKit Data Hub',         file: 'admin-devkit-data.tar.gz' },
@@ -154,6 +157,24 @@ async function run() {
     console.log('\nEnsuring email hub variables...');
     for (const fnId of ['admin-email', 'admin-testmail', 'admin-devkit-data']) {
         for (const [key, value] of [
+            ['RESEND_API_KEY', process.env.RESEND_API_KEY],
+            ['RESEND_FROM_EMAIL', process.env.RESEND_FROM_EMAIL],
+            ['RESEND_FROM_NAME', process.env.RESEND_FROM_NAME],
+        ]) {
+            await ensureVariable(fnId, key, value);
+        }
+    }
+
+    console.log('\nEnsuring coupons and WiseHire gateway variables...');
+    for (const fnId of ['coupons', 'wisehire-gateway', 'public-share']) {
+        for (const [key, value] of [
+            ['APPWRITE_API_KEY', process.env.APPWRITE_API_KEY],
+            ['APPWRITE_ENDPOINT', process.env.APPWRITE_ENDPOINT],
+            ['APPWRITE_PROJECT_ID', process.env.APPWRITE_PROJECT_ID],
+            ['OPENROUTER_KEY_1', process.env.OPENROUTER_KEY_1],
+            ['GROQ_KEY_1', process.env.GROQ_KEY_1],
+            ['DEEPSEEK_KEY', process.env.DEEPSEEK_KEY],
+            ['NVIDIA_KEY_1', process.env.NVIDIA_KEY_1],
             ['RESEND_API_KEY', process.env.RESEND_API_KEY],
             ['RESEND_FROM_EMAIL', process.env.RESEND_FROM_EMAIL],
             ['RESEND_FROM_NAME', process.env.RESEND_FROM_NAME],

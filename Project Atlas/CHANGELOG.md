@@ -1,6 +1,6 @@
 # Project Atlas Changelog
 
-**Last verified:** 2026-05-13
+**Last verified:** 2026-05-15
 **Type:** changelog
 **Sources:**
 - `Project Atlas/GOVERNANCE.md`
@@ -8,6 +8,52 @@
 - `Project Atlas/MASTER_HANDOVER_2026.md`
 - `Project Atlas/SOURCE_OF_TRUTH_MAP.md`
 **Canonical owner:** this file
+
+---
+
+## 2026-05-15 - Function Ownership Implementation
+
+### Summary
+Implemented the source-owned function routing plan for AI contracts, DevKit direct calls, coupons, WiseHire, public share password verification, and safe first-pass performance cleanup.
+
+### Root cause
+The frontend invoked several function names that were either routed through generic AI gateway behavior or not owned by the local `appwrite-hubs/` inventory. Structured AI callers expected typed JSON while most local gateway routes returned generic chat content.
+
+### What changed
+- Added Appwrite hubs: `coupons`, `wisehire-gateway`, and `public-share`.
+- Routed coupon, WiseHire, and protected-share calls through owned local hubs in `src/lib/appwrite-functions.ts`.
+- Added typed structured AI responses for high-risk AI gateway features while keeping `parse-resume` as the dedicated normalized route.
+- Moved audited DevKit direct calls and Live Activity probes to owned `admin-devkit-data` / `resume-section-ai` paths.
+- Removed the active unowned `submit-contact-request` fallback from feedback reporting.
+- Rewrote `scripts/README.md` to point operators at Appwrite hub deployment and mark Supabase/edge scripts as legacy audit aids.
+- Updated deploy inventory and Appwrite function manifest for the new hubs.
+- Removed mixed dynamic/static import warnings for `captureErrorShim` and `pdf/textPreprocessor`.
+
+### Verification
+- `node --check` passed for modified/new Appwrite hubs and `scripts/deploy_hubs.cjs`.
+- `npm exec tsc -- --noEmit` passed.
+- `npm run build` passed.
+- Remaining build warning: large chunks for heavy modules such as OCR, doc export, monitoring, DevKit, and charts.
+
+### Current state
+- Local source is ready for deployment.
+- Live Appwrite was not redeployed in this session; the updated hubs must be deployed before live behavior can be claimed fixed.
+
+---
+
+## 2026-05-15 - Codebase health audit documented
+
+### Summary
+Added a dedicated Atlas session log for the read-only codebase health audit covering Appwrite function ownership, AI contract drift, legacy migration remnants, and performance risks.
+
+### What changed
+- Created `Project Atlas/05-Migration to Appwrite/16-Session-Log-2026-05-15-Codebase-Health-Audit.md`.
+- Recorded the verified root findings from source inspection without changing application code.
+
+### Verification
+- `npm exec tsc -- --noEmit` passed during the audit session.
+- `npm run build` passed during the audit session.
+- Workspace remained clean on `main...origin/main`.
 
 ---
 

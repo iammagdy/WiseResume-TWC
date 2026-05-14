@@ -11,8 +11,6 @@ import { BiometricLockScreen } from "@/components/BiometricLockScreen";
 import { useBiometricLock } from "@/hooks/useBiometricLock";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useResumeStore } from "@/store/resumeStore";
-import { toast } from "sonner";
-import { Bell } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import { JobSeekerRoute } from "@/components/layout/JobSeekerRoute";
@@ -378,7 +376,11 @@ function AppRoutes() {
 }
 
 function PrefetchOnIdle() {
+  const location = useLocation();
   useEffect(() => {
+    if (!['/dashboard', '/upload', '/editor'].some(path => location.pathname.startsWith(path))) {
+      return;
+    }
     const prefetch = () => {
       void import("./pages/DashboardPage");
       void import("./pages/UploadPage");
@@ -390,7 +392,7 @@ function PrefetchOnIdle() {
     }
     const t = setTimeout(prefetch, 3000);
     return () => clearTimeout(t);
-  }, []);
+  }, [location.pathname]);
   return null;
 }
 
@@ -406,35 +408,10 @@ function DeferredProviders() {
     </>);
 }
 
-function ToastTestButton() {
-  const [idx, setIdx] = useState(0);
-  const types = [
-    { type: "success" as const, title: "Resume imported (11 sections)", desc: "Your resume was successfully parsed and imported." },
-    { type: "error" as const, title: "Upload failed", desc: "Something went wrong while uploading your resume." },
-    { type: "warning" as const, title: "Session expiring soon", desc: "Your session will expire in 5 minutes." },
-    { type: "info" as const, title: "New feature available", desc: "Try the AI Interview Coach now." },
-  ];
-  const handleClick = () => {
-    const t = types[idx % types.length];
-    toast[t.type](t.title, { description: t.desc });
-    setIdx((i) => i + 1);
-  };
-  return (
-    <button
-      onClick={handleClick}
-      title="Test toast"
-      className="fixed bottom-6 right-6 z-[9999] w-12 h-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-transform"
-    >
-      <Bell className="w-5 h-5" />
-    </button>
-  );
-}
-
 const AppInterior = () => {
   return (
     <>
       <Toaster />
-      <ToastTestButton />
       <ActingAsBanner />
       <AuthProvider>
         <BottomSheetProvider>

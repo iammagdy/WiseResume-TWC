@@ -11,6 +11,33 @@
       "entrypoint": "src/main.js",
       "commands": "npm install",
       "ignore": [".git", ".gitignore", "*.tar.gz"]
+    },
+    {
+      "functionId": "coupons",
+      "name": "coupons",
+      "runtime": "node-18.0",
+      "path": "appwrite-hubs/coupons",
+      "entrypoint": "src/main.js",
+      "commands": "npm install",
+      "ignore": [".git", ".gitignore", "*.tar.gz"]
+    },
+    {
+      "functionId": "wisehire-gateway",
+      "name": "wisehire-gateway",
+      "runtime": "node-18.0",
+      "path": "appwrite-hubs/wisehire-gateway",
+      "entrypoint": "src/main.js",
+      "commands": "npm install",
+      "ignore": [".git", ".gitignore", "*.tar.gz"]
+    },
+    {
+      "functionId": "public-share",
+      "name": "public-share",
+      "runtime": "node-18.0",
+      "path": "appwrite-hubs/public-share",
+      "entrypoint": "src/main.js",
+      "commands": "npm install",
+      "ignore": [".git", ".gitignore", "*.tar.gz"]
     }
   ]
 }
