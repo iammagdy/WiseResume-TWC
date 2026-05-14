@@ -1,5 +1,52 @@
 # WiseResume Master Handover & State (May 2026)
 
+## Session Summary — 2026-05-14 session 3 (DevKit Dashboard Improvement Plan, Phases 1–3)
+
+**Detailed log:** `Project Atlas/05-Migration to Appwrite/15-Session-Log-2026-05-14-DevKit-Dashboard-Phases-1-3.md`
+
+### What changed
+
+**Phase 1 — Safety & UX quick wins** (commit `cca8880`)
+- Default DevKit landing panel: `diagnostics` → `mission` (Mission Control). *(Was already changed to `mission` in a prior session; now changed to `home` in Phase 2 — see below.)*
+- Sidebar restructured into 5 groups: System Health / Command Center / AI Operations / Support & Business Ops / Developer Tools. Smoke Runner pinned at bottom of Developer Tools.
+- Live Activity removed from sidebar; added as 4th sub-tab inside `GrowthTrafficPanel`.
+- All dangerous actions now require React confirmation modals (no `window.confirm()`):
+  - WiseHire Approve: full modal with entry details
+  - Maintenance Mode: typed `"OFFLINE"` required before activating
+  - Feature flag delete: modal with flag name
+  - God Mode individual plan override, bulk plan change, bulk suspend: confirm dialogs
+- `AuditLogPanel`: search input + category filter dropdown (color-coded) + Load More (25/page, accumulative).
+- Sidebar badge: `list-wisehire-waitlist` called on DevKit unlock; count shown as red pill on WiseHire Waitlist button; cleared via `onBadgeClear` prop.
+
+**Phase 2 — Home Command Center** (commit `f9c2d7e`)
+- `src/components/dev-kit/HomePanel.tsx` — new component. Shows: greeting banner, 4 status cards (Site / AI Providers / Maintenance / WiseHire Queue), metric tiles (Total Users, Recent Errors, Diagnostics link), last 8 audit entries with category pills, quick-nav shortcuts to 8 major panels. Single `home-summary` backend call on mount.
+- `appwrite-hubs/admin-devkit-data/src/main.js` — new `handleHomeSummary` action. Runs 6 queries in parallel via `Promise.allSettled` (fail-open): site ping, waitlist count, error count, audit entries, total user count, app settings (for maintenance_mode). Returns consolidated summary in one call.
+- `DevToolsPage.tsx` — `Home` panel added to System Health group as first entry; default `activePanel` changed `'mission'` → `'home'`; `Home` icon + `HomePanel` imported.
+- `package.json` — version bumped `4.4.0` → `4.5.0`.
+
+**Phase 3 — Cmd+K command palette** (commit `86dc2af`)
+- `DevToolsPage.tsx` — `Cmd+K` / `Ctrl+K` opens a full-screen overlay command palette. Live search filters all `Live` panels by title and group. Arrow keys navigate; Enter opens; Escape closes. Mouse hover updates highlight. "Jump to panel…" button with `⌘K` hint added to sidebar footer. `Search` icon imported.
+
+### Deployments
+
+| Phase | Frontend | AI Hubs |
+|-------|----------|---------|
+| 1 | ✅ | ✅ |
+| 2 | ✅ | ❌ transient `tar write error` on `auth-master` (runner infrastructure; code unaffected) |
+| 3 | ✅ | ✅ (re-deployed Phase 2 `admin-devkit-data` changes as well) |
+
+### Verification
+- `npx tsc --noEmit` — zero errors after each phase.
+- Latest HEAD on `main`: `86dc2af5a9776a579cc60ace2f51a387770a0cdf`.
+
+### Where we stopped
+- `home-summary` action is live (deployed via Phase 3 AI Hubs run). Appwrite Console must have `wisehire_waitlist`, `admin_audit_logs`, `app_settings`, and `error_log` collections present and readable — `home-summary` uses all four (fail-open if missing).
+- Mobile God Mode card layout (narrow-screen) was deferred — not yet implemented.
+- Phase 4 items not started: real-time badge refresh, sparklines in HomePanel, mission-control error alerting.
+- Next agent: unlock `/devkit`, confirm Home panel status cards resolve, test Cmd+K palette.
+
+---
+
 ## Session Summary — 2026-05-14 session 2 (Onboarding Goal Routing — Tasks #22 & #25)
 
 ### What changed
