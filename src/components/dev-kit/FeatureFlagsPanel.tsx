@@ -109,6 +109,8 @@ function AppWideSettingsSection() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [toggling, setToggling] = useState<string | null>(null);
+  const [showMaintenanceConfirm, setShowMaintenanceConfirm] = useState(false);
+  const [confirmTyped, setConfirmTyped] = useState('');
 
   const fetchSettings = useCallback(async () => {
     setLoading(true);
@@ -144,6 +146,24 @@ function AppWideSettingsSection() {
     setToggling(null);
   };
 
+  const handleMaintenanceClick = () => {
+    const isActive = settings.maintenance_mode === 'true';
+    if (isActive) {
+      // Disabling is low-risk — execute directly
+      toggleSetting('maintenance_mode', settings.maintenance_mode);
+    } else {
+      // Activating is dangerous — require typed confirmation
+      setShowMaintenanceConfirm(true);
+      setConfirmTyped('');
+    }
+  };
+
+  const handleMaintenanceConfirm = () => {
+    setShowMaintenanceConfirm(false);
+    setConfirmTyped('');
+    toggleSetting('maintenance_mode', settings.maintenance_mode);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center gap-3 py-6 text-muted-foreground text-sm">
@@ -175,23 +195,55 @@ function AppWideSettingsSection() {
           </div>
           <p className="text-xs text-red-200/50">Instantly locks the app for all users. Use only for critical updates.</p>
         </div>
-        <button
-          onClick={() => toggleSetting('maintenance_mode', settings.maintenance_mode)}
-          disabled={toggling === 'maintenance_mode'}
-          className={`w-full py-3 rounded-xl font-black text-sm uppercase tracking-widest transition-all disabled:opacity-50 ${
-            settings.maintenance_mode === 'true'
-              ? 'bg-red-600 text-white shadow-[0_0_16px_rgba(220,38,38,0.4)]'
-              : 'bg-white/5 text-red-400 border border-red-500/20'
-          }`}
-        >
-          {toggling === 'maintenance_mode' ? (
-            <span className="flex items-center justify-center gap-2">
-              <Loader2 size={14} className="animate-spin" /> Saving…
-            </span>
-          ) : (
-            settings.maintenance_mode === 'true' ? 'Disable Maintenance' : 'Activate Maintenance'
-          )}
-        </button>
+
+        {showMaintenanceConfirm ? (
+          <div className="space-y-3">
+            <p className="text-xs text-red-300/70 leading-relaxed">
+              This will take the entire app offline for every user. Type <span className="font-black text-red-400">OFFLINE</span> to confirm.
+            </p>
+            <input
+              type="text"
+              value={confirmTyped}
+              onChange={e => setConfirmTyped(e.target.value.toUpperCase())}
+              placeholder="Type OFFLINE"
+              className="w-full px-3 py-2 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 text-sm font-mono placeholder:text-red-500/30 focus:outline-none focus:border-red-500/60"
+              autoFocus
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setShowMaintenanceConfirm(false); setConfirmTyped(''); }}
+                className="flex-1 py-2 rounded-xl text-xs font-bold uppercase border border-white/10 bg-white/5 text-white/50 hover:text-white transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleMaintenanceConfirm}
+                disabled={confirmTyped !== 'OFFLINE' || toggling === 'maintenance_mode'}
+                className="flex-1 py-2 rounded-xl text-xs font-black uppercase bg-red-600 text-white disabled:opacity-30 transition-all"
+              >
+                {toggling === 'maintenance_mode' ? <Loader2 size={13} className="animate-spin mx-auto" /> : 'Activate'}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={handleMaintenanceClick}
+            disabled={toggling === 'maintenance_mode'}
+            className={`w-full py-3 rounded-xl font-black text-sm uppercase tracking-widest transition-all disabled:opacity-50 ${
+              settings.maintenance_mode === 'true'
+                ? 'bg-red-600 text-white shadow-[0_0_16px_rgba(220,38,38,0.4)]'
+                : 'bg-white/5 text-red-400 border border-red-500/20'
+            }`}
+          >
+            {toggling === 'maintenance_mode' ? (
+              <span className="flex items-center justify-center gap-2">
+                <Loader2 size={14} className="animate-spin" /> Saving…
+              </span>
+            ) : (
+              settings.maintenance_mode === 'true' ? 'Disable Maintenance' : 'Activate Maintenance'
+            )}
+          </button>
+        )}
       </div>
 
       {/* App-wide feature gates */}
@@ -533,6 +585,7 @@ export function FeatureFlagsPanel() {
   const [deleting, setDeleting] = useState<string | null>(null);
   const [editingFlag, setEditingFlag] = useState<FeatureFlag | null>(null);
   const [showNewForm, setShowNewForm] = useState(false);
+  const [deleteConfirmName, setDeleteConfirmName] = useState<string | null>(null);
   const isMounted = useIsMounted();
 
   const fetchFlags = useCallback(async () => {
@@ -622,7 +675,14 @@ export function FeatureFlagsPanel() {
 
   const handleDelete = useCallback(
     async (name: string) => {
-      if (!confirm(`Delete flag "${name}"? This cannot be undone.`)) return;
+      setDeleteConfirmName(name);
+    },
+    [],
+  );
+
+  const executeDelete = useCallback(
+    async (name: string) => {
+      setDeleteConfirmName(null);
       setDeleting(name);
       try {
         const tuple = await appwriteFunctions.invoke(
@@ -647,6 +707,41 @@ export function FeatureFlagsPanel() {
 
   return (
     <div className="space-y-8">
+
+      {/* ── Feature flag delete confirmation ────────────────────────────── */}
+      {deleteConfirmName && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm rounded-3xl border border-red-500/20 bg-[#0e0e0e] p-8 shadow-2xl space-y-5">
+            <div className="flex items-center gap-3 text-red-400">
+              <AlertTriangle size={22} />
+              <h3 className="font-black text-white text-lg">Delete Feature Flag?</h3>
+            </div>
+            <p className="text-sm text-white/50 leading-relaxed">
+              Delete flag <span className="font-mono font-bold text-white">{deleteConfirmName}</span>?
+              This cannot be undone and may break features that depend on it.
+            </p>
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setDeleteConfirmName(null)}
+                className="flex-1 rounded-2xl border-white/10 bg-white/5 text-white/60 hover:text-white"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => executeDelete(deleteConfirmName)}
+                disabled={deleting === deleteConfirmName}
+                className="flex-1 rounded-2xl bg-red-600 hover:bg-red-500 text-white font-bold"
+              >
+                {deleting === deleteConfirmName
+                  ? <Loader2 size={14} className="animate-spin mr-2" />
+                  : <Trash2 size={14} className="mr-2" />}
+                Delete
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── App-wide gates section ──────────────────────────────────────── */}
       <section className="space-y-4">

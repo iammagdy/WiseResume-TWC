@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Briefcase, UserPlus, Clock, Loader2, X } from 'lucide-react';
+import { Briefcase, UserPlus, Clock, Loader2, X, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { devKitCall } from '@/lib/devkit/devKitClient';
@@ -25,13 +25,18 @@ interface ApproveResponse {
   emailSent: boolean;
 }
 
-export const WiseHireWaitlistPanel = () => {
+interface Props {
+  onBadgeClear?: () => void;
+}
+
+export const WiseHireWaitlistPanel = ({ onBadgeClear }: Props) => {
   const [entries, setEntries] = useState<WaitlistEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [missingCollection, setMissingCollection] = useState(false);
   const [approvingIds, setApprovingIds] = useState<Set<string>>(new Set());
   const [dismissingIds, setDismissingIds] = useState<Set<string>>(new Set());
+  const [pendingApprove, setPendingApprove] = useState<WaitlistEntry | null>(null);
 
   const fetchWaitlist = useCallback(async () => {
     setLoading(true);
@@ -50,9 +55,16 @@ export const WiseHireWaitlistPanel = () => {
 
   const handleDismiss = async (id: string) => {
     setDismissingIds(prev => new Set(prev).add(id));
-    const result = await devKitCall<{ dismissed: boolean; email?: string }>({ action: 'dismiss-wisehire-waitlist', payload: { waitlist_id: id } });
+    const result = await devKitCall<{ dismissed: boolean; email?: string }>({
+      action: 'dismiss-wisehire-waitlist',
+      payload: { waitlist_id: id },
+    });
     if (result.ok) {
-      setEntries(prev => prev.filter(e => e.$id !== id));
+      setEntries(prev => {
+        const next = prev.filter(e => e.$id !== id);
+        if (next.length === 0) onBadgeClear?.();
+        return next;
+      });
       toast.success('Applicant dismissed.');
     } else {
       toast.error(`Failed to dismiss: ${result.error.message}`);
@@ -64,11 +76,19 @@ export const WiseHireWaitlistPanel = () => {
     });
   };
 
-  const handleApprove = async (id: string) => {
-    setApprovingIds(prev => new Set(prev).add(id));
-    const result = await devKitCall<ApproveResponse>({ action: 'approve-wisehire-waitlist', payload: { waitlist_id: id } });
+  const executeApprove = async (entry: WaitlistEntry) => {
+    setPendingApprove(null);
+    setApprovingIds(prev => new Set(prev).add(entry.$id));
+    const result = await devKitCall<ApproveResponse>({
+      action: 'approve-wisehire-waitlist',
+      payload: { waitlist_id: entry.$id },
+    });
     if (result.ok) {
-      setEntries(prev => prev.filter(e => e.$id !== id));
+      setEntries(prev => {
+        const next = prev.filter(e => e.$id !== entry.$id);
+        if (next.length === 0) onBadgeClear?.();
+        return next;
+      });
       if (result.data.emailSent) {
         toast.success('Access granted — invite email sent!');
       } else {
@@ -79,7 +99,7 @@ export const WiseHireWaitlistPanel = () => {
     }
     setApprovingIds(prev => {
       const next = new Set(prev);
-      next.delete(id);
+      next.delete(entry.$id);
       return next;
     });
   };
@@ -118,6 +138,55 @@ export const WiseHireWaitlistPanel = () => {
 
   return (
     <div className="space-y-4">
+      {/* Approve Confirmation Modal */}
+      {pendingApprove && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#0e0e0e] p-8 shadow-2xl space-y-6">
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400">
+                <UserPlus size={24} />
+              </div>
+              <div>
+                <h3 className="font-black text-white text-lg tracking-tight">Grant WiseHire Access?</h3>
+                <p className="text-sm text-white/40 mt-0.5">This action will create or upgrade an account.</p>
+              </div>
+            </div>
+
+            <div className="rounded-2xl bg-white/[0.03] border border-white/10 p-4 space-y-1">
+              <p className="font-bold text-white">{pendingApprove.name ?? '—'}</p>
+              <p className="text-sm text-blue-400/70">{pendingApprove.email ?? 'No email'}</p>
+              {pendingApprove.company_name && (
+                <p className="text-xs text-white/40">{pendingApprove.company_name}</p>
+              )}
+            </div>
+
+            <div className="rounded-xl bg-amber-500/5 border border-amber-500/15 px-4 py-3 flex items-start gap-3">
+              <AlertTriangle size={14} className="text-amber-400 flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-amber-200/60 leading-relaxed">
+                A WiseHire recruiter account will be created or upgraded. An invite email will be sent if email is configured.
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setPendingApprove(null)}
+                className="flex-1 rounded-2xl border-white/10 bg-white/5 text-white/60 hover:text-white"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => executeApprove(pendingApprove)}
+                className="flex-1 rounded-2xl bg-white text-black hover:bg-white/90 font-bold"
+              >
+                <UserPlus size={16} className="mr-2" />
+                Confirm Access
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {entries.map(e => (
         <div key={e.$id} className="p-6 rounded-3xl bg-white/[0.03] border border-white/10 flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
@@ -146,7 +215,7 @@ export const WiseHireWaitlistPanel = () => {
               {dismissingIds.has(e.$id) ? 'Dismissing…' : 'Dismiss'}
             </Button>
             <Button
-              onClick={() => handleApprove(e.$id)}
+              onClick={() => setPendingApprove(e)}
               disabled={approvingIds.has(e.$id) || dismissingIds.has(e.$id)}
               className="rounded-2xl h-10 px-6 bg-white text-black hover:bg-white/90 font-bold uppercase italic disabled:opacity-50"
             >
@@ -159,6 +228,7 @@ export const WiseHireWaitlistPanel = () => {
           </div>
         </div>
       ))}
+
       {entries.length === 0 && (
         <div className="p-12 text-center text-white/40 border border-dashed border-white/10 rounded-3xl uppercase font-black italic tracking-widest opacity-50">
           Waitlist Empty

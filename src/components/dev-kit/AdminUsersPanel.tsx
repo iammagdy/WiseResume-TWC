@@ -124,6 +124,8 @@ export const AdminUsersPanel = () => {
   const [mergeConfirming, setMergeConfirming] = useState<Record<string, boolean>>({});
   const [bulkPlan, setBulkPlan] = useState<BulkPlan>('pro');
   const [showBulkMenu, setShowBulkMenu] = useState(false);
+  const [planConfirm, setPlanConfirm] = useState<{ userId: string; plan: 'free' | 'pro' | 'premium'; name: string } | null>(null);
+  const [bulkConfirmAction, setBulkConfirmAction] = useState<{ type: 'plan'; plan: BulkPlan } | { type: 'suspend' } | null>(null);
 
   const fetchGlobalStats = useCallback(async () => {
     try {
@@ -411,8 +413,10 @@ export const AdminUsersPanel = () => {
     }
   };
 
-  const handleBulkSetPlan = async () => {
+  const handleBulkSetPlan = async (planToSet?: BulkPlan) => {
+    const plan = planToSet ?? bulkPlan;
     if (selected.size === 0) return;
+    setBulkConfirmAction(null);
     setBulkActing(true);
     setShowBulkMenu(false);
     let ok = 0;
@@ -420,14 +424,14 @@ export const AdminUsersPanel = () => {
       try {
         const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
           headers: devKitAuthHeaders(),
-          body: { action: 'set-plan', target_user_id: uid, plan: bulkPlan, actor_email: authUser?.email ?? 'admin (dev-kit)' },
+          body: { action: 'set-plan', target_user_id: uid, plan, actor_email: authUser?.email ?? 'admin (dev-kit)' },
         });
         unwrapAdminResponse(tuple, 'admin-devkit-data');
-        updateUser(uid, { plan_name: bulkPlan });
+        updateUser(uid, { plan_name: plan });
         ok++;
       } catch { /* continue */ }
     }
-    toast.success(`Plan set to ${bulkPlan.toUpperCase()} for ${ok} user${ok !== 1 ? 's' : ''}`);
+    toast.success(`Plan set to ${plan.toUpperCase()} for ${ok} user${ok !== 1 ? 's' : ''}`);
     setSelected(new Set());
     setBulkActing(false);
     fetchGlobalStats();
@@ -435,6 +439,7 @@ export const AdminUsersPanel = () => {
 
   const handleBulkSuspend = async () => {
     if (selected.size === 0) return;
+    setBulkConfirmAction(null);
     setBulkActing(true);
     let ok = 0;
     for (const uid of selected) {
@@ -518,6 +523,75 @@ export const AdminUsersPanel = () => {
         />
       )}
 
+      {/* Plan change confirmation modal */}
+      {planConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm rounded-3xl border border-white/10 bg-[#0e0e0e] p-7 shadow-2xl space-y-5">
+            <div>
+              <h3 className="font-black text-white text-lg tracking-tight">Change Plan?</h3>
+              <p className="text-sm text-white/40 mt-1">
+                Set <span className="text-white font-semibold">{planConfirm.name}</span> to{' '}
+                <span className={cn('font-black uppercase',
+                  planConfirm.plan === 'premium' ? 'text-amber-400' :
+                  planConfirm.plan === 'pro' ? 'text-blue-400' : 'text-white/60',
+                )}>{planConfirm.plan}</span>?
+                This will take effect immediately and may notify the user.
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={() => setPlanConfirm(null)} className="flex-1 rounded-2xl border-white/10 bg-white/5 text-white/60 hover:text-white">Cancel</Button>
+              <Button
+                onClick={() => { handleSetPlan(planConfirm.userId, planConfirm.plan); setPlanConfirm(null); }}
+                disabled={savingPlanId === planConfirm.userId}
+                className={cn('flex-1 rounded-2xl font-bold',
+                  planConfirm.plan === 'premium' ? 'bg-amber-500 hover:bg-amber-400 text-black' :
+                  planConfirm.plan === 'pro' ? 'bg-blue-600 hover:bg-blue-500 text-white' :
+                  'bg-white hover:bg-white/90 text-black'
+                )}
+              >
+                {savingPlanId === planConfirm.userId ? <Loader2 size={14} className="animate-spin mr-2" /> : null}
+                Set {planConfirm.plan.toUpperCase()}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk action confirmation modal */}
+      {bulkConfirmAction && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm rounded-3xl border border-white/10 bg-[#0e0e0e] p-7 shadow-2xl space-y-5">
+            <div>
+              <h3 className="font-black text-white text-lg tracking-tight">
+                {bulkConfirmAction.type === 'plan' ? 'Bulk Plan Change?' : 'Bulk Suspend?'}
+              </h3>
+              <p className="text-sm text-white/40 mt-1">
+                {bulkConfirmAction.type === 'plan'
+                  ? <>Apply <span className="font-black text-white uppercase">{bulkConfirmAction.plan}</span> to <span className="text-white font-semibold">{selected.size} users</span>? This cannot be undone from this panel.</>
+                  : <>Suspend <span className="text-white font-semibold">{selected.size} selected users</span>? This will block their access immediately.</>
+                }
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={() => setBulkConfirmAction(null)} className="flex-1 rounded-2xl border-white/10 bg-white/5 text-white/60 hover:text-white">Cancel</Button>
+              <Button
+                onClick={() => {
+                  if (bulkConfirmAction.type === 'plan') handleBulkSetPlan(bulkConfirmAction.plan);
+                  else handleBulkSuspend();
+                }}
+                disabled={bulkActing}
+                className={cn('flex-1 rounded-2xl font-bold',
+                  bulkConfirmAction.type === 'suspend' ? 'bg-red-600 hover:bg-red-500 text-white' : 'bg-white hover:bg-white/90 text-black'
+                )}
+              >
+                {bulkActing ? <Loader2 size={14} className="animate-spin mr-2" /> : null}
+                Confirm
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -542,7 +616,7 @@ export const AdminUsersPanel = () => {
                     {(['free', 'pro', 'premium'] as BulkPlan[]).map(p => (
                       <button
                         key={p}
-                        onClick={() => { setBulkPlan(p); handleBulkSetPlan(); }}
+                        onClick={() => { setBulkPlan(p); setShowBulkMenu(false); setBulkConfirmAction({ type: 'plan', plan: p }); }}
                         className="w-full text-left px-3 py-1.5 rounded-lg text-xs capitalize font-semibold text-white/70 hover:bg-white/10 hover:text-white transition-all"
                       >
                         {p}
@@ -552,7 +626,7 @@ export const AdminUsersPanel = () => {
                 )}
               </div>
               <span className="text-white/20">|</span>
-              <button onClick={handleBulkSuspend} disabled={bulkActing} className="text-red-400 hover:text-red-300 font-semibold">
+              <button onClick={() => setBulkConfirmAction({ type: 'suspend' })} disabled={bulkActing} className="text-red-400 hover:text-red-300 font-semibold">
                 Suspend
               </button>
               <span className="text-white/20">|</span>
@@ -674,7 +748,10 @@ export const AdminUsersPanel = () => {
               return n;
             })}
             onToggleExpand={() => setExpandedUser(expandedUser === u.user_id ? null : u.user_id)}
-            onSetPlan={handleSetPlan}
+            onSetPlan={(uid, plan) => {
+              const u = users.find(x => x.user_id === uid);
+              setPlanConfirm({ userId: uid, plan, name: u?.full_name || u?.email || uid });
+            }}
             onGrantTrial={handleGrantTrial}
             onRevokeTrial={handleRevokeTrial}
             onToggleSuspend={handleToggleSuspend}

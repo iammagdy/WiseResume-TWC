@@ -3,7 +3,7 @@ import {
   Activity, ArrowLeft, BarChart2, Briefcase, BrainCircuit, CheckCircle2, Cog, Database,
   Fingerprint, Flag, History, LayoutDashboard, Link2, Loader2,
   Lock, Mail, Menu, Play, ServerCog, ShieldCheck, Ticket, TrendingUp, Users,
-  X, Zap,
+  Wrench, X,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -15,7 +15,7 @@ import {
   isBiometricAvailable, hasBiometricCredential, registerBiometricCredential,
   verifyBiometricCredential,
 } from '@/contexts/DevKitSessionContext';
-import { devKitLogin } from '@/lib/devkit/devKitClient';
+import { devKitLogin, devKitCall } from '@/lib/devkit/devKitClient';
 import { DevKitPanelBoundary } from '@/components/dev-kit/DevKitPanelBoundary';
 import { OverviewPanel } from '@/components/dev-kit/OverviewPanel';
 import { AdminUsersPanel } from '@/components/dev-kit/AdminUsersPanel';
@@ -27,7 +27,6 @@ import { DiagnosticsPanel } from '@/components/dev-kit/DiagnosticsPanel';
 import { MissionControlPanel } from '@/components/dev-kit/MissionControlPanel';
 import { DevKitRunner } from '@/components/dev-kit/DevKitRunner';
 import { ObservabilityPanel } from '@/components/dev-kit/ObservabilityPanel';
-import { LiveActivityPanel } from '@/components/dev-kit/LiveActivityPanel';
 import { CouponsPanel } from '@/components/dev-kit/CouponsPanel';
 import { FeatureFlagsPanel } from '@/components/dev-kit/FeatureFlagsPanel';
 import { ModerationPanel } from '@/components/dev-kit/ModerationPanel';
@@ -46,30 +45,31 @@ interface PanelDef {
 }
 
 const PANEL_GROUPS: { label: string; panels: PanelDef[] }[] = [
-  { label: 'Operations Hub', panels: [
-    { id: 'diagnostics', title: 'Diagnostics', icon: ServerCog, status: 'Live' },
-    { id: 'mission', title: 'Mission Control', icon: Activity, status: 'Live' },
-    { id: 'observability', title: 'Observability', icon: BarChart2, status: 'Live' },
-    { id: 'live', title: 'Live Activity', icon: Zap, status: 'Live' },
-    { id: 'growth', title: 'Growth & Traffic', icon: TrendingUp, status: 'Live' },
-    { id: 'runner', title: 'Smoke Runner', icon: Play, status: 'Live' },
+  { label: 'System Health', panels: [
+    { id: 'mission',      title: 'Mission Control',  icon: Activity,       status: 'Live' },
+    { id: 'diagnostics',  title: 'Diagnostics',      icon: ServerCog,      status: 'Live' },
+    { id: 'observability',title: 'Observability',    icon: BarChart2,      status: 'Live' },
+    { id: 'growth',       title: 'Growth & Traffic', icon: TrendingUp,     status: 'Live' },
   ]},
   { label: 'Command Center', panels: [
-    { id: 'overview', title: 'Infrastructure', icon: LayoutDashboard, status: 'Live' },
-    { id: 'users', title: 'God Mode (Users)', icon: Users, status: 'Live' },
-    { id: 'db', title: 'Database X-Ray', icon: Database, status: 'Live' },
-    { id: 'flags', title: 'Feature Control', icon: Flag, status: 'Live' },
+    { id: 'overview', title: 'Infrastructure',    icon: LayoutDashboard, status: 'Live' },
+    { id: 'users',    title: 'God Mode (Users)',  icon: Users,           status: 'Live' },
+    { id: 'db',       title: 'Database X-Ray',    icon: Database,        status: 'Live' },
+    { id: 'flags',    title: 'Feature Control',   icon: Flag,            status: 'Live' },
   ]},
-  { label: 'AI Command Center', panels: [
+  { label: 'AI Operations', panels: [
     { id: 'ai-center', title: 'AI Center', icon: BrainCircuit, status: 'Live' },
   ]},
   { label: 'Support & Business Ops', panels: [
-    { id: 'moderation', title: 'Moderation', icon: ShieldCheck, status: 'Live' },
-    { id: 'email-hub', title: 'Email', icon: Mail, status: 'Live' },
-    { id: 'coupons', title: 'Coupons', icon: Ticket, status: 'Live' },
-    { id: 'portfolios', title: 'Portfolios', icon: Link2, status: 'Live' },
-    { id: 'wisehire-waitlist', title: 'WiseHire Waitlist', icon: Briefcase, status: 'Live' },
-    { id: 'audit', title: 'History', icon: History, status: 'Live' },
+    { id: 'moderation',        title: 'Moderation',       icon: ShieldCheck, status: 'Live' },
+    { id: 'email-hub',         title: 'Email',            icon: Mail,        status: 'Live' },
+    { id: 'coupons',           title: 'Coupons',          icon: Ticket,      status: 'Live' },
+    { id: 'portfolios',        title: 'Portfolios',       icon: Link2,       status: 'Live' },
+    { id: 'wisehire-waitlist', title: 'WiseHire Waitlist',icon: Briefcase,   status: 'Live' },
+    { id: 'audit',             title: 'History',          icon: History,     status: 'Live' },
+  ]},
+  { label: 'Developer Tools', panels: [
+    { id: 'runner', title: 'Smoke Runner', icon: Play, status: 'Live' },
   ]},
 ];
 
@@ -93,7 +93,7 @@ function NotReadyPanel({ panel }: { panel: PanelDef }) {
         <panel.icon className="h-6 w-6 text-blue-400" />
         <div>
           <h2 className="text-xl font-black text-white">{panel.title}</h2>
-          <p className="text-xs text-white/45">This surface is visible in the Operations Hub, but intentionally blocked from executing until its backend prerequisites are ready.</p>
+          <p className="text-xs text-white/45">This surface is visible in the DevKit but intentionally blocked from executing until its backend prerequisites are ready.</p>
         </div>
       </div>
       <span className={cn('inline-flex rounded-full border px-3 py-1 text-xs font-black uppercase', STATUS_CLASSES[panel.status])}>{panel.status}</span>
@@ -119,15 +119,28 @@ export default function DevToolsPage() {
 function DevToolsInner() {
   const navigate = useNavigate();
   const { isUnlocked, unlock, lock, hasRememberedSession, secondsUntilLock } = useDevKitSession();
-  const [activePanel, setActivePanel] = useState('diagnostics');
+  const [activePanel, setActivePanel] = useState('mission');
   const [password, setPassword] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [biometricReady, setBiometricReady] = useState(false);
   const [hasCred, setHasCred] = useState(false);
+  const [badgeCounts, setBadgeCounts] = useState<Record<string, number>>({});
 
   useEffect(() => { isBiometricAvailable().then(ok => { setBiometricReady(ok); setHasCred(hasBiometricCredential()); }); }, []);
   useEffect(() => { if (!isUnlocked) setHasCred(hasBiometricCredential()); }, [isUnlocked]);
+
+  // Fetch sidebar badge counts once the session is unlocked
+  useEffect(() => {
+    if (!isUnlocked) return;
+    devKitCall<{ entries: unknown[]; total: number }>({ action: 'list-wisehire-waitlist' })
+      .then(res => {
+        if (res.ok && (res.data.total ?? 0) > 0) {
+          setBadgeCounts(prev => ({ ...prev, 'wisehire-waitlist': res.data.total }));
+        }
+      })
+      .catch(() => {});
+  }, [isUnlocked]);
 
   const handlePasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -161,9 +174,19 @@ function DevToolsInner() {
   };
 
   const navigatePanel = (id: string) => {
-    const aliases: Record<string, string> = { deployment: 'diagnostics', openrouter: 'ai-center', 'ai-keys': 'ai-center', ai: 'ai-center', 'ai-routing': 'ai-center', email: 'email-hub', testmail: 'email-hub', 'email-automations': 'email-hub', visitors: 'growth', analytics: 'growth', 'onboarding-funnel': 'growth', settings: 'flags', overview: 'overview', live: 'live' };
+    const aliases: Record<string, string> = {
+      deployment: 'diagnostics', openrouter: 'ai-center', 'ai-keys': 'ai-center',
+      ai: 'ai-center', 'ai-routing': 'ai-center', email: 'email-hub', testmail: 'email-hub',
+      'email-automations': 'email-hub', visitors: 'growth', analytics: 'growth',
+      'onboarding-funnel': 'growth', settings: 'flags', overview: 'overview',
+      live: 'growth',
+    };
     setActivePanel(aliases[id] ?? id);
     setIsMobileMenuOpen(false);
+  };
+
+  const clearBadge = (panelId: string) => {
+    setBadgeCounts(prev => { const n = { ...prev }; delete n[panelId]; return n; });
   };
 
   const renderPanel = () => {
@@ -171,24 +194,23 @@ function DevToolsInner() {
     const panel = allPanels().find(p => p.id === activePanel) ?? allPanels()[0];
     if (panel.status !== 'Live') return wrap(panel.title, <NotReadyPanel panel={panel} />);
     switch (activePanel) {
-      case 'diagnostics': return wrap('Diagnostics', <DiagnosticsPanel />);
-      case 'mission': return wrap('Mission Control', <MissionControlPanel onNavigate={navigatePanel} />);
-      case 'runner': return wrap('Smoke Runner', <DevKitRunner />);
-      case 'observability': return wrap('Observability', <ObservabilityPanel />);
-      case 'live': return wrap('Live Activity', <LiveActivityPanel />);
-      case 'growth': return wrap('Growth & Traffic', <GrowthTrafficPanel />);
-      case 'coupons': return wrap('Coupons', <CouponsPanel />);
-      case 'overview': return wrap('Infrastructure', <OverviewPanel />);
-      case 'users': return wrap('God Mode', <AdminUsersPanel />);
-      case 'db': return wrap('Database X-Ray', <DatabaseXRay />);
-      case 'ai-center': return wrap('AI Center', <AICommandCenterPanel />);
-      case 'flags': return wrap('Feature Control', <FeatureFlagsPanel />);
-      case 'moderation': return wrap('Moderation', <ModerationPanel />);
-      case 'email-hub': return wrap('Email', <EmailHubPanel />);
-      case 'portfolios': return wrap('Portfolios', <PortfolioUsernamesPanel />);
-      case 'wisehire-waitlist': return wrap('WiseHire Waitlist', <WiseHireWaitlistPanel />);
-      case 'audit': return wrap('History', <AuditLogPanel />);
-      default: return wrap('Diagnostics', <DiagnosticsPanel />);
+      case 'diagnostics':       return wrap('Diagnostics',      <DiagnosticsPanel />);
+      case 'mission':           return wrap('Mission Control',  <MissionControlPanel onNavigate={navigatePanel} />);
+      case 'runner':            return wrap('Smoke Runner',     <DevKitRunner />);
+      case 'observability':     return wrap('Observability',    <ObservabilityPanel />);
+      case 'growth':            return wrap('Growth & Traffic', <GrowthTrafficPanel />);
+      case 'coupons':           return wrap('Coupons',          <CouponsPanel />);
+      case 'overview':          return wrap('Infrastructure',   <OverviewPanel />);
+      case 'users':             return wrap('God Mode',         <AdminUsersPanel />);
+      case 'db':                return wrap('Database X-Ray',   <DatabaseXRay />);
+      case 'ai-center':        return wrap('AI Center',        <AICommandCenterPanel />);
+      case 'flags':             return wrap('Feature Control',  <FeatureFlagsPanel />);
+      case 'moderation':        return wrap('Moderation',       <ModerationPanel />);
+      case 'email-hub':         return wrap('Email',            <EmailHubPanel />);
+      case 'portfolios':        return wrap('Portfolios',       <PortfolioUsernamesPanel />);
+      case 'wisehire-waitlist': return wrap('WiseHire Waitlist', <WiseHireWaitlistPanel onBadgeClear={() => clearBadge('wisehire-waitlist')} />);
+      case 'audit':             return wrap('History',          <AuditLogPanel />);
+      default:                  return wrap('Mission Control',  <MissionControlPanel onNavigate={navigatePanel} />);
     }
   };
 
@@ -219,17 +241,121 @@ function DevToolsInner() {
 
   const activeDef = allPanels().find(p => p.id === activePanel) ?? allPanels()[0];
   const activeGroup = groupForPanel(activePanel);
+
   return (
     <div className="flex h-screen min-h-screen flex-col overflow-hidden bg-[#050505] text-white lg:flex-row">
-      <div className="flex items-center justify-between border-b border-white/5 bg-black p-4 lg:hidden"><div className="flex items-center gap-2"><div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-600"><Cog size={18} className="text-white" /></div><span className="text-lg font-black tracking-tighter">DEV-KIT</span></div><Button variant="ghost" size="icon" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="rounded-xl">{isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}</Button></div>
+      {/* Mobile header */}
+      <div className="flex items-center justify-between border-b border-white/5 bg-black p-4 lg:hidden">
+        <div className="flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-600"><Cog size={18} className="text-white" /></div>
+          <span className="text-lg font-black tracking-tighter">DEV-KIT</span>
+          {activePanel && <span className="text-sm text-white/40 font-medium truncate max-w-[120px]">{activeDef.title}</span>}
+        </div>
+        <Button variant="ghost" size="icon" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="rounded-xl">{isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}</Button>
+      </div>
+
+      {/* Sidebar */}
       <aside className={cn('fixed inset-0 z-50 flex w-full flex-col border-r border-white/5 bg-black/90 backdrop-blur-xl transition-all duration-300 lg:static lg:w-80 lg:translate-x-0 lg:bg-black/50', isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full')}>
-        <div className="hidden items-center justify-between border-b border-white/5 p-6 lg:flex"><div className="flex items-center gap-3"><div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-600"><Cog size={18} className="text-white" /></div><span className="text-xl font-black tracking-tighter">DEV-KIT</span></div><Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')} className="rounded-xl"><ArrowLeft size={20} /></Button></div>
-        <nav className="flex-1 space-y-8 overflow-y-auto p-4">
-          {PANEL_GROUPS.map(group => <div key={group.label} className="space-y-2"><h3 className="px-4 text-[10px] font-black uppercase tracking-widest text-white/30">{group.label}</h3><div className="space-y-1">{group.panels.map(panel => <button key={panel.id} onClick={() => navigatePanel(panel.id)} className={cn('group flex w-full items-center gap-3 rounded-2xl px-4 py-3 transition-all', activePanel === panel.id ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-white/50 hover:bg-white/5 hover:text-white')}><panel.icon size={18} className={cn(activePanel === panel.id ? 'text-white' : 'text-white/20 group-hover:text-white/40')} /><span className="min-w-0 flex-1 truncate text-left text-sm font-bold">{panel.title}</span><span className={cn('rounded-full border px-1.5 py-0.5 text-[9px] font-black uppercase', STATUS_CLASSES[panel.status])}>{statusShort(panel.status)}</span></button>)}</div></div>)}
+        <div className="hidden items-center justify-between border-b border-white/5 p-6 lg:flex">
+          <div className="flex items-center gap-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-600"><Cog size={18} className="text-white" /></div>
+            <span className="text-xl font-black tracking-tighter">DEV-KIT</span>
+          </div>
+          <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')} className="rounded-xl"><ArrowLeft size={20} /></Button>
+        </div>
+
+        <nav className="flex-1 space-y-6 overflow-y-auto p-4">
+          {PANEL_GROUPS.map(group => (
+            <div key={group.label} className="space-y-1">
+              <h3 className="px-4 py-1 text-[10px] font-black uppercase tracking-widest text-white/25 flex items-center gap-2">
+                {group.label === 'Developer Tools' && <Wrench size={10} className="text-white/20" />}
+                {group.label}
+              </h3>
+              {group.panels.map(panel => {
+                const badgeCount = badgeCounts[panel.id] ?? 0;
+                const isActive = activePanel === panel.id;
+                return (
+                  <button
+                    key={panel.id}
+                    onClick={() => navigatePanel(panel.id)}
+                    className={cn(
+                      'group flex w-full items-center gap-3 rounded-2xl px-4 py-3 transition-all',
+                      isActive
+                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
+                        : 'text-white/50 hover:bg-white/5 hover:text-white',
+                    )}
+                  >
+                    <panel.icon
+                      size={18}
+                      className={cn(isActive ? 'text-white' : 'text-white/20 group-hover:text-white/40')}
+                    />
+                    <span className="min-w-0 flex-1 truncate text-left text-sm font-bold">{panel.title}</span>
+                    {badgeCount > 0 ? (
+                      <span className="rounded-full bg-red-500 text-white text-[9px] font-black px-1.5 py-0.5 min-w-[18px] text-center leading-tight">
+                        {badgeCount}
+                      </span>
+                    ) : (
+                      <span className={cn(
+                        'rounded-full border px-1.5 py-0.5 text-[9px] font-black uppercase',
+                        isActive ? 'border-white/20 bg-white/10 text-white' : STATUS_CLASSES[panel.status],
+                      )}>
+                        {statusShort(panel.status)}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
         </nav>
-        <div className="space-y-3 border-t border-white/5 p-4">{secondsUntilLock !== null && <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-mono uppercase tracking-widest text-white/35">Auto-lock in {Math.ceil(secondsUntilLock / 60)}m</div>}<Button variant="ghost" className="w-full justify-start rounded-2xl text-red-400 hover:bg-red-400/10 hover:text-red-300" onClick={lock}><Lock size={18} className="mr-3" /> Terminate Session</Button></div>
+
+        <div className="space-y-3 border-t border-white/5 p-4">
+          {secondsUntilLock !== null && (
+            <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-mono uppercase tracking-widest text-white/35">
+              Auto-lock in {Math.ceil(secondsUntilLock / 60)}m
+            </div>
+          )}
+          <Button variant="ghost" className="w-full justify-start rounded-2xl text-red-400 hover:bg-red-400/10 hover:text-red-300" onClick={lock}>
+            <Lock size={18} className="mr-3" /> Terminate Session
+          </Button>
+        </div>
       </aside>
-      <main className="h-full flex-1 overflow-y-auto bg-black/20"><div className="mx-auto max-w-6xl p-4 lg:p-12"><header className="mb-8 flex flex-col justify-between gap-6 lg:mb-12 md:flex-row md:items-end"><div className="space-y-2"><div className="flex items-center gap-3"><h1 className="text-2xl font-black tracking-tighter lg:text-4xl">{activeDef.title}</h1><span className={cn('rounded-full border px-2 py-1 text-[10px] font-black uppercase', STATUS_CLASSES[activeDef.status])}>{activeDef.status}</span></div><p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">{activeGroup} / {activeDef.title}</p></div><div className="hidden items-center gap-3 md:flex"><div className="flex items-center gap-2 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-2"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /><span className="text-[10px] font-black uppercase text-emerald-500">Diagnostics Enabled</span></div></div></header><AnimatePresence mode="wait"><motion.div key={activePanel} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}>{renderPanel()}</motion.div></AnimatePresence></div></main>
+
+      {/* Main content */}
+      <main className="h-full flex-1 overflow-y-auto bg-black/20">
+        <div className="mx-auto max-w-6xl p-4 lg:p-12">
+          <header className="mb-8 flex flex-col justify-between gap-6 lg:mb-12 md:flex-row md:items-end">
+            <div className="space-y-2">
+              <div className="flex items-center gap-3">
+                <h1 className="text-2xl font-black tracking-tighter lg:text-4xl">{activeDef.title}</h1>
+                <span className={cn('rounded-full border px-2 py-1 text-[10px] font-black uppercase', STATUS_CLASSES[activeDef.status])}>
+                  {activeDef.status}
+                </span>
+              </div>
+              <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+                {activeGroup} / {activeDef.title}
+              </p>
+            </div>
+            <div className="hidden items-center gap-3 md:flex">
+              <div className="flex items-center gap-2 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-2">
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                <span className="text-[10px] font-black uppercase text-emerald-500">Diagnostics Enabled</span>
+              </div>
+            </div>
+          </header>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activePanel}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+            >
+              {renderPanel()}
+            </motion.div>
+          </AnimatePresence>
+        </div>
+      </main>
     </div>
   );
 }
