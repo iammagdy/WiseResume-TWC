@@ -1304,6 +1304,71 @@ async function handleSendVerificationEmail(body, log) {
   return { ok: true, directly_verified: true, email: targetUser.email };
 }
 
+async function handleHomeSummary(log, error) {
+  const { databases, users } = getClients();
+  const now = isoNow();
+
+  const [siteResult, waitlistResult, errorsResult, auditResult, usersResult, settingsResult] =
+    await Promise.allSettled([
+      // 1. Ping production site
+      axios.get(PRODUCTION_URL, { timeout: 5000, validateStatus: () => true })
+        .then(r => ({ siteUp: r.status < 400, siteHttpStatus: r.status }))
+        .catch(() => ({ siteUp: false, siteHttpStatus: 0 })),
+      // 2. WiseHire waitlist count
+      safeList(databases, 'wisehire_waitlist', [sdk.Query.limit(1)]),
+      // 3. Recent errors (last 10 rows from error_log)
+      safeList(databases, 'error_log', [sdk.Query.orderDesc('$createdAt'), sdk.Query.limit(10)]),
+      // 4. Recent admin audit entries
+      safeList(databases, 'admin_audit_logs', [sdk.Query.orderDesc('$createdAt'), sdk.Query.limit(8)]),
+      // 5. Total auth user count
+      users.list([sdk.Query.limit(1)]).then(r => ({ total: r.total })).catch(() => ({ total: null })),
+      // 6. App settings (for maintenance_mode)
+      safeList(databases, 'app_settings', [sdk.Query.limit(50)]),
+    ]);
+
+  const site       = siteResult.status       === 'fulfilled' ? siteResult.value       : { siteUp: false, siteHttpStatus: 0 };
+  const waitlist   = waitlistResult.status   === 'fulfilled' ? waitlistResult.value   : { total: 0, documents: [] };
+  const errors     = errorsResult.status     === 'fulfilled' ? errorsResult.value     : { documents: [], total: 0 };
+  const audit      = auditResult.status      === 'fulfilled' ? auditResult.value      : { documents: [] };
+  const usersCount = usersResult.status      === 'fulfilled' ? usersResult.value      : { total: null };
+  const settings   = settingsResult.status   === 'fulfilled' ? settingsResult.value   : { documents: [] };
+
+  const maintenanceSetting = (settings.documents || []).find(
+    d => d.key === 'maintenance_mode' || d.$id === 'maintenance_mode',
+  );
+  const maintenanceModeOn = maintenanceSetting
+    ? String(maintenanceSetting.value).toLowerCase() === 'true'
+    : false;
+
+  const aiConfigured = !!(process.env.OPENROUTER_KEY_1 || process.env.GROQ_KEY_1 || process.env.DEEPSEEK_KEY);
+
+  const recentAudit = (audit.documents || []).slice(0, 8).map(d => {
+    let meta = {};
+    try { meta = typeof d.metadata === 'string' ? JSON.parse(d.metadata) : (d.metadata || {}); } catch {}
+    return {
+      id: d.$id,
+      action: d.action || '',
+      category: d.category || null,
+      metadata: meta,
+      created_at: d.$createdAt,
+    };
+  });
+
+  log(`home-summary: site=${site.siteUp} maintenance=${maintenanceModeOn} waitlist=${waitlist.total} errors=${errors.documents?.length} users=${usersCount.total}`);
+
+  return {
+    checkedAt: now,
+    siteUp: site.siteUp,
+    siteHttpStatus: site.siteHttpStatus,
+    maintenanceModeOn,
+    aiConfigured,
+    wisehireWaitlistCount: waitlist.total ?? 0,
+    recentErrorCount: errors.documents?.length ?? 0,
+    totalUsers: usersCount.total,
+    recentAudit,
+  };
+}
+
 module.exports = async ({ req, res, log, error }) => {
   const rid = requestId();
   const body = typeof req.body === 'string'
@@ -1353,6 +1418,7 @@ module.exports = async ({ req, res, log, error }) => {
     else if (action === 'get-resume-detail') data = await handleListUserContent(body, log);
     else if (action === 'impersonate') data = await handleImpersonate(body, log);
     else if (action === 'send-verification-email') data = await handleSendVerificationEmail(body, log);
+    else if (action === 'home-summary') data = await handleHomeSummary(log, error);
     else if (action === 'list-app-settings') data = await handleListAppSettings(log);
     else if (action === 'toggle-app-setting') data = await handleToggleAppSetting(body, log);
     else if (action === 'list-wisehire-waitlist') data = await handleListWisehireWaitlist(log);

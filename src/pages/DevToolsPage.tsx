@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   Activity, ArrowLeft, BarChart2, Briefcase, BrainCircuit, CheckCircle2, Cog, Database,
-  Fingerprint, Flag, History, LayoutDashboard, Link2, Loader2,
+  Fingerprint, Flag, History, Home, LayoutDashboard, Link2, Loader2,
   Lock, Mail, Menu, Play, ServerCog, ShieldCheck, Ticket, TrendingUp, Users,
   Wrench, X,
 } from 'lucide-react';
@@ -33,6 +33,7 @@ import { ModerationPanel } from '@/components/dev-kit/ModerationPanel';
 import { EmailHubPanel } from '@/components/dev-kit/EmailHubPanel';
 import { GrowthTrafficPanel } from '@/components/dev-kit/GrowthTrafficPanel';
 import { WiseHireWaitlistPanel } from '@/components/dev-kit/WiseHireWaitlistPanel';
+import { HomePanel } from '@/components/dev-kit/HomePanel';
 
 type PanelStatus = 'Live' | 'Needs Appwrite Function' | 'Needs Schema' | 'Planned';
 
@@ -46,6 +47,7 @@ interface PanelDef {
 
 const PANEL_GROUPS: { label: string; panels: PanelDef[] }[] = [
   { label: 'System Health', panels: [
+    { id: 'home',         title: 'Home',             icon: Home,           status: 'Live' },
     { id: 'mission',      title: 'Mission Control',  icon: Activity,       status: 'Live' },
     { id: 'diagnostics',  title: 'Diagnostics',      icon: ServerCog,      status: 'Live' },
     { id: 'observability',title: 'Observability',    icon: BarChart2,      status: 'Live' },
@@ -119,7 +121,7 @@ export default function DevToolsPage() {
 function DevToolsInner() {
   const navigate = useNavigate();
   const { isUnlocked, unlock, lock, hasRememberedSession, secondsUntilLock } = useDevKitSession();
-  const [activePanel, setActivePanel] = useState('mission');
+  const [activePanel, setActivePanel] = useState('home');
   const [password, setPassword] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -194,6 +196,7 @@ function DevToolsInner() {
     const panel = allPanels().find(p => p.id === activePanel) ?? allPanels()[0];
     if (panel.status !== 'Live') return wrap(panel.title, <NotReadyPanel panel={panel} />);
     switch (activePanel) {
+      case 'home':              return wrap('Home',             <HomePanel onNavigate={navigatePanel} />);
       case 'diagnostics':       return wrap('Diagnostics',      <DiagnosticsPanel />);
       case 'mission':           return wrap('Mission Control',  <MissionControlPanel onNavigate={navigatePanel} />);
       case 'runner':            return wrap('Smoke Runner',     <DevKitRunner />);
