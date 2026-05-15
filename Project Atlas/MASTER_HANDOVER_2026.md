@@ -1,5 +1,17 @@
 # WiseResume Master Handover & State (May 2026)
 
+## Session Summary - 2026-05-15 (Export Branch Merged)
+
+### Merge Record
+- **Branch:** `codex/export-system-replacement` → `main`
+- **Merge commit:** `0594c28` (PR #51)
+- **Local main:** fast-forwarded to `origin/main` (`0594c28`)
+- **Deployment:** `deploy-frontend.yml` was triggered on merge to main — verify run at `https://github.com/iammagdy/WiseResume-TWC/actions`
+- **Pending:** Real iPhone Safari/Chrome QA still not performed — test `Download` and `Save` on actual iOS before considering export fully released
+- **No Appwrite hub changes** — export uses the Express/Puppeteer server path; `ai-gateway` is unchanged
+
+---
+
 ## Session Summary - 2026-05-15 (Export Pagination Replacement)
 
 **Detailed log:** `Project Atlas/05-Migration to Appwrite/23-Session-Log-2026-05-15-Export-System-Replacement.md`  
