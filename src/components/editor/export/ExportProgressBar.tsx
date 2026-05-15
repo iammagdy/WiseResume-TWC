@@ -30,9 +30,9 @@ export function ExportProgressBar({
   isInterviewPrep, onFileNameChange, onExport,
 }: ExportProgressBarProps) {
   return (
-    <>
+    <div className="shrink-0 pt-4 pb-safe border-t border-border/60 bg-background">
       {isDownloadable && (
-        <div className="flex items-center gap-2 p-3 rounded-xl bg-muted">
+        <div className="flex items-center gap-2 p-3 rounded-xl bg-muted mb-3">
           <Label className="text-sm font-medium shrink-0">File name</Label>
           <Input
             value={customFileName}
@@ -45,7 +45,7 @@ export function ExportProgressBar({
       )}
 
       {exportProgress?.isActive && (
-        <div className="space-y-2">
+        <div className="space-y-2 mb-3">
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground">{exportProgress.message}</span>
             <span className="font-medium">{Math.round(exportProgress.progress)}%</span>
@@ -55,7 +55,7 @@ export function ExportProgressBar({
       )}
 
       {exportProgress?.warning && (
-        <Alert>
+        <Alert className="mb-3">
           <AlertDescription className="text-sm">
             {exportProgress.warning}
           </AlertDescription>
@@ -63,7 +63,7 @@ export function ExportProgressBar({
       )}
 
       {!isOnline && (selectedType === 'combined' || selectedType === 'cover-letter') && (
-        <Alert>
+        <Alert className="mb-3">
           <WifiOff className="h-4 w-4" />
           <AlertDescription className="text-sm">
             You're offline. This export requires an internet connection. PDF and DOCX exports still work offline.
@@ -73,10 +73,10 @@ export function ExportProgressBar({
 
       <Button
         size="lg"
-        className="w-full h-14 text-lg font-semibold gradient-primary"
+        className="w-full h-14 text-base font-semibold gradient-primary btn-shimmer"
         onClick={onExport}
         disabled={isButtonDisabled}
-        style={{ boxShadow: '0 8px 32px -8px hsl(var(--primary) / 0.5)' }}
+        style={{ boxShadow: '0 8px 32px -8px hsl(var(--primary) / 0.45)' }}
       >
         {isExporting ? (
           <>
@@ -90,6 +90,6 @@ export function ExportProgressBar({
           </>
         )}
       </Button>
-    </>
+    </div>
   );
 }

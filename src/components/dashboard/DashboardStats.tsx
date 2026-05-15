@@ -1,10 +1,12 @@
 import { useMemo, useEffect, useState, useRef, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FileText, Flame, AlertCircle, Lightbulb, X } from 'lucide-react';
+import { FileText, Flame, AlertCircle, Lightbulb, X, Star, Zap, ChevronDown } from 'lucide-react';
 import { ResumeHealthScore } from '@/hooks/useResumeScore';
 import { DatabaseResume } from '@/hooks/useResumes';
 import { databases, DATABASE_ID, Query } from '@/lib/appwrite';
 import { COLLECTIONS } from '@/lib/appwrite-collections';
+import { cn } from '@/lib/utils';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 function useLoginStreak(userId?: string | null) {
   const cacheKey = userId ? `wr-streak-${userId}` : 'wr-streak-guest';
@@ -196,50 +198,55 @@ export const DashboardStats = memo(function DashboardStats({
         </div>
       )}
 
-      {totalResumes > 0 && (
-        <div className="flex items-center gap-4 mt-0.5 mb-1">
-          <div className="flex items-center gap-1.5">
-            <FileText className="w-3.5 h-3.5 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">
-              {totalResumes} {totalResumes === 1 ? 'resume' : 'resumes'}
-            </span>
-          </div>
-          {avgScore > 0 && (
-            <div className="flex items-center gap-1.5">
-              <div className={`w-2 h-2 rounded-full ${avgScore >= 80 ? 'bg-emerald-500' : avgScore >= 50 ? 'bg-amber-500' : 'bg-red-500'}`} />
-              <span className="text-sm text-muted-foreground">
-                Avg. score {avgScore}%
-              </span>
-            </div>
-          )}
-          {resumes && resumes.length > 0 && (() => {
-            const oldest = resumes.reduce((a, b) =>
-              new Date(a.$updatedAt || a.$createdAt) < new Date(b.$updatedAt || b.$createdAt) ? a : b
-            );
-            const daysSince = Math.floor((Date.now() - new Date(oldest.$updatedAt || oldest.$createdAt || Date.now()).getTime()) / 86_400_000);
-            if (daysSince < 30) return null;
-            return (
-              <div className="flex items-center gap-1.5">
-                <AlertCircle className="w-3.5 h-3.5 text-warning" />
-                <span className="text-sm text-warning">{daysSince}d old</span>
+      {totalResumes > 0 && (() => {
+        const staleDays = resumes && resumes.length > 0 ? (() => {
+          const oldest = resumes.reduce((a, b) =>
+            new Date(a.$updatedAt || a.$createdAt) < new Date(b.$updatedAt || b.$createdAt) ? a : b
+          );
+          const d = Math.floor((Date.now() - new Date(oldest.$updatedAt || oldest.$createdAt || Date.now()).getTime()) / 86_400_000);
+          return d >= 30 ? d : null;
+        })() : null;
+
+        const avgScoreTopColor = avgScore >= 80 ? 'bg-success' : avgScore >= 50 ? 'bg-warning' : 'bg-destructive';
+
+        return (
+          <div className="grid grid-cols-3 gap-2 mt-3">
+            {[
+              { Icon: FileText, value: totalResumes, label: totalResumes === 1 ? 'Resume' : 'Resumes', topColor: 'bg-primary' },
+              { Icon: Star, value: avgScore > 0 ? `${avgScore}%` : '—', label: 'Avg Score', topColor: avgScoreTopColor },
+              { Icon: staleDays ? AlertCircle : Zap, value: staleDays ? `${staleDays}d` : `${streak}d`, label: staleDays ? 'Stale' : 'Streak', topColor: staleDays ? 'bg-warning' : 'bg-warning' },
+            ].map(({ Icon, value, label, topColor }) => (
+              <div key={label} className="rounded-xl border border-border bg-card p-3 relative overflow-hidden">
+                <div className={cn('absolute top-0 inset-x-0 h-0.5', topColor)} />
+                <Icon className="w-4 h-4 text-muted-foreground mb-1.5" />
+                <p className="text-xl font-bold leading-none tabular-nums">{value}</p>
+                <p className="text-xs text-muted-foreground mt-1">{label}</p>
               </div>
-            );
-          })()}
-        </div>
-      )}
+            ))}
+          </div>
+        );
+      })()}
 
       {!tipDismissed && (
-        <div className="flex items-center gap-2 mt-2 p-2.5 rounded-xl bg-card border border-border">
-          <Lightbulb className="w-3.5 h-3.5 text-warning shrink-0" />
-          <p className="text-xs text-muted-foreground flex-1 min-w-0 line-clamp-1">{tip}</p>
-          <button
-            onClick={handleDismissTip}
-            className="w-6 h-6 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground touch-manipulation shrink-0"
-            aria-label="Dismiss tip"
-          >
-            <X className="w-3 h-3" />
-          </button>
-        </div>
+        <Collapsible className="mt-3">
+          <CollapsibleTrigger className="flex items-center gap-2 text-xs text-muted-foreground px-1 w-full hover:text-foreground transition-colors">
+            <Lightbulb className="w-3.5 h-3.5 shrink-0" />
+            <span>Daily tip</span>
+            <ChevronDown className="w-3 h-3 ml-auto transition-transform duration-200 [[data-state=open]_&]:rotate-180" />
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="flex items-start gap-2 mt-2 p-2.5 rounded-xl bg-card border border-border">
+              <p className="text-xs text-muted-foreground flex-1 min-w-0">{tip}</p>
+              <button
+                onClick={handleDismissTip}
+                className="w-6 h-6 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground touch-manipulation shrink-0 mt-0.5"
+                aria-label="Dismiss tip"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
       )}
     </div>
   );

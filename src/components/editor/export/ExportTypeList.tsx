@@ -22,8 +22,8 @@ export function ExportTypeList({ primaryOptions, secondaryOptions, selectedType,
 
   return (
     <div className="space-y-3 flex-1 overflow-y-auto min-h-0">
-      {/* Primary options — always visible */}
-      <div className="space-y-2">
+      {/* Primary options — 2-column compact grid */}
+      <div className="grid grid-cols-2 gap-2">
         {primaryOptions.map((option) => (
           <ExportOptionCard
             key={option.id}
@@ -32,6 +32,7 @@ export function ExportTypeList({ primaryOptions, secondaryOptions, selectedType,
             isHighlighted={highlightedType === option.id}
             onePageScale={onePageScale}
             onSelect={onSelect}
+            compact
           />
         ))}
       </div>

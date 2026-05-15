@@ -141,20 +141,37 @@ export function ExportOptionsSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="h-auto max-h-[85vh] rounded-t-3xl backdrop-blur-sm bg-background">
-        <SheetHeader className="pb-4 shrink-0">
-          <SheetTitle className="flex items-center gap-2">
-            <Download className="w-5 h-5 text-primary" />
-            Export Options
-          </SheetTitle>
-          {(resumeName || templateName) && (
-            <p className="text-sm text-muted-foreground mt-1">
-              {resumeName}{resumeName && templateName ? ' · ' : ''}{templateName ? `${templateName} template` : ''}
-            </p>
-          )}
+      <SheetContent side="bottom" className="h-auto max-h-[85vh] rounded-t-3xl backdrop-blur-sm bg-background flex flex-col">
+        {/* Header with ATS badge */}
+        <SheetHeader className="pb-3 shrink-0 border-b border-border">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <SheetTitle className="flex items-center gap-2 text-base">
+                <Download className="w-4 h-4 text-primary shrink-0" />
+                Export Resume
+              </SheetTitle>
+              {(resumeName || templateName) && (
+                <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                  {resumeName}{resumeName && templateName ? ' · ' : ''}{templateName ? `${templateName} template` : ''}
+                </p>
+              )}
+            </div>
+            {templateAtsScore && (
+              <span className={`shrink-0 mt-0.5 text-[10px] font-medium px-2 py-1 rounded-full border ${
+                templateAtsScore === 'high'
+                  ? 'bg-success/10 border-success/30 text-success'
+                  : templateAtsScore === 'medium'
+                    ? 'bg-warning/10 border-warning/30 text-warning'
+                    : 'bg-destructive/10 border-destructive/30 text-destructive'
+              }`}>
+                ATS {templateAtsScore}
+              </span>
+            )}
+          </div>
         </SheetHeader>
 
-        <div className="flex flex-col gap-4 min-h-0 pb-safe">
+        {/* Scrollable content area */}
+        <div className="flex-1 overflow-y-auto min-h-0 flex flex-col gap-4 py-4">
           <ExportTypeList
             primaryOptions={primaryOptions}
             secondaryOptions={secondaryOptions}
@@ -185,23 +202,24 @@ export function ExportOptionsSheet({
             onPageNumbersChange={setShowPageNumbers}
             onBrandingChange={setShowBranding}
           />
-
-          <ExportProgressBar
-            exportProgress={exportProgress}
-            isOnline={isOnline}
-            selectedType={selectedType}
-            isDownloadable={isDownloadable}
-            customFileName={customFileName}
-            fileSuffix={getFileSuffix()}
-            buttonLabel={getButtonLabel()}
-            isExporting={isExporting}
-            isButtonDisabled={isButtonDisabled}
-            isTextType={isTextType}
-            isInterviewPrep={false}
-            onFileNameChange={setCustomFileName}
-            onExport={handleExport}
-          />
         </div>
+
+        {/* Sticky download footer — always visible */}
+        <ExportProgressBar
+          exportProgress={exportProgress}
+          isOnline={isOnline}
+          selectedType={selectedType}
+          isDownloadable={isDownloadable}
+          customFileName={customFileName}
+          fileSuffix={getFileSuffix()}
+          buttonLabel={getButtonLabel()}
+          isExporting={isExporting}
+          isButtonDisabled={isButtonDisabled}
+          isTextType={isTextType}
+          isInterviewPrep={false}
+          onFileNameChange={setCustomFileName}
+          onExport={handleExport}
+        />
       </SheetContent>
     </Sheet>
   );

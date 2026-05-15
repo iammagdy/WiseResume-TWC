@@ -1,5 +1,71 @@
 # WiseResume Master Handover & State (May 2026)
 
+---
+
+## Session Summary — 2026-05-15 (CI Fix: FTP chmod + Concurrency Race; UI Enhancement: Editor / Dashboard / Export)
+
+### 1. Deploy-Frontend Workflow — Root Cause & Fix
+
+**Problem A — lftp `chmod: Access failed: 550`**
+
+Every FTP file upload was followed by an lftp `SITE CHMOD` call. Hostinger's FTP server returns `550 No such file or directory` for `SITE CHMOD` on all paths. This caused `deploy-frontend.yml` to fail at the lftp sync step.
+
+**Root cause:** lftp's default behaviour tries to set Unix permissions after uploading each file. Hostinger's FTP layer does not support `SITE CHMOD`.
+
+**Fix:** Added `set ftp:use-site-chmod false;` to both lftp command blocks in `.github/workflows/deploy-frontend.yml` — the Tesseract/pdfjs pre-sync and the main app bundle sync. Commit `353e6cb`.
+
+---
+
+**Problem B — Simultaneous lftp sessions race condition (intermittent failure)**
+
+When a `workflow_dispatch` trigger fired ~9 seconds before a `push` auto-trigger on the same commit, two lftp sessions ran concurrently against the same Hostinger FTP directory. One session's `--delete` flag removed files the other had just uploaded; the uploading session then attempted to chmod the now-deleted files, hitting the 550 error. This explains why one run succeeded and the other failed on identical code.
+
+**Root cause:** No concurrency guard existed. GitHub Actions ran both triggered jobs simultaneously.
+
+**Fix:** Added `concurrency: group: deploy-frontend / cancel-in-progress: true` at the job level in `deploy-frontend.yml`. Duplicate triggers now cancel the earlier run rather than racing. Commit `4328053`.
+
+---
+
+### 2. UI Enhancement — 9 Files Changed
+
+All changes stay within the existing design system (HSL CSS custom properties, existing utility classes). No new dependencies added. Build passes clean (`✓ built in 36.20s`, zero TypeScript errors). Pre-existing test failures are unrelated to these files.
+
+#### Export Sheet
+
+| File | Change |
+|------|--------|
+| `src/components/editor/export/ExportOptionCard.tsx` | Added `compact?: boolean` prop. Compact mode: vertical layout, w-8 icon, description hidden, badge condensed. Selected state strengthened: `border-primary bg-primary/8 shadow-md shadow-primary/15`. Hover: `hover:border-primary/40 hover:bg-muted/30`. |
+| `src/components/editor/export/ExportTypeList.tsx` | Primary options changed from `space-y-2` vertical list to `grid grid-cols-2 gap-2`. `compact` prop passed to each primary `ExportOptionCard`. Secondary options unchanged (full-width in collapsible). |
+| `src/components/editor/export/ExportProgressBar.tsx` | Entire component wrapped in `shrink-0 pt-4 pb-safe border-t border-border/60 bg-background`. Button gets `btn-shimmer`, glow opacity `0.45`. |
+| `src/components/editor/ExportOptionsSheet.tsx` | `SheetContent` is now `flex flex-col`. Scrollable content area (`flex-1 overflow-y-auto min-h-0`) separated from pinned `<ExportProgressBar>` below it. Header redesigned: ATS badge chip top-right (`bg-success/10` / `bg-warning/10` / `bg-destructive/10`), title `text-base`, subtitle `text-xs`. |
+
+#### Editor
+
+| File | Change |
+|------|--------|
+| `src/components/editor/SectionSidebar.tsx` | Added `CORE_IDS = new Set([...])`. Computes `lastCoreIndex` + `hasExtras`. Inserts `h-px bg-border/60` divider + `"More"` label in `text-[9px]` caps after the last core section. Active button: `bg-gradient-to-r from-primary/15 to-transparent`. Active bar: `top-1.5 bottom-1.5 w-[3px]`. |
+| `src/components/editor/EditorHeader.tsx` | Added `ScoreMiniRing` SVG donut (mirrors `SectionSidebar`'s `CompletionRing`, size 18px). `ProgressChip` trigger now uses `ScoreMiniRing` + colored border `style={{ borderColor: color + '55' }}` + `rounded-xl border`. Added `progressColor = getProgressColor(overallScore)` const. Added thin `h-0.5` full-width score bar at header bottom (`-mx-4 bg-muted`, fills with `background: progressColor`). |
+
+#### Dashboard
+
+| File | Change |
+|------|--------|
+| `src/components/dashboard/DashboardStats.tsx` | Replaced inline `flex` stat row with `grid grid-cols-3 gap-2` stat cards (Resumes / Avg Score / Streak). Each card: `rounded-xl border border-border bg-card p-3`, colored `absolute top-0 inset-x-0 h-0.5` accent. Avg score stale-day detection preserved (shown in Streak slot if stale). Daily tip wrapped in `Collapsible`/`CollapsibleContent` with `ChevronDown` trigger. Added `cn`, `Star`, `Zap`, `ChevronDown` imports + `Collapsible` from `@/components/ui/collapsible`. |
+| `src/components/dashboard/DashboardHero.tsx` | Returning-user card (`hasResumes=true`) upgraded: `bg-gradient-to-br from-primary/8 via-card to-card`, decorative `blur-3xl` glow div, Optimize button gets `gradient-primary` class, Build button gets `hover:border-primary/30`. New-user state unchanged. |
+| `src/components/dashboard/ResumeListCard.tsx` | `border-l` color is now score-driven: `≥80 → border-l-success`, `≥50 → border-l-warning`, `>0 → border-l-destructive`, no score/zero → `border-l-border`. Removed the static `showTailoredBadge` condition that drove the colour. |
+
+---
+
+### Where We Stopped
+
+- All 9 UI files are modified locally. **Not committed. Not deployed.** Commit and trigger `deploy-frontend.yml` when ready.
+- `npm run build` — clean, zero errors.
+- Test suite: pre-existing failures in `apiFetch`, `supabaseBridge`, `dataExportBenchmark`, `aiTailor-D1`, `usePublicPortfolio`, `protectedTokens` — none in the files touched this session. `DashboardHero.test.tsx` passes.
+- Real iPhone Safari/Chrome QA for the export sheet UI changes has not been performed.
+- No Appwrite hub changes in this session.
+
+---
+
 ## Session Summary - 2026-05-15 (Deploy: Frontend + AI Hubs — Both Green)
 
 ### Deployment Record

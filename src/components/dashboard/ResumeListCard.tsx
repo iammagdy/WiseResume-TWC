@@ -222,7 +222,13 @@ export const ResumeListCard = memo(function ResumeListCard({
   return (
     <div className={cn(
       "relative overflow-hidden rounded-2xl border-l-4 transition-colors duration-500",
-      showTailoredBadge ? "border-l-success/20" : "border-l-primary/20",
+      (() => {
+        const score = healthScore?.overallScore;
+        if (score == null || score === 0) return 'border-l-border';
+        if (score >= 80) return 'border-l-success';
+        if (score >= 50) return 'border-l-warning';
+        return 'border-l-destructive';
+      })(),
     )}>
       {/* Swipe action backgrounds */}
       <div className="absolute inset-0 flex">

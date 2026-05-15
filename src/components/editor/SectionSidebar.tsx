@@ -19,6 +19,9 @@ const STEP_ICONS: Record<string, React.ComponentType<{ className?: string }>> = 
   references: Users,
 };
 
+// Core sections that always appear — optional extras are grouped below the divider
+const CORE_IDS = new Set(['contact', 'summary', 'experience', 'education', 'skills']);
+
 interface CompletionRingProps {
   score: number;
   size?: number;
@@ -91,6 +94,9 @@ export const SectionSidebar = memo(function SectionSidebar({
   completedSteps,
   onSectionClick,
 }: SectionSidebarProps) {
+  // Track whether we've already passed all core sections so we only insert the divider once
+  const lastCoreIndex = steps.reduce((last, step, idx) => CORE_IDS.has(step.id) ? idx : last, -1);
+
   return (
     <nav
       className="shrink-0 flex flex-col gap-0.5 py-2 px-1 border-r border-border bg-card/60 overflow-y-auto"
@@ -98,56 +104,69 @@ export const SectionSidebar = memo(function SectionSidebar({
       style={{ width: 80 }}
       data-section="editor-form"
     >
-      {steps.map((step) => {
+      {steps.map((step, idx) => {
         const isActive = step.id === activeSection;
         const score = sectionScores[step.id] ?? 0;
         const isCompleted = completedSteps[step.id];
         const Icon = STEP_ICONS[step.id] || Plus;
         const label = STEP_SHORT_LABELS[step.id] || step.label;
+        const isLastCore = idx === lastCoreIndex;
+        const hasExtras = steps.some((s, i) => i > lastCoreIndex && s.id !== 'more');
 
         return (
-          <button
-            key={step.id}
-            onClick={() => onSectionClick(step.id)}
-            data-track={`editor-section-${step.id}`}
-            className={cn(
-              'relative flex flex-col items-center gap-1 px-1 py-2 rounded-xl transition-all touch-manipulation active:scale-95 min-h-[64px] w-full',
-              isActive
-                ? 'bg-primary/10 text-primary'
-                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-            )}
-            aria-current={isActive ? 'step' : undefined}
-            title={step.label}
-          >
-            <div className="relative flex items-center justify-center">
-              {step.id === 'more' ? (
-                <div className={cn(
-                  'w-7 h-7 rounded-full border-2 flex items-center justify-center',
-                  isActive ? 'border-primary' : 'border-border'
-                )}>
-                  <Plus className="w-4 h-4" />
-                </div>
-              ) : isCompleted ? (
-                <div className="w-7 h-7 rounded-full bg-success/15 flex items-center justify-center">
-                  <Check className="w-4 h-4 text-success" />
-                </div>
-              ) : (
-                <>
-                  <CompletionRing score={score} size={28} />
-                  <Icon className="absolute inset-0 m-auto w-4 h-4" />
-                </>
+          <div key={step.id}>
+            <button
+              onClick={() => onSectionClick(step.id)}
+              data-track={`editor-section-${step.id}`}
+              className={cn(
+                'relative flex flex-col items-center gap-1 px-1 py-2 rounded-xl transition-all touch-manipulation active:scale-95 min-h-[64px] w-full',
+                isActive
+                  ? 'bg-gradient-to-r from-primary/15 to-transparent text-primary'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
               )}
-            </div>
-            <span className={cn(
-              'text-[11px] font-medium leading-tight text-center truncate w-full px-0.5',
-              isActive ? 'text-primary' : isCompleted ? 'text-success' : ''
-            )}>
-              {label}
-            </span>
-            {isActive && (
-              <span className="absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-primary" />
+              aria-current={isActive ? 'step' : undefined}
+              title={step.label}
+            >
+              <div className="relative flex items-center justify-center">
+                {step.id === 'more' ? (
+                  <div className={cn(
+                    'w-7 h-7 rounded-full border-2 flex items-center justify-center',
+                    isActive ? 'border-primary' : 'border-border'
+                  )}>
+                    <Plus className="w-4 h-4" />
+                  </div>
+                ) : isCompleted ? (
+                  <div className="w-7 h-7 rounded-full bg-success/15 flex items-center justify-center">
+                    <Check className="w-4 h-4 text-success" />
+                  </div>
+                ) : (
+                  <>
+                    <CompletionRing score={score} size={28} />
+                    <Icon className="absolute inset-0 m-auto w-4 h-4" />
+                  </>
+                )}
+              </div>
+              <span className={cn(
+                'text-[11px] font-medium leading-tight text-center truncate w-full px-0.5',
+                isActive ? 'text-primary' : isCompleted ? 'text-success' : ''
+              )}>
+                {label}
+              </span>
+              {isActive && (
+                <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full bg-primary" />
+              )}
+            </button>
+
+            {/* Divider between core and optional sections */}
+            {isLastCore && hasExtras && (
+              <div className="my-1 mx-1.5">
+                <div className="h-px bg-border/60" />
+                <p className="text-[9px] font-medium text-muted-foreground/40 uppercase tracking-widest text-center mt-1.5">
+                  More
+                </p>
+              </div>
             )}
-          </button>
+          </div>
         );
       })}
     </nav>

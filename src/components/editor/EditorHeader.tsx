@@ -53,6 +53,22 @@ function getProgressColor(progress: number): string {
   return 'hsl(0, 80%, 55%)';
 }
 
+function ScoreMiniRing({ score, color, size = 18 }: { score: number; color: string; size?: number }) {
+  const strokeWidth = 2.5;
+  const r = (size - strokeWidth) / 2;
+  const circ = 2 * Math.PI * r;
+  const dash = Math.min(score / 100, 1) * circ;
+  return (
+    <svg width={size} height={size} style={{ transform: 'rotate(-90deg)', flexShrink: 0 }} aria-hidden>
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="currentColor"
+        strokeWidth={strokeWidth} className="text-border" />
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color}
+        strokeWidth={strokeWidth} strokeDasharray={`${dash} ${circ - dash}`}
+        strokeLinecap="round" style={{ transition: 'stroke-dasharray 0.7s ease' }} />
+    </svg>
+  );
+}
+
 function ProgressChip({
   overallScore,
   steps,
@@ -91,18 +107,13 @@ function ProgressChip({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button
-          className="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-muted active:scale-95 transition-all touch-manipulation min-h-[44px]"
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl border hover:bg-muted active:scale-95 transition-all touch-manipulation min-h-[44px]"
           aria-label="Resume completion progress"
+          style={{ borderColor: color + '55' }}
         >
-          {/* Mini pill bar */}
-          <div className="w-12 h-1.5 rounded-full bg-secondary/40 overflow-hidden hidden sm:block">
-            <div
-              className="h-full rounded-full transition-all duration-700"
-              style={{ width: `${Math.min(100, Math.max(0, overallScore))}%`, background: color }}
-            />
-          </div>
+          <ScoreMiniRing score={overallScore} color={color} size={18} />
           <span
-            className="text-xs font-bold whitespace-nowrap transition-colors duration-500"
+            className="text-xs font-bold whitespace-nowrap tabular-nums transition-colors duration-500"
             style={{ color }}
           >
             {overallScore}%
@@ -248,10 +259,12 @@ export function EditorHeader({
   onDownload,
   onImportProfile,
 }: EditorHeaderProps) {
+  const progressColor = getProgressColor(overallScore);
+
   return (
-    <header className="editor-header shrink-0 sticky top-0 z-editor-header relative border-b border-border px-4 py-3 pt-safe transition-all duration-200">
+    <header className="editor-header shrink-0 sticky top-0 z-editor-header relative border-b border-border px-4 pt-safe transition-all duration-200">
       <GlassSurface className="absolute inset-0" />
-      <div className="relative z-[1] flex items-center justify-between">
+      <div className="relative z-[1] flex items-center justify-between py-2.5">
         <div className="flex items-center gap-1 sm:gap-2 min-w-0 flex-1">
           <button
             onClick={onBack}
@@ -430,6 +443,13 @@ export function EditorHeader({
             <span className="text-[9px] font-medium leading-none text-primary">Wise AI</span>
           </button>
         </div>
+      </div>
+      {/* Thin score progress bar — spans full width below the button row */}
+      <div className="relative z-[1] h-0.5 -mx-4 bg-muted overflow-hidden">
+        <div
+          className="h-full rounded-full transition-all duration-700"
+          style={{ width: `${Math.min(100, Math.max(0, overallScore))}%`, background: progressColor }}
+        />
       </div>
     </header>
   );

@@ -23,23 +23,25 @@ export const DashboardHero = memo(function DashboardHero({
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        className="mx-4 mt-4 mb-4 rounded-2xl bg-card border border-border px-4 py-4"
+        className="relative overflow-hidden mx-4 mt-4 mb-4 rounded-2xl bg-gradient-to-br from-primary/8 via-card to-card border border-border px-4 py-4"
       >
-        <p className="text-[11px] font-medium text-muted-foreground mb-3">Jump back in</p>
+        {/* Decorative glow */}
+        <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-primary/6 blur-3xl pointer-events-none" />
+        <p className="text-[11px] font-medium text-muted-foreground mb-3 relative">Jump back in</p>
         <div
           data-testid="returning-user-cta-grid"
-          className="grid grid-cols-1 sm:grid-cols-2 gap-2"
+          className="grid grid-cols-1 sm:grid-cols-2 gap-2 relative"
         >
           <Button
             variant="outline"
-            className="h-11 gap-2 justify-center active:scale-[0.98] touch-manipulation"
+            className="h-11 gap-2 justify-center active:scale-[0.98] touch-manipulation hover:border-primary/30"
             onClick={() => { haptics.light(); onBuild(); }}
           >
             <FileText className="w-4 h-4 shrink-0" />
             <span className="text-sm">Build a Resume</span>
           </Button>
           <Button
-            className="h-11 gap-2 justify-center active:scale-[0.98] touch-manipulation"
+            className="h-11 gap-2 justify-center active:scale-[0.98] touch-manipulation gradient-primary"
             onClick={() => { haptics.light(); onTailor(); }}
           >
             <Wand2 className="w-4 h-4 shrink-0" />
@@ -49,7 +51,7 @@ export const DashboardHero = memo(function DashboardHero({
         {onContinueEditing && (
           <Button
             variant="ghost"
-            className="mt-2 h-11 w-full justify-center text-sm text-muted-foreground hover:text-foreground active:scale-[0.98] touch-manipulation"
+            className="relative mt-2 h-11 w-full justify-center text-sm text-muted-foreground hover:text-foreground active:scale-[0.98] touch-manipulation"
             onClick={() => { haptics.light(); onContinueEditing(); }}
           >
             Continue editing
