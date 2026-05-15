@@ -21,6 +21,8 @@ import type { Request, Response } from 'express';
 import cors from 'cors';
 import dns from 'dns';
 import puppeteer from 'puppeteer';
+import { PDFDocument } from 'pdf-lib';
+import { buildExportPageSegments, normalizeBreakPositions } from '../src/lib/exportPagePlan';
 
 const app = express();
 const PORT = parseInt(process.env.API_PORT || '5001', 10);
@@ -71,11 +73,164 @@ app.get('/api/health', (_req: Request, res: Response) => {
   res.json({ ok: true, server: 'wise-resume', stack: 'appwrite-native' });
 });
 
+const PDF_FORMATS = {
+  letter: { widthPx: 612, heightPx: 792 },
+  a4: { widthPx: 595, heightPx: 842 },
+} as const;
+
+const EXPORT_FOOTER_HEIGHT_PX = 44;
+const EXPORT_BRAND_URL = 'https://resume.thewise.cloud';
+
+function extractHtmlParts(html: string): { head: string; body: string } {
+  const head = html.match(/<head[^>]*>([\s\S]*?)<\/head>/i)?.[1] ?? '';
+  const body = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i)?.[1] ?? html;
+  return { head, body };
+}
+
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function buildSegmentHtml(args: {
+  sourceHtml: string;
+  pageWidthPx: number;
+  contentStartPx: number;
+  contentHeightPx: number;
+  footerHeightPx: number;
+  pageNumber?: string;
+  showBranding: boolean;
+}): string {
+  const { head, body } = extractHtmlParts(args.sourceHtml);
+  const pageHeightPx = args.contentHeightPx + args.footerHeightPx;
+  const pageNumber = args.pageNumber ? escapeHtml(args.pageNumber) : '';
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+${head}
+<style>
+  @page { size: ${args.pageWidthPx}px ${pageHeightPx}px; margin: 0; }
+  html, body {
+    width: ${args.pageWidthPx}px !important;
+    height: ${pageHeightPx}px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    background: #fff !important;
+  }
+  .wr-export-page-clip {
+    position: relative;
+    width: ${args.pageWidthPx}px;
+    height: ${args.contentHeightPx}px;
+    overflow: hidden;
+    background: #fff;
+  }
+  .wr-export-page-source {
+    position: absolute;
+    left: 0;
+    top: -${args.contentStartPx}px;
+    width: ${args.pageWidthPx}px;
+  }
+  .wr-export-page-footer {
+    width: ${args.pageWidthPx}px;
+    height: ${args.footerHeightPx}px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    font: 9px Arial, sans-serif;
+    color: #737373;
+    background: #fff;
+  }
+  .wr-export-page-footer a {
+    color: #737373;
+    text-decoration: none;
+  }
+</style>
+</head>
+<body>
+  <div class="wr-export-page-clip">
+    <div class="wr-export-page-source">${body}</div>
+  </div>
+  ${args.footerHeightPx > 0 ? `
+    <div class="wr-export-page-footer">
+      ${pageNumber ? `<span>${pageNumber}</span>` : ''}
+      ${args.showBranding ? `<a href="${EXPORT_BRAND_URL}">Wise Resume</a>` : ''}
+    </div>
+  ` : ''}
+</body>
+</html>`;
+}
+
+async function measureContentHeight(browser: Awaited<ReturnType<typeof puppeteer.launch>>, html: string, widthPx: number): Promise<number> {
+  const page = await browser.newPage();
+  try {
+    await page.setViewport({ width: widthPx, height: 1200, deviceScaleFactor: 2 });
+    await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30_000 });
+    return await page.evaluate(() => {
+      const template = document.querySelector('[data-resume-template]') as HTMLElement | null;
+      const source = template ?? document.body;
+      return Math.max(source.scrollHeight, source.offsetHeight, document.body.scrollHeight, 1);
+    });
+  } finally {
+    await page.close();
+  }
+}
+
+async function renderHtmlToPdfBuffer(
+  browser: Awaited<ReturnType<typeof puppeteer.launch>>,
+  html: string,
+  widthPx: number,
+  heightPx: number,
+): Promise<Buffer> {
+  const page = await browser.newPage();
+  try {
+    await page.setViewport({ width: widthPx, height: Math.max(1, heightPx), deviceScaleFactor: 2 });
+    await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30_000 });
+    const pdf = await page.pdf({
+      width: `${widthPx}px`,
+      height: `${heightPx}px`,
+      printBackground: true,
+      margin: { top: '0', right: '0', bottom: '0', left: '0' },
+    });
+    return Buffer.from(pdf);
+  } finally {
+    await page.close();
+  }
+}
+
+async function mergePdfBuffers(buffers: Buffer[]): Promise<Uint8Array> {
+  if (buffers.length === 1) return new Uint8Array(buffers[0]);
+  const merged = await PDFDocument.create();
+  for (const buffer of buffers) {
+    const doc = await PDFDocument.load(buffer);
+    const pages = await merged.copyPages(doc, doc.getPageIndices());
+    pages.forEach((page) => merged.addPage(page));
+  }
+  return merged.save();
+}
+
 app.post('/api/export/pdf-native', async (req: Request, res: Response) => {
-  const { html, pageFormat = 'letter', onePage = false } = req.body as {
+  const {
+    html,
+    pageFormat = 'letter',
+    onePage = false,
+    showPageNumbers = true,
+    showBranding = true,
+    customBreakPositions = [],
+    totalContentHeightPx,
+  } = req.body as {
     html?: string;
     pageFormat?: string;
     onePage?: boolean;
+    showPageNumbers?: boolean;
+    showBranding?: boolean;
+    customBreakPositions?: number[];
+    totalContentHeightPx?: number;
   };
 
   if (!html || typeof html !== 'string') {
@@ -98,22 +253,58 @@ app.post('/api/export/pdf-native', async (req: Request, res: Response) => {
       ],
     });
 
-    const page = await browser.newPage();
-
     // Match the PDF format's printable width so layout is identical to the browser
     const isA4 = pageFormat === 'a4';
-    await page.setViewport({ width: isA4 ? 794 : 816, height: 1123, deviceScaleFactor: 2 });
+    const dims = isA4 ? PDF_FORMATS.a4 : PDF_FORMATS.letter;
 
-    // Load the self-contained HTML; waitUntil:'networkidle0' lets Puppeteer
-    // fetch external assets (Google Fonts, CDN images) before snapping the PDF.
-    await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30_000 });
-
-    const pdfBuffer = await page.pdf({
-      format: isA4 ? 'A4' : 'Letter',
-      printBackground: true,
-      margin: { top: '0', right: '0', bottom: '0', left: '0' },
-      ...(onePage ? { pageRanges: '1' } : {}),
-    });
+    let pdfBuffer: Uint8Array;
+    if (onePage) {
+      const page = await browser.newPage();
+      try {
+        await page.setViewport({ width: dims.widthPx, height: dims.heightPx, deviceScaleFactor: 2 });
+        await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30_000 });
+        const onePageBuffer = await page.pdf({
+          format: isA4 ? 'A4' : 'Letter',
+          printBackground: true,
+          margin: { top: '0', right: '0', bottom: '0', left: '0' },
+          pageRanges: '1',
+        });
+        pdfBuffer = new Uint8Array(onePageBuffer);
+      } finally {
+        await page.close();
+      }
+    } else {
+      const footerHeight = showPageNumbers || showBranding ? EXPORT_FOOTER_HEIGHT_PX : 0;
+      const printableHeight = dims.heightPx - footerHeight;
+      const measuredHeight = Number.isFinite(totalContentHeightPx)
+        ? Math.max(1, Math.round(totalContentHeightPx as number))
+        : await measureContentHeight(browser, html, dims.widthPx);
+      const normalizedBreaks = normalizeBreakPositions(customBreakPositions, measuredHeight);
+      const segments = buildExportPageSegments({
+        totalContentHeightPx: measuredHeight,
+        pageHeightPx: printableHeight,
+        customBreakPositions: normalizedBreaks,
+      });
+      const buffers: Buffer[] = [];
+      for (const segment of segments) {
+        const segmentHtml = buildSegmentHtml({
+          sourceHtml: html,
+          pageWidthPx: dims.widthPx,
+          contentStartPx: segment.startPx,
+          contentHeightPx: segment.heightPx,
+          footerHeightPx: footerHeight,
+          pageNumber: showPageNumbers ? `Page ${segment.index + 1} of ${segments.length}` : undefined,
+          showBranding,
+        });
+        buffers.push(await renderHtmlToPdfBuffer(
+          browser,
+          segmentHtml,
+          dims.widthPx,
+          segment.heightPx + footerHeight,
+        ));
+      }
+      pdfBuffer = await mergePdfBuffers(buffers);
+    }
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename="resume.pdf"');

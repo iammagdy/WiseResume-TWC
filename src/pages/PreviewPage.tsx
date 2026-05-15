@@ -258,12 +258,14 @@ export default function PreviewPage() {
           const scale = 3840 / el.offsetWidth;
           const canvas = await captureWithRetry(el, { scale, backgroundColor: '#ffffff', onclone: (doc: Document) => convertSvgsToImages(doc) });
           cleanupTags();
+          const { appendImageWatermark } = await import('@/lib/exportWatermark');
+          const watermarkedCanvas = appendImageWatermark(canvas);
           onProgress('downloading', 80);
           const blob = await new Promise<Blob>((resolve, reject) => {
-            canvas.toBlob((b) => b ? resolve(b) : reject(new Error('Failed to create image blob')), 'image/png');
+            watermarkedCanvas.toBlob((b) => b ? resolve(b) : reject(new Error('Failed to create image blob')), 'image/png');
           });
           const fileName = `${baseName}_Resume_4K.png`;
-          const result = await downloadFile({ blob, fileName });
+          const result = await downloadFile({ blob, fileName, mimeType: 'image/png' });
           if (result.success) toast.success('4K image downloaded!');
           onProgress('downloading', 100);
           setShowExportSheet(false);
@@ -321,7 +323,7 @@ export default function PreviewPage() {
             const { generateNativePDF: nativePdf } = await import('@/lib/nativePdfGenerator');
             const templateEl = resumeRef.current ?? (document.querySelector('[data-resume-template]') as HTMLElement | null);
             if (!templateEl) { toast.error('Resume preview not visible'); return; }
-            pdfBlob = await nativePdf(templateEl, { pageFormat, atsMode: true, showPageNumbers: false, showBranding: false, onProgress });
+            pdfBlob = await nativePdf(templateEl, { pageFormat, atsMode: true, showPageNumbers: false, showBranding: true, onProgress });
             fileName = `${baseName}_Resume_ATS.pdf`;
             break;
           }
@@ -332,9 +334,9 @@ export default function PreviewPage() {
             const templateEl = resumeRef.current ?? (document.querySelector('[data-resume-template]') as HTMLElement | null);
             if (!templateEl) { toast.error('Resume preview not visible'); return; }
             onProgress('capturing', 20);
-            const coverBlob = await generateCoverLetterNativePDF(generatedCoverLetter, currentResume.contactInfo, { pageFormat, showPageNumbers: false, showBranding: false });
+            const coverBlob = await generateCoverLetterNativePDF(generatedCoverLetter, currentResume.contactInfo, { pageFormat, showPageNumbers: false, showBranding: true });
             onProgress('capturing', 40);
-            const resumeBlob = await nativePdf(templateEl, { pageFormat, showPageNumbers: false, showBranding: false, onProgress });
+            const resumeBlob = await nativePdf(templateEl, { pageFormat, showPageNumbers: false, showBranding: true, onProgress });
             onProgress('finalizing', 90);
             pdfBlob = await mergePDFBlobs(coverBlob, resumeBlob);
             fileName = `${baseName}_Application_Package.pdf`;
@@ -415,11 +417,7 @@ export default function PreviewPage() {
         // PDF renderer not configured — fall back to browser print-to-PDF,
         // the same way EditorPage.tsx handles this (see EditorPage line ~384).
         if (error instanceof PDFServerUnavailableError) {
-          toast.info(
-            'PDF export is not available right now. Opening print dialog — choose "Save as PDF" to download your resume.',
-            { duration: 8000 },
-          );
-          window.print();
+          toast.error('PDF export is not available right now. Please try again later or use DOCX export.');
           return;
         }
 
@@ -488,12 +486,7 @@ export default function PreviewPage() {
       if (err instanceof Error && err.name === 'AbortError') {
         toast.info('Cancelled. Tap again to save.');
       } else if (err instanceof PDFServerUnavailableError) {
-        // PDF renderer not configured — offer print-to-PDF as fallback.
-        toast.info(
-          'PDF export is not available right now. Opening print dialog — choose "Save to Files" to save your resume.',
-          { duration: 8000 },
-        );
-        window.print();
+        toast.error('PDF export is not available right now. Please try again later or use DOCX export.');
       } else {
         toast.error('Failed to save. Try downloading instead.');
       }

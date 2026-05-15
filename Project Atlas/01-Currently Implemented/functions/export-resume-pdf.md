@@ -1,31 +1,44 @@
 # export-resume-pdf
 
-**Last verified:** 2026-05-08
+**Last verified:** 2026-05-15
 **Type:** reference card
-**Sources:** `supabase/functions/export-resume-pdf/index.ts`
+**Sources:** `server/index.ts`, `src/lib/nativePdfGenerator.ts`, `src/lib/exportPagePlan.ts`
 
 ---
 
-## What it does
+## What It Does
 
-Server-side PDF rendering proxy for the resume editor. Forwards an HTML payload to an external Puppeteer renderer and streams the resulting PDF bytes back to the client.
+Server-side PDF rendering endpoint for resume export.
 
-**Method:** POST only
-**Auth:** `requireAuth`
+**Route:** `POST /api/export/pdf-native`  
 **Body:** `{ html, pageFormat, onePage, fitScale, showPageNumbers, showBranding, customBreakPositions, totalContentHeightPx }`
 
-## Renderer URL
+The frontend sends self-contained resume HTML plus export options from `generateNativePDF()`. The server renders with Chromium/Puppeteer so PDF text remains selectable and source anchors remain clickable.
 
-Reads `PDF_RENDERER_URL` (Supabase Edge secret). When unset, returns `503 + Content-Type: text/html` with the body `PDF_RENDERER_URL not configured`. The frontend `nativePdfGenerator.ts` detects this content-type, throws `PDFServerUnavailableError`, and `EditorPage.tsx` falls back to browser print-to-PDF.
+## Pagination Behavior
 
-When set, posts to `${PDF_RENDERER_URL}` with `Accept: application/pdf` and an optional `Authorization: Bearer ${PDF_RENDERER_TOKEN}`.
+- `customBreakPositions` are exact vertical break positions measured in the active export design width.
+- The server validates and sorts those positions with `normalizeBreakPositions()`.
+- Multi-page PDFs are rendered as clipped HTML segments and merged with `pdf-lib`.
+- The final page height is cropped to the actual remaining content height plus the export footer.
+- `onePage` still renders as a single fitted page.
 
-## Response
+## Branding
 
-`200 + Content-Type: application/pdf` with the binary PDF body. Errors return 502 (renderer non-2xx with passthrough message), 400 (invalid body / empty html), 401 (auth).
+When `showBranding` is true, the server adds a visible footer link:
+
+`Wise Resume` -> `https://resume.thewise.cloud`
+
+This is a real PDF link because it is rendered as an HTML anchor before Chromium creates the PDF.
+
+## Error Handling
+
+If the local/server PDF service is unavailable, `nativePdfGenerator.ts` throws `PDFServerUnavailableError`. Resume export screens show a clear error and do not open the browser print screen as the normal fallback.
 
 ## Related
 
-- `src/lib/nativePdfGenerator.ts` — frontend client
-- `src/pages/EditorPage.tsx` — fallback orchestration
+- `src/components/editor/export/ExportPageBreakSetup.tsx` - export setup UI
+- `src/lib/exportPagePlan.ts` - page break validation and page segment planning
+- `src/lib/nativePdfGenerator.ts` - frontend PDF payload builder
+- `server/index.ts` - Puppeteer render and segment merge endpoint
 - `Project Atlas/01-Currently Implemented/stability-fixes/phase-11-pdf-export-puppeteer-migration.md`

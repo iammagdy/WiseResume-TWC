@@ -5,18 +5,23 @@ import { generateCustomizationCSS } from '@/lib/templateCustomization';
 import type { ResumeData, TemplateId } from '@/types/resume';
 import type { NativePdfOptions } from '@/lib/nativePdfGenerator';
 
+const PAGE_WIDTHS = {
+  letter: 612,
+  a4: 595,
+} as const;
+
 interface OffscreenMount {
   container: HTMLDivElement;
   template: HTMLDivElement;
   root: Root;
 }
 
-function mountOffscreenTemplate(resume: ResumeData, templateId: TemplateId): OffscreenMount {
+function mountOffscreenTemplate(resume: ResumeData, templateId: TemplateId, pageWidth: number): OffscreenMount {
   const container = document.createElement('div');
   container.style.position = 'fixed';
   container.style.left = '-10000px';
   container.style.top = '0';
-  container.style.width = '816px';
+  container.style.width = `${pageWidth}px`;
   container.style.pointerEvents = 'none';
   container.style.opacity = '0';
   container.setAttribute('aria-hidden', 'true');
@@ -24,7 +29,7 @@ function mountOffscreenTemplate(resume: ResumeData, templateId: TemplateId): Off
 
   const template = document.createElement('div');
   template.setAttribute('data-resume-template', '');
-  template.style.width = '816px';
+  template.style.width = `${pageWidth}px`;
   container.appendChild(template);
 
   const TemplateComponent =
@@ -88,10 +93,10 @@ export async function exportResumePdfFromData(
   options?: NativePdfOptions & { renderTimeoutMs?: number },
 ): Promise<Blob> {
   const { generateNativePDF } = await import('@/lib/nativePdfGenerator');
-  const mount = mountOffscreenTemplate(resume, templateId);
+  const pageFormat = (resume.customization?.pageFormat ?? 'letter') as 'letter' | 'a4';
+  const mount = mountOffscreenTemplate(resume, templateId, PAGE_WIDTHS[pageFormat]);
   try {
     await waitForRender(mount.template, options?.renderTimeoutMs ?? 4000);
-    const pageFormat = (resume.customization?.pageFormat ?? 'letter') as 'letter' | 'a4';
     const { renderTimeoutMs: _renderTimeoutMs, ...nativeOpts } = options ?? {};
     return await generateNativePDF(mount.template, { pageFormat, ...nativeOpts });
   } finally {

@@ -1,13 +1,18 @@
 import type { ContactInfo } from '@/types/resume';
 import type { OnProgressCallback } from '@/hooks/useExportProgress';
 import { PDFDocument } from 'pdf-lib';
+import { normalizeBreakPositions } from '@/lib/exportPagePlan';
+
+const BRANDING_URL = 'https://resume.thewise.cloud';
 
 /**
  * Thrown when the server PDF pipeline is explicitly unavailable (503).
- * PreviewPage catches this and opens window.print() with a friendly message.
+ * Export callers catch this and show a direct retry/DOCX fallback message.
  */
 export class PDFServerUnavailableError extends Error {
-  constructor(message = 'PDF export is temporarily unavailable. Please use the print dialog.') {
+  readonly code = 'PDF_SERVER_UNAVAILABLE';
+
+  constructor(message = 'PDF export is temporarily unavailable. Please try again later or use DOCX export.') {
     super(message);
     this.name = 'PDFServerUnavailableError';
   }
@@ -83,7 +88,7 @@ function buildSelfContainedHTML(
   opts: { onePage?: boolean; atsMode?: boolean } = {},
 ): string {
   // Match the page width Puppeteer will use for the PDF format
-  const pageWidthPx = pageFormat === 'a4' ? 794 : 816;
+  const pageWidthPx = pageFormat === 'a4' ? 595 : 612;
 
   const atsModeStyle = opts.atsMode
     ? `
@@ -119,6 +124,11 @@ function buildSelfContainedHTML(
   <div style="width:${pageWidthPx}px; overflow:hidden;">
     ${templateHTML}
   </div>
+  <a
+    class="wr-export-watermark-source"
+    href="${BRANDING_URL}"
+    style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;"
+  >Wise Resume</a>
 </body>
 </html>`;
 }
@@ -136,6 +146,10 @@ async function callPdfServer(
     pageFormat: string;
     onePage?: boolean;
     atsMode?: boolean;
+    showPageNumbers?: boolean;
+    showBranding?: boolean;
+    customBreakPositions?: number[];
+    totalContentHeightPx?: number;
   },
   onProgress?: OnProgressCallback,
 ): Promise<Blob> {
@@ -169,7 +183,7 @@ async function callPdfServer(
   const contentType = response.headers.get('content-type') ?? '';
   if (!contentType.includes('application/pdf')) {
     throw new PDFServerUnavailableError(
-      'PDF server is not available in this environment. Use the print dialog to save your resume as PDF.',
+      'PDF server is not available in this environment. Please try again later or use DOCX export.',
     );
   }
 
@@ -191,6 +205,9 @@ export async function generateNativePDF(
     pageFormat = 'letter',
     onePage = false,
     atsMode = false,
+    showPageNumbers = true,
+    showBranding = true,
+    customBreakPositions,
     onProgress,
   } = options;
 
@@ -204,10 +221,24 @@ export async function generateNativePDF(
   // Serialise the live template element to HTML
   const templateHTML = templateEl.outerHTML;
   const html = buildSelfContainedHTML(templateHTML, css, pageFormat, { onePage, atsMode });
+  const totalContentHeightPx = Math.max(
+    templateEl.scrollHeight || 0,
+    templateEl.offsetHeight || 0,
+  );
+  const normalizedBreaks = normalizeBreakPositions(customBreakPositions, totalContentHeightPx);
 
   onProgress?.('finalizing', 50);
 
-  return callPdfServer({ html, pageFormat, onePage, atsMode }, onProgress);
+  return callPdfServer({
+    html,
+    pageFormat,
+    onePage,
+    atsMode,
+    showPageNumbers,
+    showBranding,
+    totalContentHeightPx,
+    customBreakPositions: normalizedBreaks,
+  }, onProgress);
 }
 
 /**

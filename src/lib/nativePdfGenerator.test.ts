@@ -1,0 +1,42 @@
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { generateNativePDF } from './nativePdfGenerator';
+
+describe('generateNativePDF', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('sends exact page break, content height, page numbering, and branding options to the PDF server', async () => {
+    const template = document.createElement('div');
+    template.setAttribute('data-resume-template', 'true');
+    template.innerHTML = '<section data-section="summary"><a href="https://github.com/example">example</a></section>';
+    Object.defineProperty(template, 'scrollHeight', { value: 1650, configurable: true });
+
+    const fetchSpy = vi.fn().mockResolvedValue(
+      new Response(new Blob(['%PDF-1.7'], { type: 'application/pdf' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/pdf' },
+      }),
+    );
+    vi.stubGlobal('fetch', fetchSpy);
+
+    await generateNativePDF(template, {
+      pageFormat: 'letter',
+      showPageNumbers: false,
+      showBranding: true,
+      customBreakPositions: [1225, 700],
+    });
+
+    const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
+    expect(body).toMatchObject({
+      pageFormat: 'letter',
+      showPageNumbers: false,
+      showBranding: true,
+      totalContentHeightPx: 1650,
+      customBreakPositions: [700, 1225],
+    });
+    expect(body.html).toContain('https://github.com/example');
+    expect(body.html).toContain('Wise Resume');
+    expect(body.html).toContain('https://resume.thewise.cloud');
+  });
+});

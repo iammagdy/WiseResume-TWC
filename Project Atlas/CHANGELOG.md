@@ -11,6 +11,30 @@
 
 ---
 
+## 2026-05-15 - Export Pagination, iPhone Save, and Watermark Replacement
+
+### Summary
+Replaced the broken Live Preview page-break controls with an Export Options setup flow, moved PDF pagination to exact server-rendered page segments, and removed the remaining dead raster-PDF helper code.
+
+### Root cause
+The app had a visible custom page-break UI, but `generateNativePDF()` dropped `customBreakPositions`, page-numbering, branding, and content-height data before calling `/api/export/pdf-native`. The server then printed the whole HTML with normal Chromium pagination, so user-placed breaks were ignored and the final page stayed full A4/Letter height. iPhone failures were worsened by a deliberate `window.print()` fallback when the PDF service was unavailable.
+
+### What changed
+- Added an Export Options page setup panel that measures the rendered CV, starts from smart suggested breaks, and persists exact break positions.
+- Updated `/api/export/pdf-native` to render exact clipped HTML segments and merge them into one text-selectable PDF, with the final page cropped to remaining content height.
+- Added a visible, clickable `Wise Resume` PDF footer link and an image-export footer containing `Wise Resume` plus `https://resume.thewise.cloud`.
+- Removed the Live Preview page-break controls and deleted the dead raster PDF helper internals from `src/lib/pdfGenerator.ts`.
+- Removed the normal print fallback from resume PDF export errors; callers now show a direct retry/DOCX fallback message.
+
+### Verification
+- `npx vitest run src/lib/exportPagePlan.test.ts src/lib/nativePdfGenerator.test.ts src/lib/exportWatermark.test.ts src/lib/__tests__/pdfUtils.test.ts src/lib/exportResumePdf.test.ts` passed.
+- `npx tsc --noEmit` passed.
+- `npm run build` passed after fixing the Live Preview JSX nesting found by Vite.
+- `npm run build:server` passed after adding the missing root `esbuild` dev dependency required by the existing script.
+- Built-server smoke test against `POST /api/export/pdf-native` returned `%PDF-` bytes for an exact-break payload with branding enabled.
+
+---
+
 ## 2026-05-15 - Bolt.new Import Optimization
 
 ### Summary
