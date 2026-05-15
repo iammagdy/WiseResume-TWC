@@ -535,7 +535,7 @@ export const AdminUsersPanel = () => {
                   planConfirm.plan === 'premium' ? 'text-amber-400' :
                   planConfirm.plan === 'pro' ? 'text-blue-400' : 'text-white/60',
                 )}>{planConfirm.plan}</span>?
-                This will take effect immediately and may notify the user.
+                This will take effect within ~60 seconds in the user's active session.
               </p>
             </div>
             <div className="flex gap-3">
@@ -649,7 +649,7 @@ export const AdminUsersPanel = () => {
           { label: 'Premium', value: displayStats.premium, icon: <Crown size={12} />, cls: 'text-amber-400' },
           { label: 'Pro', value: displayStats.pro, icon: <Shield size={12} />, cls: 'text-blue-400' },
           { label: 'Suspended', value: displayStats.suspended, icon: <Ban size={12} />, cls: 'text-red-400' },
-          { label: 'Active Today', value: displayStats.activeToday, icon: <Activity size={12} />, cls: 'text-emerald-400' },
+          { label: 'Profile Updated Today', value: displayStats.activeToday, icon: <Activity size={12} />, cls: 'text-emerald-400' },
         ] as const).map(s => (
           <div key={s.label} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white/5 border border-white/10">
             <span className={s.cls}>{s.icon}</span>

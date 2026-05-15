@@ -250,9 +250,12 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
       }
     });
 
+    // note_action:'list' triggers the list branch inside handleSaveNote on the backend.
+    // Previously this sent action:'list' (a duplicate key that JS silently ignores,
+    // keeping action:'save-note'), so the list branch was never reached.
     appwriteFunctions.invoke('admin-devkit-data', {
       headers: devKitAuthHeaders(),
-      body: { action: 'save-note', target_user_id: user.user_id },
+      body: { action: 'save-note', target_user_id: user.user_id, note_action: 'list' },
     }).then((tuple) => {
       if (cancelled) return;
       try {
@@ -545,8 +548,8 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
       unwrapAdminResponse(tuple, 'admin-devkit-data');
       if (!isMounted()) return;
       toast.success(`Plan set to ${selectedPlan}`, {
-        description: "The user's app will reflect this within 10 seconds.",
-        duration: 5000,
+        description: "The user's app will reflect this within ~60 seconds, or instantly if they switch back to their browser window.",
+        duration: 6000,
       });
       setUser(prev => ({ ...prev, plan_name: selectedPlan, plan_updated_at: new Date().toISOString() }));
       queryClient.invalidateQueries({ queryKey: ['me'] });
@@ -685,6 +688,8 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
           target_user_id: user.user_id,
           note_id: noteId,
           actor_email: authUser?.email ?? 'admin (dev-kit)',
+          // 'delete' is the sub-action inside save-note that removes the note doc
+          note_action: 'delete',
         },
       });
       unwrapAdminResponse(tuple, 'admin-devkit-data');

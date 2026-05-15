@@ -125,7 +125,10 @@ export function useSetMasterCV() {
     mutationFn: async (resumeId: string) => {
       if (!user) throw new Error('Not authenticated');
       // 1. Reset all
-      const all = await databases.listDocuments(DATABASE_ID, 'resumes', [Query.equal('user_id', user.id)]);
+      const all = await databases.listDocuments(DATABASE_ID, 'resumes', [
+        Query.equal('user_id', user.id),
+        Query.limit(500)
+      ]);
       for (const r of all.documents) {
         if (r.is_master) await databases.updateDocument(DATABASE_ID, 'resumes', r.$id, { is_master: false });
       }

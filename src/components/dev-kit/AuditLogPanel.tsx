@@ -31,6 +31,13 @@ const CATEGORY_OPTIONS = [
   { value: 'system', label: 'System' },
 ];
 
+const DATE_RANGE_OPTIONS: { value: '' | '24h' | '7d' | '30d'; label: string }[] = [
+  { value: '24h', label: '24h' },
+  { value: '7d', label: '7d' },
+  { value: '30d', label: '30d' },
+  { value: '', label: 'All' },
+];
+
 const CATEGORY_COLORS: Record<string, string> = {
   auth: 'bg-blue-500/10 text-blue-400',
   plan: 'bg-amber-500/10 text-amber-400',
@@ -50,6 +57,7 @@ export const AuditLogPanel = () => {
   const [offset, setOffset] = useState(0);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
+  const [dateRange, setDateRange] = useState<'' | '24h' | '7d' | '30d'>('7d');
   const [showCategoryMenu, setShowCategoryMenu] = useState(false);
 
   const fetchLogs = useCallback(async (append = false, currentOffset = 0) => {
@@ -102,7 +110,12 @@ export const AuditLogPanel = () => {
       (log.metadata ?? '').toLowerCase().includes(search.toLowerCase()) ||
       (log.user_id ?? '').toLowerCase().includes(search.toLowerCase());
     const matchCat = categoryFilter === '' || log.category === categoryFilter;
-    return matchSearch && matchCat;
+    let matchDate = true;
+    if (dateRange !== '') {
+      const msMap = { '24h': 86_400_000, '7d': 7 * 86_400_000, '30d': 30 * 86_400_000 };
+      matchDate = Date.now() - new Date(log.$createdAt).getTime() <= msMap[dateRange];
+    }
+    return matchSearch && matchCat && matchDate;
   });
 
   const selectedCatLabel = CATEGORY_OPTIONS.find(c => c.value === categoryFilter)?.label ?? 'All Categories';
@@ -180,6 +193,23 @@ export const AuditLogPanel = () => {
                 ))}
               </div>
             )}
+          </div>
+          {/* Date range segmented filter */}
+          <div className="flex gap-1 p-0.5 rounded-xl bg-white/5 border border-white/10">
+            {DATE_RANGE_OPTIONS.map(opt => (
+              <button
+                key={opt.value}
+                onClick={() => setDateRange(opt.value)}
+                className={cn(
+                  'px-2.5 py-1 rounded-lg text-[11px] font-bold uppercase transition-all',
+                  dateRange === opt.value
+                    ? 'bg-white text-black'
+                    : 'text-white/40 hover:text-white/70',
+                )}
+              >
+                {opt.label}
+              </button>
+            ))}
           </div>
         </div>
       )}

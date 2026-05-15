@@ -1,4 +1,3 @@
-import * as pdfjsLib from 'pdfjs-dist';
 
 declare global {
   interface PromiseConstructor {
@@ -39,11 +38,12 @@ function getOrCreateWorker(): Worker | null {
   return worker;
 }
 
-export function configurePdfJsWorker(): void {
+export async function configurePdfJsWorker(): Promise<void> {
   ensurePromiseWithResolversPolyfill();
 
   const worker = getOrCreateWorker();
   if (worker) {
+    const pdfjsLib = await import('pdfjs-dist');
     pdfjsLib.GlobalWorkerOptions.workerPort = worker;
   }
 }

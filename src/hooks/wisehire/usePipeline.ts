@@ -244,6 +244,7 @@ export function useCandidateHistory(candidateId: string | null) {
         Query.equal('candidate_id', candidateId),
         Query.equal('owner_id', userId),
         Query.orderDesc('moved_at'),
+        Query.limit(500),
       ]);
       return res.documents.map((d) => ({
         id: d.$id,

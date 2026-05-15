@@ -880,7 +880,9 @@ async function handleSetCredits(body, log) {
 
 async function handleSaveNote(body, log) {
   const { databases } = getClients();
-  const { target_user_id, action: noteAction, note_text, note_id, actor_email } = body;
+  // NOTE: 'action' is consumed by the main router (it will always be 'save-note'
+  // by the time we get here). Sub-actions (list, delete) are read from 'note_action'.
+  const { target_user_id, note_action: noteAction, note_text, note_id, actor_email } = body;
   if (noteAction === 'list') {
     const res = await safeList(databases, 'admin_audit_logs', [
       sdk.Query.equal('user_id', target_user_id || ''),

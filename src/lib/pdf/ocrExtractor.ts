@@ -1,20 +1,20 @@
 /**
  * OCR Extraction Module
+/**
+ * OCR Extraction Module
  * 
  * Uses Tesseract.js to perform OCR on PDF pages rendered to canvas.
  * This is used as a fallback when standard text extraction fails (scanned/image PDFs).
  * Enhanced with image preprocessing and adaptive DPI retry for low-confidence pages.
  */
 
-import * as pdfjsLib from 'pdfjs-dist';
+import type * as pdfjsLib from 'pdfjs-dist';
 import { createWorker, Worker } from 'tesseract.js';
 
 import { preprocessResumeText } from './textPreprocessor';
 import { isIOSWebKit } from './textExtractor';
 import { ensureOcrRuntimeAssets, ensurePdfRuntimeAssets, ParserAssetError } from './runtimeAssets';
 import { configurePdfJsWorker } from './pdfjsWorkerBootstrap';
-
-configurePdfJsWorker();
 
 /**
  * Categorised OCR failure. Lets the UI show a real cause instead of the
@@ -136,6 +136,8 @@ export async function extractTextWithOCR(
   // WebKit can decode embedded-font PDFs without falling back to OCR.
   let pdf: pdfjsLib.PDFDocumentProxy;
   try {
+    await configurePdfJsWorker();
+    const pdfjsLib = await import('pdfjs-dist');
     pdf = await pdfjsLib.getDocument({
       data: arrayBuffer,
       cMapUrl: '/pdfjs/cmaps/',

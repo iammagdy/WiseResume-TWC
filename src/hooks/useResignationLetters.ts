@@ -58,6 +58,7 @@ export function useResignationLetters() {
       const response = await databases.listDocuments(DATABASE_ID, 'resignation_letters', [
         Query.equal('user_id', user.id),
         Query.orderDesc('$createdAt'),
+        Query.limit(500),
       ]);
       return response.documents.map(d => docToLetter(d as unknown as Record<string, unknown>));
     },

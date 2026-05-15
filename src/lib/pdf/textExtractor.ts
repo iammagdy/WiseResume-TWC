@@ -1,8 +1,6 @@
-import * as pdfjsLib from 'pdfjs-dist';
+import type * as pdfjsLib from 'pdfjs-dist';
 import { ensurePdfRuntimeAssets, ParserAssetError } from './runtimeAssets';
 import { configurePdfJsWorker } from './pdfjsWorkerBootstrap';
-
-configurePdfJsWorker();
 
 interface SchedulerLike {
   yield?: () => Promise<void>;
@@ -126,6 +124,8 @@ async function extractOnce(file: File, forceSystemFonts: boolean): Promise<Extra
   let pdf;
   try {
     await ensurePdfRuntimeAssets();
+    await configurePdfJsWorker();
+    const pdfjsLib = await import('pdfjs-dist');
 
     pdf = await pdfjsLib.getDocument({
       data: arrayBuffer,

@@ -110,7 +110,13 @@ export function useMe() {
       };
     },
     enabled: !!user && isAuthenticated,
-    staleTime: 5 * 60 * 1000,
+    // Keep staleTime short so admin-driven plan changes (via DevKit) are
+    // visible to the target user within ~1 minute instead of the previous
+    // 5-minute window. refetchOnWindowFocus ensures that when a user returns
+    // to the browser tab after an admin changes their plan, the new plan
+    // is fetched immediately rather than waiting for the stale timer.
+    staleTime: 60 * 1000,
+    refetchOnWindowFocus: true,
     retry: 1,
   });
 }
