@@ -112,17 +112,17 @@ export const OPENROUTER_LLM_MODELS: ReadonlyArray<CuratedLLMModel> = [
  * Source: https://console.groq.com/docs/models · https://console.groq.com/docs/deprecations
  */
 export const GROQ_LLM_MODELS: ReadonlyArray<CuratedLLMModel> = [
-  { label: 'LLaMA 4 Maverick 17B',               value: 'meta-llama/llama-4-maverick-17b-128e-instruct', tier: 'paid' },
-  { label: 'LLaMA 4 Scout 17B',                  value: 'meta-llama/llama-4-scout-17b-16e-instruct',    tier: 'paid' },
-  { label: 'LLaMA 3.3 70B Versatile',            value: 'llama-3.3-70b-versatile',                      tier: 'paid' },
-  { label: 'LLaMA 3.1 8B Instant',               value: 'llama-3.1-8b-instant',                         tier: 'paid' },
-  { label: 'Qwen QwQ 32B',                       value: 'qwen-qwq-32b',                                 tier: 'paid' },
-  { label: 'Qwen3 32B',                          value: 'qwen/qwen3-32b',                               tier: 'paid' },
-  { label: 'Gemma 2 9B IT',                      value: 'gemma2-9b-it',                                 tier: 'paid' },
-  { label: 'DeepSeek R1 Distill LLaMA 70B',      value: 'deepseek-r1-distill-llama-70b',                tier: 'paid', deprecated: true },
-  { label: 'LLaMA 3.2 90B Vision Preview',       value: 'llama-3.2-90b-vision-preview',                 tier: 'paid', deprecated: true },
-  { label: 'LLaMA 3.1 70B Versatile',            value: 'llama-3.1-70b-versatile',                      tier: 'paid', deprecated: true },
-  { label: 'Mixtral 8×7B 32K',                   value: 'mixtral-8x7b-32768',                           tier: 'paid', deprecated: true },
+  { label: 'LLaMA 4 Maverick 17B',               value: 'meta-llama/llama-4-maverick-17b-128e-instruct', tier: 'free' },
+  { label: 'LLaMA 4 Scout 17B',                  value: 'meta-llama/llama-4-scout-17b-16e-instruct',    tier: 'free' },
+  { label: 'LLaMA 3.3 70B Versatile',            value: 'llama-3.3-70b-versatile',                      tier: 'free' },
+  { label: 'LLaMA 3.1 8B Instant',               value: 'llama-3.1-8b-instant',                         tier: 'free' },
+  { label: 'Qwen QwQ 32B',                       value: 'qwen-qwq-32b',                                 tier: 'free' },
+  { label: 'Qwen3 32B',                          value: 'qwen/qwen3-32b',                               tier: 'free' },
+  { label: 'Gemma 2 9B IT',                      value: 'gemma2-9b-it',                                 tier: 'free' },
+  { label: 'DeepSeek R1 Distill LLaMA 70B',      value: 'deepseek-r1-distill-llama-70b',                tier: 'free', deprecated: true },
+  { label: 'LLaMA 3.2 90B Vision Preview',       value: 'llama-3.2-90b-vision-preview',                 tier: 'free', deprecated: true },
+  { label: 'LLaMA 3.1 70B Versatile',            value: 'llama-3.1-70b-versatile',                      tier: 'free', deprecated: true },
+  { label: 'Mixtral 8×7B 32K',                   value: 'mixtral-8x7b-32768',                           tier: 'free', deprecated: true },
 ];
 
 /** Providers that use a curated dropdown (rather than a free-text input) in the DevKit AI Keys panel. */
@@ -275,4 +275,47 @@ export function isAITestSlotUsingDefault(
   slot: AITestSlot,
 ): boolean {
   return !(aiTestSlotKey(provider, slot) in map.savedOverrides);
+}
+
+export interface LiveProviderModels {
+  openrouter: CuratedLLMModel[];
+  groq: CuratedLLMModel[];
+  nvidia: CuratedLLMModel[];
+  deepseek: CuratedLLMModel[];
+  cachedAt: string | null;
+}
+
+/**
+ * Fetch the live model catalog from each AI provider via the admin-devkit-data
+ * `list-provider-models` action. Results are cached server-side for 6 hours.
+ * On any error the returned arrays are empty — callers should fall back to
+ * {@link getCuratedModels} for that provider.
+ */
+export async function fetchLiveProviderModels(forceRefresh = false): Promise<LiveProviderModels> {
+  const empty: LiveProviderModels = { openrouter: [], groq: [], nvidia: [], deepseek: [], cachedAt: null };
+  try {
+    const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
+      headers: devKitAuthHeaders(),
+      body: { action: 'list-provider-models', force_refresh: forceRefresh },
+    });
+    const result = unwrapAdminResponse<LiveProviderModels>(tuple, 'admin-devkit-data');
+    return {
+      openrouter: Array.isArray(result.openrouter) ? result.openrouter : [],
+      groq:       Array.isArray(result.groq)       ? result.groq       : [],
+      nvidia:     Array.isArray(result.nvidia)      ? result.nvidia     : [],
+      deepseek:   Array.isArray(result.deepseek)    ? result.deepseek   : [],
+      cachedAt:   typeof result.cachedAt === 'string' ? result.cachedAt : null,
+    };
+  } catch {
+    return empty;
+  }
+}
+
+/** Returns the live model list for a provider if non-empty, otherwise falls back to the curated static list. */
+export function resolveModelsForProvider(
+  provider: AITestProvider,
+  live: LiveProviderModels,
+): CuratedLLMModel[] {
+  const liveList = live[provider];
+  return liveList && liveList.length > 0 ? liveList : getCuratedModels(provider);
 }

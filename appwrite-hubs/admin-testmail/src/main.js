@@ -22,6 +22,8 @@
 
 'use strict';
 
+const crypto = require('crypto');
+
 // ─── Auth ───────────────────────────────────────────────────────────────────
 
 function base64url(input) {

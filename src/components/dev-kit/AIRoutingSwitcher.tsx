@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { databases, DATABASE_ID, ID } from '@/lib/appwrite';
 import {
   BrainCircuit, Save, RefreshCw, AlertTriangle, FileEdit,
   Target, MessageSquare, FileText, Globe, ChevronDown, ChevronUp,
+  Wifi,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -10,6 +11,9 @@ import { cn } from '@/lib/utils';
 import type { LucideIcon } from 'lucide-react';
 import { getCuratedModels } from '@/lib/devkit/aiTestSlotModels';
 import type { AITestProvider } from '@/lib/devkit/aiTestSlotModels';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
+import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
+import { tryUnwrapAdminResponse } from '@/lib/devkit/edgeResponse';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -262,6 +266,14 @@ const PROVIDER_COLOR: Record<ProviderId, string> = {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
+interface ProviderPing {
+  provider: string;
+  ok: boolean;
+  latencyMs: number | null;
+  httpStatus: number;
+  configured: boolean;
+}
+
 export const AIRoutingSwitcher = () => {
   const [routes, setRoutes] = useState<Record<string, RouteState>>({});
   // Tracks $ids of ai_routing_config documents that have been reset locally
@@ -270,6 +282,8 @@ export const AIRoutingSwitcher = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [collapsed, setCollapsed] = useState<Partial<Record<FeatureCategory, boolean>>>({});
+  const [pings, setPings] = useState<Record<string, ProviderPing>>({});
+  const [pinging, setPinging] = useState(false);
 
   const fetchRoutes = async () => {
     setLoading(true);
@@ -329,6 +343,26 @@ export const AIRoutingSwitcher = () => {
       return next;
     });
   };
+
+  const pingProviders = useCallback(async () => {
+    setPinging(true);
+    try {
+      const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
+        headers: devKitAuthHeaders(),
+        body: { action: 'ping-providers' },
+      });
+      const result = tryUnwrapAdminResponse<{ pings: ProviderPing[] }>(tuple, 'admin-devkit-data');
+      if (result?.pings) {
+        const map: Record<string, ProviderPing> = {};
+        for (const p of result.pings) map[p.provider] = p;
+        setPings(map);
+      }
+    } catch {
+      toast.error('Provider ping failed');
+    } finally {
+      setPinging(false);
+    }
+  }, []);
 
   const saveAll = async () => {
     setSaving(true);
@@ -392,6 +426,37 @@ export const AIRoutingSwitcher = () => {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            {PROVIDERS.map(p => {
+              const ping = pings[p.id];
+              const dot = !ping
+                ? 'bg-white/20'
+                : !ping.configured
+                  ? 'bg-white/10'
+                  : ping.ok
+                    ? 'bg-emerald-400'
+                    : 'bg-red-400';
+              return (
+                <span key={p.id} className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                  <span className={`w-2 h-2 rounded-full ${dot}`} />
+                  {p.label}
+                  {ping?.ok && ping.latencyMs !== null && (
+                    <span className="text-emerald-400/70">{ping.latencyMs}ms</span>
+                  )}
+                </span>
+              );
+            })}
+          </div>
+          <Button
+            onClick={pingProviders}
+            variant="ghost"
+            size="sm"
+            disabled={pinging}
+            className="h-9 px-3 text-xs text-muted-foreground hover:text-white"
+          >
+            <Wifi size={14} className={cn('mr-1.5', pinging && 'animate-pulse')} />
+            {pinging ? 'Pinging…' : 'Ping'}
+          </Button>
           <Button
             onClick={fetchRoutes}
             variant="ghost"

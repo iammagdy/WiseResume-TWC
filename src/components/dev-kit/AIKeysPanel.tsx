@@ -10,15 +10,15 @@ import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse'
 import {
   AI_TEST_PROVIDERS,
   AI_TEST_SLOTS,
-  NVIDIA_LLM_MODELS,
-  OPENROUTER_LLM_MODELS,
-  GROQ_LLM_MODELS,
   DROPDOWN_PROVIDERS,
   getCuratedModels,
+  fetchLiveProviderModels,
+  resolveModelsForProvider,
   providerDisplayName,
   type AITestProvider,
   type AITestSlot,
   type CuratedLLMModel,
+  type LiveProviderModels,
 } from '@/lib/devkit/aiTestSlotModels';
 
 const DEFAULT_MODELS: Record<AITestProvider, string> = {
@@ -78,18 +78,9 @@ function slotKey(provider: AITestProvider, slot: AITestSlot): SlotKey {
   return `${provider}:${slot}`;
 }
 
-/** Resolves a raw model value to a valid curated model or the first in the list. */
-function resolveToValidModel(provider: AITestProvider, raw: string): string {
-  const list = getCuratedModels(provider);
-  if (!list) return raw;
-  const validValues = new Set(list.map(m => m.value));
-  return raw && validValues.has(raw) ? raw : list[0].value;
-}
-
-/** Returns the tier badge label for a model in a given provider's curated list. */
-function getModelTier(provider: AITestProvider, modelValue: string): CuratedLLMModel['tier'] | null {
-  const list = getCuratedModels(provider);
-  if (!list) return null;
+/** Returns the tier badge label for a model, checking live list first then static fallback. */
+function getModelTier(provider: AITestProvider, modelValue: string, live: LiveProviderModels): CuratedLLMModel['tier'] | null {
+  const list = resolveModelsForProvider(provider, live);
   return list.find(m => m.value === modelValue)?.tier ?? null;
 }
 
@@ -103,17 +94,20 @@ export function AIKeysPanel() {
   const [draftModels, setDraftModels] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [saveStatus, setSaveStatus] = useState<Record<string, 'ok' | 'err'>>({});
+  const [liveModels, setLiveModels] = useState<LiveProviderModels>({ openrouter: [], groq: [], nvidia: [], deepseek: [], cachedAt: null });
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (forceRefreshModels = false) => {
     setLoading(true);
     setError(null);
     try {
-      const tuple = await appwriteFunctions.invoke<InspectResponse>('inspect-ai-keys', {
-        headers: devKitAuthHeaders(),
-      });
+      const [tuple, live] = await Promise.all([
+        appwriteFunctions.invoke<InspectResponse>('inspect-ai-keys', { headers: devKitAuthHeaders() }),
+        fetchLiveProviderModels(forceRefreshModels),
+      ]);
       const data = unwrapAdminResponse<InspectResponse>(tuple, 'inspect-ai-keys');
       const keyList: KeyEntry[] = data.keys ?? [];
       setEntries(keyList);
+      setLiveModels(live);
 
       const merged: Record<AITestProvider, string> = { ...DEFAULT_MODELS };
       if (data.defaultModels) {
@@ -136,10 +130,14 @@ export function AIKeysPanel() {
       for (const entry of keyList) {
         const k = `${entry.provider}:${entry.slot}`;
         const raw = overrides[k] ?? merged[entry.provider as AITestProvider] ?? '';
-        // For providers with curated model lists, snap any unknown value to the
-        // first model in the list so the select always has a valid selection.
         const prov = entry.provider as AITestProvider;
-        drafts[k] = DROPDOWN_PROVIDERS.has(prov) ? resolveToValidModel(prov, raw) : raw;
+        if (DROPDOWN_PROVIDERS.has(prov)) {
+          const modelList = resolveModelsForProvider(prov, live);
+          const valid = new Set(modelList.map(m => m.value));
+          drafts[k] = raw && valid.has(raw) ? raw : (modelList[0]?.value ?? raw);
+        } else {
+          drafts[k] = raw;
+        }
       }
       setDraftModels(drafts);
     } catch (e) {
@@ -204,14 +202,21 @@ export function AIKeysPanel() {
             </p>
           </div>
         </div>
-        <Button
-          size="sm" variant="outline"
-          onClick={load} disabled={loading}
-          className="h-8 gap-1.5 text-xs"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-          Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          {liveModels.cachedAt && (
+            <span className="text-[10px] text-muted-foreground">
+              Models: {new Date(liveModels.cachedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          )}
+          <Button
+            size="sm" variant="outline"
+            onClick={() => load(true)} disabled={loading}
+            className="h-8 gap-1.5 text-xs"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {loading && (
@@ -252,10 +257,10 @@ export function AIKeysPanel() {
                   const dirty = isDirty(provider, slot);
                   const isSaving = saving[k] ?? false;
                   const status = saveStatus[k];
-                  const curatedList = getCuratedModels(provider);
+                  const modelList = resolveModelsForProvider(provider, liveModels);
                   const useDropdown = DROPDOWN_PROVIDERS.has(provider);
-                  const selectedTier = useDropdown ? getModelTier(provider, draft) : null;
-                  const selectedModel = curatedList?.find(m => m.value === draft);
+                  const selectedTier = useDropdown ? getModelTier(provider, draft, liveModels) : null;
+                  const selectedModel = modelList.find(m => m.value === draft);
 
                   return (
                     <div
@@ -292,12 +297,7 @@ export function AIKeysPanel() {
                               onChange={e => setDraftModels(prev => ({ ...prev, [k]: e.target.value }))}
                               className="w-full text-[10px] font-mono bg-black/30 border border-white/10 rounded-lg px-2.5 py-1.5 text-foreground outline-none focus:border-white/20 transition-colors appearance-none cursor-pointer"
                             >
-                              {(provider === 'nvidia'
-                                ? NVIDIA_LLM_MODELS
-                                : provider === 'openrouter'
-                                ? OPENROUTER_LLM_MODELS
-                                : GROQ_LLM_MODELS
-                              ).map(m => (
+                              {modelList.map(m => (
                                 <option key={m.value} value={m.value}>
                                   {m.deprecated ? `(deprecated) ${m.label}` : m.label}
                                   {' '}[{m.tier === 'free' ? 'Free' : 'Paid'}]

@@ -116,6 +116,7 @@ export function useMe() {
     // to the browser tab after an admin changes their plan, the new plan
     // is fetched immediately rather than waiting for the stale timer.
     staleTime: 60 * 1000,
+    refetchInterval: 15 * 1000,
     refetchOnWindowFocus: true,
     retry: 1,
   });

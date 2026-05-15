@@ -252,6 +252,124 @@ async function handleDiagnostics(log, error) {
   return { checkedAt: isoNow(), overallStatus: worstStatus(items), items };
 }
 
+// ─── Provider pings (shared by mission-control and ping-providers) ─────────────
+
+const PROVIDER_PING_CONFIGS = [
+  { key: 'OPENROUTER_KEY_1', provider: 'openrouter', url: 'https://openrouter.ai/api/v1/models' },
+  { key: 'GROQ_KEY_1',       provider: 'groq',       url: 'https://api.groq.com/openai/v1/models' },
+  { key: 'DEEPSEEK_KEY',     provider: 'deepseek',   url: 'https://api.deepseek.com/models' },
+  { key: 'NVIDIA_KEY_1',     provider: 'nvidia',     url: 'https://integrate.api.nvidia.com/v1/models' },
+];
+
+async function runProviderPings() {
+  const results = [];
+  for (const cfg of PROVIDER_PING_CONFIGS) {
+    const apiKey = process.env[cfg.key];
+    if (!apiKey) { results.push({ provider: cfg.provider, ok: false, latencyMs: null, httpStatus: 0, configured: false }); continue; }
+    const start = Date.now();
+    try {
+      const r = await axios.get(cfg.url, { headers: { Authorization: `Bearer ${apiKey}` }, timeout: 6000, validateStatus: () => true });
+      results.push({ provider: cfg.provider, ok: r.status >= 200 && r.status < 300, latencyMs: Date.now() - start, httpStatus: r.status, configured: true });
+    } catch { results.push({ provider: cfg.provider, ok: false, latencyMs: null, httpStatus: 0, configured: true }); }
+  }
+  return results;
+}
+
+async function handlePingProviders() {
+  const pings = await runProviderPings();
+  return { pings, checkedAt: isoNow() };
+}
+
+async function handleListProviderModels(body, log) {
+  const { databases } = getClients();
+  const CACHE_KEY = 'ai_model_catalog';
+  const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
+
+  // Return cached result if fresh enough and not forced
+  if (!body.force_refresh) {
+    const cached = await safeList(databases, 'app_settings', [sdk.Query.equal('key', CACHE_KEY), sdk.Query.limit(1)]);
+    if (cached.documents?.length > 0) {
+      try {
+        const parsed = JSON.parse(cached.documents[0].value || '{}');
+        if (parsed.cachedAt && Date.now() - new Date(parsed.cachedAt).getTime() < CACHE_TTL_MS) {
+          log('list-provider-models: returning cached catalog');
+          return parsed;
+        }
+      } catch (_) {}
+    }
+  }
+
+  const providerDefs = [
+    { key: 'OPENROUTER_KEY_1', provider: 'openrouter', url: 'https://openrouter.ai/api/v1/models',         parseModels: parseOpenRouterModels },
+    { key: 'GROQ_KEY_1',       provider: 'groq',       url: 'https://api.groq.com/openai/v1/models',       parseModels: parseGroqModels },
+    { key: 'NVIDIA_KEY_1',     provider: 'nvidia',     url: 'https://integrate.api.nvidia.com/v1/models',  parseModels: parseNvidiaModels },
+    { key: 'DEEPSEEK_KEY',     provider: 'deepseek',   url: 'https://api.deepseek.com/models',             parseModels: parseDeepseekModels },
+  ];
+
+  const catalog = { openrouter: [], groq: [], nvidia: [], deepseek: [], cachedAt: isoNow() };
+  for (const def of providerDefs) {
+    const apiKey = process.env[def.key];
+    if (!apiKey) continue;
+    try {
+      const r = await axios.get(def.url, { headers: { Authorization: `Bearer ${apiKey}` }, timeout: 8000, validateStatus: () => true });
+      if (r.status >= 200 && r.status < 300 && r.data) {
+        catalog[def.provider] = def.parseModels(r.data);
+        log(`list-provider-models: fetched ${catalog[def.provider].length} models from ${def.provider}`);
+      }
+    } catch (e) { log(`[warn] list-provider-models: ${def.provider} fetch failed: ${e.message}`); }
+  }
+
+  // Cache the result
+  try {
+    const serialized = JSON.stringify(catalog);
+    const existing = await safeList(databases, 'app_settings', [sdk.Query.equal('key', CACHE_KEY), sdk.Query.limit(1)]);
+    if (existing.documents?.length > 0) {
+      await databases.updateDocument(DB_ID, 'app_settings', existing.documents[0].$id, { value: serialized });
+    } else {
+      await databases.createDocument(DB_ID, 'app_settings', sdk.ID.unique(), { key: CACHE_KEY, value: serialized });
+    }
+  } catch (e) { log(`[warn] list-provider-models: cache write failed: ${e.message}`); }
+
+  return catalog;
+}
+
+function parseOpenRouterModels(data) {
+  const models = Array.isArray(data?.data) ? data.data : (Array.isArray(data?.models) ? data.models : []);
+  return models
+    .filter(m => m && (m.id || m.model_id))
+    .map(m => {
+      const id = String(m.id || m.model_id || '');
+      const label = m.name || id;
+      const isFree = id.endsWith(':free') || (m.pricing && Number(m.pricing.prompt) === 0 && Number(m.pricing.completion) === 0);
+      return { label, value: id, tier: isFree ? 'free' : 'paid' };
+    })
+    .sort((a, b) => (a.tier === 'free' ? -1 : 1) - (b.tier === 'free' ? -1 : 1) || a.label.localeCompare(b.label));
+}
+
+function parseGroqModels(data) {
+  const models = Array.isArray(data?.data) ? data.data : [];
+  return models
+    .filter(m => m && m.id && m.active !== false)
+    .map(m => ({ label: m.id, value: m.id, tier: 'free' }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+}
+
+function parseNvidiaModels(data) {
+  const models = Array.isArray(data?.data) ? data.data : [];
+  return models
+    .filter(m => m && m.id)
+    .map(m => ({ label: m.id, value: m.id, tier: 'paid' }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+}
+
+function parseDeepseekModels(data) {
+  const models = Array.isArray(data?.data) ? data.data : [];
+  return models
+    .filter(m => m && m.id)
+    .map(m => ({ label: m.id, value: m.id, tier: 'paid' }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+}
+
 async function handleMissionControl(log, error) {
   const { databases } = getClients();
   const now = isoNow();
@@ -287,22 +405,7 @@ async function handleMissionControl(log, error) {
     deploy.sitePingedAt = isoNow();
   } catch (e) { error(`Site ping failed: ${e.message}`); }
 
-  const providerPings = [];
-  const providers = [
-    { key: 'OPENROUTER_KEY_1', provider: 'openrouter', url: 'https://openrouter.ai/api/v1/models' },
-    { key: 'GROQ_KEY_1', provider: 'groq', url: 'https://api.groq.com/openai/v1/models' },
-    { key: 'DEEPSEEK_KEY', provider: 'deepseek', url: 'https://api.deepseek.com/models' },
-    { key: 'NVIDIA_KEY_1', provider: 'nvidia', url: 'https://integrate.api.nvidia.com/v1/models' },
-  ];
-  for (const cfg of providers) {
-    const apiKey = process.env[cfg.key];
-    if (!apiKey) { providerPings.push({ provider: cfg.provider, ok: false, latencyMs: null, httpStatus: 0 }); continue; }
-    const start = Date.now();
-    try {
-      const r = await axios.get(cfg.url, { headers: { Authorization: `Bearer ${apiKey}` }, timeout: 6000, validateStatus: () => true });
-      providerPings.push({ provider: cfg.provider, ok: r.status >= 200 && r.status < 300, latencyMs: Date.now() - start, httpStatus: r.status });
-    } catch { providerPings.push({ provider: cfg.provider, ok: false, latencyMs: null, httpStatus: 0 }); }
-  }
+  const providerPings = await runProviderPings();
 
   const errorDocs = await safeList(databases, 'error_log', [sdk.Query.orderDesc('$createdAt'), sdk.Query.limit(10)]);
   const adminDocs = await safeList(databases, 'admin_audit_logs', [sdk.Query.orderDesc('$createdAt'), sdk.Query.limit(5)]);
@@ -1493,6 +1596,8 @@ module.exports = async ({ req, res, log, error }) => {
     let data;
     if (action === 'diagnostics') data = await handleDiagnostics(log, error);
     else if (action === 'mission-control') data = await handleMissionControl(log, error);
+    else if (action === 'ping-providers') data = await handlePingProviders();
+    else if (action === 'list-provider-models') data = await handleListProviderModels(body, log);
     else if (action === 'edge-fn-drift') data = await handleEdgeFnDrift(log);
     else if (action === 'observability') data = await handleObservability(body, log);
     else if (action === 'overview-stats') data = await handleOverviewStats(log);
