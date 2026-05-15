@@ -1,12 +1,29 @@
 # WiseResume Master Handover & State (May 2026)
 
+## Session Summary - 2026-05-15 (Deploy: Frontend + AI Hubs — Both Green)
+
+### Deployment Record
+- **Frontend deploy:** [Run 25900862023](https://github.com/iammagdy/WiseResume-TWC/actions/runs/25900862023) — ✅ success
+- **AI Hubs deploy:** [Run 25900866829](https://github.com/iammagdy/WiseResume-TWC/actions/runs/25900866829) — ✅ success
+- **HEAD on main:** `c03456d`
+
+### Dependency fix applied (commits `512c4d1` → `516d7e1` → `c03456d`)
+Earlier CI runs failed due to two npm issues introduced by the export branch:
+1. **EOVERRIDE:** `devDependencies.esbuild@^0.25.12` conflicted with `overrides.esbuild@^0.25.4`. Fixed by removing the direct devDep and setting the override to `^0.25.12`.
+2. **Cross-platform lockfile:** Regenerating `package-lock.json` on Windows omits Linux/Mac optional binaries (rollup, esbuild). Fixed by restoring the original cross-platform lockfile and running `npm install --package-lock-only` to apply only the version changes.
+
+### Pending
+- Real iPhone Safari/Chrome QA still not performed — test `Download` and `Save` on actual iOS before considering export fully released
+- No Appwrite hub code changes in this session — all hubs redeployed from existing source
+
+---
+
 ## Session Summary - 2026-05-15 (Export Branch Merged)
 
 ### Merge Record
 - **Branch:** `codex/export-system-replacement` → `main`
 - **Merge commit:** `0594c28` (PR #51)
 - **Local main:** fast-forwarded to `origin/main` (`0594c28`)
-- **Deployment:** `deploy-frontend.yml` was triggered on merge to main — verify run at `https://github.com/iammagdy/WiseResume-TWC/actions`
 - **Pending:** Real iPhone Safari/Chrome QA still not performed — test `Download` and `Save` on actual iOS before considering export fully released
 - **No Appwrite hub changes** — export uses the Express/Puppeteer server path; `ai-gateway` is unchanged
 
