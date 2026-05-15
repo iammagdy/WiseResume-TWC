@@ -117,8 +117,7 @@
     "zustand": "^5.0.10"
   },
   "overrides": {
-    "serialize-javascript": "7.0.5",
-    "esbuild": "^0.25.4"
+    "serialize-javascript": "7.0.5"
   },
   "engines": {
     "node": ">=22.0.0"
