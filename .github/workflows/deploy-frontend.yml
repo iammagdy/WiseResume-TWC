@@ -61,6 +61,7 @@ jobs:
                 set net:max-retries 5; \
                 set net:reconnect-interval-base 5; \
                 set ftp:use-mdtm true; \
+                set ftp:use-site-chmod false; \
                 mirror --reverse --verbose --parallel=8 --only-newer ./dist/tesseract/ resume/tesseract/; \
                 mirror --reverse --verbose --parallel=8 --only-newer ./dist/pdfjs/    resume/pdfjs/; \
                 bye"
@@ -79,6 +80,7 @@ jobs:
                 set net:timeout 60; \
                 set net:max-retries 5; \
                 set net:reconnect-interval-base 5; \
+                set ftp:use-site-chmod false; \
                 mirror --reverse --delete --verbose --parallel=8 \
                   --exclude tesseract/ --exclude pdfjs/ \
                   ./dist/ resume/; \
