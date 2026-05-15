@@ -763,18 +763,37 @@ async function handleSetPlan(body, log) {
   if (!['free', 'pro', 'premium'].includes(plan)) throw new Error(`Invalid plan: ${plan}`);
   await getUser(target_user_id);
   const profile = await getProfileDoc(databases, target_user_id);
-  if (profile) await databases.updateDocument(DB_ID, 'profiles', profile.$id, { plan });
+  // Non-fatal: profiles.plan may not exist as a collection attribute in all environments.
+  if (profile) {
+    try {
+      await databases.updateDocument(DB_ID, 'profiles', profile.$id, { plan });
+    } catch (e) {
+      log(`[warn] profiles.plan update skipped (attribute may not exist): ${e.message}`);
+    }
+  }
 
   const subRes = await safeList(databases, 'subscriptions', [sdk.Query.equal('user_id', target_user_id), sdk.Query.limit(1)]);
   const subDoc = subRes.documents[0] || null;
   const patch = { plan, effective_plan: plan, status: 'active', trial_plan: null, trial_expires_at: null };
-  if (subDoc) {
-    await databases.updateDocument(DB_ID, 'subscriptions', subDoc.$id, patch);
-  } else {
-    await databases.createDocument(DB_ID, 'subscriptions', sdk.ID.unique(), { user_id: target_user_id, ...patch }, [
-      sdk.Permission.read(sdk.Role.user(target_user_id)),
-      sdk.Permission.update(sdk.Role.user(target_user_id)),
-    ]);
+  const subPerms = [
+    sdk.Permission.read(sdk.Role.user(target_user_id)),
+    sdk.Permission.update(sdk.Role.user(target_user_id)),
+  ];
+  // Always repair document permissions so the user's client session can read their subscription.
+  // Use a fallback without effective_plan for schemas that don't have that attribute yet.
+  const subPatches = [patch, Object.fromEntries(Object.entries(patch).filter(([k]) => k !== 'effective_plan'))];
+  for (let i = 0; i < subPatches.length; i++) {
+    try {
+      if (subDoc) {
+        await databases.updateDocument(DB_ID, 'subscriptions', subDoc.$id, subPatches[i], subPerms);
+      } else {
+        await databases.createDocument(DB_ID, 'subscriptions', sdk.ID.unique(), { user_id: target_user_id, ...subPatches[i] }, subPerms);
+      }
+      break;
+    } catch (e) {
+      if (i < subPatches.length - 1) continue;
+      throw e;
+    }
   }
 
   await auditLog(databases, 'set-plan', { target_user_id, plan, actor_email });
@@ -799,13 +818,19 @@ async function handleGrantTrial(body, log) {
 
   const subRes = await safeList(databases, 'subscriptions', [sdk.Query.equal('user_id', target_user_id), sdk.Query.limit(1)]);
   const subDoc = subRes.documents[0] || null;
+  const trialPerms = [
+    sdk.Permission.read(sdk.Role.user(target_user_id)),
+    sdk.Permission.update(sdk.Role.user(target_user_id)),
+  ];
   if (subDoc) {
-    await databases.updateDocument(DB_ID, 'subscriptions', subDoc.$id, { trial_plan: plan, effective_plan: plan, trial_expires_at: expiresAt, status: 'active' });
+    const trialPatch = { trial_plan: plan, effective_plan: plan, trial_expires_at: expiresAt, status: 'active' };
+    const trialPatches = [trialPatch, Object.fromEntries(Object.entries(trialPatch).filter(([k]) => k !== 'effective_plan'))];
+    for (let i = 0; i < trialPatches.length; i++) {
+      try { await databases.updateDocument(DB_ID, 'subscriptions', subDoc.$id, trialPatches[i], trialPerms); break; }
+      catch (e) { if (i < trialPatches.length - 1) continue; throw e; }
+    }
   } else {
-    await databases.createDocument(DB_ID, 'subscriptions', sdk.ID.unique(), { user_id: target_user_id, plan: 'free', effective_plan: plan, trial_plan: plan, trial_expires_at: expiresAt, status: 'active' }, [
-      sdk.Permission.read(sdk.Role.user(target_user_id)),
-      sdk.Permission.update(sdk.Role.user(target_user_id)),
-    ]);
+    await databases.createDocument(DB_ID, 'subscriptions', sdk.ID.unique(), { user_id: target_user_id, plan: 'free', effective_plan: plan, trial_plan: plan, trial_expires_at: expiresAt, status: 'active' }, trialPerms);
   }
 
   await auditLog(databases, 'grant-trial', { target_user_id, plan, days });
@@ -830,7 +855,18 @@ async function handleRevokeTrial(body, log) {
   const subDoc = subRes.documents[0] || null;
   if (subDoc) {
     const basePlan = subDoc.plan || 'free';
-    await databases.updateDocument(DB_ID, 'subscriptions', subDoc.$id, { trial_plan: null, trial_expires_at: null, effective_plan: basePlan });
+    const revokePerms = [
+      sdk.Permission.read(sdk.Role.user(target_user_id)),
+      sdk.Permission.update(sdk.Role.user(target_user_id)),
+    ];
+    const revokePatches = [
+      { trial_plan: null, trial_expires_at: null, effective_plan: basePlan },
+      { trial_plan: null, trial_expires_at: null },
+    ];
+    for (let i = 0; i < revokePatches.length; i++) {
+      try { await databases.updateDocument(DB_ID, 'subscriptions', subDoc.$id, revokePatches[i], revokePerms); break; }
+      catch (e) { if (i < revokePatches.length - 1) continue; throw e; }
+    }
   }
 
   await auditLog(databases, 'revoke-trial', { target_user_id });

@@ -84,17 +84,21 @@ async function writeSubscription(databases, userId, patch) {
     Object.fromEntries(Object.entries(patch).filter(([key]) => key !== 'coupon_code')),
     Object.fromEntries(Object.entries(patch).filter(([key]) => !['coupon_code', 'effective_plan'].includes(key))),
   ];
+  const perms = [
+    sdk.Permission.read(sdk.Role.user(userId)),
+    sdk.Permission.update(sdk.Role.user(userId)),
+  ];
 
   let lastError;
   for (const payload of payloads) {
     try {
       if (existing) {
-        return await databases.updateDocument(DB_ID, 'subscriptions', existing.$id, payload);
+        return await databases.updateDocument(DB_ID, 'subscriptions', existing.$id, payload, perms);
       }
       return await databases.createDocument(DB_ID, 'subscriptions', sdk.ID.unique(), {
         user_id: userId,
         ...payload,
-      });
+      }, perms);
     } catch (err) {
       lastError = err;
     }
