@@ -8,12 +8,14 @@ interface DashboardHeroProps {
   hasResumes: boolean;
   onBuild: () => void;
   onTailor: () => void;
+  onContinueEditing?: () => void;
 }
 
 export const DashboardHero = memo(function DashboardHero({
   hasResumes,
   onBuild,
   onTailor,
+  onContinueEditing,
 }: DashboardHeroProps) {
   if (hasResumes) {
     return (
@@ -24,23 +26,35 @@ export const DashboardHero = memo(function DashboardHero({
         className="mx-4 mt-4 mb-4 rounded-2xl bg-card border border-border px-4 py-4"
       >
         <p className="text-[11px] font-medium text-muted-foreground mb-3">Jump back in</p>
-        <div className="grid grid-cols-2 gap-2">
+        <div
+          data-testid="returning-user-cta-grid"
+          className="grid grid-cols-1 sm:grid-cols-2 gap-2"
+        >
           <Button
             variant="outline"
-            className="h-10 gap-2 justify-center active:scale-[0.98] touch-manipulation"
+            className="h-11 gap-2 justify-center active:scale-[0.98] touch-manipulation"
             onClick={() => { haptics.light(); onBuild(); }}
           >
             <FileText className="w-4 h-4 shrink-0" />
-            <span className="truncate text-sm">Build a Resume</span>
+            <span className="text-sm">Build a Resume</span>
           </Button>
           <Button
-            className="h-10 gap-2 justify-center active:scale-[0.98] touch-manipulation"
+            className="h-11 gap-2 justify-center active:scale-[0.98] touch-manipulation"
             onClick={() => { haptics.light(); onTailor(); }}
           >
             <Wand2 className="w-4 h-4 shrink-0" />
-            <span className="truncate text-sm">Optimize for a Job</span>
+            <span className="text-sm">Optimize for a Job</span>
           </Button>
         </div>
+        {onContinueEditing && (
+          <Button
+            variant="ghost"
+            className="mt-2 h-11 w-full justify-center text-sm text-muted-foreground hover:text-foreground active:scale-[0.98] touch-manipulation"
+            onClick={() => { haptics.light(); onContinueEditing(); }}
+          >
+            Continue editing
+          </Button>
+        )}
       </motion.div>
     );
   }

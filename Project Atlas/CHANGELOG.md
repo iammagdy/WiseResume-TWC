@@ -11,6 +11,85 @@
 
 ---
 
+## 2026-05-15 - Bolt Repo Slimming (5 MB Import Cap)
+
+### Summary
+Prepared a slim branch so `iammagdy/WiseResume-TWC` can be imported into bolt.new, which enforces a hard ~5 MB GitHub tarball size cap.
+
+### Root cause
+The repo HEAD contained large committed Appwrite hub build artifacts (`.tar.gz` / `.zip`) and image-heavy documentation assets (screenshots). bolt.new imports by downloading the GitHub tarball and rejects repos over 5 MB.
+
+### What changed
+- Removed committed hub archives from the repo HEAD on branch `codex/bolt-slim` (root artifacts and `appwrite-hubs/*.tar.gz` + `auth-master.zip`).
+- Removed image-heavy documentation assets: `screenshots/`, `docs/screenshots/`, `.canvas/assets/`.
+- Updated `.gitignore` to prevent re-adding generated archives and those removed asset directories.
+- Added session log: `Project Atlas/05-Migration to Appwrite/21-Session-Log-2026-05-15-Bolt-Repo-Slimming.md`.
+
+### Verification
+- Staged-tree archive size (gzipped) measured at ~3.28 MB (below bolt.new 5 MB cap).
+
+### Current state
+- Slimming work exists locally on branch `codex/bolt-slim` and must be committed/pushed to affect GitHub imports.
+
+---
+
+## 2026-05-15 - UI Follow-up Fixes
+
+### Summary
+Resolved the two follow-up issues left open after the main UI/UX stabilization pass: the recurring `useAppSettings` authorization warning and the landing mobile animated headline rendering issue.
+
+### Root cause
+The settings warning came from a direct browser read of `app_settings` on routes where that collection is not readable for the current user. The landing mobile issue came from reusing the desktop typewriter overlay pattern on a narrow mobile layout where an in-flow animated line is the correct model.
+
+### What changed
+- Updated `src/hooks/useAppSettings.ts` so expected Appwrite `401/403` settings-read failures fall back to defaults without warning spam.
+- Added `src/hooks/__tests__/useAppSettings.test.tsx` to verify silent fallback for expected auth failures and warnings for unexpected failures.
+- Added `src/components/landing/TypewriterHeadlineLine.tsx` and moved both `WiseResumeHero` and `LandingHeroShell` to the shared headline-line structure.
+- Changed the landing mobile headline to an in-flow animated word line while preserving the desktop width-reservation behavior on `sm+`.
+- Increased the mobile `.lp-typewriter-line` min-height in `src/pages/index-landing.css`.
+- Updated `reports/ui-ux-stabilization-audit-2026-05-15.md` and added `Project Atlas/05-Migration to Appwrite/19-Session-Log-2026-05-15-UI-Followups.md`.
+
+### Verification
+- `npm exec vitest run src/hooks/__tests__/useAppSettings.test.tsx src/components/landing/__tests__/TypewriterHeadlineLine.test.tsx` passed.
+- `npm exec tsc -- --noEmit` passed.
+- Browser verification on the real local WiseResume server confirmed the settings warning no longer appears and the mobile landing headline renders correctly.
+
+### Current state
+- The two follow-up issues from the second-pass UI audit are fixed locally.
+- No backend or deployment changes were required.
+
+---
+
+## 2026-05-15 - UI/UX Stabilization Pass
+
+### Summary
+Implemented the frontend stabilization pass for the confirmed shell, dashboard, tailor, upload, and landing UX issues, then documented the second-pass route sweep separately from the original fixes.
+
+### Root cause
+The regressions were caused by frontend layout and hierarchy problems rather than backend failures: mobile shell spacing did not account for both the Ask FAB and bottom nav, returning-user actions were buried or truncated on dashboard, and the tailor first screen combined a broken closed-state selector with an overloaded entry flow.
+
+### What changed
+- Added route-aware mobile shell spacing and Ask FAB suppression rules for fixed-footer pages.
+- Tightened desktop navigation chrome without changing IA.
+- Reworked dashboard returning-user actions, loading copy, selection discoverability, and upload-card mobile layout.
+- Fixed the tailor resume selector closed state and removed the associated React key warning.
+- Reframed the tailor first screen into a clearer step sequence and stacked the job URL controls on mobile.
+- Increased landing hero spacing on mobile before the next content band.
+- Added focused tests for shell layout, dashboard hero CTA behavior, and tailor URL control layout.
+- Added `reports/ui-ux-stabilization-audit-2026-05-15.md` and `Project Atlas/05-Migration to Appwrite/18-Session-Log-2026-05-15-UI-UX-Stabilization.md`.
+
+### Verification
+- `npm exec vitest run src/components/layout/__tests__/appShellLayout.test.ts src/components/dashboard/__tests__/DashboardHero.test.tsx src/components/editor/tailor/__tests__/JobUrlParser.test.tsx` passed.
+- `npm exec tsc -- --noEmit` passed.
+- Browser verification covered authenticated dashboard/upload/tailor checks, public mobile checks for `/` and `/pricing`, and a second-pass route sweep across auth, job-seeker, and WiseHire surfaces.
+
+### Current state
+- The confirmed UI issues from the original audit are fixed locally.
+- No Appwrite schema, function, or deployment changes were required for this pass.
+- The second-pass sweep found two follow-up items to track separately: a recurring `useAppSettings` authorization warning and an existing mobile landing animated-title rendering issue.
+
+---
+
 ## 2026-05-15 - Function Ownership Implementation
 
 ### Summary

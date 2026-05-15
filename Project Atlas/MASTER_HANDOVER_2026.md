@@ -1,5 +1,66 @@
 # WiseResume Master Handover & State (May 2026)
 
+## Session Summary - 2026-05-15 (UI Stabilization Final)
+
+**Detailed log:** `Project Atlas/05-Migration to Appwrite/20-Session-Log-2026-05-15-UI-Stabilization-Final.md`
+
+### Fixed
+- Mobile shell now reserves enough bottom space for the bottom nav and Ask FAB together and suppresses the Ask FAB on fixed-footer routes.
+- Desktop nav chrome was tightened to reduce header crowding without changing IA.
+- Dashboard mobile CTAs no longer rely on the previous cramped two-column layout, `Continue editing` is promoted near the hero, selection mode is labeled `Select`, and the upload widget now stacks cleanly on mobile.
+- Dashboard loading now shows visible status copy before the skeleton state.
+- Tailor resume selection closed state no longer shows concatenated titles, the related React key warning is removed, and the first screen now follows a clearer four-step sequence with mobile-safe URL extraction controls.
+- Landing hero spacing on mobile now leaves cleaner separation before the next band.
+- `useAppSettings` no longer logs the expected authorization warning when the current route/user cannot read `app_settings`.
+- Landing mobile animated headline now uses a mobile-safe in-flow word layout while preserving the desktop width-reservation behavior on `sm+`.
+
+### Verification
+- `npm exec vitest run src/components/layout/__tests__/appShellLayout.test.ts src/components/dashboard/__tests__/DashboardHero.test.tsx src/components/editor/tailor/__tests__/JobUrlParser.test.tsx src/hooks/__tests__/useAppSettings.test.tsx src/components/landing/__tests__/TypewriterHeadlineLine.test.tsx` passed.
+- `npm exec tsc -- --noEmit` passed.
+- Authenticated in-app browser checks verified dashboard/upload/tailor behavior.
+- Public mobile browser checks verified `/` and `/pricing`.
+- Second-pass route sweep covered auth, job-seeker, and WiseHire surfaces after the fixes landed.
+- Final follow-up verification on the real local WiseResume server confirmed:
+  - no `useAppSettings` warning in checked logs
+  - corrected mobile landing headline rendering
+
+### Current State
+- The original UI audit findings are fixed locally.
+- The two follow-up issues discovered during the second-pass route sweep are also fixed locally.
+- No backend, schema, or deployment work was required for this session.
+
+### Where We Stopped
+- The UI stabilization work for this session is complete in local source, tests, and Atlas documentation.
+- Next agent should treat any further UI changes as new scope, not unfinished work from this session.
+
+---
+
+## Session Summary - 2026-05-15 (Bolt Repo Slimming)
+
+**Detailed log:** `Project Atlas/05-Migration to Appwrite/21-Session-Log-2026-05-15-Bolt-Repo-Slimming.md`
+
+### Fixed
+- Prepared a slim repository branch (`codex/bolt-slim`) so the project can be imported into bolt.new (5 MB tarball cap).
+
+### Root cause
+- Repo HEAD included large committed Appwrite hub artifact archives (`.tar.gz` / `.zip`) and image-heavy documentation assets (screenshots), pushing the GitHub tarball well above the bolt.new import limit.
+
+### What changed (branch `codex/bolt-slim`)
+- Removed committed hub archives from HEAD (root archives + `appwrite-hubs/*.tar.gz` + `auth-master.zip`).
+- Removed image-heavy documentation assets: `screenshots/`, `docs/screenshots/`, `.canvas/assets/`.
+- Updated `.gitignore` to prevent re-adding these artifacts.
+
+### Verification
+- Staged-tree tarball size measured at ~3.28 MB gzipped (below bolt.new 5 MB cap).
+
+### Current State
+- Slimming work is local on `codex/bolt-slim` and is not pushed to GitHub yet.
+
+### Where We Stopped
+- Commit + push `codex/bolt-slim`, then set it as the GitHub default branch (or merge into `main`) so bolt.new can import it.
+
+---
+
 ## Session Summary - 2026-05-15 (Function Ownership Implementation)
 
 **Detailed log:** `Project Atlas/05-Migration to Appwrite/17-Session-Log-2026-05-15-Function-Ownership-Implementation.md`

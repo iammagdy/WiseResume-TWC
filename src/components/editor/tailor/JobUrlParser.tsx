@@ -97,7 +97,10 @@ export function JobUrlParser({ value, onChange, onParsed }: JobUrlParserProps) {
             animate={{ opacity: 1 }}
             className="space-y-3"
           >
-            <div className="flex gap-2">
+            <div
+              data-testid="job-url-actions"
+              className="flex flex-col gap-2 sm:flex-row"
+            >
               <Input
                 value={urlInput}
               onChange={(e) => {
@@ -111,6 +114,7 @@ export function JobUrlParser({ value, onChange, onParsed }: JobUrlParserProps) {
               <Button
                 onClick={handleParseUrl}
                 disabled={isParsing || !urlInput.trim()}
+                className="w-full sm:w-auto"
               >
                 {isParsing ? (
                   <MiniSpinner size={16} />

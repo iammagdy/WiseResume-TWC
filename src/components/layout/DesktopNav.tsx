@@ -180,15 +180,17 @@ export function DesktopNav() {
         })}
       </div>
 
-      <div className="ml-auto flex items-center gap-1.5">
-        <AICreditsIndicator />
-        <AIHealthBadge />
+      <div className="ml-auto flex items-center gap-3">
+        <div className="flex items-center gap-1">
+          <AICreditsIndicator />
+          <AIHealthBadge />
+        </div>
         <button
           onClick={() => {
             haptics.selection();
             window.dispatchEvent(new Event('open-command-palette'));
           }}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted text-sm transition-colors active:scale-95"
+          className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted text-sm transition-colors active:scale-95"
           aria-label="Search actions"
         >
           <Search className="w-3.5 h-3.5" />
@@ -200,7 +202,7 @@ export function DesktopNav() {
 
         <button
           onClick={() => { haptics.selection(); navigate('/settings'); }}
-          className="flex items-center justify-center min-w-[44px] min-h-[44px] rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors active:scale-95"
+          className="flex items-center justify-center min-w-[40px] min-h-[40px] rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors active:scale-95"
           aria-label="Settings"
         >
           <Settings className="w-4 h-4" />
@@ -208,7 +210,7 @@ export function DesktopNav() {
 
         <button
           onClick={() => { haptics.selection(); toggleTheme(); }}
-          className="flex items-center justify-center min-w-[44px] min-h-[44px] rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors active:scale-95"
+          className="flex items-center justify-center min-w-[40px] min-h-[40px] rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors active:scale-95"
           aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
         >
           {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
@@ -217,7 +219,7 @@ export function DesktopNav() {
         <button
           onPointerEnter={preloadLazy(() => import('@/components/editor/AgenticChatSheet'))}
           onClick={() => {haptics.selection();setWiseAIOpen(true);}}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary/10 text-primary text-sm font-medium hover:bg-primary/15 transition-colors active:scale-95"
+          className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg bg-primary/10 text-primary text-sm font-medium hover:bg-primary/15 transition-colors active:scale-95"
           aria-label="Ask Wise AI">
           
           <MessageCircle className="w-4 h-4" />

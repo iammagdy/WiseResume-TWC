@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo, useDeferredValue, lazy, Suspense,
 import { preloadLazy } from '@/lib/preloadLazy';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { LazyMotion, domAnimation, m as motion, AnimatePresence } from 'framer-motion';
-import { Search, User, Settings, LogOut, FileText as FileTextIcon, Sparkles, CheckSquare, X, Trash2, WifiOff, ShieldCheck, ExternalLink, HelpCircle, AlertCircle, RefreshCw, LayoutTemplate, BookOpen, Users, Map, Sun, Moon } from 'lucide-react';
+import { Search, User, Settings, LogOut, Sparkles, CheckSquare, X, Trash2, WifiOff, ShieldCheck, ExternalLink, HelpCircle, AlertCircle, RefreshCw, LayoutTemplate, BookOpen, Users, Map, Sun, Moon } from 'lucide-react';
 import { DashboardSkeleton } from '@/components/layout/PageSkeletons';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { templates } from '@/lib/templateData';
@@ -167,6 +167,14 @@ function DashboardPageContent() {
       setCurrentResume(dbToResumeData(latest));
     }
     navigate('/tailor');
+  }, [resumes, setCurrentResumeId, setCurrentResume, navigate]);
+
+  const handleContinueEditing = useCallback(() => {
+    if (!resumes || resumes.length === 0) return;
+    const latest = resumes[0];
+    setCurrentResumeId(latest.id);
+    setCurrentResume(dbToResumeData(latest));
+    navigate('/editor');
   }, [resumes, setCurrentResumeId, setCurrentResume, navigate]);
 
   // Check onboarding status for authenticated users.
@@ -527,7 +535,17 @@ function DashboardPageContent() {
   const isLoading = !authSettled;
 
   if (isLoading) {
-    return <DashboardSkeleton />;
+    return (
+      <div className="flex-1 flex flex-col">
+        <div className="px-4 pt-6 pb-3">
+          <p className="text-sm font-medium text-foreground">Loading your workspace</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            We&apos;re syncing your resumes, scores, and recent activity.
+          </p>
+        </div>
+        <DashboardSkeleton />
+      </div>
+    );
   }
 
   // Only show error if we're online and the fetch actually failed after the bridge was ready
@@ -692,6 +710,7 @@ function DashboardPageContent() {
             hasResumes={resumes.length > 0}
             onBuild={handleCreateNew}
             onTailor={handleHeroTailor}
+            onContinueEditing={resumes.length > 0 ? handleContinueEditing : undefined}
           />
 
           {/* Trust banner — only on first visit, hidden on small screens after first dismiss */}
@@ -802,21 +821,6 @@ function DashboardPageContent() {
                 </button>
               ))}
             </div>
-            {resumes && resumes.length > 0 && (
-              <button
-                onClick={() => {
-                  haptics.light();
-                  const latest = resumes[0];
-                  setCurrentResumeId(latest.id);
-                  setCurrentResume(dbToResumeData(latest));
-                  navigate('/editor');
-                }}
-                className="mt-2.5 w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors touch-manipulation active:scale-[0.98] min-h-[44px]"
-              >
-                <FileTextIcon className="w-3.5 h-3.5" />
-                Continue editing
-              </button>
-            )}
           </div>
 
           {/* Search pill — moved below tabs area conceptually, but above filter bar */}
@@ -834,13 +838,13 @@ function DashboardPageContent() {
                 </div>
                 {!selectionMode && (
                   <Button
-                    variant="ghost"
-                    size="icon"
-                    className="min-w-[44px] min-h-[44px] flex-shrink-0"
+                    variant="outline"
+                    className="min-h-[44px] flex-shrink-0 gap-2 rounded-full px-3"
                     onClick={() => { haptics.light(); setSelectionMode(true); }}
                     aria-label="Select resumes"
                   >
                     <CheckSquare className="w-5 h-5" />
+                    <span className="text-sm font-medium">Select</span>
                   </Button>
                 )}
               </div>

@@ -337,7 +337,7 @@ body[data-lp-scheme="light"][data-lp-product="wisehire"] { background-color: #f0
    the headline never shifts when words cycle. 2 lines on narrow mobile (some
    words wrap), 1.15em on sm+ where everything stays on one line. */
 .lp-typewriter-line {
-  min-height: 2.15em;
+  min-height: 2.35em;
 }
 @media (min-width: 640px) {
   .lp-typewriter-line { min-height: 1.15em; }

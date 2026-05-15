@@ -11,6 +11,12 @@ node_modules
 dist
 dist-ssr
 *.local
+*.tar.gz
+*.zip
+screenshots/
+docs/screenshots/
+.canvas/assets/
+.codex/
 
 # Editor directories and files
 .vscode/*

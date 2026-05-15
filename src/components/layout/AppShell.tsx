@@ -21,6 +21,7 @@ import { cn } from '@/lib/utils';
 import { getPageTitle } from '@/lib/pageTitles';
 import { shouldExitOnBack } from '@/lib/navigation';
 import { lazyWithRetry } from '@/lib/lazyWithRetry';
+import { getMobileShellLayout } from './appShellLayout';
 
 const AgenticChatSheet = lazyWithRetry(() => import('@/components/editor/AgenticChatSheet').then(m => ({ default: m.AgenticChatSheet })));
 
@@ -46,12 +47,12 @@ function AppShellInner() {
   const { isAuthenticated, signOut } = useAuth();
   const showBottomNav = TAB_ROUTES.some(r => location.pathname.startsWith(r));
   const isEditorRoute = location.pathname.startsWith('/editor') || location.pathname.startsWith('/preview');
-  const isPortfolioEditorRoute = location.pathname === '/portfolio';
   const isRootRoute = shouldExitOnBack(location.pathname);
   const enableSwipeBack = showBottomNav && !isEditorRoute && !isRootRoute;
   const scrollRef = useRef<HTMLDivElement>(null);
   const [wiseAIOpen, setWiseAIOpen] = useState(false);
   const { isAnySheetOpen } = useBottomSheetOpen();
+  const mobileShellLayout = getMobileShellLayout(location.pathname, isAnySheetOpen);
 
   // Now inside KeyboardProvider — dispatch reaches context correctly
   useKeyboardAwareScroll();
@@ -106,7 +107,11 @@ function AppShellInner() {
         id="main-content"
         className={cn(
           "flex-1 flex flex-col min-h-0 overflow-hidden",
-          showBottomNav && !isEditorRoute && "pb-[4.5rem] lg:pb-0"
+          showBottomNav && !isEditorRoute && (
+            mobileShellLayout.showAskFab
+              ? "pb-[8.5rem] lg:pb-0"
+              : "pb-[4.5rem] lg:pb-0"
+          )
         )}
       >
         <div
@@ -133,7 +138,7 @@ function AppShellInner() {
       </main>
       {showBottomNav && <BottomTabBar className="lg:hidden" />}
 
-      {showBottomNav && !isEditorRoute && (
+      {showBottomNav && !isEditorRoute && mobileShellLayout.showAskFab && mobileShellLayout.askFabOffsetClass && (
         <button
           onPointerEnter={!wiseAIOpen ? preloadLazy(() => import('@/components/editor/AgenticChatSheet')) : undefined}
           onClick={() => setWiseAIOpen(v => !v)}
@@ -142,15 +147,10 @@ function AppShellInner() {
             wiseAIOpen
               ? 'bg-muted text-foreground border border-border'
               : 'bg-primary text-primary-foreground',
-            isPortfolioEditorRoute
-              ? 'bottom-[calc(9rem+env(safe-area-inset-bottom))]'
-              : 'bottom-[calc(5.5rem+env(safe-area-inset-bottom))]',
-            isAnySheetOpen && !wiseAIOpen && 'pointer-events-none opacity-0'
+            mobileShellLayout.askFabOffsetClass
           )}
           aria-label={wiseAIOpen ? 'Close Wise AI' : 'Ask Wise AI'}
           aria-expanded={wiseAIOpen}
-          aria-hidden={isAnySheetOpen && !wiseAIOpen}
-          tabIndex={isAnySheetOpen && !wiseAIOpen ? -1 : undefined}
         >
           {wiseAIOpen ? (
             <X className="w-4 h-4" />

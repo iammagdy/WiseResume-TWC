@@ -1,13 +1,9 @@
 import { TYPEWRITER_WORDS } from '@/hooks/useTypewriter';
+import { TypewriterHeadlineLine } from '@/components/landing/TypewriterHeadlineLine';
 
 interface LandingHeroShellProps {
   mode: 'jobseeker' | 'wisehire';
 }
-
-const longestTypewriterWord = TYPEWRITER_WORDS.reduce(
-  (a, b) => (a.length >= b.length ? a : b),
-  ''
-);
 
 export default function LandingHeroShell({ mode }: LandingHeroShellProps) {
   if (mode === 'wisehire') {
@@ -94,29 +90,7 @@ export default function LandingHeroShell({ mode }: LandingHeroShellProps) {
           <span className="sm:whitespace-nowrap" style={{ display: 'block' }}>
             Stand out as a
           </span>
-          <span
-            className="lp-typewriter-line"
-            style={{ display: 'inline-block', position: 'relative' }}
-          >
-            <span
-              aria-hidden="true"
-              style={{ visibility: 'hidden', display: 'block', whiteSpace: 'nowrap' }}
-            >
-              {longestTypewriterWord}
-            </span>
-            <span
-              className="lp-gradient-text"
-              style={{
-                display: 'block',
-                position: 'absolute',
-                inset: 0,
-                textAlign: 'center',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {TYPEWRITER_WORDS[0]}
-            </span>
-          </span>
+          <TypewriterHeadlineLine word={TYPEWRITER_WORDS[0]} />
         </h1>
       </div>
     </section>

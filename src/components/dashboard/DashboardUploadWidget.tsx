@@ -359,31 +359,33 @@ export function DashboardUploadWidget({ compact = false }: DashboardUploadWidget
           ) : (
             <motion.div
               key="idle"
-              className="flex items-center gap-4 p-4"
+              className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
             >
-              <div className={cn(
-                'w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-colors',
-                isDragging ? 'bg-primary/20' : 'bg-primary/10'
-              )}>
-                {isDragging
-                  ? <Check className="w-6 h-6 text-primary" />
-                  : <FileText className="w-6 h-6 text-primary" />
-                }
+              <div className="flex items-start gap-4">
+                <div className={cn(
+                  'w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-colors',
+                  isDragging ? 'bg-primary/20' : 'bg-primary/10'
+                )}>
+                  {isDragging
+                    ? <Check className="w-6 h-6 text-primary" />
+                    : <FileText className="w-6 h-6 text-primary" />
+                  }
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground">
+                    {isDragging ? 'Drop your resume here' : 'Upload existing resume'}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {isTouch
+                      ? 'Tap to pick a file · PDF, Word, or image'
+                      : 'Drag & drop or click · PDF, Word, or image · max 10MB'}
+                  </p>
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground">
-                  {isDragging ? 'Drop your resume here' : 'Upload existing resume'}
-                </p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {isTouch
-                    ? 'Tap to pick a file · PDF, Word, or image'
-                    : 'Drag & drop or click · PDF, Word, or image · max 10MB'}
-                </p>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex w-full items-center gap-2 shrink-0 sm:w-auto sm:justify-end">
                 {isTouch && (
                   <Button
                     variant="ghost"
@@ -402,7 +404,7 @@ export function DashboardUploadWidget({ compact = false }: DashboardUploadWidget
                   size="sm"
                   onClick={(e) => { e.stopPropagation(); haptics.light(); fileInputRef.current?.click(); }}
                   disabled={isProcessing}
-                  className="h-9 gap-1.5 touch-manipulation active:scale-95"
+                  className="h-10 w-full gap-1.5 touch-manipulation active:scale-95 sm:w-auto"
                   aria-label="Upload resume"
                 >
                   <Upload className="w-3.5 h-3.5" />

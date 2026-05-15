@@ -185,6 +185,10 @@ export default function TailorPage() {
     const found = allResumes?.find((r: DatabaseResume) => r.id === currentResumeId);
     return found ? dbToResumeData(found) : null;
   }, [allResumes, currentResumeId]);
+  const selectedResumeTitle = useMemo(() => {
+    const found = allResumes?.find((r: DatabaseResume) => r.id === currentResumeId);
+    return found?.title ?? '';
+  }, [allResumes, currentResumeId]);
 
   const [isTailoring, setIsTailoring] = useState(false);
   const [tailorResult, setTailorResult] = useState<SuperTailorResult | null>(null);
@@ -816,8 +820,11 @@ export default function TailorPage() {
         {/* Left panel: Job input */}
         <div className="w-full lg:w-[420px] lg:border-r border-border overflow-y-auto lg:flex-shrink-0 p-4 space-y-4">
           {/* Resume Selector */}
-          <div className="space-y-1">
-            <p className="text-xs font-medium text-muted-foreground">Tailoring resume</p>
+          <div className="space-y-2">
+            <div className="space-y-1">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Step 1</p>
+              <p className="text-sm font-medium text-foreground">Choose the resume you want to tailor</p>
+            </div>
             {allResumes === undefined ? (
               <div className="animate-pulse h-9 rounded-lg bg-muted w-full" />
             ) : allResumes.length === 0 ? (
@@ -841,11 +848,13 @@ export default function TailorPage() {
                 disabled={isTailoring || isApplying}
               >
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select a resume" />
+                  <SelectValue placeholder="Select a resume">
+                    {selectedResumeTitle || undefined}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  {allResumes.map((r: DatabaseResume) => (
-                    <SelectItem key={r.id} value={r.id}>
+                  {allResumes.map((r: DatabaseResume, index: number) => (
+                    <SelectItem key={`${r.id}-${index}`} value={r.id}>
                       {r.title}
                     </SelectItem>
                   ))}
@@ -854,14 +863,20 @@ export default function TailorPage() {
             )}
           </div>
 
-          <JobUrlParser
-            value={jobDescription}
-            onChange={setJobDescription}
-            onParsed={(info) => {
-              setParsedJobInfo(info);
-              if (info?.url) setJobUrl(info.url);
-            }}
-          />
+          <div className="space-y-2">
+            <div className="space-y-1">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Step 2</p>
+              <p className="text-sm font-medium text-foreground">Add the job description or job link</p>
+            </div>
+            <JobUrlParser
+              value={jobDescription}
+              onChange={setJobDescription}
+              onParsed={(info) => {
+                setParsedJobInfo(info);
+                if (info?.url) setJobUrl(info.url);
+              }}
+            />
+          </div>
 
           {/* Keyword Match Bar */}
           {jobDescription.trim() && currentResume && (
@@ -869,7 +884,11 @@ export default function TailorPage() {
           )}
 
           {/* Custom Instructions */}
-          <div className="space-y-2">
+          <div className="space-y-2 rounded-2xl border border-border/60 bg-card/50 p-3">
+            <div className="space-y-1">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Step 3</p>
+              <p className="text-sm font-medium text-foreground">Adjust optional settings</p>
+            </div>
             <button
               onClick={() => setShowCustomInstructions(v => !v)}
               className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors w-full"
@@ -890,6 +909,10 @@ export default function TailorPage() {
 
           {/* Intensity */}
           <div className="space-y-2">
+            <div className="space-y-1">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Step 4</p>
+              <p className="text-sm font-medium text-foreground">Run the optimizer</p>
+            </div>
             <h4 className="font-semibold text-sm">Tailoring Intensity</h4>
             <ToggleGroup
               type="single"

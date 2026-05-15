@@ -1,3 +1,4 @@
+import { AppwriteException } from 'appwrite';
 import { useQuery } from '@tanstack/react-query';
 import { databases, DATABASE_ID, Query } from '@/lib/appwrite';
 import { COLLECTIONS } from '@/lib/appwrite-collections';
@@ -50,6 +51,14 @@ function parseSettings(obj: Record<string, unknown>): AppSettings {
   return { ...DEFAULTS, ...parsed };
 }
 
+function isExpectedSettingsReadError(error: unknown): boolean {
+  if (!(error instanceof AppwriteException)) {
+    return false;
+  }
+
+  return error.code === 401 || error.code === 403;
+}
+
 export function useAppSettings(): AppSettings & { isLoading: boolean } {
   const { data, isLoading } = useQuery({
     queryKey: ['app-settings'],
@@ -70,7 +79,9 @@ export function useAppSettings(): AppSettings & { isLoading: boolean } {
         }
         return parseSettings(obj);
       } catch (e) {
-        console.warn('[useAppSettings] Could not load settings:', e);
+        if (!isExpectedSettingsReadError(e)) {
+          console.warn('[useAppSettings] Could not load settings:', e);
+        }
         return DEFAULTS;
       }
     },

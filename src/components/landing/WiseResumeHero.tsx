@@ -7,6 +7,7 @@ import { getSafeMatchMedia } from '@/lib/envUtils';
 import { LandingToggle } from '@/components/landing/LandingToggle';
 import { FeatureTicker } from '@/components/landing/FeatureTicker';
 import { heroContainerVariants, heroItemVariants } from '@/components/landing/landingAnimations';
+import { TypewriterHeadlineLine } from '@/components/landing/TypewriterHeadlineLine';
 import { useTypewriterWord, TYPEWRITER_WORDS } from '@/hooks/useTypewriter';
 
 function HeroParallaxGlow({ prefersReducedMotion }: { prefersReducedMotion: boolean | null }) {
@@ -62,7 +63,7 @@ export function WiseResumeHero({
       <section
         ref={heroRef}
         className="lp-hero-top relative flex flex-col items-center text-center px-4 sm:px-6 overflow-hidden"
-        style={{ background: 'var(--lp-bg)', paddingBottom: '4rem' }}
+        style={{ background: 'var(--lp-bg)', paddingBottom: 'clamp(4.5rem, 8vw, 6.5rem)' }}
         data-section="hero"
       >
         {/* Indigo radial glow */}
@@ -129,23 +130,7 @@ export function WiseResumeHero({
             <span className="sm:whitespace-nowrap" style={{ display: 'block' }}>
               Stand out as a
             </span>
-            {/* lp-typewriter-line: inline-block so it only takes the width it needs,
-                with a hidden longest-word sentinel to reserve constant horizontal space
-                and prevent layout shifts as words cycle. */}
-            <span className="lp-typewriter-line" style={{ display: 'inline-block', position: 'relative' }}>
-              {/* Invisible sentinel reserves the width of the longest possible word */}
-              <span aria-hidden="true" style={{ visibility: 'hidden', display: 'block', whiteSpace: 'nowrap' }}>
-                {TYPEWRITER_WORDS.reduce((a, b) => a.length >= b.length ? a : b)}
-              </span>
-              {/* Visible gradient text, absolutely centred over the sentinel */}
-              <span
-                className="lp-gradient-text"
-                style={{ display: 'block', position: 'absolute', inset: 0, textAlign: 'center', whiteSpace: 'nowrap' }}
-              >
-                {typewriterWord || '\u00A0'}
-                <span className="lp-cursor" aria-hidden="true" />
-              </span>
-            </span>
+            <TypewriterHeadlineLine word={typewriterWord} showCursor />
           </motion.h1>
 
           {/* Subheading */}
@@ -210,6 +195,7 @@ export function WiseResumeHero({
 
       {/* Feature ticker */}
       <motion.div
+        className="mt-3 sm:mt-0"
         initial={prefersReducedMotion ? 'visible' : 'hidden'}
         whileInView="visible"
         viewport={{ once: true, amount: 0.15 }}
