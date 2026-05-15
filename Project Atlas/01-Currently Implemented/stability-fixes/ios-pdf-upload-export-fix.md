@@ -3,6 +3,8 @@
 **Status:** Shipped  
 **Last verified:** 2026-05-07
 
+> 2026-05-15 supersession: the iOS PDF save/export fallback described below is historical. Resume PDF export no longer uses `window.print()` as the normal service-unavailable fallback. Current behavior is documented in `Project Atlas/01-Currently Implemented/functions/export-resume-pdf.md` and `Project Atlas/01-Currently Implemented/stability-fixes/phase-11-pdf-export-puppeteer-migration.md`.
+
 ## Problems fixed
 
 ### 1 — PDF upload: "Every page in this PDF errored" on any iPhone

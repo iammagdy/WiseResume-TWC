@@ -119,10 +119,8 @@ export interface TemplateCustomization {
   margins: 'narrow' | 'normal' | 'wide';
   lineHeight: 'single' | '1.15' | '1.5' | 'double';
   pageFormat: 'a4' | 'letter';
-  /** Section names (matching data-section attribute values) to force a page break BEFORE. */
-  manualPageBreaks?: string[];
   /**
-   * User-placed exact page break positions in CSS pixels at 612 px design width.
+   * User-placed exact page break positions in CSS pixels at the active export design width.
    * When non-empty the export engine uses ONLY these positions — each segment is
    * rendered at its exact height so the last page is never padded to A4/Letter.
    */

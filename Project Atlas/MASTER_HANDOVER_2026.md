@@ -1,5 +1,46 @@
 # WiseResume Master Handover & State (May 2026)
 
+## Session Summary - 2026-05-15 (Export Pagination Replacement)
+
+**Detailed log:** `Project Atlas/05-Migration to Appwrite/23-Session-Log-2026-05-15-Export-System-Replacement.md`  
+**System doc:** `Project Atlas/01-Currently Implemented/stability-fixes/phase-11-pdf-export-puppeteer-migration.md`
+
+### Fixed/Implemented
+- Replaced the broken Live Preview page-break controls with an Export Options setup step.
+- Added exact export break persistence through `customBreakPositions`.
+- Updated `/api/export/pdf-native` to render exact content segments, merge them, preserve selectable text/links, and crop the final page height to remaining content.
+- Added clickable PDF branding (`Wise Resume` -> `https://resume.thewise.cloud`) and an image-export footer with the same link text.
+- Removed the dead raster PDF helper path from `src/lib/pdfGenerator.ts` and removed obsolete tests tied to that deleted path.
+- Removed resume-export `window.print()` fallback behavior from the normal iPhone failure path.
+- Added root `esbuild` dev dependency so the existing `build:server` script works.
+
+### Root Causes
+- Custom page-break positions were collected in the UI but not forwarded through the native PDF payload.
+- The server used normal Chromium pagination instead of exact rendered segments, so manual breaks were ignored and the final page stayed full height.
+- Old raster PDF helpers remained alongside the native PDF path, creating duplicated export behavior and risk of image-only PDF regressions.
+- Resume export treated PDF service failure as a reason to open browser print, which produced the wrong iPhone experience.
+- `build:server` called `esbuild`, but the root project did not install the `esbuild` CLI directly.
+
+### Current State
+- Resume PDF export uses the native HTML/Puppeteer server path and remains selectable/searchable.
+- Exact export breaks are saved in resume customization as `customBreakPositions`.
+- PDF links and the Wise Resume footer link are rendered as real anchors.
+- PNG export includes a visible Wise Resume/platform-link footer strip.
+- The worktree contains local unstaged changes for this export replacement.
+
+### Verification
+- Focused export unit tests passed: 5 files, 23 tests.
+- `npx tsc --noEmit`, `npm run build`, and `npm run build:server` passed.
+- Built-server smoke test against `POST /api/export/pdf-native` returned `%PDF-` bytes for an exact-break payload with branding enabled.
+
+### Where We Stopped
+- **Review**: Changes are local and not staged or committed.
+- **Device QA**: Real iPhone Safari/Chrome testing was not performed in this environment; test `Download` and `Save` on actual iOS before release.
+- **Deployment**: No deployment was run. Use `Project Atlas/DEPLOYMENT_GUIDE.md` before deploying.
+- **Lockfile**: `package-lock.json` changed significantly after adding root `esbuild`; review before commit.
+
+---
+
 ## Session Summary - 2026-05-15 (Governance & Stabilization)
 
 **Detailed log:** `Project Atlas/05-Migration to Appwrite/22-Session-Log-2026-05-15-Consolidated-Summary.md`

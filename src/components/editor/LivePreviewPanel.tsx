@@ -1,19 +1,17 @@
-import { memo, useState, useCallback, Suspense, useRef, CSSProperties, useEffect } from 'react';
+import { memo, useState, useCallback, Suspense, useRef, CSSProperties, useEffect, useMemo } from 'react';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
-import { ZoomIn, ZoomOut, Eye, EyeOff, X, Scissors, SeparatorHorizontal, Sliders, GripVertical, Download, Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { ZoomIn, ZoomOut, Eye, EyeOff, X, Sliders } from 'lucide-react';
 import { useResumeStore } from '@/store/resumeStore';
 import { applyCustomizationCSS, generateCustomizationCSS } from '@/lib/templateCustomization';
 import { StyleCustomizationPanel } from '@/components/editor/StyleCustomizationPanel';
 import { SectionOverlayManager } from '@/components/editor/SectionOverlayManager';
 import { useFitToPages } from '@/hooks/useFitToPages';
 import type { TemplateCustomization } from '@/types/resume';
-import { computePreviewBreaks, estimatePageCount, getPageDimensionsForFormat, injectForcedBreaks } from '@/lib/pdfUtils';
+import { estimatePageCount, getPageDimensionsForFormat } from '@/lib/pdfUtils';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
-import { TemplateId, ResumeData } from '@/types/resume';
+import { ResumeData } from '@/types/resume';
 import haptics from '@/lib/haptics';
-import { toast } from 'sonner';
 
 import templateComponents from '@/components/templates/registry';
 
@@ -83,7 +81,6 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
   // content from the previous resume during the debounce window.
   const [debouncedResume, setDebouncedResume] = useState(currentResume);
   const lastIdRef = useRef(currentResume?.id);
-  const lastPointerTypeRef = useRef<string>('mouse');
   useEffect(() => {
     if (currentResume?.id !== lastIdRef.current) {
       lastIdRef.current = currentResume?.id;
@@ -109,20 +106,9 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
   const [hiddenSections, setHiddenSections] = useState<Set<string>>(new Set());
   const [showSectionToggles, setShowSectionToggles] = useState(false);
   const [showStylePanel, setShowStylePanel] = useState(false);
-  const [showPageBreaks, setShowPageBreaks] = useState(true);
-  const [pageBreaks, setPageBreaks] = useState<number[]>([]);
   const [pageCount, setPageCount] = useState(1);
   const [domSections, setDomSections] = useState<string[]>([]);
   const resumeRef = useRef<HTMLDivElement>(null);
-
-  const [isBreakEditMode, setIsBreakEditMode] = useState(false);
-  const [draggingBreak, setDraggingBreak] = useState<{
-    index: number;
-    startClientY: number;
-    startBreakY: number;
-    currentY: number;
-  } | null>(null);
-  const justDraggedRef = useRef(false);
 
   const TemplateComponent = templateComponents[selectedTemplate];
 
@@ -132,7 +118,7 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
   // design width). See the comment on the template wrapper below for why
   // pinning these dimensions is essential for accurate page-break placement.
   const previewPageFormat = currentResume?.customization?.pageFormat || 'letter';
-  const previewDims = getPageDimensionsForFormat(previewPageFormat);
+  const previewDims = useMemo(() => getPageDimensionsForFormat(previewPageFormat), [previewPageFormat]);
 
   // Track resume content and compute snap-aware page break positions
   useEffect(() => {
@@ -140,16 +126,6 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
     if (!el) return;
     const { pageWidth, pageHeight } = previewDims;
     const update = () => {
-      const smartBreaks = computePreviewBreaks(el, pageWidth, pageHeight);
-      const manualSections = currentResume?.customization?.manualPageBreaks ?? [];
-      const totalHeight = el.scrollHeight || el.offsetHeight;
-      // Post-snap merge: forced-break positions are inserted after smart-snapping
-      // so they always land exactly at the section's offsetTop, overriding any
-      // nearby auto-snapped break within MIN_GAP (40px). This is simpler than
-      // threading forced positions through snapBreaksToContent and produces the
-      // same result since forced positions are already at section boundaries.
-      const breaks = injectForcedBreaks(smartBreaks, el, manualSections, totalHeight);
-      setPageBreaks(breaks);
       setPageCount(estimatePageCount(el, pageWidth, pageHeight));
       // Derive section list from DOM so order and availability match the actual
       // rendered template (templates may omit or reorder sections dynamically).
@@ -175,8 +151,7 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
     };
     // Key off the debounced render snapshot so page-break recalculation
     // happens at the same cadence as the actual template re-render.
-    // Also re-run when manualPageBreaks changes so forced breaks update immediately.
-  }, [debouncedResume, selectedTemplate, currentResume?.customization?.manualPageBreaks]);
+  }, [debouncedResume, selectedTemplate, previewDims]);
 
   const toggleSection = useCallback((section: string) => {
     setHiddenSections(prev => {
@@ -187,99 +162,6 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
     });
   }, []);
 
-  const toggleBreakBefore = useCallback((section: string) => {
-    if (!currentResume) return;
-    const current = currentResume.customization?.manualPageBreaks ?? [];
-    const next = current.includes(section)
-      ? current.filter(s => s !== section)
-      : [...current, section];
-    updateResume({
-      customization: { ...currentResume.customization, manualPageBreaks: next } as typeof currentResume.customization,
-    });
-  }, [currentResume, updateResume]);
-
-  const sortedCustomBreaks = [...(currentResume?.customization?.customBreakPositions ?? [])].sort((a, b) => a - b);
-
-  const setCustomBreaks = useCallback((positions: number[]) => {
-    if (!currentResume) return;
-    const sorted = positions.filter(y => isFinite(y) && y > 0).sort((a, b) => a - b);
-    updateResume({
-      customization: { ...currentResume.customization, customBreakPositions: sorted } as typeof currentResume.customization,
-    });
-  }, [currentResume, updateResume]);
-
-  const handleResumeClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (!isBreakEditMode || !resumeRef.current) return;
-    if (justDraggedRef.current) return;
-    const rect = resumeRef.current.getBoundingClientRect();
-    const cssY = Math.round((e.clientY - rect.top) / zoom);
-    const totalH = resumeRef.current.scrollHeight;
-    const edgeGuard = lastPointerTypeRef.current === 'touch' ? 14 : 5;
-    if (cssY <= edgeGuard || cssY >= totalH - edgeGuard) return;
-    const existing = currentResume?.customization?.customBreakPositions ?? [];
-    if (existing.some(b => Math.abs(b - cssY) < 30)) return;
-    setCustomBreaks([...existing, cssY]);
-  }, [isBreakEditMode, zoom, currentResume, setCustomBreaks]);
-
-  const handleDragStart = useCallback((e: React.PointerEvent, index: number, breakY: number) => {
-    e.preventDefault();
-    e.stopPropagation();
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    setDraggingBreak({ index, startClientY: e.clientY, startBreakY: breakY, currentY: breakY });
-  }, []);
-
-  const handleDragMove = useCallback((e: React.PointerEvent, index: number) => {
-    if (!draggingBreak || draggingBreak.index !== index || !resumeRef.current) return;
-    const delta = (e.clientY - draggingBreak.startClientY) / zoom;
-    const totalH = resumeRef.current.scrollHeight;
-    const edgeGuard = e.pointerType === 'touch' ? 14 : 5;
-    const newY = Math.round(Math.max(edgeGuard, Math.min(totalH - edgeGuard, draggingBreak.startBreakY + delta)));
-    setDraggingBreak(prev => prev ? { ...prev, currentY: newY } : null);
-  }, [draggingBreak, zoom]);
-
-  const handleDragEnd = useCallback((index: number) => {
-    if (!draggingBreak || draggingBreak.index !== index) return;
-    justDraggedRef.current = true;
-    setTimeout(() => { justDraggedRef.current = false; }, 80);
-    const positions = [...(currentResume?.customization?.customBreakPositions ?? [])].sort((a, b) => a - b);
-    positions[draggingBreak.index] = draggingBreak.currentY;
-    setCustomBreaks(positions);
-    setDraggingBreak(null);
-  }, [draggingBreak, currentResume, setCustomBreaks]);
-
-  const removeCustomBreak = useCallback((index: number) => {
-    const positions = [...(currentResume?.customization?.customBreakPositions ?? [])].sort((a, b) => a - b);
-    setCustomBreaks(positions.filter((_, i) => i !== index));
-  }, [currentResume, setCustomBreaks]);
-
-  const [isCustomBreakDownloading, setIsCustomBreakDownloading] = useState(false);
-
-  const handleCustomBreakDownload = useCallback(async () => {
-    if (!currentResume || !resumeRef.current) return;
-    const customBreakPositions = currentResume.customization?.customBreakPositions;
-    if (!customBreakPositions?.length) return;
-    setIsCustomBreakDownloading(true);
-    try {
-      const { generateNativePDF } = await import('@/lib/nativePdfGenerator');
-      const { downloadFile } = await import('@/lib/downloadUtils');
-      const templateEl = resumeRef.current.querySelector('[data-resume-template]') as HTMLElement | null
-        ?? resumeRef.current;
-      const pageFormat = (currentResume.customization?.pageFormat ?? 'letter') as 'letter' | 'a4';
-      const pdfBlob = await generateNativePDF(templateEl, {
-        pageFormat,
-        showPageNumbers: false,
-        showBranding: true,
-        customBreakPositions,
-      });
-      const baseName = currentResume.contactInfo?.fullName?.replace(/\s+/g, '_') || 'Resume';
-      await downloadFile({ blob: pdfBlob, fileName: `${baseName}_Resume_CustomBreaks.pdf`, mimeType: 'application/pdf' });
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Download failed. Please try again.';
-      toast.error(msg);
-    } finally {
-      setIsCustomBreakDownloading(false);
-    }
-  }, [currentResume]);
 
   // Auto-fit-to-pages: when customization.targetPageCount is set, this hook
   // measures the rendered preview and patches customization.fontScale so the
@@ -337,55 +219,6 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
         </div>
 
         <div className="flex items-center gap-1.5">
-          {/* Page break toggle */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                onClick={() => { setShowPageBreaks(v => !v); haptics.light(); }}
-                className={cn(
-                  'p-2 rounded-lg transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center touch-manipulation active:scale-95',
-                  showPageBreaks ? 'bg-destructive/10 text-destructive' : 'text-muted-foreground hover:bg-muted'
-                )}
-                aria-label="Toggle page break indicators"
-              >
-                <Scissors className="w-4 h-4" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">
-              {showPageBreaks ? 'Hide auto page break lines' : 'Show auto page break lines'}
-            </TooltipContent>
-          </Tooltip>
-
-          {/* Custom break edit mode */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                onClick={() => { setIsBreakEditMode(v => !v); haptics.light(); }}
-                className={cn(
-                  'p-2 rounded-lg transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center touch-manipulation active:scale-95',
-                  isBreakEditMode ? 'bg-primary/10 text-primary ring-1 ring-primary/30' : 'text-muted-foreground hover:bg-muted'
-                )}
-                aria-label="Edit custom page breaks"
-              >
-                <GripVertical className="w-4 h-4" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">
-              {isBreakEditMode ? 'Click resume to add breaks · drag to move · × to delete' : 'Place custom page breaks'}
-            </TooltipContent>
-          </Tooltip>
-
-          {/* Clear custom breaks */}
-          {sortedCustomBreaks.length > 0 && (
-            <button
-              onClick={() => { setCustomBreaks([]); setIsBreakEditMode(false); haptics.light(); }}
-              className="px-2 py-1 rounded-lg text-xs transition-colors text-muted-foreground hover:bg-muted hover:text-destructive min-h-[44px] whitespace-nowrap touch-manipulation active:scale-95"
-              title="Remove all custom page breaks"
-            >
-              Clear {sortedCustomBreaks.length} break{sortedCustomBreaks.length > 1 ? 's' : ''}
-            </button>
-          )}
-
           {/* Section toggle button */}
           <Tooltip>
             <TooltipTrigger asChild>
@@ -449,38 +282,24 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
         </div>
       </div>
 
-      {/* Section visibility + page-break toggles */}
+      {/* Section visibility toggles */}
       {showSectionToggles && activeSections.length > 0 && (
         <div className="shrink-0 flex flex-wrap gap-1.5 px-3 py-2 border-b border-border bg-background/60">
           {activeSections.map(section => {
             const isHidden = hiddenSections.has(section);
-            const hasBreak = (currentResume.customization?.manualPageBreaks ?? []).includes(section);
             return (
-              <div key={section} className="flex items-center">
-                <button
-                  onClick={() => { toggleSection(section); haptics.light(); }}
-                  className={cn(
-                    'px-2.5 py-1 rounded-l-full text-xs font-medium transition-colors touch-manipulation active:scale-95 min-h-[36px]',
-                    isHidden
-                      ? 'bg-muted text-muted-foreground line-through'
-                      : 'bg-primary/10 text-primary'
-                  )}
-                >
-                  {SECTION_LABELS[section]}
-                </button>
-                <button
-                  onClick={() => { toggleBreakBefore(section); haptics.light(); }}
-                  title={`${hasBreak ? 'Remove' : 'Force'} page break before ${SECTION_LABELS[section]}`}
-                  className={cn(
-                    'px-1.5 py-1 rounded-r-full text-xs transition-colors touch-manipulation active:scale-95 min-h-[36px] border-l',
-                    hasBreak
-                      ? 'bg-destructive/10 text-destructive border-destructive/20'
-                      : 'bg-primary/10 text-primary/40 border-primary/20 hover:text-primary hover:bg-primary/20'
-                  )}
-                >
-                  <SeparatorHorizontal className="w-3.5 h-3.5" />
-                </button>
-              </div>
+              <button
+                key={section}
+                onClick={() => { toggleSection(section); haptics.light(); }}
+                className={cn(
+                  'px-2.5 py-1 rounded-full text-xs font-medium transition-colors touch-manipulation active:scale-95 min-h-[36px]',
+                  isHidden
+                    ? 'bg-muted text-muted-foreground line-through'
+                    : 'bg-primary/10 text-primary'
+                )}
+              >
+                {SECTION_LABELS[section]}
+              </button>
             );
           })}
         </div>
@@ -514,15 +333,12 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
               // misaligned page-break bug.
               width: `${previewDims.pageWidth}px`,
               minHeight: `${previewDims.pageHeight}px`,
-              cursor: isBreakEditMode ? 'crosshair' : undefined,
               ...customizationStyle,
               // Re-pin width AFTER the spread so customisation styles can't
               // accidentally override it (e.g. with width: 100%).
               maxWidth: `${previewDims.pageWidth}px`,
               minWidth: `${previewDims.pageWidth}px`,
             } as CSSProperties}
-            onPointerDown={(e) => { lastPointerTypeRef.current = e.pointerType; }}
-            onClick={handleResumeClick}
           >
             {currentResume.customization && (
               <style>
@@ -545,96 +361,21 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
               <TemplateComponent resume={filteredResume} accentColor={filteredResume?.customization?.accentColor} />
             </Suspense>
 
-            {/* Auto page break indicators (dashed) */}
-            {showPageBreaks && pageBreaks.map((breakY, i) => (
-              <div
-                key={i}
-                data-html2canvas-ignore="true"
-                className="absolute left-0 w-full z-10 pointer-events-none"
-                style={{ top: `${breakY}px` }}
-              >
-                <div className="border-t border-dashed border-destructive/50 w-full" />
-                <span className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white text-destructive text-[9px] font-medium px-1.5 py-0.5 rounded-full shadow-sm whitespace-nowrap">
-                  — Auto break —
-                </span>
-              </div>
-            ))}
-
-            {/* Custom break indicators (solid, draggable) */}
-            {sortedCustomBreaks.map((breakY, i) => {
-              const visualY = draggingBreak?.index === i ? draggingBreak.currentY : breakY;
-              return (
-                <div
-                  key={`custom-${i}`}
-                  data-html2canvas-ignore="true"
-                  className="absolute left-0 w-full z-20"
-                  style={{ top: `${visualY}px`, touchAction: 'none' }}
-                >
-                  <div className="border-t-2 border-primary w-full" />
-                  <div
-                    className="absolute left-0 top-0 -translate-y-1/2 flex items-center bg-primary text-primary-foreground rounded-r px-1 py-0.5 cursor-ns-resize select-none gap-0.5 shadow"
-                    style={{ touchAction: 'none' }}
-                    onPointerDown={(e) => handleDragStart(e, i, breakY)}
-                    onPointerMove={(e) => handleDragMove(e, i)}
-                    onPointerUp={() => handleDragEnd(i)}
-                  >
-                    <GripVertical className="w-3 h-3" />
-                    <span className="text-[8px] font-medium leading-none">break {i + 1}</span>
-                  </div>
-                  <button
-                    data-html2canvas-ignore="true"
-                    className="absolute right-1 top-0 -translate-y-1/2 bg-primary text-primary-foreground rounded-full w-4 h-4 flex items-center justify-center text-[9px] leading-none shadow hover:bg-destructive transition-colors"
-                    onClick={(e) => { e.stopPropagation(); removeCustomBreak(i); }}
-                    title="Remove this break"
-                  >
-                    ×
-                  </button>
-                </div>
-              );
-            })}
-
-            {/* Inline per-section editor overlay (desktop hover-to-reveal
-                style/AI buttons). Skipped during break-edit mode so it
-                doesn't intercept the click-to-add-break gesture. */}
+            {/* Inline per-section editor overlay (desktop hover-to-reveal style/AI buttons). */}
             <SectionOverlayManager
               resumeRef={resumeRef}
-              isBreakEditMode={isBreakEditMode}
+              isBreakEditMode={false}
             />
-
-            {/* Sticky bottom bar(s): hint + download button stacked in one container */}
-            {(isBreakEditMode || sortedCustomBreaks.length > 0) && (
-              <div
-                data-html2canvas-ignore="true"
-                className="sticky bottom-0 left-0 w-full z-editor-shell flex flex-col"
-              >
-                {isBreakEditMode && (
-                  <div className="w-full bg-primary/90 text-primary-foreground text-[10px] text-center py-1 pointer-events-none select-none">
-                    Click anywhere to add a break · Drag handle to move · × to delete
-                  </div>
-                )}
-                {sortedCustomBreaks.length > 0 && (
-                  <button
-                    disabled={isCustomBreakDownloading}
-                    onClick={(e) => { e.stopPropagation(); handleCustomBreakDownload(); }}
-                    className="w-full flex items-center justify-center gap-1.5 bg-primary text-primary-foreground text-[11px] font-medium py-1.5 hover:bg-primary/90 transition-colors select-none touch-manipulation active:scale-[0.99] disabled:opacity-70 disabled:cursor-not-allowed"
-                  >
-                    {isCustomBreakDownloading
-                      ? <Loader2 className="w-3 h-3 animate-spin" />
-                      : <Download className="w-3 h-3" />
-                    }
-                    {isCustomBreakDownloading
-                      ? 'Generating…'
-                      : `Download (${sortedCustomBreaks.length + 1} page${sortedCustomBreaks.length + 1 > 1 ? 's' : ''})`
-                    }
-                  </button>
-                )}
-              </div>
-            )}
+          </div>
           </div>
         </div>
-      </div>
 
       <StyleCustomizationPanel open={showStylePanel} onOpenChange={setShowStylePanel} />
     </div>
   );
 });
+
+
+
+
+

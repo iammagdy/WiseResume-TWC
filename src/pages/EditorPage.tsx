@@ -313,11 +313,13 @@ export default function EditorPage() {
           const scale = 3840 / el.offsetWidth;
           const canvas = await captureWithRetry(el, { scale, backgroundColor: '#ffffff', onclone: (doc: Document) => convertSvgsToImages(doc) });
           cleanupTags();
+          const { appendImageWatermark } = await import('@/lib/exportWatermark');
+          const watermarkedCanvas = appendImageWatermark(canvas);
           onProgress('downloading', 80);
           const blob = await new Promise<Blob>((resolve, reject) => {
-            canvas.toBlob((b) => b ? resolve(b) : reject(new Error('Failed to create image blob')), 'image/png');
+            watermarkedCanvas.toBlob((b) => b ? resolve(b) : reject(new Error('Failed to create image blob')), 'image/png');
           });
-          const result = await downloadFile({ blob, fileName: `${baseName}_Resume_4K.png` });
+          const result = await downloadFile({ blob, fileName: `${baseName}_Resume_4K.png`, mimeType: 'image/png' });
           if (result.success) toast.success('4K image downloaded!');
           onProgress('downloading', 100); setShowExport(false); return;
         }
@@ -329,7 +331,7 @@ export default function EditorPage() {
           const { generateNativePDF } = await import('@/lib/nativePdfGenerator');
           const templateEl = document.querySelector('[data-resume-template]') as HTMLElement | null;
           if (!templateEl) { toast.error('Resume preview not visible. Open Live Preview and try again.'); return; }
-          pdfBlob = await generateNativePDF(templateEl, { pageFormat, atsMode: true, showPageNumbers: false, showBranding: false, onProgress });
+          pdfBlob = await generateNativePDF(templateEl, { pageFormat, atsMode: true, showPageNumbers: false, showBranding: true, onProgress });
           fileName = `${baseName}_Resume_ATS.pdf`;
         } else if (type === 'cover-letter') {
           const { generateCoverLetterNativePDF } = await import('@/lib/nativePdfGenerator');
@@ -349,9 +351,9 @@ export default function EditorPage() {
             const { generatedCoverLetter } = useResumeStore.getState();
             if (!generatedCoverLetter) { toast.error('Generate a cover letter first'); return; }
             onProgress('capturing', 20);
-            const coverBlob = await generateCoverLetterNativePDF(generatedCoverLetter, currentResume.contactInfo, { pageFormat, showPageNumbers: false, showBranding: false });
+            const coverBlob = await generateCoverLetterNativePDF(generatedCoverLetter, currentResume.contactInfo, { pageFormat, showPageNumbers: false, showBranding: true });
             onProgress('capturing', 40);
-            const resumeBlob = await generateNativePDF(templateEl, { pageFormat, showPageNumbers: false, showBranding: false, onProgress });
+            const resumeBlob = await generateNativePDF(templateEl, { pageFormat, showPageNumbers: false, showBranding: true, onProgress });
             onProgress('finalizing', 90);
             pdfBlob = await mergePDFBlobs(coverBlob, resumeBlob);
             fileName = `${baseName}_Application_Package.pdf`;
@@ -379,14 +381,8 @@ export default function EditorPage() {
         onProgress('downloading', 100);
         setShowExport(false);
       } catch (error) {
-        // PDF server unavailable (production static hosting returns HTML, not PDF).
-        // Offer the browser's built-in print-to-PDF as an immediate fallback.
         if ((error as { code?: string })?.code === 'PDF_SERVER_UNAVAILABLE') {
-          toast.info(
-            'PDF download is not available in this environment. Opening print dialog — choose "Save as PDF" to download your resume.',
-            { duration: 8000 },
-          );
-          window.print();
+          toast.error('PDF export is not available right now. Please try again later or use DOCX export.');
           return;
         }
         attempt++;
@@ -1732,4 +1728,5 @@ export default function EditorPage() {
     </TooltipProvider>
   );
 }
+
 
