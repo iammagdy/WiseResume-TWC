@@ -11,7 +11,28 @@
 
 ---
 
+## 2026-05-15 - Bolt.new Import Optimization
+
+### Summary
+Addressed the "Repository size might be too large" warning in Bolt.new by identifying the root cause in the GitHub API metadata and providing a path to prune historical bloat. Created `.boltignore` to optimize AI context usage.
+
+### Root cause
+The repository's **Git history** (~283 MB) is significantly larger than the current source files (~12 MB). Bolt.new queries the GitHub API `size` property, which includes this history, triggering a proactive warning even if the current branch tarball is within the 5 MB limit.
+
+### What changed
+- Created `.boltignore` in the project root to exclude large generated assets (`public/pdfjs`, `public/tesseract`), build artifacts, and media from Bolt's AI context engine.
+- Verified that the current branch archive size (3.13 MB) is below the 5 MB import cap.
+- Provided instructions for pruning the legacy binary bloat from the Git history to reduce the reported repository size on GitHub.
+
+### Verification
+- Local `.git` size: 283 MB (bloated history confirmed).
+- Local source size (clean): 11.9 MB (import-able).
+- `git archive` size: 3.13 MB (under the 5 MB cap).
+
+---
+
 ## 2026-05-15 - Bolt Repo Slimming (5 MB Import Cap)
+
 
 ### Summary
 Prepared a slim branch so `iammagdy/WiseResume-TWC` can be imported into bolt.new, which enforces a hard ~5 MB GitHub tarball size cap.

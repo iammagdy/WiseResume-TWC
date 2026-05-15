@@ -1,0 +1,29 @@
+# Bolt.new AI Context Ignore File
+# This prevents the AI from indexing large assets and build artifacts
+
+# Dependencies
+node_modules/
+.npm/
+
+# Build and Output
+dist/
+dist-ssr/
+build/
+.cache/
+*.log
+
+# Large Assets (Already in .gitignore, but explicit for Bolt)
+public/pdfjs/
+public/tesseract/
+screenshots/
+docs/screenshots/
+.canvas/assets/
+
+# Appwrite Hub Archives (Old versions)
+*.tar.gz
+*.zip
+
+# Git and OS
+.git/
+.DS_Store
+Thumbs.db
