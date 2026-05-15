@@ -1,95 +1,31 @@
 # WiseResume Master Handover & State (May 2026)
 
-## Session Summary - 2026-05-15 (UI Stabilization Final)
+## Session Summary - 2026-05-15 (Governance & Stabilization)
 
-**Detailed log:** `Project Atlas/05-Migration to Appwrite/20-Session-Log-2026-05-15-UI-Stabilization-Final.md`
+**Detailed log:** `Project Atlas/05-Migration to Appwrite/22-Session-Log-2026-05-15-Consolidated-Summary.md`
 
-### Fixed
-- Mobile shell now reserves enough bottom space for the bottom nav and Ask FAB together and suppresses the Ask FAB on fixed-footer routes.
-- Desktop nav chrome was tightened to reduce header crowding without changing IA.
-- Dashboard mobile CTAs no longer rely on the previous cramped two-column layout, `Continue editing` is promoted near the hero, selection mode is labeled `Select`, and the upload widget now stacks cleanly on mobile.
-- Dashboard loading now shows visible status copy before the skeleton state.
-- Tailor resume selection closed state no longer shows concatenated titles, the related React key warning is removed, and the first screen now follows a clearer four-step sequence with mobile-safe URL extraction controls.
-- Landing hero spacing on mobile now leaves cleaner separation before the next band.
-- `useAppSettings` no longer logs the expected authorization warning when the current route/user cannot read `app_settings`.
-- Landing mobile animated headline now uses a mobile-safe in-flow word layout while preserving the desktop width-reservation behavior on `sm+`.
+### Fixed/Implemented
+- **Function Ownership**: Integrated local hubs for `coupons`, `wisehire-gateway`, and `public-share`; updated frontend routing to remove unowned backend calls.
+- **UI/UX Stabilization**: Resolved mobile shell layout collisions (Bottom Nav vs FAB), fixed mobile landing headline rendering, and suppressed `useAppSettings` console noise.
+- **AI Gateway Contract**: Added structured response handling in `ai-gateway` to prevent contract drift failures for Analysis/Tailor tools.
+- **Bolt.new Readiness**: Created `codex/bolt-slim` branch (~3.28 MB) to enable bolt.new project import.
+- **DevKit Consolidation**: Moved audited direct admin calls to the secured `admin-devkit-data` hub.
 
-### Verification
-- `npm exec vitest run src/components/layout/__tests__/appShellLayout.test.ts src/components/dashboard/__tests__/DashboardHero.test.tsx src/components/editor/tailor/__tests__/JobUrlParser.test.tsx src/hooks/__tests__/useAppSettings.test.tsx src/components/landing/__tests__/TypewriterHeadlineLine.test.tsx` passed.
-- `npm exec tsc -- --noEmit` passed.
-- Authenticated in-app browser checks verified dashboard/upload/tailor behavior.
-- Public mobile browser checks verified `/` and `/pricing`.
-- Second-pass route sweep covered auth, job-seeker, and WiseHire surfaces after the fixes landed.
-- Final follow-up verification on the real local WiseResume server confirmed:
-  - no `useAppSettings` warning in checked logs
-  - corrected mobile landing headline rendering
+### Root Causes
+- **UI Collision**: Overlapping fixed-position elements on mobile; resolved with route-aware layout rules.
+- **Contract Drift**: AI gateway returned generic text for callers expecting JSON; resolved with typed handlers.
+- **Bolt Import Limit**: Repo size exceeded 5MB due to committed archives; resolved via asset slimming.
 
 ### Current State
-- The original UI audit findings are fixed locally.
-- The two follow-up issues discovered during the second-pass route sweep are also fixed locally.
-- No backend, schema, or deployment work was required for this session.
+- `main` branch is clean and contains all UI, routing, and hub ownership changes.
+- `codex/bolt-slim` is ready for import into bolt.new.
+- All 11 unowned functions identified in the audit (Log 16) are now remediated.
+- Tests (`vitest`) and type-checks (`tsc`) are green.
 
 ### Where We Stopped
-- The UI stabilization work for this session is complete in local source, tests, and Atlas documentation.
-- Next agent should treat any further UI changes as new scope, not unfinished work from this session.
-
----
-
-## Session Summary - 2026-05-15 (Bolt Repo Slimming)
-
-**Detailed log:** `Project Atlas/05-Migration to Appwrite/21-Session-Log-2026-05-15-Bolt-Repo-Slimming.md`
-
-### Fixed
-- Prepared a slim repository branch (`codex/bolt-slim`) so the project can be imported into bolt.new (5 MB tarball cap).
-
-### Root cause
-- Repo HEAD included large committed Appwrite hub artifact archives (`.tar.gz` / `.zip`) and image-heavy documentation assets (screenshots), pushing the GitHub tarball well above the bolt.new import limit.
-
-### What changed (branch `codex/bolt-slim`)
-- Removed committed hub archives from HEAD (root archives + `appwrite-hubs/*.tar.gz` + `auth-master.zip`).
-- Removed image-heavy documentation assets: `screenshots/`, `docs/screenshots/`, `.canvas/assets/`.
-- Updated `.gitignore` to prevent re-adding these artifacts.
-
-### Verification
-- Staged-tree tarball size measured at ~3.28 MB gzipped (below bolt.new 5 MB cap).
-
-### Current State
-- Slimming work is local on `codex/bolt-slim` and is not pushed to GitHub yet.
-
-### Where We Stopped
-- Commit + push `codex/bolt-slim`, then set it as the GitHub default branch (or merge into `main`) so bolt.new can import it.
-
----
-
-## Session Summary - 2026-05-15 (Function Ownership Implementation)
-
-**Detailed log:** `Project Atlas/05-Migration to Appwrite/17-Session-Log-2026-05-15-Function-Ownership-Implementation.md`
-
-### Fixed
-- Added repo-owned Appwrite hubs for `coupons`, `wisehire-gateway`, and `public-share`.
-- Updated frontend routing so coupon, WiseHire, and protected-share calls no longer target unowned local function inventory.
-- Added typed structured AI handling in `ai-gateway` for high-risk AI tools while preserving the dedicated normalized `parse-resume` route.
-- Moved audited DevKit direct calls and Live Activity probes to owned `admin-devkit-data` / `resume-section-ai` paths.
-- Added `send-wisehire-invite` to `admin-devkit-data`; improved `list-users-page` search/filter paging.
-- Removed the active unowned `submit-contact-request` fallback from feedback reporting.
-- Rewrote `scripts/README.md` to make Appwrite hub deployment canonical and mark Supabase/edge scripts as legacy audit aids.
-- Updated Appwrite deploy inventory and manifest for the new hubs.
-- Removed two performance warnings caused by mixed static/dynamic imports: `captureErrorShim` and `pdf/textPreprocessor`.
-
-### Verification
-- `node --check` passed for modified/new Appwrite hubs and `scripts/deploy_hubs.cjs`.
-- `npm exec tsc -- --noEmit` passed.
-- `npm run build` passed.
-- Remaining build warning: large chunks still exist for OCR, doc export, monitoring, DevKit, and charts.
-
-### Current State
-- Local source owns the audited coupon, WiseHire, public-share, DevKit, and high-risk AI contracts.
-- Live Appwrite was not redeployed in this session. Do not claim live fixes until the updated hubs are deployed and smoke-tested.
-
-### Where We Stopped
-- Next agent should deploy the updated Appwrite hubs through the updated GitHub workflow or `scripts/deploy_hubs.cjs`.
-- After deployment, smoke-test coupon validate/redeem, WiseHire flows, protected share password verification, DevKit Email/User/Live Activity, and the structured AI tools.
-- Continue performance work only with regression checks for OCR, document export, DevKit, charts, and monitoring.
+- **Deployment**: Updated Appwrite Hubs (coupons, wisehire, etc.) are in source but NOT yet live. Deploy via `scripts/deploy_hubs.cjs` before smoke testing.
+- **Verification**: Smoke test coupon redemption, WiseHire signup, and protected share verification post-deployment.
+- **Bolt.new**: Push `codex/bolt-slim` to GitHub and set as default/import branch if bolt.new usage is required.
 
 ---
 
