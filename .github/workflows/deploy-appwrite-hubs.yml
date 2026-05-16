@@ -41,7 +41,6 @@ jobs:
             echo "::endgroup::"
           }
 
-          build_hub auth-master auth-master.tar.gz
           build_hub resume-section-ai resume-section-ai.tar.gz
           build_hub job-import job-import.tar.gz
           build_hub ai-gateway ai-gateway.tar.gz
