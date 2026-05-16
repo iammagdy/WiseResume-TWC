@@ -11,6 +11,50 @@
 
 ---
 
+## 2026-05-16 - UI/UX Audit Implementation (Phases 1–4, 25 findings)
+
+### Summary
+All 25 actionable findings from the 2026-05-16 senior UI/UX audit implemented across 20 files. Zero new npm packages, no new Appwrite collections, no breaking changes. TypeScript clean.
+
+### What changed
+
+**Phase 1 — Mobile & Trust Quick Wins:**
+- `ExportOptionsSheet` + `DashboardPage`: fixed critical bug — `wr-checklist-exported-*` never written; now dispatched via CustomEvent on export completion
+- `AchievementToast`: replaced all hardcoded hex colors with semantic Tailwind tokens (`bg-card`, `text-foreground`, `text-primary`)
+- `NotificationsPage`: added `toast.success` on markAllAsRead
+- `ReferralPage`: stat values `0` → `'—'` with "Referral tracking coming soon." note
+- `AppShell` + `DesktopNav`: renamed 'Ask' → 'Wise AI' on FAB and desktop button
+- `BottomTabBar`: removed duplicate notification dot from More trigger; only changelog dot remains
+- `ShortcutHelpSheet`: added per-category scope notes ("Available while editing a resume", etc.)
+- `BottomTabBar`: More menu grid `grid-cols-4` → `grid-cols-3 sm:grid-cols-4`; grouped items with "Tools" / "Account" section labels
+- `sonner.tsx`: `role="status"` → `role="log"` (correct ARIA semantics for toast stream)
+
+**Phase 2 — Navigation & Dashboard Polish:**
+- `DashboardPage`: Import Resume + Explore sections collapsed behind "Discover more ▼" toggle for returning users
+- `TailorPage`: added breadcrumb, replaced `navigate(-1)` with `getBackRoute('/tailor')`; added `/tailor` to BACK_ROUTES
+- `ApplicationsPage`: `<h1>My Activity</h1>` → `<h1>My Applications</h1>`
+- `Breadcrumb`: last item gets `truncate max-w-[180px] sm:max-w-none` for long resume names on mobile
+
+**Phase 3 — Stability & Performance:**
+- `ResumeListCard` + `EmptyState`: `MiniTemplateThumbnail` wrapped in `ErrorBoundary`
+- `TemplatesPage`: `TemplateThumbnail` in preview Sheet wrapped in `ErrorBoundary`
+- `ResumeListCard`: thumbnail height `h-[54px]` → `h-[56px]` (correct A4 aspect ratio)
+- `MiniTemplateThumbnail`: `IntersectionObserver` lazy rendering — renders skeleton until scrolled into view; browser-support guard for old browsers
+- `EmptyState`: carousel `setInterval` skipped when `shouldReduceMotion` is true
+
+**Phase 4 — Forms, Copy & Fine Polish:**
+- `AuthPage`: static "At least 8 characters." hint under register password field
+- `TailorPage`: `maxLength={2000}` + live character counter on custom instructions textarea
+- `OnboardingChecklist`: `aria-label` on card and dismiss button; focus restoration to `<h1>` on dismiss; "Dismiss" → "Got it" copy
+
+### Files changed
+20 files · 182 insertions · 104 deletions
+
+### Findings status after this session
+All 25 findings marked `implement` are now `done`. Findings 26–29 remain deferred/n/a per original plan.
+
+---
+
 ## 2026-05-16 - World-Class Enhancement Pass (All Phases)
 
 ### Summary

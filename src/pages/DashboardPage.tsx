@@ -33,6 +33,7 @@ import { PlanChip } from '@/components/ui/PlanChip';
 import { usePlanUpgradeCelebration } from '@/hooks/usePlanUpgradeCelebration';
 import { useChangelogBadge } from '@/hooks/useChangelogBadge';
 import { OnboardingChecklist, ChecklistStep } from '@/components/dashboard/OnboardingChecklist';
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 
 // Lazy-loaded dialogs
 const CreateResumeDialog = lazy(() => import('@/components/dashboard/CreateResumeDialog').then(m => ({ default: m.CreateResumeDialog })));
@@ -116,6 +117,7 @@ function DashboardPageContent() {
   });
   const [profilePulseSeen, setProfilePulseSeen] = useState(() => !!localStorage.getItem('wr-profile-pulse-seen'));
   const [showFeatureMap, setShowFeatureMap] = useState(false);
+  const [showDiscovery, setShowDiscovery] = useState(false);
   const [checklistDismissed, setChecklistDismissed] = useState(false);
   const [exportedChecked, setExportedChecked] = useState(false);
   const { isOnline } = useNetworkStatus();
@@ -135,6 +137,17 @@ function DashboardPageContent() {
     if (!user?.id) return;
     setChecklistDismissed(!!localStorage.getItem(`wr-checklist-dismissed-${user.id}`));
     setExportedChecked(!!localStorage.getItem(`wr-checklist-exported-${user.id}`));
+  }, [user?.id]);
+
+  // Listen for export completion events dispatched by ExportOptionsSheet
+  useEffect(() => {
+    if (!user?.id) return;
+    const handleExportCompleted = () => {
+      localStorage.setItem(`wr-checklist-exported-${user.id}`, 'true');
+      setExportedChecked(true);
+    };
+    window.addEventListener('wr-export-completed', handleExportCompleted);
+    return () => window.removeEventListener('wr-export-completed', handleExportCompleted);
   }, [user?.id]);
 
 
@@ -803,6 +816,17 @@ function DashboardPageContent() {
             </div>
           )}
 
+          {/* Upload + Explore — collapsed for returning users to keep resume list above fold */}
+          <Collapsible open={resumes.length === 0 || showDiscovery} onOpenChange={setShowDiscovery}>
+            {resumes.length > 0 && (
+              <CollapsibleTrigger asChild>
+                <button className="w-full flex items-center justify-between px-5 py-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
+                  <span>Discover more</span>
+                  <span className="text-muted-foreground">{showDiscovery ? '▲' : '▼'}</span>
+                </button>
+              </CollapsibleTrigger>
+            )}
+            <CollapsibleContent>
           {/* Upload Resume widget — inline parsing, no navigation */}
           <div className="px-4 pt-3 pb-1" data-section="dashboard-upload">
             <p className="text-xs font-medium text-muted-foreground mb-2.5 px-1">Import Resume</p>
@@ -859,6 +883,8 @@ function DashboardPageContent() {
               ))}
             </div>
           </div>
+          </CollapsibleContent>
+          </Collapsible>
 
           {/* Search pill — moved below tabs area conceptually, but above filter bar */}
           {resumes && resumes.length > 0 && (

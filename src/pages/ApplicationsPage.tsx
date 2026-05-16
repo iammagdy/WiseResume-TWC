@@ -283,7 +283,7 @@ export default function ApplicationsPage() {
         <div className="flex items-center justify-between lg:max-w-none mx-auto w-full">
           <div className="flex items-center gap-2">
             <BarChart3 className="w-5 h-5 text-primary" />
-            <h1 className="text-page-title">My Activity</h1>
+            <h1 className="text-page-title">My Applications</h1>
           </div>
           <div className="flex items-center gap-1">
             <button

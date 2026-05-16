@@ -12,7 +12,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
       : storeTheme;
 
   return (
-    <div role="status" aria-live="polite" aria-atomic="false" aria-label="Notifications">
+    <div role="log" aria-live="polite" aria-atomic="false" aria-label="Notifications">
       <Sonner
         theme={resolvedTheme as ToasterProps["theme"]}
         className="toaster group"

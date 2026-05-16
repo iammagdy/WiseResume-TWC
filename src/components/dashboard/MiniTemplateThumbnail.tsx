@@ -11,6 +11,16 @@ interface MiniTemplateThumbnailProps {
 export function MiniTemplateThumbnail({ templateId, className }: MiniTemplateThumbnailProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.165);
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    if (!('IntersectionObserver' in window)) { setIsVisible(true); return; }
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) { setIsVisible(true); observer.disconnect(); }
+    }, { threshold: 0 });
+    if (containerRef.current) observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const update = () => {
@@ -33,6 +43,9 @@ export function MiniTemplateThumbnail({ templateId, className }: MiniTemplateThu
       ref={containerRef}
       className={`w-full h-full overflow-hidden bg-background rounded-xl ${className ?? ''}`}
     >
+      {!isVisible ? (
+        <div className="w-full h-full bg-muted animate-pulse rounded-xl" />
+      ) : (
       <Suspense fallback={<div className="w-full h-full bg-muted animate-pulse rounded-xl" />}>
         <div
           style={{
@@ -46,6 +59,7 @@ export function MiniTemplateThumbnail({ templateId, className }: MiniTemplateThu
           <TemplateComponent resume={sampleResumeData as ResumeData} />
         </div>
       </Suspense>
+      )}
     </div>
   );
 }

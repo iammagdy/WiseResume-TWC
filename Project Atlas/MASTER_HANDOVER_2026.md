@@ -2,6 +2,101 @@
 
 ---
 
+## Session Summary — 2026-05-16 (UI/UX Audit Implementation — Phases 1–4, All 25 Findings)
+
+### Overview
+Implemented all 25 actionable findings from the 2026-05-16 senior UI/UX audit. Work split across 4 phases. 21 source files changed, 4 new `/docs/project-atlas/` files created (Phase 0, prior session). Zero new npm packages. Zero new Appwrite collections or attributes. `npx tsc --noEmit` — clean throughout.
+
+Branch: `claude/read-project-docs-JEUkC` | Commits: `d0beb6c`, `811357b`, `83735bd`
+
+---
+
+### Phase 1 — Mobile & Trust Quick Wins (Findings #1–10)
+
+| # | File(s) | Root Cause | Fix |
+|---|---------|-----------|-----|
+| 1 | `ExportOptionsSheet.tsx`, `DashboardPage.tsx` | `wr-checklist-exported-{userId}` read by OnboardingChecklist but never written — export step permanently unchecked | `ExportOptionsSheet` dispatches `'wr-export-completed'` CustomEvent when `exportProgress.stage === 'downloading'`; `DashboardPage` listens and writes the localStorage key + updates state |
+| 2 | `AchievementToast.tsx` | Inline `style={{}}` with hardcoded hex (`#1a1a2e`, `#fbbf24`, etc.) — toast invisible in light mode | Replaced all inline style props with Tailwind semantic tokens: `bg-card border border-border`, `text-foreground`, `text-muted-foreground`, `text-primary` |
+| 3 | `NotificationsPage.tsx` | `markAllAsRead.mutate()` had no `onSuccess` callback — user received no confirmation | Added `toast` import from `@/components/ui/sonner`; added `onSuccess: () => toast.success('All notifications marked as read')` as second arg to `mutate()` |
+| 4 | `ReferralPage.tsx` | Stats hardcoded `value: 0` — indistinguishable from a broken feature vs. a pending one | Changed all three stat values to `'—'`; added `<p>Referral tracking coming soon.</p>` below the grid |
+| 5 | `AppShell.tsx`, `DesktopNav.tsx` | FAB and desktop button labelled `'Ask'` — inconsistent with "Wise AI" branding used everywhere else | String-replaced `'Ask'` → `'Wise AI'` on the FAB span and desktop button text node only |
+| 6 | `BottomTabBar.tsx` | More trigger button had `unreadNotifCount > 0` notification dot AND the sheet had a numeric badge — double signalling | Removed the `unreadNotifCount` dot from the More button entirely; kept `hasNew` (changelog) dot only; numeric badge remains inside the sheet on the Notifications icon |
+| 7 | `ShortcutHelpSheet.tsx` | Shortcuts listed without context — users couldn't tell editor-only shortcuts from global ones | Added `scope: string` to `ShortcutGroup` interface; added scope note `<p className="text-xs text-muted-foreground mb-2">` under each group heading |
+| 8 | `BottomTabBar.tsx` | `grid-cols-4` crammed 10 items at 375px; no visual separation between functional groups | Changed to `grid-cols-3 sm:grid-cols-4`; split `moreItems` into two labelled groups ("Tools" indices 0–4, "Account" indices 5–9); rendered as two separate grids with `<p>` section headers |
+| 9 | `sonner.tsx` | `role="status"` is for live status regions (single value); a toast stream is `role="log"` | One-attribute change: `role="status"` → `role="log"` |
+| 10 | `appShellLayout.ts` | Audit flagged FAB may overlap content on some pages | Verified N/A: AppShell applies `pb-[8.5rem] lg:pb-0` globally when FAB is shown — no per-page changes needed |
+
+---
+
+### Phase 2 — Navigation & Dashboard Polish (Findings #11–15)
+
+| # | File(s) | Root Cause | Fix |
+|---|---------|-----------|-----|
+| 11 | `DashboardPage.tsx` | Import Resume + Explore sections always visible — push resume list below fold for returning users on 390px screens | Added `showDiscovery` state (default `false`); wrapped both sections in Radix `<Collapsible>` that is `open={resumes.length === 0 \|\| showDiscovery}`; trigger button "Discover more ▼" only rendered when `resumes.length > 0` |
+| 12 | `EditorPage.tsx` | No breadcrumb in the editor — user has no orientation context | Imported `Breadcrumb`; rendered `<Breadcrumb items={['Home', resumeName \|\| 'Resume']} links={['/dashboard']} />` at top of editor scroll container |
+| 13 | `TailorPage.tsx`, `navigation.ts` | `navigate(-1)` is unsafe on direct URL load (empty history stack) | Added `'/tailor': '/dashboard'` to `BACK_ROUTES`; replaced `navigate(-1)` with `navigate(getBackRoute('/tailor'))`; added `Breadcrumb` to TailorPage header |
+| 14 | `ApplicationsPage.tsx` | `<h1>My Activity</h1>` contradicted inner tab label "My Applications" | Changed `<h1>` text to `"My Applications"` — one string change |
+| 15 | `Breadcrumb.tsx` | Long resume names (60+ chars) overflow the breadcrumb container on mobile | Added `truncate max-w-[180px] sm:max-w-none` to the last-item `<span>` |
+
+---
+
+### Phase 3 — Stability & Performance (Findings #16–20)
+
+| # | File(s) | Root Cause | Fix |
+|---|---------|-----------|-----|
+| 16 | `ResumeListCard.tsx`, `EmptyState.tsx` | Template renderer crash inside `<Suspense>` took down the entire card | Imported `ErrorBoundary` from `@/components/ErrorBoundary`; wrapped `<Suspense><MiniTemplateThumbnail /></Suspense>` in `<ErrorBoundary fallback={<div className="w-10 h-[56px] bg-muted" />}>` in both files |
+| 17 | `TemplatesPage.tsx` | `resume as any` cast on preview data — type mismatch could crash the `TemplateThumbnail` render inside the sheet | Wrapped `<TemplateThumbnail>` in `<ErrorBoundary fallback={<p>Preview unavailable for this resume.</p>}>` — contains crash without touching the underlying type issue |
+| 18 | `ResumeListCard.tsx` | Thumbnail container `h-[54px]` for `w-10` (40px) gives aspect ratio 1.35 — A4 is 1.414 (56px) | Changed container and Suspense fallback from `h-[54px]` → `h-[56px]` |
+| 19 | `MiniTemplateThumbnail.tsx` | All thumbnails rendered immediately on mount — causes paint jank on large resume lists | Added `isVisible` state (default `false`); `useEffect` with `IntersectionObserver` at `threshold: 0` sets `isVisible = true` on first intersection then disconnects; browser-support guard: `if (!('IntersectionObserver' in window)) setIsVisible(true)`; renders skeleton until visible |
+| 20 | `EmptyState.tsx` | `setInterval` carousel ran regardless of `prefers-reduced-motion` — affects vestibular disorder users | Added `shouldReduceMotion` to `useEffect` dependency array; `if (tipPaused \|\| shouldReduceMotion) return` skips the interval entirely |
+
+---
+
+### Phase 4 — Forms, Copy & Fine Polish (Findings #21–25)
+
+| # | File(s) | Root Cause | Fix |
+|---|---------|-----------|-----|
+| 21 | `AuthPage.tsx` | Register form had no password requirement hint — users submitted weak passwords silently | Added `<p className="text-xs text-white/40 mt-1">At least 8 characters.</p>` after the password `<Input>` in the register form; wrapped both in a `<div>` |
+| 22 | `TailorPage.tsx` | Custom instructions textarea had no length limit or counter — AI calls could receive unbounded input | Added `maxLength={2000}` to `<Textarea>`; added `<p className="text-xs text-muted-foreground text-right">{customInstructions.length}/2000</p>` below the textarea |
+| 23–24 | `OnboardingChecklist.tsx` | Dismiss button had generic `aria-label="Dismiss checklist"`; focus dropped to `document.body` on dismiss (button unmounts) | Updated `aria-label` to `"Dismiss getting started checklist"`; added `aria-label="Getting started checklist"` to card container; added `handleDismiss()` that calls `onDismiss()` then `setTimeout(() => document.querySelector('[data-dashboard-heading]') ?? document.querySelector('h1'))?.focus(), 50)` |
+| 25 | `OnboardingChecklist.tsx` | "Dismiss — I'm all set!" was abrupt | Changed to `"Got it — I'm all set!"` |
+
+---
+
+### New Docs Created (Phase 0 — same session)
+- `docs/project-atlas/design-system.md` — color tokens, typography, button hierarchy, reward/XP color convention
+- `docs/project-atlas/mobile-ux-priorities.md` — FAB offset, tab bar height, touch targets, swipe patterns, common pitfalls
+- `docs/project-atlas/audit-roadmap.md` — all 29 findings with status, phase, file, risk
+- `docs/project-atlas/technical-context.md` — COLLECTIONS.* map, env vars, localStorage key registry, Zustand stores, React Query keys, Hostinger constraints
+
+---
+
+### Verification
+- `npx tsc --noEmit` — zero errors (ran after every phase)
+- Build: prebuild step fails in this container (missing `pdfjs-dist/cmaps` — pre-existing environment issue, unrelated to these changes); Vite build itself is unreachable for same reason. TypeScript confirms correctness.
+- All 25 findings confirmed implemented via codebase scan at end of session.
+
+### Deferred (Phase 5 — unchanged)
+- Finding #26: OG image endpoint (`/og-image/:username`) — verify `VITE_API_URL` is deployed before assuming reachable; Hostinger has no Node server
+- Finding #29: TemplatesPage `as any` type mismatch — root cause deferred; `ErrorBoundary` contains crash
+
+---
+
+### Where We Stopped
+- All 25 findings implemented and pushed to `claude/read-project-docs-JEUkC` (HEAD `83735bd`).
+- **No PR created.** Branch is not merged to `main`. Merge when QA is confirmed.
+- **Mobile QA not performed** in this container. Test these flows on a real device before merging:
+  - Export a resume → verify OnboardingChecklist export step becomes checked immediately
+  - Open BottomTabBar "More" sheet → verify 3-column grid + "Tools" / "Account" section labels
+  - Open editor → verify breadcrumb renders at top of scroll area
+  - Open TailorPage via direct URL → verify back button goes to dashboard, not browser back
+  - Open AchievementToast in light mode → verify no invisible text
+  - Dashboard with ≥1 resume → verify Import Resume + Explore hidden by default
+- No Appwrite schema changes, no hub deployments, no CI workflow changes in this session.
+- **Next agent:** pull `claude/read-project-docs-JEUkC`, verify above QA items, then merge to `main` and trigger `deploy-frontend.yml`.
+
+---
+
 ## Session Summary — 2026-05-16 (World-Class Enhancement Pass — All 5 Phases)
 
 ### Overview

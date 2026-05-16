@@ -40,6 +40,7 @@ const BACK_ROUTES: Record<string, string> = {
   '/subscription': '/settings',
   '/referral': '/subscription',
   '/achievements': '/dashboard',
+  '/tailor': '/dashboard',
 };
 
 /**

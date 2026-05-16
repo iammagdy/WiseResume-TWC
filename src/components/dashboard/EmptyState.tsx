@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { TemplateId } from '@/types/resume';
 import { MiniTemplateThumbnail } from './MiniTemplateThumbnail';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 interface EmptyStateProps {
   onCreateNew: () => void;
@@ -51,12 +52,12 @@ export function EmptyState({ onCreateNew, onBrowseTemplates, onStartOnboarding, 
   const [tipPaused, setTipPaused] = useState(false);
 
   useEffect(() => {
-    if (tipPaused) return;
+    if (tipPaused || shouldReduceMotion) return;
     const interval = setInterval(() => {
       setActiveTipIndex(prev => (prev + 1) % carouselTips.length);
     }, 5000);
     return () => clearInterval(interval);
-  }, [tipPaused]);
+  }, [tipPaused, shouldReduceMotion]);
 
   return (
     <motion.div
@@ -154,7 +155,9 @@ export function EmptyState({ onCreateNew, onBrowseTemplates, onStartOnboarding, 
               className="rounded-xl overflow-hidden border border-border transition-all duration-200 group-hover:scale-105 group-hover:shadow-[0_0_20px_hsl(var(--primary)/0.3)] group-hover:border-primary/40 group-active:scale-95"
               style={{ width: '96px', aspectRatio: '8.5/11' }}
             >
-              <MiniTemplateThumbnail templateId={tpl.id} />
+              <ErrorBoundary fallback={<div className="w-full h-full bg-muted rounded-xl" />}>
+                <MiniTemplateThumbnail templateId={tpl.id} />
+              </ErrorBoundary>
             </div>
             <span className="text-[10px] text-muted-foreground font-medium group-hover:text-foreground transition-colors">{tpl.name}</span>
           </motion.button>

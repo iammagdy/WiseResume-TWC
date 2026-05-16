@@ -28,7 +28,7 @@ export function Breadcrumb({ items, links = [], className }: BreadcrumbProps) {
                 {item}
               </Link>
             ) : (
-              <span className={isLast ? 'text-foreground font-medium' : ''} aria-current={isLast ? 'page' : undefined}>
+              <span className={isLast ? 'text-foreground font-medium truncate max-w-[180px] sm:max-w-none' : ''} aria-current={isLast ? 'page' : undefined}>
                 {item}
               </span>
             )}

@@ -148,9 +148,9 @@ export default function ReferralPage() {
         {/* Stats (placeholder) */}
         <div className="grid grid-cols-3 gap-3">
           {[
-            { label: 'Sent', value: 0, icon: Share2 },
-            { label: 'Accepted', value: 0, icon: Users },
-            { label: 'Rewards', value: 0, icon: Gift },
+            { label: 'Sent', value: '—', icon: Share2 },
+            { label: 'Accepted', value: '—', icon: Users },
+            { label: 'Rewards', value: '—', icon: Gift },
           ].map((stat) => (
             <Card key={stat.label}>
               <CardContent className="p-3 flex flex-col items-center gap-1">
@@ -161,6 +161,7 @@ export default function ReferralPage() {
             </Card>
           ))}
         </div>
+        <p className="text-xs text-muted-foreground mt-2 text-center">Referral tracking coming soon.</p>
 
         {/* Rewards Tiers */}
         <section>
