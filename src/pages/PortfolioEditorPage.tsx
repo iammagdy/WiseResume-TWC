@@ -15,7 +15,7 @@ import { haptics } from '@/lib/haptics';
 import { PortfolioEditorSkeleton } from '@/components/layout/PageSkeletons';
 
 import { useNavigate } from 'react-router-dom';
-import { QrCode, ExternalLink } from 'lucide-react';
+import { QrCode, ExternalLink, Wand2 } from 'lucide-react';
 import { UnsavedChangesDialog } from '@/components/editor/UnsavedChangesDialog';
 import { UsernameRequestDialog } from '@/components/settings/UsernameRequestDialog';
 import { usePortfolioUsernameRules } from '@/hooks/usePortfolioUsernameRules';
@@ -100,6 +100,7 @@ export default function PortfolioEditorPage() {
   const [generatingBio, setGeneratingBio] = useState(false);
   const [generatingSEO, setGeneratingSEO] = useState(false);
   const [generatingAvailability, setGeneratingAvailability] = useState(false);
+  const [generatingAll, setGeneratingAll] = useState(false);
   const [copied, setCopied] = useState(false);
   const [savingPortfolio, setSavingPortfolio] = useState(false);
   const [selectedResumeId, setSelectedResumeId] = useState<string>('');
@@ -669,6 +670,42 @@ export default function PortfolioEditorPage() {
       toast.error(msg);
     } finally {
       setGeneratingAvailability(false);
+    }
+  };
+
+  const handleGenerateAll = async () => {
+    const currentResume = resumes.find((r) => r.id === selectedResumeId) || resumes[0];
+    if (!currentResume) {
+      toast.error('Create a resume first — AI generation needs work history or a job title.');
+      return;
+    }
+    setGeneratingAll(true);
+    haptics.light();
+    let completed = 0;
+    const toastId = toast.loading('Generating portfolio content (1/3)…');
+    try {
+      const { bio: generatedBio } = await callPortfolioAI('bio', selectedResumeId);
+      if (generatedBio) setBio(generatedBio);
+      completed++;
+      toast.loading(`Generating portfolio content (${completed + 1}/3)…`, { id: toastId });
+
+      const { metaTitle: t, metaDescription: d } = await callPortfolioAI('seo');
+      if (t) setMetaTitle(t);
+      if (d) setMetaDescription(d);
+      completed++;
+      toast.loading(`Generating portfolio content (${completed + 1}/3)…`, { id: toastId });
+
+      const { headline } = await callPortfolioAI('availability');
+      if (headline) setAvailabilityHeadline(headline);
+
+      toast.success('Portfolio content generated! Review and publish when ready.', { id: toastId });
+    } catch (err) {
+      const msg = err instanceof Error && err.message.startsWith('Resume data not available')
+        ? err.message
+        : `Generated ${completed}/3 sections. Some failed — try again individually.`;
+      toast.error(msg, { id: toastId });
+    } finally {
+      setGeneratingAll(false);
     }
   };
 
@@ -1336,6 +1373,30 @@ export default function PortfolioEditorPage() {
             <p className="text-[11px] text-muted-foreground mt-0.5">Share your portfolio anywhere, instantly</p>
           </div>
           <span className="text-xs text-muted-foreground shrink-0">→</span>
+        </button>
+
+        {/* Generate Full Portfolio — one-click AI fill */}
+        <button
+          onClick={handleGenerateAll}
+          disabled={generatingAll || generatingBio || generatingSEO}
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-primary/30 bg-primary/5 hover:bg-primary/10 active:scale-[0.98] transition-all touch-manipulation text-left disabled:opacity-60"
+        >
+          <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+            {generatingAll ? (
+              <Monitor className="w-5 h-5 text-primary animate-pulse" />
+            ) : (
+              <Wand2 className="w-5 h-5 text-primary" />
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold leading-tight text-primary">
+              {generatingAll ? 'Generating…' : 'Generate Full Portfolio'}
+            </p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              AI writes your bio, SEO meta & availability headline
+            </p>
+          </div>
+          <span className="text-xs text-primary/60 shrink-0">✦</span>
         </button>
 
         {/* Tab Row */}
