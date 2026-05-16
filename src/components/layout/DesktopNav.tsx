@@ -1,6 +1,6 @@
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { GlassSurface } from '@/components/ui/GlassSurface';
-import { FileText, Globe, Home, BarChart3, Sparkles, MessageCircle, Sun, Moon, Search, Settings, LogOut, CreditCard, Lock, Zap, Tag, FileDown, Plus } from 'lucide-react';
+import { FileText, Globe, Home, BarChart3, Sparkles, MessageCircle, Sun, Moon, Search, Settings, LogOut, CreditCard, Lock, Zap, Tag, FileDown, Plus, RefreshCw } from 'lucide-react';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { useResumeStore } from '@/store/resumeStore';
@@ -77,7 +77,7 @@ export function DesktopNav() {
   const { isDark, toggleTheme } = useTheme();
   const { user, signOut } = useAuth();
   const { profile } = useProfile(user?.id);
-  const { plan, isPro, trialPlan, trialExpiresAt } = usePlan();
+  const { plan, isPro, trialPlan, trialExpiresAt, refetch: refetchPlan } = usePlan();
   const [wiseAIOpen, setWiseAIOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [importJobOpen, setImportJobOpen] = useState(false);
@@ -288,6 +288,13 @@ export function DesktopNav() {
               >
                 <Zap className="w-4 h-4 text-muted-foreground" />
                 What's New
+              </button>
+              <button
+                onClick={() => { refetchPlan?.(); toast.info('Refreshing account…'); }}
+                className="flex w-full items-center gap-2 px-2 py-2 rounded-md text-sm text-foreground hover:bg-muted transition-colors"
+              >
+                <RefreshCw className="w-4 h-4 text-muted-foreground" />
+                Refresh account
               </button>
               <div className="h-px bg-border my-1" />
               <button

@@ -44,7 +44,8 @@ const DEFAULT_CREDITS = {
 async function safeList(collectionId: string, queries: string[]) {
   try {
     return await databases.listDocuments(DATABASE_ID, collectionId, queries);
-  } catch {
+  } catch (e) {
+    console.warn(`[useMe] ${collectionId} query failed — plan may default to free:`, e);
     return { documents: [], total: 0 };
   }
 }
