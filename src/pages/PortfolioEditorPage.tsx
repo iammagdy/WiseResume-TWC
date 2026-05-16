@@ -1032,6 +1032,7 @@ export default function PortfolioEditorPage() {
 
       // Invalidate public portfolio cache to reflect changes immediately
       queryClient.invalidateQueries({ queryKey: ['public-portfolio'] });
+      queryClient.invalidateQueries({ queryKey: ['portfolio-gate'] });
       if (overrides?.portfolioEnabled !== undefined) {
         setPortfolioEnabled(overrides.portfolioEnabled);
       }
