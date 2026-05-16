@@ -34,7 +34,7 @@ jobs:
             if [ -f package.json ]; then npm install --omit=dev; fi
             tar -czf "../../${archive}" .
             cd ../..
-            tar -tzf "${archive}" | head -20 | grep -q '^./src/main.js$' || {
+            tar -tzf "${archive}" | grep -q '^./src/main.js$' || {
               echo "::error::${archive} does not contain src/main.js at archive root"
               exit 1
             }

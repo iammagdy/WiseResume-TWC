@@ -39,13 +39,17 @@ jobs:
 
       - name: Check bundle size
         run: |
-          MAIN_SIZE=$(find dist/assets -name "*.js" -not -name "*.map" | xargs wc -c 2>/dev/null | tail -1 | awk '{print $1}')
-          echo "Total JS bundle: $MAIN_SIZE bytes"
-          if [ "$MAIN_SIZE" -gt 3145728 ]; then
-            echo "❌ Bundle exceeds 3MB limit: $MAIN_SIZE bytes"
+          # Report total bundle size (informational — includes lazy PDF/OCR chunks)
+          TOTAL_SIZE=$(find dist/assets -name "*.js" -not -name "*.map" | xargs wc -c 2>/dev/null | tail -1 | awk '{print $1}')
+          echo "Total JS (all chunks): $TOTAL_SIZE bytes"
+          # Enforce 3MB limit only on the initial entry chunk
+          ENTRY_SIZE=$(find dist/assets -name "index-*.js" -not -name "*.map" | xargs wc -c 2>/dev/null | tail -1 | awk '{print $1}')
+          echo "Entry chunk size: $ENTRY_SIZE bytes"
+          if [ "$ENTRY_SIZE" -gt 3145728 ]; then
+            echo "❌ Entry bundle exceeds 3MB limit: $ENTRY_SIZE bytes"
             exit 1
           fi
-          echo "✅ Bundle within limit"
+          echo "✅ Entry bundle within limit"
 
       - name: Verify build output
         run: |
