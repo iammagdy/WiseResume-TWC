@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ExternalLink, Calendar, MapPin, Share2, Briefcase, Bookmark, BookmarkCheck, Trash2, DollarSign, Clock } from 'lucide-react';
+import { ExternalLink, MapPin, Share2, Briefcase, Bookmark, BookmarkCheck, Trash2, DollarSign, Clock, FileText, PenLine, BarChart2 } from 'lucide-react';
 import { openExternal } from '@/lib/openExternal';
 import { motion } from 'framer-motion';
 import { safeFormatDate } from '@/lib/dateUtils';
@@ -9,12 +9,26 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useJob, useJobMutations } from '@/hooks/useJobs';
 import { useJobApplicationMutations } from '@/hooks/useJobApplications';
-import { useResumes } from '@/hooks/useResumes';
+import { useResumes, dbToResumeData } from '@/hooks/useResumes';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { BackButton } from '@/components/ui/BackButton';
 
 import { DetailSkeleton } from '@/components/layout/PageSkeletons';
+
+function computeMatch(requirements: string, resumeSkills: string[]): { score: number; missing: string[] } {
+  if (!requirements || resumeSkills.length === 0) return { score: 0, missing: [] };
+  const reqWords = requirements.toLowerCase().match(/\b[a-z][a-z0-9+#._-]{2,}\b/g) || [];
+  const skillsLower = resumeSkills.map(s => s.toLowerCase());
+  const unique = [...new Set(reqWords)];
+  const matched = unique.filter(w => skillsLower.some(s => s.includes(w) || w.includes(s)));
+  const missing = unique
+    .filter(w => !skillsLower.some(s => s.includes(w) || w.includes(s)))
+    .filter(w => w.length > 3)
+    .slice(0, 8);
+  const score = unique.length > 0 ? Math.round((matched.length / unique.length) * 100) : 0;
+  return { score, missing };
+}
 
 export default function JobDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -35,6 +49,12 @@ export default function JobDetailPage() {
       <p className="text-muted-foreground font-medium">Job not found</p>
       <Button variant="ghost" className="mt-4" onClick={() => navigate('/applications')}>Go back</Button>
     </div>
+  );
+
+  const primaryResume = resumes && resumes.length > 0 ? dbToResumeData(resumes[0]) : null;
+  const { score: matchScore, missing: missingSkills } = useMemo(
+    () => computeMatch(job.requirements, primaryResume?.skills ?? []),
+    [job.requirements, primaryResume?.skills]
   );
 
   const handleToggleSave = () => {
@@ -103,6 +123,71 @@ export default function JobDetailPage() {
             <Clock className="w-3 h-3" />
             Posted {safeFormatDate(job.posted_date, 'MMM d, yyyy')}
           </div>
+        </div>
+
+        {/* AI Match Score */}
+        {primaryResume && matchScore > 0 && (
+          <div className="bg-card border border-border shadow-soft-sm rounded-2xl p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <BarChart2 className="w-4 h-4 text-primary" />
+                <span className="font-semibold text-sm">Resume Match</span>
+              </div>
+              <Badge
+                variant="outline"
+                className={
+                  matchScore >= 70
+                    ? 'text-green-600 border-green-500/40 bg-green-500/10'
+                    : matchScore >= 45
+                    ? 'text-amber-600 border-amber-500/40 bg-amber-500/10'
+                    : 'text-destructive border-destructive/40 bg-destructive/10'
+                }
+              >
+                {matchScore}% Match
+              </Badge>
+            </div>
+            {missingSkills.length > 0 && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-1.5">Possible gaps:</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {missingSkills.map(skill => (
+                    <span key={skill} className="px-2 py-0.5 rounded-full text-xs bg-muted text-muted-foreground border border-border">
+                      {skill}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Quick Actions */}
+        <div className="grid grid-cols-3 gap-2">
+          <Button
+            variant="outline"
+            className="flex-col h-auto py-3 gap-1.5 rounded-xl text-xs"
+            onClick={() => navigate('/tailor', { state: { jobDescription: job.description + '\n\nRequirements:\n' + job.requirements } })}
+          >
+            <FileText className="w-4 h-4 text-primary" />
+            Tailor Resume
+          </Button>
+          <Button
+            variant="outline"
+            className="flex-col h-auto py-3 gap-1.5 rounded-xl text-xs"
+            onClick={() => navigate('/cover-letter/new', { state: { jobTitle: job.title, company: job.company } })}
+          >
+            <PenLine className="w-4 h-4 text-primary" />
+            Cover Letter
+          </Button>
+          <Button
+            variant="outline"
+            className="flex-col h-auto py-3 gap-1.5 rounded-xl text-xs"
+            onClick={() => createApplication.mutate({ job_title: job.title, company: job.company, status: 'saved' })}
+            disabled={createApplication.isPending}
+          >
+            <Briefcase className="w-4 h-4 text-primary" />
+            Track
+          </Button>
         </div>
 
         {/* Description */}
