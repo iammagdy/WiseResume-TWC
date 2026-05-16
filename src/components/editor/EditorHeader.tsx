@@ -358,6 +358,25 @@ export function EditorHeader({
             onSave={onSave}
             onImproveSection={onImproveSection}
           />
+          {/* Offline pending-changes indicator */}
+          {pendingCountForResume > 0 && !isOnline && (
+            <span
+              className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-warning/10 text-warning border border-warning/30 shrink-0 select-none"
+              title={`${pendingCountForResume} change${pendingCountForResume > 1 ? 's' : ''} will sync when back online`}
+            >
+              <CloudOff className="w-3 h-3" aria-hidden="true" />
+              {pendingCountForResume}
+            </span>
+          )}
+          {pendingCountForResume > 0 && isOnline && (
+            <span
+              className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-primary/8 text-primary border border-primary/20 shrink-0 select-none animate-pulse"
+              title="Syncing changes…"
+            >
+              <Cloud className="w-3 h-3" aria-hidden="true" />
+              Syncing
+            </span>
+          )}
         </div>
         {/* Desktop buttons - hidden on mobile */}
         <div className="hidden md:flex items-center gap-1.5">

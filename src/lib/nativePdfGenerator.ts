@@ -152,6 +152,7 @@ async function callPdfServer(
     totalContentHeightPx?: number;
   },
   onProgress?: OnProgressCallback,
+  attempt = 0,
 ): Promise<Blob> {
   const apiBase = (import.meta.env.VITE_API_URL as string | undefined) ?? '';
   const url = `${apiBase}/api/export/pdf-native`;
@@ -174,6 +175,11 @@ async function callPdfServer(
       const j = await response.json();
       if (j.message) msg = j.message;
     } catch { /* ignore */ }
+    // Retry once for transient server errors (5xx only, not 4xx)
+    if (attempt === 0 && response.status >= 500) {
+      await new Promise(r => setTimeout(r, 3000));
+      return callPdfServer(payload, onProgress, 1);
+    }
     throw new Error(msg);
   }
 

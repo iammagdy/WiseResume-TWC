@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Edit2, Eye, Download, Share2, Copy, Trash2, GitBranch, Crown, Zap, BarChart3, RefreshCw, Mic, MoreVertical, Sparkles } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { BackButton } from '@/components/ui/BackButton';
+import { Breadcrumb } from '@/components/layout/Breadcrumb';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -178,7 +179,10 @@ export default function ResumeDetailPage() {
       {/* Header with overflow menu */}
       <div className="shrink-0 sticky top-0 z-30 flex items-center gap-3 px-4 h-14 pt-safe border-b border-border bg-background/95 backdrop-blur-sm">
         <BackButton />
-        <h1 className="text-lg font-bold text-foreground truncate flex-1 min-w-0">{dbResume.title}</h1>
+        <div className="flex flex-col min-w-0 flex-1">
+          <h1 className="text-lg font-bold text-foreground truncate">{dbResume.title}</h1>
+          <Breadcrumb items={['Home', dbResume.title]} links={['/dashboard']} />
+        </div>
         {isMaster && (
           <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 gap-1 border-primary/30 text-primary shrink-0">
             <Crown className="w-3 h-3" />

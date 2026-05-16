@@ -1,4 +1,5 @@
 import { Suspense, useEffect, useState, type ReactNode } from "react";
+import { MotionConfig, useReducedMotion } from "framer-motion";
 import { Toaster } from "@/components/ui/sonner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useDeepLinking } from "./hooks/useDeepLinking";
@@ -408,9 +409,18 @@ function DeferredProviders() {
     </>);
 }
 
+function MotionConfigProvider({ children }: { children: ReactNode }) {
+  const shouldReduceMotion = useReducedMotion();
+  return (
+    <MotionConfig reducedMotion={shouldReduceMotion ? 'always' : 'never'}>
+      {children}
+    </MotionConfig>
+  );
+}
+
 const AppInterior = () => {
   return (
-    <>
+    <MotionConfigProvider>
       <Toaster />
       <ActingAsBanner />
       <AuthProvider>
@@ -421,7 +431,7 @@ const AppInterior = () => {
           </AIPrivacyDisclosureProvider>
         </BottomSheetProvider>
       </AuthProvider>
-    </>
+    </MotionConfigProvider>
   );
 };
 

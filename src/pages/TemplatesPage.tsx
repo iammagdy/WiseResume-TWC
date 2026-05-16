@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Info, Sparkles } from 'lucide-react';
+import { Info, Sparkles, User, FlaskConical } from 'lucide-react';
 import { BackButton } from '@/components/ui/BackButton';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import { TemplateThumbnail } from '@/components/editor/TemplateThumbnail';
 import { templates, sampleResumeData, atsScoreColors, atsScoreDescriptions, atsScoreLabels } from '@/lib/templateData';
 import { TemplateId, TemplateInfo, TemplateCustomization } from '@/types/resume';
 import { useResumeStore } from '@/store/resumeStore';
+import { useResumes, dbToResumeData } from '@/hooks/useResumes';
 import { motion } from 'framer-motion';
 import { TemplateAdvisorSheet } from '@/components/editor/TemplateAdvisorSheet';
 
@@ -29,7 +30,10 @@ export default function TemplatesPage() {
   const [filter, setFilter] = useState<FilterCategory>('all');
   const [previewTemplate, setPreviewTemplate] = useState<TemplateInfo | null>(null);
   const [showAdvisor, setShowAdvisor] = useState(false);
+  const [previewWithMyData, setPreviewWithMyData] = useState(false);
   const { setSelectedTemplate, updateResume } = useResumeStore();
+  const { data: resumes = [] } = useResumes();
+  const myResumeData = resumes.length > 0 ? dbToResumeData(resumes[0]) : null;
 
   const filtered = filter === 'all' ? templates : templates.filter(t => t.category === filter);
 
@@ -131,16 +135,34 @@ export default function TemplatesPage() {
       </div>
 
       {/* Preview Sheet */}
-      <Sheet open={!!previewTemplate} onOpenChange={() => setPreviewTemplate(null)}>
+      <Sheet open={!!previewTemplate} onOpenChange={(open) => { setPreviewTemplate(open ? previewTemplate : null); setPreviewWithMyData(false); }}>
         <SheetContent side="bottom" className="h-[80vh]">
           {previewTemplate && (
             <>
-              <SheetHeader className="pb-4">
+              <SheetHeader className="pb-2">
                 <SheetTitle>{previewTemplate.name} Template</SheetTitle>
               </SheetHeader>
+              {myResumeData && (
+                <div className="flex gap-2 pb-3">
+                  <button
+                    onClick={() => setPreviewWithMyData(false)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${!previewWithMyData ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:text-foreground'}`}
+                  >
+                    <FlaskConical className="w-3 h-3" />
+                    Sample data
+                  </button>
+                  <button
+                    onClick={() => setPreviewWithMyData(true)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${previewWithMyData ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:text-foreground'}`}
+                  >
+                    <User className="w-3 h-3" />
+                    My resume
+                  </button>
+                </div>
+              )}
               <div className="flex-1 overflow-y-auto space-y-4 pb-4">
                 <div className="max-w-sm mx-auto">
-                  <TemplateThumbnail templateId={previewTemplate.id} resume={sampleResumeData as any} />
+                  <TemplateThumbnail templateId={previewTemplate.id} resume={(previewWithMyData && myResumeData ? myResumeData : sampleResumeData) as any} />
                 </div>
                 <p className="text-muted-foreground text-sm">{previewTemplate.description}</p>
                 <div className="flex items-center gap-2">

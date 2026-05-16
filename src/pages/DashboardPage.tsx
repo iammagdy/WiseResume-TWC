@@ -32,6 +32,7 @@ import { DashboardStatusPopover } from '@/components/dashboard/DashboardStatusPo
 import { PlanChip } from '@/components/ui/PlanChip';
 import { usePlanUpgradeCelebration } from '@/hooks/usePlanUpgradeCelebration';
 import { useChangelogBadge } from '@/hooks/useChangelogBadge';
+import { OnboardingChecklist, ChecklistStep } from '@/components/dashboard/OnboardingChecklist';
 
 // Lazy-loaded dialogs
 const CreateResumeDialog = lazy(() => import('@/components/dashboard/CreateResumeDialog').then(m => ({ default: m.CreateResumeDialog })));
@@ -115,6 +116,8 @@ function DashboardPageContent() {
   });
   const [profilePulseSeen, setProfilePulseSeen] = useState(() => !!localStorage.getItem('wr-profile-pulse-seen'));
   const [showFeatureMap, setShowFeatureMap] = useState(false);
+  const [checklistDismissed, setChecklistDismissed] = useState(false);
+  const [exportedChecked, setExportedChecked] = useState(false);
   const { isOnline } = useNetworkStatus();
   const isOffline = !isOnline;
 
@@ -126,6 +129,13 @@ function DashboardPageContent() {
 
   // Track session count for progressive disclosure
   useEffect(() => { trackSession(); }, []);
+
+  // Initialize checklist dismissed/exported state from localStorage once user is known
+  useEffect(() => {
+    if (!user?.id) return;
+    setChecklistDismissed(!!localStorage.getItem(`wr-checklist-dismissed-${user.id}`));
+    setExportedChecked(!!localStorage.getItem(`wr-checklist-exported-${user.id}`));
+  }, [user?.id]);
 
 
   // Persist helpers for sessionStorage sync (D-3)
@@ -519,6 +529,26 @@ function DashboardPageContent() {
 
   const hasResumes = filteredResumes && filteredResumes.length > 0;
 
+  const checklistSteps = useMemo((): ChecklistStep[] => {
+    const hasAnyScore = Object.values(healthScores).some(s => (s.overallScore ?? 0) > 0);
+    const hasTargetJob = resumes.some(r => r.target_job_title);
+    return [
+      { id: 'first-resume', label: 'Create your first resume', description: 'Build a professional resume to get started.', done: resumes.length > 0, href: '/dashboard?action=create' },
+      { id: 'ats-check', label: 'Run an ATS check', description: 'See how well your resume scores with recruiters.', done: hasAnyScore, href: '/editor' },
+      { id: 'export', label: 'Export your resume', description: 'Download your resume as PDF or PNG.', done: exportedChecked, href: '/editor' },
+      { id: 'target-job', label: 'Set a target job', description: 'Tailor your resume for specific roles.', done: hasTargetJob, href: '/tailor' },
+      { id: 'portfolio', label: 'View your portfolio', description: 'Share your professional portfolio online.', done: !!profile?.portfolioEnabled, href: '/portfolio' },
+    ];
+  }, [resumes, healthScores, exportedChecked, profile?.portfolioEnabled]);
+
+  const onboardingCompleted = user?.id ? localStorage.getItem(`wr-onboarding-completed-${user.id}`) === 'true' : false;
+  const showChecklist = !!user && onboardingCompleted && !checklistDismissed && !showProfileBanner;
+
+  const handleDismissChecklist = useCallback(() => {
+    setChecklistDismissed(true);
+    if (user?.id) localStorage.setItem(`wr-checklist-dismissed-${user.id}`, 'true');
+  }, [user?.id]);
+
   const itemVariants = {
     hidden: { opacity: 0, y: 12 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.25, 0.1, 0.25, 1] as const } }
@@ -765,6 +795,13 @@ function DashboardPageContent() {
             userId={user?.id}
           />
           </div>
+
+          {/* Onboarding Checklist — shown after onboarding is complete until dismissed */}
+          {showChecklist && (
+            <div className="px-4 pt-3">
+              <OnboardingChecklist steps={checklistSteps} onDismiss={handleDismissChecklist} />
+            </div>
+          )}
 
           {/* Upload Resume widget — inline parsing, no navigation */}
           <div className="px-4 pt-3 pb-1" data-section="dashboard-upload">

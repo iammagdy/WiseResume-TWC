@@ -12,31 +12,33 @@ const Toaster = ({ ...props }: ToasterProps) => {
       : storeTheme;
 
   return (
-    <Sonner
-      theme={resolvedTheme as ToasterProps["theme"]}
-      className="toaster group"
-      position="top-center"
-      closeButton={false}
-      richColors={false}
-      expand={true}
-      visibleToasts={3}
-      duration={3000}
-      gap={10}
-      icons={{
-        success: <CheckCircle2 size={17} style={{ color: "#22c55e" }} />,
-        error: <XCircle size={17} style={{ color: "#ef4444" }} />,
-        warning: <AlertTriangle size={17} style={{ color: "#f59e0b" }} />,
-        info: <Info size={17} style={{ color: "#8b1a2f" }} />,
-      }}
-      toastOptions={{
-        classNames: {
-          toast: "wr-toast",
-          title: "wr-toast-title",
-          description: "wr-toast-desc",
-        },
-      }}
-      {...props}
-    />
+    <div role="status" aria-live="polite" aria-atomic="false" aria-label="Notifications">
+      <Sonner
+        theme={resolvedTheme as ToasterProps["theme"]}
+        className="toaster group"
+        position="top-center"
+        closeButton={false}
+        richColors={false}
+        expand={true}
+        visibleToasts={3}
+        duration={3000}
+        gap={10}
+        icons={{
+          success: <CheckCircle2 size={17} style={{ color: "#22c55e" }} />,
+          error: <XCircle size={17} style={{ color: "#ef4444" }} />,
+          warning: <AlertTriangle size={17} style={{ color: "#f59e0b" }} />,
+          info: <Info size={17} style={{ color: "#8b1a2f" }} />,
+        }}
+        toastOptions={{
+          classNames: {
+            toast: "wr-toast",
+            title: "wr-toast-title",
+            description: "wr-toast-desc",
+          },
+        }}
+        {...props}
+      />
+    </div>
   );
 };
 

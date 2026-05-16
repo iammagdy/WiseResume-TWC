@@ -43,12 +43,15 @@ export function usePortfolioSEO(profile: PublicProfile | undefined | null) {
       
       const ogTitle = profile.metaTitle || (profile.jobTitle ? `${name} — ${profile.jobTitle}` : `${name}'s Portfolio`);
       const ogDesc = profile.metaDescription || profile.portfolioBio || `${name}'s professional portfolio`;
-      // OG image generation is pending rebuild as an Appwrite Function.
-      // Until then, skip og:image / twitter:image meta tags.
       setMeta('og:title', ogTitle);
       setMeta('og:description', ogDesc);
       setMeta('og:type', 'profile');
-      setMeta('twitter:card', 'summary', 'name');
+      const apiUrl = import.meta.env.VITE_API_URL as string | undefined;
+      if (apiUrl && profile.username) {
+        setMeta('og:image', `${apiUrl}/og-image/${encodeURIComponent(profile.username)}`);
+        setMeta('twitter:image', `${apiUrl}/og-image/${encodeURIComponent(profile.username)}`, 'name');
+      }
+      setMeta('twitter:card', 'summary_large_image', 'name');
       setMeta('twitter:title', ogTitle, 'name');
       setMeta('twitter:description', ogDesc, 'name');
 

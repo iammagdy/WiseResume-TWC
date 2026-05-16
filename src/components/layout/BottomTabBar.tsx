@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { FileText, Globe, Home, BarChart3, Sparkles, Lock, MoreHorizontal, QrCode, Bell, TrendingUp, Trophy, Users, HelpCircle, CreditCard, X, Zap, Tag } from 'lucide-react';
+import { FileText, Globe, Home, BarChart3, Sparkles, Lock, MoreHorizontal, QrCode, Bell, TrendingUp, Trophy, Users, HelpCircle, CreditCard, X, Zap, Tag, Keyboard } from 'lucide-react';
 import { motion, useReducedMotion, LayoutGroup, AnimatePresence } from 'framer-motion';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
@@ -12,6 +12,7 @@ import { useResumes, dbToResumeData } from '@/hooks/useResumes';
 import { useChangelogBadge } from '@/hooks/useChangelogBadge';
 import { useCareerAssessment } from '@/hooks/useCareerAssessment';
 import { usePlan } from '@/hooks/usePlan';
+import { useUnreadNotificationCount } from '@/hooks/useNotifications';
 import { toast } from 'sonner';
 
 const moreItems = [
@@ -24,6 +25,7 @@ const moreItems = [
   { icon: CreditCard, label: 'Subscription', path: '/subscription', iconBg: 'bg-primary/10', iconColor: 'text-primary' },
   { icon: Tag, label: 'Pricing', path: '/pricing', iconBg: 'bg-indigo-500/10', iconColor: 'text-indigo-600 dark:text-indigo-400' },
   { icon: Zap, label: "What's New", path: '/whats-new', iconBg: 'bg-amber-500/10', iconColor: 'text-amber-600 dark:text-amber-400' },
+  { icon: Keyboard, label: 'Shortcuts', path: '__shortcuts__', iconBg: 'bg-muted', iconColor: 'text-muted-foreground' },
 ];
 
 interface TabItem {
@@ -108,6 +110,7 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
   const { hasNew, markSeen } = useChangelogBadge();
   const { data: careerAssessment } = useCareerAssessment();
   const pendingCount = useOfflineSyncStore(s => s.pendingChanges.length);
+  const { data: unreadNotifCount = 0 } = useUnreadNotificationCount();
   const { isPro } = usePlan();
   const prefersReducedMotion = useReducedMotion();
   const [showMore, setShowMore] = useState(false);
@@ -354,6 +357,12 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
                 )}
                 aria-hidden="true"
               />
+              {unreadNotifCount > 0 && !showMore && (
+                <span
+                  className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-destructive border-2 border-background"
+                  aria-label={`${unreadNotifCount} unread notifications`}
+                />
+              )}
             </div>
             <span className={cn(
               'text-[11px] whitespace-nowrap relative z-10 transition-colors duration-200',
@@ -396,14 +405,34 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
                 <div className="grid grid-cols-4 gap-1 p-3">
                   {moreItems.map((item) => {
                     const Icon = (item.icon || Home) as React.ElementType;
+                    const isNotifications = item.path === '/notifications';
+                    const isWhatsNew = item.path === '/whats-new';
+                    const badge = isNotifications && unreadNotifCount > 0 ? unreadNotifCount : 0;
+                    const showNewDot = isWhatsNew && hasNew;
                     return (
                       <button
                         key={item.path}
-                        onClick={() => { haptics.light(); setShowMore(false); navigate(item.path); }}
+                        onClick={() => {
+                          haptics.light();
+                          setShowMore(false);
+                          if (item.path === '__shortcuts__') {
+                            window.dispatchEvent(new Event('open-shortcut-help'));
+                          } else {
+                            navigate(item.path);
+                          }
+                        }}
                         className="flex flex-col items-center gap-1.5 p-3 rounded-xl hover:bg-muted active:scale-95 transition-all touch-manipulation"
                       >
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${item.iconBg}`}>
+                        <div className={`relative w-10 h-10 rounded-xl flex items-center justify-center ${item.iconBg}`}>
                           <Icon className={`w-5 h-5 ${item.iconColor}`} aria-hidden="true" />
+                          {badge > 0 && (
+                            <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-0.5 rounded-full bg-destructive text-white text-[9px] font-bold flex items-center justify-center border border-background">
+                              {badge > 9 ? '9+' : badge}
+                            </span>
+                          )}
+                          {showNewDot && (
+                            <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-primary border-2 border-background" aria-label="New updates available" />
+                          )}
                         </div>
                         <span className="text-[10px] font-medium text-foreground leading-tight text-center">{item.label}</span>
                       </button>

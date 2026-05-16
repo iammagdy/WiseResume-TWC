@@ -47,10 +47,10 @@ export default function NotificationsPage() {
     if (filter === 'unread') return !n.is_read;
     if (filter === 'applications') return n.type === 'application';
     return n.type === 'system';
-  }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }).sort((a, b) => new Date(b.$createdAt).getTime() - new Date(a.$createdAt).getTime());
 
   const handleClick = (n: Notification) => {
-    if (!n.is_read) markAsRead.mutate(n.id);
+    if (!n.is_read) markAsRead.mutate(n.$id);
     if (n.link) navigate(n.link);
   };
 
@@ -112,7 +112,7 @@ export default function NotificationsPage() {
             (() => {
               const groups: { label: string; items: typeof filtered }[] = [];
               filtered.forEach(n => {
-                const d = new Date(n.created_at);
+                const d = new Date(n.$createdAt);
                 let label = format(d, 'MMMM d, yyyy');
                 if (isToday(d)) label = 'Today';
                 else if (isYesterday(d)) label = 'Yesterday';
@@ -127,7 +127,7 @@ export default function NotificationsPage() {
                   <div className="space-y-2">
                     {group.items.map(n => (
                       <motion.div
-                        key={n.id}
+                        key={n.$id}
                         layout
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -146,7 +146,7 @@ export default function NotificationsPage() {
                           <p className="text-sm font-semibold">{n.title}</p>
                           <p className="text-xs text-muted-foreground mt-0.5">{n.message}</p>
                           <p className="text-xs text-muted-foreground mt-1">
-                            {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
+                            {formatDistanceToNow(new Date(n.$createdAt), { addSuffix: true })}
                           </p>
                         </div>
                         {!n.is_read && <div className="w-2 h-2 rounded-full bg-primary shrink-0 mt-2" />}

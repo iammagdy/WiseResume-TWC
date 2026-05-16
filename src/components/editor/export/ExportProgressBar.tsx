@@ -1,4 +1,4 @@
-import { Download, Copy, Mic, WifiOff } from 'lucide-react';
+import { Download, Copy, Mic, WifiOff, AlertCircle, RefreshCw } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,13 +22,16 @@ interface ExportProgressBarProps {
   isInterviewPrep: boolean;
   onFileNameChange: (v: string) => void;
   onExport: () => void;
+  /** When provided, shows a retry button on export failure warnings. */
+  onRetry?: () => void;
 }
 
 export function ExportProgressBar({
   exportProgress, isOnline, selectedType, isDownloadable, customFileName,
   fileSuffix, buttonLabel, isExporting, isButtonDisabled, isTextType,
-  isInterviewPrep, onFileNameChange, onExport,
+  isInterviewPrep, onFileNameChange, onExport, onRetry,
 }: ExportProgressBarProps) {
+  const hasError = !isExporting && !!exportProgress?.warning;
   return (
     <div className="shrink-0 pt-4 pb-safe border-t border-border/60 bg-background">
       {isDownloadable && (
@@ -55,9 +58,25 @@ export function ExportProgressBar({
       )}
 
       {exportProgress?.warning && (
-        <Alert className="mb-3">
+        <Alert className={`mb-3 ${hasError ? 'border-destructive/50 bg-destructive/5' : ''}`}>
+          <AlertCircle className={`h-4 w-4 ${hasError ? 'text-destructive' : ''}`} />
           <AlertDescription className="text-sm">
             {exportProgress.warning}
+            {hasError && onRetry && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={onRetry}
+                className="mt-2 w-full h-8 gap-1.5 border-destructive/40 text-destructive hover:bg-destructive/10"
+              >
+                <RefreshCw className="w-3.5 h-3.5" /> Try again
+              </Button>
+            )}
+            {hasError && !onRetry && (
+              <span className="block mt-1 text-xs text-muted-foreground">
+                Try exporting as PNG, or use Print → Save as PDF in your browser.
+              </span>
+            )}
           </AlertDescription>
         </Alert>
       )}

@@ -11,6 +11,7 @@ export interface Notification {
   message: string;
   is_read: boolean;
   $createdAt: string;
+  link?: string;
 }
 
 export function useNotifications() {
@@ -59,6 +60,23 @@ export function useNotificationMutations() {
     },
   });
 
+  const markAllAsRead = useMutation({
+    mutationFn: async () => {
+      if (!user) return;
+      const response = await databases.listDocuments(DATABASE_ID, 'notifications', [
+        Query.equal('user_id', user.id),
+        Query.equal('is_read', false),
+      ]);
+      await Promise.all(response.documents.map(doc =>
+        databases.updateDocument(DATABASE_ID, 'notifications', doc.$id, { is_read: true })
+      ));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications-unread-count'] });
+    },
+  });
+
   const clearAll = useMutation({
     mutationFn: async () => {
       if (!user) return;
@@ -67,9 +85,10 @@ export function useNotificationMutations() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications-unread-count'] });
       toast.success('All notifications cleared');
     },
   });
 
-  return { markAsRead, clearAll };
+  return { markAsRead, markAllAsRead, clearAll };
 }
