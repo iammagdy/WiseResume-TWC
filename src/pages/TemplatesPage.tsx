@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { TemplateThumbnail } from '@/components/editor/TemplateThumbnail';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { templates, sampleResumeData, atsScoreColors, atsScoreDescriptions, atsScoreLabels } from '@/lib/templateData';
 import { TemplateId, TemplateInfo, TemplateCustomization } from '@/types/resume';
 import { useResumeStore } from '@/store/resumeStore';
@@ -162,7 +163,13 @@ export default function TemplatesPage() {
               )}
               <div className="flex-1 overflow-y-auto space-y-4 pb-4">
                 <div className="max-w-sm mx-auto">
-                  <TemplateThumbnail templateId={previewTemplate.id} resume={(previewWithMyData && myResumeData ? myResumeData : sampleResumeData) as any} />
+                  <ErrorBoundary fallback={
+                    <div className="flex flex-col items-center justify-center h-48 text-muted-foreground gap-2">
+                      <p className="text-sm">Preview unavailable for this resume.</p>
+                    </div>
+                  }>
+                    <TemplateThumbnail templateId={previewTemplate.id} resume={(previewWithMyData && myResumeData ? myResumeData : sampleResumeData) as any} />
+                  </ErrorBoundary>
                 </div>
                 <p className="text-muted-foreground text-sm">{previewTemplate.description}</p>
                 <div className="flex items-center gap-2">

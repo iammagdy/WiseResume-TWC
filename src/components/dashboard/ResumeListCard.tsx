@@ -43,6 +43,7 @@ import { toast } from 'sonner';
 import { useResumeStore } from '@/store/resumeStore';
 import { ScoreRing } from './ScoreRing';
 import { MiniTemplateThumbnail } from './MiniTemplateThumbnail';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { ResumeHealthScore } from '@/hooks/useResumeScore';
 import { ATSScoreBreakdown } from './ATSScoreBreakdown';
 import { SetTargetJobSheet } from './SetTargetJobSheet';
@@ -344,10 +345,12 @@ export const ResumeListCard = memo(function ResumeListCard({
             )}
             {/* Template thumbnail */}
             {!selectionMode && (
-              <div className="shrink-0 w-10 h-[54px] rounded-lg overflow-hidden border border-border/50 shadow-sm">
-                <Suspense fallback={<div className="w-10 h-[54px] rounded-lg bg-muted animate-pulse" />}>
-                  <MiniTemplateThumbnail templateId={resume.template || 'modern'} />
-                </Suspense>
+              <div className="shrink-0 w-10 h-[56px] rounded-lg overflow-hidden border border-border/50 shadow-sm">
+                <ErrorBoundary fallback={<div className="w-10 h-[56px] rounded-lg bg-muted" />}>
+                  <Suspense fallback={<div className="w-10 h-[56px] rounded-lg bg-muted animate-pulse" />}>
+                    <MiniTemplateThumbnail templateId={resume.template || 'modern'} />
+                  </Suspense>
+                </ErrorBoundary>
               </div>
             )}
             {/* Resume Health Score Ring */}

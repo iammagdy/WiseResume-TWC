@@ -223,7 +223,7 @@ export function DesktopNav() {
           aria-label="Ask Wise AI">
           
           <MessageCircle className="w-4 h-4" />
-          Ask
+          Wise AI
         </button>
 
         <PlanChip plan={plan} trialPlan={trialPlan} trialExpiresAt={trialExpiresAt} />

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Download, FileText, Package, Minimize2, FileType, Shield, Linkedin, AlignLeft, Link2, FolderDown, Image, FileCode } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { ExportType, CoverLetterContext } from '@/types/resume';
@@ -61,6 +61,18 @@ export function ExportOptionsSheet({
       setOnePageScale(null);
     }
   }, [open, pdfDefaults, resumeName, lastExportType]);
+
+  // Dispatch export-completed event when download stage is reached
+  const exportCompletedRef = useRef(false);
+  useEffect(() => {
+    if (exportProgress?.stage === 'downloading' && !exportCompletedRef.current) {
+      exportCompletedRef.current = true;
+      window.dispatchEvent(new CustomEvent('wr-export-completed'));
+    }
+    if (!exportProgress || exportProgress.stage === 'idle') {
+      exportCompletedRef.current = false;
+    }
+  }, [exportProgress?.stage]);
 
   useEffect(() => {
     if (selectedType === 'one-page' && onePageScale === null && templateElement) {

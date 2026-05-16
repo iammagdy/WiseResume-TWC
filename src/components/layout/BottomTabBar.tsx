@@ -357,10 +357,10 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
                 )}
                 aria-hidden="true"
               />
-              {unreadNotifCount > 0 && !showMore && (
+              {hasNew && !showMore && (
                 <span
-                  className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-destructive border-2 border-background"
-                  aria-label={`${unreadNotifCount} unread notifications`}
+                  className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-primary border-2 border-background"
+                  aria-label="New updates available"
                 />
               )}
             </div>
@@ -402,43 +402,51 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
                 </button>
               </div>
               <div className="overflow-y-auto flex-1">
-                <div className="grid grid-cols-4 gap-1 p-3">
-                  {moreItems.map((item) => {
-                    const Icon = (item.icon || Home) as React.ElementType;
-                    const isNotifications = item.path === '/notifications';
-                    const isWhatsNew = item.path === '/whats-new';
-                    const badge = isNotifications && unreadNotifCount > 0 ? unreadNotifCount : 0;
-                    const showNewDot = isWhatsNew && hasNew;
-                    return (
-                      <button
-                        key={item.path}
-                        onClick={() => {
-                          haptics.light();
-                          setShowMore(false);
-                          if (item.path === '__shortcuts__') {
-                            window.dispatchEvent(new Event('open-shortcut-help'));
-                          } else {
-                            navigate(item.path);
-                          }
-                        }}
-                        className="flex flex-col items-center gap-1.5 p-3 rounded-xl hover:bg-muted active:scale-95 transition-all touch-manipulation"
-                      >
-                        <div className={`relative w-10 h-10 rounded-xl flex items-center justify-center ${item.iconBg}`}>
-                          <Icon className={`w-5 h-5 ${item.iconColor}`} aria-hidden="true" />
-                          {badge > 0 && (
-                            <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-0.5 rounded-full bg-destructive text-white text-[9px] font-bold flex items-center justify-center border border-background">
-                              {badge > 9 ? '9+' : badge}
-                            </span>
-                          )}
-                          {showNewDot && (
-                            <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-primary border-2 border-background" aria-label="New updates available" />
-                          )}
-                        </div>
-                        <span className="text-[10px] font-medium text-foreground leading-tight text-center">{item.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
+                {[
+                  { label: 'Tools', items: moreItems.slice(0, 5) },
+                  { label: 'Account', items: moreItems.slice(5) },
+                ].map(({ label, items }) => (
+                  <div key={label} className="px-3 pt-3 pb-1">
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground px-1 pb-1">{label}</p>
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-1">
+                      {items.map((item) => {
+                        const Icon = (item.icon || Home) as React.ElementType;
+                        const isNotifications = item.path === '/notifications';
+                        const isWhatsNew = item.path === '/whats-new';
+                        const badge = isNotifications && unreadNotifCount > 0 ? unreadNotifCount : 0;
+                        const showNewDot = isWhatsNew && hasNew;
+                        return (
+                          <button
+                            key={item.path}
+                            onClick={() => {
+                              haptics.light();
+                              setShowMore(false);
+                              if (item.path === '__shortcuts__') {
+                                window.dispatchEvent(new Event('open-shortcut-help'));
+                              } else {
+                                navigate(item.path);
+                              }
+                            }}
+                            className="flex flex-col items-center gap-1.5 p-3 rounded-xl hover:bg-muted active:scale-95 transition-all touch-manipulation"
+                          >
+                            <div className={`relative w-10 h-10 rounded-xl flex items-center justify-center ${item.iconBg}`}>
+                              <Icon className={`w-5 h-5 ${item.iconColor}`} aria-hidden="true" />
+                              {badge > 0 && (
+                                <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-0.5 rounded-full bg-destructive text-white text-[9px] font-bold flex items-center justify-center border border-background">
+                                  {badge > 9 ? '9+' : badge}
+                                </span>
+                              )}
+                              {showNewDot && (
+                                <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-primary border-2 border-background" aria-label="New updates available" />
+                              )}
+                            </div>
+                            <span className="text-[10px] font-medium text-foreground leading-tight text-center">{item.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
               </div>
             </motion.div>
           </>

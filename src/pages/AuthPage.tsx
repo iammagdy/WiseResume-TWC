@@ -189,7 +189,10 @@ export default function AuthPage() {
             <form onSubmit={handleRegister} className="space-y-4">
               <Input placeholder="Full Name" value={name} onChange={e => setName(e.target.value)} required className="bg-white/5 border-white/10 text-white placeholder:text-white/40" />
               <Input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required className="bg-white/5 border-white/10 text-white placeholder:text-white/40" />
-              <Input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required className="bg-white/5 border-white/10 text-white placeholder:text-white/40" />
+              <div>
+                <Input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required className="bg-white/5 border-white/10 text-white placeholder:text-white/40" />
+                <p className="text-xs text-white/40 mt-1">At least 8 characters.</p>
+              </div>
               <Button type="submit" className="w-full h-11" disabled={loading}>
                 {loading ? <Loader2 className="animate-spin mr-2" size={18} /> : 'Create Account'}
               </Button>

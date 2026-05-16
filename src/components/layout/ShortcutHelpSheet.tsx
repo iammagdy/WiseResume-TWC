@@ -3,12 +3,14 @@ import { Keyboard } from 'lucide-react';
 
 interface ShortcutGroup {
   title: string;
+  scope: string;
   shortcuts: { keys: string[]; description: string }[];
 }
 
 const SHORTCUT_GROUPS: ShortcutGroup[] = [
   {
     title: 'Navigation',
+    scope: 'Available anywhere in the app',
     shortcuts: [
       { keys: ['⌘', 'K'], description: 'Open command palette / search' },
       { keys: ['?'], description: 'Show keyboard shortcuts' },
@@ -16,6 +18,7 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
   },
   {
     title: 'Dashboard',
+    scope: 'Available on the dashboard',
     shortcuts: [
       { keys: ['N'], description: 'Create new resume' },
       { keys: ['I'], description: 'Import / upload resume' },
@@ -23,6 +26,7 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
   },
   {
     title: 'Resume Editor',
+    scope: 'Available while editing a resume',
     shortcuts: [
       { keys: ['⌘', 'Z'], description: 'Undo last change' },
       { keys: ['⌘', '⇧', 'Z'], description: 'Redo' },
@@ -31,6 +35,7 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
   },
   {
     title: 'Global',
+    scope: 'Available anywhere in the app',
     shortcuts: [
       { keys: ['Esc'], description: 'Close open sheet or dialog' },
     ],
@@ -63,9 +68,10 @@ export function ShortcutHelpSheet({ open, onOpenChange }: ShortcutHelpSheetProps
         <div className="pt-4 space-y-5">
           {SHORTCUT_GROUPS.map(group => (
             <div key={group.title}>
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-2">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-1">
                 {group.title}
               </p>
+              <p className="text-xs text-muted-foreground mb-2">{group.scope}</p>
               <div className="space-y-2">
                 {group.shortcuts.map(s => (
                   <div key={s.description} className="flex items-center justify-between gap-4 py-1">

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { CheckCircle2, Circle, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
@@ -21,6 +21,15 @@ interface OnboardingChecklistProps {
 export function OnboardingChecklist({ steps, onDismiss }: OnboardingChecklistProps) {
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
+  const headingRef = useRef<HTMLElement | null>(null);
+
+  const handleDismiss = () => {
+    onDismiss();
+    setTimeout(() => {
+      const heading = headingRef.current ?? (document.querySelector('[data-dashboard-heading]') as HTMLElement | null) ?? (document.querySelector('h1') as HTMLElement | null);
+      heading?.focus();
+    }, 50);
+  };
 
   const completedCount = steps.filter(s => s.done).length;
   const allDone = completedCount === steps.length;
@@ -33,6 +42,7 @@ export function OnboardingChecklist({ steps, onDismiss }: OnboardingChecklistPro
       exit={{ opacity: 0, y: -8 }}
       transition={{ duration: 0.2 }}
       className="rounded-2xl border border-border bg-card shadow-soft overflow-hidden mb-4"
+      aria-label="Getting started checklist"
     >
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-border/60">
@@ -59,9 +69,9 @@ export function OnboardingChecklist({ steps, onDismiss }: OnboardingChecklistPro
           )}
         </button>
         <button
-          onClick={onDismiss}
+          onClick={handleDismiss}
           className="min-w-[32px] min-h-[32px] flex items-center justify-center rounded-full hover:bg-muted transition-colors"
-          aria-label="Dismiss checklist"
+          aria-label="Dismiss getting started checklist"
         >
           <X className="w-4 h-4 text-muted-foreground" />
         </button>
@@ -123,9 +133,9 @@ export function OnboardingChecklist({ steps, onDismiss }: OnboardingChecklistPro
                   size="sm"
                   variant="outline"
                   className="w-full text-xs border-success/40 text-success hover:bg-success/10"
-                  onClick={onDismiss}
+                  onClick={handleDismiss}
                 >
-                  Dismiss — I'm all set!
+                  Got it — I'm all set!
                 </Button>
               </div>
             )}

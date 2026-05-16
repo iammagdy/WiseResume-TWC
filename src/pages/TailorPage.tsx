@@ -30,6 +30,8 @@ import { reportBug } from '@/lib/bugReport';
 import { useAIAction } from '@/hooks/useAIAction';
 import { useResumes, dbToResumeData, DatabaseResume } from '@/hooks/useResumes';
 import { useAuth } from '@/hooks/useAuth';
+import { Breadcrumb } from '@/components/layout/Breadcrumb';
+import { getBackRoute } from '@/lib/navigation';
 import { databases, DATABASE_ID, ID } from '@/lib/appwrite';
 import { COLLECTIONS } from '@/lib/appwrite-collections';
 import { useRedactedResume } from '@/hooks/useRedactedResume';
@@ -789,10 +791,11 @@ export default function TailorPage() {
   return (
     <div className="flex-1 flex flex-col min-h-0 h-full">
       {/* Header */}
-      <header className="shrink-0 sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3">
+      <header className="shrink-0 sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border px-4 pt-3 pb-2">
+        <Breadcrumb items={['Home', 'AI Resume Tailor']} links={['/dashboard']} className="mb-2" />
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="shrink-0">
+            <Button variant="ghost" size="icon" onClick={() => navigate(getBackRoute('/tailor'))} className="shrink-0">
               <ArrowLeft className="w-4 h-4" />
             </Button>
             <Wand2 className="w-5 h-5 text-primary" />
@@ -898,12 +901,16 @@ export default function TailorPage() {
               {customInstructions && <Badge variant="outline" className="text-[10px] px-1.5 py-0 ml-auto">saved</Badge>}
             </button>
             {showCustomInstructions && (
-              <Textarea
-                value={customInstructions}
-                onChange={e => setCustomInstructions(e.target.value)}
-                placeholder="e.g. I'm applying as a senior candidate, emphasize leadership..."
-                className="min-h-[80px] resize-none text-sm"
-              />
+              <>
+                <Textarea
+                  value={customInstructions}
+                  onChange={e => setCustomInstructions(e.target.value)}
+                  placeholder="e.g. I'm applying as a senior candidate, emphasize leadership..."
+                  className="min-h-[80px] resize-none text-sm"
+                  maxLength={2000}
+                />
+                <p className="text-xs text-muted-foreground text-right">{customInstructions.length}/2000</p>
+              </>
             )}
           </div>
 
