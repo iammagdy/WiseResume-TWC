@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import { databases, DATABASE_ID, ID } from '@/lib/appwrite';
 import {
   BrainCircuit, Save, RefreshCw, AlertTriangle, FileEdit,
   Target, MessageSquare, FileText, Globe, ChevronDown, ChevronUp,
@@ -291,14 +290,18 @@ export const AIRoutingSwitcher = () => {
     // so the UI reflects the actual database state after a refresh.
     setPendingDeletes([]);
     try {
-      const res = await databases.listDocuments(DATABASE_ID, 'ai_routing_config');
+      const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
+        headers: devKitAuthHeaders(),
+        body: { action: 'list-routing-config' },
+      });
+      const result = tryUnwrapAdminResponse<{ configs: Array<{ $id: string; feature_id: string; provider: string; model: string }> }>(tuple, 'admin-devkit-data');
       const configMap: Record<string, RouteState> = {};
-      for (const doc of res.documents) {
-        configMap[doc.feature_id as string] = {
+      for (const doc of (result?.configs ?? [])) {
+        configMap[doc.feature_id] = {
           $id: doc.$id,
-          feature_id: doc.feature_id as string,
-          provider: doc.provider as string,
-          model: doc.model as string,
+          feature_id: doc.feature_id,
+          provider: doc.provider,
+          model: doc.model,
         };
       }
       setRoutes(configMap);
@@ -371,22 +374,24 @@ export const AIRoutingSwitcher = () => {
       // Upsert active overrides
       await Promise.all(toSave.map(async ([featureId, config]) => {
         if (config.$id) {
-          await databases.updateDocument(DATABASE_ID, 'ai_routing_config', config.$id, {
-            provider: config.provider,
-            model: config.model,
+          await appwriteFunctions.invoke('admin-devkit-data', {
+            headers: devKitAuthHeaders(),
+            body: { action: 'update-routing-config', docId: config.$id, provider: config.provider, model: config.model },
           });
         } else {
-          await databases.createDocument(DATABASE_ID, 'ai_routing_config', ID.unique(), {
-            feature_id: featureId,
-            provider: config.provider,
-            model: config.model,
+          await appwriteFunctions.invoke('admin-devkit-data', {
+            headers: devKitAuthHeaders(),
+            body: { action: 'create-routing-config', featureId, provider: config.provider, model: config.model },
           });
         }
       }));
       // Delete overrides that were reset since the last fetch
       if (pendingDeletes.length > 0) {
         await Promise.all(pendingDeletes.map(docId =>
-          databases.deleteDocument(DATABASE_ID, 'ai_routing_config', docId),
+          appwriteFunctions.invoke('admin-devkit-data', {
+            headers: devKitAuthHeaders(),
+            body: { action: 'delete-routing-config', docId },
+          }),
         ));
         setPendingDeletes([]);
       }

@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { databases, DATABASE_ID, Query, ID } from '@/lib/appwrite';
+import { COLLECTIONS } from '@/lib/appwrite-collections';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
 
@@ -135,7 +136,7 @@ export function useProfile(userId: string | undefined) {
       if (!userId) return null;
       // No Query.select — return all fields so portfolio and other extended
       // fields are available without individual column enumeration.
-      const response = await databases.listDocuments(DATABASE_ID, 'profiles', [
+      const response = await databases.listDocuments(DATABASE_ID, COLLECTIONS.profiles, [
         Query.equal('user_id', userId),
       ]);
       const doc = response.documents[0];
@@ -191,7 +192,7 @@ export function useProfile(userId: string | undefined) {
 
   const updateProfile = async (updates: ProfileUpdates): Promise<void> => {
     if (!userId) throw new Error('Identity not settled');
-    const existing = await databases.listDocuments(DATABASE_ID, 'profiles', [
+    const existing = await databases.listDocuments(DATABASE_ID, COLLECTIONS.profiles, [
       Query.equal('user_id', userId),
     ]);
     const data: Record<string, unknown> = {};
@@ -233,9 +234,9 @@ export function useProfile(userId: string | undefined) {
     if (updates.hiredAt !== undefined) data.hired_at = updates.hiredAt;
 
     if (existing.total > 0) {
-      await databases.updateDocument(DATABASE_ID, 'profiles', existing.documents[0].$id, data);
+      await databases.updateDocument(DATABASE_ID, COLLECTIONS.profiles, existing.documents[0].$id, data);
     } else {
-      await databases.createDocument(DATABASE_ID, 'profiles', ID.unique(), {
+      await databases.createDocument(DATABASE_ID, COLLECTIONS.profiles, ID.unique(), {
         ...data,
         user_id: userId,
         email: user?.email ?? null,

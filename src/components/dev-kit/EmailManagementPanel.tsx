@@ -651,9 +651,10 @@ function RecentSendsSection() {
     try {
       // Query admin_audit_logs directly — 'admin-audit-logs' function is not deployed.
       // logAudit() writes category='admin_email' entries here after each send.
-      const { databases } = await import('@/lib/appwrite');
+      const { databases, DATABASE_ID } = await import('@/lib/appwrite');
       const { Query } = await import('appwrite');
-      const res = await databases.listDocuments('main', 'admin_audit_logs', [
+      const { COLLECTIONS } = await import('@/lib/appwrite-collections');
+      const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.admin_audit_logs, [
         Query.equal('category', 'admin_email'),
         Query.orderDesc('$createdAt'),
         Query.limit(20),

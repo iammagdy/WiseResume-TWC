@@ -724,6 +724,40 @@ async function handleListAuditLogs(body, log) {
   return { documents: res.documents, total: res.total };
 }
 
+async function handleListRoutingConfig() {
+  const { databases } = getClients();
+  const res = await safeList(databases, 'ai_routing_config', [sdk.Query.limit(100)]);
+  if (res.error) throw new Error(`ai_routing_config collection is not ready: ${res.error}`);
+  return { configs: res.documents, total: res.total };
+}
+
+async function handleUpdateRoutingConfig(body, log) {
+  const { databases } = getClients();
+  const { docId, provider, model } = body;
+  if (!docId || !provider || !model) throw new Error('Missing docId, provider, or model');
+  const doc = await databases.updateDocument(DB_ID, 'ai_routing_config', docId, { provider, model });
+  await auditLog(databases, 'update-routing-config', { docId, provider, model });
+  return { config: doc };
+}
+
+async function handleCreateRoutingConfig(body, log) {
+  const { databases } = getClients();
+  const { featureId, provider, model } = body;
+  if (!featureId || !provider || !model) throw new Error('Missing featureId, provider, or model');
+  const doc = await databases.createDocument(DB_ID, 'ai_routing_config', sdk.ID.unique(), { feature_id: featureId, provider, model });
+  await auditLog(databases, 'create-routing-config', { featureId, provider, model });
+  return { config: doc };
+}
+
+async function handleDeleteRoutingConfig(body, log) {
+  const { databases } = getClients();
+  const { docId } = body;
+  if (!docId) throw new Error('Missing docId');
+  await databases.deleteDocument(DB_ID, 'ai_routing_config', docId);
+  await auditLog(databases, 'delete-routing-config', { docId });
+  return { deleted: true };
+}
+
 async function handleListDiscountCodes(log) {
   const { databases } = getClients();
   const res = await safeList(databases, 'discount_codes', [sdk.Query.orderDesc('$createdAt'), sdk.Query.limit(100)]);
@@ -1635,6 +1669,10 @@ module.exports = async ({ req, res, log, error }) => {
     else if (action === 'dismiss-wisehire-waitlist') data = await handleDismissWisehireWaitlist(body, log);
     else if (action === 'send-wisehire-invite') data = await handleSendWisehireInvite(body, log);
     else if (action === 'list-ai-gateway-activity') data = await handleListAiGatewayActivity(body, log);
+    else if (action === 'list-routing-config') data = await handleListRoutingConfig();
+    else if (action === 'update-routing-config') data = await handleUpdateRoutingConfig(body, log);
+    else if (action === 'create-routing-config') data = await handleCreateRoutingConfig(body, log);
+    else if (action === 'delete-routing-config') data = await handleDeleteRoutingConfig(body, log);
     else return json(res, rid, { success: false, code: 'UNKNOWN_ACTION', error: `Unknown action: ${action}` }, 400);
 
     return json(res, rid, { success: true, ...data });

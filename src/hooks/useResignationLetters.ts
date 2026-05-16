@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { databases, DATABASE_ID, Query, ID } from '@/lib/appwrite';
+import { COLLECTIONS } from '@/lib/appwrite-collections';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
 
@@ -55,7 +56,7 @@ export function useResignationLetters() {
     queryKey: ['resignation-letters', user?.id],
     queryFn: async (): Promise<ResignationLetter[]> => {
       if (!user) return [];
-      const response = await databases.listDocuments(DATABASE_ID, 'resignation_letters', [
+      const response = await databases.listDocuments(DATABASE_ID, COLLECTIONS.resignation_letters, [
         Query.equal('user_id', user.id),
         Query.orderDesc('$createdAt'),
         Query.limit(500),
@@ -72,7 +73,7 @@ export function useResignationLetter(id: string | null) {
     queryKey: ['resignation-letter', id],
     queryFn: async (): Promise<ResignationLetter | null> => {
       if (!user || !id) return null;
-      const doc = await databases.getDocument(DATABASE_ID, 'resignation_letters', id);
+      const doc = await databases.getDocument(DATABASE_ID, COLLECTIONS.resignation_letters, id);
       return docToLetter(doc as unknown as Record<string, unknown>);
     },
     enabled: !!user && !!id,
@@ -86,7 +87,7 @@ export function useResignationLetterMutations() {
   const saveLetter = useMutation({
     mutationFn: async (input: ResignationLetterInput): Promise<ResignationLetter> => {
       if (!user) throw new Error('Not authenticated');
-      const doc = await databases.createDocument(DATABASE_ID, 'resignation_letters', ID.unique(), {
+      const doc = await databases.createDocument(DATABASE_ID, COLLECTIONS.resignation_letters, ID.unique(), {
         user_id: user.id,
         ...input,
       });
@@ -100,7 +101,7 @@ export function useResignationLetterMutations() {
 
   const updateLetter = useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: ResignationLetterUpdates }): Promise<ResignationLetter> => {
-      const doc = await databases.updateDocument(DATABASE_ID, 'resignation_letters', id, updates);
+      const doc = await databases.updateDocument(DATABASE_ID, COLLECTIONS.resignation_letters, id, updates);
       return docToLetter(doc as unknown as Record<string, unknown>);
     },
     onSuccess: () => {
@@ -111,7 +112,7 @@ export function useResignationLetterMutations() {
 
   const deleteLetter = useMutation({
     mutationFn: async (id: string): Promise<void> => {
-      await databases.deleteDocument(DATABASE_ID, 'resignation_letters', id);
+      await databases.deleteDocument(DATABASE_ID, COLLECTIONS.resignation_letters, id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['resignation-letters'] });

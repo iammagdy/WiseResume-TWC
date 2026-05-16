@@ -17,7 +17,8 @@ export function useSuspensionCheck(): SuspensionState {
       if (!user?.id) return { is_suspended: false, suspension_reason: null };
       try {
         const { databases, DATABASE_ID, Query } = await import('@/lib/appwrite');
-        const res = await databases.listDocuments(DATABASE_ID, 'profiles', [
+        const { COLLECTIONS } = await import('@/lib/appwrite-collections');
+        const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.profiles, [
           Query.equal('user_id', user.id),
           Query.limit(1)
         ]);

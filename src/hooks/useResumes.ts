@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { databases, DATABASE_ID, Query, ID } from '@/lib/appwrite';
+import { COLLECTIONS } from '@/lib/appwrite-collections';
 import { useAuth } from './useAuth';
 import { ResumeData } from '@/types/resume';
 import { toast } from 'sonner';
@@ -87,7 +88,7 @@ export function useResumes(options: { select?: (data: any[]) => any } = {}) {
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       if (!user) return [];
-      const response = await databases.listDocuments(DATABASE_ID, 'resumes', [
+      const response = await databases.listDocuments(DATABASE_ID, COLLECTIONS.resumes, [
         Query.equal('user_id', user.id),
         Query.orderDesc('$updatedAt'),
         Query.limit(50)
@@ -107,7 +108,7 @@ export function useResume(resumeId: string | null) {
     queryFn: async () => {
       if (!resumeId || !user) return null;
       try {
-        return await databases.getDocument(DATABASE_ID, 'resumes', resumeId);
+        return await databases.getDocument(DATABASE_ID, COLLECTIONS.resumes, resumeId);
       } catch (err: any) {
         if (err.code === 404) return null;
         throw err;
@@ -125,15 +126,15 @@ export function useSetMasterCV() {
     mutationFn: async (resumeId: string) => {
       if (!user) throw new Error('Not authenticated');
       // 1. Reset all
-      const all = await databases.listDocuments(DATABASE_ID, 'resumes', [
+      const all = await databases.listDocuments(DATABASE_ID, COLLECTIONS.resumes, [
         Query.equal('user_id', user.id),
         Query.limit(500)
       ]);
       for (const r of all.documents) {
-        if (r.is_master) await databases.updateDocument(DATABASE_ID, 'resumes', r.$id, { is_master: false });
+        if (r.is_master) await databases.updateDocument(DATABASE_ID, COLLECTIONS.resumes, r.$id, { is_master: false });
       }
       // 2. Set new master
-      return await databases.updateDocument(DATABASE_ID, 'resumes', resumeId, { is_master: true });
+      return await databases.updateDocument(DATABASE_ID, COLLECTIONS.resumes, resumeId, { is_master: true });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['resumes'] });
@@ -149,7 +150,7 @@ export function useResumeMutations() {
   const createResume = useMutation({
     mutationFn: async ({ resume, title }: { resume: ResumeData; title?: string }) => {
       if (!user) throw new Error('Not authenticated');
-      return await databases.createDocument(DATABASE_ID, 'resumes', ID.unique(), {
+      return await databases.createDocument(DATABASE_ID, COLLECTIONS.resumes, ID.unique(), {
         ...resumeDataToDb(resume, user.id),
         title: title || resume.title
       });
@@ -173,7 +174,7 @@ export function useResumeMutations() {
       if (updates.summary) data.summary = updates.summary;
       if (updates.customization) data.customization = JSON.stringify(updates.customization);
 
-      return await databases.updateDocument(DATABASE_ID, 'resumes', resumeId, data);
+      return await databases.updateDocument(DATABASE_ID, COLLECTIONS.resumes, resumeId, data);
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['resumes'] });
@@ -184,7 +185,7 @@ export function useResumeMutations() {
 
   const deleteResume = useMutation({
     mutationFn: async (resumeId: string) => {
-      await databases.deleteDocument(DATABASE_ID, 'resumes', resumeId);
+      await databases.deleteDocument(DATABASE_ID, COLLECTIONS.resumes, resumeId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['resumes'] });
@@ -195,7 +196,7 @@ export function useResumeMutations() {
   const deleteMultipleResumes = useMutation({
     mutationFn: async (resumeIds: string[]) => {
       await Promise.all(
-        resumeIds.map(id => databases.deleteDocument(DATABASE_ID, 'resumes', id))
+        resumeIds.map(id => databases.deleteDocument(DATABASE_ID, COLLECTIONS.resumes, id))
       );
     },
     onSuccess: (_data, resumeIds) => {
@@ -210,10 +211,10 @@ export function useResumeMutations() {
   const duplicateResume = useMutation({
     mutationFn: async (resumeId: string) => {
       if (!user) throw new Error('Not authenticated');
-      const original = await databases.getDocument(DATABASE_ID, 'resumes', resumeId);
+      const original = await databases.getDocument(DATABASE_ID, COLLECTIONS.resumes, resumeId);
       const { $id, $createdAt, $updatedAt, $permissions, $collectionId, $databaseId, ...rest } = original as Record<string, unknown>;
       void $id; void $createdAt; void $updatedAt; void $permissions; void $collectionId; void $databaseId;
-      return await databases.createDocument(DATABASE_ID, 'resumes', ID.unique(), {
+      return await databases.createDocument(DATABASE_ID, COLLECTIONS.resumes, ID.unique(), {
         ...rest,
         user_id: user.id,
         title: `${(original as Record<string, unknown>).title as string} (Copy)`,

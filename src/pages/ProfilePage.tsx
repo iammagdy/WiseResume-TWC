@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Edit2, Share2, FileText, Briefcase, Globe, ExternalLink, MapPin, Clock, HardDrive, FileDown, Sparkles, User, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Edit2, Share2, FileText, Briefcase, Globe, ExternalLink, MapPin, Clock, FileDown, Sparkles, User, AlertTriangle, RefreshCw } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { LoadingButton } from '@/components/ui/LoadingButton';
 import { BackButton } from '@/components/ui/BackButton';
@@ -15,7 +15,6 @@ import { useResumes } from '@/hooks/useResumes';
 import { useJobApplications } from '@/hooks/useJobApplications';
 import { EditProfileSheet } from '@/components/settings/EditProfileSheet';
 import { CareerMilestonesRow } from '@/components/dashboard/CareerMilestonesRow';
-import { AccountBackupSheet } from '@/components/profile/AccountBackupSheet';
 import { ResumeListCard } from '@/components/dashboard/ResumeListCard';
 import { LinkedInImportSheet } from '@/components/settings/LinkedInImportSheet';
 import { useResumeStore } from '@/store/resumeStore';
@@ -48,8 +47,7 @@ export default function ProfilePage() {
   const { deleteResume, duplicateResume } = useResumeMutations();
   const { setCurrentResume, setCurrentResumeId, setSelectedTemplate } = useResumeStore();
   const [editOpen, setEditOpen] = useState(false);
-  const [backupOpen, setBackupOpen] = useState(false);
-  const [linkedinOpen, setLinkedinOpen] = useState(false);
+const [linkedinOpen, setLinkedinOpen] = useState(false);
   const [draftWarningOpen, setDraftWarningOpen] = useState(false);
   const [isNavigatingToOnboarding, setIsNavigatingToOnboarding] = useState(false);
   const [isResyncing, setIsResyncing] = useState(false);
@@ -236,16 +234,13 @@ export default function ProfilePage() {
           </Button>
         </div>
 
-        {/* Actions — Edit, Import Profile, Backup */}
-        <div className="grid grid-cols-3 gap-3">
+        {/* Actions — Edit, Import Profile */}
+        <div className="grid grid-cols-2 gap-3">
           <Button variant="outline" className="flex-1 h-12 min-h-[48px] rounded-xl active:scale-95 touch-manipulation" onClick={() => setEditOpen(true)}>
             <Edit2 className="w-4 h-4 mr-2" /> Edit
           </Button>
           <Button variant="outline" className="flex-1 h-12 min-h-[48px] rounded-xl active:scale-95 touch-manipulation" onClick={() => { haptics.light(); setLinkedinOpen(true); }}>
             <FileDown className="w-4 h-4 mr-2" /> Import
-          </Button>
-          <Button variant="outline" className="flex-1 h-12 min-h-[48px] rounded-xl active:scale-95 touch-manipulation" onClick={() => { haptics.light(); setBackupOpen(true); }}>
-            <HardDrive className="w-4 h-4 mr-2" /> Backup
           </Button>
         </div>
 
@@ -373,14 +368,7 @@ export default function ProfilePage() {
         userEmail={user.email}
         onSave={updateProfile} />
 
-      <AccountBackupSheet
-        open={backupOpen}
-        onOpenChange={setBackupOpen}
-        userId={user.id}
-        userEmail={user.email}
-        fullName={profile?.fullName} />
-
-      <LinkedInImportSheet
+<LinkedInImportSheet
         open={linkedinOpen}
         onOpenChange={setLinkedinOpen}
         onImport={handleLinkedInImport} />

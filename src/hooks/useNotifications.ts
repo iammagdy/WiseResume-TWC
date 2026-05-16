@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { databases, DATABASE_ID, Query } from '@/lib/appwrite';
+import { COLLECTIONS } from '@/lib/appwrite-collections';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
 
@@ -20,7 +21,7 @@ export function useNotifications() {
     queryKey: ['notifications', user?.id],
     queryFn: async () => {
       if (!user) return [];
-      const response = await databases.listDocuments(DATABASE_ID, 'notifications', [
+      const response = await databases.listDocuments(DATABASE_ID, COLLECTIONS.notifications, [
         Query.equal('user_id', user.id),
         Query.orderDesc('$createdAt')
       ]);
@@ -36,7 +37,7 @@ export function useUnreadNotificationCount() {
     queryKey: ['notifications-unread-count', user?.id],
     queryFn: async () => {
       if (!user) return 0;
-      const response = await databases.listDocuments(DATABASE_ID, 'notifications', [
+      const response = await databases.listDocuments(DATABASE_ID, COLLECTIONS.notifications, [
         Query.equal('user_id', user.id),
         Query.equal('is_read', false)
       ]);
@@ -52,7 +53,7 @@ export function useNotificationMutations() {
 
   const markAsRead = useMutation({
     mutationFn: async (id: string) => {
-      await databases.updateDocument(DATABASE_ID, 'notifications', id, { is_read: true });
+      await databases.updateDocument(DATABASE_ID, COLLECTIONS.notifications, id, { is_read: true });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
@@ -63,12 +64,12 @@ export function useNotificationMutations() {
   const markAllAsRead = useMutation({
     mutationFn: async () => {
       if (!user) return;
-      const response = await databases.listDocuments(DATABASE_ID, 'notifications', [
+      const response = await databases.listDocuments(DATABASE_ID, COLLECTIONS.notifications, [
         Query.equal('user_id', user.id),
         Query.equal('is_read', false),
       ]);
       await Promise.all(response.documents.map(doc =>
-        databases.updateDocument(DATABASE_ID, 'notifications', doc.$id, { is_read: true })
+        databases.updateDocument(DATABASE_ID, COLLECTIONS.notifications, doc.$id, { is_read: true })
       ));
     },
     onSuccess: () => {
@@ -80,8 +81,8 @@ export function useNotificationMutations() {
   const clearAll = useMutation({
     mutationFn: async () => {
       if (!user) return;
-      const response = await databases.listDocuments(DATABASE_ID, 'notifications', [Query.equal('user_id', user.id)]);
-      await Promise.all(response.documents.map(doc => databases.deleteDocument(DATABASE_ID, 'notifications', doc.$id)));
+      const response = await databases.listDocuments(DATABASE_ID, COLLECTIONS.notifications, [Query.equal('user_id', user.id)]);
+      await Promise.all(response.documents.map(doc => databases.deleteDocument(DATABASE_ID, COLLECTIONS.notifications, doc.$id)));
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] });

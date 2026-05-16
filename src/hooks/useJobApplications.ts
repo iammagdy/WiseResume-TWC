@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { databases, DATABASE_ID, Query, ID } from '@/lib/appwrite';
+import { COLLECTIONS } from '@/lib/appwrite-collections';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
 
@@ -28,7 +29,7 @@ export function useJobApplications(statusFilter?: ApplicationStatus) {
         Query.limit(100)
       ];
       if (statusFilter) queries.push(Query.equal('status', statusFilter));
-      const response = await databases.listDocuments(DATABASE_ID, 'job_applications', queries);
+      const response = await databases.listDocuments(DATABASE_ID, COLLECTIONS.job_applications, queries);
       return response.documents;
     },
     enabled: !!user,
@@ -41,7 +42,7 @@ export function useJobApplication(id: string | null) {
     queryKey: ['job-application', id],
     queryFn: async () => {
       if (!user || !id) return null;
-      return await databases.getDocument(DATABASE_ID, 'job_applications', id);
+      return await databases.getDocument(DATABASE_ID, COLLECTIONS.job_applications, id);
     },
     enabled: !!user && !!id,
   });
@@ -54,7 +55,7 @@ export function useJobApplicationMutations() {
   const createApplication = useMutation({
     mutationFn: async (input: any) => {
       if (!user) throw new Error('Not authenticated');
-      return await databases.createDocument(DATABASE_ID, 'job_applications', ID.unique(), {
+      return await databases.createDocument(DATABASE_ID, COLLECTIONS.job_applications, ID.unique(), {
         user_id: user.id,
         ...input,
         status: input.status || 'applied'
@@ -68,7 +69,7 @@ export function useJobApplicationMutations() {
 
   const updateApplication = useMutation({
     mutationFn: async ({ id, updates }: { id: string, updates: any }) => {
-      return await databases.updateDocument(DATABASE_ID, 'job_applications', id, updates);
+      return await databases.updateDocument(DATABASE_ID, COLLECTIONS.job_applications, id, updates);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['job-applications'] });
@@ -78,7 +79,7 @@ export function useJobApplicationMutations() {
 
   const deleteApplication = useMutation({
     mutationFn: async (id: string) => {
-      await databases.deleteDocument(DATABASE_ID, 'job_applications', id);
+      await databases.deleteDocument(DATABASE_ID, COLLECTIONS.job_applications, id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['job-applications'] });

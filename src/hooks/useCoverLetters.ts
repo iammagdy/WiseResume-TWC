@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { databases, DATABASE_ID, Query, ID } from '@/lib/appwrite';
+import { COLLECTIONS } from '@/lib/appwrite-collections';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
 
@@ -50,7 +51,7 @@ export function useCoverLetters() {
     queryKey: ['cover-letters', user?.id],
     queryFn: async (): Promise<CoverLetterRecord[]> => {
       if (!user) return [];
-      const response = await databases.listDocuments(DATABASE_ID, 'cover_letters', [
+      const response = await databases.listDocuments(DATABASE_ID, COLLECTIONS.cover_letters, [
         Query.equal('user_id', user.id),
         Query.orderDesc('$createdAt'),
       ]);
@@ -67,7 +68,7 @@ export function useCoverLetter(id: string | null) {
     queryKey: ['cover-letters', id],
     queryFn: async (): Promise<CoverLetterRecord | null> => {
       if (!user || !id) return null;
-      const doc = await databases.getDocument(DATABASE_ID, 'cover_letters', id);
+      const doc = await databases.getDocument(DATABASE_ID, COLLECTIONS.cover_letters, id);
       return parseCoverLetter(doc as unknown as Record<string, unknown>);
     },
     enabled: !!user && !!id,
@@ -81,7 +82,7 @@ export function useCoverLetterMutations() {
   const saveCoverLetter = useMutation({
     mutationFn: async (input: CoverLetterInput): Promise<CoverLetterRecord> => {
       if (!user) throw new Error('Not authenticated');
-      const doc = await databases.createDocument(DATABASE_ID, 'cover_letters', ID.unique(), {
+      const doc = await databases.createDocument(DATABASE_ID, COLLECTIONS.cover_letters, ID.unique(), {
         user_id: user.id,
         ...input,
       });
@@ -95,7 +96,7 @@ export function useCoverLetterMutations() {
 
   const deleteCoverLetter = useMutation({
     mutationFn: async (id: string): Promise<void> => {
-      await databases.deleteDocument(DATABASE_ID, 'cover_letters', id);
+      await databases.deleteDocument(DATABASE_ID, COLLECTIONS.cover_letters, id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cover-letters'] });
