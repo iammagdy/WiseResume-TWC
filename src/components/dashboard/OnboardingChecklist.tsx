@@ -56,7 +56,7 @@ export function OnboardingChecklist({ steps, onDismiss }: OnboardingChecklistPro
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-foreground">
-              {allDone ? 'You're all set!' : 'Getting started'}
+              {allDone ? "You're all set!" : 'Getting started'}
             </p>
             <p className="text-[11px] text-muted-foreground">
               {completedCount}/{steps.length} steps complete
