@@ -1,6 +1,6 @@
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { GlassSurface } from '@/components/ui/GlassSurface';
-import { FileText, Globe, Home, BarChart3, Sparkles, MessageCircle, Sun, Moon, Search, Settings, LogOut, CreditCard, Lock, Zap, Tag, FileDown } from 'lucide-react';
+import { FileText, Globe, Home, BarChart3, Sparkles, MessageCircle, Sun, Moon, Search, Settings, LogOut, CreditCard, Lock, Zap, Tag, FileDown, Plus } from 'lucide-react';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { useResumeStore } from '@/store/resumeStore';
@@ -22,6 +22,7 @@ import { AICreditsIndicator } from '@/components/editor/ai/AICreditsIndicator';
 import { AIHealthBadge } from '@/components/ai/AIHealthBadge';
 
 const AgenticChatSheet = lazy(() => import('@/components/editor/AgenticChatSheet').then((m) => ({ default: m.AgenticChatSheet })));
+import { ImportJobSheet } from '@/components/jobs/ImportJobSheet';
 
 interface TabItem {
   path: string;
@@ -79,6 +80,7 @@ export function DesktopNav() {
   const { plan, isPro, trialPlan, trialExpiresAt } = usePlan();
   const [wiseAIOpen, setWiseAIOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [importJobOpen, setImportJobOpen] = useState(false);
   usePlanUpgradeCelebration();
 
   const isActive = (tab: TabItem) => {
@@ -217,6 +219,15 @@ export function DesktopNav() {
         </button>
 
         <button
+          onClick={() => { haptics.selection(); setImportJobOpen(true); }}
+          className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg bg-secondary text-secondary-foreground border border-border text-sm font-medium hover:bg-muted transition-colors active:scale-95"
+          aria-label="Import a job"
+        >
+          <Plus className="w-4 h-4" />
+          Import Job
+        </button>
+
+        <button
           onPointerEnter={preloadLazy(() => import('@/components/editor/AgenticChatSheet'))}
           onClick={() => {haptics.selection();setWiseAIOpen(true);}}
           className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg bg-primary/10 text-primary text-sm font-medium hover:bg-primary/15 transition-colors active:scale-95"
@@ -302,6 +313,7 @@ export function DesktopNav() {
           <AgenticChatSheet open={wiseAIOpen} onOpenChange={setWiseAIOpen} />
         </Suspense>
       }
+      <ImportJobSheet open={importJobOpen} onOpenChange={setImportJobOpen} />
     </nav>);
 
 }
