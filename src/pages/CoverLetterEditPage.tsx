@@ -170,7 +170,7 @@ export default function CoverLetterEditPage() {
             {isEditing ? 'Preview' : 'Edit'}
           </Button>
         </div>
-        <Breadcrumb items={['AI Tools', 'Cover Letters', 'Edit']} className="pl-10" />
+        <Breadcrumb items={['AI Tools', 'Cover Letters', 'Edit']} links={['/ai-studio', '/cover-letters']} className="pl-10" />
       </header>
 
       {/* Content */}

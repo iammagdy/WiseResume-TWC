@@ -1,4 +1,4 @@
-import { useState, useMemo, memo, useCallback, useEffect } from 'react';
+import { useState, useMemo, memo, useCallback, useEffect, Suspense } from 'react';
 import { getAppUrl } from '@/lib/portfolioUrl';
 import { motion, useMotionValue, useTransform, animate, PanInfo } from 'framer-motion';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -42,6 +42,7 @@ import { toast } from 'sonner';
 
 import { useResumeStore } from '@/store/resumeStore';
 import { ScoreRing } from './ScoreRing';
+import { MiniTemplateThumbnail } from './MiniTemplateThumbnail';
 import { ResumeHealthScore } from '@/hooks/useResumeScore';
 import { ATSScoreBreakdown } from './ATSScoreBreakdown';
 import { SetTargetJobSheet } from './SetTargetJobSheet';
@@ -339,6 +340,14 @@ export const ResumeListCard = memo(function ResumeListCard({
                   onCheckedChange={() => onToggleSelect?.(resume.$id)}
                   className="w-5 h-5"
                 />
+              </div>
+            )}
+            {/* Template thumbnail */}
+            {!selectionMode && (
+              <div className="shrink-0 w-10 h-[54px] rounded-lg overflow-hidden border border-border/50 shadow-sm">
+                <Suspense fallback={<div className="w-10 h-[54px] rounded-lg bg-muted animate-pulse" />}>
+                  <MiniTemplateThumbnail templateId={resume.template || 'modern'} />
+                </Suspense>
               </div>
             )}
             {/* Resume Health Score Ring */}

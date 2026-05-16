@@ -1,11 +1,10 @@
-import { useState, useEffect, useRef, Suspense } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { FileText, Plus, Sparkles, Download, Upload, ArrowRight, LayoutGrid, Lightbulb, FileDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { TemplateId, ResumeData } from '@/types/resume';
-import { templateComponents } from '@/components/editor/TemplateThumbnail';
-import { sampleResumeData } from '@/lib/templateData';
+import { TemplateId } from '@/types/resume';
+import { MiniTemplateThumbnail } from './MiniTemplateThumbnail';
 
 interface EmptyStateProps {
   onCreateNew: () => void;
@@ -45,46 +44,6 @@ const itemVariants = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.25, 0.1, 0.25, 1] as const } },
 };
 
-function MiniTemplateThumbnail({ templateId }: { templateId: TemplateId }) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(0.165);
-
-  useEffect(() => {
-    const update = () => {
-      if (containerRef.current) {
-        setScale(containerRef.current.offsetWidth / 612);
-      }
-    };
-    update();
-    const ro = new ResizeObserver(update);
-    if (containerRef.current) ro.observe(containerRef.current);
-    return () => ro.disconnect();
-  }, []);
-
-  const TemplateComponent = templateComponents[templateId];
-  if (!TemplateComponent) return null;
-
-  return (
-    <div
-      ref={containerRef}
-      className="w-full h-full overflow-hidden bg-background rounded-xl"
-    >
-      <Suspense fallback={<div className="w-full h-full bg-gray-100 animate-pulse rounded-xl" />}>
-        <div
-          style={{
-            transform: `scale(${scale})`,
-            transformOrigin: 'top left',
-            width: '612px',
-            height: '792px',
-            pointerEvents: 'none',
-          }}
-        >
-          <TemplateComponent resume={sampleResumeData as ResumeData} />
-        </div>
-      </Suspense>
-    </div>
-  );
-}
 
 export function EmptyState({ onCreateNew, onBrowseTemplates, onStartOnboarding, onImportProfile }: EmptyStateProps) {
   const shouldReduceMotion = useReducedMotion();

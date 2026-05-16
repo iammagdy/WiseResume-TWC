@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useRef, useEffect } from 'react';
 import { BackButton } from '@/components/ui/BackButton';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -15,6 +15,7 @@ import { useResumeScore } from '@/hooks/useResumeScore';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
+import { showAchievementToast } from '@/components/ui/AchievementToast';
 
 interface Achievement {
   id: string;
@@ -69,6 +70,21 @@ export default function AchievementsPage() {
   const earned = ACHIEVEMENTS.filter(a => a.check(ctx));
   const locked = ACHIEVEMENTS.filter(a => !a.check(ctx));
   const totalXP = earned.reduce((sum, a) => sum + a.xp, 0);
+
+  // Detect newly unlocked achievements and show celebration toasts
+  const prevEarnedIdsRef = useRef<string[]>([]);
+  useEffect(() => {
+    const earnedIds = earned.map(a => a.id);
+    const newlyEarned = earnedIds.filter(id => !prevEarnedIdsRef.current.includes(id));
+    // Only celebrate if we had a previous state (not on initial mount)
+    if (prevEarnedIdsRef.current.length > 0 && newlyEarned.length > 0) {
+      newlyEarned.forEach(id => {
+        const def = ACHIEVEMENTS.find(a => a.id === id);
+        if (def) showAchievementToast(def as Parameters<typeof showAchievementToast>[0]);
+      });
+    }
+    prevEarnedIdsRef.current = earnedIds;
+  }, [earned]);
   const maxXP = ACHIEVEMENTS.reduce((sum, a) => sum + a.xp, 0);
   const level = Math.floor(totalXP / 50) + 1;
   const levelProgress = ((totalXP % 50) / 50) * 100;

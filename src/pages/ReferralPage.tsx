@@ -2,7 +2,7 @@ import { useEffect, useRef, useMemo } from 'react';
 import { BackButton } from '@/components/ui/BackButton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Copy, Share2, Users, Gift, Star } from 'lucide-react';
+import { Copy, Share2, Users, Gift, Star, Linkedin, MessageCircle, ClipboardCopy } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
@@ -66,6 +66,20 @@ export default function ReferralPage() {
     }
   };
 
+  const handleCopyMessage = async () => {
+    haptics.light();
+    const message = `Hey! I've been using WiseResume to build AI-powered resumes — it's amazing. Sign up with my invite link and we both get rewards: ${inviteLink}`;
+    try {
+      await navigator.clipboard.writeText(message);
+      toast.success('Message copied!');
+    } catch {
+      toast.error('Could not copy message');
+    }
+  };
+
+  const linkedInShareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(inviteLink)}`;
+  const whatsAppShareUrl = `https://wa.me/?text=${encodeURIComponent(`Check out WiseResume — I use it to build AI-powered resumes: ${inviteLink}`)}`;
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       <header className="pt-safe sticky top-0 z-10 pb-2 px-4 bg-background/95 backdrop-blur-sm border-b border-border">
@@ -90,6 +104,35 @@ export default function ReferralPage() {
                 <Share2 className="w-4 h-4" />
                 Share
               </Button>
+            </div>
+            <div className="flex gap-2 flex-wrap justify-center">
+              <a
+                href={linkedInShareUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => haptics.light()}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border border-border bg-card hover:bg-muted transition-colors"
+              >
+                <Linkedin className="w-3.5 h-3.5 text-[#0077B5]" />
+                LinkedIn
+              </a>
+              <a
+                href={whatsAppShareUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => haptics.light()}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border border-border bg-card hover:bg-muted transition-colors"
+              >
+                <MessageCircle className="w-3.5 h-3.5 text-[#25D366]" />
+                WhatsApp
+              </a>
+              <button
+                onClick={handleCopyMessage}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border border-border bg-card hover:bg-muted transition-colors"
+              >
+                <ClipboardCopy className="w-3.5 h-3.5 text-muted-foreground" />
+                Copy Message
+              </button>
             </div>
           </CardContent>
         </Card>

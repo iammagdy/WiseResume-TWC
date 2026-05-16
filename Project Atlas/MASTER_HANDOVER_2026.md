@@ -2,6 +2,41 @@
 
 ---
 
+## Session Summary — 2026-05-16 (World-Class Enhancement Pass — All 5 Phases)
+
+### Overview
+Full-codebase enhancement pass completing 5 phases of improvements following a comprehensive audit. All changes are additive with safe defaults; zero breaking changes introduced.
+
+### New Files Created
+- `src/components/dashboard/MiniTemplateThumbnail.tsx` — extracted from EmptyState; ResizeObserver-based template preview
+- `src/components/dashboard/OnboardingChecklist.tsx` — collapsible 5-step getting-started checklist card
+- `src/components/layout/ShortcutHelpSheet.tsx` — keyboard shortcut discovery sheet (4 categories, kbd-styled chips)
+- `src/components/ui/AchievementToast.tsx` — golden-themed custom achievement unlock toast
+
+### Key Files Modified (22 total)
+- `ExportProgressBar.tsx`, `nativePdfGenerator.ts` — export reliability: stage labels, retry logic, error recovery UI
+- `EditorHeader.tsx` — offline pending-count chip and syncing indicator
+- `useNotifications.ts`, `NotificationsPage.tsx` — markAllAsRead mutation, field name bug fixes
+- `ResumeListCard.tsx` — template thumbnail preview per card
+- `sonner.tsx` — ARIA live region for screen reader toast announcements
+- `Breadcrumb.tsx` + 3 page files — clickable breadcrumbs with aria attributes
+- `AppShell.tsx` — global ShortcutHelpSheet with ? key listener
+- `BottomTabBar.tsx` — notification badge, changelog dot, shortcuts menu item
+- `AchievementsPage.tsx` — achievement unlock celebration toasts
+- `DashboardPage.tsx` — OnboardingChecklist integration below DashboardStats
+- `TemplatesPage.tsx` — "Preview with my data" toggle in preview sheet
+- `ReferralPage.tsx` — LinkedIn, WhatsApp, Copy Message share buttons
+- `usePortfolioSEO.ts` — og:image / twitter:image meta tags
+- `server/index.ts` — GET /og-image/:username Puppeteer endpoint
+- `AppInterior.tsx` — global MotionConfig for reduced-motion
+- `deploy-frontend.yml` — 3MB bundle size guard in CI
+
+### Verification
+- `npx tsc --noEmit`: zero errors (clean)
+- Branch: `claude/read-project-docs-JEUkC`
+
+---
+
 ## Session Summary — 2026-05-15 (CI Fix: FTP chmod + Concurrency Race; UI Enhancement: Editor / Dashboard / Export)
 
 ### 1. Deploy-Frontend Workflow — Root Cause & Fix

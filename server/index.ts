@@ -458,6 +458,70 @@ app.post('/api/fetch-url', async (req: Request, res: Response) => {
   }
 });
 
+// ── OG Image generation ───────────────────────────────────────────────────────
+app.get('/og-image/:username', async (req: Request, res: Response) => {
+  const { username } = req.params;
+  // Fetch profile data from Appwrite REST API
+  let name = username;
+  let jobTitle = '';
+  try {
+    const apiUrl = process.env.APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1';
+    const projectId = process.env.APPWRITE_PROJECT_ID || '';
+    const dbId = process.env.APPWRITE_DATABASE_ID || '';
+    if (projectId && dbId) {
+      const resp = await fetch(
+        `${apiUrl}/databases/${dbId}/collections/profiles/documents?queries[]=equal("username","${encodeURIComponent(username)}")&queries[]=limit(1)`,
+        { headers: { 'X-Appwrite-Project': projectId } }
+      );
+      if (resp.ok) {
+        const data = await resp.json() as { documents?: { fullName?: string; jobTitle?: string }[] };
+        const doc = data.documents?.[0];
+        if (doc?.fullName) name = doc.fullName;
+        if (doc?.jobTitle) jobTitle = doc.jobTitle;
+      }
+    }
+  } catch { /* fallback to username */ }
+
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{width:1200px;height:630px;background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);display:flex;align-items:center;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;overflow:hidden}
+.card{display:flex;flex-direction:column;align-items:center;gap:24px;text-align:center;padding:60px}
+.badge{background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.4);border-radius:999px;padding:6px 20px;font-size:14px;color:#a5b4fc;letter-spacing:0.05em;text-transform:uppercase}
+h1{font-size:64px;font-weight:700;color:#f1f5f9;line-height:1.1;max-width:800px}
+.sub{font-size:28px;color:#94a3b8}
+.brand{position:absolute;bottom:40px;right:60px;display:flex;align-items:center;gap:10px;color:#475569;font-size:18px;font-weight:600}
+.dot{width:10px;height:10px;border-radius:50%;background:#6366f1}
+</style></head>
+<body>
+<div class="card">
+  <div class="badge">Portfolio</div>
+  <h1>${name.replace(/[<>&"]/g, c => ({ '<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;' }[c] ?? c))}</h1>
+  ${jobTitle ? `<div class="sub">${jobTitle.replace(/[<>&"]/g, c => ({ '<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;' }[c] ?? c))}</div>` : ''}
+</div>
+<div class="brand"><div class="dot"></div>WiseResume</div>
+</body></html>`;
+
+  let browser;
+  try {
+    browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
+    });
+    const page = await browser.newPage();
+    await page.setViewport({ width: 1200, height: 630 });
+    await page.setContent(html, { waitUntil: 'domcontentloaded' });
+    const screenshot = await page.screenshot({ type: 'png' });
+    res.set('Content-Type', 'image/png');
+    res.set('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400');
+    res.send(screenshot);
+  } catch (err) {
+    res.status(500).json({ error: 'og_image_failed' });
+  } finally {
+    if (browser) await browser.close();
+  }
+});
+
 // ── Catch-all for removed routes ──────────────────────────────────────────────
 app.use('/api', (req: Request, res: Response) => {
   res.status(503).json({

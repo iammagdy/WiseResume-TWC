@@ -11,6 +11,7 @@ import { BottomTabBar } from './BottomTabBar';
 import { DesktopNav } from './DesktopNav';
 import { ScrollProgressBar } from './ScrollProgressBar';
 import { KeyboardProvider } from '@/context/KeyboardContext';
+import { ShortcutHelpSheet } from './ShortcutHelpSheet';
 
 const GuestSaveBanner = lazy(() => import('./GuestSaveBanner').then((m) => ({ default: m.GuestSaveBanner })));
 const OfflineBanner = lazy(() => import('./OfflineBanner').then((m) => ({ default: m.OfflineBanner })));
@@ -51,6 +52,7 @@ function AppShellInner() {
   const enableSwipeBack = showBottomNav && !isEditorRoute && !isRootRoute;
   const scrollRef = useRef<HTMLDivElement>(null);
   const [wiseAIOpen, setWiseAIOpen] = useState(false);
+  const [shortcutHelpOpen, setShortcutHelpOpen] = useState(false);
   const { isAnySheetOpen } = useBottomSheetOpen();
   const mobileShellLayout = getMobileShellLayout(location.pathname, isAnySheetOpen);
 
@@ -60,6 +62,22 @@ function AppShellInner() {
   useEffect(() => {
     scrollRef.current?.scrollTo(0, 0);
   }, [location.pathname]);
+
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key !== '?') return;
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
+      setShortcutHelpOpen(v => !v);
+    };
+    const handleCustom = () => setShortcutHelpOpen(true);
+    window.addEventListener('keydown', handleKey);
+    window.addEventListener('open-shortcut-help', handleCustom);
+    return () => {
+      window.removeEventListener('keydown', handleKey);
+      window.removeEventListener('open-shortcut-help', handleCustom);
+    };
+  }, []);
 
   return (
     <div className="app-theme h-[100dvh] overflow-hidden flex flex-col bg-background relative">
@@ -166,6 +184,8 @@ function AppShellInner() {
           <AgenticChatSheet open={wiseAIOpen} onOpenChange={setWiseAIOpen} />
         </Suspense>
       )}
+
+      <ShortcutHelpSheet open={shortcutHelpOpen} onOpenChange={setShortcutHelpOpen} />
     </div>
   );
 }

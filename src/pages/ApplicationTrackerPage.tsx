@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Check, Circle, Briefcase, FileText, Bell, Calendar, Trash2, Mail, Mic, AlertTriangle } from 'lucide-react';
 import { BackButton } from '@/components/ui/BackButton';
+import { Breadcrumb } from '@/components/layout/Breadcrumb';
 import { motion } from 'framer-motion';
 import { safeFormatDate } from '@/lib/dateUtils';
 import { Button } from '@/components/ui/button';
@@ -93,7 +94,10 @@ export default function ApplicationTrackerPage() {
       {/* Header */}
       <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3 flex items-center gap-3">
         <BackButton />
-        <h1 className="text-lg font-bold truncate flex-1">Application Details</h1>
+        <div className="flex flex-col min-w-0 flex-1">
+          <h1 className="text-lg font-bold truncate">Application Details</h1>
+          <Breadcrumb items={['Activity', 'Application Details']} links={['/applications']} />
+        </div>
       </div>
 
       <div className="px-4 space-y-4 mt-4">

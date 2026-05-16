@@ -11,6 +11,54 @@
 
 ---
 
+## 2026-05-16 - World-Class Enhancement Pass (All Phases)
+
+### Summary
+Full-codebase enhancement pass implementing 5 phases of improvements: trust/reliability, UX polish, feature completeness, product completeness, and technical health. Zero breaking changes. All new props are optional with safe defaults.
+
+### What changed
+
+**Phase 1 — Trust & Reliability:**
+- `ExportProgressBar`: stage labels + error recovery UI with retry button
+- `nativePdfGenerator`: one-retry on 5xx failures (3 s delay, capped at 1 attempt)
+- `EditorHeader`: offline pending-count chip and syncing indicator
+- `useNotifications`: added `markAllAsRead` mutation, fixed unread-count query invalidation
+- `NotificationsPage`: fixed pre-existing `$id`/`$createdAt` field name bugs
+
+**Phase 2 — UX Polish:**
+- `MiniTemplateThumbnail`: extracted to own file from EmptyState
+- `ResumeListCard`: 40×54px template thumbnail previews before score ring
+- `sonner.tsx`: ARIA live region wrapper (`role="status" aria-live="polite"`)
+- `Breadcrumb`: added optional `links` prop, `aria-label`, `aria-current="page"`
+- Added breadcrumbs to CoverLetterEditPage, ApplicationTrackerPage, ResumeDetailPage
+- `ShortcutHelpSheet`: new sheet listing all keyboard shortcuts in 4 categories
+- `AppShell`: mounts ShortcutHelpSheet globally, wires `?` key + CustomEvent listener
+- `BottomTabBar`: unread notification badge on More button + bell, What's New dot, Shortcuts menu item
+- `AchievementToast`: golden-themed custom toast component
+- `AchievementsPage`: fires celebration toast when achievements are newly earned
+
+**Phase 3 — Feature Completeness:**
+- `OnboardingChecklist`: new collapsible dashboard card with 5 getting-started steps
+- `DashboardPage`: integrates OnboardingChecklist below DashboardStats
+
+**Phase 4 — Product Completeness:**
+- `TemplatesPage`: "Preview with my data / Sample data" toggle in preview sheet
+- `ReferralPage`: LinkedIn, WhatsApp, and Copy Message social sharing buttons
+- `usePortfolioSEO`: added `og:image` and `twitter:image` tags
+- `server/index.ts`: new `GET /og-image/:username` Puppeteer screenshot endpoint (1200×630)
+
+**Phase 5 — Technical Health:**
+- `AppInterior`: wrapped with global `MotionConfig` for reduced-motion support
+- `deploy-frontend.yml`: 3 MB JS bundle size guard step added to CI
+
+### Verification
+- `npx tsc --noEmit`: zero errors
+
+### Files changed
+22 modified, 4 created (`MiniTemplateThumbnail.tsx`, `OnboardingChecklist.tsx`, `ShortcutHelpSheet.tsx`, `AchievementToast.tsx`)
+
+---
+
 ## 2026-05-15 - Export Pagination, iPhone Save, and Watermark Replacement
 
 ### Summary
