@@ -99,6 +99,7 @@ async function smokeFunction(id, body) {
 async function run() {
     const hubs = [
         { id: 'resume-section-ai',         name: 'Resume Section AI Hub',         file: 'resume-section-ai.tar.gz' },
+        { id: 'job-import',                name: 'Job Import Hub',                file: 'job-import.tar.gz' },
         { id: 'ai-gateway',                name: 'AI Gateway Hub',                file: 'ai-gateway.tar.gz' },
         { id: 'coupons',                   name: 'Coupons Hub',                   file: 'coupons.tar.gz' },
         { id: 'wisehire-gateway',          name: 'WiseHire Gateway Hub',          file: 'wisehire-gateway.tar.gz' },
@@ -128,6 +129,15 @@ async function run() {
         ['GROQ_KEY_1', process.env.GROQ_KEY_1],
     ]) {
         await ensureVariable('resume-section-ai', key, value);
+    }
+
+    console.log('\nEnsuring job-import provider keys...');
+    for (const [key, value] of [
+        ['GROQ_KEY_1', process.env.GROQ_KEY_1],
+        ['OPENROUTER_KEY_1', process.env.OPENROUTER_KEY_1],
+        ['DEEPSEEK_KEY', process.env.DEEPSEEK_KEY],
+    ]) {
+        await ensureVariable('job-import', key, value);
     }
 
     console.log('\nEnsuring shared admin hub variables...');
