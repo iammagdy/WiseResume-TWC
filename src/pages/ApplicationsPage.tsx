@@ -639,7 +639,7 @@ export default function ApplicationsPage() {
       {activeTab === 'jobs' &&
       <button
         onClick={() => {haptics.medium();setShowSaveJob(true);}}
-        className="fixed bottom-[7.5rem] sm:bottom-20 right-4 pr-safe z-50 w-14 h-14 rounded-full gradient-primary shadow-lg flex items-center justify-center active:scale-95 transition-transform"
+        className="fixed bottom-[calc(7.5rem+env(safe-area-inset-bottom))] sm:bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 pr-safe z-50 w-14 h-14 rounded-full gradient-primary shadow-lg flex items-center justify-center active:scale-95 transition-transform"
         aria-label="Save new job">
         
           <Plus className="w-6 h-6 text-primary-foreground" />

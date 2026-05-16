@@ -2,8 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   BrainCircuit, Save, RefreshCw, AlertTriangle, FileEdit,
   Target, MessageSquare, FileText, Globe, ChevronDown, ChevronUp,
-  Wifi,
+  Wifi, Sparkles, Info,
 } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -263,6 +264,48 @@ const PROVIDER_COLOR: Record<ProviderId, string> = {
   openrouter: 'text-blue-400',
 };
 
+// ─── Feature fitness metadata ─────────────────────────────────────────────────
+
+type FeaturePriority = 'latency' | 'quality' | 'reasoning' | 'context';
+
+interface FeatureMeta {
+  priority: FeaturePriority;
+  rationale: string;
+  recommendedProvider: ProviderId;
+  recommendedModel: string;
+}
+
+const PRIORITY_BADGE: Record<FeaturePriority, { label: string; color: string }> = {
+  latency:   { label: 'Low Latency',  color: 'bg-orange-500/15 text-orange-400' },
+  quality:   { label: 'High Quality', color: 'bg-green-500/15 text-green-400' },
+  reasoning: { label: 'Reasoning',    color: 'bg-purple-500/15 text-purple-400' },
+  context:   { label: 'Long Context', color: 'bg-blue-500/15 text-blue-400' },
+};
+
+const FEATURE_METADATA: Record<string, FeatureMeta> = {
+  'agentic-chat':               { priority: 'latency',   rationale: 'Real-time chat — Groq has the lowest inference latency',                    recommendedProvider: 'groq',       recommendedModel: 'meta-llama/llama-4-maverick-17b-128e-instruct' },
+  'wise-ai-chat':               { priority: 'latency',   rationale: 'Interactive chat — Groq keeps responses fast',                              recommendedProvider: 'groq',       recommendedModel: 'meta-llama/llama-4-maverick-17b-128e-instruct' },
+  'editor-ai':                  { priority: 'latency',   rationale: 'Inline edits must feel instant — Groq with a fast model',                   recommendedProvider: 'groq',       recommendedModel: 'llama-3.1-8b-instant' },
+  'detect-and-humanize':        { priority: 'latency',   rationale: 'Fast rewrite loop — Groq 8B is enough for short-text humanization',         recommendedProvider: 'groq',       recommendedModel: 'llama-3.1-8b-instant' },
+  'suggest-template':           { priority: 'latency',   rationale: 'Quick classifier — small model keeps it snappy',                            recommendedProvider: 'groq',       recommendedModel: 'llama-3.1-8b-instant' },
+  'smart-fit-rewrite':          { priority: 'latency',   rationale: 'Per-bullet rewrite happens in a loop — low latency prevents UI stall',      recommendedProvider: 'groq',       recommendedModel: 'llama-3.3-70b-versatile' },
+  'career-assessment':          { priority: 'latency',   rationale: 'Conversational assessment — Groq speed keeps the flow natural',             recommendedProvider: 'groq',       recommendedModel: 'llama-3.3-70b-versatile' },
+  'generate-resignation-letter':{ priority: 'latency',   rationale: 'Short focused doc — fast model is sufficient',                              recommendedProvider: 'groq',       recommendedModel: 'llama-3.3-70b-versatile' },
+  'validate-tailor':            { priority: 'latency',   rationale: 'Validation pass runs after tailoring — keep it fast',                       recommendedProvider: 'groq',       recommendedModel: 'llama-3.3-70b-versatile' },
+  'resume-section-ai':          { priority: 'latency',   rationale: 'Section-level rewrites triggered frequently in the editor',                 recommendedProvider: 'groq',       recommendedModel: 'llama-3.3-70b-versatile' },
+  'analyze-resume':             { priority: 'reasoning', rationale: 'Deep analysis with structured JSON output — DeepSeek V4 excels here',       recommendedProvider: 'deepseek',   recommendedModel: 'deepseek-v4-flash' },
+  'generate-fix-suggestions':   { priority: 'reasoning', rationale: 'Requires logical gap identification — DeepSeek reasoning model',            recommendedProvider: 'deepseek',   recommendedModel: 'deepseek-v4-flash' },
+  'recruiter-simulation':       { priority: 'reasoning', rationale: 'Nuanced persona simulation benefits from a reasoning-capable model',        recommendedProvider: 'deepseek',   recommendedModel: 'deepseek-v4-flash' },
+  'tailor-resume':              { priority: 'quality',   rationale: 'High-stakes doc rewrite — NVIDIA Llama 4 Maverick for best output quality', recommendedProvider: 'nvidia',     recommendedModel: 'meta/llama-4-maverick-17b-128e-instruct' },
+  'generate-cover-letter':      { priority: 'quality',   rationale: 'Professional creative writing — quality over speed',                        recommendedProvider: 'nvidia',     recommendedModel: 'meta/llama-4-maverick-17b-128e-instruct' },
+  'generate-portfolio-bio':     { priority: 'quality',   rationale: 'Public-facing copy needs the highest quality output',                       recommendedProvider: 'nvidia',     recommendedModel: 'meta/llama-4-maverick-17b-128e-instruct' },
+  'optimize-for-linkedin':      { priority: 'quality',   rationale: 'Tone-sensitive rewrite for professional audience',                          recommendedProvider: 'nvidia',     recommendedModel: 'meta/llama-4-maverick-17b-128e-instruct' },
+  'parse-resume':               { priority: 'context',   rationale: 'Full resume text can be long — needs a large context window',               recommendedProvider: 'openrouter', recommendedModel: 'meta-llama/llama-4-scout:free' },
+  'parse-job':                  { priority: 'context',   rationale: 'Job postings vary in length — large context handles edge cases',            recommendedProvider: 'openrouter', recommendedModel: 'meta-llama/llama-4-scout:free' },
+  'generate-question-bank':     { priority: 'context',   rationale: 'Generates many Q&A pairs — large context + free tier is optimal',          recommendedProvider: 'openrouter', recommendedModel: 'meta-llama/llama-4-maverick:free' },
+  'company-briefing':           { priority: 'context',   rationale: 'Research synthesis requires large context to process source material',      recommendedProvider: 'openrouter', recommendedModel: 'meta-llama/llama-4-maverick:free' },
+};
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 interface ProviderPing {
@@ -405,6 +448,39 @@ export const AIRoutingSwitcher = () => {
     }
   };
 
+  const [applyingSmartDefaults, setApplyingSmartDefaults] = useState(false);
+
+  const applySmartDefaults = async () => {
+    setApplyingSmartDefaults(true);
+    try {
+      let updated = 0;
+      await Promise.all(
+        Object.entries(FEATURE_METADATA).map(async ([featureId, meta]) => {
+          const existing = routes[featureId];
+          if (existing?.$id) {
+            await appwriteFunctions.invoke('admin-devkit-data', {
+              headers: devKitAuthHeaders(),
+              body: { action: 'update-routing-config', docId: existing.$id, provider: meta.recommendedProvider, model: meta.recommendedModel },
+            });
+          } else {
+            await appwriteFunctions.invoke('admin-devkit-data', {
+              headers: devKitAuthHeaders(),
+              body: { action: 'create-routing-config', featureId, provider: meta.recommendedProvider, model: meta.recommendedModel },
+            });
+          }
+          updated++;
+        })
+      );
+      toast.success(`Smart defaults applied — ${updated} features updated`);
+      void fetchRoutes();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      toast.error('Failed to apply smart defaults: ' + msg);
+    } finally {
+      setApplyingSmartDefaults(false);
+    }
+  };
+
   const toggleCategory = (cat: FeatureCategory) => {
     setCollapsed(prev => ({ ...prev, [cat]: !prev[cat] }));
   };
@@ -470,6 +546,24 @@ export const AIRoutingSwitcher = () => {
           >
             <RefreshCw size={14} className="mr-1.5" /> Refresh
           </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                onClick={applySmartDefaults}
+                disabled={applyingSmartDefaults || saving}
+                variant="outline"
+                className="rounded-2xl h-11 px-5 font-bold border-amber-500/40 text-amber-400 hover:bg-amber-500/10 hover:text-amber-300"
+              >
+                {applyingSmartDefaults
+                  ? <RefreshCw className="animate-spin mr-2" size={16} />
+                  : <Sparkles className="mr-2" size={16} />}
+                Smart Defaults
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-xs text-xs">
+              Applies the recommended provider + model for every feature based on its fit: latency-critical features → Groq, reasoning → DeepSeek, quality → NVIDIA, long context → OpenRouter.
+            </TooltipContent>
+          </Tooltip>
           <Button
             onClick={saveAll}
             disabled={saving}
@@ -553,6 +647,27 @@ export const AIRoutingSwitcher = () => {
                                 pool fallback
                               </span>
                             )}
+                            {FEATURE_METADATA[feature.id] && (() => {
+                              const meta = FEATURE_METADATA[feature.id];
+                              const badge = PRIORITY_BADGE[meta.priority];
+                              return (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider cursor-help ${badge.color}`}>
+                                      {badge.label}
+                                      <Info size={8} />
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top" className="max-w-[220px] text-xs">
+                                    <p className="font-semibold mb-0.5">Why this routing?</p>
+                                    <p>{meta.rationale}</p>
+                                    <p className="mt-1 text-muted-foreground">
+                                      Recommended: <span className="text-white font-mono">{meta.recommendedProvider}</span> / <span className="text-white font-mono truncate">{meta.recommendedModel}</span>
+                                    </p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              );
+                            })()}
                           </div>
                           <p className="text-[10px] font-mono text-purple-400/70">{feature.id}</p>
                           <p className="text-[11px] text-muted-foreground/70 leading-snug">{feature.description}</p>

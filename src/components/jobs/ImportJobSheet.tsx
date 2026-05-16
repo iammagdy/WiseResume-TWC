@@ -46,22 +46,24 @@ export function ImportJobSheet({ open, onOpenChange }: ImportJobSheetProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const importJob = useImportJob();
 
-  // Clipboard detection on open
+  // No auto clipboard read — iOS WebKit requires a direct user gesture.
+  // The "Paste from clipboard" button below calls readText() in its onClick.
   useEffect(() => {
-    if (!open) {
-      setClipboardDetected(false);
-      return;
-    }
-    if (!clipboardEnabled || !navigator.clipboard) return;
+    if (!open) setClipboardDetected(false);
+  }, [open]);
+
+  const handlePasteFromClipboard = () => {
+    if (!navigator.clipboard) return;
     navigator.clipboard.readText()
       .then(text => {
-        if (isJobUrl(text.trim())) {
-          setUrl(text.trim());
-          setClipboardDetected(true);
+        const trimmed = text.trim();
+        if (trimmed) {
+          setUrl(trimmed);
+          setClipboardDetected(isJobUrl(trimmed));
         }
       })
       .catch(() => { /* permission denied — silent */ });
-  }, [open, clipboardEnabled]);
+  };
 
   // Reset on close
   useEffect(() => {
@@ -138,16 +140,29 @@ export function ImportJobSheet({ open, onOpenChange }: ImportJobSheetProps) {
           {/* URL input */}
           {stage === 'idle' && (
             <div className="space-y-2">
-              <input
-                ref={inputRef}
-                type="url"
-                value={url}
-                onChange={e => { setUrl(e.target.value); setClipboardDetected(false); }}
-                onKeyDown={handleKeyDown}
-                placeholder="Paste job link here..."
-                className="w-full px-4 py-3 rounded-xl border border-border bg-background text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-                aria-label="Job URL"
-              />
+              <div className="relative">
+                <input
+                  ref={inputRef}
+                  type="url"
+                  value={url}
+                  onChange={e => { setUrl(e.target.value); setClipboardDetected(false); }}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Paste job link here..."
+                  className="w-full px-4 py-3 pr-28 rounded-xl border border-border bg-background text-[16px] placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  aria-label="Job URL"
+                />
+                {navigator.clipboard && (
+                  <button
+                    type="button"
+                    onClick={handlePasteFromClipboard}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+                    aria-label="Paste from clipboard"
+                  >
+                    <Clipboard className="w-3 h-3" />
+                    Paste
+                  </button>
+                )}
+              </div>
               <Button
                 onClick={handleAnalyze}
                 disabled={!url.trim()}
