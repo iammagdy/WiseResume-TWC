@@ -2,6 +2,81 @@
 
 ---
 
+## Session Summary — 2026-05-16 (WiseDrop Job Import Feature + CI Fixes — Both Workflows Green)
+
+### Overview
+Implemented the full WiseDrop "Import Job" feature (global FAB + sheet, backend Appwrite Function, enhanced JobDetailPage). Fixed two broken CI workflows that had been failing since PR #52 was merged. Both `deploy-frontend.yml` and `deploy-appwrite-hubs.yml` are now green.
+
+Branch: `main` | Commits: `2127b85`, `cae3122`, `ce486e9`, `51b8429`, `81f11b9`, `b5aa128`, `ad9b45e`
+
+---
+
+### Part 1 — WiseDrop Feature Implementation
+
+#### New files
+| File | Purpose |
+|------|---------|
+| `appwrite-hubs/job-import/src/main.js` | Appwrite Function: fetches URL HTML, extracts OpenGraph + JSON-LD + body text, calls LLM provider pool (Groq → OpenRouter → DeepSeek), returns structured job object |
+| `appwrite-hubs/job-import/package.json` | Deps: `axios` only |
+| `src/hooks/useImportJob.ts` | `useMutation` hook: invokes `job-import` function, saves result to `jobs` collection via `useJobMutations().createJob` |
+| `src/components/jobs/ImportJobSheet.tsx` | 5-state sheet (idle → clipboard-detected → loading → success → error). Clipboard detection on open (opt-in, `wr-clipboard-job-detect` localStorage key). `isJobUrl()` matches linkedin.com/jobs, indeed.com, wuzzuf.net, bayt.com, etc. Success auto-navigates to `/job/{id}` after 1.2s. |
+| `src/components/jobs/ImportJobFAB.tsx` | Mobile-only FAB (`fixed left-4 z-50 lg:hidden`), shares `askFabOffsetClass` with Wise AI FAB |
+
+#### Modified files
+| File | Change |
+|------|--------|
+| `src/components/layout/AppShell.tsx` | Added `<ImportJobFAB offsetClass={mobileShellLayout.askFabOffsetClass} />` after Wise AI FAB, same guard conditions |
+| `src/components/layout/DesktopNav.tsx` | Added "Import Job" button (left of Wise AI button) + `ImportJobSheet` mount + `importJobOpen` state |
+| `src/pages/JobDetailPage.tsx` | Added `computeMatch()` heuristic (keyword overlap between `job.requirements` and resume skills); AI Match Score badge (green ≥70%, amber ≥45%, red <45%); missing-skills chips; 3-button quick-action row (Tailor Resume, Cover Letter, Track Application) |
+| `scripts/deploy_hubs.cjs` | Added `job-import` to hubs array; added env var block for `GROQ_KEY_1`, `OPENROUTER_KEY_1`, `DEEPSEEK_KEY` on `job-import` |
+| `.github/workflows/deploy-appwrite-hubs.yml` | Added `build_hub job-import job-import.tar.gz`; added push trigger with path filter on `appwrite-hubs/**`, `scripts/deploy_hubs.cjs`, `scripts/setup_observability_schema.cjs` |
+
+#### SSRF protection in `job-import/src/main.js`
+Blocks: `127.x`, `10.x`, `192.168.x`, `172.16-31.x`, `169.254.x`, `::1`, `fd*`, `localhost`. Validates hostname before any HTTP fetch. Returns 400 on blocked URL, 422 on fetch/parse failure, 500 on LLM failure.
+
+---
+
+### Part 2 — CI Workflow Fixes
+
+Three separate root causes, all introduced by the PR #52 merge:
+
+#### Fix 1 — Frontend build: unescaped apostrophe in `OnboardingChecklist.tsx`
+**Root cause:** `'You're all set!'` — single-quoted JSX string containing an apostrophe. Vite/esbuild failed with `Expected ":" but found "re"` at parse time.  
+**Fix:** `src/components/dashboard/OnboardingChecklist.tsx:59` — changed to `"You're all set!"` (double quotes). Commit `b5aa128`.
+
+#### Fix 2 — Frontend CI: bundle size check incorrectly summed all JS chunks
+**Root cause:** `deploy-frontend.yml` "Check bundle size" step added by PR #52 ran `find dist/assets -name "*.js" | xargs wc -c`. This sums ALL JS files including lazy-loaded chunks (PDF worker 1.3MB, OCR 1MB, doc-export 1.5MB, etc.) — total ~10MB vs a 3MB limit. The check was never valid; it had been failing since PR #52 merged.  
+**Fix:** Changed the enforced check to only measure the initial entry chunk (`index-*.js`, ~88KB). Total bundle size is now reported as informational only. Commit `ad9b45e`.
+
+#### Fix 3 — AI Hubs CI: tarball validation fails due to filesystem ordering in CI
+**Root cause:** `deploy-appwrite-hubs.yml` validation used `tar -tzf "${archive}" | head -20 | grep -q '^./src/main.js$'`. On the CI runner (Ubuntu overlay filesystem), tar lists entries in a different order than local macOS/Linux ext4 — specifically, `node_modules/` entries appeared before `./src/main.js` in the first 20 lines for `auth-master` (which has many dependencies). Root cause confirmed via GitHub Actions annotation: `auth-master.tar.gz does not contain src/main.js at archive root`.  
+**Fix:** Removed `head -20` — now `tar -tzf "${archive}" | grep -q '^./src/main.js$'` scans the full listing. Commit `ad9b45e`.
+
+#### Bonus — Split monolithic AI Hubs deploy step into 4 named steps
+`deploy-appwrite-hubs.yml` single "Deploy AI Hubs" step split into: "Install deploy dependencies" / "Build hubs" / "Setup Appwrite schema" / "Deploy hubs". Each step uses `env:` block rather than shell `export`. Enables per-step failure attribution in GitHub Actions UI.
+
+---
+
+### Verification
+- `npx tsc --noEmit` — zero errors
+- `npm run build` — succeeds locally (exit code 0)
+- `deploy-frontend.yml` — ✅ green on commit `ad9b45e`
+- `deploy-appwrite-hubs.yml` — ✅ green on commits `ad9b45e` (workflow_dispatch) and `b587f6b` (push)
+- Both workflows confirmed green on two consecutive runs
+
+---
+
+### Where We Stopped
+- `job-import` Appwrite Function is deployed and live. It requires `GROQ_KEY_1`, `OPENROUTER_KEY_1`, `DEEPSEEK_KEY` env vars set on the function in Appwrite Console — these are synced by `deploy_hubs.cjs` from GitHub Secrets. Verify secrets exist in the repo if the function returns 500.
+- Mobile QA for ImportJobSheet not performed. Test: tap FAB → paste a LinkedIn/Indeed URL → Analyze → verify job created → navigates to JobDetailPage → match score and 3 action buttons visible.
+- Desktop QA: verify "Import Job" button appears in DesktopNav between "Import Profile" and "Wise AI".
+- `JobDetailPage.tsx` match score is heuristic-only (keyword overlap) — not AI-powered. Sufficient for v1.
+- Clipboard detection is opt-in (off by default). Toggle state stored in `wr-clipboard-job-detect` localStorage key.
+- No new Appwrite collections. No schema changes. No new npm packages in the frontend.
+- **Next agent:** pull `main` (HEAD `ad9b45e` or later), verify `job-import` function is live in Appwrite Console with AI provider keys set, run mobile QA above.
+
+---
+
 ## Session Summary — 2026-05-16 (UI/UX Audit Implementation — Phases 1–4, All 25 Findings)
 
 ### Overview
