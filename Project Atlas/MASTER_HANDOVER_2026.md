@@ -2,7 +2,126 @@
 
 ---
 
-## Session Summary — 2026-05-16 (WiseDrop Job Import Feature + CI Fixes — Both Workflows Green)
+## Session Summary — 2026-05-16 (Dead Code Removal + Cross-Platform Fixes + Smart AI Routing + Chat History Fix)
+
+Branch: `main` | HEAD: `254f154`
+
+---
+
+### Part 1 — Dead Code Removal
+
+Audit verified every finding with grep before deletion. Zero guessing.
+
+| Deleted | Why |
+|---|---|
+| `src/lib/apiFetch.ts` + `__tests__/apiFetch.test.ts` | Legacy Supabase fetch wrapper. Zero imports in production code — only referenced in its own test file. |
+| `src/lib/apiFnUrl.ts` | Legacy API URL builder. Zero imports anywhere. Only mentioned in a test comment. |
+| `src/lib/transactionalEmailFlag.ts` | `USE_MERGED_TRANSACTIONAL_EMAIL = true` flag, never imported anywhere in `src/`. |
+| `src/lib/sectionHelpers.ts` + `sectionHelpers.test.ts` | `getSectionPreview/Icon/Name` — only imported in their own test file, no production consumer. |
+| `appwrite-hubs/auth-master/` (entire directory) | Early REST-style auth layer superseded by direct Appwrite SDK calls. Never invoked from frontend (grep confirmed zero references to `"auth-master"` in `src/`). Was being deployed on every CI run for nothing. |
+
+Also removed `auth-master` from `scripts/deploy_hubs.cjs` and `deploy-appwrite-hubs.yml`. 465 lines deleted. Zero TS errors.
+
+> **Note:** `admin-testmail` was initially flagged by an automated audit agent as unused. Confirmed via code review that `TestmailInboxPanel.tsx` actively calls `admin-testmail` hub at lines 168 and 193. Not removed.
+
+---
+
+### Part 2 — Appwrite Integration Audit Fixes (5 issues)
+
+All fixes committed in `e8c0f34`.
+
+#### Issue 1 — Account Backup: hidden broken UI
+**Root cause:** `exportFullAccount` / `importFullAccount` in `src/lib/accountBackup.ts` always throw `pending_appwrite_migration`. `AccountBackupSheet` was reachable from `ProfilePage` — users saw a cryptic error toast.
+**Fix:** Removed `<AccountBackupSheet>` render block, `backupOpen` state, and import from `ProfilePage.tsx`. Stubs and the sheet component preserved for future implementation.
+
+#### Issue 2 — Missing DATADOG_API_KEY in CI
+**Root cause:** `ai-gateway/src/main.js` reads `process.env.DATADOG_API_KEY` for LLM observability tracing, but the Deploy hubs step in `deploy-appwrite-hubs.yml` did not pass this secret. Gateway was running without Datadog in production.
+**Fix:** Added `DATADOG_API_KEY: ${{ secrets.DATADOG_API_KEY }}` to the Deploy hubs env block.
+
+#### Issue 3 — Hardcoded collection strings in 8 hooks
+**Root cause:** 8 hooks passed raw string literals (`'resumes'`, `'profiles'`, etc.) to Appwrite SDK instead of `COLLECTIONS.*`.
+**Fix:** Added `import { COLLECTIONS } from '@/lib/appwrite-collections'` to all 8 hooks and replaced 36 string literals. Hooks: `useResumes`, `useProfile`, `useNotifications`, `useResignationLetters`, `useJobApplications`, `useInterviewAnswers`, `useCoverLetters`, `useSuspensionCheck`.
+
+#### Issue 4 — Hardcoded strings in EmailManagementPanel
+**Fix:** `src/components/dev-kit/EmailManagementPanel.tsx` line 656 — replaced `'main'` with `DATABASE_ID` and `'admin_audit_logs'` with `COLLECTIONS.admin_audit_logs`.
+
+#### Issue 5 — AIRoutingSwitcher direct DB calls
+**Root cause:** `AIRoutingSwitcher.tsx` made 4 direct `databases.*` calls for `ai_routing_config` instead of routing through the `admin-devkit-data` hub (no audit logging, wrong auth pattern).
+**Fix (Part A):** Added 4 action handlers to `appwrite-hubs/admin-devkit-data/src/main.js`: `list-routing-config`, `update-routing-config`, `create-routing-config`, `delete-routing-config`.
+**Fix (Part B):** Updated `AIRoutingSwitcher.tsx` to call `admin-devkit-data` hub for all 4 operations via `appwriteFunctions.invoke`.
+
+---
+
+### Part 3 — Cross-Platform Bug Fixes
+
+All fixes in `254f154`.
+
+| Fix | File | Root Cause | Fix Applied |
+|---|---|---|---|
+| iOS home screen icon missing | `index.html` | No `apple-touch-icon` or iOS meta tags | Added `<link rel="apple-touch-icon">` + 3 meta tags (`apple-mobile-web-app-capable`, `apple-mobile-web-app-status-bar-style: black-translucent`, `apple-mobile-web-app-title`) |
+| URL input iOS auto-zoom | `src/components/jobs/ImportJobSheet.tsx` | Input used `text-sm` (14px); iOS Safari auto-zooms any input below 16px on focus | Changed to `text-[16px]` |
+| Clipboard API fails on iOS | `src/components/jobs/ImportJobSheet.tsx` | `navigator.clipboard.readText()` called in `useEffect` on sheet open — not in a direct user gesture context; WebKit silently rejects | Removed auto-read from `useEffect`; replaced with inline **Paste** button that calls `readText()` in its `onClick` handler |
+| Applications FAB hidden on notched iPhone | `src/pages/ApplicationsPage.tsx` line 642 | FAB at `fixed bottom-[7.5rem]` with no safe-area offset — home indicator covers it | Changed to `fixed bottom-[calc(7.5rem+env(safe-area-inset-bottom))]` |
+
+---
+
+### Part 4 — Smart AI Model Advisor in DevKit
+
+All changes in `AIRoutingSwitcher.tsx` (commit `254f154`).
+
+**What was missing:** All 21 feature routes used Llama variants only. No rationale shown for model selection. No way to apply optimal models in one action.
+
+**Changes:**
+1. **`FEATURE_METADATA` constant** — 20 features annotated with `priority` (`latency` / `quality` / `reasoning` / `context`), `rationale` string, `recommendedProvider`, and `recommendedModel` using current best-fit models (Llama 4 Maverick on Groq for chat, DeepSeek V4 Flash for analysis/reasoning, Llama 4 Maverick on NVIDIA for quality writing, LLaMA 4 Scout free on OpenRouter for parsing).
+2. **"Smart Defaults" button** — auto-saves the recommended provider/model for all 20 features to `ai_routing_config` via `admin-devkit-data` in one click. Toast confirms count of features updated.
+3. **Rationale tooltip per feature row** — priority badge + `ⓘ` icon shows `FEATURE_METADATA[featureId].rationale` and recommended model in a Tooltip.
+
+Model list in `src/lib/devkit/aiTestSlotModels.ts` was already comprehensive and up-to-date (including Llama 4, DeepSeek V4, Qwen3, Gemma, Gemini) — no changes needed.
+
+---
+
+### Part 5 — Fix Agentic Chat Conversation History (Critical Bug)
+
+**File fixed:** `appwrite-hubs/ai-gateway/src/main.js` — `buildMessages()` function (commit `254f154`).
+
+**Root cause (confirmed by code audit):**
+- Frontend (`src/lib/agenticChat.ts` line 231) sends: `body: { message, conversationHistory: [...], currentResume, ... }`
+- Backend `buildMessages()` default case reads: `return opts.messages || [{ role: 'user', content: 'hello' }]`
+- `opts.conversationHistory` arrived correctly but `opts.messages` was `undefined` → fallback `[{ role: 'user', content: 'hello' }]` was used on every call.
+- **Every agentic-chat invocation was stateless.** The chat gave the same templated response regardless of prior conversation.
+
+**Fix:** Added explicit `agentic-chat` handler in `buildMessages()` before the default return:
+```js
+if (featureName === 'agentic-chat') {
+  const history = Array.isArray(opts.conversationHistory) ? opts.conversationHistory : [];
+  // system prompt with optional resume context + full history + current message
+  return [{ role: 'system', content: systemPrompt }, ...history, { role: 'user', content: opts.message || '' }];
+}
+```
+
+**No frontend changes required.** The frontend already stores history in Appwrite (`chat_sessions` / `chat_messages` collections), loads it on mount, and sends it correctly. The backend was simply ignoring the field.
+
+---
+
+### Verification
+- `npx tsc --noEmit` — zero errors
+- `npm run build` — clean, exit code 0, entry chunk ~88KB (well under 3MB CI limit)
+- Both CI workflows (`deploy-frontend`, `deploy-appwrite-hubs`) confirmed passing on latest `main` run
+
+---
+
+### Where We Stopped
+- `main` HEAD: `254f154`
+- All changes live in production after CI runs on push.
+- **Chat history fix** requires `ai-gateway` redeployment to take effect — this is triggered automatically by `deploy-appwrite-hubs.yml` since `appwrite-hubs/**` path changed.
+- **Smart Defaults** in AIRoutingSwitcher writes to `ai_routing_config` collection in Appwrite — confirm collection exists (it does, used by the existing routing switcher). Click "Smart Defaults" once after deploy to populate optimal models.
+- **Account Backup** (`src/lib/accountBackup.ts` + `src/components/profile/AccountBackupSheet.tsx`) still exists as a stub — implement using `COLLECTIONS.resumes`, `COLLECTIONS.cover_letters` etc. if the feature is to be restored. UI entry point removed from ProfilePage.
+- **No new Appwrite collections or schema changes** in this session.
+- **Next agent:** pull `main` at `254f154`, verify agentic-chat is multi-turn aware (send 3 messages, confirm 3rd references earlier context), verify DevKit AIRoutingSwitcher shows priority badges and Smart Defaults button.
+
+---
+
+
 
 ### Overview
 Implemented the full WiseDrop "Import Job" feature (global FAB + sheet, backend Appwrite Function, enhanced JobDetailPage). Fixed two broken CI workflows that had been failing since PR #52 was merged. Both `deploy-frontend.yml` and `deploy-appwrite-hubs.yml` are now green.
