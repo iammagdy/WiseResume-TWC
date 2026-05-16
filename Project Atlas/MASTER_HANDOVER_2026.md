@@ -2,6 +2,119 @@
 
 ---
 
+## Session Summary — 2026-05-16 (Portfolio Fixes + Enhancements — usePublicPortfolio rewrite, carousel, generate-all, JSON-LD)
+
+### Overview
+Two work streams in a single session on `claude/read-project-docs-JEUkC`:
+
+**Stream A — Bug Fixes (critical):** Three bugs from prior plan were already live. Import Job mobile button loop and premium detection fixes were committed in a prior sub-session (`ccb6486`). This session continued with the remaining critical fixes.
+
+**Stream B — Portfolio Enhancement Pass:** Implemented high-priority items from a prior audit that had identified the portfolio as generic. 5 targeted improvements; no new npm packages; zero Appwrite schema changes; `npx tsc --noEmit` clean throughout.
+
+Branch: `claude/read-project-docs-JEUkC` | Commits: `ccb6486`, `5e242bb`, `047f30d`, `bc47a66`
+
+---
+
+### Fix 1 — `usePublicPortfolio` Hook Rewrite (`5e242bb`)
+
+**Root cause:** The hook was a stub. `usePortfolioGate()` accepted no arguments but the page called it as `usePortfolioGate(username)`. `usePublicPortfolio()` accepted only `username` but the page called it as `usePublicPortfolio(username, contentEnabled, submittedPassword)`. Result: password protection was completely bypassed (gate always returned `{ isAllowed: true, loading: false }`), content was always fetched regardless of gate state, and the `PublicProfile` type didn't exist — breaking `usePortfolioSEO`, `PublicHero`, `PublicSections`, `ChatWidget`, `portfolioPrintLayout`.
+
+**Fix:** Complete rewrite of `src/hooks/usePublicPortfolio.ts`:
+
+| Export | Before | After |
+|--------|--------|-------|
+| `usePortfolioGate(username)` | Accepted no args, returned `{ isAllowed: true, loading: false }` | Fetches `profiles` by username, returns `{ data: { passwordEnabled, accentColor, exists }, isLoading }` |
+| `usePublicPortfolio(username, contentEnabled, submittedPassword)` | Only accepted `username`, ignored other args | Accepts all 3 args; only queries when `contentEnabled=true`; SHA-256 hashes `submittedPassword` and compares against `portfolioExtras.passwordHash`; throws `new Error('invalid_password')` on mismatch |
+| `PublicProfile` | Not exported | Full typed interface with 30+ fields: `availabilityStatus`, `location`, `industry`, `portfolioPrimaryLanguage`, `portfolioSecondaryLanguage`, `contactFormEnabled`, all `portfolioExtras` sub-fields flattened (`testimonials`, `services`, `caseStudies`, `highlights`, `portfolioSummary`, `sectionOrder`, `pinnedProject`, `scrollEffect`, `videoIntroUrl`, `schedulingUrl`, `abChallengerTheme`, `portfolioCertifications`) |
+| `PublicResume` | Not exported | Full typed interface |
+| `PortfolioSections` | Not exported | Exported interface |
+| `validateCustomDomain` | Always returned `true` | Now validates format and blocks reserved domains, returns `string \| null` |
+
+**Password verification detail:** The editor hashes with `crypto.subtle.digest('SHA-256', ...)` and stores the hex string in `portfolioExtras.passwordHash`. The public hook replicates the same hash client-side and compares. No Appwrite Function required.
+
+---
+
+### Fix 2 — JSON-LD Person Schema (`5e242bb`)
+
+**Root cause:** `usePortfolioSEO.ts` set Open Graph and Twitter tags but emitted no structured data — Google had no machine-readable signal for portfolio pages.
+
+**Fix:** Added a `<script type="application/ld+json">` element in `src/hooks/usePortfolioSEO.ts` containing a `schema.org/Person` object. Fields populated: `name`, `jobTitle`, `description` (from `portfolioBio`), `url` (canonical portfolio URL), `sameAs` (LinkedIn, GitHub, Twitter if present), `email` (if `contactEmail` set). Element is removed on hook cleanup.
+
+---
+
+### Fix 3 — Social Link Protocol Normalization (`047f30d`)
+
+**Root cause:** `PublicHero.tsx` rendered social link hrefs directly from the profile (`href={profile.linkedinUrl}`) with no protocol guard. URLs stored without `https://` (e.g., `linkedin.com/in/user`) were treated as relative paths by the browser, producing broken links.
+
+**Fix:** Imported `normalizeUrl` from `@/lib/urlUtils` and applied it to all four social link hrefs in `src/components/portfolio/public/PublicHero.tsx` (`linkedinUrl`, `githubUrl`, `websiteUrl`, `twitterUrl`). `normalizeUrl` prepends `https://` if no protocol is present.
+
+---
+
+### Feature 1 — "Generate Full Portfolio" Button (`047f30d`)
+
+**File:** `src/pages/PortfolioEditorPage.tsx`
+
+Added a `handleGenerateAll` handler and a prominent button above the tab strip that chains three sequential AI calls: bio → SEO meta → availability headline. Uses a single progress toast (`toast.loading` → `toast.success`) that updates label after each step ("Generating… 1/3", "2/3", "3/3"). Partial success is reported ("Generated 2/3 sections. Some failed…"). Button is disabled while any individual generator is also running. Icon: `Wand2` from lucide-react.
+
+---
+
+### Feature 2 — Auto-scrolling Testimonials Carousel (`bc47a66`)
+
+**File:** `src/components/portfolio/public/PublicSections.tsx`
+
+Previously: 3+ testimonials rendered as a plain `overflow-x-auto snap-x` div with no auto-advancement and no position indicator.
+
+Added `TestimonialsCarousel` component (self-contained, no new file):
+- Auto-advances every 4 s via `setInterval`
+- Pauses on `mouseenter` / `touchstart`; resumes 2 s after `touchend`
+- User-initiated scroll updates `activeIndex` via `scroll` listener; clicking a dot scrolls to that index and pauses auto-advance for 3 s
+- Dot indicator row below the track; active dot scales 1.4× and uses `--pf-accent` color
+- Respects `prefersReducedMotion` indirectly (no JS animation, only CSS scroll-behavior)
+
+---
+
+### Fix 4 — Portfolio Gate Cache Invalidation on Publish (`bc47a66`)
+
+**File:** `src/pages/PortfolioEditorPage.tsx`
+
+`handleSave` already called `queryClient.invalidateQueries({ queryKey: ['public-portfolio'] })` on publish. Added `queryClient.invalidateQueries({ queryKey: ['portfolio-gate'] })` alongside it. Without this, a returning visitor who had cached `gateInfo.passwordEnabled = false` would bypass the password gate even after the owner enabled password protection, until the 30 s `staleTime` expired.
+
+---
+
+### Verification
+- `npx tsc --noEmit` — zero errors (ran after every commit)
+- No new npm packages
+- No new Appwrite collections or attributes
+- No CI workflow changes in this session
+
+---
+
+### Where We Stopped
+
+- All 4 commits pushed to `claude/read-project-docs-JEUkC` (HEAD `bc47a66`). **Not merged to `main`.**
+- The previously committed fixes (`ccb6486`) for the Import Job mobile button loop and the premium `useMe.ts` + DesktopNav refresh button are included in this branch.
+
+**Outstanding items from the original portfolio audit (not yet implemented):**
+- P1: AI Critique → clickable jump-to-section action (tab navigation from AICritiqueSheet to specific editor tab)
+- P1: Section funnel analytics chart in VisitorsTab (bar chart of section engagement, already has dwell-time data in `sections_timing`)
+- P2: Full-viewport hero on desktop (currently `max-w-4xl mx-auto` — consider 100vw with edge bleed on `heroAlign='split'` themes)
+- P2: Theme-aware default section ordering (each theme config has a logical `sectionOrder` default, not yet applied)
+- P3: Remove A/B testing from user-facing UI (the `abChallengerTheme` feature exists but adds complexity; recommend removing from non-DevKit UI)
+- P3: Remove CareerCard / merge with QR (duplicate UX — QrGeneratorSheet and CareerCardSheet serve the same use case)
+- Email notification on recruiter interest (requires a new Appwrite Function; currently only writes to `portfolio_interactions` collection with no notification sent to the owner)
+
+**QA needed before merging:**
+- Public portfolio page with a password-protected portfolio — verify password gate shows, incorrect password shows error, correct password unlocks content
+- Public portfolio with `contentEnabled=true` and no password — verify normal load
+- Social links on public portfolio — verify links with and without `https://` prefix open correctly
+- "Generate Full Portfolio" button in editor — verify toast progresses through 3 steps and all three fields are populated
+- Testimonials carousel — verify auto-scroll, pause on hover, dot navigation, manual swipe
+- DesktopNav "Refresh account" button — verify `toast.info('Refreshing account…')` fires and plan re-fetches
+
+**Next agent:** Pull `claude/read-project-docs-JEUkC` (HEAD `bc47a66`), run QA above, merge to `main`.
+
+---
+
 ## Session Summary — 2026-05-16 (WiseDrop Job Import Feature + CI Fixes — Both Workflows Green)
 
 ### Overview
