@@ -70,6 +70,7 @@ import { useATSSuggestions } from '@/hooks/useATSSuggestions';
 import { AIIntroTooltip } from '@/components/editor/AIIntroTooltip';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { EditorHeader } from '@/components/editor/EditorHeader';
+import { Breadcrumb } from '@/components/layout/Breadcrumb';
 import { ProfileImportSheet, type ProfileData } from '@/components/settings/ProfileImportSheet';
 import { EditorSectionContent, SectionNavButtons } from '@/components/editor/EditorSectionContent';
 import { EditorScrollForm } from '@/components/editor/EditorScrollForm';
@@ -1259,6 +1260,11 @@ export default function EditorPage() {
               className="editor-scroll-container flex-1 min-h-0 overflow-y-auto px-4 py-3 pb-4 space-y-0"
               ref={scrollContainerRef}
             >
+              <Breadcrumb
+                items={['Home', resumeFromDb?.title || currentResume?.contactInfo?.fullName || 'Resume']}
+                links={['/dashboard']}
+                className="pb-2"
+              />
               <EditorSectionContent {...editorSectionProps} />
             </div>
             {/* Pinned nav — undo/redo + prev/next in a single row */}
