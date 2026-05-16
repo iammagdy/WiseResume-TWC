@@ -55,6 +55,33 @@ export function usePortfolioSEO(profile: PublicProfile | undefined | null) {
       setMeta('twitter:title', ogTitle, 'name');
       setMeta('twitter:description', ogDesc, 'name');
 
+      // JSON-LD Person schema for rich search results
+      const jsonLdId = 'pf-jsonld';
+      let jsonLdEl = document.getElementById(jsonLdId);
+      if (!jsonLdEl) {
+        jsonLdEl = document.createElement('script');
+        jsonLdEl.id = jsonLdId;
+        jsonLdEl.setAttribute('type', 'application/ld+json');
+        document.head.appendChild(jsonLdEl);
+      }
+      const jsonLdData: Record<string, unknown> = {
+        '@context': 'https://schema.org',
+        '@type': 'Person',
+        name: name,
+      };
+      if (profile.jobTitle) jsonLdData.jobTitle = profile.jobTitle;
+      if (profile.portfolioBio) jsonLdData.description = profile.portfolioBio;
+      if (profile.username) jsonLdData.url = `https://resume.thewise.cloud/p/${profile.username}`;
+      if (profile.linkedinUrl) jsonLdData.sameAs = [profile.linkedinUrl];
+      if (profile.githubUrl) {
+        jsonLdData.sameAs = [...((jsonLdData.sameAs as string[]) ?? []), profile.githubUrl];
+      }
+      if (profile.twitterUrl) {
+        jsonLdData.sameAs = [...((jsonLdData.sameAs as string[]) ?? []), profile.twitterUrl];
+      }
+      if (profile.contactEmail) jsonLdData.email = profile.contactEmail;
+      jsonLdEl.textContent = JSON.stringify(jsonLdData);
+
       // Load Google Fonts for premium themes
       const pStyle = profile.portfolioStyle || 'minimal';
       const needsFiraCode = pStyle === 'developer-terminal' || pStyle === 'neon-cyber';
@@ -95,6 +122,8 @@ export function usePortfolioSEO(profile: PublicProfile | undefined | null) {
     return () => {
       document.title = 'WiseResume';
       document.documentElement.removeAttribute("data-theme");
+      const jsonLdCleanup = document.getElementById('pf-jsonld');
+      if (jsonLdCleanup) jsonLdCleanup.remove();
       const fontLink = document.getElementById('pf-theme-fonts');
       if (fontLink) fontLink.remove();
       const preconnectLink = document.getElementById('pf-fonts-preconnect');
