@@ -13,6 +13,7 @@ import { ScrollProgressBar } from './ScrollProgressBar';
 import { KeyboardProvider } from '@/context/KeyboardContext';
 import { ShortcutHelpSheet } from './ShortcutHelpSheet';
 import { ImportJobFAB } from '@/components/jobs/ImportJobFAB';
+import { ImportJobSheet } from '@/components/jobs/ImportJobSheet';
 
 const GuestSaveBanner = lazy(() => import('./GuestSaveBanner').then((m) => ({ default: m.GuestSaveBanner })));
 const OfflineBanner = lazy(() => import('./OfflineBanner').then((m) => ({ default: m.OfflineBanner })));
@@ -54,6 +55,7 @@ function AppShellInner() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [wiseAIOpen, setWiseAIOpen] = useState(false);
   const [shortcutHelpOpen, setShortcutHelpOpen] = useState(false);
+  const [importJobMobileOpen, setImportJobMobileOpen] = useState(false);
   const { isAnySheetOpen } = useBottomSheetOpen();
   const mobileShellLayout = getMobileShellLayout(location.pathname, isAnySheetOpen);
 
@@ -187,10 +189,13 @@ function AppShellInner() {
       )}
 
       {showBottomNav && !isEditorRoute && mobileShellLayout.showAskFab && mobileShellLayout.askFabOffsetClass && (
-        <ImportJobFAB offsetClass={mobileShellLayout.askFabOffsetClass} />
+        <ImportJobFAB offsetClass={mobileShellLayout.askFabOffsetClass} onOpen={() => setImportJobMobileOpen(true)} />
       )}
 
       <ShortcutHelpSheet open={shortcutHelpOpen} onOpenChange={setShortcutHelpOpen} />
+      {showBottomNav && (
+        <ImportJobSheet open={importJobMobileOpen} onOpenChange={setImportJobMobileOpen} />
+      )}
     </div>
   );
 }
