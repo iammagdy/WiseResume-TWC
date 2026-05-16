@@ -12,7 +12,6 @@ import { DesktopNav } from './DesktopNav';
 import { ScrollProgressBar } from './ScrollProgressBar';
 import { KeyboardProvider } from '@/context/KeyboardContext';
 import { ShortcutHelpSheet } from './ShortcutHelpSheet';
-import { ImportJobFAB } from '@/components/jobs/ImportJobFAB';
 
 const GuestSaveBanner = lazy(() => import('./GuestSaveBanner').then((m) => ({ default: m.GuestSaveBanner })));
 const OfflineBanner = lazy(() => import('./OfflineBanner').then((m) => ({ default: m.OfflineBanner })));
@@ -184,10 +183,6 @@ function AppShellInner() {
         <Suspense fallback={null}>
           <AgenticChatSheet open={wiseAIOpen} onOpenChange={setWiseAIOpen} />
         </Suspense>
-      )}
-
-      {showBottomNav && !isEditorRoute && mobileShellLayout.showAskFab && mobileShellLayout.askFabOffsetClass && (
-        <ImportJobFAB offsetClass={mobileShellLayout.askFabOffsetClass} />
       )}
 
       <ShortcutHelpSheet open={shortcutHelpOpen} onOpenChange={setShortcutHelpOpen} />
