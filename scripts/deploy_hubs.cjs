@@ -135,6 +135,9 @@ async function run() {
         ['GROQ_KEY_1', process.env.GROQ_KEY_1],
         ['OPENROUTER_KEY_1', process.env.OPENROUTER_KEY_1],
         ['DEEPSEEK_KEY', process.env.DEEPSEEK_KEY],
+        ['APPWRITE_API_KEY', process.env.APPWRITE_API_KEY],
+        ['APPWRITE_ENDPOINT', process.env.APPWRITE_ENDPOINT],
+        ['APPWRITE_PROJECT_ID', process.env.APPWRITE_PROJECT_ID],
     ]) {
         await ensureVariable('job-import', key, value);
     }
