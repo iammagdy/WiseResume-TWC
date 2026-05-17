@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { CheckCircle2, XCircle, Loader2, Rocket, SkipForward } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
-import { devKitInvokeOptions } from '@/lib/devkit/devKitClient';
+import { devKitInvokeOptions } from '@/lib/devkit/devKitAuth';
 import { cn } from '@/lib/utils';
 
 interface HubResult {
