@@ -2,6 +2,172 @@
 
 ---
 
+## Session Summary — 2026-05-17 (DevKit Plan Fix + Mobile UX Audit + Cache Architecture)
+
+### Overview
+
+Three work streams on `main`. Primary driver: user confirmed premium plan upgrade from DevKit still not reflecting after prior cache-invalidation fix — deeper root cause found and fixed at the read layer, not just the cache layer.
+
+Branch: `main` | Commits: `dbcde5c`, `9b804b6`
+
+---
+
+### Stream C — Plan Upgrade Not Reflecting (Root Cause: Read Path Broken)
+
+#### Bug — `useMe` always returned `plan: 'free'` regardless of what admin wrote
+
+**Root cause (this session):** The prior fix (adding `queryClient.invalidateQueries` to `AdminUsersPanel.handleSetPlan`) addressed the cache invalidation gap but not the underlying read failure. The real root cause: `useMe.ts` fetches the `subscriptions` collection client-side via `databases.listDocuments` with cookie/session auth. If Appwrite Document Security is disabled on that collection, per-document `Permission.read(Role.user(userId))` is ignored — only collection-level permissions apply. The SDK call returns empty (`documents: []`) on any permission mismatch and `safeList` swallows the error silently. Result: `sub` was always `undefined` → plan always `'free'`. Cache invalidation triggered a re-fetch that also returned empty → plan still `'free'`. This is why the prior fix appeared to do nothing.
+
+**Fix:** Added `get-subscription` action to the `coupons` Appwrite Function (`appwrite-hubs/coupons/src/main.js`). This function:
+- Authenticates the caller via `X-Appwrite-JWT` header (validates identity)
+- Reads the `subscriptions` document using the **API key** (bypasses all collection-level permissions)
+- Computes `effective_plan` (considers active trial if `trial_expires_at` is in the future)
+- Returns `{ plan, effective_plan, status, trial_plan, trial_expires_at, coupon_code }`
+
+Added `'get-subscription'` to `COUPON_FUNCTIONS` set in `src/lib/appwrite-functions.ts`. Updated body-action derivation with `deriveCouponAction()` helper replacing hardcoded `'validate'`/`'redeem'` string literals.
+
+Updated `src/hooks/useMe.ts`: primary subscription read now calls `appwriteFunctions.invoke('get-subscription')`. If the function call fails (e.g., function not yet deployed), falls back to the old `safeList` path. No breaking change.
+
+**Deployment note:** `coupons` function changes deploy automatically via GitHub Actions `deploy-appwrite-hubs.yml` when `appwrite-hubs/**` changes are pushed to `main`. Check Actions tab on `iammagdy/WiseResume-TWC` to confirm the run for commit `dbcde5c` succeeded. Also requires `RESEND_API_KEY` env var on `admin-devkit-data` function in Appwrite Console for plan upgrade emails to send (already called by `sendPlanUpgradeEmail()` in `handleSetPlan`).
+
+**Files:** `appwrite-hubs/coupons/src/main.js`, `src/lib/appwrite-functions.ts`, `src/hooks/useMe.ts`
+
+---
+
+### Stream D — DevKit Mobile UX Audit (38 issues found, 10 fixed)
+
+Admin confirmed DevKit will always be used on mobile. Full audit of all DevKit panels.
+
+#### Fix 1 — Sidebar: full-screen takeover replaced with proper drawer
+
+**Root cause:** `DevToolsPage.tsx` mobile sidebar used `fixed inset-0 z-50 flex w-full` — covered the entire screen with no affordance to dismiss except clicking a nav item.
+
+**Fix:** Changed to `fixed inset-y-0 left-0 z-50 flex w-72` (left edge drawer). Added a `bg-black/60` backdrop overlay rendered behind the drawer (`z-40`) that dismisses on tap. Sidebar now slides in from the left edge; rest of the screen remains visible.
+
+**File:** `src/pages/DevToolsPage.tsx`
+
+---
+
+#### Fix 2 — Cmd+K palette off-screen on mobile
+
+**Root cause:** Search palette container had `pt-24` top padding unconditionally — on mobile viewports the palette started below the visible fold.
+
+**Fix:** Changed to `pt-6 sm:pt-24` + added `px-3 sm:px-0`.
+
+**File:** `src/pages/DevToolsPage.tsx`
+
+---
+
+#### Fix 3 — VisitorsPanel `Promise.all` crash when any action fails
+
+**Root cause:** `VisitorsPanel.tsx` wrapped all backend calls in `Promise.all`. If `live-count` (or any single action) was not yet deployed or returned an error, the entire panel crashed with the error card. `live-count` was a new action added in the prior session and may not have been deployed yet.
+
+**Fix:** Replaced `Promise.all` with `Promise.allSettled`. Added `val()` helper that returns `undefined` for rejected/failed results. KPIs action failure sets the error card; other action failures degrade gracefully (section shows empty/zero). Panel no longer dies because `live-count` isn't deployed.
+
+**File:** `src/components/dev-kit/VisitorsPanel.tsx`
+
+---
+
+#### Fix 4 — VisitorsPanel session table forces horizontal scroll on mobile
+
+**Root cause:** Sessions table used `min-w-[560px]` — scrolls horizontally on any viewport under 560px wide.
+
+**Fix:** Dual-mode layout: `flex flex-col gap-2 sm:hidden` card list for mobile (shows user, page, duration, device as stacked text rows); `hidden sm:block overflow-x-auto` table for desktop. No data truncated.
+
+**File:** `src/components/dev-kit/VisitorsPanel.tsx`
+
+---
+
+#### Fix 5 — `window.prompt()` unusable on mobile Safari/Chrome
+
+**Root cause:** `EmailAutomationsPanel.tsx` `handleManualAdd`/`handleManualRemove` used `window.prompt()` to capture an email address. iOS Chrome and some Android browsers block or poorly render `window.prompt()`.
+
+**Fix:** Replaced with an inline modal state (`inlinePrompt` useState). Modal renders as a `fixed inset-0 z-50` overlay with an `<Input>` field, Enter key submission, and Escape key dismissal. Full keyboard and touch support.
+
+**File:** `src/components/dev-kit/EmailAutomationsPanel.tsx`
+
+---
+
+#### Fix 6 — AnalyticsPanel KPI grids too cramped on mobile (1px columns)
+
+**Root cause:** Hero KPI grid used `grid-cols-2 md:grid-cols-4` — on 375px screens, 2 columns = ~175px each, leaving ~8px padding per card.
+
+**Fix:** Hero grid → `grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3`. Secondary KPI grid → `grid-cols-2 sm:grid-cols-4 gap-3`. Loading skeleton updated to match.
+
+**File:** `src/components/dev-kit/AnalyticsPanel.tsx`
+
+---
+
+#### Fix 7 — HomePanel status cards too narrow on mobile
+
+**Root cause:** Status cards used `grid-cols-2 gap-3 lg:grid-cols-4` — 2 columns on all screens including mobile phones.
+
+**Fix:** `grid-cols-1 sm:grid-cols-2 gap-3 lg:grid-cols-4` (single column on phones).
+
+**File:** `src/components/dev-kit/HomePanel.tsx`
+
+---
+
+#### Fix 8 — AdminUsersPanel pagination overflows on mobile
+
+**Root cause:** Pagination row showed full range text ("1–10 of 83 users") plus both arrow labels — overflowed on small viewports.
+
+**Fix:** Page counter abbreviated to `{page+1}/{totalPages}` on mobile; range text `hidden sm:block`; arrow button labels hidden on mobile.
+
+**File:** `src/components/dev-kit/AdminUsersPanel.tsx`
+
+---
+
+#### Fix 9 — VisitorsPanel filter input and journey search not wrapping on mobile
+
+**Root cause:** Filter row used `w-36` fixed-width input that pushed other elements off-screen. Journey search row used `flex-row` that didn't collapse.
+
+**Fix:** Filter input → `w-24 sm:w-36`. Journey search row → `flex-col sm:flex-row gap-2`.
+
+**File:** `src/components/dev-kit/VisitorsPanel.tsx`
+
+---
+
+#### Fix 10 — JourneyDrawer full width on mobile
+
+**Root cause:** `JourneyDrawer` used `w-full max-w-xl` — on desktop fine, but on mobile this caused edge-to-edge rendering with no side breathing room inside a sheet that was already full-screen.
+
+**Fix:** Added `sm:` prefix: `w-full sm:max-w-xl`.
+
+**File:** `src/components/dev-kit/VisitorsPanel.tsx`
+
+---
+
+### Remaining Mobile Issues (Not Fixed — Out of Scope)
+
+- `UserDetailDrawer` expanded user panel: `grid-cols-1 md:grid-cols-2 xl:grid-cols-4` creates very long stacked layout on mobile — needs a tabbed or accordion layout
+- `AIRoutingSwitcher` feature cards: `flex-col lg:flex-row` makes each card very tall on mobile
+- `EmailAutomationsPanel` broadcast compose: still read-only; no `send-broadcast` action in `admin-email` function
+- `AnalyticsPanel` data gaps: `signupsLast14Days`, `aiCreditsToday`, `topReferrers` return 0/empty (need queries from `auth_users`, `ai_credits` collections)
+
+---
+
+### Verification
+
+- `npx tsc --noEmit` — zero errors
+- No new npm packages
+- No new Appwrite collections or attributes
+
+---
+
+### Where We Stopped
+
+HEAD `9b804b6` on `main`. Both commits pushed.
+
+**Critical — verify before assuming plan fix works:**
+1. Check GitHub Actions tab (`iammagdy/WiseResume-TWC/actions`) — confirm `deploy-appwrite-hubs.yml` run for commit `dbcde5c` completed successfully. If it failed, `coupons` function still has the old code and `get-subscription` doesn't exist yet → `useMe` falls back to the broken `safeList` path → plan still shows 'free'.
+2. In Appwrite Console → Functions → `admin-devkit-data` → add env var `RESEND_API_KEY` if not present — required for plan upgrade emails.
+3. After confirming deployment: set a test user's plan via DevKit God Mode → navigate to a Pro-gated feature immediately → should reflect without waiting 15s.
+
+**Next agent:** Pull `main` (HEAD `9b804b6`). Verify `coupons` function deployment (see above). The frontend (`useMe.ts`) already has the function call with `safeList` fallback — no further frontend changes needed once function is deployed.
+
+---
+
 ## Session Summary — 2026-05-17 (UI Flash Fixes + DevKit Full Audit & Bug Fixes)
 
 ### Overview
