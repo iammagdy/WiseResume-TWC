@@ -2,6 +2,167 @@
 
 ---
 
+## Session Summary — 2026-05-17 (Vercel Build Fix + DevKit Bugs + AI Reliability + job-import Runtime Fix + Clipboard Toggle)
+
+### Overview
+
+Recovered from session `session_01GZxkXheSZyrQghdVraW989` onto branch `claude/teleport-session-recovery-i4XxZ`. Six distinct issues resolved across two Appwrite functions, one frontend component, and the deploy script. All commits pushed to `origin/claude/teleport-session-recovery-i4XxZ`.
+
+Branch: `claude/teleport-session-recovery-i4XxZ` | Key commits: `ec757cb`, `b97f2c7`
+
+---
+
+### Fix 1 — Vercel Build Failure (`devKitInvokeOptions` not exported)
+
+**Root cause:** `src/components/dev-kit/DeployHubsPanel.tsx` imported `devKitInvokeOptions` from `@/lib/devkit/devKitClient`. That function is defined in and exported from `@/lib/devkit/devKitAuth`, not `devKitClient`. Vite's rollup bundler hard-failed the build.
+
+**Fix:** Changed the import source to `@/lib/devkit/devKitAuth`.
+
+**File:** `src/components/dev-kit/DeployHubsPanel.tsx:5`
+
+**Result:** Deployment `dpl_4D83zLvCdxrTdGcfySgETMtYuxSx` reached READY state.
+
+---
+
+### Fix 2 — DevKit AnalyticsPanel "No data returned"
+
+**Root cause:** `handleAnalytics` in `admin-devkit-data/src/main.js` (lines ~1671–1711) built a payload object and spread it directly into `json()`, returning a flat structure. `AnalyticsPanel.tsx` destructures `result.data` — when `data` is absent the panel shows "No data returned" and renders nothing.
+
+**Fix:** Assigned the payload to `analyticsPayload` and returned `{ data: analyticsPayload }` so the shape matches what `unwrapAdminResponse()` + the panel expects.
+
+**File:** `appwrite-hubs/admin-devkit-data/src/main.js`
+
+---
+
+### Fix 3 — DevKit Diagnostics Panel Missing Collections
+
+**Root cause:** `requiredCollections` array (line 219 of `admin-devkit-data/src/main.js`) was missing five collections added after the array was written: `contact_requests`, `notifications`, `ai_routing_config`, `wisehire_accounts`, `wisehire_invites`, `wisehire_waitlist`.
+
+**Fix:** Added all five to the array.
+
+**File:** `appwrite-hubs/admin-devkit-data/src/main.js:219`
+
+---
+
+### Fix 4 — admin-visitor-analytics SDK Version Mismatch
+
+**Root cause:** `appwrite-hubs/admin-visitor-analytics/package.json` declared `node-appwrite: ^11.1.1` while every other hub uses `^14.0.0`. Mismatched SDK versions can produce silent API incompatibilities at runtime.
+
+**Fix:** Bumped to `^14.0.0`.
+
+**File:** `appwrite-hubs/admin-visitor-analytics/package.json`
+
+---
+
+### Fix 5 — AI Gateway: Random Key Selection + Flat 30s Timeout
+
+**Root cause (random selection):** `buildCandidates` used `Math.random()` to pick a key per provider. A rate-limited key (HTTP 429) had a 1-in-3 chance of being re-selected on the next request, causing repeated failures for the same user.
+
+**Root cause (flat timeout):** Every candidate in the fallback chain was given a 30s timeout. If the preferred provider was slow, the user waited the full 30s before the gateway attempted the next key — causing the "AI Slow" badge.
+
+**Root cause (same-provider fallback model):** When Groq KEY_1 failed, fallback to KEY_2/KEY_3 used the default free model instead of the configured route model, silently degrading output quality.
+
+**Root cause (route config latency):** `syncDynamicRoutes()` hit Appwrite DB on every warm invocation.
+
+**Fixes applied to `appwrite-hubs/ai-gateway/src/main.js`:**
+
+| Fix | Detail |
+|-----|--------|
+| In-memory key backoff | `_keyBackoff: Map<apiKey, backoffUntilMs>`. 429 → 2 min, 401/403 → 5 min, 5xx → 30s, timeout → no backoff |
+| Round-robin per provider | `_keyRoundRobin: Map<provider, nextIndex>`. `pickKey()` skips backed-off keys; falls back to round-robin if all keys are backed off |
+| Tiered timeouts | Candidate 0: 10s (fail fast). Candidate N-1: 28s (last resort). Others: 15s |
+| Same-provider fallback model | Fallback keys within the same provider reuse `route.model`, not the default free model |
+| Route config cache | `_routeCache` + `_routeCacheTs` with 60s TTL; skips DB on warm instances |
+
+**File:** `appwrite-hubs/ai-gateway/src/main.js`
+
+---
+
+### Fix 6 — ai-health Only Probed KEY_1
+
+**Root cause:** The health check function only checked the first env var per provider (`GROQ_KEY_1`, `OPENROUTER_KEY_1`, `NVIDIA_KEY_1`). If KEY_1 was rate-limited, the badge showed the entire provider as down even when KEY_2/KEY_3 were healthy.
+
+**Fix:** Complete rewrite of `appwrite-hubs/ai-health/src/main.js`. Now probes all configured keys (`KEY_1`, `KEY_2`, `KEY_3` per provider) in parallel via `Promise.all`. Provider is healthy if ANY key returns 2xx. Response includes `keysTested` and `keysOk` per provider.
+
+**File:** `appwrite-hubs/ai-health/src/main.js`
+
+---
+
+### Fix 7 — job-import "Appwrite Function runtime failed" (Timeout Exhaustion)
+
+**Root cause (syntax — prior commit `ec757cb`):** A prior refactor left duplicate `const parsedJob` and `let savedDoc`/`const savedDoc` declarations in the same function scope — a JavaScript SyntaxError. Node.js failed to load the module. `execution.errors` was empty string (Appwrite returns nothing for module-load failures), causing the generic "runtime failed" message.
+
+**Root cause (timeout — this commit `b97f2c7`):** Even after the syntax fix, the function's internal timeouts exceeded Appwrite's default function execution timeout (typically 15–30s):
+- URL fetch: `timeout: 20000` — alone could exceed a 15s Appwrite limit
+- LLM per-entry: `timeout: 30000` — with a pool of 7 keys, worst-case = 210s
+
+When Appwrite kills a function by execution timeout, `execution.errors` is empty → same generic error shown to the user.
+
+**Fix:** Reduced internal timeouts to fit within a 30s Appwrite execution budget:
+- URL fetch: 20000 → **8000**
+- LLM per-entry: 30000 → **8000**
+- DB write: 10000 → **5000**
+
+Happy path (URL fetch ~2s + Groq ~3s) = ~5s total. Worst case (8s fetch + two 8s LLM attempts) = ~24s.
+
+Also updated `scripts/deploy_hubs.cjs` `ensureFunction()`: now passes `timeout=30` as the 7th positional argument to `functions.create()` and `functions.update()`. Previously no timeout was set — Appwrite used its default (15s). Functions are now updated if their current timeout is below 30.
+
+**Files:** `appwrite-hubs/job-import/src/main.js`, `scripts/deploy_hubs.cjs`
+
+---
+
+### Fix 8 — Clipboard Toggle Non-Functional
+
+**Root cause:** `ImportJobSheet.tsx` had a "Detect job links from clipboard" toggle that saved the preference to `localStorage` (`wr-clipboard-job-detect`) but had no `useEffect` that actually read the clipboard. The comment explicitly said "No auto clipboard read". The toggle was purely cosmetic.
+
+**Fix:** Replaced the no-op comment with a `useEffect` on `[open, clipboardEnabled]`:
+```tsx
+useEffect(() => {
+  if (!open || !clipboardEnabled || !navigator.clipboard) return;
+  navigator.clipboard.readText()
+    .then(text => {
+      const trimmed = text.trim();
+      if (trimmed && isJobUrl(trimmed)) {
+        setUrl(trimmed);
+        setClipboardDetected(true);
+      }
+    })
+    .catch(() => { /* permission denied or iOS WebKit — silent */ });
+}, [open, clipboardEnabled]);
+```
+
+When the sheet opens with the toggle enabled, clipboard is read automatically. If it contains a recognized job URL (matches `JOB_DOMAINS`), the URL input is pre-filled and the "We found a job link" banner appears. Silently no-ops on iOS Safari (clipboard API requires a user gesture there — the Paste button still works for iOS).
+
+**File:** `src/components/jobs/ImportJobSheet.tsx:51`
+
+---
+
+### Deployment State
+
+| What | Status |
+|------|--------|
+| Branch | `claude/teleport-session-recovery-i4XxZ` pushed to origin |
+| Vercel frontend | Already READY (`dpl_4D83zLvCdxrTdGcfySgETMtYuxSx`) from Fix 1 |
+| Appwrite functions (`ai-gateway`, `ai-health`, `job-import`, `admin-devkit-data`, `admin-visitor-analytics`) | **Requires redeploy** — run `admin-deploy-hubs` panel or `APPWRITE_API_KEY=<key> node scripts/deploy_hubs.cjs` |
+| Clipboard fix | Frontend change — requires Vercel redeploy of this branch |
+
+---
+
+### Where We Stopped
+
+HEAD `b97f2c7` on `claude/teleport-session-recovery-i4XxZ`. All changes pushed.
+
+**Next agent must:**
+1. Merge `claude/teleport-session-recovery-i4XxZ` into `main` (or the user handles this via PR).
+2. Redeploy Appwrite functions — the job-import timeout fix is code-only; until redeployed the function still has 20s/30s timeouts and will still fail.
+3. After redeploying `job-import`: test Import Job dialog with a real LinkedIn/Indeed URL. Expect ~5-10s response, no "runtime failed".
+4. Verify `ai-health` badge shows all providers with `keysTested: 3` after redeployment.
+5. Clipboard toggle: after Vercel redeploy, toggle ON → close + reopen Import Job sheet → clipboard URL should auto-fill (desktop/Android; iOS uses the Paste button).
+
+**No schema or collection changes in this session.**
+
+---
+
 ## Session Summary — 2026-05-17 (DevKit Plan Fix + Mobile UX Audit + Cache Architecture)
 
 ### Overview
