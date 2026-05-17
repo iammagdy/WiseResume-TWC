@@ -2,7 +2,156 @@
 
 ---
 
-## Session Summary — 2026-05-16 (Portfolio Fixes + Enhancements — usePublicPortfolio rewrite, carousel, generate-all, JSON-LD)
+## Session Summary — 2026-05-17 (UI Flash Fixes + DevKit Full Audit & Bug Fixes)
+
+### Overview
+
+Two work streams on `main` branch.
+
+**Stream A — Route transition flash / scroll jank fixes:** Eliminated the white flash between route changes, removed duplicate body transition rules, and fixed ScrollProgressBar re-rendering on every scroll frame.
+
+**Stream B — DevKit audit:** Found and fixed 4 confirmed bugs via code trace (no guessing). Every root cause is traceable to a specific file and line number.
+
+Branch: `main` | Commits: `11c2062`, `08f44f0`
+
+---
+
+### Stream A — Route Flash & Scroll Jank (`11c2062`)
+
+#### Fix 1 — Primary route flash: `key={pathname}` + missing `AnimatePresence`
+
+**Root cause:** `AppShell.tsx` lines 149/154 used `<div key={location.pathname} className="animate-fade-in">`. Every navigation remounted the div. With no `AnimatePresence`, old content instantly unmounted (revealing `bg-background`) before new content began its 0.3s `opacity: 0 → 1` animation — producing 1–2 visible white frames on every route change.
+
+**Fix:** Replaced both `<div key={pathname}>` blocks (swipe-back and non-swipe paths) with `<AnimatePresence mode="wait" initial={false}>` + `<motion.div key={pathname} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>`. Old page now exits before new page enters; no bare-frame transparency.
+
+**File:** `src/components/layout/AppShell.tsx`
+
+---
+
+#### Fix 2 — ScrollProgressBar re-rendering on every scroll frame
+
+**Root cause:** `ScrollProgressBar.tsx` called `setProgress()` (React state) inside a `requestAnimationFrame` on every scroll event — 60+ re-renders/second on fast scroll. The `transition-[width] duration-75` CSS also conflicted with the rapid state writes.
+
+**Fix:** Removed `useState`. Bar width is now written directly to the DOM element via `ref.current.style.width` inside the rAF callback. Wrapper visibility toggled via `style.display`. Zero React re-renders on scroll.
+
+**File:** `src/components/layout/ScrollProgressBar.tsx`
+
+---
+
+#### Fix 3 — Body `background-color` transition firing on every route change
+
+**Root cause:** Three separate declarations in `src/index.css` applied `transition: background-color` to `html`, `body` (line 381), and `body` again (line 399) unconditionally. Every route change (especially landing ↔ app route) triggered a 250–300ms color animation.
+
+**Fix:** Removed all three unconditional `transition` declarations. Added `.theme-transitioning` class that applies `transition: background-color 200ms ease` only when explicitly set. Applied in `use-theme.ts` `toggleTheme()` for 250ms — theme switch still animates, route changes do not.
+
+**Files:** `src/index.css`, `src/hooks/use-theme.ts`
+
+---
+
+#### Fix 4 — Global `-webkit-overflow-scrolling` on all scroll containers
+
+**Root cause:** `index.css` applied `-webkit-overflow-scrolling: touch; overscroll-behavior-y: contain; touch-action: pan-y` to ALL `.overflow-y-auto` and `.overflow-y-scroll` elements globally. On iOS this caused async paint conflicts during fast swipe.
+
+**Fix:** Scoped to `.main-scroll-container`, `.bottom-sheet-scroll`, and `[data-radix-scroll-area-viewport]` only. Added `main-scroll-container` class to the primary scroll div in `AppShell.tsx`. Removed inline `style={{ WebkitOverflowScrolling: 'touch' }}`.
+
+**Files:** `src/index.css`, `src/components/layout/AppShell.tsx`
+
+---
+
+#### Fix 5 — `animate-fade-in` starting from `opacity: 0`
+
+**Root cause:** `@keyframes fade-in` started at `opacity: 0` — any browser frame rendered before the animation began showed a fully transparent element.
+
+**Fix:** Changed start to `opacity: 0.01` (never fully transparent). Reduced duration from 0.3s to 0.25s. Added comment that this class must not be used on route containers (use `motion.div` there instead).
+
+**File:** `src/index.css`
+
+---
+
+### Stream B — DevKit Audit (`08f44f0`)
+
+#### Bug 1 — AnalyticsPanel always errored (CRITICAL, confirmed)
+
+**Root cause:** `src/components/dev-kit/AnalyticsPanel.tsx:63` invoked `action: 'analytics'` on `admin-devkit-data`. The function's router (lines 1629–1686) had no `'analytics'` case → returned `{ success: false, code: 'UNKNOWN_ACTION', error: 'Unknown action: analytics' }` (HTTP 400). `unwrapAdminResponse` threw → panel showed error card. **AnalyticsPanel had never worked.**
+
+**Fix:** Implemented `handleAnalytics(body, log)` in `appwrite-hubs/admin-devkit-data/src/main.js`:
+- Accepts `body.range`: `'today' | '7d' | '30d' | '90d' | 'all'`
+- Fetches `visitor_events` collection for current and previous period (for delta KPIs)
+- Computes: page views, unique visitors (by `anon_id`), device breakdown, top pages (by `d.page`), country ranking, activity series (per-hour or per-day bucketed), DAU/WAU, rangeKpis with current/previous pairs
+- Returns full `PremiumAnalyticsData` shape (matches `src/components/dev-kit/analytics/types.ts`)
+- Wired into router: `else if (action === 'analytics') data = await handleAnalytics(body, log);`
+
+---
+
+#### Bug 2 — Premium/Pro plan set from DevKit not reflecting immediately (CRITICAL, confirmed)
+
+**Root cause:** `src/components/dev-kit/AdminUsersPanel.tsx` `handleSetPlan()` (lines 203–220) called `updateUser()` (local component state only) and showed a success toast, but never called `queryClient.invalidateQueries`. The write to Appwrite `subscriptions` collection WAS succeeding — the bug was purely in cache invalidation. `useMe` re-fetches every 15s — users had to wait up to 15s to see the change. Checking immediately after setting the plan → "doesn't reflect."
+
+`UserDetailDrawer.handleSetPlan` (line 553) already had `queryClient.invalidateQueries({ queryKey: ['me'] })` — inconsistency between the two UI paths.
+
+**Fix:**
+1. Added `useQueryClient` import to `AdminUsersPanel.tsx`
+2. Added `const queryClient = useQueryClient();` to the component
+3. Added `queryClient.invalidateQueries({ queryKey: ['me'] })` after successful `set-plan` call
+4. Applied same fix to `handleGrantTrial` in `AdminUsersPanel.tsx`
+5. Success toast now contextually explains: "Your plan is now active" (own plan) vs "user's app will reflect within ~15s" (other user)
+
+**Cross-browser note documented:** When the admin sets ANOTHER user's plan, that user's `useMe` cache lives in their browser. The admin's `invalidateQueries` cannot reach it. The target user updates via Appwrite realtime (1–3s) or 15s polling — this is expected behavior, not a bug.
+
+---
+
+#### Bug 3 — Visitors tab shows empty with no diagnostic context (Medium, confirmed)
+
+**Root cause:** `src/lib/visitorTrack.ts:159` gates all event writes behind GDPR consent (`if (!getConsent()) return`). If no users have granted consent, `visitor_events` collection stays empty — `VisitorsPanel` shows generic "No page view data yet" with no way to tell whether the issue is (a) no data or (b) function not deployed.
+
+**Fix:**
+1. Added `totalEvents` field to `handleLiveCount()` response in `appwrite-hubs/admin-visitor-analytics/src/main.js` — fetches `visitor_events` with `Query.limit(1)` to get `total` count
+2. `VisitorsPanel.tsx` fetches `live-count` alongside other actions and stores `eventCount` in state
+3. New empty state shows one of three messages:
+   - `eventCount === 0`: "visitor_events: 0 documents — tracking activates only after users grant GDPR consent"
+   - `eventCount > 0`: "visitor_events: N documents — data exists but didn't load. Check admin-visitor-analytics deployment in Diagnostics."
+   - `eventCount === null` (count fetch also failed): "Couldn't determine collection status — verify function deployment"
+
+---
+
+#### Bug 4 — AIRoutingSwitcher silently hung on load failure (Medium, confirmed)
+
+**Root cause:** `fetchRoutes()` catch block only called `console.error('Failed to fetch AI routes:', err)`. UI showed "Fetching AI Global Config…" indefinitely. User had no indication of failure and no way to retry.
+
+**Fix:** Added `loadError` state (`useState<string | null>(null)`). On catch: `setLoadError(msg)`. After the `if (loading)` guard, added `if (loadError)` block rendering an error card with the error message and a "Retry" button that calls `fetchRoutes()`.
+
+---
+
+### Verification
+- `npx tsc --noEmit` — zero errors (ran after both commits)
+- No new npm packages
+- No new Appwrite collections or attributes
+- No CI workflow changes
+
+---
+
+### Where We Stopped
+
+All changes are on `main` (HEAD `08f44f0`). Both commits pushed.
+
+**DevKit — remaining items not addressed this session:**
+- `EmailAutomationsPanel.tsx` is read-only (shows audience/broadcast stats but no controls to create or trigger automations). Needs a broadcast compose modal + `admin-email` function action `'send-broadcast'`.
+- `AnalyticsPanel` data quality: `signupsLast14Days`, `aiCreditsToday`, `aiCreditsYesterday`, `topReferrers`, `newVsReturning` (accurate), and `heatmap` are returned as `[]` / `0` — these require querying `auth_users`, `ai_credits`, and referrer parsing which wasn't implemented to keep scope tight. Values are structurally valid (no type errors).
+
+**Outstanding portfolio items (from previous sessions, not addressed this session):**
+- AI Critique → clickable jump-to-section action
+- Section funnel analytics chart in VisitorsTab
+- Full-viewport hero on desktop
+- Theme-aware default section ordering
+- Remove A/B testing from user-facing UI
+- Remove CareerCard / merge with QR
+- Email notification on recruiter interest (requires new Appwrite Function)
+
+**Next agent:** Pull `main` (HEAD `08f44f0`). DevKit premium assignment now works immediately for own-plan changes. AnalyticsPanel now loads data. Visitors empty state is diagnostic. Verify by: (1) open DevKit Analytics tab — should load or show empty state instead of error card; (2) open God Mode → set own user's plan to Pro → immediately check a Pro-gated feature — should reflect without waiting.
+
+---
+
+
 
 ### Overview
 Two work streams in a single session on `claude/read-project-docs-JEUkC`:
