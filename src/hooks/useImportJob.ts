@@ -31,13 +31,13 @@ export function useImportJob() {
 
       const { job, jobId } = result.data;
 
-      // If the function already persisted the document server-side, skip client write
+      // Function saved the document server-side — just refresh the list
       if (jobId) {
         queryClient.invalidateQueries({ queryKey: ['jobs'] });
         return;
       }
 
-      // Fallback: create client-side (requires collection-level create permission)
+      // Fallback: save client-side (requires collection permission)
       return createJob.mutateAsync({
         title: job.title,
         company: job.company,

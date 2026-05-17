@@ -116,37 +116,49 @@ async function createJobDocument(userId, job, sourceUrl) {
   const apiKey = process.env.APPWRITE_API_KEY;
   if (!projectId || !apiKey || !userId) return null;
 
-  const docId = require('crypto').randomUUID();
-  const response = await axios.post(
-    `${endpoint}/databases/main/collections/jobs/documents`,
-    {
-      documentId: docId,
-      data: {
-        user_id: userId,
-        title: job.title,
-        company: job.company,
-        company_logo: null,
-        description: job.description || '',
-        requirements: job.requirements || '',
-        location: job.location || '',
-        salary_range: job.salary_range || null,
-        job_type: job.job_type || 'full-time',
-        posted_date: new Date().toISOString(),
-        source_url: sourceUrl,
-        is_saved: true,
+  const { randomUUID } = require('crypto');
+  const docId = randomUUID();
+
+  try {
+    const response = await axios.post(
+      `${endpoint}/databases/main/collections/jobs/documents`,
+      {
+        documentId: docId,
+        data: {
+          user_id: userId,
+          title: job.title,
+          company: job.company,
+          company_logo: null,
+          location: job.location || '',
+          salary_range: job.salary_range || null,
+          job_type: job.job_type || 'full-time',
+          remote: job.remote,
+          skills: job.skills,
+          description: job.description || '',
+          requirements: job.requirements || '',
+          posted_date: new Date().toISOString(),
+          source_url: sourceUrl,
+          is_saved: true,
+        },
+        permissions: [
+          `read("user:${userId}")`,
+          `update("user:${userId}")`,
+          `delete("user:${userId}")`,
+        ],
       },
-      permissions: [],
-    },
-    {
-      headers: {
-        'X-Appwrite-Project': projectId,
-        'X-Appwrite-Key': apiKey,
-        'Content-Type': 'application/json',
-      },
-      timeout: 10000,
-    },
-  );
-  return response.data;
+      {
+        headers: {
+          'X-Appwrite-Project': projectId,
+          'X-Appwrite-Key': apiKey,
+          'Content-Type': 'application/json',
+        },
+        timeout: 10000,
+      }
+    );
+    return response.data;
+  } catch (err) {
+    return null;
+  }
 }
 
 // ─── Main handler ──────────────────────────────────────────────────────────────
@@ -273,6 +285,25 @@ ${context}`,
     error(`DB write failed: ${err.message}`);
     // Still return ok:true with the parsed data — frontend will attempt its own write
   }
+
+  const parsedJob = {
+    title: parsed.title || 'Unknown Position',
+    company: parsed.company || 'Unknown Company',
+    location: parsed.location || '',
+    salary_range: parsed.salary_range || null,
+    job_type: parsed.job_type || 'full-time',
+    remote: Boolean(parsed.remote),
+    skills: Array.isArray(parsed.skills) ? parsed.skills : [],
+    description: parsed.description || '',
+    requirements: Array.isArray(parsed.requirements)
+      ? parsed.requirements.join(', ')
+      : (parsed.requirements || ''),
+  };
+
+  // Persist server-side using API key to bypass collection permission requirement
+  const savedDoc = await createJobDocument(userId, parsedJob, url);
+  if (savedDoc) log(`Saved job document: ${savedDoc.$id}`);
+  else log('Server-side save skipped (no credentials or userId); client will fallback');
 
   return res.json({
     ok: true,

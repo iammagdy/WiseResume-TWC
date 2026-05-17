@@ -258,9 +258,11 @@ function AppRoutes() {
         onAuthenticate={authenticate} />);
   }
 
+  const isAuthRoute = location.pathname.startsWith('/auth');
+
   return (
     <>
-        <ConsentBanner />
+        {!isAuthRoute && <ConsentBanner />}
         <AuroraLayer />
         {appSettings.announcement_enabled && appSettings.announcement_banner && (
           <AnnouncementBanner message={appSettings.announcement_banner} />
