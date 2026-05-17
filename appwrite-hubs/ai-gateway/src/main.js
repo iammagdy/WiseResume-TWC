@@ -607,14 +607,26 @@ let FEATURE_ROUTES = {
   'company-briefing':           { provider: 'openrouter', model: 'meta-llama/llama-3.3-70b-instruct:free' },
 };
 
+// ─── Route config cache (warm-instance TTL avoids per-request DB fetch) ──────
+let _routeCache   = null;
+let _routeCacheTs = 0;
+const ROUTE_CACHE_TTL = 60_000; // 1 minute
+
 async function syncDynamicRoutes(db) {
+  if (_routeCache && Date.now() - _routeCacheTs < ROUTE_CACHE_TTL) {
+    Object.assign(FEATURE_ROUTES, _routeCache);
+    return;
+  }
   try {
     const res = await db.listDocuments(DB_ID, 'ai_routing_config');
+    _routeCache = {};
     res.documents.forEach(doc => {
+      _routeCache[doc.feature_id] = { provider: doc.provider, model: doc.model };
       FEATURE_ROUTES[doc.feature_id] = { provider: doc.provider, model: doc.model };
     });
-  } catch (e) {
-    // Silently fallback to static routes if collection doesn't exist yet
+    _routeCacheTs = Date.now();
+  } catch {
+    // Silently fall back to static routes if collection doesn't exist yet
   }
 }
 
@@ -624,6 +636,46 @@ function getDbClient() {
   const apiKey    = process.env.APPWRITE_API_KEY || process.env.APPWRITE_FUNCTION_API_KEY;
   const client    = new sdk.Client().setEndpoint(endpoint).setProject(projectId).setKey(apiKey);
   return new sdk.Databases(client);
+}
+
+// ─── Key health tracking (in-memory, resets on cold start) ───────────────────
+// Tracks per-key backoff expiry timestamps. Warm-instance reuse means a 429'd
+// key stays skipped for the backoff window across multiple consecutive requests.
+const _keyBackoff     = new Map(); // apiKey → backoffUntilMs
+const _keyRoundRobin  = new Map(); // provider → next-index counter
+
+function isKeyHealthy(key) {
+  const until = _keyBackoff.get(key);
+  return !until || Date.now() > until;
+}
+
+function markKeyFailed(key, ms) {
+  _keyBackoff.set(key, Date.now() + ms);
+}
+
+/** Round-robin, health-aware key selection for a provider. */
+function pickKey(pool, provider) {
+  const keys = pool.filter(e => e.provider === provider);
+  if (keys.length === 0) return null;
+  const base = _keyRoundRobin.get(provider) || 0;
+  for (let offset = 0; offset < keys.length; offset++) {
+    const idx = (base + offset) % keys.length;
+    if (isKeyHealthy(keys[idx].key)) {
+      _keyRoundRobin.set(provider, (idx + 1) % keys.length);
+      return keys[idx];
+    }
+  }
+  // All keys backed off — use round-robin anyway (never fully stall)
+  const idx = base % keys.length;
+  _keyRoundRobin.set(provider, (idx + 1) % keys.length);
+  return keys[idx];
+}
+
+/** Tiered per-attempt timeout: fail fast on first try, be patient on last resort. */
+function candidateTimeout(i, total) {
+  if (i === 0)         return 10_000; // primary: 10s — bail quickly if provider is slow
+  if (i === total - 1) return 28_000; // last resort: give it as much time as possible
+  return 15_000;                      // middle fallbacks: moderate
 }
 
 // ─── Routing helpers ──────────────────────────────────────────────────────────
@@ -664,11 +716,12 @@ function getProviderAvailability() {
 /**
  * Build an ordered candidate list for a given featureName.
  *
- * The list is tried in sequence by the call loop; the first successful
- * response wins. Order:
- *  1. Preferred provider from FEATURE_ROUTES (if configured and has keys).
- *  2. Remaining pool entries in buildPool() order (groq → openrouter →
- *     deepseek → nvidia), excluding any already used as primary.
+ * Tries in this order:
+ *  1. Preferred provider (from FEATURE_ROUTES): primary key via round-robin +
+ *     health-aware selection, then the remaining keys for that same provider
+ *     (all using the route model so quality is preserved on same-provider retry).
+ *  2. Cross-provider fallbacks in buildPool() order (groq → openrouter →
+ *     deepseek → nvidia), each using that provider's default free model.
  *
  * Returns an array of { provider, key, model, routed } objects, or [] when
  * the pool is empty.
@@ -684,25 +737,29 @@ function buildCandidates(featureName, pool) {
 
   const candidates = [];
   const usedKeys   = new Set();
+  const route      = FEATURE_ROUTES[featureName];
 
-  const route = FEATURE_ROUTES[featureName];
   if (route) {
-    const preferred = pool.filter(e => e.provider === route.provider);
-    if (preferred.length > 0) {
-      const entry = preferred[Math.floor(Math.random() * preferred.length)];
-      candidates.push({ provider: entry.provider, key: entry.key, model: route.model, routed: true });
-      usedKeys.add(entry.key);
+    const providerKeys = pool.filter(e => e.provider === route.provider);
+    if (providerKeys.length > 0) {
+      // Primary: round-robin + health-aware (skips rate-limited keys)
+      const primary = pickKey(pool, route.provider);
+      candidates.push({ provider: primary.provider, key: primary.key, model: route.model, routed: true });
+      usedKeys.add(primary.key);
+
+      // Same-provider fallbacks keep the route model — quality maintained on retry
+      for (const entry of providerKeys) {
+        if (usedKeys.has(entry.key)) continue;
+        candidates.push({ provider: entry.provider, key: entry.key, model: route.model, routed: true });
+        usedKeys.add(entry.key);
+      }
     }
   }
 
+  // Cross-provider fallbacks in pool order (groq → openrouter → deepseek → nvidia)
   for (const entry of pool) {
     if (usedKeys.has(entry.key)) continue;
-    candidates.push({
-      provider: entry.provider,
-      key:      entry.key,
-      model:    defaultModelFor(entry.provider),
-      routed:   false,
-    });
+    candidates.push({ provider: entry.provider, key: entry.key, model: defaultModelFor(entry.provider), routed: false });
     usedKeys.add(entry.key);
   }
 
@@ -769,8 +826,8 @@ module.exports = async ({ req, res, log, error }) => {
       ? (opts.maxTokens ?? 4000)
       : (opts.maxTokens || 1000);
 
-    /** Call a single provider candidate. */
-    async function callCandidate(candidate) {
+    /** Call a single provider candidate with the given per-attempt timeout. */
+    async function callCandidate(candidate, timeoutMs = 28000) {
       const response = await axios.post(BASES[candidate.provider], {
         model:      opts.model || candidate.model,
         messages:   requestMessages,
@@ -778,7 +835,7 @@ module.exports = async ({ req, res, log, error }) => {
         max_tokens: maxTokens,
       }, {
         headers: { 'Authorization': `Bearer ${candidate.key}`, 'Content-Type': 'application/json' },
-        timeout: 30000,
+        timeout: timeoutMs,
       });
       return {
         content: response.data.choices[0].message.content,
@@ -830,7 +887,7 @@ module.exports = async ({ req, res, log, error }) => {
               });
 
               try {
-                result = await callCandidate(candidate);
+                result = await callCandidate(candidate, candidateTimeout(i, candidates.length));
               } catch (providerErr) {
                 span.setTag('error', providerErr);
                 span.setTag('error.message', providerErr.message);
@@ -852,7 +909,7 @@ module.exports = async ({ req, res, log, error }) => {
               // to a direct untraced call for this same candidate rather than
               // skipping it entirely and moving to the next fallback.
               error('DD LLMObs trace setup error, retrying untraced: ' + traceErr.message);
-              result = await callCandidate(candidate);
+              result = await callCandidate(candidate, candidateTimeout(i, candidates.length));
             } else {
               // Provider call inside the trace threw — re-throw so the outer
               // catch handles it and moves to the next candidate.
@@ -860,7 +917,7 @@ module.exports = async ({ req, res, log, error }) => {
             }
           });
         } else {
-          result = await callCandidate(candidate);
+          result = await callCandidate(candidate, candidateTimeout(i, candidates.length));
         }
 
         content      = result.content;
@@ -913,7 +970,17 @@ module.exports = async ({ req, res, log, error }) => {
         break;
 
       } catch (candidateErr) {
-        error(`Provider ${candidate.provider} failed: ${candidateErr.message}`);
+        const httpStatus = candidateErr.response?.status;
+        const isTimeout  = candidateErr.code === 'ECONNABORTED' || /timeout/i.test(candidateErr.message || '');
+        // Classify error and set per-key backoff so the same dead key isn't hit again
+        let backoffMs = 0;
+        if (httpStatus === 429)                          backoffMs = 120_000; // rate limited — 2 min
+        else if (httpStatus === 401 || httpStatus === 403) backoffMs = 300_000; // bad key — 5 min
+        else if (httpStatus >= 500)                      backoffMs = 30_000;  // provider error — 30s
+        // Timeout: no backoff — provider may recover; just try next candidate now
+        if (backoffMs > 0) markKeyFailed(candidate.key, backoffMs);
+
+        error(`Provider ${candidate.provider} failed [${httpStatus ?? (isTimeout ? 'timeout' : candidateErr.code) ?? 'err'}]: ${candidateErr.message}`);
         if (i === candidates.length - 1) {
           // All candidates exhausted.
           await flushDD();
