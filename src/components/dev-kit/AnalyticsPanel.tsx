@@ -154,7 +154,7 @@ export function AnalyticsPanel() {
 
       {loading && !data && (
         <>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
             {[...Array(8)].map((_, i) => <div key={i} className="h-24 rounded-xl bg-muted/50 animate-pulse" />)}
           </div>
           <div className="h-64 rounded-xl bg-muted/40 animate-pulse" />
@@ -168,7 +168,7 @@ export function AnalyticsPanel() {
       {data && (
         <>
           {/* KPI hero strip */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
             <KpiCard
               label="Feature events" value={data.rangeKpis.views.current.toLocaleString()}
               sub="AI & app usage events (not page views)"
@@ -200,7 +200,7 @@ export function AnalyticsPanel() {
           </div>
 
           {/* Secondary KPI strip */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <KpiCard label="DAU" value={data.rangeKpis.dau.toLocaleString()} sub="last 24h"
               icon={Activity} accent="blue" hideDelta />
             <KpiCard label="WAU" value={data.rangeKpis.wau.toLocaleString()} sub="last 7 days"

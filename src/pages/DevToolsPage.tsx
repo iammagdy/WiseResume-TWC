@@ -276,8 +276,17 @@ function DevToolsInner() {
         <Button variant="ghost" size="icon" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="rounded-xl">{isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}</Button>
       </div>
 
+      {/* Sidebar backdrop — tap to close on mobile */}
+      {isMobileMenuOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/60 lg:hidden"
+          onClick={() => setIsMobileMenuOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className={cn('fixed inset-0 z-50 flex w-full flex-col border-r border-white/5 bg-black/90 backdrop-blur-xl transition-all duration-300 lg:static lg:w-80 lg:translate-x-0 lg:bg-black/50', isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full')}>
+      <aside className={cn('fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-white/5 bg-black/95 backdrop-blur-xl transition-all duration-300 lg:static lg:w-80 lg:translate-x-0 lg:bg-black/50', isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full')}>
         <div className="hidden items-center justify-between border-b border-white/5 p-6 lg:flex">
           <div className="flex items-center gap-3">
             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-600"><Cog size={18} className="text-white" /></div>
@@ -410,7 +419,7 @@ function DevToolsInner() {
 
         return (
           <div
-            className="fixed inset-0 z-[100] flex items-start justify-center pt-24 bg-black/60 backdrop-blur-sm"
+            className="fixed inset-0 z-[100] flex items-start justify-center pt-6 sm:pt-24 bg-black/60 backdrop-blur-sm px-3 sm:px-0"
             onClick={() => setCmdKOpen(false)}
           >
             <div

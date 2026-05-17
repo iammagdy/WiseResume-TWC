@@ -785,24 +785,25 @@ export const AdminUsersPanel = () => {
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between pt-2 text-xs text-white/30">
-          <span>
+          <span className="hidden sm:block">
             Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, totalCount)} of {totalCount.toLocaleString()} users
           </span>
+          <span className="sm:hidden text-[10px]">{totalCount.toLocaleString()} users</span>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setPage(p => Math.max(0, p - 1))}
               disabled={page === 0 || loading}
-              className="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 hover:text-white/60 disabled:opacity-30 transition-all"
+              className="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 hover:text-white/60 disabled:opacity-30 transition-all flex items-center gap-1"
             >
-              ← Prev
+              <span className="hidden sm:inline">← </span>Prev
             </button>
-            <span className="px-2">Page {page + 1} of {totalPages}</span>
+            <span className="px-1 tabular-nums">{page + 1}/{totalPages}</span>
             <button
               onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
               disabled={page >= totalPages - 1 || loading}
-              className="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 hover:text-white/60 disabled:opacity-30 transition-all"
+              className="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 hover:text-white/60 disabled:opacity-30 transition-all flex items-center gap-1"
             >
-              Next →
+              Next<span className="hidden sm:inline"> →</span>
             </button>
           </div>
         </div>
