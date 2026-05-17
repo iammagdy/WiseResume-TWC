@@ -110,9 +110,10 @@ body.wr-security-curtain [data-biometric-lock] {
 }
 
 
-/* Android WebView scroll fix - apply to ALL scrollable containers */
-.overflow-y-auto,
-.overflow-y-scroll {
+/* Android WebView scroll fix - scoped to known scroll containers only */
+.main-scroll-container,
+.bottom-sheet-scroll,
+[data-radix-scroll-area-viewport] {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
   touch-action: pan-y;
@@ -373,11 +374,6 @@ body.wr-security-curtain [data-biometric-lock] {
     -moz-osx-font-smoothing: grayscale;
     scroll-behavior: smooth;
     font-size: 16px;
-    transition: background-color 250ms ease, color 250ms ease;
-  }
-
-  body {
-    transition: background-color 250ms ease, color 250ms ease;
   }
 
   #root {
@@ -395,7 +391,12 @@ body.wr-security-curtain [data-biometric-lock] {
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: none;
-    transition: background-color 0.3s ease, color 0.2s ease;
+  }
+
+  /* Theme toggle transition — only fires when .theme-transitioning is applied */
+  .theme-transitioning,
+  .theme-transitioning * {
+    transition: background-color 200ms ease, color 200ms ease, border-color 200ms ease !important;
   }
 
   /* Smooth theme transitions for key surfaces */
@@ -926,14 +927,14 @@ button,
   transition: opacity 0.05s ease, transform 0.2s ease;
 }
 
-/* Fast fade-in for hero elements */
+/* Fast fade-in for hero/section elements (NOT used on route containers — use motion.div there) */
 @keyframes fade-in {
-  from { opacity: 0; transform: translateY(10px); }
+  from { opacity: 0.01; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
 .animate-fade-in {
-  animation: fade-in 0.3s ease-out forwards;
+  animation: fade-in 0.25s ease-out forwards;
 }
 
 /* ── Performance: offscreen paint containment for editor tabs ── */

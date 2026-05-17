@@ -1,6 +1,7 @@
 import { useLocation, useOutlet } from 'react-router-dom';
 import { GlassSurface } from '@/components/ui/GlassSurface';
 import { useRef, useEffect, useState, lazy, Suspense } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { preloadLazy } from '@/lib/preloadLazy';
 import { MessageCircle, X, Sun, Moon } from 'lucide-react';
 import { useTheme } from '@/hooks/use-theme';
@@ -138,23 +139,37 @@ function AppShellInner() {
         <div
           ref={scrollRef}
           className={cn(
-            "flex-1 flex flex-col min-h-0 w-full",
+            "flex-1 flex flex-col min-h-0 w-full main-scroll-container",
             isEditorRoute ? "overflow-hidden" : "overflow-y-auto"
           )}
-          style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}
         >
           <ScrollProgressBar containerRef={scrollRef} />
-          {enableSwipeBack ? (
-            <SwipeBackWrapper className="flex-1 flex flex-col min-h-0">
-              <div key={location.pathname} className="flex-1 flex flex-col min-h-0 animate-fade-in">
+          <AnimatePresence mode="wait" initial={false}>
+            {enableSwipeBack ? (
+              <SwipeBackWrapper key={location.pathname} className="flex-1 flex flex-col min-h-0">
+                <motion.div
+                  className="flex-1 flex flex-col min-h-0"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.15, ease: 'easeInOut' }}
+                >
+                  {currentOutlet}
+                </motion.div>
+              </SwipeBackWrapper>
+            ) : (
+              <motion.div
+                key={location.pathname}
+                className="flex-1 flex flex-col min-h-0"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15, ease: 'easeInOut' }}
+              >
                 {currentOutlet}
-              </div>
-            </SwipeBackWrapper>
-          ) : (
-            <div key={location.pathname} className="flex-1 flex flex-col min-h-0 animate-fade-in">
-              {currentOutlet}
-            </div>
-          )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </main>
       {showBottomNav && <BottomTabBar className="lg:hidden" />}
