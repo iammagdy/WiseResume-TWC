@@ -1,6 +1,21 @@
 const sdk = require('node-appwrite');
 const fs = require('fs');
 const path = require('path');
+const { execSync } = require('child_process');
+
+function buildHub(dir, archive) {
+    const hubDir = path.join(process.cwd(), 'appwrite-hubs', dir);
+    const archivePath = path.join(process.cwd(), archive);
+    if (!fs.existsSync(hubDir)) throw new Error(`Hub directory not found: ${hubDir}`);
+    const pkgJson = path.join(hubDir, 'package.json');
+    if (fs.existsSync(pkgJson)) {
+        console.log(`  Installing deps for ${dir}...`);
+        execSync('npm install --omit=dev --silent', { cwd: hubDir, stdio: 'inherit' });
+    }
+    console.log(`  Packaging ${dir}...`);
+    execSync(`tar -czf "${archivePath}" .`, { cwd: hubDir });
+    console.log(`  Built ${archive}`);
+}
 
 const client = new sdk.Client()
     .setEndpoint(process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1')
@@ -53,7 +68,8 @@ async function deployFunction(id, name, filePath) {
     console.log(`\nDeploying ${name} (${id})...`);
 
     if (!fs.existsSync(absPath)) {
-        throw new Error(`File not found: ${absPath}`);
+        console.log(`  Archive not found, building...`);
+        buildHub(id, filePath);
     }
 
     try {
