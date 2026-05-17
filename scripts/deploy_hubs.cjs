@@ -132,6 +132,7 @@ async function run() {
         { id: 'admin-onboarding-funnel',   name: 'Admin Onboarding Funnel Hub',   file: 'admin-onboarding-funnel.tar.gz' },
         { id: 'admin-impersonate',         name: 'Admin Impersonate Hub',         file: 'admin-impersonate.tar.gz' },
         { id: 'inspect-ai-keys',           name: 'Inspect AI Keys Hub',           file: 'inspect-ai-keys.tar.gz' },
+        { id: 'admin-deploy-hubs',         name: 'Admin Deploy Hubs',             file: 'admin-deploy-hubs.tar.gz' },
     ];
 
     for (const hub of hubs) {
@@ -171,6 +172,7 @@ async function run() {
         'admin-onboarding-funnel',
         'admin-impersonate',
         'inspect-ai-keys',
+        'admin-deploy-hubs',
     ];
     for (const fnId of adminFunctionIds) {
         for (const [key, value] of [
@@ -240,6 +242,14 @@ async function run() {
         }
     } catch (e) {
         console.warn(`  Could not update jobs collection permissions: ${e.message}`);
+    }
+
+    console.log('\nEnsuring admin-deploy-hubs GitHub credentials...');
+    for (const [key, value] of [
+        ['GITHUB_TOKEN', process.env.GITHUB_TOKEN],
+        ['GITHUB_REPO', process.env.GITHUB_REPO || 'iammagdy/WiseResume-TWC'],
+    ]) {
+        await ensureVariable('admin-deploy-hubs', key, value);
     }
 
     console.log('\nAll hubs processed.');

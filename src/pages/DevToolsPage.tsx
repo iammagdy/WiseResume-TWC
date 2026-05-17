@@ -34,6 +34,7 @@ import { EmailHubPanel } from '@/components/dev-kit/EmailHubPanel';
 import { GrowthTrafficPanel } from '@/components/dev-kit/GrowthTrafficPanel';
 import { WiseHireWaitlistPanel } from '@/components/dev-kit/WiseHireWaitlistPanel';
 import { HomePanel } from '@/components/dev-kit/HomePanel';
+import { DeployHubsPanel } from '@/components/dev-kit/DeployHubsPanel';
 
 type PanelStatus = 'Live' | 'Needs Appwrite Function' | 'Needs Schema' | 'Planned';
 
@@ -71,7 +72,8 @@ const PANEL_GROUPS: { label: string; panels: PanelDef[] }[] = [
     { id: 'audit',             title: 'History',          icon: History,     status: 'Live' },
   ]},
   { label: 'Developer Tools', panels: [
-    { id: 'runner', title: 'Smoke Runner', icon: Play, status: 'Live' },
+    { id: 'runner',       title: 'Smoke Runner',  icon: Play,   status: 'Live' },
+    { id: 'deploy-hubs', title: 'Deploy Hubs',   icon: Wrench, status: 'Live' },
   ]},
 ];
 
@@ -219,6 +221,7 @@ function DevToolsInner() {
       case 'diagnostics':       return wrap('Diagnostics',      <DiagnosticsPanel />);
       case 'mission':           return wrap('Mission Control',  <MissionControlPanel onNavigate={navigatePanel} />);
       case 'runner':            return wrap('Smoke Runner',     <DevKitRunner />);
+      case 'deploy-hubs':      return wrap('Deploy Hubs',      <DeployHubsPanel />);
       case 'observability':     return wrap('Observability',    <ObservabilityPanel />);
       case 'growth':            return wrap('Growth & Traffic', <GrowthTrafficPanel />);
       case 'coupons':           return wrap('Coupons',          <CouponsPanel />);
