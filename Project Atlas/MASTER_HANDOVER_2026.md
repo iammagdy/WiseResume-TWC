@@ -2,126 +2,120 @@
 
 ---
 
-## Session Summary — 2026-05-16 (Dead Code Removal + Cross-Platform Fixes + Smart AI Routing + Chat History Fix)
+## Session Summary — 2026-05-16 (Portfolio Fixes + Enhancements — usePublicPortfolio rewrite, carousel, generate-all, JSON-LD)
 
-Branch: `main` | HEAD: `254f154`
+### Overview
+Two work streams in a single session on `claude/read-project-docs-JEUkC`:
 
----
+**Stream A — Bug Fixes (critical):** Three bugs from prior plan were already live. Import Job mobile button loop and premium detection fixes were committed in a prior sub-session (`ccb6486`). This session continued with the remaining critical fixes.
 
-### Part 1 — Dead Code Removal
+**Stream B — Portfolio Enhancement Pass:** Implemented high-priority items from a prior audit that had identified the portfolio as generic. 5 targeted improvements; no new npm packages; zero Appwrite schema changes; `npx tsc --noEmit` clean throughout.
 
-Audit verified every finding with grep before deletion. Zero guessing.
-
-| Deleted | Why |
-|---|---|
-| `src/lib/apiFetch.ts` + `__tests__/apiFetch.test.ts` | Legacy Supabase fetch wrapper. Zero imports in production code — only referenced in its own test file. |
-| `src/lib/apiFnUrl.ts` | Legacy API URL builder. Zero imports anywhere. Only mentioned in a test comment. |
-| `src/lib/transactionalEmailFlag.ts` | `USE_MERGED_TRANSACTIONAL_EMAIL = true` flag, never imported anywhere in `src/`. |
-| `src/lib/sectionHelpers.ts` + `sectionHelpers.test.ts` | `getSectionPreview/Icon/Name` — only imported in their own test file, no production consumer. |
-| `appwrite-hubs/auth-master/` (entire directory) | Early REST-style auth layer superseded by direct Appwrite SDK calls. Never invoked from frontend (grep confirmed zero references to `"auth-master"` in `src/`). Was being deployed on every CI run for nothing. |
-
-Also removed `auth-master` from `scripts/deploy_hubs.cjs` and `deploy-appwrite-hubs.yml`. 465 lines deleted. Zero TS errors.
-
-> **Note:** `admin-testmail` was initially flagged by an automated audit agent as unused. Confirmed via code review that `TestmailInboxPanel.tsx` actively calls `admin-testmail` hub at lines 168 and 193. Not removed.
+Branch: `claude/read-project-docs-JEUkC` | Commits: `ccb6486`, `5e242bb`, `047f30d`, `bc47a66`
 
 ---
 
-### Part 2 — Appwrite Integration Audit Fixes (5 issues)
+### Fix 1 — `usePublicPortfolio` Hook Rewrite (`5e242bb`)
 
-All fixes committed in `e8c0f34`.
+**Root cause:** The hook was a stub. `usePortfolioGate()` accepted no arguments but the page called it as `usePortfolioGate(username)`. `usePublicPortfolio()` accepted only `username` but the page called it as `usePublicPortfolio(username, contentEnabled, submittedPassword)`. Result: password protection was completely bypassed (gate always returned `{ isAllowed: true, loading: false }`), content was always fetched regardless of gate state, and the `PublicProfile` type didn't exist — breaking `usePortfolioSEO`, `PublicHero`, `PublicSections`, `ChatWidget`, `portfolioPrintLayout`.
 
-#### Issue 1 — Account Backup: hidden broken UI
-**Root cause:** `exportFullAccount` / `importFullAccount` in `src/lib/accountBackup.ts` always throw `pending_appwrite_migration`. `AccountBackupSheet` was reachable from `ProfilePage` — users saw a cryptic error toast.
-**Fix:** Removed `<AccountBackupSheet>` render block, `backupOpen` state, and import from `ProfilePage.tsx`. Stubs and the sheet component preserved for future implementation.
+**Fix:** Complete rewrite of `src/hooks/usePublicPortfolio.ts`:
 
-#### Issue 2 — Missing DATADOG_API_KEY in CI
-**Root cause:** `ai-gateway/src/main.js` reads `process.env.DATADOG_API_KEY` for LLM observability tracing, but the Deploy hubs step in `deploy-appwrite-hubs.yml` did not pass this secret. Gateway was running without Datadog in production.
-**Fix:** Added `DATADOG_API_KEY: ${{ secrets.DATADOG_API_KEY }}` to the Deploy hubs env block.
+| Export | Before | After |
+|--------|--------|-------|
+| `usePortfolioGate(username)` | Accepted no args, returned `{ isAllowed: true, loading: false }` | Fetches `profiles` by username, returns `{ data: { passwordEnabled, accentColor, exists }, isLoading }` |
+| `usePublicPortfolio(username, contentEnabled, submittedPassword)` | Only accepted `username`, ignored other args | Accepts all 3 args; only queries when `contentEnabled=true`; SHA-256 hashes `submittedPassword` and compares against `portfolioExtras.passwordHash`; throws `new Error('invalid_password')` on mismatch |
+| `PublicProfile` | Not exported | Full typed interface with 30+ fields: `availabilityStatus`, `location`, `industry`, `portfolioPrimaryLanguage`, `portfolioSecondaryLanguage`, `contactFormEnabled`, all `portfolioExtras` sub-fields flattened (`testimonials`, `services`, `caseStudies`, `highlights`, `portfolioSummary`, `sectionOrder`, `pinnedProject`, `scrollEffect`, `videoIntroUrl`, `schedulingUrl`, `abChallengerTheme`, `portfolioCertifications`) |
+| `PublicResume` | Not exported | Full typed interface |
+| `PortfolioSections` | Not exported | Exported interface |
+| `validateCustomDomain` | Always returned `true` | Now validates format and blocks reserved domains, returns `string \| null` |
 
-#### Issue 3 — Hardcoded collection strings in 8 hooks
-**Root cause:** 8 hooks passed raw string literals (`'resumes'`, `'profiles'`, etc.) to Appwrite SDK instead of `COLLECTIONS.*`.
-**Fix:** Added `import { COLLECTIONS } from '@/lib/appwrite-collections'` to all 8 hooks and replaced 36 string literals. Hooks: `useResumes`, `useProfile`, `useNotifications`, `useResignationLetters`, `useJobApplications`, `useInterviewAnswers`, `useCoverLetters`, `useSuspensionCheck`.
-
-#### Issue 4 — Hardcoded strings in EmailManagementPanel
-**Fix:** `src/components/dev-kit/EmailManagementPanel.tsx` line 656 — replaced `'main'` with `DATABASE_ID` and `'admin_audit_logs'` with `COLLECTIONS.admin_audit_logs`.
-
-#### Issue 5 — AIRoutingSwitcher direct DB calls
-**Root cause:** `AIRoutingSwitcher.tsx` made 4 direct `databases.*` calls for `ai_routing_config` instead of routing through the `admin-devkit-data` hub (no audit logging, wrong auth pattern).
-**Fix (Part A):** Added 4 action handlers to `appwrite-hubs/admin-devkit-data/src/main.js`: `list-routing-config`, `update-routing-config`, `create-routing-config`, `delete-routing-config`.
-**Fix (Part B):** Updated `AIRoutingSwitcher.tsx` to call `admin-devkit-data` hub for all 4 operations via `appwriteFunctions.invoke`.
+**Password verification detail:** The editor hashes with `crypto.subtle.digest('SHA-256', ...)` and stores the hex string in `portfolioExtras.passwordHash`. The public hook replicates the same hash client-side and compares. No Appwrite Function required.
 
 ---
 
-### Part 3 — Cross-Platform Bug Fixes
+### Fix 2 — JSON-LD Person Schema (`5e242bb`)
 
-All fixes in `254f154`.
+**Root cause:** `usePortfolioSEO.ts` set Open Graph and Twitter tags but emitted no structured data — Google had no machine-readable signal for portfolio pages.
 
-| Fix | File | Root Cause | Fix Applied |
-|---|---|---|---|
-| iOS home screen icon missing | `index.html` | No `apple-touch-icon` or iOS meta tags | Added `<link rel="apple-touch-icon">` + 3 meta tags (`apple-mobile-web-app-capable`, `apple-mobile-web-app-status-bar-style: black-translucent`, `apple-mobile-web-app-title`) |
-| URL input iOS auto-zoom | `src/components/jobs/ImportJobSheet.tsx` | Input used `text-sm` (14px); iOS Safari auto-zooms any input below 16px on focus | Changed to `text-[16px]` |
-| Clipboard API fails on iOS | `src/components/jobs/ImportJobSheet.tsx` | `navigator.clipboard.readText()` called in `useEffect` on sheet open — not in a direct user gesture context; WebKit silently rejects | Removed auto-read from `useEffect`; replaced with inline **Paste** button that calls `readText()` in its `onClick` handler |
-| Applications FAB hidden on notched iPhone | `src/pages/ApplicationsPage.tsx` line 642 | FAB at `fixed bottom-[7.5rem]` with no safe-area offset — home indicator covers it | Changed to `fixed bottom-[calc(7.5rem+env(safe-area-inset-bottom))]` |
+**Fix:** Added a `<script type="application/ld+json">` element in `src/hooks/usePortfolioSEO.ts` containing a `schema.org/Person` object. Fields populated: `name`, `jobTitle`, `description` (from `portfolioBio`), `url` (canonical portfolio URL), `sameAs` (LinkedIn, GitHub, Twitter if present), `email` (if `contactEmail` set). Element is removed on hook cleanup.
 
 ---
 
-### Part 4 — Smart AI Model Advisor in DevKit
+### Fix 3 — Social Link Protocol Normalization (`047f30d`)
 
-All changes in `AIRoutingSwitcher.tsx` (commit `254f154`).
+**Root cause:** `PublicHero.tsx` rendered social link hrefs directly from the profile (`href={profile.linkedinUrl}`) with no protocol guard. URLs stored without `https://` (e.g., `linkedin.com/in/user`) were treated as relative paths by the browser, producing broken links.
 
-**What was missing:** All 21 feature routes used Llama variants only. No rationale shown for model selection. No way to apply optimal models in one action.
-
-**Changes:**
-1. **`FEATURE_METADATA` constant** — 20 features annotated with `priority` (`latency` / `quality` / `reasoning` / `context`), `rationale` string, `recommendedProvider`, and `recommendedModel` using current best-fit models (Llama 4 Maverick on Groq for chat, DeepSeek V4 Flash for analysis/reasoning, Llama 4 Maverick on NVIDIA for quality writing, LLaMA 4 Scout free on OpenRouter for parsing).
-2. **"Smart Defaults" button** — auto-saves the recommended provider/model for all 20 features to `ai_routing_config` via `admin-devkit-data` in one click. Toast confirms count of features updated.
-3. **Rationale tooltip per feature row** — priority badge + `ⓘ` icon shows `FEATURE_METADATA[featureId].rationale` and recommended model in a Tooltip.
-
-Model list in `src/lib/devkit/aiTestSlotModels.ts` was already comprehensive and up-to-date (including Llama 4, DeepSeek V4, Qwen3, Gemma, Gemini) — no changes needed.
+**Fix:** Imported `normalizeUrl` from `@/lib/urlUtils` and applied it to all four social link hrefs in `src/components/portfolio/public/PublicHero.tsx` (`linkedinUrl`, `githubUrl`, `websiteUrl`, `twitterUrl`). `normalizeUrl` prepends `https://` if no protocol is present.
 
 ---
 
-### Part 5 — Fix Agentic Chat Conversation History (Critical Bug)
+### Feature 1 — "Generate Full Portfolio" Button (`047f30d`)
 
-**File fixed:** `appwrite-hubs/ai-gateway/src/main.js` — `buildMessages()` function (commit `254f154`).
+**File:** `src/pages/PortfolioEditorPage.tsx`
 
-**Root cause (confirmed by code audit):**
-- Frontend (`src/lib/agenticChat.ts` line 231) sends: `body: { message, conversationHistory: [...], currentResume, ... }`
-- Backend `buildMessages()` default case reads: `return opts.messages || [{ role: 'user', content: 'hello' }]`
-- `opts.conversationHistory` arrived correctly but `opts.messages` was `undefined` → fallback `[{ role: 'user', content: 'hello' }]` was used on every call.
-- **Every agentic-chat invocation was stateless.** The chat gave the same templated response regardless of prior conversation.
+Added a `handleGenerateAll` handler and a prominent button above the tab strip that chains three sequential AI calls: bio → SEO meta → availability headline. Uses a single progress toast (`toast.loading` → `toast.success`) that updates label after each step ("Generating… 1/3", "2/3", "3/3"). Partial success is reported ("Generated 2/3 sections. Some failed…"). Button is disabled while any individual generator is also running. Icon: `Wand2` from lucide-react.
 
-**Fix:** Added explicit `agentic-chat` handler in `buildMessages()` before the default return:
-```js
-if (featureName === 'agentic-chat') {
-  const history = Array.isArray(opts.conversationHistory) ? opts.conversationHistory : [];
-  // system prompt with optional resume context + full history + current message
-  return [{ role: 'system', content: systemPrompt }, ...history, { role: 'user', content: opts.message || '' }];
-}
-```
+---
 
-**No frontend changes required.** The frontend already stores history in Appwrite (`chat_sessions` / `chat_messages` collections), loads it on mount, and sends it correctly. The backend was simply ignoring the field.
+### Feature 2 — Auto-scrolling Testimonials Carousel (`bc47a66`)
+
+**File:** `src/components/portfolio/public/PublicSections.tsx`
+
+Previously: 3+ testimonials rendered as a plain `overflow-x-auto snap-x` div with no auto-advancement and no position indicator.
+
+Added `TestimonialsCarousel` component (self-contained, no new file):
+- Auto-advances every 4 s via `setInterval`
+- Pauses on `mouseenter` / `touchstart`; resumes 2 s after `touchend`
+- User-initiated scroll updates `activeIndex` via `scroll` listener; clicking a dot scrolls to that index and pauses auto-advance for 3 s
+- Dot indicator row below the track; active dot scales 1.4× and uses `--pf-accent` color
+- Respects `prefersReducedMotion` indirectly (no JS animation, only CSS scroll-behavior)
+
+---
+
+### Fix 4 — Portfolio Gate Cache Invalidation on Publish (`bc47a66`)
+
+**File:** `src/pages/PortfolioEditorPage.tsx`
+
+`handleSave` already called `queryClient.invalidateQueries({ queryKey: ['public-portfolio'] })` on publish. Added `queryClient.invalidateQueries({ queryKey: ['portfolio-gate'] })` alongside it. Without this, a returning visitor who had cached `gateInfo.passwordEnabled = false` would bypass the password gate even after the owner enabled password protection, until the 30 s `staleTime` expired.
 
 ---
 
 ### Verification
-- `npx tsc --noEmit` — zero errors
-- `npm run build` — clean, exit code 0, entry chunk ~88KB (well under 3MB CI limit)
-- Both CI workflows (`deploy-frontend`, `deploy-appwrite-hubs`) confirmed passing on latest `main` run
+- `npx tsc --noEmit` — zero errors (ran after every commit)
+- No new npm packages
+- No new Appwrite collections or attributes
+- No CI workflow changes in this session
 
 ---
 
 ### Where We Stopped
-- `main` HEAD: `254f154`
-- All changes live in production after CI runs on push.
-- **Chat history fix** requires `ai-gateway` redeployment to take effect — this is triggered automatically by `deploy-appwrite-hubs.yml` since `appwrite-hubs/**` path changed.
-- **Smart Defaults** in AIRoutingSwitcher writes to `ai_routing_config` collection in Appwrite — confirm collection exists (it does, used by the existing routing switcher). Click "Smart Defaults" once after deploy to populate optimal models.
-- **Account Backup** (`src/lib/accountBackup.ts` + `src/components/profile/AccountBackupSheet.tsx`) still exists as a stub — implement using `COLLECTIONS.resumes`, `COLLECTIONS.cover_letters` etc. if the feature is to be restored. UI entry point removed from ProfilePage.
-- **No new Appwrite collections or schema changes** in this session.
-- **Next agent:** pull `main` at `254f154`, verify agentic-chat is multi-turn aware (send 3 messages, confirm 3rd references earlier context), verify DevKit AIRoutingSwitcher shows priority badges and Smart Defaults button.
+
+- All 4 commits pushed to `claude/read-project-docs-JEUkC` (HEAD `bc47a66`). **Not merged to `main`.**
+- The previously committed fixes (`ccb6486`) for the Import Job mobile button loop and the premium `useMe.ts` + DesktopNav refresh button are included in this branch.
+
+**Outstanding items from the original portfolio audit (not yet implemented):**
+- P1: AI Critique → clickable jump-to-section action (tab navigation from AICritiqueSheet to specific editor tab)
+- P1: Section funnel analytics chart in VisitorsTab (bar chart of section engagement, already has dwell-time data in `sections_timing`)
+- P2: Full-viewport hero on desktop (currently `max-w-4xl mx-auto` — consider 100vw with edge bleed on `heroAlign='split'` themes)
+- P2: Theme-aware default section ordering (each theme config has a logical `sectionOrder` default, not yet applied)
+- P3: Remove A/B testing from user-facing UI (the `abChallengerTheme` feature exists but adds complexity; recommend removing from non-DevKit UI)
+- P3: Remove CareerCard / merge with QR (duplicate UX — QrGeneratorSheet and CareerCardSheet serve the same use case)
+- Email notification on recruiter interest (requires a new Appwrite Function; currently only writes to `portfolio_interactions` collection with no notification sent to the owner)
+
+**QA needed before merging:**
+- Public portfolio page with a password-protected portfolio — verify password gate shows, incorrect password shows error, correct password unlocks content
+- Public portfolio with `contentEnabled=true` and no password — verify normal load
+- Social links on public portfolio — verify links with and without `https://` prefix open correctly
+- "Generate Full Portfolio" button in editor — verify toast progresses through 3 steps and all three fields are populated
+- Testimonials carousel — verify auto-scroll, pause on hover, dot navigation, manual swipe
+- DesktopNav "Refresh account" button — verify `toast.info('Refreshing account…')` fires and plan re-fetches
+
+**Next agent:** Pull `claude/read-project-docs-JEUkC` (HEAD `bc47a66`), run QA above, merge to `main`.
 
 ---
 
-
+## Session Summary — 2026-05-16 (WiseDrop Job Import Feature + CI Fixes — Both Workflows Green)
 
 ### Overview
 Implemented the full WiseDrop "Import Job" feature (global FAB + sheet, backend Appwrite Function, enhanced JobDetailPage). Fixed two broken CI workflows that had been failing since PR #52 was merged. Both `deploy-frontend.yml` and `deploy-appwrite-hubs.yml` are now green.

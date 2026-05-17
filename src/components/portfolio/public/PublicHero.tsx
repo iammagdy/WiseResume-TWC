@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { TypewriterText, buildTypewriterPhrases } from '@/components/portfolio/public/TypewriterText';
 import { isActiveWithin24h } from '@/hooks/useActiveStatus';
 import { getThemeById } from '@/lib/portfolioThemes';
+import { normalizeUrl } from '@/lib/urlUtils';
 import type { PublicProfile, PublicResume } from '@/hooks/usePublicPortfolio';
 
 export interface PublicHeroProps {
@@ -225,7 +226,7 @@ export const PublicHero = forwardRef<HTMLDivElement, PublicHeroProps>(({
             {(profile.linkedinUrl || profile.githubUrl || profile.websiteUrl || profile.twitterUrl) && (
               <div className={`flex items-center ${heroJustify} gap-2 mb-6`}>
                 {profile.linkedinUrl && (
-                  <a href={profile.linkedinUrl} target="_blank" rel="noopener noreferrer"
+                  <a href={normalizeUrl(profile.linkedinUrl)} target="_blank" rel="noopener noreferrer"
                     aria-label="LinkedIn"
                     className="w-11 h-11 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 pf-cta-entrance"
                     style={{ background: 'var(--pf-card, rgba(255,255,255,0.06))', border: '1px solid var(--pf-border, rgba(255,255,255,0.1))', animationDelay: `${ctaBaseDelay + (ctaIdx++) * 120}ms` }}
@@ -234,7 +235,7 @@ export const PublicHero = forwardRef<HTMLDivElement, PublicHeroProps>(({
                   </a>
                 )}
                 {profile.githubUrl && (
-                  <a href={profile.githubUrl} target="_blank" rel="noopener noreferrer"
+                  <a href={normalizeUrl(profile.githubUrl)} target="_blank" rel="noopener noreferrer"
                     aria-label="GitHub"
                     className="w-11 h-11 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 pf-cta-entrance"
                     style={{ background: 'var(--pf-card, rgba(255,255,255,0.06))', border: '1px solid var(--pf-border, rgba(255,255,255,0.1))', animationDelay: `${ctaBaseDelay + (ctaIdx++) * 120}ms` }}
@@ -243,7 +244,7 @@ export const PublicHero = forwardRef<HTMLDivElement, PublicHeroProps>(({
                   </a>
                 )}
                 {profile.websiteUrl && (
-                  <a href={profile.websiteUrl} target="_blank" rel="noopener noreferrer"
+                  <a href={normalizeUrl(profile.websiteUrl)} target="_blank" rel="noopener noreferrer"
                     aria-label="Website"
                     className="w-11 h-11 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 pf-cta-entrance"
                     style={{ background: 'var(--pf-card, rgba(255,255,255,0.06))', border: '1px solid var(--pf-border, rgba(255,255,255,0.1))', animationDelay: `${ctaBaseDelay + (ctaIdx++) * 120}ms` }}
@@ -252,7 +253,7 @@ export const PublicHero = forwardRef<HTMLDivElement, PublicHeroProps>(({
                   </a>
                 )}
                 {profile.twitterUrl && (
-                  <a href={profile.twitterUrl} target="_blank" rel="noopener noreferrer"
+                  <a href={normalizeUrl(profile.twitterUrl)} target="_blank" rel="noopener noreferrer"
                     aria-label="X / Twitter"
                     className="w-11 h-11 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 pf-cta-entrance"
                     style={{ background: 'var(--pf-card, rgba(255,255,255,0.06))', border: '1px solid var(--pf-border, rgba(255,255,255,0.1))', animationDelay: `${ctaBaseDelay + (ctaIdx++) * 120}ms` }}

@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, useScroll, useTransform, useSpring } from 'framer-motion';
 import { Briefcase, Layers, FolderOpen, Github, Wrench, Sparkles, Award, GraduationCap, Trophy, BookOpen, Heart, ExternalLink, Pin } from 'lucide-react';
 
@@ -198,6 +198,87 @@ export interface PublicSectionsProps {
   scrollEffect?: ScrollEffect;
   videoIntroUrl?: string | null;
   activeLanguage?: string;
+}
+
+// ── Auto-scrolling testimonials carousel ─────────────────────────────────────
+
+function TestimonialsCarousel({ testimonials, pStyle }: { testimonials: Array<{ id: string; quote: string; authorName: string; authorTitle: string; avatarUrl?: string }>; pStyle: string }) {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const isPausedRef = useRef(false);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const count = testimonials.length;
+
+  const scrollTo = useCallback((idx: number) => {
+    const track = trackRef.current;
+    if (!track) return;
+    const cardWidth = track.scrollWidth / count;
+    track.scrollTo({ left: cardWidth * idx, behavior: 'smooth' });
+    setActiveIndex(idx);
+  }, [count]);
+
+  // Auto-advance every 4 s
+  useEffect(() => {
+    intervalRef.current = setInterval(() => {
+      if (!isPausedRef.current) {
+        setActiveIndex(prev => {
+          const next = (prev + 1) % count;
+          scrollTo(next);
+          return next;
+        });
+      }
+    }, 4000);
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+  }, [count, scrollTo]);
+
+  // Sync activeIndex when user manually scrolls
+  useEffect(() => {
+    const track = trackRef.current;
+    if (!track) return;
+    const onScroll = () => {
+      const cardWidth = track.scrollWidth / count;
+      const idx = Math.round(track.scrollLeft / cardWidth);
+      setActiveIndex(Math.min(Math.max(idx, 0), count - 1));
+    };
+    track.addEventListener('scroll', onScroll, { passive: true });
+    return () => track.removeEventListener('scroll', onScroll);
+  }, [count]);
+
+  return (
+    <div
+      onMouseEnter={() => { isPausedRef.current = true; }}
+      onMouseLeave={() => { isPausedRef.current = false; }}
+      onTouchStart={() => { isPausedRef.current = true; }}
+      onTouchEnd={() => { setTimeout(() => { isPausedRef.current = false; }, 2000); }}
+    >
+      <div
+        ref={trackRef}
+        className="flex gap-4 overflow-x-auto pb-3 scrollbar-none snap-x snap-mandatory -mx-1 px-1"
+        style={{ scrollSnapType: 'x mandatory' }}
+      >
+        {testimonials.map((t) => (
+          <div key={t.id} className="snap-start shrink-0 w-[min(320px,85vw)]">
+            <TestimonialCard testimonial={t} style={pStyle} />
+          </div>
+        ))}
+      </div>
+      {/* Dot indicators */}
+      <div className="flex justify-center gap-1.5 mt-3">
+        {testimonials.map((_, i) => (
+          <button
+            key={i}
+            onClick={() => { isPausedRef.current = true; scrollTo(i); setTimeout(() => { isPausedRef.current = false; }, 3000); }}
+            className="w-1.5 h-1.5 rounded-full transition-all"
+            style={{
+              background: i === activeIndex ? 'var(--pf-accent)' : 'var(--pf-border, rgba(255,255,255,0.15))',
+              transform: i === activeIndex ? 'scale(1.4)' : 'scale(1)',
+            }}
+            aria-label={`Go to testimonial ${i + 1}`}
+          />
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export const PublicSections = ({
@@ -410,16 +491,7 @@ export const PublicSections = ({
           <SectionWrapper key="testimonials" id="section-testimonials" scrollEffect={scrollEffect} pStyle={pStyle} index={nextIndex()}>
             <SectionHeader icon={<Sparkles className="w-5 h-5" />} title="Testimonials" style={pStyle} />
             {testimonials.length >= 3 ? (
-              <div
-                className="flex gap-4 overflow-x-auto pb-3 scrollbar-none snap-x snap-mandatory -mx-1 px-1"
-                style={{ scrollSnapType: 'x mandatory' }}
-              >
-                {testimonials.map((t) => (
-                  <div key={t.id} className="snap-start shrink-0 w-[min(320px,85vw)]">
-                    <TestimonialCard testimonial={t} style={pStyle} />
-                  </div>
-                ))}
-              </div>
+              <TestimonialsCarousel testimonials={testimonials} pStyle={pStyle} />
             ) : (
               <div className="space-y-4">
                 {testimonials.map((t) => (
