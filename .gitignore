@@ -104,3 +104,4 @@ reports/e2e-results.json
 # churn (Pods, Gradle wrappers, etc). See docs/mobile.md.
 ios/
 android/
+.appwrite/
