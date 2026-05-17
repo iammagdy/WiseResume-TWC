@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   User, Shield, Crown, Trash2, Search, Loader2, FileText,
   ExternalLink, RefreshCw, ChevronDown, Ban, SlidersHorizontal,
@@ -87,6 +88,7 @@ function creditsBar(used: number, limit: number | null): React.ReactNode {
 
 export const AdminUsersPanel = () => {
   const { user: authUser } = useAuth();
+  const queryClient = useQueryClient();
 
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -209,7 +211,13 @@ export const AdminUsersPanel = () => {
       });
       unwrapAdminResponse(tuple, 'admin-devkit-data');
       updateUser(userId, { plan_name: plan, plan_updated_at: new Date().toISOString() });
-      toast.success(`Plan set to ${plan.toUpperCase()}`);
+      queryClient.invalidateQueries({ queryKey: ['me'] });
+      toast.success(`Plan set to ${plan.toUpperCase()}`, {
+        description: userId === authUser?.id
+          ? 'Your plan is now active — app features will reflect this immediately.'
+          : 'The user\'s app will reflect this within ~15 seconds via polling.',
+        duration: 5000,
+      });
       fetchGlobalStats();
     } catch (e) {
       toast.error(formatEdgeError(e, 'Failed to update plan'));
@@ -230,6 +238,7 @@ export const AdminUsersPanel = () => {
       unwrapAdminResponse(tuple, 'admin-devkit-data');
       const expiresAt = new Date(Date.now() + days * 86_400_000).toISOString();
       updateUser(userId, { trial_plan: plan, trial_expires_at: expiresAt });
+      queryClient.invalidateQueries({ queryKey: ['me'] });
       toast.success(`${plan} trial granted for ${days} days`);
     } catch (e) {
       toast.error(formatEdgeError(e, 'Failed to grant trial'));

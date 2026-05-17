@@ -1545,6 +1545,169 @@ async function handleSendVerificationEmail(body, log) {
   return { ok: true, directly_verified: true, email: targetUser.email };
 }
 
+// ─── Analytics: aggregate visitor_events for AnalyticsPanel ─────────────────
+
+function analyticsRangeStart(range) {
+  const map = {
+    today: new Date(new Date().setHours(0, 0, 0, 0)).toISOString(),
+    '7d':  new Date(Date.now() - 7  * 86400000).toISOString(),
+    '30d': new Date(Date.now() - 30 * 86400000).toISOString(),
+    '90d': new Date(Date.now() - 90 * 86400000).toISOString(),
+  };
+  return map[range] ?? map['7d'];
+}
+
+function analyticsRangeStartPrev(range) {
+  const map = {
+    today: new Date(Date.now() - 86400000).toISOString(),
+    '7d':  new Date(Date.now() - 14 * 86400000).toISOString(),
+    '30d': new Date(Date.now() - 60 * 86400000).toISOString(),
+    '90d': new Date(Date.now() - 180 * 86400000).toISOString(),
+  };
+  return map[range] ?? map['7d'];
+}
+
+async function fetchAnalyticsEvents(since, until) {
+  const allDocs = [];
+  let cursor = null;
+  while (true) {
+    const q = [sdk.Query.greaterThanEqual('$createdAt', since), sdk.Query.limit(500)];
+    if (until) q.push(sdk.Query.lessThan('$createdAt', until));
+    if (cursor) q.push(sdk.Query.cursorAfter(cursor));
+    let page;
+    try { page = await listDocuments('visitor_events', q); } catch { break; }
+    const docs = page.documents || [];
+    allDocs.push(...docs);
+    if (docs.length < 500) break;
+    cursor = docs[docs.length - 1].$id;
+  }
+  return allDocs;
+}
+
+async function handleAnalytics(body, log) {
+  const range = ['today', '7d', '30d', '90d', 'all'].includes(body.range) ? body.range : '7d';
+  const since = range === 'all' ? '2020-01-01T00:00:00.000Z' : analyticsRangeStart(range);
+  const prevSince = range === 'all' ? '2020-01-01T00:00:00.000Z' : analyticsRangeStartPrev(range);
+  const bucket = (range === 'today') ? 'hour' : 'day';
+
+  const [currentDocs, prevDocs] = await Promise.all([
+    fetchAnalyticsEvents(since, null),
+    fetchAnalyticsEvents(prevSince, since),
+  ]);
+
+  // KPIs
+  const pageViews = currentDocs.filter(d => d.event_type === 'page_view');
+  const prevPageViews = prevDocs.filter(d => d.event_type === 'page_view');
+  const anonIds = new Set(currentDocs.map(d => d.anon_id).filter(Boolean));
+  const prevAnonIds = new Set(prevDocs.map(d => d.anon_id).filter(Boolean));
+  const todaySince = new Date(new Date().setHours(0, 0, 0, 0)).toISOString();
+  const ydaySince  = new Date(Date.now() - 86400000);
+  ydaySince.setHours(0, 0, 0, 0);
+  const todayDocs  = currentDocs.filter(d => d.$createdAt >= todaySince);
+  const ydayDocs   = currentDocs.filter(d => d.$createdAt >= ydaySince.toISOString() && d.$createdAt < todaySince);
+  const todayUsers = new Set(todayDocs.map(d => d.anon_id).filter(Boolean));
+  const ydayUsers  = new Set(ydayDocs.map(d => d.anon_id).filter(Boolean));
+
+  // Activity series (views + users per bucket)
+  const seriesMap = {};
+  for (const d of currentDocs) {
+    const key = bucket === 'hour'
+      ? d.$createdAt.slice(0, 13)   // "2025-01-01T14"
+      : d.$createdAt.slice(0, 10);  // "2025-01-01"
+    if (!seriesMap[key]) seriesMap[key] = { views: 0, users: new Set() };
+    if (d.event_type === 'page_view') seriesMap[key].views++;
+    if (d.anon_id) seriesMap[key].users.add(d.anon_id);
+  }
+  const activitySeries = Object.entries(seriesMap)
+    .map(([date, v]) => ({ date, views: v.views, users: v.users.size }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  // Device breakdown
+  const deviceMap = {};
+  for (const d of currentDocs) {
+    const raw = (d.device_type || 'desktop').toLowerCase();
+    const dev = raw.includes('mobile') || raw.includes('phone') ? 'mobile'
+              : raw.includes('tablet') || raw.includes('ipad') ? 'tablet'
+              : 'desktop';
+    deviceMap[dev] = (deviceMap[dev] || 0) + 1;
+  }
+  const deviceBreakdown = Object.entries(deviceMap)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count);
+
+  // Top pages
+  const pageMap = {};
+  for (const d of pageViews) {
+    const pg = d.page || '/';
+    pageMap[pg] = (pageMap[pg] || 0) + 1;
+  }
+  const topPages = Object.entries(pageMap)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 20);
+
+  // Country distribution
+  const countryMap = {};
+  for (const d of currentDocs) {
+    const c = d.country || '??';
+    countryMap[c] = (countryMap[c] || 0) + 1;
+  }
+  const countryRanking = Object.entries(countryMap)
+    .map(([country, count]) => ({ country, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 20);
+
+  // Feature usage
+  const featureMap = {};
+  for (const d of currentDocs.filter(d => d.event_type === 'feature_use')) {
+    const f = d.target || 'unknown';
+    featureMap[f] = (featureMap[f] || 0) + 1;
+  }
+  const topFeaturesRanked = Object.entries(featureMap)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
+
+  return {
+    // Back-compat fields
+    pageViewsAllTime: pageViews.length,
+    pageViewsToday: todayDocs.filter(d => d.event_type === 'page_view').length,
+    activeUsersToday: todayUsers.size,
+    activeUsersYesterday: ydayUsers.size,
+    topFeatures: topFeaturesRanked,
+    portfolioViewsTotal: pageViews.filter(d => d.page && d.page.startsWith('/p/')).length,
+    signupsLast14Days: [],
+    aiCreditsToday: 0,
+    aiCreditsYesterday: 0,
+    countryDistribution: countryRanking.map(c => ({ country: c.country, count: c.count })),
+    // New fields
+    range,
+    bucket,
+    rangeKpis: {
+      views: { current: pageViews.length, previous: prevPageViews.length },
+      activeUsers: { current: anonIds.size, previous: prevAnonIds.size },
+      aiCredits: { current: 0, previous: 0 },
+      portfolioViews: {
+        current: pageViews.filter(d => d.page && d.page.startsWith('/p/')).length,
+        previous: prevPageViews.filter(d => d.page && d.page.startsWith('/p/')).length,
+      },
+      stickiness: (todayUsers.size > 0 && anonIds.size > 0) ? Math.round((todayUsers.size / anonIds.size) * 100) : 0,
+      dau: todayUsers.size,
+      wau: anonIds.size,
+    },
+    activitySeries,
+    dauRollingSeries: activitySeries.map(p => ({ date: p.date, value: p.users })),
+    newVsReturning: activitySeries.map(p => ({ date: p.date, newUsers: p.users, returningUsers: 0 })),
+    heatmap: [],
+    topFeaturesRanged: topFeaturesRanked.map(f => ({ name: f.name, count: f.count, trend: [] })),
+    topReferrers: [],
+    deviceBreakdown,
+    topPages,
+    countryRanking,
+    totalCountries: Object.keys(countryMap).length,
+  };
+}
+
 async function handleHomeSummary(log, error) {
   const { databases, users } = getClients();
   const now = isoNow();
@@ -1661,6 +1824,7 @@ module.exports = async ({ req, res, log, error }) => {
     else if (action === 'get-resume-detail') data = await handleListUserContent(body, log);
     else if (action === 'impersonate') data = await handleImpersonate(body, log);
     else if (action === 'send-verification-email') data = await handleSendVerificationEmail(body, log);
+    else if (action === 'analytics') data = await handleAnalytics(body, log);
     else if (action === 'home-summary') data = await handleHomeSummary(log, error);
     else if (action === 'list-app-settings') data = await handleListAppSettings(log);
     else if (action === 'toggle-app-setting') data = await handleToggleAppSetting(body, log);

@@ -322,6 +322,7 @@ export const AIRoutingSwitcher = () => {
   // but not yet deleted from the database. saveAll drains this list.
   const [pendingDeletes, setPendingDeletes] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [collapsed, setCollapsed] = useState<Partial<Record<FeatureCategory, boolean>>>({});
   const [pings, setPings] = useState<Record<string, ProviderPing>>({});
@@ -329,6 +330,7 @@ export const AIRoutingSwitcher = () => {
 
   const fetchRoutes = async () => {
     setLoading(true);
+    setLoadError(null);
     // Discard any unsaved local intent (provider toggles, pending deletes)
     // so the UI reflects the actual database state after a refresh.
     setPendingDeletes([]);
@@ -349,7 +351,9 @@ export const AIRoutingSwitcher = () => {
       }
       setRoutes(configMap);
     } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to load AI routing config';
       console.error('Failed to fetch AI routes:', err);
+      setLoadError(msg);
     } finally {
       setLoading(false);
     }
@@ -487,6 +491,24 @@ export const AIRoutingSwitcher = () => {
 
   if (loading) {
     return <div className="py-20 text-center animate-pulse text-muted-foreground font-mono">Fetching AI Global Config…</div>;
+  }
+
+  if (loadError) {
+    return (
+      <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-5 py-6 space-y-3">
+        <div className="flex items-center gap-2 text-destructive">
+          <AlertTriangle className="w-4 h-4 shrink-0" />
+          <span className="text-sm font-medium">Failed to load AI routing config</span>
+        </div>
+        <p className="text-xs text-muted-foreground">{loadError}</p>
+        <button
+          onClick={() => void fetchRoutes()}
+          className="flex items-center gap-1.5 text-xs text-primary hover:underline"
+        >
+          <RefreshCw className="w-3 h-3" /> Retry
+        </button>
+      </div>
+    );
   }
 
   const totalOverrides = Object.keys(routes).length;

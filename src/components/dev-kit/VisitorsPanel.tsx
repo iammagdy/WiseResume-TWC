@@ -266,6 +266,7 @@ export function VisitorsPanel() {
   const [pageFilter, setPageFilter] = useState('');
   const [journeySession, setJourneySession] = useState<{ sessionId?: string; anonId?: string } | null>(null);
   const [journeySearch, setJourneySearch] = useState('');
+  const [eventCount, setEventCount] = useState<number | null>(null);
 
   const invoke = useCallback(async (action: string, extra: Record<string, unknown> = {}) => {
     const result = await devKitCall<unknown>({
@@ -282,7 +283,7 @@ export function VisitorsPanel() {
     setLoading(true);
     setError(null);
     try {
-      const [kpisRes, countryRes, pagesRes, clicksRes, sectionsRes, sessionsRes, cohortRes] = await Promise.all([
+      const [kpisRes, countryRes, pagesRes, clicksRes, sectionsRes, sessionsRes, cohortRes, liveCountRes] = await Promise.all([
         invoke('kpis'),
         invoke('country-dist'),
         invoke('top-pages'),
@@ -290,7 +291,12 @@ export function VisitorsPanel() {
         invoke('sections'),
         invoke('sessions', { page_num: 0 }),
         invoke('cohort'),
+        invoke('live-count'),
       ]);
+      if (liveCountRes.success) {
+        const lc = liveCountRes.data as { liveCount: number; totalEvents?: number };
+        setEventCount(typeof lc.totalEvents === 'number' ? lc.totalEvents : null);
+      }
       if (kpisRes.success)     setKpis(kpisRes.data as KpiData);
       if (countryRes.success)  setCountryDist(countryRes.data as CountryDist[]);
       if (pagesRes.success)    setTopPages(pagesRes.data as PageRow[]);
@@ -387,6 +393,25 @@ export function VisitorsPanel() {
             {[...Array(6)].map((_, i) => <div key={i} className="h-24 rounded-xl bg-muted/50 animate-pulse" />)}
           </div>
           <div className="h-48 rounded-xl bg-muted/40 animate-pulse" />
+        </div>
+      )}
+
+      {!loading && !kpis && !error && (
+        <div className="rounded-xl border border-border bg-muted/20 px-6 py-8 text-center space-y-2">
+          <p className="text-sm font-medium text-foreground">No visit data yet</p>
+          {eventCount === 0 ? (
+            <p className="text-xs text-muted-foreground">
+              <span className="font-medium text-amber-500">visitor_events: 0 documents</span> — tracking activates only after users grant GDPR consent via the cookie banner.
+            </p>
+          ) : eventCount !== null && eventCount > 0 ? (
+            <p className="text-xs text-muted-foreground">
+              <span className="font-medium text-green-500">visitor_events: {eventCount.toLocaleString()} documents</span> — data exists but didn't load. Check that <code className="text-xs bg-muted px-1 rounded">admin-visitor-analytics</code> function is deployed and healthy in Diagnostics.
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Couldn't determine collection status — verify <code className="text-xs bg-muted px-1 rounded">admin-visitor-analytics</code> is deployed in Diagnostics.
+            </p>
+          )}
         </div>
       )}
 

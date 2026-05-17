@@ -169,7 +169,14 @@ async function handleLiveCount(databases) {
   const anonIds = new Set(docs.map(d => d.anon_id || d.session_id).filter(Boolean));
   const topCountries = countByCountry(docs).slice(0, 5);
 
-  return { liveCount: anonIds.size, topCountries };
+  // Fetch all-time total for diagnostic purposes (VisitorsPanel empty state)
+  let totalEvents = 0;
+  try {
+    const totPage = await databases.listDocuments(DB_ID, COLLECTION_VISITOR_EVENTS, [sdk.Query.limit(1)]);
+    totalEvents = totPage.total ?? 0;
+  } catch { /* ignore */ }
+
+  return { liveCount: anonIds.size, topCountries, totalEvents };
 }
 
 // ─── Action: kpis ───────────────────────────────────────────────────────────
