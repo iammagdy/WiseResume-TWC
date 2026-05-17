@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { databases, client, DATABASE_ID, Query } from '@/lib/appwrite';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { useAuth } from './useAuth';
 import { useEffect } from 'react';
 
@@ -73,12 +74,27 @@ export function useMe() {
     queryFn: async (): Promise<MeData> => {
       if (!user?.id) throw new Error('Not authenticated');
 
-      const [sRes, cRes] = await Promise.all([
-        safeList('subscriptions', [Query.equal('user_id', user.id)]),
+      const [subResult, cRes] = await Promise.all([
+        appwriteFunctions.invoke<{
+          plan: string;
+          effective_plan: string;
+          status: string | null;
+          trial_plan: string | null;
+          trial_expires_at: string | null;
+          coupon_code: string | null;
+        }>('get-subscription'),
         safeList('ai_credits', [Query.equal('user_id', user.id)]),
       ]);
 
-      const sub = sRes.documents[0] as Record<string, unknown> | undefined;
+      // Fall back to direct DB query if the function is unavailable (not deployed)
+      let sub: Record<string, unknown> | undefined;
+      if (subResult.data) {
+        sub = subResult.data as Record<string, unknown>;
+      } else {
+        const sRes = await safeList('subscriptions', [Query.equal('user_id', user.id)]);
+        sub = sRes.documents[0] as Record<string, unknown> | undefined;
+      }
+
       const creds = cRes.documents[0] as Record<string, unknown> | undefined;
       const basePlan = (sub?.plan as string | undefined) ?? 'free';
       const trialPlan = (sub?.trial_plan as string | null | undefined) ?? null;

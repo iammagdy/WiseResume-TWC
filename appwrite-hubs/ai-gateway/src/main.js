@@ -546,6 +546,24 @@ function buildMessages(featureName, opts) {
     ];
   }
 
+  if (featureName === 'agentic-chat') {
+    const history = Array.isArray(opts.conversationHistory) ? opts.conversationHistory : [];
+    const resumeContext = opts.currentResume
+      ? '\n\nUser\'s current resume (summary):\n' + JSON.stringify(opts.currentResume).slice(0, 4000)
+      : '';
+    const systemPrompt =
+      'You are WiseAI, WiseResume\'s intelligent career assistant. ' +
+      'You help users with their resumes, job applications, cover letters, ' +
+      'career decisions, and interview preparation. ' +
+      'Be concise, practical, and encouraging.' +
+      resumeContext;
+    return [
+      { role: 'system', content: systemPrompt },
+      ...history,
+      { role: 'user', content: opts.message || '' },
+    ];
+  }
+
   return opts.messages || [{ role: 'user', content: 'hello' }];
 }
 

@@ -196,7 +196,7 @@ function JourneyDrawer({
 
   return (
     <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-start justify-end">
-      <div className="w-full max-w-xl h-full bg-card border-l border-border shadow-xl flex flex-col">
+      <div className="w-full sm:max-w-xl h-full bg-card border-l border-border shadow-xl flex flex-col">
         <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
           <div className="flex items-center gap-2">
             <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted transition-colors">
@@ -266,6 +266,7 @@ export function VisitorsPanel() {
   const [pageFilter, setPageFilter] = useState('');
   const [journeySession, setJourneySession] = useState<{ sessionId?: string; anonId?: string } | null>(null);
   const [journeySearch, setJourneySearch] = useState('');
+  const [eventCount, setEventCount] = useState<number | null>(null);
 
   const invoke = useCallback(async (action: string, extra: Record<string, unknown> = {}) => {
     const result = await devKitCall<unknown>({
@@ -282,7 +283,7 @@ export function VisitorsPanel() {
     setLoading(true);
     setError(null);
     try {
-      const [kpisRes, countryRes, pagesRes, clicksRes, sectionsRes, sessionsRes, cohortRes] = await Promise.all([
+      const [kpisRes, countryRes, pagesRes, clicksRes, sectionsRes, sessionsRes, cohortRes, liveCountRes] = await Promise.allSettled([
         invoke('kpis'),
         invoke('country-dist'),
         invoke('top-pages'),
@@ -290,21 +291,46 @@ export function VisitorsPanel() {
         invoke('sections'),
         invoke('sessions', { page_num: 0 }),
         invoke('cohort'),
+        invoke('live-count'),
       ]);
-      if (kpisRes.success)     setKpis(kpisRes.data as KpiData);
-      if (countryRes.success)  setCountryDist(countryRes.data as CountryDist[]);
-      if (pagesRes.success)    setTopPages(pagesRes.data as PageRow[]);
-      if (clicksRes.success)   setClickTargets(clicksRes.data as NamedCount[]);
-      if (sectionsRes.success) setSections(sectionsRes.data as SectionRow[]);
-      if (sessionsRes.success) {
-        const d = sessionsRes.data as { sessions: Session[]; total: number; page: number };
+
+      type InvokeResult = { success: boolean; data?: unknown };
+      const val = (r: PromiseSettledResult<InvokeResult>) =>
+        r.status === 'fulfilled' && r.value.success ? r.value.data : undefined;
+
+      if (liveCountRes.status === 'fulfilled' && liveCountRes.value.success) {
+        const lc = liveCountRes.value.data as { liveCount: number; totalEvents?: number };
+        setEventCount(typeof lc.totalEvents === 'number' ? lc.totalEvents : null);
+      }
+
+      const kpis = val(kpisRes) as KpiData | undefined;
+      if (kpis) {
+        setKpis(kpis);
+      } else if (kpisRes.status === 'rejected') {
+        setError(toDevKitError(kpisRes.reason, { functionId: 'admin-visitor-analytics' }).message);
+      }
+
+      const country = val(countryRes) as CountryDist[] | undefined;
+      if (country) setCountryDist(country);
+
+      const pages = val(pagesRes) as PageRow[] | undefined;
+      if (pages) setTopPages(pages);
+
+      const clicks = val(clicksRes) as NamedCount[] | undefined;
+      if (clicks) setClickTargets(clicks);
+
+      const sects = val(sectionsRes) as SectionRow[] | undefined;
+      if (sects) setSections(sects);
+
+      if (sessionsRes.status === 'fulfilled' && sessionsRes.value.success) {
+        const d = sessionsRes.value.data as { sessions: Session[]; total: number; page: number };
         setSessions(d.sessions);
         setSessionsTotal(d.total);
         setSessionsPage(0);
       }
-      if (cohortRes.success)   setCohort(cohortRes.data as NamedCount[]);
-    } catch (e) {
-      setError(toDevKitError(e, { functionId: 'admin-visitor-analytics' }).message);
+
+      const cohortData = val(cohortRes) as NamedCount[] | undefined;
+      if (cohortData) setCohort(cohortData);
     } finally {
       setLoading(false);
     }
@@ -390,6 +416,25 @@ export function VisitorsPanel() {
         </div>
       )}
 
+      {!loading && !kpis && !error && (
+        <div className="rounded-xl border border-border bg-muted/20 px-6 py-8 text-center space-y-2">
+          <p className="text-sm font-medium text-foreground">No visit data yet</p>
+          {eventCount === 0 ? (
+            <p className="text-xs text-muted-foreground">
+              <span className="font-medium text-amber-500">visitor_events: 0 documents</span> — tracking activates only after users grant GDPR consent via the cookie banner.
+            </p>
+          ) : eventCount !== null && eventCount > 0 ? (
+            <p className="text-xs text-muted-foreground">
+              <span className="font-medium text-green-500">visitor_events: {eventCount.toLocaleString()} documents</span> — data exists but didn't load. Check that <code className="text-xs bg-muted px-1 rounded">admin-visitor-analytics</code> function is deployed and healthy in Diagnostics.
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Couldn't determine collection status — verify <code className="text-xs bg-muted px-1 rounded">admin-visitor-analytics</code> is deployed in Diagnostics.
+            </p>
+          )}
+        </div>
+      )}
+
       {kpis && (
         <>
           {/* KPI Strip */}
@@ -466,7 +511,7 @@ export function VisitorsPanel() {
                   value={pageFilter}
                   onChange={(e) => setPageFilter(e.target.value)}
                   placeholder="/page-path"
-                  className="h-7 text-xs w-36"
+                  className="h-7 text-xs w-24 sm:w-36"
                 />
                 <Button
                   size="sm"
@@ -541,8 +586,36 @@ export function VisitorsPanel() {
               ? <EmptyState message="No session data yet" />
               : (
                 <div className="space-y-3">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-xs min-w-[560px]">
+                  {/* Mobile card list */}
+                  <div className="flex flex-col gap-2 sm:hidden">
+                    {sessions.map((s) => (
+                      <button
+                        key={s.session_id}
+                        className="w-full text-left rounded-lg border border-border bg-muted/10 p-3 hover:bg-muted/20 transition-colors"
+                        onClick={() => setJourneySession({ sessionId: s.session_id })}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-base leading-none shrink-0">{flag(s.country)}</span>
+                            <span className="font-mono text-[10px] text-muted-foreground truncate">{s.anon_id.slice(0, 12)}…</span>
+                            {s.user_id && (
+                              <span className="text-[9px] bg-primary/15 text-primary rounded px-1 py-0.5 shrink-0">auth</span>
+                            )}
+                          </div>
+                          <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                        </div>
+                        <div className="mt-1.5 flex items-center gap-3 text-[10px] text-muted-foreground">
+                          <span className="flex items-center gap-1">{deviceIcon(s.device_type)}<span className="capitalize">{s.device_type ?? '?'}</span></span>
+                          <span>{s.browser ?? '?'}</span>
+                          <span>{s.pageCount} pages</span>
+                          <span>{formatDuration(s.durationSeconds)}</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                  {/* Desktop table */}
+                  <div className="hidden sm:block overflow-x-auto">
+                    <table className="w-full text-xs">
                       <thead>
                         <tr className="border-b border-border">
                           <th className="text-left pb-2 font-medium text-muted-foreground">Visitor</th>
@@ -626,12 +699,12 @@ export function VisitorsPanel() {
             description="Search by anon_id or session_id to open a full visitor journey"
             icon={Users}
           >
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <Input
                 value={journeySearch}
                 onChange={(e) => setJourneySearch(e.target.value)}
                 placeholder="Paste anon_id or session_id UUID…"
-                className="text-xs h-8 font-mono"
+                className="text-xs h-8 font-mono flex-1"
               />
               <Button
                 size="sm"
@@ -642,7 +715,7 @@ export function VisitorsPanel() {
                   setJourneySession({ anonId: v });
                 }}
               >
-                Open
+                Open Journey
               </Button>
             </div>
           </SectionCard>

@@ -30,7 +30,7 @@ type SerializedFile = {
   base64: string;
 };
 
-const COUPON_FUNCTIONS = new Set(['validate-coupon', 'redeem-coupon', 'coupons']);
+const COUPON_FUNCTIONS = new Set(['validate-coupon', 'redeem-coupon', 'coupons', 'get-subscription']);
 const WISEHIRE_FUNCTIONS = new Set([
   'wisehire-write-jd',
   'wisehire-generate-brief',
@@ -163,6 +163,13 @@ export const appwriteFunctions = {
         __headers: headers,
       };
 
+      const deriveCouponAction = (name: string): string => {
+        if (name === 'validate-coupon') return 'validate';
+        if (name === 'redeem-coupon') return 'redeem';
+        if (name === 'get-subscription') return 'get-subscription';
+        return (bodyPayload as Record<string, unknown>).action as string ?? 'validate';
+      };
+
       const routeToAiGateway = shouldRouteToAppwrite(fnName);
       const routeToCoupons = isCouponFunction(fnName);
       const routeToWiseHire = isWiseHireFunction(fnName);
@@ -180,7 +187,7 @@ export const appwriteFunctions = {
         ? JSON.stringify({ featureName: fnName, ...finalPayload })
         : routeToCoupons
           ? JSON.stringify({
-              action: fnName === 'validate-coupon' ? 'validate' : 'redeem',
+              action: deriveCouponAction(fnName),
               ...finalPayload,
             })
           : routeToWiseHire

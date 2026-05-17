@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   User, Shield, Crown, Trash2, Search, Loader2, FileText,
   ExternalLink, RefreshCw, ChevronDown, Ban, SlidersHorizontal,
@@ -87,6 +88,7 @@ function creditsBar(used: number, limit: number | null): React.ReactNode {
 
 export const AdminUsersPanel = () => {
   const { user: authUser } = useAuth();
+  const queryClient = useQueryClient();
 
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -209,7 +211,13 @@ export const AdminUsersPanel = () => {
       });
       unwrapAdminResponse(tuple, 'admin-devkit-data');
       updateUser(userId, { plan_name: plan, plan_updated_at: new Date().toISOString() });
-      toast.success(`Plan set to ${plan.toUpperCase()}`);
+      queryClient.invalidateQueries({ queryKey: ['me'] });
+      toast.success(`Plan set to ${plan.toUpperCase()}`, {
+        description: userId === authUser?.id
+          ? 'Your plan is now active — app features will reflect this immediately.'
+          : 'The user\'s app will reflect this within ~15 seconds via polling.',
+        duration: 5000,
+      });
       fetchGlobalStats();
     } catch (e) {
       toast.error(formatEdgeError(e, 'Failed to update plan'));
@@ -230,6 +238,7 @@ export const AdminUsersPanel = () => {
       unwrapAdminResponse(tuple, 'admin-devkit-data');
       const expiresAt = new Date(Date.now() + days * 86_400_000).toISOString();
       updateUser(userId, { trial_plan: plan, trial_expires_at: expiresAt });
+      queryClient.invalidateQueries({ queryKey: ['me'] });
       toast.success(`${plan} trial granted for ${days} days`);
     } catch (e) {
       toast.error(formatEdgeError(e, 'Failed to grant trial'));
@@ -776,24 +785,25 @@ export const AdminUsersPanel = () => {
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between pt-2 text-xs text-white/30">
-          <span>
+          <span className="hidden sm:block">
             Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, totalCount)} of {totalCount.toLocaleString()} users
           </span>
+          <span className="sm:hidden text-[10px]">{totalCount.toLocaleString()} users</span>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setPage(p => Math.max(0, p - 1))}
               disabled={page === 0 || loading}
-              className="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 hover:text-white/60 disabled:opacity-30 transition-all"
+              className="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 hover:text-white/60 disabled:opacity-30 transition-all flex items-center gap-1"
             >
-              ← Prev
+              <span className="hidden sm:inline">← </span>Prev
             </button>
-            <span className="px-2">Page {page + 1} of {totalPages}</span>
+            <span className="px-1 tabular-nums">{page + 1}/{totalPages}</span>
             <button
               onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
               disabled={page >= totalPages - 1 || loading}
-              className="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 hover:text-white/60 disabled:opacity-30 transition-all"
+              className="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 hover:text-white/60 disabled:opacity-30 transition-all flex items-center gap-1"
             >
-              Next →
+              Next<span className="hidden sm:inline"> →</span>
             </button>
           </div>
         </div>

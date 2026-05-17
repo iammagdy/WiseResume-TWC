@@ -1,3 +1,13 @@
+# Disable Imunify360 / ModSecurity WAF browser challenge
+<IfModule mod_security.c>
+  SecFilterEngine Off
+  SecFilterScanPOST Off
+</IfModule>
+<IfModule mod_security2.c>
+  SecRuleEngine Off
+</IfModule>
+
+# SPA routing — redirect all non-file, non-dir requests to index.html
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /

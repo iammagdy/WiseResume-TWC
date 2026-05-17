@@ -8,6 +8,7 @@ const client = new sdk.Client()
     .setKey(process.env.APPWRITE_API_KEY);
 
 const functions = new sdk.Functions(client);
+const databases = new sdk.Databases(client);
 
 async function ensureFunction(id, name) {
     try {
@@ -105,8 +106,7 @@ async function run() {
         { id: 'wisehire-gateway',          name: 'WiseHire Gateway Hub',          file: 'wisehire-gateway.tar.gz' },
         { id: 'public-share',              name: 'Public Share Hub',              file: 'public-share.tar.gz' },
         { id: 'ai-health',                 name: 'AI Health Hub',                 file: 'ai-health.tar.gz' },
-        { id: 'auth-master',               name: 'Auth Master Hub',               file: 'auth-master.tar.gz' },
-        { id: 'admin-devkit-data',         name: 'Admin DevKit Data Hub',         file: 'admin-devkit-data.tar.gz' },
+{ id: 'admin-devkit-data',         name: 'Admin DevKit Data Hub',         file: 'admin-devkit-data.tar.gz' },
         { id: 'admin-email',               name: 'Admin Email Hub',               file: 'admin-email.tar.gz' },
         { id: 'admin-testmail',            name: 'Admin Testmail Hub',            file: 'admin-testmail.tar.gz' },
         { id: 'admin-feature-flags',       name: 'Admin Feature Flags Hub',       file: 'admin-feature-flags.tar.gz' },
@@ -136,6 +136,9 @@ async function run() {
         ['GROQ_KEY_1', process.env.GROQ_KEY_1],
         ['OPENROUTER_KEY_1', process.env.OPENROUTER_KEY_1],
         ['DEEPSEEK_KEY', process.env.DEEPSEEK_KEY],
+        ['APPWRITE_API_KEY', process.env.APPWRITE_API_KEY],
+        ['APPWRITE_ENDPOINT', process.env.APPWRITE_ENDPOINT],
+        ['APPWRITE_PROJECT_ID', process.env.APPWRITE_PROJECT_ID],
     ]) {
         await ensureVariable('job-import', key, value);
     }
@@ -202,6 +205,26 @@ async function run() {
     await smokeFunction('admin-onboarding-funnel', { days: 7, granularity: 'day' });
     await smokeFunction('admin-feature-flags', { action: 'list' });
     await smokeFunction('admin-moderation', { action: 'list_bug_reports', page: 1, per_page: 1 });
+
+    // Ensure jobs collection allows authenticated users to create documents.
+    // Without this, client-side job creation fails with "No permissions for action 'create'".
+    console.log('\nEnsuring jobs collection create permission...');
+    try {
+        const col = await databases.getCollection('main', 'jobs');
+        const hasCreate = (col.permissions || []).some(p => p.includes('create') && p.includes('users'));
+        if (!hasCreate) {
+            const existing = col.permissions || [];
+            await databases.updateCollection('main', 'jobs', col.name, [
+                ...existing,
+                sdk.Permission.create(sdk.Role.users()),
+            ]);
+            console.log('  ✅ Added Permission.create(Role.users()) to jobs collection');
+        } else {
+            console.log('  jobs collection create permission already set');
+        }
+    } catch (e) {
+        console.warn(`  Could not update jobs collection permissions: ${e.message}`);
+    }
 
     console.log('\nAll hubs processed.');
 }

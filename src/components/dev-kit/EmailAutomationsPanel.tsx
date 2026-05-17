@@ -179,6 +179,7 @@ export function EmailAutomationsPanel() {
   const [lookupResult, setLookupResult] = useState<string[] | null>(null);
 
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [inlinePrompt, setInlinePrompt] = useState<{ audienceKey: string; audienceLabel: string; action: 'add' | 'remove'; email: string } | null>(null);
 
   const [syncLoading, setSyncLoading] = useState(false);
   const [syncResult, setSyncResult] = useState<{ total: number; added: number; failed: number } | null>(null);
@@ -233,15 +234,17 @@ export function EmailAutomationsPanel() {
   };
 
   const handleManualAdd = (audienceKey: string, audienceLabel: string) => {
-    const email = window.prompt(`Email to add to "${audienceLabel}" audience:`);
-    if (!email?.trim()) return;
-    void doAction('add', audienceKey, audienceLabel, email.trim().toLowerCase());
+    setInlinePrompt({ audienceKey, audienceLabel, action: 'add', email: '' });
   };
 
   const handleManualRemove = (audienceKey: string, audienceLabel: string) => {
-    const email = window.prompt(`Email to remove from "${audienceLabel}" audience:`);
-    if (!email?.trim()) return;
-    void doAction('remove', audienceKey, audienceLabel, email.trim().toLowerCase());
+    setInlinePrompt({ audienceKey, audienceLabel, action: 'remove', email: '' });
+  };
+
+  const submitInlinePrompt = () => {
+    if (!inlinePrompt?.email.trim()) return;
+    void doAction(inlinePrompt.action, inlinePrompt.audienceKey, inlinePrompt.audienceLabel, inlinePrompt.email.trim().toLowerCase());
+    setInlinePrompt(null);
   };
 
   const doAction = async (
@@ -301,6 +304,33 @@ export function EmailAutomationsPanel() {
 
   return (
     <div className="space-y-6">
+
+      {/* Inline email prompt modal */}
+      {inlinePrompt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setInlinePrompt(null)}>
+          <div className="w-full max-w-sm rounded-xl border border-border bg-card p-4 space-y-3 shadow-xl" onClick={e => e.stopPropagation()}>
+            <p className="text-sm font-semibold text-foreground">
+              {inlinePrompt.action === 'add' ? 'Add contact to' : 'Remove contact from'}{' '}
+              <span className="text-primary">{inlinePrompt.audienceLabel}</span>
+            </p>
+            <Input
+              autoFocus
+              type="email"
+              value={inlinePrompt.email}
+              onChange={e => setInlinePrompt(p => p ? { ...p, email: e.target.value } : null)}
+              onKeyDown={e => { if (e.key === 'Enter') submitInlinePrompt(); if (e.key === 'Escape') setInlinePrompt(null); }}
+              placeholder="email@example.com"
+              className="h-9 text-sm"
+            />
+            <div className="flex gap-2 justify-end">
+              <Button size="sm" variant="ghost" onClick={() => setInlinePrompt(null)}>Cancel</Button>
+              <Button size="sm" disabled={!inlinePrompt.email.trim()} onClick={submitInlinePrompt}>
+                {inlinePrompt.action === 'add' ? 'Add' : 'Remove'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Header */}
       <div className="flex items-center justify-between">

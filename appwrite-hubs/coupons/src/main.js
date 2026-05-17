@@ -147,6 +147,42 @@ async function validateCoupon(body, res) {
   return json(res, { status: 'success', data: { ok: true, valid: true, coupon: normalizeCoupon(coupon) } });
 }
 
+async function getMySubscription(body, res) {
+  const jwt = header(body, 'X-Appwrite-JWT');
+  const { databases, account } = getClients(jwt);
+  const user = await getCurrentUser(account);
+
+  if (!user) {
+    return json(res, { status: 'error', message: 'Not authenticated.' }, 401);
+  }
+
+  const sub = await findSubscription(databases, user.$id);
+
+  if (!sub) {
+    return json(res, {
+      status: 'success',
+      data: { plan: 'free', effective_plan: 'free', status: null, trial_plan: null, trial_expires_at: null, coupon_code: null },
+    });
+  }
+
+  const trialPlan = sub.trial_plan ?? null;
+  const trialExpiresAt = sub.trial_expires_at ?? null;
+  const trialActive = !!trialPlan && !!trialExpiresAt && new Date(trialExpiresAt).getTime() > Date.now();
+  const effectivePlan = sub.effective_plan ?? (trialActive ? trialPlan : (sub.plan ?? 'free'));
+
+  return json(res, {
+    status: 'success',
+    data: {
+      plan: sub.plan ?? 'free',
+      effective_plan: effectivePlan,
+      status: sub.status ?? null,
+      trial_plan: trialPlan,
+      trial_expires_at: trialExpiresAt,
+      coupon_code: sub.coupon_code ?? null,
+    },
+  });
+}
+
 async function redeemCoupon(body, res) {
   const code = upperCode(body);
   const jwt = header(body, 'X-Appwrite-JWT');
@@ -201,6 +237,7 @@ module.exports = async ({ req, res, error }) => {
     const action = body.action || headerAction || 'validate';
     if (action === 'validate') return validateCoupon(body, res);
     if (action === 'redeem') return redeemCoupon(body, res);
+    if (action === 'get-subscription') return getMySubscription(body, res);
     return json(res, { status: 'error', message: `Unknown coupons action: ${action}` }, 400);
   } catch (err) {
     error(`Coupons error: ${err.message}`);

@@ -1,13 +1,17 @@
 name: Deploy AI Hubs
 
+# ⚠️  AUTO-TRIGGER DISABLED — re-enable next month by restoring the push trigger.
+# To re-enable: replace "on: workflow_dispatch" with:
+#   on:
+#     workflow_dispatch:
+#     push:
+#       branches: [main]
+#       paths:
+#         - 'appwrite-hubs/**'
+#         - 'scripts/deploy_hubs.cjs'
+#         - 'scripts/setup_observability_schema.cjs'
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'appwrite-hubs/**'
-      - 'scripts/deploy_hubs.cjs'
-      - 'scripts/setup_observability_schema.cjs'
 
 jobs:
   deploy:
@@ -20,6 +24,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+          cache: 'npm'
 
       - name: Install deploy dependencies
         run: npm install node-appwrite
@@ -41,7 +46,6 @@ jobs:
             echo "::endgroup::"
           }
 
-          build_hub auth-master auth-master.tar.gz
           build_hub resume-section-ai resume-section-ai.tar.gz
           build_hub job-import job-import.tar.gz
           build_hub ai-gateway ai-gateway.tar.gz

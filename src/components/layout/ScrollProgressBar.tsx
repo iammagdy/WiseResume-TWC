@@ -1,11 +1,12 @@
-import { useEffect, useState, RefObject } from 'react';
+import { useEffect, useRef, RefObject } from 'react';
 
 interface ScrollProgressBarProps {
   containerRef: RefObject<HTMLElement>;
 }
 
 export function ScrollProgressBar({ containerRef }: ScrollProgressBarProps) {
-  const [progress, setProgress] = useState(0);
+  const barRef = useRef<HTMLDivElement>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -17,7 +18,9 @@ export function ScrollProgressBar({ containerRef }: ScrollProgressBarProps) {
       raf = requestAnimationFrame(() => {
         const { scrollTop, scrollHeight, clientHeight } = el;
         const max = scrollHeight - clientHeight;
-        setProgress(max > 0 ? (scrollTop / max) * 100 : 0);
+        const pct = max > 0 ? (scrollTop / max) * 100 : 0;
+        if (barRef.current) barRef.current.style.width = `${pct}%`;
+        if (wrapRef.current) wrapRef.current.style.display = pct <= 0 ? 'none' : 'block';
       });
     };
 
@@ -28,13 +31,12 @@ export function ScrollProgressBar({ containerRef }: ScrollProgressBarProps) {
     };
   }, [containerRef]);
 
-  if (progress <= 0) return null;
-
   return (
-    <div className="sticky top-0 left-0 right-0 h-[3px] z-50 bg-transparent pointer-events-none">
+    <div ref={wrapRef} className="sticky top-0 left-0 right-0 h-[3px] z-50 bg-transparent pointer-events-none" style={{ display: 'none' }}>
       <div
-        className="h-full bg-primary transition-[width] duration-75 ease-out"
-        style={{ width: `${progress}%` }}
+        ref={barRef}
+        className="h-full bg-primary"
+        style={{ width: '0%', transition: 'width 75ms linear' }}
       />
     </div>
   );

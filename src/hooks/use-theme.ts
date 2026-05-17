@@ -9,6 +9,8 @@ export function useTheme() {
   const isDark = useIsDark();
 
   const toggleTheme = () => {
+    document.documentElement.classList.add('theme-transitioning');
+    setTimeout(() => document.documentElement.classList.remove('theme-transitioning'), 250);
     if (theme === 'system') {
       setTheme(isDark ? 'light' : 'dark');
     } else {
