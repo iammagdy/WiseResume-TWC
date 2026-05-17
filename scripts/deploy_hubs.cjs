@@ -25,20 +25,19 @@ const client = new sdk.Client()
 const functions = new sdk.Functions(client);
 const databases = new sdk.Databases(client);
 
-async function ensureFunction(id, name) {
+async function ensureFunction(id, name, timeout = 30) {
     try {
         const fn = await functions.get(id);
-        // Browser-initiated executions require Appwrite execute permission.
-        // Admin hubs enforce their own DevKit token inside the function.
-        if (!fn.execute || fn.execute.length === 0) {
-            await functions.update(id, name, fn.runtime || 'node-18.0', ['any']);
-            console.log(`  Fixed execute permissions for ${id}`);
+        const needsUpdate = !fn.execute || fn.execute.length === 0 || (fn.timeout && fn.timeout < timeout);
+        if (needsUpdate) {
+            await functions.update(id, name, fn.runtime || 'node-18.0', ['any'], [], '', timeout);
+            console.log(`  Updated permissions/timeout for ${id}`);
         }
         console.log(`  ${id} already exists`);
     } catch (e) {
         if (e.code === 404) {
             console.log(`  Creating ${id} with node-18.0...`);
-            await functions.create(id, name, 'node-18.0', ['any']);
+            await functions.create(id, name, 'node-18.0', ['any'], [], '', timeout);
             console.log(`  Created ${id}`);
         } else throw e;
     }

@@ -46,11 +46,19 @@ export function ImportJobSheet({ open, onOpenChange }: ImportJobSheetProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const importJob = useImportJob();
 
-  // No auto clipboard read — iOS WebKit requires a direct user gesture.
-  // The "Paste from clipboard" button below calls readText() in its onClick.
+  // Auto-read clipboard when sheet opens (silently fails on iOS — requires user gesture there)
   useEffect(() => {
-    if (!open) setClipboardDetected(false);
-  }, [open]);
+    if (!open || !clipboardEnabled || !navigator.clipboard) return;
+    navigator.clipboard.readText()
+      .then(text => {
+        const trimmed = text.trim();
+        if (trimmed && isJobUrl(trimmed)) {
+          setUrl(trimmed);
+          setClipboardDetected(true);
+        }
+      })
+      .catch(() => { /* permission denied or iOS WebKit — silent */ });
+  }, [open, clipboardEnabled]);
 
   const handlePasteFromClipboard = () => {
     if (!navigator.clipboard) return;

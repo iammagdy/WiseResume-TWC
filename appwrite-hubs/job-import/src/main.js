@@ -60,7 +60,7 @@ async function callLLM(messages, pool) {
         max_tokens: 800,
       }, {
         headers: { 'Authorization': `Bearer ${entry.key}`, 'Content-Type': 'application/json' },
-        timeout: 30000,
+        timeout: 8000,
       });
       return response.data.choices[0].message.content;
     } catch (err) {
@@ -152,7 +152,7 @@ async function createJobDocument(userId, job, sourceUrl) {
           'X-Appwrite-Key': apiKey,
           'Content-Type': 'application/json',
         },
-        timeout: 10000,
+        timeout: 5000,
       }
     );
     return response.data;
@@ -185,7 +185,7 @@ module.exports = async ({ req, res, log, error }) => {
   let html;
   try {
     const response = await axios.get(url, {
-      timeout: 20000,
+      timeout: 8000,
       maxRedirects: 5,
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; WiseResume/1.0; +https://thewise.cloud)',
