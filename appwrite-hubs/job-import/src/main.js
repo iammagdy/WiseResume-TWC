@@ -286,25 +286,6 @@ ${context}`,
     // Still return ok:true with the parsed data — frontend will attempt its own write
   }
 
-  const parsedJob = {
-    title: parsed.title || 'Unknown Position',
-    company: parsed.company || 'Unknown Company',
-    location: parsed.location || '',
-    salary_range: parsed.salary_range || null,
-    job_type: parsed.job_type || 'full-time',
-    remote: Boolean(parsed.remote),
-    skills: Array.isArray(parsed.skills) ? parsed.skills : [],
-    description: parsed.description || '',
-    requirements: Array.isArray(parsed.requirements)
-      ? parsed.requirements.join(', ')
-      : (parsed.requirements || ''),
-  };
-
-  // Persist server-side using API key to bypass collection permission requirement
-  const savedDoc = await createJobDocument(userId, parsedJob, url);
-  if (savedDoc) log(`Saved job document: ${savedDoc.$id}`);
-  else log('Server-side save skipped (no credentials or userId); client will fallback');
-
   return res.json({
     ok: true,
     jobId: savedDoc?.$id || null,
