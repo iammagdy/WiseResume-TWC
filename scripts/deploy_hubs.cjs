@@ -8,6 +8,7 @@ const client = new sdk.Client()
     .setKey(process.env.APPWRITE_API_KEY);
 
 const functions = new sdk.Functions(client);
+const databases = new sdk.Databases(client);
 
 async function ensureFunction(id, name) {
     try {
@@ -204,6 +205,26 @@ async function run() {
     await smokeFunction('admin-onboarding-funnel', { days: 7, granularity: 'day' });
     await smokeFunction('admin-feature-flags', { action: 'list' });
     await smokeFunction('admin-moderation', { action: 'list_bug_reports', page: 1, per_page: 1 });
+
+    // Ensure jobs collection allows authenticated users to create documents.
+    // Without this, client-side job creation fails with "No permissions for action 'create'".
+    console.log('\nEnsuring jobs collection create permission...');
+    try {
+        const col = await databases.getCollection('main', 'jobs');
+        const hasCreate = (col.permissions || []).some(p => p.includes('create') && p.includes('users'));
+        if (!hasCreate) {
+            const existing = col.permissions || [];
+            await databases.updateCollection('main', 'jobs', col.name, [
+                ...existing,
+                sdk.Permission.create(sdk.Role.users()),
+            ]);
+            console.log('  ✅ Added Permission.create(Role.users()) to jobs collection');
+        } else {
+            console.log('  jobs collection create permission already set');
+        }
+    } catch (e) {
+        console.warn(`  Could not update jobs collection permissions: ${e.message}`);
+    }
 
     console.log('\nAll hubs processed.');
 }
