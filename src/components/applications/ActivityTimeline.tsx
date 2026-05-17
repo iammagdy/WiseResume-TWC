@@ -45,8 +45,15 @@ function entryMatchesFilter(entry: TimelineEntry, filter: FilterKey): boolean {
   }
 }
 
-function getGroup(dateStr: string): string {
+function safeDate(dateStr: string | null | undefined): Date | null {
+  if (!dateStr) return null;
   const d = new Date(dateStr);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function getGroup(dateStr: string): string {
+  const d = safeDate(dateStr);
+  if (!d) return 'Earlier';
   if (isToday(d)) return 'Today';
   if (isYesterday(d)) return 'Yesterday';
   if (isThisWeek(d, { weekStartsOn: 1 })) return 'This week';
@@ -160,7 +167,7 @@ export function ActivityTimeline() {
           type: 'application',
           jobTitle: a.job_title,
           company: a.company,
-          date: a.applied_at ?? doc.$createdAt,
+          date: a.applied_at || doc.$createdAt,
           resumeId: a.resume_id,
           url: a.url,
           status: a.status,
@@ -180,7 +187,7 @@ export function ActivityTimeline() {
         });
       });
 
-      items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      items.sort((a, b) => (safeDate(b.date)?.getTime() ?? 0) - (safeDate(a.date)?.getTime() ?? 0));
 
       // Fetch resume names for non-resume entries
       const needNames = items.filter(i => !i.resumeName && i.resumeId);
@@ -341,7 +348,7 @@ export function ActivityTimeline() {
                         <div className="flex items-center gap-2 mt-1.5 text-[11px] text-muted-foreground">
                           <span>{config.label}</span>
                           <span>·</span>
-                          <span>{formatDistanceToNow(new Date(entry.date), { addSuffix: true })}</span>
+                          <span>{safeDate(entry.date) ? formatDistanceToNow(safeDate(entry.date)!, { addSuffix: true }) : 'some time ago'}</span>
                           {entry.resumeName && !isResume && (
                             <>
                               <span>·</span>
