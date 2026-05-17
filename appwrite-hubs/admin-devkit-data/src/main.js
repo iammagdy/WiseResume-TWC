@@ -216,7 +216,7 @@ async function handleDiagnostics(log, error) {
     items.push(item('Functions', 'functions-list', 'Function Inventory', 'broken', 'Could not list Appwrite Functions.', e.message));
   }
 
-  const requiredCollections = ['profiles', 'subscriptions', 'ai_credits', 'resumes', 'admin_audit_logs', 'audit_logs', 'feature_flags', 'error_log', 'edge_function_logs', 'discount_codes', 'app_settings', 'usage_events', 'visitor_events', 'contact_requests'];
+  const requiredCollections = ['profiles', 'subscriptions', 'ai_credits', 'resumes', 'admin_audit_logs', 'audit_logs', 'feature_flags', 'error_log', 'edge_function_logs', 'discount_codes', 'app_settings', 'usage_events', 'visitor_events', 'contact_requests', 'notifications', 'ai_routing_config', 'wisehire_accounts', 'wisehire_invites', 'wisehire_waitlist'];
   try {
     const collPage = await listCollections([sdk.Query.limit(200)]);
     for (const coll of requiredCollections) {
@@ -1668,7 +1668,7 @@ async function handleAnalytics(body, log) {
     .sort((a, b) => b.count - a.count)
     .slice(0, 10);
 
-  return {
+  const analyticsPayload = {
     // Back-compat fields
     pageViewsAllTime: pageViews.length,
     pageViewsToday: todayDocs.filter(d => d.event_type === 'page_view').length,
@@ -1706,6 +1706,8 @@ async function handleAnalytics(body, log) {
     countryRanking,
     totalCountries: Object.keys(countryMap).length,
   };
+
+  return { data: analyticsPayload };
 }
 
 async function handleHomeSummary(log, error) {
