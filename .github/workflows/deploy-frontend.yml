@@ -1,9 +1,10 @@
 name: 🚀 Deploy Frontend
 
+# ⚠️  AUTO-TRIGGER DISABLED — Vercel handles frontend deployment now.
+# Re-enable by adding the push trigger below when switching back from Vercel.
+# Optimized: large assets only sync when public/tesseract or public/pdfjs changed.
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
 
 concurrency:
   group: deploy-frontend
@@ -16,6 +17,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -39,10 +42,8 @@ jobs:
 
       - name: Check bundle size
         run: |
-          # Report total bundle size (informational — includes lazy PDF/OCR chunks)
           TOTAL_SIZE=$(find dist/assets -name "*.js" -not -name "*.map" | xargs wc -c 2>/dev/null | tail -1 | awk '{print $1}')
           echo "Total JS (all chunks): $TOTAL_SIZE bytes"
-          # Enforce 3MB limit only on the initial entry chunk
           ENTRY_SIZE=$(find dist/assets -name "index-*.js" -not -name "*.map" | xargs wc -c 2>/dev/null | tail -1 | awk '{print $1}')
           echo "Entry chunk size: $ENTRY_SIZE bytes"
           if [ "$ENTRY_SIZE" -gt 3145728 ]; then
@@ -51,26 +52,24 @@ jobs:
           fi
           echo "✅ Entry bundle within limit"
 
-      - name: Verify build output
+      - name: Check if large assets changed
+        id: large_assets
         run: |
-          echo "=== index.html bundle reference ==="
-          grep -o 'src="/assets/index-[^"]*"' dist/index.html || echo "No index bundle found"
-          echo "=== dist/index.html size (bytes) ==="
-          wc -c dist/index.html
-          echo "=== large asset directories ==="
-          du -sh dist/tesseract dist/pdfjs 2>/dev/null || true
+          if git diff --name-only HEAD~1 HEAD | grep -q '^public/tesseract\|^public/pdfjs'; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Install lftp
         run: sudo apt-get update && sudo apt-get install -y lftp
 
-      - name: Sync large static assets (Tesseract / pdf.js — only-newer)
+      - name: Sync large static assets (only when tesseract/pdfjs changed)
+        if: steps.large_assets.outputs.changed == 'true'
         timeout-minutes: 30
         env:
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
         run: |
-          # Tesseract WASM cores + OCR lang data + pdf.js fonts/cmaps are large
-          # binary files that rarely change. Upload only when newer than what is
-          # already on the server so subsequent deploys skip them entirely.
           lftp -u "u966279061.thewise.cloud,${FTP_PASSWORD}" "ftp://82.29.154.120:21" \
             -e "set ftp:ssl-force true; \
                 set ssl:verify-certificate no; \
@@ -84,13 +83,11 @@ jobs:
                 mirror --reverse --verbose --parallel=8 --only-newer ./dist/pdfjs/    resume/pdfjs/; \
                 bye"
 
-      - name: Sync app bundle (JS / CSS / HTML — with delete)
+      - name: Sync app bundle (JS / CSS / HTML)
         timeout-minutes: 10
         env:
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
         run: |
-          # Sync everything except the large binary dirs (already handled above).
-          # --delete removes stale chunks from previous builds.
           lftp -u "u966279061.thewise.cloud,${FTP_PASSWORD}" "ftp://82.29.154.120:21" \
             -e "set ftp:ssl-force true; \
                 set ssl:verify-certificate no; \
