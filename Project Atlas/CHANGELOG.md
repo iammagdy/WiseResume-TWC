@@ -11,6 +11,23 @@
 
 ---
 
+## 2026-05-18 — Audit Fixes: Deploy Timeout + SDK Alignment
+
+### Summary
+Fixed the critical regression that made DevKit Deploy Hubs non-functional, and standardized all hub SDK declarations to `^17.2.0`.
+
+### Changes
+- **`scripts/deploy_hubs.cjs`** — `admin-deploy-hubs` was being set to 30s timeout (Appwrite default); now set to 900s (Appwrite maximum). `ensureFunction()` also fixed to never reduce an existing timeout that is already higher than the target value.
+- **9 hub `package.json` files** — bumped `node-appwrite` from `^11.x` / `^14.0.0` → `^17.2.0`: `admin-devkit-data`, `admin-email`, `admin-feature-flags`, `admin-impersonate`, `admin-moderation`, `admin-onboarding-funnel`, `admin-portfolio-usernames`, `admin-visitor-analytics`, `ai-gateway`.
+- **`appwrite-hubs/inspect-ai-keys/package.json`** — removed unused `node-appwrite` declaration (hub uses raw axios only).
+- **`Project Atlas/MASTER_HANDOVER_2026.md`** — corrected Fix 4 description: prior claim "every other hub uses `^14.0.0`" was inaccurate. Added raw-axios hub design note at end of file.
+- **`.github/workflows/deploy-appwrite-hubs.yml`** — updated comment to reflect intentional manual-only deploy policy (removed "re-enable next month" instruction).
+
+### Deploy required
+All 9 hubs with bumped package.json need redeployment for the new SDK version to take effect. Use DevKit → Deploy AI Hubs after this commit is merged and pushed. `admin-deploy-hubs` timeout fix in `deploy_hubs.cjs` takes effect on the next run of the deploy script (GitHub Actions manual trigger or DevKit deploy).
+
+---
+
 ## 2026-05-18 - DevKit Hub Runtime/Auth Repair
 
 ### Summary

@@ -1,15 +1,8 @@
 name: Deploy AI Hubs
 
-# ⚠️  AUTO-TRIGGER DISABLED — re-enable next month by restoring the push trigger.
-# To re-enable: replace "on: workflow_dispatch" with:
-#   on:
-#     workflow_dispatch:
-#     push:
-#       branches: [main]
-#       paths:
-#         - 'appwrite-hubs/**'
-#         - 'scripts/deploy_hubs.cjs'
-#         - 'scripts/setup_observability_schema.cjs'
+# Hub deployment is intentionally manual-only (workflow_dispatch).
+# Hubs are deployed via DevKit → Deploy AI Hubs, or by running this workflow manually.
+# Do NOT add a push: trigger — hub deploys must be deliberate, not automatic.
 on:
   workflow_dispatch:
 

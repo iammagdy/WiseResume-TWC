@@ -4,7 +4,7 @@
   "description": "Appwrite Function — serves DevKit admin panels: Mission Control, Analytics, Observability, Live Activity",
   "main": "src/main.js",
   "dependencies": {
-    "node-appwrite": "^14.0.0",
+    "node-appwrite": "^17.2.0",
     "axios": "^1.4.0"
   }
 }

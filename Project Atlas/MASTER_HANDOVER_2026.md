@@ -136,11 +136,11 @@ Branch: `claude/teleport-session-recovery-i4XxZ` | Key commits: `ec757cb`, `b97f
 
 ### Fix 4 — admin-visitor-analytics SDK Version Mismatch
 
-**Root cause:** `appwrite-hubs/admin-visitor-analytics/package.json` declared `node-appwrite: ^11.1.1` while every other hub uses `^14.0.0`. Mismatched SDK versions can produce silent API incompatibilities at runtime.
+**Root cause:** `appwrite-hubs/admin-visitor-analytics/package.json` declared `node-appwrite: ^11.1.1`. Only `admin-visitor-analytics` was bumped in this session — the handover incorrectly stated "every other hub uses `^14.0.0`"; in reality several hubs were still on `^11.x` and none were on a unified version.
 
-**Fix:** Bumped to `^14.0.0`.
+**Fix:** Bumped `admin-visitor-analytics` to `^14.0.0` at the time. Subsequently (2026-05-18 audit fix), all hubs that declare and use the SDK were standardized to `^17.2.0`.
 
-**File:** `appwrite-hubs/admin-visitor-analytics/package.json`
+**Files:** All `appwrite-hubs/*/package.json` files that declare `node-appwrite`
 
 ---
 
@@ -1692,3 +1692,20 @@ Both commits pushed to `origin/main`. Both deploy workflows triggered:
 - iOS OCR is now unblocked — next step is user verification on a real iPhone.
 - Desktop/Android parsing unaffected by pdfjs downgrade.
 - **Next agent:** pull `main`, read `RULES.md`, no migrations or schema changes needed.
+
+---
+
+## Hub Architecture: Intentional Raw-Axios Hubs
+
+The following hubs intentionally do **not** declare or use the `node-appwrite` SDK. This is by design — not an omission.
+
+| Hub | Why no SDK |
+|-----|-----------|
+| `admin-deploy-hubs` | Uses `axios` + `form-data` for multipart binary uploads to Appwrite REST; raw streaming required for deployment archives |
+| `admin-testmail` | No DB access; pure HTTP calls to email provider API |
+| `ai-health` | Probes external AI provider endpoints via `fetch`; no Appwrite DB usage |
+| `job-import` | LLM calls via `axios`; DB writes via raw Appwrite REST (SDK sends request bodies with GET calls, which Appwrite Cloud rejects) |
+| `resume-section-ai` | LLM calls only via `axios`; no DB access |
+| `inspect-ai-keys` | Validates AI provider API keys via direct HTTP; no DB access |
+
+Do not add `node-appwrite` to these hubs unless a specific DB/storage feature is genuinely needed and confirmed compatible with Appwrite Cloud's GET-request behavior.

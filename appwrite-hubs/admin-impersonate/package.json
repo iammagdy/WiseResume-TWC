@@ -4,6 +4,6 @@
   "description": "Admin tool for user impersonation",
   "main": "src/main.js",
   "dependencies": {
-    "node-appwrite": "^11.0.0"
+    "node-appwrite": "^17.2.0"
   }
 }

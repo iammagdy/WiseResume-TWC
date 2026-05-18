@@ -3,6 +3,13 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
+// Per-hub timeout overrides (seconds). Appwrite hard max is 900.
+// admin-deploy-hubs needs up to 15 minutes: git clone + 18x npm/tar/upload.
+const HUB_TIMEOUTS = {
+    'admin-deploy-hubs': 900,
+};
+const DEFAULT_TIMEOUT = 30;
+
 function buildHub(dir, archive) {
     const hubDir = path.join(process.cwd(), 'appwrite-hubs', dir);
     const archivePath = path.join(process.cwd(), archive);
@@ -25,19 +32,26 @@ const client = new sdk.Client()
 const functions = new sdk.Functions(client);
 const databases = new sdk.Databases(client);
 
-async function ensureFunction(id, name, timeout = 30) {
+async function ensureFunction(id, name, timeout = DEFAULT_TIMEOUT) {
     try {
         const fn = await functions.get(id);
-        const needsUpdate = !fn.execute || fn.execute.length === 0 || (fn.timeout && fn.timeout < timeout);
+        const currentTimeout = fn.timeout ?? 0;
+        // Never reduce an existing timeout that is already higher than desired
+        const effectiveTimeout = Math.max(timeout, currentTimeout);
+        const needsUpdate =
+            !fn.execute ||
+            fn.execute.length === 0 ||
+            currentTimeout < timeout;
         if (needsUpdate) {
-            await functions.update(id, name, fn.runtime || 'node-18.0', ['any'], [], '', timeout);
-            console.log(`  Updated permissions/timeout for ${id}`);
+            await functions.update(id, name, fn.runtime || 'node-18.0', ['any'], [], '', effectiveTimeout);
+            console.log(`  Updated permissions/timeout for ${id} (${effectiveTimeout}s)`);
         }
         console.log(`  ${id} already exists`);
     } catch (e) {
         if (e.code === 404) {
-            console.log(`  Creating ${id} with node-18.0...`);
-            await functions.create(id, name, 'node-18.0', ['any'], [], '', timeout);
+            const effectiveTimeout = Math.max(timeout, DEFAULT_TIMEOUT);
+            console.log(`  Creating ${id} with node-18.0 (${effectiveTimeout}s)...`);
+            await functions.create(id, name, 'node-18.0', ['any'], [], '', effectiveTimeout);
             console.log(`  Created ${id}`);
         } else throw e;
     }
@@ -72,7 +86,7 @@ async function deployFunction(id, name, filePath) {
     }
 
     try {
-        await ensureFunction(id, name);
+        await ensureFunction(id, name, HUB_TIMEOUTS[id] ?? DEFAULT_TIMEOUT);
         const fileBuffer = fs.readFileSync(absPath);
         const fileName = path.basename(absPath);
         const file = new File([fileBuffer], fileName, { type: 'application/gzip' });

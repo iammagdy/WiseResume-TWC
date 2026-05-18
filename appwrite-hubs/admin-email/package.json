@@ -4,6 +4,6 @@
   "description": "Appwrite Function — serves EmailManagementPanel and EmailAutomationsPanel",
   "main": "src/main.js",
   "dependencies": {
-    "node-appwrite": "^11.1.1"
+    "node-appwrite": "^17.2.0"
   }
 }
