@@ -57,9 +57,11 @@ Remaining blocker: `admin-deploy-hubs` still needs `DEVKIT_PASSWORD` configured 
 
 - Appwrite backend fixes are live for all affected DevKit hubs listed above.
 - `job-import` is live at deployment `6a0a555f2d62c4db7d32` and no longer runtime-fails on module parse.
-- DevKit frontend source changes are local in this commit and require Vercel deployment before production UI reflects: Deploy Hubs disabled-state, Live Activity probe changes, and Email recent-send backend routing.
+- DevKit frontend source changes were pushed to `origin/main` in commit `0a92bd20` and require Vercel deployment verification before production UI reflects: Deploy Hubs disabled-state, Live Activity probe changes, and Email recent-send backend routing.
 - `admin-deploy-hubs` is deployed and code-ready, but its live deploy button remains intentionally disabled because `DEVKIT_PASSWORD` is still missing on that Appwrite function. Add the exact same DevKit password value used by `admin-devkit-data` before enabling live self-deploys.
 - GitHub Actions Deploy AI Hubs workflow remains blocked by GitHub billing/spending-limit failure. Direct Appwrite deployments were used for this session.
+- Local `main` was rebased onto remote `main`; conflict in `Project Atlas/MASTER_HANDOVER_2026.md` was resolved by keeping the upstream 2026-05-17 handover and prepending the 2026-05-18 DevKit/import summaries.
+- Working tree was clean after pushing `0a92bd20`; this final documentation update records the post-push state only.
 
 ---
 
