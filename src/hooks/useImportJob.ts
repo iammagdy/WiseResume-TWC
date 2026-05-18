@@ -34,7 +34,7 @@ export function useImportJob() {
       // Function saved the document server-side — just refresh the list
       if (jobId) {
         queryClient.invalidateQueries({ queryKey: ['jobs'] });
-        return;
+        return { id: jobId };
       }
 
       // Fallback: save client-side (requires collection permission)

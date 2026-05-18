@@ -100,13 +100,6 @@ function extractAiErrMsg(data: unknown, error: unknown): string | undefined {
 
 const LIGHTWEIGHT_FN_DEFS: EdgeFunctionDef[] = [
   {
-    name: 'me',
-    label: 'me (auth)',
-    buildBody: () => ({}),
-    classify: classifyEdgeFunctionResponse,
-    errMsg: extractErrMsg,
-  },
-  {
     name: 'admin-devkit-data',
     label: 'admin-devkit-data:list-users-page',
     buildBody: () => ({ action: 'list-users-page', page: 0, pageSize: 1 }),
@@ -114,16 +107,16 @@ const LIGHTWEIGHT_FN_DEFS: EdgeFunctionDef[] = [
     errMsg: extractErrMsg,
   },
   {
-    name: 'admin-get-settings',
-    label: 'admin-get-settings',
-    buildBody: (pw: string) => ({}),
+    name: 'admin-devkit-data',
+    label: 'admin-devkit-data:diagnostics',
+    buildBody: () => ({ action: 'diagnostics' }),
     classify: classifyEdgeFunctionResponse,
     errMsg: extractErrMsg,
   },
   {
-    name: 'admin-audit-logs',
-    label: 'admin-audit-logs',
-    buildBody: (pw: string) => ({ limit: 1 }),
+    name: 'admin-devkit-data',
+    label: 'admin-devkit-data:list-audit-logs',
+    buildBody: () => ({ action: 'list-audit-logs', limit: 1 }),
     classify: classifyEdgeFunctionResponse,
     errMsg: extractErrMsg,
   },

@@ -6,6 +6,7 @@ const path = require('path');
 const os = require('os');
 const axios = require('axios');
 const FormData = require('form-data');
+const crypto = require('crypto');
 
 const HUBS = [
   'resume-section-ai',
@@ -28,8 +29,35 @@ const HUBS = [
   'admin-deploy-hubs',
 ];
 
+function verifySignedToken(token) {
+  const secret = process.env.DEVKIT_PASSWORD;
+  if (!secret || !token || !token.includes('.')) return false;
+  const [encoded, sig] = token.split('.');
+  if (!encoded || !sig) return false;
+  const expected = crypto.createHmac('sha256', secret).update(encoded).digest('base64url');
+  const actualBuffer = Buffer.from(sig);
+  const expectedBuffer = Buffer.from(expected);
+  if (actualBuffer.length !== expectedBuffer.length) return false;
+  if (!crypto.timingSafeEqual(actualBuffer, expectedBuffer)) return false;
+  let payload;
+  try { payload = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8')); } catch { return false; }
+  return payload.purpose === 'devkit' && typeof payload.exp === 'number' && Date.now() < payload.exp;
+}
+
+function bearerToken(req, body) {
+  const authHeader = body?.__headers?.Authorization || req.headers?.authorization || req.headers?.Authorization || '';
+  return authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+}
+
+function checkAuth(req, body) {
+  const token = bearerToken(req, body);
+  const password = process.env.DEVKIT_PASSWORD;
+  if (!password || !token) return false;
+  if (token === password) return true;
+  return verifySignedToken(token);
+}
+
 module.exports = async ({ req, res, log, error }) => {
-  const devkitPassword = process.env.DEVKIT_PASSWORD;
   let body;
   try {
     body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
@@ -37,8 +65,7 @@ module.exports = async ({ req, res, log, error }) => {
     return res.json({ ok: false, error: 'Invalid request body' }, 400);
   }
 
-  const authHeader = body?.__headers?.Authorization || req.headers?.authorization || '';
-  if (!devkitPassword || authHeader !== `Bearer ${devkitPassword}`) {
+  if (!checkAuth(req, body)) {
     return res.json({ ok: false, error: 'Unauthorized' }, 401);
   }
 

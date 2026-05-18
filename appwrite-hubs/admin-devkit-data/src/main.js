@@ -34,8 +34,12 @@ function verifySignedToken(token) {
   const secret = process.env.DEVKIT_PASSWORD;
   if (!secret || !token || !token.includes('.')) return false;
   const [encoded, sig] = token.split('.');
+  if (!encoded || !sig) return false;
   const expected = crypto.createHmac('sha256', secret).update(encoded).digest('base64url');
-  if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return false;
+  const actualBuffer = Buffer.from(sig);
+  const expectedBuffer = Buffer.from(expected);
+  if (actualBuffer.length !== expectedBuffer.length) return false;
+  if (!crypto.timingSafeEqual(actualBuffer, expectedBuffer)) return false;
   let payload;
   try { payload = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8')); } catch { return false; }
   return payload.purpose === 'devkit' && typeof payload.exp === 'number' && Date.now() < payload.exp;
@@ -103,6 +107,10 @@ async function getUser(userId) {
 
 async function listFunctions(queries = []) {
   return appwriteGet('/functions', queries);
+}
+
+async function listFunctionVariables(functionId) {
+  return appwriteGet(`/functions/${encodeURIComponent(functionId)}/variables`);
 }
 
 async function listCollections(queries = []) {
@@ -720,8 +728,26 @@ async function handlePurgeOrphans(body, log) {
 async function handleListAuditLogs(body, log) {
   const { databases } = getClients();
   const limit = Math.min(Math.max(1, Number(body.limit) || 25), 100);
-  const res = await safeList(databases, 'admin_audit_logs', [sdk.Query.orderDesc('$createdAt'), sdk.Query.limit(limit)]);
+  const queries = [];
+  if (typeof body.category === 'string' && body.category.trim()) {
+    queries.push(sdk.Query.equal('category', body.category.trim()));
+  }
+  queries.push(sdk.Query.orderDesc('$createdAt'), sdk.Query.limit(limit));
+  const res = await safeList(databases, 'admin_audit_logs', queries);
   return { documents: res.documents, total: res.total };
+}
+
+async function handleDeployHubsStatus() {
+  const required = ['DEVKIT_PASSWORD', 'APPWRITE_API_KEY', 'APPWRITE_ENDPOINT', 'APPWRITE_PROJECT_ID', 'GITHUB_TOKEN', 'GITHUB_REPO'];
+  const response = await listFunctionVariables('admin-deploy-hubs');
+  const variables = response.variables || [];
+  const present = new Set(variables.map(v => v.key));
+  const missing = required.filter(key => !present.has(key));
+  return {
+    ready: missing.length === 0,
+    required,
+    missing,
+  };
 }
 
 async function handleListRoutingConfig() {
@@ -1798,6 +1824,7 @@ module.exports = async ({ req, res, log, error }) => {
     else if (action === 'ping-providers') data = await handlePingProviders();
     else if (action === 'list-provider-models') data = await handleListProviderModels(body, log);
     else if (action === 'edge-fn-drift') data = await handleEdgeFnDrift(log);
+    else if (action === 'deploy-hubs-status') data = await handleDeployHubsStatus();
     else if (action === 'observability') data = await handleObservability(body, log);
     else if (action === 'overview-stats') data = await handleOverviewStats(log);
     else if (action === 'global-stats') data = await handleGlobalStats(log);

@@ -1,8 +1,9 @@
-import { useState, useRef } from 'react';
-import { CheckCircle2, XCircle, Loader2, Rocket, SkipForward } from 'lucide-react';
+import { useEffect, useState, useRef } from 'react';
+import { AlertTriangle, CheckCircle2, XCircle, Loader2, Rocket, SkipForward } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { devKitInvokeOptions } from '@/lib/devkit/devKitAuth';
+import { unwrapAdminResponse } from '@/lib/devkit/edgeResponse';
 import { cn } from '@/lib/utils';
 
 interface HubResult {
@@ -18,14 +19,47 @@ interface DeployResponse {
   summary: { deployed: number; failed: number; skipped: number };
 }
 
+interface DeployStatus {
+  ready: boolean;
+  missing?: string[];
+}
+
 export function DeployHubsPanel() {
   const [state, setState] = useState<'idle' | 'deploying' | 'done'>('idle');
   const [results, setResults] = useState<HubResult[]>([]);
   const [summary, setSummary] = useState<DeployResponse['summary'] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<DeployStatus | null>(null);
+  const [statusLoading, setStatusLoading] = useState(true);
   const abortRef = useRef(false);
 
+  useEffect(() => {
+    let cancelled = false;
+    const loadStatus = async () => {
+      setStatusLoading(true);
+      try {
+        const tuple = await appwriteFunctions.invoke(
+          'admin-devkit-data',
+          devKitInvokeOptions({ action: 'deploy-hubs-status' }),
+        );
+        const data = unwrapAdminResponse<DeployStatus & Record<string, unknown>>(tuple, 'admin-devkit-data');
+        if (!cancelled) setStatus({ ready: data.ready, missing: data.missing ?? [] });
+      } catch (err) {
+        if (!cancelled) setStatus({ ready: false, missing: ['deploy-hubs-status'] });
+        console.warn('[DeployHubsPanel] status check failed:', err);
+      } finally {
+        if (!cancelled) setStatusLoading(false);
+      }
+    };
+    loadStatus();
+    return () => { cancelled = true; };
+  }, []);
+
   const deploy = async () => {
+    if (!status?.ready) {
+      setError('Deploy Hubs is disabled until the missing server variables are configured.');
+      return;
+    }
     setState('deploying');
     setResults([]);
     setSummary(null);
@@ -75,15 +109,25 @@ export function DeployHubsPanel() {
 
         <Button
           onClick={deploy}
-          disabled={state === 'deploying'}
+          disabled={state === 'deploying' || statusLoading || !status?.ready}
           className="w-full h-12 rounded-xl bg-blue-600 font-bold hover:bg-blue-500 disabled:opacity-60"
         >
           {state === 'deploying' ? (
             <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Deploying… this takes ~5 minutes</>
+          ) : statusLoading ? (
+            <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Checking deploy configuration</>
+          ) : !status?.ready ? (
+            <><AlertTriangle className="mr-2 h-4 w-4" />Deploy Hubs disabled</>
           ) : (
             <><Rocket className="mr-2 h-4 w-4" />Deploy All Hubs</>
           )}
         </Button>
+
+        {!statusLoading && !status?.ready && (
+          <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-xs text-amber-200">
+            Missing server variables on <span className="font-mono">admin-deploy-hubs</span>: {(status?.missing ?? []).join(', ') || 'unknown'}.
+          </div>
+        )}
 
         {state === 'deploying' && (
           <p className="text-center text-xs text-white/40">

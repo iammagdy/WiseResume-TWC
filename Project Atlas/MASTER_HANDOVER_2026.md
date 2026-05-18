@@ -2,6 +2,94 @@
 
 ---
 
+## Session Summary - 2026-05-18 (DevKit Hub Runtime/Auth Repair)
+
+### Overview
+
+Implemented the DevKit 100% repair plan for confirmed failures across visible DevKit tabs and standalone admin hubs. Root causes were verified from live execution errors, source contracts, and Appwrite function variable inventories before fixes were deployed.
+
+### Root Causes
+
+- Standalone admin hubs used `timingSafeEqual` without checking signature buffer lengths. Bad signed DevKit tokens could crash the runtime with `RangeError` instead of returning `401`.
+- `admin-deploy-hubs` still required the raw DevKit password while the frontend sends the signed DevKit session token.
+- `LiveActivityPanel` showed ghost/stale probes (`me`, `admin-get-settings`, `admin-audit-logs`) as live checks.
+- `EmailManagementPanel` read recent email audit logs directly from the browser.
+- `admin-onboarding-funnel` lacked Appwrite API variables; `admin-impersonate` had CommonJS source packaged with `"type": "module"`.
+
+### Fixes Applied
+
+- Hardened signed-token verification in `admin-devkit-data`, `admin-email`, `admin-testmail`, `admin-moderation`, `admin-portfolio-usernames`, `admin-visitor-analytics`, `admin-onboarding-funnel`, `admin-impersonate`, `inspect-ai-keys`, and `admin-deploy-hubs`.
+- Updated `admin-deploy-hubs` auth to accept signed DevKit session tokens as well as the raw password.
+- Added `admin-devkit-data:deploy-hubs-status` to report whether `admin-deploy-hubs` has all required variables.
+- Updated `DeployHubsPanel` to disable deploy controls with a missing-variable message instead of surfacing a broken live button.
+- Replaced Live Activity ghost checks with owned `admin-devkit-data` checks.
+- Routed email recent-send audit reads through `admin-devkit-data:list-audit-logs` with category filtering.
+- Removed `"type": "module"` from `appwrite-hubs/admin-impersonate/package.json`.
+
+### Deployment and Variables
+
+Created missing non-secret Appwrite variables:
+- `admin-onboarding-funnel`: `APPWRITE_API_KEY`, `APPWRITE_ENDPOINT`, `APPWRITE_PROJECT_ID`
+- `admin-deploy-hubs`: `APPWRITE_API_KEY`, `APPWRITE_ENDPOINT`, `APPWRITE_PROJECT_ID`
+- `admin-devkit-data`: `APPWRITE_ENDPOINT`, `APPWRITE_PROJECT_ID`
+
+Live Appwrite deployments:
+- `admin-devkit-data`: `6a0a5a1cad719813f718`
+- `admin-email`: `6a0a5a329efdaefc0fba`
+- `admin-testmail`: `6a0a5a3c8bb89becd662`
+- `admin-moderation`: `6a0a5a50a0f7d0fc90a0`
+- `admin-portfolio-usernames`: `6a0a5a601419cd5cff11`
+- `admin-visitor-analytics`: `6a0a5a73e85af5112705`
+- `admin-onboarding-funnel`: `6a0a5a8857bfba05563b`
+- `inspect-ai-keys`: `6a0a5aab34038040e9ff`
+- `admin-deploy-hubs`: `6a0a5aba2e837df95554`
+- `admin-impersonate`: `6a0a5b69e688d77b95ac` after fixing the package type mismatch
+
+Remaining blocker: `admin-deploy-hubs` still needs `DEVKIT_PASSWORD` configured in Appwrite. `GITHUB_TOKEN` and `GITHUB_REPO` are present. Until the DevKit password variable is added, the Deploy Hubs panel intentionally stays disabled with a clear missing-variable state.
+
+### Verification
+
+- `node --check` passed for all changed Appwrite hubs.
+- `npm exec tsc -- --noEmit` passed.
+- Live malformed-token smoke passed for every affected hub: all executions completed with controlled HTTP `401`; no Appwrite execution failed with `500`, `crypto is not defined`, `timingSafeEqual`, or module-load errors after the `admin-impersonate` redeploy.
+
+### Where We Stopped
+
+- Appwrite backend fixes are live for all affected DevKit hubs listed above.
+- `job-import` is live at deployment `6a0a555f2d62c4db7d32` and no longer runtime-fails on module parse.
+- DevKit frontend source changes are local in this commit and require Vercel deployment before production UI reflects: Deploy Hubs disabled-state, Live Activity probe changes, and Email recent-send backend routing.
+- `admin-deploy-hubs` is deployed and code-ready, but its live deploy button remains intentionally disabled because `DEVKIT_PASSWORD` is still missing on that Appwrite function. Add the exact same DevKit password value used by `admin-devkit-data` before enabling live self-deploys.
+- GitHub Actions Deploy AI Hubs workflow remains blocked by GitHub billing/spending-limit failure. Direct Appwrite deployments were used for this session.
+
+---
+
+## Session Summary - 2026-05-18 (Import Job Direct Redeploy)
+
+### Overview
+
+Investigated the Import Job button failure reported as "Appwrite Function runtime failed for job-import." Root cause was verified from function source history and archive contents before redeployment.
+
+### Root Cause
+
+The stale `job-import` function package contained duplicate declarations of `const parsedJob` and `savedDoc` in the same handler scope. Node failed during module parsing with `SyntaxError: Identifier 'parsedJob' has already been declared`, so Appwrite marked the execution failed before the handler could return JSON.
+
+Current source already contained the code fix from prior work, but the live Appwrite deployment was still stale and GitHub Actions could not deploy because the workflow was blocked by a GitHub billing/spending-limit failure.
+
+### Fixes Applied
+
+- Rebuilt `job-import.tar.gz` from fixed `appwrite-hubs/job-import/` source.
+- Updated `src/hooks/useImportJob.ts` so the server-side save path returns `{ id: jobId }`; without this, a successful backend save could navigate with an undefined job ID.
+- Redeployed live Appwrite Function `job-import` directly as deployment `6a0a555f2d62c4db7d32`.
+
+### Verification
+
+- `node --check appwrite-hubs/job-import/src/main.js` passed.
+- Prior bad source reproduced the syntax failure with `node --check`.
+- Rebuilt archive passed `node --check`.
+- Safe smoke execution with blocked localhost URL completed with HTTP `400` and `{ ok:false, error:"Invalid or blocked URL" }`, proving the runtime boots and returns JSON.
+
+---
+
 ## Session Summary — 2026-05-17 (Vercel Build Fix + DevKit Bugs + AI Reliability + job-import Runtime Fix + Clipboard Toggle)
 
 ### Overview

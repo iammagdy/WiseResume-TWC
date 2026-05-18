@@ -649,22 +649,17 @@ function RecentSendsSection() {
   const fetchRecentSends = useCallback(async () => {
     setLoading(true);
     try {
-      // Query admin_audit_logs directly — 'admin-audit-logs' function is not deployed.
-      // logAudit() writes category='admin_email' entries here after each send.
-      const { databases, DATABASE_ID } = await import('@/lib/appwrite');
-      const { Query } = await import('appwrite');
-      const { COLLECTIONS } = await import('@/lib/appwrite-collections');
-      const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.admin_audit_logs, [
-        Query.equal('category', 'admin_email'),
-        Query.orderDesc('$createdAt'),
-        Query.limit(20),
-      ]);
+      const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
+        headers: devKitAuthHeaders(),
+        body: { action: 'list-audit-logs', category: 'admin_email', limit: 20 },
+      });
+      const res = unwrapAdminResponse<{ documents?: Array<Record<string, unknown>> }>(tuple, 'admin-devkit-data');
       if (!isMounted()) return;
-      const all = res.documents.map(d => ({
-        id: d.$id,
-        action: d.action ?? '',
+      const all = (res.documents ?? []).map(d => ({
+        id: String(d.$id ?? ''),
+        action: String(d.action ?? ''),
         metadata: typeof d.metadata === 'string' ? JSON.parse(d.metadata || '{}') : (d.metadata ?? {}),
-        created_at: d.$createdAt,
+        created_at: String(d.$createdAt ?? ''),
       })) as RecentSendEntry[];
       setEntries(all.filter(l => l.action?.startsWith('send') || l.action === 'resend_confirmation' || l.action?.startsWith('resend')));
       setLoaded(true);

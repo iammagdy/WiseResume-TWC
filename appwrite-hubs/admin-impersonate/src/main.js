@@ -14,12 +14,12 @@ function verifySignedToken(token) {
   const secret = process.env.DEVKIT_PASSWORD;
   if (!secret || !token || !token.includes('.')) return false;
   const [encoded, sig] = token.split('.');
+  if (!encoded || !sig) return false;
   const expected = crypto.createHmac('sha256', secret).update(encoded).digest('base64url');
-  try {
-    if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return false;
-  } catch {
-    return false;
-  }
+  const actualBuffer = Buffer.from(sig);
+  const expectedBuffer = Buffer.from(expected);
+  if (actualBuffer.length !== expectedBuffer.length) return false;
+  if (!crypto.timingSafeEqual(actualBuffer, expectedBuffer)) return false;
   let payload;
   try { payload = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8')); } catch { return false; }
   return payload.purpose === 'devkit' && typeof payload.exp === 'number' && Date.now() < payload.exp;

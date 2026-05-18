@@ -11,6 +11,77 @@
 
 ---
 
+## 2026-05-18 - DevKit Hub Runtime/Auth Repair
+
+### Summary
+Implemented the DevKit 100% repair plan for the confirmed backend runtime/auth failures and broken visible tab contracts. The affected Appwrite hubs were redeployed live after verification.
+
+### Root causes
+- Several standalone DevKit hubs called `crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))` without checking buffer lengths. Malformed or stale signed DevKit tokens could throw `RangeError: Input buffers must have the same byte length`, causing Appwrite `500` runtime failures instead of clean `401` responses.
+- `admin-deploy-hubs` accepted only `Bearer <raw DEVKIT_PASSWORD>`, while the frontend now sends a server-issued signed DevKit session token.
+- `LiveActivityPanel` probed ghost/stale functions (`me`, `admin-get-settings`, `admin-audit-logs`) as red live checks even though those paths are not owned current DevKit functions.
+- `EmailManagementPanel` read `admin_audit_logs` directly from the browser for recent sends, bypassing the admin backend and exposing the panel to database permission failures.
+- `admin-onboarding-funnel` was missing required Appwrite API variables. `admin-impersonate` also had a package/runtime mismatch: CommonJS source under `"type": "module"`.
+
+### What changed
+- Added safe signed-token verification to `admin-devkit-data`, `admin-email`, `admin-testmail`, `admin-moderation`, `admin-portfolio-usernames`, `admin-visitor-analytics`, `admin-onboarding-funnel`, `admin-impersonate`, `inspect-ai-keys`, and `admin-deploy-hubs`.
+- Updated `admin-deploy-hubs` to accept either the raw DevKit password or the signed DevKit session token.
+- Added `admin-devkit-data` action `deploy-hubs-status` to inspect `admin-deploy-hubs` variable names through the Appwrite management API.
+- Disabled the Deploy Hubs frontend button with a clear missing-variable state until `admin-deploy-hubs` has all required server variables.
+- Replaced Live Activity ghost probes with owned `admin-devkit-data` checks.
+- Routed Email recent-send audit reads through `admin-devkit-data:list-audit-logs` with category filtering.
+- Removed `"type": "module"` from `appwrite-hubs/admin-impersonate/package.json`.
+
+### Variable sync
+- Created missing non-secret variables for `admin-onboarding-funnel`: `APPWRITE_API_KEY`, `APPWRITE_ENDPOINT`, `APPWRITE_PROJECT_ID`.
+- Created missing non-secret variables for `admin-deploy-hubs`: `APPWRITE_API_KEY`, `APPWRITE_ENDPOINT`, `APPWRITE_PROJECT_ID`.
+- Created missing endpoint/project variables for `admin-devkit-data`.
+- Remaining blocker: `admin-deploy-hubs` still needs `DEVKIT_PASSWORD` set in Appwrite. `GITHUB_TOKEN` and `GITHUB_REPO` are present. Until `DEVKIT_PASSWORD` is added, the frontend deploy control remains disabled instead of broken.
+
+### Live deployments
+- `admin-devkit-data` -> `6a0a5a1cad719813f718` (`ready`)
+- `admin-email` -> `6a0a5a329efdaefc0fba` (`ready`)
+- `admin-testmail` -> `6a0a5a3c8bb89becd662` (`ready`)
+- `admin-moderation` -> `6a0a5a50a0f7d0fc90a0` (`ready`)
+- `admin-portfolio-usernames` -> `6a0a5a601419cd5cff11` (`ready`)
+- `admin-visitor-analytics` -> `6a0a5a73e85af5112705` (`ready`)
+- `admin-onboarding-funnel` -> `6a0a5a8857bfba05563b` (`ready`)
+- `inspect-ai-keys` -> `6a0a5aab34038040e9ff` (`ready`)
+- `admin-deploy-hubs` -> `6a0a5aba2e837df95554` (`ready`)
+- `admin-impersonate` -> initial `6a0a5a97b4b228c37b2d`, then fixed package redeploy `6a0a5b69e688d77b95ac` (`ready`)
+
+### Verification
+- `node --check` passed for every changed Appwrite hub.
+- `npm exec tsc -- --noEmit` passed.
+- Live malformed-token smoke passed for all affected hubs: every execution completed with controlled HTTP `401`; none failed with `500`, `crypto is not defined`, `timingSafeEqual`, or module-load errors after the `admin-impersonate` package fix.
+
+---
+
+## 2026-05-18 - Import Job Runtime Failure Diagnosis
+
+### Summary
+Verified the root cause of the live "Appwrite Function runtime failed for job-import" error and prepared the repo-side fix path.
+
+### Root cause
+The bad `job-import` function version had duplicate declarations of `const parsedJob` and `savedDoc` in the same handler scope. Node rejects this at module parse time with `SyntaxError: Identifier 'parsedJob' has already been declared`, so Appwrite fails the execution before the function can return a normal JSON error.
+
+### What changed
+- Confirmed current `appwrite-hubs/job-import/src/main.js` passes `node --check`; the prior version fails with the duplicate declaration syntax error.
+- Rebuilt `job-import.tar.gz` from the fixed source because the local archive still contained the broken duplicate declarations.
+- Updated `src/hooks/useImportJob.ts` so the server-side save path returns `{ id: jobId }`; this prevents the import sheet from navigating with an undefined job after the backend succeeds.
+
+### Deployment note
+`deploy-appwrite-hubs.yml` is currently `workflow_dispatch` only, so the source fix at commit `ec757cbe` did not auto-deploy to Appwrite. A manual run was attempted on 2026-05-18, but GitHub failed the job before checkout with the annotation: "recent account payments have failed or your spending limit needs to be increased." Run the Deploy AI Hubs workflow again after the GitHub billing/spending-limit blocker is cleared, or deploy `job-import` from the rebuilt archive before claiming the live button is fixed.
+
+### Verification
+- `node --check appwrite-hubs/job-import/src/main.js` passed.
+- `git show ec757cbe^:appwrite-hubs/job-import/src/main.js | node --check` reproduced the exact syntax failure.
+- `tar -xOzf job-import.tar.gz ./src/main.js | node --check` passed after rebuilding the archive.
+- Redeployed live Appwrite Function `job-import` directly as deployment `6a0a555f2d62c4db7d32`; Appwrite reported `ready`.
+- Smoke execution with a blocked localhost URL completed with HTTP `400` and `{ ok:false, error:"Invalid or blocked URL" }`, proving the function boots and returns JSON instead of runtime-failing.
+
+---
+
 ## 2026-05-16 - UI/UX Audit Implementation (Phases 1–4, 25 findings)
 
 ### Summary
