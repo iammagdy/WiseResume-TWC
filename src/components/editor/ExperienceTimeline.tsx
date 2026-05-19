@@ -232,7 +232,7 @@ export const ExperienceTimeline = memo(function ExperienceTimeline({ experiences
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="p-2.5 rounded-lg bg-warning/10 border border-warning/20"
+          className="p-2.5 rounded-lg bg-warning/20 border border-warning/40"
         >
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 text-sm">

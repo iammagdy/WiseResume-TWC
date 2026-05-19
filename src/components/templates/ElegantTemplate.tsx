@@ -41,7 +41,7 @@ export const ElegantTemplate = memo(function ElegantTemplate({ resume }: Elegant
                     <h3 className="font-semibold text-gray-900">{exp.position}</h3>
                     <span className="text-gray-500 text-xs">{formatDateRangeDisplay(exp.startDate, exp.endDate, exp.current)}</span>
                   </div>
-                  <p className="text-sm mb-1" style={{ color: roseColor }}>{exp.company}</p>
+                  <p className="text-sm mb-1" style={{ color: roseColor }}>{exp.company}{exp.account && ` · ${exp.account}`}</p>
                   {exp.description && <p data-break-child className="text-gray-600 text-sm">{exp.description}</p>}
                   {exp.achievements.length > 0 && (
                     <ul data-break-child className="mt-2 space-y-1">

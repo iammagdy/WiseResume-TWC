@@ -30,7 +30,7 @@ export const MarketingTemplate = memo(function MarketingTemplate({ resume }: Tem
               return (
               <div key={exp.id} data-break-avoid className="border-l-2 border-rose-300 pl-4">
                 <h3 className="font-bold text-gray-900">{exp.position}</h3>
-                <p className="text-gray-600 text-xs">{exp.company}{range && ` · ${range}`}</p>
+                <p className="text-gray-600 text-xs">{exp.company}{exp.account && ` · ${exp.account}`}{range && ` · ${range}`}</p>
                 {exp.description && <p data-break-child className="text-gray-700 mt-1 text-xs">{exp.description}</p>}
                 {exp.achievements && exp.achievements.length > 0 && (
                   <ul data-break-child className="mt-1 space-y-0.5 list-none">

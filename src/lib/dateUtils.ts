@@ -225,8 +225,8 @@ export function detectGaps(
     // Subtract 1 because adjacent months (diff=1) means 0 months gap
     const gapMonths = getMonthsDifference(previousJob.end, currentJob.start) - 1;
     
-    // Only count gaps of 1+ months
-    if (gapMonths >= 1) {
+    // Only flag gaps of 3+ months — shorter gaps are normal job-transition breaks
+    if (gapMonths >= 3) {
       gaps.push({
         startDate: previousJob.end,
         endDate: currentJob.start,

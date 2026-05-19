@@ -1717,6 +1717,7 @@ export default function EditorPage() {
               resumeName={currentResume.contactInfo?.fullName || ''}
               templateName={selectedTemplate}
               resumeData={currentResume}
+              templateElement={document.querySelector('[data-resume-template]') as HTMLElement | null}
             />
           )}
         </Suspense>

@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { Check, X, Sparkles, ArrowRight, Loader2, Minimize2, Wand2, RefreshCw, Pencil, ChevronDown, ChevronRight, Plus, Equal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -123,7 +124,7 @@ export function AIEnhanceDialog({
     onRerun(action, editedText);
   };
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-ai-dialog flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in-0 duration-200"
       onClick={isEnhancing ? undefined : onDiscard}
@@ -317,7 +318,8 @@ export function AIEnhanceDialog({
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

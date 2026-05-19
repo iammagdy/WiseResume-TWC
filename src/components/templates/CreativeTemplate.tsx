@@ -45,7 +45,7 @@ export const CreativeTemplate = memo(function CreativeTemplate({ resume }: Templ
                   <div className="flex justify-between items-start mb-1">
                     <div>
                       <h3 className="font-semibold text-gray-900">{exp.position}</h3>
-                      <p className="text-violet-600">{exp.company}</p>
+                      <p className="text-violet-600">{exp.company}{exp.account && ` · ${exp.account}`}</p>
                     </div>
                     <span className="text-gray-400 text-xs whitespace-nowrap">{formatDateRangeDisplay(exp.startDate, exp.endDate, exp.current, { separator: '-' })}</span>
                   </div>

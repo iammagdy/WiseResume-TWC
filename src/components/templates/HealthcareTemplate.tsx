@@ -56,7 +56,7 @@ export const HealthcareTemplate = memo(function HealthcareTemplate({ resume }: H
                     <h3 className="font-bold text-gray-900">{exp.position}</h3>
                     <span className="text-gray-500 text-xs">{formatDateRangeDisplay(exp.startDate, exp.endDate, exp.current)}</span>
                   </div>
-                  <p className="font-medium" style={{ color: tealColor }}>{exp.company}</p>
+                  <p className="font-medium" style={{ color: tealColor }}>{exp.company}{exp.account && ` · ${exp.account}`}</p>
                   {exp.description && <p data-break-child className="text-gray-600 text-sm mt-1">{exp.description}</p>}
                   {exp.achievements.length > 0 && (
                     <ul data-break-child className="mt-2 space-y-1 list-none">

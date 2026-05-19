@@ -1,6 +1,6 @@
 import { memo, useState, useCallback, Suspense, useRef, CSSProperties, useEffect, useMemo } from 'react';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
-import { ZoomIn, ZoomOut, Eye, EyeOff, X, Sliders } from 'lucide-react';
+import { ZoomIn, ZoomOut, Eye, EyeOff, X, Sliders, AlertTriangle, RefreshCw } from 'lucide-react';
 import { useResumeStore } from '@/store/resumeStore';
 import { applyCustomizationCSS, generateCustomizationCSS } from '@/lib/templateCustomization';
 import { StyleCustomizationPanel } from '@/components/editor/StyleCustomizationPanel';
@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ResumeData } from '@/types/resume';
 import haptics from '@/lib/haptics';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 import templateComponents from '@/components/templates/registry';
 
@@ -357,9 +358,27 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
                 `}
               </style>
             )}
-            <Suspense fallback={<PreviewSkeleton />}>
-              <TemplateComponent resume={filteredResume} accentColor={filteredResume?.customization?.accentColor} />
-            </Suspense>
+            <ErrorBoundary
+              fallback={
+                <div className="flex flex-col items-center justify-center gap-3 p-8 text-center h-full min-h-[200px]">
+                  <AlertTriangle className="w-8 h-8 text-amber-500" />
+                  <p className="text-sm font-medium text-foreground">Preview failed to render</p>
+                  <p className="text-xs text-muted-foreground max-w-xs">
+                    There was an error displaying this template. Try switching templates or refreshing.
+                  </p>
+                  <button
+                    onClick={() => window.location.reload()}
+                    className="flex items-center gap-1.5 text-xs text-primary hover:underline mt-1"
+                  >
+                    <RefreshCw className="w-3 h-3" /> Reload
+                  </button>
+                </div>
+              }
+            >
+              <Suspense fallback={<PreviewSkeleton />}>
+                <TemplateComponent resume={filteredResume} accentColor={filteredResume?.customization?.accentColor} />
+              </Suspense>
+            </ErrorBoundary>
 
             {/* Inline per-section editor overlay (desktop hover-to-reveal style/AI buttons). */}
             <SectionOverlayManager

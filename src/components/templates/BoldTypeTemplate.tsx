@@ -40,7 +40,7 @@ export const BoldTypeTemplate = memo(function BoldTypeTemplate({ resume }: Templ
                       <h3 className="font-black text-black text-base uppercase tracking-tight">{exp.position}</h3>
                       {range && <span className="text-xs text-gray-400 font-mono whitespace-nowrap ml-2">{range}</span>}
                     </div>
-                    <p className="text-gray-500 text-xs font-medium uppercase tracking-wide">{exp.company}</p>
+                    <p className="text-gray-500 text-xs font-medium uppercase tracking-wide">{exp.company}{exp.account && ` · ${exp.account}`}</p>
                     {exp.description && <p data-break-child className="text-gray-700 mt-1.5 text-xs">{exp.description}</p>}
                     {exp.achievements && exp.achievements.length > 0 && (
                       <ul data-break-child className="mt-1.5 space-y-0.5">

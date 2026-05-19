@@ -3,23 +3,23 @@ import { v4 as uuidv4 } from 'uuid';
 
 // Section heading patterns - expanded for international CVs
 const SECTION_PATTERNS: Record<string, RegExp> = {
-  summary: /^(summary|objective|profile|about\s*me|professional\s*summary|career\s*objective|career\s*summary|executive\s*summary|personal\s*statement|professional\s*profile|highlights|at\s*a\s*glance)$/i,
+  summary: /^(summary|objective|profile|about\s*me|professional\s*summary|career\s*objective|career\s*summary|executive\s*summary|personal\s*statement|professional\s*profile|highlights|at\s*a\s*glance|introduction|overview|bio)$/i,
 
-  experience: /^(experience|work\s*experience|employment|work\s*history|professional\s*experience|career\s*history|employment\s*history|professional\s*background|career\s*background|relevant\s*experience|internship\s*experience|research\s*experience|consulting\s*experience|freelance\s*work|contract\s*work|projects?)$/i,
+  experience: /^(experience|work\s*experience|employment|work\s*history|professional\s*experience|career\s*history|employment\s*history|professional\s*background|career\s*background|relevant\s*experience|internship\s*experience|research\s*experience|consulting\s*experience|freelance\s*work|contract\s*work|work\s*(?:&|and)\s*experience|job\s*history)$/i,
 
-  education: /^(education|academic|qualifications|academic\s*background|schooling|degrees?|educational\s*background|formal\s*education|academic\s*history)$/i,
+  education: /^(education|academic|qualifications|academic\s*background|schooling|degrees?|educational\s*background|formal\s*education|academic\s*history|academic\s*qualifications|studies|training\s*(?:&|and)\s*education)$/i,
 
-  skills: /^(skills|technical\s*skills|core\s*competencies|technologies|expertise|proficiencies|soft\s*skills|hard\s*skills|key\s*skills|core\s*skills|areas\s*of\s*expertise|competencies|technical\s*proficiencies|tools?\s*(?:&|and)\s*technologies|programming\s*languages?)$/i,
+  skills: /^(skills|technical\s*skills|core\s*competencies|technologies|expertise|proficiencies|soft\s*skills|hard\s*skills|key\s*skills|core\s*skills|areas\s*of\s*expertise|competencies|technical\s*proficiencies|tools?\s*(?:&|and)\s*technologies|programming\s*languages?|it\s*skills|computer\s*skills|professional\s*skills|capabilities|strengths)$/i,
 
-  certifications: /^(certifications?|certificates?|licenses?|credentials?|professional\s*certifications?|training|courses?|professional\s*development|continuing\s*education|accreditations?)$/i,
+  certifications: /^(certifications?|certificates?|licenses?|credentials?|professional\s*certifications?|training|courses?|professional\s*development|continuing\s*education|accreditations?|qualifications?|professional\s*training|online\s*courses?)$/i,
 
-  awards: /^(awards?|honors?|achievements?|accomplishments?|recognition|awards?\s*(?:&|and)\s*honors?)$/i,
+  awards: /^(awards?|honors?|achievements?|accomplishments?|recognition|awards?\s*(?:&|and)\s*honors?|accolades?|distinctions?)$/i,
 
-  projects: /^(projects?|personal\s*projects?|side\s*projects?|open\s*source|portfolio)$/i,
+  projects: /^(projects?|personal\s*projects?|side\s*projects?|open\s*source|portfolio|key\s*projects?|notable\s*projects?|project\s*experience|academic\s*projects?|selected\s*projects?|featured\s*projects?|relevant\s*projects?)$/i,
 
-  volunteering: /^(volunteer(?:ing)?|community\s*service|civic\s*engagement|community\s*involvement)$/i,
+  volunteering: /^(volunteer(?:ing)?|community\s*service|civic\s*engagement|community\s*involvement|social\s*work|extracurricular|activities|extra[\s-]curricular\s*activities?)$/i,
 
-  languages: /^(languages?\s*(?:spoken)?|language\s*skills|spoken\s*languages?)$/i,
+  languages: /^(languages?\s*(?:spoken)?|language\s*skills|spoken\s*languages?|linguistic\s*skills?|languages?\s*(?:&|and)\s*communication)$/i,
 };
 
 // Pre-calculate entries to avoid repeated allocation in loop
@@ -118,9 +118,11 @@ function extractSections(lines: string[]): SectionBlocks {
   let currentSection: keyof SectionBlocks = 'header';
 
   for (const line of lines) {
-    // Check if this line is a section heading
-    const cleanLine = line.replace(/[:\-–—|•]/g, '').trim();
+    const trimmed = line.trim();
+    // Strip common decorators (colons, dashes, bullets) for pattern matching
+    const cleanLine = trimmed.replace(/[:\-–—|•]/g, '').trim();
 
+    // --- Pass 1: exact-line match against known section patterns (case-insensitive) ---
     let foundSection: keyof SectionBlocks | null = null;
     for (const [sectionName, pattern] of SECTION_ENTRIES) {
       if (pattern.test(cleanLine)) {
@@ -131,23 +133,10 @@ function extractSections(lines: string[]): SectionBlocks {
 
     if (foundSection) {
       currentSection = foundSection as keyof SectionBlocks;
-      // Don't add the heading itself to content
-    } else {
-      // Check if this line looks like an unrecognized section heading
-      // (all-caps short line, or line ending with colon) to avoid silently
-      // appending unknown section content to the previous section
-      const looksLikeHeading =
-        cleanLine.length > 2 &&
-        cleanLine.length < 60 &&
-        (
-          /^[A-Z][A-Z\s&/()-]{2,}$/.test(cleanLine) ||
-          line.trim().endsWith(':')
-        );
-      if (looksLikeHeading && currentSection !== 'unrecognized') {
-        currentSection = 'unrecognized';
-      }
-      sections[currentSection].push(line);
+      continue; // don't add the heading itself to content
     }
+
+    sections[currentSection].push(trimmed);
   }
 
   return sections;
@@ -242,9 +231,11 @@ function extractContactInfo(text: string): ResumeData['contactInfo'] {
 /**
  * Parse experience section into structured entries.
  */
-const JOB_TITLE_KEYWORDS = /\b(architect|attorney|accountant|auditor|administrator|analyst|associate|consultant|coordinator|counselor|designer|developer|director|engineer|executive|intern|lecturer|manager|nurse|officer|president|principal|professor|researcher|scientist|specialist|supervisor|technician|therapist|trainer|lead|senior|junior|vp|vice\s*president|cto|ceo|coo|cfo|head\s*of)\b/i;
+const JOB_TITLE_KEYWORDS = /\b(architect|attorney|accountant|auditor|administrator|analyst|associate|assistant|advisor|agent|attendant|cashier|clerk|consultant|coordinator|counselor|crew|designer|developer|director|driver|engineer|executive|handler|intern|lecturer|lead|manager|nurse|officer|operator|president|principal|professor|programmer|representative|researcher|scientist|specialist|supervisor|technician|therapist|trainer|teller|vp|vice\s*president|cto|ceo|coo|cfo|head\s*of|team\s*leader|team\s*lead|project\s*manager|product\s*manager|account\s*manager|customer\s*service|customer\s*support|customer\s*care|call\s*center|help\s*desk|data\s*entry|business\s*development|quality\s*assurance|quality\s*analyst|quality\s*control|flight\s*attendant|cabin\s*crew|sales\s*associate|sales\s*representative|sales\s*executive|marketing\s*specialist|hr\s*specialist|human\s*resources|software\s*engineer|software\s*developer|full[\s-]stack|front[\s-]end|back[\s-]end|senior|junior|mid[\s-]level)\b/i;
 
-const COMPANY_SUFFIX = /\b(Inc\.?|Ltd\.?|LLC|Corp\.?|Co\.?|Group|Holdings|International|Solutions|Services|Technologies|Consulting|Associates|Partners|Foundation|Institute|University|College|Hospital|Medical|Agency|Bureau|Department|Ministry)\b/i;
+const COMPANY_SUFFIX = /\b(Inc\.?|Ltd\.?|LLC|Corp\.?|Co\.?|Group|Holdings|International|Solutions|Services|Technologies|Consulting|Associates|Partners|Foundation|Institute|University|College|Hospital|Medical|Agency|Bureau|Department|Ministry|Airways|Airlines|Telecom|Bank|Insurance|Trading|Enterprises|Industries|Systems|Networks|Logistics|Staffing|Outsourcing)\b/i;
+
+const DATE_LINE = /^\d{4}|^(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/i;
 
 function parseExperienceSection(lines: string[]): Experience[] {
   if (lines.length === 0) return [];
@@ -255,27 +246,30 @@ function parseExperienceSection(lines: string[]): Experience[] {
   for (const block of blocks.slice(0, 10)) {
     if (block.length === 0) continue;
 
-    // Try to parse date range
+    // Try to parse date range from the full block text
     const dateInfo = extractDateRange(block.join(' '));
 
-    // First line(s) usually contain company/position
-    const headerLines = block.slice(0, 2);
-    const descriptionLines = block.slice(2);
+    // Strip date-only lines from the header candidates so they don't get
+    // mistaken for company or position names.
+    const nonDateLines = block.filter(l => !DATE_LINE.test(l) && !/^\d{1,2}\/\d{4}/.test(l));
 
-    // Try to identify company vs position
+    const headerLines = nonDateLines.slice(0, 2);
+    const descriptionLines = nonDateLines.slice(2);
+
     let company = headerLines[0] || 'Company';
     let position = headerLines[1] || '';
 
-    // Swap if position looks more like a job title than company
+    // Swap only when the first line is a job title (unusual CV order: title then company).
+    // Normal order is company first, job title second — don't swap that.
     if (
       position &&
-      !JOB_TITLE_KEYWORDS.test(company) &&
-      JOB_TITLE_KEYWORDS.test(position)
+      JOB_TITLE_KEYWORDS.test(company) &&
+      !JOB_TITLE_KEYWORDS.test(position)
     ) {
       [company, position] = [position, company];
     }
 
-    // Secondary check: if company line matches a company suffix but position doesn't, swap
+    // Secondary check: if the position line has a company suffix (LLC, Airways…) swap
     if (
       position &&
       COMPANY_SUFFIX.test(position) &&
@@ -284,7 +278,17 @@ function parseExperienceSection(lines: string[]): Experience[] {
       [company, position] = [position, company];
     }
 
-    // If we only have one header line, try to split by common separators
+    // If position is still empty, scan remaining block lines for a job title keyword
+    if (!position) {
+      for (const line of nonDateLines.slice(1)) {
+        if (JOB_TITLE_KEYWORDS.test(line) && !COMPANY_SUFFIX.test(line)) {
+          position = line;
+          break;
+        }
+      }
+    }
+
+    // If we only have one header line, try to split by inline separators
     if (!position && company.includes(' at ')) {
       const parts = company.split(' at ');
       position = parts[0];
@@ -299,6 +303,9 @@ function parseExperienceSection(lines: string[]): Experience[] {
         position = parts[1];
       }
     }
+
+    // Strip any trailing date fragment that leaked into the company name
+    company = company.replace(/\s*\d{4}\s*[-–—].*$/, '').trim();
 
     experiences.push({
       id: uuidv4(),
@@ -460,8 +467,14 @@ function parseVolunteeringSection(lines: string[]): any[] {
  * Parse languages section into structured entries.
  */
 function parseLanguagesSection(lines: string[]): any[] {
-  const fullText = lines.join(' ');
-  const languageParts = fullText.split(/[,;|•]/).map(s => s.trim()).filter(s => s.length > 2);
+  // Strip any leaked contact-hints or email/phone lines before parsing
+  const EMAIL_RE = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
+  const PHONE_RE = /\+?\d[\d\s\-().]{6,}/;
+  const HINTS_RE = /potential\s*(emails?|phones?)|contact\s*info\s*hints/i;
+  const cleanLines = lines.filter(l => !EMAIL_RE.test(l) && !PHONE_RE.test(l) && !HINTS_RE.test(l));
+
+  const fullText = cleanLines.join(' ');
+  const languageParts = fullText.split(/[,;|•]/).map(s => s.trim()).filter(s => s.length > 2 && s.length < 60);
   
   return languageParts.slice(0, 10).map(part => {
     const proficiencyMatch = part.match(/\((native|fluent|professional|basic|elementary|limited|full|bilingual|working|professional\s*working)\)/i);

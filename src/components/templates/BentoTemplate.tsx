@@ -52,7 +52,7 @@ export const BentoTemplate = memo(function BentoTemplate({ resume }: TemplatePro
                   <div className="flex justify-between items-start">
                     <div>
                       <h3 className="font-semibold text-gray-900 text-xs">{exp.position}</h3>
-                      <p className="text-gray-500 text-xs">{exp.company}</p>
+                      <p className="text-gray-500 text-xs">{exp.company}{exp.account && ` · ${exp.account}`}</p>
                     </div>
                     {range && <span className="text-xs text-gray-400 whitespace-nowrap ml-2">{range}</span>}
                   </div>

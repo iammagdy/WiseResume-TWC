@@ -42,7 +42,7 @@ export const PortfolioTemplate = memo(function PortfolioTemplate({ resume, accen
             {resume.experience.map(exp => (
               <div key={exp.id} data-break-avoid className="border border-gray-200 rounded-lg p-3">
                 <div className="flex justify-between items-start"><h3 className="font-bold text-gray-900">{exp.position}</h3><span className="text-xs text-gray-500">{formatDateRangeDisplay(exp.startDate, exp.endDate, exp.current)}</span></div>
-                <p className="text-xs font-medium" style={companyStyle}>{exp.company}</p>
+                <p className="text-xs font-medium" style={companyStyle}>{exp.company}{exp.account && ` · ${exp.account}`}</p>
                 {exp.description && <p data-break-child className="text-gray-700 mt-2 text-xs">{exp.description}</p>}
                 {exp.achievements && exp.achievements.length > 0 && (
                   <ul data-break-child className="mt-1 space-y-0.5 list-none">

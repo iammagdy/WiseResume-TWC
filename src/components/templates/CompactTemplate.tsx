@@ -26,7 +26,7 @@ export const CompactTemplate = memo(function CompactTemplate({ resume }: Compact
                   <h3 className="font-semibold text-gray-900">{exp.position}</h3>
                   <span className="text-gray-500 text-[10px]">{formatDateRangeDisplay(exp.startDate, exp.endDate, exp.current)}</span>
                 </div>
-                <p className="text-gray-600 text-[10px]">{exp.company}</p>
+                <p className="text-gray-600 text-[10px]">{exp.company}{exp.account && ` · ${exp.account}`}</p>
                 {exp.description && <p data-break-child className="text-gray-600 mt-0.5">{exp.description}</p>}
                 {exp.achievements.length > 0 && (
                   <ul data-break-child className="mt-0.5 space-y-0.5">

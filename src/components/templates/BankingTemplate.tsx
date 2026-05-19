@@ -28,7 +28,7 @@ export const BankingTemplate = memo(function BankingTemplate({ resume }: Templat
           <div className="space-y-3">
             {resume.experience.map(exp => (
               <div key={exp.id} data-break-avoid>
-                <div className="flex justify-between"><h3 className="font-bold text-gray-900 text-xs">{exp.position} — {exp.company}</h3><span className="text-xs text-gray-500">{formatDateRangeDisplay(exp.startDate, exp.endDate, exp.current)}</span></div>
+                <div className="flex justify-between"><h3 className="font-bold text-gray-900 text-xs">{exp.position} — {exp.company}{exp.account && ` · ${exp.account}`}</h3><span className="text-xs text-gray-500">{formatDateRangeDisplay(exp.startDate, exp.endDate, exp.current)}</span></div>
                 {exp.description && <p data-break-child className="text-gray-700 mt-1 text-xs">{exp.description}</p>}
                 {exp.achievements && exp.achievements.length > 0 && (
                   <ul data-break-child className="mt-1 space-y-0.5 list-none">

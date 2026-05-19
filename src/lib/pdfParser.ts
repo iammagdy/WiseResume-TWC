@@ -118,6 +118,28 @@ export async function parseTextWithAI(text: string): Promise<ResumeData> {
 
     if (import.meta.env.DEV) console.log('AI parsing successful');
 
+    // If the AI returned experience entries but all positions are empty, the model
+    // failed to extract job titles. Supplement positions from the local parser.
+    if (
+      data.experience?.length > 0 &&
+      data.experience.every(e => !e.position?.trim())
+    ) {
+      const localText = text.replace(/\n\n---\s*CONTACT INFO HINTS[\s\S]*$/i, '').trim();
+      const localData = parseResumeText(localText);
+      const localByCompany = new Map<string, string>();
+      for (const le of localData.experience) {
+        const key = le.company.toLowerCase().trim();
+        if (!localByCompany.has(key) && le.position?.trim()) {
+          localByCompany.set(key, le.position.trim());
+        }
+      }
+      data.experience = data.experience.map(exp => ({
+        ...exp,
+        position: localByCompany.get(exp.company.toLowerCase().trim()) || exp.position,
+      }));
+      if (import.meta.env.DEV) console.log('AI positions were empty — filled from local parser');
+    }
+
     // Preserve server-side _meta (section-level fieldConfidence, completeness,
     // textQuality). Accept both the new nested `_meta` shape and the legacy
     // top-level shape for forward/backward compat.
@@ -153,9 +175,12 @@ export async function parseTextWithAI(text: string): Promise<ResumeData> {
       console.error('AI parsing error:', error);
     }
 
-    // Fall back to local regex parsing for all non-billing failures
+    // Fall back to local regex parsing for all non-billing failures.
+    // Strip the contact-hints block before local parsing — it is a structured
+    // signal intended only for the AI and corrupts section extraction otherwise.
     if (import.meta.env.DEV) console.log('Using fallback local parser...');
-    return attachFieldConfidence(parseResumeText(text));
+    const localText = text.replace(/\n\n---\s*CONTACT INFO HINTS[\s\S]*$/i, '').trim();
+    return attachFieldConfidence(parseResumeText(localText));
   }
 }
 

@@ -159,11 +159,22 @@ async function callPdfServer(
 
   onProgress?.('finalizing', 70);
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30_000);
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+  } catch {
+    clearTimeout(timeoutId);
+    throw new PDFServerUnavailableError();
+  }
+  clearTimeout(timeoutId);
 
   if (response.status === 503) {
     throw new PDFServerUnavailableError();

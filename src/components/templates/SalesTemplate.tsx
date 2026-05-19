@@ -50,7 +50,7 @@ export const SalesTemplate = memo(function SalesTemplate({ resume }: SalesTempla
                     <h3 className="font-bold text-gray-900 text-base">{exp.position}</h3>
                     <span className="text-gray-500 text-xs font-medium">{formatDateRangeDisplay(exp.startDate, exp.endDate, exp.current)}</span>
                   </div>
-                  <p className="text-gray-600 mb-2">{exp.company}</p>
+                  <p className="text-gray-600 mb-2">{exp.company}{exp.account && ` · ${exp.account}`}</p>
                   {exp.achievements.length > 0 && (
                     <div data-break-child className="grid grid-cols-2 gap-2">
                       {exp.achievements.map((a, idx) => {

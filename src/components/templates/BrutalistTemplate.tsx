@@ -35,7 +35,7 @@ export const BrutalistTemplate = memo(function BrutalistTemplate({ resume }: Tem
                   <div className="flex justify-between items-start">
                     <div>
                       <h3 className="font-bold text-black">{exp.position}</h3>
-                      <p className="text-gray-600 text-xs font-medium">{exp.company}</p>
+                      <p className="text-gray-600 text-xs font-medium">{exp.company}{exp.account && ` · ${exp.account}`}</p>
                     </div>
                     {range && <span className="text-xs text-gray-500 font-mono whitespace-nowrap ml-2">{range}</span>}
                   </div>

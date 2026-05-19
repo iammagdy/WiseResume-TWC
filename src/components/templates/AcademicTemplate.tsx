@@ -53,7 +53,7 @@ export const AcademicTemplate = memo(function AcademicTemplate({ resume }: Acade
                   <h3 className="font-bold text-gray-900">{exp.position}</h3>
                   <span className="text-gray-600 text-sm">{formatDateRangeDisplay(exp.startDate, exp.endDate, exp.current)}</span>
                 </div>
-                <p className="text-gray-700 italic">{exp.company}</p>
+                <p className="text-gray-700 italic">{exp.company}{exp.account && ` · ${exp.account}`}</p>
                 {exp.description && <p data-break-child className="text-gray-600 mt-1 text-justify">{exp.description}</p>}
                 {exp.achievements.length > 0 && (
                   <ul data-break-child className="mt-2 space-y-1 list-none">

@@ -19,7 +19,7 @@ const ExperienceItem = memo(function ExperienceItem({ exp }: { exp: ExperienceIt
           {formatDateRangeDisplay(exp.startDate, exp.endDate, exp.current, { separator: '—' })}
         </span>
       </div>
-      <p className="text-gray-500 text-xs mb-1">{exp.company}</p>
+      <p className="text-gray-500 text-xs mb-1">{exp.company}{exp.account && ` · ${exp.account}`}</p>
       {exp.description && (
         <p data-break-child className="text-gray-600 text-xs">{exp.description}</p>
       )}

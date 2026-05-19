@@ -14,7 +14,7 @@ const STAGE_MESSAGES: Record<ExportStage, string> = {
   capturing: 'Sending to rendering server...',
   paginating: 'Rendering PDF on server...',
   embedding: 'Embedding assets...',
-  finalizing: 'Finalising PDF...',
+  finalizing: 'Finalizing PDF...',
   downloading: 'Saving file...',
   idle: '',
 };

@@ -31,7 +31,7 @@ export const LegalTemplate = memo(function LegalTemplate({ resume }: TemplatePro
               return (
               <div key={exp.id} data-break-avoid>
                 <h3 className="font-bold text-gray-900">{exp.position}</h3>
-                <p className="text-gray-600 text-xs italic">{exp.company}{range && `, ${range}`}</p>
+                <p className="text-gray-600 text-xs italic">{exp.company}{exp.account && ` · ${exp.account}`}{range && `, ${range}`}</p>
                 {exp.description && <p data-break-child className="text-gray-700 mt-1 text-xs text-justify">{exp.description}</p>}
                 {exp.achievements && exp.achievements.length > 0 && (
                   <ul data-break-child className="mt-1 space-y-0.5 list-none">

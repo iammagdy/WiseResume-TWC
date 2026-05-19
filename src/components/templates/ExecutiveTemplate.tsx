@@ -49,7 +49,7 @@ export const ExecutiveTemplate = memo(function ExecutiveTemplate({ resume }: Tem
                     {formatDateRangeDisplay(exp.startDate, exp.endDate, exp.current, { separator: '—' })}
                   </span>
                 </div>
-                <p className="text-amber-700 text-sm mb-2">{exp.company}</p>
+                <p className="text-amber-700 text-sm mb-2">{exp.company}{exp.account && ` · ${exp.account}`}</p>
                 {exp.description && (
                   <p data-break-child className="text-gray-600 text-xs">{exp.description}</p>
                 )}

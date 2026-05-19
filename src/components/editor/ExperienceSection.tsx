@@ -121,7 +121,7 @@ export const ExperienceSection = memo(function ExperienceSection() {
       achievements: [],
     };
     updateResume({
-      experience: [...experience, newExp],
+      experience: [newExp, ...experience],
     });
     setExpandedId(newExp.id);
   };

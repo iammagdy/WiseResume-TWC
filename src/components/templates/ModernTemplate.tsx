@@ -16,7 +16,7 @@ const ExperienceItem = memo(function ExperienceItem({ exp }: { exp: ExperienceIt
       <div className="flex justify-between items-start">
         <div>
           <h3 className="font-bold text-gray-900">{exp.position}</h3>
-          <p className="text-gray-600">{exp.company}</p>
+          <p className="text-gray-600">{exp.company}{exp.account && ` · ${exp.account}`}</p>
         </div>
         <span className="text-xs text-gray-500">{formatDateRangeDisplay(exp.startDate, exp.endDate, exp.current, { separator: '-' })}</span>
       </div>
