@@ -18,7 +18,7 @@ export const CertificationsSection = memo(function CertificationsSection() {
   const addCert = () => {
     haptics.light();
     const n: Certification = { id: uuidv4(), name: '', issuer: '', date: '' };
-    updateResume({ certifications: [...certifications, n] });
+    updateResume({ certifications: [n, ...certifications] });
     setExpandedId(n.id);
   };
 

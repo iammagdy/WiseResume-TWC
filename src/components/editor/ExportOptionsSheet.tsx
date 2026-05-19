@@ -13,7 +13,6 @@ import { AtsWarningAlert } from './export/AtsWarningAlert';
 import { PdfOptionsFooter } from './export/PdfOptionsFooter';
 import { ExportProgressBar } from './export/ExportProgressBar';
 import { LaTeXPreviewPanel } from './export/LaTeXPreviewPanel';
-import { ExportPageBreakSetup } from './export/ExportPageBreakSetup';
 import type { ExportOptionDef } from './export/ExportOptionCard';
 
 interface ExportOptionsSheetProps {
@@ -196,12 +195,6 @@ export function ExportOptionsSheet({
           {selectedType === 'resume' && (
             <AtsWarningAlert templateAtsScore={templateAtsScore} onSwitchToAts={handleSwitchToAts} />
           )}
-
-          <ExportPageBreakSetup
-            visible={selectedType === 'resume'}
-            templateElement={templateElement}
-            resumeData={resumeData}
-          />
 
           {selectedType === 'latex' && resumeData && (
             <LaTeXPreviewPanel resumeData={resumeData} />

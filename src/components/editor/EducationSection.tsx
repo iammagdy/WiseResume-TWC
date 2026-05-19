@@ -54,7 +54,7 @@ export const EducationSection = memo(function EducationSection() {
       endDate: '',
     };
     updateResume({
-      education: [...education, newEdu],
+      education: [newEdu, ...education],
     });
     setExpandedId(newEdu.id);
   };
@@ -73,7 +73,7 @@ export const EducationSection = memo(function EducationSection() {
       endDate: rangeParts[1] || '',
       gpa: educationExample.gpa,
     };
-    updateResume({ education: [...education, exampleEdu] });
+    updateResume({ education: [exampleEdu, ...education] });
     setExpandedId(exampleEdu.id);
   };
 
@@ -177,7 +177,7 @@ export const EducationSection = memo(function EducationSection() {
                     startDate: '',
                     endDate: '',
                   };
-                  updateResume({ education: [...education, selfTaught] });
+                  updateResume({ education: [selfTaught, ...education] });
                   setExpandedId(selfTaught.id);
                 },
               },

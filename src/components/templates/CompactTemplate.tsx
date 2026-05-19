@@ -15,7 +15,12 @@ export const CompactTemplate = memo(function CompactTemplate({ resume }: Compact
         <h1 className="text-xl font-bold text-gray-900 mb-1">{contactInfo.fullName}</h1>
         <ContactLinks contact={contactInfo} className="text-gray-600 text-[10px]" iconSize={2.5} />
       </header>
-      {summary && (<section className="mb-3" data-section="summary"><p data-break-child className="text-gray-700 leading-snug">{summary}</p></section>)}
+      {summary && (
+        <section className="mb-3" data-section="summary">
+          <h2 className="text-xs font-bold text-gray-900 uppercase tracking-wide mb-1.5 pb-0.5 border-b border-gray-200">Summary</h2>
+          <p data-break-child className="text-gray-700 leading-snug">{summary}</p>
+        </section>
+      )}
       {experience.length > 0 && (
         <section className="mb-3" data-section="experience">
           <h2 className="text-xs font-bold text-gray-900 uppercase tracking-wide mb-1.5 pb-0.5 border-b border-gray-200">Experience</h2>
@@ -54,7 +59,7 @@ export const CompactTemplate = memo(function CompactTemplate({ resume }: Compact
                   <p className="text-gray-600 text-[10px]">{edu.institution}</p>
                   {edu.description && <p className="text-gray-600 text-[10px] mt-0.5">{edu.description}</p>}
                 </div>
-                <span className="text-gray-500 text-[10px]">{formatDisplayDate(edu.endDate)}</span>
+                <span className="text-gray-500 text-[10px]">{formatDateRangeDisplay(edu.startDate, edu.endDate, edu.endDate === 'Present')}</span>
               </div>
             ))}
           </div>

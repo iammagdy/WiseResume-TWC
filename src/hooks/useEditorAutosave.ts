@@ -5,12 +5,14 @@ import { backgroundScore } from '@/hooks/useResumeScore';
 import { useSettingsStore } from '@/store/settingsStore';
 import type { ResumeData } from '@/types/resume';
 import type { AppUser } from '@/contexts/AuthContext';
+import { getResumeDocumentUpdatedAt } from '@/hooks/useResumes';
 
 interface UpdateResumeMutation {
   mutateAsync: (args: { resumeId: string; updates: ResumeData }) => Promise<{ updated_at?: string } | void>;
 }
 
 interface DatabaseResumeLike {
+  $updatedAt?: string | null;
   updated_at?: string | null;
   is_trial?: boolean;
   trial_expires_at?: string | null;
@@ -91,7 +93,7 @@ export function useEditorAutosave({
 
     // Pre-save online conflict guard:
     // If another device has saved since we loaded, silently refresh baseline
-    const serverUpdatedAt = resumeFromDbRef.current?.updated_at;
+    const serverUpdatedAt = getResumeDocumentUpdatedAt(resumeFromDbRef.current ?? undefined);
     const sessionLoadedAt = localLoadedAtRef.current;
     if (serverUpdatedAt && sessionLoadedAt && Date.parse(serverUpdatedAt as string) > Date.parse(sessionLoadedAt)) {
       localLoadedAtRef.current = serverUpdatedAt as string;
@@ -107,10 +109,13 @@ export function useEditorAutosave({
       lastSavedResumeRef.current = currentResumeJson;
       setLastSavedAt(new Date());
       // Update baseline from the authoritative mutation response timestamp
-      if ((result as { updated_at?: string })?.updated_at) {
-        localLoadedAtRef.current = (result as { updated_at: string }).updated_at;
-      } else if (resumeFromDbRef.current?.updated_at) {
-        localLoadedAtRef.current = resumeFromDbRef.current.updated_at as string;
+      const savedAt = getResumeDocumentUpdatedAt(
+        (result as { $updatedAt?: string; updated_at?: string }) ?? undefined,
+      );
+      if (savedAt) {
+        localLoadedAtRef.current = savedAt;
+      } else if (resumeFromDbRef.current) {
+        localLoadedAtRef.current = getResumeDocumentUpdatedAt(resumeFromDbRef.current) ?? null;
       }
       // Auto-save success confirmation toast — gated by user preference
       // (Notifications → Auto-save Toasts: 'always' shows; 'errors-only' suppresses).
@@ -157,8 +162,11 @@ export function useEditorAutosave({
           const retryResult = await updateResume.mutateAsync({ resumeId: currentResumeId, updates: resume });
           lastSavedResumeRef.current = currentResumeJson;
           setLastSavedAt(new Date());
-          if ((retryResult as { updated_at?: string })?.updated_at) {
-            localLoadedAtRef.current = (retryResult as { updated_at: string }).updated_at;
+          const retrySavedAt = getResumeDocumentUpdatedAt(
+            (retryResult as { $updatedAt?: string; updated_at?: string }) ?? undefined,
+          );
+          if (retrySavedAt) {
+            localLoadedAtRef.current = retrySavedAt;
           }
           // Retry succeeded — no toast shown
         } catch (retryError: unknown) {
@@ -195,7 +203,7 @@ export function useEditorAutosave({
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     // Use a longer debounce for the very first save of a session so the auth
     // session has time to warm up before we attempt the first network write.
-    const debounceMs = lastSavedResumeRef.current === '' ? 5000 : 3000;
+    const debounceMs = lastSavedResumeRef.current === '' ? 1500 : 3000;
     saveTimeoutRef.current = setTimeout(() => {
       // If an AI action is in progress, defer by one tick to avoid race conditions
       if (isAILoadingRef?.current) {
@@ -236,6 +244,20 @@ export function useEditorAutosave({
       saveToCloud();
     }, [saveToCloud]),
   });
+
+  // Backup flush when the tab is hidden or unloaded (mobile browsers)
+  useEffect(() => {
+    const flush = () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = null;
+      }
+      void saveToCloud();
+    };
+    const onPageHide = () => flush();
+    window.addEventListener('pagehide', onPageHide);
+    return () => window.removeEventListener('pagehide', onPageHide);
+  }, [saveToCloud]);
 
   return { saveToCloud };
 }

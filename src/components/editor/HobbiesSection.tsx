@@ -15,7 +15,7 @@ export const HobbiesSection = memo(function HobbiesSection() {
   const hobbies = useResumeStore(state => state.currentResume?.hobbies) || [];
   const updateResume = useResumeStore(state => state.updateResume);
 
-  const addHobby = () => { haptics.light(); const n: Hobby = { id: uuidv4(), name: '', visible: true }; updateResume({ hobbies: [...hobbies, n] }); };
+  const addHobby = () => { haptics.light(); const n: Hobby = { id: uuidv4(), name: '', visible: true }; updateResume({ hobbies: [n, ...hobbies] }); };
   const updateHobby = (id: string, u: Partial<Hobby>) => { updateResume({ hobbies: hobbies.map(h => h.id === id ? { ...h, ...u } : h) }); };
   const deleteHobby = (id: string) => { haptics.light(); updateResume({ hobbies: hobbies.filter(h => h.id !== id) }); };
 

@@ -162,10 +162,10 @@ export default defineConfig(({ mode }) => ({
       'Document-Policy': 'js-profiling',
     },
     proxy: {
-      // Proxy server-side API calls through the Express server (port 5001)
-      // This keeps server-only secrets (DB, service keys) off the client
+      // Proxy server-side API calls through the Express server (default :5001).
+      // Override with API_PORT or VITE_DEV_API_PORT when 5001 is taken (e.g. another Vite).
       '/api': {
-        target: 'http://localhost:5001',
+        target: `http://localhost:${process.env.VITE_DEV_API_PORT || process.env.API_PORT || '5001'}`,
         changeOrigin: true,
       },
     },

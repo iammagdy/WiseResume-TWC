@@ -50,6 +50,11 @@ const ShareSheet = lazy(() => import('@/components/editor/ShareSheet').then((m) 
 import { PdfGenerationError } from '@/lib/pdfUtils';
 import { PDFServerUnavailableError } from '@/lib/nativePdfGenerator';
 import { getTemplateConfig } from '@/lib/templateConfig';
+import { getPageDimensionsForFormat, resolveExportPageCount } from '@/lib/pdfUtils';
+import { PageCountBadge } from '@/components/editor/export/PageCountBadge';
+import { PageCutHint, usePageCutHintPulse } from '@/components/editor/export/PageCutHint';
+import { resolvePageBreakTemplate } from '@/lib/resolvePageBreakTemplate';
+import { PageBreakSetupDialog } from '@/components/editor/export/PageBreakSetupDialog';
 import { downloadFile } from '@/lib/downloadUtils';
 import { useExportProgress } from '@/hooks/useExportProgress';
 import { toast } from 'sonner';
@@ -85,7 +90,12 @@ export default function PreviewPage() {
   const [showOnePageWizard, setShowOnePageWizard] = useState(false);
   const [showShareSheet, setShowShareSheet] = useState(false);
   const [showTemplateSheet, setShowTemplateSheet] = useState(false);
+  const [pageBreakOpen, setPageBreakOpen] = useState(false);
+  const [pageBreakTemplateEl, setPageBreakTemplateEl] = useState<HTMLElement | null>(null);
+  const [pageCount, setPageCount] = useState(1);
   const resumeRef = useRef<HTMLDivElement>(null);
+  const pageCountBadgeRef = useRef<HTMLSpanElement>(null);
+  const showPageCutHintPulse = usePageCutHintPulse();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [previewScale, setPreviewScale] = useState(1);
   const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -95,6 +105,26 @@ export default function PreviewPage() {
 
   // Get template configuration for the selected template
   const templateConfig = useMemo(() => getTemplateConfig(selectedTemplate), [selectedTemplate]);
+
+  const pageFormat = currentResume?.customization?.pageFormat ?? 'letter';
+  const previewDims = useMemo(() => getPageDimensionsForFormat(pageFormat), [pageFormat]);
+  const customBreakPositions = currentResume?.customization?.customBreakPositions;
+
+  useEffect(() => {
+    const el = resumeRef.current;
+    if (!el || !currentResume) return;
+    const { pageWidth, pageHeight } = previewDims;
+    const update = () => {
+      setPageCount(resolveExportPageCount(el, pageWidth, pageHeight, customBreakPositions));
+    };
+    const timer = window.setTimeout(update, 150);
+    const obs = new ResizeObserver(update);
+    obs.observe(el);
+    return () => {
+      window.clearTimeout(timer);
+      obs.disconnect();
+    };
+  }, [currentResume, previewDims, customBreakPositions, selectedTemplate]);
 
   // Rate app hook
   const { incrementPositiveActions, shouldPromptForRating, openAppStore, dismissRating } = useRateApp();
@@ -360,7 +390,7 @@ export default function PreviewPage() {
             const customBreakPositions = currentResume.customization?.customBreakPositions;
             pdfBlob = await nativePdf(templateEl, {
               pageFormat,
-              showPageNumbers: customBreakPositions?.length ? false : showPageNumbers,
+              showPageNumbers,
               showBranding,
               onProgress,
               ...(customBreakPositions?.length ? { customBreakPositions } : {}),
@@ -543,9 +573,22 @@ export default function PreviewPage() {
               Change
             </Button>
           </div>
-          <div className="flex items-center gap-1.5 text-xs">
-            <Check className="w-3.5 h-3.5 text-success" />
-            <span className="text-success font-medium">ATS-Ready</span>
+          <div className="flex items-center gap-2">
+            <span ref={pageCountBadgeRef} className="inline-flex">
+              <PageCountBadge
+                pageCount={pageCount}
+                showPulse={showPageCutHintPulse}
+                onClick={() => {
+                  setPageBreakTemplateEl(resolvePageBreakTemplate(resumeRef));
+                  setPageBreakOpen(true);
+                }}
+              />
+            </span>
+            <PageCutHint anchorRef={pageCountBadgeRef} />
+            <div className="flex items-center gap-1.5 text-xs">
+              <Check className="w-3.5 h-3.5 text-success" />
+              <span className="text-success font-medium">ATS-Ready</span>
+            </div>
           </div>
         </div>
 
@@ -705,6 +748,17 @@ export default function PreviewPage() {
         <TemplateSelector
           open={showTemplateSheet}
           onOpenChange={setShowTemplateSheet}
+        />
+        <PageBreakSetupDialog
+          open={pageBreakOpen}
+          onOpenChange={(open) => {
+            if (open) {
+              setPageBreakTemplateEl(resolvePageBreakTemplate(resumeRef));
+            }
+            setPageBreakOpen(open);
+          }}
+          templateElement={pageBreakTemplateEl}
+          resumeData={currentResume}
         />
       </Suspense>
     </div>);

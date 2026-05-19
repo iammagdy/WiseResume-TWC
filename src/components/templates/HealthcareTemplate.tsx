@@ -86,7 +86,7 @@ export const HealthcareTemplate = memo(function HealthcareTemplate({ resume }: H
                     <p className="text-gray-600 text-sm">{edu.institution}</p>
                     {edu.description && <p className="text-gray-600 text-xs mt-0.5">{edu.description}</p>}
                   </div>
-                  <span className="text-gray-500 text-xs">{formatDisplayDate(edu.endDate)}</span>
+                  <span className="text-gray-500 text-xs">{formatDateRangeDisplay(edu.startDate, edu.endDate, edu.endDate === 'Present')}</span>
                 </div>
               ))}
             </div>

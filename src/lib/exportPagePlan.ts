@@ -12,7 +12,16 @@ export interface BuildExportPageSegmentsOptions {
   minGapPx?: number;
 }
 
+/** Section geometry measured in Puppeteer (template-root coordinates). */
+export interface ExportSectionBounds {
+  top: number;
+  bottom: number;
+  headingTop: number;
+}
+
 const DEFAULT_MIN_GAP_PX = 40;
+const SECTION_HEADING_GUARD_PX = 80;
+const NEAR_SECTION_TOP_PX = 24;
 
 export function normalizeBreakPositions(
   positions: number[] | undefined,
@@ -37,6 +46,59 @@ export function normalizeBreakPositions(
     }
   }
   return normalized;
+}
+
+/** Remap client-measured break Y values when Puppeteer layout height differs. */
+export function scaleBreakPositionsToMeasuredHeight(
+  positions: number[] | undefined,
+  clientHeightPx: number,
+  measuredHeightPx: number,
+): number[] {
+  if (!positions?.length) return [];
+  const client = Math.max(1, Math.round(clientHeightPx));
+  const measured = Math.max(1, Math.round(measuredHeightPx));
+  if (client === measured) {
+    return positions.filter(Number.isFinite).map((p) => Math.round(p));
+  }
+  const scale = measured / client;
+  return positions.filter(Number.isFinite).map((p) => Math.round(p * scale));
+}
+
+/**
+ * Snaps breaks that landed inside a section heading band (common when client vs
+ * export layout heights differ) so the full section starts on the next page.
+ */
+export function snapBreakPositionsToSectionHeadings(
+  breaks: number[],
+  sections: ExportSectionBounds[],
+  totalHeightPx: number,
+  minGapPx: number = DEFAULT_MIN_GAP_PX,
+): number[] {
+  if (!breaks.length || !sections.length) return breaks;
+  const sorted = [...sections].sort((a, b) => a.top - b.top);
+  const maxY = Math.max(minGapPx, totalHeightPx - minGapPx);
+
+  return breaks.map((breakY) => {
+    let y = breakY;
+    for (const section of sorted) {
+      const headTop = section.headingTop ?? section.top;
+      const inSection = y > section.top && y < section.bottom;
+      const nearSectionTop =
+        y >= section.top - NEAR_SECTION_TOP_PX && y <= headTop + SECTION_HEADING_GUARD_PX;
+
+      if (inSection) {
+        const fromSectionStart = y - section.top;
+        if (fromSectionStart <= SECTION_HEADING_GUARD_PX || y <= headTop + SECTION_HEADING_GUARD_PX) {
+          y = Math.max(minGapPx, headTop);
+          break;
+        }
+      } else if (nearSectionTop) {
+        y = Math.max(minGapPx, headTop);
+        break;
+      }
+    }
+    return Math.min(y, maxY);
+  });
 }
 
 export function buildExportPageSegments({

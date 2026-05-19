@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useRef, useMemo, Suspense } from 'react';
+import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo, Suspense } from 'react';
+import type { ImperativePanelGroupHandle } from 'react-resizable-panels';
 import { lazyWithRetry } from '@/lib/lazyWithRetry';
 import { preloadLazy } from '@/lib/preloadLazy';
 import { logAudit } from '@/lib/auditLogger';
@@ -59,6 +60,7 @@ import { useExportProgress } from '@/hooks/useExportProgress';
 import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
 import type { ExportType, SectionId } from '@/types/resume';
 import { sanitizeFileName } from '@/lib/sanitizeFileName';
+import { migrateTemplateId } from '@/lib/templateMigration';
 import { getBackRoute } from '@/lib/navigation';
 import { UnsavedChangesDialog } from '@/components/editor/UnsavedChangesDialog';
 import { useBackButton } from '@/hooks/useBackButton';
@@ -219,7 +221,7 @@ export default function EditorPage() {
       const customBreakPositions = currentResume.customization?.customBreakPositions;
       const pdfBlob = await generateNativePDF(templateEl, {
         pageFormat: (currentResume.customization?.pageFormat ?? 'letter') as 'letter' | 'a4',
-        showPageNumbers: customBreakPositions?.length ? false : true,
+        showPageNumbers: true,
         showBranding: true,
         ...(customBreakPositions?.length ? { customBreakPositions } : {}),
       });
@@ -327,12 +329,19 @@ export default function EditorPage() {
 
         const pageFormat = (currentResume.customization?.pageFormat ?? 'letter') as 'letter' | 'a4';
         let pdfBlob: Blob; let fileName: string;
+        const templateEl = document.querySelector('[data-resume-template]') as HTMLElement | null;
+        const templateId = migrateTemplateId(selectedTemplate);
+        const exportResumePdf = async (
+          opts: Parameters<(typeof import('@/lib/nativePdfGenerator'))['generateNativePDF']>[1],
+        ) => {
+          const { generateNativePDF } = await import('@/lib/nativePdfGenerator');
+          if (templateEl) return generateNativePDF(templateEl, opts);
+          const { exportResumePdfFromData } = await import('@/lib/exportResumePdf');
+          return exportResumePdfFromData(currentResume, templateId, opts);
+        };
 
         if (type === 'ats-pdf') {
-          const { generateNativePDF } = await import('@/lib/nativePdfGenerator');
-          const templateEl = document.querySelector('[data-resume-template]') as HTMLElement | null;
-          if (!templateEl) { toast.error('Resume preview not visible. Open Live Preview and try again.'); return; }
-          pdfBlob = await generateNativePDF(templateEl, { pageFormat, atsMode: true, showPageNumbers: false, showBranding: true, onProgress });
+          pdfBlob = await exportResumePdf({ pageFormat, atsMode: true, showPageNumbers: false, showBranding: true, onProgress });
           fileName = `${baseName}_Resume_ATS.pdf`;
         } else if (type === 'cover-letter') {
           const { generateCoverLetterNativePDF } = await import('@/lib/nativePdfGenerator');
@@ -341,12 +350,10 @@ export default function EditorPage() {
           pdfBlob = await generateCoverLetterNativePDF(generatedCoverLetter, currentResume.contactInfo, { pageFormat, ...pdfOptions, onProgress });
           fileName = `${baseName}_Cover_Letter.pdf`;
         } else {
-          const { generateNativePDF, generateCoverLetterNativePDF, mergePDFBlobs } = await import('@/lib/nativePdfGenerator');
-          const templateEl = document.querySelector('[data-resume-template]') as HTMLElement | null;
-          if (!templateEl) { toast.error('Resume preview not visible. Open Live Preview and try again.'); return; }
+          const { generateCoverLetterNativePDF, mergePDFBlobs } = await import('@/lib/nativePdfGenerator');
 
           if (type === 'one-page') {
-            pdfBlob = await generateNativePDF(templateEl, { pageFormat, onePage: true, showPageNumbers, showBranding, onProgress });
+            pdfBlob = await exportResumePdf({ pageFormat, onePage: true, showPageNumbers, showBranding, onProgress });
             fileName = `${baseName}_Resume_OnePage.pdf`;
           } else if (type === 'combined') {
             const { generatedCoverLetter } = useResumeStore.getState();
@@ -354,15 +361,15 @@ export default function EditorPage() {
             onProgress('capturing', 20);
             const coverBlob = await generateCoverLetterNativePDF(generatedCoverLetter, currentResume.contactInfo, { pageFormat, showPageNumbers: false, showBranding: true });
             onProgress('capturing', 40);
-            const resumeBlob = await generateNativePDF(templateEl, { pageFormat, showPageNumbers: false, showBranding: true, onProgress });
+            const resumeBlob = await exportResumePdf({ pageFormat, showPageNumbers: false, showBranding: true, onProgress });
             onProgress('finalizing', 90);
             pdfBlob = await mergePDFBlobs(coverBlob, resumeBlob);
             fileName = `${baseName}_Application_Package.pdf`;
           } else {
             const customBreakPositions = currentResume.customization?.customBreakPositions;
-            pdfBlob = await generateNativePDF(templateEl, {
+            pdfBlob = await exportResumePdf({
               pageFormat,
-              showPageNumbers: customBreakPositions?.length ? false : showPageNumbers,
+              showPageNumbers,
               showBranding,
               onProgress,
               ...(customBreakPositions?.length ? { customBreakPositions } : {}),
@@ -483,6 +490,24 @@ export default function EditorPage() {
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const expandSectionRef = useRef<((id: string) => void) | null>(null);
+  const editorPanelGroupRef = useRef<ImperativePanelGroupHandle>(null);
+
+  // react-resizable-panels can leave the preview pane at 0px on first mount inside
+  // a flex layout; a layout pass after paint restores the default 55/45 split.
+  useLayoutEffect(() => {
+    if (authLoading || !storeHydrated || isMobile || !showPreview || !currentResume) return;
+    let outer = 0;
+    let inner = 0;
+    outer = requestAnimationFrame(() => {
+      inner = requestAnimationFrame(() => {
+        editorPanelGroupRef.current?.setLayout([55, 45]);
+      });
+    });
+    return () => {
+      cancelAnimationFrame(outer);
+      cancelAnimationFrame(inner);
+    };
+  }, [authLoading, storeHydrated, isMobile, showPreview, currentResume?.id, selectedTemplate]);
 
   // ───────────────── Editor session restore (per-resume) ─────────────────
   // Persists activeTab + per-tab scroll offset + open AI sheet to
@@ -1331,8 +1356,13 @@ export default function EditorPage() {
           </TabsContent>
         </Tabs>
       ) : showPreview ? (
-        <ResizablePanelGroup direction="horizontal" className="flex-1 min-h-0">
-          <ResizablePanel defaultSize={55} minSize={35}>
+        <ResizablePanelGroup
+          ref={editorPanelGroupRef}
+          direction="horizontal"
+          className="flex-1 min-h-0"
+          autoSaveId="wr-editor-split-v1"
+        >
+          <ResizablePanel id="editor-form" order={1} defaultSize={55} minSize={35}>
             <div className="flex h-full min-h-0 overflow-hidden">
               {/* Section sidebar — desktop only inside split panel */}
               <SectionSidebar
@@ -1356,7 +1386,7 @@ export default function EditorPage() {
             </div>
           </ResizablePanel>
           <ResizableHandle withHandle />
-          <ResizablePanel defaultSize={45} minSize={25}>
+          <ResizablePanel id="editor-preview" order={2} defaultSize={45} minSize={25}>
             <div className="flex flex-col h-full min-h-0">
               {/* Visual / ATS toggle */}
               <div className="shrink-0 flex items-center gap-1 px-3 py-1.5 border-b border-border bg-background/80 backdrop-blur-sm">
@@ -1380,7 +1410,7 @@ export default function EditorPage() {
                 </button>
               </div>
               <div className="flex-1 min-h-0">
-                <Suspense fallback={null}>
+                <Suspense fallback={<div className="flex h-full items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>}>
                   {desktopPreviewMode === 'visual' ? (
                     <LivePreviewPanel
                       onClose={() => { setShowPreview(false); localStorage.setItem('wr-live-preview', 'false'); }}

@@ -23,6 +23,8 @@ export interface ParsedDate {
   month: number; // 0-11
   year: number;
   isPresent?: boolean;
+  /** True when the source string was year-only (e.g. "2020") — display as year, not Jan */
+  yearOnly?: boolean;
 }
 
 export interface DateRange {
@@ -85,7 +87,7 @@ export function parseResumeDate(dateStr: string): ParsedDate | null {
   const yearMatch = trimmed.match(/^(\d{4})$/);
   if (yearMatch) {
     const year = parseInt(yearMatch[1], 10);
-    return { month: 0, year }; // Default to January
+    return { month: 0, year, yearOnly: true };
   }
   
   return null;
@@ -124,14 +126,15 @@ export function formatDuration(months: number): string {
  * Format a date range for display
  */
 export function formatDateRange(startDate: string, endDate: string, isCurrent: boolean): string {
+  const ongoing = isOngoingDateRange(startDate, endDate, isCurrent);
   const start = parseResumeDate(startDate);
-  const end = isCurrent ? parseResumeDate('Present') : parseResumeDate(endDate);
-  
+  const end = ongoing ? parseResumeDate('Present') : parseResumeDate(endDate);
+
   if (!start) return '';
-  
+
   const startStr = formatMonthYear(start);
   const endStr = end?.isPresent ? 'Present' : (end ? formatMonthYear(end) : '');
-  
+
   if (!endStr) {
     return startStr;
   }
@@ -143,8 +146,24 @@ export function formatDateRange(startDate: string, endDate: string, isCurrent: b
  * Format a ParsedDate as "Mon YYYY"
  */
 function formatMonthYear(date: ParsedDate): string {
+  if (date.yearOnly) return String(date.year);
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   return `${months[date.month]} ${date.year}`;
+}
+
+function isPresentEndDate(endDate: string): boolean {
+  const t = endDate.trim().toLowerCase();
+  return t === 'present' || t === 'current' || t === 'now';
+}
+
+/** Ongoing role: explicit flag, Present end string, or open-ended (start with no end). */
+export function isOngoingDateRange(
+  startDate: string,
+  endDate: string,
+  isCurrent: boolean,
+): boolean {
+  if (isCurrent || isPresentEndDate(endDate)) return true;
+  return !!startDate.trim() && !endDate.trim();
 }
 
 /**
@@ -171,8 +190,9 @@ export function formatDateRangeDisplay(
 ): string | null {
   const separator = options.separator ?? '–';
   const presentLabel = options.presentLabel ?? 'Present';
+  const ongoing = isOngoingDateRange(startDate, endDate, isCurrent);
   const start = formatDisplayDate(startDate);
-  const end = isCurrent ? presentLabel : formatDisplayDate(endDate);
+  const end = ongoing ? presentLabel : formatDisplayDate(endDate);
   if (!start && !end) return null;
   if (start && end) return `${start} ${separator} ${end}`;
   return start || end;
@@ -183,7 +203,8 @@ export function formatDateRangeDisplay(
  */
 export function calculateDuration(startDate: string, endDate: string, isCurrent: boolean): string {
   const start = parseResumeDate(startDate);
-  const end = isCurrent ? parseResumeDate('Present') : parseResumeDate(endDate);
+  const ongoing = isOngoingDateRange(startDate, endDate, isCurrent);
+  const end = ongoing ? parseResumeDate('Present') : parseResumeDate(endDate);
   
   if (!start || !end) return '';
   
@@ -236,6 +257,39 @@ export function detectGaps(
   }
   
   return gaps;
+}
+
+/** Match a detected gap to the interval between two consecutive jobs (chronological order). */
+export function findGapBetweenJobs(
+  gaps: GapInfo[],
+  previousJobEnd: ParsedDate,
+  nextJobStart: ParsedDate,
+): GapInfo | undefined {
+  return gaps.find((g) => gapsAreSame(g, { startDate: previousJobEnd, endDate: nextJobStart, months: 0 }));
+}
+
+export function gapsAreSame(a: GapInfo, b: GapInfo): boolean {
+  return (
+    compareDates(a.startDate, b.startDate) === 0 && compareDates(a.endDate, b.endDate) === 0
+  );
+}
+
+export function findGapIndexInList(gaps: GapInfo[], target: GapInfo): number {
+  return gaps.findIndex((g) => gapsAreSame(g, target));
+}
+
+/** Oldest gap first — matches left-to-right timeline reading order. */
+export function sortGapsChronologically(gaps: GapInfo[]): GapInfo[] {
+  return [...gaps].sort((a, b) => compareDates(a.startDate, b.startDate));
+}
+
+const MONTH_LABELS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/** Display a ParsedDate from Gap Finder (respects year-only). */
+export function formatParsedGapDate(date: ParsedDate): string {
+  if (date.isPresent) return 'Present';
+  if (date.yearOnly) return String(date.year);
+  return `${MONTH_LABELS_SHORT[date.month]} ${date.year}`;
 }
 
 /**

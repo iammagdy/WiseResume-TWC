@@ -57,7 +57,7 @@ export const DataScienceTemplate = memo(function DataScienceTemplate({ resume }:
       {resume.education.length > 0 && (
         <section data-section="education">
           <h2 className="text-xs font-bold text-teal-600 uppercase tracking-widest mb-3">// education</h2>
-          {resume.education.map(edu => (<div key={edu.id} data-break-avoid className="mb-2"><h3 className="font-bold text-gray-900 text-xs">{formatDegreeAndField(edu.degree, edu.field).replace(' in ', ' | ')}</h3><p className="text-gray-600 text-xs">{edu.institution} — {formatDisplayDate(edu.endDate)}</p>{edu.description && <p className="text-gray-600 text-xs mt-0.5">{edu.description}</p>}</div>))}
+          {resume.education.map(edu => (<div key={edu.id} data-break-avoid className="mb-2"><h3 className="font-bold text-gray-900 text-xs">{formatDegreeAndField(edu.degree, edu.field).replace(' in ', ' | ')}</h3><p className="text-gray-600 text-xs">{edu.institution} — {formatDateRangeDisplay(edu.startDate, edu.endDate, edu.endDate === 'Present')}</p>{edu.description && <p className="text-gray-600 text-xs mt-0.5">{edu.description}</p>}</div>))}
         </section>
       )}
       <ExtraSections resume={resume} variant="datascience" />

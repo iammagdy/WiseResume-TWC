@@ -2,6 +2,8 @@ import type { ContactInfo } from '@/types/resume';
 import type { OnProgressCallback } from '@/hooks/useExportProgress';
 import { PDFDocument } from 'pdf-lib';
 import { normalizeBreakPositions } from '@/lib/exportPagePlan';
+import { cloneResumeTemplateElement } from '@/lib/exportDomUtils';
+import { getExportContentHeightPx } from '@/lib/exportLayoutMetrics';
 
 const BRANDING_URL = 'https://resume.thewise.cloud';
 
@@ -224,13 +226,10 @@ export async function generateNativePDF(
 
   onProgress?.('capturing', 20);
 
-  // Serialise the live template element to HTML
-  const templateHTML = templateEl.outerHTML;
+  // Serialise without editor-only overlays (page-break guides, section controls)
+  const templateHTML = cloneResumeTemplateElement(templateEl).outerHTML;
   const html = buildSelfContainedHTML(templateHTML, css, pageFormat, { onePage, atsMode });
-  const totalContentHeightPx = Math.max(
-    templateEl.scrollHeight || 0,
-    templateEl.offsetHeight || 0,
-  );
+  const totalContentHeightPx = getExportContentHeightPx(templateEl);
   const normalizedBreaks = normalizeBreakPositions(customBreakPositions, totalContentHeightPx);
 
   onProgress?.('finalizing', 50);

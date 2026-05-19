@@ -2,6 +2,83 @@
 
 ---
 
+## Session Summary — 2026-05-19 (Editor + Gap Finder — see session logs)
+
+**Canonical detail (do not duplicate here):**
+
+| Log | Scope |
+|-----|--------|
+| `05-Migration to Appwrite/24-Session-Log-2026-05-19-Editor-Persistence-CV-Parse-UX.md` | Autosave round-trip, export page-cut metrics, Modern headers, CV job titles, editor UX (dates, Present, overlay links, AI consent, extras spacing) |
+| `05-Migration to Appwrite/25-Session-Log-2026-05-19-Gap-Finder-Multi-Gap-Assistant.md` | Gap Finder timeline, `detectGaps` sync, multi-gap AI assistant, new-entry prepend |
+
+**Same day, summarized below in this file:** page-break popup, page-cut dialog/PDF, editor live preview first-load (`CHANGELOG.md` 2026-05-19 entries).
+
+### Where We Stopped (authoritative)
+
+- **In source:** All items in logs 24–25 (same working tree; not necessarily committed).
+- **User-verified:** CV import job titles; editor UX from log 24 after `ai-gateway` redeploy.
+- **Not user-verified:** Multi-gap AI assistant (log 25).
+- **Open:** Fill gap footer still longest-only; PDF export link clickability; import `Present` → `current` for projects/volunteering; manual QA — 3+ gaps → bar count = assistant picker = distinct date ranges.
+- **Next agent:** Read logs 24–25 for root causes and file paths; redeploy `ai-gateway` only after hub parse edits.
+
+---
+
+## Session Summary — 2026-05-19 (Page cut preview + PDF fixes)
+
+### Overview
+Page-cut dialog now shows a scaled clone of the live resume (not a blank placeholder). Red break guide lines are stripped before PDF export. PDF footers show `Page N of M - Made with WiseResume` with a clickable link. Section “start new page before” buttons use live template height and replace breaks inside the target section.
+
+### Verification
+- `npm exec tsc -- --noEmit`
+- `npm test -- src/lib/__tests__/pdfUtils.test.ts src/lib/nativePdfGenerator.test.ts src/components/editor/export/__tests__/ExportPageBreakSetup.test.tsx`
+
+---
+
+## Session Summary — 2026-05-19 (Page break control popup)
+
+### Overview
+Page-cut control is now only on the editor/preview **page count badge** (click → dialog). Export Options no longer embeds the break editor. Opening the dialog no longer writes smart breaks into `customBreakPositions` until the user chooses a preset, section action, or slider.
+
+### Root cause (truncation)
+`ExportPageBreakSetup` auto-persisted suggested breaks on first visibility when `customBreakPositions` was empty. Export then used only those Y values; bad breaks + `overflow: hidden` segment crops → clipped PDF content.
+
+### Fixes
+- `PageCountBadge` + `PageBreakSetupDialog` in `LivePreviewPanel` and `PreviewPage`.
+- `resolveExportPageCount`, `computeBreaksForTargetPages`, `addBreakBeforeSection` in `pdfUtils.ts`.
+- Live preview shows horizontal break lines when custom cuts exist.
+- Removed `ExportPageBreakSetup` from `ExportOptionsSheet`.
+
+### Verification
+- `npm exec tsc -- --noEmit` passed.
+- `npm test -- src/lib/__tests__/pdfUtils.test.ts src/lib/exportPagePlan.test.ts src/components/editor/export/__tests__/ExportPageBreakSetup.test.tsx` passed.
+
+---
+
+## Session Summary — 2026-05-19 (Editor live preview first-load)
+
+### Overview
+Users opening the editor for the first time in a session saw an empty live preview until a full page refresh. PDF export from the editor then failed with “Resume preview not visible” because `[data-resume-template]` was never mounted.
+
+### Root causes (verified)
+- `useIsMobile(1024)` initial state was `undefined` → coerced to `false`, mounting the desktop split layout on narrow viewports for one frame before switching to mobile tabs (preview only on the Preview tab).
+- `useEditorHydration` only loaded from Appwrite when `currentResume` was empty; a persisted resume for a *different* id blocked hydration for the requested `/editor?id=…` resume.
+- `react-resizable-panels` sometimes allocated 0px to the preview column on first flex layout; refresh forced a relayout.
+- `LivePreviewPanel` returned `null` if `templateComponents[selectedTemplate]` was undefined (no `migrateTemplateId`).
+
+### Fixes
+- Synchronous viewport check in `use-mobile.tsx`.
+- Hydrate when `localResume.id !== currentResumeId` in `useEditorHydration.ts`.
+- `migrateTemplateId` + `modern` fallback in `LivePreviewPanel.tsx`.
+- Editor split: `ImperativePanelGroupHandle.setLayout([55, 45])` after mount; `autoSaveId` + panel ids; PDF export uses `exportResumePdfFromData` when the live DOM node is missing.
+
+### Verification
+- `npm exec tsc -- --noEmit` passed.
+
+### Local dev note
+PDF export still requires the Express PDF server (`npm run dev:pdf-server`) and `VITE_DEV_API_PORT=5003 npm run dev` when port 5001 is occupied by another Vite instance.
+
+---
+
 ## Session Summary - 2026-05-18 (DevKit Hub Runtime/Auth Repair)
 
 ### Overview

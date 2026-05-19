@@ -23,7 +23,7 @@ export const LanguagesSection = memo(function LanguagesSection() {
   const addLanguage = () => {
     haptics.light();
     const n: Language = { id: uuidv4(), name: '', proficiency: 'professional' };
-    updateResume({ languages: [...languages, n] });
+    updateResume({ languages: [n, ...languages] });
   };
 
   const updateLang = (id: string, u: Partial<Language>) => {

@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { compareDates, parseResumeDate, ParsedDate } from './dateUtils';
+import {
+  compareDates,
+  parseResumeDate,
+  ParsedDate,
+  formatDisplayDate,
+  formatDateRangeDisplay,
+  detectGaps,
+  findGapBetweenJobs,
+} from './dateUtils';
 
 describe('compareDates', () => {
   it('should return 0 for the same year and month', () => {
@@ -114,9 +122,9 @@ describe('parseResumeDate', () => {
     expect(parseResumeDate('2020-12')).toEqual({ month: 11, year: 2020 });
   });
 
-  it('should parse "YYYY" format (default to January)', () => {
-    expect(parseResumeDate('2020')).toEqual({ month: 0, year: 2020 });
-    expect(parseResumeDate('1990')).toEqual({ month: 0, year: 1990 });
+  it('should parse "YYYY" format with yearOnly flag', () => {
+    expect(parseResumeDate('2020')).toEqual({ month: 0, year: 2020, yearOnly: true });
+    expect(parseResumeDate('1990')).toEqual({ month: 0, year: 1990, yearOnly: true });
   });
 
   it('should return null for invalid date formats', () => {
@@ -127,5 +135,39 @@ describe('parseResumeDate', () => {
 
   it('should handle extra spaces', () => {
     expect(parseResumeDate('  Jan 2020  ')).toEqual({ month: 0, year: 2020 });
+  });
+});
+
+describe('formatDisplayDate', () => {
+  it('displays year-only strings without a month', () => {
+    expect(formatDisplayDate('2020')).toBe('2020');
+  });
+
+  it('displays month+year strings normally', () => {
+    expect(formatDisplayDate('Jan 2020')).toBe('Jan 2020');
+  });
+});
+
+describe('formatDateRangeDisplay', () => {
+  it('shows Present for open-ended ranges with only a start date', () => {
+    expect(formatDateRangeDisplay('2025', '', false)).toBe('2025 – Present');
+  });
+
+  it('shows Present when isCurrent is true', () => {
+    expect(formatDateRangeDisplay('Jan 2024', 'Dec 2024', true)).toBe('Jan 2024 – Present');
+  });
+});
+
+describe('findGapBetweenJobs', () => {
+  it('returns the gap that matches a chronological job pair', () => {
+    const experiences = [
+      { startDate: 'Jan 2010', endDate: 'Dec 2012', current: false },
+      { startDate: 'Jun 2014', endDate: 'Dec 2016', current: false },
+    ];
+    const gaps = detectGaps(experiences);
+    const end = parseResumeDate('Dec 2012')!;
+    const start = parseResumeDate('Jun 2014')!;
+    expect(findGapBetweenJobs(gaps, end, start)).toEqual(gaps[0]);
+    expect(gaps).toHaveLength(1);
   });
 });

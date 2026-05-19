@@ -6,6 +6,7 @@ import { migrateTemplateId } from '@/lib/templateMigration';
 import { getDefaultCustomization } from '@/lib/templateCustomization';
 import { TailorIntensity } from '@/lib/aiTailor';
 import { v4 as uuidv4 } from 'uuid';
+import { toast } from 'sonner';
 
 let hasHydrated = false;
 const hydrationListeners: Set<() => void> = new Set();
@@ -164,9 +165,28 @@ export const useResumeStore = create<ResumeState>()(
             );
           }
         }
+
+        const prev = state.currentResume;
+        const templateChanged =
+          sanitized.templateId &&
+          prev?.templateId &&
+          sanitized.templateId !== prev.templateId;
+        const hadCustomBreaks = (prev?.customization?.customBreakPositions?.length ?? 0) > 0;
+
+        if (templateChanged && hadCustomBreaks) {
+          const baseCustomization = { ...(prev?.customization ?? {}), ...(sanitized.customization ?? {}) };
+          delete baseCustomization.customBreakPositions;
+          sanitized.customization = baseCustomization;
+          queueMicrotask(() => {
+            toast.info('Page cuts were reset for the new template. Tap the page count to set them again.', {
+              duration: 4000,
+            });
+          });
+        }
+
         return {
-          currentResume: state.currentResume
-            ? { ...state.currentResume, ...sanitized }
+          currentResume: prev
+            ? { ...prev, ...sanitized }
             : { ...defaultResume, ...sanitized }
         };
       }),

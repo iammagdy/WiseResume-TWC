@@ -18,20 +18,12 @@ interface SectionOverlayManagerProps {
 
 export function SectionOverlayManager({ resumeRef, isBreakEditMode }: SectionOverlayManagerProps) {
   const currentResume = useResumeStore(s => s.currentResume);
-  // Desktop-only feature. LivePreviewPanel is reused inside LivePreviewSheet
-  // (mobile drawer), so we gate the whole overlay here rather than at the
-  // call site to keep the mobile-safety contract local to this component.
   const isMobile = useIsMobile();
   const [rects, setRects] = useState<SectionRect[]>([]);
   const [hovered, setHovered] = useState<string | null>(null);
   const [stylePopoverFor, setStylePopoverFor] = useState<string | null>(null);
   const [aiPopoverFor, setAiPopoverFor] = useState<string | null>(null);
 
-  // Recompute the rect list whenever the resume content or container size
-  // changes. We use offsetTop/offsetHeight so the coordinates stay in the
-  // same unscaled space as the absolutely-positioned overlays inside
-  // resumeRef (the parent already wraps the whole thing in a CSS scale
-  // transform — getBoundingClientRect would double-count that scale).
   const recompute = useCallback(() => {
     const root = resumeRef.current;
     if (!root) {
@@ -63,7 +55,6 @@ export function SectionOverlayManager({ resumeRef, isBreakEditMode }: SectionOve
     if (!root) return;
     const obs = new ResizeObserver(() => recompute());
     obs.observe(root);
-    // Also observe each section so reflows inside a section update its rect.
     const sectionEls = root.querySelectorAll<HTMLElement>('[data-section]');
     sectionEls.forEach(el => obs.observe(el));
     return () => obs.disconnect();
@@ -76,28 +67,35 @@ export function SectionOverlayManager({ resumeRef, isBreakEditMode }: SectionOve
   return (
     <div
       data-html2canvas-ignore="true"
-      className="absolute inset-0 z-30"
-      style={{ pointerEvents: 'none' }}
+      data-pdf-exclude
+      className="absolute inset-0 z-30 pointer-events-none"
     >
       {rects.map(rect => {
         const isHovered = hovered === rect.name;
+        const showControls = isHovered || stylePopoverFor === rect.name || aiPopoverFor === rect.name;
+
         return (
           <div
             key={rect.name}
             data-section-overlay={rect.name}
-            className="absolute left-0 right-0"
+            className="absolute left-0 right-0 pointer-events-none"
             style={{
               top: `${rect.top}px`,
               height: `${rect.height}px`,
-              pointerEvents: 'auto',
             }}
-            onMouseEnter={() => setHovered(rect.name)}
-            onMouseLeave={() => setHovered(prev => (prev === rect.name ? null : prev))}
           >
-            {(isHovered || stylePopoverFor === rect.name || aiPopoverFor === rect.name) && (
+            {/* Thin hover band — does not block links in the section body */}
+            <div
+              className="absolute inset-x-0 top-0 h-4 pointer-events-auto"
+              onMouseEnter={() => setHovered(rect.name)}
+              onMouseLeave={() => setHovered(prev => (prev === rect.name ? null : prev))}
+            />
+            {showControls && (
               <div
-                className="absolute flex items-center gap-1"
+                className="absolute flex items-center gap-1 pointer-events-auto"
                 style={{ top: 4, right: 4 }}
+                onMouseEnter={() => setHovered(rect.name)}
+                onMouseLeave={() => setHovered(prev => (prev === rect.name ? null : prev))}
               >
                 <SectionStylePopover
                   open={stylePopoverFor === rect.name}

@@ -22,7 +22,13 @@ import cors from 'cors';
 import dns from 'dns';
 import puppeteer from 'puppeteer';
 import { PDFDocument } from 'pdf-lib';
-import { buildExportPageSegments, normalizeBreakPositions } from '../src/lib/exportPagePlan';
+import {
+  buildExportPageSegments,
+  normalizeBreakPositions,
+  scaleBreakPositionsToMeasuredHeight,
+  snapBreakPositionsToSectionHeadings,
+  type ExportSectionBounds,
+} from '../src/lib/exportPagePlan';
 
 const app = express();
 const PORT = parseInt(process.env.API_PORT || '5001', 10);
@@ -158,23 +164,77 @@ ${head}
   </div>
   ${args.footerHeightPx > 0 ? `
     <div class="wr-export-page-footer">
-      ${pageNumber ? `<span>${pageNumber}</span>` : ''}
-      ${args.showBranding ? `<a href="${EXPORT_BRAND_URL}">Wise Resume</a>` : ''}
+      ${pageNumber && args.showBranding
+        ? `<span>${pageNumber} - Made with <a href="${EXPORT_BRAND_URL}">WiseResume</a></span>`
+        : pageNumber
+          ? `<span>${pageNumber}</span>`
+          : args.showBranding
+            ? `<a href="${EXPORT_BRAND_URL}">WiseResume</a>`
+            : ''}
     </div>
   ` : ''}
 </body>
 </html>`;
 }
 
-async function measureContentHeight(browser: Awaited<ReturnType<typeof puppeteer.launch>>, html: string, widthPx: number): Promise<number> {
+interface ExportLayoutMetrics {
+  measuredHeight: number;
+  sections: ExportSectionBounds[];
+}
+
+async function measureExportLayout(
+  browser: Awaited<ReturnType<typeof puppeteer.launch>>,
+  html: string,
+  widthPx: number,
+): Promise<ExportLayoutMetrics> {
   const page = await browser.newPage();
   try {
     await page.setViewport({ width: widthPx, height: 1200, deviceScaleFactor: 2 });
     await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30_000 });
     return await page.evaluate(() => {
       const template = document.querySelector('[data-resume-template]') as HTMLElement | null;
-      const source = template ?? document.body;
-      return Math.max(source.scrollHeight, source.offsetHeight, document.body.scrollHeight, 1);
+      const root = template ?? document.body;
+
+      function relTop(el: HTMLElement): number {
+        let top = 0;
+        let curr: HTMLElement | null = el;
+        while (curr && curr !== root && root.contains(curr)) {
+          top += curr.offsetTop;
+          curr = curr.offsetParent as HTMLElement | null;
+        }
+        return top;
+      }
+
+      const layoutHeight = Math.max(
+        root.scrollHeight,
+        root.offsetHeight,
+        document.body.scrollHeight,
+        1,
+      );
+
+      const sections = Array.from(root.querySelectorAll('[data-section]')).map((sec) => {
+        const sectionEl = sec as HTMLElement;
+        const top = relTop(sectionEl);
+        const directHeading = sectionEl.querySelector(':scope > h2, :scope > h3') as HTMLElement | null;
+        const heading = directHeading ?? (sectionEl.querySelector('h2, h3') as HTMLElement | null);
+        const headingTop = heading ? relTop(heading) : top;
+        return {
+          top,
+          bottom: top + sectionEl.offsetHeight,
+          headingTop,
+        };
+      });
+
+      let measuredHeight = layoutHeight;
+      if (sections.length > 0) {
+        const maxSectionBottom = Math.max(...sections.map((s) => s.bottom));
+        const contentHeight = maxSectionBottom + 8;
+        if (layoutHeight > contentHeight * 1.12 && contentHeight >= 120) {
+          measuredHeight = Math.max(Math.round(contentHeight), 1);
+        }
+      }
+
+      return { measuredHeight, sections };
     });
   } finally {
     await page.close();
@@ -276,10 +336,23 @@ app.post('/api/export/pdf-native', async (req: Request, res: Response) => {
     } else {
       const footerHeight = showPageNumbers || showBranding ? EXPORT_FOOTER_HEIGHT_PX : 0;
       const printableHeight = dims.heightPx - footerHeight;
-      const measuredHeight = Number.isFinite(totalContentHeightPx)
-        ? Math.max(1, Math.round(totalContentHeightPx as number))
-        : await measureContentHeight(browser, html, dims.widthPx);
-      const normalizedBreaks = normalizeBreakPositions(customBreakPositions, measuredHeight);
+      const layout = await measureExportLayout(browser, html, dims.widthPx);
+      const measuredHeight = layout.measuredHeight;
+      const clientHeight =
+        Number.isFinite(totalContentHeightPx) && (totalContentHeightPx as number) > 0
+          ? Math.round(totalContentHeightPx as number)
+          : measuredHeight;
+      const scaledBreaks = scaleBreakPositionsToMeasuredHeight(
+        customBreakPositions,
+        clientHeight,
+        measuredHeight,
+      );
+      const snappedBreaks = snapBreakPositionsToSectionHeadings(
+        scaledBreaks,
+        layout.sections,
+        measuredHeight,
+      );
+      const normalizedBreaks = normalizeBreakPositions(snappedBreaks, measuredHeight);
       const segments = buildExportPageSegments({
         totalContentHeightPx: measuredHeight,
         pageHeightPx: printableHeight,

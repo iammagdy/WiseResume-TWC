@@ -58,7 +58,7 @@ export const DevOpsTemplate = memo(function DevOpsTemplate({ resume }: TemplateP
         <section data-section="education">
           <h2 className="text-xs font-bold text-orange-600 uppercase tracking-widest mb-3">Education</h2>
           {resume.education.map(edu => {
-            const eduRange = formatDateRangeDisplay(edu.startDate, edu.endDate, false);
+            const eduRange = formatDateRangeDisplay(edu.startDate, edu.endDate, edu.endDate === 'Present');
             return (<div key={edu.id} data-break-avoid className="mb-2"><h3 className="font-bold text-gray-900 text-xs">{formatDegreeAndField(edu.degree, edu.field)}</h3><p className="text-gray-600 text-xs">{edu.institution}{eduRange && ` — ${eduRange}`}</p>{edu.description && <p className="text-gray-600 text-xs mt-0.5">{edu.description}</p>}</div>);
           })}
         </section>

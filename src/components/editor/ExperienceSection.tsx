@@ -14,7 +14,7 @@ import { useResumeNudges } from '@/hooks/useResumeNudges';
 import { ExperienceTimeline } from './ExperienceTimeline';
 import { GapExplainerSheet } from './GapExplainerSheet';
 import { GapFillerSheet } from './GapFillerSheet';
-import { GapInfo } from '@/lib/dateUtils';
+import { GapInfo, detectGaps, findGapIndexInList, sortGapsChronologically } from '@/lib/dateUtils';
 import { SectionEmptyState } from './SectionEmptyState';
 import { experienceExample } from '@/lib/emptyStateExamples';
 import { ExperienceItem } from './ExperienceItem';
@@ -100,7 +100,8 @@ export const ExperienceSection = memo(function ExperienceSection() {
 
   const [showTimeline, setShowTimeline] = useState(true);
   const [showGapSheet, setShowGapSheet] = useState(false);
-  const [selectedGap, setSelectedGap] = useState<GapInfo | null>(null);
+  const [gapAssistantGaps, setGapAssistantGaps] = useState<GapInfo[]>([]);
+  const [gapAssistantIndex, setGapAssistantIndex] = useState(0);
   const [showGapFiller, setShowGapFiller] = useState(false);
   const [selectedGapForFill, setSelectedGapForFill] = useState<GapInfo | null>(null);
   const [showBoostAll, setShowBoostAll] = useState(false);
@@ -121,7 +122,7 @@ export const ExperienceSection = memo(function ExperienceSection() {
       achievements: [],
     };
     updateResume({
-      experience: [...experience, newExp],
+      experience: [newExp, ...experience],
     });
     setExpandedId(newExp.id);
   };
@@ -138,7 +139,7 @@ export const ExperienceSection = memo(function ExperienceSection() {
       description: '',
       achievements: experienceExample.bullets,
     };
-    updateResume({ experience: [...experience, exampleExp] });
+    updateResume({ experience: [exampleExp, ...experience] });
     setExpandedId(exampleExp.id);
   };
 
@@ -242,10 +243,27 @@ export const ExperienceSection = memo(function ExperienceSection() {
   }, [enhance, enhancingExpId, experience, currentResume]);
 
   const handleTimelineDismiss = useCallback(() => setShowTimeline(false), []);
-  const handleTimelineExplainGap = useCallback((gap: GapInfo) => {
-    setSelectedGap(gap);
-    setShowGapSheet(true);
-  }, []);
+  const openGapAssistant = useCallback(
+    (focusGap?: GapInfo) => {
+      const all = sortGapsChronologically(detectGaps(experience));
+      if (all.length === 0) return;
+      const idx = focusGap ? findGapIndexInList(all, focusGap) : 0;
+      setGapAssistantGaps(all);
+      setGapAssistantIndex(idx >= 0 ? idx : 0);
+      setShowGapSheet(true);
+    },
+    [experience],
+  );
+
+  const handleTimelineExplainGap = useCallback(
+    (gap: GapInfo) => openGapAssistant(gap),
+    [openGapAssistant],
+  );
+
+  const handleExplainAllGaps = useCallback(
+    () => openGapAssistant(),
+    [openGapAssistant],
+  );
   const handleTimelineFillGap = useCallback((gap: GapInfo) => {
     setSelectedGapForFill(gap);
     setShowGapFiller(true);
@@ -334,6 +352,7 @@ export const ExperienceSection = memo(function ExperienceSection() {
           experiences={experience}
           onDismiss={handleTimelineDismiss}
           onExplainGap={handleTimelineExplainGap}
+          onExplainAllGaps={handleExplainAllGaps}
           onFillGap={handleTimelineFillGap}
         />
       )}
@@ -418,9 +437,12 @@ export const ExperienceSection = memo(function ExperienceSection() {
         isOpen={showGapSheet}
         onClose={() => {
           setShowGapSheet(false);
-          setSelectedGap(null);
+          setGapAssistantGaps([]);
+          setGapAssistantIndex(0);
         }}
-        gap={selectedGap}
+        gaps={gapAssistantGaps}
+        activeGapIndex={gapAssistantIndex}
+        onActiveGapIndexChange={setGapAssistantIndex}
         experiences={experience}
         onAddToSummary={(explanation) => {
           const currentSummary = summary || '';

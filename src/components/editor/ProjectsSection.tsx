@@ -10,6 +10,7 @@ import { useExpandedEntryRestore } from '@/hooks/useExpandedEntryRestore';
 import { Project } from '@/types/resume';
 import { v4 as uuidv4 } from 'uuid';
 import haptics from '@/lib/haptics';
+import { MonthYearPicker } from './MonthYearPicker';
 import { InlineAIButton } from './InlineAIButton';
 import { useAIEnhance, ActionType } from '@/hooks/useAIEnhance';
 import { AIEnhanceDialog } from './ai/AIEnhanceDialog';
@@ -253,8 +254,8 @@ export const ProjectsSection = memo(function ProjectsSection() {
 
   const addProject = () => {
     haptics.light();
-    const newProject: Project = { id: uuidv4(), name: '', role: '', startDate: '', endDate: '', technologies: [], description: '', url: '', githubUrl: '' };
-    updateResume({ projects: [...projects, newProject] });
+    const newProject: Project = { id: uuidv4(), name: '', role: '', startDate: '', endDate: '', current: false, technologies: [], description: '', url: '', githubUrl: '' };
+    updateResume({ projects: [newProject, ...projects] });
     setExpandedId(newProject.id);
   };
 
@@ -389,8 +390,43 @@ export const ProjectsSection = memo(function ProjectsSection() {
                       <div><Label htmlFor={`proj-${proj.id}-role`} className="text-sm mb-2">Role</Label><Input id={`proj-${proj.id}-role`} value={proj.role} onChange={e => updateProject(proj.id, { role: e.target.value })} placeholder="Lead Developer" className="h-12" /></div>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div><Label htmlFor={`proj-${proj.id}-start`} className="text-sm flex items-center gap-1.5 mb-2"><Calendar className="w-4 h-4" />Start Date</Label><Input id={`proj-${proj.id}-start`} value={proj.startDate} onChange={e => updateProject(proj.id, { startDate: e.target.value })} placeholder="Jan 2024" className="h-12" /></div>
-                      <div><Label htmlFor={`proj-${proj.id}-end`} className="text-sm flex items-center gap-1.5 mb-2"><Calendar className="w-4 h-4" />End Date</Label><Input id={`proj-${proj.id}-end`} value={proj.endDate} onChange={e => updateProject(proj.id, { endDate: e.target.value })} placeholder="Present" className="h-12" /></div>
+                      <div>
+                        <Label className="text-sm flex items-center gap-1.5 mb-2">
+                          <Calendar className="w-4 h-4" />
+                          Start Date
+                        </Label>
+                        <MonthYearPicker
+                          value={proj.startDate}
+                          onChange={(v) => updateProject(proj.id, { startDate: v })}
+                        />
+                      </div>
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <Label className="text-sm flex items-center gap-1.5">
+                            <Calendar className="w-4 h-4" />
+                            End Date
+                          </Label>
+                          <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={!!proj.current}
+                              onChange={(e) =>
+                                updateProject(proj.id, {
+                                  current: e.target.checked,
+                                  endDate: e.target.checked ? '' : proj.endDate,
+                                })
+                              }
+                              className="rounded accent-primary w-4 h-4"
+                            />
+                            <span className="text-sm text-muted-foreground">Present</span>
+                          </label>
+                        </div>
+                        <MonthYearPicker
+                          value={proj.current ? '' : proj.endDate}
+                          onChange={(v) => updateProject(proj.id, { endDate: v, current: false })}
+                          disabled={!!proj.current}
+                        />
+                      </div>
                     </div>
 
                     {/* Technologies with AI */}

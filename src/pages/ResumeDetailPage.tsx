@@ -80,7 +80,7 @@ export default function ResumeDetailPage() {
     // Load resume into store and redirect to preview
     const rd = dbToResumeData(dbResume);
     setCurrentResume(rd);
-    setCurrentResumeId(dbResume.id);
+    setCurrentResumeId(dbResume.$id);
     setSelectedTemplate(dbResume.template_id as TemplateId);
     navigate('/preview?action=download', { replace: true });
   }, [dbResume, isLoading]);
@@ -125,14 +125,14 @@ export default function ResumeDetailPage() {
 
   const handleEdit = () => {
     setCurrentResume(resumeData);
-    setCurrentResumeId(dbResume.id);
+    setCurrentResumeId(dbResume.$id);
     setSelectedTemplate(dbResume.template_id as TemplateId);
     navigate('/editor');
   };
 
   const handlePreview = () => {
     setCurrentResume(resumeData);
-    setCurrentResumeId(dbResume.id);
+    setCurrentResumeId(dbResume.$id);
     setSelectedTemplate(dbResume.template_id as TemplateId);
     navigate('/preview');
   };
@@ -140,7 +140,7 @@ export default function ResumeDetailPage() {
   const handleDownload = () => {
     // Redirect all downloads to Preview page for proper page break handling
     setCurrentResume(resumeData);
-    setCurrentResumeId(dbResume.id);
+    setCurrentResumeId(dbResume.$id);
     setSelectedTemplate(dbResume.template_id as TemplateId);
     navigate('/preview?action=download');
   };
@@ -161,14 +161,14 @@ export default function ResumeDetailPage() {
 
   const handleTailor = () => {
     setCurrentResume(resumeData);
-    setCurrentResumeId(dbResume.id);
+    setCurrentResumeId(dbResume.$id);
     setSelectedTemplate(dbResume.template_id as TemplateId);
     navigate('/editor?openTailor=1');
   };
 
   const handleInterview = () => {
     setCurrentResume(resumeData);
-    setCurrentResumeId(dbResume.id);
+    setCurrentResumeId(dbResume.$id);
     navigate('/interview');
   };
 
@@ -327,7 +327,7 @@ export default function ResumeDetailPage() {
                     className="h-8 px-2.5 text-xs gap-1.5"
                     onClick={() => {
                       setCurrentResume(resumeData);
-                      setCurrentResumeId(dbResume.id);
+                      setCurrentResumeId(dbResume.$id);
                       setSelectedTemplate(dbResume.template_id as TemplateId);
                       prevScoreRef.current = getCachedScore(dbResume.id, dbResume.updated_at);
                       enhancedRef.current = false;

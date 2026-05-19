@@ -1,6 +1,8 @@
 import { useState, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import { useAIAction } from '@/hooks/useAIAction';
+import { hasAcceptedAIPrivacy } from '@/components/ai/AIPrivacyDisclosure';
+import { useAIPrivacyDisclosure } from '@/components/ai/AIPrivacyDisclosureProvider';
 import { useAIHealthStore } from '@/store/aiHealthStore';
 import { useAIEnhancingStore } from '@/store/aiEnhancingStore';
 import { sanitizeAIContent } from '@/lib/ai/sanitizeContent';
@@ -85,6 +87,7 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
   const [result, setResult] = useState<EnhanceResult | null>(null);
   const [currentAction, setCurrentAction] = useState<ActionType | null>(null);
   const { execute: executeAI } = useAIAction({ operation: 'enhance' });
+  const { requestDisclosure } = useAIPrivacyDisclosure();
   const slowToastShown = useRef(false);
   const redactPiiBeforeAI = useSettingsStore(s => s.redactPiiBeforeAI);
   // Ref-based in-flight guard prevents a second POST while the first is pending.
@@ -98,6 +101,13 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
     jobDescription?: string
   ) => {
     if (inFlightRef.current) return null;
+
+    let privacyAccepted = hasAcceptedAIPrivacy();
+    if (!privacyAccepted) {
+      privacyAccepted = await requestDisclosure();
+    }
+    if (!privacyAccepted) return null;
+
     inFlightRef.current = true;
     setIsEnhancing(true);
     setCurrentAction(action);
@@ -105,7 +115,6 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
     slowToastShown.current = false;
     useAIEnhancingStore.getState().increment();
 
-    // Show an immediate "AI is working" loading toast
     const loadingToastId = toast.loading('AI is thinking…', { duration: Infinity });
 
     // Show "taking longer than usual" after 20s
@@ -220,7 +229,7 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
       setCurrentAction(null);
       useAIEnhancingStore.getState().decrement();
     }
-  }, [section, redactPiiBeforeAI]);
+  }, [section, redactPiiBeforeAI, executeAI, requestDisclosure]);
 
   /**
    * Apply the AI result to the resume. When `override` is supplied (e.g. the

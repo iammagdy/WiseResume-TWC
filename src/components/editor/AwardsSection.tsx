@@ -24,7 +24,7 @@ export const AwardsSection = memo(function AwardsSection() {
       date: '',
       description: '',
     };
-    updateResume({ awards: [...awards, newAward] });
+    updateResume({ awards: [newAward, ...awards] });
     setExpandedId(newAward.id);
   };
 

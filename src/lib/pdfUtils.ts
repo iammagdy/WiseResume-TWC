@@ -5,6 +5,9 @@
  */
 
 import { SectionId } from '@/types/resume';
+import { normalizeBreakPositions } from '@/lib/exportPagePlan';
+import { SECTION_LABELS } from '@/lib/sectionLabels';
+import { getExportContentHeightPx, getSectionHeadingTop } from '@/lib/exportLayoutMetrics';
 
 // Page dimensions (points / CSS pixels — same unit system)
 const DEFAULT_PAGE_WIDTH = 612;
@@ -35,8 +38,8 @@ function calcSourceHeightPerPage(
 ): { sourceHeightPerPage: number; totalHeight: number } {
   const sourceWidth = Math.max(sourceElement.offsetWidth || pageWidth, pageWidth / 2);
   const totalHeight = Math.max(
-    sourceElement.scrollHeight || sourceElement.offsetHeight || pageHeight,
-    pageHeight / 2
+    getExportContentHeightPx(sourceElement),
+    pageHeight / 2,
   );
   const globalScaleFactor = pageWidth / sourceWidth;
   const sourceHeightPerPage = pageHeight / globalScaleFactor;
@@ -55,6 +58,10 @@ function getOffsetTopRelative(el: HTMLElement, root: HTMLElement): number {
     curr = curr.offsetParent as HTMLElement | null;
   }
   return top;
+}
+
+function getSectionPageBreakY(sectionEl: HTMLElement, root: HTMLElement): number {
+  return getSectionHeadingTop(sectionEl, root);
 }
 
 /**
@@ -100,9 +107,10 @@ function snapBreaksToContentLight(
   const snapOne = (breakY: number): number => {
     const sectionHit = sectionBounds.find(b => breakY > b.top && breakY < b.bottom);
     if (sectionHit) {
+      const headTop = getSectionHeadingTop(sectionHit.el, sourceElement);
       const sectionHeight = sectionHit.bottom - sectionHit.top;
-      if (sectionHeight < sourceHeightPerPage) return sectionHit.top;
-      if (breakY - sectionHit.top < HEADING_GUARD) return sectionHit.top;
+      if (sectionHeight < sourceHeightPerPage) return headTop;
+      if (breakY - sectionHit.top < HEADING_GUARD) return headTop;
     }
 
     const hit = entryBounds.find(b => breakY > b.top && breakY < b.bottom);
@@ -143,7 +151,7 @@ function snapBreaksToContentLight(
 
   const result: number[] = [];
   let prevBreak = 0;
-  const totalHeight = sourceElement.scrollHeight || sourceElement.offsetHeight;
+  const totalHeight = getExportContentHeightPx(sourceElement);
 
   for (let i = 0; i < fixedBreaks.length; i++) {
     let nextBreak = prevBreak + sourceHeightPerPage;
@@ -212,6 +220,82 @@ export function estimatePageCount(
  * Uses the same offsetTop-relative coordinate system as computePreviewBreaks
  * so live-preview and PDF coordinates stay in sync.
  */
+/**
+ * Page count for the toolbar badge: uses saved custom breaks when present,
+ * otherwise the automatic printable-height estimate.
+ */
+export function resolveExportPageCount(
+  sourceElement: HTMLElement,
+  pageWidth: number,
+  pageHeight: number,
+  customBreakPositions?: number[],
+): number {
+  const totalHeight = getExportContentHeightPx(sourceElement);
+  const breaks = normalizeBreakPositions(customBreakPositions, totalHeight);
+  if (breaks.length > 0) return breaks.length + 1;
+  return estimatePageCount(sourceElement, pageWidth, pageHeight);
+}
+
+/**
+ * Returns break Y positions for a target page count (1–3), snapped to sections/entries.
+ */
+export function computeBreaksForTargetPages(
+  sourceElement: HTMLElement,
+  targetPages: 1 | 2 | 3,
+  pageWidth: number = DEFAULT_PAGE_WIDTH,
+  pageHeight: number = DEFAULT_PAGE_HEIGHT,
+): number[] {
+  if (targetPages <= 1) return [];
+  const needed = targetPages - 1;
+  const printableHeight = pageHeight - FOOTER_RESERVED_PT;
+  const { sourceHeightPerPage, totalHeight } = calcSourceHeightPerPage(
+    sourceElement,
+    pageWidth,
+    printableHeight,
+  );
+  const smart = computePreviewBreaks(sourceElement, pageWidth, pageHeight);
+  if (smart.length >= needed) {
+    return normalizeBreakPositions(smart.slice(0, needed), totalHeight);
+  }
+  const intervalBreaks: number[] = [];
+  for (let i = 1; i <= needed; i++) {
+    intervalBreaks.push(Math.round((totalHeight * i) / targetPages));
+  }
+  const merged = [...smart];
+  for (const y of intervalBreaks) {
+    if (merged.length >= needed) break;
+    if (!merged.some((b) => Math.abs(b - y) < 40)) merged.push(y);
+  }
+  const snapped = snapBreaksToContentLight(
+    merged.slice(0, needed * 2),
+    sourceElement,
+    sourceHeightPerPage,
+  );
+  return normalizeBreakPositions(snapped.slice(0, needed), totalHeight);
+}
+
+/** Insert or move a page break to the top of a resume section. */
+export function addBreakBeforeSection(
+  existingBreaks: number[],
+  sourceElement: HTMLElement,
+  sectionId: string,
+  totalHeight: number,
+): { breaks: number[]; applied: boolean } {
+  const el = sourceElement.querySelector(`[data-section="${sectionId}"]`) as HTMLElement | null;
+  if (!el) return { breaks: existingBreaks, applied: false };
+
+  const MIN_GAP = 40;
+  const top = getOffsetTopRelative(el, sourceElement);
+  if (top <= MIN_GAP || top >= totalHeight - MIN_GAP) {
+    return { breaks: existingBreaks, applied: false };
+  }
+
+  return {
+    breaks: injectForcedBreaks(existingBreaks, sourceElement, [sectionId], totalHeight),
+    applied: true,
+  };
+}
+
 export function injectForcedBreaks(
   smartBreaks: number[],
   sourceElement: HTMLElement,
@@ -221,24 +305,91 @@ export function injectForcedBreaks(
   if (!manualBreakSections || !manualBreakSections.length) return smartBreaks;
 
   const MIN_GAP = 40;
+  let working = [...smartBreaks];
   const forced: number[] = [];
 
   for (const name of manualBreakSections) {
     const el = sourceElement.querySelector(`[data-section="${name}"]`) as HTMLElement | null;
     if (!el) continue;
-    const y = getOffsetTopRelative(el, sourceElement);
-    if (y > MIN_GAP && y < totalHeight - MIN_GAP) {
-      forced.push(y);
+    const top = getSectionPageBreakY(el, sourceElement);
+    const bottom = top + el.offsetHeight;
+    if (top > MIN_GAP && top < totalHeight - MIN_GAP) {
+      forced.push(top);
+      working = working.filter((sb) => {
+        if (sb > top && sb < bottom) return false;
+        if (Math.abs(sb - top) < MIN_GAP) return false;
+        return true;
+      });
     }
   }
 
   if (forced.length === 0) return smartBreaks;
 
-  const filtered = smartBreaks.filter(sb =>
-    !forced.some(fb => Math.abs(fb - sb) < MIN_GAP)
+  const filtered = working.filter((sb) =>
+    !forced.some((fb) => Math.abs(fb - sb) < MIN_GAP),
   );
 
   return [...filtered, ...forced].sort((a, b) => a - b);
+}
+
+export interface SectionBreakLabel {
+  sectionId: string | null;
+  /** UI copy for slider row, e.g. "Page ends before Experience" */
+  description: string;
+}
+
+function sectionDisplayName(sectionId: string): string {
+  return SECTION_LABELS[sectionId] ?? sectionId;
+}
+
+/** Human-readable label for a break Y in template-root coordinates. */
+export function getSectionLabelForBreakY(
+  sourceElement: HTMLElement,
+  breakY: number,
+  minGap: number = 40,
+): SectionBreakLabel {
+  const sections: { id: string; top: number; bottom: number }[] = [];
+  sourceElement.querySelectorAll<HTMLElement>('[data-section]').forEach((el) => {
+    const id = el.getAttribute('data-section');
+    if (!id) return;
+    const top = getOffsetTopRelative(el, sourceElement);
+    sections.push({ id, top, bottom: top + el.offsetHeight });
+  });
+  sections.sort((a, b) => a.top - b.top);
+
+  if (sections.length === 0) {
+    return { sectionId: null, description: '' };
+  }
+
+  for (const section of sections) {
+    if (breakY >= section.top && breakY < section.bottom) {
+      if (Math.abs(breakY - section.top) < minGap) {
+        return {
+          sectionId: section.id,
+          description: `Page ends before ${sectionDisplayName(section.id)}`,
+        };
+      }
+      return {
+        sectionId: section.id,
+        description: `Inside ${sectionDisplayName(section.id)}`,
+      };
+    }
+  }
+
+  for (const section of sections) {
+    if (section.top >= breakY - minGap) {
+      return {
+        sectionId: section.id,
+        description: `Page ends before ${sectionDisplayName(section.id)}`,
+      };
+    }
+  }
+
+  const last = sections[sections.length - 1];
+  return {
+    sectionId: last.id,
+    description: `After ${sectionDisplayName(last.id)}`,
+  };
 }
 
 /** Typed error class for programmatic handling of PDF generation failures. */

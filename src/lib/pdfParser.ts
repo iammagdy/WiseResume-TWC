@@ -13,6 +13,8 @@ import { extractTextWithOCR, OCRProgressCallback, estimateOCRTime } from './pdf/
 import { parseResumeText } from './pdf/sectionParsers';
 import { preprocessResumeText, extractContactHints, computeTextConfidence } from './pdf/textPreprocessor';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
+import { sanitizeExperiencePositions } from './genericPositionTitle';
+import { enrichParsedExperience } from './experiencePositionEnrichment';
 
 export { PDFParseError, estimateOCRTime };
 export type { ExtractionResult, OCRProgressCallback };
@@ -125,8 +127,15 @@ export async function parseTextWithAI(text: string): Promise<ResumeData> {
     const legacyMeta = extractLegacyMeta(data);
     const serverMeta: ParseMeta = { ...(legacyMeta ?? {}), ...(nestedMeta ?? {}) };
 
-    const cleaned = regenerateResumeIds(data);
-
+    let cleaned = regenerateResumeIds(data);
+    const { items: sanitizedExperience, hadGenericTitles } = sanitizeExperiencePositions(
+      cleaned.experience ?? [],
+    );
+    const { items: enrichedExperience } = enrichParsedExperience(sanitizedExperience, text);
+    const titlesStillMissing = enrichedExperience.some(
+      (e) => !e.position?.trim() && !!e.company?.trim(),
+    );
+    cleaned = { ...cleaned, experience: enrichedExperience };
     // Compute per-field-instance confidence and merge with server's section-level
     // scores so the UI can flag low-confidence fields at full granularity.
     const itemConfidence = computeFieldLevelConfidence(cleaned);
@@ -138,6 +147,7 @@ export async function parseTextWithAI(text: string): Promise<ResumeData> {
       ...(cleaned._meta ?? {}),
       ...serverMeta,
       fieldConfidence: mergedConfidence,
+      ...((hadGenericTitles || titlesStillMissing) ? { positionTitlesNeedReview: true } : {}),
     };
     return cleaned;
   } catch (error) {
@@ -155,7 +165,12 @@ export async function parseTextWithAI(text: string): Promise<ResumeData> {
 
     // Fall back to local regex parsing for all non-billing failures
     if (import.meta.env.DEV) console.log('Using fallback local parser...');
-    return attachFieldConfidence(parseResumeText(text));
+    const localParsed = parseResumeText(text);
+    const { items: enrichedExperience } = enrichParsedExperience(
+      localParsed.experience ?? [],
+      text,
+    );
+    return attachFieldConfidence({ ...localParsed, experience: enrichedExperience });
   }
 }
 

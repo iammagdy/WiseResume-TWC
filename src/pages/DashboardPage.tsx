@@ -186,7 +186,7 @@ function DashboardPageContent() {
   const handleHeroTailor = useCallback(() => {
     if (resumes && resumes.length > 0) {
       const latest = resumes[0];
-      setCurrentResumeId(latest.id);
+      setCurrentResumeId(latest.$id);
       setCurrentResume(dbToResumeData(latest));
     }
     navigate('/tailor');
@@ -195,7 +195,7 @@ function DashboardPageContent() {
   const handleContinueEditing = useCallback(() => {
     if (!resumes || resumes.length === 0) return;
     const latest = resumes[0];
-    setCurrentResumeId(latest.id);
+    setCurrentResumeId(latest.$id);
     setCurrentResume(dbToResumeData(latest));
     navigate('/editor');
   }, [resumes, setCurrentResumeId, setCurrentResume, navigate]);
