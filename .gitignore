@@ -69,7 +69,7 @@ artifacts/
 .jules/
 .opencode/
 .specify/
-.claude/
+.claude/*
 !.claude/settings.json
 !.claude/hooks/
 # .boltignore (Removed from here so it can be committed for bolt.new)
