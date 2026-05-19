@@ -450,6 +450,63 @@ Standard Radix UI Avatar. Size is controlled by width/height classes on `Avatar`
 | `ToastContent` | Structured toast body component |
 | `TrialCountdownBadge` | Trial expiry countdown display |
 
+#### `LoadingButton` Props
+
+Extends all `Button` props.
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `isLoading` | `boolean` | `false` | Shows spinner and disables button |
+| `loadingText` | `string` | — | Replaces children while loading |
+| `spinnerSize` | `number` | `16` | Pixel size of the `MiniSpinner` |
+
+```tsx
+<LoadingButton isLoading={saving} loadingText="Saving…" onClick={handleSave}>
+  Save Resume
+</LoadingButton>
+```
+
+#### `MiniSpinner` Props
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `size` | `number` | `16` | Width and height in pixels |
+| `className` | `string` | — | Additional classes |
+
+Renders with `role="status"` and `aria-label="Loading"`. Border width auto-scales at 12% of size.
+
+#### `PlanChip` Props
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `plan` | `PlanName` | — | `'free' \| 'pro' \| 'premium'` — free renders nothing |
+| `trialPlan` | `string \| null` | `null` | Active trial tier name |
+| `trialExpiresAt` | `string \| null` | `null` | ISO date string of trial expiry |
+
+Shows amber `Premium` badge, violet `Pro` badge, or a trial countdown chip with days remaining.
+
+#### `GlassSurface` Props
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `blur` | `number` | `12` | Backdrop blur radius in px |
+| `saturate` | `number` | `160` | Backdrop saturation percentage |
+| `distortion` | `number` | `0` | SVG turbulence displacement scale |
+| `as` | `ElementType` | `'div'` | Polymorphic root element |
+| `className` | `string` | — | Additional classes |
+| `style` | `CSSProperties` | — | Additional inline styles |
+
+Sets `--glass-blur` and `--glass-saturate` CSS variables. When `distortion > 0`, injects an SVG `feDisplacementMap` filter.
+
+#### `AITrustBadge` Props
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `dismissible` | `boolean` | `true` | Shows ×-button to hide the badge |
+| `className` | `string` | — | Additional classes |
+
+Renders a `ShieldCheck` icon with "Private & secure" copy. Returns `null` after dismissal.
+
 ### Plan Avatar Glow Rings
 
 Animated plan-tier rings on `PlanAvatar`:
@@ -551,22 +608,86 @@ The global rule in `index.css` already collapses all animation/transition durati
 
 ## Portfolio Themes
 
-Portfolio pages support per-user themes applied via `data-theme` attribute on `<html>`:
+Portfolio pages support per-user themes. CSS variables are applied inline via `buildThemeCSSVars()` from `portfolioThemes.ts`.
 
 ```ts
-document.documentElement.setAttribute("data-theme", profile.theme);
+import { buildThemeCSSVars, getThemeById } from '@/lib/portfolioThemes';
+const theme = getThemeById('developer-terminal')!;
+const vars = buildThemeCSSVars(theme, userAccentOverride);
+// <div style={vars}>…</div>
 ```
 
-Cleaned up on unmount in `usePortfolioSEO.ts`.
+### CSS Variables Set by `buildThemeCSSVars()`
 
-### Theme Definitions (`portfolioThemes.ts`)
+| Variable | Source |
+|---|---|
+| `--pf-bg` | `theme.colors.bg` |
+| `--pf-fg` | `theme.colors.fg` |
+| `--pf-card` | `theme.colors.card` |
+| `--pf-border` | `theme.colors.border` |
+| `--pf-muted` | `theme.colors.muted` |
+| `--pf-accent` | `userAccent ?? theme.colors.accentDefault` |
+| `--pf-heading-font` | `theme.typography.headingFont` |
+| `--pf-body-font` | `theme.typography.bodyFont` |
+| `--pf-heading-weight` | `theme.typography.headingWeight` |
+| `--pf-card-radius` | `theme.layout.cardRadius` |
 
-| Theme ID | Display Name | Visual Style |
-|---|---|---|
-| `minimal` | Minimal | Clean, whitespace-heavy |
-| `developer-terminal` | Developer Terminal | Dark, monospace, terminal green |
-| `neon-cyber` | Neon Cyber | Dark, neon glows, pulsing accents |
-| `creative-spotlight` | Creative Spotlight | Light, bold typography |
+### Theme Registry (9 themes)
+
+#### Universal
+
+| ID | Name | Category | BG | Accent | Font | Layout | Animation |
+|---|---|---|---|---|---|---|---|
+| `minimal` | Minimal | all | `#0a0a14` | `#e84545` | Inter | center / bordered | fade-up |
+
+#### Developer
+
+| ID | Name | isNew | BG | Accent | Font | Layout | Animation |
+|---|---|---|---|---|---|---|---|
+| `bold-dark` | Bold Dark | — | `#0a0a0f` | `#e84545` | Inter | center / bordered | scale-pop |
+| `developer-terminal` | Terminal | ✓ | `#1a1b26` | `#9ece6a` | Fira Code mono | left / terminal-window | terminal-type |
+| `neon-cyber` | Neon | ✓ | `#0a0a0a` | `#00ffaa` | Space Grotesk | center / neon-glow | neon-pulse |
+
+#### Creative
+
+| ID | Name | isNew | BG | Accent | Font | Layout | Animation |
+|---|---|---|---|---|---|---|---|
+| `glass-pro` | Glass Pro | — | `#0d1117` | `#e84545` | Inter | center / glassmorphism | fade-up |
+| `creative-spotlight` | Spotlight | ✓ | `#faf9f6` | `#e84545` | Space Grotesk | left / elevated | slide-in |
+
+#### Corporate
+
+| ID | Name | isNew | BG | Accent | Font | Layout | Animation |
+|---|---|---|---|---|---|---|---|
+| `classic-clean` | Classic Clean | — | `#ffffff` | `#e84545` | Georgia serif | center / bordered | fade-up |
+| `executive-suite` | Executive | ✓ | `#fefefe` | `#1e3a5f` | Georgia serif | center / bordered | fade-up |
+
+#### Freelancer
+
+| ID | Name | isNew | BG | Accent | Font | Layout | Animation |
+|---|---|---|---|---|---|---|---|
+| `freelancer-starter` | Starter | ✓ | `#ffffff` | `#7c3aed` | Inter | split / elevated | scale-pop |
+
+### `PortfolioThemeConfig` Interface
+
+```ts
+interface PortfolioThemeConfig {
+  id: string;
+  name: string;
+  description: string;
+  category: 'all' | 'developer' | 'creative' | 'corporate' | 'freelancer';
+  isNew: boolean;
+  colors: { bg; fg; card; border; muted; accentDefault };
+  typography: { headingFont; bodyFont; headingWeight: number };
+  layout: {
+    heroAlign: 'center' | 'left' | 'split';
+    cardRadius: string;
+    cardVariant: 'bordered' | 'elevated' | 'terminal-window' | 'glassmorphism' | 'neon-glow';
+  };
+  animation: 'fade-up' | 'slide-in' | 'scale-pop' | 'terminal-type' | 'neon-pulse';
+  preview: { bg; accent; card; text; heroGradient? };
+}
+```
 
 ### Portfolio CSS Token (`--pf-accent`)
 
@@ -646,7 +767,7 @@ Portfolio themes use `--pf-accent` as a per-theme override color, distinct from 
 
 ### Theme Data Attribute
 
-`data-theme="minimal|developer-terminal|neon-cyber|creative-spotlight"` on `<html>`.
+`data-theme` on `<html>` — valid values: `minimal` · `bold-dark` · `glass-pro` · `classic-clean` · `developer-terminal` · `creative-spotlight` · `executive-suite` · `freelancer-starter` · `neon-cyber`
 
 ---
 
