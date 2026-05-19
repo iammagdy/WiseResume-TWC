@@ -20,6 +20,11 @@ export interface DatabaseResume {
   certifications?: string;
   awards?: string;
   projects?: string;
+  publications?: string;
+  volunteering?: string;
+  hobbies?: string;
+  references?: string;
+  languages?: string;
   customization?: string;
   contact_info?: string;
   is_master?: boolean;
@@ -41,28 +46,74 @@ export function parseDbResume(doc: any): DatabaseResume {
   return doc as DatabaseResume;
 }
 
-export function dbToResumeData(db: any): ResumeData {
-  const parseJson = (str: any, fallback: any) => {
-    if (!str) return fallback;
-    if (typeof str === 'object') return str;
-    try { return JSON.parse(str); } catch { return fallback; }
-  };
+/** Appwrite document id from a raw doc or mapped resume row. */
+export function getResumeDocumentId(doc: { $id?: string; id?: string } | null | undefined): string | undefined {
+  if (!doc) return undefined;
+  return doc.$id ?? doc.id;
+}
 
+/** Server timestamp for conflict detection (Appwrite uses $updatedAt). */
+export function getResumeDocumentUpdatedAt(doc: {
+  $updatedAt?: string;
+  updated_at?: string;
+  updatedAt?: string;
+} | null | undefined): string | undefined {
+  if (!doc) return undefined;
+  return doc.$updatedAt ?? doc.updated_at ?? doc.updatedAt;
+}
+
+function parseDbJson<T>(str: unknown, fallback: T): T {
+  if (!str) return fallback;
+  if (typeof str === 'object') return str as T;
+  try {
+    return JSON.parse(str as string) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+/** Maps partial resume updates to Appwrite document fields. */
+export function resumeUpdatesToDbFields(updates: Partial<ResumeData>): Record<string, string | undefined> {
+  const data: Record<string, string | undefined> = {};
+  if (updates.templateId !== undefined) data.template = updates.templateId;
+  if (updates.summary !== undefined) data.summary = updates.summary;
+  if (updates.contactInfo !== undefined) data.contact_info = JSON.stringify(updates.contactInfo);
+  if (updates.experience !== undefined) data.experience = JSON.stringify(updates.experience);
+  if (updates.education !== undefined) data.education = JSON.stringify(updates.education);
+  if (updates.skills !== undefined) data.skills = JSON.stringify(updates.skills);
+  if (updates.certifications !== undefined) data.certifications = JSON.stringify(updates.certifications);
+  if (updates.awards !== undefined) data.awards = JSON.stringify(updates.awards);
+  if (updates.projects !== undefined) data.projects = JSON.stringify(updates.projects);
+  if (updates.publications !== undefined) data.publications = JSON.stringify(updates.publications);
+  if (updates.volunteering !== undefined) data.volunteering = JSON.stringify(updates.volunteering);
+  if (updates.hobbies !== undefined) data.hobbies = JSON.stringify(updates.hobbies);
+  if (updates.references !== undefined) data.references = JSON.stringify(updates.references);
+  if (updates.languages !== undefined) data.languages = JSON.stringify(updates.languages);
+  if (updates.customization !== undefined) data.customization = JSON.stringify(updates.customization);
+  return data;
+}
+
+export function dbToResumeData(db: any): ResumeData {
   return {
     id: db.$id,
     templateId: db.template || 'modern',
     title: db.title,
     summary: db.summary || '',
-    contactInfo: parseJson(db.contact_info, { fullName: '', email: '', phone: '', location: '' }),
-    experience: parseJson(db.experience, []),
-    education: parseJson(db.education, []),
-    skills: parseJson(db.skills, []),
-    certifications: parseJson(db.certifications, []),
-    awards: parseJson(db.awards, []),
-    projects: parseJson(db.projects, []),
-    customization: parseJson(db.customization, undefined),
+    contactInfo: parseDbJson(db.contact_info, { fullName: '', email: '', phone: '', location: '' }),
+    experience: parseDbJson(db.experience, []),
+    education: parseDbJson(db.education, []),
+    skills: parseDbJson(db.skills, []),
+    certifications: parseDbJson(db.certifications, []),
+    awards: parseDbJson(db.awards, []),
+    projects: parseDbJson(db.projects, []),
+    publications: parseDbJson(db.publications, []),
+    volunteering: parseDbJson(db.volunteering, []),
+    hobbies: parseDbJson(db.hobbies, []),
+    references: parseDbJson(db.references, []),
+    languages: parseDbJson(db.languages, []),
+    customization: parseDbJson(db.customization, undefined),
     createdAt: db.$createdAt,
-    updatedAt: db.$updatedAt
+    updatedAt: getResumeDocumentUpdatedAt(db),
   };
 }
 
@@ -76,8 +127,15 @@ export function resumeDataToDb(resume: ResumeData, userId: string): Partial<Data
     experience: JSON.stringify(resume.experience),
     education: JSON.stringify(resume.education),
     skills: JSON.stringify(resume.skills),
-    certifications: JSON.stringify(resume.certifications),
-    customization: JSON.stringify(resume.customization)
+    certifications: JSON.stringify(resume.certifications ?? []),
+    awards: JSON.stringify(resume.awards ?? []),
+    projects: JSON.stringify(resume.projects ?? []),
+    publications: JSON.stringify(resume.publications ?? []),
+    volunteering: JSON.stringify(resume.volunteering ?? []),
+    hobbies: JSON.stringify(resume.hobbies ?? []),
+    references: JSON.stringify(resume.references ?? []),
+    languages: JSON.stringify(resume.languages ?? []),
+    customization: JSON.stringify(resume.customization),
   };
 }
 
@@ -164,15 +222,8 @@ export function useResumeMutations() {
 
   const updateResume = useMutation({
     mutationFn: async ({ resumeId, updates, title }: { resumeId: string; updates: Partial<ResumeData>; title?: string; }) => {
-      const data: any = {};
+      const data: Record<string, string> = { ...resumeUpdatesToDbFields(updates) } as Record<string, string>;
       if (title) data.title = title;
-      if (updates.templateId) data.template = updates.templateId;
-      if (updates.contactInfo) data.contact_info = JSON.stringify(updates.contactInfo);
-      if (updates.experience) data.experience = JSON.stringify(updates.experience);
-      if (updates.education) data.education = JSON.stringify(updates.education);
-      if (updates.skills) data.skills = JSON.stringify(updates.skills);
-      if (updates.summary) data.summary = updates.summary;
-      if (updates.customization) data.customization = JSON.stringify(updates.customization);
 
       return await databases.updateDocument(DATABASE_ID, COLLECTIONS.resumes, resumeId, data);
     },

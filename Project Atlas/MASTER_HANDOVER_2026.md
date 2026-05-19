@@ -2,237 +2,80 @@
 
 ---
 
-## Session Summary — 2026-05-19 (PDF Export + Page Break Editor Dialog)
+## Session Summary — 2026-05-19 (Editor + Gap Finder — see session logs)
+
+**Canonical detail (do not duplicate here):**
+
+| Log | Scope |
+|-----|--------|
+| `05-Migration to Appwrite/24-Session-Log-2026-05-19-Editor-Persistence-CV-Parse-UX.md` | Autosave round-trip, export page-cut metrics, Modern headers, CV job titles, editor UX (dates, Present, overlay links, AI consent, extras spacing) |
+| `05-Migration to Appwrite/25-Session-Log-2026-05-19-Gap-Finder-Multi-Gap-Assistant.md` | Gap Finder timeline, `detectGaps` sync, multi-gap AI assistant, new-entry prepend |
+
+**Same day, summarized below in this file:** page-break popup, page-cut dialog/PDF, editor live preview first-load (`CHANGELOG.md` 2026-05-19 entries).
+
+### Where We Stopped (authoritative)
+
+- **On `main`:** Merged 2026-05-19 — logs 24–25 + prior `main` PDF timeout / `PageBreakEditorDialog` (see `PageBreakEditorDialog.tsx` on disk; page-cut UX uses `PageCountBadge` + `PageBreakSetupDialog`).
+- **User-verified:** CV import job titles; editor UX from log 24 after `ai-gateway` redeploy.
+- **Not user-verified:** Multi-gap AI assistant (log 25).
+- **Open:** Fill gap footer still longest-only; PDF export link clickability; import `Present` → `current` for projects/volunteering; manual QA — 3+ gaps → bar count = assistant picker = distinct date ranges.
+- **Next agent:** Read logs 24–25 for root causes and file paths; redeploy `ai-gateway` only after hub parse edits.
+
+---
+
+## Session Summary — 2026-05-19 (Page cut preview + PDF fixes)
 
 ### Overview
+Page-cut dialog now shows a scaled clone of the live resume (not a blank placeholder). Red break guide lines are stripped before PDF export. PDF footers show `Page N of M - Made with WiseResume` with a clickable link. Section “start new page before” buttons use live template height and replace breaks inside the target section.
 
-Fixed three issues in the PDF export pipeline and experience editor: (1) PDF export hanging forever at 70% progress; (2) page cutout selector UI not visible; (3) poor page break customization UX. Created a new full-screen page break editor dialog showing actual resume preview with draggable break lines. All changes are frontend-only in worktree `claude/jolly-mestorf-626ad9`. The Express PDF server (port 5001) must be started separately with `npm run server:dev`.
-
-Branch: `claude/jolly-mestorf-626ad9`
-
----
-
-### Fix 1 — PDF Export Hangs Forever at "Finalizing PDF..." (70%)
-
-**Root cause:** `callPdfServer()` in `nativePdfGenerator.ts` called `fetch()` with no timeout and no error handling for network failures. When the Express backend (port 5001) is unreachable, the fetch hangs indefinitely. Progress callback fires at 70% before the fetch, so the UI progress bar stalls there forever.
-
-**Fix:** Wrapped the fetch in an `AbortController` with 30-second timeout. Any network failure (timeout, DNS, connection refused, server down) catches immediately and throws `PDFServerUnavailableError`. No more hanging.
-
-```typescript
-const controller = new AbortController();
-const timeoutId = setTimeout(() => controller.abort(), 30_000);
-try {
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-    signal: controller.signal,
-  });
-  // ... existing response handling
-} catch {
-  clearTimeout(timeoutId);
-  throw new PDFServerUnavailableError();
-}
-```
-
-**File:** `src/lib/nativePdfGenerator.ts`
+### Verification
+- `npm exec tsc -- --noEmit`
+- `npm test -- src/lib/__tests__/pdfUtils.test.ts src/lib/nativePdfGenerator.test.ts src/components/editor/export/__tests__/ExportPageBreakSetup.test.tsx`
 
 ---
 
-### Fix 2 — Spelling Error in PDF Export Progress Message
-
-**Root cause:** "Finalising PDF..." uses British English.
-
-**Fix:** Changed to "Finalizing PDF..." (American English, consistent with the rest of the app).
-
-**File:** `src/hooks/useExportProgress.ts:17`
-
----
-
-### Fix 3 — Page Cutout Selector Not Visible
-
-**Root cause:** `ExportPageBreakSetup` component returns `null` when `templateElement` prop is null. `ExportOptionsSheet` is called from `EditorPage` without passing `templateElement` — it was always null, so the page break selector never rendered.
-
-**Fix:** In `EditorPage.tsx` line 1720, added:
-```typescript
-templateElement={document.querySelector('[data-resume-template]') as HTMLElement | null}
-```
-The live template element is already in the DOM; querying and passing it enables the component to render.
-
-**File:** `src/pages/EditorPage.tsx`
-
----
-
-### Fix 4 — Redesigned Page Break Customization UX
-
-**Root cause:** The existing `ExportPageBreakSetup` component showed a miniaturized abstract timeline preview (colored bars, not actual resume content). Users couldn't see exactly where the page would cut. The component also took up significant vertical space in the export sheet, hiding the export type selector.
-
-**Fixes:**
-
-1. **Created `PageBreakEditorDialog.tsx`** — new full-screen dialog that:
-   - Snapshots the **actual live resume** DOM via `cloneNode(true)` at dialog open time
-   - Scales it to fit the dialog width using CSS `transform: scale(n)` with `transform-origin: top left`
-   - Overlays draggable **red break lines** directly on the resume preview using pointer events (supports mouse and touch)
-   - Shows `"Page N / N+1"` label on each line with inline ✕ to remove
-   - Has Add, Smart reset, and Clear toolbar buttons
-   - Persists positions to resume store in real-time as breaks are adjusted
-   - Displays page count and helpful instructions
-
-2. **Updated `ExportOptionsSheet.tsx`**:
-   - Removed large inline `ExportPageBreakSetup` component
-   - Replaced with compact one-line row: `"Pages: N | Configure page breaks →"` (only visible when `selectedType === 'resume'`)
-   - The page break link opens the new dialog
-   - Export type selector is now fully visible — no more content hidden by the large break setup
-
-**Files:** 
-- Created: `src/components/editor/export/PageBreakEditorDialog.tsx`
-- Modified: `src/components/editor/ExportOptionsSheet.tsx`
-
----
-
-### Known Issue — Express PDF Server Not Running in Dev
-
-The Vite dev server (port 5000) proxies `/api/*` calls to the Express server at port 5001. The Express server provides Puppeteer-based PDF rendering via the `POST /api/export/pdf-native` endpoint. It is not started by `npm run dev`.
-
-**To enable PDF export in dev:** In a separate terminal, run:
-```bash
-npm run server:dev
-```
-
-This starts the Puppeteer PDF server with hot reload. Without it, PDF export shows "PDF export is not available right now. Please try again later or use DOCX export" (which is now the correct behavior — it fails fast after 30s instead of hanging).
-
-**For production:** The Express server runs as a separate service/Lambda/container and is reached via the Vite proxy configuration in `vite.config.ts:168` (`target: 'http://localhost:5001'`).
-
----
-
-### Where We Stopped
-
-- All local changes are committed and ready to merge into `main` for Vercel deployment.
-- The new `PageBreakEditorDialog` component is fully functional and integrated into the export flow.
-- PDF export now fails fast (30s timeout) instead of hanging forever, with a clear error message.
-- Page break customization now shows the actual resume with visual break lines, not an abstract preview.
-- The Express PDF server needs to be started separately in dev via `npm run server:dev` — this is not automatic and not a bug, just the expected dev workflow.
-
----
-
-## Session Summary — 2026-05-19 (CV Parser + Experience Editor UX)
+## Session Summary — 2026-05-19 (Page break control popup)
 
 ### Overview
+Page-cut control is now only on the editor/preview **page count badge** (click → dialog). Export Options no longer embeds the break editor. Opening the dialog no longer writes smart breaks into `customBreakPositions` until the user chooses a preset, section action, or slider.
 
-Two workstreams: (1) fixed the CV upload position-extraction pipeline end-to-end; (2) fixed four UX issues in the Work Experience editor. All changes are frontend-only, in the worktree `claude/jolly-mestorf-626ad9`. No Appwrite deployments were made.
+### Root cause (truncation)
+`ExportPageBreakSetup` auto-persisted suggested breaks on first visibility when `customBreakPositions` was empty. Export then used only those Y values; bad breaks + `overflow: hidden` segment crops → clipped PDF content.
 
-Branch: `claude/jolly-mestorf-626ad9`
+### Fixes
+- `PageCountBadge` + `PageBreakSetupDialog` in `LivePreviewPanel` and `PreviewPage`.
+- `resolveExportPageCount`, `computeBreaksForTargetPages`, `addBreakBeforeSection` in `pdfUtils.ts`.
+- Live preview shows horizontal break lines when custom cuts exist.
+- Removed `ExportPageBreakSetup` from `ExportOptionsSheet`.
 
----
-
-### Fix 1 — Live Preview Blank/Black Panel
-
-**Root cause:** No `ErrorBoundary` around the lazy-loaded `<TemplateComponent>` in `LivePreviewPanel`. Template render errors propagated silently, leaving the right-side preview blank.
-
-**Fix:** Wrapped `<Suspense><TemplateComponent/></Suspense>` in an `<ErrorBoundary>` with a user-facing fallback (icon + "Preview failed to render" message + reload button).
-
-**File:** `src/components/editor/LivePreviewPanel.tsx`
-
----
-
-### Fix 2 — CV Upload Shows "Position 1" / "Position 2" Instead of Job Titles
-
-**Root cause (confirmed from browser console logs):** The AI model (`meta-llama/llama-3.3-70b-instruct:free`) used by the `parse-resume` Appwrite function consistently returns empty `position` fields for all experience entries — companies are correct, positions are empty strings. The prompt explicitly instructs the model to extract positions, but the free-tier model ignores the field.
-
-**Secondary root cause:** The client-side fallback in `pdfParser.ts` that supplements positions from the local parser matched entries by **array index**. If the local parser produced a different block count than the AI, positions bled into the wrong entries.
-
-**Tertiary root cause:** The local parser (`parseExperienceSection` in `sectionParsers.ts`) had an **inverted swap condition**. It swapped company ↔ position when the second line matched job-title keywords — which is the normal CV order (company first, title second). This caused "Concentrix" to end up as the position instead of the actual job title. Only entries with a `COMPANY_SUFFIX` keyword (e.g. "Airways") were accidentally corrected by a second swap.
-
-**Fixes:**
-
-1. `src/lib/pdfParser.ts` — After AI parse, detect all-empty positions and run local parser as fallback. Match local results to AI entries by **normalised company name** (not index) using a `Map<string, string>`:
-   ```typescript
-   const localByCompany = new Map<string, string>();
-   // populate from localData.experience, then:
-   position: localByCompany.get(exp.company.toLowerCase().trim()) || exp.position
-   ```
-
-2. `src/lib/pdf/sectionParsers.ts` — Fix inverted swap: only swap when the **first line is a job title** (unusual CV order), not when the second line is:
-   ```typescript
-   // Before (wrong — swaps normal order):
-   !JOB_TITLE_KEYWORDS.test(company) && JOB_TITLE_KEYWORDS.test(position)
-   // After (correct — only swaps when first line is the title):
-   JOB_TITLE_KEYWORDS.test(company) && !JOB_TITLE_KEYWORDS.test(position)
-   ```
-
-3. `src/lib/pdf/sectionParsers.ts` — Removed the ALL-CAPS unrecognised-heading detection (Pass 2) from `extractSections`. ALL-CAPS company names (e.g. "CONCENTRIX") were routing the entire experience entry into the `unrecognized` bucket, leaving experience section empty.
-
-4. `src/lib/pdfParser.ts` — Strip `CONTACT INFO HINTS` block from text before passing to local parser (prevents hint metadata from leaking into the `languages` section).
+### Verification
+- `npm exec tsc -- --noEmit` passed.
+- `npm test -- src/lib/__tests__/pdfUtils.test.ts src/lib/exportPagePlan.test.ts src/components/editor/export/__tests__/ExportPageBreakSetup.test.tsx` passed.
 
 ---
 
-### Fix 3 — Language Section Showing "Potential emails/phones" Content
+## Session Summary — 2026-05-19 (Editor live preview first-load)
 
-**Root cause:** `extractContactHints()` in `textPreprocessor.ts` appends a structured hints block for the AI. On local fallback, this block fell into the last section (Languages). The hint text included email/phone regex matches labelled "Potential emails/phones".
+### Overview
+Users opening the editor for the first time in a session saw an empty live preview until a full page refresh. PDF export from the editor then failed with “Resume preview not visible” because `[data-resume-template]` was never mounted.
 
-**Fix:** Two-layer defence — strip the hints block before calling local parser in `pdfParser.ts`; also filter email/phone/hints lines inside `parseLanguagesSection`.
+### Root causes (verified)
+- `useIsMobile(1024)` initial state was `undefined` → coerced to `false`, mounting the desktop split layout on narrow viewports for one frame before switching to mobile tabs (preview only on the Preview tab).
+- `useEditorHydration` only loaded from Appwrite when `currentResume` was empty; a persisted resume for a *different* id blocked hydration for the requested `/editor?id=…` resume.
+- `react-resizable-panels` sometimes allocated 0px to the preview column on first flex layout; refresh forced a relayout.
+- `LivePreviewPanel` returned `null` if `templateComponents[selectedTemplate]` was undefined (no `migrateTemplateId`).
 
-**File:** `src/lib/pdf/sectionParsers.ts` (`parseLanguagesSection`), `src/lib/pdfParser.ts`
+### Fixes
+- Synchronous viewport check in `use-mobile.tsx`.
+- Hydrate when `localResume.id !== currentResumeId` in `useEditorHydration.ts`.
+- `migrateTemplateId` + `modern` fallback in `LivePreviewPanel.tsx`.
+- Editor split: `ImperativePanelGroupHandle.setLayout([55, 45])` after mount; `autoSaveId` + panel ids; PDF export uses `exportResumePdfFromData` when the live DOM node is missing.
 
----
+### Verification
+- `npm exec tsc -- --noEmit` passed.
 
-### Fix 4 — Projects Section Not Captured
-
-**Root cause:** `SECTION_PATTERNS.projects` was too narrow; also `projects?` appeared in the `experience` pattern, routing "PROJECTS" headings to the experience bucket.
-
-**Fix:** Expanded `SECTION_PATTERNS.projects` with 10+ variants; removed `projects?` from the experience pattern.
-
-**File:** `src/lib/pdf/sectionParsers.ts`
-
----
-
-### Fix 5 — `account` Field Not Rendered in CV Templates
-
-**Root cause:** All 27 templates rendered `{exp.company}` with no reference to `exp.account`. The field was defined in the `Experience` type and editable in the UI but never displayed in any template.
-
-**Fix:** Bulk-replaced `{exp.company}` with `{exp.company}{exp.account && \` · \${exp.account}\`}` across all 27 template files.
-
-**Files:** `src/components/templates/*.tsx` (all 27 files)
-
----
-
-### Fix 6 — Experience Editor UX (4 sub-issues)
-
-**6a. Gap banner hard to read**
-- **Root cause:** `bg-warning/10 border border-warning/20` — 10% opacity background and 20% border are too faint against the dark card.
-- **Fix:** `bg-warning/20 border border-warning/40`.
-- **File:** `src/components/editor/ExperienceTimeline.tsx`
-
-**6b. AI enhance dialog requires scrolling to find**
-- **Root cause:** `AIEnhanceDialog` uses `fixed inset-0` rendered inline in the component tree (no Portal). Parent elements with CSS `transform` or `will-change` create a new containing block, making `position: fixed` relative to that parent rather than the viewport — the dialog renders off-screen.
-- **Fix:** Import `createPortal` from `react-dom` and wrap the return JSX with `createPortal(…, document.body)`.
-- **File:** `src/components/editor/ai/AIEnhanceDialog.tsx`
-
-**6c. "+ Add" experience inserts at bottom instead of top**
-- **Root cause:** `addExperience` used `[...experience, newExp]` — appends to array end. The list is displayed most-recent-first, so new entries appeared below all existing entries.
-- **Fix:** `[newExp, ...experience]`.
-- **File:** `src/components/editor/ExperienceSection.tsx`
-
-**6d. Gap detection too sensitive (fires on 1-month gaps)**
-- **Root cause:** `detectGaps` threshold was `gapMonths >= 1`. Normal job transitions include 1–2 month breaks, creating constant false-positive warnings.
-- **Fix:** Raised threshold to `gapMonths >= 3`.
-- **File:** `src/lib/dateUtils.ts`
-
----
-
-### Current State
-
-- All changes are uncommitted in worktree `claude/jolly-mestorf-626ad9`.
-- No Appwrite functions were modified or redeployed.
-- The free AI model (`meta-llama/llama-3.3-70b-instruct:free`) reliably omits `position` — the client-side fallback to local parser is now the permanent backstop until the model is upgraded or replaced.
-- `extractSections` has no unrecognised-heading detection (removed Pass 2 and Pass 3 from previous sessions due to regression risk). Two-column PDF section titles that appear mid-content are **not** handled — this remains an open problem.
-
-### Where We Stopped
-
-- All local changes need to be committed and merged into `main` before a Vercel/production deploy.
-- The AI model for `parse-resume` (`meta-llama/llama-3.3-70b-instruct:free`) should be upgraded to a more capable model in `appwrite-hubs/ai-gateway/src/main.js` line ~603 to eliminate the position-empty fallback altogether.
-- Two-column PDF section detection is still unresolved — the safe approach (exact-match only) misses sidebar section titles.
-- No regressions observed: experience, education, projects, languages, and skills all parse correctly from the test CV.
+### Local dev note
+PDF export still requires the Express PDF server (`npm run dev:pdf-server`) and `VITE_DEV_API_PORT=5003 npm run dev` when port 5001 is occupied by another Vite instance.
 
 ---
 

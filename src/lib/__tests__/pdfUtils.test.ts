@@ -1,8 +1,12 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import {
+  addBreakBeforeSection,
+  computeBreaksForTargetPages,
   computePreviewBreaks,
   estimatePageCount,
+  getSectionLabelForBreakY,
   injectForcedBreaks,
+  resolveExportPageCount,
 } from '@/lib/pdfUtils';
 
 // ---------------------------------------------------------------------------
@@ -232,6 +236,24 @@ describe('injectForcedBreaks', () => {
     expect(result).toContain(300);
   });
 
+  it('uses the section h2 offsetTop when the heading is not flush with the section box', () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    layout(root, { offsetWidth: PAGE_WIDTH, scrollHeight: 1500 });
+
+    const section = document.createElement('section');
+    section.setAttribute('data-section', 'education');
+    root.appendChild(section);
+    layout(section, { offsetTop: 280, offsetHeight: 120, offsetParent: root });
+
+    const heading = document.createElement('h2');
+    section.appendChild(heading);
+    layout(heading, { offsetTop: 20, offsetHeight: 24, offsetParent: section });
+
+    const result = injectForcedBreaks([748], root, ['education'], 1500);
+    expect(result).toContain(300);
+  });
+
   it('preserves existing smart breaks that are far enough from the forced break', () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
@@ -309,5 +331,163 @@ describe('injectForcedBreaks', () => {
     const result = injectForcedBreaks([], root, ['skills', 'education'], 2400);
 
     expect(result).toEqual([400, 900]);
+  });
+
+  it('replaces an existing break inside the target section when forcing a section top', () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    layout(root, { offsetWidth: PAGE_WIDTH, scrollHeight: 1500, offsetHeight: 1500 });
+
+    const experience = document.createElement('section');
+    experience.setAttribute('data-section', 'experience');
+    root.appendChild(experience);
+    layout(experience, { offsetTop: 500, offsetHeight: 400, offsetParent: root });
+
+    const result = injectForcedBreaks([700], root, ['experience'], 1500);
+    expect(result).toEqual([500]);
+  });
+});
+
+describe('addBreakBeforeSection', () => {
+  const PAGE_WIDTH = 612;
+
+  afterEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  it('returns applied false when the section is too close to the top', () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    layout(root, { offsetWidth: PAGE_WIDTH, scrollHeight: 800, offsetHeight: 800 });
+
+    const summary = document.createElement('section');
+    summary.setAttribute('data-section', 'summary');
+    root.appendChild(summary);
+    layout(summary, { offsetTop: 10, offsetHeight: 80, offsetParent: root });
+
+    const { breaks, applied } = addBreakBeforeSection([], root, 'summary', 800);
+    expect(applied).toBe(false);
+    expect(breaks).toEqual([]);
+  });
+
+  it('moves the break to the section top when valid', () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    layout(root, { offsetWidth: PAGE_WIDTH, scrollHeight: 1500, offsetHeight: 1500 });
+
+    const experience = document.createElement('section');
+    experience.setAttribute('data-section', 'experience');
+    root.appendChild(experience);
+    layout(experience, { offsetTop: 500, offsetHeight: 400, offsetParent: root });
+
+    const { breaks, applied } = addBreakBeforeSection([748], root, 'experience', 1500);
+    expect(applied).toBe(true);
+    expect(breaks).toEqual([500]);
+  });
+});
+
+describe('getSectionLabelForBreakY', () => {
+  const PAGE_WIDTH = 612;
+
+  afterEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  it('labels a break at a section top as ending before that section', () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    layout(root, { offsetWidth: PAGE_WIDTH, scrollHeight: 1500, offsetHeight: 1500 });
+
+    const summary = document.createElement('section');
+    summary.setAttribute('data-section', 'summary');
+    root.appendChild(summary);
+    layout(summary, { offsetTop: 0, offsetHeight: 200, offsetParent: root });
+
+    const education = document.createElement('section');
+    education.setAttribute('data-section', 'education');
+    root.appendChild(education);
+    layout(education, { offsetTop: 500, offsetHeight: 300, offsetParent: root });
+
+    expect(getSectionLabelForBreakY(root, 500).description).toBe('Page ends before Education');
+  });
+
+  it('labels distinct breaks in different sections differently', () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    layout(root, { offsetWidth: PAGE_WIDTH, scrollHeight: 1500, offsetHeight: 1500 });
+
+    const summary = document.createElement('section');
+    summary.setAttribute('data-section', 'summary');
+    root.appendChild(summary);
+    layout(summary, { offsetTop: 0, offsetHeight: 180, offsetParent: root });
+
+    const experience = document.createElement('section');
+    experience.setAttribute('data-section', 'experience');
+    root.appendChild(experience);
+    layout(experience, { offsetTop: 500, offsetHeight: 400, offsetParent: root });
+
+    const education = document.createElement('section');
+    education.setAttribute('data-section', 'education');
+    root.appendChild(education);
+    layout(education, { offsetTop: 1000, offsetHeight: 200, offsetParent: root });
+
+    const first = getSectionLabelForBreakY(root, 500);
+    const second = getSectionLabelForBreakY(root, 1000);
+    expect(first.description).toContain('Experience');
+    expect(second.description).toContain('Education');
+    expect(first.description).not.toEqual(second.description);
+  });
+});
+
+describe('resolveExportPageCount', () => {
+  const PAGE_WIDTH = 612;
+  const PAGE_HEIGHT = 792;
+
+  afterEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  it('uses custom break count when positions are saved', () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    layout(root, { offsetWidth: PAGE_WIDTH, scrollHeight: 1500 });
+
+    expect(resolveExportPageCount(root, PAGE_WIDTH, PAGE_HEIGHT, [700, 1200])).toBe(3);
+  });
+
+  it('falls back to estimatePageCount when no custom breaks', () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    layout(root, { offsetWidth: PAGE_WIDTH, scrollHeight: 600 });
+
+    expect(resolveExportPageCount(root, PAGE_WIDTH, PAGE_HEIGHT, [])).toBe(1);
+  });
+});
+
+describe('computeBreaksForTargetPages', () => {
+  const PAGE_WIDTH = 612;
+  const PAGE_HEIGHT = 792;
+
+  afterEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  it('returns no breaks for a one-page target', () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    layout(root, { offsetWidth: PAGE_WIDTH, scrollHeight: 1500 });
+
+    expect(computeBreaksForTargetPages(root, 1, PAGE_WIDTH, PAGE_HEIGHT)).toEqual([]);
+  });
+
+  it('returns one break for a two-page target', () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    layout(root, { offsetWidth: PAGE_WIDTH, scrollHeight: 1500 });
+
+    const breaks = computeBreaksForTargetPages(root, 2, PAGE_WIDTH, PAGE_HEIGHT);
+    expect(breaks).toHaveLength(1);
+    expect(breaks[0]).toBeGreaterThan(40);
+    expect(breaks[0]).toBeLessThan(1500 - 40);
   });
 });

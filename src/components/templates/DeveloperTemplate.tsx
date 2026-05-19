@@ -36,7 +36,7 @@ const EducationItem = memo(function EducationItem({ edu }: { edu: EducationItemT
   return (
     <div data-break-avoid className="flex justify-between items-baseline flex-wrap gap-1">
       <span className="text-gray-900"><span className="text-green-500">&gt;</span> {formatDegreeAndField(edu.degree, edu.field)}<span className="text-gray-500"> @ {edu.institution}</span></span>
-      <span className="text-gray-400 text-xs">{formatDisplayDate(edu.endDate)}</span>
+      <span className="text-gray-400 text-xs">{formatDateRangeDisplay(edu.startDate, edu.endDate, edu.endDate === 'Present')}</span>
       {edu.description && <p className="text-gray-600 text-xs w-full mt-0.5">{edu.description}</p>}
     </div>
   );

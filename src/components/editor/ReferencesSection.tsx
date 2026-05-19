@@ -16,7 +16,7 @@ export const ReferencesSection = memo(function ReferencesSection() {
   const updateResume = useResumeStore(state => state.updateResume);
   const [expandedId, setExpandedId] = useExpandedEntryRestore('references');
 
-  const addRef = () => { haptics.light(); const n: Reference = { id: uuidv4(), name: '', title: '', company: '', email: '', phone: '', relationship: '', availableOnRequest: false }; updateResume({ references: [...references, n] }); setExpandedId(n.id); };
+  const addRef = () => { haptics.light(); const n: Reference = { id: uuidv4(), name: '', title: '', company: '', email: '', phone: '', relationship: '', availableOnRequest: false }; updateResume({ references: [n, ...references] }); setExpandedId(n.id); };
   const updateRef = (id: string, u: Partial<Reference>) => { updateResume({ references: references.map(r => r.id === id ? { ...r, ...u } : r) }); };
   const deleteRef = (id: string) => { haptics.light(); updateResume({ references: references.filter(r => r.id !== id) }); };
 

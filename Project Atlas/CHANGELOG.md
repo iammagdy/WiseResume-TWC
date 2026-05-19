@@ -1,6 +1,6 @@
 # Project Atlas Changelog
 
-**Last verified:** 2026-05-15
+**Last verified:** 2026-05-19
 **Type:** changelog
 **Sources:**
 - `Project Atlas/GOVERNANCE.md`
@@ -8,6 +8,73 @@
 - `Project Atlas/MASTER_HANDOVER_2026.md`
 - `Project Atlas/SOURCE_OF_TRUTH_MAP.md`
 **Canonical owner:** this file
+
+---
+
+## 2026-05-19 — Page break control popup (Editor + Preview)
+
+### Summary
+Moved manual page-cut editing to a single entry point: the clickable page-count badge opens a dialog in the editor and preview. Removed the duplicate block from Export Options. Fixed PDF truncation caused by silently auto-saving smart breaks on first open.
+
+### Root cause
+`ExportPageBreakSetup` auto-persisted suggested breaks when opened with empty `customBreakPositions`, so export used mid-section Y values and Puppeteer segments clipped content.
+
+### Changes
+- `PageCountBadge.tsx`, `PageBreakSetupDialog.tsx` — badge opens shadcn dialog; count uses `resolveExportPageCount` (custom breaks → `length + 1`, else estimate).
+- `ExportPageBreakSetup.tsx` — no auto-persist; 1/2/3 page presets; “start new page before section”; sliders only when custom cuts saved.
+- `LivePreviewPanel.tsx`, `PreviewPage.tsx` — badge + dialog + dashed break lines when cuts are saved.
+- `ExportOptionsSheet.tsx` — removed embedded page-break UI (export still reads saved `customBreakPositions`).
+- `pdfUtils.ts` — `resolveExportPageCount`, `computeBreaksForTargetPages`, `addBreakBeforeSection`.
+- `sectionLabels.ts` — shared section labels for break UI.
+- Tests: extended `pdfUtils.test.ts`; added `ExportPageBreakSetup.test.tsx`.
+
+---
+
+## 2026-05-19 — Page cut dialog readable preview
+
+### Summary
+Fixed the page-cut dialog miniature using fit-to-width scaling (full dialog width, scrollable up to 320px) instead of height-only scaling that produced a ~70px-wide pillar. Slider labels now use template-root coordinates (`getSectionLabelForBreakY`).
+
+### Changes
+- `PageBreakDialogPreview.tsx`, `pageBreakPreviewScale.ts` — width-first scale + page bands + P2/P3 break markers.
+- `pdfUtils.ts` — `getSectionLabelForBreakY`.
+- `exportDomUtils.ts` — clone pins width/background.
+
+---
+
+## 2026-05-19 — Page cut dialog preview and PDF export fixes
+
+### Summary
+Fixed page-cut UX: dialog shows a scaled clone of the live resume, break guide lines no longer appear in PDFs, footers show `Page N of M - Made with WiseResume` (clickable link), and section-based cuts persist reliably.
+
+### Changes
+- `PageBreakDialogPreview.tsx`, `exportDomUtils.ts` — scaled DOM clone preview; strip `data-pdf-exclude` nodes before export.
+- `LivePreviewPanel.tsx`, `SectionOverlayManager.tsx` — mark editor overlays as PDF-excluded.
+- `nativePdfGenerator.ts` — clone template without UI overlays for server HTML.
+- `server/index.ts` — combined footer when page numbers and branding are enabled.
+- `EditorPage.tsx`, `PreviewPage.tsx` — keep `showPageNumbers` when custom breaks are saved.
+- `pdfUtils.ts` — `addBreakBeforeSection` returns `{ breaks, applied }`; `injectForcedBreaks` replaces in-section breaks.
+- `ExportPageBreakSetup.tsx` — live height on persist; toast when section cut is invalid.
+
+---
+
+## 2026-05-19 — Editor live preview first-load fix
+
+### Summary
+Fixed the editor live preview not rendering on the first visit (refresh was required) and PDF export failing with “Resume preview not visible” when the preview pane had not mounted yet.
+
+### Root causes
+- `useIsMobile` treated the first paint as desktop (`undefined` → `false`) before `matchMedia` ran, so sub-1024px layouts briefly mounted the desktop split then dropped the preview panel.
+- `useEditorHydration` skipped DB load when a *different* resume was already in persisted Zustand storage (e.g. opening `/editor?id=…` after editing another resume).
+- `react-resizable-panels` could leave the preview column at 0px width on first mount inside the flex editor shell.
+- `LivePreviewPanel` returned `null` when `templateComponents[selectedTemplate]` was missing instead of migrating/falling back to `modern`.
+
+### Changes
+- `src/hooks/use-mobile.tsx` — synchronous initial `matchMedia` width check.
+- `src/hooks/useEditorHydration.ts` — hydrate when `localResume.id !== currentResumeId`; read template from `template_id` or `template`.
+- `src/components/editor/LivePreviewPanel.tsx` — `migrateTemplateId` + `modern` fallback.
+- `src/pages/EditorPage.tsx` — panel group ref + layout reset; stable panel ids; PDF export falls back to `exportResumePdfFromData` when `[data-resume-template]` is absent.
+- `src/components/ui/resizable.tsx` — `forwardRef` on `ResizablePanelGroup`.
 
 ---
 

@@ -24,6 +24,7 @@ export const ElegantTemplate = memo(function ElegantTemplate({ resume }: Elegant
       <div className="px-8 py-6">
         {summary && (
           <section className="mb-6" data-section="summary">
+            <h2 className="sr-only">About</h2>
             <div className="relative py-4 px-6 rounded-lg border" style={{ borderColor: roseMuted }}>
               <div className="absolute -top-2.5 left-6 px-2 bg-white text-xs uppercase tracking-widest" style={{ color: roseColor }}>About</div>
               <p data-break-child className="text-gray-700 leading-relaxed italic">{summary}</p>
@@ -86,7 +87,7 @@ export const ElegantTemplate = memo(function ElegantTemplate({ resume }: Elegant
                     <h3 className="font-semibold text-gray-900 text-sm">{edu.degree}</h3>
                     <p className="text-gray-600 text-xs">{edu.field}</p>
                     <p className="text-xs" style={{ color: roseColor }}>{edu.institution}</p>
-                    <p className="text-gray-500 text-xs">{formatDisplayDate(edu.endDate)}</p>
+                    <p className="text-gray-500 text-xs">{formatDateRangeDisplay(edu.startDate, edu.endDate, edu.endDate === 'Present')}</p>
                     {edu.description && <p className="text-gray-600 text-xs mt-0.5">{edu.description}</p>}
                   </div>
                 ))}

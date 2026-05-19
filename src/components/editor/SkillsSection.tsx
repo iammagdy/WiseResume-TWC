@@ -96,7 +96,7 @@ export const SkillsSection = memo(function SkillsSection() {
     if (skills.includes(newSkill.trim())) return;
 
     updateResume({
-      skills: [...skills, newSkill.trim()],
+      skills: [newSkill.trim(), ...skills],
     });
     setNewSkill('');
   };
@@ -110,7 +110,7 @@ export const SkillsSection = memo(function SkillsSection() {
   const addSuggestedSkill = (skill: string) => {
     if (skills.includes(skill)) return;
     updateResume({
-      skills: [...skills, skill],
+      skills: [skill, ...skills],
     });
   };
 

@@ -20,6 +20,7 @@ import { Input } from '@/components/ui/input';
 import { ATSScorePreview } from '@/components/upload/ATSScorePreview';
 import type { ResumeData } from '@/types/resume';
 import type { ResumeHealthScore } from '@/hooks/useResumeScore';
+import { isGenericPositionTitle } from '@/lib/genericPositionTitle';
 
 export interface SelectedSections {
   contactInfo: boolean;
@@ -214,7 +215,7 @@ export function ImportReviewSheet({
 
     const experiencePreview = parsedData.experience
       .slice(0, 2)
-      .map(e => `${e.position} at ${e.company}`)
+      .map((e) => (e.position?.trim() ? `${e.position} at ${e.company}` : e.company))
       .join(' • ');
 
     const educationPreview = parsedData.education
@@ -321,12 +322,19 @@ export function ImportReviewSheet({
         count: parsedData.experience.length,
         preview: experiencePreview || 'No experience entries',
         isEmpty: parsedData.experience.length === 0,
-        hasLowConfidence: sectionHasLowConfidence('experience'),
+        hasLowConfidence:
+          sectionHasLowConfidence('experience')
+          || parsedData._meta?.positionTitlesNeedReview === true
+          || parsedData.experience.some(
+            (exp) => !exp.position?.trim() || isGenericPositionTitle(exp.position),
+          ),
         expandedContent: parsedData.experience.length > 0 ? (
           <div className="pt-3 space-y-2">
             {parsedData.experience.slice(0, 4).map((exp, i) => (
               <div key={i} className="text-xs">
-                <p className="font-medium text-foreground">{exp.position} · {exp.company}</p>
+                <p className="font-medium text-foreground">
+                  {exp.position?.trim() ? `${exp.position} · ${exp.company}` : exp.company}
+                </p>
                 {(exp.startDate || exp.endDate) && (
                   <p className="text-muted-foreground">{exp.startDate} – {exp.current ? 'Present' : exp.endDate}</p>
                 )}

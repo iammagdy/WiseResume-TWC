@@ -1,6 +1,6 @@
 # Phase 11 - PDF Export Migration and Pagination Replacement
 
-**Last verified:** 2026-05-15
+**Last verified:** 2026-05-19
 **Type:** stability fix
 **Sources:**
 - `src/lib/nativePdfGenerator.ts`
@@ -49,13 +49,15 @@ This keeps resume text selectable and keeps source `<a href>` links clickable be
 
 ## Export Setup UI
 
-The old Live Preview page-break controls were removed.
+The old Live Preview inline page-break controls were removed.
 
-Exact break editing now lives in Export Options through `ExportPageBreakSetup`:
-- measures the current resume preview;
-- starts from smart suggested breaks;
-- lets the user add, move, remove, reset, and persist break positions;
-- stores exact positions in `customBreakPositions`.
+Exact break editing now lives on the **page count badge** in the editor and preview toolbars (`PageCountBadge` → `PageBreakSetupDialog` → `ExportPageBreakSetup`):
+- measures the current resume preview via `[data-resume-template]`;
+- shows smart suggested breaks for preview only until the user saves;
+- target presets (1 / 2 / 3 pages), section “start new page here”, sliders, Smart reset, and clear;
+- persists exact Y positions in `customization.customBreakPositions` only on explicit user actions (no auto-persist on dialog open).
+
+Export Options sheet no longer embeds the break editor; PDF download still respects saved `customBreakPositions`.
 
 ## Watermark
 

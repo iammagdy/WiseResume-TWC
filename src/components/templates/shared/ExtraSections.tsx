@@ -1,9 +1,11 @@
 import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
 import { Globe, Github } from 'lucide-react';
+import { formatDateRangeDisplay } from '@/lib/dateUtils';
 
 export type ExtraSectionsVariant =
   | 'default'
+  | 'modern'
   | 'professional'
   | 'classic'
   | 'executive'
@@ -38,6 +40,8 @@ interface ExtraSectionsProps {
 
 const getHeaderClasses = (variant: ExtraSectionsVariant): string => {
   switch (variant) {
+    case 'modern':
+      return 'text-lg font-bold text-purple-600 mb-2 uppercase tracking-wide';
     case 'professional':
       return 'text-sm font-bold text-gray-900 uppercase mb-2 pb-1 border-b-2 border-gray-900';
     case 'classic':
@@ -92,13 +96,14 @@ const getHeaderClasses = (variant: ExtraSectionsVariant): string => {
 const getSectionClasses = (variant: ExtraSectionsVariant): string => {
   // Templates that already wrap ExtraSections in a padded container
   const noPadding: ExtraSectionsVariant[] = [
-    'professional', 'classic', 'executive', 'federal',
+    'modern', 'professional', 'classic', 'executive', 'federal',
     'minimal', 'clean', 'marketing',
     'consulting', 'product', 'banking', 'datascience',
     'devops', 'portfolio', 'swiss', 'legal', 'designer', 'developer',
     'creative', 'elegant', 'healthcare', 'sales', 'academic',
     'compact',
   ];
+  if (variant === 'modern') return 'mb-6';
   if (noPadding.includes(variant)) return 'mb-5';
   return 'mb-5 px-8';
 };
@@ -117,8 +122,28 @@ export const ExtraSections = memo(function ExtraSections({
   const h2 = getHeaderClasses(variant);
   const sectionCls = getSectionClasses(variant);
 
+  const hasCertifications = !skip.has('certifications') && !!resume.certifications?.length;
+  const hasAwards = !skip.has('awards') && !!resume.awards?.length;
+  const hasProjects = !skip.has('projects') && !!resume.projects?.length;
+  const hasPublications = !skip.has('publications') && !!resume.publications?.length;
+  const hasVolunteering = !skip.has('volunteering') && !!resume.volunteering?.length;
+  const hasLanguages = !skip.has('languages') && !!resume.languages?.length;
+  const hasHobbies = !skip.has('hobbies') && !!resume.hobbies?.length;
+  const hasReferences = !skip.has('references') && !!resume.references?.length;
+  const hasAny =
+    hasCertifications ||
+    hasAwards ||
+    hasProjects ||
+    hasPublications ||
+    hasVolunteering ||
+    hasLanguages ||
+    hasHobbies ||
+    hasReferences;
+
+  if (!hasAny) return null;
+
   return (
-    <div className="mt-6 space-y-6">
+    <div className="mt-6">
       {/* Certifications */}
       {!skip.has('certifications') && resume.certifications && resume.certifications.length > 0 && (
         <section data-section="certifications" className={sectionCls}>
@@ -165,7 +190,13 @@ export const ExtraSections = memo(function ExtraSections({
               <div key={proj.id} data-break-avoid>
                 <div className="flex justify-between items-baseline">
                   <span className="font-semibold text-gray-900 text-xs">{proj.name}</span>
-                  <span className="text-xs text-gray-500">{proj.startDate} – {proj.endDate}</span>
+                  <span className="text-xs text-gray-500">
+                    {formatDateRangeDisplay(
+                      proj.startDate,
+                      proj.endDate,
+                      !!proj.current || proj.endDate === 'Present',
+                    )}
+                  </span>
                 </div>
                 <p className="text-gray-600 text-xs">{proj.role}</p>
                 {proj.description && <p data-break-child className="text-gray-700 text-xs mt-0.5">{proj.description}</p>}
@@ -223,7 +254,13 @@ export const ExtraSections = memo(function ExtraSections({
               <div key={vol.id} data-break-avoid>
                 <div className="flex justify-between items-baseline">
                   <span className="font-semibold text-gray-900 text-xs">{vol.role}</span>
-                  <span className="text-xs text-gray-500">{vol.startDate} – {vol.endDate}</span>
+                  <span className="text-xs text-gray-500">
+                    {formatDateRangeDisplay(
+                      vol.startDate,
+                      vol.endDate,
+                      !!vol.current || vol.endDate === 'Present',
+                    )}
+                  </span>
                 </div>
                 <p className="text-gray-600 text-xs">{vol.organization}</p>
                 {vol.description && <p data-break-child className="text-gray-700 text-xs mt-0.5">{vol.description}</p>}

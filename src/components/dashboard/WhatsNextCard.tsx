@@ -126,7 +126,7 @@ export const WhatsNextCard = memo(function WhatsNextCard() {
         title: `Finish your ${sectionLabel}`,
         description: `Your resume is ${score}% complete — keep going!`,
         action: () => {
-          setCurrentResumeId(best.id);
+          setCurrentResumeId(best.$id);
           setCurrentResume(bestData);
           navigate('/editor');
         },
@@ -145,7 +145,7 @@ export const WhatsNextCard = memo(function WhatsNextCard() {
           title: 'Enhance your resume',
           description: 'Polish your content with AI suggestions',
           action: () => {
-            setCurrentResumeId(best.id);
+            setCurrentResumeId(best.$id);
             setCurrentResume(bestData);
             navigate('/ai-studio/enhance');
           },
@@ -158,7 +158,7 @@ export const WhatsNextCard = memo(function WhatsNextCard() {
         title: 'Tailor for a job posting',
         description: 'Boost your match score with AI tailoring',
         action: () => {
-          setCurrentResumeId(best.id);
+          setCurrentResumeId(best.$id);
           setCurrentResume(bestData);
           navigate('/ai-studio/tailor');
         },
@@ -173,7 +173,7 @@ export const WhatsNextCard = memo(function WhatsNextCard() {
       title: 'Practice a mock interview',
       description: 'Get AI-powered feedback on your answers',
       action: () => {
-        setCurrentResumeId(best.id);
+        setCurrentResumeId(best.$id);
         setCurrentResume(bestData);
         navigate('/interview');
       },

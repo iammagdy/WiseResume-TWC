@@ -1,4 +1,5 @@
 import type { ResumeData } from '@/types/resume';
+import { formatDateRangeDisplay } from '@/lib/dateUtils';
 
 /**
  * Escapes all LaTeX special characters in a plain string in a single pass,
@@ -120,11 +121,11 @@ export function generateLatex(resume: ResumeData): string {
   if (education?.length) {
     lines.push('\\section*{Education}');
     for (const edu of education) {
-      const start = formatDate(edu.startDate);
-      const end = formatDate(edu.endDate);
+      const eduRange =
+        formatDateRangeDisplay(edu.startDate, edu.endDate, edu.endDate === 'Present') ?? '';
       const degree = [esc(edu.degree), esc(edu.field)].filter(Boolean).join(' in ');
       lines.push(
-        `\\textbf{${degree}} --- \\textit{${esc(edu.institution)}} \\hfill ${start}${end ? ` -- ${end}` : ''}`,
+        `\\textbf{${degree}} --- \\textit{${esc(edu.institution)}}${eduRange ? ` \\hfill ${esc(eduRange)}` : ''}`,
       );
       if (edu.gpa) lines.push(`\\\\ GPA: ${esc(edu.gpa)}`);
       if (edu.description?.trim()) lines.push(`\\\\ ${esc(edu.description)}`);
@@ -155,12 +156,16 @@ export function generateLatex(resume: ResumeData): string {
   if (projects?.length) {
     lines.push('\\section*{Projects}');
     for (const proj of projects) {
-      const start = formatDate(proj.startDate);
-      const end = formatDate(proj.endDate);
+      const projRange =
+        formatDateRangeDisplay(
+          proj.startDate,
+          proj.endDate,
+          !!proj.current || proj.endDate === 'Present',
+        ) ?? '';
       lines.push(
         `\\textbf{${esc(proj.name)}}` +
         (proj.role ? ` --- \\textit{${esc(proj.role)}}` : '') +
-        (start ? ` \\hfill ${start}${end ? ` -- ${end}` : ''}` : ''),
+        (projRange ? ` \\hfill ${esc(projRange)}` : ''),
       );
       if (proj.technologies?.length) {
         lines.push(`\\\\ \\textit{Technologies:} ${proj.technologies.map(esc).join(', ')}`);
@@ -193,10 +198,14 @@ export function generateLatex(resume: ResumeData): string {
   if (volunteering?.length) {
     lines.push('\\section*{Volunteering}');
     for (const vol of volunteering) {
-      const start = formatDate(vol.startDate);
-      const end = formatDate(vol.endDate);
+      const volRange =
+        formatDateRangeDisplay(
+          vol.startDate,
+          vol.endDate,
+          !!vol.current || vol.endDate === 'Present',
+        ) ?? '';
       lines.push(
-        `\\textbf{${esc(vol.role)}} --- \\textit{${esc(vol.organization)}} \\hfill ${start}${end ? ` -- ${end}` : ''}`,
+        `\\textbf{${esc(vol.role)}} --- \\textit{${esc(vol.organization)}}${volRange ? ` \\hfill ${esc(volRange)}` : ''}`,
       );
       if (vol.description?.trim()) {
         lines.push('\\begin{itemize}');

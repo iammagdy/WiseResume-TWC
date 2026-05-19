@@ -7,7 +7,11 @@ import { StyleCustomizationPanel } from '@/components/editor/StyleCustomizationP
 import { SectionOverlayManager } from '@/components/editor/SectionOverlayManager';
 import { useFitToPages } from '@/hooks/useFitToPages';
 import type { TemplateCustomization } from '@/types/resume';
-import { estimatePageCount, getPageDimensionsForFormat } from '@/lib/pdfUtils';
+import { estimatePageCount, getPageDimensionsForFormat, resolveExportPageCount } from '@/lib/pdfUtils';
+import { normalizeBreakPositions } from '@/lib/exportPagePlan';
+import { PageCountBadge } from '@/components/editor/export/PageCountBadge';
+import { PageBreakSetupDialog } from '@/components/editor/export/PageBreakSetupDialog';
+import { PageCutHint, usePageCutHintPulse } from '@/components/editor/export/PageCutHint';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ResumeData } from '@/types/resume';
@@ -15,23 +19,13 @@ import haptics from '@/lib/haptics';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 import templateComponents from '@/components/templates/registry';
+import { migrateTemplateId } from '@/lib/templateMigration';
 
 const ZOOM_LEVELS = [0.5, 0.75, 1, 1.25] as const;
 
-export const SECTION_LABELS: Record<string, string> = {
-  summary: 'Summary',
-  experience: 'Experience',
-  education: 'Education',
-  skills: 'Skills',
-  certifications: 'Certifications',
-  awards: 'Awards',
-  projects: 'Projects',
-  publications: 'Publications',
-  volunteering: 'Volunteering',
-  hobbies: 'Hobbies',
-  references: 'References',
-  languages: 'Languages',
-};
+import { SECTION_LABELS } from '@/lib/sectionLabels';
+import { resolvePageBreakTemplate } from '@/lib/resolvePageBreakTemplate';
+export { SECTION_LABELS };
 
 function PreviewSkeleton() {
   return (
@@ -108,10 +102,17 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
   const [showSectionToggles, setShowSectionToggles] = useState(false);
   const [showStylePanel, setShowStylePanel] = useState(false);
   const [pageCount, setPageCount] = useState(1);
+  const [pageBreakOpen, setPageBreakOpen] = useState(false);
+  const [pageBreakTemplateEl, setPageBreakTemplateEl] = useState<HTMLElement | null>(null);
   const [domSections, setDomSections] = useState<string[]>([]);
   const resumeRef = useRef<HTMLDivElement>(null);
+  const pageCountBadgeRef = useRef<HTMLSpanElement>(null);
+  const showPageCutHintPulse = usePageCutHintPulse();
+  const customBreakPositions = currentResume?.customization?.customBreakPositions;
 
-  const TemplateComponent = templateComponents[selectedTemplate];
+  const safeTemplateId = migrateTemplateId(selectedTemplate);
+  const TemplateComponent =
+    templateComponents[safeTemplateId] ?? templateComponents.modern;
 
   // Resolve the design dimensions matching the user's chosen page format so
   // the live preview lays out at the SAME width Puppeteer will render the
@@ -127,7 +128,9 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
     if (!el) return;
     const { pageWidth, pageHeight } = previewDims;
     const update = () => {
-      setPageCount(estimatePageCount(el, pageWidth, pageHeight));
+      setPageCount(
+        resolveExportPageCount(el, pageWidth, pageHeight, customBreakPositions),
+      );
       // Derive section list from DOM so order and availability match the actual
       // rendered template (templates may omit or reorder sections dynamically).
       const sectionEls = el.querySelectorAll('[data-section]');
@@ -152,7 +155,7 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
     };
     // Key off the debounced render snapshot so page-break recalculation
     // happens at the same cadence as the actual template re-render.
-  }, [debouncedResume, selectedTemplate, previewDims]);
+  }, [debouncedResume, selectedTemplate, previewDims, customBreakPositions]);
 
   const toggleSection = useCallback((section: string) => {
     setHiddenSections(prev => {
@@ -180,7 +183,7 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
     onScaleComputed: handleFitScale,
   });
 
-  if (!currentResume || !TemplateComponent) return null;
+  if (!currentResume) return null;
 
   // Use the debounced snapshot for the template render (heavy tree),
   // but keep `currentResume` for toolbar/PDF/style which read non-render fields.
@@ -253,17 +256,17 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
             <TooltipContent side="bottom">Customize style</TooltipContent>
           </Tooltip>
 
-          {/* Live page count badge — green ≤2 / amber 3-4 / red ≥5 */}
-          <span className={cn(
-            'text-xs font-medium px-2 py-1 rounded-md whitespace-nowrap',
-            pageCount <= 2
-              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-              : pageCount <= 4
-                ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                : 'bg-destructive/10 text-destructive'
-          )}>
-            {pageCount} {pageCount === 1 ? 'page' : 'pages'}
+          <span ref={pageCountBadgeRef} className="inline-flex">
+            <PageCountBadge
+              pageCount={pageCount}
+              showPulse={showPageCutHintPulse}
+              onClick={() => {
+                setPageBreakTemplateEl(resolvePageBreakTemplate(resumeRef));
+                setPageBreakOpen(true);
+              }}
+            />
           </span>
+          <PageCutHint anchorRef={pageCountBadgeRef} />
 
           {/* Close (desktop) */}
           {onClose && (
@@ -380,6 +383,21 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
               </Suspense>
             </ErrorBoundary>
 
+            {customBreakPositions && customBreakPositions.length > 0 && (
+              <div className="pointer-events-none absolute inset-0 z-20" aria-hidden data-pdf-exclude>
+                {normalizeBreakPositions(
+                  customBreakPositions,
+                  resumeRef.current?.scrollHeight ?? 0,
+                ).map((breakY, index) => (
+                  <div
+                    key={`preview-break-${breakY}-${index}`}
+                    className="absolute inset-x-0 border-t-2 border-dashed border-primary/70"
+                    style={{ top: `${breakY}px` }}
+                  />
+                ))}
+              </div>
+            )}
+
             {/* Inline per-section editor overlay (desktop hover-to-reveal style/AI buttons). */}
             <SectionOverlayManager
               resumeRef={resumeRef}
@@ -390,6 +408,18 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
         </div>
 
       <StyleCustomizationPanel open={showStylePanel} onOpenChange={setShowStylePanel} />
+
+      <PageBreakSetupDialog
+        open={pageBreakOpen}
+        onOpenChange={(open) => {
+          if (open) {
+            setPageBreakTemplateEl(resolvePageBreakTemplate(resumeRef));
+          }
+          setPageBreakOpen(open);
+        }}
+        templateElement={pageBreakTemplateEl}
+        resumeData={currentResume}
+      />
     </div>
   );
 });

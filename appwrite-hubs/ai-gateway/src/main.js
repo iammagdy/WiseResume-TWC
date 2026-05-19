@@ -114,12 +114,78 @@ function parseJsonObject(text) {
   }
 }
 
+function isGenericPositionTitle(position) {
+  const p = asString(position);
+  if (!p) return true;
+  if (/^position\s*#?\s*\d+$/i.test(p)) return true;
+  if (/^job\s*#?\s*\d+$/i.test(p)) return true;
+  if (/^role\s*#?\s*\d+$/i.test(p)) return true;
+  if (/^title\s*#?\s*\d+$/i.test(p)) return true;
+  if (/^(position|job|role|title|work experience|experience)$/i.test(p)) return true;
+  return false;
+}
+
+function looksLikeJobTitleLine(line) {
+  const t = asString(line);
+  if (!t || t.length < 3 || t.length > 100) return false;
+  if (/\b(?:19|20)\d{2}\b|present|current/i.test(t)) return false;
+  if (/@/.test(t)) return false;
+  return /\b(manager|engineer|developer|analyst|consultant|director|lead|senior|junior|specialist|coordinator|officer|representative|supervisor|administrator|architect|designer|intern|associate|executive|advisor|agent)\b/i.test(t);
+}
+
+function derivePositionFallback(item) {
+  const alt = [
+    asString(item.title),
+    asString(item.role),
+    asString(item.jobTitle),
+    asString(item.job_title),
+  ].find((v) => v && !isGenericPositionTitle(v));
+  if (alt) return alt;
+
+  const desc = asString(item.description);
+  if (desc) {
+    const firstLine = desc
+      .split('\n')
+      .map((line) => line.trim())
+      .find((line) => line.length > 0 && line.length < 100 && !isGenericPositionTitle(line) && looksLikeJobTitleLine(line));
+    if (firstLine) return firstLine;
+  }
+
+  const resp = toStringArray(item.responsibilities);
+  const respTitle = resp.find((line) => looksLikeJobTitleLine(line) && !isGenericPositionTitle(line));
+  if (respTitle) return respTitle;
+
+  return '';
+}
+
 function normalizeExperienceItem(item) {
   if (!isRecord(item)) return null;
+  let position =
+    asString(item.position) ||
+    asString(item.title) ||
+    asString(item.role) ||
+    asString(item.jobTitle) ||
+    asString(item.job_title);
+  let company =
+    asString(item.company) ||
+    asString(item.employer) ||
+    asString(item.organization);
+
+  if (!position && company.includes(' at ')) {
+    const parts = company.split(/\s+at\s+/i);
+    if (parts.length === 2 && looksLikeJobTitleLine(parts[0])) {
+      position = parts[0].trim();
+      company = parts[1].trim();
+    }
+  }
+
+  if (isGenericPositionTitle(position)) {
+    position = derivePositionFallback(item);
+  }
   return {
     id: '',
-    company: asString(item.company),
-    position: asString(item.position),
+    company,
+    position,
     account: asOptionalString(item.account),
     startDate: asString(item.startDate),
     endDate: asString(item.endDate),
@@ -484,7 +550,8 @@ function buildMessages(featureName, opts) {
           `${PARSE_RESUME_SYSTEM_PROMPT}\n\n` +
           '=== EXPERIENCE FIELD RULES ===\n' +
           '- `position`: the EXACT job title as written in the resume (e.g. "Senior Software Engineer", "Marketing Manager"). NEVER use generic placeholders like "Position 1", "Job 1", "Role", or "Title". If the job title is unclear, use the closest title text you can find in that section.\n' +
-          '- `company`: the EXACT employer/organization name as written.\n' +
+          '- `company`: the EXACT employer/organization name as written — NOT the job title. When the CV shows the title on one line and the company on the next, put the title in `position` and the employer in `company`.\n' +
+          '- Also accept `title` / `role` only if you cannot populate `position`; the server maps them to `position`.\n' +
           '- `startDate` / `endDate`: extract the date range exactly as written (e.g. "Jan 2021", "2019", "March 2020 – Present"). For current roles set endDate="Present" and current=true.\n' +
           '- `responsibilities`: copy each bullet point verbatim from the resume — do NOT summarize or combine.\n\n' +
           'Return ONLY valid JSON with this exact shape:\n' +

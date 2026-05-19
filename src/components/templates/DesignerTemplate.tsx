@@ -74,7 +74,7 @@ export const DesignerTemplate = memo(function DesignerTemplate({ resume }: Templ
             {resume.education.map(edu => (
               <div key={edu.id} data-break-avoid className="mb-2">
                 <h3 className="font-bold text-gray-900 text-xs">{formatDegreeAndField(edu.degree, edu.field)}</h3>
-                <p className="text-gray-500 text-xs">{edu.institution} — {formatDisplayDate(edu.endDate)}</p>
+                <p className="text-gray-500 text-xs">{edu.institution} — {formatDateRangeDisplay(edu.startDate, edu.endDate, edu.endDate === 'Present')}</p>
                 {edu.description && <p className="text-gray-500 text-xs mt-0.5">{edu.description}</p>}
               </div>
             ))}

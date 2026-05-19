@@ -38,8 +38,19 @@ const chromeDir = join(cacheDir, 'chrome');
 function alreadyInstalled() {
   if (!existsSync(chromeDir)) return false;
   try {
-    const versions = readdirSync(chromeDir).filter((d) => d.startsWith('linux-'));
-    return versions.some((v) => existsSync(join(chromeDir, v, 'chrome-linux64', 'chrome')));
+    const versions = readdirSync(chromeDir);
+    for (const v of versions) {
+      if (v.startsWith('linux-') && existsSync(join(chromeDir, v, 'chrome-linux64', 'chrome'))) {
+        return true;
+      }
+      if (v.startsWith('win64-') && existsSync(join(chromeDir, v, 'chrome-win64', 'chrome.exe'))) {
+        return true;
+      }
+      if (v.startsWith('mac-') && existsSync(join(chromeDir, v, 'chrome-mac', 'Google Chrome for Testing.app'))) {
+        return true;
+      }
+    }
+    return false;
   } catch {
     return false;
   }

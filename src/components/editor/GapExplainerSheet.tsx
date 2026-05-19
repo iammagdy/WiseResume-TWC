@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Copy, Check, Lightbulb, ChevronDown, Loader2 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -9,15 +9,22 @@ import { Label } from '@/components/ui/label';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { toast } from 'sonner';
 import editorLogger from '@/lib/editorLogger';
-import { GapInfo, formatDuration } from '@/lib/dateUtils';
+import {
+  GapInfo,
+  formatDuration,
+  formatParsedGapDate,
+  gapsAreSame,
+} from '@/lib/dateUtils';
 import { Experience } from '@/types/resume';
 import { useAIAction } from '@/hooks/useAIAction';
-
+import { cn } from '@/lib/utils';
 
 interface GapExplainerSheetProps {
   isOpen: boolean;
   onClose: () => void;
-  gap: GapInfo | null;
+  gaps: GapInfo[];
+  activeGapIndex: number;
+  onActiveGapIndexChange: (index: number) => void;
   experiences: Experience[];
   onAddToSummary?: (explanation: string) => void;
 }
@@ -34,34 +41,74 @@ const REASON_OPTIONS = [
   { value: 'other', label: 'Other' },
 ] as const;
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-function formatGapDate(date: { month: number; year: number }): string {
-  return `${MONTHS[date.month]} ${date.year}`;
+function gapStorageKey(gap: GapInfo): string {
+  return `${gap.startDate.year}-${gap.startDate.month}-${gap.endDate.year}-${gap.endDate.month}-${gap.months}`;
 }
 
-export function GapExplainerSheet({ isOpen, onClose, gap, experiences, onAddToSummary }: GapExplainerSheetProps) {
-  const [selectedReason, setSelectedReason] = useState<string>('');
-  const [targetRole, setTargetRole] = useState('');
-  const [additionalContext, setAdditionalContext] = useState('');
+type GapFormState = {
+  selectedReason: string;
+  additionalContext: string;
+  targetRole: string;
+  explanation: string;
+  tips: string[];
+  isEdited: boolean;
+};
+
+const emptyFormState = (): GapFormState => ({
+  selectedReason: '',
+  additionalContext: '',
+  targetRole: '',
+  explanation: '',
+  tips: [],
+  isEdited: false,
+});
+
+export function GapExplainerSheet({
+  isOpen,
+  onClose,
+  gaps,
+  activeGapIndex,
+  onActiveGapIndexChange,
+  experiences,
+  onAddToSummary,
+}: GapExplainerSheetProps) {
+  const gap = gaps[activeGapIndex] ?? null;
+  const [formByGap, setFormByGap] = useState<Record<string, GapFormState>>({});
   const [isGenerating, setIsGenerating] = useState(false);
-  const [explanation, setExplanation] = useState('');
-  const [tips, setTips] = useState<string[]>([]);
   const [copied, setCopied] = useState(false);
   const [showReasonDropdown, setShowReasonDropdown] = useState(false);
-  const [isEdited, setIsEdited] = useState(false);
   const { execute: executeAI } = useAIAction({ operation: 'gap-explain' });
 
-  // Find surrounding jobs for context
-  const getSurroundingJobs = () => {
+  const activeKey = gap ? gapStorageKey(gap) : '';
+  const form = (activeKey && formByGap[activeKey]) || emptyFormState();
+
+  const patchForm = useCallback(
+    (patch: Partial<GapFormState>) => {
+      if (!activeKey) return;
+      setFormByGap((prev) => ({
+        ...prev,
+        [activeKey]: { ...(prev[activeKey] ?? emptyFormState()), ...patch },
+      }));
+    },
+    [activeKey],
+  );
+
+  useEffect(() => {
+    if (!isOpen) {
+      setFormByGap({});
+      setShowReasonDropdown(false);
+      setCopied(false);
+    }
+  }, [isOpen]);
+
+  const getSurroundingJobs = useCallback(() => {
     if (!gap) return { previousJob: undefined, nextJob: undefined };
 
-    // Sort experiences by start date
     const sorted = [...experiences]
-      .filter(exp => exp.startDate)
+      .filter((exp) => exp.startDate)
       .sort((a, b) => {
-        const aYear = parseInt(a.startDate.match(/\d{4}/)?.[0] || '0');
-        const bYear = parseInt(b.startDate.match(/\d{4}/)?.[0] || '0');
+        const aYear = parseInt(a.startDate.match(/\d{4}/)?.[0] || '0', 10);
+        const bYear = parseInt(b.startDate.match(/\d{4}/)?.[0] || '0', 10);
         return aYear - bYear;
       });
 
@@ -71,7 +118,7 @@ export function GapExplainerSheet({ isOpen, onClose, gap, experiences, onAddToSu
     for (const exp of sorted) {
       const startMatch = exp.startDate.match(/\d{4}/);
       if (startMatch) {
-        const startYear = parseInt(startMatch[0]);
+        const startYear = parseInt(startMatch[0], 10);
         if (startYear <= gap.startDate.year) {
           previousJob = { position: exp.position, company: exp.company };
         }
@@ -82,17 +129,16 @@ export function GapExplainerSheet({ isOpen, onClose, gap, experiences, onAddToSu
     }
 
     return { previousJob, nextJob };
-  };
+  }, [gap, experiences]);
 
   const handleGenerate = async () => {
-    if (!gap || !selectedReason) {
+    if (!gap || !form.selectedReason) {
       toast.error('Please select a reason');
       return;
     }
 
     setIsGenerating(true);
-    setExplanation('');
-    setTips([]);
+    patchForm({ explanation: '', tips: [] });
 
     try {
       const { previousJob, nextJob } = getSurroundingJobs();
@@ -102,15 +148,15 @@ export function GapExplainerSheet({ isOpen, onClose, gap, experiences, onAddToSu
           body: {
             'x-resume-section-ai-action': 'explain-gap',
             gap: {
-              startDate: formatGapDate(gap.startDate),
-              endDate: formatGapDate(gap.endDate),
+              startDate: formatParsedGapDate(gap.startDate),
+              endDate: formatParsedGapDate(gap.endDate),
               months: gap.months,
             },
-            reason: selectedReason,
-            targetRole: targetRole.trim() || undefined,
+            reason: form.selectedReason,
+            targetRole: form.targetRole.trim() || undefined,
             previousJob,
             nextJob,
-            additionalContext: additionalContext.trim() || undefined,
+            additionalContext: form.additionalContext.trim() || undefined,
           },
         });
 
@@ -121,9 +167,11 @@ export function GapExplainerSheet({ isOpen, onClose, gap, experiences, onAddToSu
 
       if (!result) return;
 
-      setExplanation(result.explanation);
-      setTips(result.tips || result.talking_points || []);
-      setIsEdited(false);
+      patchForm({
+        explanation: result.explanation,
+        tips: result.tips || result.talking_points || [],
+        isEdited: false,
+      });
     } catch (err) {
       editorLogger.error('Error generating explanation:', err);
       toast.error('Failed to generate explanation', {
@@ -136,7 +184,7 @@ export function GapExplainerSheet({ isOpen, onClose, gap, experiences, onAddToSu
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(explanation);
+      await navigator.clipboard.writeText(form.explanation);
       setCopied(true);
       toast.success('Copied to clipboard!');
       setTimeout(() => setCopied(false), 2000);
@@ -146,27 +194,27 @@ export function GapExplainerSheet({ isOpen, onClose, gap, experiences, onAddToSu
   };
 
   const handleAddToSummary = () => {
-    if (onAddToSummary && explanation) {
-      onAddToSummary(explanation);
+    if (onAddToSummary && form.explanation) {
+      onAddToSummary(form.explanation);
       toast.success('Added to summary!');
       onClose();
     }
   };
 
   const handleClose = () => {
-    setSelectedReason('');
-    setTargetRole('');
-    setAdditionalContext('');
-    setExplanation('');
-    setTips([]);
-    setIsEdited(false);
+    setFormByGap({});
+    setShowReasonDropdown(false);
     onClose();
   };
 
-  if (!gap) return null;
+  if (!gap || gaps.length === 0) return null;
 
-  const gapDateRange = `${formatGapDate(gap.startDate)} – ${formatGapDate(gap.endDate)}`;
-  const selectedReasonLabel = REASON_OPTIONS.find(r => r.value === selectedReason)?.label;
+  const gapDateRange = `${formatParsedGapDate(gap.startDate)} – ${formatParsedGapDate(gap.endDate)}`;
+  const selectedReasonLabel = REASON_OPTIONS.find((r) => r.value === form.selectedReason)?.label;
+  const explainedCount = gaps.filter((g) => {
+    const s = formByGap[gapStorageKey(g)];
+    return s?.explanation?.trim();
+  }).length;
 
   return (
     <Sheet open={isOpen} onOpenChange={handleClose}>
@@ -176,28 +224,77 @@ export function GapExplainerSheet({ isOpen, onClose, gap, experiences, onAddToSu
             <Sparkles className="w-5 h-5 text-primary" />
             AI Gap Assistant
           </SheetTitle>
+          {gaps.length > 1 && (
+            <p className="text-xs text-muted-foreground text-left">
+              Gap Finder found {gaps.length} gaps — explain each one separately.
+              {explainedCount > 0 && ` (${explainedCount} of ${gaps.length} drafted)`}
+            </p>
+          )}
         </SheetHeader>
 
         <div className="flex-1 min-h-0 overflow-y-auto py-4 space-y-5">
-          {/* Gap Info */}
+          {gaps.length > 1 && (
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">Select gap to explain</Label>
+              <div className="flex flex-col gap-2">
+                {gaps.map((g, index) => {
+                  const range = `${formatParsedGapDate(g.startDate)} – ${formatParsedGapDate(g.endDate)}`;
+                  const isActive = index === activeGapIndex;
+                  const hasDraft = !!formByGap[gapStorageKey(g)]?.explanation?.trim();
+                  return (
+                    <button
+                      key={gapStorageKey(g)}
+                      type="button"
+                      onClick={() => {
+                        onActiveGapIndexChange(index);
+                        setShowReasonDropdown(false);
+                      }}
+                      className={cn(
+                        'w-full text-left rounded-xl border px-3 py-2.5 transition-colors',
+                        isActive
+                          ? 'border-warning/50 bg-warning/10 ring-1 ring-warning/30'
+                          : 'border-border bg-muted/30 hover:bg-muted/50',
+                      )}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-semibold text-foreground">
+                          Gap {index + 1} of {gaps.length}
+                        </span>
+                        {hasDraft && (
+                          <span className="text-[10px] font-medium text-success shrink-0">Drafted</span>
+                        )}
+                      </div>
+                      <p className="text-sm font-medium text-foreground mt-0.5">{range}</p>
+                      <p className="text-xs text-muted-foreground">{formatDuration(g.months)}</p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           <div className="p-3 rounded-lg bg-muted border border-border">
-            <p className="text-sm text-muted-foreground">Employment Gap</p>
-            <p className="font-semibold">{gapDateRange}</p>
+            <p className="text-sm text-muted-foreground">
+              {gaps.length > 1 ? `Gap ${activeGapIndex + 1}` : 'Employment gap'}
+            </p>
+            <p className="font-semibold text-foreground">{gapDateRange}</p>
             <p className="text-sm text-muted-foreground">{formatDuration(gap.months)}</p>
           </div>
 
-          {/* Reason Selector */}
           <div className="space-y-2">
             <Label>What was the reason for this gap?</Label>
             <div className="relative">
               <button
+                type="button"
                 onClick={() => setShowReasonDropdown(!showReasonDropdown)}
                 className="w-full flex items-center justify-between p-3 rounded-xl border border-border bg-background text-left hover:bg-muted transition-colors"
               >
-                <span className={selectedReason ? 'text-foreground' : 'text-muted-foreground'}>
+                <span className={form.selectedReason ? 'text-foreground' : 'text-muted-foreground'}>
                   {selectedReasonLabel || 'Select a reason...'}
                 </span>
-                <ChevronDown className={`w-4 h-4 transition-transform ${showReasonDropdown ? 'rotate-180' : ''}`} />
+                <ChevronDown
+                  className={`w-4 h-4 transition-transform ${showReasonDropdown ? 'rotate-180' : ''}`}
+                />
               </button>
 
               <AnimatePresence>
@@ -208,16 +305,18 @@ export function GapExplainerSheet({ isOpen, onClose, gap, experiences, onAddToSu
                     exit={{ opacity: 0, y: -10 }}
                     className="absolute top-full left-0 right-0 mt-1 z-50 rounded-xl border border-border bg-background shadow-lg overflow-hidden"
                   >
-                    {REASON_OPTIONS.map(option => (
+                    {REASON_OPTIONS.map((option) => (
                       <button
                         key={option.value}
+                        type="button"
                         onClick={() => {
-                          setSelectedReason(option.value);
+                          patchForm({ selectedReason: option.value });
                           setShowReasonDropdown(false);
                         }}
-                        className={`w-full px-4 py-3 text-left text-sm hover:bg-muted transition-colors ${
-                          selectedReason === option.value ? 'bg-primary/10 text-primary' : ''
-                        }`}
+                        className={cn(
+                          'w-full px-4 py-3 text-left text-sm hover:bg-muted transition-colors',
+                          form.selectedReason === option.value ? 'bg-primary/10 text-primary' : '',
+                        )}
                       >
                         {option.label}
                       </button>
@@ -228,41 +327,44 @@ export function GapExplainerSheet({ isOpen, onClose, gap, experiences, onAddToSu
             </div>
           </div>
 
-          {/* Additional Context */}
           <div className="space-y-2">
             <Label>Additional context (optional)</Label>
             <Textarea
-              value={additionalContext}
-              onChange={(e) => setAdditionalContext(e.target.value)}
+              value={form.additionalContext}
+              onChange={(e) => patchForm({ additionalContext: e.target.value })}
               placeholder="Any details that might help personalize the explanation..."
               className="min-h-[80px] resize-none"
             />
           </div>
 
-          {/* Target Role */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label>Target role (optional)</Label>
-              <span className={`text-xs ${targetRole.length > 180 ? (targetRole.length >= 200 ? 'text-destructive font-medium' : 'text-amber-500') : 'text-muted-foreground'}`}>
-                {targetRole.length}/200
+              <span
+                className={cn(
+                  'text-xs',
+                  form.targetRole.length > 180
+                    ? form.targetRole.length >= 200
+                      ? 'text-destructive font-medium'
+                      : 'text-amber-500'
+                    : 'text-muted-foreground',
+                )}
+              >
+                {form.targetRole.length}/200
               </span>
             </div>
             <Input
-              value={targetRole}
-              onChange={(e) => setTargetRole(e.target.value)}
+              value={form.targetRole}
+              onChange={(e) => patchForm({ targetRole: e.target.value })}
               placeholder="e.g. Product Manager, Software Engineer..."
               maxLength={200}
             />
-            {targetRole.length >= 200 && (
-              <p className="text-xs text-destructive">Maximum 200 characters reached.</p>
-            )}
           </div>
 
-          {/* Generate Button */}
-          {!explanation && (
+          {!form.explanation && (
             <Button
               onClick={handleGenerate}
-              disabled={!selectedReason || isGenerating}
+              disabled={!form.selectedReason || isGenerating}
               className="w-full gap-2"
               size="lg"
             >
@@ -274,70 +376,54 @@ export function GapExplainerSheet({ isOpen, onClose, gap, experiences, onAddToSu
               ) : (
                 <>
                   <Sparkles className="w-4 h-4" />
-                  Generate Explanation
+                  Generate explanation for this gap
                 </>
               )}
             </Button>
           )}
 
-          {/* Result */}
           <AnimatePresence>
-            {explanation && (
+            {form.explanation && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="space-y-4"
               >
-                {/* Explanation */}
                 <div className="p-4 rounded-xl bg-primary/5 border border-primary/20 space-y-3">
                   <Label className="text-primary flex items-center gap-2">
-                    Your Explanation
-                    {isEdited && (
+                    Your explanation
+                    {form.isEdited && (
                       <span className="text-xs font-normal text-muted-foreground">(Edited)</span>
                     )}
                   </Label>
                   <Textarea
-                    value={explanation}
-                    onChange={(e) => {
-                      setExplanation(e.target.value);
-                      setIsEdited(true);
-                    }}
+                    value={form.explanation}
+                    onChange={(e) => patchForm({ explanation: e.target.value, isEdited: true })}
                     className="min-h-[120px] text-sm resize-none"
                     placeholder="Edit your explanation..."
                   />
-                  
-                  <div className="flex gap-2 pt-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleCopy}
-                      className="gap-2"
-                    >
+
+                  <div className="flex gap-2 pt-2 flex-wrap">
+                    <Button variant="outline" size="sm" onClick={handleCopy} className="gap-2">
                       {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                       {copied ? 'Copied!' : 'Copy'}
                     </Button>
                     {onAddToSummary && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleAddToSummary}
-                        className="gap-2"
-                      >
+                      <Button variant="outline" size="sm" onClick={handleAddToSummary} className="gap-2">
                         Add to Summary
                       </Button>
                     )}
                   </div>
                 </div>
 
-                {/* Tips */}
-                {tips.length > 0 && (
+                {form.tips.length > 0 && (
                   <div className="p-4 rounded-xl bg-muted border border-border space-y-3">
                     <Label className="flex items-center gap-2">
                       <Lightbulb className="w-4 h-4 text-amber-500" />
-                      Interview Tips
+                      Interview tips
                     </Label>
                     <ul className="space-y-2">
-                      {tips.map((tip, index) => (
+                      {form.tips.map((tip, index) => (
                         <li key={index} className="text-sm text-muted-foreground flex gap-2">
                           <span className="text-primary shrink-0">•</span>
                           {tip}
@@ -347,7 +433,6 @@ export function GapExplainerSheet({ isOpen, onClose, gap, experiences, onAddToSu
                   </div>
                 )}
 
-                {/* Generate Again */}
                 <Button
                   variant="outline"
                   onClick={handleGenerate}
@@ -362,10 +447,20 @@ export function GapExplainerSheet({ isOpen, onClose, gap, experiences, onAddToSu
                   ) : (
                     <>
                       <Sparkles className="w-4 h-4" />
-                      Generate Again
+                      Generate again
                     </>
                   )}
                 </Button>
+
+                {gaps.length > 1 && activeGapIndex < gaps.length - 1 && (
+                  <Button
+                    variant="secondary"
+                    className="w-full"
+                    onClick={() => onActiveGapIndexChange(activeGapIndex + 1)}
+                  >
+                    Next gap ({activeGapIndex + 2} of {gaps.length})
+                  </Button>
+                )}
               </motion.div>
             )}
           </AnimatePresence>

@@ -13,8 +13,6 @@ import { AtsWarningAlert } from './export/AtsWarningAlert';
 import { PdfOptionsFooter } from './export/PdfOptionsFooter';
 import { ExportProgressBar } from './export/ExportProgressBar';
 import { LaTeXPreviewPanel } from './export/LaTeXPreviewPanel';
-import { PageBreakEditorDialog } from './export/PageBreakEditorDialog';
-import { normalizeBreakPositions } from '@/lib/exportPagePlan';
 import type { ExportOptionDef } from './export/ExportOptionCard';
 
 interface ExportOptionsSheetProps {
@@ -46,7 +44,6 @@ export function ExportOptionsSheet({
   const [onePageScale, setOnePageScale] = useState<number | null>(null);
   const [customFileName, setCustomFileName] = useState('');
   const [highlightedType, setHighlightedType] = useState<ExportType | null>(null);
-  const [pageBreakEditorOpen, setPageBreakEditorOpen] = useState(false);
 
   useEffect(() => {
     if (!highlightedType) return;
@@ -199,27 +196,6 @@ export function ExportOptionsSheet({
             <AtsWarningAlert templateAtsScore={templateAtsScore} onSwitchToAts={handleSwitchToAts} />
           )}
 
-          {selectedType === 'resume' && templateElement && resumeData && (() => {
-            const totalHeight = templateElement.scrollHeight || 1;
-            const breaks = normalizeBreakPositions(resumeData.customization?.customBreakPositions, totalHeight, 40);
-            const pageCount = breaks.length + 1;
-            return (
-              <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2.5">
-                <div className="flex items-center gap-2 text-sm">
-                  <span className="text-muted-foreground">Pages:</span>
-                  <span className="font-semibold tabular-nums">{pageCount}</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setPageBreakEditorOpen(true)}
-                  className="text-xs text-primary hover:underline underline-offset-2 font-medium"
-                >
-                  Configure page breaks →
-                </button>
-              </div>
-            );
-          })()}
-
           {selectedType === 'latex' && resumeData && (
             <LaTeXPreviewPanel resumeData={resumeData} />
           )}
@@ -250,13 +226,6 @@ export function ExportOptionsSheet({
           onExport={handleExport}
         />
       </SheetContent>
-
-      <PageBreakEditorDialog
-        open={pageBreakEditorOpen}
-        onOpenChange={setPageBreakEditorOpen}
-        templateElement={templateElement}
-        resumeData={resumeData}
-      />
     </Sheet>
   );
 }

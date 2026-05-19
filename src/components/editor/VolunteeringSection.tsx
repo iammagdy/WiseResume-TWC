@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { MonthYearPicker } from './MonthYearPicker';
 import { useResumeStore } from '@/store/resumeStore';
 import { useExpandedEntryRestore } from '@/hooks/useExpandedEntryRestore';
 import { Volunteering } from '@/types/resume';
@@ -16,7 +17,7 @@ export const VolunteeringSection = memo(function VolunteeringSection() {
   const updateResume = useResumeStore(state => state.updateResume);
   const [expandedId, setExpandedId] = useExpandedEntryRestore('volunteering');
 
-  const addEntry = () => { haptics.light(); const n: Volunteering = { id: uuidv4(), organization: '', role: '', startDate: '', endDate: '', description: '' }; updateResume({ volunteering: [...volunteering, n] }); setExpandedId(n.id); };
+  const addEntry = () => { haptics.light(); const n: Volunteering = { id: uuidv4(), organization: '', role: '', startDate: '', endDate: '', current: false, description: '' }; updateResume({ volunteering: [n, ...volunteering] }); setExpandedId(n.id); };
   const updateEntry = (id: string, u: Partial<Volunteering>) => { updateResume({ volunteering: volunteering.map(v => v.id === id ? { ...v, ...u } : v) }); };
   const deleteEntry = (id: string) => { haptics.light(); updateResume({ volunteering: volunteering.filter(v => v.id !== id) }); };
 
@@ -48,8 +49,43 @@ export const VolunteeringSection = memo(function VolunteeringSection() {
                     <div><Label className="text-sm flex items-center gap-1.5 mb-2"><Heart className="w-4 h-4" />Role</Label><Input value={vol.role} onChange={e => updateEntry(vol.id, { role: e.target.value })} placeholder="Volunteer Role" className="h-12" /></div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div><Label className="text-sm flex items-center gap-1.5 mb-2"><Calendar className="w-4 h-4" />Start Date</Label><Input value={vol.startDate} onChange={e => updateEntry(vol.id, { startDate: e.target.value })} placeholder="Jan 2023" className="h-12" /></div>
-                    <div><Label className="text-sm flex items-center gap-1.5 mb-2"><Calendar className="w-4 h-4" />End Date</Label><Input value={vol.endDate} onChange={e => updateEntry(vol.id, { endDate: e.target.value })} placeholder="Present" className="h-12" /></div>
+                    <div>
+                      <Label className="text-sm flex items-center gap-1.5 mb-2">
+                        <Calendar className="w-4 h-4" />
+                        Start Date
+                      </Label>
+                      <MonthYearPicker
+                        value={vol.startDate}
+                        onChange={(v) => updateEntry(vol.id, { startDate: v })}
+                      />
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <Label className="text-sm flex items-center gap-1.5">
+                          <Calendar className="w-4 h-4" />
+                          End Date
+                        </Label>
+                        <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={!!vol.current}
+                            onChange={(e) =>
+                              updateEntry(vol.id, {
+                                current: e.target.checked,
+                                endDate: e.target.checked ? '' : vol.endDate,
+                              })
+                            }
+                            className="rounded accent-primary w-4 h-4"
+                          />
+                          <span className="text-sm text-muted-foreground">Present</span>
+                        </label>
+                      </div>
+                      <MonthYearPicker
+                        value={vol.current ? '' : vol.endDate}
+                        onChange={(v) => updateEntry(vol.id, { endDate: v, current: false })}
+                        disabled={!!vol.current}
+                      />
+                    </div>
                   </div>
                   <div><Label className="text-sm mb-2">Description</Label><Textarea value={vol.description} onChange={e => updateEntry(vol.id, { description: e.target.value })} placeholder="Describe your impact..." className="min-h-[100px] resize-none text-base" /></div>
                   <div><Label className="text-sm flex items-center gap-1.5 mb-2"><Clock className="w-4 h-4" />Hours (optional)</Label><Input value={vol.hours || ''} onChange={e => updateEntry(vol.id, { hours: e.target.value })} placeholder="200+" className="h-12" /></div>

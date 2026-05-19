@@ -87,7 +87,7 @@ export const BentoTemplate = memo(function BentoTemplate({ resume }: TemplatePro
               <div key={edu.id} data-break-avoid>
                 <h3 className="font-semibold text-gray-900 text-xs">{formatDegreeAndField(edu.degree, edu.field)}</h3>
                 <p className="text-gray-500 text-xs">{edu.institution}</p>
-                <p className="text-gray-400 text-xs">{formatDisplayDate(edu.endDate)}</p>
+                <p className="text-gray-400 text-xs">{formatDateRangeDisplay(edu.startDate, edu.endDate, edu.endDate === 'Present')}</p>
                 {edu.description && <p className="text-gray-500 text-xs mt-0.5">{edu.description}</p>}
               </div>
             ))}

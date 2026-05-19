@@ -172,7 +172,7 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
     if (tab.guarded && !currentResumeId) {
       if (resumes && resumes.length > 0) {
         const latest = resumes[0];
-        setCurrentResumeId(latest.id);
+        setCurrentResumeId(latest.$id);
         setCurrentResume(dbToResumeData(latest));
         toast.info('Loading your latest resume…');
         navigate('/editor');

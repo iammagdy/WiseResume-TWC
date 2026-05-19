@@ -1,6 +1,7 @@
 import { ResumeData } from '@/types/resume';
 import { downloadFile } from '@/lib/downloadUtils';
 import { formatDegreeAndField } from '@/lib/educationFormat';
+import { formatDateRangeDisplay } from '@/lib/dateUtils';
 
 /**
  * Generates an ATS-friendly DOCX from resume data and triggers download.
@@ -63,9 +64,13 @@ export async function generateAndDownloadDOCX(resume: ResumeData): Promise<boole
         ],
         spacing: { before: 120 },
       }));
+      const eduDates =
+        formatDateRangeDisplay(edu.startDate, edu.endDate, edu.endDate === 'Present') ?? '';
       sections.push(new Paragraph({
         children: [
-          new TextRun({ text: `${edu.startDate} – ${edu.endDate}`, italics: true, size: 20, color: '666666' }),
+          ...(eduDates
+            ? [new TextRun({ text: eduDates, italics: true, size: 20, color: '666666' })]
+            : []),
           ...(edu.gpa ? [new TextRun({ text: ` | GPA: ${edu.gpa}`, size: 20, color: '666666' })] : []),
         ],
         spacing: { after: 80 },
@@ -108,6 +113,18 @@ export async function generateAndDownloadDOCX(resume: ResumeData): Promise<boole
         ],
         spacing: { before: 120 },
       }));
+      const projDates =
+        formatDateRangeDisplay(
+          proj.startDate,
+          proj.endDate,
+          !!proj.current || proj.endDate === 'Present',
+        ) ?? '';
+      if (projDates) {
+        sections.push(new Paragraph({
+          children: [new TextRun({ text: projDates, italics: true, size: 20, color: '666666' })],
+          spacing: { after: 40 },
+        }));
+      }
       if (proj.description) {
         sections.push(new Paragraph({ children: [new TextRun({ text: proj.description, size: 22 })], spacing: { after: 60 } }));
       }
@@ -173,10 +190,18 @@ export async function generateAndDownloadDOCX(resume: ResumeData): Promise<boole
         ],
         spacing: { before: 120 },
       }));
-      sections.push(new Paragraph({
-        children: [new TextRun({ text: `${vol.startDate} – ${vol.endDate || 'Present'}`, italics: true, size: 20, color: '666666' })],
-        spacing: { after: 80 },
-      }));
+      const volDates =
+        formatDateRangeDisplay(
+          vol.startDate,
+          vol.endDate,
+          !!vol.current || vol.endDate === 'Present',
+        ) ?? '';
+      if (volDates) {
+        sections.push(new Paragraph({
+          children: [new TextRun({ text: volDates, italics: true, size: 20, color: '666666' })],
+          spacing: { after: 80 },
+        }));
+      }
       if (vol.description) {
         sections.push(new Paragraph({ children: [new TextRun({ text: vol.description, size: 22 })], spacing: { after: 60 } }));
       }

@@ -59,6 +59,7 @@ export interface Project {
   role: string;
   startDate: string;
   endDate: string;
+  current?: boolean;
   technologies: string[];
   description: string;
   url?: string;
@@ -81,6 +82,7 @@ export interface Volunteering {
   role: string;
   startDate: string;
   endDate: string;
+  current?: boolean;
   description: string;
   hours?: string;
 }
@@ -181,6 +183,8 @@ export interface ParseMeta {
   multiPass?: boolean;
   /** Source hint: pdf | url | word | image | json | html | ocr */
   source?: 'pdf' | 'url' | 'word' | 'image' | 'json' | 'html' | 'ocr';
+  /** True when generic job titles (e.g. Position 1) were stripped — user should fill titles. */
+  positionTitlesNeedReview?: boolean;
 }
 
 export interface ResumeData {

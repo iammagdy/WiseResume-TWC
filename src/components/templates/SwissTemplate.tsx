@@ -57,7 +57,7 @@ export const SwissTemplate = memo(function SwissTemplate({ resume }: TemplatePro
         <section data-section="education" className="mb-6">
           <div className="grid grid-cols-[100px_1fr] gap-4">
             <h2 className="text-xs font-bold text-gray-900 uppercase">Education</h2>
-            <div>{resume.education.map(edu => (<div key={edu.id} data-break-avoid className="mb-2"><h3 className="font-bold text-gray-900 text-xs">{formatDegreeAndField(edu.degree, edu.field)}</h3><p className="text-gray-600 text-xs">{edu.institution} — {formatDisplayDate(edu.endDate)}</p>{edu.description && <p className="text-gray-600 text-xs mt-0.5">{edu.description}</p>}</div>))}</div>
+            <div>{resume.education.map(edu => (<div key={edu.id} data-break-avoid className="mb-2"><h3 className="font-bold text-gray-900 text-xs">{formatDegreeAndField(edu.degree, edu.field)}</h3><p className="text-gray-600 text-xs">{edu.institution} — {formatDateRangeDisplay(edu.startDate, edu.endDate, edu.endDate === 'Present')}</p>{edu.description && <p className="text-gray-600 text-xs mt-0.5">{edu.description}</p>}</div>))}</div>
           </div>
         </section>
       )}

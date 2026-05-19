@@ -33,7 +33,7 @@ export const AcademicTemplate = memo(function AcademicTemplate({ resume }: Acade
               <div key={edu.id} data-break-avoid>
                 <div className="flex justify-between items-baseline">
                   <h3 className="font-bold text-gray-900">{formatDegreeAndField(edu.degree, edu.field)}</h3>
-                  <span className="text-gray-600 text-sm">{formatDateRangeDisplay(edu.startDate, edu.endDate, false)}</span>
+                  <span className="text-gray-600 text-sm">{formatDateRangeDisplay(edu.startDate, edu.endDate, edu.endDate === 'Present')}</span>
                 </div>
                 <p className="text-gray-700 italic">{edu.institution}</p>
                 {edu.gpa && <p className="text-gray-600 text-sm">GPA: {edu.gpa}</p>}

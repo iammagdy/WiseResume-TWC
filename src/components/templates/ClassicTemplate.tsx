@@ -45,7 +45,7 @@ const EducationItem = memo(function EducationItem({ edu }: { edu: EducationItemT
         <p className="text-gray-600 text-xs">{formatDegreeAndField(edu.degree, edu.field)}</p>
         {edu.description && <p className="text-gray-600 text-xs mt-0.5">{edu.description}</p>}
       </div>
-      <span className="text-xs text-gray-500">{formatDisplayDate(edu.endDate)}</span>
+      <span className="text-xs text-gray-500">{formatDateRangeDisplay(edu.startDate, edu.endDate, edu.endDate === 'Present')}</span>
     </div>
   );
 });

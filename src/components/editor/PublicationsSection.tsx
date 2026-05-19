@@ -16,7 +16,7 @@ export const PublicationsSection = memo(function PublicationsSection() {
   const updateResume = useResumeStore(state => state.updateResume);
   const [expandedId, setExpandedId] = useExpandedEntryRestore('publications');
 
-  const addPublication = () => { haptics.light(); const n: Publication = { id: uuidv4(), title: '', publisher: '', date: '' }; updateResume({ publications: [...publications, n] }); setExpandedId(n.id); };
+  const addPublication = () => { haptics.light(); const n: Publication = { id: uuidv4(), title: '', publisher: '', date: '' }; updateResume({ publications: [n, ...publications] }); setExpandedId(n.id); };
   const updatePub = (id: string, u: Partial<Publication>) => { updateResume({ publications: publications.map(p => p.id === id ? { ...p, ...u } : p) }); };
   const deletePub = (id: string) => { haptics.light(); updateResume({ publications: publications.filter(p => p.id !== id) }); };
 

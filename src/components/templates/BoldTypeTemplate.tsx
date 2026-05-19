@@ -73,7 +73,7 @@ export const BoldTypeTemplate = memo(function BoldTypeTemplate({ resume }: Templ
                   <p className="text-gray-500 text-xs">{edu.institution}</p>
                   {edu.description && <p className="text-gray-500 text-xs mt-0.5">{edu.description}</p>}
                 </div>
-                <span className="text-xs text-gray-400 font-mono whitespace-nowrap ml-2">{formatDisplayDate(edu.endDate)}</span>
+                <span className="text-xs text-gray-400 font-mono whitespace-nowrap ml-2">{formatDateRangeDisplay(edu.startDate, edu.endDate, edu.endDate === 'Present')}</span>
               </div>
             ))}
           </section>
