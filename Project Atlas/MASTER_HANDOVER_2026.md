@@ -2,6 +2,126 @@
 
 ---
 
+## Session Summary — 2026-05-19 (Design System, Supabase Removal, Mobile Removal)
+
+### Overview
+
+Canonical detail in: `05-Migration to Appwrite/26-Session-Log-2026-05-19-Design-System-Supabase-Removal.md` (create if needed; this entry is self-contained).
+
+Four distinct tracks completed this session:
+1. **Design system documentation** — full rewrite of `docs/project-atlas/design-system.md` + Storybook 10 installed from scratch + 17 story files covering every design-system area and component.
+2. **Supabase scorched-earth removal** — all remaining Supabase references purged from the codebase (tests, mocks, `.env.example`, `MissionControlPanel.tsx`, `src/test/setup.ts`).
+3. **Mobile app removal** — `mobile/` directory (React Native / Expo) deleted entirely.
+4. **Design system completion pass** — Portfolio Themes story updated from placeholder colors to live `PORTFOLIO_THEMES` data; prop tables added for all custom components in docs; 3 new story files added.
+
+---
+
+### Track 1 — Design System Documentation & Storybook
+
+#### What was done
+
+- **`docs/project-atlas/design-system.md`** — full rewrite. Covers: color tokens (light/dark/app-shell/semantic-status, HSL values), typography scale (11 sizes + 9 semantic utilities + fluid scale), spacing/layout utilities, breakpoints, z-index scale, border radius, shadow scale + glow utilities, surface system (`.glass-*` classes), all 52 shadcn/ui component primitives, all custom app components with prop tables, icons rule (`lucide-react` only), animation/motion (Tailwind keyframes, CSS utilities, easing reference, reduced-motion rules), portfolio themes (all 9 themes, `buildThemeCSSVars` API, `PortfolioThemeConfig` interface), naming conventions, accessibility, mobile/native patterns.
+- **Storybook 10** installed (`@storybook/react-vite` builder). Scripts added to `package.json`: `storybook` (dev, port 6006) and `build-storybook`.
+- **`.storybook/main.ts`** — ESM-compatible config using `fileURLToPath(import.meta.url)` for `__dirname`. `@` alias resolved to `src/`.
+- **`.storybook/preview.tsx`** — custom `ThemeDecorator` with `globalTypes.theme` toolbar toggle (Light / Dark). No external addon-themes dependency.
+- **17 story files** in `src/stories/`:
+  - Design System: `ColorTokens`, `Typography`, `Spacing`, `Surfaces`, `Motion`, `PortfolioThemes`
+  - Components: `Button`, `Badge`, `Card`, `Inputs`, `Alert`, `Avatar`, `Progress`, `Tabs`
+  - Custom/Forms/Overlays: `CustomComponents`, `Forms`, `Modals`
+
+#### Errors fixed during Storybook setup
+
+| Error | Root cause | Fix |
+|---|---|---|
+| `Icons` import crash | `@storybook/addon-themes@8.x` tried to import `Icons` from Storybook 10 internals; API removed | Uninstalled `@storybook/addon-essentials` and `@storybook/addon-themes`; built custom toolbar decorator instead |
+| `__dirname is not defined` | Project has `"type": "module"` in `package.json`; `__dirname` is CommonJS-only | Used `fileURLToPath(import.meta.url)` in `.storybook/main.ts` |
+| `storybook-static/` untracked stop-hook failure | Build output not gitignored | Added `storybook-static/` to `.gitignore` |
+
+---
+
+### Track 2 — Supabase Removal
+
+#### Root cause
+
+Prior "scorched-earth Supabase removal" (commit 2026-05-08) had already deleted the actual Supabase client (`@/integrations/supabase/safeClient`), the hook migrations, and the backend wiring. However, test files, mock files, `.env.example`, and one UI component still referenced Supabase symbols.
+
+#### What was removed / fixed
+
+| File | Action | Detail |
+|---|---|---|
+| `src/components/ui/MissionControlPanel.tsx` | Fixed | Renamed `supabase_vault` → `appwrite_vault` in type union, filter, comment, and display logic |
+| `.env.example` | Fixed | Removed `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_JWT_SECRET` |
+| `src/test/setup.ts` | Fixed | Removed `import "./mocks/supabase"` line |
+| `src/test/mocks/supabase.ts` | Deleted | Dead mock for a client that no longer exists |
+| `src/hooks/__tests__/usePublicPortfolio.test.ts` | Deleted | Tested Supabase RPC; hook migrated to Appwrite `databases.listDocuments` |
+| `src/lib/__tests__/dataExportBenchmark.test.ts` | Deleted | Tested Supabase upsert performance; `importResumes` now uses Appwrite |
+| Other test files | Removed dead mock blocks | Removed `vi.mock("@/integrations/supabase/safeClient", ...)` blocks from 5 files |
+
+Backend (`src/lib/appwrite.ts`, all hooks, all stores) was already on Appwrite — no changes needed there.
+
+---
+
+### Track 3 — Mobile App Removal
+
+#### What was removed
+
+- Entire `mobile/` directory — React Native / Expo app containing `supabase.ts` client, navigation, screens, assets. The app was unused and unmaintained.
+
+---
+
+### Track 4 — Design System Completion Pass
+
+#### What was updated
+
+**`src/stories/PortfolioThemes.stories.tsx`** — replaced 4 hardcoded placeholder theme cards with live rendering from the real `PORTFOLIO_THEMES` array. Now shows all 9 themes grouped by category, uses actual preview colors and fonts from each config, includes a `buildThemeCSSVars` code snippet panel.
+
+**`docs/project-atlas/design-system.md`** — Portfolio Themes section replaced with:
+- All 9 themes in per-category tables with real bg/accent/font/cardVariant/animation values
+- `buildThemeCSSVars(theme, userAccent?)` API and `PortfolioThemeConfig` full interface
+- Theme data-attribute list updated from 4 to all 9 IDs
+
+**Custom component prop tables added** (were missing entirely):
+- `LoadingButton` — `isLoading`, `loadingText`, `spinnerSize`
+- `MiniSpinner` — `size`, `className`, accessibility attributes noted
+- `PlanChip` — `plan` (`free|pro|premium`), `trialPlan`, `trialExpiresAt`; renders nothing for `free`
+- `GlassSurface` — `blur`, `saturate`, `distortion`, `as` (polymorphic), `--glass-blur`/`--glass-saturate` CSS vars
+- `AITrustBadge` — `dismissible`, `className`
+
+**New story files:**
+- `src/stories/CustomComponents.stories.tsx` — LoadingButton (interactive), PlanChip (all 4 variants), AITrustBadge (dismissible/non), MiniSpinner (5 sizes), Skeleton (text/avatar/image), GlassSurface (blur/saturate/distortion)
+- `src/stories/Forms.stories.tsx` — Checkbox, Switch, RadioGroup, Select (with groups), Slider — all controlled with disabled states
+- `src/stories/Modals.stories.tsx` — Dialog (with form), AlertDialog (destructive), Tooltip (3 positions), Popover (with form)
+
+#### Verification
+
+`storybook build` passed cleanly. All 17 stories compiled; no TypeScript errors.
+
+---
+
+### Current State
+
+| Area | State |
+|---|---|
+| Design system docs | Complete — all tokens, components, themes, motion, mobile documented |
+| Storybook | Installed, 17 stories, build passes, `npm run storybook` works |
+| Supabase references | **Zero remaining** in codebase |
+| Mobile app | **Deleted** — `mobile/` directory gone |
+| Portfolio themes | All 9 themes documented and shown in Storybook with real data |
+| Custom component props | Documented for all 6 key custom components |
+| App visual/runtime code | **Unchanged** — zero production file modifications |
+| Branch | `claude/find-atlas-design-system-y4KJ7` |
+| PR | [#57](https://github.com/iammagdy/WiseResume-TWC/pull/57) (draft, open) |
+| Last commit | `6f3e603` |
+
+### Where We Stopped
+
+- All changes are on `claude/find-atlas-design-system-y4KJ7`, PR #57 is open as draft.
+- `main` is untouched — no production code was changed this session.
+- PR #57 is ready for review. Merge when design system review is complete.
+- **Next agent:** No urgent follow-up. If extending the design system, edit `docs/project-atlas/design-system.md` and the relevant story in `src/stories/`. To add a new portfolio theme, add it to `PORTFOLIO_THEMES` in `src/lib/portfolioThemes.ts` — the Storybook story will pick it up automatically.
+
+---
+
 ## Session Summary — 2026-05-19 (Editor + Gap Finder — see session logs)
 
 **Canonical detail (do not duplicate here):**
