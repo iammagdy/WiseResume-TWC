@@ -1,10 +1,8 @@
 /**
  * Full account backup & restore — PENDING APPWRITE MIGRATION.
  *
- * The legacy implementation read/wrote 13 Supabase tables directly via the
- * `supabase` client. As of the 2026-05-08 scorched-earth Supabase removal,
- * the `supabase` symbol is a throw-stub Proxy and any call would crash at
- * runtime with `pending_appwrite_migration`.
+ * The legacy implementation read/wrote database tables directly. This module
+ * is now a controlled throw-stub pending full Appwrite migration.
  *
  * To prevent runtime crashes from `AccountBackupSheet.tsx` (which still
  * imports `exportFullAccount`/`importFullAccount`), this module is now a

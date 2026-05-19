@@ -1,7 +1,6 @@
 /**
  * Single source of truth for the Task #56 resume-section-ai merge
- * rollout flag. Moved from src/integrations/supabase/ to src/lib/ as
- * part of the Appwrite migration — has no Supabase dependency.
+ * rollout flag. Has no external service dependency.
  *
  * Flip USE_MERGED_RESUME_SECTION_AI to roll forward / roll back across
  * all call sites simultaneously. Rollback is only valid against an

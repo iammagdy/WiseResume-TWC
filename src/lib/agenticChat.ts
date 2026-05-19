@@ -46,7 +46,7 @@ export function classifyAndThrow(error: unknown, data: unknown): never {
   const rawMsg = error instanceof Error ? error.message : String(error ?? '');
   const combined = `${errCode} ${message} ${rawMsg}`.toLowerCase();
 
-  // Try to read HTTP-ish status from supabase FunctionsError context
+  // Try to read HTTP-ish status from edge function error context
   const status =
     (error as { context?: { status?: number } } | null)?.context?.status ??
     (error as { status?: number } | null)?.status;

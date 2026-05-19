@@ -21,7 +21,7 @@ export function showErrorToast(message: string, error?: unknown) {
 }
 
 /**
- * Extracts the user-facing message from a supabase.functions.invoke error + data pair.
+ * Extracts the user-facing message from an edge function error + data pair.
  * Server returns { error: code, message: "friendly text" } via toUserError helper.
  */
 export function extractErrorMessage(

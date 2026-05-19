@@ -1,7 +1,6 @@
 import * as React from "react";
 import "@testing-library/jest-dom";
 import "./mocks/browser";
-import "./mocks/supabase";
 import "./mocks/sonner";
 import "./mocks/haptics";
 import "./mocks/auth";

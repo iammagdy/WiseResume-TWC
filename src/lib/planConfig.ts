@@ -1,10 +1,8 @@
 /**
  * Frontend plan configuration.
  *
- * NOTE: The old single-source-of-truth JSON file
- *   supabase/functions/_shared/creditLimits.json
- * was removed when the Supabase directory was deleted. Credit limits are now
- * defined directly here until the Appwrite Functions equivalent is in place.
+ * NOTE: Credit limits are defined directly here until the Appwrite Functions
+ * equivalent is in place.
  * Keep these values in sync with the Appwrite ai-gateway function config.
  */
 

@@ -63,7 +63,7 @@ export function initMonitoring(): void {
         event.breadcrumbs = event.breadcrumbs.filter((b) => {
           if (b.category === 'storage') return false;
           const msg = b.message ?? '';
-          if (msg.includes('wise_supabase') || msg.includes('localStorage') || msg.includes('sessionStorage')) return false;
+          if (msg.includes('localStorage') || msg.includes('sessionStorage')) return false;
           return true;
         });
       }

@@ -12,9 +12,8 @@ export function isActiveWithin24h(lastActiveAt: string | null): boolean {
  * 60s using recursive setTimeout so requests never overlap. Pauses when the
  * tab is hidden and emits a console warning on failure.
  *
- * Migrated from `supabase.rpc('get_portfolio_active_status')` to a direct
- * `databases.listDocuments` query on the `profiles` collection filtered by
- * `portfolio_username` (the slug used on public portfolio pages).
+ * Uses a direct `databases.listDocuments` query on the `profiles` collection
+ * filtered by `portfolio_username` (the slug used on public portfolio pages).
  */
 export function useActiveStatus(username: string, initialLastActiveAt: string | null): string | null {
   const [lastActiveAt, setLastActiveAt] = useState(initialLastActiveAt);

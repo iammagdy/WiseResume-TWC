@@ -25,13 +25,6 @@ vi.mock("@/hooks/useResumes", () => ({
   }),
 }));
 
-vi.mock("@/integrations/supabase/safeClient", () => ({
-  supabase: {
-    rpc: vi.fn().mockResolvedValue({ data: true, error: null }),
-  },
-}));
-
-
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: { retry: false },

@@ -5,11 +5,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { ResumeData } from "@/types/resume";
 
-// Mock supabaseAuth so getSupabaseToken doesn't touch real session
-vi.mock("@/lib/supabaseAuth", () => ({
-  getSupabaseToken: vi.fn().mockResolvedValue(null),
-}));
-
 vi.mock("@/lib/aiFallbackToast", () => ({
   checkAIFallback: vi.fn(),
 }));

@@ -181,7 +181,7 @@ interface InspectAIKeysResponse {
 
 /**
  * Detailed per-model entry returned by `inspect-ai-keys.modelOptionsDetailed`.
- * Mirrors `CuratedModel` in `supabase/functions/_shared/aiTestModelCatalog.ts`.
+ * Mirrors `CuratedModel` in the Appwrite functions shared catalog.
  * Only `id` is required — everything else is hint metadata that the UI
  * surfaces as a badge next to the model name in the dropdown.
  */

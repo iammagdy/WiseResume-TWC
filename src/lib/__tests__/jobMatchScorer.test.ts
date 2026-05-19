@@ -1,10 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
 
-// Mock supabase before importing scorer
-vi.mock('@/integrations/supabase/safeClient', () => ({
-  supabase: { functions: { invoke: vi.fn() } },
-}));
-
 import { scoreJobMatch } from '../jobMatchScorer';
 import type { ResumeData } from '@/types/resume';
 import type { Job } from '@/hooks/useJobs';

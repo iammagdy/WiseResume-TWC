@@ -36,7 +36,7 @@ interface SecretItem {
   key: string;
   label: string;
   present: boolean;
-  source: 'replit_env' | 'supabase_vault' | 'optional' | 'appwrite_function_variable';
+  source: 'replit_env' | 'appwrite_vault' | 'optional' | 'appwrite_function_variable';
   lastRotatedAt: string | null;
   stale: boolean;
   daysSinceRotation: number | null;
@@ -475,7 +475,7 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
     ? 'yellow'
     : 'green';
 
-  // missingCount from server only counts replit_env secrets — supabase_vault secrets are excluded
+  // missingCount from server only counts replit_env secrets — appwrite_vault secrets are excluded
   const secretsMissingCount = data?.secrets.missingCount ?? 0;
   const secretsStaleCount = data?.secrets.staleCount ?? 0;
   const secretsStatus: StatusDot = !data
@@ -485,7 +485,7 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
     : secretsStaleCount > 0
     ? 'yellow'
     : 'green';
-  const vaultCount = data?.secrets.items.filter(s => s.source === 'supabase_vault').length ?? 0;
+  const vaultCount = data?.secrets.items.filter(s => s.source === 'appwrite_vault').length ?? 0;
 
   const errorCount = data?.recentErrors.length ?? 0;
   const errorsStatus: StatusDot = !data
@@ -756,7 +756,7 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
             </div>
           )}
           {/* Defence-in-depth: in production every required secret is classified
-              as 'supabase_vault' so secretsMissingCount is structurally 0. If
+              as 'appwrite_vault' so secretsMissingCount is structurally 0. If
               that invariant ever breaks (e.g. WISE_ENV unset on a deploy),
               surface a clear note so the operator knows where to look. */}
           {data && !isDevEnv && secretsMissingCount > 0 && (
@@ -929,7 +929,7 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
                 ? 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20'
                 : 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20',
             )}>
-              {data.secrets.items.filter(s => s.present || s.source === 'supabase_vault').length} / {data.secrets.items.length} accounted for
+              {data.secrets.items.filter(s => s.present || s.source === 'appwrite_vault').length} / {data.secrets.items.length} accounted for
             </span>
             {vaultCount > 0 && (
               <span className="text-[10px] font-medium px-2 py-0.5 rounded-full border bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20 flex items-center gap-1">
@@ -940,7 +940,7 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
             {data.secrets.items.map(secret => {
-              const inVault = secret.source === 'supabase_vault';
+              const inVault = secret.source === 'appwrite_vault';
               const missingFromReplit = !secret.present && !inVault;
               return (
                 <div

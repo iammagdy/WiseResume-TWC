@@ -58,16 +58,6 @@ vi.mock("@/lib/aiTailor", async (importOriginal) => {
   };
 });
 
-vi.mock("@/integrations/supabase/safeClient", () => ({
-  supabase: {
-    from: vi.fn(() => ({
-      select: vi.fn(() => ({ eq: vi.fn(() => ({ data: [], error: null })) })),
-      insert: vi.fn(() => ({ data: null, error: null })),
-      update: vi.fn(() => ({ eq: vi.fn(() => ({ data: null, error: null })) })),
-    })),
-    auth: { getSession: vi.fn().mockResolvedValue({ data: { session: null } }) },
-  },
-}));
 
 import { TailorSheet } from "@/components/editor/TailorSheet";
 import { JobAnalysisSheet } from "@/components/editor/JobAnalysisSheet";

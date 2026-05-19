@@ -126,11 +126,9 @@ export async function scoreJobMatchAI(
   try {
     const jobDescription = `${job.title}\n${job.company}\n${job.description}\n${job.requirements}`;
 
-    // Use the bridge-aware appwriteFunctions wrapper so the user's Kinde-bridged
-    // Supabase JWT is attached. The raw `supabase.functions.invoke` path
-    // omits the Authorization header entirely when no native Supabase
-    // session exists (which is always, in our Kinde flow), causing
-    // analyze-resume's requireAuth to log "Missing authorization header"
+    // Use the bridge-aware appwriteFunctions wrapper so the user's Kinde
+    // token is attached — direct invocation omits the Authorization header,
+    // causing analyze-resume's requireAuth to log "Missing authorization header"
     // into error_log on every background score call (Task #41).
     const { data, error } = await appwriteFunctions.invoke('analyze-resume', {
       body: { resume, jobDescription },
