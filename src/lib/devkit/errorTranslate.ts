@@ -153,6 +153,45 @@ const PATTERNS: Pattern[] = [
         'An Appwrite Function is failing because a Postgres function/table is missing. The backend is Appwrite (project 69fd362b001eb325a192) — Supabase has been decommissioned. Help me identify what Postgres query is still running inside the function and migrate it to Appwrite Databases.',
     }),
   },
+
+  // ── Appwrite Function runtime crash (execution.status === "failed") ────────
+  {
+    test: (r) => /appwrite function runtime failed/i.test(r),
+    build: () => ({
+      humanMessage:
+        'The Appwrite Function crashed during execution and did not return a response.',
+      hint:
+        'Open Appwrite Console → Functions → [function name] → Executions and inspect the failed execution log. Common causes: missing node_modules (redeploy needed), a startup exception, or execution timeout.',
+      aiPromptHead:
+        'An Appwrite Function execution failed with status "failed" and returned no response body. The backend is Appwrite (project 69fd362b001eb325a192). Help me read the Appwrite execution error log and identify why the Node.js runtime crashed — common causes are missing dependencies, a module-load syntax error, or timeout.',
+    }),
+  },
+
+  // ── Appwrite 403 / execute permission denied ──────────────────────────────
+  {
+    test: (r) => /appwrite refused to execute/i.test(r),
+    build: () => ({
+      humanMessage:
+        'Appwrite blocked the function execution — the current user session does not have permission to run this function.',
+      hint:
+        'Open Appwrite Console → Functions → [function name] → Settings → Execute permissions. Add the "Any" role or the authenticated-user role. Then re-lock and re-unlock the DevKit session.',
+      aiPromptHead:
+        'An Appwrite Function call returned a 403 / "Appwrite refused to execute" error from the DevKit panel. The backend is Appwrite (project 69fd362b001eb325a192). Help me check the function execute permissions in Appwrite Console and grant access to the authenticated role.',
+    }),
+  },
+
+  // ── Appwrite query on un-indexed attribute ────────────────────────────────
+  {
+    test: (r) => /invalid query|attribute not found in any index|attribute not indexed|index not found for/i.test(r),
+    build: () => ({
+      humanMessage:
+        'The Appwrite Function query failed because a collection attribute is not indexed.',
+      hint:
+        'Open Appwrite Console → Databases → main → [collection name] → Indexes. Create a Key index on the attribute named in the error (e.g. "status"). No code change is needed — the query will work once the index is created.',
+      aiPromptHead:
+        'An Appwrite Function is failing because a Query.equal() call targets an attribute that has no index in the collection. The backend is Appwrite (project 69fd362b001eb325a192). Help me create the required index in Appwrite Console and verify the collection schema matches the README spec.',
+    }),
+  },
 ];
 
 const FALLBACK_BUILD = () => ({

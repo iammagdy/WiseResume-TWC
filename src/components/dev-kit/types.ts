@@ -1,5 +1,5 @@
 export type TestStatus = 'idle' | 'running' | 'success' | 'warn' | 'error';
-export type SectionId = 'auth' | 'ai' | 'db' | 'routing' | 'settings' | 'credits' | 'errors' | 'usage' | 'email' | 'byok';
+export type SectionId = 'auth' | 'ai' | 'db' | 'routing' | 'settings' | 'credits' | 'errors' | 'usage' | 'email';
 
 export interface TestResult {
   status: TestStatus;
