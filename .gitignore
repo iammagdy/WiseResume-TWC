@@ -110,3 +110,6 @@ reports/e2e-results.json
 ios/
 android/
 .appwrite/
+
+# Storybook build output
+storybook-static/
