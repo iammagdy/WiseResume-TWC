@@ -76,12 +76,14 @@ Diagnosed and fixed a critical AI outage that took down all app AI features afte
 
 ### Where We Stopped
 
-- **Committed to `main`:** AI gateway dd-trace fix + smart tech suggestions for Projects.
-- **Deployed:** User redeployed both hubs. AI health badge confirmed green.
-- **Plan saved:** `Project Atlas/05-Migration to Appwrite/28-Plan-3Tier-AI-Enhancement.md` — approved, not implemented.
-- **Not started:** Tiers 1, 2, 3 of the AI enhancement plan.
+- **Committed to `main`:** All 3 tiers implemented. TypeScript clean (`npx tsc --noEmit` — zero errors). Backend syntax clean (`node --check`). Commit: `267a3688`.
+- **`resume-section-ai` NOT YET REDEPLOYED** — user must delete the old tar and run deploy script:
+  ```
+  del appwrite-hubs\resume-section-ai.tar.gz
+  node scripts/deploy_hubs.cjs
+  ```
+- **Tiers 1 + 2 take effect after that redeploy.** Tier 3 frontend changes (JD-gated buttons) are live immediately on next Vercel deploy.
 - **Still pending from prior session:** RevenueCat Dashboard prerequisites (Web Billing app, Stripe connect, products/entitlements, webhook URL). `DEVKIT_PASSWORD` missing on `admin-deploy-hubs` function.
-- **Next agent:** Read the plan file, implement phases 1–8 in order, run `npx tsc --noEmit` after each phase, deploy `resume-section-ai` at the end (delete tar first).
 
 ---
 

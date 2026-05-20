@@ -11,6 +11,45 @@
 
 ---
 
+## 2026-05-20 — 3-Tier AI Enhancement (Implemented)
+
+### Summary
+All 3 tiers of the AI enhancement plan implemented, TypeScript-clean, committed to `main`. Requires `resume-section-ai` redeploy.
+
+### What changed
+
+**Tier 1 — Context enrichment**
+| File | Change |
+|------|--------|
+| `appwrite-hubs/resume-section-ai/src/main.js` | `buildResumeContextBlock(resume)` — structured name/title/recent-role/top-skills/education block replaces `JSON.stringify().slice(0,1000)` in all section prompts |
+
+**Tier 2 — Clarifying questions**
+| File | Change |
+|------|--------|
+| `appwrite-hubs/resume-section-ai/src/main.js` | `buildSummaryQuestionsResponse`, `buildSkillsQuestionsResponse`, `buildAddMetricsQuestionsResponse`; sparsity checks (summary <50 chars, skills <3 items, experience add_metrics <60 chars); `generate_with_answers` and `add_metrics_with_answers` action handlers |
+| `src/components/editor/ai/AIQuestionsDialog.tsx` | NEW generic dialog — `contextLabel` prop replaces `projectName` |
+| `src/components/editor/ai/ProjectAIQuestionsDialog.tsx` | Refactored to thin wrapper over `AIQuestionsDialog` |
+| `src/components/editor/SectionAIAction.tsx` | Intercepts `{type:'questions'}` response; `handleQuestionsSubmit`/`handleQuestionsSkip`; renders `<AIQuestionsDialog>` |
+| `src/components/editor/ExperienceSection.tsx` | **Bug fix:** `jobDescription` now passed to `enhance()`; questions flow for `add_metrics` on sparse entries |
+
+**Tier 3 — JD-aware actions**
+| File | Change |
+|------|--------|
+| `appwrite-hubs/resume-section-ai/src/main.js` | `tailor_to_job`, `find_skill_gaps`, `suggest_certifications` added to `ACTION_INSTRUCTIONS` |
+| `src/hooks/useAIEnhance.ts` | `ActionType` extended: `generate_with_answers`, `add_metrics_with_answers`, `tailor_to_job`, `find_skill_gaps`, `suggest_certifications` |
+| `src/components/editor/InlineAIButton.tsx` | `requiresJD` flag on `AIActionConfig`; `hasJobDescription` prop; JD-locked actions render disabled+tooltip (desktop) or greyed+hint (mobile); new actions: `tailor_to_job` on summary+experience, `find_skill_gaps` on skills, `suggest_certifications` on certifications |
+| `src/components/editor/SectionAIAction.tsx` | `hasJobDescription` derived from store and passed to `InlineAIButton`; `find_skill_gaps` apply branch is append-only |
+| `src/components/editor/ExperienceSection.tsx` | `hasJobDescription` from store passed to `InlineAIButton` in `ExperienceItem` |
+
+### Deployment required
+Redeploy `resume-section-ai` — delete existing tar first:
+```
+del appwrite-hubs\resume-section-ai.tar.gz
+node scripts/deploy_hubs.cjs
+```
+
+---
+
 ## 2026-05-20 — 3-Tier AI Enhancement Plan (Approved, Pending Implementation)
 
 ### Summary
