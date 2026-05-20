@@ -36,6 +36,7 @@ export const ProjectsSection = memo(function ProjectsSection() {
   const [currentActionId, setCurrentActionId] = useState<string | null>(null);
   const [aiQuestions, setAiQuestions] = useState<string[]>([]);
   const [questionsProjectId, setQuestionsProjectId] = useState<string | null>(null);
+  const [questionsAction, setQuestionsAction] = useState<ActionType | null>(null);
   const [questionsLoading, setQuestionsLoading] = useState(false);
 
   // Latest AI improved payload, kept in a ref so the apply callback can
@@ -183,6 +184,8 @@ export const ProjectsSection = memo(function ProjectsSection() {
           role: proj.role,
           description: proj.description,
           technologies: proj.technologies,
+          url: proj.url,
+          githubUrl: proj.githubUrl,
         }
       : {
           id: proj.id,
@@ -206,6 +209,7 @@ export const ProjectsSection = memo(function ProjectsSection() {
     if (resp && (resp as Record<string, unknown>).type === 'questions') {
       setAiQuestions((resp as Record<string, unknown>).questions as string[]);
       setQuestionsProjectId(proj.id);
+      setQuestionsAction(actionId as ActionType);
       return;
     }
 
@@ -226,6 +230,13 @@ export const ProjectsSection = memo(function ProjectsSection() {
       `Q: ${q}\nA: ${answers[String(i)] || '(skipped)'}`
     ).join('\n\n');
 
+    // suggest_technologies questions route back to suggest_technologies_with_answers
+    // so the backend returns a tech array (not a description).
+    // All other question flows (generate, etc.) use generate_with_answers.
+    const answerAction: ActionType = questionsAction === 'suggest_technologies'
+      ? 'suggest_technologies_with_answers'
+      : 'generate_with_answers';
+
     const singleProject = {
       id: proj.id,
       name: proj.name,
@@ -239,7 +250,7 @@ export const ProjectsSection = memo(function ProjectsSection() {
     };
 
     await enhance(
-      'generate_with_answers' as ActionType,
+      answerAction,
       singleProject,
       currentResume,
       answersText,
@@ -247,8 +258,9 @@ export const ProjectsSection = memo(function ProjectsSection() {
 
     setAiQuestions([]);
     setQuestionsProjectId(null);
+    setQuestionsAction(null);
     setQuestionsLoading(false);
-  }, [questionsProjectId, projects, aiQuestions, currentResume, enhance]);
+  }, [questionsProjectId, projects, aiQuestions, questionsAction, currentResume, enhance]);
 
   const handleQuestionsSkip = useCallback(async () => {
     if (!questionsProjectId) return;
@@ -256,8 +268,10 @@ export const ProjectsSection = memo(function ProjectsSection() {
     if (!proj) return;
 
     setEnhancingProjectId(questionsProjectId);
+    const skippedAction = questionsAction;
     setAiQuestions([]);
     setQuestionsProjectId(null);
+    setQuestionsAction(null);
 
     const singleProject = {
       id: proj.id,
@@ -267,14 +281,21 @@ export const ProjectsSection = memo(function ProjectsSection() {
       endDate: proj.endDate,
       description: proj.description,
       technologies: proj.technologies,
+      url: proj.url,
+      githubUrl: proj.githubUrl,
     };
 
-    await enhance(
-      'generate' as ActionType,
-      { ...singleProject, description: 'generate without questions' },
-      currentResume,
-    );
-  }, [questionsProjectId, projects, currentResume, enhance]);
+    if (skippedAction === 'suggest_technologies') {
+      // Skip → generate techs with whatever context is available
+      await enhance('suggest_technologies' as ActionType, singleProject, currentResume);
+    } else {
+      await enhance(
+        'generate' as ActionType,
+        { ...singleProject, description: 'generate without questions' },
+        currentResume,
+      );
+    }
+  }, [questionsProjectId, questionsAction, projects, currentResume, enhance]);
 
   const addProject = () => {
     haptics.light();

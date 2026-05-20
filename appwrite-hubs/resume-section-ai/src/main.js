@@ -118,40 +118,111 @@ ${currentContentDisplay}`;
   ];
 }
 
-function buildSuggestTechMessages(currentContent, context) {
-  const name = (currentContent && currentContent.name) || '';
-  const role = (currentContent && currentContent.role) || '';
-  const description = (currentContent && currentContent.description) || '';
-  const existing = Array.isArray(currentContent && currentContent.technologies) ? currentContent.technologies : [];
-
-  const systemPrompt = `You are an expert software engineer and resume writer. Given a project's details, suggest relevant technologies and tools that would realistically be used for this type of project.
+// Shared system prompt for tech suggestions
+const SUGGEST_TECH_SYSTEM = `You are an expert software engineer. Suggest the most relevant, specific technologies for THIS exact project based on all context provided.
 
 Return ONLY a valid JSON array of strings — no markdown fences, no explanation, no extra text:
 ["Technology1", "Technology2", "Technology3"]
 
 Rules:
-- Return 5-10 suggestions maximum
-- Only suggest technologies directly relevant to the project type and description
-- Do NOT include technologies already listed in the existing stack
-- Use standard, recognizable names (e.g. "React" not "ReactJS", "Node.js" not "NodeJS", "PostgreSQL" not "Postgres")
-- Focus on concrete tools and frameworks — not broad categories like "databases" or "web frameworks"`;
+- Return 5-10 highly specific suggestions for THIS project only
+- Base suggestions strictly on the project name, role, description, and any extra context
+- Do NOT suggest generic catch-all technologies unrelated to the project domain
+- Do NOT include technologies already in the existing stack
+- Prefer technologies that fit the user's known background when relevant
+- Use standard names (e.g. "React" not "ReactJS", "Node.js" not "NodeJS", "PostgreSQL" not "Postgres")
+- Focus on concrete tools and frameworks, not broad categories`;
 
-  let userPrompt = `Project: ${name}`;
-  if (role) userPrompt += `\nRole: ${role}`;
-  if (description) userPrompt += `\nDescription: ${description}`;
-  if (existing.length > 0) userPrompt += `\nAlready using: ${existing.join(', ')}`;
+/** Extract a deduplicated list of technologies the user knows from their resume */
+function extractKnownStack(resumeContext) {
+  if (!resumeContext) return [];
+  const techs = new Set();
+  const addList = (arr) => Array.isArray(arr) && arr.forEach(t => typeof t === 'string' && t && techs.add(t));
+  // skills section
+  if (Array.isArray(resumeContext.skills)) {
+    resumeContext.skills.forEach(s => {
+      if (typeof s === 'string') techs.add(s);
+      else if (s && typeof s === 'object') {
+        if (s.name) techs.add(s.name);
+        addList(s.skills);
+      }
+    });
+  }
+  // experience section
+  if (Array.isArray(resumeContext.experience)) {
+    resumeContext.experience.forEach(exp => {
+      addList(exp.skills);
+      addList(exp.technologies);
+    });
+  }
+  // other projects' technologies
+  if (Array.isArray(resumeContext.projects)) {
+    resumeContext.projects.forEach(p => addList(p.technologies));
+  }
+  return [...techs].slice(0, 25);
+}
 
-  const jobDescription = context?.jobDescription;
-  if (jobDescription) {
-    userPrompt += `\nTarget job description (for context): ${jobDescription.slice(0, 800)}`;
+/** Build the user-prompt block shared by both direct and with-answers paths */
+function buildSuggestTechUserPrompt(currentContent, context, extraAnswers) {
+  const name        = (currentContent && currentContent.name)        || '';
+  const role        = (currentContent && currentContent.role)        || '';
+  const description = (currentContent && currentContent.description) || '';
+  const url         = (currentContent && currentContent.url)         || '';
+  const githubUrl   = (currentContent && currentContent.githubUrl)   || '';
+  const existing    = Array.isArray(currentContent && currentContent.technologies) ? currentContent.technologies : [];
+
+  let prompt = `Project: ${name}`;
+  if (role)        prompt += `\nRole: ${role}`;
+  if (description) prompt += `\nDescription: ${description}`;
+  if (url)         prompt += `\nProject URL: ${url}`;
+  if (githubUrl)   prompt += `\nGitHub: ${githubUrl}`;
+  if (existing.length > 0) prompt += `\nAlready using (exclude these): ${existing.join(', ')}`;
+
+  const knownStack = extractKnownStack(context && context.resume);
+  if (knownStack.length > 0) {
+    prompt += `\nUser's known tech background (prefer these when relevant): ${knownStack.join(', ')}`;
   }
 
-  userPrompt += '\n\nSuggest additional relevant technologies as a JSON array of strings:';
+  if (extraAnswers) {
+    prompt += `\n\nUser's answers to clarifying questions:\n${extraAnswers}`;
+  }
 
+  const jobDescription = context && context.jobDescription;
+  if (jobDescription && !extraAnswers) {
+    // only include JD when there are no Q&A answers (avoid duplicate context)
+    prompt += `\nTarget job (for context): ${jobDescription.slice(0, 600)}`;
+  }
+
+  prompt += '\n\nSuggest technologies as a JSON array of strings:';
+  return prompt;
+}
+
+function buildSuggestTechMessages(currentContent, context) {
   return [
-    { role: 'system', content: systemPrompt },
-    { role: 'user', content: userPrompt },
+    { role: 'system', content: SUGGEST_TECH_SYSTEM },
+    { role: 'user',   content: buildSuggestTechUserPrompt(currentContent, context, null) },
   ];
+}
+
+function buildSuggestTechWithAnswersMessages(currentContent, context) {
+  // answers are passed in context.jobDescription (reuses the jobDescription slot)
+  const answers = (context && context.jobDescription) || '';
+  return [
+    { role: 'system', content: SUGGEST_TECH_SYSTEM },
+    { role: 'user',   content: buildSuggestTechUserPrompt(currentContent, context, answers) },
+  ];
+}
+
+/** Returns the fixed clarifying questions for sparse-context tech suggestions */
+function buildSuggestTechQuestionsResponse() {
+  return {
+    type: 'questions',
+    questions: [
+      'What domain or type is this project? (e.g. web app, mobile app, ML model, data pipeline, DevOps tool, CLI)',
+      'What is the main purpose or problem this project solves? (1–2 sentences)',
+      'What is the target platform or deployment environment? (e.g. browser, iOS/Android, cloud/server, embedded)',
+    ],
+  };
 }
 
 function parseSuggestTechResponse(rawContent) {
@@ -287,7 +358,22 @@ module.exports = async ({ req, res, log, error }) => {
     // ── Route to action handler ────────────────────────────────────────────────
     if (aiAction === 'enhance') {
       if (action === 'suggest_technologies') {
+        // Ask clarifying questions when context is too sparse for good suggestions.
+        // "Rich" = description ≥ 80 chars, OR (description ≥ 30 chars AND role is set).
+        const desc = (currentContent && currentContent.description) || '';
+        const role = (currentContent && currentContent.role) || '';
+        const hasRichContext = desc.length >= 80 || (desc.length >= 30 && role.length >= 5);
+        if (!hasRichContext) {
+          return res.json(buildSuggestTechQuestionsResponse());
+        }
         const messages = buildSuggestTechMessages(currentContent, context);
+        const rawContent = await callLLM(messages, pool);
+        const result = parseSuggestTechResponse(rawContent);
+        return res.json(result);
+      }
+
+      if (action === 'suggest_technologies_with_answers') {
+        const messages = buildSuggestTechWithAnswersMessages(currentContent, context);
         const rawContent = await callLLM(messages, pool);
         const result = parseSuggestTechResponse(rawContent);
         return res.json(result);
