@@ -11,6 +11,31 @@
 
 ---
 
+## 2026-05-20 — Smart Context-Aware Tech Suggestions
+
+### Problem
+`Suggest Technologies` always generated the same generic output regardless of the project, because it had no way to gather specific context and ignored the user's resume background.
+
+### What changed
+| File | Change |
+|------|--------|
+| `appwrite-hubs/resume-section-ai/src/main.js` | Clarifying questions when context is sparse; new `suggest_technologies_with_answers` action; `url`/`githubUrl` in prompt; resume tech stack extraction via `extractKnownStack()`; shared `buildSuggestTechUserPrompt()` |
+| `src/components/editor/ProjectsSection.tsx` | `questionsAction` state tracks which action triggered the dialog; `suggest_technologies` payload includes `url`/`githubUrl`; submit routes to `suggest_technologies_with_answers`; skip falls back gracefully |
+| `src/hooks/useAIEnhance.ts` | Added `suggest_technologies_with_answers` to `ActionType` union |
+
+### Behaviour now
+- **Sparse context** (description < 80 chars and no role): shows 3 questions about domain, purpose, platform → answers drive specific suggestions
+- **Rich context**: skips dialog, generates directly with enriched context (URL, GitHub, resume stack)
+- **Skip button**: falls back to best-effort direct generation instead of blank `generate`
+
+### Deployment required
+Redeploy `resume-section-ai` hub after pulling:
+```
+git pull origin main && APPWRITE_API_KEY=<key> node scripts/deploy_hubs.cjs
+```
+
+---
+
 ## 2026-05-20 — Fix: AI Gateway + Resume Section AI Down After Windows Redeploy
 
 ### Root Cause
