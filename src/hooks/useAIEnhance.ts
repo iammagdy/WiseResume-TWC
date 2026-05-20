@@ -18,7 +18,12 @@ import {
 
 
 export type SectionType = 'summary' | 'experience' | 'education' | 'skills' | 'contact' | 'awards' | 'projects' | 'publications' | 'volunteering' | 'certifications' | 'languages';
-export type ActionType = 'generate' | 'improve' | 'ats_improve' | 'ats_optimize' | 'shorten' | 'expand' | 'add_metrics' | 'generate_bullets' | 'suggest_technologies' | 'generate_with_answers' | 'suggest_technologies_with_answers';
+export type ActionType =
+  | 'generate' | 'improve' | 'ats_improve' | 'ats_optimize'
+  | 'shorten' | 'expand' | 'add_metrics' | 'generate_bullets'
+  | 'suggest_technologies' | 'suggest_technologies_with_answers'
+  | 'generate_with_answers' | 'add_metrics_with_answers'
+  | 'tailor_to_job' | 'find_skill_gaps' | 'suggest_certifications';
 
 interface EnhanceResult {
   improved: unknown;
@@ -73,6 +78,7 @@ function validateImprovedShape(
     return { ok: false, reason: 'AI returned an unexpected shape' };
   }
   if (section === 'skills') {
+    // find_skill_gaps returns an array of new skills to append — same shape.
     if (!Array.isArray(improved)) {
       return { ok: false, reason: 'AI returned a non-array for skills' };
     }

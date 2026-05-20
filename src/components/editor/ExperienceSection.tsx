@@ -8,6 +8,7 @@ import { useExpandedEntryRestore } from '@/hooks/useExpandedEntryRestore';
 import { Experience } from '@/types/resume';
 import { v4 as uuidv4 } from 'uuid';
 import { AIEnhanceDialog } from './ai/AIEnhanceDialog';
+import { AIQuestionsDialog } from './ai/AIQuestionsDialog';
 import { useAIEnhance, ActionType } from '@/hooks/useAIEnhance';
 import { AIContextualNudge } from './AIContextualNudge';
 import { useResumeNudges } from '@/hooks/useResumeNudges';
@@ -33,6 +34,7 @@ export const ExperienceSection = memo(function ExperienceSection() {
   const summary = useResumeStore(state => state.currentResume?.summary);
   const updateResume = useResumeStore(state => state.updateResume);
   const currentResume = useResumeStore(state => state.currentResume);
+  const jobDescription = useResumeStore(state => state.jobDescription);
   const setPendingPrompt = useChatTriggerStore(s => s.setPendingPrompt);
   const [expandedId, setExpandedId] = useExpandedEntryRestore('experience');
   const [enhancingExpId, setEnhancingExpId] = useState<string | null>(null);
@@ -105,6 +107,14 @@ export const ExperienceSection = memo(function ExperienceSection() {
   const [showGapFiller, setShowGapFiller] = useState(false);
   const [selectedGapForFill, setSelectedGapForFill] = useState<GapInfo | null>(null);
   const [showBoostAll, setShowBoostAll] = useState(false);
+
+  // ── Tier 2: clarifying-questions flow for experience entries ──────────────
+  const [pendingExpQuestions, setPendingExpQuestions] = useState<{
+    questions: string[];
+    action: ActionType;
+    exp: Experience;
+  } | null>(null);
+  const [expQuestionsLoading, setExpQuestionsLoading] = useState(false);
 
   if (!currentResume || !experience) return null;
 
@@ -189,12 +199,23 @@ export const ExperienceSection = memo(function ExperienceSection() {
     const enhanceResult = await enhance(
       actionId as ActionType,
       { description: exp.description, position: exp.position, company: exp.company, account: exp.account },
-      currentResume
+      currentResume,
+      jobDescription || undefined,
     );
 
     if (!enhanceResult) {
       // Failed call — leave per-entry state untouched. The error toast was
       // already surfaced by the hook with the structured AIError code.
+      return;
+    }
+
+    // Tier 2: backend returned clarifying questions — open the questions dialog.
+    if (typeof enhanceResult === 'object' && (enhanceResult as Record<string, unknown>).type === 'questions') {
+      setPendingExpQuestions({
+        questions: (enhanceResult as Record<string, unknown>).questions as string[],
+        action: actionId as ActionType,
+        exp,
+      });
       return;
     }
 
@@ -241,6 +262,65 @@ export const ExperienceSection = memo(function ExperienceSection() {
     }
     if (entry) setImprovedEntry(entry as typeof improvedEntry);
   }, [enhance, enhancingExpId, experience, currentResume]);
+
+  const handleExpQuestionsSubmit = useCallback(async (answers: Record<string, string>) => {
+    if (!pendingExpQuestions || !currentResume) return;
+    setExpQuestionsLoading(true);
+    const answerText = Object.values(answers).filter(Boolean).join('\n');
+    const withAnswersAction = `${pendingExpQuestions.action}_with_answers` as ActionType;
+    const { exp } = pendingExpQuestions;
+    const enhanceResult = await enhance(
+      withAnswersAction,
+      { description: exp.description, position: exp.position, company: exp.company, account: exp.account },
+      currentResume,
+      answerText,
+    );
+    setExpQuestionsLoading(false);
+    setPendingExpQuestions(null);
+    if (!enhanceResult) return;
+    if (typeof enhanceResult === 'object' && (enhanceResult as Record<string, unknown>).type === 'questions') return;
+    const improved = enhanceResult.improved;
+    let entry: Record<string, unknown> | null = null;
+    if (Array.isArray(improved)) {
+      entry = (improved.find((e: Record<string, unknown>) => e.id === exp.id) || improved[0] || null) as Record<string, unknown> | null;
+    } else if (improved && typeof improved === 'object') {
+      entry = improved as Record<string, unknown>;
+    }
+    if (entry) {
+      setEnhancingExpId(exp.id);
+      setOriginalDescription(exp.description);
+      setImprovedEntry(entry as typeof improvedEntry);
+      setShowDialog(true);
+    }
+  }, [pendingExpQuestions, currentResume, enhance]);
+
+  const handleExpQuestionsSkip = useCallback(async () => {
+    if (!pendingExpQuestions || !currentResume) return;
+    const { action, exp } = pendingExpQuestions;
+    setPendingExpQuestions(null);
+    // Re-run without answers
+    const enhanceResult = await enhance(
+      action,
+      { description: exp.description, position: exp.position, company: exp.company, account: exp.account },
+      currentResume,
+      jobDescription || undefined,
+    );
+    if (!enhanceResult) return;
+    if (typeof enhanceResult === 'object' && (enhanceResult as Record<string, unknown>).type === 'questions') return;
+    const improved = enhanceResult.improved;
+    let entry: Record<string, unknown> | null = null;
+    if (Array.isArray(improved)) {
+      entry = (improved.find((e: Record<string, unknown>) => e.id === exp.id) || improved[0] || null) as Record<string, unknown> | null;
+    } else if (improved && typeof improved === 'object') {
+      entry = improved as Record<string, unknown>;
+    }
+    if (entry) {
+      setEnhancingExpId(exp.id);
+      setOriginalDescription(exp.description);
+      setImprovedEntry(entry as typeof improvedEntry);
+      setShowDialog(true);
+    }
+  }, [pendingExpQuestions, currentResume, enhance, jobDescription]);
 
   const handleTimelineDismiss = useCallback(() => setShowTimeline(false), []);
   const openGapAssistant = useCallback(
@@ -409,6 +489,18 @@ export const ExperienceSection = memo(function ExperienceSection() {
           </div>
         )}
       
+
+      {/* Tier 2: Clarifying Questions Dialog */}
+      {pendingExpQuestions && (
+        <AIQuestionsDialog
+          isOpen={true}
+          contextLabel={`${pendingExpQuestions.exp.position || 'Experience'}${pendingExpQuestions.exp.company ? ` at ${pendingExpQuestions.exp.company}` : ''}`}
+          questions={pendingExpQuestions.questions}
+          onSubmit={handleExpQuestionsSubmit}
+          onClose={handleExpQuestionsSkip}
+          isLoading={expQuestionsLoading}
+        />
+      )}
 
       {/* AI Enhancement Dialog */}
       <AIEnhanceDialog

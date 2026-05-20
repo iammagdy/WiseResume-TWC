@@ -1,5 +1,6 @@
 import { useState, useEffect, memo } from 'react';
-import { Loader2, Sparkles, Wand2, Target, Minimize2, BarChart3, BookOpen, CheckCircle, Layers, Plus } from 'lucide-react';
+import { Loader2, Sparkles, Wand2, Target, Minimize2, BarChart3, BookOpen, CheckCircle, Layers, Plus, Briefcase, Search, Award } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -14,6 +15,8 @@ interface AIActionConfig {
   label: string;
   icon: React.ReactNode;
   description?: string;
+  /** When true, this action is only enabled when a job description is present. */
+  requiresJD?: boolean;
 }
 
 const sectionActions: Record<SectionType, AIActionConfig[]> = {
@@ -22,16 +25,19 @@ const sectionActions: Record<SectionType, AIActionConfig[]> = {
     { id: 'improve', label: 'Improve', icon: <Sparkles className="w-4 h-4" />, description: 'Enhance clarity and impact' },
     { id: 'shorten', label: 'Shorten', icon: <Minimize2 className="w-4 h-4" />, description: 'Condense without losing key points' },
     { id: 'ats_optimize', label: 'ATS Optimize', icon: <Target className="w-4 h-4" />, description: 'Align keywords with job requirements' },
+    { id: 'tailor_to_job', label: 'Tailor to Job', icon: <Briefcase className="w-4 h-4" />, description: 'Rewrite using exact keywords from the job post', requiresJD: true },
   ],
   experience: [
     { id: 'improve', label: 'Improve Bullets', icon: <Wand2 className="w-4 h-4" />, description: 'Rewrite with stronger action verbs' },
     { id: 'add_metrics', label: 'Add Metrics', icon: <BarChart3 className="w-4 h-4" />, description: 'Quantify achievements with numbers' },
     { id: 'ats_optimize', label: 'ATS Optimize', icon: <Target className="w-4 h-4" />, description: 'Align keywords with job requirements' },
+    { id: 'tailor_to_job', label: 'Tailor to Job', icon: <Briefcase className="w-4 h-4" />, description: 'Rewrite using exact keywords from the job post', requiresJD: true },
   ],
   skills: [
     { id: 'generate', label: 'Suggest Skills', icon: <Plus className="w-4 h-4" />, description: 'Recommend relevant skills for your role' },
     { id: 'improve', label: 'Improve & Reorder', icon: <Layers className="w-4 h-4" />, description: 'Prioritize and organize skills' },
     { id: 'ats_optimize', label: 'ATS Optimize', icon: <Target className="w-4 h-4" />, description: 'Match skills to job descriptions' },
+    { id: 'find_skill_gaps', label: 'Find Skill Gaps', icon: <Search className="w-4 h-4" />, description: 'Add missing skills required by the job post', requiresJD: true },
   ],
   education: [
     { id: 'generate', label: 'Suggest Coursework', icon: <BookOpen className="w-4 h-4" />, description: 'Add relevant courses and highlights' },
@@ -62,6 +68,7 @@ const sectionActions: Record<SectionType, AIActionConfig[]> = {
   certifications: [
     { id: 'generate', label: 'Suggest Certifications', icon: <Wand2 className="w-4 h-4" />, description: 'Recommend relevant certifications' },
     { id: 'improve', label: 'Improve', icon: <Sparkles className="w-4 h-4" />, description: 'Enhance certification details' },
+    { id: 'suggest_certifications', label: 'From Job Post', icon: <Award className="w-4 h-4" />, description: 'Certifications matched to the job description', requiresJD: true },
   ],
   languages: [
     { id: 'generate', label: 'Suggest Languages', icon: <Wand2 className="w-4 h-4" />, description: 'Recommend languages to add' },
@@ -88,6 +95,8 @@ interface InlineAIButtonProps {
   onLockedClick?: () => void;
   hasContent?: boolean;
   fieldContext?: 'technologies' | 'description';
+  /** When true, JD-gated actions (requiresJD) become enabled. */
+  hasJobDescription?: boolean;
 }
 
 const experienceEmptyActions: AIActionConfig[] = [
@@ -117,6 +126,7 @@ export const InlineAIButton = memo(function InlineAIButton({
   onLockedClick,
   hasContent = true,
   fieldContext,
+  hasJobDescription = false,
 }: InlineAIButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [showPulse, setShowPulse] = useState(true);
@@ -163,17 +173,37 @@ export const InlineAIButton = memo(function InlineAIButton({
 
   const menuItems = (
     <>
-      {actions.map((action) => (
-        <button
-          key={action.id}
-          onClick={() => handleAction(action.id)}
-          className="flex w-full items-center gap-2 rounded-sm px-2 py-2.5 min-h-[44px] text-sm text-popover-foreground outline-none cursor-pointer transition-colors hover:bg-accent hover:text-accent-foreground"
-          role="menuitem"
-        >
-          {action.icon}
-          <span>{action.label}</span>
-        </button>
-      ))}
+      {actions.map((action) => {
+        const jdLocked = action.requiresJD && !hasJobDescription;
+        if (jdLocked) {
+          return (
+            <TooltipProvider key={action.id}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="flex w-full items-center gap-2 rounded-sm px-2 py-2.5 min-h-[44px] text-sm text-muted-foreground opacity-50 cursor-not-allowed select-none">
+                    {action.icon}
+                    <span>{action.label}</span>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="left">
+                  Add a job description first to use this action
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          );
+        }
+        return (
+          <button
+            key={action.id}
+            onClick={() => handleAction(action.id)}
+            className="flex w-full items-center gap-2 rounded-sm px-2 py-2.5 min-h-[44px] text-sm text-popover-foreground outline-none cursor-pointer transition-colors hover:bg-accent hover:text-accent-foreground"
+            role="menuitem"
+          >
+            {action.icon}
+            <span>{action.label}</span>
+          </button>
+        );
+      })}
       <div className="-mx-1 my-1 h-px bg-muted" />
       <AIProviderFooter />
     </>
@@ -252,23 +282,31 @@ export const InlineAIButton = memo(function InlineAIButton({
             </SheetTitle>
           </SheetHeader>
           <div className="space-y-1 py-2">
-            {actions.map((action) => (
-              <button
-                key={action.id}
-                onClick={() => handleAction(action.id)}
-                className="flex w-full items-center gap-3 rounded-xl px-3 min-h-[64px] text-left transition-colors hover:bg-accent active:bg-accent/80 touch-manipulation"
-              >
-                <div className="shrink-0 w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                  {action.icon}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium">{action.label}</p>
-                  {action.description && (
-                    <p className="text-xs text-muted-foreground mt-0.5">{action.description}</p>
-                  )}
-                </div>
-              </button>
-            ))}
+            {actions.map((action) => {
+              const jdLocked = action.requiresJD && !hasJobDescription;
+              return (
+                <button
+                  key={action.id}
+                  onClick={jdLocked ? undefined : () => handleAction(action.id)}
+                  disabled={jdLocked}
+                  className={`flex w-full items-center gap-3 rounded-xl px-3 min-h-[64px] text-left transition-colors touch-manipulation ${
+                    jdLocked
+                      ? 'opacity-40 cursor-not-allowed'
+                      : 'hover:bg-accent active:bg-accent/80'
+                  }`}
+                >
+                  <div className={`shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${jdLocked ? 'bg-muted text-muted-foreground' : 'bg-primary/10 text-primary'}`}>
+                    {action.icon}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium">{action.label}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {jdLocked ? 'Add a job description first' : action.description}
+                    </p>
+                  </div>
+                </button>
+              );
+            })}
           </div>
           <div className="pt-2 border-t border-border">
             <AIProviderFooter />

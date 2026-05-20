@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useAIApplyEffects } from '@/hooks/useAIApplyEffects';
 import type { Experience, Education, ContactInfo, ResumeData } from '@/types/resume';
 import { AIEnhanceDialog, type EntryDiff, type FieldDiff, type ListLineDiff, type FieldDiffStatus } from './ai/AIEnhanceDialog';
+import { AIQuestionsDialog } from './ai/AIQuestionsDialog';
 import { useSectionAIBridge } from '@/store/sectionAIBridge';
 import { isSectionContentEmpty, isGenerativeAction, emptySectionToastMessage } from '@/lib/ai/sectionContentGuard';
 import { toast } from 'sonner';
@@ -568,13 +569,21 @@ export const SectionAIAction = memo(function SectionAIAction({ section, onApplie
   const [showDialog, setShowDialog] = useState(false);
   const { rescoreAfterApply } = useAIApplyEffects(currentResume?.id);
 
+  // ── Tier 2: clarifying-questions flow state ──────────────────────────────
+  const [pendingQuestions, setPendingQuestions] = useState<{
+    questions: string[];
+    action: ActionType;
+    contextLabel: string;
+  } | null>(null);
+  const [questionsLoading, setQuestionsLoading] = useState(false);
+
   // Cache the latest structured AI payload. The dialog displays a
   // formatted text rendering of this for non-string sections, but the
   // Approve path needs the original object/array so we can merge it
   // safely back into the resume — the formatted string is display-only.
   const latestPayloadRef = useRef<unknown>(null);
 
-  const { enhance, isEnhancing, result, apply, discard } = useAIEnhance({
+  const { enhance, isEnhancing, currentAction, result, apply, discard } = useAIEnhance({
     section,
     // All sections route through the preview popup now — the dialog's
     // onApply handler does the actual merge into the store, so the hook's
@@ -615,6 +624,18 @@ export const SectionAIAction = memo(function SectionAIAction({ section, onApplie
     );
 
     if (!enhanceResult) return;
+
+    // Tier 2: backend returned clarifying questions — open the questions
+    // dialog instead of the diff dialog.
+    if (typeof enhanceResult === 'object' && (enhanceResult as Record<string, unknown>).type === 'questions') {
+      const sectionLabel = section.charAt(0).toUpperCase() + section.slice(1);
+      setPendingQuestions({
+        questions: (enhanceResult as Record<string, unknown>).questions as string[],
+        action: actionId as ActionType,
+        contextLabel: sectionLabel,
+      });
+      return;
+    }
 
     // Stash the original structured payload so Approve can write the
     // real object/array back into the store. The dialog only sees the
@@ -715,6 +736,21 @@ export const SectionAIAction = memo(function SectionAIAction({ section, onApplie
       return;
     }
 
+    // Tier 3: find_skill_gaps — append-only merge (never replace existing skills).
+    if (section === 'skills' && currentAction === 'find_skill_gaps') {
+      if (Array.isArray(payload)) {
+        const existing = Array.isArray(currentResume.skills) ? currentResume.skills : [];
+        const newSkills = (payload as unknown[]).filter((s): s is string => typeof s === 'string');
+        const merged = [...existing, ...newSkills.filter(s => !existing.includes(s))];
+        updateResume({ skills: merged });
+      }
+      apply(editedText);
+      setShowDialog(false);
+      latestPayloadRef.current = null;
+      onApplied?.();
+      return;
+    }
+
     // Array-shaped sections — merge by id where possible.
     const applyMap: Record<string, () => void> = {
       experience: () => {
@@ -744,6 +780,62 @@ export const SectionAIAction = memo(function SectionAIAction({ section, onApplie
     setShowDialog(false);
     latestPayloadRef.current = null;
     onApplied?.();
+  };
+
+  // ── Tier 2: questions-dialog handlers ─────────────────────────────────────
+
+  const handleQuestionsSubmit = async (answers: Record<string, string>) => {
+    if (!pendingQuestions || !currentResume) return;
+    setQuestionsLoading(true);
+    const answerText = Object.values(answers).filter(Boolean).join('\n');
+    // Pass the answers through the jobDescription slot — same pattern as
+    // suggest_technologies_with_answers in ProjectsSection.
+    const withAnswersAction = `${pendingQuestions.action}_with_answers` as ActionType;
+    const contentMap: Record<SectionType, unknown> = {
+      contact: currentResume.contactInfo,
+      summary: currentResume.summary,
+      experience: currentResume.experience,
+      education: currentResume.education,
+      skills: currentResume.skills,
+      awards: currentResume.awards || [],
+      projects: currentResume.projects || [],
+      publications: currentResume.publications || [],
+      volunteering: currentResume.volunteering || [],
+      certifications: currentResume.certifications || [],
+      languages: currentResume.languages || [],
+    };
+    const data = await enhance(withAnswersAction, contentMap[section], currentResume, answerText);
+    setQuestionsLoading(false);
+    setPendingQuestions(null);
+    if (!data) return;
+    if (typeof data === 'object' && (data as Record<string, unknown>).type === 'questions') return;
+    latestPayloadRef.current = data.improved;
+    setShowDialog(true);
+  };
+
+  const handleQuestionsSkip = async () => {
+    if (!pendingQuestions || !currentResume) return;
+    const skippedAction = pendingQuestions.action;
+    setPendingQuestions(null);
+    // Re-run the original action without answers
+    const contentMap: Record<SectionType, unknown> = {
+      contact: currentResume.contactInfo,
+      summary: currentResume.summary,
+      experience: currentResume.experience,
+      education: currentResume.education,
+      skills: currentResume.skills,
+      awards: currentResume.awards || [],
+      projects: currentResume.projects || [],
+      publications: currentResume.publications || [],
+      volunteering: currentResume.volunteering || [],
+      certifications: currentResume.certifications || [],
+      languages: currentResume.languages || [],
+    };
+    const data = await enhance(skippedAction, contentMap[section], currentResume, jobDescription || undefined);
+    if (!data) return;
+    if (typeof data === 'object' && (data as Record<string, unknown>).type === 'questions') return;
+    latestPayloadRef.current = data.improved;
+    setShowDialog(true);
   };
 
   const handleDiscardFromDialog = () => {
@@ -837,6 +929,8 @@ export const SectionAIAction = memo(function SectionAIAction({ section, onApplie
   };
   const hasContent = !isSectionContentEmpty(section, sectionContent[section]);
 
+  const hasJobDescription = !!(jobDescription?.trim());
+
   return (
     <>
       <InlineAIButton
@@ -846,7 +940,19 @@ export const SectionAIAction = memo(function SectionAIAction({ section, onApplie
         isAuthenticated={isAuthenticated}
         onLockedClick={() => setShowSignIn(true)}
         hasContent={hasContent}
+        hasJobDescription={hasJobDescription}
       />
+
+      {pendingQuestions && (
+        <AIQuestionsDialog
+          isOpen={true}
+          contextLabel={pendingQuestions.contextLabel}
+          questions={pendingQuestions.questions}
+          onSubmit={handleQuestionsSubmit}
+          onClose={handleQuestionsSkip}
+          isLoading={questionsLoading}
+        />
+      )}
 
       <AIEnhanceDialog
         isOpen={showDialog}

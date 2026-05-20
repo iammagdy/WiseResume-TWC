@@ -56,17 +56,20 @@ async function callLLM(messages, pool) {
 // ─── Action-specific prompt builders ─────────────────────────────────────────
 
 const ACTION_INSTRUCTIONS = {
-  improve:          'Improve this resume section to be more impactful, professional, and results-oriented.',
-  ats_improve:      'Optimize this resume section for ATS compatibility by incorporating relevant keywords naturally.',
-  ats_optimize:     'Rewrite this resume section to maximize ATS keyword matching while maintaining human readability.',
-  shorten:          'Make this resume section more concise while preserving all key information and measurable achievements.',
-  expand:           'Expand this resume section with more detail, specific achievements, and stronger action verbs.',
-  add_metrics:      'Add quantifiable metrics and measurable outcomes to this resume section where possible.',
-  generate_bullets: 'Convert this resume content into strong, action-verb-led bullet points with measurable outcomes.',
-  generate:         'Generate professional, ATS-optimized content for this resume section based on the context provided.',
-  tailor:           'Rewrite this resume section to closely match the target job description, using its exact keywords and terminology.',
-  'fill-gap':       'Create a professional resume entry that honestly describes a career gap period. Make it positive and forward-looking.',
-  'explain-gap':    'Write a brief, professional explanation for this career gap that frames the time constructively.',
+  improve:               'Improve this resume section to be more impactful, professional, and results-oriented.',
+  ats_improve:           'Optimize this resume section for ATS compatibility by incorporating relevant keywords naturally.',
+  ats_optimize:          'Rewrite this resume section to maximize ATS keyword matching while maintaining human readability.',
+  shorten:               'Make this resume section more concise while preserving all key information and measurable achievements.',
+  expand:                'Expand this resume section with more detail, specific achievements, and stronger action verbs.',
+  add_metrics:           'Add quantifiable metrics and measurable outcomes to this resume section where possible.',
+  generate_bullets:      'Convert this resume content into strong, action-verb-led bullet points with measurable outcomes.',
+  generate:              'Generate professional, ATS-optimized content for this resume section based on the context provided.',
+  tailor:                'Rewrite this resume section to closely match the target job description, using its exact keywords and terminology.',
+  tailor_to_job:         'Rewrite this resume section to closely match the target job description, using its exact keywords and terminology. Preserve all facts — never fabricate experience, metrics, or skills.',
+  find_skill_gaps:       'Analyse the job description and return ONLY the skills the candidate is missing that are strongly required for the role. Do not modify existing skills. CRITICAL: Return ONLY skills the candidate does NOT already have. Return an empty array if all required skills are present.',
+  suggest_certifications:'Suggest the most relevant professional certifications for this candidate based on their background and the job description provided.',
+  'fill-gap':            'Create a professional resume entry that honestly describes a career gap period. Make it positive and forward-looking.',
+  'explain-gap':         'Write a brief, professional explanation for this career gap that frames the time constructively.',
 };
 
 function buildEnhanceMessages(section, action, currentContent, context) {
@@ -108,8 +111,7 @@ ${currentContentDisplay}`;
   }
 
   if (context?.resume) {
-    const resumeStr = JSON.stringify(context.resume);
-    userPrompt += `\n\nRESUME CONTEXT (for coherence): ${resumeStr.slice(0, 1000)}`;
+    userPrompt += `\n\nCANDIDATE PROFILE:\n${buildResumeContextBlock(context.resume)}`;
   }
 
   return [
@@ -160,6 +162,77 @@ function extractKnownStack(resumeContext) {
     resumeContext.projects.forEach(p => addList(p.technologies));
   }
   return [...techs].slice(0, 25);
+}
+
+/**
+ * Build a concise structured candidate profile from the resume object.
+ * Replaces the old raw JSON.stringify().slice(0,1000) approach — gives the
+ * LLM the key signal (name, title, recent role, skills, education) without
+ * wasting tokens on low-value fields.
+ */
+function buildResumeContextBlock(resume) {
+  if (!resume) return 'No resume context available.';
+  const name      = resume.contactInfo?.name || resume.contactInfo?.fullName || '';
+  const title     = resume.contactInfo?.title || resume.contactInfo?.headline || '';
+  const recentExp = Array.isArray(resume.experience) && resume.experience.length > 0
+    ? `${resume.experience[0].position || ''} at ${resume.experience[0].company || ''}`.trim()
+    : '';
+  const topSkills = Array.isArray(resume.skills)
+    ? resume.skills
+        .slice(0, 10)
+        .map(s => (typeof s === 'string' ? s : (s && s.name) || ''))
+        .filter(Boolean)
+        .join(', ')
+    : '';
+  const edu = Array.isArray(resume.education) && resume.education.length > 0
+    ? [
+        resume.education[0].degree || '',
+        resume.education[0].field  || '',
+        resume.education[0].institution || resume.education[0].school || '',
+      ].filter(Boolean).join(' — ')
+    : '';
+  return [
+    name      && `Candidate: ${name}`,
+    title     && `Current title: ${title}`,
+    recentExp && `Most recent role: ${recentExp}`,
+    topSkills && `Core skills: ${topSkills}`,
+    edu       && `Education: ${edu}`,
+  ].filter(Boolean).join('\n');
+}
+
+// ─── Tier 2: Clarifying-question response builders ────────────────────────────
+
+function buildSummaryQuestionsResponse() {
+  return {
+    type: 'questions',
+    questions: [
+      'What is your current job title or the role you are targeting?',
+      'What are your 2–3 most important professional strengths or achievements?',
+      'Who is the audience for this resume — a specific industry, company, or role level?',
+    ],
+  };
+}
+
+function buildSkillsQuestionsResponse() {
+  return {
+    type: 'questions',
+    questions: [
+      'What is your primary field or domain? (e.g. front-end engineering, data science, product management)',
+      'What level are you at — junior, mid, senior, or lead/director?',
+      'Are there specific technologies or tools you want to highlight or avoid?',
+    ],
+  };
+}
+
+function buildAddMetricsQuestionsResponse() {
+  return {
+    type: 'questions',
+    questions: [
+      'What was the scale of the team, project, or budget you managed?',
+      'Did this work lead to measurable outcomes — faster delivery, cost savings, revenue, user growth?',
+      'Over what time period did these results occur?',
+    ],
+  };
 }
 
 /** Build the user-prompt block shared by both direct and with-answers paths */
@@ -378,6 +451,50 @@ module.exports = async ({ req, res, log, error }) => {
         const result = parseSuggestTechResponse(rawContent);
         return res.json(result);
       }
+
+      // ── Tier 2: sparse-context question checks ─────────────────────────────
+      // summary → generate: ask questions if summary is very short
+      if (section === 'summary' && action === 'generate') {
+        const summaryText = typeof currentContent === 'string' ? currentContent : '';
+        if (summaryText.trim().length < 50) {
+          return res.json(buildSummaryQuestionsResponse());
+        }
+      }
+
+      // skills → generate: ask questions if skill list has fewer than 3 items
+      if (section === 'skills' && action === 'generate') {
+        const skillCount = Array.isArray(currentContent) ? currentContent.length : 0;
+        if (skillCount < 3) {
+          return res.json(buildSkillsQuestionsResponse());
+        }
+      }
+
+      // experience → add_metrics: ask questions if description is short
+      if (section === 'experience' && action === 'add_metrics') {
+        const desc = (currentContent && currentContent.description) || '';
+        if (desc.trim().length < 60) {
+          return res.json(buildAddMetricsQuestionsResponse());
+        }
+      }
+
+      // ── Tier 2: *_with_answers variants ───────────────────────────────────
+      // answers are passed through the context.jobDescription slot (same
+      // pattern as suggest_technologies_with_answers)
+      if (action === 'generate_with_answers') {
+        const baseAction = section === 'summary' ? 'generate' : 'generate';
+        const messages = buildEnhanceMessages(section, baseAction, currentContent, context);
+        const rawContent = await callLLM(messages, pool);
+        const result = parseEnhanceResponse(rawContent, currentContent);
+        return res.json(result);
+      }
+
+      if (action === 'add_metrics_with_answers') {
+        const messages = buildEnhanceMessages(section, 'add_metrics', currentContent, context);
+        const rawContent = await callLLM(messages, pool);
+        const result = parseEnhanceResponse(rawContent, currentContent);
+        return res.json(result);
+      }
+
       const messages = buildEnhanceMessages(section, action, currentContent, context);
       const rawContent = await callLLM(messages, pool);
       const result = parseEnhanceResponse(rawContent, currentContent);
