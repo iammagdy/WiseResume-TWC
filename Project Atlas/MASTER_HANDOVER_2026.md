@@ -18,6 +18,7 @@ Local reproduction with Vercel's bundler confirmed the exact cause: `@sparticuz/
 | File | Change |
 |---|---|
 | `api/export/pdf-native.ts` | Added `importExternalModule()` using an indirect dynamic `import()` so `@sparticuz/chromium` remains external and resolves from its package directory. Kept `puppeteer-core` lazy-loaded after request validation. |
+| `api/export/pdf-native.ts` | Moved `pdf-lib` and export page-planning helpers out of top-level imports and into lazy imports inside the valid PDF render path, minimizing the startup code that can crash before normal `405`/`400` responses. |
 
 `vercel.json` already includes `node_modules/@sparticuz/chromium/**`, so the external package files should be shipped with the function.
 
@@ -26,6 +27,7 @@ Local reproduction with Vercel's bundler confirmed the exact cause: `@sparticuz/
 - `npx @vercel/ncc build api/export/pdf-native.ts -o .tmp-ncc-pdf --transpile-only` - built a Vercel-style bundle.
 - Imported the bundle locally: `GET` returned `405`; malformed `POST` returned `400`, proving startup/request validation no longer crashes.
 - Valid bundled POST progressed past Chromium package resolution; local Windows then failed at browser launch, which is expected because `@sparticuz/chromium` is a Linux serverless Chromium package. The earlier missing `bin` directory error was gone.
+- Rebuilt the Vercel-style bundle after the additional startup hardening; `GET`/malformed `POST` still returned `405`/`400`, and valid render still reached only the expected local Windows Chromium launch limitation.
 - `npx tsc --noEmit` - passed.
 - `npm run build` - passed.
 

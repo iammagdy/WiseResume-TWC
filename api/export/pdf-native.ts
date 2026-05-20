@@ -20,14 +20,16 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 let _puppeteer: any;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let _chromium: any;
-import { PDFDocument } from 'pdf-lib';
-import {
-  buildExportPageSegments,
-  normalizeBreakPositions,
-  scaleBreakPositionsToMeasuredHeight,
-  snapBreakPositionsToSectionHeadings,
-  type ExportSectionBounds,
-} from '../../src/lib/exportPagePlan';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let _pdfLib: any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let _pagePlan: any;
+
+interface ExportSectionBounds {
+  top: number;
+  bottom: number;
+  headingTop: number;
+}
 
 export const config = {
   api: {
@@ -59,6 +61,20 @@ async function importExternalModule<T = unknown>(specifier: string): Promise<T> 
   const importer = new Function('specifier', 'return import(specifier)') as
     (specifier: string) => Promise<T>;
   return importer(specifier);
+}
+
+async function loadPdfLib() {
+  if (!_pdfLib) {
+    _pdfLib = await importExternalModule<typeof import('pdf-lib')>('pdf-lib');
+  }
+  return _pdfLib;
+}
+
+async function loadPagePlan() {
+  if (!_pagePlan) {
+    _pagePlan = await import('../../src/lib/exportPagePlan');
+  }
+  return _pagePlan as typeof import('../../src/lib/exportPagePlan');
 }
 
 // ── HTML helpers ──────────────────────────────────────────────────────────────
@@ -245,6 +261,7 @@ async function renderHtmlToPdfBuffer(
 
 async function mergePdfBuffers(buffers: Buffer[]): Promise<Uint8Array> {
   if (buffers.length === 1) return new Uint8Array(buffers[0]);
+  const { PDFDocument } = await loadPdfLib();
   const merged = await PDFDocument.create();
   for (const buffer of buffers) {
     const doc = await PDFDocument.load(buffer);
@@ -323,6 +340,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         await page.close();
       }
     } else {
+      const {
+        buildExportPageSegments,
+        normalizeBreakPositions,
+        scaleBreakPositionsToMeasuredHeight,
+        snapBreakPositionsToSectionHeadings,
+      } = await loadPagePlan();
       const footerHeight = showPageNumbers || showBranding ? EXPORT_FOOTER_HEIGHT_PX : 0;
       const printableHeight = dims.heightPx - footerHeight;
       const layout = await measureExportLayout(browser, html, dims.widthPx);

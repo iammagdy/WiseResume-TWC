@@ -19,6 +19,7 @@ Fixed the production PDF renderer function crash that made resume downloads fail
 ### What changed
 - `api/export/pdf-native.ts` now loads `@sparticuz/chromium` through an indirect dynamic import so Vercel's `ncc` bundler does not relocate the package away from its `bin` directory.
 - Kept `puppeteer-core` lazy-loaded after request validation so simple `GET`/bad-request responses cannot crash during function startup.
+- Moved `pdf-lib` and export page-planning helpers off the module top level and into lazy imports inside the valid PDF render path. This keeps the Vercel function startup surface minimal and prevents unrelated renderer dependencies from crashing simple `405`/`400` responses.
 
 ### Why
 The verified production symptom was `FUNCTION_INVOCATION_FAILED` for both `GET` and `POST` on `https://resume.thewise.cloud/api/export/pdf-native`, meaning the function crashed before normal request handling. Reproducing the Vercel-style bundle locally with `@vercel/ncc` showed the concrete root cause: `@sparticuz/chromium` was bundled/relocated and then failed with `The input directory "Y:\\bin" does not exist... you must externalize @sparticuz/chromium`. After the fix, the bundled function returns the expected `405` for `GET` and `400` for malformed `POST`, proving startup no longer crashes.
@@ -28,6 +29,7 @@ The verified production symptom was `FUNCTION_INVOCATION_FAILED` for both `GET` 
 - `npx @vercel/ncc build api/export/pdf-native.ts -o .tmp-ncc-pdf --transpile-only`
 - Imported the generated bundle locally: `GET` returned `405`, malformed `POST` returned `400`.
 - Valid bundled POST progressed past Chromium package resolution; the remaining local error was Windows-only browser launch (`spawn ... chromium ENOENT`), not the previous missing `bin` directory relocation error.
+- Rebuilt after startup hardening with a Vercel-style `ncc` bundle; `GET` and malformed `POST` still returned `405`/`400`, and a valid render still reached only the expected local Windows Chromium launch limitation.
 - `npx tsc --noEmit`
 - `npm run build`
 
