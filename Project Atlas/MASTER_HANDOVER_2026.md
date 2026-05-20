@@ -2,6 +2,130 @@
 
 ---
 
+## Session Summary — 2026-05-20 (Pre-Launch Editor Audit + Agentic Chat Structured Responses)
+
+### Overview
+Fixed all editor issues identified in the pre-launch audit and implemented structured JSON responses for the agentic-chat AI backend. All changes are committed and pushed to `main`.
+
+---
+
+### Fix 1 — Agentic Chat: structured response types not triggering
+
+**Root cause:** `ai-gateway` agentic-chat handler returned plain text. The frontend's `parseAgenticChatResponse()` always fell through to the `text` fallback, so `function_call` and `suggestion` response types were never activated.
+
+**Fix:** `appwrite-hubs/ai-gateway/src/main.js`
+- Added `parseAgenticChatResponse(rawContent)` — bracket-depth-balanced JSON walker with 4-stage fallback (direct parse → markdown fence → brace walker → `{type:'text'}`)
+- Updated `buildMessages('agentic-chat')` system prompt: instructs AI to ALWAYS return one of three JSON shapes (`text | function_call | suggestion`) with decision rules and full function schema list
+- Added special return path in main handler: `if (featureName === 'agentic-chat') { return res.json({ status: 'success', data: structuredResponse }); }`
+- `maxTokens` for agentic-chat: `800 → 1500`
+
+**Status:** Committed `46026d3f`. ai-gateway hub must be redeployed by user.
+
+---
+
+### Fix 2 — PDF Export: `headless` flag + payload size
+
+**Root cause:** `@sparticuz/chromium` v148+ requires `headless: true` (boolean), not the old `chromium.headless` expression. Also, PDF payload was 5–15 MB due to inlined stylesheets.
+
+**Fixes:**
+- `api/export/pdf-native.ts`: `headless: true`, `bodyParser.sizeLimit: '4mb'`
+- `src/lib/nativePdfGenerator.ts`: `collectDocumentStyles()` uses `@import url()` for production linked stylesheets — reduces payload from 5–15 MB to ~50 KB. Local dev still inlines rules.
+
+**Status:** Committed `46026d3f`.
+
+---
+
+### Fix 3 — Tooltip z-index (tips appear behind live preview)
+
+**Root cause:** Radix UI `TooltipContent` was `z-50`. Editor header is `z-editor-header: 50`. Same stacking level — tooltips lost to the editor's stacking context.
+
+**Fix:**
+- `tailwind.config.ts`: added `tooltip: 55` to the custom z-index ladder (`editor-shell:40`, `editor-header:50`, `tooltip:55`, `keyboard-toolbar:60`, `ai-dialog:65`, `toast:70`)
+- `src/components/ui/tooltip.tsx`: `z-50` → `z-tooltip`
+
+**Status:** Committed `8a0373f9`.
+
+---
+
+### Fix 4 — Blue color bug when user edits anything in Customize panel
+
+**Root cause:** `CustomizeSheet` (old bottom-sheet) called `customization ?? getDefaultCustomization()` on open, which injected `accentColor: '#1e40af'`. `generateCustomizationCSS` applies `accentColor` to all `h1`, `h2`, borders — painting the entire resume blue.
+
+**Fix:** `EditorPage.tsx` — `handleCustomize()` now opens `StyleCustomizationPanel` (right-side sheet) instead of `CustomizeSheet`. `StyleCustomizationPanel` uses `const base = (currentResume.customization ?? {})` in its `patch()` — never injects default color unless user explicitly picks one. Removed `CustomizeSheet` lazy import, `handleCustomizeApply` callback, and preloadLazy trigger from EditorPage.
+
+**Files:**
+| File | Change |
+|---|---|
+| `src/pages/EditorPage.tsx` | `handleCustomize` → `setShowStylePanel(true)`; removed lazy CustomizeSheet import + handleCustomizeApply |
+| `src/components/editor/StyleCustomizationPanel.tsx` | Added Colors accordion (preset palettes + custom color picker + clearKeys reset); removed Auto-fit accordion |
+
+**Status:** Committed `8a0373f9` + `cb0dcd6e`.
+
+---
+
+### Fix 5 — Duplicate auto-fit / per-section style overlay
+
+**Root cause 1:** StyleCustomizationPanel had an "Auto-fit pages" accordion duplicating the PageBreakSetupDialog's page management.
+
+**Root cause 2:** `SectionOverlayManager` rendered a `SectionStylePopover` (per-section style sliders) on hover — duplicate of the global Customize panel.
+
+**Fixes:**
+- `StyleCustomizationPanel.tsx`: removed the entire "Auto-fit pages" AccordionItem; `PageBreakSetupDialog` remains as the only page management UI.
+- `SectionOverlayManager.tsx`: removed `SectionStylePopover` import, `stylePopoverFor` state, and `Sliders` icon; hover now shows only the AI (Sparkles) button.
+
+**Status:** Committed `8a0373f9`.
+
+---
+
+### Feature — Default Resume (pin & protect)
+
+**User story:** User can pin one resume as "default" — it stays protected. Editing it shows a warning banner. Tailoring always creates a copy regardless.
+
+**Implementation:**
+| File | Change |
+|---|---|
+| `src/store/settingsStore.ts` | Added `defaultResumeId: string | null` + `setDefaultResumeId` action (persisted) |
+| `src/components/dashboard/ResumeListCard.tsx` | "Set as Default Resume" button in actions sheet; amber "Default" badge in title row when `isDefault === true` |
+| `src/pages/EditorPage.tsx` | Amber banner shown when `currentResumeId === defaultResumeId`; banner says "This is your default resume — edits apply directly. Use Tailor to create a safe copy." |
+
+**Note:** `TailorSheet` already creates a new copy on apply — default resume is automatically protected from tailoring overwrites.
+
+**Status:** Committed `8a0373f9` + `cb0dcd6e`.
+
+---
+
+### Files Changed (this session)
+
+| File | Commits |
+|---|---|
+| `appwrite-hubs/ai-gateway/src/main.js` | `46026d3f` |
+| `api/export/pdf-native.ts` | `46026d3f` |
+| `src/lib/nativePdfGenerator.ts` | `46026d3f` |
+| `tailwind.config.ts` | `8a0373f9` |
+| `src/components/ui/tooltip.tsx` | `8a0373f9` |
+| `src/components/editor/StyleCustomizationPanel.tsx` | `8a0373f9` |
+| `src/components/editor/SectionOverlayManager.tsx` | `8a0373f9` |
+| `src/store/settingsStore.ts` | `8a0373f9` |
+| `src/components/dashboard/ResumeListCard.tsx` | `8a0373f9` |
+| `src/pages/EditorPage.tsx` | `8a0373f9`, `cb0dcd6e` |
+
+### TypeScript Status
+`npx tsc --noEmit` — **zero errors** after all changes.
+
+### Where We Stopped
+- **All code committed and pushed to `main`.** Vercel auto-deploy triggered — frontend changes live on next deploy.
+- **`ai-gateway` hub NOT yet redeployed** — user must run `deploy.bat` (Y:\\ network drive). Delete stale tar before running:
+  ```
+  del appwrite-hubs\ai-gateway.tar.gz
+  node scripts/deploy_hubs.cjs
+  ```
+- **`resume-section-ai` hub NOT yet redeployed** — required for 3-Tier AI Enhancement plan (Tiers 1 + 2). Same process.
+- **Dead files** (now unreferenced, harmless, can be deleted later): `src/components/editor/CustomizeSheet.tsx`, `src/components/editor/SectionStylePopover.tsx`
+- **3-Tier AI Enhancement Plan** — plan file at `Project Atlas/05-Migration to Appwrite/28-Plan-3Tier-AI-Enhancement.md` — NONE of the 3 tiers implemented yet. Next agent picks this up.
+- **RevenueCat prerequisites** — RC Dashboard setup still pending (see RevenueCat session entry below).
+
+---
+
 ## Session Summary — 2026-05-20 (AI Outage Fix + Smart Tech Suggestions + 3-Tier AI Enhancement Plan)
 
 ### Overview
