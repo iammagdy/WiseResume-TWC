@@ -1,15 +1,26 @@
 import type { ContactInfo } from '@/types/resume';
 import type { OnProgressCallback } from '@/hooks/useExportProgress';
-import { PDFDocument } from 'pdf-lib';
-import { normalizeBreakPositions } from '@/lib/exportPagePlan';
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import {
+  buildExportPageSegments,
+  normalizeBreakPositions,
+} from '@/lib/exportPagePlan';
 import { cloneResumeTemplateElement } from '@/lib/exportDomUtils';
 import { getExportContentHeightPx } from '@/lib/exportLayoutMetrics';
+import { tagSvgDimensions, convertSvgsToImages } from '@/lib/html2canvasRetry';
 
 const BRANDING_URL = 'https://resume.thewise.cloud';
+const EXPORT_FOOTER_HEIGHT_PX = 44;
+
+const PDF_FORMATS = {
+  letter: { widthPx: 612, heightPx: 792 },
+  a4:     { widthPx: 595, heightPx: 842 },
+} as const;
 
 /**
- * Thrown when the server PDF pipeline is explicitly unavailable (503).
- * Export callers catch this and show a direct retry/DOCX fallback message.
+ * Kept for backward compatibility — callers that catch PDFServerUnavailableError
+ * still compile without changes. This error is no longer thrown in normal flow
+ * since PDF generation is now fully client-side.
  */
 export class PDFServerUnavailableError extends Error {
   readonly code = 'PDF_SERVER_UNAVAILABLE';
@@ -37,221 +48,152 @@ export interface GenerateCoverLetterNativePDFOptions {
   onProgress?: OnProgressCallback;
 }
 
-// ── Style collection ──────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
-/**
- * Collects CSS from document.styleSheets for the Puppeteer PDF renderer.
- *
- * Strategy depends on environment:
- *
- * PRODUCTION (non-localhost): Linked same-origin stylesheets are emitted as
- * `@import url(...)` references so Puppeteer fetches them directly from the
- * public domain. This keeps the HTML payload tiny (< 100 KB) and stays well
- * within Vercel's serverless function body-size limit (~4.5 MB on Hobby,
- * 10 MB on Pro). Inline <style> blocks and cross-origin sheets (Google Fonts,
- * CDN) are also emitted as @import so Puppeteer loads them.
- *
- * DEVELOPMENT (localhost): All same-origin rules are inlined with absolute
- * URLs because Puppeteer running in Vercel/cloud cannot reach localhost.
- */
-function collectDocumentStyles(): string {
-  const parts: string[] = [];
-  const origin = window.location.origin;
+function base64ToUint8Array(base64: string): Uint8Array {
+  const bin = atob(base64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes;
+}
 
-  // In local dev the Vercel function cannot reach localhost — inline everything.
-  // In production all sheets are publicly accessible — use @import to keep payload small.
-  const isLocalDev =
-    window.location.hostname === 'localhost' ||
-    window.location.hostname === '127.0.0.1' ||
-    window.location.hostname.startsWith('192.168.') ||
-    window.location.hostname.startsWith('10.');
+async function canvasSliceToPng(
+  source: HTMLCanvasElement,
+  srcX: number,
+  srcY: number,
+  srcW: number,
+  srcH: number,
+): Promise<Uint8Array> {
+  const offscreen = document.createElement('canvas');
+  offscreen.width  = srcW;
+  offscreen.height = srcH;
+  const ctx = offscreen.getContext('2d')!;
+  ctx.drawImage(source, srcX, srcY, srcW, srcH, 0, 0, srcW, srcH);
+  const dataUrl = offscreen.toDataURL('image/png');
+  return base64ToUint8Array(dataUrl.split(',')[1]);
+}
 
-  for (const sheet of Array.from(document.styleSheets)) {
-    // Cross-origin sheets (Google Fonts, CDN) — always @import regardless of env
-    const href = sheet.href;
-    const isCrossOrigin = href && !href.startsWith(origin);
-    if (isCrossOrigin) {
-      parts.push(`@import url('${href}');`);
-      continue;
-    }
+async function drawPageFooter(
+  pdfDoc: PDFDocument,
+  page: ReturnType<PDFDocument['addPage']>,
+  pageNum: number,
+  totalPages: number,
+  showPageNumbers: boolean,
+  showBranding: boolean,
+  pageWidthPx: number,
+  footerHeightPx: number,
+): Promise<void> {
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const fontSize = 7.5;
+  const gray = rgb(0.45, 0.45, 0.45);
+  const centerY = footerHeightPx / 2 - fontSize / 2;
 
-    try {
-      const rules = sheet.cssRules;
-      if (!rules) continue;
-
-      if (!isLocalDev && href) {
-        // Production same-origin linked sheet — @import so Puppeteer fetches it
-        // from the public URL (avoids embedding megabytes of Tailwind utilities).
-        parts.push(`@import url('${href}');`);
-      } else {
-        // Local dev OR inline <style> block — embed rules with absolute URLs
-        for (const rule of Array.from(rules)) {
-          let text = rule.cssText;
-          // Make any relative url(...) references absolute so Puppeteer can fetch them
-          text = text.replace(
-            /url\((['"]?)(?!data:|https?:|ftp:|\/\/)(\/?[^'")]+)\1\)/g,
-            (_match, quote, path) => {
-              try {
-                const abs = new URL(path.startsWith('/') ? path : '/' + path, origin).href;
-                return `url(${quote}${abs}${quote})`;
-              } catch {
-                return _match;
-              }
-            },
-          );
-          parts.push(text);
-        }
-      }
-    } catch {
-      // SecurityError on cross-origin (shouldn't reach here after the check above)
-      if (href) parts.push(`@import url('${href}');`);
-    }
+  let text = '';
+  if (showPageNumbers && showBranding) {
+    text = `Page ${pageNum} of ${totalPages}  ·  Made with WiseResume`;
+  } else if (showPageNumbers) {
+    text = `Page ${pageNum} of ${totalPages}`;
+  } else if (showBranding) {
+    text = 'Made with WiseResume';
   }
-  return parts.join('\n');
+
+  if (!text) return;
+
+  const textWidth = font.widthOfTextAtSize(text, fontSize);
+  page.drawText(text, {
+    x: Math.max(0, (pageWidthPx - textWidth) / 2),
+    y: Math.max(0, centerY),
+    size: fontSize,
+    font,
+    color: gray,
+  });
 }
 
-/**
- * Builds a self-contained HTML document from a resume template element.
- * Embeds all document CSS so Puppeteer renders it identically to the browser.
- */
-function buildSelfContainedHTML(
-  templateHTML: string,
-  css: string,
-  pageFormat: 'letter' | 'a4',
-  opts: { onePage?: boolean; atsMode?: boolean } = {},
-): string {
-  // Match the page width Puppeteer will use for the PDF format
-  const pageWidthPx = pageFormat === 'a4' ? 595 : 612;
-
-  const atsModeStyle = opts.atsMode
-    ? `
-      * { color: #000 !important; background: #fff !important;
-          box-shadow: none !important; text-shadow: none !important;
-          border-color: #000 !important; }
-      [class*="bg-"], [class*="text-"] { color: inherit !important; background: inherit !important; }
-    `
-    : '';
-
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=${pageWidthPx}, initial-scale=1.0">
-  <style>
-    *, *::before, *::after {
-      -webkit-print-color-adjust: exact !important;
-      print-color-adjust: exact !important;
-      box-sizing: border-box;
-    }
-    html, body {
-      margin: 0;
-      padding: 0;
-      width: ${pageWidthPx}px;
-      background: #fff;
-    }
-    ${atsModeStyle}
-    ${css}
-  </style>
-</head>
-<body>
-  <div style="width:${pageWidthPx}px; overflow:hidden;">
-    ${templateHTML}
-  </div>
-  <a
-    class="wr-export-watermark-source"
-    href="${BRANDING_URL}"
-    style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;"
-  >Wise Resume</a>
-</body>
-</html>`;
-}
-
-// ── API call ──────────────────────────────────────────────────────────────────
+// ── Core capture ──────────────────────────────────────────────────────────────
 
 /**
- * Posts the serialised HTML to the Express server's Puppeteer PDF endpoint.
- * Uses VITE_API_URL in production (set it to the server's public URL).
- * Falls back to a relative URL in dev (the Vite proxy forwards /api/* → :5001).
+ * Renders the resume template element into an off-screen clone, captures it
+ * via html2canvas at 2× resolution, and returns the canvas + measured height.
+ * Using an isolated clone avoids mutating live editor styles.
  */
-async function callPdfServer(
-  payload: {
-    html: string;
-    pageFormat: string;
-    onePage?: boolean;
-    atsMode?: boolean;
-    showPageNumbers?: boolean;
-    showBranding?: boolean;
-    customBreakPositions?: number[];
-    totalContentHeightPx?: number;
-  },
+async function captureTemplateCanvas(
+  templateEl: HTMLElement,
+  pageWidthPx: number,
+  atsMode: boolean,
   onProgress?: OnProgressCallback,
-  attempt = 0,
-): Promise<Blob> {
-  const apiBase = (import.meta.env.VITE_API_URL as string | undefined) ?? '';
-  const url = `${apiBase}/api/export/pdf-native`;
+): Promise<{ canvas: HTMLCanvasElement; contentHeightPx: number }> {
+  const { captureWithRetry } = await import('@/lib/html2canvasRetry');
 
-  onProgress?.('finalizing', 70);
+  // Build an off-screen container at exact PDF width so layout is correct.
+  const container = document.createElement('div');
+  container.style.cssText = [
+    'position:fixed',
+    'left:-9999px',
+    'top:0',
+    `width:${pageWidthPx}px`,
+    'visibility:hidden',
+    'pointer-events:none',
+    'z-index:-1',
+  ].join(';');
+  document.body.appendChild(container);
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30_000);
+  const clone = cloneResumeTemplateElement(templateEl, pageWidthPx);
+  container.appendChild(clone);
+  // Force layout reflow so getBoundingClientRect works inside the clone.
+  clone.offsetHeight; // eslint-disable-line @typescript-eslint/no-unused-expressions
 
-  let response: Response;
   try {
-    response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-      signal: controller.signal,
-    });
-  } catch {
-    clearTimeout(timeoutId);
-    throw new PDFServerUnavailableError();
-  }
-  clearTimeout(timeoutId);
+    const contentHeightPx = getExportContentHeightPx(clone);
 
-  if (response.status === 503) {
-    throw new PDFServerUnavailableError();
-  }
+    onProgress?.('capturing', 30);
 
-  if (!response.ok) {
-    // Non-JSON error response → static host / proxy returning HTML, not our PDF server.
-    // Treat any 4xx/5xx that isn't application/json as "server not deployed".
-    const errContentType = response.headers.get('content-type') ?? '';
-    if (!errContentType.includes('application/json')) {
-      throw new PDFServerUnavailableError();
-    }
-    let msg = `Server error ${response.status}`;
+    // Tag live SVG dimensions before html2canvas clones the DOM.
+    const cleanupSvgTags = tagSvgDimensions(clone);
+    let canvas: HTMLCanvasElement;
     try {
-      const j = await response.json();
-      if (j.message) msg = j.message;
-    } catch { /* ignore */ }
-    // Retry once for transient server errors (5xx only, not 4xx)
-    if (attempt === 0 && response.status >= 500) {
-      await new Promise(r => setTimeout(r, 3000));
-      return callPdfServer(payload, onProgress, 1);
+      canvas = await captureWithRetry(
+        clone,
+        {
+          scale: 2,
+          width: pageWidthPx,
+          height: contentHeightPx,
+          windowWidth: pageWidthPx,
+          backgroundColor: '#ffffff',
+          onclone: (doc: Document) => {
+            convertSvgsToImages(doc);
+            if (atsMode) {
+              const style = doc.createElement('style');
+              style.textContent =
+                '* { color:#000!important; background:#fff!important;' +
+                ' box-shadow:none!important; text-shadow:none!important;' +
+                ' border-color:#000!important; }';
+              doc.head.appendChild(style);
+            }
+          },
+        },
+        3,
+      );
+    } finally {
+      cleanupSvgTags();
     }
-    throw new Error(msg);
-  }
 
-  // Guard: if the server returned HTML instead of a PDF (e.g. SPA fallback
-  // from Hostinger when the Express server is not deployed), treat it as
-  // unavailable rather than downloading an HTML file named .pdf
-  const contentType = response.headers.get('content-type') ?? '';
-  if (!contentType.includes('application/pdf')) {
-    throw new PDFServerUnavailableError(
-      'PDF server is not available in this environment. Please try again later or use DOCX export.',
-    );
+    return { canvas, contentHeightPx };
+  } finally {
+    document.body.removeChild(container);
   }
-
-  onProgress?.('downloading', 90);
-  return response.blob();
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
 /**
- * Generate a resume PDF via Puppeteer (server-side) from a live DOM element.
- * Produces a real PDF with selectable text, full colour, and hyperlinks.
+ * Generate a resume PDF entirely in the browser using html2canvas + pdf-lib.
+ *
+ * Renders the live resume template into an off-screen DOM clone, captures it
+ * at 2× resolution via html2canvas, then slices the canvas into page-height
+ * segments and assembles them into a multi-page PDF via pdf-lib.
+ *
+ * This produces an image-based PDF (no selectable text) but works universally
+ * without any server dependency. Quality is excellent at 2× capture scale.
  */
 export async function generateNativePDF(
   templateEl: HTMLElement,
@@ -269,29 +211,96 @@ export async function generateNativePDF(
 
   onProgress?.('preparing', 5);
 
-  // Collect all page CSS (inline + linked stylesheets)
-  const css = collectDocumentStyles();
+  const dims = pageFormat === 'a4' ? PDF_FORMATS.a4 : PDF_FORMATS.letter;
+  const { widthPx, heightPx } = dims;
+  const footerHeight = (showPageNumbers || showBranding) ? EXPORT_FOOTER_HEIGHT_PX : 0;
+  const printableHeight = heightPx - footerHeight;
 
-  onProgress?.('capturing', 20);
-
-  // Serialise without editor-only overlays (page-break guides, section controls)
-  const templateHTML = cloneResumeTemplateElement(templateEl).outerHTML;
-  const html = buildSelfContainedHTML(templateHTML, css, pageFormat, { onePage, atsMode });
-  const totalContentHeightPx = getExportContentHeightPx(templateEl);
-  const normalizedBreaks = normalizeBreakPositions(customBreakPositions, totalContentHeightPx);
-
-  onProgress?.('finalizing', 50);
-
-  return callPdfServer({
-    html,
-    pageFormat,
-    onePage,
+  // ── Capture ──────────────────────────────────────────────────────────────
+  const { canvas, contentHeightPx } = await captureTemplateCanvas(
+    templateEl,
+    widthPx,
     atsMode,
-    showPageNumbers,
-    showBranding,
-    totalContentHeightPx,
-    customBreakPositions: normalizedBreaks,
-  }, onProgress);
+    onProgress,
+  );
+
+  onProgress?.('finalizing', 60);
+
+  // canvas is at 2× logical scale
+  const canvasScale = canvas.width / widthPx; // typically 2
+
+  const pdfDoc = await PDFDocument.create();
+
+  // ── One-page mode ─────────────────────────────────────────────────────────
+  if (onePage) {
+    const page = pdfDoc.addPage([widthPx, heightPx]);
+    const pngBytes = await canvasSliceToPng(canvas, 0, 0, canvas.width, canvas.height);
+    const pngImage = await pdfDoc.embedPng(pngBytes);
+
+    // Scale to fit the printable area, preserving aspect ratio
+    const scaleX = widthPx / canvas.width;
+    const scaleY = printableHeight / canvas.height;
+    const scale = Math.min(scaleX, scaleY);
+    const drawW = canvas.width  * scale;
+    const drawH = canvas.height * scale;
+
+    page.drawImage(pngImage, {
+      x: (widthPx - drawW) / 2,
+      y: footerHeight + (printableHeight - drawH) / 2,
+      width:  drawW,
+      height: drawH,
+    });
+
+    if (footerHeight > 0) {
+      await drawPageFooter(pdfDoc, page, 1, 1, showPageNumbers, showBranding, widthPx, footerHeight);
+    }
+  } else {
+    // ── Multi-page mode ───────────────────────────────────────────────────
+    const normalizedBreaks = normalizeBreakPositions(customBreakPositions, contentHeightPx);
+    const segments = buildExportPageSegments({
+      totalContentHeightPx: contentHeightPx,
+      pageHeightPx: printableHeight,
+      customBreakPositions: normalizedBreaks,
+    });
+
+    for (const segment of segments) {
+      const srcY = Math.round(segment.startPx  * canvasScale);
+      const srcH = Math.round(segment.heightPx * canvasScale);
+      const srcW = canvas.width;
+
+      const pngBytes = await canvasSliceToPng(canvas, 0, srcY, srcW, Math.max(1, srcH));
+      const pngImage = await pdfDoc.embedPng(pngBytes);
+
+      const pageH = segment.heightPx + footerHeight;
+      const page  = pdfDoc.addPage([widthPx, pageH]);
+
+      // pdf-lib origin is bottom-left → content sits above the footer
+      page.drawImage(pngImage, {
+        x: 0,
+        y: footerHeight,
+        width:  widthPx,
+        height: segment.heightPx,
+      });
+
+      if (footerHeight > 0) {
+        await drawPageFooter(
+          pdfDoc,
+          page,
+          segment.index + 1,
+          segments.length,
+          showPageNumbers,
+          showBranding,
+          widthPx,
+          footerHeight,
+        );
+      }
+    }
+  }
+
+  onProgress?.('downloading', 95);
+
+  const pdfBytes = await pdfDoc.save();
+  return new Blob([pdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' });
 }
 
 /**
@@ -337,3 +346,11 @@ export async function mergePDFBlobs(blobA: Blob, blobB: Blob): Promise<Blob> {
   const mergedBytes = await merged.save();
   return new Blob([mergedBytes.buffer as ArrayBuffer], { type: 'application/pdf' });
 }
+
+// ── Legacy / unused exports kept for import compatibility ─────────────────────
+
+/**
+ * @deprecated No longer used — PDF is now generated client-side.
+ * Kept so any lingering imports don't break at compile time.
+ */
+export const _legacyBuildSelfContainedHTML = undefined;
